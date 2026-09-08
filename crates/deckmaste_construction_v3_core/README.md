@@ -52,6 +52,9 @@ The syntax tree is validated into an IR before any projection is emitted:
 - `require field.feature = Value` constrains a declared feature;
   `agree left.feature = right.feature` equates values of one domain;
   `export feature = field.feature` makes that value available to parents.
+  `export feature = Value` supplies a typed constant, such as plural Number
+  derived by additive Coordination. Constants use the same finite registers
+  in chart admission and checked construction as copied features.
   Optional/repeated fields have no singular feature value. Constrain their
   element Construction instead. Referencing a feature absent from a child's
   Category interface, omitting an export, crossing domains or imposing
@@ -63,6 +66,25 @@ model's distinct enums. A declaration can add a finite distribution feature:
 `feature extraction { Open, Closed }` reads the correspondingly named lexical
 property. Undeclared or absent values never act as wildcards. Agreement keeps
 whole lexical feature bundles correlated.
+
+Finite feature tables derive a parent feature from correlated child features:
+
+```text
+table common_case(case, case) -> case {
+    (Nominative, Nominative) => Nominative,
+    (Accusative, Accusative) => Accusative,
+}
+```
+
+Use `export case = common_case(left.case, right.case);` in a Construction
+whose children export Case. Each table declares its input and output domains;
+the compiler rejects wrong arities, wrong domains and duplicate input tuples.
+A missing tuple rejects the completed candidate before it becomes an admitted
+Reading. Constant, copied and table-derived exports all satisfy the same
+exactly-once Category interface requirement. Tables read only declared feature
+values, never lexical identities, spellings or ASTs. Their input registers
+survive until completion, preserving correlations and future admissibility;
+both parsing and checked construction evaluate the same generated table.
 
 `frame Name = "<RON Frame>";` declares a complete data-only lexical frame
 signature. It preserves frame kind, ordered items, grammatical relations,

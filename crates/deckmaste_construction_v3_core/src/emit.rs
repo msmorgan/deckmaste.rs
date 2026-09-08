@@ -27,7 +27,7 @@ pub(crate) fn emit(ir: &Ir) -> syn::Result<TokenStream> {
         #visibility mod #module {
             #runtime
             const FEATURE_COUNT: usize = #count;
-            #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
             pub enum Category { #(#categories),* }
             impl Category {
                 fn is_public(self) -> bool { matches!(self, #(Self::#public)|*) }
@@ -70,10 +70,19 @@ fn grammar(ir: &Ir) -> TokenStream {
             .release
             .iter()
             .map(|registers| quote!(vec![#(#registers),*]));
+        let table_exports = rule.table_exports.iter().map(|export| {
+            let feature = export.feature;
+            let registers = &export.registers;
+            let rows = ir.tables[export.table].rows.iter().map(|(inputs, output)| {
+                quote!((vec![#(#inputs),*], #output))
+            });
+            quote!(TableExport { feature: #feature, registers: vec![#(#registers),*], rows: vec![#(#rows),*] })
+        });
         quote!(Rule {
             checks: vec![#(#checks),*],
             initial: vec![#(#initial),*],
             exports: vec![#(#exports),*],
+            table_exports: vec![#(#table_exports),*],
             release: vec![#(#release),*]
         })
     });
@@ -262,7 +271,7 @@ fn ast(ir: &Ir) -> TokenStream {
         words.push(quote!(#pattern => match form { #(#word_forms,)* _ => Err(Error::Invalid(#owner, "surface alternative")) }));
     }
     quote! {
-        #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+        #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
         pub enum Reading { #(#variants),* }
         impl Reading {
             #[must_use]

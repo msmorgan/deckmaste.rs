@@ -100,10 +100,17 @@ impl ::std::fmt::Display for Error {
 }
 impl ::std::error::Error for Error {}
 
+struct TableExport {
+    feature: usize,
+    registers: Vec<usize>,
+    rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
+}
+
 struct Rule {
     checks: Vec<Vec<(usize, usize)>>,
     initial: Vec<Option<FeatureValue>>,
     exports: Vec<(usize, usize)>,
+    table_exports: Vec<TableExport>,
     release: Vec<Vec<usize>>,
 }
 
@@ -134,6 +141,14 @@ impl Rule {
         let mut summary = Summary::default();
         for &(feature, register) in &self.exports {
             summary.values[feature] = Some(state.get(register)?.as_ref()?.clone());
+        }
+        for export in &self.table_exports {
+            let (_, output) = export.rows.iter().find(|(inputs, _)| {
+                export.registers.iter().zip(inputs).all(|(&register, value)| {
+                    state.get(register).and_then(Option::as_ref) == Some(value)
+                })
+            })?;
+            summary.values[export.feature] = Some(output.clone());
         }
         Some(summary)
     }

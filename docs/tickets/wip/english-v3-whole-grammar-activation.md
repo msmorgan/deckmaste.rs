@@ -48,3 +48,36 @@ stopped being covered are listed in that ticket's landing record and are
 this activation's to re-cover: the italic head is one construction over an
 ability word [CR#207.2c] or a flavor word [CR#207.2d], and the flavor word's
 label is the run itself, analysed by `deckmaste_lexical`.
+
+## Implementation progress
+
+The activation remains incomplete. The existing production candidate is still
+the bounded `english_v3::slice`; no supported-corpus grammar baseline has been
+claimed or measured.
+
+Compiler prerequisite, change `yoqwmwru` (2026-09-08): declarations can export
+typed constants and apply finite feature tables to correlated child features.
+These supply derived agreement and dependency summaries without handwritten
+admission hooks. Missing table rows reject during chart completion and checked
+construction, before any Reading is exposed. Table inputs remain in the finite
+register state until completion. The compiler rejects duplicate tuples, wrong
+domains/arity, inaccessible features and conflicting Category exports.
+
+Validation: `cargo xtask gate --changed --clippy --run` derived
+`cargo test -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_english_v3`
+and the same package closure for strict all-target clippy; both passed.
+The 51 tests include independent constructed roundtrips, all nine mixed-person
+pairs, agreement negatives and missing-row rejection before materialization.
+Assurance delta so far: 5 added, 0 restored, 0 re-spelled, 0 ignored, 0 removed.
+These are compiler witnesses, not whole-grammar family acceptance evidence.
+
+Remaining work retains this ticket's entire scope: translate the connected
+source map and corrected Lean judgments, declare the lexical distribution data
+needed by those Productions, preserve and exercise the full obligation register,
+add the actual v3 supported-corpus command, and establish the complete baseline
+and cause-grouped report before review and integration. In particular, the
+current lexical inventory has no determiner Countability licensing, and most
+determiners have no Number bundle; absence cannot become a grammar wildcard.
+The article's two spelling variants also need an applicable onset constraint.
+These source/interface findings must be resolved or explicitly measured as
+residuals; permissive admission does not discharge them.

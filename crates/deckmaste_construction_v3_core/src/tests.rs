@@ -61,6 +61,74 @@ fn rejects_unreachable_and_ill_typed_feature_dependencies() {
 }
 
 #[test]
+fn constant_exports_are_typed_and_cannot_duplicate_or_escape_the_interface() {
+    for (input, expected) in [
+        (
+            quote! { mod bad { category A(number); construction Wrong: A { form []; export number = First; } } },
+            "not a value of feature number",
+        ),
+        (
+            quote! { mod bad { category A(); construction Hidden: A { form []; export number = Singular; } } },
+            "each declared Category feature exactly once",
+        ),
+        (
+            quote! { mod bad { category A(number); construction Twice: A { form [head: lexical(Noun)]; export number = head.number; export number = Plural; } } },
+            "each declared Category feature exactly once",
+        ),
+        (
+            quote! { mod bad { category A(number); construction Twice: A { form []; export number = Singular; export number = Plural; } } },
+            "each declared Category feature exactly once",
+        ),
+    ] {
+        rejects(input, expected);
+    }
+}
+
+#[test]
+fn feature_tables_reject_untyped_ambiguous_and_inaccessible_calls() {
+    for (input, expected) in [
+        (
+            quote! { mod bad { category A(); table join(number) -> person { (Singular) => Singular } construction A: A { form []; } } },
+            "not a value of feature person",
+        ),
+        (
+            quote! { mod bad { category A(); table join(number) -> person { (First) => First } construction A: A { form []; } } },
+            "not a value of feature number",
+        ),
+        (
+            quote! { mod bad { category A(); table join(number) -> person { () => First } construction A: A { form []; } } },
+            "row has wrong arity",
+        ),
+        (
+            quote! { mod bad { category A(); table join(number) -> person { (Singular) => First, (Singular) => Second } construction A: A { form []; } } },
+            "duplicate feature table input tuple",
+        ),
+        (
+            quote! { mod bad { category A(number); construction A: A { form [head: lexical(Noun)]; export number = unknown(head.number); } } },
+            "unknown feature table",
+        ),
+        (
+            quote! { mod bad { category A(person); table join(number) -> person { (Singular) => Third } construction A: A { form [head: lexical(Noun)]; export person = join(head.person); } } },
+            "argument has wrong domain",
+        ),
+        (
+            quote! { mod bad { category A(person); table join(number) -> person { (Singular) => Third } construction A: A { form [head: lexical(Noun)]; export person = join(head.number, head.number); } } },
+            "call has wrong arity",
+        ),
+        (
+            quote! { mod bad { category A(person); category B(); table join(number) -> person { (Singular) => Third } construction A: A { form [head: B]; export person = join(head.number); } construction B: B { form []; } } },
+            "cannot reach head.number",
+        ),
+        (
+            quote! { mod bad { category A(number); table join(number) -> person { (Singular) => Third } construction A: A { form [head: lexical(Noun)]; export number = join(head.number); } } },
+            "same domain",
+        ),
+    ] {
+        rejects(input, expected);
+    }
+}
+
+#[test]
 fn rejects_zero_consumption_cycles_including_normalized_repetitions() {
     rejects(
         quote! { mod bad { category A(); construction Cycle: A { form [child: A]; } construction Empty: A { form []; } } },

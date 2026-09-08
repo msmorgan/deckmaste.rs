@@ -14,6 +14,7 @@ pub(crate) struct Declaration {
     pub categories: Vec<Category>,
     pub features: Vec<Feature>,
     pub frames: Vec<(Ident, LitStr)>,
+    pub tables: Vec<FeatureTable>,
     pub constructions: Vec<Construction>,
 }
 
@@ -27,6 +28,13 @@ pub(crate) struct Feature {
     pub values: Vec<Ident>,
 }
 
+pub(crate) struct FeatureTable {
+    pub name: Ident,
+    pub inputs: Vec<Ident>,
+    pub output: Ident,
+    pub rows: Vec<(Vec<Ident>, Ident)>,
+}
+
 pub(crate) struct Construction {
     pub name: Ident,
     pub category: Ident,
@@ -34,7 +42,7 @@ pub(crate) struct Construction {
     pub equations: Vec<Equation>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FieldType {
     Lexical(String),
     One(String),
@@ -55,6 +63,8 @@ pub(crate) struct Reference {
 
 pub(crate) enum Equation {
     Export(Ident, Reference),
+    ExportConstant(Ident, Ident),
+    ExportTable(Ident, Ident, Vec<Reference>),
     Agree(Reference, Reference),
     Require(Reference, Ident),
 }
@@ -87,6 +97,7 @@ impl Parse for Declaration {
             categories: vec![],
             features: vec![],
             frames: vec![],
+            tables: vec![],
             constructions: vec![],
         };
         while !body.is_empty() {
@@ -115,6 +126,33 @@ impl Parse for Declaration {
                     result.frames.push((name, body.parse()?));
                     body.parse::<Token![;]>()?;
                 }
+                "table" => {
+                    let inputs;
+                    parenthesized!(inputs in body);
+                    let inputs = names(&inputs)?;
+                    body.parse::<Token![->]>()?;
+                    let output = body.parse()?;
+                    let rows;
+                    braced!(rows in body);
+                    let mut values = vec![];
+                    while !rows.is_empty() {
+                        let arguments;
+                        parenthesized!(arguments in rows);
+                        let arguments = names(&arguments)?;
+                        rows.parse::<Token![=>]>()?;
+                        values.push((arguments, rows.parse()?));
+                        if rows.is_empty() {
+                            break;
+                        }
+                        rows.parse::<Token![,]>()?;
+                    }
+                    result.tables.push(FeatureTable {
+                        name,
+                        inputs,
+                        output,
+                        rows: values,
+                    });
+                }
                 "construction" => {
                     body.parse::<Token![:]>()?;
                     let category = body.parse()?;
@@ -138,9 +176,23 @@ impl Parse for Declaration {
                             "export" => {
                                 let feature = contents.parse()?;
                                 contents.parse::<Token![=]>()?;
-                                construction
-                                    .equations
-                                    .push(Equation::Export(feature, reference(&contents)?));
+                                let equation = if contents.peek2(Token![.]) {
+                                    Equation::Export(feature, reference(&contents)?)
+                                } else if contents.peek2(syn::token::Paren) {
+                                    let table = contents.parse()?;
+                                    let arguments;
+                                    parenthesized!(arguments in contents);
+                                    let arguments =
+                                        arguments.parse_terminated(reference, Token![,])?;
+                                    Equation::ExportTable(
+                                        feature,
+                                        table,
+                                        arguments.into_iter().collect(),
+                                    )
+                                } else {
+                                    Equation::ExportConstant(feature, contents.parse()?)
+                                };
+                                construction.equations.push(equation);
                             }
                             "agree" => {
                                 let left = reference(&contents)?;
@@ -173,7 +225,7 @@ impl Parse for Declaration {
                 _ => {
                     return Err(syn::Error::new(
                         keyword.span(),
-                        "expected category, feature, frame or construction",
+                        "expected category, feature, frame, table or construction",
                     ));
                 }
             }

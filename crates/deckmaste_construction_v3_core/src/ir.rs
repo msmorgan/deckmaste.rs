@@ -19,6 +19,7 @@ pub(crate) struct Ir {
     pub module: Ident,
     pub features: Vec<Domain>,
     pub frames: Vec<(Ident, Frame)>,
+    pub tables: Vec<FeatureTable>,
     pub categories: Vec<Ident>,
     pub public_categories: usize,
     pub constructors: Vec<Constructor>,
@@ -36,6 +37,20 @@ pub(crate) enum DomainKind {
     Countability,
     Frame,
     Custom,
+}
+
+pub(crate) struct FeatureTable {
+    pub name: Ident,
+    pub inputs: Vec<usize>,
+    pub output: usize,
+    pub rows: Vec<(Vec<TokenStream>, TokenStream)>,
+}
+
+#[derive(Clone)]
+pub(crate) struct TableExport {
+    pub feature: usize,
+    pub table: usize,
+    pub registers: Vec<usize>,
 }
 
 pub(crate) struct Constructor {
@@ -62,6 +77,7 @@ pub(crate) struct Rule {
     pub checks: Vec<Vec<(usize, usize)>>,
     pub initial: Vec<Option<TokenStream>>,
     pub exports: Vec<(usize, usize)>,
+    pub table_exports: Vec<TableExport>,
     pub release: Vec<Vec<usize>>,
     pub build: Build,
 }
@@ -265,14 +281,63 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         module: declaration.module,
         features,
         frames,
+        tables: vec![],
         categories,
         public_categories,
         constructors,
         rules: vec![],
     };
+    validate_tables(&mut ir, declaration.tables)?;
     normalize(&mut ir, &declaration.constructions, &interfaces)?;
     check_recursion(&ir)?;
     Ok(ir)
+}
+
+fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn::Result<()> {
+    let mut table_names = BTreeSet::new();
+    for table in tables {
+        reserve(&mut table_names, &table.name)?;
+        if table.inputs.is_empty() || table.rows.is_empty() {
+            return Err(error(
+                &table.name,
+                "a feature table requires inputs and rows",
+            ));
+        }
+        let inputs: Vec<_> = table
+            .inputs
+            .iter()
+            .map(|name| feature_index(&ir.features, name))
+            .collect::<syn::Result<_>>()?;
+        let output = feature_index(&ir.features, &table.output)?;
+        let mut seen = BTreeSet::new();
+        let mut rows = vec![];
+        for (arguments, result) in table.rows {
+            if arguments.len() != inputs.len() {
+                return Err(error(&table.name, "feature table row has wrong arity"));
+            }
+            if !seen.insert(
+                arguments
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>(),
+            ) {
+                return Err(error(&table.name, "duplicate feature table input tuple"));
+            }
+            let arguments = inputs
+                .iter()
+                .zip(arguments.iter())
+                .map(|(&domain, name)| value(ir, domain, name))
+                .collect::<syn::Result<_>>()?;
+            rows.push((arguments, value(ir, output, &result)?));
+        }
+        ir.tables.push(FeatureTable {
+            name: table.name,
+            inputs,
+            output,
+            rows,
+        });
+    }
+    Ok(())
 }
 
 fn normalize(
@@ -322,6 +387,10 @@ fn normalize(
             let mut release = vec![vec![]; symbols.len()];
             for register in 0..plan.initial.len() {
                 if !plan.exports.iter().any(|(_, r)| *r == register)
+                    && !plan
+                        .table_exports
+                        .iter()
+                        .any(|export| export.registers.contains(&register))
                     && let Some(last) = checks
                         .iter()
                         .rposition(|c| c.iter().any(|(_, r)| *r == register))
@@ -336,6 +405,7 @@ fn normalize(
                 checks,
                 initial: plan.initial.clone(),
                 exports: plan.exports.clone(),
+                table_exports: plan.table_exports.clone(),
                 release,
                 build: Build::Construction {
                     constructor: index,
@@ -420,6 +490,52 @@ struct EquationPlan {
     references: BTreeMap<(usize, usize), usize>,
     initial: Vec<Option<TokenStream>>,
     exports: Vec<(usize, usize)>,
+    table_exports: Vec<TableExport>,
+}
+
+fn resolve_reference(
+    ir: &Ir,
+    construction: &Constructor,
+    interfaces: &[BTreeSet<usize>],
+    reference: &Reference,
+) -> syn::Result<(usize, usize)> {
+    let field = construction
+        .fields
+        .iter()
+        .position(|(name, _)| name == &reference.field)
+        .ok_or_else(|| {
+            error(
+                &construction.name,
+                &format!("admission cannot reach field {}", reference.field),
+            )
+        })?;
+    let feature = feature_index(&ir.features, &reference.feature)?;
+    match &construction.fields[field].1 {
+        FieldType::Lexical(_) => {}
+        FieldType::One(category) => {
+            let category = ir
+                .categories
+                .iter()
+                .position(|name| name == category)
+                .unwrap();
+            if !interfaces[category].contains(&feature) {
+                return Err(error(
+                    &construction.name,
+                    &format!(
+                        "admission cannot reach {}.{} through its Category interface",
+                        reference.field, reference.feature
+                    ),
+                ));
+            }
+        }
+        _ => {
+            return Err(error(
+                &construction.name,
+                "optional/repeated fields have no single feature value; constrain their element Construction",
+            ));
+        }
+    }
+    Ok((field, feature))
 }
 
 fn equations(
@@ -429,45 +545,8 @@ fn equations(
     equations: &[Equation],
 ) -> syn::Result<EquationPlan> {
     let construction = &ir.constructors[constructor];
-    let resolve = |reference: &Reference| -> syn::Result<(usize, usize)> {
-        let field = construction
-            .fields
-            .iter()
-            .position(|(name, _)| name == &reference.field)
-            .ok_or_else(|| {
-                error(
-                    &construction.name,
-                    &format!("admission cannot reach field {}", reference.field),
-                )
-            })?;
-        let feature = feature_index(&ir.features, &reference.feature)?;
-        match &construction.fields[field].1 {
-            FieldType::Lexical(_) => {}
-            FieldType::One(category) => {
-                let category = ir
-                    .categories
-                    .iter()
-                    .position(|name| name == category)
-                    .unwrap();
-                if !interfaces[category].contains(&feature) {
-                    return Err(error(
-                        &construction.name,
-                        &format!(
-                            "admission cannot reach {}.{} through its Category interface",
-                            reference.field, reference.feature
-                        ),
-                    ));
-                }
-            }
-            _ => {
-                return Err(error(
-                    &construction.name,
-                    "optional/repeated fields have no single feature value; constrain their element Construction",
-                ));
-            }
-        }
-        Ok((field, feature))
-    };
+    let resolve =
+        |reference: &Reference| resolve_reference(ir, construction, interfaces, reference);
     let mut refs = BTreeSet::new();
     for equation in equations {
         match equation {
@@ -477,6 +556,12 @@ fn equations(
             Equation::Agree(l, r) => {
                 refs.insert(resolve(l)?);
                 refs.insert(resolve(r)?);
+            }
+            Equation::ExportConstant(_, _) => {}
+            Equation::ExportTable(_, _, arguments) => {
+                for argument in arguments {
+                    refs.insert(resolve(argument)?);
+                }
             }
         }
     }
@@ -511,6 +596,7 @@ fn equations(
         references: refs.iter().copied().zip(groups.iter().copied()).collect(),
         initial: vec![None; refs.len()],
         exports: vec![],
+        table_exports: vec![],
     };
     let mut exported = BTreeSet::new();
     for equation in equations {
@@ -544,6 +630,55 @@ fn equations(
                 }
                 plan.initial[register] = Some(constant);
             }
+            Equation::ExportConstant(name, constant) => {
+                let feature = feature_index(&ir.features, name)?;
+                if !interfaces[construction.category].contains(&feature)
+                    || !exported.insert(feature)
+                {
+                    return Err(error(
+                        &construction.name,
+                        "export must supply each declared Category feature exactly once from the same domain",
+                    ));
+                }
+                let constant = value(ir, feature, constant)?;
+                let register = plan.initial.len();
+                plan.initial.push(Some(constant));
+                plan.exports.push((feature, register));
+            }
+            Equation::ExportTable(name, table_name, arguments) => {
+                let feature = feature_index(&ir.features, name)?;
+                let table = ir
+                    .tables
+                    .iter()
+                    .position(|table| table.name == *table_name)
+                    .ok_or_else(|| error(table_name, "unknown feature table"))?;
+                let declaration = &ir.tables[table];
+                if declaration.output != feature
+                    || !interfaces[construction.category].contains(&feature)
+                    || !exported.insert(feature)
+                {
+                    return Err(error(
+                        &construction.name,
+                        "export must supply each declared Category feature exactly once from the same domain",
+                    ));
+                }
+                if arguments.len() != declaration.inputs.len() {
+                    return Err(error(table_name, "feature table call has wrong arity"));
+                }
+                let mut registers = vec![];
+                for (argument, domain) in arguments.iter().zip(&declaration.inputs) {
+                    let source = position(argument)?;
+                    if refs[source].1 != *domain {
+                        return Err(error(table_name, "feature table argument has wrong domain"));
+                    }
+                    registers.push(groups[source]);
+                }
+                plan.table_exports.push(TableExport {
+                    feature,
+                    table,
+                    registers,
+                });
+            }
             Equation::Agree(_, _) => {}
         }
     }
@@ -564,6 +699,7 @@ fn helper(ir: &mut Ir, category: usize, symbols: Vec<Symbol>, build: Build) {
         checks: vec![vec![]; size],
         initial: vec![],
         exports: vec![],
+        table_exports: vec![],
         release: vec![vec![]; size],
         build,
     });
