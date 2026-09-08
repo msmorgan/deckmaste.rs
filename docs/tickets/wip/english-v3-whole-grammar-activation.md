@@ -12,8 +12,8 @@ their interactions exist.
 Every planned family must have real general Productions and constraints:
 documents; sentences and clauses; predicates, lexical frames and agreement;
 nominals, determiners and adjectives; subordination; prepositions; relatives
-and extraction; coordination, sharing and scope; measures; contextual
-recoverability and ellipsis; Type Lines; and Target Verb/Targeting Marker
+and extraction; coordination, sharing and scope; measures; anaphoric forms and
+locally licensed ellipsis; Type Lines; and Target Verb/Targeting Marker
 homography. Each family must interact with at least one other family. Missing
 lexemes or uncommon variants may remain explicit residuals; permissive
 catch-alls, unused declarations and opaque source leaves do not count as
@@ -94,3 +94,24 @@ The expanded derived test/clippy gate passed across
 1 preexisting ignored, strict all-target clippy clean. Cumulative assurance
 delta: 6 added tests, none removed or weakened. The user's follow-up request
 for typed library errors is recorded in `library-typed-errors`.
+
+Ellipsis scope correction (2026-09-08): the user identified earlier-sentence
+antecedent availability as discourse interpretation, outside the English
+parser. Activation recognizes the elliptical construction, preserves its local
+form/voice constraints, and leaves the antecedent unresolved. No earlier-VP
+collection or paragraph context fold is required for acceptance. The Lean
+workbench now reflects that boundary, while keeping extraction gap closure
+and an overt predicate head for imperatives. This corrects the scope of the
+ellipsis family; it does not remove the family or its interaction obligations.
+
+Validation of this correction, change `rumowyrp`: `english/scripts/axioms`
+passed the complete 46-job workbench build with warnings treated as errors and
+checked 2,631 compiled theorems with zero disallowed axiom uses. The source
+census is 575 theorems in 43 modules. Ten witness statements were replaced for
+the corrected scope, three witnesses added, none ignored; the retired context
+helper and all replaced statements are accounted for in `english/DECLARATIONS.md`.
+Existing exact sentence/parenthetical realization witnesses still pass, and
+both existing imperative admission witnesses prove the added local condition.
+`jj fix -s rumowyrp` made no formatting changes. Rust and lexical inputs are
+unchanged in this checkpoint, so their earlier gate remains the applicable
+result; no new corpus or whole-grammar acceptance claim is made.

@@ -59,12 +59,28 @@ mutual
     | first :: rest => gapOccurrences first + childGaps rest
 end
 
+mutual
+  /-- An imperative has an overt predicate head, including an auxiliary whose VP is omitted. -/
+  def overtPredicateHead : Reading L → Bool
+    | .node (.verb _ _ _ _) _ | .node (.auxiliary _ _ _ _ _ _) _ => true
+    | .node (.adjunct _ _ _) [head, _] => overtPredicateHead head
+    | .node (.coordinate _ _ _) [left, right] =>
+        overtPredicateHead left && overtPredicateHead right
+    | .node (.serialCoordinate _ _) (first :: rest) =>
+        overtPredicateHead first && overtPredicateHeads rest
+    | _ => false
+  def overtPredicateHeads : List (Reading L) → Bool
+    | [] => true
+    | first :: rest => overtPredicateHead first && overtPredicateHeads rest
+end
+
 /-- Additional structural constraints on shared gaps and nonfinite complements. -/
 def LocalGrammar : Reading L → Prop
   | .node (.rightNodeRaising result _) [body, _] =>
       coordinable result = true ∧ 2 ≤ gapOccurrences body
   | .node (.auxiliary _ _ _ _ _ _) [child] => NonfiniteUse child
-  | .node .imperative [child] | .node (.nonfinite _ _) [child] => NonfiniteUse child
+  | .node .imperative [child] => NonfiniteUse child ∧ overtPredicateHead child = true
+  | .node (.nonfinite _ _) [child] => NonfiniteUse child
   | _ => True
 
 mutual

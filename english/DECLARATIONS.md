@@ -71,6 +71,35 @@ crossed-form counterexamples are classified as repairs of wrong analyses,
 with the same strings rejected and the legitimate sentences retained. No
 linguistic regression is assigned away to make the build pass.
 
+## Ellipsis scope correction (2026-09-08)
+
+The user identified earlier-sentence antecedent availability as discourse
+interpretation outside the English parser. The ellipsis constructor now retains
+its locally selected form and voice with an unresolved antecedent. Paragraphs
+check each item for closed extraction gaps without accumulating prior VPs.
+
+Ten witness statements are replaced for this corrected contract: the seven
+original-schema rows below and `DependencyWitnesses.contextual_ellipsis_admitted`
+→ `unresolved_ellipsis_admitted`, `missing_antecedent_excluded` →
+`missing_antecedent_admitted`, and `wrong_voice_antecedent_excluded` →
+`unrelated_antecedent_admitted`. Their old discourse requirements are retired,
+not preserved as rejection tests. Existing sentence and parenthetical surface
+witnesses remain. Three witnesses are added: `wrong_local_voice_excluded`,
+`auxiliary_ellipsis_admitted` and `empty_imperative_excluded`. No witness is
+ignored or dropped without a replacement. The helper theorem
+`Construction.childContext_empty` is removed with its retired subject.
+
+The two existing imperative admissions in `FamilyWitnesses` and
+`NominalWitnesses` also prove that their predicate heads are overt; their values
+and expected outcomes are unchanged. `Reading.overtPredicateHead` prevents the
+newly context-independent ellipsis from admitting an empty imperative.
+
+At change `rumowyrp`, the source census is 575 theorems in 43 modules.
+`english/scripts/axioms` passes the 46-job build with warnings treated as errors
+and checks 2,631 compiled theorems with zero disallowed axiom uses. The compiled
+count includes generated theorems; removing the context collectors also removes
+their generated helpers.
+
 ## Module dispositions
 
 The generic grammar, feature, dependency and document schemas remain inputs to
@@ -269,7 +298,7 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.Composition.gap_not_closed` | Kept. |
 | `English.Composition.extra_complement` | Kept. |
 | `English.Composition.frame_rejects_extra_complement` | Kept. |
-| `English.Composition.elliptic_antecedent` | Kept. |
+| `English.Composition.elliptic_antecedent` | Replaced by `English.Composition.elliptic_fragment` under the 2026-09-08 parser scope correction: discourse antecedent availability is outside admission. |
 | `English.Composition.elliptic_surface` | Kept. |
 | `English.Composition.modal_singular` | Kept. |
 | `English.Composition.voiceLexicon` | Kept. |
@@ -510,12 +539,12 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.EllipsisInteractions.paragraph_derives` | Kept. |
 | `English.EllipsisInteractions.sentence_forms` | Kept. |
 | `English.EllipsisInteractions.paragraph_text` | Kept. |
-| `English.EllipsisInteractions.ellipsis_requires_context` | Kept. |
-| `English.EllipsisInteractions.omitted_form_must_match` | Kept. |
-| `English.EllipsisInteractions.future_cannot_license_first` | Kept. |
-| `English.EllipsisInteractions.omission_introduces_nothing` | Kept. |
-| `English.EllipsisInteractions.quotation_context_isolated` | Kept. |
-| `English.EllipsisInteractions.reminder_inherits_without_exporting` | Kept. |
+| `English.EllipsisInteractions.ellipsis_requires_context` | Replaced by `English.EllipsisInteractions.ellipsis_without_antecedent` under the 2026-09-08 parser scope correction: discourse antecedent availability is outside admission. |
+| `English.EllipsisInteractions.omitted_form_must_match` | Replaced by `English.EllipsisInteractions.omitted_form_must_match_local_category` under the 2026-09-08 parser scope correction: discourse antecedent availability is outside admission. |
+| `English.EllipsisInteractions.future_cannot_license_first` | Replaced by `English.EllipsisInteractions.elliptical_sentence_can_come_first` under the 2026-09-08 parser scope correction: discourse antecedent availability is outside admission. |
+| `English.EllipsisInteractions.omission_introduces_nothing` | Replaced by `English.EllipsisInteractions.omission_has_no_extraction_gap` under the 2026-09-08 parser scope correction: discourse antecedent availability is outside admission. |
+| `English.EllipsisInteractions.quotation_context_isolated` | Replaced by `English.EllipsisInteractions.quoted_ellipsis_derives` under the 2026-09-08 parser scope correction: discourse antecedent availability is outside admission. |
+| `English.EllipsisInteractions.reminder_inherits_without_exporting` | Replaced by `English.EllipsisInteractions.standalone_reminder_derives` under the 2026-09-08 parser scope correction: discourse antecedent availability is outside admission. |
 | `English.EllipsisInteractions.reminderBody` | Kept. |
 | `English.EllipsisInteractions.parenthetical` | Kept. |
 | `English.EllipsisInteractions.inlineReminder` | Kept. |
@@ -720,10 +749,10 @@ reading set. See [README.md](README.md) for the current entry points and limits.
 | `English.SubjectPosition` | Kept. |
 | `English.subjectAgreement` | Kept. |
 | `English.FiniteLicense` | Kept. |
-| `English.Syntax.antecedents` | Kept. |
-| `English.childAntecedents` | Kept. |
-| `English.Construction.childContext` | Kept. |
-| `English.Construction.childContext_empty` | Kept. |
+| `English.Syntax.antecedents` | Retired (2026-09-08): earlier-VP collection and quotation context resetting served the out-of-scope discourse check. |
+| `English.childAntecedents` | Retired (2026-09-08): earlier-VP collection and quotation context resetting served the out-of-scope discourse check. |
+| `English.Construction.childContext` | Retired (2026-09-08): earlier-VP collection and quotation context resetting served the out-of-scope discourse check. |
+| `English.Construction.childContext_empty` | Retired (2026-09-08): earlier-VP collection and quotation context resetting served the out-of-scope discourse check. |
 | `English.JudgesIn` | Kept; the `node` route no longer reaches `.document .body` (no `Production` lifts the paragraph body), so `JudgesIn.paragraph` owns it — `EllipsisInteractions.paragraph_is_the_only_route`. |
 | `English.JudgeChildrenIn` | Kept. |
 | `English.JudgeFrameIn` | Kept. |

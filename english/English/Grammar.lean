@@ -212,10 +212,7 @@ inductive InitialAdverbial : Category → Prop where
   | subordinate : InitialAdverbial (.subordinateClause .finite)
   | preposition : InitialAdverbial .prepositionPhrase
 
-/-- The paragraph body is deliberately NOT a `DocumentProduction`: lifting it through
-`Production.document` would let `JudgesIn.node` accept a paragraph, checking every item in the
-same context and so enforcing no source ordering at all. `JudgesIn.paragraph` owns it, and
-threads each item's antecedents into the context of the items that follow it. -/
+/-- Paragraphs have one judgment route that checks each item is gap-closed. -/
 inductive ParagraphProduction : List Category → Prop where
   | body {first : Category} {rest : List Category} :
       (first :: rest).all paragraphItem = true → ParagraphProduction (first :: rest)
@@ -442,38 +439,6 @@ inductive FiniteLicense {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       FiniteLicense lexicon (.node (.serialCoordinate coordinator category) children) agreement
 
 mutual
-  /-- Earlier overt VP projections supply grammatical recoverability, never game referents. -/
-  def Syntax.antecedents {Lexeme : Type} : Syntax Lexeme → List Category
-    | .node (.document .quote) _ | .node (.document .reminder) _ => []
-    | .node (.verb _ form _ voice) children =>
-        .verbPhrase form voice :: childAntecedents children
-    | .node (.auxiliary _ form _ _ voice _) children =>
-        .verbPhrase form voice :: childAntecedents children
-    | .node _ children => childAntecedents children
-    | .relativeForm _ a b _ front => a.antecedents ++ childAntecedents front ++ b.antecedents
-    | .modify a b | .sharedCoordination _ _ a b =>
-        a.antecedents ++ b.antecedents
-    | .frameCoordination _ a b => childAntecedents a ++ childAntecedents b
-    | _ => []
-  def childAntecedents {Lexeme : Type} : List (Syntax Lexeme) → List Category
-    | [] => []
-    | first :: rest => first.antecedents ++ childAntecedents rest
-end
-
-/-- Quoted documents start their own context; parentheticals can refer to preceding prose. -/
-def Construction.childContext {Lexeme : Type} (construction : Construction Lexeme)
-    (context : List Category) : List Category :=
-  match construction with
-  | .document .quote => []
-  | _ => context
-
-@[simp] theorem Construction.childContext_empty {Lexeme : Type}
-    (construction : Construction Lexeme) : construction.childContext [] = [] := by
-  cases construction <;> try rfl
-  rename_i rule
-  cases rule <;> rfl
-
-mutual
   /-- Gaps are ordered resources. Ordinary composition concatenates, never deletes them. -/
   inductive JudgesIn {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       List Category → Syntax Lexeme → Category → List Category → Prop where
@@ -497,7 +462,7 @@ mutual
         {children : List (Syntax Lexeme)}
         {categories gaps : List Category} {category : Category} :
         Production lexicon construction categories category →
-        JudgeChildrenIn lexicon (construction.childContext context) children categories gaps →
+        JudgeChildrenIn lexicon context children categories gaps →
         JudgesIn lexicon context (.node construction children) category gaps
     | verb {context : List Category} {head : Lexeme} {form : InflectionalForm}
         {frame : List (FrameItem Lexeme)} {voice : Voice}
@@ -550,7 +515,6 @@ mutual
         JudgesIn lexicon context body (.clause .finite) [gap] →
         JudgesIn lexicon context (.relative number head body form [front]) (.nominal number) []
     | ellipsis {context : List Category} {form : InflectionalForm} {voice : Voice} :
-        Category.verbPhrase form voice ∈ context →
         JudgesIn lexicon context (.ellipsis form voice) (.verbPhrase form voice) []
     | paragraph {context : List Category} {children : List (Syntax Lexeme)}
         {categories : List Category} :
@@ -599,14 +563,14 @@ mutual
         JudgeFrameIn lexicon context right (first :: rest) rightGaps →
         JudgeFrameIn lexicon context [.frameCoordination coordinator left right] (first :: rest)
           (leftGaps ++ rightGaps)
-  /-- Only earlier, already grammatical items extend a paragraph's recoverability context. -/
+  /-- Paragraph items are individually gap-closed; discourse resolution is outside admission. -/
   inductive JudgeParagraph {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       List Category → List (Syntax Lexeme) → List Category → Prop where
     | nil {context : List Category} : JudgeParagraph lexicon context [] []
     | cons {context : List Category} {first : Syntax Lexeme} {rest : List (Syntax Lexeme)}
         {category : Category} {categories : List Category} :
         JudgesIn lexicon context first category [] →
-        JudgeParagraph lexicon (first.antecedents ++ context) rest categories →
+        JudgeParagraph lexicon context rest categories →
         JudgeParagraph lexicon context (first :: rest) (category :: categories)
 end
 
@@ -631,9 +595,9 @@ theorem JudgesIn.closedNode {L : Type} {lexicon : Lexicon L} {construction : Con
     (production : Production lexicon construction categories category)
     (childProof : JudgeChildrenIn lexicon [] children categories gaps) :
     JudgesIn lexicon [] (.node construction children) category gaps :=
-  .node production (by simpa only [Construction.childContext_empty] using childProof)
+  .node production childProof
 
-/-- Supplied grammatical context is explicit when checking an elliptical fragment. -/
+/-- The context parameter is retained by the workbench API; it does not license ellipsis. -/
 abbrev DerivesIn {L : Type} (lexicon : Lexicon L) (context : List Category)
     (tree : Syntax L) (category : Category) := JudgesIn lexicon context tree category []
 

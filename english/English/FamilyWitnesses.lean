@@ -116,7 +116,7 @@ theorem document_admitted : Reading.Admitted environment [] document (.document 
       Dependencies.childrenExposed, Dependencies.frameExposed]
   · simp [document, sentence, conditional, subordinate, finite, objects, instruction, predicate, noun,
       Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
-    exact .verb rfl
+    exact ⟨.verb rfl, rfl⟩
 
 /-- The same independently declared adjective participates in a nominal used as a verb Object. -/
 theorem modified_admitted : Reading.Admitted environment [] modified (.nominal .plural)

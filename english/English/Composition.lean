@@ -181,9 +181,8 @@ theorem frame_rejects_extra_complement :
     ¬ JudgeChildren lexicon [creatures, artifacts] [Category.nounPhrase plural] [] :=
   extra_complement []
 
-theorem elliptic_antecedent :
-    DerivesIn lexicon attack.antecedents (.ellipsis .plain) (.verbPhrase .plain) :=
-  .ellipsis (by simp [attack, Syntax.antecedents, childAntecedents])
+theorem elliptic_fragment :
+    Derives lexicon (.ellipsis .plain) (.verbPhrase .plain) := .ellipsis
 
 theorem elliptic_surface : Realizes lexicon (.ellipsis .plain) [] := .ellipsis
 

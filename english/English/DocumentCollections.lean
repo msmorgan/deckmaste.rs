@@ -4,8 +4,7 @@ namespace English.Documents
 
 /-- The same initial-adverbial clause can precede further sentences in one paragraph. -/
 def continuedTrigger := unary
-  (paragraphTernary (unary initialClause .sentence .sentence) sentence sentence rfl
-    (sentence_derives_in _) (sentence_derives_in _) .body)
+  (paragraphTernary (unary initialClause .sentence .sentence) sentence sentence rfl .body)
   .ordinary .ordinary
 
 def threeModes := ternary mode mode mode (.modeList (n := 2)) .modeList

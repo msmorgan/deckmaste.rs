@@ -32,9 +32,9 @@ The complete candidate entry point is `Analysis.Reading`, whose evidence is
 `Dependencies.Admitted`. It requires all three layers:
 
 1. `Admissible`: closed category/frame derivation and an independent surface
-   realization. `JudgesIn` carries a recoverability context and gap resources;
-   `Judges` starts with empty context. This is the composition layer, not the
-   final candidate contract.
+   realization. `JudgesIn` carries ordered extraction gaps; its legacy context
+   parameter no longer licenses ellipsis. This is the composition layer, not
+   the final candidate contract.
 2. `Features.Conforms`: declared noun/determiner countability, modifier order,
    and temporal NP distribution, checked recursively at their hosts.
 3. `Dependencies.Safe`: extraction and sharing boundaries and the relative
@@ -65,8 +65,8 @@ separate extension, not a claim that the old invariant holds for reanchoring.
 | Temporal phrases | A bare NP adjunct needs `Temporal` evidence. That license adds no argument to a passive Verb Frame. Existing retained-object passive frames remain independent lexical declarations. |
 | Extraction | Ordered `GapUse` values retain category and grammatical relation. Adjunct and complex-subject boundaries constrain extraction; ordinary coordination cannot impersonate explicit shared-gap coordination. |
 | Relatives | That, zero, fronted and supplementary forms are distinct on the same relative carrier. Zero cannot discharge a Subject; fronting needs a declared relative pronoun/possessive phrase of the gap's category. Pied-piping fronts a PP. Possessive relatives agree with the fronted phrase, independently of the modified noun. |
-| Ellipsis | An omitted VP records form/voice, without recursively embedding an antecedent tree. A paragraph makes earlier overt VP projections available to subsequent items. Quotation resets the context; parentheticals inherit preceding context without exporting their internal introductions. |
-| Shared dependents | Explicit shared gaps plus `rightNodeRaising` distinguish a following shared filler from preceding-context ellipsis. Checked scope moves cover shared nominal heads and plural determiners as well as modifiers and auxiliary attachment. |
+| Ellipsis | An omitted VP records its locally selected form/voice and leaves its discourse antecedent unresolved. Earlier-sentence availability is outside parser acceptance (user scope correction, 2026-09-08). Paragraphs check each item independently for closed extraction gaps; an imperative still requires an overt predicate head. |
+| Shared dependents | Explicit shared gaps plus `rightNodeRaising` distinguish a following shared filler from unresolved ellipsis. Checked scope moves cover shared nominal heads and plural determiners as well as modifiers and auxiliary attachment. |
 | Arithmetic and comparison | Category composition supplies cardinal determinatives, Measure Phrases, arithmetic and comparative complements. Arithmetic truth and variable denotation are outside the grammar. |
 
 ## Whole intended grammar and source map
@@ -155,8 +155,8 @@ for together:
   invariant, not a complete classification algorithm.
 - Extend the same feature/dependency judgments for qualification/distributive
   phrase distributions, free/wh content clauses, nominal ellipsis, omitted
-  destinations outside the checked relative pattern, and intra-sentence
-  recoverability. These are grammatical elaborations, not lexical population
+  destinations outside the checked relative pattern, and local syntactic
+  licensing of omission. These are grammatical elaborations, not lexical population
   and not deferred silently to the card tail loop. Existing fog obligations
   remain assigned in the wayfinder.
 - Populate and challenge lexical distributions, inflections, genitive endings,

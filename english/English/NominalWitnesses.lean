@@ -166,7 +166,7 @@ theorem target_action_admitted : Reading.Admitted environment [] targetingAction
   · simp [targetingAction, objects, noun, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
   · simp [targetingAction, objects, noun, Reading.GrammarConforms, Reading.ChildrenConform,
       Reading.LocalGrammar]
-    exact .verb rfl
+    exact ⟨.verb rfl, rfl⟩
 
 theorem target_relative_admitted : Reading.Admitted environment [] targetingRelative (.nominal .plural)
     ["creatures", "that", "target", "creatures"] := by

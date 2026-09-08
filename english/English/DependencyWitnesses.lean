@@ -87,22 +87,57 @@ theorem single_gap_is_not_sharing (surface : Surface) :
 
 def omission : Reading Lexeme := .ellipsis .pastParticiple .passive
 
-theorem contextual_ellipsis_admitted : Reading.Admitted environment exiledTree.antecedents omission
-    (.verbPhrase .pastParticiple .passive) [] := by
-  refine ⟨⟨.ellipsis (by simp [exiledTree, Syntax.antecedents, childAntecedents]), ?_, ?_, ?_⟩, .ellipsis⟩
+theorem unresolved_ellipsis_admitted (context : List Category) :
+    Reading.Admitted environment context omission (.verbPhrase .pastParticiple .passive) [] := by
+  refine ⟨⟨.ellipsis, ?_, ?_, ?_⟩, .ellipsis⟩
   all_goals exact ⟨trivial, trivial⟩
 
-theorem missing_antecedent_excluded (surface : Surface) :
-    ¬ Reading.Admitted environment [] omission (.verbPhrase .pastParticiple .passive) surface := by
-  intro admitted
-  cases admitted.1.1 with
-  | ellipsis member => cases member
+theorem missing_antecedent_admitted :
+    Reading.Admitted environment [] omission (.verbPhrase .pastParticiple .passive) [] :=
+  unresolved_ellipsis_admitted []
 
-theorem wrong_voice_antecedent_excluded (surface : Surface) :
-    ¬ Reading.Admitted environment [.verbPhrase .pastParticiple .active] omission
-      (.verbPhrase .pastParticiple .passive) surface := by
+theorem unrelated_antecedent_admitted :
+    Reading.Admitted environment [.verbPhrase .pastParticiple .active] omission
+      (.verbPhrase .pastParticiple .passive) [] :=
+  unresolved_ellipsis_admitted _
+
+theorem wrong_local_voice_excluded (surface : Surface) :
+    ¬ Reading.Admitted environment [] omission (.verbPhrase .pastParticiple .active) surface := by
   intro admitted
-  cases admitted.1.1 with
-  | ellipsis member => simp at member
+  cases admitted.1.1
+
+def ellipticalPassive : Reading Lexeme :=
+  .node (.auxiliary was .preterite .pastParticiple .positive .passive .passive) [omission]
+
+def ellipticalClause : Reading Lexeme :=
+  .node (.finite singular .preterite .passive) [.word it (.nounPhrase singular), ellipticalPassive]
+
+theorem auxiliary_ellipsis_admitted :
+    Reading.Admitted environment [] ellipticalClause (.clause .finite) ["it", "was"] := by
+  have auxiliaryD : Derives grammar ellipticalPassive (.verbPhrase .preterite .passive) := by
+    refine .node (.auxiliary ⟨was_licensed, ⟨_, rfl⟩, ?_⟩) (.cons .ellipsis .nil)
+    exact ⟨declaration .be, by simp [environment, was, word], rfl, rfl, rfl, rfl, rfl⟩
+  have clauseD : Derives grammar ellipticalClause (.clause .finite) :=
+    JudgesIn.finite (lexicon := grammar)
+      (.word .pronoun ⟨it_licensed, Or.inl ⟨_, rfl⟩⟩) auxiliaryD
+      (.auxiliary ⟨was_licensed, .past, rfl⟩) rfl
+  refine ⟨⟨clauseD, ?_, ?_, ?_⟩, ?_⟩
+  · simp [ellipticalClause, ellipticalPassive, omission, Features.Conforms, Features.ChildrenConform,
+      Features.Local, Syntax.nominalCase, Lexical.features, it, word, Case.Allows, Case.Argument]
+  · simp [ellipticalClause, ellipticalPassive, omission, Dependencies.Safe, Dependencies.ChildrenSafe,
+      Dependencies.Local, Dependencies.exposed]
+  · simp [ellipticalClause, ellipticalPassive, omission, Reading.GrammarConforms,
+      Reading.ChildrenConform, Reading.LocalGrammar]
+    exact .ellipsis
+  · exact .node (.cons (.word ⟨it_licensed, Or.inl ⟨_, rfl⟩, rfl⟩)
+      (.cons (.node (.cons .ellipsis .nil)
+        (.auxiliary ⟨was_licensed, ⟨_, rfl⟩, rfl⟩)) .nil)) .finite
+
+theorem empty_imperative_excluded (surface : Surface) :
+    ¬ Reading.Admitted environment [] (.node .imperative [.ellipsis .plain])
+      (.clause .finite) surface := by
+  intro admitted
+  have localCheck := admitted.1.2.2.2.1
+  exact Bool.noConfusion localCheck.2
 
 end English.DependencyWitnesses

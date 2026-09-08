@@ -46,11 +46,11 @@ theorem first_derives (context : List Category) :
     DerivesIn lexicon context firstSentence (.document .sentence) :=
   .node (.document .sentence) (.cons (.node .imperative (.cons (attack_derives context) .nil)) .nil)
 
-theorem second_derives (context : List Category) (recoverable : .verbPhrase .plain ∈ context) :
+theorem second_derives (context : List Category) :
     DerivesIn lexicon context secondSentence (.document .sentence) := by
   have youD : DerivesIn lexicon context you (.nounPhrase agreement) := .word .pronoun ⟨rfl, rfl⟩
   have doD : DerivesIn lexicon context doEllipsis (.verbPhrase .plain) :=
-    .node (.auxiliary ⟨rfl, rfl, rfl, rfl, rfl⟩) (.cons (.ellipsis recoverable) .nil)
+    .node (.auxiliary ⟨rfl, rfl, rfl, rfl, rfl⟩) (.cons .ellipsis .nil)
   have clauseD : DerivesIn lexicon context ellipticalClause (.clause .finite) :=
     .finite youD doD (.auxiliary ⟨rfl, rfl, rfl⟩) rfl
   have conditionD : DerivesIn lexicon context condition (.subordinateClause .finite) :=
@@ -62,8 +62,7 @@ theorem second_derives (context : List Category) (recoverable : .verbPhrase .pla
 
 theorem paragraph_derives : Derives lexicon paragraph (.document .body) :=
   .paragraph (.body rfl) (.cons (first_derives [])
-    (.cons (second_derives _ (by simp [firstSentence, instruction, attack,
-      Syntax.antecedents, childAntecedents])) .nil))
+    (.cons (second_derives []) .nil))
 
 theorem sentence_forms :
     Realizes lexicon firstSentence ["Attack", .closing "."] ∧
@@ -94,46 +93,39 @@ theorem paragraph_text : Written lexicon paragraph (.document .body)
     .node (.cons sentence_forms.1 (.cons sentence_forms.2 .nil)) (.document .body)⟩,
     .cons (.cons (.cons (.cons (.cons (.cons (.cons .single))))))⟩
 
-theorem ellipsis_requires_context : ¬ Derives lexicon (.ellipsis .plain) (.verbPhrase .plain) := by
+theorem ellipsis_without_antecedent :
+    Derives lexicon (.ellipsis .plain) (.verbPhrase .plain) := .ellipsis
+
+theorem omitted_form_must_match_local_category :
+    ¬ Derives lexicon (.ellipsis .plain) (.verbPhrase .pastParticiple) := by
   intro h
-  cases h with
-  | ellipsis member => cases member
+  cases h
 
-theorem omitted_form_must_match :
-    ¬ DerivesIn lexicon [.verbPhrase .plain] (.ellipsis .pastParticiple)
-      (.verbPhrase .pastParticiple) := by
-  intro h
-  cases h with
-  | ellipsis member => simp at member
+theorem elliptical_sentence_can_come_first :
+    Derives lexicon (.node (.document .body) [secondSentence, firstSentence]) (.document .body) :=
+  .paragraph (.body rfl) (.cons (second_derives []) (.cons (first_derives []) .nil))
 
-theorem future_cannot_license_first (rest : List (Syntax Lexeme)) (categories : List Category) :
-    ¬ JudgeParagraph lexicon [] (.ellipsis .plain :: rest) (.verbPhrase .plain :: categories) := by
-  intro h
-  cases h with
-  | cons first _ => exact ellipsis_requires_context first
+theorem omission_has_no_extraction_gap (context : List Category) :
+    JudgesIn lexicon context (.ellipsis .plain) (.verbPhrase .plain) [] := .ellipsis
 
-theorem omission_introduces_nothing (form : InflectionalForm) (voice : Voice) :
-    (Syntax.ellipsis (Lexeme := Lexeme) form voice).antecedents = [] := rfl
-
-theorem quotation_context_isolated (context : List Category) (content : Syntax Lexeme) :
-    (Construction.document (Lexeme := Lexeme) .quote).childContext context = [] ∧
-    (Syntax.node (.document .quote) [content]).antecedents = [] := ⟨rfl, rfl⟩
-
-theorem reminder_inherits_without_exporting (context : List Category) (content : Syntax Lexeme) :
-    (Construction.document (Lexeme := Lexeme) .reminder).childContext context = context ∧
-    (Syntax.node (.document .reminder) [content]).antecedents = [] := ⟨rfl, rfl⟩
+theorem quoted_ellipsis_derives :
+    Derives lexicon (.node (.document .quote)
+      [.node (.document .document) [.node (.document .ordinary)
+        [.node (.document .body) [secondSentence]]]]) (.document .quotedText) :=
+  .node (.document .quote) (.cons
+    (.node (.document (.document rfl)) (.cons
+      (.node (.document .ordinary) (.cons
+        (.paragraph (.body rfl) (.cons (second_derives []) .nil)) .nil)) .nil)) .nil)
 
 def reminderBody : Syntax Lexeme := .node (.document .body) [secondSentence]
 def parenthetical : Syntax Lexeme := .node (.document .reminder) [reminderBody]
 def inlineReminder : Syntax Lexeme := .node (.document .body) [firstSentence, parenthetical]
 
-theorem inline_reminder_derives : Derives lexicon inlineReminder (.document .body) := by
-  let context := firstSentence.antecedents ++ []
-  have recoverable : Category.verbPhrase .plain ∈ context := by
-    simp [context, firstSentence, instruction, attack, Syntax.antecedents, childAntecedents]
-  have reminderD : DerivesIn lexicon context parenthetical (.document .parenthetical) :=
-    .reminder (.paragraph (.body rfl) (.cons (second_derives context recoverable) .nil)) rfl
-  exact .paragraph (.body rfl) (.cons (first_derives []) (.cons reminderD .nil))
+theorem standalone_reminder_derives : Derives lexicon parenthetical (.document .parenthetical) :=
+  .reminder (.paragraph (.body rfl) (.cons (second_derives []) .nil)) rfl
+
+theorem inline_reminder_derives : Derives lexicon inlineReminder (.document .body) :=
+  .paragraph (.body rfl) (.cons (first_derives []) (.cons standalone_reminder_derives .nil))
 
 theorem inline_reminder_text : Written lexicon inlineReminder (.document .body)
     "Attack. (If you do, attack.)" :=
@@ -143,11 +135,7 @@ theorem inline_reminder_text : Written lexicon inlineReminder (.document .body)
         (.document .reminder)) .nil)) (.document .body)⟩,
     .cons (.cons (.cons (.cons (.cons (.cons (.cons (.cons (.cons .single))))))))⟩
 
-/-! The paragraph body's second judgment route, and its removal. `.document .body` used to be a
-`DocumentProduction`, so `Production.document` lifted it and `JudgesIn.node` accepted every
-paragraph a second way — checking all items in one shared context and passing their gaps out
-through the node, neither of which is what `JudgeParagraph` enforces. The rule is now
-`ParagraphProduction`, which only `JudgesIn.paragraph` consumes. -/
+/-! Paragraphs retain one derivation route and require every item to be gap-closed. -/
 
 /-- After the repair: no `Production` lifts the paragraph body, so the `.node` route is closed for
 `.document .body` at every arity and every result category. -/
@@ -166,11 +154,7 @@ theorem retired_node_route_premises :
     JudgeChildren lexicon [firstSentence] [.document .sentence] [] :=
   ⟨.body rfl, .cons (first_derives []) .nil⟩
 
-/-- The statement of the repair: every judgment of a body node now goes through
-`JudgesIn.paragraph`, so `JudgeParagraph`'s ordered threading is not merely *a* route but the
-*only* one. Two consequences follow immediately — a paragraph is gap-closed (`JudgesIn.paragraph`
-concludes with `[]`), and `future_cannot_license_first` above governs every body node rather than
-only those built the paragraph way. -/
+/-- Every paragraph judgment uses the item checks and exposes no unresolved extraction gaps. -/
 theorem paragraph_is_the_only_route {context : List Category} {children : List (Syntax Lexeme)}
     {category : Category} {gaps : List Category}
     (h : JudgesIn lexicon context (.node (.document .body) children) category gaps) :

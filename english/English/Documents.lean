@@ -42,10 +42,7 @@ def ternary {Lexeme : Type} {lexicon : Lexicon Lexeme} {rule : DocumentRule}
    .node (.cons first.realizes (.cons second.realizes (.cons third.realizes .nil)))
      (.document linearization)⟩
 
-/-! Paragraph bodies are built through `JudgesIn.paragraph`, never through the unordered
-`.node` route: each item is judged in the context its predecessors extend. `Syntax.antecedents`
-supplies that extension, so a one-item paragraph threads nothing and a two-item paragraph gives
-the second item the first's antecedents. -/
+/-! Paragraph bodies keep a flat list of independently gap-closed items. -/
 
 def paragraphUnary {Lexeme : Type} {lexicon : Lexicon Lexeme} {input : Category}
     {surface : Surface} (child : Witness Lexeme lexicon input)
@@ -60,25 +57,21 @@ def paragraphBinary {Lexeme : Type} {lexicon : Lexicon Lexeme} {left right : Cat
     {surface : Surface} (first : Witness Lexeme lexicon left)
     (second : Witness Lexeme lexicon right)
     (items : ([left, right] : List Category).all paragraphItem = true)
-    (later : JudgesIn lexicon (first.tree.antecedents ++ []) second.tree right [])
     (linearization : DocumentLinearizes .body [first.surface, second.surface] surface) :
     Witness Lexeme lexicon (.document .body) :=
   ⟨.node (.document .body) [first.tree, second.tree], surface,
-   .paragraph (.body items) (.cons first.derives (.cons later .nil)),
+   .paragraph (.body items) (.cons first.derives (.cons second.derives .nil)),
    .node (.cons first.realizes (.cons second.realizes .nil)) (.document linearization)⟩
 
 def paragraphTernary {Lexeme : Type} {lexicon : Lexicon Lexeme} {a b c : Category}
     {surface : Surface} (first : Witness Lexeme lexicon a) (second : Witness Lexeme lexicon b)
     (third : Witness Lexeme lexicon c)
     (items : ([a, b, c] : List Category).all paragraphItem = true)
-    (secondLater : JudgesIn lexicon (first.tree.antecedents ++ []) second.tree b [])
-    (thirdLater : JudgesIn lexicon
-      (second.tree.antecedents ++ (first.tree.antecedents ++ [])) third.tree c [])
     (linearization :
       DocumentLinearizes .body [first.surface, second.surface, third.surface] surface) :
     Witness Lexeme lexicon (.document .body) :=
   ⟨.node (.document .body) [first.tree, second.tree, third.tree], surface,
-   .paragraph (.body items) (.cons first.derives (.cons secondLater (.cons thirdLater .nil))),
+   .paragraph (.body items) (.cons first.derives (.cons second.derives (.cons third.derives .nil))),
    .node (.cons first.realizes (.cons second.realizes (.cons third.realizes .nil)))
      (.document linearization)⟩
 
@@ -159,8 +152,7 @@ def instruction : Witness Lexeme lexicon (.clause .finite) :=
    .node (.cons attack.realizes .nil) .imperative⟩
 
 def sentence := unary instruction .sentence .sentence
-/-- Nothing in the plain sentence fixture consults the recoverability context, so it derives in
-any context and can follow another item inside a paragraph. -/
+/-- A sentence derives independently of the paragraph items surrounding it. -/
 theorem sentence_derives_in (context : List Category) :
     JudgesIn lexicon context sentence.tree (.document .sentence) [] := by
   have verbD : JudgesIn lexicon context attack.tree (.verbPhrase .plain) [] :=

@@ -52,17 +52,19 @@ selection likewise uses the declared form, voice and ordered frame. The frame
 contains lexical marker identities; an actual marker occurrence separately
 carries its licensed spelling.
 
-`Reading.Valid` combines contextual category/frame derivation,
+`Reading.Valid` combines category/frame derivation,
 `Features.Conforms`, `Dependencies.Safe` and `Reading.GrammarConforms`.
 `Reading.Admitted` additionally requires the independent `Reading.Realizes`
 relation to the given surface. Recursive constituents use the same judgments:
 clauses occur inside subordinate clauses, relatives, sentences and documents;
 nominals and prepositions fill frames; measures can fill prepositional
-Complements; shared gaps and preceding-context ellipsis remain distinct.
+Complements; shared extraction gaps and unresolved ellipsis remain distinct.
 
 Parents can inspect selected finite agreement and tense, inflection and voice,
 count/mass use, nominal Case, selected frames, ordered extraction resources,
-coordination topology and recoverability context. `Reading.HasTense` exposes
+coordination topology and the local form/voice of an omitted VP. Earlier-sentence
+antecedent availability is discourse interpretation, outside parser acceptance
+(user scope correction, 2026-09-08). `Reading.HasTense` exposes
 the represented finite predicate's tense; it does not claim a complete account
 of temporal interpretation or sequence of tense. These relations specify the
 information that Rust must preserve without choosing chart keys or node layout.
@@ -130,7 +132,7 @@ schemas used by v3 admission; they are not separate permissive grammars.
 | Relatives and extraction | `DependencyWitnesses.relative_admitted`, `shared_relative_admitted`; `NominalWitnesses.target_relative_admitted` embeds the Target Verb frame in a relative | `DependencyWitnesses.zero_subject_relative_excluded` |
 | Coordination and sharing | `DependencyWitnesses.shared_relative_admitted`, `raised_admitted`: shared relative Subjects and a following shared modified head | `DependencyWitnesses.ordinary_coordination_cannot_discharge_shared_gap`, `single_gap_is_not_sharing` |
 | Measures | `NotationWitnesses.measure_admitted`, `measure_preposition_interaction`: arithmetic notation inside a PP | `NotationWitnesses.measure_not_a_count_determiner` |
-| Recoverability and ellipsis | `DependencyWitnesses.contextual_ellipsis_admitted` uses antecedents projected from the overt passive predicate | `DependencyWitnesses.missing_antecedent_excluded`, `wrong_voice_antecedent_excluded` |
+| Unresolved ellipsis | `DependencyWitnesses.missing_antecedent_admitted`, `unrelated_antecedent_admitted`; `EllipsisInteractions.elliptical_sentence_can_come_first`, `quoted_ellipsis_derives` | `DependencyWitnesses.wrong_local_voice_excluded`, `empty_imperative_excluded`; `EllipsisInteractions.omitted_form_must_match_local_category` |
 | Type Lines | `NotationWitnesses.type_line_admitted`: “Artifact — Golem” combines typed lexical entries and ordered document collections | `NotationWitnesses.type_line_requires_types`, `type_line_order` |
 | Target Verb / Targeting Marker | `NominalWitnesses.target_rivalry` retains NP and imperative-clause analyses of “target creatures”; `target_relative_admitted` connects the finite verb to extraction | `NominalWitnesses.marker_is_not_a_verb` |
 
