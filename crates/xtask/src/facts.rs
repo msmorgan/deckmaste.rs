@@ -62,7 +62,6 @@ fn repo_root(args: &PathArgs) -> PathBuf {
 const KEYWORD_STUBS: &str = "plugins_v2/builtin/macros/keyword_abilities";
 const ACTION_STUBS: &str = "plugins_v2/builtin/macros/keyword_actions";
 const COUNTER_STUBS: &str = "plugins_v2/builtin/macros/counter_kinds";
-const DESIGNATION_STUBS: &str = "plugins_v2/builtin/macros/designations";
 const WORDS: &str = "idris/src/Experimental/Words.idr";
 const GENERATED: &str = "idris/src/Experimental/FactsGen.idr";
 
@@ -136,6 +135,11 @@ impl Regime {
 /// definition — the body its `Ability.keyword` term may carry [CR#702.1] — is
 /// an ability of one of these.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[expect(
+    dead_code,
+    reason = "the three [CR#113.3] categories; the overlay carries only the keywords whose \
+              definition the workbench cannot spell, and each of those is triggered"
+)]
 enum Category {
     Static,
     Triggered,
@@ -165,7 +169,6 @@ impl Category {
 struct Row {
     label: &'static str,
     extra: &'static [Shape],
-    counter_eligible: bool,
     regime: Option<Regime>,
     functions_on_stack: bool,
     on_permanent_card: bool,
@@ -183,7 +186,6 @@ struct Row {
 const D: Row = Row {
     label: "",
     extra: &[],
-    counter_eligible: false,
     regime: None,
     functions_on_stack: false,
     on_permanent_card: true,
@@ -201,51 +203,41 @@ fn overlay() -> Vec<Row> {
     vec![
         Row {
             label: "Haste",
-            counter_eligible: true,
             ..D
         },
         Row {
             label: "Flying",
-            counter_eligible: true,
             // "This creature can't be blocked except by creatures with flying
             // and/or reach" is one static ability [CR#702.9b].
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Trample",
-            counter_eligible: true,
             ..D
         },
         Row {
             label: "Vigilance",
-            counter_eligible: true,
             ..D
         },
         Row {
             label: "Deathtouch",
-            counter_eligible: true,
             regime: Some(Regime::AtResolution),
             ..D
         },
         Row {
             label: "DoubleStrike",
-            counter_eligible: true,
             ..D
         },
         Row {
             label: "FirstStrike",
-            counter_eligible: true,
             ..D
         },
         Row {
             label: "Reach",
-            counter_eligible: true,
             ..D
         },
         Row {
             label: "Defender",
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -267,19 +259,16 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Lifelink",
-            counter_eligible: true,
             regime: Some(Regime::AtResolution),
             ..D
         },
         Row {
             label: "Ward",
             paid_cost: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -294,7 +283,6 @@ fn overlay() -> Vec<Row> {
             label: "Equip",
             extra: &[Shape::CompoundQuality],
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -314,13 +302,10 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Renown",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Indestructible",
-            counter_eligible: true,
-            definition: &[],
             ..D
         },
         Row {
@@ -336,7 +321,6 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -351,42 +335,36 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "CumulativeUpkeep",
             paid_cost: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Echo",
-            paid_cost: true,
+            // The workbench cannot spell this definition, so the declaration
+            // writes none and the [CR#702.30a] entry is what names its category.
             definition: &[Category::Triggered],
+            paid_cost: true,
             ..D
         },
         Row {
             label: "Hexproof",
             extra: &[Shape::Quality],
-            counter_eligible: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Menace",
-            counter_eligible: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Skulk",
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Bushido",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Unearth",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -394,19 +372,16 @@ fn overlay() -> Vec<Row> {
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Static, Category::Static],
             ..D
         },
         Row {
             label: "Dredge",
             on_spell_card: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Retrace",
             on_spell_card: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -416,13 +391,11 @@ fn overlay() -> Vec<Row> {
             paid_cost: true,
             // "[Cost], Discard this card: Draw a card" is one activated
             // ability [CR#702.29a].
-            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Ninjutsu",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -441,7 +414,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Afterlife",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -461,22 +433,15 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Annihilator",
-            definition: &[Category::Triggered],
             ..D
         },
-        Row {
-            label: "Fear",
-            definition: &[Category::Static],
-            ..D
-        },
+        Row { label: "Fear", ..D },
         Row {
             label: "Shroud",
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -490,13 +455,11 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Landwalk",
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Changeling",
             on_spell_card: true,
-            definition: &[Category::Static],
             ..D
         },
         Row { label: "Crew", ..D },
@@ -526,7 +489,6 @@ fn overlay() -> Vec<Row> {
             label: "Madness",
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -543,7 +505,6 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -552,7 +513,6 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -575,7 +535,6 @@ fn overlay() -> Vec<Row> {
             label: "Mayhem",
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -620,7 +579,6 @@ fn overlay() -> Vec<Row> {
             label: "Escape",
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -632,7 +590,6 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Bestow",
             paid_cost: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -666,7 +623,6 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Evoke",
             paid_cost: true,
-            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -697,12 +653,6 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
-            definition: &[
-                Category::Static,
-                Category::Static,
-                Category::Static,
-                Category::Triggered,
-            ],
             ..D
         },
         Row {
@@ -721,7 +671,6 @@ fn overlay() -> Vec<Row> {
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Static, Category::Static],
             ..D
         },
         Row {
@@ -791,16 +740,17 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Cascade",
+            // The workbench cannot spell this definition, so the declaration
+            // writes none and the [CR#702.85a] entry is what names its category.
+            definition: &[Category::Triggered],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Prowess",
             regime: Some(Regime::AtCasting),
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -808,7 +758,6 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -817,20 +766,14 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Decayed",
-            counter_eligible: true,
-            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
             label: "Exalted",
-            counter_eligible: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Shadow",
-            counter_eligible: true,
-            definition: &[Category::Static, Category::Static],
             ..D
         },
         Row {
@@ -850,19 +793,16 @@ fn overlay() -> Vec<Row> {
         // No new row is a keyword counter [CR#122.1b].
         Row {
             label: "Absorb",
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Afflict",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Aftermath",
             on_permanent_card: false,
             on_spell_card: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -879,11 +819,12 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "AuraSwap",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Backup",
+            // The workbench cannot spell this definition, so the declaration
+            // writes none and the [CR#702.165a] entry is what names its category.
             definition: &[Category::Triggered],
             ..D
         },
@@ -895,17 +836,14 @@ fn overlay() -> Vec<Row> {
             // "A spell is 'bargained' if its controller sacrificed a permanent as
             // it was cast" [CR#702.166b] — a cost a later clause reads back.
             paid_cost: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "BattleCry",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Bloodthirst",
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -941,18 +879,15 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Dethrone",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Devoid",
             on_spell_card: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -962,7 +897,6 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Embalm",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -982,48 +916,39 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Eternalize",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Evolve",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Exploit",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Extort",
             regime: Some(Regime::AtCasting),
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Fabricate",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Fading",
-            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
             label: "Firebending",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Flanking",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "ForMirrodin",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1034,7 +959,6 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Fortify",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -1043,7 +967,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Graft",
-            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -1051,7 +974,6 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1069,13 +991,11 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Horsemanship",
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Increment",
             regime: Some(Regime::AtCasting),
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1084,7 +1004,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Ingest",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1093,7 +1012,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "JobSelect",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1105,17 +1023,14 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "LevelUp",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "LivingMetal",
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "LivingWeapon",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1124,17 +1039,14 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Melee",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Mentor",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Mobilize",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1144,7 +1056,6 @@ fn overlay() -> Vec<Row> {
             // may put a +1/+1 counter on target artifact creature for each
             // +1/+1 counter on this permanent" — a static ability and a
             // triggered one [CR#702.43a].
-            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -1154,7 +1065,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Myriad",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1170,7 +1080,6 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Outlast",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -1184,7 +1093,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Persist",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1195,22 +1103,18 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Poisonous",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Provoke",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Rampage",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Ravenous",
-            definition: &[Category::Static, Category::Triggered],
             ..D
         },
         Row {
@@ -1228,21 +1132,18 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Reconfigure",
             paid_cost: true,
-            definition: &[Category::Activated, Category::Activated],
             ..D
         },
         Row {
             label: "Recover",
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Reinforce",
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row { label: "Riot", ..D },
@@ -1256,7 +1157,6 @@ fn overlay() -> Vec<Row> {
         Row {
             label: "Scavenge",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -1269,7 +1169,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Soulshift",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1296,12 +1195,10 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Station",
-            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Sunburst",
-            definition: &[Category::Static, Category::Static],
             ..D
         },
         Row {
@@ -1325,20 +1222,17 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Training",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
             label: "Transfigure",
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Transmute",
             on_spell_card: true,
             paid_cost: true,
-            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -1347,7 +1241,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "UmbraArmor",
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -1355,12 +1248,10 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
             label: "Undying",
-            definition: &[Category::Triggered],
             ..D
         },
         Row {
@@ -1369,7 +1260,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Vanishing",
-            definition: &[Category::Static, Category::Triggered, Category::Triggered],
             ..D
         },
         Row {
@@ -1381,7 +1271,6 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
-            definition: &[Category::Static],
             ..D
         },
         Row {
@@ -1423,26 +1312,6 @@ fn stub_field<'a>(src: &'a str, field: &str) -> Option<&'a str> {
         .map(|rest| rest.trim_end().trim_end_matches(','))
 }
 
-/// A keyword stub's declared parameter shape.
-fn stub_shape(dir: &Path, name: &str) -> anyhow::Result<Option<Shape>> {
-    let path = dir.join(format!("{}.ron", name_of(name)));
-    if !path.exists() {
-        return Ok(None);
-    }
-    let src = fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-    let declaration = deckmaste_construction_core::macro_def::read_str(&path, &src)?;
-    let params = declaration
-        .params()
-        .unwrap_or_default()
-        .iter()
-        .map(deckmaste_construction_core::macro_def::ParameterType::as_str)
-        .collect::<Vec<_>>();
-    let shape = Shape::from_params(&params).with_context(|| {
-        format!("{name}: parameter signature outside the workbench vocabulary: {params:?}")
-    })?;
-    Ok(Some(shape))
-}
-
 // ---------------------------------------------------------------------
 // `facts generate` / `facts check`
 // ---------------------------------------------------------------------
@@ -1451,7 +1320,10 @@ fn stub_shape(dir: &Path, name: &str) -> anyhow::Result<Option<Shape>> {
 /// record updates over `defaultKeywordFacts`, so adding a column never
 /// renumbers a row.
 fn render(root: &Path) -> anyhow::Result<String> {
-    let dir = root.join(KEYWORD_STUBS);
+    let declarations =
+        deckmaste_construction_core::macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
+    let definitions = lean::keyword_definitions(&declarations)?;
+    let counter_keywords = lean::counter_eligible_keywords(&declarations)?;
     let mut out = String::new();
     out.push_str(
         "-- Generated by `cargo xtask facts generate` from \
@@ -1464,7 +1336,26 @@ fn render(root: &Path) -> anyhow::Result<String> {
     out.push_str("public export\nkeywordFacts : List KeywordFacts\nkeywordFacts =\n");
 
     for (i, row) in overlay().iter().enumerate() {
-        let mut shapes: Vec<Shape> = stub_shape(&dir, row.label)?.into_iter().collect();
+        let declared = definitions
+            .iter()
+            .find(|definition| definition.word == row.label);
+        let mut shapes: Vec<Shape> = declared
+            .map(|declared| {
+                let params = declared
+                    .params
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>();
+                Shape::from_params(&params).with_context(|| {
+                    format!(
+                        "{}: parameter signature outside the workbench vocabulary: {params:?}",
+                        row.label
+                    )
+                })
+            })
+            .transpose()?
+            .into_iter()
+            .collect();
         for extra in row.extra {
             if !shapes.contains(extra) {
                 shapes.push(*extra);
@@ -1485,7 +1376,7 @@ fn render(root: &Path) -> anyhow::Result<String> {
             format!("word := \"{}\"", row.label),
             format!("paramShapes := [{shapes}]"),
         ];
-        if row.counter_eligible {
+        if counter_keywords.contains(row.label) {
             fields.push("counterEligible := True".to_owned());
         }
         if let Some(regime) = row.regime {
@@ -1506,7 +1397,11 @@ fn render(root: &Path) -> anyhow::Result<String> {
         // The reference table has no category list, and its own `bodied`
         // column means "the entry defines ONE triggered ability with a quoted
         // expansion" — so a multi-category definition is not bodied there.
-        if row.definition == [Category::Triggered] {
+        let categories = declared
+            .map(|declared| declared.categories.clone())
+            .filter(|categories| !categories.is_empty())
+            .unwrap_or_else(|| row.definition.iter().map(|c| c.lean()).collect());
+        if categories == [Category::Triggered.lean()] {
             fields.push("bodied := True".to_owned());
         }
         if row.wants_modes {
@@ -1585,11 +1480,11 @@ const COUNTER_SCOPE: &str = "every counter-kind stub wants a `counterFacts` row;
                              than the RON counter-kind macros, so the row-without-a-stub \
                              direction is informational.";
 
-const DESIGNATION_SCOPE: &str = "both directions bind, through the stub-name → `Designation` \
-                                 constructor mapping below, because a stub name is not the Idris \
-                                 constructor name.";
+const DESIGNATION_SCOPE: &str = "both directions bind, over the labels the declarations \
+                                 declare, through the Idris alias list below for the four whose \
+                                 `Designation` constructor is not the label.";
 
-const GATE_COLUMNS: &str = "gate columns (counterEligible, regime, functionsOnStack, \
+const GATE_COLUMNS: &str = "gate columns (regime, functionsOnStack, \
                             onPermanentCard, onSpellCard, paidCost, definition, wantsModes) stay \
                             hand-kept in xtask's overlay: \
                             plugins_v2/builtin/macros/meta/KeywordAbility.ron declares no field \
@@ -1655,35 +1550,19 @@ const KEYWORD_ROWS_EXEMPT: &[Exempt] = &[
 /// be recorded here rather than rowed.
 const DESIGNATION_STUBS_EXEMPT: &[Exempt] = &[];
 
-/// The designation stubs whose name is not the Idris constructor's; every
-/// other stub name is the constructor name.
-const DESIGNATION_MAP: &[(&str, &[&str])] = &[
-    ("Commander", &["CommanderD"]),
-    ("Initiative", &["TheInitiative"]),
-    ("DayNight", &["Day", "Night"]),
-    ("Sector", &["AlphaSector", "BetaSector", "GammaSector"]),
+/// The designations whose declared label is not their Idris constructor
+/// name: `Words.Designation` spells the commander designation `CommanderD`
+/// because `Commander` is taken there, and drops the article from three
+/// labels it keeps on `TheInitiative`. This is a mapping into IDRIS, not into
+/// the declarations, and it retires with the Idris reference generator
+/// (`semantics-v1-cutover`); every other constructor is the declared label
+/// with its spaces and punctuation dropped, which `normalize` already does.
+const DESIGNATION_IDRIS_ALIASES: &[(&str, &str)] = &[
+    ("commander", "CommanderD"),
+    ("the city's blessing", "CitysBlessing"),
+    ("an enduring story", "EnduringStory"),
+    ("the monarch", "Monarch"),
 ];
-
-/// A declaration's LABEL: its name with the first character capitalised.
-///
-/// A declaration name is Lean's camelCase macro name (`flying`,
-/// `theRingTemptsYou`) since the case ruling of `plugins-v2-dialect`; the
-/// workbench's tables and this file's overlays are keyed by the `PascalCase`
-/// label that name capitalises to, so the two meet here.
-pub(super) fn label_of(name: &str) -> String {
-    let mut characters = name.chars();
-    characters.next().map_or_else(String::new, |first| {
-        first.to_uppercase().collect::<String>() + characters.as_str()
-    })
-}
-
-/// The inverse of [`label_of`]: the declaration name a label is written under.
-pub(super) fn name_of(label: &str) -> String {
-    let mut characters = label.chars();
-    characters.next().map_or_else(String::new, |first| {
-        first.to_lowercase().collect::<String>() + characters.as_str()
-    })
-}
 
 /// A label reduced to its comparable core: the workbench spells a multi-word
 /// label with spaces ("The Ring Tempts You") where the stub file names it in
@@ -1782,16 +1661,19 @@ fn designation_ctors(src: &str) -> Vec<String> {
         .collect()
 }
 
-/// A designation stub's constructor names.
-fn designation_labels(stubs: &[String]) -> Vec<String> {
-    stubs
-        .iter()
-        .flat_map(
-            |stub| match DESIGNATION_MAP.iter().find(|(s, _)| **s == label_of(stub)) {
-                Some((_, ctors)) => ctors.iter().map(|c| (*c).to_owned()).collect::<Vec<_>>(),
-                None => vec![stub.clone()],
-            },
-        )
+/// Every label the designation declarations declare, under the Idris name
+/// each is spelled with there.
+fn designation_labels(
+    declarations: &[deckmaste_construction_core::macro_def::NormalizedDeclaration],
+) -> anyhow::Result<Vec<String>> {
+    lean::designation_declared_labels(declarations)?
+        .into_iter()
+        .map(|label| {
+            Ok(DESIGNATION_IDRIS_ALIASES
+                .iter()
+                .find(|(declared, _)| *declared == label)
+                .map_or(label, |(_, idris)| (*idris).to_owned()))
+        })
         .collect()
 }
 
@@ -1886,7 +1768,7 @@ fn report(t: &Table) -> bool {
 fn counter_stub_spellings(dir: &Path) -> anyhow::Result<Vec<String>> {
     let mut spellings = Vec::new();
     for name in stub_names(dir)? {
-        if label_of(&name) == "P1P1Counter" || label_of(&name) == "M1M1Counter" {
+        if name == "p1P1Counter" || name == "m1M1Counter" {
             continue;
         }
         let path = dir.join(format!("{name}.ron"));
@@ -1905,13 +1787,9 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
         .with_context(|| format!("reading {}", words_path.display()))?;
 
     let mut counter_rows = table_labels(&words, "MkCounterFacts");
-    counter_rows.extend(
-        overlay()
-            .iter()
-            .filter(|r| r.counter_eligible)
-            .map(|r| r.label.to_owned()),
-    );
-    let designation_stubs = stub_names(&root.join(DESIGNATION_STUBS))?;
+    let declarations =
+        deckmaste_construction_core::macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
+    counter_rows.extend(lean::counter_eligible_keywords(&declarations)?);
 
     let tables = [
         Table {
@@ -1944,7 +1822,7 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
         Table {
             name: "designations",
             scope: DESIGNATION_SCOPE,
-            stubs: designation_labels(&designation_stubs),
+            stubs: designation_labels(&declarations)?,
             rows: designation_ctors(&words),
             stub_exempt: DESIGNATION_STUBS_EXEMPT,
             row_exempt: &[],
@@ -1956,8 +1834,8 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
     for table in &tables {
         ok &= report(table);
     }
-    for (stub, ctors) in DESIGNATION_MAP {
-        println!("  designation mapping: {stub} → {}", ctors.join(", "));
+    for (declared, idris) in DESIGNATION_IDRIS_ALIASES {
+        println!("  designation mapping: {declared} → {idris}");
     }
     println!("{GATE_COLUMNS}");
     println!("{ROLE_COLUMNS}");
@@ -2063,12 +1941,16 @@ mod tests {
 
     #[test]
     fn recorded_reasons_name_labels_that_are_really_there() {
-        // Stub file stems are declaration names (camelCase); the exemption
-        // tables name labels, so compare through `label_of`.
-        let stubs = stub_names(&root().join(KEYWORD_STUBS))
-            .expect("reading the keyword stubs")
-            .iter()
-            .map(|name| label_of(name))
+        let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
+            root().join("plugins_v2/builtin"),
+        )
+        .expect("reading the builtin declarations");
+        // The exemption tables name keywords, and a keyword is what its
+        // declaration's body defines.
+        let stubs = lean::keyword_definitions(&declarations)
+            .expect("reading the keyword definitions")
+            .into_iter()
+            .map(|definition| definition.word)
             .collect::<Vec<_>>();
         for e in KEYWORD_STUBS_EXEMPT {
             assert!(
@@ -2081,11 +1963,8 @@ mod tests {
         for e in KEYWORD_ROWS_EXEMPT {
             assert!(rows.contains(&e.label), "{}: no such row", e.label);
         }
-        let designations = stub_names(&root().join(DESIGNATION_STUBS))
-            .expect("reading the designation stubs")
-            .iter()
-            .map(|name| label_of(name))
-            .collect::<Vec<_>>();
+        let designations =
+            lean::designation_declared_labels(&declarations).expect("reading the designations");
         for e in DESIGNATION_STUBS_EXEMPT {
             assert!(
                 designations.contains(&e.label.to_owned()),
@@ -2093,10 +1972,10 @@ mod tests {
                 e.label
             );
         }
-        for (stub, _) in DESIGNATION_MAP {
+        for (declared, _) in DESIGNATION_IDRIS_ALIASES {
             assert!(
-                designations.contains(&(*stub).to_owned()),
-                "{stub}: no such stub"
+                designations.contains(&(*declared).to_owned()),
+                "{declared}: no such declared label"
             );
         }
     }
@@ -2124,11 +2003,19 @@ mod tests {
             !ctors.iter().any(|c| c == ":"),
             "a type signature was read as a constructor"
         );
-        let mapped = designation_labels(&["DayNight".to_owned(), "Goaded".to_owned()]);
-        assert_eq!(mapped, vec!["Day", "Night", "Goaded"]);
+        // The declared labels reach the Idris constructors through `normalize`
+        // alone, bar the one recorded alias.
+        let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
+            root().join("plugins_v2/builtin"),
+        )
+        .expect("reading the builtin declarations");
+        let mapped = designation_labels(&declarations).expect("mapping the designation labels");
+        assert!(mapped.contains(&"CommanderD".to_owned()));
+        assert!(mapped.contains(&"day".to_owned()) && mapped.contains(&"night".to_owned()));
+        let keys: Vec<String> = ctors.iter().map(|ctor| normalize(ctor)).collect();
         assert_eq!(
-            designation_labels(&["Sector".to_owned()]),
-            vec!["AlphaSector", "BetaSector", "GammaSector"]
+            missing(&mapped, &keys, DESIGNATION_STUBS_EXEMPT),
+            Vec::<String>::new()
         );
     }
 

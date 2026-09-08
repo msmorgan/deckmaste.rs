@@ -47,7 +47,7 @@ fn every_builtin_noun_declaration_inherits_its_class_semantics() {
     assert_eq!(
         census,
         BTreeMap::from([
-            ("counter kind", 71),
+            ("counter kind", 73),
             ("subtype", 462),
             ("turn part", 19),
             ("type", 10),

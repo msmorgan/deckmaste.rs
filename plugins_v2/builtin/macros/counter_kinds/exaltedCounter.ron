@@ -1,0 +1,19 @@
+// A keyword counter ([CR#122.1b]): a exalted counter makes its bearer gain
+// exalted (layer 6, [CR#613.1f]). The [CR#122.1b] list is the registry's own
+// scope, so every keyword it names has a declaration here.
+CounterKind(
+    name: "exaltedCounter",
+    params: [],
+    spelling: "exalted",
+    grammar: FixedTerm(surface: "exalted"),
+    body: Counter(
+        kind: Keyword(keyword: "Exalted"),
+        holder: Object,
+        confers: [
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "Exalted", params: [], body: []),
+            )),
+        ],
+    ),
+)

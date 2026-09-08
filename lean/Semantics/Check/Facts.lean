@@ -170,7 +170,7 @@ def keywordFacts : List KeywordFacts :=
     { word := "Companion", argumentSchemas := [[⟨.deckCondition, none⟩]] },
     { word := "Absorb", argumentSchemas := [[⟨.number, none⟩]], definition := [.static] },
     { word := "Afflict", argumentSchemas := [[⟨.number, none⟩]], definition := [.triggered] },
-    { word := "Aftermath", argumentSchemas := [[]], onInstantOrSorceryCard := true, onPermanentCard := false, definition := [.static] },
+    { word := "Aftermath", argumentSchemas := [[]], onInstantOrSorceryCard := true, onPermanentCard := false, definition := [.static, .static] },
     { word := "Amplify", argumentSchemas := [[⟨.number, none⟩]] },
     { word := "Assist", argumentSchemas := [[]], functionsOnStack := true, onInstantOrSorceryCard := true, regime := some .atCasting },
     { word := "AuraSwap", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true, definition := [.activated] },

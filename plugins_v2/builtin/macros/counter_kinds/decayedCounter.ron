@@ -1,0 +1,19 @@
+// A keyword counter ([CR#122.1b]): a decayed counter makes its bearer gain
+// decayed (layer 6, [CR#613.1f]). The [CR#122.1b] list is the registry's own
+// scope, so every keyword it names has a declaration here.
+CounterKind(
+    name: "decayedCounter",
+    params: [],
+    spelling: "decayed",
+    grammar: FixedTerm(surface: "decayed"),
+    body: Counter(
+        kind: Keyword(keyword: "Decayed"),
+        holder: Object,
+        confers: [
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "Decayed", params: [], body: []),
+            )),
+        ],
+    ),
+)

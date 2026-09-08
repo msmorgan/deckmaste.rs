@@ -1,9 +1,19 @@
-//! Lean registry tables. A declaration carries its own fact columns in its
-//! body, read as the `deckmaste_semantics_v2::facts` mirror of
-//! `lean/Semantics/Check/FactTypes.lean`; the overlays supply only the columns
-//! no declaration body has room for — the keyword-ability gate columns (whose
-//! Idris twin reads the same table) and the keyword-action checker columns
-//! (whose bodies are the actions' own instructions).
+//! Lean registry tables, derived from the `plugins_v2/builtin` declarations.
+//!
+//! A declaration's BODY is its `Definition` node (counters, subtypes,
+//! designations) or its `Ability.keyword` term (keyword abilities), and every
+//! column those carry is read from them: a counter's kind and holder, a
+//! subtype's identity, a designation's six columns, a keyword's word and the
+//! categories its definition is written in [CR#702.1], and — across families —
+//! which keywords a counter is a counter of [CR#122.1b].
+//!
+//! Two overlays remain, and each is a column no declaration carries:
+//! the keyword-ability GATE columns (`overlay`), and the keyword-action
+//! checker columns (`action_overlay`), whose declarations' bodies are the
+//! actions' own instructions. `subtype_rows`' frame column is a third: it
+//! describes the card frame a subtype sits on [CR#714.1,715.1,709.5j], which
+//! no conferral expresses. `semantics-v2-definition-bodies` records why each
+//! stands.
 //!
 //! A body is read through `deckmaste_semantics_v2::ron::macro_set` — the same
 //! reader configuration the v2 corpus uses — so a body written in the dialect
@@ -28,6 +38,8 @@ use deckmaste_semantics_v2::words::Kind;
 use deckmaste_semantics_v2::words::RoomHalf;
 use deckmaste_semantics_v2::words::Subtype;
 use deckmaste_semantics_v2::words::Zone;
+use serde::Deserialize;
+use serde::de::IgnoredAny;
 
 use super::KEYWORD_ROWS_EXEMPT;
 use super::KEYWORD_STUBS_EXEMPT;
@@ -164,28 +176,161 @@ fn table(out: &mut String, name: &str, ty: &str, rows: &[String]) {
     .unwrap();
 }
 
-fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
-    let overlays = overlay();
+/// The keyword a keyword-ability declaration defines, with the abilities its
+/// definition is written as [CR#702.1] — the `Ability.keyword` term its body
+/// IS. Both columns are the declaration's own; the gate columns beside them
+/// are not (see `overlay`).
+pub(super) struct KeywordDefinition {
+    pub(super) word: String,
+    pub(super) categories: Vec<&'static str>,
+    pub(super) params: Vec<String>,
+}
+
+/// A keyword-ability declaration's body, read for its shape alone.
+///
+/// The body is an `Ability.keyword` term whose payload may write `Param(n)` —
+/// a parameter reference only a macro EXPANSION resolves — so it cannot be
+/// read as a `deckmaste_semantics_v2::abilities::Ability`. What the table
+/// needs of it is the keyword it defines and the categories its definition is
+/// written in [CR#702.1], and both are visible without the payload: serde
+/// skips a field these types do not declare, so every `Param` inside one goes
+/// past as an ignored value.
+#[derive(Deserialize)]
+#[expect(
+    dead_code,
+    reason = "a field is declared so the reader accepts it and skips its value"
+)]
+enum KeywordBody {
+    Keyword {
+        keyword: String,
+        params: IgnoredAny,
+        body: Vec<DefinitionAbility>,
+    },
+}
+
+/// One ability of a keyword's definition, read for its category alone
+/// [CR#113.3b,113.3c,113.3d]. A definition is written in one of the three
+/// [CR#702.1], so a body ability of any other shape is a refusal.
+#[derive(Deserialize)]
+#[expect(
+    dead_code,
+    reason = "a field is declared so the reader accepts it and skips its value"
+)]
+enum DefinitionAbility {
+    Static {
+        spec: IgnoredAny,
+    },
+    Triggered {
+        event: IgnoredAny,
+        alternatives: IgnoredAny,
+        r#while: IgnoredAny,
+        joins: IgnoredAny,
+        timing: IgnoredAny,
+        limit: IgnoredAny,
+        intervening: IgnoredAny,
+        instruction: IgnoredAny,
+    },
+    Activated {
+        cost: IgnoredAny,
+        instruction: IgnoredAny,
+        timing: IgnoredAny,
+        limit: IgnoredAny,
+        guard: IgnoredAny,
+        activator: IgnoredAny,
+    },
+}
+
+impl DefinitionAbility {
+    fn category(&self) -> &'static str {
+        match self {
+            DefinitionAbility::Static { .. } => ".static",
+            DefinitionAbility::Triggered { .. } => ".triggered",
+            DefinitionAbility::Activated { .. } => ".activated",
+        }
+    }
+}
+
+/// Every keyword-ability declaration's definition, in declaration order.
+pub(super) fn keyword_definitions(
+    declarations: &[NormalizedDeclaration],
+) -> anyhow::Result<Vec<KeywordDefinition>> {
+    let mut result = Vec::new();
     for declared in declarations
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::KeywordAbility)
     {
-        let label = &super::label_of(declared.identity().name());
+        let name = declared.identity().name();
+        let body = declared
+            .body()
+            .with_context(|| format!("{name}: keyword ability has no declaration body"))?;
+        let KeywordBody::Keyword { keyword, body, .. } = macro_set()
+            .read_str(body.get_ron())
+            .with_context(|| format!("reading keyword ability {name}"))?;
+        let categories = body.iter().map(DefinitionAbility::category).collect();
+        result.push(KeywordDefinition {
+            word: keyword,
+            categories,
+            params: declared
+                .params()
+                .unwrap_or_default()
+                .iter()
+                .map(|param| macro_def::ParameterType::as_str(param).to_owned())
+                .collect(),
+        });
+    }
+    Ok(result)
+}
+
+/// The keywords a counter declaration makes a counter of [CR#122.1b]. The
+/// registry declares one counter per keyword the rule names, so eligibility is
+/// read off the counter family rather than restated on the keyword row.
+pub(super) fn counter_eligible_keywords(
+    declarations: &[NormalizedDeclaration],
+) -> anyhow::Result<BTreeSet<String>> {
+    let dialect = macro_set();
+    let mut result = BTreeSet::new();
+    for row in declarations
+        .iter()
+        .filter(|row| row.identity().kind() == DeclarationKind::CounterKind)
+    {
+        let name = row.identity().name();
+        let body = row
+            .body()
+            .with_context(|| format!("{name}: counter has no declaration body"))?;
+        let body: Definition = dialect
+            .read_str(body.get_ron())
+            .with_context(|| format!("reading counter {name}"))?;
+        if let Definition::Counter {
+            kind: CounterKind::Keyword { keyword },
+            ..
+        } = body
+        {
+            result.insert(keyword);
+        }
+    }
+    Ok(result)
+}
+
+fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
+    let overlays = overlay();
+    let definitions = keyword_definitions(declarations)?;
+    let counter_keywords = counter_eligible_keywords(declarations)?;
+    for definition in &definitions {
         anyhow::ensure!(
-            overlays.iter().any(|row| row.label == label)
+            overlays.iter().any(|row| row.label == definition.word)
                 || KEYWORD_STUBS_EXEMPT
                     .iter()
-                    .any(|exempt| exempt.label == label),
-            "{label}: keyword declaration has no gate-column overlay"
+                    .any(|exempt| exempt.label == definition.word),
+            "{}: keyword declaration has no gate-column overlay",
+            definition.word
         );
     }
     overlays
         .iter()
         .map(|row| {
-            let declared = declarations.iter().find(|decl| {
-                decl.identity().kind() == DeclarationKind::KeywordAbility
-                    && super::label_of(decl.identity().name()) == row.label
-            });
+            let declared = definitions
+                .iter()
+                .find(|definition| definition.word == row.label);
             anyhow::ensure!(
                 declared.is_some()
                     || KEYWORD_ROWS_EXEMPT
@@ -197,10 +342,9 @@ fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
             let mut schemas = Vec::new();
             if let Some(declared) = declared {
                 let params = declared
-                    .params()
-                    .unwrap_or_default()
+                    .params
                     .iter()
-                    .map(macro_def::ParameterType::as_str)
+                    .map(String::as_str)
                     .collect::<Vec<_>>();
                 add_schema(&mut schemas, &params)
                     .with_context(|| format!("{}: invalid argument schema", row.label))?;
@@ -217,8 +361,10 @@ fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
                 format!("word := {}", quoted(row.label)),
                 format!("argumentSchemas := [{}]", schemas.join(", ")),
             ];
+            if counter_keywords.contains(row.label) {
+                fields.push("counterEligible := true".into());
+            }
             for (set, field) in [
-                (row.counter_eligible, "counterEligible"),
                 (row.functions_on_stack, "functionsOnStack"),
                 (row.on_spell_card, "onInstantOrSorceryCard"),
                 (row.paid_cost, "paidCost"),
@@ -231,14 +377,17 @@ fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
             if !row.on_permanent_card {
                 fields.push("onPermanentCard := false".into());
             }
-            if !row.definition.is_empty() {
-                let categories = row
-                    .definition
-                    .iter()
-                    .map(|category| category.lean())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                fields.push(format!("definition := [{categories}]"));
+            // The categories a keyword's definition is written in [CR#702.1]
+            // are the categories of the definition the declaration WRITES.
+            // Where a declaration writes none — the workbench cannot spell it,
+            // and the file records the STOP — the CR entry still names them,
+            // and only those rows keep an overlay value.
+            let categories = declared
+                .map(|declared| declared.categories.clone())
+                .filter(|categories| !categories.is_empty())
+                .unwrap_or_else(|| row.definition.iter().map(|c| c.lean()).collect());
+            if !categories.is_empty() {
+                fields.push(format!("definition := [{}]", categories.join(", ")));
             }
             if let Some(regime) = row.regime {
                 fields.push(format!(
@@ -317,6 +466,33 @@ fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
             quoted(&label),
             kind_of(&holder)?
         ));
+    }
+    Ok(result)
+}
+
+/// Every label the designation declarations declare, in declaration order.
+pub(super) fn designation_declared_labels(
+    declarations: &[NormalizedDeclaration],
+) -> anyhow::Result<Vec<String>> {
+    let dialect = macro_set();
+    let mut result = Vec::new();
+    for row in declarations
+        .iter()
+        .filter(|row| row.identity().kind() == DeclarationKind::Designation)
+    {
+        let name = row.identity().name();
+        let body = row
+            .body()
+            .with_context(|| format!("{name}: designation has no declaration body"))?;
+        let rows: Vec<Definition> = dialect
+            .read_str(body.get_ron())
+            .with_context(|| format!("reading designation {name}"))?;
+        for definition in rows {
+            let Definition::Designation { label, .. } = definition else {
+                anyhow::bail!("{name}: a designation declaration defines designations");
+            };
+            result.push(label);
+        }
     }
     Ok(result)
 }
@@ -648,7 +824,8 @@ mod tests {
         fs::write(
             temp.path()
                 .join("plugins_v2/builtin/macros/keyword_abilities/TestKeyword.ron"),
-            "KeywordAbility(name: \"TestKeyword\", spelling: \"test keyword\")",
+            "KeywordAbility(name: \"TestKeyword\", params: [], spelling: \"test keyword\", \
+             body: Keyword(keyword: \"TestKeyword\", params: [], body: []))",
         )
         .unwrap();
         let error = render(temp.path()).unwrap_err().to_string();
