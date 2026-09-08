@@ -27,3 +27,27 @@ revisable and has no fixed percentage threshold. Standard constraints apply.
 Activation artifacts: `data/reports/english-v3/kkmxslkn/manifest.json` (ignored,
 shared data). The activation landing record gives reproduction commands; its
 obligation and acceptance-audit artifacts distinguish parsing from re-coverage.
+
+Concrete residuals from that baseline:
+
+- Admit indefinite articles through onset/variant constraints; 19,516 failed
+  faces contain article-shaped text. Complete capitalization constraints too.
+- Add power/toughness slash-pair measure Productions (10,803 failed faces).
+- Consume the remaining declared keyword parameter classes (`Quality`,
+  `Subject`, `AmountCost`, `QualityCost`, and `Unsupported` variants), including
+  richer symbolic/composite costs; 1,783 failed faces have matching headings.
+- Repair lexical gaps: 8,468 failed faces have observed unknown words, including
+  `defending`, `addition`, `named`, `spent`, `game`, and `amount`.
+- Connect the existing italic-head/FlavorWord mechanism to Ability labels;
+  all 196 inherited flavor-head identities still have no Reading.
+- Complete frames, sharing, extraction, and scope: all 20 named register
+  witnesses fail. Of 85 inherited frame-coordination gains, 76 have no Reading
+  and nine have multiple Readings without the required shared-frame structure.
+  Preserve the register's expected structures and all grammatical alternatives.
+  Flat serial coordination, within-group Type Line ordering, and richer
+  document forms also remain open.
+
+These counts overlap and describe observed features, not proven sole causes;
+6,396 failed faces still need classification beyond the initial groups. The
+obligation artifact retains the named attachment, coordination, scope, and
+preterite witnesses. Parsing alone does not discharge their required structures.
