@@ -26,7 +26,11 @@ correction, 2026-09-08).
 | 5 | [english-v3-construction-compiler](tickets/done/english-v3-construction-compiler.md) | Build the independent compiler core and thin proc macro that generate every bidirectional projection. |
 | 6 | [english-v3-generated-roundtrip-slice](tickets/planned/english-v3-generated-roundtrip-slice.md) | Prove the generated pipeline and both roundtrip laws on one bounded interacting slice. |
 | 7 | [english-v3-whole-grammar-activation](tickets/planned/english-v3-whole-grammar-activation.md) | Declare every planned family together, turn the complete machine on, and establish the first supported-corpus baseline. |
-| 8 | [english-v3-systemic-residuals](tickets/planned/english-v3-systemic-residuals.md) | Repair failures by shared cause until the remaining work is a productive long tail. |
+| 8a | [english-v3-lexical-measures](tickets/planned/english-v3-lexical-measures.md) | Repair six measured lexical gaps, slash-pair measures and invisible numeral duplication. |
+| 8b | [english-v3-article-variants](tickets/planned/english-v3-article-variants.md) | Admit indefinite articles with realized onset and positional capitalization constraints. |
+| 8c | [english-v3-keyword-labels](tickets/planned/english-v3-keyword-labels.md) | Consume declared keyword payloads and connect bounded italic labels to Ability bodies. |
+| 8d | [english-v3-frame-coordination](tickets/planned/english-v3-frame-coordination.md) | Recover paired frame segments with explicit sharing and structural ambiguity bounds. |
+| 8e | [english-v3-systemic-residuals](tickets/planned/english-v3-systemic-residuals.md) | Reconcile remaining causes and obligations; add measured systemic prerequisites before cutover. |
 | 9 | [english-v3-production-cutover](tickets/planned/english-v3-production-cutover.md) | Move every production consumer to v3 and retire the replaced v2 parser/compiler paths. |
 | 10 | [english-v3-corpus-long-tail](tickets/planned/english-v3-corpus-long-tail.md) | Complete the remaining supported-corpus work in coherent residual batches. |
 

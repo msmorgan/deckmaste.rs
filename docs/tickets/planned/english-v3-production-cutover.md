@@ -3,6 +3,12 @@ needs: [english-v3-systemic-residuals]
 ---
 # Cut production English consumers over to v3
 
+Begin only after the four residual implementation batches and
+`english-v3-systemic-residuals` reconciliation. That reconciliation adds any
+newly measured systemic repair tickets to this ticket's `needs:`; four batches
+completing does not itself establish readiness. Require the explicit remaining
+identity/structure ownership and measured runtime/forest bounds at that handoff.
+
 Make the v3 all-Readings parser, generated AST and renderer the production
 Oracle English interface. Migrate corpus, inspection and plugin-facing
 consumers together so no adapter silently reselects a single Reading or routes
