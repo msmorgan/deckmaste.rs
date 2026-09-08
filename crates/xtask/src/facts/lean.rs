@@ -4,6 +4,10 @@
 //! no declaration body has room for — the keyword-ability gate columns (whose
 //! Idris twin reads the same table) and the keyword-action checker columns
 //! (whose bodies are the actions' own instructions).
+//!
+//! A body is read through `deckmaste_semantics_v2::ron::macro_set` — the same
+//! reader configuration the v2 corpus uses — so a body written in the dialect
+//! (positional application, bare embeds, bare numerals) reads here too.
 
 use std::collections::BTreeSet;
 use std::fmt::Write;
@@ -18,7 +22,7 @@ use deckmaste_construction_core::macro_def::{self};
 use deckmaste_semantics_v2::facts::CounterFacts;
 use deckmaste_semantics_v2::facts::DesignationFacts;
 use deckmaste_semantics_v2::facts::DesignationScope;
-use deckmaste_semantics_v2::ron::raw_options;
+use deckmaste_semantics_v2::ron::macro_set;
 use deckmaste_semantics_v2::words::CardType;
 use deckmaste_semantics_v2::words::Kind;
 use deckmaste_semantics_v2::words::RoomHalf;
@@ -297,6 +301,7 @@ enum CounterBody {
 }
 
 fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
+    let dialect = macro_set();
     let mut result = Vec::new();
     for row in declarations
         .iter()
@@ -306,8 +311,8 @@ fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
         let body = row
             .body()
             .with_context(|| format!("{name}: counter has no declaration body"))?;
-        let body: CounterBody = raw_options()
-            .from_str(body.get_ron())
+        let body: CounterBody = dialect
+            .read_str(body.get_ron())
             .with_context(|| format!("reading counter {name}"))?;
         let CounterBody::CounterFacts(facts) = body else {
             continue;
@@ -322,6 +327,7 @@ fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
 }
 
 fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
+    let dialect = macro_set();
     let mut result = Vec::new();
     for row in declarations
         .iter()
@@ -331,8 +337,8 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
         let body = row
             .body()
             .with_context(|| format!("{name}: designation has no declaration body"))?;
-        let rows: Vec<DesignationFacts> = raw_options()
-            .from_str(body.get_ron())
+        let rows: Vec<DesignationFacts> = dialect
+            .read_str(body.get_ron())
             .with_context(|| format!("reading designation {name}"))?;
         anyhow::ensure!(!rows.is_empty(), "{name}: designation declares no fact row");
         for facts in rows {
@@ -651,6 +657,53 @@ mod tests {
             error.contains("goaded: designation declares no fact row"),
             "{error}"
         );
+    }
+
+    /// A body is read through the v2 dialect, so a constructor applied in its
+    /// declared binder order is the same row as the same constructor applied
+    /// by name — which is what lets the four stub families write the dialect.
+    #[test]
+    fn a_positional_body_reads_to_the_same_row() {
+        const BODIES: [(&str, &str, &str); 2] = [
+            (
+                "designations/citysBlessing.ron",
+                "scope: HeldBy(holder: Player)",
+                "scope: HeldBy(Player)",
+            ),
+            (
+                "counter_kinds/shieldCounter.ron",
+                "CounterFacts(label: \"Shield\", holder: Object)",
+                "CounterFacts(\"Shield\", Object)",
+            ),
+        ];
+
+        let named = fixture();
+        let positional = fixture();
+        for (stub, by_name, by_order) in BODIES {
+            let stub = Path::new("plugins_v2/builtin/macros").join(stub);
+            let source = fs::read_to_string(named.path().join(&stub)).unwrap();
+            assert!(
+                source.contains(by_name) || source.contains(by_order),
+                "{stub:?}"
+            );
+            fs::write(named.path().join(&stub), source.replace(by_order, by_name)).unwrap();
+            fs::write(
+                positional.path().join(&stub),
+                source.replace(by_name, by_order),
+            )
+            .unwrap();
+        }
+
+        let by_name = render(named.path()).unwrap();
+        assert!(
+            by_name.contains("label := \"the city\'s blessing\", scope := .heldBy .player"),
+            "the designation row moved"
+        );
+        assert!(
+            by_name.contains("⟨\"Shield\", .object⟩"),
+            "the counter row moved"
+        );
+        assert_eq!(by_name, render(positional.path()).unwrap());
     }
 
     #[test]
