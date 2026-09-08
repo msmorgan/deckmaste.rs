@@ -5,5 +5,4 @@ Subtype(
     // Supported Oracle uses this only as a singular subtype noun; no plural context is attested.
     grammar: Noun(singular: "Aurochs", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Aurochs"), rules: []),
 )

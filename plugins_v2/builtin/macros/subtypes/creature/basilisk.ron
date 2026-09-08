@@ -4,6 +4,5 @@ Subtype(
     spelling: "Basilisk",
     grammar: Noun(singular: "Basilisk", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Basilisk"), rules: []),
 )
 

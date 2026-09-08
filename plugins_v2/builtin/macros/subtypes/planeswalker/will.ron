@@ -5,6 +5,5 @@ Subtype(
     spelling: "Will",
     grammar: Noun(singular: "Will", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Will"), rules: []),
 )
 

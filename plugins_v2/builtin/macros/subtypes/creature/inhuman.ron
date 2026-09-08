@@ -4,6 +4,5 @@ Subtype(
     spelling: "Inhuman",
     grammar: Noun(singular: "Inhuman", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Inhuman"), rules: []),
 )
 

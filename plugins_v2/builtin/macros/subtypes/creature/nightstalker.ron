@@ -4,6 +4,5 @@ Subtype(
     spelling: "Nightstalker",
     grammar: Noun(singular: "Nightstalker", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Nightstalker"), rules: []),
 )
 

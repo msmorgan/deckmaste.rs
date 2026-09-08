@@ -4,6 +4,5 @@ Subtype(
     spelling: "Clue",
     grammar: Noun(singular: "Clue"),
     params: [],
-    body: Subtype(subtype: Of(host: Artifact, label: "Clue"), rules: []),
 )
 

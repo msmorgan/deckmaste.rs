@@ -1,5 +1,19 @@
-// STOP (semantics-v2-definition-bodies). Still the v1 core record, for the same
-// reason as Equipment: the `Attach` deed [CR#701.3a] declares no patient role.
+// STOP (plugins-v2-subtypes-macro-only). This declaration's `rules` list is
+// EMPTY, for the same reason as Equipment: the `Attach` deed [CR#701.3a]
+// declares no patient role, so the [CR#301.6] host rule has no role to bind.
+// Routed to `semantics-v2-subtype-rules`.
+//
+// The v1 core type-rule record this declaration carried until
+// `plugins-v2-subtypes-macro-only`, preserved verbatim so nothing is lost:
+//
+//     body: Subtype(
+//         name: "Fortification",
+//         types: [Artifact],
+//         confers: [
+//             Static(May(attach(what: Ref(This), to: Type(Land)))),
+//         ],
+//     ),
+//
 // Fortification ([CR#301.6]) — the Land twin of the Equipment host rule
 // ([CR#301.5]), and a quality of the object in the same way ([CR#113.12]), so
 // it is conferred ability-free.
@@ -9,11 +23,4 @@ Subtype(
     spelling: "Fortification",
     grammar: Noun(singular: "Fortification"),
     params: [],
-    body: Subtype(
-        name: "Fortification",
-        types: [Artifact],
-        confers: [
-            Static(May(attach(what: Ref(This), to: Type(Land)))),
-        ],
-    ),
 )

@@ -1,8 +1,12 @@
+// The spell half of the `Subtype` family: instants and sorceries share their
+// spell types [CR#205.3k], so a spell subtype names no host card type and its
+// definition node is `Spell(label:)` rather than `Of(host:, label:)`. A meta
+// body has no conditional form, so the two spellings are two metas; this one
+// writes the category itself, since `Spell` is the only one it can carry.
 (
-    name: "Subtype",
+    name: "SpellSubtype",
     kinds: [Macro],
     params: {
-        "category": Any,
         "name": String,
         "params": Elidable(Any),
         "spelling": String,
@@ -14,7 +18,7 @@
         kinds: [Subtype],
         params: Param(params),
         metadata: (
-            category: Param(category),
+            category: Spell,
             spelling: Param(spelling),
             grammar: Param(grammar),
             noun_class: (
@@ -22,6 +26,6 @@
                 relationality: QualifiedRelational,
             ),
         ),
-        body: Subtype(subtype: Of(host: Param(category), label: Param(spelling)), rules: Param(rules)),
+        body: Subtype(subtype: Spell(label: Param(spelling)), rules: Param(rules)),
     ),
 )

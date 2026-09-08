@@ -4,6 +4,5 @@ Subtype(
     spelling: "Role",
     grammar: Noun(singular: "Role"),
     params: [],
-    body: Subtype(subtype: Of(host: Enchantment, label: "Role"), rules: []),
 )
 

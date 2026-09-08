@@ -4,6 +4,5 @@ Subtype(
     spelling: "Kor",
     grammar: Noun(singular: "Kor", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Kor"), rules: []),
 )
 

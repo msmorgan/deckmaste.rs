@@ -5,6 +5,5 @@ Subtype(
     spelling: "Kasmina",
     grammar: Noun(singular: "Kasmina", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Kasmina"), rules: []),
 )
 

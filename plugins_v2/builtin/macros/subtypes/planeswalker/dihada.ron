@@ -5,6 +5,5 @@ Subtype(
     spelling: "Dihada",
     grammar: Noun(singular: "Dihada", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Dihada"), rules: []),
 )
 

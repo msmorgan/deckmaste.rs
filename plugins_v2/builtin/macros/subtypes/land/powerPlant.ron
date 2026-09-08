@@ -5,6 +5,5 @@ Subtype(
     spelling: "Power-Plant",
     grammar: Noun(singular: "Power-Plant", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Land, label: "Power-Plant"), rules: []),
 )
 

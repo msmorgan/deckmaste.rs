@@ -4,6 +4,5 @@ Subtype(
     spelling: "Drone",
     grammar: Noun(singular: "Drone", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Drone"), rules: []),
 )
 

@@ -5,6 +5,5 @@ Subtype(
     spelling: "Infinity",
     grammar: Noun(singular: "Infinity", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Artifact, label: "Infinity"), rules: []),
 )
 

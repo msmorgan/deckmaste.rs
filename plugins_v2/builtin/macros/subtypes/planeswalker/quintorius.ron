@@ -5,6 +5,5 @@ Subtype(
     spelling: "Quintorius",
     grammar: Noun(singular: "Quintorius", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Quintorius"), rules: []),
 )
 

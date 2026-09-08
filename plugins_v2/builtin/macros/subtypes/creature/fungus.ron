@@ -4,6 +4,5 @@ Subtype(
     spelling: "Fungus",
     grammar: Noun(singular: "Fungus", plural: "Fungi"),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Fungus"), rules: []),
 )
 

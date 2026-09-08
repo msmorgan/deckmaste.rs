@@ -4,6 +4,5 @@ Subtype(
     spelling: "Tyranid",
     grammar: Noun(singular: "Tyranid", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Tyranid"), rules: []),
 )
 

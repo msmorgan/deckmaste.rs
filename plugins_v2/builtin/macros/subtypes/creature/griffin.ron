@@ -4,6 +4,5 @@ Subtype(
     spelling: "Griffin",
     grammar: Noun(singular: "Griffin", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Griffin"), rules: []),
 )
 

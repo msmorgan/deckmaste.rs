@@ -5,6 +5,5 @@ Subtype(
     spelling: "Teyo",
     grammar: Noun(singular: "Teyo", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Teyo"), rules: []),
 )
 

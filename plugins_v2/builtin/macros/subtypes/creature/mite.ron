@@ -4,6 +4,5 @@ Subtype(
     spelling: "Mite",
     grammar: Noun(singular: "Mite", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Mite"), rules: []),
 )
 

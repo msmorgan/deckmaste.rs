@@ -4,6 +4,5 @@ Subtype(
     spelling: "Yeti",
     grammar: Noun(singular: "Yeti", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Yeti"), rules: []),
 )
 

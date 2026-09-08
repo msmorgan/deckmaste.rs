@@ -4,6 +4,5 @@ Subtype(
     spelling: "Azra",
     grammar: Noun(singular: "Azra", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Azra"), rules: []),
 )
 

@@ -26,7 +26,6 @@ use std::path::Path;
 use anyhow::Context;
 use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
-use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::{self};
 use deckmaste_semantics_v2::ron::macro_set;
@@ -101,20 +100,6 @@ fn room_half(half: RoomHalf) -> &'static str {
 /// An optional column as Lean writes it.
 fn optional(value: Option<&'static str>) -> String {
     value.map_or_else(|| "none".to_owned(), |value| format!("some {value}"))
-}
-
-fn surface(row: &NormalizedDeclaration) -> anyhow::Result<String> {
-    row.spelling()
-        .iter()
-        .map(|part| match part {
-            SpellingPart::Literal(text) => Ok(text.as_str()),
-            SpellingPart::Param(_) => anyhow::bail!(
-                "{}: a registry label cannot contain a parameter",
-                row.identity().name()
-            ),
-        })
-        .collect::<anyhow::Result<Vec<_>>>()
-        .map(|parts| parts.join(""))
 }
 
 fn argument_schema(params: &[&str]) -> anyhow::Result<String> {
@@ -543,50 +528,24 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
 
 /// The `Subtype` a subtype declaration's body defines.
 ///
-/// Four declarations still carry the v1 core type-rule record instead of a
-/// `Definition` — `equipment`, `fortification`, `aura` and `saga`, each with a
-/// STOP at the head of its file — so a body that does not read as a definition
-/// falls back to the declaration's own category and spelling, which is the
-/// same identity the body would have written. The fallback retires with those
-/// four STOPs (`plugins-v2-subtypes-macro-only`).
+/// Every subtype declaration's body IS its `Definition` node, derived by the
+/// `Subtype`/`SpellSubtype` meta from the declaration's category and spelling
+/// (`plugins-v2-subtypes-macro-only`), so there is nowhere else to read the
+/// identity from and no fallback to a name.
 fn subtype_of(row: &NormalizedDeclaration) -> anyhow::Result<Subtype> {
-    let DeclarationKind::Subtype(category) = row.identity().kind() else {
+    if !matches!(row.identity().kind(), DeclarationKind::Subtype(_)) {
         anyhow::bail!("{}: not a subtype declaration", row.identity().name());
-    };
-    if let Some(body) = row.body()
-        && let Ok(Definition::Subtype { subtype, .. }) =
-            macro_set().read_str::<Definition>(body.get_ron())
-    {
-        return Ok(subtype);
     }
-    let label = surface(row)?;
-    Ok(match category {
-        SubtypeCategory::Spell => Subtype::Spell { label },
-        SubtypeCategory::Artifact => Subtype::Of {
-            host: CardType::Artifact,
-            label,
-        },
-        SubtypeCategory::Battle => Subtype::Of {
-            host: CardType::Battle,
-            label,
-        },
-        SubtypeCategory::Creature => Subtype::Of {
-            host: CardType::Creature,
-            label,
-        },
-        SubtypeCategory::Enchantment => Subtype::Of {
-            host: CardType::Enchantment,
-            label,
-        },
-        SubtypeCategory::Land => Subtype::Of {
-            host: CardType::Land,
-            label,
-        },
-        SubtypeCategory::Planeswalker => Subtype::Of {
-            host: CardType::Planeswalker,
-            label,
-        },
-    })
+    let body = row
+        .body()
+        .with_context(|| format!("{}: subtype has no declaration body", row.identity().name()))?;
+    match macro_set().read_str::<Definition>(body.get_ron()) {
+        Ok(Definition::Subtype { subtype, .. }) => Ok(subtype),
+        _ => anyhow::bail!(
+            "{}: subtype declaration does not define a subtype",
+            row.identity().name()
+        ),
+    }
 }
 
 fn subtype(subtype: &Subtype) -> String {
@@ -596,15 +555,14 @@ fn subtype(subtype: &Subtype) -> String {
     }
 }
 
-/// The four declarations whose body is still the v1 core type-rule record
-/// rather than a `Definition`, each with a STOP at the head of its file
-/// (`semantics-v2-definition-bodies`). The list shrinks to empty when the
-/// syntax those four records need exists; it is here so that a subtype
-/// declaration that fails to define a subtype is a refusal rather than a
-/// silent fallback.
-const SUBTYPE_DEFINITION_STOPS: &[&str] = &["equipment", "fortification", "aura", "saga"];
+/// The declarations whose body is not a `Definition`. EMPTY since
+/// `plugins-v2-subtypes-macro-only` derived every subtype body from its
+/// declaration: the guard stays so that a subtype declaration failing to
+/// define a subtype is a refusal, and so that a future exception has to be
+/// written down here to exist.
+const SUBTYPE_DEFINITION_STOPS: &[&str] = &[];
 
-/// Every subtype declaration defines its subtype, bar the four recorded STOPs.
+/// Every subtype declaration defines its subtype.
 fn subtype_definitions_read(rows: &[NormalizedDeclaration]) -> anyhow::Result<()> {
     let dialect = macro_set();
     for row in rows

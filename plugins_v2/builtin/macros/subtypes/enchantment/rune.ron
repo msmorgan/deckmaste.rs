@@ -5,6 +5,5 @@ Subtype(
     spelling: "Rune",
     grammar: Noun(singular: "Rune", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Enchantment, label: "Rune"), rules: []),
 )
 

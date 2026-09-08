@@ -5,6 +5,5 @@ Subtype(
     spelling: "Urza's",
     grammar: Noun(singular: "Urza's", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Land, label: "Urza's"), rules: []),
 )
 

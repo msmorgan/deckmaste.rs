@@ -4,6 +4,5 @@ Subtype(
     spelling: "Shi'ar",
     grammar: Noun(singular: "Shi'ar", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Shi'ar"), rules: []),
 )
 

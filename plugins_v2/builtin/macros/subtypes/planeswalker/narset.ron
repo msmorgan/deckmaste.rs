@@ -5,6 +5,5 @@ Subtype(
     spelling: "Narset",
     grammar: Noun(singular: "Narset", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Narset"), rules: []),
 )
 

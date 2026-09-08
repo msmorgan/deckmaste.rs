@@ -1,7 +1,20 @@
-// STOP (semantics-v2-definition-bodies). This body is still the v1 core type-rule
-// record, not a `Definition`. The host rule is a deontic over the `Attach` deed
-// [CR#701.3a], and that deed's `actFacts` row declares no patient role, so
-// "…to a creature" has no role to bind. Blocks `plugins-v2-subtypes-macro-only`.
+// STOP (plugins-v2-subtypes-macro-only). This declaration's `rules` list is
+// EMPTY, and the Equipment host rule is not yet written in v2 syntax: the
+// [CR#301.5] rule is a deontic over the `Attach` deed [CR#701.3a], whose
+// `actFacts` row declares no patient role, so "…to a creature" has no role to
+// bind. Routed to `semantics-v2-subtype-rules`, which owns writing it.
+//
+// The v1 core type-rule record this declaration carried until
+// `plugins-v2-subtypes-macro-only`, preserved verbatim so nothing is lost:
+//
+//     body: Subtype(
+//         name: "Equipment",
+//         types: [Artifact],
+//         confers: [
+//             Static(May(attach(what: Ref(This), to: Type(Creature)))),
+//         ],
+//     ),
+//
 // Equipment ([CR#301.5]) — "an Equipment can be attached to a creature. It
 // can't legally be attached to anything that isn't a creature." That STATES A
 // QUALITY of the object, which [CR#113.12] is explicit is neither granting an
@@ -13,11 +26,4 @@ Subtype(
     spelling: "Equipment",
     grammar: Noun(singular: "Equipment", plural: "Equipment"),
     params: [],
-    body: Subtype(
-        name: "Equipment",
-        types: [Artifact],
-        confers: [
-            Static(May(attach(what: Ref(This), to: Type(Creature)))),
-        ],
-    ),
 )

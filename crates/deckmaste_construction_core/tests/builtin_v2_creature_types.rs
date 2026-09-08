@@ -12,6 +12,24 @@ use deckmaste_construction_core::macro_def::ValidationError;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 use deckmaste_construction_core::macro_def::read_str;
 
+/// A body's text with every space taken out, so a comparison is about the
+/// value written and not about how the expander spaced it: a derived body is
+/// assembled by substitution, and its inter-field spacing is `macro_ron`'s
+/// business rather than the declaration's.
+fn compact_ron(source: &str) -> String {
+    let mut compact = source
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect::<String>();
+    loop {
+        let normalized = compact.replace(",]", "]").replace(",)", ")");
+        if normalized == compact {
+            return compact;
+        }
+        compact = normalized;
+    }
+}
+
 fn creature_type<'a>(
     declarations: &'a [NormalizedDeclaration],
     name: &str,
@@ -103,8 +121,10 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
             .body()
             .unwrap_or_else(|| panic!("{} must define its subtype", declaration.identity()));
         assert_eq!(
-            body.get_ron(),
-            format!("Subtype(subtype: Of(host: Creature, label: \"{spelling}\"), rules: [])"),
+            compact_ron(body.get_ron()),
+            compact_ron(&format!(
+                "Subtype(subtype: Of(host: Creature, label: \"{spelling}\"), rules: [])"
+            )),
             "{} must not infer a semantic conferral",
             declaration.identity()
         );

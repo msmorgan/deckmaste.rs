@@ -4,6 +4,5 @@ Subtype(
     spelling: "Squid",
     grammar: Noun(singular: "Squid", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Squid"), rules: []),
 )
 

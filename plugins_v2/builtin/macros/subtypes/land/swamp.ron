@@ -4,6 +4,5 @@ Subtype(
     spelling: "Swamp",
     grammar: Noun(singular: "Swamp"),
     params: [],
-    body: Subtype(subtype: Of(host: Land, label: "Swamp"), rules: []),
 )
 

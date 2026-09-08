@@ -5,5 +5,4 @@ Subtype(
     // Supported Oracle attests neither "Cyclopes" nor "Cyclopses" as a creature-type plural.
     grammar: Noun(singular: "Cyclops", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Cyclops"), rules: []),
 )

@@ -4,6 +4,5 @@ Subtype(
     spelling: "Metathran",
     grammar: Noun(singular: "Metathran", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Metathran"), rules: []),
 )
 

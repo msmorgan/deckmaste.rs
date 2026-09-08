@@ -4,6 +4,5 @@ Subtype(
     spelling: "Inkling",
     grammar: Noun(singular: "Inkling"),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Inkling"), rules: []),
 )
 

@@ -5,6 +5,5 @@ Subtype(
     spelling: "Book",
     grammar: Noun(singular: "Book", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Artifact, label: "Book"), rules: []),
 )
 

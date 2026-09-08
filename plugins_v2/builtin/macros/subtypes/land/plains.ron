@@ -4,6 +4,5 @@ Subtype(
     spelling: "Plains",
     grammar: Noun(singular: "Plains", plural: "Plains"),
     params: [],
-    body: Subtype(subtype: Of(host: Land, label: "Plains"), rules: []),
 )
 

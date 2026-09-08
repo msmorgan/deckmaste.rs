@@ -4,6 +4,5 @@ Subtype(
     spelling: "Merfolk",
     grammar: Noun(singular: "Merfolk", plural: "Merfolk"),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Merfolk"), rules: []),
 )
 

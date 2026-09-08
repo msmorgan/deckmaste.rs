@@ -5,6 +5,5 @@ Subtype(
     spelling: "Junk",
     grammar: Noun(singular: "Junk", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Artifact, label: "Junk"), rules: []),
 )
 

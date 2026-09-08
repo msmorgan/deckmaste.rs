@@ -4,6 +4,5 @@ Subtype(
     spelling: "Spacecraft",
     grammar: Noun(singular: "Spacecraft", plural: "Spacecraft"),
     params: [],
-    body: Subtype(subtype: Of(host: Artifact, label: "Spacecraft"), rules: []),
 )
 

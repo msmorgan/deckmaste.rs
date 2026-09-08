@@ -5,6 +5,5 @@ Subtype(
     spelling: "Windgrace",
     grammar: Noun(singular: "Windgrace", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Windgrace"), rules: []),
 )
 

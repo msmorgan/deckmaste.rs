@@ -5,6 +5,5 @@ Subtype(
     spelling: "Powerstone",
     grammar: Noun(singular: "Powerstone", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Artifact, label: "Powerstone"), rules: []),
 )
 

@@ -35,6 +35,7 @@ const DECLARATION_META_MACROS: &[&str] = &[
     include_str!("../../../plugins_v2/builtin/macros/meta/Designation.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/KeywordAbility.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/KeywordAction.ron"),
+    include_str!("../../../plugins_v2/builtin/macros/meta/SpellSubtype.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/Subtype.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/TurnPart.ron"),
     include_str!("../../../plugins_v2/builtin/macros/meta/Type.ron"),
@@ -1028,7 +1029,40 @@ struct ValidationSourceMap {
     params: Option<SourcePosition>,
     spelling: SourcePosition,
     grammar: Option<GrammarSourceMap>,
-    body: Option<SourcePosition>,
+    body: BodySource,
+}
+
+/// Where a declaration's body came from.
+///
+/// A declaration has a body when its meta-macro left one, and the two ways
+/// that happens are not the same thing for validation: an AUTHORED body is
+/// text in the declaration file, with a position to report against and a
+/// signature to check its `Param` holes for; a DERIVED body is the meta's own,
+/// built out of the declaration's other fields — the subtype metas' `Subtype`
+/// definition node, which every subtype declaration carries without writing it
+/// (`plugins-v2-subtypes-macro-only`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BodySource {
+    Authored(SourcePosition),
+    Derived,
+    /// Neither: the `Default(Any, ())` sentinel a meta leaves when no body was
+    /// written and none is derived.
+    Absent,
+}
+
+impl BodySource {
+    /// The position an authored body stands at, for a diagnostic against it.
+    /// A derived body has none: nothing in the file wrote it.
+    fn authored(self) -> Option<SourcePosition> {
+        match self {
+            Self::Authored(position) => Some(position),
+            Self::Derived | Self::Absent => None,
+        }
+    }
+
+    fn is_present(self) -> bool {
+        self != Self::Absent
+    }
 }
 
 enum GrammarSourceMap {
@@ -1057,6 +1091,7 @@ enum DiagnosticInvocation<'a> {
     KeywordAbility(#[serde(borrow)] DiagnosticFields<'a>),
     AbilityWord(#[serde(borrow)] DiagnosticFields<'a>),
     Subtype(#[serde(borrow)] DiagnosticSubtype<'a>),
+    SpellSubtype(#[serde(borrow)] DiagnosticSubtype<'a>),
     Type(#[serde(borrow)] DiagnosticFields<'a>),
     TurnPart(#[serde(borrow)] DiagnosticFields<'a>),
     CounterKind(#[serde(borrow)] DiagnosticFields<'a>),
@@ -1078,11 +1113,16 @@ struct DiagnosticFields<'a> {
     body: Option<&'a RawValue>,
 }
 
+/// Both subtype metas' signatures: `Subtype` names its `category` and
+/// `SpellSubtype` writes `Spell` itself, and NEITHER takes a `body` — the meta
+/// derives the `Definition` node from the category and the spelling
+/// (`plugins-v2-subtypes-macro-only`), so a subtype declaration writing one by
+/// hand is an unknown field here before it is a wrong body anywhere else.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DiagnosticSubtype<'a> {
-    #[serde(rename = "category", borrow)]
-    _category: &'a RawValue,
+    #[serde(rename = "category", default, borrow)]
+    _category: Option<&'a RawValue>,
     #[serde(borrow)]
     name: &'a RawValue,
     #[serde(default, borrow)]
@@ -1091,8 +1131,8 @@ struct DiagnosticSubtype<'a> {
     spelling: &'a RawValue,
     #[serde(default, borrow)]
     grammar: Option<DiagnosticGrammar<'a>>,
-    #[serde(default, borrow)]
-    body: Option<&'a RawValue>,
+    #[serde(rename = "rules", default, borrow)]
+    _rules: Option<&'a RawValue>,
 }
 
 struct DiagnosticFieldValues<'a> {
@@ -1100,7 +1140,10 @@ struct DiagnosticFieldValues<'a> {
     params: Option<&'a RawValue>,
     spelling: &'a RawValue,
     grammar: Option<DiagnosticGrammar<'a>>,
+    /// The authored body, for a family whose meta takes one; `None` for the
+    /// subtype families, whose meta derives it instead.
     body: Option<&'a RawValue>,
+    derived_body: bool,
 }
 
 #[derive(Deserialize)]
@@ -1340,9 +1383,11 @@ impl ValidationSourceMap {
                     spelling: fields.spelling,
                     grammar: fields.grammar,
                     body: fields.body,
+                    derived_body: false,
                 },
             ),
-            DiagnosticInvocation::Subtype(subtype) => Self::from_fields(
+            DiagnosticInvocation::Subtype(subtype)
+            | DiagnosticInvocation::SpellSubtype(subtype) => Self::from_fields(
                 path,
                 source,
                 declaration,
@@ -1351,7 +1396,8 @@ impl ValidationSourceMap {
                     params: subtype.params,
                     spelling: subtype.spelling,
                     grammar: subtype.grammar,
-                    body: subtype.body,
+                    body: None,
+                    derived_body: true,
                 },
             ),
         }
@@ -1377,10 +1423,11 @@ impl ValidationSourceMap {
                     GrammarSourceMap::from_diagnostic(path, source, declaration, &grammar)
                 })
                 .transpose()?,
-            body: fields
-                .body
-                .map(|body| raw_position(path, source, body, declaration))
-                .transpose()?,
+            body: match fields.body {
+                Some(body) => BodySource::Authored(raw_position(path, source, body, declaration)?),
+                None if fields.derived_body => BodySource::Derived,
+                None => BodySource::Absent,
+            },
         })
     }
 }
@@ -1744,13 +1791,14 @@ fn normalize(
     }
     let body = source_map
         .body
-        .map(|_| {
+        .is_present()
+        .then(|| {
             macro_options()
                 .from_str::<Box<RawValue>>(definition.body())
                 .map_err(|error| {
                     validation_error_at(
                         &path,
-                        source_map.body.unwrap_or(source_map.declaration),
+                        source_map.body.authored().unwrap_or(source_map.declaration),
                         ValidationError::InvalidBody {
                             reason: error.to_string(),
                         },
@@ -1766,10 +1814,15 @@ fn normalize(
             ValidationError::InvalidName { name },
         ));
     }
-    if body.is_some() && params.is_none() {
+    if source_map.body.authored().is_some() && params.is_none() {
         return Err(validation_error_at(
             &path,
-            required_map_position(&path, source_map.declaration, source_map.body, "body")?,
+            required_map_position(
+                &path,
+                source_map.declaration,
+                source_map.body.authored(),
+                "body",
+            )?,
             ValidationError::BodyWithoutSignature,
         ));
     }
@@ -1790,7 +1843,7 @@ fn normalize(
     validate_body_params(
         &path,
         source_map.declaration,
-        source_map.body,
+        source_map.body.authored(),
         definition,
         reader,
         params.as_deref(),

@@ -4,6 +4,5 @@ Subtype(
     spelling: "Hellion",
     grammar: Noun(singular: "Hellion", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Hellion"), rules: []),
 )
 

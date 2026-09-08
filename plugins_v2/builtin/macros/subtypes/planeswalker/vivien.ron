@@ -5,6 +5,5 @@ Subtype(
     spelling: "Vivien",
     grammar: Noun(singular: "Vivien", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Vivien"), rules: []),
 )
 

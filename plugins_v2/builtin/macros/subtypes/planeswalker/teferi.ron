@@ -5,6 +5,5 @@ Subtype(
     spelling: "Teferi",
     grammar: Noun(singular: "Teferi", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Teferi"), rules: []),
 )
 

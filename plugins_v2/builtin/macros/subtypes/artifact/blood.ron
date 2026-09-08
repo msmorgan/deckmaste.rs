@@ -5,6 +5,5 @@ Subtype(
     spelling: "Blood",
     grammar: Noun(singular: "Blood", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Artifact, label: "Blood"), rules: []),
 )
 

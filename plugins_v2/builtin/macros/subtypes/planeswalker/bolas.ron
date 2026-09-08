@@ -5,6 +5,5 @@ Subtype(
     spelling: "Bolas",
     grammar: Noun(singular: "Bolas", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Bolas"), rules: []),
 )
 

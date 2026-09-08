@@ -4,6 +4,5 @@ Subtype(
     spelling: "Primarch",
     grammar: Noun(singular: "Primarch", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Primarch"), rules: []),
 )
 

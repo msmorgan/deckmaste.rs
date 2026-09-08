@@ -4,6 +4,5 @@ Subtype(
     spelling: "Synth",
     grammar: Noun(singular: "Synth", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Synth"), rules: []),
 )
 

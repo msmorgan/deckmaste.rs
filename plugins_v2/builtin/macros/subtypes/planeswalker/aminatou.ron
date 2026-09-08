@@ -5,6 +5,5 @@ Subtype(
     spelling: "Aminatou",
     grammar: Noun(singular: "Aminatou", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Aminatou"), rules: []),
 )
 

@@ -5,6 +5,5 @@ Subtype(
     spelling: "Mordenkainen",
     grammar: Noun(singular: "Mordenkainen", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Mordenkainen"), rules: []),
 )
 

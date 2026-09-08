@@ -4,6 +4,5 @@ Subtype(
     spelling: "Noggle",
     grammar: Noun(singular: "Noggle", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Noggle"), rules: []),
 )
 

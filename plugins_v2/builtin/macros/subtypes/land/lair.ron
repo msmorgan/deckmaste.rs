@@ -5,6 +5,5 @@ Subtype(
     spelling: "Lair",
     grammar: Noun(singular: "Lair", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Land, label: "Lair"), rules: []),
 )
 

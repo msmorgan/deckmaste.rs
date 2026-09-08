@@ -4,6 +4,5 @@ Subtype(
     spelling: "Bringer",
     grammar: Noun(singular: "Bringer", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Bringer"), rules: []),
 )
 

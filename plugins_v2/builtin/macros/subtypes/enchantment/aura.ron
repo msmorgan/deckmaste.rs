@@ -1,7 +1,23 @@
-// STOP (semantics-v2-definition-bodies). Still the v1 core record. [CR#704.5m]
-// fires when an Aura is "attached to an illegal object or player, or is not
-// attached"; `Predicate.attachment` spells only the second half, so writing the
-// condition in v2 would silently narrow the rule.
+// STOP (plugins-v2-subtypes-macro-only). This declaration's `rules` list is
+// EMPTY. [CR#704.5m] fires when an Aura is "attached to an illegal object or
+// player, or is not attached"; `Predicate.attachment` spells only the second
+// half, so writing the condition in v2 today would silently narrow the rule.
+// Routed to `semantics-v2-subtype-rules`.
+//
+// The v1 core type-rule record this declaration carried until
+// `plugins-v2-subtypes-macro-only`, preserved verbatim so nothing is lost:
+//
+//     body: Subtype(
+//         name: "Aura",
+//         types: [Enchantment],
+//         confers: [
+//             StateBased(
+//                 condition: Not(LegallyAttached(This)),
+//                 effect: Move(This, Graveyard),
+//             ),
+//         ],
+//     ),
+//
 // Aura ([CR#205.3h]) — an enchantment subtype whose type rule ([CR#303.4c])
 // puts it into its owner's graveyard as a state-based action ([CR#704.5m]).
 // That is a [CR#704] game action, not an ability of any kind: [CR#704.1]
@@ -19,14 +35,4 @@ Subtype(
     spelling: "Aura",
     grammar: Noun(singular: "Aura"),
     params: [],
-    body: Subtype(
-        name: "Aura",
-        types: [Enchantment],
-        confers: [
-            StateBased(
-                condition: Not(LegallyAttached(This)),
-                effect: Move(This, Graveyard),
-            ),
-        ],
-    ),
 )

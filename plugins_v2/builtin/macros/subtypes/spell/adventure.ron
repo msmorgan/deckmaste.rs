@@ -1,10 +1,8 @@
 // No supported Oracle rules-text or Comprehensive Rules plural is attested.
-Subtype(
-    category: Spell,
+SpellSubtype(
     name: "adventure",
     spelling: "Adventure",
     grammar: Noun(singular: "Adventure", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Spell(label: "Adventure"), rules: []),
 )
 

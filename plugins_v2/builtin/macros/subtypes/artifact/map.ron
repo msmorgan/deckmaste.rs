@@ -5,6 +5,5 @@ Subtype(
     spelling: "Map",
     grammar: Noun(singular: "Map", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Artifact, label: "Map"), rules: []),
 )
 

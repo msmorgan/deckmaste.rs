@@ -4,6 +4,5 @@ Subtype(
     spelling: "Blinkmoth",
     grammar: Noun(singular: "Blinkmoth", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Blinkmoth"), rules: []),
 )
 

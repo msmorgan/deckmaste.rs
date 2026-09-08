@@ -5,5 +5,4 @@ Subtype(
     // Supported Oracle uses `Children` only in a flavor-word label, not as a subtype noun.
     grammar: Noun(singular: "Child", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Child"), rules: []),
 )

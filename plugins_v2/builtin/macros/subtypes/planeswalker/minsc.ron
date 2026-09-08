@@ -5,6 +5,5 @@ Subtype(
     spelling: "Minsc",
     grammar: Noun(singular: "Minsc", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Minsc"), rules: []),
 )
 

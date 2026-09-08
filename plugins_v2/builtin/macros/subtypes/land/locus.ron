@@ -5,6 +5,5 @@ Subtype(
     spelling: "Locus",
     grammar: Noun(singular: "Locus", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Land, label: "Locus"), rules: []),
 )
 

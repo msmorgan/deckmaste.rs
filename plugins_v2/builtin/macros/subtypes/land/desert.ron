@@ -4,6 +4,5 @@ Subtype(
     spelling: "Desert",
     grammar: Noun(singular: "Desert"),
     params: [],
-    body: Subtype(subtype: Of(host: Land, label: "Desert"), rules: []),
 )
 

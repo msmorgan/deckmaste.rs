@@ -1,8 +1,39 @@
-// STOP (semantics-v2-definition-bodies). Still the v1 core record. [CR#714.4]
-// reads the Saga's FINAL chapter number off its own chapter abilities
-// [CR#714.2d], and `Amount` has no aggregate over a card's chapter marks; the
-// [CR#714.3a] entry replacement and the [CR#714.3c] turn-based lore counter are
-// expressible, but a third of a record is not a record.
+// STOP (plugins-v2-subtypes-macro-only). This declaration's `rules` list is
+// EMPTY. [CR#714.4] reads the Saga's FINAL chapter number off its own chapter
+// abilities [CR#714.2d], and `Amount` has no aggregate over a card's chapter
+// marks; the [CR#714.3a] entry replacement and the [CR#714.3c] turn-based lore
+// counter are expressible, but a third of a record is not a record. Routed to
+// `semantics-v2-subtype-rules`.
+//
+// The v1 core type-rule record this declaration carried until
+// `plugins-v2-subtypes-macro-only`, preserved verbatim so nothing is lost:
+//
+//     body: Subtype(
+//         name: "Saga",
+//         types: [Enchantment],
+//         confers: [
+//             Ability(Static(Replacement(Also(
+//                 would: ThisEnters,
+//                 also: PutCounters(This, loreCounter, 1),
+//             )))),
+//             TurnBased(
+//                 at: PrecombatMain,
+//                 effect: PutCounters(This, loreCounter, 1),
+//             ),
+//             StateBased(
+//                 condition: And([
+//                     Compare(GreatestWatchedThreshold(This), AtLeast, 1),
+//                     Compare(
+//                         CounterCount(This, loreCounter),
+//                         AtLeast,
+//                         GreatestWatchedThreshold(This),
+//                     ),
+//                 ]),
+//                 effect: sacrifice(You, This),
+//             ),
+//         ],
+//     ),
+//
 // Saga ([CR#714]) — three conferrals of different kinds. [CR#714.3a]: a Saga
 // "has the intrinsic ability 'This Saga enters with a lore counter on it'",
 // which "creates a replacement effect" ([CR#614.1c]) — a REAL ability, so it
@@ -18,29 +49,4 @@ Subtype(
     spelling: "Saga",
     grammar: Noun(singular: "Saga"),
     params: [],
-    body: Subtype(
-        name: "Saga",
-        types: [Enchantment],
-        confers: [
-            Ability(Static(Replacement(Also(
-                would: ThisEnters,
-                also: PutCounters(This, loreCounter, 1),
-            )))),
-            TurnBased(
-                at: PrecombatMain,
-                effect: PutCounters(This, loreCounter, 1),
-            ),
-            StateBased(
-                condition: And([
-                    Compare(GreatestWatchedThreshold(This), AtLeast, 1),
-                    Compare(
-                        CounterCount(This, loreCounter),
-                        AtLeast,
-                        GreatestWatchedThreshold(This),
-                    ),
-                ]),
-                effect: sacrifice(You, This),
-            ),
-        ],
-    ),
 )

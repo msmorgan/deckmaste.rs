@@ -5,6 +5,5 @@ Subtype(
     spelling: "Cartouche",
     grammar: Noun(singular: "Cartouche", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Enchantment, label: "Cartouche"), rules: []),
 )
 

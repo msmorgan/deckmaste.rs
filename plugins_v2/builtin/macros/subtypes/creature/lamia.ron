@@ -4,6 +4,5 @@ Subtype(
     spelling: "Lamia",
     grammar: Noun(singular: "Lamia", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Lamia"), rules: []),
 )
 

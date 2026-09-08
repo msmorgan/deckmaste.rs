@@ -5,6 +5,5 @@ Subtype(
     spelling: "Mine",
     grammar: Noun(singular: "Mine", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Land, label: "Mine"), rules: []),
 )
 

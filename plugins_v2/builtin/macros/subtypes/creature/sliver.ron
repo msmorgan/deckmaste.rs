@@ -4,6 +4,5 @@ Subtype(
     spelling: "Sliver",
     grammar: Noun(singular: "Sliver"),
     params: [],
-    body: Subtype(subtype: Of(host: Creature, label: "Sliver"), rules: []),
 )
 

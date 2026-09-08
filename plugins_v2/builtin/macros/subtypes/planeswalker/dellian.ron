@@ -5,6 +5,5 @@ Subtype(
     spelling: "Dellian",
     grammar: Noun(singular: "Dellian", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Planeswalker, label: "Dellian"), rules: []),
 )
 

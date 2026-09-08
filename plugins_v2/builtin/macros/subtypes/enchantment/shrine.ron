@@ -4,6 +4,5 @@ Subtype(
     spelling: "Shrine",
     grammar: Noun(singular: "Shrine"),
     params: [],
-    body: Subtype(subtype: Of(host: Enchantment, label: "Shrine"), rules: []),
 )
 

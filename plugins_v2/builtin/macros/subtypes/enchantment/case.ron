@@ -5,6 +5,5 @@ Subtype(
     spelling: "Case",
     grammar: Noun(singular: "Case", plural: Unavailable),
     params: [],
-    body: Subtype(subtype: Of(host: Enchantment, label: "Case"), rules: []),
 )
 
