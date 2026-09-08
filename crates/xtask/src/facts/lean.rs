@@ -7,13 +7,15 @@
 //! categories its definition is written in [CR#702.1], and — across families —
 //! which keywords a counter is a counter of [CR#122.1b].
 //!
-//! Two overlays remain, and each is a column no declaration carries:
-//! the keyword-ability GATE columns (`overlay`), and the keyword-action
-//! checker columns (`action_overlay`), whose declarations' bodies are the
-//! actions' own instructions. `subtype_rows`' frame column is a third: it
-//! describes the card frame a subtype sits on [CR#714.1,715.1,709.5j], which
-//! no conferral expresses. `semantics-v2-definition-bodies` records why each
-//! stands.
+//! Two overlays remain, and each is a column no declaration carries: the
+//! keyword-ability GATE columns (`overlay`), and `subtype_rows`' frame column,
+//! which describes the card frame a subtype sits on [CR#714.1,715.1,709.5j] and
+//! which no conferral expresses. `semantics-v2-definition-bodies` records why
+//! each stands.
+//!
+//! The keyword actions' checker columns are not here at all: `Check/Words.lean`
+//! hand-writes that table, and this module emits only the label list
+//! `Proofs/Tables.lean` pins it against.
 //!
 //! A body is read through `deckmaste_semantics_v2::ron::macro_set` — the same
 //! reader configuration the v2 corpus uses — so a body written in the dialect
@@ -44,8 +46,6 @@ use super::KEYWORD_ROWS_EXEMPT;
 use super::KEYWORD_STUBS_EXEMPT;
 use super::Regime;
 use super::Shape;
-use super::action_overlay::ACTION_OVERLAY;
-use super::normalize;
 use super::overlay;
 
 pub(super) const GENERATED: &str = "lean/Semantics/Check/Facts.lean";
@@ -388,35 +388,47 @@ fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
         .collect()
 }
 
-fn action_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
+/// A keyword action's checker label [CR#701.1]: the declaration's camelCase
+/// name read as the words it spells, each capitalized, so `collectEvidence` is
+/// "Collect Evidence". A keyword-action declaration writes no label of its own
+/// — its body is the action's instructions — and the hand-written `actFacts`
+/// table in `Check/Words.lean` keys its rows this way.
+fn action_label(name: &str) -> String {
+    let mut words: Vec<String> = Vec::new();
+    for ch in name.chars() {
+        if ch.is_uppercase() || words.is_empty() {
+            words.push(String::new());
+        }
+        let word = words.last_mut().expect("a word was just pushed");
+        if word.is_empty() {
+            word.extend(ch.to_uppercase());
+        } else {
+            word.push(ch);
+        }
+    }
+    words.join(" ")
+}
+
+/// Every keyword-action declaration's checker label, in declaration order.
+///
+/// The columns themselves are the checker's own data, hand-written as
+/// `actFacts` in `Check/Words.lean`; this list is what `Proofs/Tables.lean`
+/// pins that table against in both directions, so a declaration added without
+/// a row (or a row left behind by a retired declaration) fails the Lean build.
+fn action_labels(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
     let mut seen = BTreeSet::new();
     let mut result = Vec::new();
     for declared in declarations
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::KeywordAction)
     {
-        let name = declared.identity().name();
-        let &(label, fields) = ACTION_OVERLAY
-            .iter()
-            .find(|(label, _)| normalize(label) == normalize(name))
-            .with_context(|| format!("{name}: keyword action has no checker-column overlay"))?;
+        let label = action_label(declared.identity().name());
         anyhow::ensure!(
-            seen.insert(label),
-            "{name}: duplicate action overlay key {label}"
+            seen.insert(label.clone()),
+            "{}: two keyword actions share the checker label {label}",
+            declared.identity().name()
         );
-        let fields = fields
-            .trim()
-            .trim_start_matches('{')
-            .trim_end_matches('}')
-            .trim();
-        let body = if fields.is_empty() { "{}".to_owned() } else { format!("{{ {fields} }}") };
-        result.push(format!("({}, {body})", quoted(label)));
-    }
-    for &(label, _) in ACTION_OVERLAY {
-        anyhow::ensure!(
-            seen.contains(label),
-            "{label}: action overlay has no registry declaration"
-        );
+        result.push(quoted(&label));
     }
     Ok(result)
 }
@@ -619,9 +631,9 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
     );
     table(
         &mut out,
-        "actFacts",
-        "(KeywordActionLabel × ActFacts)",
-        &action_rows(&declarations)?,
+        "keywordActionLabels",
+        "KeywordActionLabel",
+        &action_labels(&declarations)?,
     );
     table(
         &mut out,
@@ -679,22 +691,30 @@ mod tests {
         temp
     }
 
+    /// The checker columns are hand-written in `Check/Words.lean`, so a new
+    /// keyword action is caught by `Proofs/Tables.lean`'s two-way pin rather
+    /// than here. What this side owes that pin is the label: a declaration the
+    /// generator did not list could gain no row and lose none.
     #[test]
-    fn new_action_requires_a_checker_overlay() {
+    fn new_action_reaches_the_lean_label_list() {
         let temp = fixture();
         let path = temp
             .path()
-            .join("plugins_v2/builtin/macros/keyword_actions/TestAction.ron");
+            .join("plugins_v2/builtin/macros/keyword_actions/testAction.ron");
         fs::write(
             path,
-            "KeywordAction(name: \"TestAction\", spelling: \"test action\")",
+            "KeywordAction(name: \"testAction\", spelling: \"test action\")",
         )
         .unwrap();
-        let error = render(temp.path()).unwrap_err().to_string();
-        assert!(
-            error.contains("TestAction: keyword action has no checker-column overlay"),
-            "{error}"
-        );
+        let generated = render(temp.path()).unwrap();
+        let table = generated
+            .split("def keywordActionLabels")
+            .nth(1)
+            .expect("the generated module declares the label list")
+            .split("\n\n")
+            .next()
+            .expect("the label list ends at the blank line");
+        assert!(table.contains("\"Test Action\""), "{table}");
     }
 
     #[test]

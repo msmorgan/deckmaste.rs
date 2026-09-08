@@ -1,13 +1,12 @@
 //! Generate workbench registry facts from the builtin declarations and
-//! checker-column overlays. Lean receives actions, keywords, counters,
-//! designations, and frame subtypes; the reference Idris module retains its
-//! keyword table.
+//! checker-column overlays. Lean receives keyword-action labels, keywords,
+//! counters, designations, and frame subtypes; the reference Idris module
+//! retains its keyword table.
 //!
 //! `facts generate` writes both modules; `facts check` rejects drift in either
 //! one. `facts labels` retains the reference Idris label-set audit and its
 //! scope exceptions.
 
-mod action_overlay;
 mod lean;
 
 use std::fs;

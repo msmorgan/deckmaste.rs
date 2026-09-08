@@ -9,6 +9,10 @@ checker's label tables assume of themselves — that `actFacts`, `abilityDeedFac
 `counterFacts`, `keywordFacts`, `designationTable`, and `subtypeFacts` each name every row once.
 A duplicate label would let one row shadow another silently, so each table's existing `distinct*`
 validator is asserted here rather than left unchecked.
+
+`actFacts` is hand-written in `Check.Words` while the keyword actions it keys are declared in the
+registry, so two theorems here also pin the two lists against each other in both directions —
+the check the generator used to make of its own overlay.
 -/
 
 open Semantics Semantics.Macros
@@ -16,6 +20,17 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.Tables
 
 theorem actLabelsDistinct : distinctActLabels actFacts = true := by decide
+
+/-- Every keyword action the registry declares [CR#701.1] has a row in the hand-written
+`actFacts` table: a declaration added without one is caught here, not left to a lookup that
+silently finds nothing. -/
+theorem everyDeclaredActionHasFacts :
+    keywordActionLabels.all (fun l => (actFacts.find? (·.1 == l)).isSome) = true := by decide
+
+/-- And every `actFacts` row names a keyword action the registry declares, so a row left behind
+by a retired declaration is caught too. -/
+theorem everyActRowIsDeclared :
+    actFacts.all (fun row => keywordActionLabels.contains row.1) = true := by decide
 
 theorem abilityDeedLabelsDistinct : distinctAbilityDeedLabels abilityDeedFacts = true := by decide
 
