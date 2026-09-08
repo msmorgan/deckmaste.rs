@@ -2,6 +2,10 @@
 //!
 //! See the crate README for the summary contract and measured complexity.
 
+extern crate self as deckmaste_english_v3;
+
+pub mod slice;
+
 mod chart;
 mod forest;
 mod readings;

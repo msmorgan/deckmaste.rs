@@ -3,9 +3,10 @@
 This crate implements recognition and lazy Reading materialization for the
 [accepted lexical/grammar contract](../../docs/decisions/english-lexical-analysis.md).
 It consumes `deckmaste_lexical::AnalyzedText` and the same immutable `Lexicon`.
-The fresh construction compiler will generate `Grammar` and `Materializer`
-implementations. The runtime has no v2 parser, compiler or Semantics dependency.
-There is no production grammar or corpus-coverage claim at this stage.
+The fresh construction compiler generates `Grammar` and `Materializer`
+implementations for the interacting `slice` module. The runtime has no v2 parser, compiler or Semantics dependency.
+The slice is an executable compiler/runtime proof with a bounded vocabulary;
+whole-grammar activation and corpus coverage remain the next ticket.
 
 ## Admission and packing
 
@@ -135,3 +136,71 @@ cycle reporting, and independently constructed spelling/feature values. Exact
 realization assertions use the lexical engine for words and declared literal
 leaves for separators, never a source-buffer echo. The ticket landing record
 contains the measured counts and validation on its stamped tree.
+
+## Generated interacting slice
+
+`src/slice.rs` is the declaration authority for 15 Constructions. One macro
+expansion supplies their types, Productions, correlated admission summaries,
+lazy materializers, realization and traversals. `src/slice/vocabulary.rs`
+declares the bounded lexical environment through the lexical engine's public
+constructors, morphology defaults and irregular replacements. It does not use
+v2 grammar or source adapters. The handwritten grammars in `tests/packed.rs`
+remain runtime counterexamples; the inspection path uses generated rules only.
+
+The shared nominal and Noun Phrase rules feed selected verb and preposition
+Complements, finite agreement, imperatives, nominal headers and newline-separated
+Documents. A Preposition Phrase can attach to the verb or the object Noun Phrase.
+The two structures survive together. Present/past tense and the two grammatical
+Numbers of `you` remain correlated with the finite head. Determiners agree in
+Number with count nominals; missing features never license a constituent.
+
+The slice intentionally admits an empty Document and a header with no sentences.
+It handles one nominal Premodifier and at most one prepositional Adjunct at each
+of the nominal and predicate sites, with a Basic Noun Phrase inside that Adjunct.
+It is not a complete judgment for arbitrary Oracle text. Header nouns and the
+noun/verb `cast` witness are linguistic fixtures, not a new card-coverage claim.
+`one` retains noun, Determinative and Numeral lexical alternatives; the slice's
+Determiner rule consumes the Determinative analysis. Multiword `first strike`
+competes with the separate adjective and noun analysis. `learned`/`learnt` are
+explicit replacing spelling alternatives. None of these spellings appears in an
+admission guard or grammar literal.
+
+Both roundtrip laws apply to every finite admitted value, including arbitrarily
+long finite Documents. The compositional argument is the compiler's shared IR:
+each valid Construction realizes its declared Production in surface order;
+inductively each child contributes a derivation with the same features; the
+same equations admit their composition; lexical context validation supplies the
+same lexical values; materialization reconstructs the original fields and
+canonical form. Finite consuming repetition extends this argument to Documents.
+This is an implementation argument, not a machine-checked proof of Rust.
+
+Independent exhaustive test families cover all 72 nominal values, all 180 Basic
+Noun Phrases and 360 prepositional Complements over those nominals, 720 imperative
+compositions spanning both optional attachment sites, 112 finite clauses spanning
+every declared compatible subject/verb bundle, spelling and capitalization, and
+62 headed/unheaded tense-ambiguous Documents through four sentences. These
+families compare complete expected Reading sets, including every Reading's exact
+realization. Separate witnesses assert full lexical and structural traversal,
+wrong agreement and frames, jointly invalid feature combinations, and two
+Derivations denoting exactly one Reading. Removing precomputed lexical
+alternatives removes their Readings, demonstrating that recognition does not
+rescan input. There is no exhaustive enumeration claim for the infinite set of
+all finite Documents.
+
+```sh
+cargo test -p deckmaste_english_v3 --test slice -- --nocapture --test-threads=1
+cargo run -p deckmaste_english_v3 --example inspect -- \
+  'You cast one spell with one counter.' --readings 2
+cargo run -p deckmaste_english_v3 --example inspect -- \
+  'first strike' --category nominal --packed --readings 0
+cargo build -p deckmaste_english_v3 --timings
+```
+
+Inspection reports lexical alternatives, vocabulary gaps, chart work and a
+bounded prefix of Readings. `--packed` writes shared completed/intermediate nodes,
+families and leaves with references, without expanding Derivations. With
+`--readings 0`, both inspection and recognition construct zero ASTs. Reaching a
+request limit does not claim exhaustion or report a total Reading count. A
+request for the next distinct Reading can still traverse duplicate Derivations;
+the iterator's separate counters disclose that cost. The 4/16/64-sentence test
+compares recognition work and two requested Readings for growing ambiguity.

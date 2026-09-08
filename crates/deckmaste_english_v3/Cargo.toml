@@ -8,5 +8,9 @@ publish = false
 workspace = true
 
 [dependencies]
+deckmaste_construction_v3 = { path = "../deckmaste_construction_v3" }
 deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
 thiserror = { workspace = true }
+
+[dev-dependencies]
+clap = { version = "4.6.1", features = ["derive"] }

@@ -605,6 +605,8 @@ dependencies = [
 name = "deckmaste_english_v3"
 version = "0.1.0"
 dependencies = [
+ "clap",
+ "deckmaste_construction_v3",
  "deckmaste_lexical",
  "thiserror",
 ]

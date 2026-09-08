@@ -133,3 +133,33 @@ impl<C: Clone + Ord, S: Clone + Ord, T> Forest<C, S, T> {
         }
     }
 }
+
+impl<C: std::fmt::Debug, S: std::fmt::Debug, T: std::fmt::Debug> Forest<C, S, T> {
+    /// Write the shared nodes and their references without expanding paths or
+    /// materializing Readings. Work is proportional to the packed
+    /// representation.
+    ///
+    /// # Errors
+    /// Forwards errors from the output writer.
+    pub fn write_packed(&self, output: &mut impl std::io::Write) -> std::io::Result<()> {
+        writeln!(output, "roots: {:?}", self.roots)?;
+        for (id, node) in self.completed.iter().enumerate() {
+            writeln!(
+                output,
+                "completed {id}: {:?} {}..{} {:?} {:?}",
+                node.category, node.start, node.end, node.summary, node.families
+            )?;
+        }
+        for (id, node) in self.intermediate.iter().enumerate() {
+            writeln!(
+                output,
+                "intermediate {id}: {:?} {:?}",
+                node.state, node.edges
+            )?;
+        }
+        for (id, (leaf, summary)) in self.leaves.iter().zip(&self.leaf_summaries).enumerate() {
+            writeln!(output, "leaf {id}: {leaf:?} {summary:?}")?;
+        }
+        Ok(())
+    }
+}
