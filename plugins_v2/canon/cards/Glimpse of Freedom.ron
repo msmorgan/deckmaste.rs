@@ -10,14 +10,14 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             spell(timing: None, instruction: draw(amount: 1, agent: you)),
-            escape(compound(costs: [
-                mana(cost: [
+            escape(compound([
+                mana([
                     2,
                     Blue,
                 ]),
-                perform(instruction: enact(
+                perform(enact(
                     verb: Action("Exile"),
-                    instruction: move(subject: described( determiner: Count(quantity: range(low: 5, high: 5), mode: None), predicate: and(conjuncts: [ isCard, inZone(zone: zone(zone: Graveyard, scope: PossessedBy(you))), otherThan(anchor: this), ]), ), destination: zone(zone: Exile, scope: Bare)),
+                    instruction: move(subject: described( determiner: Count(quantity: range(low: 5, high: 5), mode: None), predicate: and([ isCard, inZone(zone(zone: Graveyard, scope: PossessedBy(you))), otherThan(this), ]), ), destination: zone(zone: Exile, scope: Bare)),
                     agent: you,
                 )),
             ])),

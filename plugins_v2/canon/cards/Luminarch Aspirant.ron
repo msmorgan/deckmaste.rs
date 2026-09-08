@@ -17,7 +17,7 @@ SingleFaced(face: (
         power: 1,
         toughness: 1,
         text: [
-            triggered(event: beginningOf( quantifier: The, part: beginningOfCombatStep, whose: ByPlayer(you), ), instruction: putCounters( amount: 1, kind: Printed(Boost(power: up(amount: 1), toughness: up(amount: 1))), on: described( determiner: Target(range(low: 1, high: 1)), predicate: and(conjuncts: [ hasType(type: Creature), hasPossessor(axis: Controller, possessor: you), ]), ), )),
+            triggered(event: beginningOf( quantifier: The, part: beginningOfCombatStep, whose: ByPlayer(you), ), instruction: putCounters( amount: 1, kind: Printed(Boost(power: up(1), toughness: up(1))), on: described( determiner: Target(range(low: 1, high: 1)), predicate: and([ hasType(Creature), hasPossessor(axis: Controller, possessor: you), ]), ), )),
         ],
     ),
 ))

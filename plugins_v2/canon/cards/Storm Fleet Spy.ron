@@ -18,7 +18,7 @@ SingleFaced(face: (
                         observation: After,
                     ),
                     condition: happened(
-                        event: combat(relation: AttackerOf, subject: gap(kind: Player), counterpart: None),
+                        event: combat(relation: AttackerOf, subject: gap(Player), counterpart: None),
                         who: you,
                         lookback: ThisTurn,
                     ),

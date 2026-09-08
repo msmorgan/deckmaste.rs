@@ -10,20 +10,20 @@ SingleFaced(face: (
             Of(host: Enchantment, label: "Aura"),
         ],
         text: [
-            keywordSubject(label: "Enchant", subject: hasType(type: Creature)),
+            keywordSubject(label: "Enchant", subject: hasType(Creature)),
             static(
-                spec: conjunction(
+                conjunction(
                     subject: None,
                     parts: [
                         modification(
                             subject: attachHost(word: Enchanted, head: Type(Creature)),
                             stat: Power,
-                            delta: up(amount: 10),
+                            delta: up(10),
                         ),
                         modification(
                             subject: attachHost(word: Enchanted, head: Type(Creature)),
                             stat: Toughness,
-                            delta: up(amount: 10),
+                            delta: up(10),
                         ),
                         abilityGrant(
                             subject: attachHost(word: Enchanted, head: Type(Creature)),

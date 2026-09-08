@@ -147,6 +147,10 @@ pub(crate) enum FrameArgs<'de> {
     /// Name, argument, and whether the argument is a filled-in default
     /// (excluded from synthesized invocations so short calls round-trip).
     Named(Vec<(Ident, Arg<'de>, bool)>),
+    /// A named signature invoked positionally. Arguments retain their names
+    /// for `Param(name)` resolution and their positional call shape for
+    /// round-trip serialization.
+    NamedPositional(Vec<(Ident, Arg<'de>, bool)>),
 }
 
 /// What a `Param(...)` hole addresses: `Param(0)` or `Param(cost)`.
@@ -200,10 +204,11 @@ impl<'de> Ctx<'de, '_> {
             (FrameArgs::Positional(args), ParamKey::Index(index)) => {
                 args.get(index).map(|arg| (arg.text, arg.restricted))
             }
-            (FrameArgs::Named(args), ParamKey::Name(name)) => args
-                .iter()
-                .find(|(k, _, _)| *k == name)
-                .map(|(_, arg, _)| (arg.text, arg.restricted)),
+            (FrameArgs::Named(args) | FrameArgs::NamedPositional(args), ParamKey::Name(name)) => {
+                args.iter()
+                    .find(|(k, _, _)| *k == name)
+                    .map(|(_, arg, _)| (arg.text, arg.restricted))
+            }
             _ => None,
         };
         arg.ok_or_else(|| {
@@ -545,6 +550,9 @@ struct Probe<'a, 'de, 'f> {
     /// Set once a leading identifier has been read: failures before that
     /// mean "not an invocation", failures after are real.
     entered: &'a Cell<bool>,
+    /// The captured invocation has a named signature but its argument list is
+    /// sequence-shaped, so declaration order maps positions to names.
+    named_positionally: bool,
 }
 
 impl<'de> DeserializeSeed<'de> for Probe<'_, 'de, '_> {
@@ -578,7 +586,13 @@ impl<'de> Visitor<'de> for Probe<'_, 'de, '_> {
         else {
             return Ok(None);
         };
-        let invoked = read_args(ident, variant, &def.params, self.ctx)?;
+        let invoked = read_args(
+            ident,
+            variant,
+            &def.params,
+            self.ctx,
+            self.named_positionally,
+        )?;
         Ok(Some(Invocation::Macro {
             name: ident,
             def,
@@ -651,12 +665,30 @@ fn probe<'de, E: serde::de::Error>(
     position: Option<&'static str>,
     ctx: Ctx<'de, '_>,
 ) -> Result<Option<Invocation<'de>>, E> {
+    let named_positionally = if ctx.read.macros.reads_positional_arguments() {
+        let ident = leading_ident::<E>(source, ctx)?;
+        ident
+            .and_then(|ident| {
+                let def = position.and_then(|kind| ctx.read.macros.get(kind, &ident))?;
+                let Params::Named(_) = &def.params else {
+                    return None;
+                };
+                invocation_args(source, ident)
+            })
+            .is_some_and(|args| {
+                let args = skip_trivia(args);
+                !args.starts_with(')') && !opens_with_binder(args)
+            })
+    } else {
+        false
+    };
     let mut de = ron_deserializer(source, ctx.read.macros.options()).map_err(E::custom)?;
     let entered = Cell::new(false);
     let seed = Probe {
         position,
         ctx,
         entered: &entered,
+        named_positionally,
     };
     match seed.deserialize(&mut de) {
         Ok(Some(invocation)) => {
@@ -667,6 +699,18 @@ fn probe<'de, E: serde::de::Error>(
         Err(_) if !entered.get() => Ok(None),
         Err(error) => Err(E::custom(de.span_error(error))),
     }
+}
+
+/// The source after an invocation's opening parenthesis. Only its leading
+/// token is inspected to choose map or sequence grammar; leaving the closing
+/// delimiter in the slice avoids guessing where a raw value's trailing trivia
+/// ends.
+fn invocation_args(source: &str, name: Ident) -> Option<&str> {
+    let rest = skip_trivia(source);
+    let rest = rest.strip_prefix("r#").unwrap_or(rest);
+    let rest = rest.strip_prefix(name.as_str())?;
+    let rest = skip_trivia(rest);
+    rest.strip_prefix('(')
 }
 
 /// One value of untagged content, decomposed by ron.
@@ -1836,7 +1880,11 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         let literal = self.ctx.read.macros.literal_wrapper(name);
         let embeds = self.ctx.read.macros.embeds_untagged(name);
         let bare_invocable = self.ctx.read.macros.has_bare_invocable(name);
-        if self.intercept != Intercept::Skip && (literal.is_some() || embeds || bare_invocable) {
+        let named_macro_args = self.ctx.read.macros.reads_positional_arguments()
+            && self.ctx.read.macros.has_named_signature(name);
+        if self.intercept != Intercept::Skip
+            && (literal.is_some() || embeds || bare_invocable || named_macro_args)
+        {
             let source = <&RawValue>::deserialize(self.de)?.get_ron();
 
             // Literal sugar: at a kind whose grammar is strict but whose
@@ -1935,6 +1983,52 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                 });
             }
 
+            // A named-signature macro may use either its named call shape or
+            // a positional sequence in declaration order. `VariantAccess` is
+            // one-shot, so classify the captured argument list before asking
+            // ron for the map or sequence visitor. Native variants still win
+            // on unrestricted reads, exactly as in `EnumIntercept` below.
+            if named_macro_args
+                && let Some(ident) = leading_ident::<Self::Error>(source, self.ctx)?
+                && !(self.ctx.native_variant_ok(name, ident.as_str())
+                    && variants.contains(&ident.as_str()))
+                && self
+                    .ctx
+                    .read
+                    .macros
+                    .get(name, &ident)
+                    .is_some_and(|def| matches!(def.params, Params::Named(_)))
+            {
+                let Some(Invocation::Macro {
+                    name: macro_name,
+                    def,
+                    invoked,
+                }) = probe::<Self::Error>(source, Some(name), self.ctx)?
+                else {
+                    unreachable!("the leading identifier resolved to a named macro")
+                };
+                let frame = Frame {
+                    name: macro_name,
+                    args: invoked.args,
+                    elided: invoked.elided,
+                };
+                let ctx = self.ctx.expansion(&frame).map_err(Self::Error::custom)?;
+                let body =
+                    elide_body(def.body(), &frame, self.ctx.read).map_err(Self::Error::custom)?;
+                let remembers = self.ctx.read.macros.remembers_expansion(name);
+                let expanded = if remembers {
+                    let synthesized =
+                        synthesize_expanded(macro_name, &frame.args, def.template(), body);
+                    self.ctx.read.splice(synthesized)
+                } else {
+                    body
+                };
+                return reread(expanded, ctx, Intercept::Full, |de| {
+                    de.deserialize_enum(name, variants, visitor)
+                })
+                .map_err(|error| in_expansion_of(frame.name, error));
+            }
+
             // None of the three applied: re-read the captured value verbatim
             // through the ordinary `EnumIntercept` path below, with the scans
             // off.
@@ -1993,6 +2087,13 @@ fn validate_arg(
     })
 }
 
+fn named_param<'a>(signature: &'a [(Ident, ParamType)], key: &Ident) -> Option<&'a ParamType> {
+    signature
+        .iter()
+        .find(|(name, _)| name == key)
+        .map(|(_, ty)| ty)
+}
+
 /// Fills the omitted defaulted params of a named signature: each default
 /// expression's holes are spliced against the supplied args (the insert
 /// check confines them to non-defaulted — i.e. present — siblings, so
@@ -2000,7 +2101,7 @@ fn validate_arg(
 /// supplied argument.
 fn fill_defaults<'de>(
     name: Ident,
-    signature: &'de std::collections::HashMap<Ident, ParamType>,
+    signature: &'de [(Ident, ParamType)],
     missing: Vec<&'de Ident>,
     args: &mut Vec<(Ident, Arg<'de>, bool)>,
     read: &'de ReadCtx<'de>,
@@ -2021,7 +2122,7 @@ fn fill_defaults<'de>(
         restricted: false,
     };
     for key in missing {
-        let ty = &signature[key];
+        let ty = named_param(signature, key).expect("missing parameters came from the signature");
         let default = ty
             .default
             .as_deref()
@@ -2063,6 +2164,55 @@ fn forward_arg<'de>(raw: &'de str, ctx: Ctx<'de, '_>) -> Result<Arg<'de>, String
     Ok(Arg { text, restricted })
 }
 
+fn read_named_positional_args<'de>(
+    name: Ident,
+    signature: &'de [(Ident, ParamType)],
+    raw_args: Vec<&'de str>,
+    ctx: Ctx<'de, '_>,
+) -> Result<Invoked<'de>, String> {
+    if raw_args.len() > signature.len() {
+        return Err(format!(
+            "expected at most {} macro arguments, got {}",
+            signature.len(),
+            raw_args.len(),
+        ));
+    }
+    let mut args: Vec<(Ident, Arg<'de>, bool)> = signature
+        .iter()
+        .zip(raw_args)
+        .map(|((key, _), raw)| forward_arg(raw, ctx).map(|arg| (*key, arg, false)))
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut missing: Vec<&Ident> = signature
+        .iter()
+        .skip(args.len())
+        .map(|(key, _)| key)
+        .collect();
+    let elided: Vec<ParamKey> = missing
+        .iter()
+        .copied()
+        .filter(|key| named_param(signature, key).is_some_and(|ty| ty.elidable))
+        .map(|key| ParamKey::Name(*key))
+        .collect();
+    missing.retain(|key| !named_param(signature, key).is_some_and(|ty| ty.elidable));
+    if let Some(key) = missing
+        .iter()
+        .copied()
+        .find(|key| named_param(signature, key).is_some_and(|ty| ty.default.is_none()))
+    {
+        return Err(format!("missing argument `{key}`"));
+    }
+    for (key, arg, _) in &args {
+        let ty =
+            named_param(signature, key).expect("positional argument keys came from the signature");
+        validate_arg(name, *key, ty, arg.text, ctx.read.macros, arg.restricted)?;
+    }
+    fill_defaults(name, signature, missing, &mut args, ctx.read)?;
+    Ok(Invoked {
+        args: FrameArgs::NamedPositional(args),
+        elided,
+    })
+}
+
 /// Reads the arguments the definition's signature says to expect: its shape
 /// decides between the positional call grammar (unit, newtype, or tuple by
 /// arity) and the named, struct-shaped one. Omitted defaulted params are
@@ -2076,6 +2226,7 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
     variant: A,
     params: &'de Params,
     ctx: Ctx<'de, 'f>,
+    named_positionally: bool,
 ) -> Result<Invoked<'de>, A::Error> {
     use serde::de::Error;
 
@@ -2159,6 +2310,10 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 elided,
             })
         }
+        Params::Named(signature) if named_positionally => {
+            let raw_args = variant.tuple_variant(signature.len(), RawArgs)?;
+            read_named_positional_args(name, signature, raw_args, ctx).map_err(A::Error::custom)
+        }
         Params::Named(signature) => {
             let args = variant.struct_variant(&[], NamedArgs)?;
             let args: Vec<(Ident, Arg<'de>)> = args
@@ -2167,7 +2322,7 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(A::Error::custom)?;
             for (i, (key, _)) in args.iter().enumerate() {
-                if !signature.contains_key(key) {
+                if !signature.iter().any(|(name, _)| name == key) {
                     return Err(A::Error::custom(format_args!(
                         "`{key}` is not one of this macro's parameters",
                     )));
@@ -2179,7 +2334,8 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
                 }
             }
             let mut missing: Vec<&Ident> = signature
-                .keys()
+                .iter()
+                .map(|(key, _)| key)
                 .filter(|key| !args.iter().any(|(k, _)| k == *key))
                 .collect();
             missing.sort_unstable_by_key(|key| key.as_str());
@@ -2188,19 +2344,20 @@ fn read_args<'de, 'f, A: VariantAccess<'de>>(
             // recorded on the frame for `elide_body` instead.
             let elided: Vec<ParamKey> = missing
                 .iter()
-                .filter(|key| signature[**key].elidable)
-                .map(|key| ParamKey::Name(**key))
+                .copied()
+                .filter(|key| named_param(signature, key).is_some_and(|ty| ty.elidable))
+                .map(|key| ParamKey::Name(*key))
                 .collect();
-            missing.retain(|key| !signature[*key].elidable);
+            missing.retain(|key| !named_param(signature, key).is_some_and(|ty| ty.elidable));
             if let Some(key) = missing
                 .iter()
-                .find(|key| signature[**key].default.is_none())
+                .copied()
+                .find(|key| named_param(signature, key).is_some_and(|ty| ty.default.is_none()))
             {
                 return Err(A::Error::custom(format_args!("missing argument `{key}`")));
             }
             for (key, arg) in &args {
-                let ty = signature
-                    .get(key)
+                let ty = named_param(signature, key)
                     .expect("argument keys were checked against the signature above");
                 validate_arg(name, *key, ty, arg.text, ctx.read.macros, arg.restricted)
                     .map_err(A::Error::custom)?;
@@ -2286,7 +2443,7 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
                 self.name,
             ))
         })?;
-        let invoked = read_args(ident, variant, &def.params, self.ctx)?;
+        let invoked = read_args(ident, variant, &def.params, self.ctx, false)?;
         let frame = Frame {
             name: ident,
             args: invoked.args,
@@ -2369,6 +2526,15 @@ pub(crate) fn synthesize_expanded(
             for (i, (key, arg, _)) in supplied.enumerate() {
                 let sep = if i > 0 { ", " } else { "" };
                 write!(out, "{sep}({:?}, {:?})", key.as_str(), arg.text.trim()).unwrap();
+            }
+            write!(out, "])").unwrap();
+        }
+        FrameArgs::NamedPositional(args) => {
+            write!(out, ", args: Positional([").unwrap();
+            let supplied = args.iter().filter(|(_, _, defaulted)| !defaulted);
+            for (i, (_, arg, _)) in supplied.enumerate() {
+                let sep = if i > 0 { ", " } else { "" };
+                write!(out, "{sep}{:?}", arg.text.trim()).unwrap();
             }
             write!(out, "])").unwrap();
         }

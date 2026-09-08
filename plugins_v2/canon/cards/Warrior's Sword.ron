@@ -12,18 +12,18 @@ SingleFaced(face: (
         text: [
             jobSelect,
             static(
-                spec: conjunction(
+                conjunction(
                     subject: None,
                     parts: [
                         modification(
                             subject: attachHost(word: Equipped, head: Type(Creature)),
                             stat: Power,
-                            delta: up(amount: 3),
+                            delta: up(3),
                         ),
                         modification(
                             subject: attachHost(word: Equipped, head: Type(Creature)),
                             stat: Toughness,
-                            delta: up(amount: 2),
+                            delta: up(2),
                         ),
                         characteristicChange(
                             subject: attachHost(word: Equipped, head: Type(Creature)),
@@ -37,7 +37,7 @@ SingleFaced(face: (
                     ],
                 ),
             ),
-            equip(mana(cost: [5])),
+            equip(mana([5])),
         ],
     ),
 ))

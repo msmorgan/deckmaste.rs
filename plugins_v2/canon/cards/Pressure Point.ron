@@ -10,10 +10,10 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: sequentially(steps: [
+                instruction: sequentially([
                     tap(described(
                         determiner: Target(range(low: 1, high: 1)),
-                        predicate: hasType(type: Creature),
+                        predicate: hasType(Creature),
                     )),
                     draw(amount: 1, agent: you),
                 ]),

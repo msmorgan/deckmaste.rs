@@ -11,10 +11,10 @@ SingleFaced(face: (
             gravestorm,
             spell(
                 timing: None,
-                instruction: sequentially(steps: [
+                instruction: sequentially([
                     draw(amount: 1, agent: described( determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer, )),
                     changeLife(
-                        delta: down(amount: 1),
+                        delta: down(1),
                         agent: they,
                     ),
                 ]),

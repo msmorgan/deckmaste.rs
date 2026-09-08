@@ -15,8 +15,8 @@ SingleFaced(face: (
         power: 2,
         toughness: 3,
         text: [
-            keyword(label: "Flying"),
-            activated(cost: mana(cost: [ 2, Green, Blue, ]), instruction: adapt(1)),
+            keyword("Flying"),
+            activated(cost: mana([ 2, Green, Blue, ]), instruction: adapt(1)),
         ],
     ),
 ))

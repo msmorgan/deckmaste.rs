@@ -12,7 +12,7 @@ SingleFaced(face: (
         power: 5,
         toughness: 5,
         text: [
-            ninjutsu(mana(cost: [
+            ninjutsu(mana([
                 3,
                 Black,
             ])),

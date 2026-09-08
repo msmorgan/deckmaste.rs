@@ -15,6 +15,6 @@ SingleFaced(face: (
         ],
         power: 3,
         toughness: 3,
-        text: [webSlinging(mana(cost: [White]))],
+        text: [webSlinging(mana([White]))],
     ),
 ))

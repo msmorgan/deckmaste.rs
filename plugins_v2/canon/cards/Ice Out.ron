@@ -12,7 +12,7 @@ SingleFaced(face: (
         text: [
             bargain,
             static(
-                spec: conditional(
+                conditional(
                     spec: costShift(
                         subject: this,
                         shift: Less(amount: 1, floor: None),
@@ -32,9 +32,9 @@ SingleFaced(face: (
                 timing: None,
                 instruction: counter(described(
                     determiner: Target(range(low: 1, high: 1)),
-                    predicate: and(conjuncts: [
-                        inZone(zone: zone(zone: Stack, scope: Bare)),
-                        not(predicate: abilityHead(class: AnyOnStack)),
+                    predicate: and([
+                        inZone(zone(zone: Stack, scope: Bare)),
+                        not(abilityHead(AnyOnStack)),
                     ]),
                 )),
             ),

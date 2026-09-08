@@ -12,7 +12,7 @@ SingleFaced(face: (
         power: 3,
         toughness: 3,
         text: [
-            transfigure(mana(cost: [
+            transfigure(mana([
                 1,
                 Black,
                 Black,

@@ -12,7 +12,7 @@ SingleFaced(face: (
         toughness: 10,
         text: [
             flying,
-            keywordSubject(label: "Champion", subject: hasSubtype(subtype: Of(host: Creature, label: "Elemental"))),
+            keywordSubject(label: "Champion", subject: hasSubtype(Of(host: Creature, label: "Elemental"))),
         ],
     ),
 ))

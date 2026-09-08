@@ -12,7 +12,7 @@ SingleFaced(face: (
         toughness: 2,
         text: [
             flying,
-            reinforce(2, mana(cost: [
+            reinforce(2, mana([
                 2,
                 White,
             ])),

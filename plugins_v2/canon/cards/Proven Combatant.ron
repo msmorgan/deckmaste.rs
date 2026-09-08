@@ -7,7 +7,7 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Warrior")],
         power: 1,
         toughness: 1,
-        text: [eternalize(mana(cost: [
+        text: [eternalize(mana([
             4,
             Blue,
             Blue,

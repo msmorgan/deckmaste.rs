@@ -208,12 +208,10 @@ fn read_committed_rows(dir: &Path) -> anyhow::Result<Vec<(String, String, String
 }
 
 /// A deterministic `Debug`-style rendering of a def's declared params.
-/// Deliberately NOT `format!("{params:?}")`: `Params::Named` wraps a
-/// `HashMap`, whose iteration (and therefore `Debug`) order is randomized
-/// per process — embedding that directly would make the generated
-/// registry's `signature` column non-reproducible between the run that
-/// generated it and a later run reading the same file (exactly the kind of
-/// spurious drift
+/// Deliberately NOT `format!("{params:?}")`: this v1 registry has always
+/// canonicalized named signatures by parameter name, independent of authored
+/// declaration order. Keeping that representation avoids spurious drift in
+/// the generated registry's `signature` column (exactly the kind of drift
 /// [`drift::compiled_registry_matches_the_real_identity_directory`]
 /// exists to rule out, not manufacture). Sorted by param name instead, so
 /// two reads of the same def always render identically.
@@ -787,7 +785,7 @@ mod identity_shape {
                     (0..types.len()).map(|i| i.to_string()).collect()
                 }
                 macro_ron::Params::Named(map) => {
-                    map.keys().map(|key| key.as_str().to_owned()).collect()
+                    map.iter().map(|(key, _)| key.as_str().to_owned()).collect()
                 }
             };
             if used != declared {

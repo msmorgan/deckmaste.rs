@@ -6,13 +6,13 @@ SingleFaced(face: (
         cost: [Black],
         types: [Instant],
         text: [
-            static(spec: addedCost(
-                cost: perform(instruction: sacrifice(
+            static(addedCost(
+                cost: perform(sacrifice(
                     described(
                         determiner: A(Unmarked),
-                        predicate: and(conjuncts: [
-                            hasType(type: Creature),
-                            inZone(zone: zone(zone: Battlefield, scope: Bare)),
+                        predicate: and([
+                            hasType(Creature),
+                            inZone(zone(zone: Battlefield, scope: Bare)),
                             hasPossessor(axis: Controller, possessor: you),
                         ]),
                     ),

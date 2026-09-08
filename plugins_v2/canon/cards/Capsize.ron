@@ -9,12 +9,12 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            buyback(mana(cost: [3])),
+            buyback(mana([3])),
             spell(
                 timing: None,
                 instruction: enact(
                     verb: Core(Return),
-                    instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: inZone(zone: zone(zone: Battlefield, scope: Bare)), ), destination: zone(zone: Hand, scope: Bare)),
+                    instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: inZone(zone(zone: Battlefield, scope: Bare)), ), destination: zone(zone: Hand, scope: Bare)),
                     agent: None,
                 ),
             ),

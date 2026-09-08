@@ -349,6 +349,13 @@ per-type convenience, and each off by default in `macro_ron` — v2's
   capture at that position does not go through ron's own `RawValue`, whose
   `Deserialize` re-parses what it captured and refuses anything that is not a
   standalone value — a fused argument list is not one.
+- **A named-signature macro may be applied positionally.** Its parameters
+  retain declaration order from the definition file, and a positional call
+  maps its argument sequence onto that order: `hasType(Creature)` is the same
+  invocation as `hasType(type: Creature)`. Named substitution still resolves
+  `Param(type)`, while remembered invocation provenance retains the call's
+  positional spelling. The two forms are never mixed, under the same rule as
+  constructor application.
 - **A card may write only macros.** At a `semantic_expression` kind — the
   seventeen `crate::ron::EXPRESSION_KINDS` mirror Lean's own attribute — a
   constructor's name has no native candidacy in a CARD, and the macro of that
@@ -387,8 +394,9 @@ unchanged.
 
 ## 12. Macro system
 
-`macro_ron` is unchanged: a dumb expander whose `MacroDef<Metadata>` carries
-consumer-typed, opaque metadata. Kinds are one per `SupportsMacros` enum and
+`macro_ron` remains a dumb expander whose `MacroDef<Metadata>` carries
+consumer-typed, opaque metadata and its named parameters in file declaration
+order. Kinds are one per `SupportsMacros` enum and
 exist only to disambiguate same-name macros at different usage sites; Lean's
 `MacroParameters` classes are a proof device, not the kind set. Macros
 invoke other macros up to the expander's depth limit; there is no
@@ -408,10 +416,11 @@ all consumer-declared: two `MacroSet` switches (`denying_unknown_fields`,
 mirror (`embed`, `literal`). A `MacroSet` with neither switch, over types
 carrying neither marker, reads exactly as it did before. What a macro's own
 BODY may write is what a card may write, because a body is read at the
-position it expands to and goes through the same reader. A macro's own
-argument list is unaffected: a signature is positional or named as it always
-was, and `read_args` checks argument names against the signature rather than
-against a constructor's binders.
+position it expands to and goes through the same reader. A macro's declared
+signature still determines its hole vocabulary: positional signatures resolve
+`Param(i)`, while named signatures resolve `Param(name)`. With positional
+argument reading enabled, the latter accepts either a wholly named call or a
+sequence mapped by declaration order; mixed calls remain invalid.
 
 ### 12.1 The helper macro layer
 

@@ -9,7 +9,7 @@ SingleFaced(face: (
         ],
         types: [Sorcery],
         text: [
-            spectacle(mana(cost: [
+            spectacle(mana([
                 1,
                 Black,
             ])),
@@ -17,7 +17,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: enact(
                     verb: Core(Return),
-                    instruction: move(subject: described( determiner: Target(range(low: 0, high: 2)), predicate: and( conjuncts: [ isCard, hasType(type: Creature), inZone( zone: zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), destination: zone(zone: Hand, scope: Bare)),
+                    instruction: move(subject: described( determiner: Target(range(low: 0, high: 2)), predicate: and( [ isCard, hasType(Creature), inZone( zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), destination: zone(zone: Hand, scope: Bare)),
                     agent: None,
                 ),
             ),

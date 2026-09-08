@@ -15,9 +15,9 @@ Split(
                     timing: None,
                     instruction: destroy(described(
                         determiner: Target(range(low: 1, high: 1)),
-                        predicate: and(conjuncts: [
-                            hasType(type: Creature),
-                            or(disjuncts: [
+                        predicate: and([
+                            hasType(Creature),
+                            or([
                                 inCombat(relation: AttackerOf, counterpart: None),
                                 inCombat(relation: BlockerOf, counterpart: None),
                             ]),
@@ -39,14 +39,14 @@ Split(
                 aftermath,
                 spell(
                     timing: None,
-                    instruction: sequentially(steps: [
+                    instruction: sequentially([
                         draw(amount: 2, agent: you),
                         discard(
                             described(
                                 determiner: Count(quantity: range(low: 2, high: 2), mode: None),
-                                predicate: and(conjuncts: [
+                                predicate: and([
                                     isCard,
-                                    inZone(zone: zone(zone: Hand, scope: PossessedBy(you))),
+                                    inZone(zone(zone: Hand, scope: PossessedBy(you))),
                                 ]),
                             ),
                             you,

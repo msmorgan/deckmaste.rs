@@ -16,12 +16,12 @@ SingleFaced(face: (
         text: [
             lifelink,
             static(
-                spec: abilityGrant(
+                abilityGrant(
                     subject: attachHost(word: Equipped, head: Type(Creature)),
                     ability: lifelink,
                 ),
             ),
-            reconfigure(mana(cost: [4])),
+            reconfigure(mana([4])),
         ],
     ),
 ))

@@ -13,7 +13,7 @@ SingleFaced(face: (
         toughness: 4,
         text: [
             trample,
-            madness(mana(cost: [
+            madness(mana([
                 2,
                 Green,
             ])),

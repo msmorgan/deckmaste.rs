@@ -11,13 +11,13 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: sequentially(steps: [
+                instruction: sequentially([
                     discard(
                         described(
                             determiner: All,
-                            predicate: and(conjuncts: [
+                            predicate: and([
                                 isCard,
-                                inZone(zone: zone(zone: Hand, scope: PossessedBy(you))),
+                                inZone(zone(zone: Hand, scope: PossessedBy(you))),
                             ]),
                         ),
                         you,

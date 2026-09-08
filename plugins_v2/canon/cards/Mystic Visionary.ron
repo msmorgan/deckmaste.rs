@@ -19,13 +19,13 @@ SingleFaced(face: (
         text: [
             threshold(
                 static(
-                    spec: conditional(
+                    conditional(
                         spec: abilityGrant(
                             subject: asType(type: Creature, subject: this, subtype: None),
-                            ability: keyword(label: "Flying"),
+                            ability: keyword("Flying"),
                         ),
                         condition: compareAmt(
-                            subject: countOf(p: inZone(zone: zone(zone: Graveyard, scope: PossessedBy(you)))),
+                            subject: countOf(inZone(zone(zone: Graveyard, scope: PossessedBy(you)))),
                             comparator: AtLeast,
                             bound: 7,
                         ),

@@ -213,7 +213,10 @@ fn slot_for(spec: &str, params: &Params) -> Slot {
         }
     } else {
         let ty = match params {
-            Params::Named(m) => m.get(key).map_or_else(Ident::default, |p| p.name),
+            Params::Named(m) => m
+                .iter()
+                .find(|(name, _)| name.as_str() == key)
+                .map_or_else(Ident::default, |(_, p)| p.name),
             Params::Positional(_) => Ident::default(),
         };
         Slot {

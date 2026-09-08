@@ -15,7 +15,7 @@ SingleFaced(face: (
         text: [
             flash,
             ravenous,
-            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: establish( spec: deonticRule( subject: described( determiner: Target(range(low: 1, high: 1)), predicate: hasType(type: Creature), ), compulsion: Require, deeds: [Core(Attack)], role: Agent, bound: None, patient: DefendingPlayer(described( determiner: Target(range(low: 1, high: 1)), predicate: opponent, )), as_though: None, rider: NoRider, ), duration: thisTurn, )),
+            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: establish( spec: deonticRule( subject: described( determiner: Target(range(low: 1, high: 1)), predicate: hasType(Creature), ), compulsion: Require, deeds: [Core(Attack)], role: Agent, bound: None, patient: DefendingPlayer(described( determiner: Target(range(low: 1, high: 1)), predicate: opponent, )), as_though: None, rider: NoRider, ), duration: thisTurn, )),
         ],
     ),
 ))

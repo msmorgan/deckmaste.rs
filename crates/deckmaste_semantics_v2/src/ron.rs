@@ -360,9 +360,9 @@ pub fn raw_options() -> ::ron::Options {
 /// removal, and `conferral:` arguments left over from a retired signature
 /// passed unnoticed (§11).
 ///
-/// It also reads a constructor applied positionally, in its declared binder
-/// order — `Hybrid(Generic(1), Red)` — which is how the Lean bench writes
-/// every application.
+/// It also reads constructors and named-signature macros applied positionally,
+/// in their declared binder or parameter order — `Hybrid(Generic(1), Red)` or
+/// `hasType(Creature)` — which is how the Lean bench writes applications.
 #[must_use]
 pub fn macro_set() -> MacroSet {
     MacroSet::new(kinds())

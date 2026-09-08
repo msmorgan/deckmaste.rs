@@ -13,18 +13,18 @@ SingleFaced(face: (
         text: [
             forMirrodin,
             static(
-                spec: conjunction(
+                conjunction(
                     subject: None,
                     parts: [
                         modification(
                             subject: attachHost(word: Equipped, head: Type(Creature)),
                             stat: Power,
-                            delta: up(amount: 4),
+                            delta: up(4),
                         ),
                         modification(
                             subject: attachHost(word: Equipped, head: Type(Creature)),
                             stat: Toughness,
-                            delta: up(amount: 4),
+                            delta: up(4),
                         ),
                         abilityGrant(
                             subject: attachHost(word: Equipped, head: Type(Creature)),
@@ -33,7 +33,7 @@ SingleFaced(face: (
                     ],
                 ),
             ),
-            equip(mana(cost: [
+            equip(mana([
                 5,
                 Green,
                 Green,

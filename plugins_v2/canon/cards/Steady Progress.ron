@@ -10,7 +10,7 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: sequentially(steps: [
+                instruction: sequentially([
                     proliferate,
                     draw(amount: 1, agent: you),
                 ]),

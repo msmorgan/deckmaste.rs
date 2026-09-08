@@ -8,23 +8,23 @@ SingleFaced(face: (
         power: 1,
         toughness: 1,
         text: [
-            bestow(mana(cost: [
+            bestow(mana([
                 1,
                 Red,
             ])),
             static(
-                spec: conjunction(
+                conjunction(
                     subject: None,
                     parts: [
                         modification(
                             subject: attachHost(word: Enchanted, head: Type(Creature)),
                             stat: Power,
-                            delta: up(amount: 1),
+                            delta: up(1),
                         ),
                         modification(
                             subject: attachHost(word: Enchanted, head: Type(Creature)),
                             stat: Toughness,
-                            delta: up(amount: 1),
+                            delta: up(1),
                         ),
                     ],
                 ),

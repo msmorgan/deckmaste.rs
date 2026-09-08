@@ -13,7 +13,7 @@ SingleFaced(face: (
         text: [
             defender,
             flying,
-            transmute(mana(cost: [
+            transmute(mana([
                 1,
                 Blue,
                 Blue,

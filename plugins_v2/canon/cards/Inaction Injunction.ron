@@ -10,11 +10,11 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: sequentially(steps: [
+                instruction: sequentially([
                     detain(described(
                         determiner: Target(range(low: 1, high: 1)),
-                        predicate: and(conjuncts: [
-                            hasType(type: Creature),
+                        predicate: and([
+                            hasType(Creature),
                             hasPossessor(
                                 axis: Controller,
                                 possessor: described(determiner: A(Unmarked), predicate: opponent),

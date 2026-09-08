@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: 5,
         toughness: 4,
         text: [
-            activated(cost: mana(cost: [ 5, Red, Red, ]), instruction: monstrosity(3)),
+            activated(cost: mana([ 5, Red, Red, ]), instruction: monstrosity(3)),
         ],
     ),
 ))

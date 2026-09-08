@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: 3,
         toughness: 3,
         text: [
-            surge(mana(cost: [
+            surge(mana([
                 2,
                 Blue,
             ])),

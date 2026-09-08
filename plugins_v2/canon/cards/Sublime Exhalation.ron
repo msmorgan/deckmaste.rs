@@ -13,7 +13,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: enact(
                     verb: Action("Destroy"),
-                    instruction: move(subject: described( determiner: All, predicate: hasType(type: Creature), ), destination: zone(zone: Graveyard, scope: Bare)),
+                    instruction: move(subject: described( determiner: All, predicate: hasType(Creature), ), destination: zone(zone: Graveyard, scope: Bare)),
                     agent: None,
                 ),
             ),

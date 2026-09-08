@@ -13,9 +13,9 @@ SingleFaced(face: (
                 timing: None,
                 instruction: goad(described(
                     determiner: All,
-                    predicate: and(conjuncts: [
-                        hasType(type: Creature),
-                        not(predicate: hasPossessor(axis: Controller, possessor: you)),
+                    predicate: and([
+                        hasType(Creature),
+                        not(hasPossessor(axis: Controller, possessor: you)),
                     ]),
                 )),
             ),

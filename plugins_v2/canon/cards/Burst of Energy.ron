@@ -9,7 +9,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: untap(described(
                     determiner: Target(range(low: 1, high: 1)),
-                    predicate: inZone(zone: zone(zone: Battlefield, scope: Bare)),
+                    predicate: inZone(zone(zone: Battlefield, scope: Bare)),
                 )),
             ),
         ],

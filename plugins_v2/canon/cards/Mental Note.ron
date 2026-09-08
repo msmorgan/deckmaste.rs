@@ -8,7 +8,7 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: sequentially(steps: [
+                instruction: sequentially([
                     mill(2, you, you),
                     draw(amount: 1, agent: you),
                 ]),

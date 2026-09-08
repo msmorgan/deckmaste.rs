@@ -15,7 +15,7 @@ SingleFaced(face: (
         power: 1,
         toughness: 1,
         text: [
-            activated(cost: compound(costs: [ mana(cost: [ 1, Black, ]), tapSymbol, ]), instruction: sequentially(steps: [ exile(described( determiner: Target(range(low: 2, high: 2)), predicate: and(conjuncts: [ isCard, inZone(zone: zone(zone: Graveyard, scope: PossessedBy(described(determiner: A(Unmarked), predicate: opponent)))), ]), )), explore(asType(type: Creature, subject: this, subtype: None)), ])),
+            activated(cost: compound([ mana([ 1, Black, ]), tapSymbol, ]), instruction: sequentially([ exile(described( determiner: Target(range(low: 2, high: 2)), predicate: and([ isCard, inZone(zone(zone: Graveyard, scope: PossessedBy(described(determiner: A(Unmarked), predicate: opponent)))), ]), )), explore(asType(type: Creature, subject: this, subtype: None)), ])),
         ],
     ),
 ))

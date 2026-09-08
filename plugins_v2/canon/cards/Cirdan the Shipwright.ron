@@ -21,7 +21,7 @@ SingleFaced(face: (
         power: 3,
         toughness: 4,
         text: [
-            keyword(label: "Vigilance"),
+            keyword("Vigilance"),
             triggeredOr(event: zoneChange(
                     subject: asType(type: Creature, subject: this, subtype: None),
                     from: None,

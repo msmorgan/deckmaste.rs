@@ -14,8 +14,8 @@ SingleFaced(face: (
         power: 2,
         toughness: 2,
         text: [
-            activatedOnlyDuring(cost: compound(costs: [
-                    mana(cost: [
+            activatedOnlyDuring(cost: compound([
+                    mana([
                         Green,
                         White,
                         Blue,

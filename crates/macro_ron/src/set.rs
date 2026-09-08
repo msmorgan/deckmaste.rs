@@ -19,8 +19,9 @@
 //! The signature's shape decides the invocation grammar: positional
 //! `params: [String]` is invoked `LandType("Forest")` with `Param(0)` holes,
 //! named `params: {"cost": String}` is invoked `Boast(cost: "{1}")` with
-//! `Param(cost)` holes. A named param may carry a default —
-//! `{"template": Default(String, Param(name))}` — filled (and validated)
+//! `Param(cost)` holes. When positional argument reading is enabled, a named
+//! signature may also be invoked in its declaration order. A named param may
+//! carry a default — `{"template": Default(String, Param(name))}` — filled (and validated)
 //! when the invocation omits it; defaults may reference only always-supplied
 //! params of the same signature. Either shape of param may instead be
 //! declared `Elidable(String)`: an omitted argument is then filled with
@@ -59,7 +60,9 @@ use crate::param::ParamTypeSet;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Params {
     Positional(Vec<ParamType>),
-    Named(HashMap<Ident, ParamType>),
+    /// Named parameters in declaration order. The order is observable when
+    /// the consumer enables positional application for named signatures.
+    Named(Vec<(Ident, ParamType)>),
 }
 
 impl Default for Params {
@@ -81,7 +84,7 @@ impl Params {
     /// one would invent an author form nothing round-trips back into.
     pub(crate) fn all_defaulted(&self) -> bool {
         match self {
-            Params::Named(signature) => signature.values().all(|ty| ty.default.is_some()),
+            Params::Named(signature) => signature.iter().all(|(_, ty)| ty.default.is_some()),
             Params::Positional(_) => false,
         }
     }
@@ -113,9 +116,14 @@ impl<'de> Deserialize<'de> for Params {
             }
 
             fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
-                let mut params = HashMap::new();
+                let mut params = Vec::new();
                 while let Some((name, param)) = map.next_entry()? {
-                    params.insert(name, param);
+                    if params.iter().any(|(declared, _)| declared == &name) {
+                        return Err(serde::de::Error::custom(format_args!(
+                            "duplicate parameter `{name}`"
+                        )));
+                    }
+                    params.push((name, param));
                 }
                 Ok(Params::Named(params))
             }
@@ -442,7 +450,8 @@ pub struct MacroSet {
     /// Whether a field a constructor does not declare is refused rather than
     /// ignored — see [`MacroSet::denying_unknown_fields`].
     deny_unknown_fields: bool,
-    /// Whether a constructor may be applied positionally — see
+    /// Whether a constructor or named-signature macro may be applied
+    /// positionally — see
     /// [`MacroSet::reading_positional_arguments`].
     positional_arguments: bool,
     /// Macros namespaced by kind — a macro is only visible at positions of
@@ -503,9 +512,10 @@ impl MacroSet {
         self.deny_unknown_fields
     }
 
-    /// Accepts a constructor's arguments in its declared binder order —
+    /// Accepts arguments in their declared order. This covers constructors —
     /// `Hybrid(Generic(1), Red)` for `Hybrid(left: Generic(1), right: Red)` —
-    /// which is what the Lean bench writes.
+    /// and named-signature macros such as `hasType(Creature)` for
+    /// `hasType(type: Creature)`.
     ///
     /// The two forms are never mixed: ron's own value scanner refuses
     /// `C(a, b: c)` while deciding which one is written. A constructor of ONE
@@ -523,7 +533,8 @@ impl MacroSet {
         self
     }
 
-    /// Whether a constructor may be applied positionally — see
+    /// Whether a constructor or named-signature macro may be applied
+    /// positionally — see
     /// [`reading_positional_arguments`](Self::reading_positional_arguments).
     pub(crate) fn reads_positional_arguments(&self) -> bool {
         self.positional_arguments
@@ -603,6 +614,18 @@ impl MacroSet {
             .is_some_and(|named| named.values().any(|def| def.params.all_defaulted()))
     }
 
+    /// Whether `position` hosts a macro with a named signature. Such a
+    /// position is captured when positional argument reading is enabled so
+    /// the invocation's argument-list shape can be classified before ron
+    /// commits its one-shot `VariantAccess` to map or sequence syntax.
+    pub(crate) fn has_named_signature(&self, position: &str) -> bool {
+        self.macros.get(position).is_some_and(|named| {
+            named
+                .values()
+                .any(|def| matches!(def.params, Params::Named(_)))
+        })
+    }
+
     fn check_kinds(&self, def: &MacroDef) -> Result<(), InsertError> {
         for &kind in &def.kinds {
             if self.kinds.get(&kind).is_none() {
@@ -628,7 +651,7 @@ impl MacroSet {
         };
         match &def.params {
             Params::Positional(types) => types.iter().try_for_each(|t| check(t.name)),
-            Params::Named(types) => types.values().try_for_each(|t| check(t.name)),
+            Params::Named(types) => types.iter().try_for_each(|(_, t)| check(t.name)),
         }
     }
 
@@ -696,7 +719,8 @@ impl MacroSet {
             }
             Params::Named(signature) => signature,
         };
-        for (&param, ty) in signature {
+        for (param, ty) in signature {
+            let param = *param;
             let Some(default) = ty.default.as_deref() else {
                 continue;
             };
@@ -713,7 +737,11 @@ impl MacroSet {
                         "references Param({key}); named signatures have no indices"
                     )));
                 };
-                match signature.get(&referenced) {
+                match signature
+                    .iter()
+                    .find(|(name, _)| *name == referenced)
+                    .map(|(_, ty)| ty)
+                {
                     None => {
                         return Err(bad(format!("references unknown param `{referenced}`")));
                     }

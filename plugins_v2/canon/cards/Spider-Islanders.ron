@@ -15,7 +15,7 @@ SingleFaced(face: (
         power: 4,
         toughness: 3,
         text: [
-            mayhem(mana(cost: [
+            mayhem(mana([
                 1,
                 Red,
             ])),

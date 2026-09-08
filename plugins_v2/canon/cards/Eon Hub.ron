@@ -7,7 +7,7 @@ SingleFaced(face: (
         types: [Artifact],
         text: [
             static(
-                spec: partSkip(
+                partSkip(
                     player: described(
                         determiner: Each,
                         predicate: anyPlayer,

@@ -12,11 +12,11 @@ SingleFaced(face: (
             demonstrate,
             spell(
                 timing: None,
-                instruction: sequentially(steps: [
+                instruction: sequentially([
                     mill(5, you, you),
                     enact(
                         verb: Core(Return),
-                        instruction: move(subject: described( determiner: A(Unmarked), predicate: and( conjuncts: [ hasType(type: Creature), inZone( zone: zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), destination: zone(zone: Battlefield, scope: Bare)),
+                        instruction: move(subject: described( determiner: A(Unmarked), predicate: and( [ hasType(Creature), inZone( zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), destination: zone(zone: Battlefield, scope: Bare)),
                         agent: you,
                     ),
                 ]),

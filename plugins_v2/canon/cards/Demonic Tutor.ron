@@ -12,7 +12,7 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: search(OneZone(zone(zone: Library, scope: PossessedBy(you))), range(low: 1, high: 1), and(conjuncts: []), you),
+                instruction: search(OneZone(zone(zone: Library, scope: PossessedBy(you))), range(low: 1, high: 1), and([]), you),
             ),
         ],
     ),

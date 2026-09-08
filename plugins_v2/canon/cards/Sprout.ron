@@ -9,7 +9,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: create(
                     1,
-                    written(characteristics: (characteristics: (
+                    written((characteristics: (
                         colors: [Green],
                         types: [Creature],
                         subtypes: [Of(host: Creature, label: "Saproling")],

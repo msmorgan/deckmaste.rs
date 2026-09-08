@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: 2,
         toughness: 2,
         text: [
-            scavenge(mana(cost: [
+            scavenge(mana([
                 5,
                 Green,
             ])),

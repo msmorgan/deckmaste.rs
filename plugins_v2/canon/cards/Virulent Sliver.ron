@@ -9,13 +9,13 @@ SingleFaced(face: (
         toughness: 1,
         text: [
             static(
-                spec: abilityGrant(
+                abilityGrant(
                     subject: described(
                         determiner: All,
                         predicate: and(
-                            conjuncts: [
-                                hasSubtype(subtype: Of(host: Creature, label: "Sliver")),
-                                hasType(type: Creature),
+                            [
+                                hasSubtype(Of(host: Creature, label: "Sliver")),
+                                hasType(Creature),
                             ],
                         ),
                     ),

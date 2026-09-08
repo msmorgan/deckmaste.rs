@@ -8,7 +8,7 @@ SingleFaced(face: (
         power: 1,
         toughness: 2,
         text: [
-            keyword(label: "Haste"),
+            keyword("Haste"),
             prowess,
         ],
     ),

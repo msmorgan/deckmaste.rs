@@ -17,9 +17,9 @@ SingleFaced(face: (
         power: 5,
         toughness: 5,
         text: [
-            keyword(label: "Flying"),
-            keyword(label: "Deathtouch"),
-            triggered(event: damage( kind: CombatOnly, source: asType(type: Creature, subject: this, subtype: None), patient: described(determiner: A(Unmarked), predicate: anyPlayer), ), instruction: faceAVillainousChoice( sacrifice( described( determiner: A(Unmarked), predicate: and(conjuncts: [ hasType(type: Creature), not(predicate: isToken), hasPossessor( axis: Controller, possessor: described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), ]), ), described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), sequentially(steps: [ changeLife( delta: down(amount: 2), agent: described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), draw(amount: 2, agent: you), ]), described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), )),
+            keyword("Flying"),
+            keyword("Deathtouch"),
+            triggered(event: damage( kind: CombatOnly, source: asType(type: Creature, subject: this, subtype: None), patient: described(determiner: A(Unmarked), predicate: anyPlayer), ), instruction: faceAVillainousChoice( sacrifice( described( determiner: A(Unmarked), predicate: and([ hasType(Creature), not(isToken), hasPossessor( axis: Controller, possessor: described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), ]), ), described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), sequentially([ changeLife( delta: down(2), agent: described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), ), draw(amount: 2, agent: you), ]), described(determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer), )),
             keywordNumber(label: "Crew", amount: 3),
         ],
     ),

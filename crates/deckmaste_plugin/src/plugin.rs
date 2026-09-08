@@ -599,7 +599,7 @@ fn verb_params(params: &crate::macros::Params) -> Vec<Ident> {
     match params {
         Params::Positional(list) => list.iter().map(|p| p.name).collect(),
         Params::Named(map) => {
-            let mut names: Vec<Ident> = map.values().map(|p| p.name).collect();
+            let mut names: Vec<Ident> = map.iter().map(|(_, p)| p.name).collect();
             names.sort_unstable_by(|a, b| a.as_str().cmp(b.as_str()));
             names
         }
@@ -619,8 +619,8 @@ fn keyword_shape(params: &crate::macros::Params) -> Option<deckmaste_semantics::
     let names: Vec<&str> = match params {
         Params::Positional(list) => list.iter().map(|p| p.name.as_str()).collect(),
         Params::Named(map) => {
-            let mut names: Vec<&str> = map.values().map(|p| p.name.as_str()).collect();
-            // A named signature is order-free; canonicalize before matching.
+            let mut names: Vec<&str> = map.iter().map(|(_, p)| p.name.as_str()).collect();
+            // v1's keyword shape is order-insensitive; canonicalize before matching.
             names.sort_unstable();
             names
         }

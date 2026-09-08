@@ -13,11 +13,11 @@ SingleFaced(face: (
                 timing: None,
                 instruction: enact(
                     verb: Core(Return),
-                    instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: and( conjuncts: [ isCard, hasType(type: Creature), inZone( zone: zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), destination: zone(zone: Hand, scope: Bare)),
+                    instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: and( [ isCard, hasType(Creature), inZone( zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), destination: zone(zone: Hand, scope: Bare)),
                     agent: None,
                 ),
             ),
-            recover(mana(cost: [
+            recover(mana([
                 2,
                 Black,
             ])),

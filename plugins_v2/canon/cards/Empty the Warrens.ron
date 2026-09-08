@@ -14,7 +14,7 @@ SingleFaced(face: (
                     count: 2,
                     spec: Token(
                         spec: written(
-                            characteristics: (
+                            (
                                 characteristics: (
                                     colors: [Red],
                                     types: [Creature],

@@ -10,6 +10,6 @@ SingleFaced(face: (
         subtypes: [Of(host: Creature, label: "Beast")],
         power: 4,
         toughness: 4,
-        text: [cycling(mana(cost: [2]))],
+        text: [cycling(mana([2]))],
     ),
 ))

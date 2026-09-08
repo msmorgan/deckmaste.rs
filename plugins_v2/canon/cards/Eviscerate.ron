@@ -13,7 +13,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: destroy(described(
                     determiner: Target(range(low: 1, high: 1)),
-                    predicate: hasType(type: Creature),
+                    predicate: hasType(Creature),
                 )),
             ),
         ],

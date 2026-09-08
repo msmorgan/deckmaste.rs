@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: 2,
         toughness: 5,
         text: [
-            outlast(mana(cost: [
+            outlast(mana([
                 1,
                 White,
             ])),

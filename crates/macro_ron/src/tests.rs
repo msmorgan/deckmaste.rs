@@ -962,6 +962,78 @@ fn named_parameters_invoke_struct_shaped() {
 }
 
 #[test]
+fn named_parameters_may_invoke_positionally_in_declaration_order() {
+    let mut macros = empty().reading_positional_arguments();
+    macros
+        .insert(&def(r#"(
+            name: "hasType",
+            kinds: [Filter],
+            params: { "type": Any },
+            body: Type(Param(type)),
+        )"#))
+        .unwrap();
+
+    let filter: Filter = macros.read_str("hasType(Creature)").unwrap();
+    let Filter::Expanded(expanded) = filter else {
+        panic!("expected a remembered filter, got {filter:?}");
+    };
+    assert_eq!(*expanded.value, Filter::Type(Type::Creature));
+    assert_eq!(
+        options().to_string(&Filter::Expanded(expanded)).unwrap(),
+        "hasType(Creature)"
+    );
+}
+
+#[test]
+fn named_parameter_declaration_order_maps_a_positional_call() {
+    let mut macros = empty().reading_positional_arguments();
+    macros
+        .insert(&def(r#"(
+            name: "ordered",
+            kinds: [Filter],
+            params: { "lastAlphabetically": Any, "firstAlphabetically": Any },
+            body: AllOf([Param(lastAlphabetically), Param(firstAlphabetically)]),
+        )"#))
+        .unwrap();
+
+    let filter: Filter = macros
+        .read_str(r#"ordered(Type(Creature), Named("Bear"))"#)
+        .unwrap();
+    let Filter::Expanded(expanded) = filter else {
+        panic!("expected a remembered filter, got {filter:?}");
+    };
+    assert_eq!(
+        *expanded.value,
+        Filter::AllOf(vec![
+            Filter::Type(Type::Creature),
+            Filter::Named("Bear".into())
+        ])
+    );
+}
+
+#[test]
+fn named_macro_arguments_cannot_mix_named_and_positional_forms() {
+    let mut macros = empty().reading_positional_arguments();
+    macros
+        .insert(&def(r#"(
+            name: "ordered",
+            kinds: [Filter],
+            params: { "left": Any, "right": Any },
+            body: AllOf([Param(left), Param(right)]),
+        )"#))
+        .unwrap();
+
+    for source in [
+        "ordered(Type(Creature), right: Any)",
+        "ordered(left: Type(Creature), Any)",
+    ] {
+        macros
+            .read_str::<Filter>(source)
+            .expect_err("mixed argument forms must be refused");
+    }
+}
+
+#[test]
 fn named_parameters_at_enum_positions() {
     let mut macros = empty();
     macros
@@ -2722,10 +2794,12 @@ fn default_param_type_parses() {
     let Params::Named(signature) = &def.params else {
         panic!("expected named params");
     };
-    let name = &signature[&Ident::from("name")];
+    assert_eq!(signature[0].0, "name");
+    assert_eq!(signature[1].0, "template");
+    let name = &signature[0].1;
     assert_eq!(name.name, "String");
     assert_eq!(name.default, None);
-    let template = &signature[&Ident::from("template")];
+    let template = &signature[1].1;
     assert_eq!(template.name, "String");
     assert_eq!(template.default.as_deref(), Some("Param(name)"));
 }
@@ -2932,7 +3006,7 @@ fn filled_default_is_validated() {
 /// are excluded from the synthesized args (re-reading re-fills them).
 #[test]
 fn remembered_invocation_excludes_filled_defaults() {
-    let mut macros = empty();
+    let mut macros = empty().reading_positional_arguments();
     macros
         .insert(&def(r#"(
             name: "Sized",
@@ -2952,6 +3026,12 @@ fn remembered_invocation_excludes_filled_defaults() {
         options().to_string(&filter).unwrap(),
         "Sized(kind:Creature,min:3)"
     );
+
+    // Positional provenance has the same omission rule.
+    let filter: Filter = macros.read_str("Sized(Creature)").unwrap();
+    assert_eq!(options().to_string(&filter).unwrap(), "Sized(Creature)");
+    let filter: Filter = macros.read_str("Sized(Creature, 3)").unwrap();
+    assert_eq!(options().to_string(&filter).unwrap(), "Sized(Creature,3)");
 }
 
 /// All params defaulted: the empty named call `M()` survives the round trip
@@ -3163,10 +3243,17 @@ fn param_type_parses_a_binder_contract() {
         panic!("named signature");
     };
     assert_eq!(
-        sig[&Ident::from("e")].binds,
-        vec![Ident::from("It"), Ident::from("That")]
+        sig.iter()
+            .find(|(name, _)| *name == "e")
+            .map(|(_, ty)| &ty.binds)
+            .unwrap(),
+        &vec![Ident::from("It"), Ident::from("That")]
     );
-    let defaulted = &sig[&Ident::from("d")];
+    let defaulted = sig
+        .iter()
+        .find(|(name, _)| *name == "d")
+        .map(|(_, ty)| ty)
+        .unwrap();
     assert_eq!(defaulted.binds, vec![Ident::from("It")]);
     assert!(defaulted.default.is_some());
 }
