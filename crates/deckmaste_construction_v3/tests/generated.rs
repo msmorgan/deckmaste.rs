@@ -466,13 +466,14 @@ fn retained_spelling_capitalization_count_uses_and_numerals_roundtrip_independen
         Numeral::Arabic(true),
         Numeral::Roman,
     ] {
-        for value in [1, 4, 29] {
+        for value in [1, 4, 29, 1000] {
+            use deckmaste_lexical::NumeralCodec;
             independent.push(lexical_values::Reading::Numeral {
                 form: 0,
                 word: lexical_values::Word {
                     value: LexicalReading::Numeral {
                         value,
-                        notation,
+                        notation: notation.canonical_notation(value),
                         capitalization: SurfaceCase::Declared,
                     },
                     frame: None,

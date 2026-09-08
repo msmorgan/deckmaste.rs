@@ -12,7 +12,8 @@ inductive Lexeme where
   | it | they | you | be | exile | attack | creature | turn | white | during | if_
   | targetNoun | targetVerb | targetMarker | oneNoun | oneDet | i | see | herPossessive | herObject | duckNoun | duckVerb
   | by_ | mana | much | two | plus | artifactType | creatureSubtype
-  | nontoken | degreeAdverb | unknown
+  | nontoken | degreeAdverb | three | scalarVariable | nameVerb | cardName | defend
+  | amount | of_ | greenSymbol | get | unknown
   deriving DecidableEq
 
 abbrev Row := FeatureBundle × Surface
@@ -54,6 +55,15 @@ def rows : Lexeme → List Row
   | .creatureSubtype => [(.word (.document .subtype), ["Golem"])]
   | .nontoken => [(.attributive, ["nontoken"])]
   | .degreeAdverb => [(.word .adverbPhrase, ["very"])]
+  | .three => [(.word .unsignedScalar, [.symbol "3"])]
+  | .scalarVariable => [(.word .unsignedScalar, [.symbol "X"])]
+  | .nameVerb => [(.verb .pastParticiple none, ["named"])]
+  | .cardName => [(.identity .name, ["Powerstone", "Shard"])]
+  | .defend => [(.verb .gerundParticiple none, ["defending"])]
+  | .amount => [(.noun .singular .count, ["amount"])]
+  | .of_ => [(.fixed, ["of"])]
+  | .greenSymbol => [(.word (.document .symbol), [.symbol "{G}"])]
+  | .get => [(.verb .plain none, ["get"])]
   | .unknown => []
 
 def objectFrame : List (FrameItem Lexeme) := [.argument ⟨.object, .nounPhrase plural⟩]
@@ -65,7 +75,13 @@ def declaration (head : Lexeme) : LexemeDeclaration Lexeme where
   morphology := {
     defaultForm := fun _ ↦ []
     overrides := fun bundle ↦ some (((rows head).filter (fun row ↦ row.1 == bundle)).map Prod.snd) }
-  verbFrame form voice frame :=
+  verbFrame form voice frame := match head with
+    | .nameVerb => form = .pastParticiple ∧ voice = .passive ∧
+        frame = [.argument ⟨.complement, .name⟩]
+    | .defend => form = .gerundParticiple ∧ voice = .active ∧ frame = []
+    | .get => form = .plain ∧ voice = .active ∧
+        frame = [.argument ⟨.complement, .measurePhrase .pair⟩]
+    | _ =>
     (head = .exile ∧ form = .pastParticiple ∧ voice = .passive ∧ frame = []) ∨
     (head = .attack ∧ voice = .active ∧ frame = []) ∨
     (head = .targetVerb ∧ voice = .active ∧ frame = objectFrame) ∨
@@ -77,6 +93,9 @@ def declaration (head : Lexeme) : LexemeDeclaration Lexeme where
     head = .be ∧ form = .preterite ∧ selected = .pastParticiple ∧
       voice = .passive ∧ selectedVoice = .passive
   temporal := head = .turn
+  participialAttributive := head = .defend
+  nounComplement marker category :=
+    head = .amount ∧ marker = .of_ ∧ category = .symbolSequence
 
 def environment : LexicalEnvironment Lexeme
   | .unknown => none

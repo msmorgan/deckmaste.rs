@@ -103,6 +103,10 @@ pub struct ParseNumeralError;
 
 /// Parse and realization behavior for a shared numeral notation value.
 pub trait NumeralCodec {
+    /// Retains grouping as identity only when it changes the written numeral.
+    #[must_use]
+    fn canonical_notation(self, value: i32) -> Numeral;
+
     /// Formats `value` using this notation.
     ///
     /// Roman magnitudes above 3,999 use `infinitum`, with `negativum` appended
@@ -128,6 +132,13 @@ pub trait NumeralCodec {
 }
 
 impl NumeralCodec for Numeral {
+    fn canonical_notation(self, value: i32) -> Numeral {
+        match self {
+            Self::Arabic(true) if value.unsigned_abs() < 1_000 => Self::Arabic(false),
+            notation => notation,
+        }
+    }
+
     fn format(self, value: i32) -> String {
         match self {
             Self::Cardinal => format_cardinal(value),

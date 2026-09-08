@@ -95,6 +95,27 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       Linearizes lexicon (.compare marker) [a] (m ++ a)
   | measure {marker : Lexeme} {a b m : Surface} : lexicon.markerForm marker m →
       Linearizes lexicon (.measure marker) [a, b] (a ++ m ++ b)
+  | unsignedScalar {a : Surface} : Linearizes lexicon .unsignedScalar [a] a
+  | signedScalar {sign : ScalarSign} {a : Surface} :
+      Linearizes lexicon (.signedScalar sign) [a] (sign.surface ++ a)
+  | slashPair {a b : Surface} :
+      Linearizes lexicon .slashPair [a, b] (a ++ [.symbol "/"] ++ b)
+  | scalarMeasure {a : Surface} : Linearizes lexicon .scalarMeasure [a] a
+  | slashMeasure {a : Surface} : Linearizes lexicon .slashMeasure [a] a
+  | slashModifier {number : Number} {a b : Surface} :
+      Linearizes lexicon (.slashModifier number) [a, b] (a ++ b)
+  | namePredicate {head : Lexeme} {a v : Surface} : lexicon.verbForm head .pastParticiple v →
+      Linearizes lexicon (.namePredicate head) [a] (v ++ a)
+  | namedModifier {number : Number} {a b : Surface} :
+      Linearizes lexicon (.namedModifier number) [a, b] (a ++ b)
+  | participialAttributive {head : Lexeme} {number : Number} {a v : Surface} :
+      lexicon.verbForm head .gerundParticiple v →
+      Linearizes lexicon (.participialAttributive head number) [a] (v ++ a)
+  | symbolSequence {items : List Surface} :
+      Linearizes lexicon .symbolSequence items items.flatten
+  | nominalComplement {head marker : Lexeme} {number : Number} {a h m : Surface} :
+      lexicon.nounForm head number h → lexicon.markerForm marker m →
+      Linearizes lexicon (.nominalComplement head marker number) [a] (h ++ m ++ a)
   | preposition {head : Lexeme} {category : Category} {a m : Surface} :
       lexicon.markerForm head m → Linearizes lexicon (.preposition head category) [a] (m ++ a)
   | verb {head : Lexeme} {form : InflectionalForm} {frame : List (FrameItem Lexeme)} {voice : Voice}

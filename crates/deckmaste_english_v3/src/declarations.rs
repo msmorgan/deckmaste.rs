@@ -21,11 +21,15 @@ constructions! {
         feature MeasureOperator { Yes }
         feature MeasurePreposition { Yes }
         feature MeasurePosition { Before, After }
+        feature MeasureKind { Scalar, Pair }
         feature ComparisonMarker { Equality, Ordering }
         feature KeywordParameterClass { Nullary, Amount, Cost }
         feature LabelKind { AbilityWord }
         feature SymbolUse { Cost }
         feature TypeLineRole { Supertype, CardType, Subtype }
+        feature IdentityUse { Name }
+        feature AttributiveForm { GerundParticiple }
+        feature NominalComplementMarker { Of }
 
         category Document();
         category Ability();
@@ -52,13 +56,18 @@ constructions! {
         category NominativePhrase(number, person, CaseUse);
         category AccusativePhrase(number, person, CaseUse);
         category AdjectivePhrase();
+        category Name();
+        category NamePredicate();
         category PrepositionPhrase();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause();
         category FiniteObjectGap(number, person);
         category BareObjectGap();
         category Cardinal(number);
-        category MeasurePhrase();
+        category MeasurePhrase(MeasureKind);
+        category UnsignedScalar();
+        category ScalarComponent();
+        category SlashPair();
         category EqualityComplement();
         category OrderingComplement();
         category KeywordPhrase();
@@ -82,12 +91,16 @@ constructions! {
 
         frame Intransitive = "(kind: \"Predicate\", items: [])";
         frame Transitive = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\"))])";
+        frame ObjectName = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\")), Argument((relation: Complement, category: \"Name\"))])";
+        frame BareNominal = "(kind: \"Nominal\", items: [])";
+        frame NominalSymbols = "(kind: \"Nominal\", items: [Marked(vocabulary: \"Preposition\", member: \"Of\", slot: (relation: Complement, category: \"CostSymbols\"))])";
         frame Predicative = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"PredicativeComplement\"))])";
         frame BareAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"BarePredicate\"))])";
         frame ParticipialAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"ParticipialPredicate\"))])";
         frame PerfectAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"PastParticiplePredicate\"))])";
 
         frame Measure = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"MeasurePhrase\"))])";
+        frame SlashMeasure = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"PowerToughnessAdjustment\"))])";
         frame Equality = "(kind: \"Predicate\", items: [Marked(vocabulary: \"Preposition\", member: \"To\", slot: (relation: Complement, category: \"MeasurePhrase\"))])";
         frame Ordering = "(kind: \"Predicate\", items: [Marked(vocabulary: \"Preposition\", member: \"Than\", slot: (relation: Complement, category: \"MeasurePhrase\"))])";
         frame ObjectEquality = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\")), Argument((relation: Complement, category: \"ScalarEquality\"))])";
@@ -363,6 +376,24 @@ constructions! {
 
         construction Noun: Nominal {
             form [head: lexical(Noun)];
+            require head.framing = Unframed;
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = No;
+        }
+
+        construction BareFramedNoun: Nominal {
+            form [head: lexical(Noun)];
+            require head.frame = BareNominal;
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = No;
+        }
+
+        construction SymbolComplementNominal: Nominal {
+            form [head: lexical(Noun), " ", marker: lexical(Preposition), " ", complement: CostSymbols];
+            require head.frame = NominalSymbols;
+            require marker.NominalComplementMarker = Of;
             export number = head.number;
             export countability = head.countability;
             export Targeting = No;
@@ -381,6 +412,35 @@ constructions! {
         construction PremodifiedNominal: Nominal {
             form [modifier: AdjectivePhrase, " ", head: Nominal];
             require head.Targeting = No;
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = head.Targeting;
+        }
+
+        construction ParticipialPremodifier: Nominal {
+            form [modifier: lexical(Verb), " ", head: Nominal];
+            require modifier.form = GerundParticiple;
+            require modifier.AttributiveForm = GerundParticiple;
+            require modifier.frame = Intransitive;
+            require head.Targeting = No;
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = head.Targeting;
+        }
+
+        construction CatalogName: Name {
+            form [head: lexical(Catalog)];
+            require head.IdentityUse = Name;
+        }
+
+        construction PassiveNamePredicate: NamePredicate {
+            form [head: lexical(Verb), " ", complement: Name];
+            require head.form = PastParticiple;
+            require head.frame = ObjectName;
+        }
+
+        construction NamedNominal: Nominal {
+            form [head: Nominal, " ", modifier: NamePredicate];
             export number = head.number;
             export countability = head.countability;
             export Targeting = head.Targeting;
@@ -859,32 +919,108 @@ constructions! {
         construction GroupedScalarNumeral: MeasurePhrase {
             form [head: lexical(Numeral)];
             require head.numeral_kind = GroupedArabic;
+            require head.numeral_size = Large;
+            export MeasureKind = Scalar;
+        }
+
+        construction SmallUnsignedScalar: UnsignedScalar {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Arabic;
+            require head.numeral_size = Small;
+            require head.numeral_sign = Nonnegative;
+        }
+
+        construction LargeUnsignedScalar: UnsignedScalar {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = GroupedArabic;
+            require head.numeral_size = Large;
+            require head.numeral_sign = Nonnegative;
+        }
+
+        construction VariableScalar: UnsignedScalar {
+            form [head: lexical(Numeral)];
+            require head.ScalarVariable = Yes;
+        }
+
+        construction UnsignedScalar: ScalarComponent {
+            form [value: UnsignedScalar];
+        }
+
+        construction PositiveScalar: ScalarComponent {
+            form ["+", value: UnsignedScalar];
+        }
+
+        construction NegativeScalar: ScalarComponent {
+            form ["-", value: UnsignedScalar];
+        }
+
+        construction SlashPair: SlashPair {
+            form [left: ScalarComponent, "/", right: ScalarComponent];
+        }
+
+        construction SlashMeasure: MeasurePhrase {
+            form [pair: SlashPair];
+            export MeasureKind = Pair;
+        }
+
+        construction SlashModifiedNominal: Nominal {
+            form [modifier: SlashPair, " ", head: Nominal];
+            require head.Targeting = No;
+            require head.countability = Count;
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = head.Targeting;
+        }
+
+        construction FiniteSlashMeasure: FinitePredicate {
+            form [head: lexical(Verb), " ", measure: SlashPair];
+            require head.finiteness = Finite;
+            require head.frame = SlashMeasure;
+            export number = head.number;
+            export person = head.person;
+            export Voice = Active;
+        }
+
+        construction NonfiniteSlashMeasure: NonfinitePredicate {
+            form [head: lexical(Verb), " ", measure: SlashPair];
+            require head.finiteness = Nonfinite;
+            require head.frame = SlashMeasure;
+            export form = head.form;
+            export Voice = Active;
+            export OvertHead = Yes;
         }
 
         construction UngroupedScalarNumeral: MeasurePhrase {
             form [head: lexical(Numeral)];
             require head.numeral_kind = Arabic;
             require head.numeral_size = Small;
+            export MeasureKind = Scalar;
         }
 
         construction ScalarVariable: MeasurePhrase {
             form [head: lexical(Numeral)];
             require head.ScalarVariable = Yes;
+            export MeasureKind = Scalar;
         }
 
         construction ArithmeticMeasure: MeasurePhrase {
             form [left: MeasurePhrase, " ", operator: lexical(Preposition), " ", right: MeasurePhrase];
             require operator.MeasureOperator = Yes;
+            require left.MeasureKind = Scalar;
+            require right.MeasureKind = Scalar;
+            export MeasureKind = Scalar;
         }
 
         construction MeasuredPreposition: PrepositionPhrase {
             form [head: lexical(Preposition), " ", complement: MeasurePhrase];
             require head.MeasurePreposition = Yes;
+            require complement.MeasureKind = Scalar;
         }
 
         construction MeasuredNounPhrase: NounPhrase {
             form [quantity: MeasurePhrase, " ", head: lexical(Noun)];
             require head.MeasurePosition = Before;
+            require quantity.MeasureKind = Scalar;
             require head.number = Singular;
             require head.countability = Mass;
             export number = Singular;
@@ -895,6 +1031,7 @@ constructions! {
         construction MeasuredAttribute: NounPhrase {
             form [head: lexical(Noun), " ", quantity: MeasurePhrase];
             require head.MeasurePosition = After;
+            require quantity.MeasureKind = Scalar;
             require head.number = Singular;
             export number = Singular;
             export person = Third;
@@ -905,6 +1042,7 @@ constructions! {
             form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ", measure: MeasurePhrase];
             require head.frame = Equality;
             require marker.ComparisonMarker = Equality;
+            require measure.MeasureKind = Scalar;
         }
 
         construction EqualityAdjective: AdjectivePhrase {
@@ -915,6 +1053,7 @@ constructions! {
             form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ", measure: MeasurePhrase];
             require head.frame = Ordering;
             require marker.ComparisonMarker = Ordering;
+            require measure.MeasureKind = Scalar;
         }
 
         construction OrderingAdjective: AdjectivePhrase {
@@ -925,6 +1064,7 @@ constructions! {
             form [head: lexical(Verb), " ", measure: MeasurePhrase];
             require head.finiteness = Finite;
             require head.frame = Measure;
+            require measure.MeasureKind = Scalar;
             export number = head.number;
             export person = head.person;
             export Voice = Active;
@@ -943,6 +1083,7 @@ constructions! {
             form [head: lexical(Verb), " ", measure: MeasurePhrase];
             require head.finiteness = Nonfinite;
             require head.frame = Measure;
+            require measure.MeasureKind = Scalar;
             export form = head.form;
             export Voice = Active;
             export OvertHead = Yes;

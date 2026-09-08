@@ -25,5 +25,7 @@ import English.JointInteractions
 import English.BoundaryInteractions
 
 import English.SpellingWitnesses
+import English.MeasureWitnesses
+import English.LexicalConsumerWitnesses
 
 /-! Oracle English grammar design workbench, independent of the Semantics model. -/

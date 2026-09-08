@@ -16,6 +16,18 @@ structure Declarations (L : Type) where
   nominalCase : L → Case := fun _ => .nominativeOrAccusative
 
 inductive NominalUse (features : Declarations L) : Syntax L → Countability → Prop where
+  | nominalComplement {head marker : L} {complement : Syntax L} {number : Number}
+      {use : Countability} : features.nounUse head use →
+      NominalUse features (.node (.nominalComplement head marker number) [complement]) use
+  | namedModifier {head modifier : Syntax L} {number : Number} {use : Countability} :
+      NominalUse features head use →
+      NominalUse features (.node (.namedModifier number) [head, modifier]) use
+  | participialAttributive {head : L} {nominal : Syntax L} {number : Number} {use : Countability} :
+      NominalUse features nominal use →
+      NominalUse features (.node (.participialAttributive head number) [nominal]) use
+  | slashModifier {modifier head : Syntax L} {number : Number} :
+      NominalUse features head .count →
+      NominalUse features (.node (.slashModifier number) [modifier, head]) .count
   | noun {head : L} {number : Number} {use : Countability} : features.nounUse head use →
       NominalUse features (.noun head number) use
   | modify {modifier head : Syntax L} {use : Countability} : NominalUse features head use →
@@ -62,7 +74,9 @@ mutual
   /-- Targeting precedes descriptive modifiers; adjective ordering otherwise stays open. -/
   def containsTarget : Syntax L → Bool
     | .node (.targeting _ _) _ => true
-    | .modify _ head | .node (.attributive _ _) [head] | .relativeForm _ head _ _ _ =>
+    | .modify _ head | .node (.attributive _ _) [head] | .relativeForm _ head _ _ _
+    | .node (.slashModifier _) [_, head] | .node (.namedModifier _) [head, _]
+    | .node (.participialAttributive _ _) [head] =>
       containsTarget head
     | .node (.coordinate _ _ _) [a,b] => containsTarget a || containsTarget b
     | .node (.serialCoordinate _ _) children => childrenContainTarget children
@@ -109,7 +123,10 @@ def Local (features : Declarations L) (tree : Syntax L)
         (Transparent det ∧ ∃ use, NominalUse features head use)
   | .node .barePlural [head] => NominalUse features head .count
   | .node .bareMass [head] => NominalUse features head .mass
-  | .modify _ head | .node (.attributive _ _) [head] | .node (.targeting _ _) [head] =>
+  | .node (.slashModifier _) [_, head] =>
+      NominalUse features head .count ∧ containsTarget head = false
+  | .modify _ head | .node (.attributive _ _) [head] | .node (.targeting _ _) [head]
+  | .node (.participialAttributive _ _) [head] =>
       containsTarget head = false
   | .node (.adjunct (.verbPhrase _ _) (.nounPhrase _) _) [_,dependent] =>
       Temporal features dependent

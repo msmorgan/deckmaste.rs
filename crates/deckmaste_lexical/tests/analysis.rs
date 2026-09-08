@@ -628,6 +628,7 @@ fn invalid_constructed_values_are_rejected() {
         word("n:counter", WordForm::Plural, nominal(Number::Singular)),
         word("v:counter", WordForm::Plain, nonfinite()),
         numeral(4_000, Numeral::Roman),
+        numeral(2, Numeral::Arabic(true)),
         initial(numeral(4, Numeral::Roman)),
     ] {
         assert!(
@@ -642,6 +643,30 @@ fn invalid_constructed_values_are_rejected() {
         lexicon.realize(&numeral(i32::MAX, Numeral::Roman)).unwrap(),
         "infinitum"
     );
+}
+
+#[test]
+fn normalized_numerals_roundtrip_without_erasing_visible_notation() {
+    let lexicon = Lexicon::new([]).unwrap();
+    for value in [i32::MIN, -1000, -999, -1, 0, 1, 999, 1000, i32::MAX] {
+        for requested in [Numeral::Arabic(false), Numeral::Arabic(true)] {
+            let notation = requested.canonical_notation(value);
+            let reading = numeral(value, notation);
+            let surface = requested.try_format(value).unwrap();
+            assert_eq!(lexicon.realize(&reading).unwrap(), surface);
+            assert_eq!(complete(&lexicon, &surface), BTreeSet::from([reading]));
+            assert_eq!(notation.canonical_notation(value), notation);
+        }
+        assert_eq!(
+            Numeral::Arabic(true).canonical_notation(value) == Numeral::Arabic(false),
+            value.unsigned_abs() < 1000,
+        );
+    }
+    for (notation, surface) in [(Numeral::Cardinal, "one"), (Numeral::Roman, "I")] {
+        let value = numeral(1, notation);
+        assert_eq!(lexicon.realize(&value).unwrap(), surface);
+        assert!(complete(&lexicon, surface).contains(&value));
+    }
 }
 
 #[test]

@@ -214,6 +214,11 @@ mutual
     | .node .barePlural _ | .node .bareMass _ | .node (.attributive _ _) _
     | .node (.targeting _ _) _ | .node (.rightNodeRaising _ _) _ | .node (.genitive _) _
     | .node (.quantify _) _ | .node (.compare _) _ | .node (.measure _) _
+    | .node .unsignedScalar _ | .node (.signedScalar _) _ | .node .slashPair _
+    | .node .scalarMeasure _ | .node .slashMeasure _ | .node (.slashModifier _) _
+    | .node (.namePredicate _) _ | .node (.namedModifier _) _
+    | .node (.participialAttributive _ _) _
+    | .node .symbolSequence _ | .node (.nominalComplement _ _ _) _
     | .node (.preposition _ _) _ | .node (.verb _ _ _ _) _ | .node (.auxiliary _ _ _ _ _ _) _
     | .node (.finite _ _ _) _ | .node (.initialAdverbial _) _ | .node .imperative _
     | .node (.nonfinite _ _) _ | .node (.subordinate _ _) _ | .node (.adjunct _ _ _) _ =>

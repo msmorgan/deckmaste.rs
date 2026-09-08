@@ -47,6 +47,18 @@ inductive Finiteness where
   | finite | nonfinite
   deriving DecidableEq
 
+inductive ScalarSign where
+  | plus | minus
+  deriving DecidableEq
+
+inductive MeasureKind where
+  | scalar | pair
+  deriving DecidableEq
+
+def ScalarSign.surface : ScalarSign → Surface
+  | .plus => [.symbol "+"]
+  | .minus => [.symbol "-"]
+
 /-- Regular finite inflection; irregular and invariant heads declare their own licensing. -/
 inductive FiniteForm : Agreement → InflectionalForm → Prop where
   | singular {agreement : Agreement} : agreement.concord = .thirdSingular →
@@ -60,7 +72,9 @@ inductive Category where
   | determinativePhrase (number : Number)
   | adjectivePhrase | adverbPhrase | prepositionPhrase
   | cardinalNumeral (number : Number)
-  | measurePhrase | keywordPhrase
+  | measurePhrase (kind : MeasureKind := .scalar) | keywordPhrase
+  | unsignedScalar | scalarComponent | slashPair
+  | name | namePredicate | symbolSequence
   | verbPhrase (form : InflectionalForm) (voice : Voice := .active)
   | clause (finiteness : Finiteness)
   | subordinateClause (finiteness : Finiteness)
@@ -117,6 +131,14 @@ inductive Construction (Lexeme : Type) where
   | quantify (number : Number)
   | compare (marker : Lexeme)
   | measure (marker : Lexeme)
+  | unsignedScalar | signedScalar (sign : ScalarSign)
+  | slashPair | scalarMeasure | slashMeasure
+  | slashModifier (number : Number)
+  | namePredicate (head : Lexeme)
+  | namedModifier (number : Number)
+  | participialAttributive (head : Lexeme) (number : Number)
+  | symbolSequence
+  | nominalComplement (head marker : Lexeme) (number : Number)
   | preposition (head : Lexeme) (complement : Category)
   | verb (head : Lexeme) (form : InflectionalForm) (frame : List (FrameItem Lexeme))
       (voice : Voice := .active)
@@ -155,6 +177,8 @@ structure Lexicon (Lexeme : Type) where
   subordinator : Lexeme → Finiteness → Prop := fun _ _ => False
   comparison : Lexeme → Prop := fun _ => False
   measure : Lexeme → Prop := fun _ => False
+  participialAttributive : Lexeme → Prop := fun _ => False
+  nounComplement : Lexeme → Lexeme → Category → Prop := fun _ _ _ => False
   markerForm : Lexeme → Surface → Prop := fun _ _ => False
 
 /-- Only these phrase projections can be supplied as lexical words in this fragment. -/
@@ -164,6 +188,8 @@ inductive WordCategory : Category → Prop where
   | adverb : WordCategory .adverbPhrase
   | quantity {number : Number} : WordCategory (.cardinalNumeral number)
   | measure : WordCategory .measurePhrase
+  | unsignedScalar : WordCategory .unsignedScalar
+  | name : WordCategory .name
   | symbol : WordCategory (.document .symbol)
   | label {kind : LabelKind} : WordCategory (.document (.label kind))
   | notation {kind : NotationKind} : WordCategory (.document (.notation kind))
@@ -301,6 +327,27 @@ inductive Production {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       Production lexicon (.compare marker) [.measurePhrase] .adjectivePhrase
   | measure {marker : Lexeme} : lexicon.measure marker →
       Production lexicon (.measure marker) [.measurePhrase, .measurePhrase] .measurePhrase
+  | unsignedScalar : Production lexicon .unsignedScalar [.unsignedScalar] .scalarComponent
+  | signedScalar {sign : ScalarSign} :
+      Production lexicon (.signedScalar sign) [.unsignedScalar] .scalarComponent
+  | slashPair : Production lexicon .slashPair [.scalarComponent, .scalarComponent] .slashPair
+  | scalarMeasure : Production lexicon .scalarMeasure [.scalarComponent] .measurePhrase
+  | slashMeasure : Production lexicon .slashMeasure [.slashPair] (.measurePhrase .pair)
+  | slashModifier {number : Number} :
+      Production lexicon (.slashModifier number) [.slashPair, .nominal number] (.nominal number)
+  | namePredicate {head : Lexeme} :
+      lexicon.verb head .pastParticiple .passive [.argument ⟨.complement, .name⟩] →
+      Production lexicon (.namePredicate head) [.name] .namePredicate
+  | namedModifier {number : Number} :
+      Production lexicon (.namedModifier number) [.nominal number, .namePredicate] (.nominal number)
+  | participialAttributive {head : Lexeme} {number : Number} :
+      lexicon.participialAttributive head → lexicon.verb head .gerundParticiple .active [] →
+      Production lexicon (.participialAttributive head number) [.nominal number] (.nominal number)
+  | symbolSequence {n : Nat} :
+      Production lexicon .symbolSequence (List.replicate (n + 1) (.document .symbol)) .symbolSequence
+  | nominalComplement {head marker : Lexeme} {number : Number} :
+      lexicon.noun head number → lexicon.nounComplement head marker .symbolSequence →
+      Production lexicon (.nominalComplement head marker number) [.symbolSequence] (.nominal number)
   | preposition {head : Lexeme} {category : Category} : lexicon.preposition head category →
       Production lexicon (.preposition head category) [category] .prepositionPhrase
   | auxiliary {head : Lexeme} {form selected : InflectionalForm} {polarity : Polarity}
@@ -701,6 +748,27 @@ inductive Linearizes {Lexeme : Type} (lexicon : Lexicon Lexeme) :
       Linearizes lexicon (.compare marker) [a] (m ++ a)
   | measure {marker : Lexeme} {a b m : Surface} : lexicon.markerForm marker m →
       Linearizes lexicon (.measure marker) [a, b] (a ++ m ++ b)
+  | unsignedScalar {a : Surface} : Linearizes lexicon .unsignedScalar [a] a
+  | signedScalar {sign : ScalarSign} {a : Surface} :
+      Linearizes lexicon (.signedScalar sign) [a] (sign.surface ++ a)
+  | slashPair {a b : Surface} :
+      Linearizes lexicon .slashPair [a, b] (a ++ [.symbol "/"] ++ b)
+  | scalarMeasure {a : Surface} : Linearizes lexicon .scalarMeasure [a] a
+  | slashMeasure {a : Surface} : Linearizes lexicon .slashMeasure [a] a
+  | slashModifier {number : Number} {a b : Surface} :
+      Linearizes lexicon (.slashModifier number) [a, b] (a ++ b)
+  | namePredicate {head : Lexeme} {a v : Surface} : lexicon.verbForm head .pastParticiple v →
+      Linearizes lexicon (.namePredicate head) [a] (v ++ a)
+  | namedModifier {number : Number} {a b : Surface} :
+      Linearizes lexicon (.namedModifier number) [a, b] (a ++ b)
+  | participialAttributive {head : Lexeme} {number : Number} {a v : Surface} :
+      lexicon.verbForm head .gerundParticiple v →
+      Linearizes lexicon (.participialAttributive head number) [a] (v ++ a)
+  | symbolSequence {items : List Surface} :
+      Linearizes lexicon .symbolSequence items items.flatten
+  | nominalComplement {head marker : Lexeme} {number : Number} {a h m : Surface} :
+      lexicon.nounForm head number h → lexicon.markerForm marker m →
+      Linearizes lexicon (.nominalComplement head marker number) [a] (h ++ m ++ a)
   | preposition {head : Lexeme} {category : Category} {a m : Surface} :
       lexicon.markerForm head m → Linearizes lexicon (.preposition head category) [a] (m ++ a)
   | verb {head : Lexeme} {form : InflectionalForm} {frame : List (FrameItem Lexeme)} {voice : Voice}

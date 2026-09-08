@@ -13,6 +13,8 @@ constructions! {
         category NumberedOrdinal(number);
         category NumberedRoman(number);
         category Grouped();
+        category Ungrouped();
+        category Nonnegative();
         category Large();
         construction Cardinal: Cardinal {
             form [word: lexical(Numeral)];
@@ -44,6 +46,15 @@ constructions! {
         construction Grouped: Grouped {
             form [word: lexical(Numeral)];
             require word.numeral_kind = GroupedArabic;
+        }
+        construction Ungrouped: Ungrouped {
+            form [word: lexical(Numeral)];
+            require word.numeral_kind = Arabic;
+        }
+        construction Nonnegative: Nonnegative {
+            form [word: lexical(Numeral)];
+            require word.numeral_kind = Arabic;
+            require word.numeral_sign = Nonnegative;
         }
         construction Large: Large {
             form [word: lexical(Numeral)];
@@ -82,9 +93,9 @@ fn numeral_number_is_correlated_with_cardinal_magnitude_and_inapplicable_to_ordi
 }
 
 #[test]
-fn numeral_style_constraints_preserve_the_selected_notation_even_without_visible_commas() {
+fn numeral_style_constraints_preserve_visible_grouping_and_normalize_small_digits() {
     use grammar::Category;
-    for text in ["2", "1,000"] {
+    for text in ["1,000", "-1,000"] {
         let values = readings(text, Category::Grouped);
         assert_eq!(values.len(), 1);
         let grammar::Reading::Grouped { word, .. } = &values[0] else {
@@ -98,7 +109,45 @@ fn numeral_style_constraints_preserve_the_selected_notation_even_without_visible
             }
         ));
     }
+    assert!(readings("2", Category::Grouped).is_empty());
+    assert!(readings("-999", Category::Grouped).is_empty());
+    for (text, value) in [("2", 2), ("-999", -999), ("1000", 1000)] {
+        assert_eq!(
+            readings(text, Category::Ungrouped),
+            vec![grammar::Reading::Ungrouped {
+                form: 0,
+                word: grammar::Word {
+                    value: LexicalReading::Numeral {
+                        value,
+                        notation: Numeral::Arabic(false),
+                        capitalization: deckmaste_lexical::SurfaceCase::Declared,
+                    },
+                    frame: None,
+                    countability: None,
+                },
+            }]
+        );
+    }
     assert!(readings("1000", Category::Grouped).is_empty());
     assert!(readings("999", Category::Large).is_empty());
     assert!(!readings("1,000", Category::Large).is_empty());
+}
+
+#[test]
+fn numeral_sign_constrains_parsing_and_independent_construction() {
+    for text in ["0", "1", "999"] {
+        assert_eq!(readings(text, grammar::Category::Nonnegative).len(), 1);
+    }
+    for text in ["-1", "-999", "-2147483648"] {
+        assert!(readings(text, grammar::Category::Nonnegative).is_empty());
+    }
+    let mut values = readings("1", grammar::Category::Nonnegative);
+    let grammar::Reading::Nonnegative { word, .. } = &mut values[0] else {
+        panic!("wrong root")
+    };
+    let LexicalReading::Numeral { value, .. } = &mut word.value else {
+        panic!("wrong leaf")
+    };
+    *value = -1;
+    assert!(values[0].admit(&Lexicon::new([]).unwrap()).is_err());
 }

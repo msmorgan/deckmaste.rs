@@ -52,6 +52,8 @@ structure LexemeDeclaration (L : Type) where
   verbFrame : InflectionalForm → Voice → List (FrameItem L) → Prop := fun _ _ _ ↦ False
   auxiliary : InflectionalForm → InflectionalForm → Voice → Voice → Prop := fun _ _ _ _ ↦ False
   temporal : Prop := False
+  participialAttributive : Prop := False
+  nounComplement : L → Category → Prop := fun _ _ ↦ False
   relativePronoun : Prop := False
   relativeDeterminer : Prop := False
 
@@ -123,6 +125,10 @@ def lexicon (environment : LexicalEnvironment L) : Lexicon (WordForm L) where
   subordinator w f := w.Licensed environment ∧ w.bundle = .subordinator f
   comparison w := w.Licensed environment ∧ w.bundle = .comparison
   measure w := w.Licensed environment ∧ w.bundle = .measure
+  participialAttributive w := w.Licensed environment ∧
+    w.HasDeclaration environment (·.participialAttributive)
+  nounComplement w marker category := w.Licensed environment ∧ marker.Licensed environment ∧
+    w.HasDeclaration environment (fun d ↦ d.nounComplement marker.lexeme category)
   markerForm w s := w.Licensed environment ∧ s = w.surface
   keyword w p placement := w.Licensed environment ∧ w.bundle = .keyword p placement
   keywordForm w s := w.Licensed environment ∧ s = w.surface

@@ -38,6 +38,7 @@ pub(crate) enum DomainKind {
     Frame,
     NumeralKind,
     NumeralSize,
+    NumeralSign,
     Framing,
     Custom,
 }
@@ -164,6 +165,11 @@ fn builtin_domains() -> Vec<Domain> {
             name: "framing".into(),
             values: vec!["Unframed".into(), "Framed".into()],
             kind: DomainKind::Framing,
+        },
+        Domain {
+            name: "numeral_sign".into(),
+            values: vec!["Nonnegative".into(), "Negative".into()],
+            kind: DomainKind::NumeralSign,
         },
     ])
     .collect()
@@ -506,6 +512,10 @@ fn value(ir: &Ir, feature: usize, name: &Ident) -> syn::Result<TokenStream> {
         DomainKind::NumeralSize => {
             let large = index == 1;
             quote!(FeatureValue::NumeralSize(#large))
+        }
+        DomainKind::NumeralSign => {
+            let negative = index == 1;
+            quote!(FeatureValue::NumeralSign(#negative))
         }
         DomainKind::Framing => {
             let framed = index == 1;

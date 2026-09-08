@@ -112,6 +112,286 @@ fn word(id: &str, form: WordForm, features: FeatureBundle) -> Word {
 }
 
 #[test]
+fn independent_named_nominal_retains_selected_frame_and_catalog_identity() {
+    let mut noun = word(
+        "lexeme:type/artifact",
+        WordForm::Singular,
+        FeatureBundle {
+            number: Some(Number::Singular),
+            ..FeatureBundle::default()
+        },
+    );
+    noun.countability = Some(true);
+    let mut named = word(
+        "lexeme:Verb/Name",
+        WordForm::PastParticiple,
+        FeatureBundle {
+            finiteness: Some(Finiteness::Nonfinite),
+            ..FeatureBundle::default()
+        },
+    );
+    named.frame = Some(1);
+    let name = word(
+        "catalog:card-names.txt/Powerstone Shard",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    let complement = Reading::CatalogName {
+        form: 0,
+        head: name.clone(),
+    };
+    assert_eq!(
+        readings("Powerstone Shard", Category::Name),
+        BTreeSet::from([complement.clone()])
+    );
+    let predicate = Reading::PassiveNamePredicate {
+        form: 0,
+        head: named.clone(),
+        complement: Box::new(complement),
+    };
+    assert_eq!(
+        readings("named Powerstone Shard", Category::NamePredicate),
+        BTreeSet::from([predicate.clone()])
+    );
+    let value = Reading::NamedNominal {
+        form: 0,
+        head: Box::new(Reading::Noun {
+            form: 0,
+            head: noun.clone(),
+        }),
+        modifier: Box::new(predicate),
+    };
+    assert_eq!(
+        value.realize(lexicon()).unwrap(),
+        "artifact named Powerstone Shard"
+    );
+    assert_eq!(
+        readings("artifact named Powerstone Shard", Category::Nominal),
+        BTreeSet::from([value.clone()])
+    );
+    let mut leaves = Vec::new();
+    value
+        .visit_words(&mut |word| leaves.push(word.clone()))
+        .unwrap();
+    assert_eq!(leaves, [noun, named.clone(), name]);
+    named.frame = Some(0);
+    assert!(
+        Reading::PassiveNamePredicate {
+            form: 0,
+            head: named,
+            complement: Box::new(Reading::CatalogName {
+                form: 0,
+                head: word(
+                    "catalog:card-names.txt/Powerstone Shard",
+                    WordForm::Invariant,
+                    FeatureBundle::default()
+                ),
+            }),
+        }
+        .admit(lexicon())
+        .is_err()
+    );
+    for text in [
+        "named artifact",
+        "named powerstone shard",
+        "named NoSuchCard",
+        "naming Powerstone Shard",
+        "names Powerstone Shard",
+        "spent Powerstone Shard",
+        "named Powerstone Shard Powerstone Shard",
+    ] {
+        assert!(
+            readings(text, Category::NamePredicate).is_empty(),
+            "{text:?}"
+        );
+    }
+}
+
+#[test]
+fn independent_participial_premodifier_preserves_verb_form_and_distribution() {
+    let mut noun = word(
+        "lexeme:CommonNoun/Player",
+        WordForm::Singular,
+        FeatureBundle {
+            number: Some(Number::Singular),
+            ..FeatureBundle::default()
+        },
+    );
+    noun.countability = Some(true);
+    let mut modifier = word(
+        "lexeme:Verb/Defend",
+        WordForm::GerundParticiple,
+        FeatureBundle {
+            finiteness: Some(Finiteness::Nonfinite),
+            ..FeatureBundle::default()
+        },
+    );
+    modifier.frame = Some(0);
+    let value = Reading::ParticipialPremodifier {
+        form: 0,
+        modifier: modifier.clone(),
+        head: Box::new(Reading::Noun {
+            form: 0,
+            head: noun.clone(),
+        }),
+    };
+    assert_eq!(value.realize(lexicon()).unwrap(), "defending player");
+    assert_eq!(
+        readings("defending player", Category::Nominal),
+        BTreeSet::from([value.clone()])
+    );
+    let mut leaves = Vec::new();
+    value
+        .visit_words(&mut |word| leaves.push(word.clone()))
+        .unwrap();
+    assert_eq!(leaves, [modifier.clone(), noun.clone()]);
+    modifier.frame = Some(1);
+    assert!(
+        Reading::ParticipialPremodifier {
+            form: 0,
+            modifier,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: noun
+            }),
+        }
+        .admit(lexicon())
+        .is_err()
+    );
+    for text in [
+        "defend player",
+        "defends player",
+        "defended player",
+        "spent player",
+        "defending target player",
+    ] {
+        assert!(readings(text, Category::Nominal).is_empty(), "{text:?}");
+    }
+    assert!(readings("defending", Category::AdjectivePhrase).is_empty());
+    assert!(!readings("target defending player", Category::NounPhrase).is_empty());
+    assert!(!readings("Defending players attack.", Category::Document).is_empty());
+}
+
+#[test]
+fn lexical_gap_words_reach_existing_compositional_hosts() {
+    for (text, category) in [
+        ("in addition", Category::PrepositionPhrase),
+        ("in addition to other types", Category::PrepositionPhrase),
+        ("the game", Category::NounPhrase),
+        ("games", Category::NounPhrase),
+        ("no mana was spent", Category::FiniteClause),
+        (
+            "Artifacts named Powerstone Shard attack.",
+            Category::Document,
+        ),
+    ] {
+        assert!(!readings(text, category).is_empty(), "{text:?}");
+    }
+    for (text, category) in [
+        ("game", Category::NounPhrase),
+        ("much game", Category::NounPhrase),
+        ("no mana was spended", Category::FiniteClause),
+    ] {
+        assert!(readings(text, category).is_empty(), "{text:?}");
+    }
+}
+
+#[test]
+fn independent_amount_complement_consumes_its_frame_without_losing_countability() {
+    let mut amount = word(
+        "lexeme:CommonNoun/Amount",
+        WordForm::Singular,
+        FeatureBundle {
+            number: Some(Number::Singular),
+            ..FeatureBundle::default()
+        },
+    );
+    amount.countability = Some(true);
+    amount.frame = Some(1);
+    let marker = word(
+        "vocab:Preposition/Of",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    let symbol = word(
+        "vocab:FixedCostSymbol/Green",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    let symbols = Reading::CostSymbols {
+        form: 0,
+        first: Box::new(Reading::NamedCostSymbol {
+            form: 0,
+            symbol: symbol.clone(),
+        }),
+        rest: vec![],
+    };
+    let value = Reading::SymbolComplementNominal {
+        form: 0,
+        head: amount.clone(),
+        marker: marker.clone(),
+        complement: Box::new(symbols.clone()),
+    };
+    assert_eq!(value.realize(lexicon()).unwrap(), "amount of {G}");
+    assert_eq!(
+        readings("amount of {G}", Category::Nominal),
+        BTreeSet::from([value.clone()])
+    );
+    let mut leaves = Vec::new();
+    value
+        .visit_words(&mut |word| leaves.push(word.clone()))
+        .unwrap();
+    assert_eq!(leaves, [amount.clone(), marker.clone(), symbol]);
+    assert!(
+        Reading::Noun {
+            form: 0,
+            head: amount.clone()
+        }
+        .admit(lexicon())
+        .is_err()
+    );
+    amount.frame = Some(0);
+    let bare = Reading::BareFramedNoun {
+        form: 0,
+        head: amount.clone(),
+    };
+    assert_eq!(
+        readings("amount", Category::Nominal),
+        BTreeSet::from([bare])
+    );
+    assert!(
+        Reading::SymbolComplementNominal {
+            form: 0,
+            head: amount,
+            marker,
+            complement: Box::new(symbols),
+        }
+        .admit(lexicon())
+        .is_err()
+    );
+    for text in [
+        "the amount of {G}",
+        "amounts of {G}",
+        "the amount of {G}{G}",
+    ] {
+        assert!(!readings(text, Category::NounPhrase).is_empty(), "{text:?}");
+    }
+    for text in [
+        "amount of",
+        "amount {G}",
+        "amount with {G}",
+        "game of {G}",
+        "amount of {G}/",
+        "amount of {}",
+        "amount of {{G}}",
+    ] {
+        assert!(readings(text, Category::Nominal).is_empty(), "{text:?}");
+    }
+    assert!(readings("much amount of {G}", Category::NounPhrase).is_empty());
+    assert!(!readings("Add the amount of {G}.", Category::Document).is_empty());
+}
+
+#[test]
 fn independently_constructed_auxiliary_ellipsis_roundtrips_without_discourse_context() {
     let mut auxiliary = word(
         "core-verb:Do",
@@ -265,10 +545,214 @@ fn independent_measure_values_preserve_operator_structure_and_notation() {
         head: numeral(2, Numeral::Arabic(false)),
     };
     let alternatives = readings("2", Category::MeasurePhrase);
-    assert_eq!(grouped.realize(lexicon()).unwrap(), "2");
+    assert!(grouped.admit(lexicon()).is_err());
     assert_eq!(ungrouped.realize(lexicon()).unwrap(), "2");
-    assert!(alternatives.contains(&grouped));
-    assert!(alternatives.contains(&ungrouped));
+    assert_eq!(alternatives, BTreeSet::from([ungrouped]));
+}
+
+#[test]
+fn small_digits_do_not_multiply_a_predicate_reading() {
+    assert_eq!(readings("Gain 1 life.", Category::Document).len(), 1);
+}
+
+fn unsigned_scalar(value: i32) -> Reading {
+    Reading::SmallUnsignedScalar {
+        form: 0,
+        head: numeral(value, deckmaste_lexical::Numeral::Arabic(false)),
+    }
+}
+
+#[test]
+fn slash_pairs_preserve_ordered_components_and_explicit_signs() {
+    let pair = Reading::SlashPair {
+        form: 0,
+        left: Box::new(Reading::PositiveScalar {
+            form: 0,
+            value: Box::new(unsigned_scalar(3)),
+        }),
+        right: Box::new(Reading::NegativeScalar {
+            form: 0,
+            value: Box::new(unsigned_scalar(2)),
+        }),
+    };
+    assert_eq!(pair.realize(lexicon()).unwrap(), "+3/-2");
+    assert_eq!(
+        readings("+3/-2", Category::SlashPair),
+        BTreeSet::from([pair.clone()])
+    );
+    let measure = Reading::SlashMeasure {
+        form: 0,
+        pair: Box::new(pair),
+    };
+    assert_eq!(
+        readings("+3/-2", Category::MeasurePhrase),
+        BTreeSet::from([measure])
+    );
+    for surface in ["1/1", "X/X", "+3/+3", "+X/-X", "-0/+0", "0/1", "1,000/2"] {
+        assert_eq!(
+            readings(surface, Category::MeasurePhrase).len(),
+            1,
+            "{surface}"
+        );
+    }
+    for surface in [
+        "1/", "/1", "1/1/1", "+-3/2", "--3/2", "3/++2", "1 /1", "1/ 1", "one/one", "*/*", "1000/2",
+    ] {
+        assert!(
+            readings(surface, Category::MeasurePhrase).is_empty(),
+            "{surface}"
+        );
+    }
+    let doubled_sign = Reading::PositiveScalar {
+        form: 0,
+        value: Box::new(unsigned_scalar(-3)),
+    };
+    assert!(doubled_sign.admit(lexicon()).is_err());
+    assert!(readings("by +3/+3", Category::PrepositionPhrase).is_empty());
+}
+
+#[test]
+fn slash_pairs_compose_with_nominal_modifiers_and_selected_predicates() {
+    for surface in ["X 1/1 tokens", "X X/X tokens", "two +1/-1 creatures"] {
+        let values = readings(surface, Category::NounPhrase);
+        assert!(!values.is_empty(), "{surface}");
+        for value in values {
+            let Reading::CountedNounPhrase { quantity, head, .. } = value else {
+                panic!("{value:?}")
+            };
+            assert_eq!(
+                quantity.realize(lexicon()).unwrap(),
+                surface.split(' ').next().unwrap()
+            );
+            let Reading::SlashModifiedNominal { modifier, .. } = *head else {
+                panic!("{head:?}")
+            };
+            assert_eq!(
+                modifier.realize(lexicon()).unwrap(),
+                surface.split(' ').nth(1).unwrap()
+            );
+        }
+    }
+    for surface in ["Target creature gets +3/+3.", "Creatures get -1/-1."] {
+        assert!(
+            !readings(surface, Category::Document).is_empty(),
+            "{surface}"
+        );
+    }
+    for surface in [
+        "Gain 1/1 life.",
+        "Target creature gets 3.",
+        "X1/1 tokens",
+        "X 1/1/1 tokens",
+    ] {
+        let category =
+            if surface.ends_with('.') { Category::Document } else { Category::NounPhrase };
+        assert!(readings(surface, category).is_empty(), "{surface}");
+    }
+}
+
+#[test]
+fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
+    let x = word(
+        "vocab:Variable/X",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    let pair = Reading::SlashPair {
+        form: 0,
+        left: Box::new(Reading::UnsignedScalar {
+            form: 0,
+            value: Box::new(unsigned_scalar(1)),
+        }),
+        right: Box::new(Reading::UnsignedScalar {
+            form: 0,
+            value: Box::new(unsigned_scalar(1)),
+        }),
+    };
+    let mut tokens = word(
+        "lexeme:CommonNoun/Token",
+        WordForm::Plural,
+        FeatureBundle {
+            number: Some(Number::Plural),
+            ..FeatureBundle::default()
+        },
+    );
+    tokens.countability = Some(true);
+    let value = Reading::CountedNounPhrase {
+        form: 0,
+        quantity: Box::new(Reading::VariableCount {
+            form: 0,
+            head: x.clone(),
+        }),
+        head: Box::new(Reading::SlashModifiedNominal {
+            form: 0,
+            modifier: Box::new(pair),
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: tokens.clone(),
+            }),
+        }),
+    };
+    assert_eq!(value.realize(lexicon()).unwrap(), "X 1/1 tokens");
+    assert_eq!(
+        readings("X 1/1 tokens", Category::NounPhrase),
+        BTreeSet::from([value.clone()])
+    );
+    let mut leaves = Vec::new();
+    value
+        .visit_words(&mut |word| leaves.push(word.clone()))
+        .unwrap();
+    assert_eq!(
+        leaves,
+        [
+            x,
+            numeral(1, deckmaste_lexical::Numeral::Arabic(false)),
+            numeral(1, deckmaste_lexical::Numeral::Arabic(false)),
+            tokens
+        ]
+    );
+
+    let mut get = word(
+        "core-verb:Get",
+        WordForm::Plain,
+        FeatureBundle {
+            finiteness: Some(Finiteness::Nonfinite),
+            ..FeatureBundle::default()
+        },
+    );
+    get.frame = Some(0);
+    let value = Reading::NonfiniteSlashMeasure {
+        form: 0,
+        head: get.clone(),
+        measure: Box::new(Reading::SlashPair {
+            form: 0,
+            left: Box::new(Reading::PositiveScalar {
+                form: 0,
+                value: Box::new(unsigned_scalar(3)),
+            }),
+            right: Box::new(Reading::NegativeScalar {
+                form: 0,
+                value: Box::new(unsigned_scalar(2)),
+            }),
+        }),
+    };
+    assert_eq!(value.realize(lexicon()).unwrap(), "get +3/-2");
+    assert_eq!(
+        readings("get +3/-2", Category::NonfinitePredicate),
+        BTreeSet::from([value.clone()])
+    );
+    let mut leaves = Vec::new();
+    value
+        .visit_words(&mut |word| leaves.push(word.clone()))
+        .unwrap();
+    assert_eq!(
+        leaves,
+        [
+            get,
+            numeral(3, deckmaste_lexical::Numeral::Arabic(false)),
+            numeral(2, deckmaste_lexical::Numeral::Arabic(false))
+        ]
+    );
 }
 
 #[test]
@@ -288,9 +772,9 @@ fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
             WordForm::Invariant,
             FeatureBundle::default(),
         ),
-        measure: Box::new(Reading::GroupedScalarNumeral {
+        measure: Box::new(Reading::UngroupedScalarNumeral {
             form: 0,
-            head: numeral(2, Numeral::Arabic(true)),
+            head: numeral(2, Numeral::Arabic(false)),
         }),
     };
     assert_eq!(value.realize(lexicon()).unwrap(), "equal to 2");

@@ -211,6 +211,145 @@ mod tests {
     }
 
     #[test]
+    fn lexical_measure_gaps_have_declared_categories_forms_and_countability() {
+        use deckmaste_lexical::Countability::Count;
+        use deckmaste_lexical::Countability::Mass;
+
+        let lexicon = workspace();
+        for (surface, id, category, form) in [
+            (
+                "defending",
+                "lexeme:Verb/Defend",
+                Category::Verb,
+                WordForm::GerundParticiple,
+            ),
+            (
+                "named",
+                "lexeme:Verb/Name",
+                Category::Verb,
+                WordForm::PastParticiple,
+            ),
+            (
+                "spent",
+                "lexeme:Verb/Spend",
+                Category::Verb,
+                WordForm::PastParticiple,
+            ),
+            (
+                "addition",
+                "lexeme:CommonNoun/Addition",
+                Category::Noun,
+                WordForm::Singular,
+            ),
+            (
+                "game",
+                "lexeme:CommonNoun/Game",
+                Category::Noun,
+                WordForm::Singular,
+            ),
+            (
+                "amount",
+                "lexeme:CommonNoun/Amount",
+                Category::Noun,
+                WordForm::Singular,
+            ),
+        ] {
+            let input = lexicon.analyze(surface);
+            let values: Vec<_> = input
+                .matches
+                .iter()
+                .filter_map(|found| {
+                    if found.start != 0 || found.end != input.tokens.len() {
+                        return None;
+                    }
+                    let LexicalReading::Word(value) = &found.reading else { panic!("{found:?}") };
+                    assert_eq!(value.lexeme, id, "unexpected POS or Lexeme for {surface}");
+                    assert_eq!(lexicon.lexemes()[id].category, category);
+                    Some(value)
+                })
+                .collect();
+            assert!(values.iter().any(|value| value.form == form), "{surface}");
+        }
+        for surface in [
+            "spended",
+            "spents",
+            "defendinged",
+            "nameds",
+            "additioned",
+            "amounting",
+            "gamesed",
+        ] {
+            let input = lexicon.analyze(surface);
+            assert!(
+                !input
+                    .matches
+                    .iter()
+                    .any(|found| found.start == 0 && found.end == input.tokens.len()),
+                "{surface}"
+            );
+        }
+        for (id, uses) in [
+            ("Addition", vec![Count, Mass]),
+            ("Game", vec![Count]),
+            ("Amount", vec![Count]),
+        ] {
+            assert_eq!(
+                lexicon.lexemes()[&format!("lexeme:CommonNoun/{id}")]
+                    .properties
+                    .countability,
+                uses
+            );
+        }
+        let name = &lexicon.lexemes()["lexeme:Verb/Name"];
+        assert_eq!(
+            name.properties.frames[1].items,
+            vec![
+                FrameItem::Argument(deckmaste_lexical::FrameSlot {
+                    relation: deckmaste_lexical::Relation::Object,
+                    category: "NounPhrase".into()
+                }),
+                FrameItem::Argument(deckmaste_lexical::FrameSlot {
+                    relation: deckmaste_lexical::Relation::Complement,
+                    category: "Name".into()
+                }),
+            ]
+        );
+        let amount = &lexicon.lexemes()["lexeme:CommonNoun/Amount"];
+        assert_eq!(
+            amount.properties.frames,
+            vec![
+                Frame {
+                    kind: "Nominal".into(),
+                    items: vec![]
+                },
+                Frame {
+                    kind: "Nominal".into(),
+                    items: vec![FrameItem::Marked {
+                        vocabulary: "Preposition".into(),
+                        member: "Of".into(),
+                        slot: deckmaste_lexical::FrameSlot {
+                            relation: deckmaste_lexical::Relation::Complement,
+                            category: "CostSymbols".into(),
+                        },
+                    },]
+                },
+            ]
+        );
+        assert_eq!(
+            lexicon.lexemes()["catalog:card-names.txt/Powerstone Shard"]
+                .properties
+                .features["IdentityUse"],
+            "Name"
+        );
+        assert!(
+            !lexicon.lexemes()["catalog:card-types.txt/Artifact"]
+                .properties
+                .features
+                .contains_key("IdentityUse")
+        );
+    }
+
+    #[test]
     fn every_declared_value_and_frame_survives_realization_and_reanalysis() {
         let lexicon = workspace();
         let mut adjectives = 0;

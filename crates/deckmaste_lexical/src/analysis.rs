@@ -298,6 +298,9 @@ impl Lexicon {
                 notation,
                 capitalization,
             } => {
+                if notation.canonical_notation(*value) != *notation {
+                    return Err(LexicalError::UnlicensedValue);
+                }
                 let text = notation
                     .try_format(*value)
                     .map_err(|_| LexicalError::UnlicensedValue)?;
@@ -508,6 +511,9 @@ fn numeral_matches(tokens: &[char], matches: &mut Vec<LexicalMatch>) {
                         let Ok(value) = notation.parse(&candidate) else {
                             continue;
                         };
+                        if notation.canonical_notation(value) != notation {
+                            continue;
+                        }
                         if capitalization == SurfaceCase::Initial
                             && (initial_surface(&candidate) != text || candidate == text)
                         {

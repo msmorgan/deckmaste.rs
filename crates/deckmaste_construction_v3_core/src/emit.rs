@@ -150,6 +150,7 @@ fn projection(ir: &Ir) -> TokenStream {
             };
             summary.values[8] = Some(FeatureValue::NumeralKind(kind));
             summary.values[9] = Some(FeatureValue::NumeralSize(value.unsigned_abs() >= 1000));
+            summary.values[11] = Some(FeatureValue::NumeralSign(value.is_negative()));
             if matches!(notation, Numeral::Cardinal | Numeral::Arabic(_)) {
                 summary.values[0] = Some(FeatureValue::Number(if value.unsigned_abs() == 1 {
                     ::deckmaste_lexical::Number::Singular

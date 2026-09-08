@@ -72,13 +72,6 @@ pub(crate) struct CorpusSelectionArgs {
 }
 
 impl CorpusSelectionArgs {
-    pub(crate) fn all() -> Self {
-        Self {
-            all: true,
-            ..Self::default()
-        }
-    }
-
     pub fn load(&self, data: &Path) -> anyhow::Result<SelectedCorpus> {
         let mut request = if let Some(path) = &self.identity_manifest {
             let bytes = std::fs::read(path)

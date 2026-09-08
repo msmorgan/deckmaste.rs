@@ -10,6 +10,7 @@ pub enum FeatureValue {
     Frame(usize),
     NumeralKind(usize),
     NumeralSize(bool),
+    NumeralSign(bool),
     Framing(bool),
     Custom(usize, usize),
 }
