@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v2-definition-bodies]
 ---
 **A subtype in a card is macro-only.** Ruling (user, 2026-09-07). Canon
 cards spell `subtypes: [Of(host: Creature, label: "Gargoyle")]`; the
@@ -147,3 +147,10 @@ Nothing landed; the tree is unchanged apart from this section. The workspace
 is parked with `@` empty and is NOT integrated. Resume needs a ruling on where
 the four rules-defined conferral records live, and the same ruling settles
 whether `plugins-v2-counter-kinds-macro-only` is mintable at all.
+
+Re-pinned (2026-09-07) after the STOP recorded above: the `Subtype` meta
+does not derive a facts row; the body is the `Subtype(category, label,
+rules)` definition node that `semantics-v2-definition-bodies` introduces,
+and this ticket runs after it. The design facts in the STOP record stand
+(two metas, no dispatch set needed, 152 sites plus five non-`subtypes:`
+sites, no multi-word labels).
