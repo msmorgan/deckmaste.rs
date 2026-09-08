@@ -13,4 +13,5 @@ deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+deckmaste_lexical_source = { path = "../deckmaste_lexical_source" }
 clap = { version = "4.6.1", features = ["derive"] }

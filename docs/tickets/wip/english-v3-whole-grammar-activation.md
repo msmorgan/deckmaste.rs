@@ -51,9 +51,10 @@ label is the run itself, analysed by `deckmaste_lexical`.
 
 ## Implementation progress
 
-The activation remains incomplete. The existing production candidate is still
-the bounded `english_v3::slice`; no supported-corpus grammar baseline has been
-claimed or measured.
+The activation remains incomplete. `english_v3::grammar` is now the connected
+production candidate, alongside the retained bounded `english_v3::slice`
+compiler/runtime witness. No supported-corpus grammar baseline has been claimed
+or measured.
 
 Compiler prerequisite, change `yoqwmwru` (2026-09-08): declarations can export
 typed constants and apply finite feature tables to correlated child features.
@@ -115,3 +116,46 @@ both existing imperative admission witnesses prove the added local condition.
 `jj fix -s rumowyrp` made no formatting changes. Rust and lexical inputs are
 unchanged in this checkpoint, so their earlier gate remains the applicable
 result; no new corpus or whole-grammar acceptance claim is made.
+
+Connected declaration checkpoint, change `swqkxsvu`: `english_v3::grammar`
+contains 78 Construction declarations over 29 public Categories. Documents and paragraphs keep
+flat sequences; finite and imperative clauses use nominal agreement and Case;
+verb and auxiliary heads select complete lexical frames; prepositions, relative
+Subjects/Objects and shared relative Objects compose with those phrases.
+Binary NP coordination derives mixed-person agreement and checks common Case.
+Auxiliary ellipsis retains its selected form/voice and realizes without a
+separator or lexical leaf. The source inventory now declares ordinary versus
+indefinite determiners, coordinator distributions, finite subordinators and
+nominal preposition complements for these consumers. Integration tests load
+that real inventory rather than maintaining a second bounded vocabulary.
+
+The three initial Rust tests pass: 18 positive cross-family examples, 15
+admission negatives, and an independently constructed `you do` Reading with
+exact realization and lexical traversal identity. Those are bounded interaction
+witnesses, not the corpus or full obligation-register evidence. The direct
+fixture initially used `Plain` for finite `do`; inspection of the lexical
+paradigm corrected it to the declared `Present` form without changing grammar.
+
+Remaining implementation includes article/onset and capitalization constraints,
+measures/numerals, lexical framing for adjective complements, the Target Verb
+entry, flat serial coordination, richer extraction and frame patterns, and
+keyword/editorial document forms. Adverbial, content and relative subordinator
+licenses must permit a lexical owner to serve more than one role. The actual
+supported-corpus command, whole-family audit and baseline remain outstanding.
+None of these missing general mechanisms is a long-tail residual or a completed
+family acceptance claim.
+
+Validation for `swqkxsvu`: `cargo xtask gate --changed --clippy --run`
+passed 1,611 tests with zero failures and one preexisting ignore; strict
+all-target clippy passed. Its derived package closure was
+`deckmaste_construction_core`, `deckmaste_construction`,
+`deckmaste_construction_v3_core`, `deckmaste_english_v2`,
+`deckmaste_lexical_source`, `deckmaste_semantics_v2`, `xtask`,
+`deckmaste_construction_v3`, and `deckmaste_english_v3`. The default comparison
+had widened because the coordinator advanced since this feature's claim; no
+sibling sources were changed by this work. Subsequent development gates can
+use `--from ookvvtoz` to derive the closure from this claim's changes, with the
+refreshed default comparison restored for final landing validation.
+`jj fix -s swqkxsvu` formatted the new test file. Rust assurance delta for this
+checkpoint: 3 added, 0 restored, 0 re-spelled, 0 ignored, 0 removed (9 added
+cumulatively). No full-corpus run occurred.

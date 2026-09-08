@@ -4,6 +4,8 @@
 
 extern crate self as deckmaste_english_v3;
 
+mod declarations;
+pub use crate::declarations::grammar;
 pub mod slice;
 
 mod chart;

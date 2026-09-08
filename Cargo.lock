@@ -608,6 +608,7 @@ dependencies = [
  "clap",
  "deckmaste_construction_v3",
  "deckmaste_lexical",
+ "deckmaste_lexical_source",
  "thiserror",
 ]
 

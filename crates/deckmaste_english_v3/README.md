@@ -4,9 +4,27 @@ This crate implements recognition and lazy Reading materialization for the
 [accepted lexical/grammar contract](../../docs/decisions/english-lexical-analysis.md).
 It consumes `deckmaste_lexical::AnalyzedText` and the same immutable `Lexicon`.
 The fresh construction compiler generates `Grammar` and `Materializer`
-implementations for the interacting `slice` module. The runtime has no v2 parser, compiler or Semantics dependency.
-The slice is an executable compiler/runtime proof with a bounded vocabulary;
-whole-grammar activation and corpus coverage remain the next ticket.
+implementations for the interacting `slice` module and the connected `grammar`
+candidate in `src/declarations.rs`. The runtime has no v2 parser, compiler or
+Semantics dependency. The source-loader dependency is confined to integration
+tests, which exercise the candidate against the authored lexical inventory.
+
+The slice remains a bounded compiler/runtime witness. The connected candidate
+currently composes flat paragraph/document sequences, finite and imperative
+clauses, noun phrases, selected verb frames, auxiliaries, prepositions, relative
+Subjects/Objects, binary coordination and locally selected ellipsis. Its Reading
+values preserve lexical forms, tense and selected frames even when a parent has
+no reason to inspect those features. Auxiliary complements own their separator,
+so omission contributes neither a word nor a trailing space.
+
+Whole-grammar activation is still in progress. The candidate is not yet a
+complete corpus grammar: article onset, capitalization constraints, notation and
+measures, richer lexical frames, flat serial coordination, the remaining
+extraction patterns, keywords and editorial document forms still need their
+connected declarations and validation. `tests/grammar.rs` checks composition
+with the real source inventory, invalid agreement/Case/frame combinations, and
+an independently constructed auxiliary-ellipsis Reading. No whole-corpus
+baseline has been measured.
 
 ## Admission and packing
 
