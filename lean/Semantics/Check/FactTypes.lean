@@ -64,6 +64,10 @@ inductive DeedFeature where
 /-- What the checker knows about one deed. The record carries no label: the deed itself is the
 key, and each of the three sources keys its rows its own way. -/
 structure ActFacts where
+  /-- The past participle that names this deed in a passive event clause ("when a creature is
+  destroyed"): the checker's own fact, read through `actNamesParticiple` to license
+  `verbedVoiceOk`, never the declaration's `grammar: Verb(participle: …)`, which spells a
+  keyword action for English realization and is carried by a different five words. -/
   participle : Option String := none
   dest : Option Zone := none
   stepwise : Bool := false
