@@ -496,7 +496,10 @@ What one registry declaration means — the rules content the declared name
 stands for. A Counter's kind, holder and Conferrals; a Subtype and its
 Conferrals; a Designation's holder and columns. A registry declares a
 namespace's members, so a Registry Definition names what it defines, where a
-Rules Table row names nothing and is scoped by a Predicate instead.
+Rules Table row names nothing and is scoped by a Predicate instead. The
+declared name DENOTES what is defined: where a position wants the defined term
+— a Subtype in a card's subtype list, a Counter's kind — the name stands for
+that term rather than for the Registry Definition that gives it.
 _Avoid_: Rules Table for a Registry Definition.
 
 **Designation** (project term):

@@ -181,3 +181,186 @@ kinds) is answered differently now: every counter declaration carries a
 `Definition::Counter`, so a counter macro CAN expand to one, and the remaining
 question is only whether a card's `CounterKind` position should read the
 definition node or the `words::CounterKind` inside it.
+
+## Landing record
+
+Measured on change `umlvturs` (working copy over `rzqlynty a3c0206b`), `nproc`
+24, load average 3.34.
+
+**Coordinator rulings (2026-09-08) that this landing implements, and which
+override the "step 1 is now: teach the syntax" note above.**
+
+- **R1 — a definition's name denotes its term.** A subtype declaration's body
+  stays the `Definition::Subtype(subtype:, rules:)` node; where the macro
+  stands at a `Subtype` TERM position, the position takes the definition's
+  `subtype`.
+- **R2 — the four rule-bearing subtypes convert now, rules routed.**
+  `equipment`, `fortification`, `aura`, `saga` carry an empty `rules` list, keep
+  their v1 record verbatim on the declaration, and the three syntax gaps go to
+  the newly minted `semantics-v2-subtype-rules`.
+
+### PROVE
+
+**No silent loss.** Nothing stopped being covered.
+
+- The four v1 core type-rule records are preserved VERBATIM as a comment block
+  on their own declaration files, under a rewritten STOP that names
+  `semantics-v2-subtype-rules` as their owner. They are pinned by text:
+  `rules_defined_conferrals_stay_on_their_subtype_declarations` reads each file
+  and compares the preserved block against the same four strings it used to
+  compare the body against.
+- 152 corpus sites moved from a constructor to a declaration name. Every one
+  resolved to an existing declaration file; the rewrite script exits non-zero
+  and names any `(host, label)` pair with no declaration, and it named none.
+- No card, token, declaration or rules row was deleted. Only two files were
+  added (`macros/meta/SpellSubtype.ron`, the minted ticket); none removed.
+
+**Structural laws.**
+
+- `lean/Generated/{Canon,Testing}.lean` are **byte-identical** across the corpus
+  rewrite (`diff -r` against the pre-rewrite copy: no output).
+- `cargo xtask lean-check plugins_v2/canon plugins_v2/testing`: 118/118 and 2/2.
+- `cargo xtask facts check`: `lean/Semantics/Check/Facts.lean` and
+  `idris/src/Experimental/FactsGen.idr` both up to date — byte-identical, with
+  the exception list emptied and the name-derived fallback gone.
+- `every_card_writes_and_reads_back_to_the_same_value`: 120 cards round-trip.
+- `every_nullary_helper_expands` now reads all 462 subtype declarations at a
+  real `words::Subtype` position.
+
+**No word-naming.** No guard added here names a lexeme, construction, verb,
+noun, preposition or card identity. The one name-keyed list touched,
+`SUBTYPE_DEFINITION_STOPS`, went from four declaration names to EMPTY; the
+guard around it stays, so a future exception has to be written down to exist.
+
+### DISCLOSE
+
+**Newly covered.**
+
+- All 462 subtype declarations derive their `Definition` body from the
+  `Subtype`/`SpellSubtype` meta; none writes one by hand, and a subtype
+  declaration that tries is now a read error (`DiagnosticSubtype` declares no
+  `body` field).
+- `Subtype` joined `EXPRESSION_KINDS` and left `HAND_BUILT_NATIVE`, so a card
+  writing `Of(host: …, label: …)` — or the definition node itself — is refused
+  by name at the `Subtype` kind.
+- Lean gained `Semantics.Definition.subtypeTerm`; Rust mirrors it as
+  `Definition::subtype_term`, wired through the `Subtype` position's serde shim.
+
+**Corpus counts, before → after.**
+
+| | before | after |
+| --- | --- | --- |
+| `plugins_v2/builtin` declarations | 1785 across 30 kinds | 1786 across 30 kinds |
+| source files with no elided constructor | 1586 | 1587 |
+| nullary declarations expanding | 215 | 677 |
+| declarations at untested kinds | 666 | 204 |
+| `Of(…)`/`Spell(…)` sites in canon+testing | 152 over 93 files | 0 |
+| subtype declarations with a hand-written body | 462 | 0 |
+| `subtype_definitions_read` exceptions | 4 | 0 |
+
+The declaration and file deltas are exactly the added `SpellSubtype` meta. The
+nullary delta is exactly the 462 subtype declarations, which the new `"Subtype"`
+arm moved out of "untested kinds".
+
+**Assurance counts.** restored 0; re-spelled 3; ignored 0; added 2 tests plus
+one new arm in an existing test; removed 0.
+
+- Re-spelled `rules_defined_conferrals_stay_on_their_subtype_declarations`
+  (construction_core): same four declarations, same four record strings, now
+  read off the preserved comment block instead of the body, plus the derived
+  `Definition` body asserted on all 138 non-creature subtypes uniformly (the
+  four are no longer skipped).
+- Re-spelled `a_word_types_constructor_still_reads_under_restriction`
+  (semantics_v2 reader): the colour half is untouched; the subtype half, whose
+  subject this ticket deliberately retires, is replaced by a counter kind
+  (`Named(label: "charge")`), still a hand-built native word type. The retired
+  half is re-spelled as its own test — see below.
+- Re-spelled the body assertion inside
+  `builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology`:
+  same 324 creature types, same asserted node, compared with whitespace
+  normalized rather than byte-for-byte.
+- Added `a_subtype_macro_denotes_the_subtype_its_definition_names` (R1's first
+  pin: `gargoyle` → `Of(host: Creature, label: "Gargoyle")`, `adventure` →
+  `Spell(label: "Adventure")`).
+- Added `a_subtype_in_a_card_is_the_declarations_name_and_not_its_constructor`
+  (R1's second pin: `goblin` reads under restriction; a raw
+  `Of(host: Creature, label: "Goblin")` and the raw definition node are both
+  refused with a message naming the constructor and `Subtype`).
+- Added the `"Subtype"` arm to `every_nullary_helper_expands`.
+
+**Deviations and additions.**
+
+1. **Step order.** R2's conversion of the four rule-bearing declarations landed
+   in the SAME commit as step 1's meta derivation, not as a separate step 3: the
+   rewritten meta takes no `body` argument, so the four could not stay on the
+   old form for even one commit.
+2. **`construction_core::macro_def` gained `BodySource`.** A declaration's body
+   was gated on the AUTHORED source position, so stripping the `body:` line
+   would have made every subtype bodyless and broken `facts generate`. A body is
+   now "whichever body the meta left", and the enum distinguishes an authored
+   body (a position to report against, a signature to check `Param` holes
+   against) from a derived one. Confined to the subtype metas, whose diagnostic
+   schema declares no `body` field; `AbilityWord` and the rest keep the previous
+   meaning, and `builtin_v2_ability_words`' "must have no body" assertions still
+   pass unchanged. (A first attempt gated on the unit sentinel instead and broke
+   those two assertions; it was replaced rather than shipped.)
+3. **`DiagnosticSubtype` reshaped.** `category` became optional so
+   `SpellSubtype` shares the struct, `body` was dropped and `rules` added, so
+   the diagnostic schema mirrors the two metas' signatures. Effect: a subtype
+   declaration writing `body:` by hand fails to read.
+4. **`xtask::facts::lean` shed dead code.** `subtype_of`'s name-derived fallback
+   (whose own doc comment said it retires with the four STOPs) and the
+   now-unused `surface` helper were deleted; `subtype_of` refuses a subtype
+   declaration whose body is not a `Definition::Subtype`.
+5. **Lean defines only the subtype projection.** `Definition.subtypeTerm` names
+   the counter's `kind` and the designation's `label` in its doc comment as the
+   same rule, but defines neither, per the ruling's "wire and pin only
+   `Subtype`".
+6. **The Lean/Rust drift scan reads public declarations only.** The `Subtype`
+   position's serde shim is a private enum in `words.rs`; the scan previously
+   reported it as a Rust declaration Lean lacks. The guard does not weaken — a
+   mirrored type that lost its `pub` is still reported from the Lean side.
+7. **Whitespace in a derived body.** `macro_ron` eats the space before a
+   DEFAULTED param's substituted value, so a derived body reads
+   `…, rules:[])` rather than `…, rules: [])`. Observed, not fixed: it is
+   pre-existing expander behaviour with no effect on meaning, and the two
+   construction_core tests that compare a body now normalize whitespace (the
+   established `compact_ron` idiom in that file, now doc-commented).
+8. **Glossary amendment.** `docs/contexts/game-model/CONTEXT.md`'s **Registry
+   Definition** entry gained one sentence: the declared name DENOTES what is
+   defined, so a position wanting the defined term takes the term rather than
+   the node. That is R1's concept, and it had no entry.
+9. **Minted `docs/tickets/planned/semantics-v2-subtype-rules.md`**, carrying the
+   three syntax gaps verbatim and the four records' file locations, and holding
+   the "write the four rules lists" residue.
+
+**STOPs.** None raised. R1's fence — "if the seam forces a textual hack
+(string-matching the expansion), STOP" — was not reached: the projection is a
+typed serde shim that reads the expansion as this crate's `Definition` mirror
+and calls `Definition::subtype_term`, which mirrors Lean's `subtypeTerm`. It
+lives in `deckmaste_semantics_v2` rather than `macro_ron` because the rule is
+typed and `Definition` is this crate's type; the expander's seam knows only
+text and kind names.
+
+**Glossary gap.** One, amended above (deviation 8).
+
+### REPORT
+
+Provenance, stamped on change `umlvturs` over `rzqlynty a3c0206b`.
+
+- `cargo xtask gate --changed` derived, and this landing ran:
+  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p deckmaste_english_v3 -p deckmaste_construction_v3 -p deckmaste_lexical_source -p deckmaste_semantics_v2 -p xtask` — green, no failures.
+- `cargo fmt --all`; `cargo clippy --workspace --all-targets` — no warnings.
+- `cargo xtask cite check --list-noncompliant`: 0 non-compliant.
+  `cargo xtask cite check`: 15858 citations, 0 stale. No rule needed blessing.
+  `jj diff --from plugins-v2-subtypes-macro-only --to @ --git | cargo xtask cite audit --diff`:
+  16 sites, each read against its rule text.
+- Performance advisory. `cargo xtask lean-check plugins_v2/canon plugins_v2/testing`:
+  111 s cold on the pre-change tree at load average 20.90 (sibling
+  workspaces building), 35 s warm on the post-rewrite tree at load average
+  3.34, 24 workers both times. `cargo test -p deckmaste_semantics_v2 --test corpus`:
+  under a second. The english coverage ceiling does not apply to this lane; no
+  english_v2 corpus command was run.
+- Scoped scripts, both in the session scratchpad and neither in version
+  control: `strip_subtype_bodies.py` (458 declarations, 5 onto `SpellSubtype`)
+  and `subtypes_to_macros.py` (152 sites over 93 files).
