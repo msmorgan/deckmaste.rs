@@ -3,111 +3,32 @@
 This crate implements recognition and lazy Reading materialization for the
 [accepted lexical/grammar contract](../../docs/decisions/english-lexical-analysis.md).
 It consumes `deckmaste_lexical::AnalyzedText` and the same immutable `Lexicon`.
-The fresh construction compiler generates `Grammar` and `Materializer`
-implementations for the interacting `slice` module and the connected `grammar`
-candidate in `src/declarations.rs`. The runtime has no v2 parser, compiler or
-Semantics dependency. The source-loader dependency is confined to integration
-tests, which exercise the candidate against the authored lexical inventory.
-
-The slice remains a bounded compiler/runtime witness. The connected candidate
-currently composes flat paragraph/document sequences, finite and imperative
-clauses, noun phrases, selected verb frames, auxiliaries, prepositions, relative
-Subjects/Objects, binary coordination and locally selected ellipsis. Keyword
-lines, symbol/action cost lists, activated paragraphs, ability-word heads,
-parentheticals, literal quotations and modal lists now share those constituents.
-Its Reading
-values preserve lexical forms, tense and selected frames even when a parent has
-no reason to inspect those features. Auxiliary complements own their separator,
-so omission contributes neither a word nor a trailing space.
-
-Whole-grammar activation is still in progress. The remaining family audit
-precedes the full supported-corpus baseline. The
-`english-v3-systemic-residuals` follow-up owns general failures exposed by that
-experiment, including unresolved article/onset, capitalization, frame,
-coordination, extraction and document variants. The activation accounts for
-these with their inherited witnesses rather than requiring systemic closure.
-`tests/grammar.rs` checks composition
-with the real source inventory, invalid agreement/Case/frame combinations, and
-an independently constructed auxiliary-ellipsis Reading. No whole-corpus
-baseline has been measured.
-
-The measure declarations distinguish cardinal determiners and ordinal modifiers
-from scalar digit notation, following style guide §4, “Numbers, quantities, and
-comparisons”. Scalar expressions include declared variables and arithmetic;
-prepositions, measured noun phrases, verb frames and comparison adjectives
-consume them. Framed adjectives cannot use the bare-adjective rule to discard a
-required Complement. Both Arabic notation choices survive for small values
-whose surfaces need no commas; prose magnitudes of four or more digits require
-grouping. No arithmetic value or discourse variable is evaluated by admission.
-
-Keyword declarations supply their parameter class. Bare, numeric and symbolic
-cost uses have distinct Productions; a required parameter cannot disappear via
-the bare-keyword rule. Comma/semicolon keyword continuations and cost/mode lists
-retain ordered flat collections. Quoted and keyword Objects use selected verb
-frames. The Target Verb has its own regular paradigm and transitive frame,
-independent of the Targeting Marker; both can occur in one relative clause.
-
-Type Lines use declared catalog roles for supertypes, card types and subtypes.
-Their flat groups preserve order and lexical identity, with supertypes before
-the nonempty card-type group and an em dash before a nonempty subtype group.
-These Productions implement the current Lean document relationship. Further
-ordering and subtype-compatibility obligations remain part of the systemic
-handoff; the grammar does not sort the input or claim those constraints.
-
-Generated admission, realization and traversal dispatch to separate methods for
-each Construction. This keeps recursive stack frames from reserving temporary
-space for the entire grammar's match body. A nested, independently constructed
-paragraph exercises exact realization and reparsing on the normal test stack;
-no larger worker stack is required to pass it.
+The construction compiler generates parsing, admission, realization and traversal
+for `grammar` in `src/declarations.rs`. The `slice` module is a bounded
+compiler/runtime fixture. The runtime has no v2 parser, compiler or Semantics
+dependency; integration tests load the authored lexical inventory.
 
 ## Raw corpus census
-
-The generated connected grammar has a corpus command:
 
 ```sh
 cargo xtask english-v3 --data /tmp/AtomicCards-subset.json \
   --output /tmp/english-v3-report.json --workers 1
 ```
 
-It shares the independent lexical command's supported-face filter and stable
-group/index identity. It analyzes raw text, including reminders, without
-normalization. Missing text is analyzed as an empty Document while its JSON
-`null` remains distinct from a present empty string. `--field type-line` runs the
-same checks with the Type Line root over each supported face's raw type line.
-The default is `--field text`. Reports record the selected field; `source_sha256`,
-unknown-word offsets, census and timing metrics refer to that field. Original
-`raw_text` and `type_line` metadata keep their meanings in either mode. A missing
-Type Line has no Reading because its required card-type group is absent.
+The command analyzes supported faces without normalization or removal of
+reminders. `--field text` (the default) parses rules text as a Document;
+`--field type-line` parses Type Lines. Missing fields are analyzed as empty,
+with null retained in the report. Metadata preserves both original fields;
+source hashes, offsets, census and timing metrics refer to the selected field.
 
-Enumeration is complete by default. `--reading-limit N` requests a bounded
-prefix for inspection; the report never calls a capped single Reading unique.
-Two checked distinct Readings establish multiplicity even without exhaustion,
-but exact totals require exhaustion without errors. Duplicate Derivations,
-cycles, materialization failures and validation failures have separate counters
-or diagnostics. Every counted Reading passes declaration admission, lexical
-ownership/context, byte-exact realization and traversal comparison. The report
-is written before validation issues make the command fail.
-
-Traversal evidence comes from a materializer decorator, independently of the
-generated visitors. It records complete subtree fingerprints and lexical values
-in production order, then compares them with node and word visitation. The
-fingerprints use generated Debug encoding and are diagnostic within the stamped
-source tree, not a persistent serialization format. These checks add work to
-materialization; their cost is included in validation time and thread CPU.
-
-JSON retains input and lexical-inventory hashes, the current change ID when jj
-is available, each face's identity and raw text, unknown words with byte ranges,
-checked Reading samples, construction occurrences, chart/forest and enumeration
-counters, stage timings, host load and worker count. Failure groups separate
-observed lexical gaps from unresolved grammatical or lexical causes; a missing
-Reading alone does not identify its linguistic cause. `--samples-per-face N`
-limits stored trees without limiting enumeration or checks.
-
-The command does not establish independent linguistic correctness or the
-constructed-value roundtrip law. Those still require independent expected
-values and the inherited witness audit. A corpus census, cause-grouped residual
-analysis and whole-family acceptance remain outstanding until the complete
-connected grammar is ready for the full supported snapshot.
+Enumeration is complete by default. `--reading-limit N` caps requests without
+claiming uniqueness or an exact total before exhaustion. `--samples-per-face N`
+limits stored trees without limiting validation. Each counted Reading passes
+admission, exact realization and both traversal checks against materialization
+traces. The JSON report includes provenance, lexical gaps, census, samples,
+parser metrics and timings, and is written before validation errors fail the
+command. Linguistic correctness and independently constructed-value roundtrips
+require separate evidence.
 
 ## Admission and packing
 
