@@ -43,10 +43,10 @@ KeywordAbility(
                                             lookback: Mk(
                                                 event: AttacksWith(
                                                     player: You,
-                                                    defender: Gap(kind: Player),
+                                                    defender: Gap(Player),
                                                     attackers: Described(
-                                                        determiner: A(mode: Unmarked),
-                                                        predicate: HasType(type: Creature),
+                                                        determiner: A(Unmarked),
+                                                        predicate: HasType(Creature),
                                                     ),
                                                 ),
                                                 lookback: ThisCombat,
@@ -71,10 +71,10 @@ KeywordAbility(
                                             lookback: Mk(
                                                 event: AttacksWith(
                                                     player: You,
-                                                    defender: Gap(kind: Player),
+                                                    defender: Gap(Player),
                                                     attackers: Described(
-                                                        determiner: A(mode: Unmarked),
-                                                        predicate: HasType(type: Creature),
+                                                        determiner: A(Unmarked),
+                                                        predicate: HasType(Creature),
                                                     ),
                                                 ),
                                                 lookback: ThisCombat,
@@ -85,7 +85,7 @@ KeywordAbility(
                             ),
                         ],
                     ),
-                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                    duration: Until(EndOf(part: Turn, whose: None)),
                 ),
             ),
         ],

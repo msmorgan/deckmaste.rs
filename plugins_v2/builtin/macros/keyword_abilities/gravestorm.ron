@@ -33,12 +33,12 @@ KeywordAbility(
                                 op: Count,
                                 subject: Described(
                                     determiner: Bare,
-                                    predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                                    predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
                                 ),
                                 lookback: Mk(
                                     event: ZoneChange(
-                                        subject: Gap(kind: Object),
-                                        from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                                        subject: Gap(Object),
+                                        from: Zones([Zone(zone: Battlefield, scope: Bare)]),
                                         to: Zone(zone: Graveyard, scope: Bare),
                                         observation: Before,
                                     ),
@@ -53,17 +53,17 @@ KeywordAbility(
                                 subject: AsMarker(marker: Spell, subject: This),
                                 predicate: Targets(
                                     subject: Described(
-                                        determiner: A(mode: Unmarked),
+                                        determiner: A(Unmarked),
                                         predicate: IsSource,
                                     ),
                                     extent: SomeTarget,
                                 ),
                             ),
                             instruction: WithContinuation(
-                                policy: Optional(agent: You),
+                                policy: Optional(You),
                                 body: ChooseNewTargets(
                                     subject: Pro(
-                                        reach: Word(word: Copy),
+                                        reach: Word(Copy),
                                         plurality: Many,
                                         window: Whole,
                                     ),

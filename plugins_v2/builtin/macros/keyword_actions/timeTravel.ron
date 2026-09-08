@@ -14,23 +14,23 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     body: Enact(
-        verb: Action(label: "Time Travel"),
-        instruction: Sequentially(steps: [
+        verb: Action("Time Travel"),
+        instruction: Sequentially([
         Choose(
             first: None,
             chosen: Described(
                 determiner: Count(quantity: Range(low: None, high: None), mode: None),
-                predicate: Or(disjuncts: [
-                    And(conjuncts: [
-                        InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                predicate: Or([
+                    And([
+                        InZone(Zone(zone: Battlefield, scope: Bare)),
                         HasPossessor(axis: Controller, possessor: You),
-                        HasCounters(kind: Named(label: "Time")),
+                        HasCounters(Named("Time")),
                     ]),
-                    And(conjuncts: [
+                    And([
                         IsCard,
-                        InZone(zone: Zone(zone: Exile, scope: Bare)),
+                        InZone(Zone(zone: Exile, scope: Bare)),
                         HasPossessor(axis: Owner, possessor: You),
-                        HasCounters(kind: Named(label: "Time")),
+                        HasCounters(Named("Time")),
                     ]),
                 ]),
             ),
@@ -45,12 +45,12 @@ KeywordAction(
                 modes: [
                     (None, PutCounters(
                         amount: 1,
-                        kind: Printed(kind: Named(label: "Time")),
+                        kind: Printed(Named("Time")),
                         on: Pro(reach: Bare, plurality: One, window: Whole),
                     )),
                     (None, RemoveCounters(
                         quantity: Range(low: 1, high: 1),
-                        kind: Printed(kind: Named(label: "Time")),
+                        kind: Printed(Named("Time")),
                         from: Pro(reach: Bare, plurality: One, window: Whole),
                     )),
                 ],

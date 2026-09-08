@@ -11,8 +11,8 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Convert"),
-        instruction: TurnOver(subject: Param(0)),
+        verb: Action("Convert"),
+        instruction: TurnOver(Param(0)),
         agent: None,
     ),
 )

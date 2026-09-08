@@ -9,7 +9,7 @@ KeywordAbility(
     // sacrifices N permanents." [CR#702.86a]
     body: Keyword(
         keyword: "Annihilator",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: Combat(
@@ -24,16 +24,16 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: Enact(
-                    verb: Action(label: "Sacrifice"),
+                    verb: Action("Sacrifice"),
                     instruction: Move(
                         subject: Described(
-                            determiner: Count(quantity: ExactlyOf(amount: Param(0)), mode: None),
-                            predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                            determiner: Count(quantity: ExactlyOf(Param(0)), mode: None),
+                            predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
                         ),
                         to: Zone(zone: Graveyard, scope: Bare),
                         riders: [],
                     ),
-                    agent: CombatPlayer(role: Defending),
+                    agent: CombatPlayer(Defending),
                 ),
             ),
         ],

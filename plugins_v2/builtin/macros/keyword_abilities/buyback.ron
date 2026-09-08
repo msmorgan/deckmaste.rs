@@ -10,15 +10,15 @@ KeywordAbility(
     // hand instead of into that player's graveyard as it resolves." [CR#702.27a]
     body: Keyword(
         keyword: "Buyback",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
-            Static(spec: AddedCost(cost: Param(0), offered: true)),
+            Static(AddedCost(cost: Param(0), offered: true)),
             Static(
                 spec: Conditional(
                     spec: Replacement(
                         event: ZoneChange(
                             subject: AsMarker(marker: Spell, subject: This),
-                            from: Zones(zones: [Zone(zone: Stack, scope: Bare)]),
+                            from: Zones([Zone(zone: Stack, scope: Bare)]),
                             to: Zone(zone: Graveyard, scope: Bare),
                             observation: Before,
                         ),
@@ -35,7 +35,7 @@ KeywordAbility(
                     condition: CompareAmt(
                         subject: Paid(
                             facet: Readback(
-                                which: ByKeyword(keyword: "Buyback"),
+                                which: ByKeyword("Buyback"),
                                 lookback: None,
                             ),
                             subject: AsMarker(marker: Spell, subject: This),

@@ -26,7 +26,7 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: WithContinuation(
-                    policy: Optional(agent: You),
+                    policy: Optional(You),
                     body: Sequentially(
                         steps: [
                             Copy(
@@ -37,10 +37,10 @@ KeywordAbility(
                                 agent: You,
                             ),
                             WithContinuation(
-                                policy: Optional(agent: You),
+                                policy: Optional(You),
                                 body: ChooseNewTargets(
                                     subject: Pro(
-                                        reach: Word(word: Copy),
+                                        reach: Word(Copy),
                                         plurality: One,
                                         window: Whole,
                                     ),
@@ -55,7 +55,7 @@ KeywordAbility(
                             Choose(
                                 first: None,
                                 chosen: Described(
-                                    determiner: A(mode: Unmarked),
+                                    determiner: A(Unmarked),
                                     predicate: Opponent,
                                 ),
                                 disclosure: Openly,
@@ -83,9 +83,9 @@ KeywordAbility(
                                 // not the caster's, which is still on the stack.
                                 body: ChooseNewTargets(
                                     subject: Pro(
-                                        reach: Word(word: Copy),
+                                        reach: Word(Copy),
                                         plurality: One,
-                                        window: Top(depth: 1),
+                                        window: Top(1),
                                     ),
                                 ),
                                 if_did: None,

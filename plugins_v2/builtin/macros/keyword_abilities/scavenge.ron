@@ -10,7 +10,7 @@ KeywordAbility(
     // creature. Activate only as a sorcery." [CR#702.97a]
     body: Keyword(
         keyword: "Scavenge",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Activated(
                 cost: Compound(
@@ -18,7 +18,7 @@ KeywordAbility(
                         Param(0),
                         Perform(
                             instruction: Enact(
-                                verb: Action(label: "Exile"),
+                                verb: Action("Exile"),
                                 instruction: Move(
                                     subject: This,
                                     to: Zone(zone: Exile, scope: Bare),
@@ -31,10 +31,10 @@ KeywordAbility(
                 ),
                 instruction: PutCounters(
                     amount: StatOf(
-                        axis: Stat(stat: Power),
+                        axis: Stat(Power),
                         subject: Pro(
                             reach: Verbed(
-                                verb: Action(label: "Exile"),
+                                verb: Action("Exile"),
                                 word: Card,
                                 marking: Attributive,
                             ),
@@ -42,10 +42,10 @@ KeywordAbility(
                             window: Whole,
                         ),
                     ),
-                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
                     on: Described(
-                        determiner: Target(quantity: Range(low: 1, high: 1)),
-                        predicate: HasType(type: Creature),
+                        determiner: Target(Range(low: 1, high: 1)),
+                        predicate: HasType(Creature),
                     ),
                 ),
                 timing: AsSorcery,

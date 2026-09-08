@@ -18,19 +18,19 @@ KeywordAbility(
                     spec: DeonticRule(
                         subject: Described(determiner: All, predicate: AnyPlayer),
                         compulsion: Forbid,
-                        deeds: [Action(label: "Cast"), Action(label: "Activate")],
+                        deeds: [Action("Cast"), Action("Activate")],
                         role: Agent,
                         bound: None,
                         patient: CounterpartsAt(
                             complements: [
                                 (
-                                    deed: Action(label: "Cast"),
+                                    deed: Action("Cast"),
                                     counterpart: Described(
                                         determiner: All,
                                         predicate: And(
                                             conjuncts: [
-                                                InZone(zone: Zone(zone: Stack, scope: Bare)),
-                                                Not(predicate: AbilityHead(class: AnyOnStack)),
+                                                InZone(Zone(zone: Stack, scope: Bare)),
+                                                Not(AbilityHead(AnyOnStack)),
                                                 OtherThan(
                                                     anchor: AsMarker(
                                                         marker: Spell,
@@ -42,13 +42,13 @@ KeywordAbility(
                                     ),
                                 ),
                                 (
-                                    deed: Action(label: "Activate"),
+                                    deed: Action("Activate"),
                                     counterpart: Described(
                                         determiner: All,
                                         predicate: And(
                                             conjuncts: [
-                                                AbilityHead(class: AnyActivated),
-                                                Not(predicate: IsManaAbility),
+                                                AbilityHead(AnyActivated),
+                                                Not(IsManaAbility),
                                             ],
                                         ),
                                     ),
@@ -60,7 +60,7 @@ KeywordAbility(
                     ),
                     condition: Matches(
                         subject: AsMarker(marker: Spell, subject: This),
-                        predicate: InZone(zone: Zone(zone: Stack, scope: Bare)),
+                        predicate: InZone(Zone(zone: Stack, scope: Bare)),
                     ),
                     marking: AsLongAs,
                 ),

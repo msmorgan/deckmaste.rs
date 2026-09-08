@@ -13,7 +13,7 @@ KeywordAbility(
     // [text] you control." [CR#702.41a]
     body: Keyword(
         keyword: "Affinity",
-        params: [Quality(predicate: Param(0))],
+        params: [Quality(Param(0))],
         body: [
             Static(
                 spec: CostShift(

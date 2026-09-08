@@ -10,12 +10,12 @@ KeywordAbility(
     // your graveyard to your hand." [CR#702.46a]
     body: Keyword(
         keyword: "Soulshift",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: ZoneChange(
                     subject: AsMarker(marker: Permanent, subject: This),
-                    from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                    from: Zones([Zone(zone: Battlefield, scope: Bare)]),
                     to: Zone(zone: Graveyard, scope: Bare),
                     observation: Before,
                 ),
@@ -26,25 +26,25 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: WithContinuation(
-                    policy: Optional(agent: You),
+                    policy: Optional(You),
                     body: Enact(
-                        verb: Core(deed: Return),
+                        verb: Core(Return),
                         instruction: Move(
                             subject: Described(
-                                determiner: Target(quantity: Range(low: 1, high: 1)),
+                                determiner: Target(Range(low: 1, high: 1)),
                                 predicate: And(
                                     conjuncts: [
                                         IsCard,
-                                        HasSubtype(subtype: Of(host: Creature, label: "Spirit")),
+                                        HasSubtype(Of(host: Creature, label: "Spirit")),
                                         Compare(
-                                            axes: [Stat(stat: ManaValue)],
+                                            axes: [Stat(ManaValue)],
                                             comparator: AtMost,
                                             bound: Param(0),
                                         ),
                                         InZone(
                                             zone: Zone(
                                                 zone: Graveyard,
-                                                scope: PossessedBy(possessor: You),
+                                                scope: PossessedBy(You),
                                             ),
                                         ),
                                     ],

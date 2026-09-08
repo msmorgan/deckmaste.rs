@@ -12,5 +12,5 @@ KeywordAbility(
     // exiled." [CR#702.185a] The second is a static ability that creates a delayed
     // triggered ability; no `StaticSpec` creates one (the cause Blitz, Dash and Rebound
     // share).
-    body: Keyword(keyword: "Warp", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Warp", params: [Cost(Param(0))], body: []),
 )

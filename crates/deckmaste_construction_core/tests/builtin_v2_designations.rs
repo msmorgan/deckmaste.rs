@@ -97,7 +97,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("scope: HeldBy(holder: Player)")
+            .contains("scope: HeldBy(Player)")
     );
 
     let citys_blessing = &designations[0];
@@ -113,7 +113,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("scope: HeldBy(holder: Player)")
+            .contains("scope: HeldBy(Player)")
     );
 
     // An enum-shaped designation declares one row per member [CR#731.1].
@@ -140,7 +140,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("scope: HeldBy(holder: Object)")
+            .contains("scope: HeldBy(Object)")
     );
     assert!(
         goaded

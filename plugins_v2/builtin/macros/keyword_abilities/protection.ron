@@ -23,5 +23,5 @@ KeywordAbility(
     // `Destroy` patient role already carries: fixing it is a change to a deed's role
     // columns, which this ticket's overlay authority does not cover. A body carrying
     // only three of the four rows would be a wrong analysis, so none is written.
-    body: Keyword(keyword: "Protection", params: [Quality(predicate: Param(0))], body: []),
+    body: Keyword(keyword: "Protection", params: [Quality(Param(0))], body: []),
 )

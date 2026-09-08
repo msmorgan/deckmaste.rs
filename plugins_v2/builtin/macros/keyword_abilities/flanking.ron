@@ -19,11 +19,11 @@ KeywordAbility(
                     relation: BlockedBy,
                     subject: AsType(type: Creature, subject: This, subtype: None),
                     counterpart: Described(
-                        determiner: A(mode: Unmarked),
+                        determiner: A(Unmarked),
                         predicate: And(
                             conjuncts: [
-                                HasType(type: Creature),
-                                Not(predicate: HasKeyword(keyword: The(keyword: "Flanking"))),
+                                HasType(Creature),
+                                Not(HasKeyword(The("Flanking"))),
                             ],
                         ),
                     ),
@@ -40,25 +40,25 @@ KeywordAbility(
                         parts: [
                             Modification(
                                 subject: Pro(
-                                    reach: Word(word: Type(type: Creature)),
+                                    reach: Word(Type(Creature)),
                                     plurality: One,
                                     window: Whole,
                                 ),
                                 stat: Power,
-                                delta: Down(amount: 1),
+                                delta: Down(1),
                             ),
                             Modification(
                                 subject: Pro(
-                                    reach: Word(word: Type(type: Creature)),
+                                    reach: Word(Type(Creature)),
                                     plurality: One,
                                     window: Whole,
                                 ),
                                 stat: Toughness,
-                                delta: Down(amount: 1),
+                                delta: Down(1),
                             ),
                         ],
                     ),
-                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                    duration: Until(EndOf(part: Turn, whose: None)),
                 ),
             ),
         ],

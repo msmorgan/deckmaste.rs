@@ -32,18 +32,18 @@ KeywordAbility(
                             times: EventTally(
                                 op: Count,
                                 subject: Described(
-                                    determiner: A(mode: Unmarked),
+                                    determiner: A(Unmarked),
                                     predicate: AnyPlayer,
                                 ),
                                 lookback: Mk(
                                     event: Casts(
-                                        player: Gap(kind: Player),
+                                        player: Gap(Player),
                                         spell: Described(
-                                            determiner: A(mode: Unmarked),
+                                            determiner: A(Unmarked),
                                             predicate: And(
                                                 conjuncts: [
-                                                    InZone(zone: Zone(zone: Stack, scope: Bare)),
-                                                    Not(predicate: AbilityHead(class: AnyOnStack)),
+                                                    InZone(Zone(zone: Stack, scope: Bare)),
+                                                    Not(AbilityHead(AnyOnStack)),
                                                     OtherThan(
                                                         anchor: AsMarker(
                                                             marker: Spell,
@@ -62,9 +62,9 @@ KeywordAbility(
                             agent: You,
                         ),
                         WithContinuation(
-                            policy: Optional(agent: You),
+                            policy: Optional(You),
                             body: ChooseNewTargets(
-                                subject: Pro(reach: Word(word: Copy), plurality: Many, window: Whole),
+                                subject: Pro(reach: Word(Copy), plurality: Many, window: Whole),
                             ),
                             if_did: None,
                             if_not: None,

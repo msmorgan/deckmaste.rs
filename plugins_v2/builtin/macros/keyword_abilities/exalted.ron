@@ -16,10 +16,10 @@ KeywordAbility(
                 event: Combat(
                     relation: AttackerOf,
                     subject: Described(
-                        determiner: A(mode: Unmarked),
+                        determiner: A(Unmarked),
                         predicate: And(
                             conjuncts: [
-                                HasType(type: Creature),
+                                HasType(Creature),
                                 HasPossessor(axis: Controller, possessor: You),
                             ],
                         ),
@@ -37,7 +37,7 @@ KeywordAbility(
                             determiner: Bare,
                             predicate: And(
                                 conjuncts: [
-                                    HasType(type: Creature),
+                                    HasType(Creature),
                                     InCombat(relation: AttackerOf, counterpart: None),
                                 ],
                             ),
@@ -52,25 +52,25 @@ KeywordAbility(
                         parts: [
                             Modification(
                                 subject: Pro(
-                                    reach: Word(word: Type(type: Creature)),
+                                    reach: Word(Type(Creature)),
                                     plurality: One,
                                     window: Whole,
                                 ),
                                 stat: Power,
-                                delta: Up(amount: 1),
+                                delta: Up(1),
                             ),
                             Modification(
                                 subject: Pro(
-                                    reach: Word(word: Type(type: Creature)),
+                                    reach: Word(Type(Creature)),
                                     plurality: One,
                                     window: Whole,
                                 ),
                                 stat: Toughness,
-                                delta: Up(amount: 1),
+                                delta: Up(1),
                             ),
                         ],
                     ),
-                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                    duration: Until(EndOf(part: Turn, whose: None)),
                 ),
             ),
         ],

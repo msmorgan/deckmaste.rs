@@ -5,6 +5,6 @@ Designation(
     spelling: "harnessed",
     grammar: FixedTerm(surface: "harnessed"),
     body: [
-        DesignationFacts(label: "harnessed", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+        DesignationFacts(label: "harnessed", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
     ],
 )

@@ -12,7 +12,7 @@ KeywordAbility(
     // permitted cast produces (the cause Disguise and Morph share).
     body: Keyword(
         keyword: "MoreThanMeetsTheEye",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [],
     ),
 )

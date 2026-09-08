@@ -22,7 +22,7 @@ KeywordAbility(
                                 AnyPlayer,
                                 Superlative(
                                     op: Max,
-                                    axis: PlayerStat(stat: LifeTotal),
+                                    axis: PlayerStat(LifeTotal),
                                     domain: AnyPlayer,
                                 ),
                             ],
@@ -37,7 +37,7 @@ KeywordAbility(
                 intervening: None,
                 instruction: PutCounters(
                     amount: 1,
-                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
                     on: AsType(type: Creature, subject: This, subtype: None),
                 ),
             ),

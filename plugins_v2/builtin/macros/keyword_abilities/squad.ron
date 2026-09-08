@@ -13,5 +13,5 @@ KeywordAbility(
     // shares). Its second ability is separately blocked the way Offspring's is: it is a
     // triggered ability keyed on entering the battlefield while the keyword's registry
     // row is `regime: AtCasting`, and `keywordBodyPartFits` requires the two to agree.
-    body: Keyword(keyword: "Squad", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Squad", params: [Cost(Param(0))], body: []),
 )

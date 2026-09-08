@@ -11,20 +11,20 @@ KeywordAbility(
     // permanent, sacrifice it." [CR#702.63a]
     body: Keyword(
         keyword: "Vanishing",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Static(
                 spec: EntryRider(
                     subject: AsMarker(marker: Permanent, subject: This),
                     rider: WithCounters(
                         amount: Param(0),
-                        kind: Printed(kind: Named(label: "Time")),
+                        kind: Printed(Named("Time")),
                         mark: Fresh,
                     ),
                 ),
             ),
             Triggered(
-                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(player: You)),
+                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(You)),
                 alternatives: [],
                 r#while: None,
                 joins: [],
@@ -32,18 +32,18 @@ KeywordAbility(
                 limit: None,
                 intervening: Matches(
                     subject: AsMarker(marker: Permanent, subject: This),
-                    predicate: HasCounters(kind: Named(label: "Time")),
+                    predicate: HasCounters(Named("Time")),
                 ),
                 instruction: RemoveCounters(
                     quantity: Range(low: 1, high: 1),
-                    kind: Printed(kind: Named(label: "Time")),
+                    kind: Printed(Named("Time")),
                     from: AsMarker(marker: Permanent, subject: This),
                 ),
             ),
             Triggered(
                 event: CounterEvent(
                     r#move: Removed,
-                    kind: Named(label: "Time"),
+                    kind: Named("Time"),
                     subject: AsMarker(marker: Permanent, subject: This),
                     batch: Emptying,
                     by: None,
@@ -56,7 +56,7 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: Enact(
-                    verb: Action(label: "Sacrifice"),
+                    verb: Action("Sacrifice"),
                     instruction: Move(
                         subject: AsMarker(marker: Permanent, subject: This),
                         to: Zone(zone: Graveyard, scope: Bare),

@@ -13,23 +13,23 @@ KeywordAbility(
     // has a time counter on it, remove a time counter from it." [CR#702.176a]
     body: Keyword(
         keyword: "Impending",
-        params: [Number(amount: Param(0)), Cost(cost: Param(1))],
+        params: [Number(Param(0)), Cost(Param(1))],
         body: [
             Static(
                 spec: DeonticRule(
                     subject: You,
                     compulsion: Permit,
-                    deeds: [Action(label: "Cast")],
+                    deeds: [Action("Cast")],
                     role: Agent,
                     bound: None,
-                    patient: Counterpart(patient: This),
+                    patient: Counterpart(This),
                     as_though: None,
                     rider: Play(
                         from: None,
                         limit: None,
                         timing: None,
                         exclusive: false,
-                        payment: PayingInstead(cost: Param(1)),
+                        payment: PayingInstead(Param(1)),
                     ),
                 ),
             ),
@@ -39,13 +39,13 @@ KeywordAbility(
                         subject: AsMarker(marker: Permanent, subject: This),
                         rider: WithCounters(
                             amount: Param(0),
-                            kind: Printed(kind: Named(label: "Time")),
+                            kind: Printed(Named("Time")),
                             mark: Fresh,
                         ),
                     ),
                     condition: CompareAmt(
                         subject: Paid(
-                            facet: Readback(which: ByKeyword(keyword: "Impending"), lookback: None),
+                            facet: Readback(which: ByKeyword("Impending"), lookback: None),
                             subject: AsMarker(marker: Permanent, subject: This),
                         ),
                         comparator: AtLeast,
@@ -64,7 +64,7 @@ KeywordAbility(
                         conjuncts: [
                             CompareAmt(
                         subject: Paid(
-                            facet: Readback(which: ByKeyword(keyword: "Impending"), lookback: None),
+                            facet: Readback(which: ByKeyword("Impending"), lookback: None),
                             subject: AsMarker(marker: Permanent, subject: This),
                         ),
                         comparator: AtLeast,
@@ -72,7 +72,7 @@ KeywordAbility(
                     ),
                             Matches(
                                 subject: AsMarker(marker: Permanent, subject: This),
-                                predicate: HasCounters(kind: Named(label: "Time")),
+                                predicate: HasCounters(Named("Time")),
                             ),
                         ],
                     ),
@@ -80,7 +80,7 @@ KeywordAbility(
                 ),
             ),
             Triggered(
-                event: BeginningOf(quantifier: The, part: EndStep, whose: ByPlayer(player: You)),
+                event: BeginningOf(quantifier: The, part: EndStep, whose: ByPlayer(You)),
                 alternatives: [],
                 r#while: None,
                 joins: [],
@@ -90,7 +90,7 @@ KeywordAbility(
                     conjuncts: [
                         CompareAmt(
                         subject: Paid(
-                            facet: Readback(which: ByKeyword(keyword: "Impending"), lookback: None),
+                            facet: Readback(which: ByKeyword("Impending"), lookback: None),
                             subject: AsMarker(marker: Permanent, subject: This),
                         ),
                         comparator: AtLeast,
@@ -98,13 +98,13 @@ KeywordAbility(
                     ),
                         Matches(
                             subject: AsMarker(marker: Permanent, subject: This),
-                            predicate: HasCounters(kind: Named(label: "Time")),
+                            predicate: HasCounters(Named("Time")),
                         ),
                     ],
                 ),
                 instruction: RemoveCounters(
                     quantity: Range(low: 1, high: 1),
-                    kind: Printed(kind: Named(label: "Time")),
+                    kind: Printed(Named("Time")),
                     from: AsMarker(marker: Permanent, subject: This),
                 ),
             ),

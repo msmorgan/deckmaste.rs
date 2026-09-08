@@ -10,5 +10,5 @@ KeywordAbility(
     // No `NounPhrase` selects an unbounded group by an aggregate bound on a stat of
     // the whole group; `Predicate::CompareOver` compares each member (the cause Crew
     // and Saddle share).
-    body: Keyword(keyword: "Teamwork", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Teamwork", params: [Number(Param(0))], body: []),
 )

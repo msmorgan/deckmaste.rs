@@ -16,10 +16,10 @@ KeywordAbility(
             Triggered(
                 event: ZoneChange(
                     subject: Described(
-                        determiner: A(mode: Unmarked),
+                        determiner: A(Unmarked),
                         predicate: And(
                             conjuncts: [
-                                HasType(type: Creature),
+                                HasType(Creature),
                                 HasPossessor(axis: Controller, possessor: You),
                             ],
                         ),
@@ -37,31 +37,31 @@ KeywordAbility(
                     disjuncts: [
                         CompareAmt(
                             subject: StatOf(
-                                axis: Stat(stat: Power),
+                                axis: Stat(Power),
                                 subject: Pro(
-                                    reach: Word(word: Type(type: Creature)),
+                                    reach: Word(Type(Creature)),
                                     plurality: One,
                                     window: Whole,
                                 ),
                             ),
                             comparator: Greater,
                             bound: StatOf(
-                                axis: Stat(stat: Power),
+                                axis: Stat(Power),
                                 subject: AsType(type: Creature, subject: This, subtype: None),
                             ),
                         ),
                         CompareAmt(
                             subject: StatOf(
-                                axis: Stat(stat: Toughness),
+                                axis: Stat(Toughness),
                                 subject: Pro(
-                                    reach: Word(word: Type(type: Creature)),
+                                    reach: Word(Type(Creature)),
                                     plurality: One,
                                     window: Whole,
                                 ),
                             ),
                             comparator: Greater,
                             bound: StatOf(
-                                axis: Stat(stat: Toughness),
+                                axis: Stat(Toughness),
                                 subject: AsType(type: Creature, subject: This, subtype: None),
                             ),
                         ),
@@ -69,7 +69,7 @@ KeywordAbility(
                 ),
                 instruction: PutCounters(
                     amount: 1,
-                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
                     on: AsType(type: Creature, subject: This, subtype: None),
                 ),
             ),

@@ -11,7 +11,7 @@ KeywordAbility(
     // spelling for `Option`.
     body: Keyword(
         keyword: "Absorb",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Static(
                 spec: DamageRule(
@@ -20,7 +20,7 @@ KeywordAbility(
                     scope: ToRecipient(
                         recipient: AsType(type: Creature, subject: This, subtype: None),
                     ),
-                    op: Prevent(cut: r#Some(amount: Param(0)), also: None),
+                    op: Prevent(cut: r#Some(Param(0)), also: None),
                     r#use: Repeatedly,
                 ),
             ),

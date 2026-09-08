@@ -10,19 +10,19 @@ KeywordAction(
         frame_set: MeasureComplement,
     ),
     body: Enact(
-        verb: Action(label: "Endure"),
+        verb: Action("Endure"),
         instruction: ChooseModes(
         quantity: Range(low: 1, high: 1),
         modes: [
             (None, PutCounters(
                 amount: Param(1),
-                kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                kind: Printed(Boost(power: Up(1), toughness: Up(1))),
                 on: Param(0),
             )),
             (None, CreateObject(
                 count: 1,
                 spec: Token(
-                    spec: Written(characteristics: (characteristics: (
+                    spec: Written((characteristics: (
                         colors: [White],
                         types: [Creature],
                         subtypes: [Of(host: Creature, label: "Spirit")],

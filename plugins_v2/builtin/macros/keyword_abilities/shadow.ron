@@ -16,7 +16,7 @@ KeywordAbility(
                 spec: DeonticRule(
                     subject: AsType(type: Creature, subject: This, subtype: None),
                     compulsion: Forbid,
-                    deeds: [Core(deed: Block)],
+                    deeds: [Core(Block)],
                     role: Patient,
                     bound: None,
                     patient: Counterpart(
@@ -24,8 +24,8 @@ KeywordAbility(
                             determiner: All,
                             predicate: And(
                                 conjuncts: [
-                                    HasType(type: Creature),
-                                    Not(predicate: HasKeyword(keyword: The(keyword: "Shadow"))),
+                                    HasType(Creature),
+                                    Not(HasKeyword(The("Shadow"))),
                                 ],
                             ),
                         ),
@@ -40,13 +40,13 @@ KeywordAbility(
                         determiner: All,
                         predicate: And(
                             conjuncts: [
-                                HasType(type: Creature),
-                                Not(predicate: HasKeyword(keyword: The(keyword: "Shadow"))),
+                                HasType(Creature),
+                                Not(HasKeyword(The("Shadow"))),
                             ],
                         ),
                     ),
                     compulsion: Forbid,
-                    deeds: [Core(deed: Block)],
+                    deeds: [Core(Block)],
                     role: Patient,
                     bound: None,
                     patient: Counterpart(
@@ -54,8 +54,8 @@ KeywordAbility(
                             determiner: All,
                             predicate: And(
                                 conjuncts: [
-                                    HasType(type: Creature),
-                                    HasKeyword(keyword: The(keyword: "Shadow")),
+                                    HasType(Creature),
+                                    HasKeyword(The("Shadow")),
                                 ],
                             ),
                         ),

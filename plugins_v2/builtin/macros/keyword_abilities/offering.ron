@@ -15,7 +15,7 @@ KeywordAbility(
     // cause Emerge and Harmonize share).
     body: Keyword(
         keyword: "Offering",
-        params: [Quality(predicate: Param(0))],
+        params: [Quality(Param(0))],
         body: [],
     ),
 )

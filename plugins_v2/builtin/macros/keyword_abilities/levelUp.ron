@@ -10,13 +10,13 @@ KeywordAbility(
     // only as a sorcery." [CR#702.87a]
     body: Keyword(
         keyword: "LevelUp",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Activated(
                 cost: Param(0),
                 instruction: PutCounters(
                     amount: 1,
-                    kind: Printed(kind: Named(label: "Level")),
+                    kind: Printed(Named("Level")),
                     on: AsMarker(marker: Permanent, subject: This),
                 ),
                 timing: AsSorcery,

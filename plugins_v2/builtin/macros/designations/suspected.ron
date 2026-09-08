@@ -5,6 +5,6 @@ Designation(
     spelling: "suspected",
     grammar: FixedTerm(surface: "suspected"),
     body: [
-        DesignationFacts(label: "suspected", scope: HeldBy(holder: Object), effectful: true, zone: Battlefield, type: None, half: None),
+        DesignationFacts(label: "suspected", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
     ],
 )

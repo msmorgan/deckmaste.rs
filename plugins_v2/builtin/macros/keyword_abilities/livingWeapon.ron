@@ -53,7 +53,7 @@ KeywordAbility(
                             agent: You,
                         ),
                         Enact(
-                            verb: Action(label: "Attach"),
+                            verb: Action("Attach"),
                             instruction: Attachment(
                                 r#move: Attached,
                                 // "this Equipment": a bare `This` has no zone, and an

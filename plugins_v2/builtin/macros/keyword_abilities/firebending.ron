@@ -9,7 +9,7 @@ KeywordAbility(
     // combat, you don't lose this mana as steps and phases end." [CR#702.189a]
     body: Keyword(
         keyword: "Firebending",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: Combat(
@@ -27,13 +27,13 @@ KeywordAbility(
                     steps: [
                         AddMana(
                             amount: Param(0),
-                            produced: Runs(runs: [[Red]]),
+                            produced: Runs([[Red]]),
                             riders: [],
                             agent: You,
                         ),
                         Establish(
                             spec: ManaRetention(player: You, mana: ThisMana),
-                            duration: Until(end: EndOf(part: Combat, whose: None)),
+                            duration: Until(EndOf(part: Combat, whose: None)),
                         ),
                     ],
                 ),

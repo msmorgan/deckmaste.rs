@@ -15,19 +15,19 @@ KeywordAction(
         ),
     ),
     body: Enact(
-        verb: Action(label: "Clash"),
-        instruction: Sequentially(steps: [
+        verb: Action("Clash"),
+        instruction: Sequentially([
         Expose(
             verb: Reveal,
-            exposed: Cards(cards: LibrarySlice(end: Top, amount: 1, whose: Param(0))),
+            exposed: Cards(LibrarySlice(end: Top, amount: 1, whose: Param(0))),
             agent: Param(0),
         ),
         WithContinuation(
-            policy: Optional(agent: Param(0)),
+            policy: Optional(Param(0)),
             body: Move(
-                subject: Pro(reach: Word(word: Card), plurality: One, window: Whole),
+                subject: Pro(reach: Word(Card), plurality: One, window: Whole),
                 to: Library(
-                    place: OneEnd(end: Bottom),
+                    place: OneEnd(Bottom),
                     order: None,
                     offset: None,
                     scope: Bare,

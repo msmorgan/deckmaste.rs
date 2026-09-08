@@ -15,7 +15,7 @@ KeywordAbility(
                 spec: Replacement(
                     event: VerbedEvent(
                         agent: None,
-                        verb: Action(label: "Destroy"),
+                        verb: Action("Destroy"),
                         patient: AttachHost(word: Enchanted, head: Permanent),
                         becomes: None,
                         locus: None,
@@ -28,7 +28,7 @@ KeywordAbility(
                                 subject: AttachHost(word: Enchanted, head: Permanent),
                             ),
                             Enact(
-                                verb: Action(label: "Destroy"),
+                                verb: Action("Destroy"),
                                 instruction: Move(
                                     subject: AsType(
                                         type: Enchantment,

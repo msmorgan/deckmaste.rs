@@ -25,7 +25,7 @@ KeywordAbility(
                                 ),
                                 predicate: And(
                                     conjuncts: [
-                                        HasType(type: Creature),
+                                        HasType(Creature),
                                         OtherThan(
                                             anchor: AsType(
                                                 type: Creature,
@@ -34,10 +34,10 @@ KeywordAbility(
                                             ),
                                         ),
                                         Compare(
-                                            axes: [Stat(stat: Power)],
+                                            axes: [Stat(Power)],
                                             comparator: Greater,
                                             bound: StatOf(
-                                                axis: Stat(stat: Power),
+                                                axis: Stat(Power),
                                                 subject: AsType(
                                                     type: Creature,
                                                     subject: This,
@@ -60,7 +60,7 @@ KeywordAbility(
                 intervening: None,
                 instruction: PutCounters(
                     amount: 1,
-                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
                     on: AsType(type: Creature, subject: This, subtype: None),
                 ),
             ),

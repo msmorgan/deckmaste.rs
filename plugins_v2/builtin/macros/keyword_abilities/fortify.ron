@@ -10,20 +10,20 @@ KeywordAbility(
     // control. Activate only as a sorcery." [CR#702.67a]
     body: Keyword(
         keyword: "Fortify",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Activated(
                 cost: Param(0),
                 instruction: Enact(
-                    verb: Action(label: "Attach"),
+                    verb: Action("Attach"),
                     instruction: Attachment(
                         r#move: Attached,
                         subject: AsMarker(marker: Permanent, subject: This),
                         host: Described(
-                            determiner: Target(quantity: Range(low: 1, high: 1)),
+                            determiner: Target(Range(low: 1, high: 1)),
                             predicate: And(
                                 conjuncts: [
-                                    HasType(type: Land),
+                                    HasType(Land),
                                     HasPossessor(axis: Controller, possessor: You),
                                 ],
                             ),

@@ -12,13 +12,13 @@ KeywordAbility(
     // into their graveyard." [CR#702.35a]
     body: Keyword(
         keyword: "Madness",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Static(
                 spec: Replacement(
                     event: VerbedEvent(
-                        agent: Described(determiner: A(mode: Unmarked), predicate: AnyPlayer),
-                        verb: Action(label: "Discard"),
+                        agent: Described(determiner: A(Unmarked), predicate: AnyPlayer),
+                        verb: Action("Discard"),
                         patient: This,
                         becomes: None,
                         locus: None,
@@ -26,13 +26,13 @@ KeywordAbility(
                     alternatives: [],
                     timing: None,
                     replacement: Enact(
-                        verb: Action(label: "Discard"),
+                        verb: Action("Discard"),
                         instruction: Move(
                             subject: This,
                             to: Zone(zone: Exile, scope: Bare),
                             riders: [],
                         ),
-                        agent: Pro(reach: Word(word: Player), plurality: One, window: Whole),
+                        agent: Pro(reach: Word(Player), plurality: One, window: Whole),
                     ),
                     r#use: Repeatedly,
                     limit: None,
@@ -44,7 +44,7 @@ KeywordAbility(
                     cause: Event(
                         event: VerbedEvent(
                             agent: None,
-                            verb: Action(label: "Discard"),
+                            verb: Action("Discard"),
                             patient: This,
                             becomes: None,
                             locus: None,
@@ -52,7 +52,7 @@ KeywordAbility(
                     ),
                     event: ZoneChange(
                         subject: This,
-                        from: Zones(zones: [Zone(zone: Hand, scope: Bare)]),
+                        from: Zones([Zone(zone: Hand, scope: Bare)]),
                         to: Zone(zone: Exile, scope: Bare),
                         observation: After,
                     ),
@@ -64,22 +64,22 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: WithContinuation(
-                    policy: Optional(agent: PossessorOf(axis: Owner, subject: This)),
+                    policy: Optional(PossessorOf(axis: Owner, subject: This)),
                     body: Establish(
                         spec: DeonticRule(
                             subject: PossessorOf(axis: Owner, subject: This),
                             compulsion: Permit,
-                            deeds: [Action(label: "Cast")],
+                            deeds: [Action("Cast")],
                             role: Agent,
                             bound: None,
-                            patient: Counterpart(patient: This),
+                            patient: Counterpart(This),
                             as_though: None,
                             rider: Play(
                                 from: Zone(zone: Exile, scope: Bare),
                                 limit: None,
                                 timing: None,
                                 exclusive: false,
-                                payment: PayingInstead(cost: Param(0)),
+                                payment: PayingInstead(Param(0)),
                             ),
                         ),
                         duration: None,

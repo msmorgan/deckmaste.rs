@@ -15,8 +15,8 @@ KeywordAbility(
                 spec: EntryRider(
                     subject: AsMarker(marker: Permanent, subject: This),
                     rider: WithCounters(
-                        amount: Letter(letter: X),
-                        kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                        amount: Letter(X),
+                        kind: Printed(Boost(power: Up(1), toughness: Up(1))),
                         mark: Fresh,
                     ),
                 ),
@@ -34,7 +34,7 @@ KeywordAbility(
                 timing: None,
                 limit: None,
                 intervening: CompareAmt(
-                    subject: Letter(letter: X),
+                    subject: Letter(X),
                     comparator: AtLeast,
                     bound: 5,
                 ),

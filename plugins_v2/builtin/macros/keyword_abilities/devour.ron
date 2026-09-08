@@ -8,5 +8,5 @@ KeywordAbility(
     // STOP. "Devour N" means "As this object enters, you may sacrifice any number of
     // creatures. …" [CR#702.82a] `StaticSpec::Choice` makes an entry choice of a
     // quality or a player only; no entry clause performs an instruction.
-    body: Keyword(keyword: "Devour", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Devour", params: [Number(Param(0))], body: []),
 )

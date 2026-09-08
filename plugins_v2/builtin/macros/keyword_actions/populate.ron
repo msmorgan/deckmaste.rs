@@ -12,16 +12,16 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     body: Enact(
-        verb: Action(label: "Populate"),
-        instruction: Sequentially(steps: [
+        verb: Action("Populate"),
+        instruction: Sequentially([
         Choose(
             first: None,
             chosen: Described(
-                determiner: A(mode: Unmarked),
-                predicate: And(conjuncts: [
+                determiner: A(Unmarked),
+                predicate: And([
                     IsToken,
-                    HasType(type: Creature),
-                    InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                    HasType(Creature),
+                    InZone(Zone(zone: Battlefield, scope: Bare)),
                     HasPossessor(axis: Controller, possessor: You),
                 ]),
             ),
@@ -33,7 +33,7 @@ KeywordAction(
             count: 1,
             spec: Token(
                 spec: CopyOf(
-                    source: Pro(reach: Word(word: Token), plurality: One, window: Whole),
+                    source: Pro(reach: Word(Token), plurality: One, window: Whole),
                     exceptions: [],
                 ),
                 riders: [],

@@ -12,5 +12,5 @@ KeywordAbility(
     // `WhileSearchingLibrary` and `DuringEachOfYourTurns`, so the instant-speed window
     // inside one's own declare blockers step cannot be written (the cause Flash
     // carries).
-    body: Keyword(keyword: "Sneak", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Sneak", params: [Cost(Param(0))], body: []),
 )

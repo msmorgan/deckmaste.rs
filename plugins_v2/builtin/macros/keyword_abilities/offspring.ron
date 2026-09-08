@@ -18,5 +18,5 @@ KeywordAbility(
     // to satisfy the second ability would misdescribe the first, so the definition
     // waits on the law admitting a keyword whose two abilities function in different
     // zones (squad has the same shape).
-    body: Keyword(keyword: "Offspring", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Offspring", params: [Cost(Param(0))], body: []),
 )

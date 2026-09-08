@@ -16,11 +16,11 @@ KeywordAbility(
                 spec: DeonticRule(
                     subject: AsType(type: Creature, subject: This, subtype: None),
                     compulsion: Forbid,
-                    deeds: [Core(deed: Block)],
+                    deeds: [Core(Block)],
                     role: Patient,
-                    bound: MoreThan(amount: 1),
+                    bound: MoreThan(1),
                     patient: Counterpart(
-                        patient: Described(determiner: All, predicate: HasType(type: Creature)),
+                        patient: Described(determiner: All, predicate: HasType(Creature)),
                     ),
                     as_though: None,
                     rider: NoRider,

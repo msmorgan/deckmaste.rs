@@ -11,5 +11,5 @@ KeywordAbility(
     // gives a spell already on the stack a target: `Predicate::Targets` reads a
     // spell's targets and `ChooseNewTargets` re-chooses them, but no constructor adds
     // one. No predicate or designation names a mutating creature spell either.
-    body: Keyword(keyword: "Mutate", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Mutate", params: [Cost(Param(0))], body: []),
 )

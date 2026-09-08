@@ -16,7 +16,7 @@ KeywordAbility(
     // that is not written.
     body: Keyword(
         keyword: "Suspend",
-        params: [Number(amount: Param(0)), Cost(cost: Param(1))],
+        params: [Number(Param(0)), Cost(Param(1))],
         body: [],
     ),
 )

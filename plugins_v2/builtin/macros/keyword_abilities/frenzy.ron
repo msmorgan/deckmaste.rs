@@ -10,5 +10,5 @@ KeywordAbility(
     // blocked and blocking, but no relation and no `GameEvent` says "attacks and isn't
     // blocked", which fires in the declare blockers step, not at declare attackers;
     // an intervening-if on the attack event would be a different ability.
-    body: Keyword(keyword: "Frenzy", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Frenzy", params: [Number(Param(0))], body: []),
 )

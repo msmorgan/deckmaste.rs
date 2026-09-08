@@ -21,5 +21,5 @@ KeywordAction(
             ],
         ),
     ),
-    body: Shuffle(agent: Param(0)),
+    body: Shuffle(Param(0)),
 )

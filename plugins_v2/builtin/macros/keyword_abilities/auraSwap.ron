@@ -9,17 +9,17 @@ KeywordAbility(
     // Aura card in your hand." [CR#702.65a]
     body: Keyword(
         keyword: "AuraSwap",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Activated(
                 cost: Param(0),
                 instruction: WithContinuation(
-                    policy: Optional(agent: You),
+                    policy: Optional(You),
                     body: Exchange(
                         exchanged: CardsAcross(
                             left: AsMarker(marker: Permanent, subject: This),
                             right: Described(
-                                determiner: A(mode: Unmarked),
+                                determiner: A(Unmarked),
                                 predicate: And(
                                     conjuncts: [
                                         IsCard,
@@ -29,7 +29,7 @@ KeywordAbility(
                                         InZone(
                                             zone: Zone(
                                                 zone: Hand,
-                                                scope: PossessedBy(possessor: You),
+                                                scope: PossessedBy(You),
                                             ),
                                         ),
                                     ],

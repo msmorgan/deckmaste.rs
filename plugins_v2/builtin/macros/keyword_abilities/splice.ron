@@ -13,7 +13,7 @@ KeywordAbility(
     // `AddedAbilities` takes written abilities, not a card's text box.
     body: Keyword(
         keyword: "Splice",
-        params: [Quality(predicate: Param(0)), Cost(cost: Param(1))],
+        params: [Quality(Param(0)), Cost(Param(1))],
         body: [],
     ),
 )

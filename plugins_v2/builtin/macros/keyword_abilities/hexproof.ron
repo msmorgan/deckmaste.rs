@@ -16,7 +16,7 @@ KeywordAbility(
                 spec: DeonticRule(
                     subject: AsMarker(marker: Permanent, subject: This),
                     compulsion: Forbid,
-                    deeds: [Core(deed: Target)],
+                    deeds: [Core(Target)],
                     role: Patient,
                     bound: None,
                     patient: TargetedBy(
@@ -24,10 +24,10 @@ KeywordAbility(
                             determiner: All,
                             predicate: And(
                                 conjuncts: [
-                                    InZone(zone: Zone(zone: Stack, scope: Bare)),
+                                    InZone(Zone(zone: Stack, scope: Bare)),
                                     HasPossessor(
                                         axis: Controller,
-                                        possessor: PlayerGroup(group: YourOpponents),
+                                        possessor: PlayerGroup(YourOpponents),
                                     ),
                                 ],
                             ),

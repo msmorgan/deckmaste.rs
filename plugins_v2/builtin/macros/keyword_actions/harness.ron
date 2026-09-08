@@ -12,9 +12,9 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Harness"),
+        verb: Action("Harness"),
         instruction: DoIf(
-        condition: Not(condition: Matches(
+        condition: Not(Matches(
             subject: Param(0),
             predicate: HasDesignation(designation: "harnessed", holder: None),
         )),

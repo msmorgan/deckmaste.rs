@@ -16,7 +16,7 @@ KeywordAbility(
                 spec: DeonticRule(
                     subject: AsMarker(marker: Permanent, subject: This),
                     compulsion: Forbid,
-                    deeds: [Core(deed: Target)],
+                    deeds: [Core(Target)],
                     role: Patient,
                     bound: None,
                     patient: NoPatient,

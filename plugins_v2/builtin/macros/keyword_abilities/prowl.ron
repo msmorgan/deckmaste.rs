@@ -11,5 +11,5 @@ KeywordAbility(
     // TYPES." [CR#702.76a] No `Predicate` reads "shares a creature type with
     // <subject>"; the sharing comparison over a subtype axis has no constructor (the
     // cause Amplify carries).
-    body: Keyword(keyword: "Prowl", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Prowl", params: [Cost(Param(0))], body: []),
 )

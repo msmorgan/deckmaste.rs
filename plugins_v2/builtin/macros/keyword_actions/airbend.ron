@@ -11,21 +11,21 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Airbend"),
-        instruction: Sequentially(steps: [
+        verb: Action("Airbend"),
+        instruction: Sequentially([
         Move(subject: Param(0), to: Zone(zone: Exile, scope: Bare), riders: []),
         Establish(
             spec: DeonticRule(
                 subject: PossessorOf(
                     axis: Owner,
-                    subject: Pro(reach: Stamped(verb: Action(label: "Airbend")), plurality: Many, window: Whole),
+                    subject: Pro(reach: Stamped(Action("Airbend")), plurality: Many, window: Whole),
                 ),
                 compulsion: Permit,
-                deeds: [Action(label: "Cast")],
+                deeds: [Action("Cast")],
                 role: Agent,
                 bound: None,
                 patient: Counterpart(
-                    patient: Pro(reach: Stamped(verb: Action(label: "Airbend")), plurality: Many, window: Whole),
+                    patient: Pro(reach: Stamped(Action("Airbend")), plurality: Many, window: Whole),
                 ),
                 as_though: None,
                 rider: Play(
@@ -33,12 +33,12 @@ KeywordAction(
                     limit: None,
                     timing: None,
                     exclusive: false,
-                    payment: PayingInstead(cost: Mana(cost: [2])),
+                    payment: PayingInstead(Mana([2])),
                 ),
             ),
-            duration: ForAsLongAs(condition: Matches(
-                subject: Pro(reach: Stamped(verb: Action(label: "Airbend")), plurality: Many, window: Whole),
-                predicate: InZone(zone: Zone(zone: Exile, scope: Bare)),
+            duration: ForAsLongAs(Matches(
+                subject: Pro(reach: Stamped(Action("Airbend")), plurality: Many, window: Whole),
+                predicate: InZone(Zone(zone: Exile, scope: Bare)),
             )),
         ),
     ]),

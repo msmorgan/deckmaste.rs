@@ -9,7 +9,7 @@ KeywordAbility(
     // +N/+N until end of turn." [CR#702.45a]
     body: Keyword(
         keyword: "Bushido",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: Combat(
@@ -36,16 +36,16 @@ KeywordAbility(
                             Modification(
                                 subject: AsType(type: Creature, subject: This, subtype: None),
                                 stat: Power,
-                                delta: Up(amount: Param(0)),
+                                delta: Up(Param(0)),
                             ),
                             Modification(
                                 subject: AsType(type: Creature, subject: This, subtype: None),
                                 stat: Toughness,
-                                delta: Up(amount: Param(0)),
+                                delta: Up(Param(0)),
                             ),
                         ],
                     ),
-                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                    duration: Until(EndOf(part: Turn, whose: None)),
                 ),
             ),
         ],

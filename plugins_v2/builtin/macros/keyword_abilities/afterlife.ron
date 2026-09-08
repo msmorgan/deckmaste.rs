@@ -10,12 +10,12 @@ KeywordAbility(
     // flying." [CR#702.135a]
     body: Keyword(
         keyword: "Afterlife",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: ZoneChange(
                     subject: AsMarker(marker: Permanent, subject: This),
-                    from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                    from: Zones([Zone(zone: Battlefield, scope: Bare)]),
                     to: Zone(zone: Graveyard, scope: Bare),
                     observation: Before,
                 ),

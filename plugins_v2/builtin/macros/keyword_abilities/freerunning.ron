@@ -10,5 +10,5 @@ KeywordAbility(
     // damage, was an Assassin creature or a commander under your control"
     // [CR#702.173a]. There is no predicate for a commander, so the second half of the
     // damage source's description cannot be written.
-    body: Keyword(keyword: "Freerunning", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Freerunning", params: [Cost(Param(0))], body: []),
 )

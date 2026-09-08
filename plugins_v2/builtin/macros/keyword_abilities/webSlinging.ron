@@ -10,16 +10,16 @@ KeywordAbility(
     // its mana cost." [CR#702.188a]
     body: Keyword(
         keyword: "WebSlinging",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Static(
                 spec: DeonticRule(
                     subject: You,
                     compulsion: Permit,
-                    deeds: [Action(label: "Cast")],
+                    deeds: [Action("Cast")],
                     role: Agent,
                     bound: None,
-                    patient: Counterpart(patient: This),
+                    patient: Counterpart(This),
                     as_though: None,
                     rider: Play(
                         from: None,
@@ -32,14 +32,14 @@ KeywordAbility(
                                     Param(0),
                                     Perform(
                                         instruction: Enact(
-                                            verb: Core(deed: Return),
+                                            verb: Core(Return),
                                             instruction: Move(
                                                 subject: Described(
-                                                    determiner: A(mode: Unmarked),
+                                                    determiner: A(Unmarked),
                                                     predicate: And(
                                                         conjuncts: [
-                                                            HasType(type: Creature),
-                                                            HasStatus(status: Tapped),
+                                                            HasType(Creature),
+                                                            HasStatus(Tapped),
                                                             HasPossessor(
                                                                 axis: Controller,
                                                                 possessor: You,

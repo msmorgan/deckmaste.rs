@@ -12,13 +12,13 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Detain"),
+        verb: Action("Detain"),
         instruction: Establish(
         spec: Conjunction(subject: None, parts: [
             DeonticRule(
                 subject: Param(0),
                 compulsion: Forbid,
-                deeds: [Core(deed: Attack), Core(deed: Block)],
+                deeds: [Core(Attack), Core(Block)],
                 role: Agent,
                 bound: None,
                 patient: NoPatient,
@@ -28,13 +28,13 @@ KeywordAction(
             DeonticRule(
                 subject: Described(
                     determiner: All,
-                    predicate: And(conjuncts: [
-                        AbilityHead(class: AnyActivated),
-                        AbilityOf(source: Param(0)),
+                    predicate: And([
+                        AbilityHead(AnyActivated),
+                        AbilityOf(Param(0)),
                     ]),
                 ),
                 compulsion: Forbid,
-                deeds: [Action(label: "Activate")],
+                deeds: [Action("Activate")],
                 role: Patient,
                 bound: None,
                 patient: NoPatient,
@@ -42,7 +42,7 @@ KeywordAction(
                 rider: NoRider,
             ),
         ]),
-        duration: Until(end: StartOf(part: Turn, whose: PossessorOf(axis: Controller, subject: This))),
+        duration: Until(StartOf(part: Turn, whose: PossessorOf(axis: Controller, subject: This))),
     ),
         agent: None,
     ),

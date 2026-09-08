@@ -9,30 +9,30 @@ KeywordAbility(
     // cost if an opponent lost life this turn." [CR#702.137a]
     body: Keyword(
         keyword: "Spectacle",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Static(
                 spec: Conditional(
                     spec: DeonticRule(
                         subject: You,
                         compulsion: Permit,
-                        deeds: [Action(label: "Cast")],
+                        deeds: [Action("Cast")],
                         role: Agent,
                         bound: None,
-                        patient: Counterpart(patient: This),
+                        patient: Counterpart(This),
                         as_though: None,
                         rider: Play(
                             from: None,
                             limit: None,
                             timing: None,
                             exclusive: false,
-                            payment: PayingInstead(cost: Param(0)),
+                            payment: PayingInstead(Param(0)),
                         ),
                     ),
                     condition: Happened(
-                        subject: Described(determiner: A(mode: Unmarked), predicate: Opponent),
+                        subject: Described(determiner: A(Unmarked), predicate: Opponent),
                         lookback: Mk(
-                            event: LifeChanges(player: Gap(kind: Player), r#move: Down),
+                            event: LifeChanges(player: Gap(Player), r#move: Down),
                             lookback: ThisTurn,
                         ),
                     ),

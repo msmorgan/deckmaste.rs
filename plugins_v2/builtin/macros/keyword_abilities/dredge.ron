@@ -10,20 +10,20 @@ KeywordAbility(
     // graveyard to your hand." [CR#702.52a]
     body: Keyword(
         keyword: "Dredge",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Static(
                 spec: Conditional(
                     spec: Replacement(
-                        event: Draws(player: You),
+                        event: Draws(You),
                         alternatives: [],
                         timing: None,
                         replacement: WithContinuation(
-                            policy: Optional(agent: You),
+                            policy: Optional(You),
                             body: Sequentially(
                                 steps: [
                                     Enact(
-                                        verb: Action(label: "Mill"),
+                                        verb: Action("Mill"),
                                         instruction: Move(
                                             subject: LibrarySlice(
                                                 end: Top,
@@ -36,7 +36,7 @@ KeywordAbility(
                                         agent: You,
                                     ),
                                     Enact(
-                                        verb: Core(deed: Return),
+                                        verb: Core(Return),
                                         instruction: Move(
                                             subject: This,
                                             to: Zone(zone: Hand, scope: Bare),
@@ -62,7 +62,7 @@ KeywordAbility(
                                         InZone(
                                             zone: Zone(
                                                 zone: Library,
-                                                scope: PossessedBy(possessor: You),
+                                                scope: PossessedBy(You),
                                             ),
                                         ),
                                     ],

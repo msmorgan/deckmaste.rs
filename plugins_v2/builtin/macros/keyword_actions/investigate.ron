@@ -11,18 +11,18 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     body: Enact(
-        verb: Action(label: "Investigate"),
+        verb: Action("Investigate"),
         instruction: CreateObject(
         count: 1,
         spec: Token(
-            spec: Written(characteristics: (characteristics: (
+            spec: Written((characteristics: (
                 types: [Artifact],
                 subtypes: [Of(host: Artifact, label: "Clue")],
                 text: [Activated(
-                    cost: Compound(costs: [
-                        Mana(cost: [2]),
-                        Perform(instruction: Enact(
-                            verb: Action(label: "Sacrifice"),
+                    cost: Compound([
+                        Mana([2]),
+                        Perform(Enact(
+                            verb: Action("Sacrifice"),
                             instruction: Move(subject: This, to: Zone(zone: Graveyard, scope: Bare), riders: []),
                             agent: You,
                         )),

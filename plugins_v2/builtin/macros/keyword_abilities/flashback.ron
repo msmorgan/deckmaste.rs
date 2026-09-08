@@ -12,23 +12,23 @@ KeywordAbility(
     // [CR#702.34a]
     body: Keyword(
         keyword: "Flashback",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Static(
                 spec: DeonticRule(
                     subject: You,
                     compulsion: Permit,
-                    deeds: [Action(label: "Cast")],
+                    deeds: [Action("Cast")],
                     role: Agent,
                     bound: None,
-                    patient: Counterpart(patient: This),
+                    patient: Counterpart(This),
                     as_though: None,
                     rider: Play(
-                        from: Zone(zone: Graveyard, scope: PossessedBy(possessor: You)),
+                        from: Zone(zone: Graveyard, scope: PossessedBy(You)),
                         limit: None,
                         timing: None,
                         exclusive: false,
-                        payment: PayingInstead(cost: Param(0)),
+                        payment: PayingInstead(Param(0)),
                     ),
                 ),
             ),
@@ -37,14 +37,14 @@ KeywordAbility(
                     spec: Replacement(
                         event: ZoneChange(
                             subject: AsMarker(marker: Spell, subject: This),
-                            from: Zones(zones: [Zone(zone: Stack, scope: Bare)]),
+                            from: Zones([Zone(zone: Stack, scope: Bare)]),
                             to: None,
                             observation: Before,
                         ),
                         alternatives: [],
                         timing: None,
                         replacement: Enact(
-                            verb: Action(label: "Exile"),
+                            verb: Action("Exile"),
                             instruction: Move(
                                 subject: AsMarker(marker: Spell, subject: This),
                                 to: Zone(zone: Exile, scope: Bare),
@@ -57,7 +57,7 @@ KeywordAbility(
                     ),
                     condition: CompareAmt(
                         subject: Paid(
-                            facet: Readback(which: ByKeyword(keyword: "Flashback"), lookback: None),
+                            facet: Readback(which: ByKeyword("Flashback"), lookback: None),
                             subject: AsMarker(marker: Spell, subject: This),
                         ),
                         comparator: AtLeast,

@@ -15,11 +15,11 @@ KeywordAbility(
                 event: Casts(
                     player: You,
                     spell: Described(
-                        determiner: A(mode: Unmarked),
+                        determiner: A(Unmarked),
                         predicate: And(
                             conjuncts: [
-                                InZone(zone: Zone(zone: Stack, scope: Bare)),
-                                Not(predicate: HasType(type: Creature)),
+                                InZone(Zone(zone: Stack, scope: Bare)),
+                                Not(HasType(Creature)),
                             ],
                         ),
                     ),
@@ -38,16 +38,16 @@ KeywordAbility(
                             Modification(
                                 subject: AsType(type: Creature, subject: This, subtype: None),
                                 stat: Power,
-                                delta: Up(amount: 1),
+                                delta: Up(1),
                             ),
                             Modification(
                                 subject: AsType(type: Creature, subject: This, subtype: None),
                                 stat: Toughness,
-                                delta: Up(amount: 1),
+                                delta: Up(1),
                             ),
                         ],
                     ),
-                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                    duration: Until(EndOf(part: Turn, whose: None)),
                 ),
             ),
         ],

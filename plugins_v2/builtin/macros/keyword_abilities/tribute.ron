@@ -11,5 +11,5 @@ KeywordAbility(
     // optional and none is decided by a player other than the permanent's controller:
     // `StaticSpec::EntryRider` takes a `TokenRider` and only `TokenRider::AsCopyOf`
     // carries an `optional` flag (the cause Riot and Unleash share).
-    body: Keyword(keyword: "Tribute", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Tribute", params: [Number(Param(0))], body: []),
 )

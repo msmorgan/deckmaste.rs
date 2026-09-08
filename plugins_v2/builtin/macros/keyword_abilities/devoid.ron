@@ -14,7 +14,7 @@ KeywordAbility(
             Static(
                 spec: CharacteristicChange(
                     subject: This,
-                    edits: [Colors(op: Sets, colors: r#Some(colors: []))],
+                    edits: [Colors(op: Sets, colors: r#Some([]))],
                 ),
             ),
         ],

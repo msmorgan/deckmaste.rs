@@ -23,14 +23,14 @@ KeywordAbility(
                                 subject: AsMarker(marker: Spell, subject: This),
                             ),
                             kind: Printed(
-                                kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1)),
+                                kind: Boost(power: Up(1), toughness: Up(1)),
                             ),
                             mark: Fresh,
                         ),
                     ),
                     condition: Matches(
                         subject: AsMarker(marker: Permanent, subject: This),
-                        predicate: HasType(type: Creature),
+                        predicate: HasType(Creature),
                     ),
                     marking: AsLongAs,
                 ),
@@ -44,14 +44,14 @@ KeywordAbility(
                                 facet: ColorsSpent,
                                 subject: AsMarker(marker: Spell, subject: This),
                             ),
-                            kind: Printed(kind: Named(label: "Charge")),
+                            kind: Printed(Named("Charge")),
                             mark: Fresh,
                         ),
                     ),
                     condition: Not(
                         condition: Matches(
                             subject: AsMarker(marker: Permanent, subject: This),
-                            predicate: HasType(type: Creature),
+                            predicate: HasType(Creature),
                         ),
                     ),
                     marking: AsLongAs,

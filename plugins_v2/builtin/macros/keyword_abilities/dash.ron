@@ -9,5 +9,5 @@ KeywordAbility(
     // permanent this spell becomes to its owner's hand at the beginning of the next
     // end step" [CR#702.109a] — a static that creates a delayed triggered ability.
     // No `StaticSpec` creates one.
-    body: Keyword(keyword: "Dash", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Dash", params: [Cost(Param(0))], body: []),
 )

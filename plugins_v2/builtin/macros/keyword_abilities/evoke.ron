@@ -10,23 +10,23 @@ KeywordAbility(
     // controller sacrifices it." [CR#702.74a]
     body: Keyword(
         keyword: "Evoke",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Static(
                 spec: DeonticRule(
                     subject: You,
                     compulsion: Permit,
-                    deeds: [Action(label: "Cast")],
+                    deeds: [Action("Cast")],
                     role: Agent,
                     bound: None,
-                    patient: Counterpart(patient: This),
+                    patient: Counterpart(This),
                     as_though: None,
                     rider: Play(
                         from: None,
                         limit: None,
                         timing: None,
                         exclusive: false,
-                        payment: PayingInstead(cost: Param(0)),
+                        payment: PayingInstead(Param(0)),
                     ),
                 ),
             ),
@@ -44,14 +44,14 @@ KeywordAbility(
                 limit: None,
                 intervening: CompareAmt(
                     subject: Paid(
-                        facet: Readback(which: ByKeyword(keyword: "Evoke"), lookback: None),
+                        facet: Readback(which: ByKeyword("Evoke"), lookback: None),
                         subject: AsMarker(marker: Permanent, subject: This),
                     ),
                     comparator: AtLeast,
                     bound: 1,
                 ),
                 instruction: Enact(
-                    verb: Action(label: "Sacrifice"),
+                    verb: Action("Sacrifice"),
                     instruction: Move(
                         subject: AsMarker(marker: Permanent, subject: This),
                         to: Zone(zone: Graveyard, scope: Bare),

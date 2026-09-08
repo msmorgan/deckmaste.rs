@@ -9,5 +9,5 @@ KeywordAbility(
     // from your hand that share a creature type with it. …" [CR#702.38a] No
     // `Predicate` reads "shares a creature type with <subject>": the sharing
     // comparison over a subtype axis has no constructor.
-    body: Keyword(keyword: "Amplify", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Amplify", params: [Number(Param(0))], body: []),
 )

@@ -33,12 +33,12 @@ KeywordAbility(
                                 predicate: And(
                                     conjuncts: [
                                         Opponent,
-                                        OtherThan(anchor: CombatPlayer(role: Defending)),
+                                        OtherThan(CombatPlayer(Defending)),
                                     ],
                                 ),
                             ),
                             body: WithContinuation(
-                                policy: Optional(agent: You),
+                                policy: Optional(You),
                                 body: CreateObject(
                                     count: 1,
                                     spec: Token(
@@ -51,20 +51,20 @@ KeywordAbility(
                                             exceptions: [],
                                         ),
                                         riders: [
-                                            EntersAs(status: Tapped),
+                                            EntersAs(Tapped),
                                             EntersAttacking(
                                                 defender: Or(
                                                     phrases: [
                                                         Pro(
-                                                            reach: Word(word: Player),
+                                                            reach: Word(Player),
                                                             plurality: One,
                                                             window: Whole,
                                                         ),
                                                         Described(
-                                                            determiner: A(mode: Unmarked),
+                                                            determiner: A(Unmarked),
                                                             predicate: And(
                                                                 conjuncts: [
-                                                                    HasType(type: Planeswalker),
+                                                                    HasType(Planeswalker),
                                                                     HasPossessor(
                                                                         axis: Controller,
                                                                         possessor: Pro(
@@ -110,7 +110,7 @@ KeywordAbility(
                                 alternatives: [],
                                 duration: None,
                                 body: Enact(
-                                    verb: Action(label: "Exile"),
+                                    verb: Action("Exile"),
                                     instruction: Move(
                                         subject: Pro(
                                             reach: TokenBorn,

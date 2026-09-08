@@ -9,7 +9,7 @@ KeywordAbility(
     // loses N life." [CR#702.130a]
     body: Keyword(
         keyword: "Afflict",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: Combat(
@@ -24,8 +24,8 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: ChangeLife(
-                    delta: Down(amount: Param(0)),
-                    agent: CombatPlayer(role: Defending),
+                    delta: Down(Param(0)),
+                    agent: CombatPlayer(Defending),
                 ),
             ),
         ],

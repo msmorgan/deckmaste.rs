@@ -11,10 +11,10 @@ KeywordAbility(
     // [CR#702.24a]
     body: Keyword(
         keyword: "CumulativeUpkeep",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Triggered(
-                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(player: You)),
+                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(You)),
                 alternatives: [],
                 r#while: None,
                 joins: [],
@@ -22,17 +22,17 @@ KeywordAbility(
                 limit: None,
                 intervening: Matches(
                     subject: AsMarker(marker: Permanent, subject: This),
-                    predicate: InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                    predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
                 ),
                 instruction: Sequentially(
                     steps: [
                         PutCounters(
                             amount: 1,
-                            kind: Printed(kind: Named(label: "Age")),
+                            kind: Printed(Named("Age")),
                             on: AsMarker(marker: Permanent, subject: This),
                         ),
                         WithContinuation(
-                            policy: Optional(agent: You),
+                            policy: Optional(You),
                             body: Pay(
                                 cost: Scaled(
                                     cost: Param(0),
@@ -40,7 +40,7 @@ KeywordAbility(
                                         op: Times,
                                         left: 1,
                                         right: StatOf(
-                                            axis: Counter(kind: Named(label: "Age")),
+                                            axis: Counter(Named("Age")),
                                             subject: AsMarker(marker: Permanent, subject: This),
                                         ),
                                     ),
@@ -50,7 +50,7 @@ KeywordAbility(
                             ),
                             if_did: None,
                             if_not: Enact(
-                                verb: Action(label: "Sacrifice"),
+                                verb: Action("Sacrifice"),
                                 instruction: Move(
                                     subject: AsMarker(marker: Permanent, subject: This),
                                     to: Zone(zone: Graveyard, scope: Bare),

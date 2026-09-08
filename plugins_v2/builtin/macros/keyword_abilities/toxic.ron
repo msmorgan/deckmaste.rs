@@ -14,5 +14,5 @@ KeywordAbility(
     // `StaticSpec::DamageRule` only prevents, redirects or scales (the cause Infect
     // carries). Poisonous, which the CR does spell out as a triggered ability
     // [CR#702.70a], is written; toxic is not that shape.
-    body: Keyword(keyword: "Toxic", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Toxic", params: [Number(Param(0))], body: []),
 )

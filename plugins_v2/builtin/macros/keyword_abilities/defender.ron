@@ -14,7 +14,7 @@ KeywordAbility(
                 spec: DeonticRule(
                     subject: AsType(type: Creature, subject: This, subtype: None),
                     compulsion: Forbid,
-                    deeds: [Core(deed: Attack)],
+                    deeds: [Core(Attack)],
                     role: Agent,
                     bound: None,
                     patient: NoPatient,

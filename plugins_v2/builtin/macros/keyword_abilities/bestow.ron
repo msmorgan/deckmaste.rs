@@ -11,7 +11,7 @@ KeywordAbility(
     // not part of the quoted definition.
     body: Keyword(
         keyword: "Bestow",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Static(
                 spec: AltCost(subject: AsMarker(marker: Spell, subject: This), cost: Param(0)),

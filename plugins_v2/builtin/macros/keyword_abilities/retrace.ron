@@ -16,13 +16,13 @@ KeywordAbility(
                 spec: DeonticRule(
                     subject: You,
                     compulsion: Permit,
-                    deeds: [Action(label: "Cast")],
+                    deeds: [Action("Cast")],
                     role: Agent,
                     bound: None,
-                    patient: Counterpart(patient: This),
+                    patient: Counterpart(This),
                     as_though: None,
                     rider: Play(
-                        from: Zone(zone: Graveyard, scope: PossessedBy(possessor: You)),
+                        from: Zone(zone: Graveyard, scope: PossessedBy(You)),
                         limit: None,
                         timing: None,
                         exclusive: false,
@@ -32,14 +32,14 @@ KeywordAbility(
                                     ItsManaCost,
                                     Perform(
                                         instruction: Enact(
-                                            verb: Action(label: "Discard"),
+                                            verb: Action("Discard"),
                                             instruction: Move(
                                                 subject: Described(
-                                                    determiner: A(mode: Unmarked),
+                                                    determiner: A(Unmarked),
                                                     predicate: And(
                                                         conjuncts: [
                                                             IsCard,
-                                                            HasType(type: Land),
+                                                            HasType(Land),
                                                             InZone(
                                                                 zone: Zone(
                                                                     zone: Hand,

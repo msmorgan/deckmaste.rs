@@ -11,7 +11,7 @@ KeywordAbility(
     // sorcery." [CR#702.129a]
     body: Keyword(
         keyword: "Eternalize",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Activated(
                 cost: Compound(
@@ -19,7 +19,7 @@ KeywordAbility(
                         Param(0),
                         Perform(
                             instruction: Enact(
-                                verb: Action(label: "Exile"),
+                                verb: Action("Exile"),
                                 instruction: Move(
                                     subject: This,
                                     to: Zone(zone: Exile, scope: Bare),
@@ -38,10 +38,10 @@ KeywordAbility(
                             exceptions: [
                                 Edits(
                                     edits: [
-                                        Colors(op: Sets, colors: r#Some(colors: [Black])),
+                                        Colors(op: Sets, colors: r#Some([Black])),
                                         Stat(op: Sets, axis: Power, amount: 4),
                                         Stat(op: Sets, axis: Toughness, amount: 4),
-                                        ManaCost(cost: None),
+                                        ManaCost(None),
                                         TypeLine(
                                             op: Adds,
                                             changes: (subtypes: [Of(host: Creature, label: "Zombie")]),

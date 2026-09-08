@@ -11,7 +11,7 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Sacrifice"),
+        verb: Action("Sacrifice"),
         instruction: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
         agent: Param(1),
     ),

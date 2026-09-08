@@ -9,5 +9,5 @@ KeywordAbility(
     // total power N or greater" [CR#702.122a]. No `NounPhrase` selects an
     // unbounded group by an aggregate bound on a stat of the whole group;
     // `Predicate::CompareOver` compares each member.
-    body: Keyword(keyword: "Crew", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Crew", params: [Number(Param(0))], body: []),
 )

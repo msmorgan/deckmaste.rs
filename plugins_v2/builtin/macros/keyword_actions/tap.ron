@@ -9,7 +9,7 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Tap"),
+        verb: Action("Tap"),
         instruction: SetStatus(status: Tapped, subject: Param(0)),
         agent: None,
     ),

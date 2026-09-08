@@ -10,5 +10,5 @@ KeywordAbility(
     // step" [CR#702.152a] — a static that creates a delayed triggered ability. No
     // `StaticSpec` creates one; `Instruction::Delay` is an instruction and no
     // static clause carries an instruction outside `Replacement`.
-    body: Keyword(keyword: "Blitz", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Blitz", params: [Cost(Param(0))], body: []),
 )

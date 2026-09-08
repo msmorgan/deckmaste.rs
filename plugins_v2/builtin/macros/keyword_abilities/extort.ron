@@ -16,11 +16,11 @@ KeywordAbility(
                 event: Casts(
                     player: You,
                     spell: Described(
-                        determiner: A(mode: Unmarked),
+                        determiner: A(Unmarked),
                         predicate: And(
                             conjuncts: [
-                                InZone(zone: Zone(zone: Stack, scope: Bare)),
-                                Not(predicate: AbilityHead(class: AnyOnStack)),
+                                InZone(Zone(zone: Stack, scope: Bare)),
+                                Not(AbilityHead(AnyOnStack)),
                             ],
                         ),
                     ),
@@ -33,19 +33,19 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: WithContinuation(
-                    policy: Optional(agent: You),
+                    policy: Optional(You),
                     body: Pay(
-                        cost: Mana(cost: [Hybrid(left: White, right: Black)]),
+                        cost: Mana([Hybrid(left: White, right: Black)]),
                         times: Once,
                         agent: You,
                     ),
                     if_did: Sequentially(
                         steps: [
                             ChangeLife(
-                                delta: Down(amount: 1),
+                                delta: Down(1),
                                 agent: Described(determiner: Each, predicate: Opponent),
                             ),
-                            ChangeLife(delta: Up(amount: ThatMuch), agent: You),
+                            ChangeLife(delta: Up(ThatMuch), agent: You),
                         ],
                     ),
                     if_not: None,

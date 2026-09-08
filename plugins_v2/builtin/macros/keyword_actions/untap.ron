@@ -9,7 +9,7 @@ KeywordAction(
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
     ),
     body: Enact(
-        verb: Action(label: "Untap"),
+        verb: Action("Untap"),
         instruction: SetStatus(status: Untapped, subject: Param(0)),
         agent: None,
     ),

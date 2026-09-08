@@ -12,18 +12,18 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Behold"),
+        verb: Action("Behold"),
         instruction: ChooseModes(
         quantity: Range(low: 1, high: 1),
         modes: [
             (None, Expose(
                 verb: Reveal,
-                exposed: Cards(cards: Described(
-                    determiner: A(mode: Unmarked),
-                    predicate: And(conjuncts: [
+                exposed: Cards(Described(
+                    determiner: A(Unmarked),
+                    predicate: And([
                         IsCard,
                         Param(0),
-                        InZone(zone: Zone(zone: Hand, scope: PossessedBy(possessor: You))),
+                        InZone(Zone(zone: Hand, scope: PossessedBy(You))),
                     ]),
                 )),
                 agent: You,
@@ -31,10 +31,10 @@ KeywordAction(
             (None, Choose(
                 first: None,
                 chosen: Described(
-                    determiner: A(mode: Unmarked),
-                    predicate: And(conjuncts: [
+                    determiner: A(Unmarked),
+                    predicate: And([
                         Param(0),
-                        InZone(zone: Zone(zone: Battlefield, scope: Bare)),
+                        InZone(Zone(zone: Battlefield, scope: Bare)),
                         HasPossessor(axis: Controller, possessor: You),
                     ]),
                 ),

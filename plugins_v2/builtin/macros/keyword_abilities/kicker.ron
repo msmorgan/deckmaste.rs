@@ -10,7 +10,7 @@ KeywordAbility(
     // [CR#702.33a]
     body: Keyword(
         keyword: "Kicker",
-        params: [Cost(cost: Param(0))],
-        body: [Static(spec: AddedCost(cost: Param(0), offered: true))],
+        params: [Cost(Param(0))],
+        body: [Static(AddedCost(cost: Param(0), offered: true))],
     ),
 )

@@ -10,7 +10,7 @@ KeywordAbility(
     // the beginning of the next end step." [CR#702.181a]
     body: Keyword(
         keyword: "Mobilize",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: Combat(
@@ -41,8 +41,8 @@ KeywordAbility(
                                     ),
                                 ),
                                 riders: [
-                                    EntersAs(status: Tapped),
-                                    EntersAttacking(defender: None),
+                                    EntersAs(Tapped),
+                                    EntersAttacking(None),
                                 ],
                             ),
                             agent: You,
@@ -56,7 +56,7 @@ KeywordAbility(
                             alternatives: [],
                             duration: None,
                             body: Enact(
-                                verb: Action(label: "Sacrifice"),
+                                verb: Action("Sacrifice"),
                                 instruction: Move(
                                     subject: Pro(
                                         reach: TokenBorn,

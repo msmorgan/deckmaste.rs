@@ -13,7 +13,7 @@ KeywordAction(
         ),
     ),
     body: Enact(
-        verb: Action(label: "Attach"),
+        verb: Action("Attach"),
         instruction: Attachment(move: Attached, subject: Param(0), host: Param(1)),
         agent: None,
     ),

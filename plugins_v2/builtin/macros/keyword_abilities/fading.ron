@@ -10,20 +10,20 @@ KeywordAbility(
     // can't, sacrifice the permanent." [CR#702.32a]
     body: Keyword(
         keyword: "Fading",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Static(
                 spec: EntryRider(
                     subject: AsMarker(marker: Permanent, subject: This),
                     rider: WithCounters(
                         amount: Param(0),
-                        kind: Printed(kind: Named(label: "Fade")),
+                        kind: Printed(Named("Fade")),
                         mark: Fresh,
                     ),
                 ),
             ),
             Triggered(
-                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(player: You)),
+                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(You)),
                 alternatives: [],
                 r#while: None,
                 joins: [],
@@ -34,12 +34,12 @@ KeywordAbility(
                     policy: Required,
                     body: RemoveCounters(
                         quantity: Range(low: 1, high: 1),
-                        kind: Printed(kind: Named(label: "Fade")),
+                        kind: Printed(Named("Fade")),
                         from: AsMarker(marker: Permanent, subject: This),
                     ),
                     if_did: None,
                     if_not: Enact(
-                        verb: Action(label: "Sacrifice"),
+                        verb: Action("Sacrifice"),
                         instruction: Move(
                             subject: AsMarker(marker: Permanent, subject: This),
                             to: Zone(zone: Graveyard, scope: Bare),

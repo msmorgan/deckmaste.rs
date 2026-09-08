@@ -11,37 +11,37 @@ KeywordAbility(
     // `PlayerGroupWord::YourTeam` names.
     body: Keyword(
         keyword: "Surge",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Static(
                 spec: Conditional(
                     spec: DeonticRule(
                         subject: You,
                         compulsion: Permit,
-                        deeds: [Action(label: "Cast")],
+                        deeds: [Action("Cast")],
                         role: Agent,
                         bound: None,
-                        patient: Counterpart(patient: This),
+                        patient: Counterpart(This),
                         as_though: None,
                         rider: Play(
                             from: None,
                             limit: None,
                             timing: None,
                             exclusive: false,
-                            payment: PayingInstead(cost: Param(0)),
+                            payment: PayingInstead(Param(0)),
                         ),
                     ),
                     condition: Happened(
-                        subject: PlayerGroup(group: YourTeam),
+                        subject: PlayerGroup(YourTeam),
                         lookback: Mk(
                             event: Casts(
-                                player: Gap(kind: Player),
+                                player: Gap(Player),
                                 spell: Described(
-                                    determiner: A(mode: Unmarked),
+                                    determiner: A(Unmarked),
                                     predicate: And(
                                         conjuncts: [
-                                            InZone(zone: Zone(zone: Stack, scope: Bare)),
-                                            Not(predicate: AbilityHead(class: AnyOnStack)),
+                                            InZone(Zone(zone: Stack, scope: Bare)),
+                                            Not(AbilityHead(AnyOnStack)),
                                             OtherThan(
                                                 anchor: AsMarker(marker: Spell, subject: This),
                                             ),

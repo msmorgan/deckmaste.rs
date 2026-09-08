@@ -10,5 +10,5 @@ KeywordAbility(
     // [CR#702.75a]. `actFacts` names no looking deed, so that granted permission cannot
     // be written: `Instruction::Expose(verb: LookAt, …)` is an instruction, and a
     // `DeonticRule` permits deeds, not instructions.
-    body: Keyword(keyword: "Hideaway", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Hideaway", params: [Number(Param(0))], body: []),
 )

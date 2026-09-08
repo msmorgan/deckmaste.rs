@@ -25,23 +25,23 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: WithContinuation(
-                    policy: Optional(agent: You),
+                    policy: Optional(You),
                     body: Establish(
                         spec: DeonticRule(
                             subject: Described(
-                                determiner: Target(quantity: Range(low: 1, high: 1)),
+                                determiner: Target(Range(low: 1, high: 1)),
                                 predicate: And(
                                     conjuncts: [
-                                        HasType(type: Creature),
+                                        HasType(Creature),
                                         HasPossessor(
                                             axis: Controller,
-                                            possessor: CombatPlayer(role: Defending),
+                                            possessor: CombatPlayer(Defending),
                                         ),
                                     ],
                                 ),
                             ),
                             compulsion: Require,
-                            deeds: [Core(deed: Block)],
+                            deeds: [Core(Block)],
                             role: Agent,
                             bound: None,
                             patient: Counterpart(
@@ -50,14 +50,14 @@ KeywordAbility(
                             as_though: None,
                             rider: NoRider,
                         ),
-                        duration: Until(end: EndOf(part: Combat, whose: None)),
+                        duration: Until(EndOf(part: Combat, whose: None)),
                     ),
                     if_did: Enact(
-                        verb: Action(label: "Untap"),
+                        verb: Action("Untap"),
                         instruction: SetStatus(
                             status: Untapped,
                             subject: Pro(
-                                reach: Word(word: Type(type: Creature)),
+                                reach: Word(Type(Creature)),
                                 plurality: One,
                                 window: Whole,
                             ),

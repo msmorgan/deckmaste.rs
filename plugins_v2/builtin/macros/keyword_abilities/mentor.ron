@@ -26,18 +26,18 @@ KeywordAbility(
                 intervening: None,
                 instruction: PutCounters(
                     amount: 1,
-                    kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
                     on: Described(
-                        determiner: Target(quantity: Range(low: 1, high: 1)),
+                        determiner: Target(Range(low: 1, high: 1)),
                         predicate: And(
                             conjuncts: [
-                                HasType(type: Creature),
+                                HasType(Creature),
                                 InCombat(relation: AttackerOf, counterpart: None),
                                 Compare(
-                                    axes: [Stat(stat: Power)],
+                                    axes: [Stat(Power)],
                                     comparator: Less,
                                     bound: StatOf(
-                                        axis: Stat(stat: Power),
+                                        axis: Stat(Power),
                                         subject: AsType(
                                             type: Creature,
                                             subject: This,

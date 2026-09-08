@@ -19,5 +19,5 @@ KeywordAbility(
     // whose registry row gives it an agent role and NO patient role, so
     // `verbPatientOk` refuses every noun phrase there — the shape Protection's `Attach`
     // row and Indestructible's `Destroy` row already carry.
-    body: Keyword(keyword: "Ripple", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Ripple", params: [Number(Param(0))], body: []),
 )

@@ -29,7 +29,7 @@ KeywordAbility(
                             determiner: Each,
                             predicate: And(
                                 conjuncts: [
-                                    HasType(type: Creature),
+                                    HasType(Creature),
                                     InCombat(relation: AttackerOf, counterpart: None),
                                     OtherThan(
                                         anchor: AsType(
@@ -42,9 +42,9 @@ KeywordAbility(
                             ),
                         ),
                         stat: Power,
-                        delta: Up(amount: 1),
+                        delta: Up(1),
                     ),
-                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                    duration: Until(EndOf(part: Turn, whose: None)),
                 ),
             ),
         ],

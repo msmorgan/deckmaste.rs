@@ -10,7 +10,7 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Mill"),
+        verb: Action("Mill"),
         instruction: Move(
         subject: LibrarySlice(end: Top, amount: Param(0), whose: Param(1)),
         to: Zone(zone: Graveyard, scope: Bare),

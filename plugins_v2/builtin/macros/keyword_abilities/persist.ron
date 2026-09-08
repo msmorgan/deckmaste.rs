@@ -15,7 +15,7 @@ KeywordAbility(
             Triggered(
                 event: ZoneChange(
                     subject: AsMarker(marker: Permanent, subject: This),
-                    from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
+                    from: Zones([Zone(zone: Battlefield, scope: Bare)]),
                     to: Zone(zone: Graveyard, scope: Bare),
                     observation: Before,
                 ),
@@ -28,12 +28,12 @@ KeywordAbility(
                     condition: Matches(
                         subject: AsMarker(marker: Permanent, subject: This),
                         predicate: HasCounters(
-                            kind: Boost(power: Down(amount: 1), toughness: Down(amount: 1)),
+                            kind: Boost(power: Down(1), toughness: Down(1)),
                         ),
                     ),
                 ),
                 instruction: Enact(
-                    verb: Core(deed: Return),
+                    verb: Core(Return),
                     instruction: Move(
                         subject: AsMarker(marker: Permanent, subject: This),
                         to: Zone(zone: Battlefield, scope: Bare),
@@ -48,8 +48,8 @@ KeywordAbility(
                                 amount: 1,
                                 kind: Printed(
                                     kind: Boost(
-                                        power: Down(amount: 1),
-                                        toughness: Down(amount: 1),
+                                        power: Down(1),
+                                        toughness: Down(1),
                                     ),
                                 ),
                                 mark: Fresh,

@@ -12,7 +12,7 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Exert"),
+        verb: Action("Exert"),
         instruction: SkipUntap(subject: Param(0), steps: 1),
         agent: None,
     ),

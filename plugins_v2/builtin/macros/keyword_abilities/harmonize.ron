@@ -9,5 +9,5 @@ KeywordAbility(
     // mana equal to the tapped creature's power" [CR#702.180a]. Nothing links it back
     // to the creature the first static's cost tapped — the same missing linked
     // reference that stops emerge.
-    body: Keyword(keyword: "Harmonize", params: [Cost(cost: Param(0))], body: []),
+    body: Keyword(keyword: "Harmonize", params: [Cost(Param(0))], body: []),
 )

@@ -10,7 +10,7 @@ KeywordAbility(
     // [CR#702.123a]
     body: Keyword(
         keyword: "Fabricate",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: ZoneChange(
@@ -26,10 +26,10 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: WithContinuation(
-                    policy: Optional(agent: You),
+                    policy: Optional(You),
                     body: PutCounters(
                         amount: Param(0),
-                        kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
+                        kind: Printed(Boost(power: Up(1), toughness: Up(1))),
                         on: AsMarker(marker: Permanent, subject: This),
                     ),
                     if_did: None,

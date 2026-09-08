@@ -10,32 +10,32 @@ KeywordAbility(
     // cost." [CR#702.187b]
     body: Keyword(
         keyword: "Mayhem",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Static(
                 spec: Conditional(
                     spec: DeonticRule(
                         subject: You,
                         compulsion: Permit,
-                        deeds: [Action(label: "Cast")],
+                        deeds: [Action("Cast")],
                         role: Agent,
                         bound: None,
-                        patient: Counterpart(patient: This),
+                        patient: Counterpart(This),
                         as_though: None,
                         rider: Play(
-                            from: Zone(zone: Graveyard, scope: PossessedBy(possessor: You)),
+                            from: Zone(zone: Graveyard, scope: PossessedBy(You)),
                             limit: None,
                             timing: None,
                             exclusive: false,
-                            payment: PayingInstead(cost: Param(0)),
+                            payment: PayingInstead(Param(0)),
                         ),
                     ),
                     condition: Happened(
                         subject: You,
                         lookback: Mk(
                             event: VerbedEvent(
-                                agent: Gap(kind: Player),
-                                verb: Action(label: "Discard"),
+                                agent: Gap(Player),
+                                verb: Action("Discard"),
                                 patient: This,
                                 becomes: None,
                                 locus: None,

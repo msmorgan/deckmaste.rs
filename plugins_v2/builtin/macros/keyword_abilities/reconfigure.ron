@@ -11,20 +11,20 @@ KeywordAbility(
     // as a sorcery." [CR#702.151a]
     body: Keyword(
         keyword: "Reconfigure",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Activated(
                 cost: Param(0),
                 instruction: Enact(
-                    verb: Action(label: "Attach"),
+                    verb: Action("Attach"),
                     instruction: Attachment(
                         r#move: Attached,
                         subject: AsMarker(marker: Permanent, subject: This),
                         host: Described(
-                            determiner: Target(quantity: Range(low: 1, high: 1)),
+                            determiner: Target(Range(low: 1, high: 1)),
                             predicate: And(
                                 conjuncts: [
-                                    HasType(type: Creature),
+                                    HasType(Creature),
                                     OtherThan(
                                         anchor: AsMarker(marker: Permanent, subject: This),
                                     ),
@@ -43,7 +43,7 @@ KeywordAbility(
             Activated(
                 cost: Param(0),
                 instruction: Enact(
-                    verb: Action(label: "Attach"),
+                    verb: Action("Attach"),
                     instruction: Attachment(
                         r#move: Unattached,
                         subject: AsMarker(marker: Permanent, subject: This),
@@ -59,8 +59,8 @@ KeywordAbility(
                         side: Attachment,
                         word: None,
                         counterpart: Described(
-                            determiner: A(mode: Unmarked),
-                            predicate: HasType(type: Creature),
+                            determiner: A(Unmarked),
+                            predicate: HasType(Creature),
                         ),
                     ),
                 ),

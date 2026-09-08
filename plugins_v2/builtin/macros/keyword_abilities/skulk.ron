@@ -15,7 +15,7 @@ KeywordAbility(
                 spec: DeonticRule(
                     subject: AsType(type: Creature, subject: This, subtype: None),
                     compulsion: Forbid,
-                    deeds: [Core(deed: Block)],
+                    deeds: [Core(Block)],
                     role: Patient,
                     bound: None,
                     patient: Counterpart(
@@ -23,12 +23,12 @@ KeywordAbility(
                             determiner: All,
                             predicate: And(
                                 conjuncts: [
-                                    HasType(type: Creature),
+                                    HasType(Creature),
                                     Compare(
-                                        axes: [Stat(stat: Power)],
+                                        axes: [Stat(Power)],
                                         comparator: Greater,
                                         bound: StatOf(
-                                            axis: Stat(stat: Power),
+                                            axis: Stat(Power),
                                             subject: AsType(
                                                 type: Creature,
                                                 subject: This,

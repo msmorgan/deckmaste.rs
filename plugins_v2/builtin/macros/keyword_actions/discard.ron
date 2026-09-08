@@ -10,7 +10,7 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Discard"),
+        verb: Action("Discard"),
         instruction: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
         agent: Param(1),
     ),

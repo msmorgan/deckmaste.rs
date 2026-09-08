@@ -11,7 +11,7 @@ KeywordAbility(
     // alternative cost alone would be half the definition.
     body: Keyword(
         keyword: "Awaken",
-        params: [Number(amount: Param(0)), Cost(cost: Param(1))],
+        params: [Number(Param(0)), Cost(Param(1))],
         body: [],
     ),
 )

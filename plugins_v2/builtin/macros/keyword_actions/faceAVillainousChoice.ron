@@ -16,7 +16,7 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     body: Enact(
-        verb: Action(label: "Face A Villainous Choice"),
+        verb: Action("Face A Villainous Choice"),
         instruction: ChooseModes(
             quantity: Range(low: 1, high: 1),
             modes: [

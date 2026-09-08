@@ -15,18 +15,18 @@ KeywordAbility(
             Activated(
                 cost: Perform(
                     instruction: Enact(
-                        verb: Action(label: "Tap"),
+                        verb: Action("Tap"),
                         instruction: SetStatus(
                             status: Tapped,
                             subject: Described(
-                                determiner: A(mode: Unmarked),
+                                determiner: A(Unmarked),
                                 predicate: And(
                                     conjuncts: [
-                                        HasType(type: Creature),
+                                        HasType(Creature),
                                         OtherThan(
                                             anchor: AsMarker(marker: Permanent, subject: This),
                                         ),
-                                        HasStatus(status: Untapped),
+                                        HasStatus(Untapped),
                                         HasPossessor(axis: Controller, possessor: You),
                                     ],
                                 ),
@@ -37,18 +37,18 @@ KeywordAbility(
                 ),
                 instruction: PutCounters(
                     amount: StatOf(
-                        axis: Stat(stat: Power),
+                        axis: Stat(Power),
                         subject: Pro(
                             reach: Verbed(
-                                verb: Action(label: "Tap"),
-                                word: Type(type: Creature),
+                                verb: Action("Tap"),
+                                word: Type(Creature),
                                 marking: Attributive,
                             ),
                             plurality: One,
                             window: Whole,
                         ),
                     ),
-                    kind: Printed(kind: Named(label: "Charge")),
+                    kind: Printed(Named("Charge")),
                     on: AsMarker(marker: Permanent, subject: This),
                 ),
                 timing: AsSorcery,

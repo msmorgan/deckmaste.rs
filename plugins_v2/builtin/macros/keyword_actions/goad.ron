@@ -13,11 +13,11 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Goad"),
+        verb: Action("Goad"),
         instruction: GainDesignation(
         subject: Param(0),
         designation: "goaded",
-        duration: Until(end: StartOf(part: Turn, whose: PossessorOf(axis: Controller, subject: This))),
+        duration: Until(StartOf(part: Turn, whose: PossessorOf(axis: Controller, subject: This))),
     ),
         agent: None,
     ),

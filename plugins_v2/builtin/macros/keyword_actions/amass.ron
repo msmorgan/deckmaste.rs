@@ -13,20 +13,20 @@ KeywordAction(
         third_person: "amasses",
         frame_set: Custom(frames: [[ObjectNounPhrase, Amount]]),
     ),
-    body: Sequentially(steps: [
+    body: Sequentially([
         DoIf(
-            condition: Not(condition: Exists(subject: Described(
+            condition: Not(Exists(Described(
                 determiner: Bare,
-                predicate: And(conjuncts: [
-                    HasSubtype(subtype: Of(host: Creature, label: "Army")),
-                    HasType(type: Creature),
+                predicate: And([
+                    HasSubtype(Of(host: Creature, label: "Army")),
+                    HasType(Creature),
                     HasPossessor(axis: Controller, possessor: You),
                 ]),
             ))),
             instruction: CreateObject(
                 count: 1,
                 spec: Token(
-                    spec: Written(characteristics: (characteristics: (
+                    spec: Written((characteristics: (
                         colors: [Black],
                         types: [Creature],
                         subtypes: [Param(0), Of(host: Creature, label: "Army")],
@@ -42,10 +42,10 @@ KeywordAction(
         Choose(
             first: None,
             chosen: Described(
-                determiner: A(mode: Unmarked),
-                predicate: And(conjuncts: [
-                    HasSubtype(subtype: Of(host: Creature, label: "Army")),
-                    HasType(type: Creature),
+                determiner: A(Unmarked),
+                predicate: And([
+                    HasSubtype(Of(host: Creature, label: "Army")),
+                    HasType(Creature),
                     HasPossessor(axis: Controller, possessor: You),
                 ]),
             ),
@@ -55,13 +55,13 @@ KeywordAction(
         ),
         PutCounters(
             amount: Param(1),
-            kind: Printed(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1))),
-            on: Pro(reach: Word(word: Type(type: Creature)), plurality: One, window: Whole),
+            kind: Printed(Boost(power: Up(1), toughness: Up(1))),
+            on: Pro(reach: Word(Type(Creature)), plurality: One, window: Whole),
         ),
         DoIf(
-            condition: Not(condition: Matches(
+            condition: Not(Matches(
                 subject: Pro(reach: Bare, plurality: One, window: Whole),
-                predicate: HasSubtype(subtype: Param(0)),
+                predicate: HasSubtype(Param(0)),
             )),
             instruction: Establish(
                 spec: CharacteristicChange(

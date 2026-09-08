@@ -15,7 +15,7 @@ KeywordAbility(
                 spec: DeonticRule(
                     subject: AsType(type: Creature, subject: This, subtype: None),
                     compulsion: Forbid,
-                    deeds: [Core(deed: Block)],
+                    deeds: [Core(Block)],
                     role: Agent,
                     bound: None,
                     patient: NoPatient,
@@ -40,7 +40,7 @@ KeywordAbility(
                     alternatives: [],
                     duration: None,
                     body: Enact(
-                        verb: Action(label: "Sacrifice"),
+                        verb: Action("Sacrifice"),
                         instruction: Move(
                             subject: AsMarker(marker: Permanent, subject: This),
                             to: Zone(zone: Graveyard, scope: Bare),

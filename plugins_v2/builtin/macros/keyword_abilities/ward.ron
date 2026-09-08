@@ -10,19 +10,19 @@ KeywordAbility(
     // pays [cost]." [CR#702.21a]
     body: Keyword(
         keyword: "Ward",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Triggered(
                 event: BecomesTarget(
                     subject: AsMarker(marker: Permanent, subject: This),
                     by: Described(
-                        determiner: A(mode: Unmarked),
+                        determiner: A(Unmarked),
                         predicate: And(
                             conjuncts: [
-                                InZone(zone: Zone(zone: Stack, scope: Bare)),
+                                InZone(Zone(zone: Stack, scope: Bare)),
                                 HasPossessor(
                                     axis: Controller,
-                                    possessor: PlayerGroup(group: YourOpponents),
+                                    possessor: PlayerGroup(YourOpponents),
                                 ),
                             ],
                         ),
@@ -39,7 +39,7 @@ KeywordAbility(
                         agent: PossessorOf(
                             axis: Controller,
                             subject: Pro(
-                                reach: Word(word: Stack),
+                                reach: Word(Stack),
                                 plurality: One,
                                 window: Whole,
                             ),
@@ -51,7 +51,7 @@ KeywordAbility(
                         agent: PossessorOf(
                             axis: Controller,
                             subject: Pro(
-                                reach: Word(word: Stack),
+                                reach: Word(Stack),
                                 plurality: One,
                                 window: Whole,
                             ),
@@ -59,10 +59,10 @@ KeywordAbility(
                     ),
                     if_did: None,
                     if_not: Enact(
-                        verb: Action(label: "Counter"),
+                        verb: Action("Counter"),
                         instruction: Move(
                             subject: Pro(
-                                reach: Word(word: Stack),
+                                reach: Word(Stack),
                                 plurality: One,
                                 window: Whole,
                             ),

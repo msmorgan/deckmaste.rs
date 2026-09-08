@@ -9,7 +9,7 @@ KeywordAbility(
     // end of turn for each creature blocking it beyond the first." [CR#702.23a]
     body: Keyword(
         keyword: "Rampage",
-        params: [Number(amount: Param(0))],
+        params: [Number(Param(0))],
         body: [
             Triggered(
                 event: Combat(
@@ -41,7 +41,7 @@ KeywordAbility(
                                                     determiner: Bare,
                                                     predicate: And(
                                                         conjuncts: [
-                                                            HasType(type: Creature),
+                                                            HasType(Creature),
                                                             InCombat(
                                                                 relation: BlockerOf,
                                                                 counterpart: AsType(
@@ -73,7 +73,7 @@ KeywordAbility(
                                                     determiner: Bare,
                                                     predicate: And(
                                                         conjuncts: [
-                                                            HasType(type: Creature),
+                                                            HasType(Creature),
                                                             InCombat(
                                                                 relation: BlockerOf,
                                                                 counterpart: AsType(
@@ -93,7 +93,7 @@ KeywordAbility(
                             ),
                         ],
                     ),
-                    duration: Until(end: EndOf(part: Turn, whose: None)),
+                    duration: Until(EndOf(part: Turn, whose: None)),
                 ),
             ),
         ],

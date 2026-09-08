@@ -11,5 +11,5 @@ KeywordAbility(
     // group by an aggregate bound on a stat of the whole group;
     // `Predicate::CompareOver` compares each member (the cause Crew and Teamwork
     // share).
-    body: Keyword(keyword: "Saddle", params: [Number(amount: Param(0))], body: []),
+    body: Keyword(keyword: "Saddle", params: [Number(Param(0))], body: []),
 )

@@ -11,11 +11,11 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: Enact(
-        verb: Action(label: "Meld"),
+        verb: Action("Meld"),
         instruction: Move(
             subject: Param(0),
             to: Zone(zone: Battlefield, scope: Bare),
-            riders: [EntersMelded(into: Param(1))],
+            riders: [EntersMelded(Param(1))],
         ),
         agent: None,
     ),

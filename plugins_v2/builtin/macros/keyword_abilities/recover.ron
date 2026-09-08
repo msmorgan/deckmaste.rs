@@ -10,16 +10,16 @@ KeywordAbility(
     // to your hand. Otherwise, exile this card." [CR#702.59a]
     body: Keyword(
         keyword: "Recover",
-        params: [Cost(cost: Param(0))],
+        params: [Cost(Param(0))],
         body: [
             Triggered(
                 event: ZoneChange(
                     subject: Described(
-                        determiner: A(mode: Unmarked),
-                        predicate: HasType(type: Creature),
+                        determiner: A(Unmarked),
+                        predicate: HasType(Creature),
                     ),
-                    from: Zones(zones: [Zone(zone: Battlefield, scope: Bare)]),
-                    to: Zone(zone: Graveyard, scope: PossessedBy(possessor: You)),
+                    from: Zones([Zone(zone: Battlefield, scope: Bare)]),
+                    to: Zone(zone: Graveyard, scope: PossessedBy(You)),
                     observation: Before,
                 ),
                 alternatives: [],
@@ -29,10 +29,10 @@ KeywordAbility(
                 limit: None,
                 intervening: None,
                 instruction: WithContinuation(
-                    policy: Optional(agent: You),
+                    policy: Optional(You),
                     body: Pay(cost: Param(0), times: Once, agent: You),
                     if_did: Enact(
-                        verb: Core(deed: Return),
+                        verb: Core(Return),
                         instruction: Move(
                             subject: This,
                             to: Zone(zone: Hand, scope: Bare),
@@ -41,7 +41,7 @@ KeywordAbility(
                         agent: You,
                     ),
                     if_not: Enact(
-                        verb: Action(label: "Exile"),
+                        verb: Action("Exile"),
                         instruction: Move(
                             subject: This,
                             to: Zone(zone: Exile, scope: Bare),

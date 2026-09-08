@@ -115,6 +115,7 @@ fn every_nullary_helper_expands() {
             "Condition" => deckmaste_semantics_v2::phrase::Condition,
             "GameEvent" => deckmaste_semantics_v2::phrase::GameEvent,
             "Duration" => deckmaste_semantics_v2::triggers::Duration,
+            "Ability" => deckmaste_semantics_v2::abilities::Ability,
             "Instruction" => deckmaste_semantics_v2::abilities::Instruction,
             "StaticSpec" => deckmaste_semantics_v2::abilities::StaticSpec,
             "Cost" => deckmaste_semantics_v2::abilities::Cost,
@@ -125,7 +126,7 @@ fn every_nullary_helper_expands() {
     }
     println!("{expanded} nullary declaration(s) expand; {untested} at untested kinds");
     assert!(
-        expanded >= 80,
+        expanded >= 200,
         "only {expanded} expanded; the scan lost the declarations it reads"
     );
 }
