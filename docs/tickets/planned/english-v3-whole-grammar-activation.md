@@ -40,3 +40,11 @@ named witness may disappear because its former family ticket was retired.
 Acceptance is a compiled whole grammar, an actual v3 supported-corpus command,
 a reproducible baseline, and a cause-grouped residual report. It does not
 require full corpus success. Standard constraints apply.
+
+Note (2026-09-07): `flavor-words-are-vocabulary` deleted the enumerated
+flavor-word declarations, and with them english_v2's flavor-word codec and
+its mode-marker and label-term constructions. The 196 corpus identities that
+stopped being covered are listed in that ticket's landing record and are
+this activation's to re-cover: the italic head is one construction over an
+ability word [CR#207.2c] or a flavor word [CR#207.2d], and the flavor word's
+label is the run itself, analysed by `deckmaste_lexical`.
