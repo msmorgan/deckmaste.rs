@@ -2,5 +2,5 @@ CounterKind(
     name: "radCounter",
     params: [],
     spelling: "rad",
-    body: CounterFacts(label: "Rad", holder: Player),
+    body: Counter(kind: Named(label: "Rad"), holder: Player, confers: []),
 )

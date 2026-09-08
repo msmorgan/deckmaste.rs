@@ -1,3 +1,7 @@
+// STOP (semantics-v2-definition-bodies). This body is still the v1 core type-rule
+// record, not a `Definition`. The host rule is a deontic over the `Attach` deed
+// [CR#701.3a], and that deed's `actFacts` row declares no patient role, so
+// "…to a creature" has no role to bind. Blocks `plugins-v2-subtypes-macro-only`.
 // Equipment ([CR#301.5]) — "an Equipment can be attached to a creature. It
 // can't legally be attached to anything that isn't a creature." That STATES A
 // QUALITY of the object, which [CR#113.12] is explicit is neither granting an

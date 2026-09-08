@@ -4,5 +4,7 @@ Subtype(
     name: "gold",
     spelling: "Gold",
     grammar: Noun(singular: "Gold", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Gold"), rules: []),
 )
 

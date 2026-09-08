@@ -5,7 +5,7 @@ Designation(
     spelling: "day or night",
     grammar: FixedTerm(surface: "day or night"),
     body: [
-        DesignationFacts(label: "day", scope: HeldByGame, effectful: true, zone: None, type: None, half: None),
-        DesignationFacts(label: "night", scope: HeldByGame, effectful: true, zone: None, type: None, half: None),
+        Designation(label: "day", scope: HeldByGame, effectful: true, zone: None, type: None, half: None),
+        Designation(label: "night", scope: HeldByGame, effectful: true, zone: None, type: None, half: None),
     ],
 )

@@ -4,5 +4,7 @@ Subtype(
     name: "trap",
     spelling: "Trap",
     grammar: Noun(singular: "Trap", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Spell(label: "Trap"), rules: []),
 )
 

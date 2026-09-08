@@ -3,5 +3,7 @@ Subtype(
     name: "bobblehead",
     spelling: "Bobblehead",
     grammar: Noun(singular: "Bobblehead"),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Bobblehead"), rules: []),
 )
 

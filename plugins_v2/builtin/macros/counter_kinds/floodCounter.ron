@@ -2,5 +2,5 @@ CounterKind(
     name: "floodCounter",
     params: [],
     spelling: "flood",
-    body: CounterFacts(label: "Flood", holder: Object),
+    body: Counter(kind: Named(label: "Flood"), holder: Object, confers: []),
 )

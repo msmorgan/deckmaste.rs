@@ -4,5 +4,7 @@ Subtype(
     name: "ashiok",
     spelling: "Ashiok",
     grammar: Noun(singular: "Ashiok", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Planeswalker, label: "Ashiok"), rules: []),
 )
 

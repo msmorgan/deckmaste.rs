@@ -3,5 +3,7 @@ Subtype(
     name: "phyrexian",
     spelling: "Phyrexian",
     grammar: Noun(singular: "Phyrexian"),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Phyrexian"), rules: []),
 )
 

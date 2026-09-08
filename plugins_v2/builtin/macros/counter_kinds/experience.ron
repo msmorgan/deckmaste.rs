@@ -6,5 +6,5 @@ CounterKind(
     params: [],
     spelling: "experience",
     grammar: FixedTerm(surface: "experience"),
-    body: CounterFacts(label: "Experience", holder: Player),
+    body: Counter(kind: Named(label: "Experience"), holder: Player, confers: []),
 )

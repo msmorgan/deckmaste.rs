@@ -2,5 +2,5 @@ CounterKind(
     name: "hourCounter",
     params: [],
     spelling: "hour",
-    body: CounterFacts(label: "Hour", holder: Object),
+    body: Counter(kind: Named(label: "Hour"), holder: Object, confers: []),
 )

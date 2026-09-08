@@ -4,5 +4,7 @@ Subtype(
     name: "adventure",
     spelling: "Adventure",
     grammar: Noun(singular: "Adventure", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Spell(label: "Adventure"), rules: []),
 )
 

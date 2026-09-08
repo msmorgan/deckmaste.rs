@@ -95,9 +95,17 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
                 .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
             Some(&GrammarRecipe::Noun)
         );
-        assert!(
-            !declaration.is_graduated(),
-            "{} must remain a nursery declaration",
+        // Since `semantics-v2-definition-bodies` a subtype declaration carries
+        // its `Definition` node as its body. The node is the declaration's own
+        // identity and nothing else — no creature type infers a semantic
+        // conferral from its name.
+        let body = declaration
+            .body()
+            .unwrap_or_else(|| panic!("{} must define its subtype", declaration.identity()));
+        assert_eq!(
+            body.get_ron(),
+            format!("Subtype(subtype: Of(host: Creature, label: \"{spelling}\"), rules: [])"),
+            "{} must not infer a semantic conferral",
             declaration.identity()
         );
     }

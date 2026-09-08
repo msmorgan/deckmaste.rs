@@ -5,6 +5,6 @@ Designation(
     spelling: "solved",
     grammar: FixedTerm(surface: "solved"),
     body: [
-        DesignationFacts(label: "solved", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
+        Designation(label: "solved", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
     ],
 )

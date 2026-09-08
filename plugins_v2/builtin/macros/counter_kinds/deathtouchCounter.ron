@@ -6,9 +6,13 @@ CounterKind(
     spelling: "deathtouch",
     grammar: FixedTerm(surface: "deathtouch"),
     body: Counter(
-        name: "DeathtouchCounter",
+        kind: Keyword(keyword: "Deathtouch"),
+        holder: Object,
         confers: [
-            Continuous(This, GainAbility(Keyword(deathtouch))),
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "Deathtouch", params: [], body: []),
+            )),
         ],
     ),
 )

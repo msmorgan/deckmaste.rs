@@ -4,4 +4,6 @@ Subtype(
     spelling: "Sheep",
     // Supported Oracle uses this only as an attributive subtype; no plural noun context is attested.
     grammar: Noun(singular: "Sheep", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Sheep"), rules: []),
 )

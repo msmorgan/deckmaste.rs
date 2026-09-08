@@ -3,5 +3,7 @@ Subtype(
     name: "licid",
     spelling: "Licid",
     grammar: Noun(singular: "Licid", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Licid"), rules: []),
 )
 

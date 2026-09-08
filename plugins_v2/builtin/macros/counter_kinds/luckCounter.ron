@@ -8,5 +8,5 @@ CounterKind(
     params: [],
     spelling: "luck",
     grammar: FixedTerm(surface: "luck"),
-    body: CounterFacts(label: "Luck", holder: Object),
+    body: Counter(kind: Named(label: "Luck"), holder: Object, confers: []),
 )

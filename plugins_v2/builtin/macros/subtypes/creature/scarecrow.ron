@@ -3,5 +3,7 @@ Subtype(
     name: "scarecrow",
     spelling: "Scarecrow",
     grammar: Noun(singular: "Scarecrow", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Scarecrow"), rules: []),
 )
 

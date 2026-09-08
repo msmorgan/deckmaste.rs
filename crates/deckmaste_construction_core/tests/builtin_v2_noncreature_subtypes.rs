@@ -357,7 +357,7 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
             DeclarationKind::Subtype(category) if category != SubtypeCategory::Creature
         )
     }) {
-        if !matches!(
+        if matches!(
             (declaration.identity().kind(), declaration.identity().name()),
             (
                 DeclarationKind::Subtype(SubtypeCategory::Artifact),
@@ -367,13 +367,43 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
                 "aura" | "saga"
             )
         ) {
-            assert!(
-                declaration.body().is_none(),
-                "{} must not infer a semantic conferral",
-                declaration.identity()
-            );
-            assert!(!declaration.is_graduated());
+            continue;
         }
+        // Since `semantics-v2-definition-bodies` every subtype declaration
+        // carries its `Definition` node as its body. The node is the
+        // declaration's own identity and NOTHING else: a rules-defined
+        // conferral is still written by hand on the four above, never inferred
+        // from a name.
+        let DeclarationKind::Subtype(category) = declaration.identity().kind() else {
+            unreachable!("filtered to subtypes")
+        };
+        let label = match declaration.spelling() {
+            [SpellingPart::Literal(text)] => text.clone(),
+            other => panic!("{}: unexpected spelling {other:?}", declaration.identity()),
+        };
+        let host = match category {
+            SubtypeCategory::Spell => None,
+            SubtypeCategory::Artifact => Some("Artifact"),
+            SubtypeCategory::Battle => Some("Battle"),
+            SubtypeCategory::Creature => Some("Creature"),
+            SubtypeCategory::Enchantment => Some("Enchantment"),
+            SubtypeCategory::Land => Some("Land"),
+            SubtypeCategory::Planeswalker => Some("Planeswalker"),
+        };
+        let identity = host.map_or_else(
+            || format!("Spell(label: \"{label}\")"),
+            |host| format!("Of(host: {host}, label: \"{label}\")"),
+        );
+        let body = declaration
+            .body()
+            .unwrap_or_else(|| panic!("{} must define its subtype", declaration.identity()));
+        assert_eq!(
+            body.get_ron(),
+            format!("Subtype(subtype: {identity}, rules: [])"),
+            "{} must not infer a semantic conferral",
+            declaration.identity()
+        );
+        assert!(declaration.is_graduated());
     }
 }
 

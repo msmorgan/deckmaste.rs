@@ -4,5 +4,7 @@ Subtype(
     name: "wrenn",
     spelling: "Wrenn",
     grammar: Noun(singular: "Wrenn", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Planeswalker, label: "Wrenn"), rules: []),
 )
 

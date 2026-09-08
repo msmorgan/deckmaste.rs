@@ -2,5 +2,5 @@ CounterKind(
     name: "iceCounter",
     params: [],
     spelling: "ice",
-    body: CounterFacts(label: "Ice", holder: Object),
+    body: Counter(kind: Named(label: "Ice"), holder: Object, confers: []),
 )

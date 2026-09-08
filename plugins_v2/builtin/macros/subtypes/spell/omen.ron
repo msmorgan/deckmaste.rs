@@ -4,5 +4,7 @@ Subtype(
     name: "omen",
     spelling: "Omen",
     grammar: Noun(singular: "Omen", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Spell(label: "Omen"), rules: []),
 )
 

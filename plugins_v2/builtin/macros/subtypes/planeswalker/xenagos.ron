@@ -4,5 +4,7 @@ Subtype(
     name: "xenagos",
     spelling: "Xenagos",
     grammar: Noun(singular: "Xenagos", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Planeswalker, label: "Xenagos"), rules: []),
 )
 

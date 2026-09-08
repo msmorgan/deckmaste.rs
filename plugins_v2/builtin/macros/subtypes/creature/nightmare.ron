@@ -3,5 +3,7 @@ Subtype(
     name: "nightmare",
     spelling: "Nightmare",
     grammar: Noun(singular: "Nightmare"),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Nightmare"), rules: []),
 )
 

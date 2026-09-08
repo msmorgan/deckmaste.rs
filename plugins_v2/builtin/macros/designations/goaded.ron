@@ -5,6 +5,6 @@ Designation(
     spelling: "goaded",
     grammar: FixedTerm(surface: "goaded"),
     body: [
-        DesignationFacts(label: "goaded", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
+        Designation(label: "goaded", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
     ],
 )

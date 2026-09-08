@@ -3,5 +3,7 @@ Subtype(
     name: "incarnation",
     spelling: "Incarnation",
     grammar: Noun(singular: "Incarnation", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Incarnation"), rules: []),
 )
 

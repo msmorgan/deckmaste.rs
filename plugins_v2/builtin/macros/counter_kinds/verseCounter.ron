@@ -3,5 +3,5 @@ CounterKind(
     params: [],
     spelling: "verse",
     grammar: FixedTerm(surface: "verse"),
-    body: CounterFacts(label: "Verse", holder: Object),
+    body: Counter(kind: Named(label: "Verse"), holder: Object, confers: []),
 )

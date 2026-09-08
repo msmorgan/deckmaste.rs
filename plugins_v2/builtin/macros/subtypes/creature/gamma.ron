@@ -3,5 +3,7 @@ Subtype(
     name: "gamma",
     spelling: "Gamma",
     grammar: Noun(singular: "Gamma", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Gamma"), rules: []),
 )
 

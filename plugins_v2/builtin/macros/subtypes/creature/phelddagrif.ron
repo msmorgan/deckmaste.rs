@@ -3,5 +3,7 @@ Subtype(
     name: "phelddagrif",
     spelling: "Phelddagrif",
     grammar: Noun(singular: "Phelddagrif", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Phelddagrif"), rules: []),
 )
 

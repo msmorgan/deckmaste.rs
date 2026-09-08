@@ -3,5 +3,7 @@ Subtype(
     name: "homunculus",
     spelling: "Homunculus",
     grammar: Noun(singular: "Homunculus", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Homunculus"), rules: []),
 )
 

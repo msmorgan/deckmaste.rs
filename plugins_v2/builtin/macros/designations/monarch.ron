@@ -10,6 +10,6 @@ Designation(
     spelling: "the monarch",
     grammar: FixedTerm(surface: "the monarch"),
     body: [
-        DesignationFacts(label: "the monarch", scope: HeldBy(Player), effectful: true, zone: None, type: None, half: None),
+        Designation(label: "the monarch", scope: HeldBy(Player), effectful: true, zone: None, type: None, half: None),
     ],
 )

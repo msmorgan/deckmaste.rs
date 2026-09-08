@@ -97,20 +97,10 @@ pub struct PredefinedToken {
 /// turn-based action [CR#703.1].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Conferral {
-    Ability {
-        confer: Ability,
-    },
-    Property {
-        spec: StaticSpec,
-    },
-    StateBased {
-        when: Condition,
-        then: Instruction,
-    },
-    TurnBased {
-        part: TurnPart,
-        then: Instruction,
-    },
+    Ability { confer: Ability },
+    Property { spec: StaticSpec },
+    StateBased { when: Condition, then: Instruction },
+    TurnBased { part: TurnPart, then: Instruction },
 }
 
 /// What one registry declaration MEANS: the rules content the declared name

@@ -3,5 +3,7 @@ Subtype(
     name: "attraction",
     spelling: "Attraction",
     grammar: Noun(singular: "Attraction"),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Attraction"), rules: []),
 )
 

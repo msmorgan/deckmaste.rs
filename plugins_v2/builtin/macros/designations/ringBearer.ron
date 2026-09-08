@@ -6,6 +6,6 @@ Designation(
     spelling: "Ring-bearer",
     grammar: FixedTerm(surface: "Ring-bearer"),
     body: [
-        DesignationFacts(label: "Ring-bearer", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
+        Designation(label: "Ring-bearer", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
     ],
 )

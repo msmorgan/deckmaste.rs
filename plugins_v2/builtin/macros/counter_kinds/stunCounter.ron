@@ -3,5 +3,5 @@ CounterKind(
     params: [],
     spelling: "stun",
     grammar: FixedTerm(surface: "stun"),
-    body: CounterFacts(label: "Stun", holder: Object),
+    body: Counter(kind: Named(label: "Stun"), holder: Object, confers: []),
 )

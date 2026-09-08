@@ -4,5 +4,7 @@ Subtype(
     name: "class",
     spelling: "Class",
     grammar: Noun(singular: "Class", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Enchantment, label: "Class"), rules: []),
 )
 

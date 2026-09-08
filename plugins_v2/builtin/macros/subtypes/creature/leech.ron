@@ -4,4 +4,6 @@ Subtype(
     spelling: "Leech",
     // Supported Oracle uses `Leeches` only in names and self-reference, not as a subtype noun.
     grammar: Noun(singular: "Leech", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Leech"), rules: []),
 )

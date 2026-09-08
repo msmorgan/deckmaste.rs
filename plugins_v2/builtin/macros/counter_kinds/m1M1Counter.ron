@@ -1,30 +1,38 @@
 // The -1/-1 counter ([CR#122.1a]): each subtracts 1 from power and toughness
-// in layer 7c ([CR#613.4c]). It ALSO owns the annihilation rule ([CR#704.5q]):
-// when a permanent has both +1/+1 and -1/-1 counters, the smaller count of
-// each is removed as a state-based action. Both bearings are conferred
-// DIRECTLY: the boost as `Continuous`, the annihilation as the purpose-built
-// `StateBased` flavor (swept, no stack). Both removals take exactly
-// `Min(count +1/+1, count -1/-1)` of their kind — read against the PRE-removal
-// counts (the sweep evaluates the whole effect purely, then applies), so each
-// kind loses exactly min(p, m), at once, with matching event counts.
+// in layer 7c ([CR#613.4c]), conferred directly as the ability-free `Property`
+// flavor and scaled by how many the object holds.
+//
+// STOP (semantics-v2-definition-bodies). The annihilation rule ([CR#704.5q])
+// is not written here. It removes "N +1/+1 and N -1/-1 counters … where N is
+// the smaller of" the two counts, and `Amount` has no minimum of two amounts
+// (`ArithOp` is plus/minus/times/differenceBetween). It is also a `SbaRule`
+// rather than a conferral: [CR#704.5q] scopes a permanent that has BOTH kinds,
+// which is a predicate over the permanent, not a property of one counter.
+// Routed to `semantics-v2-counter-annihilation-sba`.
 CounterKind(
     name: "m1M1Counter",
     params: [],
     spelling: "-1/-1",
     body: Counter(
-        name: "M1M1Counter",
+        kind: Boost(power: Down(amount: 1), toughness: Down(amount: 1)),
+        holder: Object,
         confers: [
-            Continuous(This, Several([Power(Down(CounterCount(This, m1M1Counter))), Toughness(Down(CounterCount(This, m1M1Counter)))])),
-            StateBased(
-                condition: And([
-                    Matches(This, HasCounter(p1P1Counter)),
-                    Matches(This, HasCounter(m1M1Counter)),
-                ]),
-                effect: Sequentially([
-                    RemoveCounters(This, p1P1Counter, Min(CounterCount(This, p1P1Counter), CounterCount(This, m1M1Counter))),
-                    RemoveCounters(This, m1M1Counter, Min(CounterCount(This, p1P1Counter), CounterCount(This, m1M1Counter))),
-                ]),
-            ),
+            Property(spec: Modification(
+                subject: This,
+                stat: Power,
+                delta: Down(amount: StatOf(
+                    axis: Counter(kind: Boost(power: Down(amount: 1), toughness: Down(amount: 1))),
+                    subject: This,
+                )),
+            )),
+            Property(spec: Modification(
+                subject: This,
+                stat: Toughness,
+                delta: Down(amount: StatOf(
+                    axis: Counter(kind: Boost(power: Down(amount: 1), toughness: Down(amount: 1))),
+                    subject: This,
+                )),
+            )),
         ],
     ),
 )

@@ -5,8 +5,8 @@ Designation(
     spelling: "sector designation",
     grammar: FixedTerm(surface: "sector designation"),
     body: [
-        DesignationFacts(label: "alpha sector", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
-        DesignationFacts(label: "beta sector", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
-        DesignationFacts(label: "gamma sector", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
+        Designation(label: "alpha sector", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
+        Designation(label: "beta sector", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
+        Designation(label: "gamma sector", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
     ],
 )

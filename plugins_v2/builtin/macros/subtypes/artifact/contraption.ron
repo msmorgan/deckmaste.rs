@@ -3,5 +3,7 @@ Subtype(
     name: "contraption",
     spelling: "Contraption",
     grammar: Noun(singular: "Contraption"),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Contraption"), rules: []),
 )
 

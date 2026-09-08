@@ -3,5 +3,7 @@ Subtype(
     name: "food",
     spelling: "Food",
     grammar: Noun(singular: "Food"),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Food"), rules: []),
 )
 

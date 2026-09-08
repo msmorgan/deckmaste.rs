@@ -4,5 +4,7 @@ Subtype(
     name: "sphere",
     spelling: "Sphere",
     grammar: Noun(singular: "Sphere", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Land, label: "Sphere"), rules: []),
 )
 

@@ -6,9 +6,13 @@ CounterKind(
     spelling: "double strike",
     grammar: FixedTerm(surface: "double strike"),
     body: Counter(
-        name: "DoubleStrikeCounter",
+        kind: Keyword(keyword: "DoubleStrike"),
+        holder: Object,
         confers: [
-            Continuous(This, GainAbility(Keyword(doubleStrike))),
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "DoubleStrike", params: [], body: []),
+            )),
         ],
     ),
 )

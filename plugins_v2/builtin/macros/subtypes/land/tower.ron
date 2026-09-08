@@ -4,5 +4,7 @@ Subtype(
     name: "tower",
     spelling: "Tower",
     grammar: Noun(singular: "Tower", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Land, label: "Tower"), rules: []),
 )
 

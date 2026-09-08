@@ -6,9 +6,13 @@ CounterKind(
     spelling: "reach",
     grammar: FixedTerm(surface: "reach"),
     body: Counter(
-        name: "ReachCounter",
+        kind: Keyword(keyword: "Reach"),
+        holder: Object,
         confers: [
-            Continuous(This, GainAbility(Keyword(Reach))),
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "Reach", params: [], body: []),
+            )),
         ],
     ),
 )

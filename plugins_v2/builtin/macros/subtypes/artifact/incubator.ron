@@ -4,5 +4,7 @@ Subtype(
     name: "incubator",
     spelling: "Incubator",
     grammar: Noun(singular: "Incubator", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Incubator"), rules: []),
 )
 

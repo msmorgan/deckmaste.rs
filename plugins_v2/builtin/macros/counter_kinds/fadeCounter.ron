@@ -5,5 +5,5 @@ CounterKind(
     params: [],
     spelling: "fade",
     grammar: FixedTerm(surface: "fade"),
-    body: CounterFacts(label: "Fade", holder: Object),
+    body: Counter(kind: Named(label: "Fade"), holder: Object, confers: []),
 )

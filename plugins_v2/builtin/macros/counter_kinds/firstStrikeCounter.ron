@@ -6,9 +6,13 @@ CounterKind(
     spelling: "first strike",
     grammar: FixedTerm(surface: "first strike"),
     body: Counter(
-        name: "FirstStrikeCounter",
+        kind: Keyword(keyword: "FirstStrike"),
+        holder: Object,
         confers: [
-            Continuous(This, GainAbility(Keyword(firstStrike))),
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "FirstStrike", params: [], body: []),
+            )),
         ],
     ),
 )

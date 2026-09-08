@@ -4,5 +4,7 @@ Subtype(
     name: "mutagen",
     spelling: "Mutagen",
     grammar: Noun(singular: "Mutagen", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Mutagen"), rules: []),
 )
 

@@ -1,3 +1,5 @@
+// STOP (semantics-v2-definition-bodies). Still the v1 core record, for the same
+// reason as Equipment: the `Attach` deed [CR#701.3a] declares no patient role.
 // Fortification ([CR#301.6]) — the Land twin of the Equipment host rule
 // ([CR#301.5]), and a quality of the object in the same way ([CR#113.12]), so
 // it is conferred ability-free.

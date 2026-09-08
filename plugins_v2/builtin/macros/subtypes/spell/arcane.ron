@@ -4,5 +4,7 @@ Subtype(
     name: "arcane",
     spelling: "Arcane",
     grammar: Noun(singular: "Arcane", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Spell(label: "Arcane"), rules: []),
 )
 

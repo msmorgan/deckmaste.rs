@@ -3,5 +3,7 @@ Subtype(
     name: "gnome",
     spelling: "Gnome",
     grammar: Noun(singular: "Gnome", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Gnome"), rules: []),
 )
 

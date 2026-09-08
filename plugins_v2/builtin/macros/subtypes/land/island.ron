@@ -3,5 +3,7 @@ Subtype(
     name: "island",
     spelling: "Island",
     grammar: Noun(singular: "Island"),
+    params: [],
+    body: Subtype(subtype: Of(host: Land, label: "Island"), rules: []),
 )
 

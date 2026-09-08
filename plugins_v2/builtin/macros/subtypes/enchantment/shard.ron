@@ -3,5 +3,7 @@ Subtype(
     name: "shard",
     spelling: "Shard",
     grammar: Noun(singular: "Shard"),
+    params: [],
+    body: Subtype(subtype: Of(host: Enchantment, label: "Shard"), rules: []),
 )
 

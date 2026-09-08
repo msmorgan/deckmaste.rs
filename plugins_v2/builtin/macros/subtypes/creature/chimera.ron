@@ -3,5 +3,7 @@ Subtype(
     name: "chimera",
     spelling: "Chimera",
     grammar: Noun(singular: "Chimera", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Chimera"), rules: []),
 )
 

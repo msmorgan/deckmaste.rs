@@ -6,9 +6,13 @@ CounterKind(
     spelling: "menace",
     grammar: FixedTerm(surface: "menace"),
     body: Counter(
-        name: "MenaceCounter",
+        kind: Keyword(keyword: "Menace"),
+        holder: Object,
         confers: [
-            Continuous(This, GainAbility(Keyword(menace))),
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "Menace", params: [], body: []),
+            )),
         ],
     ),
 )

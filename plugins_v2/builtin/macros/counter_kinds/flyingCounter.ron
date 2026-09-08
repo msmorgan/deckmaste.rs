@@ -1,7 +1,7 @@
 // A keyword counter ([CR#122.1b]): a flying counter makes its bearer gain
 // flying (layer 6, [CR#613.1f]). The SAME data-driven shape as a +1/+1
-// counter — a `Continuous` boost — only the `Modification` differs
-// (`GainAbility` instead of `Power(Up)`). The other [CR#122.1b] keyword counters
+// counter — a conferred `Property` — only the spec differs (`AbilityGrant`
+// instead of `Modification`). The other [CR#122.1b] keyword counters
 // (first strike, deathtouch, vigilance, …) are the identical pattern with a
 // different keyword. Strip-immune, like every counter bearing.
 CounterKind(
@@ -10,9 +10,13 @@ CounterKind(
     spelling: "flying",
     grammar: FixedTerm(surface: "flying"),
     body: Counter(
-        name: "FlyingCounter",
+        kind: Keyword(keyword: "Flying"),
+        holder: Object,
         confers: [
-            Continuous(This, GainAbility(Keyword(flying))),
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "Flying", params: [], body: []),
+            )),
         ],
     ),
 )

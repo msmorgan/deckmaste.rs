@@ -3,5 +3,7 @@ Subtype(
     name: "flagbearer",
     spelling: "Flagbearer",
     grammar: Noun(singular: "Flagbearer", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Flagbearer"), rules: []),
 )
 

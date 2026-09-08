@@ -4,5 +4,7 @@ Subtype(
     name: "stone",
     spelling: "Stone",
     grammar: Noun(singular: "Stone", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Stone"), rules: []),
 )
 

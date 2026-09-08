@@ -145,21 +145,21 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("CounterFacts(label: \"Energy\", holder: Player)")
+            .contains("Counter(kind: Named(label: \"Energy\"), holder: Player, confers: [])")
     );
     assert!(
         counter(&declarations, "deathtouchCounter")
             .body()
             .unwrap()
             .get_ron()
-            .contains("GainAbility(Keyword(deathtouch))")
+            .contains("AbilityGrant(\n                subject: This,\n                ability: Keyword(keyword: \"Deathtouch\", params: [], body: []),\n            )")
     );
     assert!(
         counter(&declarations, "p1P1Counter")
             .body()
             .unwrap()
             .get_ron()
-            .contains("CounterCount(This, p1P1Counter)")
+            .contains("Counter(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1)))")
     );
 
     let synthetic = read_str(

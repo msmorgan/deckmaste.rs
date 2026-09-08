@@ -3,5 +3,7 @@ Subtype(
     name: "assemblyWorker",
     spelling: "Assembly-Worker",
     grammar: Noun(singular: "Assembly-Worker", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Assembly-Worker"), rules: []),
 )
 

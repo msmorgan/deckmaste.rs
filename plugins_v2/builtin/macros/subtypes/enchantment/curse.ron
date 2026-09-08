@@ -3,5 +3,7 @@ Subtype(
     name: "curse",
     spelling: "Curse",
     grammar: Noun(singular: "Curse"),
+    params: [],
+    body: Subtype(subtype: Of(host: Enchantment, label: "Curse"), rules: []),
 )
 

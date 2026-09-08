@@ -4,5 +4,7 @@ Subtype(
     name: "vibranium",
     spelling: "Vibranium",
     grammar: Noun(singular: "Vibranium", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Artifact, label: "Vibranium"), rules: []),
 )
 

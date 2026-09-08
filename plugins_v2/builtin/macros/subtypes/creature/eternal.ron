@@ -3,5 +3,7 @@ Subtype(
     name: "eternal",
     spelling: "Eternal",
     grammar: Noun(singular: "Eternal", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Eternal"), rules: []),
 )
 

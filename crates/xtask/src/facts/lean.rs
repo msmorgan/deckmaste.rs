@@ -19,15 +19,15 @@ use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::{self};
-use deckmaste_semantics_v2::facts::CounterFacts;
-use deckmaste_semantics_v2::facts::DesignationFacts;
-use deckmaste_semantics_v2::facts::DesignationScope;
 use deckmaste_semantics_v2::ron::macro_set;
+use deckmaste_semantics_v2::rules::Definition;
 use deckmaste_semantics_v2::words::CardType;
+use deckmaste_semantics_v2::words::CounterKind;
+use deckmaste_semantics_v2::words::DesignationScope;
 use deckmaste_semantics_v2::words::Kind;
 use deckmaste_semantics_v2::words::RoomHalf;
+use deckmaste_semantics_v2::words::Subtype;
 use deckmaste_semantics_v2::words::Zone;
-use serde::Deserialize;
 
 use super::KEYWORD_ROWS_EXEMPT;
 use super::KEYWORD_STUBS_EXEMPT;
@@ -45,7 +45,7 @@ fn quoted(value: &str) -> String {
 
 /// A fact column's `Kind` as Lean's constructor. Only the two Entity kinds
 /// [CR#109.1,102.1] carry a designation or a counter.
-fn kind(kind: &Kind) -> anyhow::Result<&'static str> {
+fn kind_of(kind: &Kind) -> anyhow::Result<&'static str> {
     match kind {
         Kind::Object => Ok(".object"),
         Kind::Player => Ok(".player"),
@@ -287,19 +287,6 @@ fn action_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<Str
     Ok(result)
 }
 
-/// A counter declaration's body.
-///
-/// A counter Lean names with a `CounterKind` constructor of its own — a
-/// `boost` counter [CR#122.1a] or a `keyword` counter [CR#122.1b] — carries
-/// its conferral payload and contributes no row: `counterFacts` is the table
-/// of `named` counters, which is what `Check/Words.lean` looks a bare label up
-/// in.
-#[derive(Deserialize)]
-enum CounterBody {
-    CounterFacts(CounterFacts),
-    Counter(serde::de::IgnoredAny),
-}
-
 fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
     let dialect = macro_set();
     let mut result = Vec::new();
@@ -311,16 +298,24 @@ fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
         let body = row
             .body()
             .with_context(|| format!("{name}: counter has no declaration body"))?;
-        let body: CounterBody = dialect
+        let body: Definition = dialect
             .read_str(body.get_ron())
             .with_context(|| format!("reading counter {name}"))?;
-        let CounterBody::CounterFacts(facts) = body else {
+        let Definition::Counter { kind, holder, .. } = body else {
+            anyhow::bail!("{name}: a counter declaration defines a counter");
+        };
+        // `counterFacts` is the table of NAMED counters, which is what
+        // `Check/Words.lean` looks a bare label up in. A counter Lean names
+        // with a `CounterKind` constructor of its own — a +X/+Y counter
+        // [CR#122.1a] or a keyword counter [CR#122.1b] — is not looked up by
+        // label and contributes no row.
+        let CounterKind::Named { label } = kind else {
             continue;
         };
         result.push(format!(
-            "⟨{}, {}⟩",
-            quoted(&facts.label),
-            kind(&facts.holder)?
+            "\u{27e8}{}, {}\u{27e9}",
+            quoted(&label),
+            kind_of(&holder)?
         ));
     }
     Ok(result)
@@ -337,35 +332,133 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
         let body = row
             .body()
             .with_context(|| format!("{name}: designation has no declaration body"))?;
-        let rows: Vec<DesignationFacts> = dialect
+        let rows: Vec<Definition> = dialect
             .read_str(body.get_ron())
             .with_context(|| format!("reading designation {name}"))?;
         anyhow::ensure!(!rows.is_empty(), "{name}: designation declares no fact row");
-        for facts in rows {
-            let scope = match &facts.scope {
-                DesignationScope::HeldBy { holder } => format!(".heldBy {}", kind(holder)?),
+        for definition in rows {
+            let Definition::Designation {
+                label,
+                scope,
+                effectful,
+                zone: in_zone,
+                r#type,
+                half,
+            } = definition
+            else {
+                anyhow::bail!("{name}: a designation declaration defines designations");
+            };
+            let scope = match &scope {
+                DesignationScope::HeldBy { holder } => format!(".heldBy {}", kind_of(holder)?),
                 DesignationScope::HeldByCard => ".heldByCard".to_owned(),
                 DesignationScope::HeldByGame => ".heldByGame".to_owned(),
             };
             result.push(format!(
-                "{{ label := {}, scope := {scope}, effectful := {}, zone := {}, type := {}, half := {} }}",
-                quoted(&facts.label),
-                facts.effectful,
-                optional(facts.zone.map(zone)),
-                optional(facts.r#type.map(card_type)),
-                optional(facts.half.map(room_half)),
+                "{{ label := {}, scope := {scope}, effectful := {effectful}, zone := {}, type := {}, half := {} }}",
+                quoted(&label),
+                optional(in_zone.map(zone)),
+                optional(r#type.map(card_type)),
+                optional(half.map(room_half)),
             ));
         }
     }
     Ok(result)
 }
 
+/// The `Subtype` a subtype declaration's body defines.
+///
+/// Four declarations still carry the v1 core type-rule record instead of a
+/// `Definition` — `equipment`, `fortification`, `aura` and `saga`, each with a
+/// STOP at the head of its file — so a body that does not read as a definition
+/// falls back to the declaration's own category and spelling, which is the
+/// same identity the body would have written. The fallback retires with those
+/// four STOPs (`plugins-v2-subtypes-macro-only`).
+fn subtype_of(row: &NormalizedDeclaration) -> anyhow::Result<Subtype> {
+    let DeclarationKind::Subtype(category) = row.identity().kind() else {
+        anyhow::bail!("{}: not a subtype declaration", row.identity().name());
+    };
+    if let Some(body) = row.body()
+        && let Ok(Definition::Subtype { subtype, .. }) =
+            macro_set().read_str::<Definition>(body.get_ron())
+    {
+        return Ok(subtype);
+    }
+    let label = surface(row)?;
+    Ok(match category {
+        SubtypeCategory::Spell => Subtype::Spell { label },
+        SubtypeCategory::Artifact => Subtype::Of {
+            host: CardType::Artifact,
+            label,
+        },
+        SubtypeCategory::Battle => Subtype::Of {
+            host: CardType::Battle,
+            label,
+        },
+        SubtypeCategory::Creature => Subtype::Of {
+            host: CardType::Creature,
+            label,
+        },
+        SubtypeCategory::Enchantment => Subtype::Of {
+            host: CardType::Enchantment,
+            label,
+        },
+        SubtypeCategory::Land => Subtype::Of {
+            host: CardType::Land,
+            label,
+        },
+        SubtypeCategory::Planeswalker => Subtype::Of {
+            host: CardType::Planeswalker,
+            label,
+        },
+    })
+}
+
+fn subtype(subtype: &Subtype) -> String {
+    match subtype {
+        Subtype::Spell { label } => format!(".spell {}", quoted(label)),
+        Subtype::Of { host, label } => format!(".of {} {}", card_type(*host), quoted(label)),
+    }
+}
+
+/// The four declarations whose body is still the v1 core type-rule record
+/// rather than a `Definition`, each with a STOP at the head of its file
+/// (`semantics-v2-definition-bodies`). The list shrinks to empty when the
+/// syntax those four records need exists; it is here so that a subtype
+/// declaration that fails to define a subtype is a refusal rather than a
+/// silent fallback.
+const SUBTYPE_DEFINITION_STOPS: &[&str] = &["equipment", "fortification", "aura", "saga"];
+
+/// Every subtype declaration defines its subtype, bar the four recorded STOPs.
+fn subtype_definitions_read(rows: &[NormalizedDeclaration]) -> anyhow::Result<()> {
+    let dialect = macro_set();
+    for row in rows
+        .iter()
+        .filter(|row| matches!(row.identity().kind(), DeclarationKind::Subtype(_)))
+    {
+        let name = row.identity().name();
+        let body = row
+            .body()
+            .with_context(|| format!("{name}: subtype has no declaration body"))?;
+        let read = dialect.read_str::<Definition>(body.get_ron());
+        anyhow::ensure!(
+            matches!(read, Ok(Definition::Subtype { .. }))
+                || SUBTYPE_DEFINITION_STOPS.contains(&name),
+            "{name}: subtype declaration does not define a subtype"
+        );
+    }
+    Ok(())
+}
+
 fn subtype_rows(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
-    // Frame columns are not yet present in the subtype declarations.
+    subtype_definitions_read(rows)?;
+    // The frame column is not a definition-node field: it says what the CARD
+    // FRAME a subtype sits on looks like [CR#714.1,715.1,709.5j], which no
+    // conferral expresses. Keyed by declaration name, so no label mapping
+    // stands between the overlay and the registry.
     let overlays = [
-        ("Saga", SubtypeCategory::Enchantment, ".chapters"),
-        ("Adventure", SubtypeCategory::Spell, ".adventureInset"),
-        ("Room", SubtypeCategory::Enchantment, ".doors"),
+        ("saga", SubtypeCategory::Enchantment, ".chapters"),
+        ("adventure", SubtypeCategory::Spell, ".adventureInset"),
+        ("room", SubtypeCategory::Enchantment, ".doors"),
     ];
     overlays
         .into_iter()
@@ -374,14 +467,13 @@ fn subtype_rows(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
                 .iter()
                 .find(|row| {
                     row.identity().kind() == DeclarationKind::Subtype(category)
-                        && super::label_of(row.identity().name()) == name
+                        && row.identity().name() == name
                 })
                 .with_context(|| format!("{name}: frame overlay has no subtype declaration"))?;
-            let subtype = match category {
-                SubtypeCategory::Spell => format!(".spell {}", quoted(&surface(row)?)),
-                _ => format!(".of .{category} {}", quoted(&surface(row)?)),
-            };
-            Ok(format!("⟨{subtype}, {frame}⟩"))
+            Ok(format!(
+                "\u{27e8}{}, {frame}\u{27e9}",
+                subtype(&subtype_of(row)?)
+            ))
         })
         .collect()
 }
@@ -597,9 +689,8 @@ mod tests {
         fs::write(
             &path,
             source.replace(
-                "CounterFacts(label: \"Charge\", holder: Object)",
-                "Counter(name: \"ChargeCounter\", confers: \
-                 [Continuous(This, GainAbility(Keyword(Flying)))])",
+                "kind: Named(label: \"Charge\")",
+                "kind: Keyword(keyword: \"Flying\")",
             ),
         )
         .unwrap();
@@ -672,8 +763,8 @@ mod tests {
             ),
             (
                 "counter_kinds/shieldCounter.ron",
-                "CounterFacts(label: \"Shield\", holder: Object)",
-                "CounterFacts(\"Shield\", Object)",
+                "Counter(kind: Named(label: \"Shield\"), holder: Object, confers: [])",
+                "Counter(Named(\"Shield\"), Object, [])",
             ),
         ];
 

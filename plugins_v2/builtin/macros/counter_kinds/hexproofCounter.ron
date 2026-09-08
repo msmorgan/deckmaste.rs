@@ -6,9 +6,13 @@ CounterKind(
     spelling: "hexproof",
     grammar: FixedTerm(surface: "hexproof"),
     body: Counter(
-        name: "HexproofCounter",
+        kind: Keyword(keyword: "Hexproof"),
+        holder: Object,
         confers: [
-            Continuous(This, GainAbility(Keyword(hexproof()))),
+            Property(spec: AbilityGrant(
+                subject: This,
+                ability: Keyword(keyword: "Hexproof", params: [], body: []),
+            )),
         ],
     ),
 )

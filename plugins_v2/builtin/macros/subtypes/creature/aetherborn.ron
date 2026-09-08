@@ -3,5 +3,7 @@ Subtype(
     name: "aetherborn",
     spelling: "Aetherborn",
     grammar: Noun(singular: "Aetherborn", plural: "Aetherborn"),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Aetherborn"), rules: []),
 )
 

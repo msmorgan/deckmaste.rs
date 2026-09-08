@@ -3,5 +3,7 @@ Subtype(
     name: "hydra",
     spelling: "Hydra",
     grammar: Noun(singular: "Hydra", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Hydra"), rules: []),
 )
 

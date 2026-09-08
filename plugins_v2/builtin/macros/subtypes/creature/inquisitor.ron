@@ -3,5 +3,7 @@ Subtype(
     name: "inquisitor",
     spelling: "Inquisitor",
     grammar: Noun(singular: "Inquisitor", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Inquisitor"), rules: []),
 )
 

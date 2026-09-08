@@ -3,5 +3,7 @@ Subtype(
     name: "scientist",
     spelling: "Scientist",
     grammar: Noun(singular: "Scientist", plural: Unavailable),
+    params: [],
+    body: Subtype(subtype: Of(host: Creature, label: "Scientist"), rules: []),
 )
 

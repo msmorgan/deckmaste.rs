@@ -5,6 +5,6 @@ Designation(
     spelling: "an enduring story",
     grammar: FixedTerm(surface: "an enduring story"),
     body: [
-        DesignationFacts(label: "an enduring story", scope: HeldBy(Player), effectful: true, zone: None, type: None, half: None),
+        Designation(label: "an enduring story", scope: HeldBy(Player), effectful: true, zone: None, type: None, half: None),
     ],
 )
