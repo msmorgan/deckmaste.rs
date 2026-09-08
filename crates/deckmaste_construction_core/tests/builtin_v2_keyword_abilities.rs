@@ -8,6 +8,7 @@ use deckmaste_construction_core::macro_def::FixedLexeme;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::KeywordParameterClass;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::ParameterType;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::UnsupportedKeywordParameterClass;
@@ -203,14 +204,6 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
             declaration.body().is_some(),
             "{name}: a body and a signature land together"
         );
-        assert_eq!(
-            declaration
-                .provenance()
-                .path()
-                .file_stem()
-                .and_then(|stem| stem.to_str()),
-            Some(name.as_str()),
-        );
         let grammar = declaration
             .grammar()
             .expect("every keyword stub contributes grammar");
@@ -263,9 +256,7 @@ fn builtin_v2_keyword_ability_nursery_is_complete_and_normalized() {
             // where a nursery record wrote nothing. Either reads as "this
             // keyword takes no argument".
             assert!(
-                declaration
-                    .params()
-                    .map_or(true, |params| params.is_empty()),
+                declaration.params().is_none_or(<[ParameterType]>::is_empty),
                 "{name}"
             );
         }

@@ -18,10 +18,10 @@ use deckmaste_lexical::Relation;
 use deckmaste_lexical::SourceKind;
 use deckmaste_lexical::WordForm;
 
-use super::LexicalSources;
-use super::source;
+use crate::LexicalSources;
+use crate::source;
 
-pub(super) fn load(root: &Path, output: &mut LexicalSources) -> anyhow::Result<()> {
+pub(crate) fn load(root: &Path, output: &mut LexicalSources) -> anyhow::Result<()> {
     let declarations = metadata::read_builtin_v2(root.join("plugins_v2/builtin"))?;
     let reader = metadata::declaration_macro_set().map_err(anyhow::Error::msg)?;
     for normalized in declarations {

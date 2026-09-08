@@ -403,7 +403,8 @@ pub enum DeterminativeFusedHeadLicense {
     PluralPredeterminer,
 }
 
-/// Whether a Determinative licenses its Nominal as a marker-less Duration Phrase.
+/// Whether a Determinative licenses its Nominal as a marker-less Duration
+/// Phrase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum DeterminativeBareDurationLicense {
     BareDurationLicensed,
@@ -470,7 +471,8 @@ impl Serialize for DerivedSurface {
     }
 }
 
-/// One ordered lexical schema for the complements and fixed markers a verb licenses.
+/// One ordered lexical schema for the complements and fixed markers a verb
+/// licenses.
 pub type VerbFrame = Vec<FrameItem>;
 
 /// Compatibility spelling for the tail-codec migration.
@@ -1019,10 +1021,9 @@ impl fmt::Display for SourcePosition {
 /// Parser-authenticated positions for every authored value used by
 /// validation. The map is intentionally owned and short-lived: callers keep
 /// the normalized declaration, while readers retain this only long enough to
-/// report cross-source and builtin-path failures.
+/// report cross-source failures.
 struct ValidationSourceMap {
     declaration: SourcePosition,
-    category: Option<SourcePosition>,
     name: SourcePosition,
     params: Option<SourcePosition>,
     spelling: SourcePosition,
@@ -1080,8 +1081,8 @@ struct DiagnosticFields<'a> {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DiagnosticSubtype<'a> {
-    #[serde(borrow)]
-    category: &'a RawValue,
+    #[serde(rename = "category", borrow)]
+    _category: &'a RawValue,
     #[serde(borrow)]
     name: &'a RawValue,
     #[serde(default, borrow)]
@@ -1095,7 +1096,6 @@ struct DiagnosticSubtype<'a> {
 }
 
 struct DiagnosticFieldValues<'a> {
-    category: Option<&'a RawValue>,
     name: &'a RawValue,
     params: Option<&'a RawValue>,
     spelling: &'a RawValue,
@@ -1251,17 +1251,6 @@ pub enum ValidationError {
     },
     #[error("builtin_v2 root must be an existing directory named `builtin`")]
     InvalidBuiltinRoot,
-    #[error("`{relative}` is not a recognized builtin_v2 nursery declaration location")]
-    UnexpectedBuiltinLocation { relative: PathBuf },
-    #[error("builtin location requires {expected}, but the file declares {actual}")]
-    DeclarationKindMismatch {
-        expected: DeclarationKind,
-        actual: DeclarationKind,
-    },
-    #[error(
-        "builtin filename requires declaration name `{expected}`, but the file declares `{actual}`"
-    )]
-    DeclarationNameMismatch { expected: String, actual: String },
     #[error("duplicate declaration {identity}; first declared in `{first_path}`")]
     DuplicateIdentity {
         identity: DeclarationIdentity,
@@ -1346,7 +1335,6 @@ impl ValidationSourceMap {
                 source,
                 declaration,
                 DiagnosticFieldValues {
-                    category: None,
                     name: fields.name,
                     params: fields.params,
                     spelling: fields.spelling,
@@ -1359,7 +1347,6 @@ impl ValidationSourceMap {
                 source,
                 declaration,
                 DiagnosticFieldValues {
-                    category: Some(subtype.category),
                     name: subtype.name,
                     params: subtype.params,
                     spelling: subtype.spelling,
@@ -1378,10 +1365,6 @@ impl ValidationSourceMap {
     ) -> Result<Self, ReadError> {
         Ok(Self {
             declaration,
-            category: fields
-                .category
-                .map(|category| raw_position(path, source, category, declaration))
-                .transpose()?,
             name: raw_position(path, source, fields.name, declaration)?,
             params: fields
                 .params
@@ -1399,15 +1382,6 @@ impl ValidationSourceMap {
                 .map(|body| raw_position(path, source, body, declaration))
                 .transpose()?,
         })
-    }
-
-    fn kind(&self, path: &Path, kind: DeclarationKind) -> Result<SourcePosition, ReadError> {
-        match kind {
-            DeclarationKind::Subtype(_) => {
-                required_map_position(path, self.declaration, self.category, "Subtype.category")
-            }
-            _ => Ok(self.declaration),
-        }
     }
 }
 
@@ -1659,11 +1633,10 @@ fn read_sources_mapped(
     Ok(declarations)
 }
 
-/// The eight spelled declaration families, each a directory under `macros/`.
-/// The reader takes these by name and ignores everything else there — the
-/// declaration meta-macros in `macros/meta/`, and the helper macros that share
-/// the nursery without being declarations of any construction.
-/// [`expected_builtin_identity`] maps the same eight onto their kinds.
+/// The eight authored declaration-family directories under `macros/`.
+///
+/// These names define the source-tree boundary only. Declaration kind,
+/// subtype category, and name all come from the normalized declaration.
 const BUILTIN_FAMILIES: [&str; 8] = [
     "ability_words",
     "counter_kinds",
@@ -1679,15 +1652,15 @@ const BUILTIN_FAMILIES: [&str; 8] = [
 ///
 /// This is intentionally narrow: `root` must itself be an existing directory
 /// named `builtin` (its home under `plugins_v2/`), and only `.ron` files below
-/// the eight [`BUILTIN_FAMILIES`] directories of `macros/` are read. Every other
-/// directory there is another consumer's — `macros/meta/` holds the declaration
-/// meta-macros the families invoke, and the helper macros a card writes are
-/// not declarations of a construction at all. The path fixes each file's
-/// declaration kind, subtype category, and name.
+/// the eight [`BUILTIN_FAMILIES`] directories of `macros/` are read. Every
+/// other directory there is another consumer's — `macros/meta/` holds the
+/// declaration meta-macros the families invoke, and the helper macros a card
+/// writes are not declarations of a construction at all. Paths are discovery
+/// and provenance, never declaration identity.
 ///
 /// # Errors
-/// On an invalid root, unreadable directory/file, unrecognized nursery path,
-/// source error, path/content mismatch, or duplicate identity.
+/// On an invalid root, unreadable directory/file, source error, or duplicate
+/// content identity.
 pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclaration>, ReadError> {
     let root = root.as_ref();
     let named = root
@@ -1716,41 +1689,7 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
         sources.push(DeclarationSource::new(path, source));
     }
 
-    let declarations = read_sources_mapped(sources)?;
-    for declaration in &declarations {
-        let normalized = &declaration.declaration;
-        let (expected_kind, expected_name) = expected_builtin_identity(&nursery, normalized)
-            .map_err(|source| {
-                validation_error_at(
-                    &normalized.provenance.path,
-                    declaration.source_map.declaration,
-                    source,
-                )
-            })?;
-        if normalized.identity.kind != expected_kind {
-            return Err(validation_error_at(
-                &normalized.provenance.path,
-                declaration
-                    .source_map
-                    .kind(&normalized.provenance.path, normalized.identity.kind)?,
-                ValidationError::DeclarationKindMismatch {
-                    expected: expected_kind,
-                    actual: normalized.identity.kind,
-                },
-            ));
-        }
-        if normalized.identity.name != expected_name {
-            return Err(validation_error_at(
-                &normalized.provenance.path,
-                declaration.source_map.name,
-                ValidationError::DeclarationNameMismatch {
-                    expected: expected_name,
-                    actual: normalized.identity.name.clone(),
-                },
-            ));
-        }
-    }
-    Ok(declarations
+    Ok(read_sources_mapped(sources)?
         .into_iter()
         .map(|mapped| mapped.declaration)
         .collect())
@@ -2846,61 +2785,6 @@ fn ron_files_recursive(dir: &Path) -> Result<Vec<PathBuf>, ReadError> {
     }
     files.sort();
     Ok(files)
-}
-
-fn expected_builtin_identity(
-    nursery: &Path,
-    declaration: &NormalizedDeclaration,
-) -> Result<(DeclarationKind, String), ValidationError> {
-    let path = &declaration.provenance.path;
-    let relative =
-        path.strip_prefix(nursery)
-            .map_err(|_| ValidationError::UnexpectedBuiltinLocation {
-                relative: path.clone(),
-            })?;
-    let components = relative
-        .iter()
-        .map(|component| component.to_str())
-        .collect::<Option<Vec<_>>>();
-    let Some(components) = components else {
-        return Err(ValidationError::UnexpectedBuiltinLocation {
-            relative: relative.to_owned(),
-        });
-    };
-    let Some(stem) = path.file_stem().and_then(|stem| stem.to_str()) else {
-        return Err(ValidationError::UnexpectedBuiltinLocation {
-            relative: relative.to_owned(),
-        });
-    };
-    let kind = match components.as_slice() {
-        ["keyword_actions", _] => DeclarationKind::KeywordAction,
-        ["keyword_abilities", _] => DeclarationKind::KeywordAbility,
-        ["ability_words", _] => DeclarationKind::AbilityWord,
-        ["types", _] => DeclarationKind::Type,
-        ["turn_parts", _] => DeclarationKind::TurnPart,
-        ["counter_kinds", _] => DeclarationKind::CounterKind,
-        ["designations", _] => DeclarationKind::Designation,
-        ["subtypes", category, _] => DeclarationKind::Subtype(match *category {
-            "artifact" => SubtypeCategory::Artifact,
-            "battle" => SubtypeCategory::Battle,
-            "creature" => SubtypeCategory::Creature,
-            "enchantment" => SubtypeCategory::Enchantment,
-            "land" => SubtypeCategory::Land,
-            "planeswalker" => SubtypeCategory::Planeswalker,
-            "spell" => SubtypeCategory::Spell,
-            _ => {
-                return Err(ValidationError::UnexpectedBuiltinLocation {
-                    relative: relative.to_owned(),
-                });
-            }
-        }),
-        _ => {
-            return Err(ValidationError::UnexpectedBuiltinLocation {
-                relative: relative.to_owned(),
-            });
-        }
-    };
-    Ok((kind, stem.to_owned()))
 }
 
 #[cfg(test)]

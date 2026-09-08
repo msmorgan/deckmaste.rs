@@ -625,6 +625,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_lexical_source"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "deckmaste_catalogs",
+ "deckmaste_construction_core",
+ "deckmaste_lexical",
+ "macro_ron",
+ "ron",
+ "serde",
+]
+
+[[package]]
 name = "deckmaste_lowering"
 version = "0.1.0"
 dependencies = [
@@ -2268,6 +2281,7 @@ dependencies = [
  "deckmaste_english_v2",
  "deckmaste_legacy_render",
  "deckmaste_lexical",
+ "deckmaste_lexical_source",
  "deckmaste_migrations",
  "deckmaste_plugin",
  "deckmaste_semantics",

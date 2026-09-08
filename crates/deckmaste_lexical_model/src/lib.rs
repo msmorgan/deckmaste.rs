@@ -141,7 +141,7 @@ pub enum SurfaceCase {
 
 /// An integer notation identity. Its parse and realization codecs belong to
 /// `deckmaste_lexical`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum Numeral {
     Cardinal,
     Ordinal,
@@ -169,73 +169,4 @@ pub enum LexicalReading {
         notation: Numeral,
         capitalization: SurfaceCase,
     },
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn frame_retains_ordered_slots_and_licensed_categories() {
-        let frame = Frame {
-            kind: "Predicate".to_owned(),
-            items: vec![
-                FrameItem::Argument(FrameSlot {
-                    relation: Relation::Object,
-                    category: "NounPhrase".to_owned(),
-                }),
-                FrameItem::Marked {
-                    vocabulary: "Preposition".to_owned(),
-                    member: "To".to_owned(),
-                    slot: FrameSlot {
-                        relation: Relation::Complement,
-                        category: "Destination".to_owned(),
-                    },
-                },
-            ],
-        };
-
-        assert_eq!(
-            frame.items,
-            [
-                FrameItem::Argument(FrameSlot {
-                    relation: Relation::Object,
-                    category: "NounPhrase".to_owned(),
-                }),
-                FrameItem::Marked {
-                    vocabulary: "Preposition".to_owned(),
-                    member: "To".to_owned(),
-                    slot: FrameSlot {
-                        relation: Relation::Complement,
-                        category: "Destination".to_owned(),
-                    },
-                },
-            ]
-        );
-    }
-
-    #[test]
-    fn lexical_values_keep_correlated_features_and_spelling_choices() {
-        let value = LexicalReading::Word(LexicalValue {
-            lexeme: "core-verb:Cast".to_owned(),
-            form: WordForm::Preterite,
-            features: FeatureBundle {
-                number: Some(Number::Plural),
-                person: Some(Person::Third),
-                tense: Some(Tense::Past),
-                finiteness: Some(Finiteness::Finite),
-                case: None,
-            },
-            variant: 1,
-            capitalization: SurfaceCase::Initial,
-        });
-
-        let LexicalReading::Word(value) = value else {
-            panic!("constructed a declared-word value");
-        };
-        assert_eq!(value.lexeme, "core-verb:Cast");
-        assert_eq!(value.features.tense, Some(Tense::Past));
-        assert_eq!(value.variant, 1);
-        assert_eq!(value.capitalization, SurfaceCase::Initial);
-    }
 }

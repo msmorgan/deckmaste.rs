@@ -20,6 +20,7 @@ use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::idris_check::IdrisCheckArgs;
 use xtask::lean_check::LeanCheckArgs;
+use xtask::lexical::LexicalArgs;
 use xtask::macros::MacroArgs;
 use xtask::map::MapArgs;
 use xtask::resolve::ResolveArgs;
@@ -68,6 +69,8 @@ enum Cmd {
     /// Inspect the declaration-driven English-v2 grammar.
     #[command(name = "english_v2")]
     EnglishV2(EnglishV2Args),
+    /// Analyze supported raw Oracle text against the independent lexicon.
+    Lexical(LexicalArgs),
     /// Frame-layer tooling: compiled-frame dumps, `template:` upkeep, and
     /// the gates and sweeps that read the frame set against real cards.
     Macro(MacroArgs),
@@ -106,6 +109,10 @@ fn main() -> anyhow::Result<()> {
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
         Cmd::English(args) => xtask::english::run(args),
         Cmd::EnglishV2(args) => xtask::english_v2::run(&args),
+        Cmd::Lexical(args) => {
+            let mut stdout = std::io::stdout().lock();
+            xtask::lexical::run(&args, &mut stdout)
+        }
         Cmd::Macro(args) => xtask::macros::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::LeanCheck(args) => xtask::lean_check::run(&args),

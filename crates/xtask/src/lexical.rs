@@ -24,13 +24,14 @@ use sha2::Digest;
 use sha2::Sha256;
 
 #[derive(Debug, clap::Args)]
-pub(super) struct LexicalArgs {
+pub struct LexicalArgs {
     #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
     data: PathBuf,
     /// Destination for raw source occurrences and lexical inventory accounting.
     #[arg(long)]
     output: PathBuf,
-    /// Export the complete declared lexical inventory as RON.
+    /// Export the complete declared lexical inventory as an unstable RON
+    /// inspection artifact; regenerate it after model-shape changes.
     #[arg(long)]
     export: Option<PathBuf>,
 }
@@ -131,13 +132,13 @@ struct Report {
     faces: Vec<FaceReport>,
 }
 
-pub(super) fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
+pub fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
     let started = Instant::now();
     let bytes =
         std::fs::read(&args.data).with_context(|| format!("reading {}", args.data.display()))?;
     let cards = AtomicCards::parse(&bytes).context("parsing raw AtomicCards snapshot")?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let sources = super::lexical_sources::load(&root)?;
+    let sources = deckmaste_lexical_source::load_workspace(&root)?;
     let load = started.elapsed().as_secs_f64();
     let started = Instant::now();
     let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;

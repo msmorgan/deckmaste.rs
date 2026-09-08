@@ -9,7 +9,7 @@ use deckmaste_lexical::Lexicon;
 
 #[derive(Parser)]
 struct Args {
-    /// RON declarations exported by `cargo xtask english_v2 lexical --export`.
+    /// RON declarations exported by `cargo xtask lexical --export`.
     declarations: PathBuf,
     text: String,
 }

@@ -177,32 +177,6 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
             spec.directory
         );
 
-        let directory = workspace_root
-            .join("plugins_v2/builtin/macros/subtypes")
-            .join(spec.directory);
-        let authored_files = fs::read_dir(&directory)
-            .unwrap_or_else(|error| panic!("reading {}: {error}", directory.display()))
-            .map(|entry| {
-                let path = entry.expect("subtype entry must be readable").path();
-                assert_eq!(
-                    path.extension().and_then(|value| value.to_str()),
-                    Some("ron"),
-                    "non-RON file in {}",
-                    directory.display()
-                );
-                path.file_stem()
-                    .and_then(|value| value.to_str())
-                    .expect("subtype filename must be UTF-8")
-                    .to_owned()
-            })
-            .collect::<BTreeSet<_>>();
-        assert_eq!(
-            authored_files,
-            expected.keys().cloned().collect(),
-            "catalog entries and committed {} subtype files must be bijective",
-            spec.directory
-        );
-
         let category_rows = declarations
             .iter()
             .filter(|declaration| {

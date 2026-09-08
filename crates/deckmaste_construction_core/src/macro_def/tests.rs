@@ -1291,81 +1291,55 @@ KeywordAction(
 }
 
 #[test]
-fn builtin_reader_authenticates_kind_category_name_and_root() {
+fn builtin_reader_uses_content_identity_and_path_only_as_provenance() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     write_builtin(
         &root,
-        "keyword_actions/Scry.ron",
+        "keyword_actions/not-the-declaration-name.ron",
         r#"
 KeywordAbility(
-    name: "Scry",
-    spelling: "scry",
-    grammar: FixedKeyword(surface: "scry"),
+    name: "Surveil",
+    spelling: "surveil",
+    grammar: FixedKeyword(surface: "surveil"),
 )
 "#,
     );
-    let error = read_builtin_v2(&root).unwrap_err();
-    assert_eq!(
-        error.position(),
-        Some(SourcePosition { line: 2, column: 1 })
-    );
-    assert!(matches!(
-        error.validation(),
-        Some(ValidationError::DeclarationKindMismatch {
-            expected: DeclarationKind::KeywordAction,
-            actual: DeclarationKind::KeywordAbility,
-        })
-    ));
-
-    fs::remove_dir_all(root.join("macros")).unwrap();
     write_builtin(
         &root,
-        "subtypes/creature/Merfolk.ron",
+        "subtypes/creature/arbitrary/nesting-and-case.ron",
         r#"
 Subtype(
     category: Land,
-    name: "Merfolk",
-    spelling: "Merfolk",
-    grammar: Noun(singular: "Merfolk", plural: "Merfolk"),
+    name: "Forest",
+    spelling: "Forest",
+    grammar: Noun(singular: "Forest"),
 )
 "#,
     );
-    let error = read_builtin_v2(&root).unwrap_err();
-    assert_eq!(
-        error.position(),
-        Some(SourcePosition {
-            line: 3,
-            column: 15
-        })
-    );
-    assert!(matches!(
-        error.validation(),
-        Some(ValidationError::DeclarationKindMismatch {
-            expected: DeclarationKind::Subtype(SubtypeCategory::Creature),
-            actual: DeclarationKind::Subtype(SubtypeCategory::Land),
-        })
-    ));
 
-    fs::remove_dir_all(root.join("macros")).unwrap();
-    write_builtin(
-        &root,
-        "keyword_actions/Scry.ron",
-        r#"
-KeywordAction(
-    name: "Surveil",
-    spelling: "surveil",
-    grammar: Verb(bare: "surveil", frame_set: MeasureComplement),
-)
-"#,
+    let declarations = read_builtin_v2(&root).unwrap();
+    assert_eq!(
+        declarations
+            .iter()
+            .map(|declaration| declaration.identity.clone())
+            .collect::<Vec<_>>(),
+        [
+            DeclarationIdentity {
+                kind: DeclarationKind::KeywordAbility,
+                name: "Surveil".to_owned(),
+            },
+            DeclarationIdentity {
+                kind: DeclarationKind::Subtype(SubtypeCategory::Land),
+                name: "Forest".to_owned(),
+            },
+        ]
     );
-    let error = read_builtin_v2(&root).unwrap_err();
-    assert!(matches!(
-        error.validation(),
-        Some(ValidationError::DeclarationNameMismatch { expected, actual })
-            if expected == "Scry" && actual == "Surveil"
-    ));
+    assert_eq!(
+        declarations[0].provenance.path,
+        root.join("macros/keyword_actions/not-the-declaration-name.ron")
+    );
 
     let wrong_root = temporary.path().join("something_else");
     fs::create_dir(&wrong_root).unwrap();
@@ -1377,151 +1351,28 @@ KeywordAction(
 }
 
 #[test]
-fn builtin_kind_and_name_mismatches_ignore_decoys() {
+fn builtin_reader_rejects_malformed_content_at_its_provenance_path() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
-    write_builtin(
-        &root,
-        "keyword_actions/Scry.ron",
-        r#"// KeywordAbility is a decoy
-KeywordAbility(
-    name: "Scry",
-    spelling: "scry",
-)"#,
-    );
+    let relative = "keyword_actions/arbitrary.ron";
+    write_builtin(&root, relative, "KeywordAction(name: \"Scry\"");
     let error = read_builtin_v2(&root).unwrap_err();
-    assert_eq!(
-        error.position(),
-        Some(SourcePosition { line: 2, column: 1 })
-    );
-    assert!(matches!(
-        error.validation(),
-        Some(ValidationError::DeclarationKindMismatch { .. })
-    ));
-
-    fs::remove_dir_all(root.join("macros")).unwrap();
-    write_builtin(
-        &root,
-        "keyword_actions/Scry.ron",
-        r##"KeywordAction(
-    spelling: r#"name is only a decoy"#,
-    name:
-        "Surveil",
-)"##,
-    );
-    let error = read_builtin_v2(&root).unwrap_err();
-    assert_eq!(
-        error.position(),
-        Some(SourcePosition { line: 4, column: 9 })
-    );
-    assert!(matches!(
-        error.validation(),
-        Some(ValidationError::DeclarationNameMismatch { .. })
-    ));
+    assert_located(&error, &root.join("macros").join(relative));
 }
 
-#[test]
-fn builtin_subtype_category_mismatch_locates_the_category_field_value() {
-    let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("builtin");
-    fs::create_dir(&root).unwrap();
-    write_builtin(
-        &root,
-        "subtypes/creature/Land.ron",
-        r#"
-Subtype(
-    name: "Land",
-    spelling: "land",
-    category
-        :
-        Land,
-    grammar: Noun(singular: "land"),
-)
-"#,
-    );
-
-    let error = read_builtin_v2(&root).unwrap_err();
-    assert_eq!(
-        error.position(),
-        Some(SourcePosition { line: 7, column: 9 })
-    );
-    assert!(matches!(
-        error.validation(),
-        Some(ValidationError::DeclarationKindMismatch {
-            expected: DeclarationKind::Subtype(SubtypeCategory::Creature),
-            actual: DeclarationKind::Subtype(SubtypeCategory::Land),
-        })
-    ));
-}
-
-#[test]
-fn builtin_subtype_category_mismatch_skips_field_text_inside_raw_strings() {
-    let temporary = tempfile::tempdir().unwrap();
-    let root = temporary.path().join("builtin");
-    fs::create_dir(&root).unwrap();
-    write_builtin(
-        &root,
-        "subtypes/creature/Land.ron",
-        r##"
-Subtype(
-    name: "Land",
-    spelling: r#"decoy " category: Land still raw"#,
-    category
-        :
-        Land,
-)
-"##,
-    );
-
-    let error = read_builtin_v2(&root).unwrap_err();
-    assert_eq!(
-        error.position(),
-        Some(SourcePosition { line: 7, column: 9 })
-    );
-    assert!(matches!(
-        error.validation(),
-        Some(ValidationError::DeclarationKindMismatch {
-            expected: DeclarationKind::Subtype(SubtypeCategory::Creature),
-            actual: DeclarationKind::Subtype(SubtypeCategory::Land),
-        })
-    ));
-}
-
-#[test]
-fn builtin_reader_rejects_malformed_and_nonfinal_locations() {
-    for (relative, source) in [
-        ("keyword_actions/extra/Scry.ron", DESTROY),
-        (
-            "subtypes/unknown/Thing.ron",
-            r#"Subtype(category:Creature,name:"Thing",spelling:"Thing")"#,
-        ),
-        ("keyword_actions/Scry.ron", "KeywordAction(name: \"Scry\""),
-    ] {
-        let temporary = tempfile::tempdir().unwrap();
-        let root = temporary.path().join("builtin");
-        fs::create_dir(&root).unwrap();
-        write_builtin(&root, relative, source);
-        let path = root.join("macros").join(relative);
-        let error = read_builtin_v2(&root).unwrap_err();
-        assert_located(&error, &path);
-    }
-}
-
-/// A directory of the nursery that is not one of the nine spelled families
+/// A directory of the nursery that is not one of the eight authored families
 /// belongs to another consumer — the declaration meta-macros, or the helper
-/// macros a card writes — and this reader passes over it. Inside a family the
-/// location check is unchanged: an unplaceable path there is still refused
-/// (`builtin_reader_rejects_malformed_and_nonfinal_locations` above).
+/// macros a card writes — and this reader passes over it.
 #[test]
-fn a_nursery_directory_outside_the_nine_families_is_not_read() {
+fn a_nursery_directory_outside_the_eight_families_is_not_read() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("builtin");
     fs::create_dir(&root).unwrap();
     write_builtin(&root, "mystery/Scry.ron", DESTROY);
     write_builtin(&root, "meta/Helper.ron", DESTROY);
     write_builtin(&root, "keyword_actions/Destroy.ron", DESTROY);
-    let declarations = read_builtin_v2(&root).expect("the nine families read on their own");
+    let declarations = read_builtin_v2(&root).expect("the eight families read on their own");
     let names: Vec<&str> = declarations
         .iter()
         .map(|declaration| declaration.identity.name.as_str())

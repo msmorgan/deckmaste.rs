@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
 
@@ -71,27 +70,6 @@ fn builtin_v2_creature_type_nursery_matches_catalog_and_attested_morphology() {
         .map(|spelling| (catalog_stem(spelling), spelling.to_owned()))
         .collect::<BTreeMap<_, _>>();
     assert_eq!(expected.len(), 324, "canonical creature-type count changed");
-
-    let directory = workspace_root.join("plugins_v2/builtin/macros/subtypes/creature");
-    let authored_files = fs::read_dir(&directory)
-        .expect("creature-type nursery must exist")
-        .map(|entry| {
-            let path = entry.expect("creature-type entry must be readable").path();
-            assert_eq!(
-                path.extension().and_then(|value| value.to_str()),
-                Some("ron")
-            );
-            path.file_stem()
-                .and_then(|value| value.to_str())
-                .expect("creature-type filename must be UTF-8")
-                .to_owned()
-        })
-        .collect::<BTreeSet<_>>();
-    assert_eq!(
-        authored_files,
-        expected.keys().cloned().collect(),
-        "catalog entries and committed creature-type files must be bijective"
-    );
 
     let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");

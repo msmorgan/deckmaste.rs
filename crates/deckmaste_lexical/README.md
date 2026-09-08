@@ -33,13 +33,16 @@ does not infer stress or paradigm classes. An override replaces the default for
 the selected slot. Multiple valid spellings occupy explicit variant indices.
 There is no fallback dictionary or unknown-word POS inference.
 
-The xtask source adapters read the existing construction vocabulary, authored
-plugin morphology and generated catalogs. Exported RON declarations can be loaded
-directly by this crate. Original owner identities and source paths survive export.
+The `deckmaste_lexical_source` adapter reads the existing construction
+vocabulary, authored plugin morphology and generated catalogs. Original owner
+identities and source paths survive normalization. Optional RON exports are
+inspection artifacts, not a v3 input interface: the prototype `FrameItem`
+representation changed when correlated marked slots entered the shared model,
+so regenerate old artifacts rather than expecting backward deserialization.
 Catalog phrases remain whole entries; their internal words are not added as new
 lexemes. Unmapped inventories and construction literals remain named source gaps.
-The supplement in `english_v2/src/lexical_supplement.ron` adds noun/determinative
-`one` and supplies explicit irregular replacements under existing verb owners.
+The transitional supplement adds noun/determinative `one` and supplies explicit
+irregular replacements under existing verb owners.
 
 Ordinary verbs acquire the regular paradigm before overrides. Old verb
 `Unavailable` markers based on nonattestation are reported as retired source
@@ -72,7 +75,7 @@ case. Checked realization rejects lossy Roman values: finite magnitudes through
 ## Corpus accounting and inspection
 
 ```sh
-cargo xtask english_v2 lexical --data data/mtgjson/AtomicCards.json \
+cargo xtask lexical --data data/mtgjson/AtomicCards.json \
   --output /tmp/lexical-inventory.json --export /tmp/lexemes.ron
 cargo run -p deckmaste_lexical --example inspect -- /tmp/lexemes.ron 'counters'
 ```

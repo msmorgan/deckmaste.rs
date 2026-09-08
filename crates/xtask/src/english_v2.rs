@@ -7,8 +7,6 @@ mod coverage;
 mod coverage_lock;
 mod diagnostic;
 mod inspect;
-mod lexical;
-mod lexical_sources;
 mod licensing_checkers;
 mod packed;
 mod parse;
@@ -330,9 +328,6 @@ pub struct EnglishV2Args {
 
 #[derive(Debug, Subcommand)]
 enum EnglishV2Command {
-    /// Analyze supported raw Oracle text and report the declared lexical
-    /// remainder.
-    Lexical(lexical::LexicalArgs),
     /// Print generated items and counted declaration escape hatches.
     Expand,
     /// Audit every normalized corpus face with the English-v2 parser.
@@ -515,10 +510,6 @@ struct InspectArgs {
 
 pub fn run(args: &EnglishV2Args) -> anyhow::Result<()> {
     match &args.command {
-        EnglishV2Command::Lexical(args) => {
-            let mut stdout = std::io::stdout().lock();
-            lexical::run(args, &mut stdout)
-        }
         EnglishV2Command::Expand => {
             let mut stdout = std::io::stdout().lock();
             run_from_path(&production_declaration_path(), &mut stdout)

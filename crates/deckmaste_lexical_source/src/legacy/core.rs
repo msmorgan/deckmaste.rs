@@ -16,14 +16,16 @@ use deckmaste_lexical::Person;
 use deckmaste_lexical::SourceKind;
 use deckmaste_lexical::WordForm;
 use serde::Deserialize;
+use serde::de::EnumAccess;
+use serde::de::VariantAccess;
+use serde::de::Visitor;
 
-use super::LexicalSources;
-use super::source;
+use crate::LexicalSources;
+use crate::source;
 
 const GRAMMAR_PATH: &str = "crates/deckmaste_english_v2/src/constructions.rs";
-const VERBS_PATH: &str = "crates/deckmaste_english_v2/src/core_verbs.ron";
 
-pub(super) fn load(root: &Path, output: &mut LexicalSources) -> anyhow::Result<()> {
+pub(crate) fn load(root: &Path, output: &mut LexicalSources) -> anyhow::Result<()> {
     let text = fs::read_to_string(root.join(GRAMMAR_PATH))?;
     let invocation = construction::invocation_from_source(&text)?;
     let declarations = construction::parse_declarations(invocation.tokens)?;
@@ -45,11 +47,23 @@ pub(super) fn load(root: &Path, output: &mut LexicalSources) -> anyhow::Result<(
             _ => {}
         }
     }
-    let verbs = fs::read_to_string(root.join(VERBS_PATH))?;
-    let verbs: Vec<CoreVerb> =
-        ron::from_str(&verbs).context("reading authored core verb inventory")?;
+    let mut inventories = super::ron_documents(root)?
+        .into_iter()
+        .filter_map(|(path, source)| {
+            ron::from_str::<Vec<CoreVerb>>(&source)
+                .ok()
+                .map(|verbs| (path, verbs))
+        });
+    let (path, verbs) = inventories
+        .next()
+        .context("no authored core verb inventory found in the transitional source tree")?;
+    anyhow::ensure!(
+        inventories.next().is_none(),
+        "multiple authored core verb inventories found in the transitional source tree"
+    );
+    let provenance = path.strip_prefix(root).unwrap_or(&path).to_string_lossy();
     for verb in verbs {
-        export_verb(verb, output);
+        export_verb(verb, &provenance, output);
     }
     Ok(())
 }
@@ -205,9 +219,44 @@ fn export_noun(
     Ok(())
 }
 
+struct CoreVerbIdentity(String);
+
+impl std::fmt::Debug for CoreVerbIdentity {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.0)
+    }
+}
+
+fn core_verb_identity<'de, D>(deserializer: D) -> Result<CoreVerbIdentity, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    struct IdentityVisitor;
+
+    impl<'de> Visitor<'de> for IdentityVisitor {
+        type Value = CoreVerbIdentity;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            formatter.write_str("a unit identity")
+        }
+
+        fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
+        where
+            A: EnumAccess<'de>,
+        {
+            let (identity, variant) = data.variant_seed(macro_ron::IdentSeed)?;
+            variant.unit_variant()?;
+            Ok(CoreVerbIdentity(identity.as_str().to_owned()))
+        }
+    }
+
+    deserializer.deserialize_enum("", &[], IdentityVisitor)
+}
+
 #[derive(Deserialize)]
 struct CoreVerb {
-    identity: deckmaste_english_v2::environment::CoreVerbIdentity,
+    #[serde(deserialize_with = "core_verb_identity")]
+    identity: CoreVerbIdentity,
     bare: String,
     third_person: String,
     preterite: Option<String>,
@@ -222,8 +271,8 @@ enum CoreFrame {
     ProVerb,
 }
 
-fn export_verb(verb: CoreVerb, output: &mut LexicalSources) {
-    let owner = verb.identity.owner_id().to_owned();
+fn export_verb(verb: CoreVerb, path: &str, output: &mut LexicalSources) {
+    let owner = format!("core-verb:{}", verb.identity.0);
     if verb
         .frames
         .iter()
@@ -235,11 +284,7 @@ fn export_verb(verb: CoreVerb, output: &mut LexicalSources) {
         ));
         return;
     }
-    let mut lexeme = Lexeme::verb(
-        &owner,
-        &verb.bare,
-        source(SourceKind::Core, VERBS_PATH, &owner),
-    );
+    let mut lexeme = Lexeme::verb(&owner, &verb.bare, source(SourceKind::Core, path, &owner));
     lexeme
         .properties
         .features
@@ -292,7 +337,7 @@ mod tests {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        export_verb(verb, &mut output);
+        export_verb(verb, "test-source", &mut output);
         let lexicon = Lexicon::new(output.lexemes).unwrap();
         for surface in ["attack", "attacks", "attacked", "attacking"] {
             assert!(
@@ -309,7 +354,7 @@ mod tests {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        export_verb(verb, &mut output);
+        export_verb(verb, "test-source", &mut output);
         let lexeme = &output.lexemes[0];
         assert_eq!(lexeme.id, "core-verb:Draw");
         assert_eq!(lexeme.source.owner, "core-verb:Draw");

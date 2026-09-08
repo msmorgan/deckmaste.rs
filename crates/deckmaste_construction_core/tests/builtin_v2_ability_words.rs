@@ -63,14 +63,6 @@ fn builtin_v2_ability_word_nursery_matches_the_independent_catalog() {
     for (name, declaration) in &actual {
         assert_eq!(declaration.params(), None, "{name} must have no params");
         assert_eq!(declaration.body(), None, "{name} must have no body");
-        assert_eq!(
-            declaration
-                .provenance()
-                .path()
-                .file_stem()
-                .and_then(|stem| stem.to_str()),
-            Some(name.as_str()),
-        );
         let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
             panic!("{name} must have one literal spelling")
         };

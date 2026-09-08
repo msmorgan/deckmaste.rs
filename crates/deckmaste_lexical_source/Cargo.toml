@@ -1,0 +1,17 @@
+[package]
+name = "deckmaste_lexical_source"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1.0.102"
+deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
+deckmaste_construction_core = { version = "0.1.0", path = "../deckmaste_construction_core" }
+deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
+macro_ron = { version = "0.1.0", path = "../macro_ron" }
+ron = "0.12.1"
+serde = { version = "1.0.228", features = ["derive"] }

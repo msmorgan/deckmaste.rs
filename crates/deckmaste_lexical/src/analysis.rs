@@ -7,7 +7,6 @@ use serde::Serialize;
 use crate::Binding;
 use crate::Capitalization;
 use crate::Category;
-use crate::FeatureBundle;
 use crate::Lexeme;
 use crate::LexicalReading;
 use crate::LexicalValue;
