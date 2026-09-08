@@ -21,8 +21,9 @@ use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Source;
 use deckmaste_lexical::SourceKind;
 use serde::Serialize;
-use sha2::Digest;
-use sha2::Sha256;
+
+use crate::raw_corpus::digest;
+use crate::raw_corpus::supported_faces;
 
 #[derive(Debug, clap::Args)]
 pub struct LexicalArgs {
@@ -256,15 +257,6 @@ pub fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
     Ok(())
 }
 
-fn digest(bytes: &[u8]) -> String {
-    use std::fmt::Write as _;
-    let mut result = String::with_capacity(64);
-    for byte in Sha256::digest(bytes) {
-        write!(result, "{byte:02x}").expect("writing to a String is infallible");
-    }
-    result
-}
-
 fn check_independent_values(lexicon: &Lexicon) -> Result<usize> {
     let mut checked = 0;
     for value in lexicon.values() {
@@ -287,7 +279,7 @@ fn analyze_cards(cards: &AtomicCards<'_>, lexicon: &Lexicon) -> Result<Report> {
         schema: 2,
         input: PathBuf::new(),
         input_sha256: String::new(),
-        support_filter: "AtomicCard::vintage_playable: Vintage Legal or Restricted",
+        support_filter: crate::raw_corpus::SUPPORT_FILTER,
         normalization: "none; raw Oracle text including reminders",
         nonword_policy: "only lexical matches count as lexical coverage; all remaining scalars and unknown words are classified by spelling as unresolved words, structural separators, notation, or unresolved nonwords; material classification does not license grammar",
         supported_faces: 0,
@@ -309,37 +301,32 @@ fn analyze_cards(cards: &AtomicCards<'_>, lexicon: &Lexicon) -> Result<Report> {
         inventory: Inventory::default(),
         faces: Vec::new(),
     };
-    let mut groups = cards.data.iter().collect::<Vec<_>>();
-    groups.sort_by(|(left, _), (right, _)| left.as_str().cmp(right.as_str()));
-    for (group, faces) in groups {
-        for (face_index, card) in faces
-            .iter()
-            .enumerate()
-            .filter(|(_, card)| card.vintage_playable())
-        {
-            report.supported_faces += 1;
-            let Some(raw) = card.text.as_deref() else {
-                report.supported_faces_without_text += 1;
-                continue;
-            };
-            let analyzed = lexicon.analyze_source(raw, None);
-            let (words, unrecognized_nonwords) =
-                account_text(&analyzed, lexicon, &mut report.inventory)
-                    .with_context(|| format!("lexical laws for {} face {face_index}", card.name))?;
-            report.faces.push(FaceReport {
-                id: digest(&serde_json::to_vec(&(group.as_str(), face_index, raw))?),
-                group_name: group.to_string(),
-                face_index,
-                name: card.name.to_string(),
-                face_name: card.face_name.as_deref().map(str::to_owned),
-                side: card.side.as_deref().map(str::to_owned),
-                raw_text: raw.to_owned(),
-                raw_text_sha256: digest(raw.as_bytes()),
-                lexical_matches: analyzed.matches.len(),
-                words,
-                unrecognized_nonwords,
-            });
-        }
+    for face in supported_faces(cards) {
+        let group = face.group_name;
+        let face_index = face.index;
+        let card = face.card;
+        report.supported_faces += 1;
+        let Some(raw) = card.text.as_deref() else {
+            report.supported_faces_without_text += 1;
+            continue;
+        };
+        let analyzed = lexicon.analyze_source(raw, None);
+        let (words, unrecognized_nonwords) =
+            account_text(&analyzed, lexicon, &mut report.inventory)
+                .with_context(|| format!("lexical laws for {} face {face_index}", card.name))?;
+        report.faces.push(FaceReport {
+            id: digest(&serde_json::to_vec(&(group, face_index, raw))?),
+            group_name: group.to_string(),
+            face_index,
+            name: card.name.to_string(),
+            face_name: card.face_name.as_deref().map(str::to_owned),
+            side: card.side.as_deref().map(str::to_owned),
+            raw_text: raw.to_owned(),
+            raw_text_sha256: digest(raw.as_bytes()),
+            lexical_matches: analyzed.matches.len(),
+            words,
+            unrecognized_nonwords,
+        });
     }
     Ok(report)
 }

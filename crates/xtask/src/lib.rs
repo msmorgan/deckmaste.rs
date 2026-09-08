@@ -17,6 +17,7 @@ pub mod coverage;
 pub mod derive_cards;
 pub mod english;
 pub mod english_v2;
+pub mod english_v3;
 pub mod extract;
 pub mod facts;
 pub mod fidelity;
@@ -31,3 +32,5 @@ pub mod map;
 pub mod resolve;
 pub mod stubs;
 pub mod validate;
+
+mod raw_corpus;

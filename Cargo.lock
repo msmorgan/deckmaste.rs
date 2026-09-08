@@ -2310,6 +2310,7 @@ dependencies = [
  "deckmaste_data",
  "deckmaste_english",
  "deckmaste_english_v2",
+ "deckmaste_english_v3",
  "deckmaste_legacy_render",
  "deckmaste_lexical",
  "deckmaste_lexical_source",

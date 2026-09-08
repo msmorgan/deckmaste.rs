@@ -12,6 +12,7 @@ use xtask::cite::CiteArgs;
 use xtask::derive_cards::DeriveCardsArgs;
 use xtask::english::EnglishArgs;
 use xtask::english_v2::EnglishV2Args;
+use xtask::english_v3::EnglishV3Args;
 use xtask::extract::ExtractArgs;
 use xtask::facts::FactsArgs;
 use xtask::fidelity::FidelityArgs;
@@ -69,6 +70,9 @@ enum Cmd {
     /// Inspect the declaration-driven English-v2 grammar.
     #[command(name = "english_v2")]
     EnglishV2(EnglishV2Args),
+    /// Measure all retained v3 readings of supported raw Oracle text.
+    #[command(name = "english-v3")]
+    EnglishV3(EnglishV3Args),
     /// Analyze supported raw Oracle text against the independent lexicon.
     Lexical(LexicalArgs),
     /// Frame-layer tooling: compiled-frame dumps, `template:` upkeep, and
@@ -109,6 +113,10 @@ fn main() -> anyhow::Result<()> {
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
         Cmd::English(args) => xtask::english::run(args),
         Cmd::EnglishV2(args) => xtask::english_v2::run(&args),
+        Cmd::EnglishV3(args) => {
+            let mut stdout = std::io::stdout().lock();
+            xtask::english_v3::run(&args, &mut stdout)
+        }
         Cmd::Lexical(args) => {
             let mut stdout = std::io::stdout().lock();
             xtask::lexical::run(&args, &mut stdout)

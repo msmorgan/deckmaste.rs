@@ -200,6 +200,7 @@ fn frame_item(item: &FrameItem) -> TokenStream {
 fn ast(ir: &Ir) -> TokenStream {
     let mut variants = vec![];
     let mut categories = vec![];
+    let mut constructions = vec![];
     let mut admits = vec![];
     let mut writes = vec![];
     let mut visits = vec![];
@@ -220,6 +221,7 @@ fn ast(ir: &Ir) -> TokenStream {
         });
         variants.push(quote!(#name { form: usize, #(#field_names: #types),* }));
         categories.push(quote!(Self::#name { .. } => Category::#category));
+        constructions.push(quote!(Self::#name { .. } => #owner));
         let mut admit_forms = vec![];
         let mut write_forms = vec![];
         let mut visit_forms = vec![];
@@ -302,6 +304,9 @@ fn ast(ir: &Ir) -> TokenStream {
         impl Reading {
             #[must_use]
             pub fn category(&self) -> Category { match self { #(#categories),* } }
+            /// The declaration that constructs this node.
+            #[must_use]
+            pub fn construction(&self) -> &'static str { match self { #(#constructions),* } }
             /// Check a constructed value directly against declaration admission.
             /// # Errors
             /// Reports an invalid form, lexical value, constituent or feature equation.

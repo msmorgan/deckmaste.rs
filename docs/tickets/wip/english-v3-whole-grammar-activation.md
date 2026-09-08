@@ -195,3 +195,55 @@ zero failures; strict all-target clippy passed. `jj fix -s trmtxqum` formatted
 the changed Rust. The gate was repeated after preserving the small ungrouped
 Arabic alternative; no other broadened or repeated test pass was needed.
 No full-corpus run or family-completion claim is made by this checkpoint.
+
+Corpus-command checkpoint, change `pxkkttop`: `cargo xtask english-v3 --data
+<AtomicCards.json> --output <report.json>` runs the real connected grammar over
+supported raw face text. It shares the lexical command's face filter and
+group/index identity; reminders stay in the input, and missing versus empty
+text remains distinguishable. Enumeration defaults to exhaustion. An explicit
+`--reading-limit` reports a lower bound and never labels a capped single Reading
+unique. Two checked distinct Readings establish multiplicity without claiming
+an exact total. Parser, materialization and validation issues prevent a complete
+census and are written before the command returns failure.
+
+Every counted Reading passes declaration admission, lexical ownership/context,
+exact realization and comparison of both generated traversals against a
+materialization trace. Node comparison fingerprints complete subtrees, not just
+Construction names; lexical comparison retains full values and selected frame
+and Countability. The compiler supplies a declaration-name accessor for the
+construction inventory. The artifact includes raw identities, source/inventory
+hashes, source change ID, unknown words with byte ranges, checked tree samples,
+all chart and enumeration counters, and timing/host/worker metadata. Its initial
+failure groups distinguish observed lexical gaps from unresolved grammatical
+or lexical causes. Independent linguistic audit and the constructed-value law
+are explicitly outside this command's checks, and remain acceptance work.
+
+Four tests were added (18 Rust additions cumulatively), none removed or weakened.
+They exercise real lexical data, complete and capped ambiguity, support and
+duplicate-face identity, missing text, raw Unicode reminders, exact realization,
+node/word traversal mismatches, and report flushing before failure. Temporarily
+removing each of the three surface/node/word comparison checks made the relevant
+negative assertion fail; the exact gated source was restored afterward.
+
+The first command wiring experiment used four unchanged supported faces from
+the raw snapshot: Concentrate and Divination each had one checked Reading;
+Flying Men and Reach Through Mists had none. All four enumerations completed,
+with zero internal or validation issues. Inspection confirms the latter two
+exercise the still-missing keyword-line and indefinite-article declarations;
+they are general grammar work, not long-tail residual handoffs. The input hash
+was `16598f656b4bf251652199c5fccf39afcf07d6c2f8add5e00a340dc74d6a0ed4`.
+On change `pxkkttop`, this debug subset run measured 8,798,444 ns corpus wall
+and 229,099 ns/B checked-text thread CPU, with one worker and host loads
+2.80/2.86/3.80. These include traced validation, exclude setup/build/report I/O,
+and are not a full-corpus performance baseline. V3 has no covered-count lock;
+the legacy coverage lock was not changed or used as this experiment's gate.
+
+Validation: `cargo xtask gate --changed --from ookvvtoz --clippy --run`
+derived `deckmaste_construction_v3_core`, `deckmaste_lexical_source`,
+`deckmaste_construction_v3`, `deckmaste_english_v3`, and `xtask`. All 588 tests
+passed with zero failures and one preexisting ignore; strict all-target clippy
+passed. The source was formatted with `jj fix -s pxkkttop`. The actual command
+is now implemented, but the ticket remains incomplete: the full connected
+declarations, inherited obligation audit, independent value/linguistic evidence,
+complete supported-corpus baseline and cause-grouped residual analysis are still
+required before review and integration.

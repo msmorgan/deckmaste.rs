@@ -35,6 +35,51 @@ required Complement. Both Arabic notation choices survive for small values
 whose surfaces need no commas; prose magnitudes of four or more digits require
 grouping. No arithmetic value or discourse variable is evaluated by admission.
 
+## Raw corpus census
+
+The generated connected grammar has a corpus command:
+
+```sh
+cargo xtask english-v3 --data /tmp/AtomicCards-subset.json \
+  --output /tmp/english-v3-report.json --workers 1
+```
+
+It shares the independent lexical command's supported-face filter and stable
+group/index identity. It analyzes raw text, including reminders, without
+normalization. Missing text is analyzed as an empty Document while its JSON
+`null` remains distinct from a present empty string. Type Lines are currently
+face metadata, not an additional parse root in this command.
+
+Enumeration is complete by default. `--reading-limit N` requests a bounded
+prefix for inspection; the report never calls a capped single Reading unique.
+Two checked distinct Readings establish multiplicity even without exhaustion,
+but exact totals require exhaustion without errors. Duplicate Derivations,
+cycles, materialization failures and validation failures have separate counters
+or diagnostics. Every counted Reading passes declaration admission, lexical
+ownership/context, byte-exact realization and traversal comparison. The report
+is written before validation issues make the command fail.
+
+Traversal evidence comes from a materializer decorator, independently of the
+generated visitors. It records complete subtree fingerprints and lexical values
+in production order, then compares them with node and word visitation. The
+fingerprints use generated Debug encoding and are diagnostic within the stamped
+source tree, not a persistent serialization format. These checks add work to
+materialization; their cost is included in validation time and thread CPU.
+
+JSON retains input and lexical-inventory hashes, the current change ID when jj
+is available, each face's identity and raw text, unknown words with byte ranges,
+checked Reading samples, construction occurrences, chart/forest and enumeration
+counters, stage timings, host load and worker count. Failure groups separate
+observed lexical gaps from unresolved grammatical or lexical causes; a missing
+Reading alone does not identify its linguistic cause. `--samples-per-face N`
+limits stored trees without limiting enumeration or checks.
+
+The command does not establish independent linguistic correctness or the
+constructed-value roundtrip law. Those still require independent expected
+values and the inherited witness audit. A corpus census, cause-grouped residual
+analysis and whole-family acceptance remain outstanding until the complete
+connected grammar is ready for the full supported snapshot.
+
 ## Admission and packing
 
 An Earley item is `(production, dot, origin, end, state)`. There is exactly one
