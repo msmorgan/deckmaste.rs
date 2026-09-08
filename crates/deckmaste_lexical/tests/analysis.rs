@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use deckmaste_lexical::numeral::Numeral;
 use deckmaste_lexical::*;
 
 fn source(owner: &str) -> Source {
@@ -116,6 +115,69 @@ fn counters_preserves_noun_and_correlated_finite_verb() {
             ),
         ])
     );
+}
+
+#[test]
+fn cast_preserves_plain_present_preterite_and_participle_alternatives() {
+    let mut cast = verb("v:cast", "cast");
+    override_form(&mut cast, WordForm::Preterite, &["cast"]);
+    override_form(&mut cast, WordForm::PastParticiple, &["cast"]);
+    let lexicon = Lexicon::new([cast]).unwrap();
+    let readings = complete(&lexicon, "cast");
+
+    for expected in [
+        word("v:cast", WordForm::Plain, nonfinite()),
+        word(
+            "v:cast",
+            WordForm::Present,
+            finite(Person::First, Number::Singular, Tense::Present),
+        ),
+        word(
+            "v:cast",
+            WordForm::Preterite,
+            finite(Person::Third, Number::Plural, Tense::Past),
+        ),
+        word("v:cast", WordForm::PastParticiple, nonfinite()),
+    ] {
+        assert!(readings.contains(&expected), "missing {expected:?}");
+    }
+    assert!(!readings.contains(&word(
+        "v:cast",
+        WordForm::Present,
+        finite(Person::Third, Number::Singular, Tense::Present),
+    )));
+    assert_eq!(readings.len(), 13);
+}
+
+#[test]
+fn declarations_roundtrip_with_shared_frame_and_feature_values() {
+    let mut cast = verb("v:cast", "cast");
+    cast.properties.frames = vec![Frame {
+        kind: "Predicate".to_owned(),
+        items: vec![FrameItem::Marked {
+            vocabulary: "Preposition".to_owned(),
+            member: "At".to_owned(),
+            slot: FrameSlot {
+                relation: Relation::Object,
+                category: "NounPhrase".to_owned(),
+            },
+        }],
+    }];
+    override_form(&mut cast, WordForm::Preterite, &["cast"]);
+    override_form(&mut cast, WordForm::PastParticiple, &["cast"]);
+
+    let serialized = ron::to_string(&cast).unwrap();
+    let restored: Lexeme = ron::from_str(&serialized).unwrap();
+    assert_eq!(restored, cast);
+
+    let lexicon = Lexicon::new([restored]).unwrap();
+    let readings = complete(&lexicon, "cast");
+    assert!(readings.contains(&word(
+        "v:cast",
+        WordForm::Preterite,
+        finite(Person::Third, Number::Plural, Tense::Past),
+    )));
+    assert!(readings.contains(&word("v:cast", WordForm::PastParticiple, nonfinite(),)));
 }
 
 #[test]

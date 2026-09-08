@@ -10,6 +10,7 @@ use deckmaste_lexical::Countability;
 use deckmaste_lexical::FormDeclaration;
 use deckmaste_lexical::Frame;
 use deckmaste_lexical::FrameItem;
+use deckmaste_lexical::FrameSlot;
 use deckmaste_lexical::Lexeme;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
@@ -293,10 +294,10 @@ fn frames(source: &metadata::VerbFrameSet) -> Vec<Frame> {
 }
 
 fn argument(relation: Relation, category: &str) -> FrameItem {
-    FrameItem::Argument {
+    FrameItem::Argument(FrameSlot {
         relation,
         category: category.to_owned(),
-    }
+    })
 }
 fn marker(vocabulary: &str, member: &str) -> FrameItem {
     FrameItem::Marker {
@@ -316,25 +317,37 @@ pub(super) fn frame_item(item: &metadata::FrameItem) -> FrameItem {
     match item {
         metadata::FrameItem::Argument(value) => argument(relation(value.relation), &value.category),
         metadata::FrameItem::Fixed(value) => marker(&value.vocabulary, &value.member),
-        metadata::FrameItem::Marked(mark, value) => FrameItem::Sequence(vec![
-            marker(&mark.vocabulary, &mark.member),
-            argument(relation(value.relation), &value.category),
-        ]),
+        metadata::FrameItem::Marked(mark, value) => FrameItem::Marked {
+            vocabulary: mark.vocabulary.clone(),
+            member: mark.member.clone(),
+            slot: FrameSlot {
+                relation: relation(value.relation),
+                category: value.category.clone(),
+            },
+        },
         metadata::FrameItem::Optional(value) => FrameItem::Optional(Box::new(frame_item(value))),
         metadata::FrameItem::Literal(value) => FrameItem::Literal(value.clone()),
         metadata::FrameItem::Lex(vocabulary, member) => marker(vocabulary, member),
         metadata::FrameItem::OptionalLex(vocabulary, member) => {
             FrameItem::Optional(Box::new(marker(vocabulary, member)))
         }
-        metadata::FrameItem::MarkedRole(vocabulary, member, category) => FrameItem::Sequence(vec![
-            marker(vocabulary, member),
-            argument(Relation::Complement, category),
-        ]),
+        metadata::FrameItem::MarkedRole(vocabulary, member, category) => FrameItem::Marked {
+            vocabulary: vocabulary.clone(),
+            member: member.clone(),
+            slot: FrameSlot {
+                relation: Relation::Complement,
+                category: category.clone(),
+            },
+        },
         metadata::FrameItem::OptionalMarkedRole(vocabulary, member, category) => {
-            FrameItem::Optional(Box::new(FrameItem::Sequence(vec![
-                marker(vocabulary, member),
-                argument(Relation::Complement, category),
-            ])))
+            FrameItem::Optional(Box::new(FrameItem::Marked {
+                vocabulary: vocabulary.clone(),
+                member: member.clone(),
+                slot: FrameSlot {
+                    relation: Relation::Complement,
+                    category: category.clone(),
+                },
+            }))
         }
         metadata::FrameItem::Amount => argument(Relation::Complement, "Amount"),
         metadata::FrameItem::ObjectNounPhrase => argument(Relation::Object, "NounPhrase"),
@@ -437,16 +450,14 @@ mod tests {
         ));
         assert_eq!(
             mapped,
-            FrameItem::Optional(Box::new(FrameItem::Sequence(vec![
-                FrameItem::Marker {
-                    vocabulary: "Preposition".into(),
-                    member: "To".into()
-                },
-                FrameItem::Argument {
+            FrameItem::Optional(Box::new(FrameItem::Marked {
+                vocabulary: "Preposition".into(),
+                member: "To".into(),
+                slot: FrameSlot {
                     relation: Relation::Complement,
-                    category: "Destination".into()
+                    category: "Destination".into(),
                 },
-            ])))
+            }))
         );
     }
 }

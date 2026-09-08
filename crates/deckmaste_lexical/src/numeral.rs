@@ -94,40 +94,41 @@ fn cardinal_component(text: &str) -> bool {
         || SCALES.iter().any(|(_, name)| *name == text)
 }
 
-/// An integer notation with canonical spelling.
-///
-/// Parsing accepts exactly the spellings reproduced by [`Self::format`].
-/// Cardinal, ordinal and Arabic notation preserve every `i32` value. Roman
-/// notation preserves values from -3,999 through 3,999 and the two `i32`
-/// extrema; its other values format as a shared infinity spelling. Use
-/// [`Self::try_format`] when the integer must be recoverable from its spelling.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
-)]
-pub enum Numeral {
-    /// Lowercase English cardinal words.
-    Cardinal,
-    /// Lowercase English ordinal words.
-    Ordinal,
-    /// Signed decimal digits; the flag enables comma grouping.
-    Arabic(bool),
-    /// Uppercase Roman numerals with Latin fallbacks and signs.
-    Roman,
-}
+pub use deckmaste_lexical_model::Numeral;
 
 /// An error returned when numeral text is invalid or noncanonical.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error, serde::Serialize)]
 #[error("invalid or noncanonical numeral")]
 pub struct ParseNumeralError;
 
-impl Numeral {
+/// Parse and realization behavior for a shared numeral notation value.
+pub trait NumeralCodec {
     /// Formats `value` using this notation.
     ///
     /// Roman magnitudes above 3,999 use `infinitum`, with `negativum` appended
     /// for negative values. Parsing those spellings returns `i32::MAX` and
     /// `i32::MIN`, respectively, rather than recovering the original magnitude.
     #[must_use]
-    pub fn format(self, value: i32) -> String {
+    fn format(self, value: i32) -> String;
+
+    /// Formats `value` only when parsing the result recovers that value.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseNumeralError`] for Roman values outside -3,999 through
+    /// 3,999 other than `i32::MIN` and `i32::MAX`.
+    fn try_format(self, value: i32) -> Result<String, ParseNumeralError>;
+
+    /// Parses an integer written using this notation.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ParseNumeralError`] when `input` is invalid or noncanonical.
+    fn parse(self, input: &str) -> Result<i32, ParseNumeralError>;
+}
+
+impl NumeralCodec for Numeral {
+    fn format(self, value: i32) -> String {
         match self {
             Self::Cardinal => format_cardinal(value),
             Self::Ordinal => format_ordinal(value),
@@ -136,13 +137,7 @@ impl Numeral {
         }
     }
 
-    /// Formats `value` only when parsing the result recovers that value.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ParseNumeralError`] for Roman values outside -3,999 through
-    /// 3,999 other than `i32::MIN` and `i32::MAX`.
-    pub fn try_format(self, value: i32) -> Result<String, ParseNumeralError> {
+    fn try_format(self, value: i32) -> Result<String, ParseNumeralError> {
         let surface = self.format(value);
         if self.parse(&surface)? == value {
             Ok(surface)
@@ -151,12 +146,7 @@ impl Numeral {
         }
     }
 
-    /// Parses an integer written using this notation.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`ParseNumeralError`] when `input` is invalid or noncanonical.
-    pub fn parse(self, input: &str) -> Result<i32, ParseNumeralError> {
+    fn parse(self, input: &str) -> Result<i32, ParseNumeralError> {
         match self {
             Self::Arabic(false) => canonical(self, input, input.parse().ok()),
             Self::Arabic(true) => canonical(self, input, input.replace(',', "").parse().ok()),

@@ -6,11 +6,13 @@ use serde::Serialize;
 
 use crate::Binding;
 use crate::Capitalization;
-use crate::FeatureBundle;
 use crate::Lexeme;
-use crate::WordForm;
+use crate::LexicalReading;
+use crate::LexicalValue;
+use crate::SurfaceCase;
 use crate::morphology;
 use crate::numeral::Numeral;
+use crate::numeral::NumeralCodec;
 
 #[derive(Debug, thiserror::Error)]
 pub enum LexicalError {
@@ -18,32 +20,6 @@ pub enum LexicalError {
     Declaration { lexeme: String, reason: String },
     #[error("lexical value is not licensed by this lexicon")]
     UnlicensedValue,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
-pub enum SurfaceCase {
-    Declared,
-    Initial,
-}
-
-/// Source positions are deliberately absent from grammatical lexical identity.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
-pub struct LexicalValue {
-    pub lexeme: String,
-    pub form: WordForm,
-    pub features: FeatureBundle,
-    pub variant: usize,
-    pub capitalization: SurfaceCase,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
-pub enum LexicalReading {
-    Word(LexicalValue),
-    Numeral {
-        value: i32,
-        notation: Numeral,
-        capitalization: SurfaceCase,
-    },
 }
 
 /// Half-open occurrences in the lossless Unicode-scalar token sequence.

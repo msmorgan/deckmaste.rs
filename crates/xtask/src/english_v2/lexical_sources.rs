@@ -69,3 +69,16 @@ fn source(kind: SourceKind, path: &str, owner: &str) -> Source {
         owner: owner.to_owned(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::load;
+
+    #[test]
+    fn discovered_source_tree_resolves_every_supplemental_override() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        load(&root).unwrap();
+    }
+}

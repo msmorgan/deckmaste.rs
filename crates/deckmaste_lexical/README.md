@@ -2,8 +2,12 @@
 
 `Lexicon::new` freezes declared lexemes into analysis and realization indexes.
 `analyze` returns every licensed lexical occurrence; `realize` accepts a lexical
-value independently of source text. This crate has no construction, catalog-I/O,
-game-model or grammar-compiler dependency. The governing contract is
+value independently of source text. Shared grammar-facing values live in the
+data-only [`deckmaste_lexical_model`](../deckmaste_lexical_model) crate and are
+re-exported here; declaration provenance, morphology, binding, tokenization,
+indexes, occurrences, numeral codecs, and realization stay in this deep module.
+This crate has no construction, catalog-I/O, game-model or grammar-compiler
+dependency. The governing contract is
 [independent lexical analysis](../../docs/decisions/english-lexical-analysis.md).
 
 ## Input and morphology
