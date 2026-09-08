@@ -141,6 +141,21 @@ pub enum SurfaceCase {
     Initial,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
+pub enum Onset {
+    Consonant,
+    Vowel,
+}
+
+/// Positional distribution of one retained spelling, independent of its host.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
+pub struct SurfaceFeatures {
+    pub onset: Option<Onset>,
+    pub article_onset: Option<Onset>,
+    pub initial: bool,
+    pub interior: bool,
+}
+
 /// An integer notation identity. Its parse and realization codecs belong to
 /// `deckmaste_lexical`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]

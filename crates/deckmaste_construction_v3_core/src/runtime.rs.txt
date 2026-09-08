@@ -12,6 +12,7 @@ pub enum FeatureValue {
     NumeralSize(bool),
     NumeralSign(bool),
     Framing(bool),
+    Onset(::deckmaste_lexical::Onset),
     Custom(usize, usize),
 }
 
@@ -20,6 +21,7 @@ pub struct Summary {
     values: Vec<Option<FeatureValue>>,
     frame_choice: Option<usize>,
     count_use: Option<bool>,
+    surface: SurfaceSummary,
 }
 
 impl Default for Summary {
@@ -28,6 +30,73 @@ impl Default for Summary {
             values: vec![None; FEATURE_COUNT],
             frame_choice: None,
             count_use: None,
+            surface: SurfaceSummary::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct SurfaceSummary {
+    empty: bool,
+    onset: Option<::deckmaste_lexical::Onset>,
+    initial: bool,
+    interior: bool,
+}
+
+impl Default for SurfaceSummary {
+    fn default() -> Self {
+        Self {
+            empty: true,
+            onset: None,
+            initial: true,
+            interior: true,
+        }
+    }
+}
+
+impl SurfaceSummary {
+    fn append(self, next: Self) -> Self {
+        if self.empty {
+            return next;
+        }
+        if next.empty {
+            return self;
+        }
+        Self {
+            empty: false,
+            onset: self.onset,
+            initial: self.initial && next.interior,
+            interior: self.interior && next.interior,
+        }
+    }
+}
+
+impl Summary {
+    fn lexical(surface: ::deckmaste_lexical::SurfaceFeatures) -> Self {
+        let mut result = Self::default();
+        result.surface = SurfaceSummary {
+            empty: false,
+            onset: surface.onset,
+            initial: surface.initial,
+            interior: surface.interior,
+        };
+        result.values[12] = surface.onset.map(FeatureValue::Onset);
+        result.values[13] = surface.article_onset.map(FeatureValue::Onset);
+        result
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct State {
+    registers: Vec<Option<FeatureValue>>,
+    surface: SurfaceSummary,
+}
+
+impl State {
+    fn new(registers: Vec<Option<FeatureValue>>) -> Self {
+        Self {
+            registers,
+            surface: SurfaceSummary::default(),
         }
     }
 }
@@ -46,6 +115,9 @@ impl Word {
         category: ::deckmaste_lexical::Category,
     ) -> Result<Summary, Error> {
         lexicon.realize(&self.value).map_err(Error::Lexical)?;
+        let surface = lexicon
+            .surface_features(&self.value)
+            .map_err(Error::Lexical)?;
         let summaries = match &self.value {
             ::deckmaste_lexical::LexicalReading::Word(value) => {
                 let lexeme = lexicon
@@ -60,6 +132,7 @@ impl Word {
                     form: value.form,
                     features: &value.features,
                     properties: &lexeme.properties,
+                    surface,
                 })
             }
             ::deckmaste_lexical::LexicalReading::Numeral {
@@ -71,6 +144,7 @@ impl Word {
                 project(::deckmaste_english_v3::LexicalFeatures::Numeral {
                     value: *value,
                     notation: *notation,
+                    surface,
                 })
             }
         };
@@ -110,7 +184,14 @@ struct TableExport {
     rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
 }
 
+enum Boundary {
+    Initial,
+    Interior,
+}
+
 struct Rule {
+    boundary: Option<Boundary>,
+    onset: Option<::deckmaste_lexical::Onset>,
     checks: Vec<Vec<(usize, usize)>>,
     initial: Vec<Option<FeatureValue>>,
     exports: Vec<(usize, usize)>,
@@ -119,38 +200,59 @@ struct Rule {
 }
 
 impl Rule {
-    fn advance(
-        &self,
-        dot: usize,
-        state: &[Option<FeatureValue>],
-        child: Option<&Summary>,
-    ) -> Option<Vec<Option<FeatureValue>>> {
+    fn advance(&self, dot: usize, state: &State, child: Option<&Summary>) -> Option<State> {
         let checks = self.checks.get(dot)?;
-        let mut next = state.to_vec();
+        let mut next = state.clone();
+        if let Some(child) = child {
+            next.surface = next.surface.append(child.surface);
+        }
         for &(feature, register) in checks {
             let value = child?.values.get(feature)?.as_ref()?;
-            let slot = next.get_mut(register)?;
+            let slot = next.registers.get_mut(register)?;
             if slot.as_ref().is_some_and(|previous| previous != value) {
                 return None;
             }
             *slot = Some(value.clone());
         }
         for &register in &self.release[dot] {
-            next[register] = None;
+            next.registers[register] = None;
         }
         Some(next)
     }
 
-    fn complete(&self, state: &[Option<FeatureValue>]) -> Option<Summary> {
+    fn complete(&self, state: &State) -> Option<Summary> {
         let mut summary = Summary::default();
+        summary.surface = state.surface;
+        if POSITIONAL_CAPITALIZATION && !summary.surface.initial && !summary.surface.interior {
+            return None;
+        }
+        if let Some(boundary) = &self.boundary {
+            let valid = match boundary {
+                Boundary::Initial => summary.surface.initial,
+                Boundary::Interior => summary.surface.interior,
+            };
+            if !valid {
+                return None;
+            }
+            summary.surface.initial = true;
+            summary.surface.interior = true;
+        }
+        if let Some(onset) = self.onset {
+            summary.surface.onset = Some(onset);
+        }
+        summary.values[12] = summary.surface.onset.map(FeatureValue::Onset);
         for &(feature, register) in &self.exports {
-            summary.values[feature] = Some(state.get(register)?.as_ref()?.clone());
+            summary.values[feature] = Some(state.registers.get(register)?.as_ref()?.clone());
         }
         for export in &self.table_exports {
             let (_, output) = export.rows.iter().find(|(inputs, _)| {
-                export.registers.iter().zip(inputs).all(|(&register, value)| {
-                    state.get(register).and_then(Option::as_ref) == Some(value)
-                })
+                export
+                    .registers
+                    .iter()
+                    .zip(inputs)
+                    .all(|(&register, value)| {
+                        state.registers.get(register).and_then(Option::as_ref) == Some(value)
+                    })
             })?;
             summary.values[export.feature] = Some(output.clone());
         }
@@ -166,7 +268,7 @@ pub struct Grammar {
 impl ::deckmaste_english_v3::Grammar for Grammar {
     type Category = Category;
     type Summary = Summary;
-    type State = Vec<Option<FeatureValue>>;
+    type State = State;
 
     fn productions(&self) -> &[::deckmaste_english_v3::Production<Category>] {
         &self.productions
@@ -177,7 +279,7 @@ impl ::deckmaste_english_v3::Grammar for Grammar {
     fn begin(&self, production: usize) -> Vec<Self::State> {
         self.rules
             .get(production)
-            .map(|rule| vec![rule.initial.clone()])
+            .map(|rule| vec![State::new(rule.initial.clone())])
             .unwrap_or_default()
     }
     fn advance(
@@ -230,7 +332,7 @@ impl Value {
     }
 }
 
-impl ::deckmaste_english_v3::Materializer<Summary, Vec<Option<FeatureValue>>> for &Grammar {
+impl ::deckmaste_english_v3::Materializer<Summary, State> for &Grammar {
     type Reading = Value;
     type Error = Error;
 
@@ -255,7 +357,7 @@ impl ::deckmaste_english_v3::Materializer<Summary, Vec<Option<FeatureValue>>> fo
         &mut self,
         production: usize,
         _: &Summary,
-        _: &Vec<Option<FeatureValue>>,
+        _: &State,
         children: Vec<Value>,
     ) -> Result<Value, Error> {
         self.materialize(production, children)

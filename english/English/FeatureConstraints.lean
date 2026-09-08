@@ -8,12 +8,37 @@ inductive Countability where
   | count | mass
   deriving DecidableEq
 
+inductive Onset where
+  | consonant | vowel
+  deriving DecidableEq
+
 /-- Uses are declarations, so one noun may have both count and mass uses. -/
 structure Declarations (L : Type) where
   nounUse : L → Countability → Prop
   determinerUse : L → Countability → Prop
   temporalNoun : L → Prop
   nominalCase : L → Case := fun _ => .nominativeOrAccusative
+  onset : L → Option Onset := fun _ ↦ none
+  articleOnset : L → Option Onset := fun _ ↦ none
+
+/-- The first pronounced constituent owns onset, even when it is not the nominal head. -/
+def leadingOnset (features : Declarations L) : Syntax L → Option Onset
+  | .noun word _ | .adjective word | .marker word | .word word _ | .identity word _ =>
+      features.onset word
+  | .modify modifier _ => leadingOnset features modifier
+  | .relativeForm _ head _ _ _ => leadingOnset features head
+  | .sharedCoordination _ _ first _ => leadingOnset features first
+  | .node (.attributive word _) _ | .node (.targeting word _) _
+  | .node (.participialAttributive word _) _ | .node (.nominalComplement word _ _) _ =>
+      features.onset word
+  | .node (.adjunct _ _ .before) [_, dependent] => leadingOnset features dependent
+  | .node (.signedScalar _) _ => some .consonant
+  | .node _ (first :: _) => leadingOnset features first
+  | _ => none
+
+def requiredOnset (features : Declarations L) : Syntax L → Option Onset
+  | .word word (.determinativePhrase _) => features.articleOnset word
+  | _ => none
 
 inductive NominalUse (features : Declarations L) : Syntax L → Countability → Prop where
   | nominalComplement {head marker : L} {complement : Syntax L} {number : Number}
@@ -118,9 +143,12 @@ def Local (features : Declarations L) (tree : Syntax L)
         (right.nominalCase features.nominalCase gapCase)).Argument
   | .node (.serialCoordinate _ (.nounPhrase _)) children =>
       (childrenNominalCase features.nominalCase children gapCase).Argument
-  | .node (.determine _) [det,head] =>
-      (∃ use, NominalUse features head use ∧ DeterminerUse features det use) ∨
-        (Transparent det ∧ ∃ use, NominalUse features head use)
+  | .node (.determine number) [det,head] =>
+      match requiredOnset features det with
+      | some onset => number = .singular ∧ NominalUse features head .count ∧
+          DeterminerUse features det .count ∧ leadingOnset features head = some onset
+      | none => (∃ use, NominalUse features head use ∧ DeterminerUse features det use) ∨
+          (Transparent det ∧ ∃ use, NominalUse features head use)
   | .node .barePlural [head] => NominalUse features head .count
   | .node .bareMass [head] => NominalUse features head .mass
   | .node (.slashModifier _) [_, head] =>

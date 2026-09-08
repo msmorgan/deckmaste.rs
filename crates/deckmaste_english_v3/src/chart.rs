@@ -125,6 +125,9 @@ impl<G: Grammar> Chart<'_, G> {
             if occurrence.start >= occurrence.end || occurrence.end > self.input.tokens.len() {
                 return Err(ParseError::InvalidOccurrence(index));
             }
+            let surface = lexicon
+                .surface_features(&occurrence.reading)
+                .map_err(|_| ParseError::UndeclaredOccurrence(index))?;
             let (category, features, provenance) = match &occurrence.reading {
                 LexicalReading::Word(value) => {
                     let lexeme = lexicon
@@ -138,6 +141,7 @@ impl<G: Grammar> Chart<'_, G> {
                             form: value.form,
                             features: &value.features,
                             properties: &lexeme.properties,
+                            surface,
                         },
                         Some(lexeme.source.clone()),
                     )
@@ -149,6 +153,7 @@ impl<G: Grammar> Chart<'_, G> {
                     LexicalFeatures::Numeral {
                         value: *value,
                         notation: *notation,
+                        surface,
                     },
                     None,
                 ),

@@ -35,7 +35,9 @@ theorem admitted (variant : Bool) (capitalization : Capitalization) :
   · simp [tree, Features.Conforms, Features.ChildrenConform, Features.Local]
     exact .noun ⟨.plural, rfl⟩
   · simp [tree, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [tree, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [tree, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · cases variant <;> cases capitalization <;> decide
 
 theorem variants_preserved :
     Reading.Realizes (Lexical.lexicon environment) (tree false) ["indexes"] ∧

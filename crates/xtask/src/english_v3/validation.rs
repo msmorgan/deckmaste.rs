@@ -2,9 +2,9 @@ use deckmaste_english_v3::Leaf;
 use deckmaste_english_v3::Materializer;
 use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Error;
-use deckmaste_english_v3::grammar::FeatureValue;
 use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::State;
 use deckmaste_english_v3::grammar::Summary;
 use deckmaste_english_v3::grammar::Value;
 use deckmaste_english_v3::grammar::Word;
@@ -40,7 +40,7 @@ pub(super) struct TracedValue {
 /// Record what the forest materializes independently of generated visitors.
 pub(super) struct Tracing<'a>(pub &'a Grammar);
 
-impl Materializer<Summary, Vec<Option<FeatureValue>>> for Tracing<'_> {
+impl Materializer<Summary, State> for Tracing<'_> {
     type Reading = TracedValue;
     type Error = Error;
 
@@ -61,7 +61,7 @@ impl Materializer<Summary, Vec<Option<FeatureValue>>> for Tracing<'_> {
         &mut self,
         production: usize,
         summary: &Summary,
-        state: &Vec<Option<FeatureValue>>,
+        state: &State,
         children: Vec<TracedValue>,
     ) -> Result<TracedValue, Error> {
         let mut nodes = Vec::new();

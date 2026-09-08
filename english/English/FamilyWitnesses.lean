@@ -114,9 +114,11 @@ theorem document_admitted : Reading.Admitted environment [] document (.document 
   · simp [document, sentence, conditional, subordinate, finite, objects, instruction, predicate, noun,
       Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local, Dependencies.exposed,
       Dependencies.childrenExposed, Dependencies.frameExposed]
-  · simp [document, sentence, conditional, subordinate, finite, objects, instruction, predicate, noun,
-      Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
-    exact ⟨.verb rfl, rfl⟩
+  · refine ⟨?_, ?_⟩
+    · simp [document, sentence, conditional, subordinate, finite, objects, instruction, predicate, noun,
+        Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+      exact ⟨.verb rfl, rfl⟩
+    · decide
 
 /-- The same independently declared adjective participates in a nominal used as a verb Object. -/
 theorem modified_admitted : Reading.Admitted environment [] modified (.nominal .plural)
@@ -126,7 +128,9 @@ theorem modified_admitted : Reading.Admitted environment [] modified (.nominal .
       Features.containsTarget]
   · simp [modified, adjective, noun, Dependencies.Safe, Dependencies.Local,
       Dependencies.exposed]
-  · simp [modified, adjective, noun, Reading.GrammarConforms, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [modified, adjective, noun, Reading.GrammarConforms, Reading.LocalGrammar]
+    · decide
 
 theorem preposition_admitted : Reading.Admitted environment [] preposition .prepositionPhrase
     ["during", "turns"] := by
@@ -134,8 +138,10 @@ theorem preposition_admitted : Reading.Admitted environment [] preposition .prep
   · simp [preposition, temporal, Features.Conforms, Features.ChildrenConform, Features.Local,
       temporal_use, CaseAt, Syntax.nominalCase, Case.Allows, Relation.casePosition]
   · simp [preposition, temporal, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [preposition, temporal, Reading.GrammarConforms, Reading.ChildrenConform,
-      Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [preposition, temporal, Reading.GrammarConforms, Reading.ChildrenConform,
+        Reading.LocalGrammar]
+    · decide
 
 theorem wrong_preposition_complement : ¬ grammar.preposition during (.clause .finite) := by
   simp [grammar, Lexical.lexicon, during, word]
@@ -205,8 +211,10 @@ theorem serial_admitted :
   · simp [serialThree, FrameScope.serial, objects, temporal, whitened, modified, adjective, noun,
       Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local, Dependencies.exposed,
       Dependencies.childrenExposed]
-  · simp [serialThree, FrameScope.serial, objects, temporal, whitened, modified, adjective, noun,
-      Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [serialThree, FrameScope.serial, objects, temporal, whitened, modified, adjective, noun,
+        Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 private theorem objects_surface {surface : Surface}
     (realized : Reading.Realizes grammar objects surface) :
@@ -252,8 +260,10 @@ theorem nested_admitted_without_commas :
   · simp [nestedThree, FrameScope.group, objects, temporal, whitened, modified, adjective, noun,
       Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local, Dependencies.exposed,
       Dependencies.childrenExposed]
-  · simp [nestedThree, FrameScope.group, objects, temporal, whitened, modified, adjective, noun,
-      Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [nestedThree, FrameScope.group, objects, temporal, whitened, modified, adjective, noun,
+        Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 /-- Both bracketings of the same three coordinands derive, and their anchor cardinality differs. -/
 theorem serial_flat_nested_differ :

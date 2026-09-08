@@ -7,6 +7,7 @@ use deckmaste_construction_v3::constructions;
 
 constructions! {
     pub mod grammar {
+        capitalization Positional;
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass, Singular }
         feature DeterminerKind { Ordinary, Indefinite }
         feature CaseUse { Common, Nominative, Accusative }
@@ -246,11 +247,26 @@ constructions! {
             form ["“", text: Document, "”"];
         }
 
+        construction QuotedClause: QuotedText {
+            boundary Interior;
+            form ["\"", clause: Clause, "\""];
+            form ["“", clause: Clause, "”"];
+        }
+
+        construction QuotedKeyword: QuotedText {
+            boundary Interior;
+            form ["\"", keyword: KeywordPhrase, "\""];
+            form ["\"", keyword: KeywordPhrase, ".\""];
+            form ["“", keyword: KeywordPhrase, "”"];
+            form ["“", keyword: KeywordPhrase, ".”"];
+        }
+
         construction ActivatedAbility: Ability {
             form [cost: Cost, ": ", body: Paragraph];
         }
 
         construction AbilityWordHead: Ability {
+            boundary Initial;
             form [head: lexical(Keyword), " — ", body: Ability];
             require head.LabelKind = AbilityWord;
         }
@@ -264,6 +280,7 @@ constructions! {
         }
 
         construction ActionCost: CostComponent {
+            boundary Initial;
             form [action: BarePredicate];
             require action.OvertHead = Yes;
         }
@@ -287,6 +304,7 @@ constructions! {
         }
 
         construction KeywordLine: Ability {
+            boundary Initial;
             form [first: KeywordPhrase, rest: repeat(KeywordContinuation, "")];
         }
 
@@ -327,10 +345,12 @@ constructions! {
         }
 
         construction ModalItem: ParagraphItem {
+            boundary Initial;
             form [header: Clause, " —\n", modes: Modes];
         }
 
         construction Sentence: Sentence {
+            boundary Initial;
             form [clause: Clause, "."];
         }
 
@@ -466,6 +486,18 @@ constructions! {
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require determiner.DeterminerKind = Ordinary;
             export number = determined_number(determiner.DeterminerUse, head.number, head.countability);
+            export person = Third;
+            export CaseUse = Common;
+        }
+
+        construction IndefiniteNounPhrase: NounPhrase {
+            form [determiner: lexical(Determinative), " ", head: Nominal];
+            require determiner.DeterminerKind = Indefinite;
+            require determiner.number = Singular;
+            require head.number = Singular;
+            require head.countability = Count;
+            agree determiner.article_onset = head.onset;
+            export number = head.number;
             export person = Third;
             export CaseUse = Common;
         }
@@ -947,10 +979,12 @@ constructions! {
         }
 
         construction PositiveScalar: ScalarComponent {
+            onset Consonant;
             form ["+", value: UnsignedScalar];
         }
 
         construction NegativeScalar: ScalarComponent {
+            onset Consonant;
             form ["-", value: UnsignedScalar];
         }
 

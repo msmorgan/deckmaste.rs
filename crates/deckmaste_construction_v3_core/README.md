@@ -62,11 +62,34 @@ The syntax tree is validated into an IR before any projection is emitted:
 
 Builtin feature domains are `number`, `person`, `tense`, `finiteness`, `case`,
 `form`, `countability` (`Count`/`Mass`), `frame`, `numeral_kind`,
-`numeral_size`, and `framing`. The first six use the lexical model's distinct
+`numeral_size`, `framing`, `onset`, and `article_onset`. The first six use the lexical model's distinct
 enums. A declaration can add a finite distribution feature:
 `feature extraction { Open, Closed }` reads the correspondingly named lexical
 property. Undeclared or absent values never act as wildcards. Agreement keeps
 whole lexical feature bundles correlated.
+
+`onset` and `article_onset` share the `Consonant`/`Vowel` domain. The Lexicon
+normalizes pronunciation and the selected article variant before admission.
+Every Category automatically exposes `onset`, derived from its first pronounced
+constituent in the selected form's order, including modifiers and collection
+elements. An unknown first onset stays unknown. A Construction can declare
+`onset Consonant;` or `onset Vowel;` for pronounced literal notation such as a
+sign; other literals contribute no pronunciation. Agreement can therefore
+compare `determiner.article_onset` with `head.onset` without naming words.
+
+The module declaration `capitalization Positional;` enables positional casing
+admission. Without it, a generic grammar leaves casing unconstrained.
+`boundary Initial;` and `boundary Interior;` require the corresponding capability
+and close that constituent's casing scope. A sentence and a quoted fragment can
+thus declare different boundaries even when both end with a period. These checks
+preserve the lexical variant, including exact names and bound forms.
+
+Prefix states and complete summaries carry finite onset and casing capabilities
+alongside the feature registers. Composition retains the first constituent's
+initial capability and requires subsequent constituents to permit interior use.
+Optional and repeated fields compose the same summaries in the chart and checked
+construction; no child AST is needed to decide admission. Distinct correlated
+surface choices remain distinct states until no parent can distinguish them.
 
 `numeral_kind` distinguishes `Cardinal`, `Ordinal`, `Arabic`, `GroupedArabic`
 and `Roman`; the grouping policy remains distinct even for a small digit

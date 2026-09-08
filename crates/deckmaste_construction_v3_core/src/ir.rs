@@ -17,6 +17,7 @@ use crate::parse::Reference;
 pub(crate) struct Ir {
     pub visibility: Visibility,
     pub module: Ident,
+    pub positional_capitalization: bool,
     pub features: Vec<Domain>,
     pub frames: Vec<(Ident, Frame)>,
     pub tables: Vec<FeatureTable>,
@@ -40,6 +41,7 @@ pub(crate) enum DomainKind {
     NumeralSize,
     NumeralSign,
     Framing,
+    Onset,
     Custom,
 }
 
@@ -84,6 +86,8 @@ pub(crate) struct Rule {
     pub table_exports: Vec<TableExport>,
     pub release: Vec<Vec<usize>>,
     pub build: Build,
+    pub boundary: Option<Ident>,
+    pub onset: Option<Ident>,
 }
 
 pub(crate) enum Symbol {
@@ -170,6 +174,16 @@ fn builtin_domains() -> Vec<Domain> {
             name: "numeral_sign".into(),
             values: vec!["Nonnegative".into(), "Negative".into()],
             kind: DomainKind::NumeralSign,
+        },
+        Domain {
+            name: "onset".into(),
+            values: vec!["Consonant".into(), "Vowel".into()],
+            kind: DomainKind::Onset,
+        },
+        Domain {
+            name: "article_onset".into(),
+            values: vec!["Consonant".into(), "Vowel".into()],
+            kind: DomainKind::Onset,
         },
     ])
     .collect()
@@ -305,6 +319,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     let mut ir = Ir {
         visibility: declaration.visibility,
         module: declaration.module,
+        positional_capitalization: declaration.capitalization.is_some(),
         features,
         frames,
         tables: vec![],
@@ -373,6 +388,21 @@ fn normalize(
 ) -> syn::Result<()> {
     for (index, construction) in constructions.iter().enumerate() {
         let plan = equations(ir, index, interfaces, &construction.equations)?;
+        if let Some(boundary) = &construction.boundary
+            && boundary != "Initial"
+            && boundary != "Interior"
+        {
+            return Err(error(
+                boundary,
+                "surface boundary must be Initial or Interior",
+            ));
+        }
+        if let Some(onset) = &construction.onset
+            && onset != "Consonant"
+            && onset != "Vowel"
+        {
+            return Err(error(onset, "surface onset must be Consonant or Vowel"));
+        }
         let mut field_symbols = vec![];
         for (_, ty) in ir.constructors[index].fields.clone() {
             field_symbols.push(normalize_field(ir, &ty));
@@ -430,6 +460,8 @@ fn normalize(
                 symbols,
                 checks,
                 initial: plan.initial.clone(),
+                boundary: construction.boundary.clone(),
+                onset: construction.onset.clone(),
                 exports: plan.exports.clone(),
                 table_exports: plan.table_exports.clone(),
                 release,
@@ -521,6 +553,10 @@ fn value(ir: &Ir, feature: usize, name: &Ident) -> syn::Result<TokenStream> {
             let framed = index == 1;
             quote!(FeatureValue::Framing(#framed))
         }
+        DomainKind::Onset => {
+            let value = format_ident!("{}", domain.values[index]);
+            quote!(FeatureValue::Onset(::deckmaste_lexical::Onset::#value))
+        }
         DomainKind::Custom => quote!(FeatureValue::Custom(#feature, #index)),
     })
 }
@@ -557,7 +593,7 @@ fn resolve_reference(
                 .iter()
                 .position(|name| name == category)
                 .unwrap();
-            if !interfaces[category].contains(&feature) {
+            if !interfaces[category].contains(&feature) && ir.features[feature].name != "onset" {
                 return Err(error(
                     &construction.name,
                     &format!(
@@ -575,6 +611,14 @@ fn resolve_reference(
         }
     }
     Ok((field, feature))
+}
+
+fn same_domain(ir: &Ir, left: usize, right: usize) -> bool {
+    left == right
+        || matches!(
+            (&ir.features[left].kind, &ir.features[right].kind),
+            (DomainKind::Onset, DomainKind::Onset)
+        )
 }
 
 fn equations(
@@ -616,7 +660,7 @@ fn equations(
         if let Equation::Agree(l, r) = equation {
             let left = position(l)?;
             let right = position(r)?;
-            if refs[left].1 != refs[right].1 {
+            if !same_domain(ir, refs[left].1, refs[right].1) {
                 return Err(error(
                     &construction.name,
                     "agreement requires the same feature domain",
@@ -737,6 +781,8 @@ fn helper(ir: &mut Ir, category: usize, symbols: Vec<Symbol>, build: Build) {
         symbols,
         checks: vec![vec![]; size],
         initial: vec![],
+        boundary: None,
+        onset: None,
         exports: vec![],
         table_exports: vec![],
         release: vec![vec![]; size],

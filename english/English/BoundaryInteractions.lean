@@ -97,7 +97,7 @@ theorem plain_admitted :
     .noun ⟨plain_licensed, ⟨.count, rfl⟩, rfl⟩⟩
   · simp [leaf, Features.Conforms, Features.Local]
   · simp [leaf, Dependencies.Safe, Dependencies.Local]
-  · simp [leaf, Reading.GrammarConforms, Reading.LocalGrammar]
+  · simp [leaf, word, Reading.GrammarConforms, Reading.LocalGrammar]
 
 theorem spaced_not_admitted (surface : Surface) :
     ¬ Reading.Admitted environment [] (leaf true) (.nominal .plural) surface := by

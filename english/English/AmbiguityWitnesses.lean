@@ -84,8 +84,10 @@ theorem noun_admitted : Reading.Admitted environment [] nounReading (.clause .fi
     exact Or.inl ⟨.count, .noun ⟨.singular, rfl⟩, .word ⟨.singular, rfl⟩⟩
   · simp [nounReading, subject, nounPredicate, herDuck, Dependencies.Safe, Dependencies.ChildrenSafe,
       Dependencies.Local, Dependencies.exposed]
-  · simp [nounReading, subject, nounPredicate, herDuck, Reading.GrammarConforms,
-      Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [nounReading, subject, nounPredicate, herDuck, Reading.GrammarConforms,
+        Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem verb_admitted : Reading.Admitted environment [] verbReading (.clause .finite)
     ["I", "saw", "her", "duck"] := by
@@ -95,8 +97,10 @@ theorem verb_admitted : Reading.Admitted environment [] verbReading (.clause .fi
       Relation.casePosition, Lexical.features, speakerWord, objectWord, word, Case.Allows, Case.Argument]
   · simp [verbReading, subject, verbPredicate, ducking, Dependencies.Safe, Dependencies.ChildrenSafe,
       Dependencies.Local, Dependencies.exposed]
-  · simp [verbReading, subject, verbPredicate, ducking, Reading.GrammarConforms,
-      Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [verbReading, subject, verbPredicate, ducking, Reading.GrammarConforms,
+        Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem unrelated_readings_retained :
     Reading.Ambiguous environment [] (.clause .finite) ["I", "saw", "her", "duck"] :=
@@ -120,7 +124,7 @@ def control : Reading Lexeme := .word artifact (.document .type)
 
 theorem control_admitted : Reading.Admitted environment [] control (.document .type) ["Artifact"] :=
   ⟨⟨.word .type ⟨artifact_licensed, Or.inl ⟨_, rfl⟩⟩, ⟨trivial, trivial⟩, ⟨trivial, trivial⟩,
-    ⟨trivial, trivial⟩⟩, .word ⟨artifact_licensed, Or.inl ⟨_, rfl⟩, rfl⟩⟩
+    ⟨⟨trivial, trivial⟩, by decide⟩⟩, .word ⟨artifact_licensed, Or.inl ⟨_, rfl⟩, rfl⟩⟩
 
 private theorem type_word_unique (w : WordForm Lexeme) (capable : grammar.word w (.document .type)) :
     w = artifact := by
@@ -176,7 +180,7 @@ theorem control_unique (tree : Reading Lexeme)
       exact False.elim (coordination_not_type _ _ licensed resultEq.symm)
   case rightNodeRaising body filler =>
     cases resultEq
-    have localCheck := admitted.1.2.2.2.1
+    have localCheck := admitted.1.2.2.2.1.1
     change coordinable (.document .type) = true ∧ _ at localCheck
     cases localCheck.1
 

@@ -16,6 +16,7 @@ pub(crate) struct Declaration {
     pub frames: Vec<(Ident, LitStr)>,
     pub tables: Vec<FeatureTable>,
     pub constructions: Vec<Construction>,
+    pub capitalization: Option<Ident>,
 }
 
 pub(crate) struct Category {
@@ -40,6 +41,8 @@ pub(crate) struct Construction {
     pub category: Ident,
     pub forms: Vec<Vec<Part>>,
     pub equations: Vec<Equation>,
+    pub boundary: Option<Ident>,
+    pub onset: Option<Ident>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,11 +102,22 @@ impl Parse for Declaration {
             frames: vec![],
             tables: vec![],
             constructions: vec![],
+            capitalization: None,
         };
         while !body.is_empty() {
             let keyword: Ident = body.parse()?;
             let name: Ident = body.parse()?;
             match keyword.to_string().as_str() {
+                "capitalization" => {
+                    if name != "Positional" || result.capitalization.replace(name.clone()).is_some()
+                    {
+                        return Err(syn::Error::new(
+                            name.span(),
+                            "declare capitalization Positional once",
+                        ));
+                    }
+                    body.parse::<Token![;]>()?;
+                }
                 "category" => {
                     let features;
                     parenthesized!(features in body);
@@ -154,84 +168,99 @@ impl Parse for Declaration {
                     });
                 }
                 "construction" => {
-                    body.parse::<Token![:]>()?;
-                    let category = body.parse()?;
-                    let contents;
-                    braced!(contents in body);
-                    let mut construction = Construction {
-                        name,
-                        category,
-                        forms: vec![],
-                        equations: vec![],
-                    };
-                    while !contents.is_empty() {
-                        let directive: Ident = contents.parse()?;
-                        match directive.to_string().as_str() {
-                            "form" => {
-                                let form;
-                                bracketed!(form in contents);
-                                let parts = parse_form(&form)?;
-                                construction.forms.push(parts);
-                            }
-                            "export" => {
-                                let feature = contents.parse()?;
-                                contents.parse::<Token![=]>()?;
-                                let equation = if contents.peek2(Token![.]) {
-                                    Equation::Export(feature, reference(&contents)?)
-                                } else if contents.peek2(syn::token::Paren) {
-                                    let table = contents.parse()?;
-                                    let arguments;
-                                    parenthesized!(arguments in contents);
-                                    let arguments =
-                                        arguments.parse_terminated(reference, Token![,])?;
-                                    Equation::ExportTable(
-                                        feature,
-                                        table,
-                                        arguments.into_iter().collect(),
-                                    )
-                                } else {
-                                    Equation::ExportConstant(feature, contents.parse()?)
-                                };
-                                construction.equations.push(equation);
-                            }
-                            "agree" => {
-                                let left = reference(&contents)?;
-                                contents.parse::<Token![=]>()?;
-                                construction
-                                    .equations
-                                    .push(Equation::Agree(left, reference(&contents)?));
-                            }
-                            "require" => {
-                                let left = reference(&contents)?;
-                                contents.parse::<Token![=]>()?;
-                                construction
-                                    .equations
-                                    .push(Equation::Require(left, contents.parse()?));
-                            }
-                            _ => {
-                                return Err(syn::Error::new(
-                                    directive.span(),
-                                    format!(
-                                        "construction {}: unknown generated obligation; expected form, export, agree or require",
-                                        construction.name
-                                    ),
-                                ));
-                            }
-                        }
-                        contents.parse::<Token![;]>()?;
-                    }
-                    result.constructions.push(construction);
+                    result.constructions.push(parse_construction(&body, name)?);
                 }
                 _ => {
                     return Err(syn::Error::new(
                         keyword.span(),
-                        "expected category, feature, frame, table or construction",
+                        "expected capitalization, category, feature, frame, table or construction",
                     ));
                 }
             }
         }
         Ok(result)
     }
+}
+
+fn parse_construction(body: ParseStream<'_>, name: Ident) -> syn::Result<Construction> {
+    body.parse::<Token![:]>()?;
+    let category = body.parse()?;
+    let contents;
+    braced!(contents in body);
+    let mut construction = Construction {
+        name,
+        category,
+        forms: vec![],
+        equations: vec![],
+        boundary: None,
+        onset: None,
+    };
+    while !contents.is_empty() {
+        let directive: Ident = contents.parse()?;
+        match directive.to_string().as_str() {
+            "boundary" | "onset" => {
+                let value: Ident = contents.parse()?;
+                let slot = if directive == "boundary" {
+                    &mut construction.boundary
+                } else {
+                    &mut construction.onset
+                };
+                if slot.replace(value).is_some() {
+                    return Err(syn::Error::new(
+                        directive.span(),
+                        "duplicate surface obligation",
+                    ));
+                }
+            }
+            "form" => {
+                let form;
+                bracketed!(form in contents);
+                let parts = parse_form(&form)?;
+                construction.forms.push(parts);
+            }
+            "export" => {
+                let feature = contents.parse()?;
+                contents.parse::<Token![=]>()?;
+                let equation = if contents.peek2(Token![.]) {
+                    Equation::Export(feature, reference(&contents)?)
+                } else if contents.peek2(syn::token::Paren) {
+                    let table = contents.parse()?;
+                    let arguments;
+                    parenthesized!(arguments in contents);
+                    let arguments = arguments.parse_terminated(reference, Token![,])?;
+                    Equation::ExportTable(feature, table, arguments.into_iter().collect())
+                } else {
+                    Equation::ExportConstant(feature, contents.parse()?)
+                };
+                construction.equations.push(equation);
+            }
+            "agree" => {
+                let left = reference(&contents)?;
+                contents.parse::<Token![=]>()?;
+                construction
+                    .equations
+                    .push(Equation::Agree(left, reference(&contents)?));
+            }
+            "require" => {
+                let left = reference(&contents)?;
+                contents.parse::<Token![=]>()?;
+                construction
+                    .equations
+                    .push(Equation::Require(left, contents.parse()?));
+            }
+            _ => {
+                return Err(syn::Error::new(
+                    directive.span(),
+                    format!(
+                        "construction {}: unknown generated obligation; expected form, export, agree, require, boundary or onset",
+                        construction.name
+                    ),
+                ));
+            }
+        }
+        contents.parse::<Token![;]>()?;
+    }
+    Ok(construction)
 }
 
 fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {

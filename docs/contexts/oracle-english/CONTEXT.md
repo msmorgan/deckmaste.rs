@@ -394,10 +394,10 @@ Finiteness and from Agreement, though those dimensions constrain its selection.
 _Avoid_: Verb Form when the specific morphological dimension is meant
 
 **Onset** (project term):
-The v2 compiler feature classifying a realized expression as consonantal or
-vocalic for *a*/*an* selection, computed at the pronunciation boundary and
-frozen as data on normalized rows; orthography is a fallback, never onset
-authority.
+The consonantal or vocalic beginning of a realized expression, determined by
+its first pronounced constituent. Lexical pronunciation, including declared
+overrides, supplies this feature for *a*/*an* selection; orthography is a
+fallback rather than its authority.
 
 **Targeting Marker** (project term):
 The invariant prenominal *target* that marks an Oracle-text target description.

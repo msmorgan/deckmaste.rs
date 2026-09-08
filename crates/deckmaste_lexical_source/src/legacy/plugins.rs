@@ -191,6 +191,17 @@ fn export_distribution(
     noun_class: Option<metadata::NounClassSemantics>,
 ) {
     if let Some(grammar) = normalized.grammar() {
+        for surface in grammar.surfaces() {
+            if let Some(onset) = surface.onset_override() {
+                lexeme.onsets.insert(
+                    surface.text().into(),
+                    match onset {
+                        metadata::Onset::Consonant => deckmaste_lexical::Onset::Consonant,
+                        metadata::Onset::Vowel => deckmaste_lexical::Onset::Vowel,
+                    },
+                );
+            }
+        }
         lexeme
             .properties
             .features

@@ -42,7 +42,9 @@ theorem name_complement_admitted : Reading.Admitted environment [] nameComplemen
         ⟨named_licensed, ⟨none, rfl⟩, rfl⟩)⟩
   · simp [nameComplement, Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [nameComplement, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [nameComplement, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [nameComplement, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem named_nominal_admitted : Reading.Admitted environment [] namedCreature (.nominal .singular)
     ["creature", "named", "Powerstone", "Shard"] := by
@@ -55,8 +57,10 @@ theorem named_nominal_admitted : Reading.Admitted environment [] namedCreature (
       name_complement_admitted.1.2.1
   · simpa [namedCreature, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local] using
       name_complement_admitted.1.2.2.1
-  · simpa [namedCreature, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
-      using name_complement_admitted.1.2.2.2
+  · refine ⟨?_, ?_⟩
+    · simpa [namedCreature, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+        using name_complement_admitted.1.2.2.2.1
+    · decide
 
 theorem defending_nominal_admitted : Reading.Admitted environment [] defendingCreature
     (.nominal .singular) ["defending", "creature"] := by
@@ -68,7 +72,9 @@ theorem defending_nominal_admitted : Reading.Admitted environment [] defendingCr
   · simp [defendingCreature, Features.Conforms, Features.ChildrenConform, Features.Local,
       Features.containsTarget]
   · simp [defendingCreature, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [defendingCreature, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [defendingCreature, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem name_is_not_an_ordinary_object (lexicon : Lexicon Lexeme) (head : Lexeme) :
     ¬ Production lexicon (.namePredicate head) [.nounPhrase singular] .namePredicate := by
@@ -108,7 +114,9 @@ theorem symbols_admitted : Reading.Admitted environment [] symbols .symbolSequen
       .symbolSequence⟩
   · simp [symbols, Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [symbols, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [symbols, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [symbols, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem amount_complement_admitted : Reading.Admitted environment [] measuredNominal
     (.nominal .singular) ["amount", "of", .symbol "{G}"] := by
@@ -121,8 +129,10 @@ theorem amount_complement_admitted : Reading.Admitted environment [] measuredNom
       symbols_admitted.1.2.1
   · simpa [measuredNominal, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local] using
       symbols_admitted.1.2.2.1
-  · simpa [measuredNominal, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
-      using symbols_admitted.1.2.2.2
+  · refine ⟨?_, ?_⟩
+    · simpa [measuredNominal, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+        using symbols_admitted.1.2.2.2.1
+    · decide
 
 theorem ordinary_noun_does_not_select_symbols :
     ¬ grammar.nounComplement creature ofMarker .symbolSequence := by

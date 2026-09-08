@@ -22,8 +22,10 @@ theorem relative_admitted : Reading.Admitted environment [] relative (.nominal .
       Features.Local, Syntax.nominalCase, FrameCases, Case.Allows]
   · simp [relative, relativeBody, noun, predicate, Dependencies.Safe, Dependencies.ChildrenSafe,
       Dependencies.Local, Dependencies.RelativeLicense, Dependencies.exposed, Dependencies.frameExposed]
-  · simp [relative, relativeBody, noun, predicate, Reading.GrammarConforms, Reading.ChildrenConform,
-      Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [relative, relativeBody, noun, predicate, Reading.GrammarConforms, Reading.ChildrenConform,
+        Reading.LocalGrammar]
+    · decide
 
 theorem zero_subject_relative_excluded (surface : Surface) :
     ¬ Reading.Admitted environment [] zeroRelative (.nominal .plural) surface := by
@@ -44,8 +46,10 @@ theorem shared_relative_admitted : Reading.Admitted environment [] sharedRelativ
   · simp [sharedRelative, shared, relativeBody, noun, predicate, Dependencies.Safe,
       Dependencies.ChildrenSafe, Dependencies.Local, Dependencies.RelativeLicense,
       Dependencies.exposed, Dependencies.frameExposed]
-  · simp [sharedRelative, shared, relativeBody, noun, predicate, Reading.GrammarConforms,
-      Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [sharedRelative, shared, relativeBody, noun, predicate, Reading.GrammarConforms,
+        Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem ordinary_coordination_cannot_discharge_shared_gap (surface : Surface) :
     ¬ Reading.Admitted environment []
@@ -73,15 +77,17 @@ theorem raised_admitted : Reading.Admitted environment [] raised (.nominal .plur
       Features.containsTarget]
   · simp [raised, sharing, gappedModifier, adjective, noun, Dependencies.Safe, Dependencies.ChildrenSafe,
       Dependencies.Local, Dependencies.exposed]
-  · simp [raised, sharing, gappedModifier, adjective, noun, Reading.GrammarConforms,
-      Reading.ChildrenConform, Reading.LocalGrammar, Reading.gapOccurrences, coordinable]
+  · refine ⟨?_, ?_⟩
+    · simp [raised, sharing, gappedModifier, adjective, noun, Reading.GrammarConforms,
+        Reading.ChildrenConform, Reading.LocalGrammar, Reading.gapOccurrences, coordinable]
+    · decide
 
 theorem single_gap_is_not_sharing (surface : Surface) :
     ¬ Reading.Admitted environment []
       (.node (.rightNodeRaising (.nominal .plural) (.nominal .plural)) [.gap (.nominal .plural), noun])
       (.nominal .plural) surface := by
   intro admitted
-  have localCheck := admitted.1.2.2.2.1
+  have localCheck := admitted.1.2.2.2.1.1
   change _ ∧ 2 ≤ 1 at localCheck
   omega
 
@@ -90,7 +96,7 @@ def omission : Reading Lexeme := .ellipsis .pastParticiple .passive
 theorem unresolved_ellipsis_admitted (context : List Category) :
     Reading.Admitted environment context omission (.verbPhrase .pastParticiple .passive) [] := by
   refine ⟨⟨.ellipsis, ?_, ?_, ?_⟩, .ellipsis⟩
-  all_goals exact ⟨trivial, trivial⟩
+  all_goals first | exact ⟨trivial, trivial⟩ | exact ⟨⟨trivial, trivial⟩, by decide⟩
 
 theorem missing_antecedent_admitted :
     Reading.Admitted environment [] omission (.verbPhrase .pastParticiple .passive) [] :=
@@ -126,9 +132,11 @@ theorem auxiliary_ellipsis_admitted :
       Features.Local, Syntax.nominalCase, Lexical.features, it, word, Case.Allows, Case.Argument]
   · simp [ellipticalClause, ellipticalPassive, omission, Dependencies.Safe, Dependencies.ChildrenSafe,
       Dependencies.Local, Dependencies.exposed]
-  · simp [ellipticalClause, ellipticalPassive, omission, Reading.GrammarConforms,
-      Reading.ChildrenConform, Reading.LocalGrammar]
-    exact .ellipsis
+  · refine ⟨?_, ?_⟩
+    · simp [ellipticalClause, ellipticalPassive, omission, Reading.GrammarConforms,
+        Reading.ChildrenConform, Reading.LocalGrammar]
+      exact .ellipsis
+    · decide
   · exact .node (.cons (.word ⟨it_licensed, Or.inl ⟨_, rfl⟩, rfl⟩)
       (.cons (.node (.cons .ellipsis .nil)
         (.auxiliary ⟨was_licensed, ⟨_, rfl⟩, rfl⟩)) .nil)) .finite
@@ -137,7 +145,7 @@ theorem empty_imperative_excluded (surface : Surface) :
     ¬ Reading.Admitted environment [] (.node .imperative [.ellipsis .plain])
       (.clause .finite) surface := by
   intro admitted
-  have localCheck := admitted.1.2.2.2.1
+  have localCheck := admitted.1.2.2.2.1.1
   exact Bool.noConfusion localCheck.2
 
 end English.DependencyWitnesses

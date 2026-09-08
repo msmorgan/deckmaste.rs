@@ -262,6 +262,9 @@ inductive DocumentProduction : DocumentRule → List Category → Category → P
   | keywordSeparated {n : Nat} : DocumentProduction (.keywordLine .semicolon)
       (List.replicate (n + 2) .keywordPhrase) (.document .ability)
   | quote : DocumentProduction .quote [.document .document] (.document .quotedText)
+  | quoteClause : DocumentProduction .quoteClause [.clause .finite] (.document .quotedText)
+  | quoteKeyword {period : Bool} : DocumentProduction (.quoteKeyword period)
+      [.keywordPhrase] (.document .quotedText)
   | mode : DocumentProduction .mode [.document .body] (.document .mode)
   | modeList {n : Nat} : DocumentProduction .modeList
       (List.replicate (n + 1) (.document .mode)) (.document .modes)
@@ -683,6 +686,9 @@ inductive DocumentLinearizes : DocumentRule → List Surface → Surface → Pro
       DocumentLinearizes (.keywordLine .semicolon) items
         ((Surface.join [.closing ";"] items).capitalize)
   | quote {a : Surface} : DocumentLinearizes .quote [a] a.quote
+  | quoteClause {a : Surface} : DocumentLinearizes .quoteClause [a] a.quote
+  | quoteKeyword {a : Surface} {period : Bool} : DocumentLinearizes (.quoteKeyword period) [a]
+      (Surface.quote (a ++ if period then [Atom.closing "."] else []))
   | reminder {a : Surface} :
       DocumentLinearizes .reminder [a]
         (([.opening "("] : Surface) ++ a ++ ([.closing ")"] : Surface))

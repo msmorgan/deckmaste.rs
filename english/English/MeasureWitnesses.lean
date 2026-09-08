@@ -32,7 +32,7 @@ theorem unsigned_admitted (head : WordForm Lexeme) (licensed : head.Licensed env
       .nil) .unsignedScalar⟩
   · simp [unsigned, Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [unsigned, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [unsigned, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · simpa [unsigned, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar] using Casing.word_valid head
 
 theorem signed_admitted (sign : ScalarSign) (head : WordForm Lexeme)
     (licensed : head.Licensed environment) (bundle : head.bundle = .word .unsignedScalar) :
@@ -45,11 +45,12 @@ theorem signed_admitted (sign : ScalarSign) (head : WordForm Lexeme)
       .nil) .signedScalar⟩
   · simp [signed, Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [signed, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [signed, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · simpa [signed, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar] using Casing.word_valid head
 
 theorem pair_admitted {left right : Reading Lexeme} {a b : Surface}
     (l : Reading.Admitted environment [] left .scalarComponent a)
-    (r : Reading.Admitted environment [] right .scalarComponent b) :
+    (r : Reading.Admitted environment [] right .scalarComponent b)
+    (interior : (Casing.summary right).interior = true) :
     Reading.Admitted environment [] (pair left right) .slashPair
       (a ++ [.symbol "/"] ++ b) := by
   refine ⟨⟨.node .slashPair (.cons l.1.1 (.cons r.1.1 .nil)), ?_, ?_, ?_⟩,
@@ -58,20 +59,24 @@ theorem pair_admitted {left right : Reading Lexeme} {a b : Surface}
       And.intro l.1.2.1 r.1.2.1
   · simpa [pair, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local] using
       And.intro l.1.2.2.1 r.1.2.2.1
-  · simpa [pair, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar] using
-      And.intro l.1.2.2.2 r.1.2.2.2
+  · refine ⟨?_, ?_⟩
+    · simpa [pair, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar] using
+        And.intro l.1.2.2.2.1 r.1.2.2.2.1
+    · apply Casing.append_valid _ _ l.1.2.2.2.2
+      simp only [Casing.children, Casing.append]
+      split <;> simp_all
 
 theorem signed_pair : Reading.Admitted environment []
     (pair (signed .plus three) (signed .minus three)) .slashPair
     [.symbol "+", .symbol "3", .symbol "/", .symbol "-", .symbol "3"] :=
   pair_admitted (signed_admitted .plus three three_licensed rfl)
-    (signed_admitted .minus three three_licensed rfl)
+    (signed_admitted .minus three three_licensed rfl) rfl
 
 theorem variable_pair : Reading.Admitted environment []
     (pair (unsigned scalarVariable) (unsigned scalarVariable)) .slashPair
     [.symbol "X", .symbol "/", .symbol "X"] :=
   pair_admitted (unsigned_admitted scalarVariable variable_licensed rfl)
-    (unsigned_admitted scalarVariable variable_licensed rfl)
+    (unsigned_admitted scalarVariable variable_licensed rfl) rfl
 
 theorem signed_pair_spells :
     Spells [.symbol "+", .symbol "3", .symbol "/", .symbol "-", .symbol "3"] "+3/-3" :=
@@ -125,8 +130,10 @@ theorem signed_measure_admitted : Reading.Admitted environment [] signedMeasure
       signed_pair.1.2.1
   · simpa [signedMeasure, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local] using
       signed_pair.1.2.2.1
-  · simpa [signedMeasure, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
-      using signed_pair.1.2.2.2
+  · refine ⟨?_, ?_⟩
+    · simpa [signedMeasure, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+        using signed_pair.1.2.2.2.1
+    · decide
 
 theorem modified_creatures_admitted : Reading.Admitted environment [] modifiedCreatures
     (.nominal .plural) [.symbol "X", .symbol "/", .symbol "X", "creatures"] := by
@@ -141,8 +148,10 @@ theorem modified_creatures_admitted : Reading.Admitted environment [] modifiedCr
         (head := creatures) (number := .plural) ⟨.plural, rfl⟩) variable_pair.1.2.1
   · simpa [modifiedCreatures, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
       using variable_pair.1.2.2.1
-  · simpa [modifiedCreatures, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
-      using variable_pair.1.2.2.2
+  · refine ⟨?_, ?_⟩
+    · simpa [modifiedCreatures, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+        using variable_pair.1.2.2.2.1
+    · decide
 
 theorem count_admitted : Reading.Admitted environment [] count (.determinativePhrase .plural)
     ["two"] := by
@@ -151,7 +160,7 @@ theorem count_admitted : Reading.Admitted environment [] count (.determinativePh
     .node (.cons (.word (lexicon := grammar) ⟨two_licensed, Or.inl ⟨_, rfl⟩, rfl⟩) .nil) .quantify⟩
   · simp [count, Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [count, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [count, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · simp [count, two, word, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
 
 theorem counted_creatures_admitted : Reading.Admitted environment [] countedCreatures
     (.nounPhrase plural) ["two", .symbol "X", .symbol "/", .symbol "X", "creatures"] := by
@@ -162,8 +171,10 @@ theorem counted_creatures_admitted : Reading.Admitted environment [] countedCrea
       count_admitted.1.2.1, modified_creatures_admitted.1.2.1, trivial⟩
   · simpa [countedCreatures, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
       using And.intro count_admitted.1.2.2.1 modified_creatures_admitted.1.2.2.1
-  · simpa [countedCreatures, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
-      using And.intro count_admitted.1.2.2.2 modified_creatures_admitted.1.2.2.2
+  · refine ⟨?_, ?_⟩
+    · simpa [countedCreatures, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+        using And.intro count_admitted.1.2.2.2.1 modified_creatures_admitted.1.2.2.2.1
+    · decide
 
 theorem adjustment_admitted : Reading.Admitted environment [] adjustment (.verbPhrase .plain)
     ["get", .symbol "+", .symbol "3", .symbol "/", .symbol "-", .symbol "3"] := by
@@ -177,7 +188,9 @@ theorem adjustment_admitted : Reading.Admitted environment [] adjustment (.verbP
     simp [adjustment, Features.Local, signedMeasure, FrameCases, CaseAt]
   · simpa [adjustment, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local] using
       signed_measure_admitted.1.2.2.1
-  · simpa [adjustment, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar] using
-      signed_measure_admitted.1.2.2.2
+  · refine ⟨?_, ?_⟩
+    · simpa [adjustment, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar] using
+      signed_measure_admitted.1.2.2.2.1
+    · decide
 
 end English.MeasureWitnesses

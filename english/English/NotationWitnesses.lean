@@ -27,7 +27,9 @@ theorem measure_admitted : Reading.Admitted environment [] sum .measurePhrase ["
       (.measure (lexicon := grammar) ⟨plus_licensed, rfl⟩)⟩
   · simp [sum, Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [sum, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [sum, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [sum, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem measure_not_a_count_determiner :
     ¬ grammar.word scalar (.cardinalNumeral .plural) := by
@@ -48,7 +50,9 @@ theorem type_line_admitted : Reading.Admitted environment [] typeLine (.document
   · simp [typeLine, AmbiguityWitnesses.control, Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [typeLine, AmbiguityWitnesses.control, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local,
       Dependencies.exposed, Dependencies.childrenExposed]
-  · simp [typeLine, AmbiguityWitnesses.control, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [typeLine, AmbiguityWitnesses.control, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem type_line_requires_types :
     ¬ DocumentProduction .subtypedLine [.document .supertypes, .document .subtypes]
@@ -74,8 +78,10 @@ theorem measure_preposition_interaction : Reading.Admitted environment [] measur
     exact measure_admitted.1.2.1
   · simp [measuredPreposition, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
     exact measure_admitted.1.2.2.1
-  · simp [measuredPreposition, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
-    exact measure_admitted.1.2.2.2
+  · refine ⟨?_, ?_⟩
+    · simp [measuredPreposition, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+      exact measure_admitted.1.2.2.2.1
+    · decide
 
 
 end English.NotationWitnesses

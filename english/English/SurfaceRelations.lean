@@ -30,6 +30,9 @@ inductive DocumentLinearizes : DocumentRule → List Surface → Surface → Pro
       (Surface.join [.closing ";"] items).capitalize = Surface.join [.closing ";"] items →
       DocumentLinearizes (.keywordLine .semicolon) items (Surface.join [.closing ";"] items)
   | quote {a : Surface} : DocumentLinearizes .quote [a] a.quote
+  | quoteClause {a : Surface} : DocumentLinearizes .quoteClause [a] a.quote
+  | quoteKeyword {a : Surface} {period : Bool} : DocumentLinearizes (.quoteKeyword period) [a]
+      (Surface.quote (a ++ if period then [Atom.closing "."] else []))
   | reminder {a : Surface} :
       DocumentLinearizes .reminder [a]
         (([.opening "("] : Surface) ++ a ++ ([.closing ")"] : Surface))

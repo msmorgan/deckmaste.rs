@@ -552,6 +552,7 @@
         ),
         (
             id: "vocab:Article/Indefinite", lemma: "a", category: Determinative,
+            article_onsets: {"a": Consonant, "an": Vowel},
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: (number: Some(Singular)), surfaces: Some(["a", "an"]))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Article/Indefinite"),

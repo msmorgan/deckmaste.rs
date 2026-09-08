@@ -56,6 +56,8 @@ structure LexemeDeclaration (L : Type) where
   nounComplement : L → Category → Prop := fun _ _ ↦ False
   relativePronoun : Prop := False
   relativeDeterminer : Prop := False
+  onset : Surface → Option Features.Onset := fun _ ↦ none
+  articleOnset : Surface → Option Features.Onset := fun _ ↦ none
 
 abbrev LexicalEnvironment (L : Type) := L → Option (LexemeDeclaration L)
 
@@ -141,6 +143,8 @@ def features (environment : LexicalEnvironment L) : Features.Declarations (WordF
   nominalCase w := match w.bundle with
     | .word _ k | .identity _ k => k
     | _ => .nominativeOrAccusative
+  onset w := (environment w.lexeme).bind (fun d ↦ d.onset w.spelling)
+  articleOnset w := (environment w.lexeme).bind (fun d ↦ d.articleOnset w.spelling)
 
 def dependencies (environment : LexicalEnvironment L) : Dependencies.Declarations (WordForm L) where
   relativePronoun w := w.HasDeclaration environment (·.relativePronoun)

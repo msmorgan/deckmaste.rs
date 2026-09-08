@@ -19,6 +19,7 @@ pub(crate) fn emit(ir: &Ir) -> syn::Result<TokenStream> {
     let categories = &ir.categories;
     let public = &categories[..ir.public_categories];
     let count = ir.features.len();
+    let positional_capitalization = ir.positional_capitalization;
     let grammar = grammar(ir);
     let project = projection(ir);
     let ast = ast(ir);
@@ -27,6 +28,7 @@ pub(crate) fn emit(ir: &Ir) -> syn::Result<TokenStream> {
         #visibility mod #module {
             #runtime
             const FEATURE_COUNT: usize = #count;
+            const POSITIONAL_CAPITALIZATION: bool = #positional_capitalization;
             #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
             pub enum Category { #(#categories),* }
             impl Category {
@@ -78,7 +80,11 @@ fn grammar(ir: &Ir) -> TokenStream {
             });
             quote!(TableExport { feature: #feature, registers: vec![#(#registers),*], rows: vec![#(#rows),*] })
         });
+        let boundary = rule.boundary.as_ref().map_or_else(|| quote!(None), |name| quote!(Some(Boundary::#name)));
+        let onset = rule.onset.as_ref().map_or_else(|| quote!(None), |name| quote!(Some(::deckmaste_lexical::Onset::#name)));
         quote!(Rule {
+            boundary: #boundary,
+            onset: #onset,
             checks: vec![#(#checks),*],
             initial: vec![#(#initial),*],
             exports: vec![#(#exports),*],
@@ -108,11 +114,11 @@ fn projection(ir: &Ir) -> TokenStream {
     let frames = ir.frames.iter().map(|(_, frame)| frame_tokens(frame));
     quote! {
         fn project(features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
-            let (form, features, properties) = match features {
-                ::deckmaste_english_v3::LexicalFeatures::Word { form, features, properties, .. } => (form, features, properties),
-                ::deckmaste_english_v3::LexicalFeatures::Numeral { value, notation } => return project_numeral(value, notation),
+            let (form, features, properties, surface) = match features {
+                ::deckmaste_english_v3::LexicalFeatures::Word { form, features, properties, surface, .. } => (form, features, properties, surface),
+                ::deckmaste_english_v3::LexicalFeatures::Numeral { value, notation, surface } => return project_numeral(value, notation, surface),
             };
-            let mut base = Summary::default();
+            let mut base = Summary::lexical(surface);
             #(#features)*
             base.values[5] = Some(FeatureValue::WordForm(form));
             base.values[10] = Some(FeatureValue::Framing(!properties.frames.is_empty()));
@@ -138,9 +144,9 @@ fn projection(ir: &Ir) -> TokenStream {
             summaries
         }
 
-        fn project_numeral(value: i32, notation: ::deckmaste_lexical::Numeral) -> Vec<Summary> {
+        fn project_numeral(value: i32, notation: ::deckmaste_lexical::Numeral, surface: ::deckmaste_lexical::SurfaceFeatures) -> Vec<Summary> {
             use ::deckmaste_lexical::Numeral;
-            let mut summary = Summary::default();
+            let mut summary = Summary::lexical(surface);
             let kind = match notation {
                 Numeral::Cardinal => 0,
                 Numeral::Ordinal => 1,
@@ -262,13 +268,13 @@ fn ast(ir: &Ir) -> TokenStream {
                                 word.push(quote!(#binding.visit_words(visitor)?;));
                             }
                             FieldType::Optional(_) => {
-                                summaries.push(quote!(Some({ if let Some(child) = #binding { #check_category child.admit_with(grammar, lexicon)?; } Summary::default() })));
+                                summaries.push(quote!(Some({ if let Some(child) = #binding { #check_category child.admit_with(grammar, lexicon)? } else { Summary::default() } })));
                                 write.push(quote!(if let Some(child) = #binding { child.write(lexicon, output)?; }));
                                 visit.push(quote!(if let Some(child) = #binding { child.visit(visitor)?; }));
                                 word.push(quote!(if let Some(child) = #binding { child.visit_words(visitor)?; }));
                             }
                             FieldType::Repeated(_, separator) => {
-                                summaries.push(quote!(Some({ for child in #binding { #check_category child.admit_with(grammar, lexicon)?; } Summary::default() })));
+                                summaries.push(quote!(Some({ let mut result = Summary::default(); for child in #binding { #check_category let summary = child.admit_with(grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result })));
                                 write.push(quote!(for (index, child) in #binding.iter().enumerate() { if index != 0 { output.push_str(#separator); } child.write(lexicon, output)?; }));
                                 visit
                                     .push(quote!(for child in #binding { child.visit(visitor)?; }));
@@ -284,7 +290,7 @@ fn ast(ir: &Ir) -> TokenStream {
             admit_forms.push(quote!(#index => {
                 let summaries: Vec<Option<Summary>> = vec![#(#summaries),*];
                 let rule = &grammar.rules[#rule];
-                let mut state = rule.initial.clone();
+                let mut state = State::new(rule.initial.clone());
                 for (dot, summary) in summaries.iter().enumerate() {
                     state = rule.advance(dot, &state, summary.as_ref()).ok_or(Error::Invalid(#owner, "feature admission"))?;
                 }

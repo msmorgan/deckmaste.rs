@@ -56,10 +56,12 @@ pub enum LexicalFeatures<'a> {
         form: WordForm,
         features: &'a FeatureBundle,
         properties: &'a LexicalProperties,
+        surface: deckmaste_lexical::SurfaceFeatures,
     },
     Numeral {
         value: i32,
         notation: Numeral,
+        surface: deckmaste_lexical::SurfaceFeatures,
     },
 }
 

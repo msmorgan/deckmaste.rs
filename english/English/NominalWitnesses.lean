@@ -36,7 +36,9 @@ theorem mass_admitted : Reading.Admitted environment [] mass (.nounPhrase singul
     .bareMass⟩
   · simp [mass, Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [mass, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [mass, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [mass, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem count_admitted : Reading.Admitted environment [] counted (.nounPhrase singular)
     ["one", "creature"] := by
@@ -48,7 +50,9 @@ theorem count_admitted : Reading.Admitted environment [] counted (.nounPhrase si
   · simp [counted, Features.Conforms, Features.ChildrenConform, Features.Local]
     exact Or.inl ⟨.count, creature_use, one_use⟩
   · simp [counted, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [counted, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [counted, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem quantified_mass_admitted : Reading.Admitted environment [] quantifiedMass (.nounPhrase singular)
     ["much", "mana"] := by
@@ -60,7 +64,9 @@ theorem quantified_mass_admitted : Reading.Admitted environment [] quantifiedMas
   · simp [quantifiedMass, Features.Conforms, Features.ChildrenConform, Features.Local]
     exact Or.inl ⟨.mass, mana_use, much_use⟩
   · simp [quantifiedMass, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [quantifiedMass, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [quantifiedMass, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem count_determiner_rejects_mass (surface : Surface) :
     ¬ Reading.Admitted environment []
@@ -100,8 +106,10 @@ theorem genitive_mass_admitted : Reading.Admitted environment [] possessedMana
     · simp [Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [possessedMana, genitiveDeterminer, counted, Dependencies.Safe, Dependencies.ChildrenSafe,
       Dependencies.Local]
-  · simp [possessedMana, genitiveDeterminer, counted, Reading.GrammarConforms, Reading.ChildrenConform,
-      Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [possessedMana, genitiveDeterminer, counted, Reading.GrammarConforms, Reading.ChildrenConform,
+        Reading.LocalGrammar]
+    · decide
 
 /-- Head-owned countability, at the level of admission: the genitive licenses the mass head above
 and the count head here, and neither admission goes through a countability claim of its own. -/
@@ -117,8 +125,10 @@ theorem genitive_count_admitted : Reading.Admitted environment []
     · exact ⟨count_admitted.1.2.1, trivial⟩
     · simp [Features.Conforms, Features.ChildrenConform, Features.Local]
   · simp [genitiveDeterminer, counted, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [genitiveDeterminer, counted, Reading.GrammarConforms, Reading.ChildrenConform,
-      Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [genitiveDeterminer, counted, Reading.GrammarConforms, Reading.ChildrenConform,
+        Reading.LocalGrammar]
+    · decide
 
 def targetMarker := word .targetMarker .targeting ["target"]
 def targetVerb := word .targetVerb (.verb .plain none) ["target"]
@@ -148,7 +158,9 @@ theorem targeting_marker_admitted : Reading.Admitted environment [] targets (.no
       Features.containsTarget]
     exact .targeting noun_use
   · simp [targets, noun, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [targets, noun, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [targets, noun, Reading.GrammarConforms, Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem target_action_admitted : Reading.Admitted environment [] targetingAction (.clause .finite)
     ["target", "creatures"] := by
@@ -164,9 +176,11 @@ theorem target_action_admitted : Reading.Admitted environment [] targetingAction
       Case.Allows]
     exact noun_use
   · simp [targetingAction, objects, noun, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [targetingAction, objects, noun, Reading.GrammarConforms, Reading.ChildrenConform,
-      Reading.LocalGrammar]
-    exact ⟨.verb rfl, rfl⟩
+  · refine ⟨?_, ?_⟩
+    · simp [targetingAction, objects, noun, Reading.GrammarConforms, Reading.ChildrenConform,
+        Reading.LocalGrammar]
+      exact ⟨.verb rfl, rfl⟩
+    · decide
 
 theorem target_relative_admitted : Reading.Admitted environment [] targetingRelative (.nominal .plural)
     ["creatures", "that", "target", "creatures"] := by
@@ -187,8 +201,10 @@ theorem target_relative_admitted : Reading.Admitted environment [] targetingRela
   · simp [targetingRelative, targetingBody, targetFrame, objects, noun, Dependencies.Safe,
       Dependencies.ChildrenSafe, Dependencies.Local, Dependencies.RelativeLicense, Dependencies.exposed,
       Dependencies.frameExposed, Dependencies.childrenExposed]
-  · simp [targetingRelative, targetingBody, objects, noun, Reading.GrammarConforms,
-      Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [targetingRelative, targetingBody, objects, noun, Reading.GrammarConforms,
+        Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 theorem marker_is_not_a_verb : ¬ grammar.verb targetMarker .plain .active targetFrame := by
   simp [grammar, Lexical.lexicon, targetMarker, word]
@@ -220,8 +236,10 @@ theorem attributive_admitted : Reading.Admitted environment [] attributed (.noun
       Features.containsTarget]
     exact .attributive noun_use
   · simp [attributed, noun, Dependencies.Safe, Dependencies.ChildrenSafe, Dependencies.Local]
-  · simp [attributed, noun, Reading.GrammarConforms, Reading.ChildrenConform,
-      Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [attributed, noun, Reading.GrammarConforms, Reading.ChildrenConform,
+        Reading.LocalGrammar]
+    · decide
 
 /-- The ordering exclusion that pairs with it: an attributive layer does not hide a target from
 the outer-modifier check. Instance of `Features.attributive_does_not_hide_target`. -/
@@ -255,8 +273,10 @@ theorem degree_adjunct_admitted : Reading.Admitted environment [] degreeAdjectiv
       Features.Local]
   · simp [degreeAdjective, adjective, degreeAdverb, Dependencies.Safe, Dependencies.ChildrenSafe,
       Dependencies.Local, Dependencies.exposed]
-  · simp [degreeAdjective, adjective, degreeAdverb, Reading.GrammarConforms,
-      Reading.ChildrenConform, Reading.LocalGrammar]
+  · refine ⟨?_, ?_⟩
+    · simp [degreeAdjective, adjective, degreeAdverb, Reading.GrammarConforms,
+        Reading.ChildrenConform, Reading.LocalGrammar]
+    · decide
 
 /-- Weakened premise: drop `.before` from the same pair and nothing licenses the adjunct, so the
 placement component of `AdjunctLicense` is load-bearing rather than decorative. -/

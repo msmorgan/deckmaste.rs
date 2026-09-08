@@ -1,4 +1,5 @@
 import English.SurfaceRelations
+import English.Capitalization
 
 /-! Admission is independent of preference, and grammatical identity is independent of derivations. -/
 namespace English
@@ -102,7 +103,8 @@ def Valid (environment : LexicalEnvironment L) (context : List Category)
     (tree : Reading L) (category : Category) : Prop :=
   DerivesIn (Lexical.lexicon environment) context tree category ∧
     Features.Conforms (Lexical.features environment) tree ∧
-    Dependencies.Safe (Lexical.dependencies environment) tree ∧ GrammarConforms tree
+    Dependencies.Safe (Lexical.dependencies environment) tree ∧ GrammarConforms tree ∧
+    Casing.valid tree
 
 /-- Relational analysis combines independent lexical recognition with grammatical admission. -/
 def Admitted (environment : LexicalEnvironment L) (context : List Category)

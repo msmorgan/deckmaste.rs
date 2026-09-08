@@ -5,6 +5,7 @@ mod analysis;
 mod model;
 mod morphology;
 pub mod numeral;
+mod pronunciation;
 
 pub use deckmaste_lexical_model::Case;
 pub use deckmaste_lexical_model::Category;
@@ -19,9 +20,11 @@ pub use deckmaste_lexical_model::LexicalReading;
 pub use deckmaste_lexical_model::LexicalValue;
 pub use deckmaste_lexical_model::Number;
 pub use deckmaste_lexical_model::Numeral;
+pub use deckmaste_lexical_model::Onset;
 pub use deckmaste_lexical_model::Person;
 pub use deckmaste_lexical_model::Relation;
 pub use deckmaste_lexical_model::SurfaceCase;
+pub use deckmaste_lexical_model::SurfaceFeatures;
 pub use deckmaste_lexical_model::Tense;
 pub use deckmaste_lexical_model::WordForm;
 

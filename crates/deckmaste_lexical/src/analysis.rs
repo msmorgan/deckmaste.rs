@@ -153,6 +153,7 @@ struct TrieNode {
 pub struct Lexicon {
     lexemes: BTreeMap<String, Lexeme>,
     surfaces: BTreeMap<LexicalValue, String>,
+    surface_features: BTreeMap<LexicalValue, crate::SurfaceFeatures>,
     trie: Vec<TrieNode>,
 }
 
@@ -166,6 +167,7 @@ impl Lexicon {
         let mut result = Self {
             lexemes: BTreeMap::new(),
             surfaces: BTreeMap::new(),
+            surface_features: BTreeMap::new(),
             trie: vec![TrieNode::default()],
         };
         for lexeme in lexemes {
@@ -198,6 +200,7 @@ impl Lexicon {
                 return Err(error("lemma violates its declared word boundaries"));
             }
             let mut slots = BTreeSet::new();
+            let mut realized_surfaces = BTreeSet::new();
             for declaration in &lexeme.forms {
                 if !slots.insert((declaration.form, &declaration.features)) {
                     return Err(error("duplicate inflection slot"));
@@ -220,6 +223,7 @@ impl Lexicon {
                 }
                 let mut distinct = BTreeSet::new();
                 for (variant, surface) in surfaces.into_iter().enumerate() {
+                    realized_surfaces.insert(surface.clone());
                     if surface.trim() != surface
                         || surface.is_empty()
                         || !distinct.insert(surface.clone())
@@ -236,10 +240,32 @@ impl Lexicon {
                         variant,
                         capitalization: SurfaceCase::Declared,
                     };
+                    let features = crate::SurfaceFeatures {
+                        onset: lexeme
+                            .onsets
+                            .get(&surface)
+                            .copied()
+                            .or_else(|| crate::pronunciation::default_onset(&surface)),
+                        article_onset: lexeme.article_onsets.get(&surface).copied(),
+                        initial: initial_surface(&surface) == surface,
+                        interior: true,
+                    };
+                    result.surface_features.insert(value.clone(), features);
                     result.insert(value.clone(), surface.clone(), lexeme.binding);
                     if lexeme.capitalization == Capitalization::Initial {
                         let initial = initial_surface(&surface);
                         if initial != surface {
+                            result.surface_features.insert(
+                                LexicalValue {
+                                    capitalization: SurfaceCase::Initial,
+                                    ..value.clone()
+                                },
+                                crate::SurfaceFeatures {
+                                    initial: true,
+                                    interior: false,
+                                    ..features
+                                },
+                            );
                             result.insert(
                                 LexicalValue {
                                     capitalization: SurfaceCase::Initial,
@@ -251,6 +277,24 @@ impl Lexicon {
                         }
                     }
                 }
+            }
+            if lexeme
+                .onsets
+                .keys()
+                .chain(lexeme.article_onsets.keys())
+                .any(|surface| !realized_surfaces.contains(surface))
+            {
+                return Err(error("onset override has no declared spelling"));
+            }
+            if !lexeme.article_onsets.is_empty()
+                && (lexeme.category != Category::Determinative
+                    || realized_surfaces
+                        .iter()
+                        .any(|surface| !lexeme.article_onsets.contains_key(surface)))
+            {
+                return Err(error(
+                    "article onsets must cover every determinative spelling",
+                ));
             }
             result.lexemes.insert(lexeme.id.clone(), lexeme);
         }
@@ -281,6 +325,37 @@ impl Lexicon {
     /// Enumerates licensed values independently of any analyzed source.
     pub fn values(&self) -> impl Iterator<Item = &LexicalValue> {
         self.surfaces.keys()
+    }
+
+    /// Frozen pronunciation and positional capabilities of one licensed
+    /// realization.
+    ///
+    /// # Errors
+    /// Rejects undeclared word values and noncanonical numeral values.
+    pub fn surface_features(
+        &self,
+        reading: &LexicalReading,
+    ) -> Result<crate::SurfaceFeatures, LexicalError> {
+        match reading {
+            LexicalReading::Word(value) => self
+                .surface_features
+                .get(value)
+                .copied()
+                .ok_or(LexicalError::UnlicensedValue),
+            LexicalReading::Numeral {
+                value,
+                capitalization,
+                ..
+            } => {
+                let text = self.realize(reading)?;
+                Ok(crate::SurfaceFeatures {
+                    onset: crate::pronunciation::numeral_onset(*value),
+                    article_onset: None,
+                    initial: initial_surface(&text) == text,
+                    interior: *capitalization == SurfaceCase::Declared,
+                })
+            }
+        }
     }
 
     /// # Errors

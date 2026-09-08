@@ -40,7 +40,8 @@ theorem clause_valid (subject auxiliary : WordForm Lexeme) (agreement : Agreemen
     (subjectLicensed : subject.Licensed environment)
     (subjectBundle : subject.bundle = .word (.nounPhrase agreement))
     (auxiliaryLicensed : auxiliary.Licensed environment) (head : auxiliary.lexeme = .be)
-    (bundle : auxiliary.bundle = .verb .preterite (some (.past, agreement))) :
+    (bundle : auxiliary.bundle = .verb .preterite (some (.past, agreement)))
+    (interior : auxiliary.capitalization = .declared) :
     Reading.Valid environment [] (clause subject auxiliary agreement) (.clause .finite) := by
   refine ⟨clause_derives subject auxiliary agreement subjectLicensed subjectBundle
     auxiliaryLicensed head bundle, ?_, ?_, ?_⟩
@@ -50,7 +51,8 @@ theorem clause_valid (subject auxiliary : WordForm Lexeme) (agreement : Agreemen
       Dependencies.Local, Dependencies.exposed]
   · simp only [clause, passive, exiledTree, Reading.GrammarConforms, Reading.ChildrenConform,
       Reading.LocalGrammar, and_true, true_and]
-    exact .verb rfl
+    refine ⟨.verb rfl, ?_⟩
+    simpa [clause, passive, exiledTree, exiled, word, interior] using Casing.word_valid subject
 
 theorem clause_realizes (subject auxiliary : WordForm Lexeme) (agreement : Agreement)
     (subjectLicensed : subject.Licensed environment)
@@ -65,17 +67,24 @@ theorem clause_realizes (subject auxiliary : WordForm Lexeme) (agreement : Agree
 
 theorem singular_was : Reading.Admitted environment [] (clause it was singular)
     (.clause .finite) ["it", "was", "exiled"] :=
-  ⟨clause_valid _ _ _ it_licensed rfl was_licensed rfl rfl,
+  ⟨clause_valid _ _ _ it_licensed rfl was_licensed rfl rfl rfl,
     clause_realizes _ _ _ it_licensed rfl was_licensed rfl⟩
+
+theorem interior_initial_auxiliary_excluded (surface : Surface) :
+    ¬ Reading.Admitted environment []
+      (clause it { was with capitalization := .initial } singular) (.clause .finite) surface := by
+  intro admitted
+  have casing := admitted.1.2.2.2.2
+  simp [clause, passive, exiledTree, it, was, exiled, word] at casing
 
 theorem plural_were : Reading.Admitted environment [] (clause they were plural)
     (.clause .finite) ["they", "were", "exiled"] :=
-  ⟨clause_valid _ _ _ they_licensed rfl were_licensed rfl rfl,
+  ⟨clause_valid _ _ _ they_licensed rfl were_licensed rfl rfl rfl,
     clause_realizes _ _ _ they_licensed rfl were_licensed rfl⟩
 
 theorem addressee_were : Reading.Admitted environment [] (clause you wereYou addressee)
     (.clause .finite) ["you", "were", "exiled"] :=
-  ⟨clause_valid _ _ _ you_licensed rfl wereYou_licensed rfl rfl,
+  ⟨clause_valid _ _ _ you_licensed rfl wereYou_licensed rfl rfl rfl,
     clause_realizes _ _ _ you_licensed rfl wereYou_licensed rfl⟩
 
 theorem finite_tense_is_past : Reading.HasTense (clause it was singular) .past :=

@@ -81,6 +81,12 @@ pub struct Lexeme {
     pub binding: Binding,
     #[serde(default)]
     pub surface_structure: SurfaceStructure,
+    /// Per-spelling pronunciation overrides, before positional capitalization.
+    #[serde(default)]
+    pub onsets: BTreeMap<String, crate::Onset>,
+    /// The onset required of an article's following pronounced constituent.
+    #[serde(default)]
+    pub article_onsets: BTreeMap<String, crate::Onset>,
 }
 
 impl Lexeme {
@@ -104,6 +110,8 @@ impl Lexeme {
             source,
             capitalization: Capitalization::Initial,
             binding: Binding::Free,
+            onsets: BTreeMap::new(),
+            article_onsets: BTreeMap::new(),
             surface_structure: if matches!(
                 category,
                 crate::Category::Catalog | crate::Category::Symbol

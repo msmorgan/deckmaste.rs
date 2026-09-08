@@ -74,6 +74,22 @@ first-scalar uppercase realization when it differs from the declared spelling;
 the reading records that choice. It does not license arbitrary case folding.
 The grammar will constrain where an initial realization is appropriate.
 
+`Lexicon::surface_features` exposes frozen pronunciation and positional casing
+capabilities for each licensed lexical value. `Lexeme::onsets` declares onset
+overrides keyed by exact declared spelling; `article_onsets` declares the onset
+required by each indefinite-article variant. Overrides must name realized forms,
+and article requirements must cover every variant of a determinative. Generated
+initial spellings inherit these features from their declared variant. A declared
+capitalized name permits both initial and interior use without changing identity.
+
+The bounded default pronunciation recipe uses the first word of a multiword or
+hyphenated form, spoken cardinal notation for numerals, letter names for uppercase
+initialisms, and declared English silent-h and consonantal-vowel prefix defaults.
+ASCII orthography is its final fallback; unknown onsets remain absent. Explicit
+overrides take precedence when that default does not describe the pronunciation.
+This normalization belongs to lexical realization; grammatical admission reads
+the resulting `Consonant`/`Vowel` feature, never the spelling or lexeme identity.
+
 `SurfaceStructure::Word` rejects embedded whitespace, separators and quotation
 boundaries in lemmas and overrides. Internal hyphens and apostrophes are word
 characters only in their permitted spelling positions. `Multiword` declares a

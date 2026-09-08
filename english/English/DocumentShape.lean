@@ -32,7 +32,7 @@ inductive DocumentRule where
   | sentence | body | ordinary | document
   | costAction | costSymbol | costs | activated
   | keywordLine (separator : KeywordSeparator := .comma)
-  | quote | reminder | mode | modeList | modes | sentenceModes | weightedMode
+  | quote | quoteClause | quoteKeyword (period : Bool := false) | reminder | mode | modeList | modes | sentenceModes | weightedMode
   | label (kind : LabelKind := .abilityWord) | chapter | classLevel | levelBand
   | solve | solved | dieRow | dieDashRow | station
   | supertypes | types | subtypes | typeLine | subtypedLine
