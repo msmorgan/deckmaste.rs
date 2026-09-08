@@ -405,6 +405,27 @@ The Verb Lexeme realized as *target*, *targets*, *targeted*, or *targeting* in
 rules text stating that a Game Model Spell or Ability targets a Game Model
 Object or Player.
 
+**Italic Head** (project term):
+The italicized run that opens some abilities, followed by an em dash. It is
+either an Ability Word or a Flavor Word; neither has any rules meaning, so the
+Italic Head is a realization device and never changes what the ability it
+heads says.
+
+**Ability Word**:
+One of the italicized words the Comprehensive Rules list [CR#207.2c], written
+as an Italic Head to tie together abilities with similar functionality. The
+inventory is closed and declared, so an Ability Word is ordinary declared
+vocabulary.
+_Avoid_: Keyword Ability, which has rules meaning and its own CR entry
+
+**Flavor Word**:
+An Italic Head the Comprehensive Rules do not list [CR#207.2d], tailored to the
+one ability it heads. Nothing enumerates the Flavor Words, so a Flavor Word is
+an open slot whose label is the italic run captured verbatim, never a declared
+inventory member.
+_Avoid_: Flavor Text, the italicized artistic text below the rules text
+[CR#207.2b]
+
 **Keyword Quality** (project term):
 The Nominal a parameterized Keyword Ability takes as its argument, on a keyword
 line or in a grant — *black* in *protection from black*, *artifacts* in

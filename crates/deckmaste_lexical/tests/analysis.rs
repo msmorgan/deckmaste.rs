@@ -719,3 +719,49 @@ fn crossing_bound_matches_do_not_hide_unsegmentable_words() {
     );
     assert!(text.unknown_words().is_empty());
 }
+
+/// The ability words are a listed inventory [CR#207.2c]; flavor words are
+/// listed nowhere [CR#207.2d], so an italic head no declaration spells is one
+/// and the run itself is the label.
+#[test]
+fn an_italic_run_no_declaration_spells_is_a_flavor_word() {
+    let lexicon = Lexicon::new([
+        invariant(
+            "lexeme:ability_word/battalion",
+            "Battalion",
+            Category::Keyword,
+        ),
+        verb("lexeme:keyword_action/attack", "attack"),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        lexicon.analyze_italic_head("Battalion"),
+        ItalicHead::AbilityWord(LexicalValue {
+            lexeme: "lexeme:ability_word/battalion".to_owned(),
+            form: WordForm::Invariant,
+            features: FeatureBundle::default(),
+            variant: 0,
+            capitalization: SurfaceCase::Declared,
+        }),
+        "a declared ability word is not a flavor word",
+    );
+
+    for run in ["Kowabunga", "Blade Beam", "A Test of Your Reflexes"] {
+        assert_eq!(
+            lexicon.analyze_italic_head(run),
+            ItalicHead::FlavorWord {
+                label: run.to_owned()
+            },
+            "{run:?} is a flavor word whose label is the run verbatim",
+        );
+    }
+
+    assert_eq!(
+        lexicon.analyze_italic_head("Attack"),
+        ItalicHead::FlavorWord {
+            label: "Attack".to_owned()
+        },
+        "only a listed ability word displaces a flavor word; a declared verb does not",
+    );
+}

@@ -6,6 +6,8 @@ use serde::Serialize;
 
 use crate::Binding;
 use crate::Capitalization;
+use crate::Category;
+use crate::FeatureBundle;
 use crate::Lexeme;
 use crate::LexicalReading;
 use crate::LexicalValue;
@@ -20,6 +22,21 @@ pub enum LexicalError {
     Declaration { lexeme: String, reason: String },
     #[error("lexical value is not licensed by this lexicon")]
     UnlicensedValue,
+}
+
+/// What an italic run written at the head of an ability analyses as
+/// [CR#207.2c,207.2d].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ItalicHead {
+    /// The run is spelled by a declared keyword-category Lexeme. At this
+    /// position that is an ability word: the ability words are a listed
+    /// inventory [CR#207.2c] and the only declared vocabulary an italic head
+    /// carries.
+    AbilityWord(LexicalValue),
+    /// No declaration spells the run. Flavor words are listed nowhere
+    /// [CR#207.2d] — each is tailored to the one ability it heads — so there
+    /// is no inventory to consult and the run itself is the label.
+    FlavorWord { label: String },
 }
 
 /// Half-open occurrences in the lossless Unicode-scalar token sequence.
@@ -277,6 +294,35 @@ impl Lexicon {
                 }
                 Ok(initial)
             }
+        }
+    }
+
+    /// Analyzes an italic run written at the head of an ability
+    /// [CR#207.2c,207.2d].
+    ///
+    /// A run no declaration spells is not a vocabulary gap here: it is a
+    /// flavor word, and the label is the run verbatim. Nothing enumerates
+    /// flavor words, so this is the only open slot the lexicon reports rather
+    /// than an unknown word.
+    #[must_use]
+    pub fn analyze_italic_head(&self, run: &str) -> ItalicHead {
+        let analyzed = self.analyze(run);
+        let whole = analyzed.tokens.len();
+        let declared = analyzed.matches.iter().find_map(|found| {
+            let LexicalReading::Word(value) = &found.reading else {
+                return None;
+            };
+            let keyword = self
+                .lexemes
+                .get(&value.lexeme)
+                .is_some_and(|lexeme| lexeme.category == Category::Keyword);
+            (found.start == 0 && found.end == whole && keyword).then(|| value.clone())
+        });
+        match declared {
+            Some(value) => ItalicHead::AbilityWord(value),
+            None => ItalicHead::FlavorWord {
+                label: run.to_owned(),
+            },
         }
     }
 
