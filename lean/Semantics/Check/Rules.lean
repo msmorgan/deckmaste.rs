@@ -60,6 +60,50 @@ def distinctPredefinedTokens : List PredefinedToken → Bool
   | [] => true
   | t :: ts => !(ts.map (·.name)).elem t.name && distinctPredefinedTokens ts
 
+/-! ## Registry definitions -/
+
+/-- What a definition confers obeys the laws its syntax obeys inside a card, in the empty
+binding context: the definition supplies no binding, exactly as a rules table's scope supplies
+only `this`. A conferred ability must be one an effect could grant at all [CR#113.3a], and
+neither a state-based action [CR#704.1] nor a turn-based action [CR#703.1] uses the stack, so
+neither can target [CR#601.2c]. -/
+def Conferral.check : Conferral → List Refusal
+  | .ability a => Ability.check [] a ++ refuse a.grantable .grantable
+  | .property spec => StaticSpec.check [] spec
+  | .stateBased when then_ =>
+      Condition.check [] when ++ Instruction.check [] then_ ++
+        refuse (!anyTargetedAt (Instruction.intro [] then_)) .nontarget
+  | .turnBased _ then_ =>
+      Instruction.check [] then_ ++
+        refuse (!anyTargetedAt (Instruction.intro [] then_)) .nontarget
+
+/-- A designation's zone, card type and room half say what the object holding it is, so a
+designation a player, a card or the game holds [CR#701.15b,725.1,731.1,903.3] writes none of
+the three. -/
+def DesignationScope.narrowable : DesignationScope → Bool
+  | .heldBy .object => true
+  | _ => false
+
+/-- A counter named by a label declares one [CR#122.1]; a +X/+Y counter [CR#122.1a] and a
+keyword counter [CR#122.1b] are named by their own `CounterKind` constructor instead. -/
+def CounterKind.declaresName : CounterKind → Bool
+  | .named label => !label.isEmpty
+  | _ => true
+
+/-- The obligations of one registry definition. A counter is placed on an object or a player
+[CR#122.1]; a subtype [CR#205.3] and a designation [CR#701.15b] are looked up by the name they
+declare, so a nameless one is unreachable; and what either confers obeys the ability laws. -/
+def Definition.check : Definition → List Refusal
+  | .counter kind holder confers =>
+      refuse (holder == .object || holder == .player) (.definitionHolder holder) ++
+        refuse kind.declaresName .definitionNamed ++ confers.flatMap Conferral.check
+  | .subtype sub rules =>
+      refuse (!sub.label.isEmpty) .definitionNamed ++ rules.flatMap Conferral.check
+  | .designation label scope _ zone type half =>
+      refuse (!label.isEmpty) .definitionNamed ++
+        refuse (scope.narrowable || (zone.isNone && type.isNone && half.isNone))
+          (.definitionScoped label)
+
 /-- Every refusal in a plugin's `rules/` directory, in reading order. -/
 def RulesTables.check (t : RulesTables) : List Refusal :=
   t.sba.flatMap SbaRule.check ++ t.conferral.flatMap ConferralRule.check ++

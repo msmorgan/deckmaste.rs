@@ -127,6 +127,78 @@ theorem badDamageResultUndeclaredCounter :
       = [.knownCounter] := by
   decide
 
+/-! ## Registry definitions -/
+
+/-- [CR#122.1] "A counter is a marker placed on an object or player." A charge counter is a
+marker and nothing else: the CR gives it no behavior of its own, so it confers nothing. -/
+def chargeCounter : Definition := .counter (.named "Charge") .object []
+theorem okChargeCounter : Definition.check chargeCounter = [] := by decide
+
+/-- [CR#122.1b] "A keyword counter on a permanent … causes that object to gain that keyword."
+The grant states a quality of the bearer rather than giving it an ability of its own
+[CR#113.12], so it is the ability-free `property` flavor. -/
+def flyingCounter : Definition :=
+  .counter (.keyword "Flying") .object [.property (.abilityGrant .this (keyword "Flying"))]
+theorem okFlyingCounter : Definition.check flyingCounter = [] := by decide
+
+/-- [CR#122.1f] "If a player has ten or more poison counters, that player loses the game." A
+poison counter is a player's. -/
+theorem okPoisonCounter : Definition.check (.counter (.named "Poison") .player []) = [] := by
+  decide
+
+/-- A counter is placed on an object or a player [CR#122.1] and on nothing else; a color is
+neither. -/
+theorem badCounterHolder :
+    Definition.check (.counter (.named "Charge") (.quality .color) [])
+      = [.definitionHolder (.quality .color)] := by
+  decide
+
+/-- A counter looked up by label declares one [CR#122.1]; the registry has no way to reach a
+nameless row. -/
+theorem badNamelessCounter :
+    Definition.check (.counter (.named "") .object []) = [.definitionNamed] := by decide
+
+/-- Most subtypes are inert vocabulary [CR#205.3]: the catalog admits the word and the rules
+define nothing for it. -/
+def gargoyle : Definition := .subtype (creatureType "Gargoyle") []
+theorem okGargoyle : Definition.check gargoyle = [] := by decide
+
+/-- A subtype is looked up by the word it declares [CR#205.3], so a nameless one is
+unreachable. -/
+theorem badNamelessSubtype :
+    Definition.check (.subtype (creatureType "") []) = [.definitionNamed] := by decide
+
+/-- A conferral gives an ordinary ability [CR#305.6], and a spell ability is followed while a
+spell resolves [CR#113.3a]: no type rule could put one on a permanent. -/
+theorem badSubtypeConfersASpellAbility :
+    Definition.check (.subtype (artifactType "Equipment") [.ability (.spell none (draw (.lit 1)))])
+      = [.grantable] := by
+  decide
+
+/-- [CR#725.1] "The monarch is a designation a player can have. There is no monarch in a game
+until an effect instructs a player to become the monarch" — so the designation is effectful. -/
+def monarch : Definition := .designation "the monarch" (.heldBy .player) true none none none
+theorem okMonarch : Definition.check monarch = [] := by decide
+
+/-- [CR#709.5c] "'Left half unlocked' and 'right half unlocked' are designations that a
+permanent on the battlefield can have." The room half narrows the object that holds it. -/
+def leftHalfUnlocked : Definition :=
+  .designation "left half unlocked" (.heldBy .object) true (some .battlefield) none (some .left)
+theorem okLeftHalfUnlocked : Definition.check leftHalfUnlocked = [] := by decide
+
+/-- The zone, card type and room half describe the object holding the designation, so a
+designation the game holds [CR#731.1] narrows nothing. -/
+theorem badNarrowedGameDesignation :
+    Definition.check (.designation "day" .heldByGame true (some .battlefield) none none)
+      = [.definitionScoped "day"] := by
+  decide
+
+/-- A designation is identified by name [CR#701.15b], so a nameless one is unreachable. -/
+theorem badNamelessDesignation :
+    Definition.check (.designation "" (.heldBy .player) true none none none)
+      = [.definitionNamed] := by
+  decide
+
 /-! ## The predefined-token catalog -/
 
 /-- [CR#111.10a] "A Treasure token is a colorless Treasure artifact token with '{T}, Sacrifice

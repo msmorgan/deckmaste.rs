@@ -168,6 +168,15 @@ holds and does, is the designation facts table, generated like the keyword table
 carries only the mechanism. -/
 abbrev DesignationLabel := String
 
+/-- Who holds a designation [CR#701.15b,725.1,731.1]: an Entity of the named kind, the card
+itself (a commander is designated on its card, and the designation follows the card between
+zones [CR#903.3]), or the game. -/
+inductive DesignationScope where
+  | heldBy (holder : Kind)
+  | heldByCard
+  | heldByGame
+  deriving DecidableEq, Repr
+
 abbrev KeywordLabel := String
 abbrev AbilityWordLabel := String
 abbrev FlavorWordLabel := String

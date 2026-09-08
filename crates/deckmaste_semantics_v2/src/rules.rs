@@ -29,9 +29,18 @@ use serde::Serialize;
 use crate::abilities::Ability;
 use crate::abilities::CharacteristicBundle;
 use crate::abilities::Instruction;
+use crate::abilities::StaticSpec;
 use crate::phrase::Condition;
 use crate::phrase::Predicate;
+use crate::words::CardType;
 use crate::words::CounterKind;
+use crate::words::DesignationLabel;
+use crate::words::DesignationScope;
+use crate::words::Kind;
+use crate::words::RoomHalf;
+use crate::words::Subtype;
+use crate::words::TurnPart;
+use crate::words::Zone;
 
 /// A rules-defined state-based action ([CR#704.1]), authored under
 /// `rules/sba/`. Read it as: *for every object or player matching `scope`,
@@ -75,6 +84,65 @@ pub struct DamageResultRule {
 pub struct PredefinedToken {
     pub name: String,
     pub token: CharacteristicBundle,
+}
+
+/// What a registry definition supplies to everything it names
+/// ([CR#113.12,305.6]). The scope is the definition itself — the counter's
+/// bearer, the subtype's object — so a row here writes no predicate, where a
+/// [`ConferralRule`] under `rules/grant/` must.
+///
+/// The four flavors are the four things the rules do with a definition:
+/// an intrinsic ability of the object [CR#305.6]; a continuous property with
+/// no ability behind it [CR#113.12]; a state-based action [CR#704.1]; and a
+/// turn-based action [CR#703.1].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Conferral {
+    Ability {
+        confer: Ability,
+    },
+    Property {
+        spec: StaticSpec,
+    },
+    StateBased {
+        when: Condition,
+        then: Instruction,
+    },
+    TurnBased {
+        part: TurnPart,
+        then: Instruction,
+    },
+}
+
+/// What one registry declaration MEANS: the rules content the declared name
+/// stands for, and the body every `plugins_v2/builtin/macros/{counter_kinds,
+/// subtypes,designations}` declaration carries.
+///
+/// `cargo xtask facts generate` writes `lean/Semantics/Check/Facts.lean` from
+/// these: a counter definition's `Named` kind is a [`crate::facts::CounterFacts`]
+/// row, a subtype definition a [`crate::facts::SubtypeFacts`] row, a
+/// designation definition a [`crate::facts::DesignationFacts`] row. A counter
+/// named by a `CounterKind` constructor of its own — a +X/+Y counter
+/// [CR#122.1a] or a keyword counter [CR#122.1b] — contributes no row to the
+/// table of named counters, because nothing looks it up by label.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Definition {
+    Counter {
+        kind: CounterKind,
+        holder: Kind,
+        confers: Vec<Conferral>,
+    },
+    Subtype {
+        subtype: Subtype,
+        rules: Vec<Conferral>,
+    },
+    Designation {
+        label: DesignationLabel,
+        scope: DesignationScope,
+        effectful: bool,
+        zone: Option<Zone>,
+        r#type: Option<CardType>,
+        half: Option<RoomHalf>,
+    },
 }
 
 /// The three tables a plugin's `rules/` directory defines, concatenated across

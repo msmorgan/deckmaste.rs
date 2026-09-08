@@ -245,6 +245,14 @@ inductive Refusal where
   /- rules tables -/
   /-- A predefined token is named, because an effect creates it by that name [CR#111.10]. -/
   | tokenNamed
+  /- registry definitions -/
+  /-- A counter is placed on an object or a player [CR#122.1] and on nothing else. -/
+  | definitionHolder (k : Kind)
+  /-- A registry definition names what it defines; a nameless one is unreachable. -/
+  | definitionNamed
+  /-- A designation's zone, card type and room half describe the object holding it, so only an
+  object-held designation [CR#701.15b] writes one. -/
+  | definitionScoped (designation : DesignationLabel)
   /- card frame laws -/
   | cardLine
   | cardText

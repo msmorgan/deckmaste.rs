@@ -101,12 +101,6 @@ structure SubtypeFacts where
   frame : FrameFeature
   deriving Repr, BEq
 
-inductive DesignationScope where
-  | heldBy (holder : Kind)
-  | heldByCard
-  | heldByGame
-  deriving DecidableEq, Repr
-
 structure DesignationFacts where
   label : DesignationLabel
   scope : DesignationScope

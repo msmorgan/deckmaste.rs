@@ -20,6 +20,7 @@ use serde::Serialize;
 
 use crate::words::CardType;
 use crate::words::DesignationLabel;
+use crate::words::DesignationScope;
 use crate::words::KeywordLabel;
 use crate::words::Kind;
 use crate::words::RoomHalf;
@@ -146,15 +147,6 @@ pub enum FrameFeature {
 pub struct SubtypeFacts {
     pub subtype: Subtype,
     pub frame: FrameFeature,
-}
-
-/// What holds a designation: a player or object, the card itself across zone
-/// changes [CR#903.3], or the game [CR#731.1].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum DesignationScope {
-    HeldBy { holder: Kind },
-    HeldByCard,
-    HeldByGame,
 }
 
 /// One designation label's columns.

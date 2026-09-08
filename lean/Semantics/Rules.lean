@@ -59,6 +59,53 @@ structure PredefinedToken where
   token : CharacteristicBundle
   deriving Repr, BEq
 
+/-- What a registry definition supplies to everything it names [CR#113.12,305.6]: an intrinsic
+ability, an ability-free continuous property, a state-based action, or a turn-based action.
+The scope is the definition itself — the counter's bearer, the subtype's object — so a row
+here writes no predicate, where a `ConferralRule` under `rules/grant/` must.
+
+The four flavors are the four things the rules do with a definition, and the CR keeps them
+apart: an intrinsic ability is an ordinary ability of the object, as a basic land type's mana
+ability is [CR#305.6]; a rule that only states a quality of an object grants no ability and
+sets no characteristic [CR#113.12]; a
+state-based action happens automatically and doesn't use the stack [CR#704.1]; a turn-based
+action likewise happens automatically as a step or phase begins [CR#703.1]. -/
+inductive Conferral where
+  /-- An ability the definition gives the object, in the ordinary ability hierarchy — a basic
+  land type's mana ability is one [CR#305.6]. -/
+  | ability (confer : Ability)
+  /-- A continuous property with no ability behind it [CR#113.12] — an Equipment's host rule
+  [CR#301.5], a keyword counter's grant [CR#122.1b]. -/
+  | property (spec : StaticSpec)
+  /-- A state-based action the definition puts on every object it names [CR#704.1]. -/
+  | stateBased (when : Condition) (then_ : Instruction)
+  /-- A turn-based action the definition puts on every object it names [CR#703.1]. -/
+  | turnBased (part : TurnPart) (then_ : Instruction)
+  deriving Repr, BEq
+
+/-- What one registry declaration MEANS: the rules content the declared name stands for. A
+registry declares a namespace's members [CR#122.1,205.3,701.15b]; this is one member's
+definition, where a `RulesTables` row is scoped by a predicate and names nothing.
+
+`Semantics.Check.Facts` is generated from these: a counter definition's `.named` kind is a
+`CounterFacts` row, a subtype definition is a `SubtypeFacts` row, a designation definition is
+a `DesignationFacts` row. A definition whose kind is a `CounterKind` of its own — a +X/+Y
+counter [CR#122.1a] or a keyword counter [CR#122.1b] — contributes no row to the table of
+named counters, because it is not looked up by label. -/
+inductive Definition where
+  /-- A counter [CR#122.1]: what it is, what holds it, and what it does to its bearer. -/
+  | counter (kind : CounterKind) (holder : Kind) (confers : List Conferral)
+  /-- A subtype [CR#205.3] and the rules its type rule defines for it, empty for the subtypes
+  that are inert vocabulary. -/
+  | subtype (subtype : Subtype) (rules : List Conferral)
+  /-- A designation [CR#701.15b]: a named marker rules and effects identify, which is not an
+  ability and confers nothing, so the node carries columns rather than conferrals. `effectful`
+  is whether an instruction may confer it directly; `zone`, `type` and `half` narrow the object
+  that holds it. -/
+  | designation (label : DesignationLabel) (scope : DesignationScope) (effectful : Bool)
+      (zone : Option Zone) (type : Option CardType) (half : Option RoomHalf)
+  deriving Repr, BEq
+
 /-- The three tables a plugin's `rules/` directory defines, concatenated across its files. The
 predefined-token catalog is a separate list, because its entries are named and a plugin writes
 them under `tokens/` rather than `rules/`. -/

@@ -264,6 +264,16 @@ pub enum Ordinal {
 /// carries only the mechanism.
 pub type DesignationLabel = String;
 
+/// Who holds a designation [CR#701.15b,725.1,731.1]: an Entity of the named
+/// kind, the card itself (a commander is designated on its card, and the
+/// designation follows the card between zones [CR#903.3]), or the game.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum DesignationScope {
+    HeldBy { holder: Kind },
+    HeldByCard,
+    HeldByGame,
+}
+
 pub type KeywordLabel = String;
 
 pub type AbilityWordLabel = String;
