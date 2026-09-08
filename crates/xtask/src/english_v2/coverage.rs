@@ -1342,7 +1342,7 @@ pub(super) fn run(args: &CoverageArgs, output: &mut dyn Write) -> anyhow::Result
         &mut diagnostics,
         &mut NoopObserver,
         || {
-            Corpus::load(&args.corpus.data)
+            Corpus::load(&args.corpus.data, &args.corpus.selection)
                 .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))
         },
         crate::english_v2::parser_from_builtin_v2,
@@ -1440,7 +1440,11 @@ where
     )?;
     debug_assert_eq!(report.normalization_digest(), corpus.normalization_digest());
     observer.record("render".to_owned());
-    render_report(&report, args.json, run.lock_policy, output)?;
+    if args.json {
+        super::corpus::write_provenanced_json(&report, &corpus, workers, output)?;
+    } else {
+        render_report(&report, false, run.lock_policy, output)?;
+    }
     observer.record("flush".to_owned());
     output
         .flush()
@@ -1814,8 +1818,8 @@ impl CoverageReport {
     }
 
     /// A report whose covered identities and whose still-present-but-unparsed
-    /// identities are both named, so a lock-delta test can tell a corpus-sourced
-    /// card name from a lock-sourced one.
+    /// identities are both named, so a lock-delta test can tell a
+    /// corpus-sourced card name from a lock-sourced one.
     pub(super) fn for_lock_delta_test(
         source_fingerprint: String,
         covered: &[(String, Option<&str>)],
@@ -2816,6 +2820,7 @@ mod tests {
         CoverageArgs {
             corpus: CorpusArgs {
                 data: Path::new("fixture.json").to_owned(),
+                selection: crate::raw_corpus::CorpusSelectionArgs::all(),
                 workers: Some(1),
             },
             lock: Path::new("fixture.lock").to_owned(),

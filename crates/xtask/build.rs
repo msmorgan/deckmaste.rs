@@ -3,7 +3,7 @@
 //
 // - `gen_catalogs`  — `data/gen/catalogs-legacy`, the CR-derived bare-text
 //   catalogs `cargo xtask catalogs text` writes from `data/rules/cr.txt`.
-// - `derived_cards` — `data/derived/cards.jsonl`, the mtgjson-derived oracle
+// - `derived_cards` — `data/derived/cards.jsonl`, the Scryfall-derived Oracle
 //   snapshot (`deckmaste_plugin::fidelity::ORACLE_SNAPSHOT`).
 //
 // Neither exists in a bare checkout: the whole `data/` tree is gitignored by

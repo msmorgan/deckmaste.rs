@@ -3,7 +3,6 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::Result;
 use deckmaste_english_v3::Metrics;
 use deckmaste_english_v3::ReadingMetrics;
 use deckmaste_english_v3::grammar::Reading;
@@ -19,7 +18,10 @@ use crate::english_v3::validation::Issue;
 use crate::english_v3::validation::NodeIdentity;
 use crate::english_v3::validation::TracedValue;
 use crate::raw_corpus::SUPPORT_FILTER;
-use crate::raw_corpus::SupportedFace;
+use crate::raw_corpus::SelectedCorpus;
+use crate::raw_corpus::SelectedFace;
+use crate::raw_corpus::SelectionRequest;
+use crate::raw_corpus::SelectionStatus;
 use crate::raw_corpus::digest;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -92,8 +94,10 @@ impl Sample {
 #[derive(Debug, Serialize)]
 pub(super) struct FaceReport {
     pub id: String,
+    pub oracle_id: String,
+    pub printing_id: String,
     pub group_name: String,
-    pub face_index: usize,
+    pub face_index: Option<usize>,
     pub name: String,
     pub face_name: Option<String>,
     pub side: Option<String>,
@@ -118,16 +122,18 @@ pub(super) struct FaceReport {
 }
 
 impl FaceReport {
-    pub fn new(face: &SupportedFace<'_, '_>, field: SourceField) -> Result<Self> {
-        let raw = face.card.text.as_deref();
-        Ok(Self {
-            id: digest(&serde_json::to_vec(&(face.group_name, face.index, raw))?),
-            group_name: face.group_name.to_owned(),
-            face_index: face.index,
-            name: face.card.name.to_string(),
-            face_name: face.card.face_name.as_deref().map(str::to_owned),
-            side: face.card.side.as_deref().map(str::to_owned),
-            type_line: face.card.type_line.as_deref().map(str::to_owned),
+    pub fn new(face: &SelectedFace, field: SourceField) -> Self {
+        let raw = face.text.as_deref();
+        Self {
+            id: face.identity.clone(),
+            oracle_id: face.oracle_id.clone(),
+            printing_id: face.printing_id.clone(),
+            group_name: face.group_name.clone(),
+            face_index: face.face_index,
+            name: face.name.clone(),
+            face_name: face.face_name.clone(),
+            side: face.side.clone(),
+            type_line: face.type_line.clone(),
             raw_text: raw.map(str::to_owned),
             raw_text_sha256: digest(raw.unwrap_or("").as_bytes()),
             source_sha256: digest(field.source(face).unwrap_or("").as_bytes()),
@@ -145,7 +151,7 @@ impl FaceReport {
             chart_wall_ns: 0,
             validation_wall_ns: 0,
             thread_cpu_ns: None,
-        })
+        }
     }
 }
 
@@ -229,6 +235,11 @@ pub(super) struct Report {
     field: SourceField,
     input: PathBuf,
     input_sha256: String,
+    selection: SelectionRequest,
+    selection_status: SelectionStatus,
+    analysis_status: &'static str,
+    records_scanned: usize,
+    supported_faces_examined: usize,
     lexical_inventory_sha256: String,
     change_id: Option<String>,
     support_filter: &'static str,
@@ -252,7 +263,7 @@ pub(super) struct Report {
 impl Report {
     pub fn new(
         args: &EnglishV3Args,
-        bytes: &[u8],
+        corpus: &SelectedCorpus,
         inventory_sha256: String,
         unmapped_sources: Vec<String>,
         faces: Vec<FaceReport>,
@@ -304,10 +315,22 @@ impl Report {
             .and_then(|out| String::from_utf8(out.stdout).ok())
             .map(|text| text.trim().to_owned());
         Self {
-            schema_version: 2,
+            schema_version: 3,
             field: args.field,
             input: args.data.clone(),
-            input_sha256: digest(bytes),
+            input_sha256: corpus.snapshot_sha256.clone(),
+            selection: corpus.selection.clone(),
+            selection_status: corpus.selection_status,
+            analysis_status: if args.reading_limit.is_some() {
+                "limited"
+            } else {
+                match corpus.selection_status {
+                    SelectionStatus::Complete => "complete",
+                    SelectionStatus::Subset => "subset",
+                }
+            },
+            records_scanned: corpus.records_scanned,
+            supported_faces_examined: corpus.supported_faces_examined,
             lexical_inventory_sha256: inventory_sha256,
             change_id,
             support_filter: SUPPORT_FILTER,

@@ -10,6 +10,7 @@ workspace = true
 [dependencies]
 anyhow = { version = "1.0.102" }
 deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
+deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 deckmaste_semantics = { version = "0.1.0", path = "../deckmaste_semantics" }
 # No `deckmaste_card`: nothing here speaks the engine's card type any more.
 deckmaste_plugin = { version = "0.1.0", path = "../deckmaste_plugin" }

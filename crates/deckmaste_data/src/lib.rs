@@ -9,7 +9,6 @@ use serde::Deserialize;
 use serde::Deserializer;
 
 pub mod academyruins;
-pub mod mtgjson;
 pub mod scryfall;
 
 #[derive(Debug, Clone)]
@@ -35,17 +34,6 @@ impl DataRoot {
         let path = self.0.join(relative);
         std::fs::read(&path).with_context(|| format!("reading {}", path.display()))
     }
-}
-
-/// Deserializes an explicit JSON `null` as the type's default. The upstream
-/// data writes `"examples": null` rather than omitting the key, so flattened
-/// `Vec` fields need this on top of `#[serde(default)]`.
-pub(crate) fn null_to_default<'de, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Default + Deserialize<'de>,
-{
-    Ok(Option::<T>::deserialize(deserializer)?.unwrap_or_default())
 }
 
 /// A string borrowed from the source bytes when its JSON representation is

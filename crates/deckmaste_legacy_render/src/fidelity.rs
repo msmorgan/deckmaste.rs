@@ -1,6 +1,6 @@
 //! The render-back fidelity gate (strong form): every finished card renders
 //! to templated English and is diffed against its oracle text from the
-//! repo's mtgjson-derived snapshot (`data/derived/cards.jsonl`). The tree
+//! repo's Scryfall-derived snapshot (`data/derived/cards.jsonl`). The tree
 //! must stay tethered to the text — this is the check no type system
 //! performs, and the dominant real-world failure mode of hand encodings is
 //! adjunct drift: encodings that silently drop what the oracle sentence
@@ -44,8 +44,9 @@ use deckmaste_semantics::CardFace;
 use crate::render::render_card_face;
 
 /// The oracle snapshot's default location, relative to the workspace root.
-/// Derived from mtgjson and gitignored with the rest of `data/` — a bare
-/// checkout (CI) has no oracle, and the fidelity test skips loudly there.
+/// Derived from Scryfall Oracle Cards and gitignored with the rest of `data/` —
+/// a bare checkout (CI) has no oracle, and the fidelity test skips loudly
+/// there.
 pub const ORACLE_SNAPSHOT: &str = "data/derived/cards.jsonl";
 
 /// One oracle face: the printed characteristics the renderer is diffed
@@ -59,7 +60,7 @@ pub struct OracleEntry {
     pub toughness: Option<String>,
 }
 
-/// One `cards.jsonl` row (the mtgjson-derived snapshot's line format). A row
+/// One `cards.jsonl` row (the Scryfall-derived snapshot's line format). A row
 /// is either a standalone card (`face: null`) or one face of a multi-face
 /// card (`face` = the face's own name, `name` = the combined name).
 #[derive(Debug, serde::Deserialize)]
@@ -69,7 +70,7 @@ struct Row {
     #[serde(rename = "manaCost")]
     mana_cost: Option<String>,
     #[serde(rename = "type")]
-    type_line: String,
+    type_line: Option<String>,
     text: Option<String>,
     power: Option<String>,
     toughness: Option<String>,
@@ -105,7 +106,7 @@ impl Oracle {
                 .with_context(|| format!("{}:{}: parsing oracle row", path.display(), i + 1))?;
             let entry = OracleEntry {
                 mana_cost: row.mana_cost.unwrap_or_default(),
-                type_line: row.type_line,
+                type_line: row.type_line.unwrap_or_default(),
                 text: row.text.unwrap_or_default(),
                 power: row.power,
                 toughness: row.toughness,

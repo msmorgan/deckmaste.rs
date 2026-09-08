@@ -519,20 +519,20 @@ impl Catalogs {
         // a special form of banding; its `[quality]` argument is an ordinary
         // noun phrase [CR#702.22c] (`bands with other legendary creatures`,
         // `bands with other creatures named Wolves of the Hunt`). Neither
-        // `CatalogSet::from_cr` nor `add_atomic_variants` can produce this
-        // entry: `from_cr` mines only `702.NN.` CR headings (`Banding` is
-        // [CR#702.22]'s heading; "bands with other" is prose inside
-        // [CR#702.22b,702.22c], not a heading of its own), and
-        // `add_atomic_variants` mines only
-        // keywords MTGJSON's `AtomicCards` tags on real cards — no card,
-        // Vintage-legal or otherwise, carries `"Bands with other"` as a raw
-        // `keywords` entry (checked directly against `data/mtgjson/
-        // AtomicCards.json`: every witness embeds it only inside quoted
-        // ability prose), so there is nothing for that mining loop to
-        // authorize. Added here, permanently, independent of any catalog
-        // refresh — the same shape and rationale as
-        // `ABILITY_DERIVED_KEYWORD_ACTION_VERBS` below (`mutate`), just for
-        // the keyword-ability catalog instead of keyword-action verbs.
+        // `CatalogSet::from_cr` nor Scryfall keyword extraction can produce
+        // this entry: `from_cr` mines only `702.NN.` CR headings
+        // (`Banding` is [CR#702.22]'s heading; "bands with other" is
+        // prose inside [CR#702.22b,702.22c], not a heading of its own),
+        // and Scryfall extraction mines only the `keywords` tags on
+        // real cards — no card, Vintage-legal or otherwise, carries
+        // `"Bands with other"` as a raw `keywords` entry (checked
+        // directly against the pinned Oracle Cards snapshot: every
+        // witness embeds it only inside quoted ability prose), so there
+        // is nothing for that mining loop to authorize. Added here,
+        // permanently, independent of any catalog refresh — the same
+        // shape and rationale as `ABILITY_DERIVED_KEYWORD_ACTION_VERBS`
+        // below (`mutate`), just for the keyword-ability catalog
+        // instead of keyword-action verbs.
         for canonical in HAND_CURATED_KEYWORD_ABILITY_SURFACES {
             let canonical: Arc<str> = Arc::from(canonical);
             let atom = CatalogAtom {
@@ -889,7 +889,7 @@ const ABILITY_DERIVED_KEYWORD_ACTION_VERBS: [&str; 1] = ["mutate"];
 /// generated, for the same reason `ABILITY_DERIVED_KEYWORD_ACTION_VERBS`
 /// above is: the Comprehensive Rules define the surface, but neither
 /// generation path (`CatalogSet::from_cr`'s `702.NN.` heading scan, nor
-/// `add_atomic_variants`'s MTGJSON `keywords`-field mining) can produce it.
+/// Scryfall `keywords`-field mining) can produce it.
 /// See the durability comment at the merge site in [`Catalogs::rebuild`].
 const HAND_CURATED_KEYWORD_ABILITY_SURFACES: [&str; 1] = ["Bands with other"];
 
@@ -1344,10 +1344,11 @@ mod tests {
 
     #[test]
     fn multi_word_keyword_action_canonicals_lowercase_the_whole_render() {
-        // The 9 real multi-word canonicals from `data/gen/catalogs/keyword-actions.txt`
-        // (round `mwcanon`). Each has a capitalized tail in the generated file; the
-        // resolver must lowercase both head and tail so the rendered form matches the
-        // oracle's running-text spelling.
+        // The 9 real multi-word canonicals from
+        // `data/gen/catalogs/keyword-actions.txt` (round `mwcanon`).
+        // Each has a capitalized tail in the generated file; the
+        // resolver must lowercase both head and tail so the rendered form
+        // matches the oracle's running-text spelling.
         const CANONICALS: [&str; 9] = [
             "Collect Evidence",
             "Face a Villainous Choice",
@@ -1393,9 +1394,10 @@ mod tests {
             );
         }
 
-        // §2.3's exclusion, pinned as intended behaviour: the oracle capitalizes the
-        // proper noun `Ring`, so `The Ring Tempts You` never matches its own oracle
-        // surface under `CasePolicy::Exact`, even though the canonical is now fully
+        // §2.3's exclusion, pinned as intended behaviour: the oracle
+        // capitalizes the proper noun `Ring`, so `The Ring Tempts You`
+        // never matches its own oracle surface under
+        // `CasePolicy::Exact`, even though the canonical is now fully
         // lowercased internally.
         let oracle_surface_matches = catalogs.matches(
             "the Ring tempts you",
@@ -1436,10 +1438,11 @@ mod tests {
 
     #[test]
     fn narrowed_sentence_initial_retry_does_not_lowercase_a_non_initial_capital() {
-        // Edit 2's defining property: only the sentence-initial token's own bytes are
-        // lowercased for the retry, never the remainder of the suffix. A capitalized
-        // non-initial token inside a multi-word canonical must therefore still fail to
-        // match under `CasePolicy::Exact`.
+        // Edit 2's defining property: only the sentence-initial token's own
+        // bytes are lowercased for the retry, never the remainder of
+        // the suffix. A capitalized non-initial token inside a
+        // multi-word canonical must therefore still fail to match under
+        // `CasePolicy::Exact`.
         let catalogs = Catalogs::new(
             std::iter::empty::<&str>(),
             ["Venture Into The Dungeon"],
@@ -1459,8 +1462,9 @@ mod tests {
 
     #[test]
     fn manifest_survives_the_arrival_of_manifest_dread() {
-        // The single-word canonical must keep resolving on its own once its multi-word
-        // sibling is present in the same catalog (anti-regression for Edit 1/Edit 3).
+        // The single-word canonical must keep resolving on its own once its
+        // multi-word sibling is present in the same catalog
+        // (anti-regression for Edit 1/Edit 3).
         let catalogs = Catalogs::new(
             std::iter::empty::<&str>(),
             ["Manifest", "Manifest Dread"],

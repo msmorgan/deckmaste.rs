@@ -28,10 +28,46 @@ function __scryfall_download
     end
 end
 
+function __scryfall_oracle_cards
+    set -l cache_dir $scryfall_dir/cache
+    set -l descriptor $cache_dir/oracle-cards-descriptor.json
+    mkdir -p $cache_dir
+    or return
+
+    download_file \
+        --tag 'scryfall oracle descriptor' \
+        --accept 'application/json' \
+        --user-agent 'deckmaste.rs/0.1 (+https://github.com/msmorgan/deckmaste.rs)' \
+        $__scryfall_base_url/bulk-data/oracle-cards $descriptor
+    or return
+    sleep 0.1
+    or return
+
+    set -l uri (cargo xtask scryfall-snapshot uri --descriptor $descriptor)
+    or return
+    set -l compressed $cache_dir/(path basename $uri)
+    download_file \
+        --tag 'scryfall oracle cards' \
+        --accept 'application/gzip' \
+        --user-agent 'deckmaste.rs/0.1 (+https://github.com/msmorgan/deckmaste.rs)' \
+        $uri $compressed
+    or return
+    sleep 0.1
+    or return
+
+    cargo xtask scryfall-snapshot prepare \
+        --descriptor $descriptor \
+        --compressed $compressed \
+        --output $scryfall_dir/oracle-cards.jsonl \
+        --metadata $scryfall_dir/oracle-cards.metadata.json
+end
+
 function scryfall
     switch $argv[1]
         case download
             __scryfall_download $argv[2..]
+        case oracle-cards
+            __scryfall_oracle_cards
         case '*'
             echo >&2 "$(status function): unknown subcommand '$argv[1]'"
             return 1

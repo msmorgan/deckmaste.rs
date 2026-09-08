@@ -1,9 +1,7 @@
-//! `cargo xtask generate <plugin>` — build a plugin's cards from mtgjson via
+//! `cargo xtask generate <plugin>` — build a plugin's cards from Scryfall via
 //! the full pipeline: stubs -> extract -> resolve -> graduate.
 //!
-//! Extraction deserializes the ~150 MB `AtomicCards.json`. The root
-//! `Cargo.toml` optimizes `deckmaste_migrations` and `serde_json` in dev so the
-//! full pipeline stays fast to *run* without a release build of the whole tree.
+//! Extraction streams the pinned Oracle Cards JSONL snapshot.
 
 use std::path::PathBuf;
 

@@ -24,12 +24,16 @@ use super::packed::PackedSite;
 pub(super) fn run(args: &AmbiguityArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let started = std::time::Instant::now();
     let workers = args.corpus.workers()?;
-    let corpus = Corpus::load(&args.corpus.data)
+    let corpus = Corpus::load(&args.corpus.data, &args.corpus.selection)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
     let parser = crate::english_v2::parser_from_builtin_v2()?;
     let report = AmbiguityReport::run(&corpus, &parser, workers)?;
 
-    render_report(&report, args.json, output)?;
+    if args.json {
+        super::corpus::write_provenanced_json(&report, &corpus, workers, output)?;
+    } else {
+        render_report(&report, false, output)?;
+    }
     output
         .flush()
         .context("flushing English-v2 ambiguity census")?;

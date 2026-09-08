@@ -13,6 +13,7 @@ parser-metrics = ["deckmaste_english_v2/parser-metrics"]
 [dependencies]
 anyhow = { version = "1.0.102" }
 clap = { version = "4.6.1", features = ["derive"] }
+flate2 = "1.1.2"
 deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }

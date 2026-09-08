@@ -1,7 +1,8 @@
 //! The reader against `plugins_v2/testing`: a plugin with one card per shape
 //! the fixture needs, a token, and one file in each of the three rules tables.
 //!
-//! Card text is real Magic text, taken from `data/mtgjson/AtomicCards.json`.
+//! Card text is real Magic text, taken from the pinned Scryfall Oracle Cards
+//! snapshot.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -601,7 +602,8 @@ fn a_raw_constructor_in_a_card_is_refused_by_name() {
     );
 }
 
-/// A definition's name denotes its term (Lean `Semantics.Definition.subtypeTerm`).
+/// A definition's name denotes its term (Lean
+/// `Semantics.Definition.subtypeTerm`).
 ///
 /// The macro a subtype declaration registers expands to the declaration's
 /// `Definition` node, so at a `Subtype` TERM position the position takes the

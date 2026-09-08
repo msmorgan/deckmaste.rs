@@ -25,13 +25,21 @@ canon's job is correctness.
 
 ## Still never committed
 
-- `/data/` — CR text (`cr.txt`/`cr.json`), MTGJSON snapshots, catalogs.
+- `/data/` — CR text (`cr.txt`/`cr.json`), Scryfall Oracle Cards JSONL,
+  supporting MTGJSON reference snapshots, and catalogs.
   Fetched locally via `scripts/fetch_data`.
 - `plugins/wizards/` — generated full-corpus pipeline output; rebuild with
   `cargo xtask generate plugins/wizards`.
 - Oracle text, flavor text, and art, in any form. Canon encodes behavior,
   not text; tools persist only derived artifacts (rule numbers, checksums,
   URLs — see the CR citation lockfile).
+
+`scripts/fetch_data` resolves Scryfall's current Oracle Cards descriptor and
+downloads its `jsonl_download_uri`. It caches the descriptor and compressed
+export under `data/scryfall/cache/`, validates the decompressed records, then
+atomically publishes `data/scryfall/oracle-cards.jsonl` with metadata and
+content hashes. Ordinary catalog, analysis, extraction, and generation commands
+read that pinned local snapshot offline.
 
 Rationale: game rules and mechanics are not copyrightable; card names, text,
 and art are WOTC's. A small, purposeful slice of name+behavior encodings

@@ -46,25 +46,25 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            data/mtgjson/cache/AtomicCards.json.xz
+            data/scryfall/cache
             data/catalogs
             data/rules/keywords.json
             data/rules/cr.txt
-          key: ci-inputs-v1-${{ runner.os }}-lookup-${{ github.run_id }}
+          key: ci-inputs-v2-${{ runner.os }}-lookup-${{ github.run_id }}
           restore-keys: |
-            ci-inputs-v1-${{ runner.os }}-sha256-
+            ci-inputs-v2-${{ runner.os }}-sha256-
       - name: refresh upstream inputs
         run: scripts/fetch_data --minimal --cr
       - name: fingerprint refreshed upstream inputs
         id: data_digest
         env:
-          CACHE_PREFIX: ci-inputs-v1-${{ runner.os }}-sha256-
+          CACHE_PREFIX: ci-inputs-v2-${{ runner.os }}-sha256-
         run: |
           set -euo pipefail
           manifest="$RUNNER_TEMP/ci-inputs.sha256"
           {
+            find data/scryfall/cache -type f -print0 | sort -z | xargs -0 sha256sum
             sha256sum \
-              data/mtgjson/cache/AtomicCards.json.xz \
               data/rules/keywords.json \
               data/rules/cr.txt \
               data/catalogs/artifact-types.json \
@@ -85,7 +85,7 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            data/mtgjson/cache/AtomicCards.json.xz
+            data/scryfall/cache
             data/catalogs
             data/rules/keywords.json
             data/rules/cr.txt
@@ -96,16 +96,16 @@ jobs:
       # english_v2, and legacy text catalogs for legacy consumers.
       - name: derive corpus fixtures
         run: |
-          cargo xtask derive-cards
           cargo xtask catalogs generate
           cargo xtask catalogs check
           cargo xtask catalogs text
+          cargo xtask derive-cards
 
       - name: check English-v2 flavor-word nursery
         run: cargo xtask english_v2 flavor-words --check
 
-      # Generate the gitignored `plugins/wizards` corpus from the staged mtgjson
-      # AtomicCards, so each crate's build.rs sets `wizards_corpus` and the
+      # Generate the gitignored `plugins/wizards` corpus from the staged Scryfall
+      # Oracle Cards snapshot, so each crate's build.rs sets `wizards_corpus` and the
       # otherwise-`ignored` corpus tests run. `generate` runs subtype stubs +
       # extract/resolve/graduate, all satisfiable from the fetched inputs — the
       # keyword/action/ability-word stub generators that once needed

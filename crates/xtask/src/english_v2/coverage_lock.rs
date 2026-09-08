@@ -105,7 +105,7 @@ impl CoverageLockV4 {
         validate_identity(&self.normalization_digest, "normalization digest", path)?;
         validate_vector(&self.covered, "covered corpus identity", path)?;
         for unit in &self.normalization_units {
-            validate_identity(&unit.source_id, "normalization source identity", path)?;
+            validate_source_identity(&unit.source_id, path)?;
             validate_identity(&unit.id, "normalized corpus identity", path)?;
         }
         for pair in self.normalization_units.windows(2) {
@@ -207,6 +207,29 @@ fn validate_identity(value: &str, kind: &str, path: &Path) -> anyhow::Result<()>
     }
     bail!(
         "invalid English-v2 coverage lock {}: {kind} must be lowercase 64-hex",
+        path.display(),
+    );
+}
+
+fn validate_source_identity(value: &str, path: &Path) -> anyhow::Result<()> {
+    if (value.len() == 64
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
+        || value
+            .split_once('#')
+            .is_some_and(|(oracle_id, discriminator)| {
+                !oracle_id.is_empty()
+                    && (discriminator == "card"
+                        || discriminator
+                            .strip_prefix("face:")
+                            .is_some_and(|index| index.parse::<usize>().is_ok()))
+            })
+    {
+        return Ok(());
+    }
+    bail!(
+        "invalid English-v2 coverage lock {}: normalization source identity must be a durable Oracle face identity",
         path.display(),
     );
 }
@@ -1633,9 +1656,10 @@ mod tests {
     fn lock_delta_fixture() -> (Vec<u8>, CoverageReport) {
         let baseline_report = report(&id('1'), vec![id('a'), id('b'), id('d')], 0, 0, 0, 0);
         let baseline = json_v4(&baseline_report, vec![id('a'), id('b'), id('d')]);
-        // `a` is still in the corpus but no longer parses, and its face makes the
-        // corpus label differ from the name the lock recorded; `d` left the corpus
-        // entirely, so only the lock can name it; `c` is the gain.
+        // `a` is still in the corpus but no longer parses, and its face makes
+        // the corpus label differ from the name the lock recorded; `d`
+        // left the corpus entirely, so only the lock can name it; `c`
+        // is the gain.
         let changed = CoverageReport::for_lock_delta_test(
             id('2'),
             &[(id('b'), None), (id('c'), None)],
@@ -1796,8 +1820,8 @@ mod tests {
             )),
             "{diagnostics}"
         );
-        // A schema-3 lock records no per-unit names, so an identity the corpus has
-        // also dropped can only be listed by its identity.
+        // A schema-3 lock records no per-unit names, so an identity the corpus
+        // has also dropped can only be listed by its identity.
         assert!(
             diagnostics.contains(&format!(
                 "no longer covered\t{}\tcard \"<unknown>\"",

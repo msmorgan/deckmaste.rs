@@ -997,7 +997,10 @@ mod tests {
             .load()
             .expect("release corpus data must be available for mixed `with` fixtures");
         for name in ["Alien Invasion", "Basilica Shepherd", "Blink"] {
-            let cards = find_cards(&data.faces, name);
+            let cards = find_cards(&data.faces, name)
+                .into_iter()
+                .filter(|card| card.supported)
+                .collect::<Vec<_>>();
             assert_eq!(cards.len(), 1, "expected one supported fixture for {name}");
             let mut rendered = Vec::new();
             write_cards(

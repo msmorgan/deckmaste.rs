@@ -30,6 +30,7 @@ pub mod lexical;
 pub mod macros;
 pub mod map;
 pub mod resolve;
+pub mod scryfall_snapshot;
 pub mod stubs;
 pub mod validate;
 

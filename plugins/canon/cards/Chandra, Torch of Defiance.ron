@@ -4,7 +4,7 @@
 // abilities activate at sorcery speed under one shared once-per-turn limit
 // ([CR#606.3,306.5d]).
 //
-//   [+1] impulse — "Exile the top card of your library. You may cast that card.
+//   +1 impulse — "Exile the top card of your library. You may cast that card.
 //   If you don't, ~ deals 2 damage to each opponent." The top card is exiled
 //   and its product bound as `That(Card)` (`Produce(Move(It, Exile))`, the
 //   Cavern-of-Souls exile-and-bind, [CR#400.7j] chase-through-remint); the
@@ -13,14 +13,14 @@
 //   `if_not` deal-2 runs). `Cast(You, That(Card))` casts the exiled card
 //   during resolution via the
 //   [CR#601.2] pipeline, no priority granted ([CR#608.2g]).
-//   [+1] mana — "Add {R}{R}." (`AddMana`).
-//   [−3] — "~ deals 4 damage to target creature." (`Targeted`, read back as
+//   +1 mana — "Add {R}{R}." (`AddMana`).
+//   −3 — "~ deals 4 damage to target creature." (`Targeted`, read back as
 //   `Target(0)`, cf. Goblin Medics).
-//   [−7] — "You get an emblem with 'Whenever you cast a spell, this emblem
+//   −7 — "You get an emblem with 'Whenever you cast a spell, this emblem
 //   deals 5 damage to any target.'" (`GetEmblem` carrying a `Triggered` whose
 //   `Cast(who: Ref(You))` onset fires the emblem's burn, [CR#114.1,601.2i]).
 //
-// waiver: renderer seams orthogonal to the cast-effect primitive — the [+1]
+// waiver: renderer seams orthogonal to the cast-effect primitive — the +1
 // impulse's exile-top-and-bind composition (`Each(Existing(TopOfLibrary))` →
 // "For each …", a `Produce`-bound `That(Card)` → "the produced object" rather
 // than "exile the top card … that card") and the emblem trigger phrasing

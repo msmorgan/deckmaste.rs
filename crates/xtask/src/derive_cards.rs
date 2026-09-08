@@ -1,6 +1,7 @@
-//! Reproduce the gitignored Oracle snapshot from MTGJSON's atomic-card dump.
+//! Reproduce the gitignored flat Oracle snapshot from Scryfall JSONL.
 
 use std::fs::File;
+use std::io::BufReader;
 use std::io::BufWriter;
 use std::path::PathBuf;
 
@@ -9,9 +10,13 @@ use clap::Args;
 
 #[derive(Debug, Args)]
 pub struct DeriveCardsArgs {
-    /// MTGJSON atomic-card input.
-    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
-    atomic: PathBuf,
+    /// Scryfall Oracle Cards JSONL input.
+    #[arg(long, default_value = "data/scryfall/oracle-cards.jsonl")]
+    oracle_cards: PathBuf,
+
+    /// Declared catalogs used to derive structured type-line labels.
+    #[arg(long, default_value = "data/gen/catalogs")]
+    catalogs: PathBuf,
 
     /// Flat, one-face-per-line Oracle snapshot.
     #[arg(long, default_value = "data/derived/cards.jsonl")]
@@ -19,15 +24,21 @@ pub struct DeriveCardsArgs {
 }
 
 pub fn run(args: &DeriveCardsArgs) -> anyhow::Result<()> {
-    let atomic = std::fs::read(&args.atomic)
-        .with_context(|| format!("reading {}", args.atomic.display()))?;
+    let oracle_cards = File::open(&args.oracle_cards)
+        .with_context(|| format!("opening {}", args.oracle_cards.display()))?;
+    let catalogs = deckmaste_catalogs::CatalogSet::load(&args.catalogs)
+        .with_context(|| format!("loading catalogs from {}", args.catalogs.display()))?;
     if let Some(parent) = args.output.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating {}", parent.display()))?;
     }
     let output = File::create(&args.output)
         .with_context(|| format!("creating {}", args.output.display()))?;
-    let count = deckmaste_migrations::oracle_snapshot::write(&atomic, BufWriter::new(output))?;
+    let count = deckmaste_migrations::oracle_snapshot::write(
+        BufReader::new(oracle_cards),
+        &catalogs,
+        BufWriter::new(output),
+    )?;
     println!("wrote {count} faces to {}", args.output.display());
     Ok(())
 }

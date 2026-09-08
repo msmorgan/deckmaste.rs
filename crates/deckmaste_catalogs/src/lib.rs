@@ -10,6 +10,7 @@ pub use crate::diff::DirectoryDiff;
 pub use crate::diff::compare_directories;
 pub use crate::kind::CatalogKind;
 pub use crate::set::CatalogSet;
+pub use crate::set::TypeLineParts;
 
 #[cfg(test)]
 mod tests {
@@ -46,112 +47,44 @@ mod tests {
 122.1b A keyword counter on a permanent or on a card in a zone other than the battlefield causes that object to gain that keyword. The keywords that a keyword counter can be are flying, first strike, double strike, deathtouch, and hexproof, as well as any variants of those keywords.\n";
     // cite: noncompliant end
 
-    const ATOMIC_FIXTURE: &str = r#"{
-        "data": {
-            "Legal Name": [{
-                "name": "Legal Name", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "keywords": ["Islandwalk"],
-                "legalities": {"vintage": "Legal"}
-            }],
-            "Front // Back": [{
-                "name": "Front // Back", "faceName": "Front", "side": "a", "layout": "modal_dfc",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": "Restricted"}
-            }, {
-                "name": "Front // Back", "faceName": "Back", "side": "b", "layout": "modal_dfc",
-                "types": ["Land"], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": "Restricted"}
-            }],
-            "Banned": [{
-                "name": "Banned", "layout": "normal",
-                "types": [], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": "Banned"}
-            }],
-            "Null": [{
-                "name": "Null", "layout": "normal",
-                "types": [], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": null}
-            }],
-            "Missing": [{
-                "name": "Missing", "layout": "normal",
-                "types": [], "supertypes": [], "subtypes": [],
-                "legalities": {}
-            }]
-        }
-    }"#;
+    const ORACLE_FIXTURE: &str = concat!(
+        r#"{"object":"card","id":"printing-legal","oracle_id":"oracle-legal","name":"Legal Name","layout":"normal","type_line":"Creature","keywords":["Islandwalk"],"legalities":{"vintage":"legal"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-faces","oracle_id":"oracle-faces","name":"Front // Back","layout":"modal_dfc","keywords":[],"legalities":{"vintage":"restricted"},"card_faces":[{"name":"Front","type_line":"Creature"},{"name":"Back","type_line":"Land"}]}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-banned","oracle_id":"oracle-banned","name":"Banned","layout":"normal","keywords":[],"legalities":{"vintage":"banned"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-missing","oracle_id":"oracle-missing","name":"Missing","layout":"normal","keywords":[],"legalities":{}}"#,
+        "\n",
+    );
 
-    const LEGACY_ATOMIC_FIXTURE: &str = r#"{
-        "data": {
-            "Legal": [{
-                "name": "Legal", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "keywords": ["Islandwalk", "Friends forever", "Attack", "Wind Walk"],
-                "legalities": {"vintage": "Legal"}
-            }],
-            "Restricted": [{
-                "name": "Restricted", "layout": "normal",
-                "types": ["Artifact"], "supertypes": [], "subtypes": [],
-                "keywords": ["Basic landcycling", "Hexproof from", "Choose a background"],
-                "legalities": {"vintage": "Restricted"}
-            }],
-            "Banned": [{
-                "name": "Banned", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "keywords": ["Forestwalk"],
-                "legalities": {"vintage": "Banned"}
-            }],
-            "Missing": [{
-                "name": "Missing", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "keywords": ["Swampwalk"],
-                "legalities": {}
-            }]
-        }
-    }"#;
+    const LEGACY_KEYWORD_FIXTURE: &str = concat!(
+        r#"{"object":"card","id":"printing-legal","oracle_id":"oracle-legal","name":"Legal","layout":"normal","type_line":"Creature","keywords":["Islandwalk","Friends forever","Attack","Wind Walk"],"legalities":{"vintage":"legal"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-restricted","oracle_id":"oracle-restricted","name":"Restricted","layout":"normal","type_line":"Artifact","keywords":["Basic landcycling","Hexproof from","Choose a background"],"legalities":{"vintage":"restricted"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-banned","oracle_id":"oracle-banned","name":"Banned","layout":"normal","type_line":"Creature","keywords":["Forestwalk"],"legalities":{"vintage":"banned"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-missing","oracle_id":"oracle-missing","name":"Missing","layout":"normal","type_line":"Creature","keywords":["Swampwalk"],"legalities":{}}"#,
+        "\n",
+    );
 
-    const REORDERED_ATOMIC_FIXTURE: &str = r#"{
-        "data": {
-            "Front // Back": [{
-                "name": "Front // Back", "faceName": "Back", "side": "b", "layout": "modal_dfc",
-                "types": ["Land"], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": "Restricted"}
-            }, {
-                "name": "Front // Back", "faceName": "Front", "side": "a", "layout": "modal_dfc",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": "Restricted"}
-            }],
-            "Duplicate": [{
-                "name": "Legal Name", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": "Legal"}
-            }],
-            "Missing": [{
-                "name": "Missing", "layout": "normal",
-                "types": [], "supertypes": [], "subtypes": [],
-                "legalities": {}
-            }],
-            "Null": [{
-                "name": "Null", "layout": "normal",
-                "types": [], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": null}
-            }],
-            "Banned": [{
-                "name": "Banned", "layout": "normal",
-                "types": [], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": "Banned"}
-            }],
-            "Legal Name": [{
-                "name": "Legal Name", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "legalities": {"vintage": "Legal"}
-            }]
-        }
-    }"#;
+    const REORDERED_ORACLE_FIXTURE: &str = concat!(
+        r#"{"object":"card","id":"printing-missing","oracle_id":"oracle-missing","name":"Missing","layout":"normal","keywords":[],"legalities":{}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-faces","oracle_id":"oracle-faces","name":"Front // Back","layout":"modal_dfc","keywords":[],"legalities":{"vintage":"restricted"},"card_faces":[{"name":"Front","type_line":"Creature"},{"name":"Back","type_line":"Land"}]}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-duplicate","oracle_id":"oracle-duplicate","name":"Legal Name","layout":"normal","type_line":"Creature","keywords":[],"legalities":{"vintage":"legal"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-banned","oracle_id":"oracle-banned","name":"Banned","layout":"normal","keywords":[],"legalities":{"vintage":"banned"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-legal","oracle_id":"oracle-legal","name":"Legal Name","layout":"normal","type_line":"Creature","keywords":[],"legalities":{"vintage":"legal"}}"#,
+        "\n",
+    );
 
     #[test]
     fn canonical_sources_build_the_exact_inventory() {
-        let catalogs = CatalogSet::generate(CR_FIXTURE, ATOMIC_FIXTURE.as_bytes()).unwrap();
+        let catalogs = CatalogSet::generate(CR_FIXTURE, ORACLE_FIXTURE.as_bytes()).unwrap();
 
         assert_eq!(
             catalogs.kinds().collect::<Vec<_>>(),
@@ -243,7 +176,7 @@ mod tests {
     fn malformed_cr_lists_name_the_rejected_catalog() {
         let card_type_error = CatalogSet::generate(
             &CR_FIXTURE.replace("The card types are", "Card types include"),
-            ATOMIC_FIXTURE.as_bytes(),
+            ORACLE_FIXTURE.as_bytes(),
         )
         .unwrap_err();
         assert!(card_type_error.to_string().contains("card-types"));
@@ -253,7 +186,7 @@ mod tests {
                 ", as well as any variants of those keywords",
                 ", and its variants",
             ),
-            ATOMIC_FIXTURE.as_bytes(),
+            ORACLE_FIXTURE.as_bytes(),
         )
         .unwrap_err();
         assert!(counter_error.to_string().contains("counter-kind-phrases"));
@@ -267,7 +200,7 @@ mod tests {
             &format!("{ACTION_TWO} Scry"),
         );
 
-        let error = CatalogSet::generate(&cr, ATOMIC_FIXTURE.as_bytes()).unwrap_err();
+        let error = CatalogSet::generate(&cr, ORACLE_FIXTURE.as_bytes()).unwrap_err();
 
         assert!(error.to_string().contains("keyword-actions"));
         assert!(error.to_string().contains(&format!("{ACTION_TWO} Scry")));
@@ -281,7 +214,7 @@ mod tests {
         ] {
             let cr = CR_FIXTURE.replace(title, lookalike);
 
-            let error = CatalogSet::generate(&cr, ATOMIC_FIXTURE.as_bytes()).unwrap_err();
+            let error = CatalogSet::generate(&cr, ORACLE_FIXTURE.as_bytes()).unwrap_err();
 
             assert!(error.to_string().contains(catalog), "{error:#}");
             assert!(error.to_string().contains(lookalike), "{error:#}");
@@ -297,7 +230,7 @@ mod tests {
             &format!("{ACTION_TWO}. Tap and Untap"),
         );
 
-        let error = CatalogSet::generate(&cr, ATOMIC_FIXTURE.as_bytes()).unwrap_err();
+        let error = CatalogSet::generate(&cr, ORACLE_FIXTURE.as_bytes()).unwrap_err();
 
         assert!(error.to_string().contains("keyword-actions"));
         assert!(
@@ -311,25 +244,28 @@ mod tests {
     fn blank_cr_list_members_are_rejected() {
         let cr = CR_FIXTURE.replace("artifact, creature", "artifact, , creature");
 
-        let error = CatalogSet::generate(&cr, ATOMIC_FIXTURE.as_bytes()).unwrap_err();
+        let error = CatalogSet::generate(&cr, ORACLE_FIXTURE.as_bytes()).unwrap_err();
 
         assert!(error.to_string().contains("card-types"));
         assert!(error.to_string().contains("blank CR list member"));
     }
 
     #[test]
-    fn card_names_are_canonical_across_atomic_source_order_and_duplicates() {
-        let initial = CatalogSet::generate(CR_FIXTURE, ATOMIC_FIXTURE.as_bytes()).unwrap();
+    fn card_names_are_canonical_across_source_order_and_duplicates() {
+        let initial = CatalogSet::generate(CR_FIXTURE, ORACLE_FIXTURE.as_bytes()).unwrap();
         let reordered =
-            CatalogSet::generate(CR_FIXTURE, REORDERED_ATOMIC_FIXTURE.as_bytes()).unwrap();
+            CatalogSet::generate(CR_FIXTURE, REORDERED_ORACLE_FIXTURE.as_bytes()).unwrap();
 
         assert_eq!(initial, reordered);
     }
 
     #[test]
     fn composite_playable_name_without_a_face_name_is_rejected() {
-        let atomic = ATOMIC_FIXTURE.replace("\"faceName\": \"Front\", ", "");
-        let error = CatalogSet::generate(CR_FIXTURE, atomic.as_bytes()).unwrap_err();
+        let oracle = ORACLE_FIXTURE.replace(
+            "\"card_faces\":[{\"name\":\"Front\",",
+            "\"card_faces\":[{\"name\":\"Front // Back\",",
+        );
+        let error = CatalogSet::generate(CR_FIXTURE, oracle.as_bytes()).unwrap_err();
 
         assert!(error.to_string().contains("card-names"));
     }
@@ -344,8 +280,8 @@ mod tests {
     }
 
     #[test]
-    fn canonical_keyword_abilities_exclude_all_legacy_atomic_variants() {
-        let catalogs = CatalogSet::generate(CR_FIXTURE, LEGACY_ATOMIC_FIXTURE.as_bytes()).unwrap();
+    fn canonical_keyword_abilities_exclude_all_legacy_card_variants() {
+        let catalogs = CatalogSet::generate(CR_FIXTURE, LEGACY_KEYWORD_FIXTURE.as_bytes()).unwrap();
 
         for legacy_variant in [
             "Islandwalk",

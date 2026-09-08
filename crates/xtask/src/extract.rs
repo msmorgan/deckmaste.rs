@@ -1,5 +1,6 @@
 //! `cargo xtask extract <plugin>` — (re)generate `cards/*.ron.todo` from
-//! mtgjson. Thin wrapper over [`deckmaste_migrations::extract::extract_cards`].
+//! the pinned Scryfall Oracle Cards snapshot. Thin wrapper over
+//! [`deckmaste_migrations::extract::extract_cards`].
 
 use std::path::PathBuf;
 
@@ -11,7 +12,8 @@ pub struct ExtractArgs {
     plugin_dir: PathBuf,
 }
 
-/// Extract every supported card from mtgjson into `cards/*.ron.todo`.
+/// Extract every supported card from Scryfall Oracle Cards into
+/// `cards/*.ron.todo`.
 ///
 /// # Errors
 /// If source data is unreadable or a card fails to render.

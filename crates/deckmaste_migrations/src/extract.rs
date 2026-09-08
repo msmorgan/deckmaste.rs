@@ -1,21 +1,23 @@
 //! `extract` — emit every supported card as a Card-shaped `<name>.ron.todo`
 //! (a `TodoCard`) whose abilities are `Unparsed` oracle lines. Owns the oracle
 //! normalization helpers (`strip_reminder_text`, `expand_keyword_lines`,
-//! `expand_repeated_from_lines`, `self_ref_to_tilde`) and mtgjson field
+//! `expand_repeated_from_lines`, `self_ref_to_tilde`) and Scryfall field
 //! accessors. Covers the `normal` and `modal_dfc` layouts (the two semantic
 //! `Card` variants); other layouts are skipped until the semantic `Card` grows
 //! variants for them.
 
+use std::fs::File;
+use std::io::BufReader;
 use std::path::Path;
 use std::sync::LazyLock;
 
 use anyhow::Context;
+use deckmaste_catalogs::CatalogSet;
 use deckmaste_core::plugin::card_file;
 use deckmaste_data::DataStr;
-use deckmaste_data::mtgjson::AtomicCard;
+use deckmaste_data::scryfall::OracleCardReader;
 use deckmaste_semantics::Color;
 use deckmaste_semantics::StatValue;
-use rayon::prelude::*;
 use regex::Regex;
 
 use crate::ident::to_rust_ident;
@@ -195,14 +197,14 @@ fn ron_color(code: &str) -> anyhow::Result<Color> {
     Color::from_code(code).ok_or_else(|| anyhow::anyhow!("unrecognized color indicator: {code:?}"))
 }
 
-/// One mtgjson type/subtype/supertype name → a bare-ident `RawIdent`
+/// One derived type/subtype/supertype name → a bare-ident `RawIdent`
 /// (`"Time Lord"` → `TimeLord`), matching the macro-invocation name the
 /// macro-aware reader expands at graduation.
 fn ident(name: &str) -> RawIdent {
     RawIdent(to_rust_ident(name))
 }
 
-/// mtgjson stat string → semantic `StatValue`: integers (incl. negative) are
+/// Scryfall stat string → semantic `StatValue`: integers (incl. negative) are
 /// `Number`; `X` is `Variable`; anything else (`*`, `1+*`) is
 /// `DefinedByAbility`.
 fn stat_value(text: &str) -> StatValue {
@@ -210,27 +212,69 @@ fn stat_value(text: &str) -> StatValue {
         StatValue::Number(n)
     } else if text == "X" {
         // `X` is loyalty defined by the casting cost (the only place `X` stats
-        // appear on standard-legal cards); `*`/`1+*` take the DefinedByAbility arm.
+        // appear on standard-legal cards); `*`/`1+*` take the DefinedByAbility
+        // arm.
         StatValue::Variable
     } else {
         StatValue::DefinedByAbility
     }
 }
 
-/// Builds a `TodoCardFace` from one mtgjson face: structured fields plus one
+#[derive(Debug, Clone)]
+struct ExtractFace {
+    name: String,
+    mana_cost: Option<String>,
+    color_indicator: Option<Vec<String>>,
+    supertypes: Vec<String>,
+    types: Vec<String>,
+    subtypes: Vec<String>,
+    text: Option<String>,
+    power: Option<String>,
+    toughness: Option<String>,
+    loyalty: Option<String>,
+    defense: Option<String>,
+}
+
+impl ExtractFace {
+    fn from_unit(
+        unit: deckmaste_data::scryfall::OracleUnit<'_>,
+        catalogs: &CatalogSet,
+    ) -> anyhow::Result<Self> {
+        let type_line = unit
+            .type_line()
+            .context("Scryfall Oracle unit has no type_line")?;
+        let parts = catalogs.parse_type_line(type_line)?;
+        Ok(Self {
+            name: unit.display_name().to_owned(),
+            mana_cost: unit.mana_cost().map(str::to_owned),
+            color_indicator: unit.color_indicator().map(<[String]>::to_vec),
+            supertypes: parts.supertypes,
+            types: parts.card_types,
+            subtypes: parts.subtypes,
+            text: unit.oracle_text().map(str::to_owned),
+            power: unit.power().map(str::to_owned),
+            toughness: unit.toughness().map(str::to_owned),
+            loyalty: unit.loyalty().map(str::to_owned),
+            defense: unit.defense().map(str::to_owned),
+        })
+    }
+}
+
+/// Builds a `TodoCardFace` from one Scryfall unit: structured fields plus one
 /// `Unparsed` ability per normalized oracle line (strip reminder text, split
 /// comma-joined keyword lines, `~` self-refs).
 ///
 /// # Errors
 /// If the mana cost or a color indicator fails to parse.
-fn face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<TodoCardFace> {
-    let face_name = card.face_name.as_deref().unwrap_or(card.name.as_str());
-    let is_legendary = card.supertypes.iter().any(|t| t.as_str() == "Legendary");
+fn face(card: &ExtractFace, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<TodoCardFace> {
+    let face_name = card.name.as_str();
+    let is_legendary = card.supertypes.iter().any(|t| t == "Legendary");
     let abilities = card.text.as_deref().map_or_else(Vec::new, |text| {
         let text = deckmaste_data::academyruins::normalize_quotes(text);
         // Fold spelled-number energy ("Pay six {E}") into a `{E}` run so the
-        // `${0*\{E\}}` matcher graduates it as `PayEnergy(6)`; the same fold runs
-        // in `fidelity::normalize` so the diff meets the spelled render form.
+        // `${0*\{E\}}` matcher graduates it as `PayEnergy(6)`; the same fold
+        // runs in `fidelity::normalize` so the diff meets the spelled
+        // render form.
         let text = deckmaste_plugin::energy::normalize_spelled_energy(&text);
         let text = expand_keyword_lines(&strip_reminder_text(&text), keyword_abilities);
         let text = expand_repeated_from_lines(&text);
@@ -251,12 +295,14 @@ fn face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<
             .unwrap_or_default(),
         color_indicator: card
             .color_indicator
+            .as_deref()
+            .unwrap_or_default()
             .iter()
-            .map(|c| ron_color(c.as_str()))
+            .map(|c| ron_color(c))
             .collect::<anyhow::Result<_>>()?,
-        supertypes: card.supertypes.iter().map(|t| ident(t.as_str())).collect(),
-        types: card.types.iter().map(|t| ident(t.as_str())).collect(),
-        subtypes: card.subtypes.iter().map(|t| ident(t.as_str())).collect(),
+        supertypes: card.supertypes.iter().map(|t| ident(t)).collect(),
+        types: card.types.iter().map(|t| ident(t)).collect(),
+        subtypes: card.subtypes.iter().map(|t| ident(t)).collect(),
         abilities,
         power: card.power.as_deref().map(stat_value),
         toughness: card.toughness.as_deref().map(stat_value),
@@ -268,13 +314,13 @@ fn face(card: &AtomicCard, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<
 /// The `TodoCard` for a card's supported faces, or `None` if its layout isn't
 /// extracted yet. The grammar (`Card::TwoFaced`) admits every two-faced
 /// layout; extraction still reads only `normal` / `modal_dfc` — widening the
-/// mtgjson layout coverage is `pipeline-layout-extraction`.
+/// Scryfall layout coverage is `pipeline-layout-extraction`.
 ///
 /// # Errors
 /// If a face fails to build (see [`face`]).
 fn todo_card(
     layout: &str,
-    faces: &[&AtomicCard],
+    faces: &[ExtractFace],
     keyword_abilities: &[DataStr<'_>],
 ) -> anyhow::Result<Option<TodoCard>> {
     Ok(match (layout, faces) {
@@ -292,77 +338,61 @@ fn todo_card(
 /// finished (`<name>.ron`) or in progress (`<name>.ron.todo`).
 ///
 /// # Errors
-/// If the mtgjson/keyword data is unreadable or a card fails to render.
+/// If the Scryfall/keyword data is unreadable or a card fails to render.
 pub fn extract_cards(plugin_dir: &Path) -> anyhow::Result<()> {
     let layout = crate::layout::PluginLayout::new(plugin_dir)?;
     let cards_dir = layout.cards_dir()?;
-    let atomic_bytes = deckmaste_data::mtgjson::atomic_cards_bytes()?;
-    let atomic = deckmaste_data::mtgjson::AtomicCards::parse(&atomic_bytes)?;
+    let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let oracle_path = data_root.join("scryfall/oracle-cards.jsonl");
+    let oracle =
+        File::open(&oracle_path).with_context(|| format!("opening {}", oracle_path.display()))?;
+    let catalogs = CatalogSet::load(data_root.join("gen/catalogs"))?;
     let keywords_bytes = deckmaste_data::academyruins::keywords_bytes()?;
     let keyword_abilities =
         deckmaste_data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
 
-    // Each card writes a distinct `<name>.ron.todo` from shared read-only data,
-    // so the render+write runs in parallel; `try_for_each` short-circuits on the
-    // first error. `&atomic.data` is a HashMap (already unordered), so going
-    // parallel changes only the `eprintln!` order, not the file set or contents.
-    atomic
-        .data
-        .par_iter()
-        .try_for_each(|(name, all_faces)| -> anyhow::Result<()> {
-            let supported: Vec<&AtomicCard> = all_faces
-                .iter()
-                .filter(|card| card.vintage_playable())
-                .collect();
-            if supported.is_empty() {
-                return Ok(());
-            }
-            let final_path = cards_dir.join(card_file(name.as_str()));
-            let todo_path = cards_dir.join(format!("{}.todo", card_file(name.as_str())));
-            if final_path.exists() || todo_path.exists() {
-                return Ok(()); // already finished or already in progress
-            }
-            let Some(card) =
-                todo_card(supported[0].layout.as_str(), &supported, &keyword_abilities)?
-            else {
-                return Ok(()); // unsupported layout
-            };
-            std::fs::write(&todo_path, render(&card)?)
-                .with_context(|| format!("writing {}", todo_path.display()))?;
-            eprintln!("wrote {}", todo_path.display());
-            Ok(())
-        })
+    for card in OracleCardReader::new(BufReader::new(oracle)) {
+        let card = card.with_context(|| format!("reading {}", oracle_path.display()))?;
+        if !card.vintage_playable() {
+            continue;
+        }
+        let final_path = cards_dir.join(card_file(&card.name));
+        let todo_path = cards_dir.join(format!("{}.todo", card_file(&card.name)));
+        if final_path.exists() || todo_path.exists() {
+            continue;
+        }
+        let faces = card
+            .oracle_units()
+            .map(|unit| ExtractFace::from_unit(unit, &catalogs))
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        let Some(card) = todo_card(&card.layout, &faces, &keyword_abilities)? else {
+            continue;
+        };
+        std::fs::write(&todo_path, render(&card)?)
+            .with_context(|| format!("writing {}", todo_path.display()))?;
+        eprintln!("wrote {}", todo_path.display());
+    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use deckmaste_data::mtgjson::Legalities;
-
     use super::*;
 
     /// A minimal normal-layout creature fixture; `text` is the oracle text.
-    fn creature(text: Option<&'static str>) -> AtomicCard<'static> {
-        AtomicCard {
+    fn creature(text: Option<&str>) -> ExtractFace {
+        ExtractFace {
             name: "Test Bear".into(),
-            face_name: None,
-            side: None,
             mana_cost: None,
-            mana_value: Some(2.0),
-            type_line: Some("Creature — Bear".into()),
-            color_indicator: vec![],
-            colors: vec![],
-            color_identity: vec![],
+            color_indicator: Some(vec![]),
             types: vec!["Creature".into()],
             supertypes: vec![],
             subtypes: vec!["Bear".into()],
-            keywords: vec![],
             text: text.map(Into::into),
             power: Some("2".into()),
             toughness: Some("2".into()),
             loyalty: None,
             defense: None,
-            layout: "normal".into(),
-            legalities: Legalities::default(),
         }
     }
 
@@ -382,7 +412,9 @@ mod tests {
     fn normal_creature_builds() {
         let card = creature(Some("Flying"));
 
-        let todo = todo_card("normal", &[&card], &[]).unwrap().unwrap();
+        let todo = todo_card("normal", std::slice::from_ref(&card), &[])
+            .unwrap()
+            .unwrap();
         let TodoCard::Normal(face) = &todo else {
             panic!("expected Normal");
         };
@@ -390,7 +422,8 @@ mod tests {
         assert_eq!(face.subtypes, [RawIdent("Bear".into())]);
         assert_eq!(face.power, Some(StatValue::Number(2)));
         assert_eq!(face.toughness, Some(StatValue::Number(2)));
-        // Empty keyword list: "Flying" stays one non-keyword line -> one ability.
+        // Empty keyword list: "Flying" stays one non-keyword line -> one
+        // ability.
         assert!(
             matches!(&face.abilities[..], [TodoAbility::Unparsed(s)] if s == "Flying"),
             "abilities = {:?}",
@@ -412,7 +445,10 @@ mod tests {
     #[test]
     fn no_text_yields_empty_abilities() {
         let card = creature(None);
-        let TodoCard::Normal(face) = todo_card("normal", &[&card], &[]).unwrap().unwrap() else {
+        let TodoCard::Normal(face) = todo_card("normal", std::slice::from_ref(&card), &[])
+            .unwrap()
+            .unwrap()
+        else {
             panic!("expected Normal");
         };
         assert!(face.abilities.is_empty());
@@ -424,29 +460,24 @@ mod tests {
     /// A non-core layout (`split`) yields no `TodoCard`.
     #[test]
     fn unsupported_layout_is_skipped() {
-        let card = AtomicCard {
+        let card = ExtractFace {
             name: "Whatever".into(),
-            face_name: None,
-            side: None,
             mana_cost: None,
-            mana_value: Some(1.0),
-            type_line: Some("Instant".into()),
-            color_indicator: vec![],
-            colors: vec![],
-            color_identity: vec![],
+            color_indicator: Some(vec![]),
             types: vec!["Instant".into()],
             supertypes: vec![],
             subtypes: vec![],
-            keywords: vec![],
             text: None,
             power: None,
             toughness: None,
             loyalty: None,
             defense: None,
-            layout: "split".into(),
-            legalities: Legalities::default(),
         };
-        assert!(todo_card("split", &[&card], &[]).unwrap().is_none());
+        assert!(
+            todo_card("split", std::slice::from_ref(&card), &[])
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -475,7 +506,10 @@ mod tests {
         // "(reminder) " → strip → " " (lone space, non-empty without trim).
         // Without `.map(str::trim)` this would produce Unparsed(" ").
         let card = creature(Some("(This is reminder text.) "));
-        let TodoCard::Normal(face) = todo_card("normal", &[&card], &[]).unwrap().unwrap() else {
+        let TodoCard::Normal(face) = todo_card("normal", std::slice::from_ref(&card), &[])
+            .unwrap()
+            .unwrap()
+        else {
             panic!("expected Normal");
         };
         assert!(
@@ -579,7 +613,10 @@ mod tests {
     #[test]
     fn multi_quality_protection_becomes_two_abilities() {
         let card = creature(Some("Protection from black and from red"));
-        let TodoCard::Normal(face) = todo_card("normal", &[&card], &[]).unwrap().unwrap() else {
+        let TodoCard::Normal(face) = todo_card("normal", std::slice::from_ref(&card), &[])
+            .unwrap()
+            .unwrap()
+        else {
             panic!("expected Normal");
         };
         assert!(
@@ -616,7 +653,8 @@ mod tests {
             ),
             "Exile ~. Return ~."
         );
-        // Possessive: the apostrophe is a word boundary, so the name still matches.
+        // Possessive: the apostrophe is a word boundary, so the name still
+        // matches.
         assert_eq!(
             self_ref_to_tilde(
                 "Norman Osborn's controller draws.",
@@ -667,7 +705,8 @@ mod tests {
             ),
             "~ attacks. The guts spill."
         );
-        // Short-name pass is legendary-only: a comma'd non-legend keeps its prefix.
+        // Short-name pass is legendary-only: a comma'd non-legend keeps its
+        // prefix.
         assert_eq!(
             self_ref_to_tilde(
                 "Borrowing 100 arrows.",
@@ -766,7 +805,8 @@ mod tests {
             "~'s controller draws a card."
         );
 
-        // Non-matches: the bare word (no "this"), excluded nouns, lowercase "case".
+        // Non-matches: the bare word (no "this"), excluded nouns, lowercase
+        // "case".
         assert_eq!(tilde("Destroy all creatures."), "Destroy all creatures.");
         assert_eq!(
             tilde("Draw two cards this turn."),
@@ -779,7 +819,8 @@ mod tests {
             "Activate this ability only once each turn."
         );
 
-        // Composes with the name pass: both the name and the "this land" collapse.
+        // Composes with the name pass: both the name and the "this land"
+        // collapse.
         assert_eq!(
             self_ref_to_tilde(
                 "Coastal Tower enters tapped. This land taps for mana.",

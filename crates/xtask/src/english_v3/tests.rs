@@ -1,8 +1,8 @@
+use std::io::Write as _;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::parse;
@@ -20,6 +20,10 @@ use crate::english_v3::validation::Issue;
 use crate::english_v3::validation::Tracing;
 use crate::english_v3::validation::validate;
 use crate::english_v3::write_report;
+use crate::raw_corpus::CorpusSelectionArgs;
+use crate::raw_corpus::SelectedCorpus;
+use crate::raw_corpus::SelectionRequest;
+use crate::raw_corpus::load_selected;
 
 fn lexicon() -> &'static Lexicon {
     static LEXICON: OnceLock<Lexicon> = OnceLock::new();
@@ -38,6 +42,7 @@ fn args(limit: Option<usize>) -> EnglishV3Args {
     EnglishV3Args {
         field: SourceField::Text,
         data: "unused.json".into(),
+        selection: CorpusSelectionArgs::default(),
         output: "unused-report.json".into(),
         reading_limit: limit.map(|n| NonZeroUsize::new(n).unwrap()),
         samples_per_face: 2,
@@ -50,6 +55,78 @@ fn card(text: Option<&str>, legality: &str) -> serde_json::Value {
         "layout":"normal", "legalities":{"vintage":legality}, "text":text})
 }
 
+fn selected_corpus(legacy_fixture: &[u8]) -> SelectedCorpus {
+    let value: serde_json::Value = serde_json::from_slice(legacy_fixture).unwrap();
+    let mut records = Vec::new();
+    for (group, faces) in value["data"].as_object().unwrap() {
+        let faces = faces.as_array().unwrap();
+        let first = &faces[0];
+        let vintage = match first["legalities"]["vintage"].as_str() {
+            Some("Legal") => "legal",
+            Some("Restricted") => "restricted",
+            _ => "not_legal",
+        };
+        let mut record = json!({
+            "object": "card",
+            "id": format!("printing-{group}"),
+            "oracle_id": format!("oracle-{group}"),
+            "name": group,
+            "layout": first["layout"],
+            "legalities": {"vintage": vintage},
+            "color_identity": []
+        });
+        if faces.len() == 1 {
+            copy_source_fields(&mut record, first);
+        } else {
+            record["card_faces"] = serde_json::Value::Array(
+                faces
+                    .iter()
+                    .enumerate()
+                    .map(|(index, face)| {
+                        let mut projected = json!({
+                            "name": face["faceName"]
+                                .as_str()
+                                .map_or_else(|| format!("{group} {index}"), str::to_owned)
+                        });
+                        copy_source_fields(&mut projected, face);
+                        projected
+                    })
+                    .collect(),
+            );
+        }
+        records.push(serde_json::to_string(&record).unwrap());
+    }
+    let mut input = tempfile::NamedTempFile::new().unwrap();
+    writeln!(input, "{}", records.join("\n")).unwrap();
+    load_selected(
+        input.path(),
+        &SelectionRequest {
+            all: true,
+            ..SelectionRequest::default()
+        },
+        None,
+    )
+    .unwrap()
+}
+
+fn copy_source_fields(target: &mut serde_json::Value, source: &serde_json::Value) {
+    for (from, to) in [
+        ("manaCost", "mana_cost"),
+        ("manaValue", "cmc"),
+        ("type", "type_line"),
+        ("text", "oracle_text"),
+        ("power", "power"),
+        ("toughness", "toughness"),
+        ("loyalty", "loyalty"),
+        ("defense", "defense"),
+        ("colors", "colors"),
+    ] {
+        if let Some(value) = source.get(from) {
+            target[to] = value.clone();
+        }
+    }
+}
+
 #[test]
 fn raw_face_census_preserves_support_identity_and_unknown_byte_ranges() {
     let bytes = serde_json::to_vec(&json!({"data": {
@@ -60,14 +137,21 @@ fn raw_face_census_preserves_support_identity_and_unknown_byte_ranges() {
         "Excluded": [card(Some("quuxblorf."), "NotLegal")]
     }}))
     .unwrap();
-    let cards = AtomicCards::parse(&bytes).unwrap();
-    let faces = analyze_cards(&cards, lexicon(), &Grammar::default(), &args(None)).unwrap();
+    let corpus = selected_corpus(&bytes);
+    let faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &args(None)).unwrap();
     assert_eq!(
         faces
             .iter()
             .map(|f| (f.group_name.as_str(), f.face_index))
             .collect::<Vec<_>>(),
-        [("A", 0), ("A", 1), ("B", 0), ("C", 0), ("D", 0), ("D", 1)]
+        [
+            ("A", Some(0)),
+            ("A", Some(1)),
+            ("B", None),
+            ("C", None),
+            ("D", Some(0)),
+            ("D", Some(1))
+        ]
     );
     assert_ne!(faces[0].id, faces[1].id);
     assert_eq!(faces[0].raw_text_sha256, faces[1].raw_text_sha256);
@@ -109,9 +193,9 @@ fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
         "Unique": [card(Some("Draw cards."), "Legal")]
     }}))
     .unwrap();
-    let cards = AtomicCards::parse(&bytes).unwrap();
+    let corpus = selected_corpus(&bytes);
     let grammar = Grammar::default();
-    let one = analyze_cards(&cards, lexicon(), &grammar, &args(Some(1))).unwrap();
+    let one = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(Some(1))).unwrap();
     for face in &one {
         assert_eq!(face.checked_readings, 1);
         assert_eq!(face.exact_readings, None);
@@ -119,18 +203,51 @@ fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
         assert_eq!(face.census, Census::Undetermined);
         assert_eq!(face.readings["requests"], 1);
     }
-    let two = analyze_cards(&cards, lexicon(), &grammar, &args(Some(2))).unwrap();
+    let two = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(Some(2))).unwrap();
     assert_eq!(two[0].checked_readings, 2);
     assert_eq!(two[0].census, Census::Multiple);
     assert_eq!(two[0].enumeration, Enumeration::Limited);
     assert_eq!(two[0].exact_readings, None);
     assert_eq!(two[1].census, Census::One);
     assert_eq!(two[1].exact_readings, Some(1));
-    let all = analyze_cards(&cards, lexicon(), &grammar, &args(None)).unwrap();
+    let all = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(None)).unwrap();
     assert_eq!(all[0].census, Census::Multiple);
     assert_eq!(all[0].enumeration, Enumeration::Complete);
     assert_eq!(all[0].exact_readings, Some(all[0].checked_readings));
     assert!(all.iter().all(|face| face.issues.is_empty()));
+}
+
+#[test]
+fn worker_count_does_not_change_chart_results() {
+    let bytes = serde_json::to_vec(&json!({"data": {
+        "A": [card(Some("Draw cards."), "Legal")],
+        "B": [card(Some("You draw cards."), "Restricted")]
+    }}))
+    .unwrap();
+    let corpus = selected_corpus(&bytes);
+    let grammar = Grammar::default();
+    let mut one_args = args(None);
+    one_args.workers = NonZeroUsize::new(1).unwrap();
+    let mut many_args = args(None);
+    many_args.workers = NonZeroUsize::new(3).unwrap();
+
+    let mut one =
+        serde_json::to_value(analyze_cards(&corpus.faces, lexicon(), &grammar, &one_args).unwrap())
+            .unwrap();
+    let mut many = serde_json::to_value(
+        analyze_cards(&corpus.faces, lexicon(), &grammar, &many_args).unwrap(),
+    )
+    .unwrap();
+    for faces in [&mut one, &mut many] {
+        for face in faces.as_array_mut().unwrap() {
+            let face = face.as_object_mut().unwrap();
+            face.remove("lexical_wall_ns");
+            face.remove("chart_wall_ns");
+            face.remove("validation_wall_ns");
+            face.remove("thread_cpu_ns");
+        }
+    }
+    assert_eq!(one, many);
 }
 
 #[test]
@@ -164,15 +281,15 @@ fn validation_compares_exact_surface_and_both_traversal_identities() {
 fn a_failed_validation_is_written_before_the_command_returns_an_error() {
     let bytes =
         serde_json::to_vec(&json!({"data":{"A":[card(Some("Draw cards."), "Legal")]}})).unwrap();
-    let cards = AtomicCards::parse(&bytes).unwrap();
+    let corpus = selected_corpus(&bytes);
     let mut args = args(None);
     let directory = tempfile::tempdir().unwrap();
     args.output = directory.path().join("report.json");
-    let mut faces = analyze_cards(&cards, lexicon(), &Grammar::default(), &args).unwrap();
+    let mut faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &args).unwrap();
     faces[0].issues.push(Issue::ConstructionTraversal);
     let report = Report::new(
         &args,
-        &bytes,
+        &corpus,
         "test".into(),
         vec![],
         faces,
@@ -209,12 +326,12 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
         "A": [valid], "B": [invalid], "C": [card(None, "Legal")]
     }}))
     .unwrap();
-    let cards = AtomicCards::parse(&bytes).unwrap();
+    let corpus = selected_corpus(&bytes);
     let grammar = Grammar::default();
     let mut args = args(None);
-    let text = analyze_cards(&cards, lexicon(), &grammar, &args).unwrap();
+    let text = analyze_cards(&corpus.faces, lexicon(), &grammar, &args).unwrap();
     args.field = SourceField::TypeLine;
-    let faces = analyze_cards(&cards, lexicon(), &grammar, &args).unwrap();
+    let faces = analyze_cards(&corpus.faces, lexicon(), &grammar, &args).unwrap();
     assert_eq!(
         faces.iter().map(|face| face.census).collect::<Vec<_>>(),
         [Census::One, Census::No, Census::No]
@@ -237,7 +354,7 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
     );
     let report = Report::new(
         &args,
-        &bytes,
+        &corpus,
         "test".into(),
         vec![],
         faces,

@@ -12,7 +12,7 @@ pub fn ensure_ready() -> Result<(), String> {
 }
 
 fn fetch_data_if_needed() -> Result<(), String> {
-    if Path::new("data/mtgjson/AtomicCards.json").exists() {
+    if Path::new("data/scryfall/oracle-cards.jsonl").exists() {
         return Ok(());
     }
     eprintln!("cargo run: first-run setup: downloading card data...");

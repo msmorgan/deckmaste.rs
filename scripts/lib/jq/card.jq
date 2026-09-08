@@ -3,8 +3,6 @@ import "util" as util;
 
 def from_all_printings_file: [.data[].cards[]];
 def from_set_file: .data.cards;
-def from_atomic_cards_file: [.data[][]];
-
 # The supported corpus is exactly the cards the format permits, including its
 # restricted list. Keep this explicit so a new legality value cannot silently
 # enter the corpus.
@@ -197,23 +195,4 @@ def render_fields: .
     | .loyaltyRon = (.loyalty | util::and_then(number_ron))
     | .defenseRon = (.defense | util::and_then(number_ron))
 
-;
-
-def process_face: .
-    | characteristics
-    | .text |= normalize_text
-    | render_fields
-;
-
-def atomic_card_characteristics: .
-    | .data
-    | to_entries
-    | map({name: .key, faces: .value, layout: .faces[0].layout})
-    | map(
-        .faces |= map(
-            select(is_supported)
-            | process_face
-        )
-        | select(.faces | length > 0)
-    )
 ;

@@ -72,7 +72,7 @@ impl InspectSteps for ProductionSteps {
     type Trace = ParserTrace<OracleText>;
 
     fn load_corpus(&mut self, path: &Path) -> anyhow::Result<Self::Corpus> {
-        Corpus::load(path)
+        Corpus::load(path, &crate::raw_corpus::CorpusSelectionArgs::all())
     }
 
     fn validate_id(&mut self, id: &str) -> anyhow::Result<Self::Id> {
@@ -231,7 +231,7 @@ mod tests {
     fn args(id: &str) -> InspectArgs {
         InspectArgs {
             id: id.to_owned(),
-            data: PathBuf::from("fixture-atomic-cards.json"),
+            data: PathBuf::from("fixture-oracle-cards.jsonl"),
             limit: 1,
             json: true,
         }
@@ -549,23 +549,15 @@ mod tests {
         }
     }
 
-    const ONE_ROW: &[u8] = br#"{
-        "data": {
-            "Fixture": [{
-                "name": "Card\nName", "faceName": "Seven Dwarves", "side": "a\nside",
-                "layout": "modal_dfc", "types": ["Creature"], "supertypes": [],
-                "subtypes": [], "legalities": {"vintage": "Legal"},
-                "text": "Destroy target Forest.\nSecond complete line (the Fridge)."
-            }]
-        }
-    }"#;
+    const ONE_ROW: &[u8] = br#"{"object":"card","id":"printing-fixture","oracle_id":"oracle-fixture","name":"Card\nName","layout":"modal_dfc","legalities":{"vintage":"legal"},"card_faces":[{"name":"Seven Dwarves","type_line":"Creature","oracle_text":"Destroy target Forest.\nSecond complete line (the Fridge)."}]}
+"#;
 
     #[test]
     fn real_runner_preserves_metadata_is_line_safe_and_matches_probe_trace() {
         let temp = tempdir().unwrap();
-        let data = temp.path().join("AtomicCards.json");
+        let data = temp.path().join("oracle-cards.jsonl");
         std::fs::write(&data, ONE_ROW).unwrap();
-        let corpus = Corpus::load(&data).unwrap();
+        let corpus = Corpus::load(&data, &crate::raw_corpus::CorpusSelectionArgs::all()).unwrap();
         let unit = corpus.units().first().unwrap();
         let mut inspect_args = args(unit.id());
         inspect_args.data = data;

@@ -30,8 +30,10 @@ end
 
 set -g catalogs_dir $test_root/catalogs
 set -g mtgjson_dir $test_root/mtgjson
+set -g scryfall_dir $test_root/scryfall
 set -g curl_log $test_root/curl.log
 set -g sleep_log $test_root/sleep.log
+set -g cargo_log $test_root/cargo.log
 mkdir -p $catalogs_dir
 
 source scripts/lib/functions/fetch/download_file.fish
@@ -66,8 +68,15 @@ function sleep
 end
 
 function xzcat
-    printf 'decoded AtomicCards\n'
+    printf 'decoded MTGJSON\n'
     return $fake_xz_status
+end
+
+function cargo
+    printf '%s\n' $argv >$cargo_log
+    if contains -- uri $argv
+        echo https://data.scryfall.io/oracle-cards/oracle-cards-test.jsonl.gz
+    end
 end
 
 function reset_fake --argument-names code curl_status
@@ -111,23 +120,23 @@ scryfall download cards/test:cards/test.json
 check 'card request succeeds' 0 $status
 check 'card request uses the conservative delay' 0.5 (string trim <$sleep_log)
 
-# The Actions cache stores the compressed MTGJSON input, not its ~150 MB
-# expansion. A conditional 304 must still reconstruct the local input.
+# The optional MTGJSON reference cache stores compressed inputs. A conditional
+# 304 must still reconstruct the local input.
 mkdir -p $mtgjson_dir/cache
-printf 'cached xz\n' >$mtgjson_dir/cache/AtomicCards.json.xz
+printf 'cached xz\n' >$mtgjson_dir/cache/Meta.json.xz
 reset_fake 304 0
-mtgjson download AtomicCards.json
+mtgjson download Meta.json
 check 'MTGJSON 304 still succeeds' 0 $status
-check 'MTGJSON 304 reconstructs the uncached expansion' 'decoded AtomicCards' \
-    (string trim <$mtgjson_dir/AtomicCards.json)
+check 'MTGJSON 304 reconstructs the uncached expansion' 'decoded MTGJSON' \
+    (string trim <$mtgjson_dir/Meta.json)
 
-printf 'usable old expansion\n' >$mtgjson_dir/AtomicCards.json
+printf 'usable old expansion\n' >$mtgjson_dir/Meta.json
 set -g fake_xz_status 17
 reset_fake 304 0
-mtgjson download AtomicCards.json
+mtgjson download Meta.json
 check 'MTGJSON extraction failure propagates' 17 $status
 check 'MTGJSON extraction failure preserves the usable expansion' \
-    'usable old expansion' (string trim <$mtgjson_dir/AtomicCards.json)
+    'usable old expansion' (string trim <$mtgjson_dir/Meta.json)
 set -g fake_xz_status 0
 
 # Exercise the script-level option plumbing without reaching the network. The
@@ -138,6 +147,8 @@ set -l fetch_plan (fish -C '\
     function scryfall; echo scryfall:$argv; end\
 ' scripts/fetch_data --minimal --cr)
 check 'minimal plus CR plan succeeds' 0 $status
+check 'minimal plan refreshes Oracle Cards' 0 \
+    (string match -q '*scryfall:oracle-cards*' -- $fetch_plan; echo $status)
 check 'minimal plus CR includes cr.txt' 0 \
     (string match -q '*academyruins:file/cr:cr.txt*' -- $fetch_plan; echo $status)
 # Flavor words are the one catalog the English loader reads from the Scryfall
@@ -147,9 +158,9 @@ check 'minimal plan includes the flavor-word catalog' 0 \
     (string match -q '*catalog/flavor-words:flavor-words.json*' -- $fetch_plan; echo $status)
 
 set -l failed_plan (fish -C '\
-    function mtgjson; return 23; end; \
+    function mtgjson; echo unexpected-mtgjson; end; \
     function academyruins; echo unexpected-academyruins; end; \
-    function scryfall; echo unexpected-scryfall; end\
+    function scryfall; return 23; end\
 ' scripts/fetch_data --minimal --cr)
 check 'provider failure propagates from fetch_data' 23 $status
 check 'provider failure stops later hosts' '' "$failed_plan"
@@ -160,7 +171,8 @@ set -l strict_longopts
 for file in \
         scripts/fetch_data \
         scripts/lib/functions/fetch/download_file.fish \
-        scripts/lib/functions/fetch/mtgjson.fish
+        scripts/lib/functions/fetch/mtgjson.fish \
+        scripts/lib/functions/fetch/scryfall.fish
     while read -l line
         string match -rq '^\s*argparse\s+.*-[A-Za-z]*S' -- $line
         and set -a strict_longopts "$file: $line"

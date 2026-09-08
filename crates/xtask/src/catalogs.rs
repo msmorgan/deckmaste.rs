@@ -2,6 +2,8 @@
 //! sources, without querying Scryfall.
 
 use std::fs;
+use std::fs::File;
+use std::io::BufReader;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -34,9 +36,10 @@ struct GenerateArgs {
     #[arg(long, default_value = "data/rules/cr.txt")]
     cr: PathBuf,
 
-    /// MTGJSON atomic card snapshot supplying Vintage-playable card face names.
-    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
-    atomic: PathBuf,
+    /// Scryfall Oracle Cards JSONL snapshot supplying Vintage-playable card
+    /// face names.
+    #[arg(long, default_value = "data/scryfall/oracle-cards.jsonl")]
+    oracle_cards: PathBuf,
 
     /// Directory for the canonical catalogs.
     #[arg(long, default_value = "data/gen/catalogs")]
@@ -49,9 +52,9 @@ struct CheckArgs {
     #[arg(long, default_value = "data/rules/cr.txt")]
     cr: PathBuf,
 
-    /// MTGJSON atomic card snapshot used for card names.
-    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
-    atomic: PathBuf,
+    /// Scryfall Oracle Cards JSONL snapshot used for card names.
+    #[arg(long, default_value = "data/scryfall/oracle-cards.jsonl")]
+    oracle_cards: PathBuf,
 
     /// Canonical catalog directory to check.
     #[arg(long, default_value = "data/gen/catalogs")]
@@ -64,9 +67,9 @@ struct TextArgs {
     #[arg(long, default_value = "data/rules/cr.txt")]
     cr: PathBuf,
 
-    /// MTGJSON atomic card snapshot used only for observed keyword variants.
-    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
-    atomic: PathBuf,
+    /// Scryfall Oracle Cards JSONL snapshot used for observed keyword variants.
+    #[arg(long, default_value = "data/scryfall/oracle-cards.jsonl")]
+    oracle_cards: PathBuf,
 
     /// Directory for the twelve legacy bare-text catalogs.
     #[arg(long, default_value = "data/gen/catalogs-legacy")]
@@ -82,13 +85,13 @@ pub fn run(args: &CatalogArgs) -> anyhow::Result<()> {
 }
 
 fn generate(args: &GenerateArgs) -> anyhow::Result<()> {
-    generate_catalogs(&args.cr, &args.atomic)?.write_to(&args.output)
+    generate_catalogs(&args.cr, &args.oracle_cards)?.write_to(&args.output)
 }
 
 fn check(args: &CheckArgs) -> anyhow::Result<()> {
     let temp = tempfile::tempdir().context("creating catalog check directory")?;
     let generated = temp.path().join("catalogs");
-    generate_catalogs(&args.cr, &args.atomic)?.write_to(&generated)?;
+    generate_catalogs(&args.cr, &args.oracle_cards)?.write_to(&generated)?;
     let diff = compare_directories(&generated, &args.checked)?;
     if diff.is_empty() {
         println!("catalogs are up to date");
@@ -101,37 +104,38 @@ fn check(args: &CheckArgs) -> anyhow::Result<()> {
 fn text(args: &TextArgs) -> anyhow::Result<()> {
     let cr =
         fs::read_to_string(&args.cr).with_context(|| format!("reading {}", args.cr.display()))?;
-    let atomic =
-        fs::read(&args.atomic).with_context(|| format!("reading {}", args.atomic.display()))?;
-    LegacyCatalogSet::generate(&cr, &atomic)
+    let oracle_cards = File::open(&args.oracle_cards)
+        .with_context(|| format!("opening {}", args.oracle_cards.display()))?;
+    LegacyCatalogSet::generate(&cr, BufReader::new(oracle_cards))
         .with_context(|| {
             format!(
                 "extracting legacy catalogs from CR {}; keyword augmentation source {}",
                 args.cr.display(),
-                args.atomic.display()
+                args.oracle_cards.display()
             )
         })?
         .write_to(&args.output)
 }
 
-fn generate_catalogs(cr_path: &Path, atomic_path: &Path) -> anyhow::Result<CatalogSet> {
+fn generate_catalogs(cr_path: &Path, oracle_cards_path: &Path) -> anyhow::Result<CatalogSet> {
     let cr =
         fs::read_to_string(cr_path).with_context(|| format!("reading {}", cr_path.display()))?;
-    let atomic =
-        fs::read(atomic_path).with_context(|| format!("reading {}", atomic_path.display()))?;
-    CatalogSet::generate(&cr, &atomic).with_context(|| {
+    let oracle_cards = File::open(oracle_cards_path)
+        .with_context(|| format!("opening {}", oracle_cards_path.display()))?;
+    CatalogSet::generate(&cr, BufReader::new(oracle_cards)).with_context(|| {
         format!(
             "extracting canonical catalogs from CR {}; card-names source {}",
             cr_path.display(),
-            atomic_path.display()
+            oracle_cards_path.display()
         )
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::BTreeMap;
+
+    use super::*;
 
     const CR_FIXTURE: &str = "\
 205.2a The card types are artifact, creature, land, and sorcery.\n\
@@ -152,23 +156,18 @@ mod tests {
 702.3. ∞ (Infinity)\n\
 122.1b A keyword counter on a permanent or on a card in a zone other than the battlefield causes that object to gain that keyword. The keywords that a keyword counter can be are flying, first strike, double strike, deathtouch, and hexproof, as well as any variants of those keywords.\n";
 
-    const ATOMIC_FIXTURE: &str = r#"{
-        "data": {
-            "Legal Name": [{
-                "name": "Legal Name", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "keywords": [], "legalities": {"vintage": "Legal"}
-            }]
-        }
-    }"#;
+    const ORACLE_FIXTURE: &str = concat!(
+        r#"{"object":"card","id":"printing-legal","oracle_id":"oracle-legal","name":"Legal Name","layout":"normal","type_line":"Creature","keywords":[],"legalities":{"vintage":"legal"}}"#,
+        "\n",
+    );
 
     #[test]
     fn generate_writes_the_complete_canonical_catalog_inventory() {
         let root = tempfile::tempdir().unwrap();
-        let (cr, atomic) = write_sources(root.path());
+        let (cr, oracle) = write_sources(root.path());
         let output = root.path().join("canonical");
 
-        run(&generate_args(cr, atomic, output.clone())).unwrap();
+        run(&generate_args(cr, oracle, output.clone())).unwrap();
 
         assert_eq!(
             directory_bytes(&output).keys().cloned().collect::<Vec<_>>(),
@@ -196,10 +195,10 @@ mod tests {
     #[test]
     fn generate_command_creates_a_missing_output_parent() {
         let root = tempfile::tempdir().unwrap();
-        let (cr, atomic) = write_sources(root.path());
+        let (cr, oracle) = write_sources(root.path());
         let output = root.path().join("missing/gen/catalogs");
 
-        run(&generate_args(cr, atomic, output.clone())).unwrap();
+        run(&generate_args(cr, oracle, output.clone())).unwrap();
 
         assert_eq!(directory_bytes(&output).len(), 14);
     }
@@ -207,20 +206,20 @@ mod tests {
     #[test]
     fn check_accepts_an_unchanged_canonical_catalog_directory() {
         let root = tempfile::tempdir().unwrap();
-        let (cr, atomic) = write_sources(root.path());
+        let (cr, oracle) = write_sources(root.path());
         let output = root.path().join("canonical");
-        run(&generate_args(cr.clone(), atomic.clone(), output.clone())).unwrap();
+        run(&generate_args(cr.clone(), oracle.clone(), output.clone())).unwrap();
 
-        run(&check_args(cr, atomic, output)).unwrap();
+        run(&check_args(cr, oracle, output)).unwrap();
     }
 
     #[test]
     fn check_reports_changed_missing_and_unexpected_entries_without_mutating_them() {
         for mutation in ["changed", "missing", "unexpected"] {
             let root = tempfile::tempdir().unwrap();
-            let (cr, atomic) = write_sources(root.path());
+            let (cr, oracle) = write_sources(root.path());
             let output = root.path().join("canonical");
-            run(&generate_args(cr.clone(), atomic.clone(), output.clone())).unwrap();
+            run(&generate_args(cr.clone(), oracle.clone(), output.clone())).unwrap();
 
             match mutation {
                 "changed" => fs::write(output.join("ability-words.txt"), b"edited\n").unwrap(),
@@ -230,7 +229,7 @@ mod tests {
             }
             let before = directory_bytes(&output);
 
-            let error = run(&check_args(cr, atomic, output.clone())).unwrap_err();
+            let error = run(&check_args(cr, oracle, output.clone())).unwrap_err();
             assert!(
                 error.to_string().starts_with("catalogs differ:"),
                 "{mutation}"
@@ -242,10 +241,10 @@ mod tests {
     #[test]
     fn text_writes_the_twelve_legacy_catalog_files_to_its_own_directory() {
         let root = tempfile::tempdir().unwrap();
-        let (cr, atomic) = write_sources(root.path());
+        let (cr, oracle) = write_sources(root.path());
         let output = root.path().join("legacy");
 
-        run(&text_args(cr, atomic, output.clone())).unwrap();
+        run(&text_args(cr, oracle, output.clone())).unwrap();
 
         assert_eq!(
             directory_bytes(&output).keys().cloned().collect::<Vec<_>>(),
@@ -269,37 +268,33 @@ mod tests {
     }
 
     #[test]
-    fn canonical_atomic_errors_name_card_names_and_custom_source_paths() {
+    fn canonical_oracle_errors_name_card_names_and_custom_source_paths() {
         let root = tempfile::tempdir().unwrap();
-        let (cr, atomic) = write_sources(root.path());
-        fs::write(&atomic, b"{").unwrap();
+        let (cr, oracle) = write_sources(root.path());
+        fs::write(&oracle, b"{").unwrap();
 
         let error = run(&generate_args(
             cr.clone(),
-            atomic.clone(),
+            oracle.clone(),
             root.path().join("output"),
         ))
         .unwrap_err();
 
-        assert_eq!(
-            format!("{error:#}"),
-            format!(
-                "extracting canonical catalogs from CR {}; card-names source {}: parsing AtomicCards.json: EOF while parsing an object at line 1 column 1",
-                cr.display(),
-                atomic.display()
-            )
-        );
+        let message = format!("{error:#}");
+        assert!(message.contains("extracting canonical catalogs"));
+        assert!(message.contains(&oracle.display().to_string()));
+        assert!(message.contains("Scryfall Oracle Cards JSONL"));
     }
 
     #[test]
     fn canonical_cr_shape_errors_name_the_custom_source_path() {
         let root = tempfile::tempdir().unwrap();
-        let (cr, atomic) = write_sources(root.path());
+        let (cr, oracle) = write_sources(root.path());
         fs::write(&cr, CR_FIXTURE.replace("701.2. Scry", "701.2 Scry")).unwrap();
 
         let error = run(&generate_args(
             cr.clone(),
-            atomic.clone(),
+            oracle.clone(),
             root.path().join("output"),
         ))
         .unwrap_err();
@@ -309,61 +304,65 @@ mod tests {
             format!(
                 "extracting canonical catalogs from CR {}; card-names source {}: keyword-actions: malformed 701 keyword heading \"701.2 Scry\"",
                 cr.display(),
-                atomic.display()
+                oracle.display()
             )
         );
     }
 
     #[test]
-    fn legacy_atomic_errors_name_keyword_augmentation_and_custom_source_paths() {
+    fn legacy_oracle_errors_name_keyword_augmentation_and_custom_source_paths() {
         let root = tempfile::tempdir().unwrap();
-        let (cr, atomic) = write_sources(root.path());
-        fs::write(&atomic, b"{").unwrap();
+        let (cr, oracle) = write_sources(root.path());
+        fs::write(&oracle, b"{").unwrap();
 
         let error = run(&text_args(
             cr.clone(),
-            atomic.clone(),
+            oracle.clone(),
             root.path().join("output"),
         ))
         .unwrap_err();
 
-        assert_eq!(
-            format!("{error:#}"),
-            format!(
-                "extracting legacy catalogs from CR {}; keyword augmentation source {}: parsing AtomicCards.json: EOF while parsing an object at line 1 column 1",
-                cr.display(),
-                atomic.display()
-            )
-        );
+        let message = format!("{error:#}");
+        assert!(message.contains("extracting legacy catalogs"));
+        assert!(message.contains(&oracle.display().to_string()));
+        assert!(message.contains("Scryfall Oracle Cards JSONL"));
     }
 
     fn write_sources(root: &Path) -> (PathBuf, PathBuf) {
         let cr = root.join("custom-rules.txt");
-        let atomic = root.join("custom-atomic.json");
+        let oracle = root.join("custom-oracle-cards.jsonl");
         fs::write(&cr, CR_FIXTURE).unwrap();
-        fs::write(&atomic, ATOMIC_FIXTURE).unwrap();
-        (cr, atomic)
+        fs::write(&oracle, ORACLE_FIXTURE).unwrap();
+        (cr, oracle)
     }
 
-    fn generate_args(cr: PathBuf, atomic: PathBuf, output: PathBuf) -> CatalogArgs {
+    fn generate_args(cr: PathBuf, oracle: PathBuf, output: PathBuf) -> CatalogArgs {
         CatalogArgs {
-            command: CatalogCommand::Generate(GenerateArgs { cr, atomic, output }),
+            command: CatalogCommand::Generate(GenerateArgs {
+                cr,
+                oracle_cards: oracle,
+                output,
+            }),
         }
     }
 
-    fn check_args(cr: PathBuf, atomic: PathBuf, checked: PathBuf) -> CatalogArgs {
+    fn check_args(cr: PathBuf, oracle: PathBuf, checked: PathBuf) -> CatalogArgs {
         CatalogArgs {
             command: CatalogCommand::Check(CheckArgs {
                 cr,
-                atomic,
+                oracle_cards: oracle,
                 checked,
             }),
         }
     }
 
-    fn text_args(cr: PathBuf, atomic: PathBuf, output: PathBuf) -> CatalogArgs {
+    fn text_args(cr: PathBuf, oracle: PathBuf, output: PathBuf) -> CatalogArgs {
         CatalogArgs {
-            command: CatalogCommand::Text(TextArgs { cr, atomic, output }),
+            command: CatalogCommand::Text(TextArgs {
+                cr,
+                oracle_cards: oracle,
+                output,
+            }),
         }
     }
 

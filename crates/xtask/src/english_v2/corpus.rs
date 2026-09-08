@@ -1,13 +1,11 @@
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
-use std::fs;
 use std::path::Path;
 use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::ensure;
 use deckmaste_construction_core::macro_def::Onset;
-use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v2::context::ParseContext;
 use deckmaste_english_v2::parser::Expectation;
 use deckmaste_english_v2::parser::ParseError;
@@ -16,7 +14,6 @@ use sha2::Digest;
 use sha2::Sha256;
 
 const ID_DOMAIN: &[u8] = b"deckmaste:english-v2:corpus-unit:v1";
-const SOURCE_ID_DOMAIN: &[u8] = b"deckmaste:english-v2:source-unit:v1";
 const NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v2";
 const LEGACY_NORMALIZATION_DIGEST_DOMAIN: &[u8] = b"deckmaste:english-v2:normalization:v1";
 const CORPUS_PATCH_LEDGER: &str = include_str!("corpus_patches.ron");
@@ -58,17 +55,21 @@ pub(super) struct ParentheticalOccurrence {
 }
 
 pub(super) fn parenthetical_inventory() -> anyhow::Result<ParentheticalInventory> {
-    let bytes = deckmaste_data::mtgjson::atomic_cards_bytes()
-        .context("reading AtomicCards snapshot for parenthetical provenance")?;
-    let cards = AtomicCards::parse(&bytes)
-        .context("parsing AtomicCards snapshot for parenthetical provenance")?;
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/scryfall/oracle-cards.jsonl");
+    let selected = crate::raw_corpus::load_selected(
+        &path,
+        &crate::raw_corpus::SelectionRequest {
+            all: true,
+            ..crate::raw_corpus::SelectionRequest::default()
+        },
+        None,
+    )
+    .context("loading Scryfall Oracle Cards snapshot for parenthetical provenance")?;
     Ok(parenthetical_inventory_from_texts(
-        cards
-            .data
-            .values()
-            .flatten()
-            .filter(|card| card.vintage_playable())
-            .filter_map(|card| card.text.as_deref()),
+        selected
+            .faces
+            .iter()
+            .filter_map(|face| face.text.as_deref()),
     ))
 }
 
@@ -93,7 +94,7 @@ fn parenthetical_inventory_from_texts<'a>(
 }
 
 /// Quarantines corrections to irregular source-of-truth corpus text as
-/// reviewed data. A patch corrects raw `AtomicCards` text before structural
+/// reviewed data. A patch corrects raw Scryfall Oracle text before structural
 /// normalization; grammatical Oracle English that the construction grammar
 /// does not yet analyze instead remains `CoverageStatus::SelectedUncovered`.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
@@ -262,6 +263,8 @@ const fn corpus_expectation_rank(expectation: &Expectation) -> u8 {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub(super) struct CorpusUnit {
     source_id: String,
+    printing_id: String,
+    source_text_sha256: String,
     id: String,
     card_name: String,
     face_name: Option<String>,
@@ -279,6 +282,14 @@ impl CorpusUnit {
 
     pub(super) fn id(&self) -> &str {
         &self.id
+    }
+
+    pub(super) fn printing_id(&self) -> &str {
+        &self.printing_id
+    }
+
+    pub(super) fn source_text_sha256(&self) -> &str {
+        &self.source_text_sha256
     }
 
     pub(super) fn card_name(&self) -> &str {
@@ -334,10 +345,84 @@ impl ValidatedCorpusId {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Corpus {
     source_fingerprint: String,
+    selection: crate::raw_corpus::SelectionRequest,
+    selection_status: crate::raw_corpus::SelectionStatus,
+    records_scanned: usize,
+    supported_faces_examined: usize,
     units: Vec<CorpusUnit>,
 }
 
+#[derive(serde::Serialize)]
+struct CorpusFaceProvenance<'a> {
+    identity: &'a str,
+    printing_id: &'a str,
+    source_text_sha256: &'a str,
+}
+
+/// Adds the shared ingestion attestation to an existing English-v2 JSON
+/// report without changing the legacy grammar report's internal model.
+pub(super) fn write_provenanced_json(
+    report: &impl serde::Serialize,
+    corpus: &Corpus,
+    workers: usize,
+    output: &mut dyn std::io::Write,
+) -> anyhow::Result<()> {
+    let mut value = serde_json::to_value(report)?;
+    let object = value
+        .as_object_mut()
+        .context("English-v2 JSON report must serialize as an object")?;
+    object.insert(
+        "snapshot_sha256".to_owned(),
+        serde_json::to_value(corpus.source_fingerprint())?,
+    );
+    object.insert(
+        "selection".to_owned(),
+        serde_json::to_value(corpus.selection())?,
+    );
+    object.insert(
+        "selection_status".to_owned(),
+        serde_json::to_value(corpus.selection_status())?,
+    );
+    object.insert(
+        "analysis_status".to_owned(),
+        serde_json::Value::String(
+            match corpus.selection_status() {
+                crate::raw_corpus::SelectionStatus::Complete => "complete",
+                crate::raw_corpus::SelectionStatus::Subset => "subset",
+            }
+            .to_owned(),
+        ),
+    );
+    object.insert("workers".to_owned(), serde_json::to_value(workers)?);
+    object.insert(
+        "records_scanned".to_owned(),
+        serde_json::to_value(corpus.records_scanned())?,
+    );
+    object.insert(
+        "supported_faces_examined".to_owned(),
+        serde_json::to_value(corpus.supported_faces_examined())?,
+    );
+    object.insert(
+        "face_identities".to_owned(),
+        serde_json::to_value(
+            corpus
+                .units()
+                .iter()
+                .map(|unit| CorpusFaceProvenance {
+                    identity: unit.source_id(),
+                    printing_id: unit.printing_id(),
+                    source_text_sha256: unit.source_text_sha256(),
+                })
+                .collect::<Vec<_>>(),
+        )?,
+    );
+    serde_json::to_writer_pretty(&mut *output, &value)?;
+    writeln!(output)?;
+    Ok(())
+}
+
 impl Corpus {
+    #[cfg(test)]
     pub(super) fn from_bytes_with_context_onsets(
         bytes: &[u8],
         context_onsets: &BTreeMap<String, Onset>,
@@ -346,12 +431,14 @@ impl Corpus {
         Self::from_bytes_with_context_onsets_and_patches(bytes, context_onsets, &patches)
     }
 
+    #[cfg(test)]
     fn from_bytes_with_context_onsets_and_patches(
         bytes: &[u8],
         context_onsets: &BTreeMap<String, Onset>,
         patches: &CorpusPatchLedger,
     ) -> anyhow::Result<Self> {
-        let cards = AtomicCards::parse(bytes).context("parsing MTGJSON atomic-card snapshot")?;
+        let cards: TestCards =
+            serde_json::from_slice(bytes).context("parsing legacy test fixture")?;
         let mut used_patches = patches.unused_marks();
         let mut units = cards
             .data
@@ -359,14 +446,14 @@ impl Corpus {
             .flat_map(|cards| cards.iter())
             .filter(|card| card.vintage_playable())
             .map(|card| -> anyhow::Result<_> {
-                let card_name = card.name.to_string();
+                let card_name = card.name.clone();
                 let face_name = card.face_name.as_deref().map(str::to_owned);
                 let side = card.side.as_deref().map(str::to_owned);
                 let context_name = face_name.clone().unwrap_or_else(|| card_name.clone());
                 let is_legendary = card
                     .supertypes
                     .iter()
-                    .any(|supertype| supertype.as_str() == "Legendary");
+                    .any(|supertype| supertype == "Legendary");
                 ensure!(
                     !context_name.is_empty(),
                     "invalid parser context: context name is empty; card name {card_name:?}, face name {face_name:?}, side {side:?}",
@@ -385,6 +472,8 @@ impl Corpus {
                 )?;
                 let text = normalize_oracle_text(&card_name, &patched_text)?;
                 Ok(corpus_unit(
+                    &sha256_hex(&Sha256::digest(format!("{card_name}\0{}", side.as_deref().unwrap_or_default()).as_bytes())),
+                    "legacy-test-printing",
                     &card_name,
                     face_name.as_deref(),
                     side.as_deref(),
@@ -402,19 +491,103 @@ impl Corpus {
 
         Ok(Self {
             source_fingerprint: sha256_hex(&Sha256::digest(bytes)),
+            selection: crate::raw_corpus::SelectionRequest {
+                all: true,
+                ..crate::raw_corpus::SelectionRequest::default()
+            },
+            selection_status: crate::raw_corpus::SelectionStatus::Complete,
+            records_scanned: units.len(),
+            supported_faces_examined: units.len(),
             units,
         })
     }
 
-    pub(super) fn load(path: &Path) -> anyhow::Result<Self> {
-        let bytes = fs::read(path).with_context(|| format!("reading {}", path.display()))?;
+    pub(super) fn load(
+        path: &Path,
+        selection: &crate::raw_corpus::CorpusSelectionArgs,
+    ) -> anyhow::Result<Self> {
+        let selected = selection.load(path)?;
         let catalog_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/gen/catalogs");
         let adapted = super::adapt_card_name_catalog_provider(&catalog_root)?;
-        Self::from_bytes_with_context_onsets(&bytes, &adapted.context_onsets)
+        Self::from_selected(selected, &adapted.context_onsets)
+    }
+
+    fn from_selected(
+        selected: crate::raw_corpus::SelectedCorpus,
+        context_onsets: &BTreeMap<String, Onset>,
+    ) -> anyhow::Result<Self> {
+        let patches = CorpusPatchLedger::embedded()?;
+        let mut used_patches = patches.unused_marks();
+        let mut units = selected
+            .faces
+            .iter()
+            .map(|face| -> anyhow::Result<_> {
+                let context_name = face.face_name.as_ref().unwrap_or(&face.group_name);
+                ensure!(
+                    !context_name.is_empty(),
+                    "invalid parser context: context name is empty for {}",
+                    face.identity,
+                );
+                let context_onset = context_onsets.get(context_name).copied().with_context(|| {
+                    format!("missing explicit card-name onset metadata for opaque context {context_name:?}")
+                })?;
+                let source_text = face.text.as_deref().unwrap_or_default();
+                let patched_text = patches.apply(
+                    &face.group_name,
+                    face.face_name.as_deref(),
+                    source_text,
+                    &mut used_patches,
+                )?;
+                let text = normalize_oracle_text(&face.group_name, &patched_text)?;
+                Ok(corpus_unit(
+                    &face.identity,
+                    &face.printing_id,
+                    &face.group_name,
+                    face.face_name.as_deref(),
+                    face.side.as_deref(),
+                    context_name,
+                    face.type_line.as_deref().is_some_and(|line| {
+                        line.split([' ', '\u{2014}']).any(|word| word == "Legendary")
+                    }),
+                    context_onset,
+                    source_text,
+                    &text,
+                ))
+            })
+            .collect::<anyhow::Result<Vec<_>>>()?;
+        if selected.selection_status == crate::raw_corpus::SelectionStatus::Complete {
+            patches.ensure_every_patch_used(&used_patches)?;
+        }
+        units.sort_by(|left, right| corpus_sort_key(left).cmp(&corpus_sort_key(right)));
+        validate_contexts(&units)?;
+        Ok(Self {
+            source_fingerprint: selected.snapshot_sha256,
+            selection: selected.selection,
+            selection_status: selected.selection_status,
+            records_scanned: selected.records_scanned,
+            supported_faces_examined: selected.supported_faces_examined,
+            units,
+        })
     }
 
     pub(super) fn source_fingerprint(&self) -> &str {
         &self.source_fingerprint
+    }
+
+    pub(super) fn selection(&self) -> &crate::raw_corpus::SelectionRequest {
+        &self.selection
+    }
+
+    pub(super) const fn selection_status(&self) -> crate::raw_corpus::SelectionStatus {
+        self.selection_status
+    }
+
+    pub(super) const fn records_scanned(&self) -> usize {
+        self.records_scanned
+    }
+
+    pub(super) const fn supported_faces_examined(&self) -> usize {
+        self.supported_faces_examined
     }
 
     pub(super) fn normalization_digest(&self) -> String {
@@ -440,6 +613,36 @@ impl Corpus {
             quoted(id.as_str()),
         );
         Ok(unit)
+    }
+}
+
+#[cfg(test)]
+#[derive(serde::Deserialize)]
+struct TestCards {
+    data: BTreeMap<String, Vec<TestCard>>,
+}
+
+#[cfg(test)]
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TestCard {
+    name: String,
+    face_name: Option<String>,
+    side: Option<String>,
+    #[serde(default)]
+    supertypes: Vec<String>,
+    text: Option<String>,
+    #[serde(default)]
+    legalities: BTreeMap<String, Option<String>>,
+}
+
+#[cfg(test)]
+impl TestCard {
+    fn vintage_playable(&self) -> bool {
+        matches!(
+            self.legalities.get("vintage").and_then(Option::as_deref),
+            Some("Legal" | "Restricted")
+        )
     }
 }
 
@@ -597,7 +800,8 @@ fn host_load_average() -> Option<[f64; 3]> {
 pub(super) fn thread_cpu_time() -> Duration {
     let mut sample = std::mem::MaybeUninit::<libc::timespec>::uninit();
     // SAFETY: `sample` is a valid out pointer and `CLOCK_THREAD_CPUTIME_ID`
-    // asks the POSIX clock for the calling worker thread, not process wall time.
+    // asks the POSIX clock for the calling worker thread, not process wall
+    // time.
     let status = unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, sample.as_mut_ptr()) };
     assert_eq!(status, 0, "CLOCK_THREAD_CPUTIME_ID must be available");
     // SAFETY: successful `clock_gettime` initialized the complete timespec.
@@ -765,6 +969,8 @@ fn validate_contexts(units: &[CorpusUnit]) -> anyhow::Result<()> {
     reason = "a corpus unit identity pins every source and parser-context field"
 )]
 fn corpus_unit(
+    source_identity: &str,
+    printing_id: &str,
     card_name: &str,
     face_name: Option<&str>,
     side: Option<&str>,
@@ -774,20 +980,6 @@ fn corpus_unit(
     source_text: &str,
     text: &str,
 ) -> CorpusUnit {
-    let mut source_hasher = Sha256::new();
-    source_hasher.update(SOURCE_ID_DOMAIN);
-    for field in [
-        card_name,
-        face_name.unwrap_or_default(),
-        side.unwrap_or_default(),
-        context_name,
-        source_text,
-    ] {
-        source_hasher.update((field.len() as u64).to_be_bytes());
-        source_hasher.update(field.as_bytes());
-    }
-    source_hasher.update([u8::from(is_legendary)]);
-
     let mut hasher = Sha256::new();
     hasher.update(ID_DOMAIN);
     for field in [
@@ -802,7 +994,9 @@ fn corpus_unit(
     }
 
     CorpusUnit {
-        source_id: sha256_hex(&source_hasher.finalize()),
+        source_id: source_identity.to_owned(),
+        printing_id: printing_id.to_owned(),
+        source_text_sha256: sha256_hex(&Sha256::digest(source_text.as_bytes())),
         id: sha256_hex(&hasher.finalize()),
         card_name: card_name.to_owned(),
         face_name: face_name.map(str::to_owned),
@@ -960,6 +1154,8 @@ impl CorpusUnit {
                 .expect("test corpus fixture must use a name with known onset")
         };
         corpus_unit(
+            &format!("test:{}#card", digest_text(card_name)),
+            "test-printing",
             card_name,
             None,
             None,
@@ -980,6 +1176,8 @@ impl CorpusUnit {
         text: &str,
     ) -> Self {
         corpus_unit(
+            &format!("test:{}#card", digest_text(card_name)),
+            "test-printing",
             card_name,
             face_name,
             side,
@@ -1001,9 +1199,21 @@ impl Corpus {
         validate_contexts(&units).expect("test corpus must contain valid parser contexts");
         Self {
             source_fingerprint: "0".repeat(64),
+            selection: crate::raw_corpus::SelectionRequest {
+                all: true,
+                ..crate::raw_corpus::SelectionRequest::default()
+            },
+            selection_status: crate::raw_corpus::SelectionStatus::Complete,
+            records_scanned: units.len(),
+            supported_faces_examined: units.len(),
             units,
         }
     }
+}
+
+#[cfg(test)]
+fn digest_text(text: &str) -> String {
+    sha256_hex(&Sha256::digest(text.as_bytes()))
 }
 
 #[cfg(test)]
@@ -1258,7 +1468,7 @@ mod tests {
         )
         .expect("fixture patch ledger loads");
         let onsets = explicit_onsets([("Patch Fixture", Onset::Consonant)]);
-        let cards = AtomicCards::parse(snapshot).expect("fixture snapshot loads");
+        let cards: TestCards = serde_json::from_slice(snapshot).expect("fixture snapshot loads");
         let raw_text = cards.data["Patch Fixture"][0]
             .text
             .as_deref()
@@ -1438,23 +1648,26 @@ mod tests {
 
     #[test]
     fn classified_parenthetical_inventory_is_reported_without_replacing_normalization_errors() {
-        let bytes =
-            deckmaste_data::mtgjson::atomic_cards_bytes().expect("reading AtomicCards snapshot");
-        let cards = AtomicCards::parse(&bytes).expect("parsing AtomicCards snapshot");
-        let vintage_cards = cards
-            .data
-            .values()
-            .flatten()
-            .filter(|card| card.vintage_playable())
-            .collect::<Vec<_>>();
+        let selected = crate::raw_corpus::load_selected(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/scryfall/oracle-cards.jsonl"),
+            &crate::raw_corpus::SelectionRequest {
+                all: true,
+                ..crate::raw_corpus::SelectionRequest::default()
+            },
+            None,
+        )
+        .expect("reading Scryfall Oracle Cards snapshot");
 
-        for card in &vintage_cards {
-            strip_reminder_text(card.name.as_str(), card.text.as_deref().unwrap_or_default())
+        for face in &selected.faces {
+            strip_reminder_text(&face.group_name, face.text.as_deref().unwrap_or_default())
                 .unwrap_or_else(|error| panic!("{error}"));
         }
 
         let inventory = parenthetical_inventory_from_texts(
-            vintage_cards.iter().filter_map(|card| card.text.as_deref()),
+            selected
+                .faces
+                .iter()
+                .filter_map(|face| face.text.as_deref()),
         );
         assert_eq!(
             inventory.rules_bearing.len(),
@@ -1474,18 +1687,19 @@ mod tests {
 
     #[test]
     fn vintage_snapshot_has_no_line_initial_parenthetical_followed_by_text() {
-        let bytes =
-            deckmaste_data::mtgjson::atomic_cards_bytes().expect("reading AtomicCards snapshot");
-        let cards = AtomicCards::parse(&bytes).expect("parsing AtomicCards snapshot");
+        let selected = crate::raw_corpus::load_selected(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/scryfall/oracle-cards.jsonl"),
+            &crate::raw_corpus::SelectionRequest {
+                all: true,
+                ..crate::raw_corpus::SelectionRequest::default()
+            },
+            None,
+        )
+        .expect("reading Scryfall Oracle Cards snapshot");
         let mut line_initial_parentheticals_followed_by_text = Vec::new();
 
-        for card in cards
-            .data
-            .values()
-            .flatten()
-            .filter(|card| card.vintage_playable())
-        {
-            for line in card.text.as_deref().unwrap_or_default().split('\n') {
+        for face in &selected.faces {
+            for line in face.text.as_deref().unwrap_or_default().split('\n') {
                 let Some(remainder) = line.strip_prefix('(') else {
                     continue;
                 };
@@ -1494,7 +1708,8 @@ mod tests {
                 };
                 let after = &remainder[relative_close + 1..];
                 if !after.trim().is_empty() {
-                    line_initial_parentheticals_followed_by_text.push((card.name.as_str(), line));
+                    line_initial_parentheticals_followed_by_text
+                        .push((face.group_name.as_str(), line));
                 }
             }
         }
@@ -1660,7 +1875,7 @@ mod tests {
         let snapshot = br#"{"data":{"Fixture":[{"name":"","layout":"normal","types":["Creature"],"supertypes":[],"subtypes":[],"legalities":{"vintage":"Legal"},"text":"Fixture text."}]}}"#;
 
         let error = Corpus::from_bytes_with_context_onsets(snapshot, &BTreeMap::new())
-            .expect_err("empty parser context must reject the MTGJSON source")
+            .expect_err("empty parser context must reject the source face")
             .to_string();
 
         assert!(error.contains("invalid parser context"));

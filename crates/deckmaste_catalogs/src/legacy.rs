@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fs;
+use std::io::BufRead;
 use std::path::Path;
 
 use anyhow::Context;
 use anyhow::bail;
-use deckmaste_data::mtgjson::AtomicCards;
+use deckmaste_data::scryfall::OracleCardReader;
 
 use crate::cr;
 use crate::io;
@@ -86,13 +87,14 @@ pub struct LegacyCatalogSet {
 
 impl LegacyCatalogSet {
     /// Builds the twelve legacy generated catalogs and augments keyword
-    /// abilities with CR-authorized variants observed on Vintage-playable cards.
+    /// abilities with CR-authorized variants observed on Vintage-playable
+    /// cards.
     ///
     /// # Errors
     ///
-    /// Returns an error when the CR or `AtomicCards` input is malformed or the
-    /// complete legacy inventory cannot be built.
-    pub fn generate(cr: &str, atomic: &[u8]) -> anyhow::Result<Self> {
+    /// Returns an error when the CR or Scryfall Oracle Cards input is malformed
+    /// or the complete legacy inventory cannot be built.
+    pub fn generate(cr: &str, oracle_cards: impl BufRead) -> anyhow::Result<Self> {
         let extracted = cr::extract_shared(cr)?;
         let mut entries = BTreeMap::from([
             (LegacyCatalogKind::AbilityWords, extracted.ability_words),
@@ -119,7 +121,6 @@ impl LegacyCatalogSet {
             (LegacyCatalogKind::FlavorWords, BTreeSet::new()),
         ]);
 
-        let atomic = AtomicCards::parse(atomic).context("parsing AtomicCards.json")?;
         let authority = normalized_authority(cr);
         let type_names: BTreeSet<String> = LegacyCatalogKind::GENERATED
             .into_iter()
@@ -132,16 +133,16 @@ impl LegacyCatalogSet {
             .get_mut(&LegacyCatalogKind::KeywordAbilities)
             .context("legacy catalog set has no keyword-abilities catalog")?;
 
-        for card in atomic
-            .data
-            .values()
-            .flatten()
-            .filter(|card| card.vintage_playable())
-        {
-            for keyword in &card.keywords {
-                let keyword = normalize_variant_name(keyword.as_str());
-                if cr_authorizes_variant(&authority, &type_names, &keyword) {
-                    abilities.insert(keyword);
+        for card in OracleCardReader::new(oracle_cards) {
+            let card = card.context("parsing Scryfall Oracle Cards JSONL")?;
+            if card.vintage_playable() {
+                for unit in card.oracle_units() {
+                    for keyword in unit.keywords() {
+                        let keyword = normalize_variant_name(keyword);
+                        if cr_authorizes_variant(&authority, &type_names, &keyword) {
+                            abilities.insert(keyword);
+                        }
+                    }
                 }
             }
         }
@@ -149,7 +150,8 @@ impl LegacyCatalogSet {
         Self::from_entries(entries)
     }
 
-    /// Loads the generated legacy catalogs and the isolated Scryfall flavor-word catalog.
+    /// Loads the generated legacy catalogs and the isolated Scryfall
+    /// flavor-word catalog.
     ///
     /// # Errors
     ///
@@ -187,7 +189,8 @@ impl LegacyCatalogSet {
         Self::from_entries(entries)
     }
 
-    /// Replaces a directory with exactly the twelve generated legacy line files.
+    /// Replaces a directory with exactly the twelve generated legacy line
+    /// files.
     ///
     /// # Errors
     ///
@@ -201,7 +204,8 @@ impl LegacyCatalogSet {
         )
     }
 
-    /// Builds a legacy set only when all generated and loaded kinds are present.
+    /// Builds a legacy set only when all generated and loaded kinds are
+    /// present.
     ///
     /// # Errors
     ///
@@ -321,38 +325,20 @@ mod tests {
 702.7a Hexproof from is a variant of the hexproof ability.\n";
     // cite: noncompliant end
 
-    const ATOMIC_FIXTURE: &str = r#"{
-        "data": {
-            "Legal": [{
-                "name": "Legal", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "keywords": ["Islandwalk", "Friends forever", "Attack", "Wind Walk"],
-                "legalities": {"vintage": "Legal"}
-            }],
-            "Restricted": [{
-                "name": "Restricted", "layout": "normal",
-                "types": ["Artifact"], "supertypes": [], "subtypes": [],
-                "keywords": ["Basic landcycling", "Hexproof from", "Choose a background"],
-                "legalities": {"vintage": "Restricted"}
-            }],
-            "Banned": [{
-                "name": "Banned", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "keywords": ["Forestwalk"],
-                "legalities": {"vintage": "Banned"}
-            }],
-            "Missing": [{
-                "name": "Missing", "layout": "normal",
-                "types": ["Creature"], "supertypes": [], "subtypes": [],
-                "keywords": ["Swampwalk"],
-                "legalities": {}
-            }]
-        }
-    }"#;
+    const ORACLE_FIXTURE: &str = concat!(
+        r#"{"object":"card","id":"printing-legal","oracle_id":"oracle-legal","name":"Legal","layout":"normal","type_line":"Creature","keywords":["Islandwalk","Friends forever","Attack","Wind Walk"],"legalities":{"vintage":"legal"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-restricted","oracle_id":"oracle-restricted","name":"Restricted","layout":"normal","type_line":"Artifact","keywords":["Basic landcycling","Hexproof from","Choose a background"],"legalities":{"vintage":"restricted"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-banned","oracle_id":"oracle-banned","name":"Banned","layout":"normal","type_line":"Creature","keywords":["Forestwalk"],"legalities":{"vintage":"banned"}}"#,
+        "\n",
+        r#"{"object":"card","id":"printing-missing","oracle_id":"oracle-missing","name":"Missing","layout":"normal","type_line":"Creature","keywords":["Swampwalk"],"legalities":{}}"#,
+        "\n",
+    );
 
     #[test]
     fn generation_adds_only_cr_authorized_variants_from_vintage_cards() {
-        let catalogs = LegacyCatalogSet::generate(CR_FIXTURE, ATOMIC_FIXTURE.as_bytes()).unwrap();
+        let catalogs = LegacyCatalogSet::generate(CR_FIXTURE, ORACLE_FIXTURE.as_bytes()).unwrap();
         let abilities = catalogs.get(LegacyCatalogKind::KeywordAbilities);
 
         for authorized in [
@@ -377,7 +363,7 @@ mod tests {
 
     #[test]
     fn output_contains_exactly_the_old_twelve_generated_files() {
-        let catalogs = LegacyCatalogSet::generate(CR_FIXTURE, ATOMIC_FIXTURE.as_bytes()).unwrap();
+        let catalogs = LegacyCatalogSet::generate(CR_FIXTURE, ORACLE_FIXTURE.as_bytes()).unwrap();
         let root = tempfile::tempdir().unwrap();
         let output = root.path().join("catalogs");
 
@@ -411,7 +397,7 @@ mod tests {
 
     #[test]
     fn load_combines_generated_lines_with_only_the_scryfall_flavor_catalog() {
-        let generated = LegacyCatalogSet::generate(CR_FIXTURE, ATOMIC_FIXTURE.as_bytes()).unwrap();
+        let generated = LegacyCatalogSet::generate(CR_FIXTURE, ORACLE_FIXTURE.as_bytes()).unwrap();
         let root = tempfile::tempdir().unwrap();
         let generated_dir = root.path().join("generated");
         let scryfall_dir = root.path().join("scryfall");

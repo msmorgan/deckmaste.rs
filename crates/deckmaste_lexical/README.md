@@ -98,16 +98,17 @@ case. Checked realization rejects lossy Roman values: finite magnitudes through
 ## Corpus accounting and inspection
 
 ```sh
-cargo xtask lexical --data data/mtgjson/AtomicCards.json \
+cargo xtask lexical --data data/scryfall/oracle-cards.jsonl --all \
   --output /tmp/lexical-inventory.json --export /tmp/lexemes.ron
 cargo run -p deckmaste_lexical --example inspect -- /tmp/lexemes.ron 'counters'
 ```
 
-Use a supported-card subset during development. The report retains raw face
+Use the command's face selectors during development; pass `--export-subset`
+to retain the selected source records as JSONL. The report retains raw face
 text, input digests, byte occurrences, overlapping material classes, unknown
 words, unrecognized nonword material and unmapped source declarations. Ordinary
 vocabulary, catalogs, keywords, numerals, symbols, affixes and clitics are
-accounted separately. Schema 2 lists every indexed lexical owner with its
+accounted separately. Schema 3 lists every indexed lexical owner with its
 Category, properties, frame signatures and independently checked value count.
 Every unknown word remains named; every nonlexical scalar is classified as a
 structural separator, notation material or unresolved nonword. Those classes

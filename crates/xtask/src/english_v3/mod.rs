@@ -20,7 +20,6 @@ use anyhow::Result;
 use anyhow::ensure;
 use clap::Args;
 use clap::ValueEnum;
-use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::parse;
@@ -38,9 +37,9 @@ use crate::english_v3::report::UnknownWord;
 use crate::english_v3::validation::Issue;
 use crate::english_v3::validation::Tracing;
 use crate::english_v3::validation::validate;
-use crate::raw_corpus::SupportedFace;
+use crate::raw_corpus::CorpusSelectionArgs;
+use crate::raw_corpus::SelectedFace;
 use crate::raw_corpus::digest;
-use crate::raw_corpus::supported_faces;
 
 #[derive(Debug, Clone, Copy, Serialize, ValueEnum)]
 #[serde(rename_all = "snake_case")]
@@ -57,10 +56,10 @@ impl SourceField {
         }
     }
 
-    fn source<'a>(self, face: &'a SupportedFace<'_, '_>) -> Option<&'a str> {
+    fn source(self, face: &SelectedFace) -> Option<&str> {
         match self {
-            Self::Text => face.card.text.as_deref(),
-            Self::TypeLine => face.card.type_line.as_deref(),
+            Self::Text => face.text.as_deref(),
+            Self::TypeLine => face.type_line.as_deref(),
         }
     }
 }
@@ -70,10 +69,11 @@ pub struct EnglishV3Args {
     /// Face field to parse with its declared root Category.
     #[arg(long, value_enum, default_value = "text")]
     pub field: SourceField,
-    /// Raw MTGJSON `AtomicCards` snapshot; text is analyzed without
-    /// normalization.
-    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
+    /// Pinned Scryfall Oracle Cards JSONL snapshot; source is not normalized.
+    #[arg(long, default_value = "data/scryfall/oracle-cards.jsonl")]
     pub data: PathBuf,
+    #[command(flatten)]
+    pub(crate) selection: CorpusSelectionArgs,
     /// Destination for the reproducible face census and diagnostics.
     #[arg(long)]
     pub output: PathBuf,
@@ -94,9 +94,7 @@ pub struct EnglishV3Args {
 /// writing the report when analysis completed. No Reading is a census result.
 pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
     let started = Instant::now();
-    let bytes =
-        std::fs::read(&args.data).with_context(|| format!("reading {}", args.data.display()))?;
-    let cards = AtomicCards::parse(&bytes).context("parsing raw AtomicCards snapshot")?;
+    let corpus = args.selection.load(&args.data)?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let sources = deckmaste_lexical_source::load_workspace(&root)?;
     let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;
@@ -105,11 +103,11 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
     let inventory_sha256 = digest(&serde_json::to_vec(lexicon.lexemes())?);
     let load = report::host_load();
     let started = Instant::now();
-    let faces = analyze_cards(&cards, &lexicon, &grammar, args)?;
+    let faces = analyze_cards(&corpus.faces, &lexicon, &grammar, args)?;
     let corpus_ns = started.elapsed().as_nanos();
     let report = Report::new(
         args,
-        &bytes,
+        &corpus,
         inventory_sha256,
         sources.unmapped,
         faces,
@@ -160,7 +158,7 @@ fn write_report(args: &EnglishV3Args, report: &Report, output: &mut dyn Write) -
 }
 
 fn analyze_cards(
-    cards: &AtomicCards<'_>,
+    faces: &[SelectedFace],
     lexicon: &Lexicon,
     grammar: &Grammar,
     args: &EnglishV3Args,
@@ -169,7 +167,7 @@ fn analyze_cards(
         .num_threads(args.workers.get())
         .build()?;
     pool.install(|| {
-        supported_faces(cards)
+        faces
             .par_iter()
             .map(|face| analyze_face(face, lexicon, grammar, args))
             .collect()
@@ -177,7 +175,7 @@ fn analyze_cards(
 }
 
 fn analyze_face(
-    face: &SupportedFace<'_, '_>,
+    face: &SelectedFace,
     lexicon: &Lexicon,
     grammar: &Grammar,
     args: &EnglishV3Args,
@@ -185,7 +183,7 @@ fn analyze_face(
     let cpu_start = report::thread_cpu_ns();
     let started = Instant::now();
     let raw = args.field.source(face).unwrap_or("");
-    let mut result = FaceReport::new(face, args.field)?;
+    let mut result = FaceReport::new(face, args.field);
     let analyzed = lexicon.analyze_source(raw, None);
     for range in analyzed.unknown_words() {
         let bytes = analyzed

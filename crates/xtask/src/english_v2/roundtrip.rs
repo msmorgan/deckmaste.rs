@@ -13,12 +13,22 @@ use super::corpus::Corpus;
 pub(super) fn run(args: &RoundtripArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let started = std::time::Instant::now();
     let workers = args.corpus.workers()?;
-    let corpus = Corpus::load(&args.corpus.data)
+    let corpus = Corpus::load(&args.corpus.data, &args.corpus.selection)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
     let parser = crate::english_v2::parser_from_builtin_v2()?;
     let report = AuditReport::run(&corpus, &parser, workers, false);
 
-    render_report(&report, args.json, output)?;
+    if args.json {
+        let rendered = JsonReport {
+            schema_version: report.schema_version(),
+            source_fingerprint: report.source_fingerprint(),
+            rows: report.rows(),
+            summary: report.summary(),
+        };
+        super::corpus::write_provenanced_json(&rendered, &corpus, workers, output)?;
+    } else {
+        render_report(&report, false, output)?;
+    }
     output
         .flush()
         .context("flushing English-v2 round-trip report")?;

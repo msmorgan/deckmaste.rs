@@ -11,11 +11,13 @@ dependency; integration tests load the authored lexical inventory.
 ## Raw corpus census
 
 ```sh
-cargo xtask english-v3 --data /tmp/AtomicCards-subset.json \
+cargo xtask english-v3 --data data/scryfall/oracle-cards.jsonl \
+  --card-name "Lightning Bolt" --export-subset /tmp/oracle-subset.jsonl \
   --output /tmp/english-v3-report.json --workers 1
 ```
 
-The command analyzes supported faces without normalization or removal of
+The command requires an explicit face selector or `--all`, applies that
+selection before grammar work, and analyzes supported faces without normalization or removal of
 reminders. `--field text` (the default) parses rules text as a Document;
 `--field type-line` parses Type Lines. Missing fields are analyzed as empty,
 with null retained in the report. Metadata preserves both original fields;
@@ -26,7 +28,7 @@ claiming uniqueness or an exact total before exhaustion. `--samples-per-face N`
 limits stored trees without limiting validation. Each counted Reading passes
 admission, exact realization and both traversal checks against materialization
 traces. The JSON report includes provenance, lexical gaps, census, samples,
-parser metrics and timings, and is written before validation errors fail the
+parser metrics, selection provenance, snapshot hashes and timings, and is written before validation errors fail the
 command. Linguistic correctness and independently constructed-value roundtrips
 require separate evidence.
 

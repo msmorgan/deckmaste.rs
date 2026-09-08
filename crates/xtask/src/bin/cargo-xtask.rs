@@ -25,6 +25,7 @@ use xtask::lexical::LexicalArgs;
 use xtask::macros::MacroArgs;
 use xtask::map::MapArgs;
 use xtask::resolve::ResolveArgs;
+use xtask::scryfall_snapshot::ScryfallSnapshotArgs;
 use xtask::stubs::StubsArgs;
 use xtask::validate::ValidateArgs;
 
@@ -41,7 +42,7 @@ struct Cli {
 enum Cmd {
     /// Derive the catalogs we consume from the CR and Vintage card data.
     Catalogs(CatalogArgs),
-    /// Derive the flat Oracle snapshot from MTGJSON's atomic-card data.
+    /// Derive the flat Oracle snapshot from Scryfall Oracle Cards JSONL.
     DeriveCards(DeriveCardsArgs),
     /// Validate every finished card in a plugin (defaults to plugins/builtin).
     Validate(ValidateArgs),
@@ -57,8 +58,10 @@ enum Cmd {
     Gate(GateArgs),
     /// Generate a plugin's keyword/subtype macro stubs.
     Stubs(StubsArgs),
-    /// Extract cards/*.ron.todo from mtgjson.
+    /// Extract cards/*.ron.todo from the pinned Scryfall snapshot.
     Extract(ExtractArgs),
+    /// Resolve and validate the cached Scryfall Oracle Cards bulk snapshot.
+    ScryfallSnapshot(ScryfallSnapshotArgs),
     /// Rewrite resolvable Unparsed abilities in a plugin's .ron.todo cards.
     Resolve(ResolveArgs),
     /// Graduate every `cards/*.ron.todo` in a plugin that now parses cleanly.
@@ -108,6 +111,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Gate(args) => xtask::gate::run(&args),
         Cmd::Stubs(args) => xtask::stubs::run(&args),
         Cmd::Extract(args) => xtask::extract::run(&args),
+        Cmd::ScryfallSnapshot(args) => xtask::scryfall_snapshot::run(&args),
         Cmd::Resolve(args) => xtask::resolve::run(&args),
         Cmd::Graduate(args) => xtask::graduate::run(&args),
         Cmd::Cite(args) => xtask::cite::dispatch(&args),
@@ -195,7 +199,7 @@ mod tests {
                 "english_v2",
                 "coverage",
                 "--data",
-                "fixtures/atomic-cards.json",
+                "fixtures/oracle-cards.jsonl",
                 "--lock",
                 "fixtures/coverage.lock",
                 "--json",
@@ -370,7 +374,7 @@ mod tests {
             "--id",
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
             "--data",
-            "fixtures/atomic-cards.json",
+            "fixtures/oracle-cards.jsonl",
             "--limit",
             "1",
             "--json",
@@ -468,7 +472,7 @@ mod tests {
             "english_v2",
             "ambiguity",
             "--data",
-            "fixtures/atomic-cards.json",
+            "fixtures/oracle-cards.jsonl",
             "--workers",
             "3",
             "--json",
@@ -509,7 +513,7 @@ mod tests {
             "english_v2",
             "parse",
             "--data",
-            "fixtures/atomic-cards.json",
+            "fixtures/oracle-cards.jsonl",
             "--workers",
             "3",
             "--json",
@@ -567,7 +571,7 @@ mod tests {
             "english_v2",
             "roundtrip",
             "--data",
-            "fixtures/atomic-cards.json",
+            "fixtures/oracle-cards.jsonl",
             "--json",
             "--require-clean",
         ])

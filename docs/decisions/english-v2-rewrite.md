@@ -468,15 +468,15 @@ contract one level down. Three declaration tiers plus catalogs:
    ~~~
 
    The CR is authoritative for all canonical files except
-   `card-names.txt`. Card names come from the local MTGJSON
-   `AtomicCards.json`: every face for which `vintage_playable()` is true uses
-   `faceName` when present and the full `name` otherwise. That predicate means
-   Vintage `Legal` or `Restricted` only; `Banned`, `Not Legal`, null, and
-   missing legalities are excluded, independently of card layout. Counter
+   `card-names.txt`. Card names come from the pinned local Scryfall Oracle
+   Cards JSONL snapshot: every supported face uses its face name when present
+   and the full card name otherwise. The support predicate means Vintage
+   `legal` or `restricted` only; `banned`, `not_legal`, null, and missing
+   legalities are excluded, independently of card layout. Counter
    kinds remain opaque single tokens except for
    `counter-kind-phrases.txt`, which contains only the multi-token keyword
    counter phrases enumerated by the CR [CR#122.1b]; `+1/+1` and similar
-   forms are codec atoms, and MTGJSON is not counter-kind authority.
+   forms are codec atoms, and Scryfall is not counter-kind authority.
 
    A catalog is a pure word list; anything needing per-entry grammar becomes
    a construction, and the card's own name is still a parse-context parameter
@@ -615,7 +615,7 @@ particular object, including when it uses an approved shortened printed name
 [CR#201.5c]. Every nonempty full face name is opaque context identity: the
 parser neither structurally parses it nor validates its punctuation or word
 onset. A distinct abbreviated arm exists only when authoritative per-face
-MTGJSON metadata says `Legendary`; its spelling follows the established
+Scryfall type-line metadata says `Legendary`; its spelling follows the established
 families in order: first take the prefix before a comma (so `The Balrog,
 Durin's Bane` shortens to `The Balrog`); only when there is no comma does a
 leading `The ` block shortening; otherwise remove a canonical trailing Roman
@@ -837,7 +837,7 @@ inverse rendering" is a mechanical property, not an aspiration.
   lock (an identity locks only when selected, byte-exact, and totally
   owned); `parse` keeps census duty only.
 - **`catalogs generate`** — derives the complete canonical inventory from the
-  local CR and `AtomicCards.json`, then replaces `data/gen/catalogs` with the
+  local CR and the Scryfall Oracle Cards JSONL snapshot, then replaces `data/gen/catalogs` with the
   exact deterministic line files.
 - **`catalogs check`** — regenerates the canonical inventory in a temporary
   directory and compares exact contents against `data/gen/catalogs`, reporting

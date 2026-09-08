@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::io::BufWriter;
 use std::io::Write;
+use std::num::NonZeroUsize;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -12,7 +13,6 @@ use std::time::Instant;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::ensure;
-use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_lexical::AnalyzedText;
 use deckmaste_lexical::Category;
 use deckmaste_lexical::LexicalProperties;
@@ -20,15 +20,26 @@ use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Source;
 use deckmaste_lexical::SourceKind;
+use rayon::prelude::*;
 use serde::Serialize;
 
+use crate::raw_corpus::CorpusSelectionArgs;
+use crate::raw_corpus::SelectedCorpus;
+use crate::raw_corpus::SelectedFace;
+use crate::raw_corpus::SelectionRequest;
+use crate::raw_corpus::SelectionStatus;
 use crate::raw_corpus::digest;
-use crate::raw_corpus::supported_faces;
 
 #[derive(Debug, clap::Args)]
 pub struct LexicalArgs {
-    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
+    /// Pinned Scryfall Oracle Cards JSONL snapshot.
+    #[arg(long, default_value = "data/scryfall/oracle-cards.jsonl")]
     data: PathBuf,
+    #[command(flatten)]
+    selection: CorpusSelectionArgs,
+    /// Dedicated lexical-analysis worker threads.
+    #[arg(long, default_value = "1")]
+    workers: NonZeroUsize,
     /// Destination for raw source occurrences and lexical inventory accounting.
     #[arg(long)]
     output: PathBuf,
@@ -125,10 +136,12 @@ struct WordInventory {
 
 #[derive(Debug, Serialize)]
 struct FaceReport {
-    /// Stable within the exact snapshot, including duplicate face rows.
+    /// Durable Oracle identity plus the within-object face discriminator.
     id: String,
+    oracle_id: String,
+    printing_id: String,
     group_name: String,
-    face_index: usize,
+    face_index: Option<usize>,
     name: String,
     face_name: Option<String>,
     side: Option<String>,
@@ -178,6 +191,12 @@ struct Report {
     schema: u32,
     input: PathBuf,
     input_sha256: String,
+    selection: SelectionRequest,
+    selection_status: SelectionStatus,
+    analysis_status: &'static str,
+    records_scanned: usize,
+    supported_faces_examined: usize,
+    workers: usize,
     support_filter: &'static str,
     normalization: &'static str,
     nonword_policy: &'static str,
@@ -198,9 +217,7 @@ struct Report {
 
 pub fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
     let started = Instant::now();
-    let bytes =
-        std::fs::read(&args.data).with_context(|| format!("reading {}", args.data.display()))?;
-    let cards = AtomicCards::parse(&bytes).context("parsing raw AtomicCards snapshot")?;
+    let corpus = args.selection.load(&args.data)?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let sources = deckmaste_lexical_source::load_workspace(&root)?;
     let load = started.elapsed().as_secs_f64();
@@ -211,9 +228,9 @@ pub fn run(args: &LexicalArgs, output: &mut dyn Write) -> Result<()> {
     let independent_values_checked = check_independent_values(&lexicon)?;
     let value_law = started.elapsed().as_secs_f64();
     let started = Instant::now();
-    let mut report = analyze_cards(&cards, &lexicon)?;
+    let mut report = analyze_cards(&corpus.faces, &lexicon, args.workers.get())?;
     report.input.clone_from(&args.data);
-    report.input_sha256 = digest(&bytes);
+    apply_corpus_metadata(&mut report, &corpus, args.workers.get());
     report.unmapped_sources = sources.unmapped;
     report.independent_values_checked = independent_values_checked;
     report.timings = Timings {
@@ -274,11 +291,17 @@ fn check_independent_values(lexicon: &Lexicon) -> Result<usize> {
     Ok(checked)
 }
 
-fn analyze_cards(cards: &AtomicCards<'_>, lexicon: &Lexicon) -> Result<Report> {
+fn analyze_cards(faces: &[SelectedFace], lexicon: &Lexicon, workers: usize) -> Result<Report> {
     let mut report = Report {
-        schema: 2,
+        schema: 3,
         input: PathBuf::new(),
         input_sha256: String::new(),
+        selection: SelectionRequest::default(),
+        selection_status: SelectionStatus::Subset,
+        analysis_status: "subset",
+        records_scanned: 0,
+        supported_faces_examined: 0,
+        workers,
         support_filter: crate::raw_corpus::SUPPORT_FILTER,
         normalization: "none; raw Oracle text including reminders",
         nonword_policy: "only lexical matches count as lexical coverage; all remaining scalars and unknown words are classified by spelling as unresolved words, structural separators, notation, or unresolved nonwords; material classification does not license grammar",
@@ -301,34 +324,107 @@ fn analyze_cards(cards: &AtomicCards<'_>, lexicon: &Lexicon) -> Result<Report> {
         inventory: Inventory::default(),
         faces: Vec::new(),
     };
-    for face in supported_faces(cards) {
-        let group = face.group_name;
-        let face_index = face.index;
-        let card = face.card;
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(workers)
+        .build()?;
+    let analyzed_faces = pool.install(|| {
+        faces
+            .par_iter()
+            .map(|face| analyze_face(face, lexicon))
+            .collect::<Result<Vec<_>>>()
+    })?;
+    for analyzed in analyzed_faces {
         report.supported_faces += 1;
-        let Some(raw) = card.text.as_deref() else {
+        let Some((face, inventory)) = analyzed else {
             report.supported_faces_without_text += 1;
             continue;
         };
-        let analyzed = lexicon.analyze_source(raw, None);
-        let (words, unrecognized_nonwords) =
-            account_text(&analyzed, lexicon, &mut report.inventory)
-                .with_context(|| format!("lexical laws for {} face {face_index}", card.name))?;
-        report.faces.push(FaceReport {
-            id: digest(&serde_json::to_vec(&(group, face_index, raw))?),
-            group_name: group.to_string(),
-            face_index,
-            name: card.name.to_string(),
-            face_name: card.face_name.as_deref().map(str::to_owned),
-            side: card.side.as_deref().map(str::to_owned),
+        merge_inventory(&mut report.inventory, inventory);
+        report.faces.push(face);
+    }
+    Ok(report)
+}
+
+fn analyze_face(face: &SelectedFace, lexicon: &Lexicon) -> Result<Option<(FaceReport, Inventory)>> {
+    let Some(raw) = face.text.as_deref() else {
+        return Ok(None);
+    };
+    let analyzed = lexicon.analyze_source(raw, None);
+    let mut inventory = Inventory::default();
+    let (words, unrecognized_nonwords) = account_text(&analyzed, lexicon, &mut inventory)
+        .with_context(|| format!("lexical laws for {} ({})", face.name, face.identity))?;
+    Ok(Some((
+        FaceReport {
+            id: face.identity.clone(),
+            oracle_id: face.oracle_id.clone(),
+            printing_id: face.printing_id.clone(),
+            group_name: face.group_name.clone(),
+            face_index: face.face_index,
+            name: face.name.clone(),
+            face_name: face.face_name.clone(),
+            side: face.side.clone(),
             raw_text: raw.to_owned(),
             raw_text_sha256: digest(raw.as_bytes()),
             lexical_matches: analyzed.matches.len(),
             words,
             unrecognized_nonwords,
-        });
+        },
+        inventory,
+    )))
+}
+
+fn apply_corpus_metadata(report: &mut Report, corpus: &SelectedCorpus, workers: usize) {
+    report.input_sha256.clone_from(&corpus.snapshot_sha256);
+    report.selection.clone_from(&corpus.selection);
+    report.selection_status = corpus.selection_status;
+    report.analysis_status = match corpus.selection_status {
+        SelectionStatus::Complete => "complete",
+        SelectionStatus::Subset => "subset",
+    };
+    report.records_scanned = corpus.records_scanned;
+    report.supported_faces_examined = corpus.supported_faces_examined;
+    report.workers = workers;
+}
+
+fn merge_inventory(target: &mut Inventory, source: Inventory) {
+    merge_count_map(&mut target.unknown_words, source.unknown_words);
+    merge_count_map(
+        &mut target.unrecognized_nonwords,
+        source.unrecognized_nonwords,
+    );
+    merge_nested_count_map(&mut target.matched_surfaces, source.matched_surfaces);
+    merge_nested_count_map(&mut target.remainder_classes, source.remainder_classes);
+    for (word, source_word) in source.words {
+        let target_word = target.words.entry(word).or_default();
+        target_word.occurrences += source_word.occurrences;
+        target_word.unknown_occurrences += source_word.unknown_occurrences;
+        merge_count_map(
+            &mut target_word.overlapping_occurrences,
+            source_word.overlapping_occurrences,
+        );
+        merge_count_map(
+            &mut target_word.fully_covered_occurrences,
+            source_word.fully_covered_occurrences,
+        );
     }
-    Ok(report)
+    target.matched_readings += source.matched_readings;
+    target.word_occurrences += source.word_occurrences;
+    target.unknown_word_occurrences += source.unknown_word_occurrences;
+}
+
+fn merge_count_map<K: Ord>(target: &mut BTreeMap<K, usize>, source: BTreeMap<K, usize>) {
+    for (key, count) in source {
+        *target.entry(key).or_default() += count;
+    }
+}
+
+fn merge_nested_count_map<K: Ord, J: Ord>(
+    target: &mut BTreeMap<K, BTreeMap<J, usize>>,
+    source: BTreeMap<K, BTreeMap<J, usize>>,
+) {
+    for (key, counts) in source {
+        merge_count_map(target.entry(key).or_default(), counts);
+    }
 }
 
 fn lexeme_inventory(lexicon: &Lexicon) -> BTreeMap<String, LexemeInventory> {
@@ -650,16 +746,32 @@ mod tests {
 
     #[test]
     fn supported_faces_remain_distinct_and_raw_reminders_are_not_removed() {
-        let snapshot = serde_json::json!({"data": {
-            "Supported": [
-                {"name":"Supported", "faceName":"Front", "side":"a", "layout":"transform", "types":[], "supertypes":[], "subtypes":[], "legalities":{"vintage":"Legal"}, "text":"Draw two cards. (mystery)"},
-                {"name":"Supported", "faceName":"Back", "side":"b", "layout":"transform", "types":[], "supertypes":[], "subtypes":[], "legalities":{"vintage":"Restricted"}, "text":"Draw two cards. (mystery)"}
-            ],
-            "Unsupported": [{"name":"Unsupported", "layout":"normal", "types":[], "supertypes":[], "subtypes":[], "legalities":{"vintage":"Not Legal"}, "text":"unseen"}]
-        }});
-        let bytes = serde_json::to_vec(&snapshot).unwrap();
-        let cards = AtomicCards::parse(&bytes).unwrap();
-        let report = analyze_cards(&cards, &lexicon()).unwrap();
+        let supported = serde_json::json!({
+            "object":"card", "id":"printing-supported", "oracle_id":"oracle-supported",
+            "name":"Supported", "layout":"transform", "color_identity":[],
+            "legalities":{"vintage":"legal"},
+            "card_faces":[
+                {"name":"Front", "mana_cost":"", "type_line":"Creature", "oracle_text":"Draw two cards. (mystery)", "colors":[]},
+                {"name":"Back", "mana_cost":"", "type_line":"Creature", "oracle_text":"Draw two cards. (mystery)", "colors":[]}
+            ]
+        });
+        let unsupported = serde_json::json!({
+            "object":"card", "id":"printing-unsupported", "oracle_id":"oracle-unsupported",
+            "name":"Unsupported", "layout":"normal", "oracle_text":"unseen",
+            "legalities":{"vintage":"not_legal"}
+        });
+        let input = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(input.path(), format!("{supported}\n{unsupported}\n")).unwrap();
+        let corpus = crate::raw_corpus::load_selected(
+            input.path(),
+            &SelectionRequest {
+                all: true,
+                ..SelectionRequest::default()
+            },
+            None,
+        )
+        .unwrap();
+        let report = analyze_cards(&corpus.faces, &lexicon(), 2).unwrap();
         assert_eq!(report.supported_faces, 2);
         assert_eq!(report.faces.len(), 2);
         assert_ne!(report.faces[0].id, report.faces[1].id);
@@ -675,6 +787,41 @@ mod tests {
         assert_eq!(report.inventory.words["draw"].occurrences, 2);
         assert_eq!(report.faces[0].face_name.as_deref(), Some("Front"));
         assert_eq!(report.faces[1].face_name.as_deref(), Some("Back"));
+    }
+
+    #[test]
+    fn worker_count_does_not_change_lexical_results() {
+        let supported = serde_json::json!({
+            "object":"card", "id":"printing-supported", "oracle_id":"oracle-supported",
+            "name":"Supported", "layout":"transform", "color_identity":[],
+            "legalities":{"vintage":"legal"},
+            "card_faces":[
+                {"name":"Front", "type_line":"Creature", "oracle_text":"Draw two cards.", "colors":[]},
+                {"name":"Back", "type_line":"Creature", "oracle_text":"Flying (mystery).", "colors":[]}
+            ]
+        });
+        let input = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(input.path(), format!("{supported}\n")).unwrap();
+        let corpus = crate::raw_corpus::load_selected(
+            input.path(),
+            &SelectionRequest {
+                all: true,
+                ..SelectionRequest::default()
+            },
+            None,
+        )
+        .unwrap();
+        let lexicon = lexicon();
+
+        let mut one =
+            serde_json::to_value(analyze_cards(&corpus.faces, &lexicon, 1).unwrap()).unwrap();
+        let mut many =
+            serde_json::to_value(analyze_cards(&corpus.faces, &lexicon, 3).unwrap()).unwrap();
+        for value in [&mut one, &mut many] {
+            value.as_object_mut().unwrap().remove("workers");
+            value.as_object_mut().unwrap().remove("timings_seconds");
+        }
+        assert_eq!(one, many);
     }
 
     #[test]

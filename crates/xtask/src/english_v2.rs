@@ -348,8 +348,10 @@ enum EnglishV2Command {
 
 #[derive(Debug, clap::Args)]
 struct CorpusArgs {
-    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
+    #[arg(long, default_value = "data/scryfall/oracle-cards.jsonl")]
     data: PathBuf,
+    #[command(flatten)]
+    selection: crate::raw_corpus::CorpusSelectionArgs,
     /// Maximum parser workers for this corpus run; defaults to
     /// `DECKMASTE_XTASK_WORKERS` when set, else `available_parallelism()`.
     #[arg(long, value_parser = parse_worker_count)]
@@ -500,7 +502,7 @@ enum ProbeRoot {
 struct InspectArgs {
     #[arg(long)]
     id: String,
-    #[arg(long, default_value = "data/mtgjson/AtomicCards.json")]
+    #[arg(long, default_value = "data/scryfall/oracle-cards.jsonl")]
     data: PathBuf,
     #[arg(long, default_value_t = 256)]
     limit: usize,

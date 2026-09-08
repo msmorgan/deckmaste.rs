@@ -17,6 +17,7 @@ set -g data_dir $project_dir/data
 set -g mtgjson_dir $data_dir/mtgjson
 set -g rules_dir $data_dir/rules
 set -g catalogs_dir $data_dir/catalogs
+set -g scryfall_dir $data_dir/scryfall
 
 set -g scripts_dir $project_dir/scripts
 set -g lib_dir $scripts_dir/lib

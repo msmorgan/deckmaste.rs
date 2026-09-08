@@ -1,24 +1,25 @@
 use std::collections::BTreeSet;
+use std::io::BufRead;
 
 use anyhow::Context;
-use deckmaste_data::mtgjson::AtomicCards;
+use deckmaste_data::scryfall::OracleCardReader;
 
-pub(crate) fn extract(atomic: &[u8]) -> anyhow::Result<BTreeSet<String>> {
-    let atomic = AtomicCards::parse(atomic).context("parsing AtomicCards.json")?;
+pub(crate) fn extract(oracle_cards: impl BufRead) -> anyhow::Result<BTreeSet<String>> {
     let mut names = BTreeSet::new();
 
-    for card in atomic
-        .data
-        .values()
-        .flatten()
-        .filter(|card| card.vintage_playable())
-    {
-        let selected = card.face_name.as_deref().unwrap_or(card.name.as_str());
-        anyhow::ensure!(
-            !selected.contains(" // "),
-            "card-names: composite name without faceName: {selected:?}"
-        );
-        names.insert(selected.to_owned());
+    for card in OracleCardReader::new(oracle_cards) {
+        let card = card.context("parsing Scryfall Oracle Cards JSONL")?;
+        if !card.vintage_playable() {
+            continue;
+        }
+        for unit in card.oracle_units() {
+            let selected = unit.display_name();
+            anyhow::ensure!(
+                !selected.contains(" // "),
+                "card-names: composite name without a selected face: {selected:?}"
+            );
+            names.insert(selected.to_owned());
+        }
     }
 
     Ok(names)

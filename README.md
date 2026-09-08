@@ -384,7 +384,7 @@ the citation checker require the complete dataset, which is not committed, as
 it is Wizards of the Coast property (see below):
 
 ```sh
-scripts/fetch_data                       # ~600 MB: MTGJSON and a CR snapshot
+scripts/fetch_data                       # Scryfall Oracle Cards, MTGJSON references, and CR
 cargo xtask generate plugins/wizards     # build the stub corpus from it
 cargo xtask cite check                   # validate CR citations
 ```

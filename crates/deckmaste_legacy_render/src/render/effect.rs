@@ -211,10 +211,11 @@ pub(super) fn effect(e: &OneShotEffect, ctx: &Ctx) -> String {
         // `core-many-binder-group-move` seam.
         OneShotEffect::Each(fe) => {
             // Peel a remembered macro invocation (`Draws(It, 1)` →
-            // `Expanded`) to its core effect so the collective renderer sees the
-            // keyword action ("Each player draws a card."), not "For each
-            // player, …". Draw/mill are `Batch(n, Act(Mill/Draw))` over the loop
-            // element; destroy/discard stay a single `Act(Composite)`.
+            // `Expanded`) to its core effect so the collective renderer sees
+            // the keyword action ("Each player draws a card."), not
+            // "For each player, …". Draw/mill are `Batch(n,
+            // Act(Mill/Draw))` over the loop element; destroy/
+            // discard stay a single `Act(Composite)`.
             let peeled = peel_expanded(&fe.effect);
             if let Some(collective) = each_collective_batch(peeled, &fe.binder, ctx) {
                 return collective;
@@ -882,7 +883,8 @@ fn choose_pile(cp: &deckmaste_semantics::ChoosePile, ctx: &Ctx) -> String {
 /// the shapes the corpus needs are recognized; `None` declines to the
 /// caller's structural fallback.
 fn pile_collective(body: &OneShotEffect, group_phrase: &str) -> Option<String> {
-    // Destroy-of-`It` is `Composite{name:"Destroy", body: Move(It, Graveyard)}`.
+    // Destroy-of-`It` is `Composite{name:"Destroy", body: Move(It,
+    // Graveyard)}`.
     let is_destroy_it = |b: &OneShotEffect| {
         matches!(b, OneShotEffect::Act(Action::Composite { name, body })
             if name.as_str() == "Destroy"
@@ -1041,7 +1043,7 @@ fn slice_whose(body: &OneShotEffect) -> Option<&Reference> {
 
 /// The collective rendering of an [`OneShotEffect::Each`] over a
 /// `Batch`-wrapped per-card action ([CR#121.1,701.17a]) with the loop element
-/// as performer — "Each player draws/mills N cards." (Jace Beleren's "[+2]:
+/// as performer — "Each player draws/mills N cards." (Jace Beleren's "+2:
 /// Each player draws a card."). Both spell `Batch(count, …)` with the batch
 /// count as the card count, but they name their performer differently, because
 /// only one of them is a keyword action:
@@ -1894,33 +1896,33 @@ fn do_action_phrase(act: &Action, ctx: &Ctx) -> String {
 /// is a distinct function rather than a reuse of `additional_payment`: that
 /// one's all-symbol case reads "pay {cost}", which is wrong here — an
 /// activation cost line never says "pay").
-/// The bracketed loyalty-cost prefix for a planeswalker loyalty ability's cost
+/// The loyalty-cost prefix for a planeswalker loyalty ability's cost
 /// verb ([CR#606.4], "the cost to activate a loyalty ability is to put on or
 /// remove that many loyalty counters"): `PutCounters(This, LoyaltyCounter, n)`
-/// prints `[+n]` (or `[0]` when `n == 0` — a `LoyaltyZero` ability), and
-/// `RemoveCounters(This, LoyaltyCounter, n)` prints `[−n]` (the `−` is U+2212
+/// prints `+n` (or `0` when `n == 0` — a `LoyaltyZero` ability), and
+/// `RemoveCounters(This, LoyaltyCounter, n)` prints `−n` (the `−` is U+2212
 /// MINUS SIGN, the glyph the printed card uses, not an ASCII hyphen). Keyed on
 /// the `LoyaltyCounter` name and the `This` subject, mirroring the engine's
 /// `is_loyalty_ability` discriminator — any other counter cost (a different
 /// counter, or one on a non-`This` subject) returns `None` and renders through
 /// the generic `player_action` clause. A bare literal count brackets, and so
-/// does the variable `−X` loyalty cost ([CR#601.2b] — the semantic X variant, printed as
-/// `[−X]`, e.g. Ugin, the Spirit Dragon); any other dynamic count falls
+/// does the variable `−X` loyalty cost ([CR#107.7] — the semantic X variant,
+/// e.g. Ugin, the Spirit Dragon); any other dynamic count falls
 /// back to the generic render.
 fn loyalty_cost_prefix(action: &Action) -> Option<String> {
     let is_loyalty = |c: &deckmaste_semantics::CounterRef| c.as_str() == "LoyaltyCounter";
     match action {
         Action::PutCounters(Reference::This, counter, count) if is_loyalty(counter) => {
             match count.literal_value()? {
-                0 => Some("[0]".to_owned()),
-                n => Some(format!("[+{n}]")),
+                0 => Some("0".to_owned()),
+                n => Some(format!("+{n}")),
             }
         }
         Action::RemoveCounters(Reference::This, counter, SemValue::X) if is_loyalty(counter) => {
-            Some("[\u{2212}X]".to_owned())
+            Some("\u{2212}X".to_owned())
         }
         Action::RemoveCounters(Reference::This, counter, count) if is_loyalty(counter) => {
-            Some(format!("[\u{2212}{}]", count.literal_value()?))
+            Some(format!("\u{2212}{}", count.literal_value()?))
         }
         _ => None,
     }
@@ -1947,14 +1949,15 @@ pub(super) fn activated_cost(cost: &[deckmaste_semantics::CostComponent], ctx: &
             CostComponent::Do(pa) => {
                 // A planeswalker loyalty ability's cost is a `PutCounters`/
                 // `RemoveCounters` of the `LoyaltyCounter` on `This`
-                // ([CR#606.4]); it prints as the bracketed `[+N]`/`[−N]`/`[0]`
-                // prefix, not the generic "put/remove … counter" clause.
+                // ([CR#606.4]); it prints as the `+N`/`−N`/`0` prefix, not the
+                // generic "put/remove … counter" clause.
                 if let Some(prefix) = loyalty_cost_prefix(pa) {
                     parts.push(prefix);
                 } else {
                     let phrase = trim_period(&do_action_phrase(pa, ctx));
-                    // [CR#602.1]'s printed convention capitalizes each verb-cost
-                    // segment ("{T}, Sacrifice a Goblin: ..."), unlike a body
+                    // [CR#602.1]'s printed convention capitalizes each
+                    // verb-cost segment ("{T}, Sacrifice a
+                    // Goblin: ..."), unlike a body
                     // verb clause joined mid-sentence.
                     parts.push(capitalize_first(&phrase));
                 }
@@ -2887,14 +2890,14 @@ mod tests {
     }
 
     /// A planeswalker loyalty ability's activation cost ([CR#606.4]) prints as
-    /// the bracketed prefix `[+N]` / `[−N]` / `[0]` (the `−` is U+2212 MINUS
-    /// SIGN), NOT the generic "put/remove a loyalty counter on ~" clause: the
+    /// the prefix `+N` / `−N` / `0` (the `−` is U+2212 MINUS SIGN), NOT the
+    /// generic "put/remove a loyalty counter on ~" clause: the
     /// cost verb is `Do(PutCounters/RemoveCounters(This, LoyaltyCounter, N))`.
     /// A non-loyalty counter cost (or one on a non-`This` subject) keeps
     /// rendering generically — the loyalty prefix must not over-broaden the
     /// match.
     #[test]
-    fn loyalty_cost_renders_bracketed_prefix() {
+    fn loyalty_cost_renders_oracle_prefix() {
         use deckmaste_semantics::CostComponent;
         use deckmaste_semantics::CounterRef;
 
@@ -2907,42 +2910,42 @@ mod tests {
         let cost = |act: Action| super::activated_cost(&[CostComponent::do_action(act)], &ctx);
         let loyalty = || CounterRef::from("LoyaltyCounter");
 
-        // [+2]: PutCounters(This, LoyaltyCounter, 2)
+        // +2: PutCounters(This, LoyaltyCounter, 2)
         assert_eq!(
             cost(Action::PutCounters(
                 Reference::This,
                 loyalty(),
                 Count::Literal(2),
             )),
-            "[+2]",
+            "+2",
         );
-        // [−1]: RemoveCounters(This, LoyaltyCounter, 1) — U+2212
+        // −1: RemoveCounters(This, LoyaltyCounter, 1) — U+2212
         assert_eq!(
             cost(Action::RemoveCounters(
                 Reference::This,
                 loyalty(),
                 Count::Literal(1),
             )),
-            "[\u{2212}1]",
+            "\u{2212}1",
         );
-        // [−10]: RemoveCounters(This, LoyaltyCounter, 10) — U+2212
+        // −10: RemoveCounters(This, LoyaltyCounter, 10) — U+2212
         assert_eq!(
             cost(Action::RemoveCounters(
                 Reference::This,
                 loyalty(),
                 Count::Literal(10),
             )),
-            "[\u{2212}10]",
+            "\u{2212}10",
         );
-        // [0]: PutCounters(This, LoyaltyCounter, 0) — a zero-cost loyalty
-        // ability (LoyaltyZero) prints "[0]", not "[+0]".
+        // 0: PutCounters(This, LoyaltyCounter, 0) — a zero-cost loyalty
+        // ability (LoyaltyZero) prints "0", not "+0".
         assert_eq!(
             cost(Action::PutCounters(
                 Reference::This,
                 loyalty(),
                 Count::Literal(0),
             )),
-            "[0]",
+            "0",
         );
 
         // Regression: a NON-loyalty counter cost still renders generically —
@@ -2953,8 +2956,9 @@ mod tests {
             Count::Literal(1),
         ));
         assert!(
-            !generic.starts_with('['),
-            "non-loyalty counter cost must not get a bracketed loyalty prefix: {generic}"
+            !matches!(generic.as_bytes().first(), Some(b'+' | b'-'))
+                && !generic.starts_with('\u{2212}'),
+            "non-loyalty counter cost must not get a loyalty prefix: {generic}"
         );
     }
 

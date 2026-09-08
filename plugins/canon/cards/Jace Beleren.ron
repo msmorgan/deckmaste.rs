@@ -3,9 +3,9 @@
 // at sorcery speed once per turn (`LoyaltyPlus`/`LoyaltyMinus`, whose `+N`/`−N`
 // cost is a `PutCounters`/`RemoveCounters` of the `LoyaltyCounter` on `This`,
 // [CR#606.4]), and it dies to a state-based action at 0 loyalty ([CR#704.5i]).
-// "[+2]: Each player draws a card." — the `Each` player iterator binding each
-// as `It` under `By` (cf. Flame Rift). "[−1]: Target player draws a card." and
-// "[−10]: Target player mills twenty cards." — the announced player target read
+// "+2: Each player draws a card." — the `Each` player iterator binding each
+// as `It` under `By` (cf. Flame Rift). "−1: Target player draws a card." and
+// "−10: Target player mills twenty cards." — the announced player target read
 // back as `It` (cf. Tome Scour).
 Normal(
   name: "Jace Beleren",

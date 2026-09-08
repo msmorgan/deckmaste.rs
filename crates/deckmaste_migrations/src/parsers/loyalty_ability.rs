@@ -7,8 +7,8 @@
 //! once-per-turn gate), so the parser only picks the macro by cost sign and
 //! hands the body to the shared effect grammar — exactly how the canon
 //! walkers author these abilities. Extraction keeps the printed bracket
-//! notation (`[+1]:`, mtgjson's cost delimiter), and the minus is U+2212
-//! MINUS SIGN (the printed glyph), never an ASCII hyphen — the render
+//! notation (`[+1]:`, the derived snapshot's cost delimiter), and the minus is
+//! U+2212 MINUS SIGN (the printed glyph), never an ASCII hyphen — the render
 //! direction (`render/effect.rs`'s `loyalty_cost_prefix`) emits the same
 //! bracketed prefix.
 

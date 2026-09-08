@@ -15,12 +15,22 @@ use super::corpus::Corpus;
 pub(super) fn run(args: &ParseArgs, output: &mut dyn Write) -> anyhow::Result<()> {
     let started = std::time::Instant::now();
     let workers = args.corpus.workers()?;
-    let corpus = Corpus::load(&args.corpus.data)
+    let corpus = Corpus::load(&args.corpus.data, &args.corpus.selection)
         .with_context(|| format!("loading corpus from {}", args.corpus.data.display()))?;
     let parser = crate::english_v2::parser_from_builtin_v2()?;
     let report = AuditReport::run(&corpus, &parser, workers, true);
 
-    render_report(&report, args.json, output)?;
+    if args.json {
+        let rendered = JsonReport {
+            schema_version: report.schema_version(),
+            source_fingerprint: report.source_fingerprint(),
+            rows: report.rows(),
+            summary: report.summary(),
+        };
+        super::corpus::write_provenanced_json(&rendered, &corpus, workers, output)?;
+    } else {
+        render_report(&report, false, output)?;
+    }
     output.flush().context("flushing English-v2 parse census")?;
     super::corpus::write_corpus_performance("parse", started.elapsed(), report.performance())?;
     if args.require_complete
@@ -197,22 +207,32 @@ mod tests {
     const CLEAN_TEXT: &str = "Whenever a player connives, you gain X life.";
 
     fn snapshot(entries: &[(&str, &str)]) -> String {
-        let cards = entries
+        entries
             .iter()
-            .map(|(name, text)| {
-                format!(
-                    "\"{name}\": [{{\"name\": \"{name}\", \"layout\": \"normal\", \"types\": [\"Creature\"], \"supertypes\": [], \"subtypes\": [], \"legalities\": {{\"vintage\": \"Legal\"}}, \"text\": \"{text}\"}}]"
-                )
+            .enumerate()
+            .map(|(index, (name, text))| {
+                serde_json::json!({
+                    "object": "card",
+                    "id": format!("printing-{index}"),
+                    "oracle_id": format!("oracle-{index}"),
+                    "name": name,
+                    "layout": "normal",
+                    "type_line": "Creature",
+                    "legalities": {"vintage": "legal"},
+                    "oracle_text": text,
+                })
+                .to_string()
             })
             .collect::<Vec<_>>()
-            .join(",");
-        format!("{{\"data\": {{{cards}}}}}")
+            .join("\n")
+            + "\n"
     }
 
     fn args(data: &Path, json: bool, require_complete: bool) -> ParseArgs {
         ParseArgs {
             corpus: CorpusArgs {
                 data: data.to_owned(),
+                selection: crate::raw_corpus::CorpusSelectionArgs::all(),
                 workers: Some(1),
             },
             json,
