@@ -582,6 +582,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_english_v3"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_lexical",
+ "thiserror",
+]
+
+[[package]]
 name = "deckmaste_features"
 version = "0.1.0"
 dependencies = [

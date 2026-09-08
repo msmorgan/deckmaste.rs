@@ -20,7 +20,7 @@ it lands.
 | 1 | [english-v3-lean-grammar-model](tickets/planned/english-v3-lean-grammar-model.md) | Rebuild the independent English workbench around the complete v3 grammar, lexical relation, admitted Readings and relational roundtripping. |
 | 2 | [english-v3-lean-proof-audit](tickets/planned/english-v3-lean-proof-audit.md) | Make the model's central inhabitants, exclusions and correlation laws nonvacuous before Rust follows them. |
 | 3 | [english-v3-lexical-model](tickets/planned/english-v3-lexical-model.md) | Extract the small data-only model shared by lexical analysis, generated constructions and English v3. |
-| 4a | [english-v3-packed-chart](tickets/planned/english-v3-packed-chart.md) | Pack incomplete and complete derivations, define future-admissibility summaries and measure actual growth. |
+| 4a | [english-v3-packed-chart](tickets/done/english-v3-packed-chart.md) | Pack incomplete and complete derivations, define future-admissibility summaries and measure actual growth. |
 | 4b | [english-v3-lexical-inventory](tickets/planned/english-v3-lexical-inventory.md) | Consolidate declared morphology, catalogs, numeral codecs and supported-corpus lexical remainders. |
 | 5 | [english-v3-construction-compiler](tickets/planned/english-v3-construction-compiler.md) | Build the independent compiler core and thin proc macro that generate every bidirectional projection. |
 | 6 | [english-v3-generated-roundtrip-slice](tickets/planned/english-v3-generated-roundtrip-slice.md) | Prove the generated pipeline and both roundtrip laws on one bounded interacting slice. |
