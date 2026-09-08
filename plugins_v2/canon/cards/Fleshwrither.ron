@@ -8,7 +8,7 @@ SingleFaced(face: (
             Black,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Horror")],
+        subtypes: [horror],
         power: 3,
         toughness: 3,
         text: [

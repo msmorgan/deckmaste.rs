@@ -8,9 +8,9 @@ SingleFaced(face: (
         ],
         types: [Creature],
         subtypes: [
-            Of(host: Creature, label: "Spider"),
-            Of(host: Creature, label: "Horror"),
-            Of(host: Creature, label: "Citizen"),
+            spider,
+            horror,
+            citizen,
         ],
         power: 4,
         toughness: 3,

@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Suntouched Myr",
         cost: [3],
         types: [Artifact, Creature],
-        subtypes: [Of(host: Creature, label: "Myr")],
+        subtypes: [myr],
         power: 0,
         toughness: 0,
         text: [sunburst],

@@ -9,7 +9,7 @@ SingleFaced(face: (
             Red,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Giant")],
+        subtypes: [giant],
         power: 4,
         toughness: 4,
         text: [rampage(2)],

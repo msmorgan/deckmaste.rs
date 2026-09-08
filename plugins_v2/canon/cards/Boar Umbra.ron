@@ -7,7 +7,7 @@ SingleFaced(face: (
             Green,
         ],
         types: [Enchantment],
-        subtypes: [Of(host: Enchantment, label: "Aura")],
+        subtypes: [aura],
         text: [
             keywordSubject(label: "Enchant", subject: hasType(Creature)),
             static(

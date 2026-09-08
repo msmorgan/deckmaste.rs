@@ -7,7 +7,7 @@ SingleFaced(face: (
             Black,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Dauthi"), Of(host: Creature, label: "Minion")],
+        subtypes: [dauthi, minion],
         power: 3,
         toughness: 1,
         text: [shadow],

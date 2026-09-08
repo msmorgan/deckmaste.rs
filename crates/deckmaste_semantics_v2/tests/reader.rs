@@ -637,8 +637,9 @@ fn a_subtype_macro_denotes_the_subtype_its_definition_names() {
 }
 
 /// Only a `semantic_expression` kind restricts. A word type registered as a
-/// kind for its own macro dispatch — a colour, a subtype, a turn part — keeps
-/// every constructor it always had, which is what Lean's `onlyMacros` does.
+/// kind for its own macro dispatch — a colour, a counter kind, a turn part —
+/// keeps every constructor it always had, which is what Lean's `onlyMacros`
+/// does.
 #[test]
 fn a_word_types_constructor_still_reads_under_restriction() {
     let builtin =
@@ -649,9 +650,58 @@ fn a_word_types_constructor_still_reads_under_restriction() {
         .read_str_restricted("White")
         .expect("a colour is not a semantic expression");
     assert_eq!(colour, Color::White);
+    let counter: deckmaste_semantics_v2::words::CounterKind = builtin
+        .macros
+        .read_str_restricted(r#"Named(label: "charge")"#)
+        .expect("a counter kind is not a semantic expression");
+    assert_eq!(
+        counter,
+        deckmaste_semantics_v2::words::CounterKind::Named {
+            label: "charge".to_owned(),
+        }
+    );
+}
+
+/// The subtype half of the test above, re-spelled: a subtype is macro-only
+/// since `plugins-v2-subtypes-macro-only`, so where a card once wrote
+/// `Of(host: Creature, label: "Goblin")` it writes the declaration's name, and
+/// the constructor is refused by name at the kind it belongs to.
+#[test]
+fn a_subtype_in_a_card_is_the_declarations_name_and_not_its_constructor() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
     let subtype: Subtype = builtin
         .macros
-        .read_str_restricted(r#"Of(host: Creature, label: "Goblin")"#)
-        .expect("a subtype is not a semantic expression");
-    assert!(matches!(subtype, Subtype::Of { .. }));
+        .read_str_restricted("goblin")
+        .expect("a subtype declaration's name is author vocabulary");
+    assert_eq!(
+        subtype,
+        Subtype::Of {
+            host: deckmaste_semantics_v2::words::CardType::Creature,
+            label: "Goblin".to_owned(),
+        }
+    );
+    let error = builtin
+        .macros
+        .read_str_restricted::<Subtype>(r#"Of(host: Creature, label: "Goblin")"#)
+        .expect_err("a subtype constructor is not author vocabulary");
+    let message = error.to_string();
+    assert!(
+        message.contains("Of") && message.contains("Subtype"),
+        "the refusal must name the constructor and its kind: {message}"
+    );
+    // The definition node the macro expands to is refused at the same
+    // position, for the same reason: a card writes the name, not what the
+    // name denotes.
+    let error = builtin
+        .macros
+        .read_str_restricted::<Subtype>(
+            r#"Subtype(subtype: Of(host: Creature, label: "Goblin"), rules: [])"#,
+        )
+        .expect_err("a subtype definition is not author vocabulary either");
+    assert!(
+        error.to_string().contains("Subtype"),
+        "the refusal must name the kind: {error}"
+    );
 }

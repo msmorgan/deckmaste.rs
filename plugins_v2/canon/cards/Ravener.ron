@@ -9,7 +9,7 @@ SingleFaced(face: (
             Blue,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Tyranid")],
+        subtypes: [tyranid],
         power: 0,
         toughness: 0,
         text: [

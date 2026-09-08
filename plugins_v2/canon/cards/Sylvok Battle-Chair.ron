@@ -9,7 +9,7 @@ SingleFaced(face: (
             Green,
         ],
         types: [Artifact],
-        subtypes: [Of(host: Artifact, label: "Equipment")],
+        subtypes: [equipment],
         text: [
             forMirrodin,
             static(

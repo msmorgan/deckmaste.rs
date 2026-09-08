@@ -18,7 +18,7 @@ SingleFaced(face: (
                                 characteristics: (
                                     colors: [Red],
                                     types: [Creature],
-                                    subtypes: [Of(host: Creature, label: "Goblin")],
+                                    subtypes: [goblin],
                                     power: 1,
                                     toughness: 1,
                                 ),

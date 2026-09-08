@@ -10,7 +10,7 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: amass(Of(host: Creature, label: "Zombie"), 3),
+                instruction: amass(zombie, 3),
             ),
         ],
     ),

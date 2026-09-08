@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Arcbound Worker",
         cost: [1],
         types: [Artifact, Creature],
-        subtypes: [Of(host: Creature, label: "Construct")],
+        subtypes: [construct],
         power: 0,
         toughness: 0,
         text: [modular(1)],

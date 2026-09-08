@@ -5,8 +5,8 @@ SingleFaced(face: (
         cost: [White],
         types: [Creature],
         subtypes: [
-            Of(host: Creature, label: "Human"),
-            Of(host: Creature, label: "Soldier"),
+            human,
+            soldier,
         ],
         power: 1,
         toughness: 2,

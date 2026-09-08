@@ -15,8 +15,8 @@ SingleFaced(face: (
         ],
         types: [Creature],
         subtypes: [
-            Of(host: Creature, label: "Elf"),
-            Of(host: Creature, label: "Noble"),
+            elf,
+            noble,
         ],
         power: 3,
         toughness: 4,

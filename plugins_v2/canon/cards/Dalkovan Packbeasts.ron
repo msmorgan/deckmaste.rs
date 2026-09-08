@@ -7,7 +7,7 @@ SingleFaced(face: (
             White,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Ox")],
+        subtypes: [ox],
         power: 0,
         toughness: 4,
         text: [vigilance, mobilize(3)],

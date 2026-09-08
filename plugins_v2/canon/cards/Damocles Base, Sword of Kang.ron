@@ -13,7 +13,7 @@ SingleFaced(face: (
             Black,
         ],
         types: [Artifact],
-        subtypes: [Of(host: Artifact, label: "Vehicle")],
+        subtypes: [vehicle],
         power: 5,
         toughness: 5,
         text: [

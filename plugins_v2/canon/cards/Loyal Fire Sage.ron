@@ -8,15 +8,15 @@ SingleFaced(face: (
         ],
         types: [Creature],
         subtypes: [
-            Of(host: Creature, label: "Human"),
-            Of(host: Creature, label: "Cleric"),
-            Of(host: Creature, label: "Ally"),
+            human,
+            cleric,
+            ally,
         ],
         power: 3,
         toughness: 3,
         text: [
             firebending(1),
-            activated(cost: mana([5]), instruction: createObject( count: 1, spec: Token( spec: written( ( characteristics: ( colors: [White], types: [Creature], subtypes: [Of(host: Creature, label: "Ally")], power: 1, toughness: 1, ), ), ), riders: [], ), agent: you, )),
+            activated(cost: mana([5]), instruction: createObject( count: 1, spec: Token( spec: written( ( characteristics: ( colors: [White], types: [Creature], subtypes: [ally], power: 1, toughness: 1, ), ), ), riders: [], ), agent: you, )),
         ],
     ),
 ))

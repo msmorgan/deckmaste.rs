@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Proven Combatant",
         cost: [Blue],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Warrior")],
+        subtypes: [human, warrior],
         power: 1,
         toughness: 1,
         text: [eternalize(mana([

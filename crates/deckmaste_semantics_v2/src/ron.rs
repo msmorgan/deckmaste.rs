@@ -153,6 +153,7 @@ pub const EXPRESSION_KINDS: &[&str] = &[
     "Predicate",
     "Quantity",
     "StaticSpec",
+    "Subtype",
     "Timing",
     "TokenSpec",
     "UsageLimit",
@@ -165,12 +166,16 @@ pub const EXPRESSION_KINDS: &[&str] = &[
 ///
 /// A kind registered from `#[derive(SupportsMacros)]` carries its own dispatch
 /// set, so the carve-out below reads the variants off the kind. A hand-built
-/// kind carries none — `Subtype` and `CounterKind` are registered because a
-/// declaration family bears their name, not because the type derives — so the
-/// variant names are written here. Both are word types, not
-/// `semantic_expression`s, so a card writes them as it always did.
+/// kind carries none — `CounterKind` is registered because a declaration
+/// family bears its name, not because the type derives — so the variant names
+/// are written here. It is a word type, not a `semantic_expression`, so a card
+/// writes it as it always did.
+///
+/// `Subtype` used to be the other entry. It is macro-only since
+/// `plugins-v2-subtypes-macro-only`: every subtype has a declaration whose
+/// name a card writes, so the constructor is basis rather than author
+/// vocabulary and `Subtype` stands in [`EXPRESSION_KINDS`] above instead.
 const HAND_BUILT_NATIVE: &[(&str, &[&str])] = &[
-    ("Subtype", &["Of", "Spell"]),
     ("CounterKind", &["Boost", "Keyword", "Named"]),
     ("HeaderPossessor", &["NoPossessor", "ByPlayer", "ByTurn"]),
 ];

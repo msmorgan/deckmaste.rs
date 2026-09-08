@@ -8,7 +8,7 @@ SingleFaced(face: (
             Green,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Wurm")],
+        subtypes: [wurm],
         power: 4,
         toughness: 4,
         text: [

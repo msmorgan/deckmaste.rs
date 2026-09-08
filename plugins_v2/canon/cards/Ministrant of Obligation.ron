@@ -7,7 +7,7 @@ SingleFaced(face: (
             White,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Cleric")],
+        subtypes: [human, cleric],
         power: 2,
         toughness: 1,
         text: [afterlife(2)],

@@ -12,7 +12,7 @@ SingleFaced(face: (
                     written((characteristics: (
                         colors: [Green],
                         types: [Creature],
-                        subtypes: [Of(host: Creature, label: "Saproling")],
+                        subtypes: [saproling],
                         power: 1,
                         toughness: 1,
                     ))),

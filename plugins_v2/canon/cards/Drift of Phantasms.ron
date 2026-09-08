@@ -7,7 +7,7 @@ SingleFaced(face: (
             Blue,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Spirit")],
+        subtypes: [spirit],
         power: 0,
         toughness: 5,
         text: [

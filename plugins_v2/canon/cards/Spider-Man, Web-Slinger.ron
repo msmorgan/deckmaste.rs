@@ -9,9 +9,9 @@ SingleFaced(face: (
         supertypes: [Legendary],
         types: [Creature],
         subtypes: [
-            Of(host: Creature, label: "Spider"),
-            Of(host: Creature, label: "Human"),
-            Of(host: Creature, label: "Hero"),
+            spider,
+            human,
+            hero,
         ],
         power: 3,
         toughness: 3,

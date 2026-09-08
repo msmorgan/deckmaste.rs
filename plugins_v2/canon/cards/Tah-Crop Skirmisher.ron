@@ -7,7 +7,7 @@ SingleFaced(face: (
             Blue,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Snake"), Of(host: Creature, label: "Warrior")],
+        subtypes: [snake, warrior],
         power: 2,
         toughness: 1,
         text: [embalm(mana([

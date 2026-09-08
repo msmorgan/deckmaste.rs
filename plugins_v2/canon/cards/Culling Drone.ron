@@ -7,7 +7,7 @@ SingleFaced(face: (
             Black,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Eldrazi"), Of(host: Creature, label: "Drone")],
+        subtypes: [eldrazi, drone],
         power: 2,
         toughness: 2,
         text: [devoid, ingest],

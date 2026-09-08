@@ -7,7 +7,7 @@ SingleFaced(face: (
             White,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Fox"), Of(host: Creature, label: "Samurai")],
+        subtypes: [fox, samurai],
         power: 2,
         toughness: 2,
         text: [

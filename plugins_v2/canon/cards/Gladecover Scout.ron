@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Gladecover Scout",
         cost: [Green],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Elf"), Of(host: Creature, label: "Scout")],
+        subtypes: [elf, scout],
         power: 1,
         toughness: 1,
         text: [hexproof],

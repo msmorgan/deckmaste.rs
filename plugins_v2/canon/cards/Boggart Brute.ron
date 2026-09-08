@@ -7,7 +7,7 @@ SingleFaced(face: (
             Red,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Goblin"), Of(host: Creature, label: "Warrior")],
+        subtypes: [goblin, warrior],
         power: 3,
         toughness: 2,
         text: [menace],

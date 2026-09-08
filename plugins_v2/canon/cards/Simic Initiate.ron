@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Simic Initiate",
         cost: [Green],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Mutant")],
+        subtypes: [human, mutant],
         power: 0,
         toughness: 0,
         text: [graft(1)],

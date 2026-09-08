@@ -7,7 +7,7 @@ SingleFaced(face: (
             Green,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Warrior")],
+        subtypes: [human, warrior],
         power: 3,
         toughness: 2,
         text: [trample, melee],

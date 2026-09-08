@@ -10,7 +10,7 @@ SingleFaced(face: (
         ],
         supertypes: [Legendary],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Cleric")],
+        subtypes: [human, cleric],
         power: 2,
         toughness: 2,
         text: [

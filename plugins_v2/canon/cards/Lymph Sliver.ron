@@ -7,7 +7,7 @@ SingleFaced(face: (
             White,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Sliver")],
+        subtypes: [sliver],
         power: 3,
         toughness: 3,
         text: [
@@ -17,7 +17,7 @@ SingleFaced(face: (
                         determiner: All,
                         predicate: and(
                             [
-                                hasSubtype(Of(host: Creature, label: "Sliver")),
+                                hasSubtype(sliver),
                                 hasType(Creature),
                             ],
                         ),

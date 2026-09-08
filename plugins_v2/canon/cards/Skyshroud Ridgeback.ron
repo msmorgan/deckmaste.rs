@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Skyshroud Ridgeback",
         cost: [Green],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Beast")],
+        subtypes: [beast],
         power: 2,
         toughness: 3,
         text: [fading(2)],

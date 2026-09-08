@@ -6,8 +6,8 @@ SingleFaced(face: (
         cost: [8],
         types: [Kindred, Enchantment],
         subtypes: [
-            Of(host: Creature, label: "Eldrazi"),
-            Of(host: Enchantment, label: "Aura"),
+            eldrazi,
+            aura,
         ],
         text: [
             keywordSubject(label: "Enchant", subject: hasType(Creature)),

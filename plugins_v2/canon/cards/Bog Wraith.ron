@@ -7,9 +7,9 @@ SingleFaced(face: (
             Black,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Wraith")],
+        subtypes: [wraith],
         power: 3,
         toughness: 3,
-        text: [landwalk(hasSubtype(Of(host: Land, label: "Swamp")))],
+        text: [landwalk(hasSubtype(swamp))],
     ),
 ))

@@ -7,7 +7,7 @@ SingleFaced(face: (
             White,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Knight")],
+        subtypes: [human, knight],
         power: 3,
         toughness: 1,
         text: [battleCry],

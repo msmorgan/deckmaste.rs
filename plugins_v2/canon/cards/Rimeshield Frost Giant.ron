@@ -8,7 +8,7 @@ SingleFaced(face: (
             Blue,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Giant"), Of(host: Creature, label: "Warrior")],
+        subtypes: [giant, warrior],
         power: 4,
         toughness: 5,
         text: [ward(mana([3]))],

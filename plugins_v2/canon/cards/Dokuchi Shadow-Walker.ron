@@ -8,7 +8,7 @@ SingleFaced(face: (
             Black,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Ogre"), Of(host: Creature, label: "Ninja")],
+        subtypes: [ogre, ninja],
         power: 5,
         toughness: 5,
         text: [

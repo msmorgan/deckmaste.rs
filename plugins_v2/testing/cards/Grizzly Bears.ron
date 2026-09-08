@@ -5,7 +5,7 @@ SingleFaced(face: (
         name: "Grizzly Bears",
         cost: [1, Green],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Bear")],
+        subtypes: [bear],
         power: 2,
         toughness: 2,
     ),

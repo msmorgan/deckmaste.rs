@@ -15,7 +15,7 @@ SingleFaced(face: (
         name: "Mystic Visionary",
         cost: [1, White],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Nomad"), Of(host: Creature, label: "Mystic")],
+        subtypes: [human, nomad, mystic],
         text: [
             threshold(
                 static(

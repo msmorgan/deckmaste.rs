@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Flayer Husk",
         cost: [1],
         types: [Artifact],
-        subtypes: [Of(host: Artifact, label: "Equipment")],
+        subtypes: [equipment],
         text: [
             livingWeapon,
             static(

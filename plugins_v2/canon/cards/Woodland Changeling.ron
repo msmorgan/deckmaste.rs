@@ -7,7 +7,7 @@ SingleFaced(face: (
             Green,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Shapeshifter")],
+        subtypes: [shapeshifter],
         power: 2,
         toughness: 2,
         text: [changeling],

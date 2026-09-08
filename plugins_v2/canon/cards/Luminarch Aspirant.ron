@@ -11,8 +11,8 @@ SingleFaced(face: (
         ],
         types: [Creature],
         subtypes: [
-            Of(host: Creature, label: "Human"),
-            Of(host: Creature, label: "Cleric"),
+            human,
+            cleric,
         ],
         power: 1,
         toughness: 1,

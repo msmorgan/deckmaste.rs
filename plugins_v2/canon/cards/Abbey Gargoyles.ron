@@ -9,7 +9,7 @@ SingleFaced(face: (
             White,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Gargoyle")],
+        subtypes: [gargoyle],
         power: 3,
         toughness: 4,
         text: [flying, protection(colorIs(Red))],

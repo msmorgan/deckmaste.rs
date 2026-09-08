@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Monastery Swiftspear",
         cost: [Red],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Monk")],
+        subtypes: [human, monk],
         power: 1,
         toughness: 2,
         text: [

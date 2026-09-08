@@ -7,7 +7,7 @@ SingleFaced(face: (
             Black,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Zombie")],
+        subtypes: [zombie],
         power: 2,
         toughness: 1,
         text: [fear],

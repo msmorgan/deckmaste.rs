@@ -8,8 +8,8 @@ SingleFaced(face: (
         ],
         types: [Artifact, Creature],
         subtypes: [
-            Of(host: Artifact, label: "Equipment"),
-            Of(host: Creature, label: "Leech"),
+            equipment,
+            leech,
         ],
         power: 2,
         toughness: 2,

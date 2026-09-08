@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Wall of Wood",
         cost: [Green],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Wall")],
+        subtypes: [wall],
         power: 0,
         toughness: 3,
         text: [defender],

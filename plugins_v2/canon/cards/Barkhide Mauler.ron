@@ -7,7 +7,7 @@ SingleFaced(face: (
             Green,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Beast")],
+        subtypes: [beast],
         power: 4,
         toughness: 4,
         text: [cycling(mana([2]))],

@@ -7,7 +7,7 @@ SingleFaced(face: (
             Black,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Vampire")],
+        subtypes: [vampire],
         power: 3,
         toughness: 1,
         text: [bloodthirst(1)],

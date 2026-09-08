@@ -6,7 +6,7 @@ SingleFaced(face: (
         name: "Graf Rats",
         cost: [1, Black],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Rat")],
+        subtypes: [rat],
         power: 2,
         toughness: 1,
         text: [

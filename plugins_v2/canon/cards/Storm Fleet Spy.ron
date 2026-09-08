@@ -8,7 +8,7 @@ SingleFaced(face: (
         name: "Storm Fleet Spy",
         cost: [2, Blue],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Pirate")],
+        subtypes: [human, pirate],
         text: [
             raid(
                 triggeredIf(

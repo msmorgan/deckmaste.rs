@@ -7,7 +7,7 @@ SingleFaced(face: (
             Blue,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Homunculus")],
+        subtypes: [homunculus],
         power: 2,
         toughness: 1,
         text: [skulk],

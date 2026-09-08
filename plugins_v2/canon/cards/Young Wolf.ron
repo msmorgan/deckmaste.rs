@@ -4,7 +4,7 @@ SingleFaced(face: (
         name: "Young Wolf",
         cost: [Green],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Wolf")],
+        subtypes: [wolf],
         power: 1,
         toughness: 1,
         text: [undying],

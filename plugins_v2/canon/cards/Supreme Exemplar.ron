@@ -7,12 +7,12 @@ SingleFaced(face: (
             Blue,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Elemental")],
+        subtypes: [elemental],
         power: 10,
         toughness: 10,
         text: [
             flying,
-            keywordSubject(label: "Champion", subject: hasSubtype(Of(host: Creature, label: "Elemental"))),
+            keywordSubject(label: "Champion", subject: hasSubtype(elemental)),
         ],
     ),
 ))

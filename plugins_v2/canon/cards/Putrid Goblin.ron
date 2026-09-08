@@ -7,7 +7,7 @@ SingleFaced(face: (
             Black,
         ],
         types: [Creature],
-        subtypes: [Of(host: Creature, label: "Zombie"), Of(host: Creature, label: "Goblin")],
+        subtypes: [zombie, goblin],
         power: 2,
         toughness: 2,
         text: [persist],
