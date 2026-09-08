@@ -3,7 +3,9 @@ use std::path::Path;
 use deckmaste_construction_core::macro_def::CustomTailAtom;
 use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
+use deckmaste_construction_core::macro_def::InflectionalForm;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
+use deckmaste_construction_core::macro_def::RealizedSurface;
 use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::VerbFrameSet;
@@ -370,5 +372,63 @@ fn exile_declares_its_object_resultative_frame() {
                 ],
             },
         }
+    );
+}
+
+/// The derived past participle handles the `-e` rule (`exile` → `exiled`) but
+/// not consonant doubling: a one-syllable stem ending in a single vowel and
+/// consonant (`tap` → `tapped`) must declare its participle instead, or
+/// declare it `Unavailable` when a vocabulary literal owns the form, as
+/// `Status::Tapped` owns `tapped` (`keyword-actions-tap-untap-participle`).
+#[test]
+fn keyword_actions_with_doubling_stems_declare_their_participle() {
+    let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
+        .expect("builtin-v2 declarations must load");
+    let is_vowel = |c: char| matches!(c, 'a' | 'e' | 'i' | 'o' | 'u');
+    let mut wrong = Vec::new();
+    for declaration in declarations
+        .iter()
+        .filter(|declaration| declaration.identity().kind() == DeclarationKind::KeywordAction)
+    {
+        let Some(grammar) = declaration.grammar() else {
+            continue;
+        };
+        let surface = |feature: SurfaceFeature| {
+            grammar
+                .surfaces()
+                .iter()
+                .find(|surface| surface.feature() == feature)
+                .map(RealizedSurface::text)
+        };
+        let (Some(bare), Some(participle)) = (
+            surface(SurfaceFeature::PLAIN),
+            surface(SurfaceFeature::Inflectional(
+                InflectionalForm::PastParticiple,
+            )),
+        ) else {
+            continue;
+        };
+        // The last word of the stem, syllables counted as vowel groups.
+        let word = bare.rsplit(' ').next().unwrap_or(bare);
+        let chars: Vec<char> = word.chars().collect();
+        let syllables = chars
+            .iter()
+            .enumerate()
+            .filter(|(i, c)| is_vowel(**c) && (*i == 0 || !is_vowel(chars[i - 1])))
+            .count();
+        let doubling = syllables == 1
+            && chars.len() >= 2
+            && !is_vowel(chars[chars.len() - 1])
+            && !matches!(chars[chars.len() - 1], 'w' | 'x' | 'y')
+            && is_vowel(chars[chars.len() - 2])
+            && (chars.len() == 2 || !is_vowel(chars[chars.len() - 3]));
+        if doubling && participle == format!("{bare}ed") {
+            wrong.push(format!("{}: {participle}", declaration.identity().name()));
+        }
+    }
+    assert!(
+        wrong.is_empty(),
+        "derived participles that need an override: {wrong:?}"
     );
 }

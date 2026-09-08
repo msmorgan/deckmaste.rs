@@ -7,7 +7,6 @@ KeywordAction(
     spelling: "sacrifice",
     grammar: Verb(
         bare: "sacrifice",
-        participle: "sacrificed",
         frame_set: Transitive,
     ),
     body: Enact(

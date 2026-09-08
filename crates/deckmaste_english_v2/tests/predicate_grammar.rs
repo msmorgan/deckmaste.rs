@@ -26,7 +26,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Sacrifice.ron",
-            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",participle:"sacrificed",frame_set:Transitive))"#,
+            r#"KeywordAction(name:"Sacrifice",spelling:"sacrifice",grammar:Verb(bare:"sacrifice",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Connive.ron",
@@ -50,11 +50,11 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Exile.ron",
-            r#"KeywordAction(name:"Exile",spelling:"exile",grammar:Verb(bare:"exile",participle:"exiled",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,PredicativeComplement]])))"#,
+            r#"KeywordAction(name:"Exile",spelling:"exile",grammar:Verb(bare:"exile",frame_set:Custom(frames:[[ObjectNounPhrase],[ObjectNounPhrase,PredicativeComplement]])))"#,
         ),
         (
             "/synthetic/actions/Regenerate.ron",
-            r#"KeywordAction(name:"Regenerate",spelling:"regenerate",grammar:Verb(bare:"regenerate",participle:"regenerated",frame_set:Transitive))"#,
+            r#"KeywordAction(name:"Regenerate",spelling:"regenerate",grammar:Verb(bare:"regenerate",frame_set:Transitive))"#,
         ),
         (
             "/synthetic/actions/Declare.ron",
@@ -210,7 +210,7 @@ fn environment() -> ParserEnvironment {
         ),
         (
             "/synthetic/actions/Activate.ron",
-            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",participle:"activated",frame_set:Custom(frames:[[],[ObjectNounPhrase]])))"#,
+            r#"KeywordAction(name:"Activate",spelling:"activate",grammar:Verb(bare:"activate",frame_set:Custom(frames:[[],[ObjectNounPhrase]])))"#,
         ),
         (
             "/synthetic/actions/Untap.ron",

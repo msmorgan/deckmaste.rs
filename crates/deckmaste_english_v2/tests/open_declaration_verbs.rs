@@ -27,7 +27,7 @@ fn synthetic_verb_rows() -> Vec<NormalizedDeclaration> {
     vec![
         declaration(
             "/synthetic/actions/Destroy.ron",
-            r#"KeywordAction(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",preterite:"frindled",participle:"frindled",frame_set:Transitive))"#,
+            r#"KeywordAction(name:"Destroy",spelling:"frindle",grammar:Verb(bare:"frindle",third_person:"frondles",preterite:"frindled",frame_set:Transitive))"#,
         ),
         declaration(
             "/synthetic/actions/Connive.ron",

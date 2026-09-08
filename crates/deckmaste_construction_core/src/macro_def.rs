@@ -2579,8 +2579,11 @@ fn english_verb(bare: &str) -> String {
     format!("{bare}s")
 }
 
+/// The regular English past participle: `ed`, or `d` after a stem that already
+/// ends in `e`. A stem that doubles its final consonant (`tap` → `tapped`)
+/// declares its participle instead.
 fn english_participle(bare: &str) -> String {
-    format!("{bare}ed")
+    if bare.ends_with('e') { format!("{bare}d") } else { format!("{bare}ed") }
 }
 
 fn english_noun(singular: &str) -> String {

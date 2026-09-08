@@ -6,6 +6,7 @@ KeywordAction(
     spelling: "untap",
     grammar: Verb(
         bare: "untap",
+        participle: Unavailable,
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
     ),
     body: Enact(
