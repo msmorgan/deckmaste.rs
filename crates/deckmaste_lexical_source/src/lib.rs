@@ -66,6 +66,7 @@ pub fn load_workspace(root: &Path) -> anyhow::Result<LexicalSources> {
     supplement::apply(root, &mut output)?;
     native::replace_forms(&mut output.lexemes, native.form_replacements)?;
     native::add_frames(&mut output.lexemes, native.frame_additions)?;
+    native::add_features(&mut output.lexemes, native.feature_additions)?;
     native::reconcile_frames(&mut output.lexemes, &native.frame_markers)?;
     for lexeme in &mut output.lexemes {
         if lexeme.source.kind == SourceKind::Catalog || lexeme.category == Category::Keyword {

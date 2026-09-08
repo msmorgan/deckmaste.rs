@@ -1,6 +1,34 @@
 // V3 lexical declarations. Forms and frames are prospective linguistic data;
 // corpus occurrence counts do not license or withhold an entry.
 (
+    feature_additions: {
+        "vocab:Article/Indefinite": {"DeterminerUse": "SingularCount"},
+        "vocab:CardinalDeterminative/One": {"DeterminerUse": "SingularCount"},
+        "vocab:DefiniteMarker/The": {"DeterminerUse": "Unrestricted"},
+        "vocab:Determinative/Another": {"DeterminerUse": "SingularCount"},
+        "vocab:Determinative/Any": {"DeterminerUse": "Unrestricted"},
+        "vocab:Determinative/Either": {"DeterminerUse": "SingularCount"},
+        "vocab:Determinative/Enough": {"DeterminerUse": "PluralOrMass"},
+        "vocab:Determinative/Every": {"DeterminerUse": "SingularCount"},
+        "vocab:Determinative/Few": {"DeterminerUse": "PluralCount"},
+        "vocab:Determinative/Little": {"DeterminerUse": "Mass"},
+        "vocab:Determinative/Many": {"DeterminerUse": "PluralCount"},
+        "vocab:Determinative/Most": {"DeterminerUse": "PluralOrMass"},
+        "vocab:Determinative/Much": {"DeterminerUse": "Mass"},
+        "vocab:Determinative/Neither": {"DeterminerUse": "SingularCount"},
+        "vocab:Determinative/No": {"DeterminerUse": "Unrestricted"},
+        "vocab:Determinative/Several": {"DeterminerUse": "PluralCount"},
+        "vocab:Determinative/Some": {"DeterminerUse": "Unrestricted"},
+        "vocab:Determinative/These": {"DeterminerUse": "PluralCount"},
+        "vocab:Determinative/Those": {"DeterminerUse": "PluralCount"},
+        "vocab:Determinative/What": {"DeterminerUse": "Unrestricted"},
+        "vocab:Determinative/Which": {"DeterminerUse": "Unrestricted"},
+        "vocab:FloatedQuantifier/All": {"DeterminerUse": "PluralOrMass"},
+        "vocab:FloatedQuantifier/Both": {"DeterminerUse": "PluralCount"},
+        "vocab:FloatedQuantifier/Each": {"DeterminerUse": "SingularCount"},
+        "vocab:SingularDemonstrative/That": {"DeterminerUse": "Singular"},
+        "vocab:SingularDemonstrative/This": {"DeterminerUse": "Singular"},
+    },
     lexemes: [
         (
             id: "vocab:Coordinator/And", lemma: "and", category: Coordinator,

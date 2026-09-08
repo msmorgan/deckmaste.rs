@@ -16,6 +16,8 @@ pub(crate) struct Inventory {
     pub frame_markers: BTreeMap<String, (String, String)>,
     pub frame_additions: BTreeMap<String, Vec<Frame>>,
     pub form_replacements: BTreeMap<String, Vec<FormDeclaration>>,
+    #[serde(default)]
+    pub feature_additions: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 #[derive(Deserialize)]
@@ -100,6 +102,34 @@ pub(crate) fn replace_forms(
             .properties
             .features
             .insert("FormSource".into(), PATH.into());
+    }
+    Ok(())
+}
+
+pub(crate) fn add_features(
+    lexemes: &mut [Lexeme],
+    additions: BTreeMap<String, BTreeMap<String, String>>,
+) -> anyhow::Result<()> {
+    for (owner, features) in additions {
+        let lexeme = lexemes
+            .iter_mut()
+            .find(|lexeme| lexeme.id == owner)
+            .with_context(|| format!("unknown feature owner {owner}"))?;
+        for (name, value) in features {
+            anyhow::ensure!(
+                !name.is_empty() && !value.is_empty(),
+                "empty feature declaration for {owner}"
+            );
+            anyhow::ensure!(
+                !lexeme.properties.features.contains_key(&name),
+                "duplicate feature {name} for {owner}"
+            );
+            lexeme
+                .properties
+                .features
+                .insert(format!("FeatureSource:{name}"), PATH.into());
+            lexeme.properties.features.insert(name, value);
+        }
     }
     Ok(())
 }
@@ -318,6 +348,47 @@ mod tests {
                 .to_string()
                 .contains("does not spell")
         );
+    }
+
+    #[test]
+    fn feature_additions_require_an_existing_owner_and_preserve_declared_properties() {
+        let mut declarations = vec![Lexeme::invariant(
+            "determiner",
+            "each",
+            deckmaste_lexical::Category::Determinative,
+            crate::source(deckmaste_lexical::SourceKind::Core, "test", "determiner"),
+        )];
+        let features = BTreeMap::from([("DeterminerUse".into(), "SingularCount".into())]);
+        assert!(
+            add_features(
+                &mut declarations,
+                BTreeMap::from([("missing".into(), features.clone())])
+            )
+            .is_err()
+        );
+        add_features(
+            &mut declarations,
+            BTreeMap::from([("determiner".into(), features)]),
+        )
+        .unwrap();
+        assert_eq!(
+            declarations[0].properties.features["DeterminerUse"],
+            "SingularCount"
+        );
+        assert_eq!(
+            declarations[0].properties.features["FeatureSource:DeterminerUse"],
+            PATH
+        );
+        let before = declarations.clone();
+        let replacement = BTreeMap::from([("DeterminerUse".into(), "Mass".into())]);
+        assert!(
+            add_features(
+                &mut declarations,
+                BTreeMap::from([("determiner".into(), replacement)])
+            )
+            .is_err()
+        );
+        assert_eq!(declarations, before);
     }
     #[test]
     fn personal_pronouns_reject_wrong_concord_and_multiword_verbs_inflect_the_head() {

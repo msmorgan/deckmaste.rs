@@ -76,8 +76,21 @@ source map and corrected Lean judgments, declare the lexical distribution data
 needed by those Productions, preserve and exercise the full obligation register,
 add the actual v3 supported-corpus command, and establish the complete baseline
 and cause-grouped report before review and integration. In particular, the
-current lexical inventory has no determiner Countability licensing, and most
+initial lexical inventory had no determiner Countability licensing, and most
 determiners have no Number bundle; absence cannot become a grammar wildcard.
 The article's two spelling variants also need an applicable onset constraint.
 These source/interface findings must be resolved or explicitly measured as
 residuals; permissive admission does not discharge them.
+
+Lexical distribution checkpoint, change `yxntkrys` (2026-09-08): 26
+determinatives now declare their nominal Number/Countability selection as
+`DeterminerUse`. The generic source adapter rejects unresolved owners and
+duplicate or empty feature additions, and attaches per-feature provenance.
+No inflectional bundle or spelling has changed. These declarations await their
+whole-grammar consumers; they do not themselves establish grammar coverage.
+The expanded derived test/clippy gate passed across
+`deckmaste_construction_v3_core`, `deckmaste_lexical_source`, `xtask`,
+`deckmaste_construction_v3` and `deckmaste_english_v3`: 576 tests passed,
+1 preexisting ignored, strict all-target clippy clean. Cumulative assurance
+delta: 6 added tests, none removed or weakened. The user's follow-up request
+for typed library errors is recorded in `library-typed-errors`.

@@ -20,6 +20,15 @@ The transitional readers still salvage the existing core/plugin declarations
 and catalogs. None of those readers consults corpus success to license forms.
 The keyword-action archive is optional evidence, not a dependency.
 
+`core.ron` also declares `feature_additions` under existing lexical owners.
+These attach grammatical distribution properties and their source paths;
+unknown owners, empty declarations and replacement of an existing property
+are load errors. `DeterminerUse` states which nominal Number and Countability
+combinations a determinative licenses. This is selection data, separate from
+its morphological Feature Bundle: invariant words do not acquire invented
+inflectional features. Grammar must apply the declared distribution, including
+any further constraints on article realization.
+
 Frame literals are reconciled through an explicit declaration table to fixed
 marker identities. A missing marker, mismatched spelling, duplicate added frame
 or unknown owner is a load error. Source paths for paradigm, form, frame and
