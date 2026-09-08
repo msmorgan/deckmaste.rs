@@ -483,9 +483,21 @@ The response submitted at a Decision Point. A Decision may encode a rules
 Choice or a proposed Action.
 
 **Conferral** (project term):
-The relationship by which a rule, Card Type, or Subtype supplies an Ability or
-other rules property. A conferred Ability remains an ordinary Ability unless
-the CR says otherwise.
+The relationship by which a rule, Card Type, Subtype, or Counter supplies an
+Ability or other rules property. A conferred Ability remains an ordinary
+Ability unless the CR says otherwise. Four things can be conferred, and the CR
+keeps them apart: an intrinsic Ability ([CR#305.6]); a continuous property with
+no Ability behind it, which neither grants an Ability nor sets a characteristic
+([CR#113.12]); a State-Based Action ([CR#704.1]); and a turn-based action
+([CR#703.1]).
+
+**Registry Definition** (project term):
+What one registry declaration means — the rules content the declared name
+stands for. A Counter's kind, holder and Conferrals; a Subtype and its
+Conferrals; a Designation's holder and columns. A registry declares a
+namespace's members, so a Registry Definition names what it defines, where a
+Rules Table row names nothing and is scoped by a Predicate instead.
+_Avoid_: Rules Table for a Registry Definition.
 
 **Designation** (project term):
 A named marker an Object, a Player, or the game can have, which rules and

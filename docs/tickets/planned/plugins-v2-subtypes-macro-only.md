@@ -154,3 +154,30 @@ rules)` definition node that `semantics-v2-definition-bodies` introduces,
 and this ticket runs after it. The design facts in the STOP record stand
 (two metas, no dispatch set needed, 152 sites plus five non-`subtypes:`
 sites, no multi-word labels).
+
+## What `semantics-v2-definition-bodies` changed, and what it did not (2026-09-08)
+
+Landed: `Semantics.Definition` exists, and 458 of the 462 subtype declarations
+now carry `body: Subtype(subtype: Of(host: <Category>, label: "<Spelling>"),
+rules: [])`. `cargo xtask facts generate` reads the subtype identity from that
+body, so `subtype_rows` no longer capitalises a declaration name. A guard,
+`facts::lean::subtype_definitions_read`, refuses any subtype declaration whose
+body is not a `Definition::Subtype` unless it is one of the four named below,
+so the exception list can only shrink.
+
+NOT landed: the four rules-defined conferrals. Each keeps the v1 core type-rule
+record with a STOP at the head of its file, because each needs syntax v2 lacks:
+
+| declaration | what it needs |
+| --- | --- |
+| `equipment`, `fortification` | the [CR#301.5,301.6] host rule is a deontic over the `Attach` deed [CR#701.3a], whose `actFacts` row declares no patient role, so "…to a creature" has no role to bind |
+| `aura` | [CR#704.5m] fires on "attached to an illegal object or player, OR is not attached"; `Predicate.attachment` spells only the second half |
+| `saga` | [CR#714.4] reads the final chapter number off the Saga's own chapter abilities [CR#714.2d]; `Amount` has no aggregate over a card's chapter marks |
+
+So this ticket's step 1 is now: teach the syntax those three things, then write
+the four `rules` lists. Steps 2 and 3 are unchanged and still blocked on step 1
+for the seven canon sites the STOP above lists. The step-4 question (counter
+kinds) is answered differently now: every counter declaration carries a
+`Definition::Counter`, so a counter macro CAN expand to one, and the remaining
+question is only whether a card's `CounterKind` position should read the
+definition node or the `words::CounterKind` inside it.

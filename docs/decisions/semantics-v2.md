@@ -242,13 +242,20 @@ spelling and grammar, semantics_v2 reads the params and body. The file is
 the shared contract; neither crate depends on the other for it, and an xtask
 drift test loads every declaration both ways. Today's bodyless declarations
 (keyword actions, keyword abilities, ability words, turn parts) grow bodies
-per family; no new bodyless declarations are added. A registry declaration
-whose columns are the ones Lean's checker reads carries THOSE columns as its
-body, typed by the `facts` mirror rather than by a semantics term: a
-designation declares its `DesignationFacts` rows and a marker counter its
-`CounterFacts` row, and `cargo xtask facts generate` writes
-`lean/Semantics/Check/Facts.lean` from them (ruling, 2026-09-07,
-`facts-generator-sheds-v1`). Cards, tokens, and the
+per family; no new bodyless declarations are added. A registry declaration's
+body is the DEFINITION of what it declares — `Semantics.Definition`, one
+`Rules.lean` constructor per registry family — and `cargo xtask facts generate`
+DERIVES `lean/Semantics/Check/Facts.lean` from it: a counter definition's
+`Named` kind is a `CounterFacts` row, a subtype definition a `SubtypeFacts`
+row, a designation definition a `DesignationFacts` row, and a keyword
+ability's own `Ability.keyword` term supplies its word and the categories its
+definition is written in. Rust owns no mapping into the RON files (ruling,
+2026-09-07, `semantics-v2-definition-bodies`, superseding
+`facts-generator-sheds-v1`'s "a declaration carries its own facts columns as
+its body"). An xtask overlay survives only for a column no declaration
+carries, and each survivor is named in that ticket's landing record: the
+keyword-ability gate columns, the keyword-action checker columns, and the
+subtype frame column. Cards, tokens, and the
 three rules tables (state-based actions, conferrals, damage results) are
 further kinds in the same tree, all semantics-language RON. `plugins_v2/canon`
 is hand-authored RON first; translation from `deckmaste_english_v2`'s
