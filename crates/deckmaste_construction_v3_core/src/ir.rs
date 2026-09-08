@@ -36,6 +36,9 @@ pub(crate) enum DomainKind {
     Builtin(String),
     Countability,
     Frame,
+    NumeralKind,
+    NumeralSize,
+    Framing,
     Custom,
 }
 
@@ -144,6 +147,23 @@ fn builtin_domains() -> Vec<Domain> {
             name: "frame".into(),
             values: vec![],
             kind: DomainKind::Frame,
+        },
+        Domain {
+            name: "numeral_kind".into(),
+            values: ["Cardinal", "Ordinal", "Arabic", "GroupedArabic", "Roman"]
+                .map(str::to_owned)
+                .into(),
+            kind: DomainKind::NumeralKind,
+        },
+        Domain {
+            name: "numeral_size".into(),
+            values: vec!["Small".into(), "Large".into()],
+            kind: DomainKind::NumeralSize,
+        },
+        Domain {
+            name: "framing".into(),
+            values: vec!["Unframed".into(), "Framed".into()],
+            kind: DomainKind::Framing,
         },
     ])
     .collect()
@@ -482,6 +502,15 @@ fn value(ir: &Ir, feature: usize, name: &Ident) -> syn::Result<TokenStream> {
             quote!(FeatureValue::Countability(#is_count))
         }
         DomainKind::Frame => quote!(FeatureValue::Frame(#index)),
+        DomainKind::NumeralKind => quote!(FeatureValue::NumeralKind(#index)),
+        DomainKind::NumeralSize => {
+            let large = index == 1;
+            quote!(FeatureValue::NumeralSize(#large))
+        }
+        DomainKind::Framing => {
+            let framed = index == 1;
+            quote!(FeatureValue::Framing(#framed))
+        }
         DomainKind::Custom => quote!(FeatureValue::Custom(#feature, #index)),
     })
 }

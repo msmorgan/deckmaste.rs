@@ -159,3 +159,39 @@ refreshed default comparison restored for final landing validation.
 `jj fix -s swqkxsvu` formatted the new test file. Rust assurance delta for this
 checkpoint: 3 added, 0 restored, 0 re-spelled, 0 ignored, 0 removed (9 added
 cumulatively). No full-corpus run occurred.
+
+Numeral and measure checkpoint, change `trmtxqum`: the connected candidate now
+has 99 Construction declarations over 33 public Categories. Counts compose with
+nominals and Targeting Markers; scalar variables and arithmetic fill measured
+NPs, prepositions, verb frames and equality/ordering adjective complements.
+Word counts, ordinal modifiers, grouped digit notation and large written counts
+remain distinct. Small Arabic values retain both declared grouping policies
+when their visible spelling conforms; large prose values require commas.
+These declarations follow style guide §4, “Numbers, quantities, and comparisons”.
+
+The compiler now projects finite numeral-kind, magnitude-class and frame-presence
+features. It derives Number only for cardinal/Arabic uses and keeps the numeric
+value in the lexical leaf. This also repairs a candidate overgeneration:
+a generic bare adjective could previously ignore its selected Complement frame.
+Bare adjective admission now requires an unframed declaration or an explicitly
+selected empty frame. Subordinator licenses are independent properties rather
+than mutually exclusive roles on each owner.
+
+Five Rust tests were added (14 cumulatively), none removed or weakened. They
+cover count/scalar and ordinal distinctions, magnitude and grouping, cross-family
+composition, independent measure/comparison values, and adjective-frame rejection
+in both parsing and direct admission. Temporarily removing the bare-adjective
+framing constraint made its negative direct-admission assertion fail; temporarily
+inventing Number for ordinals made the chart-admission exclusion fail. Both
+mutations were restored before the gate. Whole-grammar and corpus acceptance
+remain unproven: the previously recorded article, capitalization, document,
+coordination, richer frame/extraction and corpus-runner work is still required.
+
+Validation for `trmtxqum`: `cargo xtask gate --changed --from ookvvtoz
+--clippy --run` derived the closure `deckmaste_construction_v3_core`,
+`deckmaste_lexical_source`, `xtask`, `deckmaste_construction_v3`, and
+`deckmaste_english_v3`. All 584 tests passed, with one preexisting ignore and
+zero failures; strict all-target clippy passed. `jj fix -s trmtxqum` formatted
+the changed Rust. The gate was repeated after preserving the small ungrouped
+Arabic alternative; no other broadened or repeated test pass was needed.
+No full-corpus run or family-completion claim is made by this checkpoint.

@@ -108,10 +108,14 @@ fn projection(ir: &Ir) -> TokenStream {
     let frames = ir.frames.iter().map(|(_, frame)| frame_tokens(frame));
     quote! {
         fn project(features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
-            let ::deckmaste_english_v3::LexicalFeatures::Word { form, features, properties, .. } = features else { return vec![Summary::default()]; };
+            let (form, features, properties) = match features {
+                ::deckmaste_english_v3::LexicalFeatures::Word { form, features, properties, .. } => (form, features, properties),
+                ::deckmaste_english_v3::LexicalFeatures::Numeral { value, notation } => return project_numeral(value, notation),
+            };
             let mut base = Summary::default();
             #(#features)*
             base.values[5] = Some(FeatureValue::WordForm(form));
+            base.values[10] = Some(FeatureValue::Framing(!properties.frames.is_empty()));
             static FRAMES: ::std::sync::OnceLock<Vec<::deckmaste_lexical::Frame>> = ::std::sync::OnceLock::new();
             let declared_frames = FRAMES.get_or_init(|| vec![#(#frames),*]);
             let frame_choices: Vec<_> = if properties.frames.is_empty() { vec![None] } else {
@@ -132,6 +136,28 @@ fn projection(ir: &Ir) -> TokenStream {
                 }
             }
             summaries
+        }
+
+        fn project_numeral(value: i32, notation: ::deckmaste_lexical::Numeral) -> Vec<Summary> {
+            use ::deckmaste_lexical::Numeral;
+            let mut summary = Summary::default();
+            let kind = match notation {
+                Numeral::Cardinal => 0,
+                Numeral::Ordinal => 1,
+                Numeral::Arabic(false) => 2,
+                Numeral::Arabic(true) => 3,
+                Numeral::Roman => 4,
+            };
+            summary.values[8] = Some(FeatureValue::NumeralKind(kind));
+            summary.values[9] = Some(FeatureValue::NumeralSize(value.unsigned_abs() >= 1000));
+            if matches!(notation, Numeral::Cardinal | Numeral::Arabic(_)) {
+                summary.values[0] = Some(FeatureValue::Number(if value.unsigned_abs() == 1 {
+                    ::deckmaste_lexical::Number::Singular
+                } else {
+                    ::deckmaste_lexical::Number::Plural
+                }));
+            }
+            vec![summary]
         }
     }
 }

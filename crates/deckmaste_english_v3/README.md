@@ -18,13 +18,22 @@ no reason to inspect those features. Auxiliary complements own their separator,
 so omission contributes neither a word nor a trailing space.
 
 Whole-grammar activation is still in progress. The candidate is not yet a
-complete corpus grammar: article onset, capitalization constraints, notation and
-measures, richer lexical frames, flat serial coordination, the remaining
+complete corpus grammar: article onset, capitalization constraints, richer
+notation and measure forms, lexical frames, flat serial coordination, the remaining
 extraction patterns, keywords and editorial document forms still need their
 connected declarations and validation. `tests/grammar.rs` checks composition
 with the real source inventory, invalid agreement/Case/frame combinations, and
 an independently constructed auxiliary-ellipsis Reading. No whole-corpus
 baseline has been measured.
+
+The measure declarations distinguish cardinal determiners and ordinal modifiers
+from scalar digit notation, following style guide §4, “Numbers, quantities, and
+comparisons”. Scalar expressions include declared variables and arithmetic;
+prepositions, measured noun phrases, verb frames and comparison adjectives
+consume them. Framed adjectives cannot use the bare-adjective rule to discard a
+required Complement. Both Arabic notation choices survive for small values
+whose surfaces need no commas; prose magnitudes of four or more digits require
+grouping. No arithmetic value or discourse variable is evaluated by admission.
 
 ## Admission and packing
 

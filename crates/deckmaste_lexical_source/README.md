@@ -27,7 +27,10 @@ are load errors. `DeterminerUse` states which nominal Number and Countability
 combinations a determinative licenses. This is selection data, separate from
 its morphological Feature Bundle: invariant words do not acquire invented
 inflectional features. Grammar must apply the declared distribution, including
-any further constraints on article realization.
+any further constraints on article realization. Scalar variables, measure
+operators, measured nominal positions and comparison markers likewise declare
+their distributions as lexical data. Subordinator licenses are independent
+properties so one owner can participate in several clause roles.
 
 Frame literals are reconciled through an explicit declaration table to fixed
 marker identities. A missing marker, mismatched spelling, duplicate added frame

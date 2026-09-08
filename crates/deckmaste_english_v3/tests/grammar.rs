@@ -167,3 +167,140 @@ fn independently_constructed_auxiliary_ellipsis_roundtrips_without_discourse_con
         .unwrap();
     assert_eq!(before, after);
 }
+
+#[test]
+fn counts_and_measures_interact_with_nominals_frames_and_prepositions() {
+    for text in [
+        "Draw two cards.",
+        "Draw thirteen cards.",
+        "Draw 1,000 cards.",
+        "Draw X cards.",
+        "Two creatures attack.",
+        "Two target creatures attack.",
+        "You gain 3 life.",
+        "You gain life equal to 3.",
+        "Surveil 2.",
+        "Surveil X.",
+        "Surveil 2 plus 2.",
+        "Creatures with power 3 attack.",
+        "Creatures attack by 2 plus 2.",
+    ] {
+        assert!(
+            !readings(text, Category::Document).is_empty(),
+            "no Reading for {text:?}"
+        );
+    }
+    for text in [
+        "Draw two card.",
+        "Draw 2 cards.",
+        "Draw II cards.",
+        "Draw X card.",
+        "Draw two damage.",
+        "You gain three life.",
+        "Surveil two.",
+        "Surveil II.",
+        "Surveil 1000.",
+        "You gain life equal than 3.",
+        "You gain life greater to 3.",
+    ] {
+        assert!(
+            readings(text, Category::Document).is_empty(),
+            "invalid Reading for {text:?}"
+        );
+    }
+    assert!(!readings("second", Category::AdjectivePhrase).is_empty());
+    assert!(readings("second", Category::Cardinal).is_empty());
+    assert!(readings("second", Category::MeasurePhrase).is_empty());
+}
+
+fn numeral(value: i32, notation: deckmaste_lexical::Numeral) -> Word {
+    Word {
+        value: LexicalReading::Numeral {
+            value,
+            notation,
+            capitalization: SurfaceCase::Declared,
+        },
+        countability: None,
+        frame: None,
+    }
+}
+
+#[test]
+fn independent_measure_values_preserve_operator_structure_and_notation() {
+    use deckmaste_lexical::Numeral;
+    let value = Reading::ArithmeticMeasure {
+        form: 0,
+        left: Box::new(Reading::GroupedScalarNumeral {
+            form: 0,
+            head: numeral(1000, Numeral::Arabic(true)),
+        }),
+        operator: word(
+            "vocab:Preposition/Minus",
+            WordForm::Invariant,
+            FeatureBundle::default(),
+        ),
+        right: Box::new(Reading::ScalarVariable {
+            form: 0,
+            head: word(
+                "vocab:Variable/X",
+                WordForm::Invariant,
+                FeatureBundle::default(),
+            ),
+        }),
+    };
+    assert_eq!(value.realize(lexicon()).unwrap(), "1,000 minus X");
+    assert!(readings("1,000 minus X", Category::MeasurePhrase).contains(&value));
+    let wrong_notation = Reading::GroupedScalarNumeral {
+        form: 0,
+        head: numeral(1000, Numeral::Arabic(false)),
+    };
+    assert!(wrong_notation.admit(lexicon()).is_err());
+    assert!(readings("1000", Category::MeasurePhrase).is_empty());
+    let grouped = Reading::GroupedScalarNumeral {
+        form: 0,
+        head: numeral(2, Numeral::Arabic(true)),
+    };
+    let ungrouped = Reading::UngroupedScalarNumeral {
+        form: 0,
+        head: numeral(2, Numeral::Arabic(false)),
+    };
+    let alternatives = readings("2", Category::MeasurePhrase);
+    assert_eq!(grouped.realize(lexicon()).unwrap(), "2");
+    assert_eq!(ungrouped.realize(lexicon()).unwrap(), "2");
+    assert!(alternatives.contains(&grouped));
+    assert!(alternatives.contains(&ungrouped));
+}
+
+#[test]
+fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
+    use deckmaste_lexical::Numeral;
+    let mut head = word(
+        "vocab:ScalarDegree/Equal",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    head.frame = Some(0);
+    let value = Reading::EqualityComplement {
+        form: 0,
+        head: head.clone(),
+        marker: word(
+            "vocab:Preposition/To",
+            WordForm::Invariant,
+            FeatureBundle::default(),
+        ),
+        measure: Box::new(Reading::GroupedScalarNumeral {
+            form: 0,
+            head: numeral(2, Numeral::Arabic(true)),
+        }),
+    };
+    assert_eq!(value.realize(lexicon()).unwrap(), "equal to 2");
+    assert!(readings("equal to 2", Category::EqualityComplement).contains(&value));
+    assert!(
+        Reading::Adjective { form: 0, head }
+            .admit(lexicon())
+            .is_err()
+    );
+    assert!(readings("equal", Category::AdjectivePhrase).is_empty());
+    assert!(readings("equal than 2", Category::EqualityComplement).is_empty());
+    assert!(!readings("greater than 2", Category::OrderingComplement).is_empty());
+}

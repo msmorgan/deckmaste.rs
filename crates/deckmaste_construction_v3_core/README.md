@@ -61,11 +61,25 @@ The syntax tree is validated into an IR before any projection is emitted:
   contradictory constants is a compile-time error.
 
 Builtin feature domains are `number`, `person`, `tense`, `finiteness`, `case`,
-`form`, `countability` (`Count`/`Mass`) and `frame`. The first six use the lexical
-model's distinct enums. A declaration can add a finite distribution feature:
+`form`, `countability` (`Count`/`Mass`), `frame`, `numeral_kind`,
+`numeral_size`, and `framing`. The first six use the lexical model's distinct
+enums. A declaration can add a finite distribution feature:
 `feature extraction { Open, Closed }` reads the correspondingly named lexical
 property. Undeclared or absent values never act as wildcards. Agreement keeps
 whole lexical feature bundles correlated.
+
+`numeral_kind` distinguishes `Cardinal`, `Ordinal`, `Arabic`, `GroupedArabic`
+and `Roman`; the grouping policy remains distinct even for a small digit
+surface without commas. `numeral_size` is `Small` below magnitude 1,000 and
+`Large` otherwise, allowing grammar to constrain notation by its host. Cardinal
+and Arabic numerals project grammatical Number (magnitude one is singular);
+ordinal and Roman notation project no Number. Their numeric values are retained
+in lexical leaves, never carried as an unbounded chart feature.
+
+`framing` distinguishes lexical declarations with selected frames (`Framed`)
+from those without them (`Unframed`). This lets a bare-head Construction reject
+a head whose declared frame requires a Complement. An explicitly declared empty
+frame is still Framed and can be selected by its complete `frame` signature.
 
 Finite feature tables derive a parent feature from correlated child features:
 

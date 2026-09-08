@@ -8,6 +8,9 @@ pub enum FeatureValue {
     WordForm(::deckmaste_lexical::WordForm),
     Countability(bool),
     Frame(usize),
+    NumeralKind(usize),
+    NumeralSize(bool),
+    Framing(bool),
     Custom(usize, usize),
 }
 

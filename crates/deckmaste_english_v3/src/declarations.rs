@@ -13,9 +13,15 @@ constructions! {
         feature Targeting { No, Yes }
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase }
-        feature SubordinatorUse { Adverbial, Content, Relative }
+        feature AdverbialSubordinator { Yes }
+        feature RelativeSubordinator { Yes }
         feature Voice { Active, Passive, Mixed }
         feature OvertHead { No, Yes }
+        feature ScalarVariable { Yes }
+        feature MeasureOperator { Yes }
+        feature MeasurePreposition { Yes }
+        feature MeasurePosition { Before, After }
+        feature ComparisonMarker { Equality, Ordering }
 
         category Document();
         category Ability();
@@ -46,6 +52,10 @@ constructions! {
         category ObjectRelativeClause();
         category FiniteObjectGap(number, person);
         category BareObjectGap();
+        category Cardinal(number);
+        category MeasurePhrase();
+        category EqualityComplement();
+        category OrderingComplement();
 
         frame Intransitive = "(kind: \"Predicate\", items: [])";
         frame Transitive = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\"))])";
@@ -53,6 +63,11 @@ constructions! {
         frame BareAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"BarePredicate\"))])";
         frame ParticipialAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"ParticipialPredicate\"))])";
         frame PerfectAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"PastParticiplePredicate\"))])";
+
+        frame Measure = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"MeasurePhrase\"))])";
+        frame Equality = "(kind: \"Predicate\", items: [Marked(vocabulary: \"Preposition\", member: \"To\", slot: (relation: Complement, category: \"MeasurePhrase\"))])";
+        frame Ordering = "(kind: \"Predicate\", items: [Marked(vocabulary: \"Preposition\", member: \"Than\", slot: (relation: Complement, category: \"MeasurePhrase\"))])";
+        frame ObjectEquality = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\")), Argument((relation: Complement, category: \"ScalarEquality\"))])";
 
         table additive_person(person, person) -> person {
             (First, First) => First,
@@ -171,7 +186,7 @@ constructions! {
 
         construction SubordinateClause: SubordinateClause {
             form [marker: lexical(Subordinator), " ", clause: FiniteClause];
-            require marker.SubordinatorUse = Adverbial;
+            require marker.AdverbialSubordinator = Yes;
         }
 
         construction InitialPreposition: Clause {
@@ -195,6 +210,12 @@ constructions! {
 
         construction Adjective: AdjectivePhrase {
             form [head: lexical(Adjective)];
+            require head.framing = Unframed;
+        }
+
+        construction IntransitiveAdjective: AdjectivePhrase {
+            form [head: lexical(Adjective)];
+            require head.frame = Intransitive;
         }
 
         construction PremodifiedNominal: Nominal {
@@ -502,7 +523,7 @@ constructions! {
 
         construction SubjectRelativeClause: SubjectRelativeClause {
             form [marker: lexical(Subordinator), " ", predicate: FinitePredicate];
-            require marker.SubordinatorUse = Relative;
+            require marker.RelativeSubordinator = Yes;
             require predicate.person = Third;
             export number = predicate.number;
         }
@@ -548,7 +569,7 @@ constructions! {
 
         construction ObjectRelativeClause: ObjectRelativeClause {
             form [marker: lexical(Subordinator), " ", subject: NominativePhrase, " ", predicate: FiniteObjectGap];
-            require marker.SubordinatorUse = Relative;
+            require marker.RelativeSubordinator = Yes;
             agree subject.number = predicate.number;
             agree subject.person = predicate.person;
         }
@@ -640,6 +661,140 @@ constructions! {
             form [omission: Ellipsis];
             require omission.form = PastParticiple;
             export Voice = omission.Voice;
+        }
+
+        construction Cardinal: Cardinal {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Cardinal;
+            export number = head.number;
+        }
+
+        construction LargeCount: Cardinal {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = GroupedArabic;
+            require head.numeral_size = Large;
+            export number = head.number;
+        }
+
+        construction VariableCount: Cardinal {
+            form [head: lexical(Numeral)];
+            require head.ScalarVariable = Yes;
+            export number = Plural;
+        }
+
+        construction CountedNounPhrase: NounPhrase {
+            form [quantity: Cardinal, " ", head: Nominal];
+            require head.countability = Count;
+            agree quantity.number = head.number;
+            export number = head.number;
+            export person = Third;
+            export CaseUse = Common;
+        }
+
+        construction OrdinalPremodifier: AdjectivePhrase {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Ordinal;
+        }
+
+        construction GroupedScalarNumeral: MeasurePhrase {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = GroupedArabic;
+        }
+
+        construction UngroupedScalarNumeral: MeasurePhrase {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Arabic;
+            require head.numeral_size = Small;
+        }
+
+        construction ScalarVariable: MeasurePhrase {
+            form [head: lexical(Numeral)];
+            require head.ScalarVariable = Yes;
+        }
+
+        construction ArithmeticMeasure: MeasurePhrase {
+            form [left: MeasurePhrase, " ", operator: lexical(Preposition), " ", right: MeasurePhrase];
+            require operator.MeasureOperator = Yes;
+        }
+
+        construction MeasuredPreposition: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: MeasurePhrase];
+            require head.MeasurePreposition = Yes;
+        }
+
+        construction MeasuredNounPhrase: NounPhrase {
+            form [quantity: MeasurePhrase, " ", head: lexical(Noun)];
+            require head.MeasurePosition = Before;
+            require head.number = Singular;
+            require head.countability = Mass;
+            export number = Singular;
+            export person = Third;
+            export CaseUse = Common;
+        }
+
+        construction MeasuredAttribute: NounPhrase {
+            form [head: lexical(Noun), " ", quantity: MeasurePhrase];
+            require head.MeasurePosition = After;
+            require head.number = Singular;
+            export number = Singular;
+            export person = Third;
+            export CaseUse = Common;
+        }
+
+        construction EqualityComplement: EqualityComplement {
+            form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ", measure: MeasurePhrase];
+            require head.frame = Equality;
+            require marker.ComparisonMarker = Equality;
+        }
+
+        construction EqualityAdjective: AdjectivePhrase {
+            form [complement: EqualityComplement];
+        }
+
+        construction OrderingComplement: OrderingComplement {
+            form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ", measure: MeasurePhrase];
+            require head.frame = Ordering;
+            require marker.ComparisonMarker = Ordering;
+        }
+
+        construction OrderingAdjective: AdjectivePhrase {
+            form [complement: OrderingComplement];
+        }
+
+        construction FiniteMeasure: FinitePredicate {
+            form [head: lexical(Verb), " ", measure: MeasurePhrase];
+            require head.finiteness = Finite;
+            require head.frame = Measure;
+            export number = head.number;
+            export person = head.person;
+            export Voice = Active;
+        }
+
+        construction FiniteObjectEquality: FinitePredicate {
+            form [head: lexical(Verb), " ", object: AccusativePhrase, " ", complement: EqualityComplement];
+            require head.finiteness = Finite;
+            require head.frame = ObjectEquality;
+            export number = head.number;
+            export person = head.person;
+            export Voice = Active;
+        }
+
+        construction NonfiniteMeasure: NonfinitePredicate {
+            form [head: lexical(Verb), " ", measure: MeasurePhrase];
+            require head.finiteness = Nonfinite;
+            require head.frame = Measure;
+            export form = head.form;
+            export Voice = Active;
+            export OvertHead = Yes;
+        }
+
+        construction NonfiniteObjectEquality: NonfinitePredicate {
+            form [head: lexical(Verb), " ", object: AccusativePhrase, " ", complement: EqualityComplement];
+            require head.finiteness = Nonfinite;
+            require head.frame = ObjectEquality;
+            export form = head.form;
+            export Voice = Active;
+            export OvertHead = Yes;
         }
     }
 }
