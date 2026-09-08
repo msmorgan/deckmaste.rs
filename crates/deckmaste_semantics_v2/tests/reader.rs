@@ -601,6 +601,41 @@ fn a_raw_constructor_in_a_card_is_refused_by_name() {
     );
 }
 
+/// A definition's name denotes its term (Lean `Semantics.Definition.subtypeTerm`).
+///
+/// The macro a subtype declaration registers expands to the declaration's
+/// `Definition` node, so at a `Subtype` TERM position the position takes the
+/// subtype the definition names rather than the node that defines it.
+#[test]
+fn a_subtype_macro_denotes_the_subtype_its_definition_names() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let creature: Subtype = builtin
+        .macros
+        .read_str("gargoyle")
+        .expect("a subtype declaration's name reads at a subtype position");
+    assert_eq!(
+        creature,
+        Subtype::Of {
+            host: deckmaste_semantics_v2::words::CardType::Creature,
+            label: "Gargoyle".to_owned(),
+        }
+    );
+    // The spell half, whose definition node names no host card type
+    // [CR#205.3k].
+    let spell: Subtype = builtin
+        .macros
+        .read_str("adventure")
+        .expect("a spell subtype declaration's name reads at a subtype position");
+    assert_eq!(
+        spell,
+        Subtype::Spell {
+            label: "Adventure".to_owned(),
+        }
+    );
+}
+
 /// Only a `semantic_expression` kind restricts. A word type registered as a
 /// kind for its own macro dispatch — a colour, a subtype, a turn part — keeps
 /// every constructor it always had, which is what Lean's `onlyMacros` does.

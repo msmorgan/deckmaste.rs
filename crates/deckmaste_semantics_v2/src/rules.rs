@@ -135,6 +135,28 @@ pub enum Definition {
     },
 }
 
+impl Definition {
+    /// A definition's name DENOTES its term — Lean
+    /// `Semantics.Definition.subtypeTerm`.
+    ///
+    /// A registry declaration's name is a macro whose body is this node, so
+    /// the name stands at two kinds of position: where a definition is
+    /// wanted it is the node, and where the declared TERM is wanted — a
+    /// card's subtype list, a counter reference, a designation — the position
+    /// takes the term the definition names. Each flavor names one term: a
+    /// subtype definition its `subtype`, a counter definition its `kind`, a
+    /// designation definition its `label`. Only the subtype projection
+    /// exists, because the subtype registry is the one whose names a card
+    /// writes today (`plugins-v2-subtypes-macro-only`).
+    #[must_use]
+    pub fn subtype_term(&self) -> Option<&Subtype> {
+        match self {
+            Self::Subtype { subtype, .. } => Some(subtype),
+            Self::Counter { .. } | Self::Designation { .. } => None,
+        }
+    }
+}
+
 /// The three tables a plugin's `rules/` directory defines, concatenated across
 /// its files. The predefined-token catalog is separate, because its entries
 /// are named and a plugin writes them under `tokens/`.

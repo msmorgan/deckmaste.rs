@@ -726,10 +726,61 @@ pub enum LoyaltyCost {
 }
 
 /// A card subtype. Instants and sorceries share their spell types [CR#205.3k].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Expand, Serialize)]
 pub enum Subtype {
     Of { host: CardType, label: String },
     Spell { label: String },
+}
+
+/// What reads at a `Subtype` position: the two constructors, and the
+/// `Definition` a subtype declaration's macro expands to.
+///
+/// A DEFINITION'S NAME DENOTES ITS TERM (Lean `Semantics.Definition.subtypeTerm`,
+/// `plugins-v2-subtypes-macro-only`). Every registry declaration's body is the
+/// `Definition` node it defines, so the macro `gargoyle` expands to
+/// `Subtype(subtype: Of(host: Creature, label: "Gargoyle"), rules: [])`
+/// wherever it is written; at a TERM position — a card's subtype list, an
+/// amassed subtype — the position takes the term the definition names rather
+/// than the node. The same rule reads a counter definition's `kind` and a
+/// designation definition's `label` when those registries become macro-only;
+/// only the subtype half is wired, because only subtypes are macro-only today.
+///
+/// It is a serde shim rather than a rule inside `macro_ron` because the
+/// projection is TYPED: `Definition` is this crate's mirror of Lean's, and the
+/// expander's seam knows only text and kind names. The shim also puts the
+/// definition spelling into the position's own variant list, so a card writing
+/// it raw is refused by name like `Of` and `Spell` are (§11.1).
+#[derive(Deserialize)]
+#[serde(rename = "Subtype")]
+enum SubtypeRead {
+    Of {
+        host: CardType,
+        label: String,
+    },
+    Spell {
+        label: String,
+    },
+    Subtype {
+        subtype: Subtype,
+        rules: Vec<crate::rules::Conferral>,
+    },
+}
+
+impl<'de> Deserialize<'de> for Subtype {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        use serde::de::Error as _;
+
+        Ok(match SubtypeRead::deserialize(deserializer)? {
+            SubtypeRead::Of { host, label } => Subtype::Of { host, label },
+            SubtypeRead::Spell { label } => Subtype::Spell { label },
+            SubtypeRead::Subtype { subtype, rules } => {
+                crate::rules::Definition::Subtype { subtype, rules }
+                    .subtype_term()
+                    .cloned()
+                    .ok_or_else(|| D::Error::custom("a subtype definition names a subtype"))?
+            }
+        })
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

@@ -106,6 +106,21 @@ inductive Definition where
       (zone : Option Zone) (type : Option CardType) (half : Option RoomHalf)
   deriving Repr, BEq
 
+/-- A definition's name DENOTES its term.
+
+A registry declaration's name is a macro whose body is the `Definition` above, so the name
+stands at two kinds of position: where a definition is wanted, it is the node; where the
+declared TERM is wanted — a card's subtype list, a counter reference, a designation — the
+position takes the term the definition names, not the node that defines it. Each flavor names
+one term: `.subtype` names its `subtype`, `.counter` its `kind`, `.designation` its `label`.
+
+Only the subtype projection is defined, because the subtype registry is the one whose names a
+card writes today (`plugins-v2-subtypes-macro-only`); the counter and designation projections
+follow when their registries become macro-only. -/
+def Definition.subtypeTerm : Definition → Option Subtype
+  | .subtype term _rules => some term
+  | .counter .. | .designation .. => none
+
 /-- The three tables a plugin's `rules/` directory defines, concatenated across its files. The
 predefined-token catalog is a separate list, because its entries are named and a plugin writes
 them under `tokens/` rather than `rules/`. -/

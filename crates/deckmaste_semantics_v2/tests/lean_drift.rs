@@ -299,10 +299,30 @@ fn lean_unit_run(text: &str) -> Vec<String> {
 // The Rust side
 // ---------------------------------------------------------------------------
 
+/// The visibility of the item kinds this scanner reads; `None` for every other
+/// item, which it ignores anyway.
+fn item_visibility(item: &syn::Item) -> Option<&syn::Visibility> {
+    match item {
+        syn::Item::Enum(item) => Some(&item.vis),
+        syn::Item::Struct(item) => Some(&item.vis),
+        syn::Item::Type(item) => Some(&item.vis),
+        _ => None,
+    }
+}
+
 fn rust_declarations(source: &str) -> BTreeMap<String, Shape> {
     let file = syn::parse_file(source).expect("the crate's own module parses as Rust");
     let mut out: BTreeMap<String, Shape> = BTreeMap::new();
     for item in &file.items {
+        // The mirror is the crate's PUBLIC syntax. A private declaration is
+        // implementation of the reader rather than a constructor Lean has to
+        // have — the `Subtype` position's serde shim is one — and Lean keeps
+        // no counterpart for it. The guard does not weaken: a mirrored type
+        // that lost its `pub` disappears from this side and is reported as a
+        // Lean declaration Rust does not have.
+        if !matches!(item_visibility(item), Some(syn::Visibility::Public(_))) {
+            continue;
+        }
         match item {
             syn::Item::Enum(item) => {
                 let mut shape = Shape::new();

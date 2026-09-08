@@ -121,6 +121,12 @@ fn every_nullary_helper_expands() {
             "Cost" => deckmaste_semantics_v2::abilities::Cost,
             "ManaSymbol" => deckmaste_semantics_v2::words::ManaSymbol,
             "ColorTerm" => deckmaste_semantics_v2::phrase::ColorTerm,
+            // A subtype declaration's body is its `Definition` node, and a
+            // definition's name denotes its term, so reading the macro at a
+            // `Subtype` position exercises both the derived body and the
+            // projection on all 462 declarations
+            // (`plugins-v2-subtypes-macro-only`).
+            "Subtype" => deckmaste_semantics_v2::words::Subtype,
         }
         expanded += 1;
     }
