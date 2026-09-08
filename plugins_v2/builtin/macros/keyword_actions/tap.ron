@@ -6,7 +6,7 @@ KeywordAction(
     spelling: "tap",
     grammar: Verb(
         bare: "tap",
-        participle: Unavailable,
+        participle: "tapped",
         frame_set: Transitive,
     ),
     body: Enact(

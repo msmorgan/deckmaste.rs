@@ -377,9 +377,8 @@ fn exile_declares_its_object_resultative_frame() {
 
 /// The derived past participle handles the `-e` rule (`exile` → `exiled`) but
 /// not consonant doubling: a one-syllable stem ending in a single vowel and
-/// consonant (`tap` → `tapped`) must declare its participle instead, or
-/// declare it `Unavailable` when a vocabulary literal owns the form, as
-/// `Status::Tapped` owns `tapped` (`keyword-actions-tap-untap-participle`).
+/// consonant (`tap` → `tapped`) must declare its participle instead
+/// (`keyword-actions-tap-untap-participle`).
 #[test]
 fn keyword_actions_with_doubling_stems_declare_their_participle() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
