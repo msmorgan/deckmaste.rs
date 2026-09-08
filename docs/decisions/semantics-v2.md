@@ -232,6 +232,17 @@ validate. The crate depends on `macro_ron` and on nothing deletion-bound
 functions the structural reads lowering needs (binding resolution, kind
 projection) and nothing that refuses.
 
+`Check/FactTypes.lean` holds the row types of the tables `cargo xtask facts
+generate` writes, and only those; the mirror contract covers exactly them. A
+fact type the checker owns rather than the registry is declared beside its
+hand-written table in `Check/Words.lean`, outside the mirror and with no Rust
+counterpart — `ActFacts` and its columns (`DeedRole`, `ReferentSort`,
+`EntityDomain`, `ObjectClass`, `PremiseSort`, `DeedFeature`) are the case, all
+three of their tables (`coreDeedFacts`, `abilityDeedFacts`, `actFacts`) being
+hand-written Lean. Moving a fact type between the two homes is therefore a
+change to what the drift test governs, and belongs here rather than in a
+generator ticket.
+
 ## 11. Plugin format
 
 `plugins_v2/` is the v2 plugin format. `plugins/builtin_v2` moves to

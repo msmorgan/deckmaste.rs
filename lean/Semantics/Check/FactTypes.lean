@@ -1,98 +1,12 @@
 import Semantics.Words
 import Semantics.Events
 
-/-! The data columns shared by generated registry facts and their consumers. -/
+/-! The row types of the tables `cargo xtask facts generate` writes into `Check.Facts`, and
+only those: the Lean/Rust mirror contract of `docs/decisions/semantics-v2.md` §10 covers
+exactly this module. A fact type the checker owns rather than the registry lives beside its
+hand-written table in `Check.Words`, outside the mirror. -/
 
 namespace Semantics
-
-/-- The Entity domain a referent is drawn from: a player, an object, or either [CR#102.1,109.1]. -/
-inductive EntityDomain where
-  | player | object | either
-  deriving DecidableEq, Repr
-
-/-- An object class [CR#109.1]: the overlapping ways an object is classified. -/
-inductive ObjectClass where
-  | card | token | spell | permanent | emblem | ability
-  deriving DecidableEq, Repr
-
-/-- What a referent must be: an Entity domain, optionally narrowed by object classes and card
-types. Only an object has a class. Empty `classes` admit no ability; empty `types` admit only a
-noun that names no type (`deedAltOk`), so a row that takes any typed noun lists `allTypes`. -/
-structure ReferentSort where
-  domain : EntityDomain
-  classes : List ObjectClass := []
-  types : List CardType := []
-  deriving Repr, BEq
-
-/-- Which kinds a domain admits: `.either` admits both, the others admit only their own. -/
-def EntityDomain.admits : EntityDomain → Kind → Bool
-  | .player, .player => true
-  | .object, .object => true
-  | .either, .object => true
-  | .either, .player => true
-  | _, _ => false
-
-/-- A domain's admitted kinds, listed; kept for callers built around a kind list rather than a
-membership test. -/
-def EntityDomain.kinds : EntityDomain → List Kind
-  | .player => [.player]
-  | .object => [.object]
-  | .either => [.object, .player]
-
-structure DeedRole where
-  sort : Option ReferentSort  -- none = no noun fills this role
-  bare : Bool
-  zone : Option Zone
-  deriving Repr, BEq
-
-def noRole : DeedRole := ⟨none, false, none⟩
-
-/-- The card types a role's sort names; an absent sort names none. -/
-def DeedRole.types (dr : DeedRole) : List CardType := dr.sort.elim [] (·.types)
-
-inductive PremiseSort where
-  | object | mana | value
-  deriving DecidableEq, Repr
-
-/-- The keyword actions [CR#701.1] a core constructor must name, declared so a guard reads a
-feature rather than a verb's spelling. A deed the core rules define carries no feature: it is a
-`CoreDeed` constructor, which a guard matches on directly. -/
-inductive DeedFeature where
-  | librarySearch | sacrificing | tapping
-  deriving DecidableEq, Repr
-
-/-- What the checker knows about one deed. The record carries no label: the deed itself is the
-key, and each of the three sources keys its rows its own way. -/
-structure ActFacts where
-  /-- The past participle that names this deed in a passive event clause ("when a creature is
-  destroyed"): the checker's own fact, read through `actNamesParticiple` to license
-  `verbedVoiceOk`, never the declaration's `grammar: Verb(participle: …)`, which spells a
-  keyword action for English realization and is carried by a different five words. -/
-  participle : Option String := none
-  dest : Option Zone := none
-  stepwise : Bool := false
-  loci : List Zone := []
-  intransitive : Bool := false
-  agentRole : DeedRole := noRole
-  patientRole : DeedRole := noRole
-  feature : Option DeedFeature := none
-  counterfactual : Option PremiseSort := none
-  rides : Bool := false
-  plays : Bool := false
-  bounded : Bool := false
-  /-- The deed opens an opponent's library ("fateseal" [CR#701.29a]); the same look over one's
-  own library is a different deed. -/
-  opponentsLibrary : Bool := false
-  deriving Repr, BEq
-
-def playerAgent : DeedRole := ⟨some ⟨.player, [], []⟩, true, none⟩
-def fieldObject : DeedRole := ⟨some ⟨.object, [], []⟩, false, some .battlefield⟩
-def permanentTypes : List CardType :=
-  [.creature, .artifact, .land, .enchantment, .planeswalker, .battle]
-def spellTypes : List CardType :=
-  [.creature, .artifact, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
-def allTypes : List CardType :=
-  [.creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
 
 /-- What a subtype declares about the card frame it sits on: a Saga's chapter frame [CR#714.1],
 an Adventure's inset [CR#715.1], a Room's doors [CR#709.5j]. -/
