@@ -27,5 +27,6 @@ pub use deckmaste_lexical_model::WordForm;
 
 pub use crate::analysis::*;
 pub use crate::model::*;
+pub use crate::morphology::default_participle;
 pub use crate::numeral::NumeralCodec;
 pub use crate::numeral::ParseNumeralError;

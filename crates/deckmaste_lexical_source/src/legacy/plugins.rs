@@ -146,6 +146,7 @@ fn export_metadata(
             export_keyword_supplements(
                 owner,
                 path,
+                &surface,
                 bound_suffix,
                 participial_adjective,
                 block_label,
@@ -202,6 +203,7 @@ fn export_metadata(
 fn export_keyword_supplements(
     owner: &str,
     path: &str,
+    surface: &str,
     bound_suffix: Option<metadata::BoundSuffixGrammar>,
     participial_adjective: Option<metadata::ParticipialAdjectiveGrammar>,
     block_label: Option<metadata::BlockLabelGrammar>,
@@ -220,10 +222,26 @@ fn export_keyword_supplements(
         output.lexemes.push(lexeme);
     }
     if let Some(adjective) = participial_adjective {
-        output.unmapped.push(format!(
-            "supplemental-adjective {owner}: {:?}; requires shared lexical derivation adapter",
-            adjective.surface
-        ));
+        let spelling = match adjective.surface {
+            metadata::DerivedSurface::Derived => deckmaste_lexical::default_participle(surface),
+            metadata::DerivedSurface::Override(spelling) => spelling,
+            metadata::DerivedSurface::Unavailable => {
+                unreachable!("the declaration reader rejects an unavailable adjective")
+            }
+        };
+        let mut lexeme = Lexeme::invariant(
+            format!("{owner}/adjective"),
+            spelling,
+            Category::Adjective,
+            source(SourceKind::Keyword, path, owner),
+        );
+        if let Some(onset) = adjective.onset {
+            lexeme
+                .properties
+                .features
+                .insert("Onset".into(), format!("{onset:?}"));
+        }
+        output.lexemes.push(lexeme);
     }
     if let Some(label) = block_label {
         let label_owner = format!("{owner}/block-label");
@@ -458,5 +476,53 @@ mod tests {
                 },
             }))
         );
+    }
+    #[test]
+    fn declared_adjective_derivation_uses_the_shared_default_or_replacing_override() {
+        let mut output = LexicalSources {
+            lexemes: Vec::new(),
+            unmapped: Vec::new(),
+        };
+        export_keyword_supplements(
+            "default",
+            "fixture",
+            "fortify",
+            None,
+            Some(metadata::ParticipialAdjectiveGrammar::default()),
+            None,
+            &mut output,
+        );
+        export_keyword_supplements(
+            "override",
+            "fixture",
+            "equip",
+            None,
+            Some(metadata::ParticipialAdjectiveGrammar {
+                surface: metadata::DerivedSurface::Override("equipped".into()),
+                onset: None,
+            }),
+            None,
+            &mut output,
+        );
+        let lexicon = Lexicon::new(output.lexemes).unwrap();
+        for (owner, spelling) in [
+            ("default/adjective", "fortified"),
+            ("override/adjective", "equipped"),
+        ] {
+            let value = deckmaste_lexical::LexicalValue {
+                lexeme: owner.into(),
+                form: WordForm::Invariant,
+                features: FeatureBundle::default(),
+                variant: 0,
+                capitalization: deckmaste_lexical::SurfaceCase::Declared,
+            };
+            assert_eq!(
+                lexicon
+                    .realize(&deckmaste_lexical::LexicalReading::Word(value))
+                    .unwrap(),
+                spelling
+            );
+        }
+        assert!(lexicon.analyze("equiped").matches.is_empty());
     }
 }

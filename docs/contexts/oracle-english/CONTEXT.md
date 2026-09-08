@@ -71,6 +71,14 @@ Word Form's identity and is independent of its position in the source.
 The formation of a Lexeme’s Word Forms and the grammatical distinctions they
 express.
 
+**Affix**:
+A bound morpheme that combines with a word or stem, as the prefix *non-* does.
+
+**Clitic**:
+A grammatical element that attaches to an adjacent host while taking its
+syntactic position independently of that host's word structure. The English
+genitive ending attaches at the edge of a phrase.
+
 **Capitalization**:
 The use of uppercase and lowercase letters in a written expression.
 

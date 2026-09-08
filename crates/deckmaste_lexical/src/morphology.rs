@@ -83,11 +83,18 @@ fn suffix_s(stem: &str) -> String {
     }
 }
 
-fn past(stem: &str) -> String {
+/// The regular past-participle spelling, also used by explicitly declared
+/// participial-adjective derivations. Irregular spellings replace this rule.
+#[must_use]
+pub fn default_participle(stem: &str) -> String {
     if let Some(base) = consonant_y(stem) {
         return format!("{base}ied");
     }
     if stem.ends_with('e') { format!("{stem}d") } else { format!("{stem}ed") }
+}
+
+fn past(stem: &str) -> String {
+    default_participle(stem)
 }
 
 fn gerund(stem: &str) -> String {

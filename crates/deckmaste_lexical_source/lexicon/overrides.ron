@@ -10,18 +10,23 @@
                 (form: Singular, features: (number: Some(Singular))),
                 (form: Plural, features: (number: Some(Plural))),
             ],
-            source: (kind: Core, path: "crates/deckmaste_english_v2/src/lexical_supplement.ron", owner: "lexeme:CommonNoun/One"),
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/overrides.ron", owner: "lexeme:CommonNoun/One"),
             capitalization: Initial, binding: Free,
         ),
         (
             id: "vocab:CardinalDeterminative/One", lemma: "one", category: Determinative,
             properties: (countability: [], features: {"Quantification": "Cardinal", "Cardinality": "One"}, frames: []),
             forms: [(form: Invariant, features: (number: Some(Singular)))],
-            source: (kind: Core, path: "crates/deckmaste_english_v2/src/lexical_supplement.ron", owner: "vocab:CardinalDeterminative/One"),
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/overrides.ron", owner: "vocab:CardinalDeterminative/One"),
             capitalization: Initial, binding: Free,
         ),
     ],
     overrides: [
+        // Salvaged from archive-english-v2-keyword-action-verb-inflections;
+        // the multiword head inflects, and its fixed complement does not.
+        (owner: "lexeme:keyword_action/faceAVillainousChoice", form: Preterite, surfaces: ["faced a villainous choice"]),
+        (owner: "lexeme:keyword_action/faceAVillainousChoice", form: PastParticiple, surfaces: ["faced a villainous choice"]),
+        (owner: "lexeme:keyword_action/faceAVillainousChoice", form: GerundParticiple, surfaces: ["facing a villainous choice"]),
         (owner: "core-verb:Control", form: GerundParticiple, surfaces: ["controlling"]),
         (owner: "core-verb:Flip", form: GerundParticiple, surfaces: ["flipping"]),
         (owner: "core-verb:Get", form: GerundParticiple, surfaces: ["getting"]),

@@ -41,14 +41,18 @@ representation changed when correlated marked slots entered the shared model,
 so regenerate old artifacts rather than expecting backward deserialization.
 Catalog phrases remain whole entries; their internal words are not added as new
 lexemes. Unmapped inventories and construction literals remain named source gaps.
-The transitional supplement adds noun/determinative `one` and supplies explicit
-irregular replacements under existing verb owners.
+V3-owned `deckmaste_lexical_source/lexicon/core.ron` declares closed-class
+vocabulary, pronoun bundles, auxiliary paradigms and frame additions.
+`lexicon/overrides.ron` supplies explicit irregular replacements under existing
+owners and preserves the noun/determinative `one` entries.
 
 Ordinary verbs acquire the regular paradigm before overrides. Old verb
 `Unavailable` markers based on nonattestation are reported as retired source
-policy; they do not suppress forms. Existing modal inventories still need
-explicit applicability declarations, and are reported rather than treated as
-regular verbs. Supplemental keyword-derived adjectives remain an adapter gap.
+policy; they do not suppress forms. The declared modal paradigms contain only their applicable finite forms;
+no regular nonfinite paradigm is guessed for them. Supplemental adjectives are
+loaded only when the keyword declaration explicitly requests that derivation;
+the regular participle rule above and explicit replacements also drive their
+realization.
 
 ## Occurrences and spelling
 
@@ -60,11 +64,30 @@ from lexical value identity. Raw and externally normalized text are kept distinc
 This ticket's corpus command analyzes raw text, including reminders.
 
 Free forms require word edges; Unicode combining marks belong to those words.
-`Binding` explicitly relaxes the left, right or both edges. Multiword separators
+`Binding` explicitly relaxes the left, right or both edges. Declared prefixes
+expose a following host boundary and declared suffixes expose a preceding one,
+including chains of bound forms. This is independent lexical segmentation:
+Category, host and allomorph constraints remain grammatical admission work.
+Multiword separators
 must match the declared spelling exactly. `Capitalization::Initial` adds a
 first-scalar uppercase realization when it differs from the declared spelling;
 the reading records that choice. It does not license arbitrary case folding.
 The grammar will constrain where an initial realization is appropriate.
+
+`SurfaceStructure::Word` rejects embedded whitespace, separators and quotation
+boundaries in lemmas and overrides. Internal hyphens and apostrophes are word
+characters only in their permitted spelling positions. `Multiword` declares a
+sequence of words with exact single-space separators. `Opaque` is reserved for
+catalog, keyword and notation categories; a noun cannot escape word validation
+by claiming an opaque spelling. Catalog and keyword entries retain their exact
+atomicity, including internal punctuation, without declaring their constituent
+words as lexemes.
+
+Genitive clitics and negative prefixes have their own declared categories and
+binding. Contracted auxiliary endings retain full finite bundles; straight and
+curly apostrophes are explicit spelling variants. A genitive and a contracted
+auxiliary may share the same ending without sharing grammatical identity. The
+inventory does not decide which host or use is admissible.
 
 The numeral codecs recognize cardinal, ordinal, Arabic and Roman notation
 alongside ordinary lexical entries. They never claim exclusive ownership of
@@ -83,7 +106,13 @@ cargo run -p deckmaste_lexical --example inspect -- /tmp/lexemes.ron 'counters'
 Use a supported-card subset during development. The report retains raw face
 text, input digests, byte occurrences, overlapping material classes, unknown
 words, unrecognized nonword material and unmapped source declarations. Ordinary
-vocabulary, catalogs, keywords, numerals and symbols are accounted separately.
+vocabulary, catalogs, keywords, numerals, symbols, affixes and clitics are
+accounted separately. Schema 2 lists every indexed lexical owner with its
+Category, properties, frame signatures and independently checked value count.
+Every unknown word remains named; every nonlexical scalar is classified as a
+structural separator, notation material or unresolved nonword. Those classes
+are source accounting, not lexical or grammatical licenses. In particular,
+classifying braces as notation does not license an unknown symbol inside them.
 A word is covered only by a contiguous lexical path, including a containing
 multiword entry; crossing overlaps alone cannot hide a remainder.
 

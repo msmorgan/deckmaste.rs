@@ -57,6 +57,17 @@ pub enum Binding {
     Bound,
 }
 
+/// The declared internal boundaries of a lexical spelling.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+pub enum SurfaceStructure {
+    #[default]
+    Word,
+    /// An explicitly declared sequence of words separated by single spaces.
+    Multiword,
+    /// Catalog and notation entries retain their declared atomicity.
+    Opaque,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Lexeme {
@@ -68,6 +79,8 @@ pub struct Lexeme {
     pub source: Source,
     pub capitalization: Capitalization,
     pub binding: Binding,
+    #[serde(default)]
+    pub surface_structure: SurfaceStructure,
 }
 
 impl Lexeme {
@@ -91,6 +104,14 @@ impl Lexeme {
             source,
             capitalization: Capitalization::Initial,
             binding: Binding::Free,
+            surface_structure: if matches!(
+                category,
+                crate::Category::Catalog | crate::Category::Symbol
+            ) {
+                SurfaceStructure::Opaque
+            } else {
+                SurfaceStructure::Word
+            },
         }
     }
 

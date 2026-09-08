@@ -17,6 +17,8 @@ pub enum Category {
     Preposition,
     Coordinator,
     Subordinator,
+    Affix,
+    Clitic,
     Numeral,
     /// An explicitly named inventory whose grammatical distribution is not yet
     /// mapped. It never implicitly acquires an ordinary part of speech.

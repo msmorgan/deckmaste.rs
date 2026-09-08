@@ -14,6 +14,12 @@ fn invariant(id: &str, surface: &str, category: Category) -> Lexeme {
     Lexeme::invariant(id, surface, category, source(id))
 }
 
+fn multiword(id: &str, surface: &str, category: Category) -> Lexeme {
+    let mut lexeme = invariant(id, surface, category);
+    lexeme.surface_structure = SurfaceStructure::Multiword;
+    lexeme
+}
+
 fn noun(id: &str, lemma: &str) -> Lexeme {
     Lexeme::noun(id, lemma, vec![Countability::Count], source(id))
 }
@@ -457,7 +463,7 @@ fn multiword_and_bound_forms_keep_overlapping_analyses() {
     let mut walk = invariant("bound:walk", "walk", Category::Keyword);
     walk.binding = Binding::Suffix;
     let lexicon = Lexicon::new([
-        invariant("term:mana-value", "mana value", Category::Noun),
+        multiword("term:mana-value", "mana value", Category::Noun),
         invariant("n:mana", "mana", Category::Noun),
         noun("n:value", "value"),
         swamp,
@@ -597,7 +603,7 @@ fn every_returned_reading_realizes_its_exact_source_occurrence() {
     let lexicon = Lexicon::new([
         noun("n:counter", "counter"),
         verb("v:counter", "counter"),
-        invariant("term:mana-value", "mana value", Category::Noun),
+        multiword("term:mana-value", "mana value", Category::Noun),
     ])
     .unwrap();
     let text = lexicon.analyze("Counters: one hundred mana value; countered.");
@@ -764,4 +770,77 @@ fn an_italic_run_no_declaration_spells_is_a_flavor_word() {
         },
         "only a listed ability word displaces a flavor word; a declared verb does not",
     );
+}
+
+#[test]
+fn ordinary_recipes_reject_separator_and_quote_boundaries() {
+    for surface in [
+        "two words",
+        "two\nwords",
+        "word\t",
+        "a,b",
+        "\"word\"",
+        "“word”",
+        "'word'",
+        "word;next",
+    ] {
+        assert!(
+            Lexicon::new([invariant("word", surface, Category::Noun)]).is_err(),
+            "{surface:?}"
+        );
+        let mut lexeme = noun("noun", "card");
+        lexeme.forms[0].surfaces = Some(vec![surface.into()]);
+        assert!(Lexicon::new([lexeme]).is_err(), "override {surface:?}");
+    }
+    for surface in [
+        "two\nwords",
+        "two\twords",
+        "two  words",
+        "two \"words\"",
+        "two, words",
+    ] {
+        assert!(
+            Lexicon::new([multiword("phrase", surface, Category::Noun)]).is_err(),
+            "{surface:?}"
+        );
+    }
+    let lexicon = Lexicon::new([
+        multiword("phrase", "two words", Category::Noun),
+        invariant("catalog", "A, \"Name\"", Category::Catalog),
+        invariant("symbol", "{W/U}", Category::Symbol),
+        invariant("contraction", "y'all", Category::Pronoun),
+    ])
+    .unwrap();
+    for surface in ["two words", "A, \"Name\"", "{W/U}", "y'all"] {
+        assert!(!complete(&lexicon, surface).is_empty());
+    }
+    let mut disguised = invariant("noun", "two words", Category::Noun);
+    disguised.surface_structure = SurfaceStructure::Opaque;
+    assert!(Lexicon::new([disguised]).is_err());
+}
+
+#[test]
+fn bound_forms_expose_adjacent_hosts_without_guessing_unknown_hosts() {
+    let mut prefix = invariant("prefix:non", "non", Category::Affix);
+    prefix.binding = Binding::Prefix;
+    let mut suffix = invariant("suffix:walk", "walk", Category::Keyword);
+    suffix.binding = Binding::Suffix;
+    let lexicon = Lexicon::new([prefix, suffix, noun("noun:land", "land")]).unwrap();
+    for text in ["nonland", "landwalk", "nonlandwalk", "nonnonland"] {
+        let analyzed = lexicon.analyze(text);
+        assert!(analyzed.unknown_words().is_empty(), "{text}");
+        let start = text.find("land").unwrap();
+        assert_eq!(
+            at(&analyzed, start, start + 4),
+            BTreeSet::from([word(
+                "noun:land",
+                WordForm::Singular,
+                nominal(Number::Singular)
+            )])
+        );
+    }
+    for text in ["unknownland", "landunknown", "nonunknown", "unknownwalk"] {
+        assert!(!lexicon.analyze(text).unknown_words().is_empty(), "{text}");
+    }
+    assert!(lexicon.analyze("outlandish").matches.is_empty());
 }

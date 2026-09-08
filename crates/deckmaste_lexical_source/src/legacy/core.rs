@@ -25,7 +25,11 @@ use crate::source;
 
 const GRAMMAR_PATH: &str = "crates/deckmaste_english_v2/src/constructions.rs";
 
-pub(crate) fn load(root: &Path, output: &mut LexicalSources) -> anyhow::Result<()> {
+pub(crate) fn load(
+    root: &Path,
+    output: &mut LexicalSources,
+    paradigms: &mut BTreeMap<String, crate::native::Paradigm>,
+) -> anyhow::Result<()> {
     let text = fs::read_to_string(root.join(GRAMMAR_PATH))?;
     let invocation = construction::invocation_from_source(&text)?;
     let declarations = construction::parse_declarations(invocation.tokens)?;
@@ -63,7 +67,8 @@ pub(crate) fn load(root: &Path, output: &mut LexicalSources) -> anyhow::Result<(
     );
     let provenance = path.strip_prefix(root).unwrap_or(&path).to_string_lossy();
     for verb in verbs {
-        export_verb(verb, &provenance, output);
+        let paradigm = paradigms.remove(&format!("core-verb:{}", verb.identity.0));
+        export_verb(verb, &provenance, output, paradigm);
     }
     Ok(())
 }
@@ -271,12 +276,18 @@ enum CoreFrame {
     ProVerb,
 }
 
-fn export_verb(verb: CoreVerb, path: &str, output: &mut LexicalSources) {
+fn export_verb(
+    verb: CoreVerb,
+    path: &str,
+    output: &mut LexicalSources,
+    paradigm: Option<crate::native::Paradigm>,
+) {
     let owner = format!("core-verb:{}", verb.identity.0);
-    if verb
-        .frames
-        .iter()
-        .all(|frame| matches!(frame, CoreFrame::Auxiliary))
+    if paradigm.is_none()
+        && verb
+            .frames
+            .iter()
+            .all(|frame| matches!(frame, CoreFrame::Auxiliary))
     {
         output.unmapped.push(format!(
             "auxiliary {owner}: {:?}/{:?} needs declared finite/nonfinite applicability",
@@ -321,6 +332,15 @@ fn export_verb(verb: CoreVerb, path: &str, output: &mut LexicalSources) {
             items,
         });
     }
+    if let Some(paradigm) = paradigm {
+        lexeme.forms = paradigm.forms;
+        lexeme.properties.frames = paradigm.frames;
+        lexeme.properties.features.extend(paradigm.features);
+        lexeme
+            .properties
+            .features
+            .insert("ParadigmSource".into(), crate::native::PATH.into());
+    }
     output.lexemes.push(lexeme);
 }
 
@@ -337,7 +357,7 @@ mod tests {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        export_verb(verb, "test-source", &mut output);
+        export_verb(verb, "test-source", &mut output, None);
         let lexicon = Lexicon::new(output.lexemes).unwrap();
         for surface in ["attack", "attacks", "attacked", "attacking"] {
             assert!(
@@ -354,7 +374,7 @@ mod tests {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        export_verb(verb, "test-source", &mut output);
+        export_verb(verb, "test-source", &mut output, None);
         let lexeme = &output.lexemes[0];
         assert_eq!(lexeme.id, "core-verb:Draw");
         assert_eq!(lexeme.source.owner, "core-verb:Draw");

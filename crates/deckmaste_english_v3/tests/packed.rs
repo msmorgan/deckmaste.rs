@@ -25,6 +25,7 @@ use deckmaste_lexical::Person;
 use deckmaste_lexical::Relation;
 use deckmaste_lexical::Source;
 use deckmaste_lexical::SourceKind;
+use deckmaste_lexical::SurfaceStructure;
 use deckmaste_lexical::WordForm;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Ord, PartialOrd)]
@@ -306,8 +307,10 @@ fn multiword_and_bound_overlaps_keep_distinct_leaf_structure() {
     suffix.binding = Binding::Suffix;
     let mut prefix = word("prefix", "island");
     prefix.binding = Binding::Prefix;
+    let mut whole = word("whole", "first strike");
+    whole.surface_structure = SurfaceStructure::Multiword;
     let lexicon = Lexicon::new([
-        word("whole", "first strike"),
+        whole,
         word("first", "first"),
         word("strike", "strike"),
         word("compound", "islandwalk"),

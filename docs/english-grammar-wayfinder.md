@@ -9,9 +9,10 @@ Semantics. The `needs:` graph is the scheduling authority.
 The retained-reading experiments are preserved on
 `archive-english-v2-feature-chart-integration` as optional implementation
 evidence; they create no scheduling edge and do not constrain the Lean model or
-fresh v3 runtime. `english-v2-keyword-action-verb-inflections` remains with its
-owner; the lexical-inventory ticket consumes any useful declarations only after
-it lands.
+fresh v3 runtime. Old v2 WIP is archived under `archive-<old-slug>`; useful
+declarations remain optional source evidence. In particular, the v3 lexical
+inventory does not depend on a v2 keyword-action inflection landing (user
+correction, 2026-09-08).
 
 ## Production chain
 

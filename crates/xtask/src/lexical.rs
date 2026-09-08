@@ -15,6 +15,7 @@ use anyhow::ensure;
 use deckmaste_data::mtgjson::AtomicCards;
 use deckmaste_lexical::AnalyzedText;
 use deckmaste_lexical::Category;
+use deckmaste_lexical::LexicalProperties;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Source;
@@ -44,6 +45,53 @@ enum Material {
     Keyword,
     Numeral,
     Symbol,
+    Affix,
+    Clitic,
+}
+
+/// These inventories describe source material; they do not admit grammar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum RemainderClass {
+    UnresolvedWord,
+    StructuralSeparator,
+    Notation,
+    UnresolvedNonword,
+}
+
+fn nonword_class(ch: char) -> RemainderClass {
+    if ch.is_whitespace()
+        || matches!(
+            ch,
+            '.' | ','
+                | ':'
+                | ';'
+                | '!'
+                | '?'
+                | '"'
+                | '\''
+                | '’'
+                | '‘'
+                | '“'
+                | '”'
+                | '('
+                | ')'
+                | '['
+                | ']'
+                | '—'
+                | '–'
+                | '•'
+        )
+    {
+        RemainderClass::StructuralSeparator
+    } else if matches!(
+        ch,
+        '{' | '}' | '+' | '-' | '−' | '/' | '=' | '|' | '¹' | '²' | '³' | '⁰' | '⁴' | '⁵'
+    ) {
+        RemainderClass::Notation
+    } else {
+        RemainderClass::UnresolvedNonword
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -103,6 +151,17 @@ struct Inventory {
     matched_readings: usize,
     word_occurrences: usize,
     unknown_word_occurrences: usize,
+    /// Every unknown word and every nonlexical scalar, including whitespace,
+    /// is retained by spelling in one of these classes.
+    remainder_classes: BTreeMap<RemainderClass, BTreeMap<String, usize>>,
+}
+
+#[derive(Debug, Serialize)]
+struct LexemeInventory {
+    lemma: String,
+    category: Category,
+    properties: LexicalProperties,
+    independent_values_checked: usize,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -125,6 +184,10 @@ struct Report {
     supported_faces_without_text: usize,
     independent_values_checked: usize,
     lexeme_sources: BTreeMap<String, Source>,
+    lexeme_inventory: BTreeMap<String, LexemeInventory>,
+    /// Declared frame signatures belong to lexical identities; they are not
+    /// stand-alone surface readings or constructed grammar values.
+    declared_frame_signatures: usize,
     unmapped_sources: Vec<String>,
     #[serde(rename = "timings_seconds")]
     timings: Timings,
@@ -221,12 +284,12 @@ fn check_independent_values(lexicon: &Lexicon) -> Result<usize> {
 
 fn analyze_cards(cards: &AtomicCards<'_>, lexicon: &Lexicon) -> Result<Report> {
     let mut report = Report {
-        schema: 1,
+        schema: 2,
         input: PathBuf::new(),
         input_sha256: String::new(),
         support_filter: "AtomicCard::vintage_playable: Vintage Legal or Restricted",
         normalization: "none; raw Oracle text including reminders",
-        nonword_policy: "only actual lexical matches recognize non-word material; whitespace is structural; no blanket punctuation or brace license",
+        nonword_policy: "only lexical matches count as lexical coverage; all remaining scalars and unknown words are classified by spelling as unresolved words, structural separators, notation, or unresolved nonwords; material classification does not license grammar",
         supported_faces: 0,
         supported_faces_without_text: 0,
         independent_values_checked: 0,
@@ -235,6 +298,12 @@ fn analyze_cards(cards: &AtomicCards<'_>, lexicon: &Lexicon) -> Result<Report> {
             .iter()
             .map(|(id, lexeme)| (id.clone(), lexeme.source.clone()))
             .collect(),
+        lexeme_inventory: lexeme_inventory(lexicon),
+        declared_frame_signatures: lexicon
+            .lexemes()
+            .values()
+            .map(|lexeme| lexeme.properties.frames.len())
+            .sum(),
         unmapped_sources: Vec::new(),
         timings: Timings::default(),
         inventory: Inventory::default(),
@@ -275,6 +344,31 @@ fn analyze_cards(cards: &AtomicCards<'_>, lexicon: &Lexicon) -> Result<Report> {
     Ok(report)
 }
 
+fn lexeme_inventory(lexicon: &Lexicon) -> BTreeMap<String, LexemeInventory> {
+    let mut counts = BTreeMap::<&str, usize>::new();
+    for value in lexicon.values() {
+        *counts.entry(&value.lexeme).or_default() += 1;
+    }
+    lexicon
+        .lexemes()
+        .iter()
+        .map(|(id, lexeme)| {
+            (
+                id.clone(),
+                LexemeInventory {
+                    lemma: lexeme.lemma.clone(),
+                    category: lexeme.category,
+                    properties: lexeme.properties.clone(),
+                    independent_values_checked: counts
+                        .get(id.as_str())
+                        .copied()
+                        .unwrap_or_default(),
+                },
+            )
+        })
+        .collect()
+}
+
 fn materials(lexicon: &Lexicon, reading: &LexicalReading) -> Result<BTreeSet<Material>> {
     let LexicalReading::Word(value) = reading else {
         return Ok(BTreeSet::from([Material::Numeral]));
@@ -288,6 +382,8 @@ fn materials(lexicon: &Lexicon, reading: &LexicalReading) -> Result<BTreeSet<Mat
         Category::Keyword => Material::Keyword,
         Category::Numeral => Material::Numeral,
         Category::Symbol => Material::Symbol,
+        Category::Affix => Material::Affix,
+        Category::Clitic => Material::Clitic,
         _ => Material::Ordinary,
     };
     let mut result = BTreeSet::from([primary]);
@@ -402,6 +498,12 @@ fn account_text(
         if is_unknown {
             entry.unknown_occurrences += 1;
             inventory.unknown_word_occurrences += 1;
+            *inventory
+                .remainder_classes
+                .entry(RemainderClass::UnresolvedWord)
+                .or_default()
+                .entry(key.clone())
+                .or_default() += 1;
             *inventory.unknown_words.entry(key).or_default() += 1;
         }
         words.push(WordOccurrence {
@@ -410,6 +512,16 @@ fn account_text(
             fully_covered_classes,
             unknown: is_unknown,
         });
+    }
+    for (index, ch) in analyzed.tokens.iter().enumerate() {
+        if !word_characters[index] && !coverage.values().any(|mask| mask[index]) {
+            *inventory
+                .remainder_classes
+                .entry(nonword_class(*ch))
+                .or_default()
+                .entry(ch.to_string())
+                .or_default() += 1;
+        }
     }
     let unrecognized = (0..analyzed.tokens.len())
         .map(|index| {
@@ -591,5 +703,29 @@ mod tests {
                 .to_string()
                 .contains("lexical analyze/render law failed at 0..4")
         );
+    }
+    #[test]
+    fn remainder_classes_account_for_every_nonlexical_scalar_without_licensing_it() {
+        let lexicon = lexicon();
+        let analyzed = lexicon.analyze("mystery {QZ}. ☃\n");
+        let mut inventory = Inventory::default();
+        account_text(&analyzed, &lexicon, &mut inventory).unwrap();
+        assert_eq!(
+            inventory.remainder_classes[&RemainderClass::UnresolvedWord],
+            BTreeMap::from([("mystery".into(), 1), ("qz".into(), 1)])
+        );
+        assert_eq!(
+            inventory.remainder_classes[&RemainderClass::Notation],
+            BTreeMap::from([("{".into(), 1), ("}".into(), 1)])
+        );
+        assert_eq!(
+            inventory.remainder_classes[&RemainderClass::StructuralSeparator],
+            BTreeMap::from([(" ".into(), 2), (".".into(), 1), ("\n".into(), 1)])
+        );
+        assert_eq!(
+            inventory.remainder_classes[&RemainderClass::UnresolvedNonword],
+            BTreeMap::from([("☃".into(), 1)])
+        );
+        assert_eq!(inventory.unknown_word_occurrences, 2);
     }
 }

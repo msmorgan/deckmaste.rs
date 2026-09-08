@@ -4,6 +4,8 @@
 //! source formats used to salvage the current inventory.
 
 mod legacy;
+mod native;
+mod supplement;
 
 use std::path::Path;
 
@@ -13,6 +15,7 @@ use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
 use deckmaste_lexical::Source;
 use deckmaste_lexical::SourceKind;
+use deckmaste_lexical::SurfaceStructure;
 
 pub struct LexicalSources {
     pub lexemes: Vec<Lexeme>,
@@ -29,7 +32,14 @@ pub fn load_workspace(root: &Path) -> anyhow::Result<LexicalSources> {
         lexemes: Vec::new(),
         unmapped: Vec::new(),
     };
-    legacy::core::load(root, &mut output)?;
+    let mut native = native::load(root)?;
+    output.lexemes.extend(native.lexemes);
+    legacy::core::load(root, &mut output, &mut native.core_verb_paradigms)?;
+    anyhow::ensure!(
+        native.core_verb_paradigms.is_empty(),
+        "unresolved core verb paradigm owners: {:?}",
+        native.core_verb_paradigms.keys().collect::<Vec<_>>()
+    );
     legacy::plugins::load(root, &mut output)?;
     let directory = root.join("data/gen/catalogs");
     let catalogs = deckmaste_catalogs::CatalogSet::load(&directory)
@@ -53,7 +63,17 @@ pub fn load_workspace(root: &Path) -> anyhow::Result<LexicalSources> {
             output.lexemes.push(lexeme);
         }
     }
-    legacy::supplement::apply(root, &mut output)?;
+    supplement::apply(root, &mut output)?;
+    native::replace_forms(&mut output.lexemes, native.form_replacements)?;
+    native::add_frames(&mut output.lexemes, native.frame_additions)?;
+    native::reconcile_frames(&mut output.lexemes, &native.frame_markers)?;
+    for lexeme in &mut output.lexemes {
+        if lexeme.source.kind == SourceKind::Catalog || lexeme.category == Category::Keyword {
+            lexeme.surface_structure = SurfaceStructure::Opaque;
+        } else if lexeme.lemma.contains(' ') {
+            lexeme.surface_structure = SurfaceStructure::Multiword;
+        }
+    }
     output.lexemes.sort_by(|left, right| left.id.cmp(&right.id));
     anyhow::ensure!(
         output

@@ -30,22 +30,10 @@ struct Override {
 }
 
 pub(crate) fn apply(root: &Path, output: &mut LexicalSources) -> anyhow::Result<()> {
-    let mut supplements = super::ron_documents(root)?
-        .into_iter()
-        .filter_map(|(path, source)| {
-            ron::from_str::<Supplement>(&source)
-                .ok()
-                .map(|supplement| (path, supplement))
-        });
-    let (path, supplement) = supplements
-        .next()
-        .context("no supplemental lexical declarations found in the transitional source tree")?;
-    anyhow::ensure!(
-        supplements.next().is_none(),
-        "multiple supplemental lexical declarations found in the transitional source tree"
-    );
-    let path = path.strip_prefix(root).unwrap_or(&path).to_string_lossy();
-    apply_declarations(&path, supplement, output)
+    let path = "crates/deckmaste_lexical_source/lexicon/overrides.ron";
+    let text = std::fs::read_to_string(root.join(path)).context("reading lexical overrides")?;
+    let supplement = ron::from_str(&text).context("decoding lexical overrides")?;
+    apply_declarations(path, supplement, output)
 }
 
 fn apply_declarations(

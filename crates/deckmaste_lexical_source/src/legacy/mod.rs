@@ -11,7 +11,6 @@ use anyhow::Context;
 
 pub(crate) mod core;
 pub(crate) mod plugins;
-pub(crate) mod supplement;
 
 const ENGLISH_V2_SOURCE_DIR: &str = "crates/deckmaste_english_v2/src";
 

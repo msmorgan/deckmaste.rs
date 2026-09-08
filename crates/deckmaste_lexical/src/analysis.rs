@@ -11,6 +11,7 @@ use crate::Lexeme;
 use crate::LexicalReading;
 use crate::LexicalValue;
 use crate::SurfaceCase;
+use crate::SurfaceStructure;
 use crate::morphology;
 use crate::numeral::Numeral;
 use crate::numeral::NumeralCodec;
@@ -183,6 +184,19 @@ impl Lexicon {
             if result.lexemes.contains_key(&lexeme.id) {
                 return Err(error("duplicate identity"));
             }
+            if lexeme.surface_structure == SurfaceStructure::Opaque
+                && !matches!(
+                    lexeme.category,
+                    Category::Catalog | Category::Keyword | Category::Symbol | Category::Numeral
+                )
+            {
+                return Err(error(
+                    "opaque spelling requires a catalog or notation category",
+                ));
+            }
+            if !valid_surface(&lexeme.lemma, lexeme.surface_structure, lexeme.binding) {
+                return Err(error("lemma violates its declared word boundaries"));
+            }
             let mut slots = BTreeSet::new();
             for declaration in &lexeme.forms {
                 if !slots.insert((declaration.form, &declaration.features)) {
@@ -211,6 +225,9 @@ impl Lexicon {
                         || !distinct.insert(surface.clone())
                     {
                         return Err(error("empty, padded or duplicate spelling variant"));
+                    }
+                    if !valid_surface(&surface, lexeme.surface_structure, lexeme.binding) {
+                        return Err(error("spelling violates its declared word boundaries"));
                     }
                     let value = LexicalValue {
                         lexeme: lexeme.id.clone(),
@@ -333,25 +350,61 @@ impl Lexicon {
     #[must_use]
     pub fn analyze_source(&self, raw: &str, normalized: Option<&str>) -> AnalyzedText {
         let tokens: Vec<char> = normalized.unwrap_or(raw).chars().collect();
-        let mut matches = Vec::new();
+        let mut candidates = Vec::new();
         for start in 0..tokens.len() {
             let mut node = 0;
-            for end in start..tokens.len() {
-                let Some(next) = self.trie[node].children.get(&tokens[end]) else {
+            for (end, ch) in tokens.iter().enumerate().skip(start) {
+                let Some(next) = self.trie[node].children.get(ch) else {
                     break;
                 };
                 node = *next;
                 for (value, binding) in &self.trie[node].values {
-                    if edges_match(&tokens, start, end + 1, *binding) {
-                        matches.push(LexicalMatch {
+                    candidates.push((
+                        LexicalMatch {
                             start,
                             end: end + 1,
                             reading: LexicalReading::Word(value.clone()),
-                        });
-                    }
+                        },
+                        *binding,
+                    ));
                 }
             }
         }
+        // Prefixes expose a following word boundary; suffixes expose a
+        // preceding one. Both passes follow increasing surface length, with
+        // no grammar or host-category judgment at this boundary.
+        let mut prefix_ends = vec![false; tokens.len() + 1];
+        for (found, binding) in &candidates {
+            if matches!(binding, Binding::Prefix | Binding::Bound)
+                && (edges_match(&tokens, found.start, found.end, Binding::Prefix)
+                    || prefix_ends[found.start]
+                    || *binding == Binding::Bound)
+            {
+                prefix_ends[found.end] = true;
+            }
+        }
+        let mut suffix_starts = vec![false; tokens.len() + 1];
+        for (found, binding) in candidates.iter().rev() {
+            if matches!(binding, Binding::Suffix | Binding::Bound)
+                && (edges_match(&tokens, found.start, found.end, Binding::Suffix)
+                    || suffix_starts[found.end]
+                    || *binding == Binding::Bound)
+            {
+                suffix_starts[found.start] = true;
+            }
+        }
+        let mut matches = candidates
+            .into_iter()
+            .filter_map(|(found, binding)| {
+                let left = edges_match(&tokens, found.start, found.end, Binding::Prefix)
+                    || matches!(binding, Binding::Suffix | Binding::Bound)
+                    || prefix_ends[found.start];
+                let right = edges_match(&tokens, found.start, found.end, Binding::Suffix)
+                    || matches!(binding, Binding::Prefix | Binding::Bound)
+                    || suffix_starts[found.end];
+                (left && right).then_some(found)
+            })
+            .collect::<Vec<_>>();
         numeral_matches(&tokens, &mut matches);
         AnalyzedText {
             raw: raw.to_owned(),
@@ -364,6 +417,29 @@ impl Lexicon {
 
 fn word_character(ch: char) -> bool {
     unicode_ident::is_xid_continue(ch)
+}
+
+fn valid_surface(surface: &str, structure: SurfaceStructure, binding: Binding) -> bool {
+    match structure {
+        SurfaceStructure::Opaque => !surface.chars().any(char::is_control),
+        SurfaceStructure::Multiword => surface
+            .split(' ')
+            .all(|word| valid_word(word, Binding::Free)),
+        SurfaceStructure::Word => valid_word(surface, binding),
+    }
+}
+
+fn valid_word(word: &str, binding: Binding) -> bool {
+    let characters: Vec<_> = word.chars().collect();
+    !characters.is_empty()
+        && characters.iter().enumerate().all(|(index, ch)| {
+            word_character(*ch)
+                || matches!(ch, '\'' | '’' | '-')
+                    && (index > 0 && word_character(characters[index - 1])
+                        || matches!(binding, Binding::Suffix | Binding::Bound))
+                    && (index + 1 < characters.len() && word_character(characters[index + 1])
+                        || matches!(binding, Binding::Prefix | Binding::Suffix | Binding::Bound))
+        })
 }
 
 fn edges_match(tokens: &[char], start: usize, end: usize, binding: Binding) -> bool {
