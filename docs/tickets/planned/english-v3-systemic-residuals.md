@@ -23,3 +23,7 @@ performance after all deferred constraints have run. Candidates rejected by
 deferral do not count as Readings. Acceptance requires evidence that remaining
 failures are usefully handled as coherent residual batches; this judgment is
 revisable and has no fixed percentage threshold. Standard constraints apply.
+
+Activation artifacts: `data/reports/english-v3/kkmxslkn/manifest.json` (ignored,
+shared data). The activation landing record gives reproduction commands; its
+obligation and acceptance-audit artifacts distinguish parsing from re-coverage.
