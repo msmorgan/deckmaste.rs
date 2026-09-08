@@ -51,6 +51,18 @@ label is the run itself, analysed by `deckmaste_lexical`.
 
 ## Implementation progress
 
+Handoff boundary clarified by the user (2026-09-08):
+`english-v3-systemic-residuals` owns general lexical, grammatical, compiler and
+admission failures exposed by the first run. This activation must connect every
+planned family through real Productions, establish the supported-corpus baseline,
+and account for the complete inherited obligation register. It does not need to
+repair every general gap or make every named witness pass before handing off.
+Unresolved witnesses retain their identities, required analyses, measured status
+and explicit follow-up owner. Article/onset, capitalization, richer frames and
+extraction must be assessed under that boundary, rather than automatically
+expanding activation into systemic closure. Missing entire families still need
+their connected declarations before the whole-grammar experiment.
+
 The activation remains incomplete. `english_v3::grammar` is now the connected
 production candidate, alongside the retained bounded `english_v3::slice`
 compiler/runtime witness. No supported-corpus grammar baseline has been claimed
@@ -247,3 +259,58 @@ is now implemented, but the ticket remains incomplete: the full connected
 declarations, inherited obligation audit, independent value/linguistic evidence,
 complete supported-corpus baseline and cause-grouped residual analysis are still
 required before review and integration.
+
+Document-connection checkpoint, change `vsryvkun`: the candidate now has 127
+Construction declarations over 46 public Categories. Keyword lines use declared
+parameter classes for bare, numeric and symbolic-cost forms; required parameters
+cannot disappear through the bare rule. Flat cost and modal lists connect to
+ordinary predicates and paragraphs. Ability-word heads, parentheticals and
+literal quotations share those document constituents, and selected verb frames
+admit keyword/quoted Objects. `SentenceContinuation` was replaced by
+`ParagraphContinuation` as paragraph items now include sentences, parentheticals
+and modal groups. The new regular Target Verb declaration composes with existing
+relatives and the independent Targeting Marker.
+
+This breadth exposed a compiler defect: the generated recursive admission
+function reserved roughly 190 KB per call in the debug build, growing with the
+whole grammar's match body. The normal test stack overflowed on an ordinary
+relative. A larger diagnostic stack isolated the failure, and debugger frames
+showed the same Grammar instance throughout. A separately constructed paragraph
+with sixteen nested parentheticals reproduced the failure before the fix; after
+admission was split, it exposed the same problem in rendering. Recursive
+admission, rendering and both traversals now dispatch to separate generated
+Construction methods. The regression and original grammar cases pass on the
+normal stack. No worker-stack increase is part of the implementation.
+
+Four Rust tests were added (22 cumulatively), none removed, ignored or weakened.
+They cover sixteen positive document interactions, fifteen exclusions,
+independent keyword values with exact lexical traversal, the Target Verb/Marker
+distinction in one relative, and the nested-document roundtrip. Removing the
+keyword cost-class constraint made the direct constructed-value negative fail;
+the original declaration was restored before final validation. The existing
+tests were retained through the paragraph carrier change.
+
+An eleven-face supported subset measured ten unique Readings and one no-Reading
+result, with zero parser, materialization or validation issues. Concentrate and
+Divination retain their parses; Flying Men now has its keyword-line Reading.
+Courier's Capsule, Eidolon of Philosophy, Font of Fortunes, Mystic Archaeologist,
+Oscorp Research Team, Shore Keeper and Third Path Savant exercise symbolic/action
+costs feeding numbered draw instructions. Reach Through Mists remains an explicit
+article/onset gap for `english-v3-systemic-residuals`. This is a focused wiring
+experiment, not the first complete baseline. Its input hash is
+`2d6e3a8b377de979d1cc81081721700f05619b2d94f3037d1804094dc99abfc8`.
+On change `vsryvkun`, the debug run measured 27,074,037 ns corpus wall and
+81,147 ns/B checked-text thread CPU, with one worker and host loads
+7.17/3.48/3.51. V3 still has no covered-count lock; these subset figures do not
+establish the whole-corpus performance advisory.
+
+Final validation: `cargo xtask gate --changed --from ookvvtoz --clippy --run`
+derived `deckmaste_construction_v3_core`, `deckmaste_lexical_source`,
+`deckmaste_construction_v3`, `deckmaste_english_v3`, and `xtask`. All 592 tests
+passed with zero failures and one preexisting ignore; strict all-target clippy
+passed after extracting the generated-method assembly and source-distribution
+annotation helpers. Formatting used `jj fix -s vsryvkun`. Remaining activation
+work is the absent family connections (including Type Lines), the full supported
+baseline and complete obligation/residual accounting. Richer document variants,
+article/case and other measured general gaps belong to the systemic follow-up;
+this checkpoint does not require or claim their closure.

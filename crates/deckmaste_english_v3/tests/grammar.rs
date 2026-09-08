@@ -304,3 +304,204 @@ fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
     assert!(readings("equal than 2", Category::EqualityComplement).is_empty());
     assert!(!readings("greater than 2", Category::OrderingComplement).is_empty());
 }
+
+#[test]
+fn document_collections_connect_keywords_costs_modes_quotes_and_clauses() {
+    for text in [
+        "Flying",
+        "Flying, vigilance; haste",
+        "Ward {2}{U}",
+        "Frenzy 2",
+        "Flying (Draw cards.)",
+        "{T}: Draw cards.",
+        "{2}{U}, Discard cards: Draw cards. Draw cards.",
+        "Landfall — If you draw cards, draw cards.",
+        "Draw cards. (Discard cards.) Draw cards.",
+        "Creatures have flying.",
+        "Creatures gain ward {2}.",
+        "Creatures have \"Draw cards.\".",
+        "Creatures have “{T}: Draw cards.”.",
+        "Choose one —\n• Draw cards.\n• Discard cards.",
+        "{T}: Choose one —\n• Draw cards.\n• Discard cards.",
+        "Flying\n{T}: Draw cards.\nLandfall — Draw cards.",
+    ] {
+        assert!(
+            !readings(text, Category::Document).is_empty(),
+            "no Reading for {text:?}"
+        );
+    }
+    for text in [
+        "Ward",
+        "Frenzy",
+        "Flying 2",
+        "Flying {2}",
+        "Ward two",
+        "Landfall",
+        "{two}: Draw cards.",
+        "{P}: Draw cards.",
+        ": Draw cards.",
+        "{T}, : Draw cards.",
+        "Flying, ",
+        "()",
+        "Choose one —\n",
+        "Choose one —\n• ",
+        "Creatures have “Draw cards.\".",
+    ] {
+        assert!(
+            readings(text, Category::Document).is_empty(),
+            "invalid Reading for {text:?}"
+        );
+    }
+}
+
+#[test]
+fn independent_keyword_collection_preserves_parameters_separators_and_leaf_identity() {
+    let head = |identity: &str| word(identity, WordForm::Invariant, FeatureBundle::default());
+    let mut flying = head("lexeme:keyword_ability/flying");
+    let LexicalReading::Word(value) = &mut flying.value else {
+        panic!("expected declared word");
+    };
+    value.capitalization = SurfaceCase::Initial;
+    let ward = head("lexeme:keyword_ability/ward");
+    let tap = head("vocab:FixedCostSymbol/Tap");
+    let symbols = Reading::CostSymbols {
+        form: 0,
+        first: Box::new(Reading::NumericCostSymbol {
+            form: 0,
+            number: numeral(2, deckmaste_lexical::Numeral::Arabic(false)),
+        }),
+        rest: vec![Reading::NamedCostSymbol {
+            form: 0,
+            symbol: tap.clone(),
+        }],
+    };
+    let value = Reading::KeywordLine {
+        form: 0,
+        first: Box::new(Reading::BareKeyword {
+            form: 0,
+            head: flying.clone(),
+        }),
+        rest: vec![Reading::KeywordContinuation {
+            form: 1,
+            keyword: Box::new(Reading::CostKeyword {
+                form: 0,
+                head: ward.clone(),
+                cost: Box::new(symbols.clone()),
+            }),
+        }],
+    };
+    assert_eq!(value.realize(lexicon()).unwrap(), "Flying; ward {2}{T}");
+    assert_eq!(
+        readings("Flying; ward {2}{T}", Category::Ability),
+        BTreeSet::from([value.clone()])
+    );
+    let mut visited = Vec::new();
+    value
+        .visit_words(&mut |word| visited.push(word.clone()))
+        .unwrap();
+    assert_eq!(
+        visited,
+        [
+            flying.clone(),
+            ward.clone(),
+            numeral(2, deckmaste_lexical::Numeral::Arabic(false)),
+            tap
+        ]
+    );
+    assert!(
+        Reading::BareKeyword {
+            form: 0,
+            head: ward
+        }
+        .admit(lexicon())
+        .is_err()
+    );
+    assert!(
+        Reading::CostKeyword {
+            form: 0,
+            head: flying,
+            cost: Box::new(symbols)
+        }
+        .admit(lexicon())
+        .is_err()
+    );
+}
+
+#[test]
+fn target_verb_and_targeting_marker_retain_distinct_roles_in_relatives() {
+    let text = "Spells that target target creatures attack.";
+    let values = readings(text, Category::Document);
+    assert!(!values.is_empty());
+    for value in values {
+        let mut roles = Vec::new();
+        value
+            .visit_words(&mut |word| {
+                if let LexicalReading::Word(value) = &word.value
+                    && (value.lexeme == "lexeme:Verb/Target"
+                        || value.lexeme == "vocab:TargetingMarker/Target")
+                {
+                    roles.push(value.clone());
+                }
+            })
+            .unwrap();
+        assert_eq!(roles.len(), 2);
+        assert_eq!(roles[0].lexeme, "lexeme:Verb/Target");
+        assert_eq!(roles[0].form, WordForm::Present);
+        assert_eq!(roles[0].features.number, Some(Number::Plural));
+        assert_eq!(roles[0].features.person, Some(Person::Third));
+        assert_eq!(roles[1].lexeme, "vocab:TargetingMarker/Target");
+        assert_eq!(roles[1].form, WordForm::Invariant);
+        assert_eq!(roles[1].features, FeatureBundle::default());
+    }
+    assert!(!readings("Target creatures.", Category::Document).is_empty());
+    assert!(!readings("Target creatures attack.", Category::Document).is_empty());
+    assert!(readings("Spells that targets creatures attack.", Category::Document).is_empty());
+}
+
+#[test]
+fn nested_document_admission_uses_a_normal_worker_stack() {
+    let mut head = word(
+        "core-verb:Attack",
+        WordForm::Plain,
+        FeatureBundle {
+            finiteness: Some(Finiteness::Nonfinite),
+            ..FeatureBundle::default()
+        },
+    );
+    head.frame = Some(0);
+    let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
+    value.capitalization = SurfaceCase::Initial;
+    let mut paragraph = Reading::Paragraph {
+        form: 0,
+        first: Box::new(Reading::SentenceItem {
+            form: 0,
+            sentence: Box::new(Reading::Sentence {
+                form: 0,
+                clause: Box::new(Reading::Imperative {
+                    form: 0,
+                    predicate: Box::new(Reading::BarePredicate {
+                        form: 0,
+                        head: Box::new(Reading::NonfiniteIntransitive { form: 0, head }),
+                    }),
+                }),
+            }),
+        }),
+        rest: vec![],
+    };
+    for _ in 0..16 {
+        paragraph = Reading::Paragraph {
+            form: 0,
+            first: Box::new(Reading::ParentheticalItem {
+                form: 0,
+                parenthetical: Box::new(Reading::Parenthetical {
+                    form: 0,
+                    body: Box::new(paragraph),
+                }),
+            }),
+            rest: vec![],
+        };
+    }
+    let expected = format!("{}Attack.{}", "(".repeat(16), ")".repeat(16));
+    assert_eq!(paragraph.realize(lexicon()).unwrap(), expected);
+    assert!(readings(&expected, Category::Paragraph).contains(&paragraph));
+}

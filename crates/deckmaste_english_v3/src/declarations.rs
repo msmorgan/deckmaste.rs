@@ -22,12 +22,16 @@ constructions! {
         feature MeasurePreposition { Yes }
         feature MeasurePosition { Before, After }
         feature ComparisonMarker { Equality, Ordering }
+        feature KeywordParameterClass { Nullary, Amount, Cost }
+        feature LabelKind { AbilityWord }
+        feature SymbolUse { Cost }
 
         category Document();
         category Ability();
         category AbilityContinuation();
         category Paragraph();
-        category SentenceContinuation();
+        category ParagraphItem();
+        category ParagraphContinuation();
         category Sentence();
         category Clause();
         category FiniteClause();
@@ -56,6 +60,18 @@ constructions! {
         category MeasurePhrase();
         category EqualityComplement();
         category OrderingComplement();
+        category KeywordPhrase();
+        category KeywordContinuation();
+        category Cost();
+        category CostComponent();
+        category CostContinuation();
+        category CostSymbols();
+        category CostSymbol();
+        category Parenthetical();
+        category QuotedText();
+        category Mode();
+        category Modes();
+        category ModeContinuation();
 
         frame Intransitive = "(kind: \"Predicate\", items: [])";
         frame Transitive = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\"))])";
@@ -68,6 +84,9 @@ constructions! {
         frame Equality = "(kind: \"Predicate\", items: [Marked(vocabulary: \"Preposition\", member: \"To\", slot: (relation: Complement, category: \"MeasurePhrase\"))])";
         frame Ordering = "(kind: \"Predicate\", items: [Marked(vocabulary: \"Preposition\", member: \"Than\", slot: (relation: Complement, category: \"MeasurePhrase\"))])";
         frame ObjectEquality = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\")), Argument((relation: Complement, category: \"ScalarEquality\"))])";
+        frame KeywordObject = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"KeywordPhrase\"))])";
+        frame QuotedObject = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"QuotedText\"))])";
+        frame CardinalComplement = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"Cardinal\"))])";
 
         table additive_person(person, person) -> person {
             (First, First) => First,
@@ -150,11 +169,112 @@ constructions! {
         }
 
         construction Paragraph: Paragraph {
-            form [first: Sentence, rest: repeat(SentenceContinuation, "")];
+            form [first: ParagraphItem, rest: repeat(ParagraphContinuation, "")];
         }
 
-        construction SentenceContinuation: SentenceContinuation {
-            form [" ", sentence: Sentence];
+        construction ParagraphContinuation: ParagraphContinuation {
+            form [" ", item: ParagraphItem];
+        }
+
+        construction SentenceItem: ParagraphItem {
+            form [sentence: Sentence];
+        }
+
+        construction ParentheticalItem: ParagraphItem {
+            form [parenthetical: Parenthetical];
+        }
+
+        construction Parenthetical: Parenthetical {
+            form ["(", body: Paragraph, ")"];
+        }
+
+        construction QuotedText: QuotedText {
+            form ["\"", text: Document, "\""];
+            form ["“", text: Document, "”"];
+        }
+
+        construction ActivatedAbility: Ability {
+            form [cost: Cost, ": ", body: Paragraph];
+        }
+
+        construction AbilityWordHead: Ability {
+            form [head: lexical(Keyword), " — ", body: Ability];
+            require head.LabelKind = AbilityWord;
+        }
+
+        construction Cost: Cost {
+            form [first: CostComponent, rest: repeat(CostContinuation, "")];
+        }
+
+        construction CostContinuation: CostContinuation {
+            form [", ", component: CostComponent];
+        }
+
+        construction ActionCost: CostComponent {
+            form [action: BarePredicate];
+            require action.OvertHead = Yes;
+        }
+
+        construction SymbolCost: CostComponent {
+            form [symbols: CostSymbols];
+        }
+
+        construction CostSymbols: CostSymbols {
+            form [first: CostSymbol, rest: repeat(CostSymbol, "")];
+        }
+
+        construction NamedCostSymbol: CostSymbol {
+            form ["{", symbol: lexical(Symbol), "}"];
+            require symbol.SymbolUse = Cost;
+        }
+
+        construction NumericCostSymbol: CostSymbol {
+            form ["{", number: lexical(Numeral), "}"];
+            require number.numeral_kind = Arabic;
+        }
+
+        construction KeywordLine: Ability {
+            form [first: KeywordPhrase, rest: repeat(KeywordContinuation, "")];
+        }
+
+        construction KeywordContinuation: KeywordContinuation {
+            form [", ", keyword: KeywordPhrase];
+            form ["; ", keyword: KeywordPhrase];
+        }
+
+        construction BareKeyword: KeywordPhrase {
+            form [head: lexical(Keyword)];
+            require head.KeywordParameterClass = Nullary;
+        }
+
+        construction AmountKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", amount: MeasurePhrase];
+            require head.KeywordParameterClass = Amount;
+        }
+
+        construction CostKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", cost: CostSymbols];
+            require head.KeywordParameterClass = Cost;
+        }
+
+        construction RemindedKeyword: KeywordPhrase {
+            form [keyword: KeywordPhrase, " ", reminder: Parenthetical];
+        }
+
+        construction Mode: Mode {
+            form ["• ", body: Paragraph];
+        }
+
+        construction ModeContinuation: ModeContinuation {
+            form ["\n", mode: Mode];
+        }
+
+        construction Modes: Modes {
+            form [first: Mode, rest: repeat(ModeContinuation, "")];
+        }
+
+        construction ModalItem: ParagraphItem {
+            form [header: Clause, " —\n", modes: Modes];
         }
 
         construction Sentence: Sentence {
@@ -792,6 +912,51 @@ constructions! {
             form [head: lexical(Verb), " ", object: AccusativePhrase, " ", complement: EqualityComplement];
             require head.finiteness = Nonfinite;
             require head.frame = ObjectEquality;
+            export form = head.form;
+            export Voice = Active;
+            export OvertHead = Yes;
+        }
+
+        construction FiniteKeywordObject: FinitePredicate {
+            form [head: lexical(Verb), " ", object: KeywordPhrase];
+            require head.finiteness = Finite;
+            require head.frame = KeywordObject;
+            export number = head.number;
+            export person = head.person;
+            export Voice = Active;
+        }
+
+        construction NonfiniteKeywordObject: NonfinitePredicate {
+            form [head: lexical(Verb), " ", object: KeywordPhrase];
+            require head.finiteness = Nonfinite;
+            require head.frame = KeywordObject;
+            export form = head.form;
+            export Voice = Active;
+            export OvertHead = Yes;
+        }
+
+        construction FiniteQuotedObject: FinitePredicate {
+            form [head: lexical(Verb), " ", object: QuotedText];
+            require head.finiteness = Finite;
+            require head.frame = QuotedObject;
+            export number = head.number;
+            export person = head.person;
+            export Voice = Active;
+        }
+
+        construction NonfiniteQuotedObject: NonfinitePredicate {
+            form [head: lexical(Verb), " ", object: QuotedText];
+            require head.finiteness = Nonfinite;
+            require head.frame = QuotedObject;
+            export form = head.form;
+            export Voice = Active;
+            export OvertHead = Yes;
+        }
+
+        construction NonfiniteCardinal: NonfinitePredicate {
+            form [head: lexical(Verb), " ", count: Cardinal];
+            require head.finiteness = Nonfinite;
+            require head.frame = CardinalComplement;
             export form = head.form;
             export Voice = Active;
             export OvertHead = Yes;

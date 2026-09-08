@@ -169,22 +169,7 @@ fn export_metadata(
             lexeme
         }
     };
-    if let Some(grammar) = normalized.grammar() {
-        lexeme
-            .properties
-            .features
-            .insert("source_recipe".into(), format!("{:?}", grammar.recipe()));
-    }
-    if let Some(class) = authored.noun_class {
-        lexeme.properties.features.insert(
-            "locative_temporal_license".into(),
-            format!("{:?}", class.locative_temporal_license),
-        );
-        lexeme
-            .properties
-            .features
-            .insert("relationality".into(), format!("{:?}", class.relationality));
-    }
+    export_distribution(&mut lexeme, normalized, authored.noun_class);
     // Parameterized spelling remains a grammar recipe, not guessed ordinary
     // words.
     if normalized
@@ -198,6 +183,35 @@ fn export_metadata(
         ));
     }
     output.lexemes.push(lexeme);
+}
+
+fn export_distribution(
+    lexeme: &mut Lexeme,
+    normalized: &metadata::NormalizedDeclaration,
+    noun_class: Option<metadata::NounClassSemantics>,
+) {
+    if let Some(grammar) = normalized.grammar() {
+        lexeme
+            .properties
+            .features
+            .insert("source_recipe".into(), format!("{:?}", grammar.recipe()));
+    }
+    if let Some(parameter) = normalized.keyword_parameter_class() {
+        lexeme
+            .properties
+            .features
+            .insert("KeywordParameterClass".into(), format!("{parameter:?}"));
+    }
+    if let Some(class) = noun_class {
+        lexeme.properties.features.insert(
+            "locative_temporal_license".into(),
+            format!("{:?}", class.locative_temporal_license),
+        );
+        lexeme
+            .properties
+            .features
+            .insert("relationality".into(), format!("{:?}", class.relationality));
+    }
 }
 
 fn export_keyword_supplements(

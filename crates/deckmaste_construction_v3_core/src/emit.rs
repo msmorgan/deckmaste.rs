@@ -202,10 +202,11 @@ fn ast(ir: &Ir) -> TokenStream {
     let mut categories = vec![];
     let mut constructions = vec![];
     let mut admits = vec![];
+    let mut node_methods = vec![];
     let mut writes = vec![];
     let mut visits = vec![];
     let mut words = vec![];
-    for constructor in &ir.constructors {
+    for (constructor_index, constructor) in ir.constructors.iter().enumerate() {
         let name = &constructor.name;
         let owner = name.to_string();
         let category = &ir.categories[constructor.category];
@@ -293,10 +294,23 @@ fn ast(ir: &Ir) -> TokenStream {
             word_forms.push(quote!(#index => { #(#word)* Ok(()) }));
         }
         let pattern = quote!(Self::#name { form, #(#field_names: #bindings),* });
-        admits.push(quote!(#pattern => match form { #(#admit_forms,)* _ => Err(Error::Invalid(#owner, "surface alternative")) }));
-        writes.push(quote!(#pattern => match form { #(#write_forms,)* _ => Err(Error::Invalid(#owner, "surface alternative")) }));
-        visits.push(quote!(#pattern => match form { #(#visit_forms,)* _ => Err(Error::Invalid(#owner, "surface alternative")) }));
-        words.push(quote!(#pattern => match form { #(#word_forms,)* _ => Err(Error::Invalid(#owner, "surface alternative")) }));
+        let bind = if ir.constructors.len() == 1 {
+            quote!(let #pattern = self;)
+        } else {
+            quote!(let #pattern = self else { return Err(Error::Internal); };)
+        };
+        let ([admit, write, visit, word], methods) = emit_node_methods(
+            constructor_index,
+            name,
+            &bind,
+            &owner,
+            [admit_forms, write_forms, visit_forms, word_forms],
+        );
+        admits.push(admit);
+        writes.push(write);
+        visits.push(visit);
+        words.push(word);
+        node_methods.extend(methods);
     }
     quote! {
         #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
@@ -318,6 +332,7 @@ fn ast(ir: &Ir) -> TokenStream {
                 Ok(summary)
             }
             fn admit_with(&self, grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon) -> Result<Summary, Error> { match self { #(#admits),* } }
+            #(#node_methods)*
             /// Realize a valid value using the lexical environment and declared surfaces.
             /// # Errors
             /// Reports the same admission errors as `admit`.
@@ -342,6 +357,59 @@ fn ast(ir: &Ir) -> TokenStream {
             pub fn visit_words(&self, visitor: &mut impl FnMut(&Word)) -> Result<(), Error> { match self { #(#words),* } }
         }
     }
+}
+
+fn emit_node_methods(
+    constructor: usize,
+    name: &syn::Ident,
+    bind: &TokenStream,
+    owner: &str,
+    forms: [Vec<TokenStream>; 4],
+) -> ([TokenStream; 4], Vec<TokenStream>) {
+    let operations = [
+        (
+            "admit",
+            quote!(grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon),
+            quote!(grammar, lexicon),
+            quote!(Summary),
+        ),
+        (
+            "write",
+            quote!(lexicon: &::deckmaste_lexical::Lexicon, output: &mut Realization),
+            quote!(lexicon, output),
+            quote!(()),
+        ),
+        (
+            "visit",
+            quote!(visitor: &mut impl FnMut(&Self)),
+            quote!(visitor),
+            quote!(()),
+        ),
+        (
+            "words",
+            quote!(visitor: &mut impl FnMut(&Word)),
+            quote!(visitor),
+            quote!(()),
+        ),
+    ];
+    let mut dispatch = std::array::from_fn(|_| TokenStream::new());
+    let mut methods = Vec::new();
+    for (index, ((prefix, parameters, arguments, result), forms)) in
+        operations.into_iter().zip(forms).enumerate()
+    {
+        let method = format_ident!("__{prefix}{constructor}");
+        dispatch[index] = quote!(Self::#name { .. } => self.#method(#arguments));
+        // Keep recursive frames proportional to the selected construction,
+        // rather than reserving debug-build temporaries for the entire grammar.
+        methods.push(quote! {
+            #[inline(never)]
+            fn #method(&self, #parameters) -> Result<#result, Error> {
+                #bind
+                match form { #(#forms,)* _ => Err(Error::Invalid(#owner, "surface alternative")) }
+            }
+        });
+    }
+    (dispatch, methods)
 }
 
 fn materializer(ir: &Ir) -> TokenStream {

@@ -2,6 +2,18 @@
 // corpus occurrence counts do not license or withhold an entry.
 (
     feature_additions: {
+        "vocab:FixedCostSymbol/Variable": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/White": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/Blue": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/Black": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/Red": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/Green": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/Colorless": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/Snow": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/Tap": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/Untap": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/E": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/H": {"SymbolUse": "Cost"},
         "lexeme:CommonNoun/Toughness": {"MeasurePosition": "After"},
         "lexeme:CommonNoun/Power": {"MeasurePosition": "After"},
         "lexeme:CommonNoun/Mana": {"MeasurePosition": "Before"},
@@ -80,6 +92,29 @@
         "vocab:Preposition/Without": {"PrepositionComplement": "NounPhrase"},
     },
     lexemes: [
+        (
+            id: "lexeme:Verb/Target", lemma: "target", category: Verb,
+            properties: (countability: [], features: {}, frames: [(kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase"))])]),
+            forms: [
+                (form: Plain, features: (finiteness: Some(Nonfinite))),
+                (form: GerundParticiple, features: (finiteness: Some(Nonfinite))),
+                (form: PastParticiple, features: (finiteness: Some(Nonfinite))),
+                (form: Present, features: (number: Some(Singular), person: Some(First), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Singular), person: Some(Second), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Singular), person: Some(Third), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Plural), person: Some(First), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Plural), person: Some(Second), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Plural), person: Some(Third), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Singular), person: Some(First), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Singular), person: Some(Second), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Singular), person: Some(Third), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Plural), person: Some(First), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Plural), person: Some(Second), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Plural), person: Some(Third), tense: Some(Past), finiteness: Some(Finite))),
+            ],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:Verb/Target"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
         (
             id: "vocab:Coordinator/And", lemma: "and", category: Coordinator,
             properties: (countability: [], features: {}, frames: []),
@@ -883,7 +918,16 @@
     },
     frame_additions: {
         "core-verb:Do": [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])],
-        "core-verb:Have": [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "PastParticiplePredicate"))])],
+        "core-verb:Have": [
+            (kind: "Auxiliary", items: [Argument((relation: Complement, category: "PastParticiplePredicate"))]),
+            (kind: "Predicate", items: [Argument((relation: Object, category: "KeywordPhrase"))]),
+            (kind: "Predicate", items: [Argument((relation: Object, category: "QuotedText"))]),
+        ],
+        "core-verb:Gain": [
+            (kind: "Predicate", items: [Argument((relation: Object, category: "KeywordPhrase"))]),
+            (kind: "Predicate", items: [Argument((relation: Object, category: "QuotedText"))]),
+        ],
+        "core-verb:Choose": [(kind: "Predicate", items: [Argument((relation: Complement, category: "Cardinal"))])],
         "core-verb:BeNegative": [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "ParticipialPredicate"))])],
         "core-verb:BeContracted": [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "ParticipialPredicate"))])],
         "vocab:Adjective/Able": [(kind: "Predicate", items: [Marked(vocabulary: "InfinitivalMarker", member: "To", slot: (relation: Complement, category: "BarePredicate"))])],

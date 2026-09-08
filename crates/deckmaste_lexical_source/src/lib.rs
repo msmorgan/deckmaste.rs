@@ -60,6 +60,12 @@ pub fn load_workspace(root: &Path) -> anyhow::Result<LexicalSources> {
             };
             let mut lexeme = Lexeme::invariant(&owner, surface, category, source);
             lexeme.capitalization = Capitalization::Exact;
+            if kind == deckmaste_catalogs::CatalogKind::AbilityWords {
+                lexeme
+                    .properties
+                    .features
+                    .insert("LabelKind".into(), "AbilityWord".into());
+            }
             output.lexemes.push(lexeme);
         }
     }
