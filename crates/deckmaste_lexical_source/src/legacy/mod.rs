@@ -1,7 +1,6 @@
-//! Transitional readers for declarations being salvaged from English v2.
+//! Readers for authored lexical inventories and shared plugin declarations.
 //!
-//! Nothing outside this crate observes these source formats. The public
-//! interface returns normalized lexical declarations.
+//! The public interface returns normalized lexical declarations.
 
 use std::fs;
 use std::path::Path;
@@ -12,10 +11,10 @@ use anyhow::Context;
 pub(crate) mod core;
 pub(crate) mod plugins;
 
-const ENGLISH_V2_SOURCE_DIR: &str = "crates/deckmaste_english_v2/src";
+const LEXICAL_SOURCE_DIR: &str = "crates/deckmaste_lexical_source/lexicon";
 
 pub(crate) fn ron_documents(root: &Path) -> anyhow::Result<Vec<(PathBuf, String)>> {
-    let directory = root.join(ENGLISH_V2_SOURCE_DIR);
+    let directory = root.join(LEXICAL_SOURCE_DIR);
     let mut paths = Vec::new();
     collect_ron_documents(&directory, &mut paths)?;
     paths.sort();

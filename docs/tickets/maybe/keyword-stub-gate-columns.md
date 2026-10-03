@@ -10,7 +10,7 @@ authored in xtask's overlay (`crates/xtask/src/facts.rs`) because
 deserialises into `deckmaste_construction_core::macro_def::Metadata`, which
 is `#[serde(deny_unknown_fields)]` over `spelling`/`grammar`/`noun_class`/
 `category`, is `include_str!`-embedded in that crate, and is read by
-`deckmaste_english_v2::environment`. Carrying the columns in the stubs
+`deckmaste_english_v3::environment`. Carrying the columns in the stubs
 means widening that English-v2 seam and touching all 195 stubs.
 
 Options: (a) leave the overlay as the columns' home and record that the

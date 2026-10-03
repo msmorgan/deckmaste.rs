@@ -23,31 +23,20 @@ use serde::de::Visitor;
 use crate::LexicalSources;
 use crate::source;
 
-const GRAMMAR_PATH: &str = "crates/deckmaste_english_v2/src/constructions.rs";
+const VOCABULARY_PATH: &str = "crates/deckmaste_lexical_source/lexicon/vocabulary.rs";
 
 pub(crate) fn load(
     root: &Path,
     output: &mut LexicalSources,
     paradigms: &mut BTreeMap<String, crate::native::Paradigm>,
 ) -> anyhow::Result<()> {
-    let text = fs::read_to_string(root.join(GRAMMAR_PATH))?;
+    let text = fs::read_to_string(root.join(VOCABULARY_PATH))?;
     let invocation = construction::invocation_from_source(&text)?;
     let declarations = construction::parse_declarations(invocation.tokens)?;
     for declaration in declarations.declarations {
         match declaration {
             construction::Declaration::Vocab(vocab) => export_vocab(vocab, output),
             construction::Declaration::Lexeme(lexeme) => export_noun(lexeme, output)?,
-            construction::Declaration::Construction(construction) => {
-                for form in construction.forms {
-                    for atom in form.atoms {
-                        record_literal(
-                            &atom,
-                            &format!("{}::{}", construction.name, form.name),
-                            output,
-                        );
-                    }
-                }
-            }
             _ => {}
         }
     }
@@ -71,27 +60,6 @@ pub(crate) fn load(
         export_verb(verb, &provenance, output, paradigm);
     }
     Ok(())
-}
-
-fn record_literal(atom: &construction::FormAtom, owner: &str, output: &mut LexicalSources) {
-    match atom {
-        construction::FormAtom::Literal(value)
-        | construction::FormAtom::LicensedLiteral(value)
-        | construction::FormAtom::SentenceInitial(value) => {
-            output
-                .unmapped
-                .push(format!("construction-literal {owner}: {:?}", value.value()));
-        }
-        construction::FormAtom::Bound(bound) => {
-            if let Some(affix) = &bound.affix {
-                output
-                    .unmapped
-                    .push(format!("construction-affix {owner}: {:?}", affix.value()));
-            }
-            record_literal(&bound.value, owner, output);
-        }
-        _ => {}
-    }
 }
 
 fn inventory_category(name: &str) -> Option<Category> {
@@ -143,7 +111,7 @@ fn export_vocab(vocab: construction::Vocab, output: &mut LexicalSources) {
             &owner,
             member.word.value(),
             category,
-            source(SourceKind::Core, GRAMMAR_PATH, &owner),
+            source(SourceKind::Core, VOCABULARY_PATH, &owner),
         );
         lexeme.properties.features = defaults.clone();
         for feature in member.feature_overrides {
@@ -203,7 +171,7 @@ fn export_noun(
             &owner,
             member.lemma.value(),
             countability,
-            source(SourceKind::Core, GRAMMAR_PATH, &owner),
+            source(SourceKind::Core, VOCABULARY_PATH, &owner),
         );
         lexeme.properties.features = features;
         for replacement in member.overrides {

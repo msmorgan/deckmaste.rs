@@ -17,7 +17,6 @@ members = [
     "crates/deckmaste_english",
     "crates/deckmaste_features",
     "crates/deckmaste_construction_core",
-    "crates/deckmaste_construction",
     "crates/deckmaste_construction_compiler",
     "crates/deckmaste_constructions_macro",
     "crates/deckmaste_spelling",
@@ -32,13 +31,6 @@ members = [
     "crates/macro_ron_lsp",
     "crates/xtask",
 ]
-# Excluded, not a member: `deckmaste_english_v2` is superseded by
-# `deckmaste_english_v3` and awaits deletion (docs/tickets english-v2-deletion).
-# The directory stays on disk — `deckmaste_lexical_source`'s legacy reader and
-# `deckmaste_construction`'s `include!` fixtures read its sources by path — but
-# it is no longer built, tested, or required to be green.
-exclude = ["crates/deckmaste_english_v2"]
-
 # Pinned once for the whole workspace; crates opt in with
 # `thiserror = { workspace = true }`. Typed library errors derive their
 # `Display`/`Error` impls from it — `anyhow` stays the binary-ish crates'

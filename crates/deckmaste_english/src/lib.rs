@@ -1,6 +1,6 @@
-//! **PRE-CUTOVER v1 — this crate is deleted at the `english_v2` cutover.**
+//! **PRE-CUTOVER v1 — legacy parser superseded by `deckmaste_english_v3`.**
 //!
-//! `deckmaste_english_v2` takes this crate's name at cutover. Put new
+//! `deckmaste_english_v3` is the successor grammar. Put new
 //! architecture and features there; touch this crate only to keep current
 //! users functioning or to enable cutover. Never treat the pair as parallel
 //! long-term implementations, and never copy the v2 design back here for

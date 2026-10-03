@@ -4,10 +4,10 @@
 normalized [`deckmaste_lexical::Lexeme`] declarations. Its public interface is
 independent of the corpus-reporting CLI and of any English parser.
 
-The implementation currently contains an explicitly transitional adapter for
-the declarations being salvaged from English v2. That adapter is an input
-quarry, not an interface v3 consumers must implement or preserve. Its internal
-readers can be replaced as the remaining declarations become v3-owned.
+The source vocabulary and verb inventory live in `lexicon/vocabulary.rs` and
+`lexicon/verbs.ron`. The vocabulary file contains declaration data read by
+`deckmaste_construction_core`; it is not compiled Rust or an English parser.
+Plugin declarations retain their own shared source reader.
 
 Source trees are discovered as inventories. Declaration identity comes from
 normalized declaration content; callers and tests do not name an individual

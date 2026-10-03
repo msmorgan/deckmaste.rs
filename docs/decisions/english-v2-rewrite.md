@@ -1,5 +1,7 @@
 # English v2 rewrite
 
+Superseded on 2026-10-03: the second English parser and its exclusive construction proc macro are removed outright. The active grammar is `deckmaste_english_v3`; its contract is [independent lexical analysis and retained Readings](english-lexical-analysis.md). The cutover and command descriptions below are historical, not current instructions.
+
 ## Current production direction
 
 The accepted [independent lexical-analysis decision](english-lexical-analysis.md)

@@ -35,55 +35,13 @@ prescriptions, including conflicting wording in the landing contract above.
 Preserve all grammatical readings and both roundtrip laws; retain the other
 no-silent-loss, invalid-reading and internal-failure requirements.
 
-## Crate fates (english_v2 rewrite)
+## English grammar
 
-Authority: `docs/decisions/english-v2-rewrite.md` (cutover plan). Until cutover:
-
-- **A `_v2` sibling is a replacement marker, not a permanent variant.** If
-  `thing_v2` exists beside `thing`, `thing` is on the chopping block and is
-  retained only to hold the roof up while the actively developed `thing_v2`
-  reaches cutover. Put new architecture and features in `thing_v2`; touch
-  `thing` only to keep current users functioning or to enable cutover. Never
-  treat the pair as parallel long-term implementations or copy the v2 design
-  back into the deletion-bound one for parity.
-
-- **Deleted at cutover:** `deckmaste_english` (v2 takes its name),
-  `deckmaste_construction_compiler`, `deckmaste_constructions_macro`, and
-  `deckmaste_spelling`'s splice-and-reparse render/compile machinery (that
-  crate itself survives). `deckmaste_legacy_render` is legacy independently
-  of the rewrite.
-  `deckmaste_features` (v1's feature vocabulary: strata, witness metadata,
-  `chart_feature!`, first-character onset) also deletes at cutover — its last
-  non-legacy use is two frame re-exports in `macro_ron`, which the frame seam
-  replaces. v2 never depends on it: `Onset` is a sealed compiler feature like
-  `Number`, normalized rows carry effective onset as data, and the pronunciation
-  recipe is v2-owned code.
-- **The rewrite's crates:** `deckmaste_english_v2` (takes the
-  `deckmaste_english` name at cutover), the future `deckmaste_construction`
-  declaration compiler, and the stable shared layer `deckmaste_data`
-  (snapshot models) + `deckmaste_catalogs` (catalog extraction, inventory,
-  line-file I/O — its `legacy` adapter module deletes together with
-  `deckmaste_english` at cutover). Plan 07 adds no dependency on
-  deletion-bound `deckmaste_features`; v2's dependency set is unchanged. v2
-  must never add a direct dependency on a crate slated for deletion. It does
-  not depend directly on `deckmaste_catalogs`: xtask alone adapts catalog
-  contents into the frozen typed provider rows v2 consumes. Since the macro-ron
-  fold-back (2026-09-02) `deckmaste_english_v2` no longer depends on
-  `macro_ron` at all (it depends directly on `deckmaste_construction_core`,
-  which owns the spelling/grammar metadata type); `macro_ron`'s own
-  `deckmaste_features` edge lives only in its legacy `frames.rs` re-exports
-  and deletes with v1.
-- **`deckmaste_migrations` survives as a function** (card
-  extract→resolve→graduate, snapshot ingestion). Its oracle-text extraction
-  is its own regex pipeline — it does not consume the construction parser —
-  but it depends on deletion-slated `deckmaste_legacy_render` and must shed
-  that by cutover. It consumes `deckmaste_data` (temporarily) for its
-  surviving extraction work; its former catalog module is gone.
-  Re-pointing extraction at english_v2 is a separate, not-yet-scheduled
-  decision. Do not home new english_v2 infrastructure there — or in any
-  crate marked for deletion — without recording the deviation in the
-  rewrite ADR.
-- Everything else is unaffected by the rewrite.
+`deckmaste_english_v3` is the active grammar. The superseded parser and its
+exclusive proc macro are retired. Vocabulary and verb declarations are owned
+by `deckmaste_lexical_source/lexicon`; `deckmaste_construction_core` remains a
+shared declaration reader for lexical sources and semantics tooling. Do not
+introduce new grammar work in the legacy `deckmaste_english` stack.
 
 ## Crate fates (semantics_v2)
 
@@ -141,28 +99,10 @@ verbatim: no parity copying into v1, no new v1 registries.
 
 ## Gate scope for compiler changes
 
-- The test gate for a landing is the **reverse-dependency closure of every
-  crate whose code or consumed data changed** — never an enumerated `-p`
-  list chosen by hand, and never the whole workspace: `cargo metadata`
-  reverse deps, plus the crates that read changed declaration data
-  (`plugins/builtin_v2/` and `core_verbs.ron` are read by
-  `deckmaste_construction_core` tests, `deckmaste_english_v2` and `xtask`).
-  For the english_v2 lane that closure is at most
-  `cargo test -p deckmaste_construction_core -p deckmaste_construction -p deckmaste_english_v2 -p xtask`
-  (a change confined to `deckmaste_english_v2`/`core_verbs.ron` needs only
-  `-p deckmaste_english_v2 -p xtask`); `deckmaste_tui`, `deckmaste_engine`,
-  `deckmaste_lowering` are not downstream of anything english_v2 touches and
-  must not be run for it. The shared layer (`deckmaste_data`,
-  `deckmaste_catalogs`) fans out to v1, spelling and migrations — compute its
-  closure, don't assume. Why the closure and not a hand list: the generated
-  code under `crates/deckmaste_construction_core/src/emit/` is exercised only
-  by downstream consumers (`deckmaste_construction`'s compiled-consumer
-  fixture among them), and three landings shipped red downstream suites on
-  enumerated lists (2026-09-03); the with-preposition landing broke
-  `construction_core`'s builtin_v2 integration test under `-p english_v2 -p
-  xtask` (2026-09-04). `cargo xtask gate --changed` derives that
-  closure from the changed paths and prints — with `--run`, runs — the exact
-  `cargo test -p …` line to state in the landing record.
+- The test gate for a landing is the reverse-dependency closure of every crate
+  whose code or consumed data changed, including declaration readers. Run
+  `cargo xtask gate --changed`; with `--run`, it runs the derived Cargo test
+  command. State that command and its outcome in the landing record.
 - `cargo test --workspace` excludes `slow-tests` (the TUI whole-game
   simulations); CI's full job runs them.
 
@@ -194,7 +134,8 @@ verbatim: no parity copying into v1, no new v1 registries.
   wizards regen, assurance — they live here); write "standard constraints apply" plus deltas
   only. Context sections cite prior docs and describe deltas; re-derived subsystem
   prose is a review flag.
-- **Corpus work iterates on a subset, verifies on the whole.** A full `english_v2` corpus pass costs ~100 s; never use it as an edit loop (one round burned 82). Select affected Oracle faces before analysis with `--oracle-id`, `--face-id`, `--card-name`, `--layouts`, `--text-contains`, `--type-line-contains`, or `--identity-manifest`; combine the needed construction witnesses and negatives and use `--export-subset <path.jsonl>` when a durable local fixture helps. Every analysis command requires an explicit selector or `--all`. Run the full set (coverage `--check`/`--bless`, ambiguity, roundtrip, the per-unit diff) exactly once on the refreshed tree at the end. A full pass before that needs a stated reason in the landing record.
+- **Corpus work iterates on a subset, verifies on the whole.** Use `cargo xtask english-v3` with an explicit selector for iteration and `--all` for final corpus verification. Preserve all Readings and report roundtrip/traversal validation, failures and runtime evidence.
+
 - Dispatching agents: explore once, pass the brief — paste it as a byte-identical
   prompt prefix across the fan-out (prompt-cache-shared, question at the tail), or
   send follow-ups to an agent that already holds the context instead of spawning

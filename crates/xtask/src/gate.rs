@@ -395,20 +395,18 @@ mod tests {
     /// Shaped like the real workspace: a root package whose directory contains
     /// every other package, the `deckmaste_construction_core` and
     /// `deckmaste_construction_v3_core` dependency chains, and the leaf crates
-    /// `xtask` depends on directly. `deckmaste_english_v2` is deliberately
-    /// absent — it left the workspace through the root manifest's `exclude`,
-    /// so `cargo metadata` no longer reports it.
+    /// `xtask` depends on directly. `removed_parser` is deliberately
+    /// absent, so `cargo metadata` does not report it.
     const METADATA: &str = r#"
     {
       "workspace_root": "/workspace",
       "packages": [
         {"name":"deckmaste","manifest_path":"/workspace/Cargo.toml","targets":[{"src_path":"/workspace/src/main.rs"}],"dependencies":[]},
         {"name":"deckmaste_construction_core","manifest_path":"/workspace/crates/deckmaste_construction_core/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction_core/src/lib.rs"}],"dependencies":[]},
-        {"name":"deckmaste_construction","manifest_path":"/workspace/crates/deckmaste_construction/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
         {"name":"deckmaste_construction_v3_core","manifest_path":"/workspace/crates/deckmaste_construction_v3_core/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction_v3_core/src/lib.rs"}],"dependencies":[]},
         {"name":"deckmaste_construction_v3","manifest_path":"/workspace/crates/deckmaste_construction_v3/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_construction_v3/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_v3_core"}]},
         {"name":"deckmaste_english_v3","manifest_path":"/workspace/crates/deckmaste_english_v3/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_english_v3/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_v3"}]},
-        {"name":"deckmaste_lexical_source","manifest_path":"/workspace/crates/deckmaste_lexical_source/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_lexical_source/src/lib.rs"}],"dependencies":[]},
+        {"name":"deckmaste_lexical_source","manifest_path":"/workspace/crates/deckmaste_lexical_source/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_lexical_source/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"}]},
         {"name":"deckmaste_semantics_v2","manifest_path":"/workspace/crates/deckmaste_semantics_v2/Cargo.toml","targets":[{"src_path":"/workspace/crates/deckmaste_semantics_v2/src/lib.rs"}],"dependencies":[]},
         {"name":"xtask","manifest_path":"/workspace/crates/xtask/Cargo.toml","targets":[{"src_path":"/workspace/crates/xtask/src/lib.rs"}],"dependencies":[{"path":"/workspace/crates/deckmaste_construction_core"},{"path":"/workspace/crates/deckmaste_lexical_source"},{"path":"/workspace/crates/deckmaste_semantics_v2"}]}
       ]
@@ -434,13 +432,13 @@ mod tests {
             packages,
             [
                 "deckmaste_construction_core",
-                "deckmaste_construction",
+                "deckmaste_lexical_source",
                 "xtask"
             ]
         );
         assert_eq!(
             rendered(&test_command(&packages)),
-            "cargo test -p deckmaste_construction_core -p deckmaste_construction -p xtask"
+            "cargo test -p deckmaste_construction_core -p deckmaste_lexical_source -p xtask"
         );
     }
 
@@ -466,14 +464,14 @@ mod tests {
         );
     }
 
-    /// `deckmaste_english_v2` is excluded from the workspace, so no package
+    /// `removed_parser` is absent from the workspace, so no package
     /// owns its paths and a change confined to it gates nothing.
     #[test]
     fn an_excluded_crate_path_produces_no_gate() {
         assert!(
             closure(&[
-                "crates/deckmaste_english_v2/src/environment.rs",
-                "crates/deckmaste_english_v2/src/core_verbs.ron",
+                "crates/removed_parser/src/environment.rs",
+                "crates/removed_parser/src/core_verbs.ron",
             ])
             .is_empty()
         );
@@ -493,7 +491,7 @@ mod tests {
             packages,
             [
                 "deckmaste_construction_core",
-                "deckmaste_construction",
+                "deckmaste_lexical_source",
                 "deckmaste_semantics_v2",
                 "xtask"
             ]
@@ -558,17 +556,13 @@ mod tests {
         assert_eq!(
             closure(
                 &paths_from_summary(
-                    "R crates/{deckmaste_construction => deckmaste_lexical_source}/src/tail.rs\n"
+                    "R crates/{deckmaste_construction_core => deckmaste_lexical_source}/src/tail.rs\n"
                 )
                 .iter()
                 .map(|path| path.to_str().expect("test paths are UTF-8"))
                 .collect::<Vec<_>>()
             ),
-            [
-                "deckmaste_construction",
-                "deckmaste_lexical_source",
-                "xtask"
-            ]
+            ["deckmaste_construction_core", "deckmaste_lexical_source", "xtask"]
         );
     }
 

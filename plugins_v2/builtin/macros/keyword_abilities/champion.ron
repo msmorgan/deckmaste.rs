@@ -10,7 +10,7 @@ KeywordAbility(
     // the battlefield, return the exiled card to the battlefield under its owner's
     // control" [CR#702.72a]. The definition weaves the argument into a larger
     // description, so it must reach a PREDICATE position; the declaration's `Subject`
-    // kind is a `NounPhrase` (english_v2 parses "Enchant creature you control" through
+    // kind is a `NounPhrase` (the retired parser parsed "Enchant creature you control" through
     // it) and `KeywordParam::Subject` carries a `Predicate`. Nothing converts one to
     // the other, so the argument cannot be forwarded into the body.
     body: Keyword(keyword: "Champion", params: [], body: []),

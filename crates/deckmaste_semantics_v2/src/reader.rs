@@ -7,8 +7,8 @@
 //! definition, which is how `KeywordAction(name: …)` reads as one
 //! (`docs/decisions/semantics-v2.md` §11).
 //!
-//! The declaration file is the shared contract: `deckmaste_english_v2` reads
-//! its spelling and grammar, this crate reads its params and body. The
+//! The declaration file is the shared contract: `deckmaste_lexical_source`
+//! reads its spelling and grammar, this crate reads its params and body. The
 //! metadata half is opaque here — [`OpaqueMetadata`] accepts and discards any
 //! shape — so neither crate depends on the other for the file.
 //!
@@ -45,10 +45,10 @@ pub const RULES_DIR: &str = "rules";
 
 /// A declaration's consumer metadata, read and discarded.
 ///
-/// `deckmaste_english_v2` types this field; this crate reads the same files
-/// and has no use for it, so it accepts any shape and keeps nothing. That is
-/// what makes the declaration file a shared contract rather than a dependency
-/// (§11).
+/// `deckmaste_construction_core` types this field; this crate reads the same
+/// files and has no use for it, so it accepts any shape and keeps nothing. That
+/// is what makes the declaration file a shared contract rather than a
+/// dependency (§11).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct OpaqueMetadata;
 
@@ -216,8 +216,8 @@ fn read_macros(
                     // check only refuses the third:
                     //  - IDENTITY: the body's own outermost identifier is the
                     //    declaration's own name, so reading it natively or
-                    //    through the macro produces the same value. This is
-                    //    how a `Subtype`/`CounterKind`/`TurnPart` declaration
+                    //    through the macro produces the same value. This is how
+                    //    a `Subtype`/`CounterKind`/`TurnPart` declaration
                     //    attaches spelling metadata to its own native
                     //    constructor's name by design
                     //    (`a_turn_part_declaration_may_name_its_own_
@@ -227,10 +227,10 @@ fn read_macros(
                     //  - BODYLESS: a meta-macro (`KeywordAction`, …) whose
                     //    `body` argument was omitted defaults to `()`
                     //    (`Default(Any, ())`), which is not identifier-led
-                    //    (`body_head` reads `None`) and was never invocable
-                    //    for real value in the first place — nothing is
-                    //    silently shadowed because nothing meaningful was
-                    //    ever reachable through it.
+                    //    (`body_head` reads `None`) and was never invocable for
+                    //    real value in the first place — nothing is silently
+                    //    shadowed because nothing meaningful was ever reachable
+                    //    through it.
                     // A declaration whose body is a DIFFERENT, non-empty
                     // construction under the colliding name gets no such
                     // pass: it registers but can never be invoked

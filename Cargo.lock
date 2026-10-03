@@ -476,15 +476,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_construction"
-version = "0.1.0"
-dependencies = [
- "deckmaste_construction_core",
- "macro_ron",
- "trybuild",
-]
-
-[[package]]
 name = "deckmaste_construction_compiler"
 version = "0.1.0"
 dependencies = [

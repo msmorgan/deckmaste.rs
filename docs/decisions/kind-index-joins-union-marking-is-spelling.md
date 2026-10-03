@@ -36,7 +36,7 @@ The marked union constructions — `AnyTarget`, the cross-kind union head
 `KindJoin`, the mixed group `YouAnd`, and the `That` / `UnionP` anaphor that
 reads one back — are reclassified accordingly. Their measured tables are
 **spelling-boundary knowledge**, facts about what English writes, feeding
-english_v2's construction declarations; their authoring role passes to the card
+english_v3's construction declarations; their authoring role passes to the card
 language's functions over the joined-kind core. Neither role is a core
 constructor.
 

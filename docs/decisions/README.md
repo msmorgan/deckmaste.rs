@@ -40,10 +40,10 @@ requires explicit review rather than an opportunistic refactor.
   one-way via lowering.
 - [English grammar is derived](english-grammar-is-derived.md) — One
   construction declaration compiles parse, render, and build.
-- [English v2 rewrite](english-v2-rewrite.md) — A fresh declaration-owned
-  parser replaces the English stack; the declaration is the type.
+- [English v2 rewrite](english-v2-rewrite.md) — Historical rewrite plan,
+  superseded by the v3 grammar; its parser and exclusive proc macro are retired.
 - [English grammar design in Lean](english-lean-design-workbench.md) — Formal
-  grammar modeling and proofs guide an in-place `english_v2` grammar migration.
+  historical grammar modeling and proofs; the English Lean project is retired.
 - [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md) —
   Open plugin macros own positional semantic frames and the lexical facts
   needed to parse them.

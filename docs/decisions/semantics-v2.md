@@ -246,9 +246,8 @@ generator ticket.
 ## 11. Plugin format
 
 `plugins_v2/` is the v2 plugin format. `plugins/builtin_v2` moves to
-`plugins_v2/builtin`, with a symlink at the old path until english_v2 and
-xtask read the new one. One declaration file per macro carries `name`,
-`params`, `spelling`, `grammar`, and a semantic `body`: english_v2 reads the
+`plugins_v2/builtin`, with a symlink at the old path until all declaration readers use the new one. One declaration file per macro carries `name`,
+`params`, `spelling`, `grammar`, and a semantic `body`: the lexical-source adapter reads the
 spelling and grammar, semantics_v2 reads the params and body. The file is
 the shared contract; neither crate depends on the other for it, and an xtask
 drift test loads every declaration both ways. Today's bodyless declarations
@@ -269,8 +268,7 @@ keyword-ability gate columns, the keyword-action checker columns, and the
 subtype frame column. Cards, tokens, and the
 three rules tables (state-based actions, conferrals, damage results) are
 further kinds in the same tree, all semantics-language RON. `plugins_v2/canon`
-is hand-authored RON first; translation from `deckmaste_english_v2`'s
-`OracleText` is a later crate (`semantics-v2-english-translation`), with
+is hand-authored RON first; translation from the retained `deckmaste_english_v3` Readings is a later crate (`semantics-v2-english-translation`), with
 RON as the cached form of that translation.
 
 The builtin macro families live at `plugins_v2/builtin/macros/<family>/`,

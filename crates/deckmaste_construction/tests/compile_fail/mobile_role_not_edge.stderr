@@ -1,5 +1,0 @@
-error: mobile role `mobile_left` must be at an edge, immediately left of its scope sibling, or adjacent to a `seq` role in form `invalid`
-  --> tests/compile_fail/mobile_role_not_edge.rs:11:13
-   |
-11 |             mobile_left: mobile(scope) Child,
-   |             ^^^^^^^^^^^

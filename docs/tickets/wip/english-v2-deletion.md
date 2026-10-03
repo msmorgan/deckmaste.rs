@@ -1,96 +1,67 @@
 ---
 needs: []
 ---
-**Delete `deckmaste_english_v2` and the references it leaves behind.** The
-crate is superseded by `deckmaste_english_v3` and has already left the Cargo
-workspace: the root manifest lists it under `exclude`, not `members`, so it is
-no longer built, tested, or required to be green. Its `environment.rs` refuses
-to load — `keyword_actions`' `participle: "tapped"`/`"untapped"` declarations
-raise a `LiteralLexiconCollision` — and that is accepted, not a defect to fix.
-The directory survives on disk only because two live consumers read its
-sources by path (below). This ticket removes the directory and every reference
-that outlives it.
+# Retire the superseded English parser and its exclusive dependencies
 
-**What is already done** (change `xtask: english_v2 leaves the cargo
-workspace`): the crate left `members` for `exclude`; its
-`[profile.dev.package]` override is gone; `xtask` dropped both dependencies,
-the `parser-metrics` feature, `src/english_v2.rs` and `src/english_v2/`, the
-`english_v2` subcommand, and `tests/english_v2_determinism.rs`; the
-`cargo xtask english_v2 flavor-words --check` step left CI; `gate.rs`'s
-metadata fixture and closures name only surviving crates and pin that a
-`crates/deckmaste_english_v2/**` path now maps to no crate.
+Completed under the user's 2026-10-03 instruction to delete the parser and
+things it alone depended on. This expands the original directory-deletion
+scope to retire its exclusive `deckmaste_construction` proc macro and tests,
+rather than retaining that compiler with a vendored parser fixture.
+`deckmaste_construction_core` remains a shared declaration reader used by the
+lexical-source adapter and semantics tooling.
 
-**What deletion has to do.**
+## Landing record
 
-1. **Break the two path readers first — they are what keeps the directory
-   alive.**
-   - `crates/deckmaste_lexical_source/src/legacy/core.rs:26`
-     (`GRAMMAR_PATH = "crates/deckmaste_english_v2/src/constructions.rs"`) and
-     `crates/deckmaste_lexical_source/src/legacy/mod.rs:15`
-     (`ENGLISH_V2_SOURCE_DIR = "crates/deckmaste_english_v2/src"`) — the
-     `legacy` adapter reads the v2 grammar sources at runtime. Retire the
-     adapter or repoint it at the v3 grammar; decide which as part of this
-     ticket.
-   - `crates/deckmaste_construction/tests/support/runtime_frames.rs:22`,
-     `crates/deckmaste_construction/tests/compiled_consumer.rs:2758`, and
-     `crates/deckmaste_construction/tests/compile_fail/structural_checked_constructor_accessor_collision.rs:27`
-     all `include!` `crates/deckmaste_english_v2/src/parser/engine.rs` as the
-     compiled-consumer fixture's runtime. These are `deckmaste_construction`'s
-     own gates: give them a fixture that does not live in a deleted crate
-     (vendor the engine into `tests/support/`, or re-spell against the v3
-     runtime), never delete them.
+Removed the parser directory, exclusive proc macro, obsolete coverage lock,
+and root workspace/exclusion entries. Cargo.lock no longer contains either
+retired package. Active source readers and instructions refer to surviving
+owners. The rewrite ADR is explicitly superseded; old ADR text and done tickets
+remain historical evidence.
 
-2. **Delete the directory** `crates/deckmaste_english_v2/` and the
-   `exclude = ["crates/deckmaste_english_v2"]` entry (with its comment) from
-   the root `Cargo.toml`.
+Moved 43 vocabulary/morphology declarations into
+`deckmaste_lexical_source/lexicon/vocabulary.rs` and the verb inventory into
+`lexicon/verbs.ron`. The source reader parses these as declaration data without
+compiling the retired grammar. A temporary comparison loaded both the complete
+former declaration file and the extracted vocabulary under the relocated paths:
+all 34,866 normalized lexical declarations were identical. Source provenance
+now names the lexical-source inventory. Old construction-literal/affix audit
+messages are retired with the removed grammar; no lexical entry or grammatical
+Reading is filtered. No v3 runtime or grammar declaration changed. No corpus
+coverage gain or cutover-parity claim is made.
 
-3. **Retire the doc references.** Each of these names the crate, its cutover,
-   or one of its commands, and is stale once the directory is gone:
-   - `CLAUDE.md` — the whole **Crate fates (english_v2 rewrite)** section
-     (lines 38–85), and in **Gate scope for compiler changes** lines 149–154
-     and 162 (the "english_v2 lane" closure, the
-     `-p deckmaste_english_v2` example commands, the with-preposition
-     anecdote's `-p english_v2 -p xtask` line). Line 197 (**Corpus work
-     iterates on a subset**) describes the `english_v2` corpus commands —
-     `coverage --check/--bless`, `ambiguity`, `roundtrip`, `--data` — none of
-     which exist any more; re-spell it against v3's corpus tooling or drop it.
-   - `docs/decisions/english-v2-rewrite.md` — the cutover plan itself. Its
-     `xtask english_v2 …` contracts (lines 82, 829, 905) and the whole
-     cutover-language frame ("deleted at cutover", "until cutover") describe
-     an event that no longer happens: v2 is deleted outright, not cut over to.
-     Supersede the ADR rather than editing it piecemeal.
-   - `docs/decisions/README.md:46` — the index entry's "in-place `english_v2`
-     grammar migration".
-   - `docs/decisions/english-lean-design-workbench.md:4,54` — "migrate
-     `english_v2`'s …", "Retain `english_v2` and its declaration-owned
-     generated types".
-   - `docs/decisions/semantics-v2.md:249,251,272` — english_v2 as a reader of
-     `plugins_v2/builtin` and as a translation source.
-   - `docs/decisions/kind-index-joins-union-marking-is-spelling.md:39` —
-     "english_v2's construction declarations".
-   - `docs/tickets/planned/english-v3-whole-grammar-activation.md:45`,
-     `docs/tickets/planned/semantics-v2-keyword-action-residues.md:25`,
-     `docs/tickets/planned/semantics-v2-subject-param-kind.md:12,17,20` — live
-     tickets whose acceptance still refers to english_v2 (the last one puts
-     english_v2 in its gate closure).
-   - `.claude/hooks/pre-cutover-guard.sh` — the guard's refusal messages tell
-     the reader to "put new architecture and features in
-     `deckmaste_english_v2`". Its guarded crate list stays correct; only the
-     rationale is stale, and it must be re-pointed at v3 in the same pass that
-     amends `CLAUDE.md`, so the two do not disagree.
-   - `plugins_v2/builtin/macros/keyword_abilities/champion.ron:13` — a comment
-     that attributes a `NounPhrase` reading to english_v2's parse.
+Restored: 0; added persistent tests: 0; newly ignored tests: 0. The existing
+changed-path gate tests are updated for the surviving dependency graph.
+Removed: 454 test functions/attributes in the already-excluded parser and 55
+in its exclusive proc macro. Each retires its own deleted subject, rather than
+a behavior still owned by a surviving crate. Retired tests belong exclusively to the removed parser/proc-macro subjects;
+the original requirement to preserve that proc macro's runtime fixtures is
+superseded by the user's explicit dependency retirement. The shared declaration
+reader and v3 suites remain intact.
 
-   Tickets under `docs/tickets/done/` are historical records and are left
-   alone.
+Validation and environmental limits are recorded below. The full corpus was
+not rerun: lexical equality and the unchanged v3 implementation establish the
+scope of this removal, and the existing coverage gap remains owned by v3 work.
 
-**Acceptance:** no path outside `docs/tickets/done/` names
-`deckmaste_english_v2` or `english_v2`; `cargo build --workspace
---all-targets`, `cargo test --workspace`, and `cargo clippy --workspace
---all-targets` are clean; `deckmaste_construction`'s compiled-consumer,
-runtime-frames and compile-fail gates still run with the same asserted
-outcomes; and `cargo xtask cite check` reports 0 stale with
-`--list-noncompliant` empty.
+Checks: `cargo check -p deckmaste_lexical_source -p xtask --offline` passed.
+`cargo test -p deckmaste_lexical_source -p deckmaste_english_v3 --offline`:
+69 passed, zero failed or ignored. `cargo test -p deckmaste_construction_core
+-p deckmaste_semantics_v2 -p xtask --offline --no-fail-fast`: 855 passed,
+31 existing ignored, one failed. The failing
+`builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category`
+expects 22 artifact types; catalogs regenerated from the current local CR
+contain 23. Its source is byte-identical to the parent revision. No test or
+catalog assertion was weakened.
 
-Related: [[english-v3-whole-grammar-activation]] (the successor grammar this
-deletion clears the way for).
+The metadata-derived full gate is `cargo test -p deckmaste
+-p deckmaste_construction_core -p deckmaste_english
+-p deckmaste_lexical_source -p deckmaste_semantics_v2 -p deckmaste_spelling
+-p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`. It cannot run
+completely here: uncached dependencies (including autocfg/rand_chacha) cannot
+be downloaded because static.crates.io is unreachable.
+
+Changed Rust files pass nightly rustfmt; the updated shell guard passes syntax
+and JSON-output checks. Strict clippy reaches an unchanged warning in
+`macro_ron/src/set.rs:733` (`needless_borrows_for_generic_args`); that source
+also matches the parent byte-for-byte. Citation checking finds zero
+noncompliant sites and 14 preexisting stale citations in unchanged files.
+These checks are disclosed as limitations, not claimed green.

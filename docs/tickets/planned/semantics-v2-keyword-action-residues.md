@@ -22,7 +22,7 @@ mirrored, then the declaration gets its body.
   (`lean-core-exchange-operands` is this question for Exchange alone; fold it
   in), Support.
 - Assemble is Un-set only and stays bodyless permanently; delete the
-  declaration if english_v2 does not need its spelling.
+  declaration if english_v3 does not need its spelling.
 
 `semantics-v1-cutover` deletes `plugins/builtin/macros/action/` wholesale;
 any of the 30 still bodyless at parity is a named loss in that record.

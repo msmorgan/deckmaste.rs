@@ -1,5 +1,0 @@
-error: generated Rust type name `Lexical` collides: semantic identity `Lexical` is shared by fixed generated runtime type and generated identity type for `Lexical`
- --> tests/compile_fail/context_identity_emitted_name_collision.rs:4:14
-  |
-4 |     identity Lexical {
-  |              ^^^^^^^
