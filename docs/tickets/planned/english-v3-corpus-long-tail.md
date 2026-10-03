@@ -6,7 +6,7 @@ needs: [english-v3-production-cutover]
 Continue from the measured residual classes after production cutover. Work in
 coherent lexical or grammatical batches, using focused supported-corpus subsets
 for iteration and the complete corpus for final verification. A residual that
-reveals a missing general relationship reopens the Lean/design and systemic
+reveals a missing general relationship reopens the grammar design and systemic
 path; it is not forced into a card-specific exception.
 
 Final acceptance is every supported normalized corpus unit admitting its

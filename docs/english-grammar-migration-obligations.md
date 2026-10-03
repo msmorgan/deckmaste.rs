@@ -1,5 +1,7 @@
 # Grammar migration obligations
 
+The English Lean project was retired on 2026-10-03. Remaining grammatical obligations are validated with Rust witnesses and corpus evidence; references to Lean modules below are historical provenance, not implementation prerequisites.
+
 This is the routing record for the grammar migration and lexical-analysis
 rewrite, not a corpus measurement or a second task graph. The implementation tickets own these
 outcomes; their `needs:` fields schedule the work. Entries retain source

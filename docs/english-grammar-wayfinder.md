@@ -1,5 +1,7 @@
 # English v3 grammar
 
+The standalone English Lean project is retired. English-specific Lean prerequisites in existing tickets are superseded by Rust tests and corpus validation.
+
 Current authority: [independent lexical analysis and retained readings](decisions/english-lexical-analysis.md).
 English v3 is a fresh bidirectional grammar over independent declared lexical
 analyses. It retains every grammatical Reading and shares no code or model with
@@ -8,8 +10,7 @@ Semantics. The `needs:` graph is the scheduling authority.
 [Lexical analysis is implemented](tickets/done/english-v2-lexical-analysis.md).
 The retained-reading experiments are preserved on
 `archive-english-v2-feature-chart-integration` as optional implementation
-evidence; they create no scheduling edge and do not constrain the Lean model or
-fresh v3 runtime. Old v2 WIP is archived under `archive-<old-slug>`; useful
+evidence; they create no scheduling edge and do not constrain the fresh v3 runtime. Old v2 WIP is archived under `archive-<old-slug>`; useful
 declarations remain optional source evidence. In particular, the v3 lexical
 inventory does not depend on a v2 keyword-action inflection landing (user
 correction, 2026-09-08).
@@ -18,8 +19,6 @@ correction, 2026-09-08).
 
 | Order | Ticket | Deliverable |
 |---:|---|---|
-| 1 | [english-v3-lean-grammar-model](tickets/planned/english-v3-lean-grammar-model.md) | Rebuild the independent English workbench around the complete v3 grammar, lexical relation, admitted Readings and relational roundtripping. |
-| 2 | [english-v3-lean-proof-audit](tickets/planned/english-v3-lean-proof-audit.md) | Make the model's central inhabitants, exclusions and correlation laws nonvacuous before Rust follows them. |
 | 3 | [english-v3-lexical-model](tickets/planned/english-v3-lexical-model.md) | Extract the small data-only model shared by lexical analysis, generated constructions and English v3. |
 | 4a | [english-v3-packed-chart](tickets/done/english-v3-packed-chart.md) | Pack incomplete and complete derivations, define future-admissibility summaries and measure actual growth. |
 | 4b | [english-v3-lexical-inventory](tickets/planned/english-v3-lexical-inventory.md) | Consolidate declared morphology, catalogs, numeral codecs and supported-corpus lexical remainders. |
@@ -37,8 +36,7 @@ correction, 2026-09-08).
 The chart and lexical-inventory tickets can run in parallel after the shared
 model lands. Everything before the whole-grammar activation establishes a
 sound machine; none of those slices becomes the grammar-migration work unit.
-The activation translates the complete connected grammar informed by Lean and
-only then measures what the corpus accepts.
+The activation declares the complete connected grammar and then measures what the corpus accepts.
 
 ## Evidence and salvage
 

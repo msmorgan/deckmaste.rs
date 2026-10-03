@@ -16,9 +16,8 @@ between them has the meaning assigned by the context in which it is used.
   Magic rules terms; project terms may extend that vocabulary without changing
   CR meanings.
 - **Oracle English and Game Model**: Oracle English describes the linguistic
-  structure of rules text; Game Model describes game concepts. The English
-  NLP workbench and Semantics workbench are separate Lake projects with no
-  interaction or dependency between them.
+  structure of rules text; Game Model describes game concepts. The Rust English grammar and the Semantics Lean workbench remain independent.
+  The former standalone English Lean project is retired.
 - **Shared spellings**: terms such as Object and Predicate may have different
   meanings in the two contexts. The owning glossary controls each meaning; a
   term borrowed by the other context retains its owner's meaning.

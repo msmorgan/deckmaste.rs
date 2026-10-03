@@ -1,5 +1,7 @@
 # Whole English grammar design review
 
+Historical review of the English Lean project, retired on 2026-10-03. Its findings describe the former model; they are not a Lean gate for current Rust grammar work.
+
 Reviewed 2026-09-05. Changes `nqzqyuro`, `mvrvutmz`, `vsoulorn`, `qutuuknv`,
 `qkwkstpx`, `xqzlkqyy`, and `rmkonlyw` record the review, project separation
 and consolidation. The [design](english-grammar-design.md) is the current

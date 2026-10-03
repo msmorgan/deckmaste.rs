@@ -1,5 +1,7 @@
 # Independent lexical analysis and retained grammatical readings
 
+Amendment (2026-10-03): the standalone English Lean project is retired. All English-specific Lean prerequisites in this decision and existing tickets are superseded. Validate grammar, correlation, admission and roundtrip behavior through Rust tests and corpus evidence. The linguistic and retained-Reading requirements below remain in force.
+
 Accepted 2026-09-07 after the rewrite planning dialogue and amended after the
 first integration exposed the cost of fitting retained Readings into v2. Build
 a fresh `english_v3` grammar and parser, salvaging useful implementation and

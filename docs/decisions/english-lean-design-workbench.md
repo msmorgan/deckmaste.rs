@@ -1,5 +1,7 @@
 # English grammar design in Lean
 
+Retired on 2026-10-03: the standalone `english/` Lean project has been removed. This decision is historical; English grammar work no longer requires Lean models, witnesses, or proofs before Rust changes. The independent lexical-analysis and retained-Reading contract continues to govern the Rust implementation. The semantics project in `lean/` remains active.
+
 Accepted 2026-09-05. Design the intended Oracle English grammar top-down in a
 standalone Lean `English` project, then migrate `english_v2`'s
 `constructions!` grammar to that design. Consolidation and missing general

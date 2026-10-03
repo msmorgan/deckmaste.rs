@@ -1,5 +1,7 @@
 # English grammar design
 
+Historical model: the standalone `english/` Lean project was removed on 2026-10-03. The architecture and source map below remain design evidence; references to that project describe the retired implementation. Current implementation and validation live in `deckmaste_english_v3` and its Rust tests.
+
 The standalone `english/` Lake project models the NLP grammar of Oracle
 English under the [accepted decision](decisions/english-lean-design-workbench.md).
 It has no dependency on or interaction with `lean/` (Semantics). The
@@ -9,12 +11,7 @@ The [review](english-grammar-review.md) records checked claims and limits.
 ## Status of this model
 
 The reviewed architecture below records the pre-v3 model and its limits.
-The rebuilt model's current entry point, family witnesses, roundtrip claims and
-remaining proof obligations are documented in [the workbench README](../english/README.md).
-[The declaration disposition](../english/DECLARATIONS.md) identifies every
-retained, replaced or retired source declaration. In particular,
-`Analysis.Reading`, `Analysis.Selected` and `Analysis.package` below are
-historical names, not v3 admission interfaces.
+The removed workbench and its declaration disposition remain available in repository history. `Analysis.Reading`, `Analysis.Selected` and `Analysis.package` below are historical names, not v3 admission interfaces.
 
 [The accepted lexical-analysis decision](decisions/english-lexical-analysis.md)
 remains the current production contract. The whole intended grammar/source map

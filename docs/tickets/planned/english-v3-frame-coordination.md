@@ -55,7 +55,7 @@ Apply [Chart admission and ambiguity](../../decisions/english-lexical-analysis.m
 and [Source and roundtripping](../../decisions/english-lexical-analysis.md#source-and-roundtripping):
 Earley parsing, one declaration for generated parsing/checked construction/
 rendering/total traversal, retained lexical identities and both roundtrip laws.
-Update independent Lean sharing/correlation witnesses first. STOP and report
+Validate sharing and correlation with independent Rust witnesses. STOP and report
 rather than substitute word-named frame guards, semantic target filtering,
 eager AST products or destructive selection. V2 remains untouched.
 
