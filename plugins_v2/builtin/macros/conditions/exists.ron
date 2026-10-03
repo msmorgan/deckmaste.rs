@@ -1,9 +1,10 @@
-// `Condition.Exists` under Lean's own name for it: the alias
-// `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// "if there is a …": `Condition.Exists` over a bare description. A phrasing
+// macro under the constructor's own name with a narrower signature, so no
+// alias is minted (ADR 12.1). Lean spells it `exists_`, `exists` being a Lean
+// keyword (ADR 11).
 (
     name: "exists",
     kinds: [Condition],
-    params: {"subject": Subject},
-    body: Exists(Param(subject)),
+    params: {"p": Predicate},
+    body: Exists(Described(Bare, Param(p))),
 )

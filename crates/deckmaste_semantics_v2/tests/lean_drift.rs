@@ -316,7 +316,7 @@ fn rust_declarations(source: &str) -> BTreeMap<String, Shape> {
     for item in &file.items {
         // The mirror is the crate's PUBLIC syntax. A private declaration is
         // implementation of the reader rather than a constructor Lean has to
-        // have — the `Subtype` position's serde shim is one — and Lean keeps
+        // have — a private serde helper is one — and Lean keeps
         // no counterpart for it. The guard does not weaken: a mirrored type
         // that lost its `pub` disappears from this side and is reported as a
         // Lean declaration Rust does not have.

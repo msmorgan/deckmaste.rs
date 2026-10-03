@@ -910,6 +910,34 @@ fn gen_deserialize(input: &Input) -> TokenStream {
     // layer's `embeds_untagged` hook routes those identifiers to
     // `visit_newtype_struct` and the embedded type's macros work here.
     let native = concat_lists(ty, &flatten_payloads(input), &flatten_excludes(input));
+    // A `denoted_by` spelling is a name the position ACCEPTS without being one
+    // the type dispatches: it joins the list ron and the macro layer see here
+    // (so an unrestricted read — a declaration macro's expansion — reaches the
+    // visitor), and nowhere else (so a restricted read refuses it by name).
+    let native = if input.denoted.is_empty() {
+        native
+    } else {
+        let spellings = input.denoted.iter().map(|d| d.spelling.to_string());
+        let count = input.denoted.len();
+        quote! {
+            {
+                const __OWN: &'static [&'static str] = #native;
+                &::macro_ron::concat_variants::<{ __OWN.len() + #count }>(&[
+                    __OWN,
+                    &[#(#spellings),*],
+                ])
+            }
+        }
+    };
+    let denoted_arms = input.denoted.iter().map(|d| {
+        let spelling = d.spelling.to_string();
+        let term = &d.term;
+        quote! {
+            if __ident.as_str() == #spelling {
+                return ::macro_ron::read_denoted(__ident.as_str(), __access, #ty_name, #term);
+            }
+        }
+    });
 
     let visit_newtype = input.embed().map(|v| {
         let inner = peeled(&v.embed_payload().ty).0;
@@ -943,6 +971,7 @@ fn gen_deserialize(input: &Input) -> TokenStream {
             ) -> ::core::result::Result<Self::Value, __A::Error> {
                 let (__ident, __access) =
                     ::serde::de::EnumAccess::variant_seed(data, ::macro_ron::IdentSeed)?;
+                #(#denoted_arms)*
                 match <#ty as ::macro_ron::SupportsMacros>::from_variant(
                     __ident.as_str(),
                     __access,

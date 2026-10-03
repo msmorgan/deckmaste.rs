@@ -28,10 +28,10 @@ const EXPECTED_NAMES: &[&str] = &[
     "loreCounter",
     "loyaltyCounter",
     "luckCounter",
-    "m1M1Counter",
+    "m1m1Counter",
     "menaceCounter",
     "oilCounter",
-    "p1P1Counter",
+    "p1p1Counter",
     "poison",
     "reachCounter",
     "shadowCounter",
@@ -124,7 +124,7 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             panic!("{} has one literal spelling", declaration.identity())
         };
         assert!(!spelling.ends_with(" counter"));
-        if matches!(declaration.identity().name(), "p1P1Counter" | "m1M1Counter")
+        if matches!(declaration.identity().name(), "p1p1Counter" | "m1m1Counter")
             || SEMANTIC_ONLY_NAMES.contains(&declaration.identity().name())
         {
             assert!(declaration.grammar().is_none());
@@ -157,7 +157,7 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             .contains("AbilityGrant(\n                subject: This,\n                ability: Keyword(keyword: \"Deathtouch\", params: [], body: []),\n            )")
     );
     assert!(
-        counter(&declarations, "p1P1Counter")
+        counter(&declarations, "p1p1Counter")
             .body()
             .unwrap()
             .get_ron()

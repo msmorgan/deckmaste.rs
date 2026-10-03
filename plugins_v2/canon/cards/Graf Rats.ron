@@ -18,15 +18,12 @@ SingleFaced(face: (
                             hasPossessor(axis: Controller, possessor: you),
                         ]),
                     ),
-                    exists(described(
-                        determiner: Bare,
-                        predicate: and([
-                            hasType(Creature),
-                            named(Printed("Midnight Scavengers")),
-                            hasPossessor(axis: Owner, possessor: you),
-                            hasPossessor(axis: Controller, possessor: you),
-                        ]),
-                    )),
+                    exists(and([
+                        hasType(Creature),
+                        named(Printed("Midnight Scavengers")),
+                        hasPossessor(axis: Owner, possessor: you),
+                        hasPossessor(axis: Controller, possessor: you),
+                    ])),
                 ]), instruction: sequentially([
                     exile(described(
                         determiner: All,

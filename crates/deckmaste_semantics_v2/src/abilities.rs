@@ -147,15 +147,26 @@ pub enum TokenQuality {
 }
 
 /// Where a counter's kind comes from.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum CounterKindSource {
-    Printed { kind: CounterKind },
-    Chosen { menu: Vec<CounterKind> },
-    DistinctChosen { menu: Vec<CounterKind> },
+    /// Carries only the printed kind, so a bare `p1p1Counter` or
+    /// `Named(label: "charge")` reads here (§11.1; ruling 2026-10-03).
+    #[macro_ron(embed)]
+    Printed {
+        kind: CounterKind,
+    },
+    Chosen {
+        menu: Vec<CounterKind>,
+    },
+    DistinctChosen {
+        menu: Vec<CounterKind>,
+    },
     Bound,
     Those,
     Own,
-    SameAs { source: NounPhrase },
+    SameAs {
+        source: NounPhrase,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

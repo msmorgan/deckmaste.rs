@@ -114,12 +114,18 @@ declared TERM is wanted — a card's subtype list, a counter reference, a design
 position takes the term the definition names, not the node that defines it. Each flavor names
 one term: `.subtype` names its `subtype`, `.counter` its `kind`, `.designation` its `label`.
 
-Only the subtype projection is defined, because the subtype registry is the one whose names a
-card writes today (`plugins-v2-subtypes-macro-only`); the counter and designation projections
-follow when their registries become macro-only. -/
+The subtype and counter projections are defined, because those are the registries whose names
+a card writes (`plugins-v2-subtypes-macro-only`; the counter half by ruling 2026-10-03); the
+designation projection follows when its registry becomes macro-only. -/
 def Definition.subtypeTerm : Definition → Option Subtype
   | .subtype term _rules => some term
   | .counter .. | .designation .. => none
+
+/-- The counter half of `Definition.subtypeTerm`: a counter definition names its `kind`, so a
+counter declaration's name read at a `CounterKind` position is the kind it defines. -/
+def Definition.counterTerm : Definition → Option CounterKind
+  | .counter kind _holder _confers => some kind
+  | .subtype .. | .designation .. => none
 
 /-- The three tables a plugin's `rules/` directory defines, concatenated across its files. The
 predefined-token catalog is a separate list, because its entries are named and a plugin writes

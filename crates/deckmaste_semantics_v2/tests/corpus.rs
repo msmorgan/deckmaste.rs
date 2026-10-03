@@ -127,6 +127,11 @@ fn every_nullary_helper_expands() {
             // projection on all 462 declarations
             // (`plugins-v2-subtypes-macro-only`).
             "Subtype" => deckmaste_semantics_v2::words::Subtype,
+            // The counter half of the same rule: a counter declaration's name
+            // denotes the kind its `Definition::Counter` names (ruling
+            // 2026-10-03), so every counter declaration reads at a
+            // `CounterKind` position.
+            "CounterKind" => deckmaste_semantics_v2::words::CounterKind,
         }
         expanded += 1;
     }
@@ -147,7 +152,7 @@ fn every_nullary_helper_expands() {
 /// here exactly as a card would write it.
 #[test]
 fn every_ported_alias_expands() {
-    use deckmaste_semantics_v2::abilities::{Ability, Instruction};
+    use deckmaste_semantics_v2::abilities::{Ability, Instruction, StaticSpec};
     use deckmaste_semantics_v2::phrase::{Amount, Condition, GameEvent, NounPhrase, Predicate};
     use deckmaste_semantics_v2::words::ManaSymbol;
     let builtin = Plugin::load(plugins_root().join("builtin")).expect("the builtin reads");
@@ -182,6 +187,10 @@ fn every_ported_alias_expands() {
         Instruction: "removeCounters(quantity: Range(low: 1, high: 1), kind: Printed(kind: Named(label: \"charge\")), from_: You)",
         GameEvent: "counterEvent(move: Put, kind: Named(label: \"charge\"), batch: One, subject: You)",
         GameEvent: "tokensCreated(tokens: You)",
+        Condition: "exists(p: HasType(Creature))",
+        Instruction: "createToken(agent: You, characteristics: creatureToken(power: 0, toughness: 0, colors: [Black], subtypes: [army]))",
+        Instruction: "putCounters(amount: 1, kind: p1p1Counter, on: You)",
+        StaticSpec: "addSubtype(subject: You, subtype: army)",
         Ability: "keyword(label: \"Flying\")",
         Ability: "triggered(event: FlipsCoin(player: You, call: None), instruction: Shuffle(agent: You))",
         Ability: "activated(cost: TapSymbol, instruction: Shuffle(agent: You))",
@@ -222,6 +231,7 @@ fn every_card_writes_and_reads_back_to_the_same_value() {
         "Lit(color:",
         "Lit(value:",
         "Generic(amount:",
+        "Printed(kind:",
     ];
     let mut written = 0;
     for name in ["canon", "testing"] {

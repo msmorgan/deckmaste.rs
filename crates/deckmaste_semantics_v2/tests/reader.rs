@@ -30,6 +30,7 @@ use deckmaste_semantics_v2::words::ColorOrColorless;
 use deckmaste_semantics_v2::words::CounterKind;
 use deckmaste_semantics_v2::words::ManaSymbol;
 use deckmaste_semantics_v2::words::ProjAxis;
+use deckmaste_semantics_v2::words::Reach;
 use deckmaste_semantics_v2::words::SimpleManaSymbol;
 use deckmaste_semantics_v2::words::Stat;
 use deckmaste_semantics_v2::words::Subtype;
@@ -636,6 +637,319 @@ fn a_subtype_macro_denotes_the_subtype_its_definition_names() {
             label: "Adventure".to_owned(),
         }
     );
+}
+
+/// The counter half of the rule above (Lean
+/// `Semantics.Definition.counterTerm`; ruling 2026-10-03, "p1p1Counter should
+/// read bare, with Printed the default constructor").
+///
+/// A counter declaration's macro expands to its `Definition::Counter` node, so
+/// at a `CounterKind` position the position takes the kind it defines; and
+/// `CounterKindSource::Printed` is an injection (§11.1), so at a
+/// `CounterKindSource` position the bare kind reads as `Printed`. The bare
+/// name, the declaration under a written-out `Printed`, and the constructor
+/// under a written-out `Printed` are one value.
+#[test]
+fn a_counter_macro_denotes_the_kind_its_definition_names_and_reads_bare_as_printed() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let boost = |delta: fn(u32) -> deckmaste_semantics_v2::words::Delta<u32>| CounterKind::Boost {
+        power: delta(1),
+        toughness: delta(1),
+    };
+    let up = |amount| deckmaste_semantics_v2::words::Delta::Up { amount };
+    let down = |amount| deckmaste_semantics_v2::words::Delta::Down { amount };
+
+    // At a `CounterKind` position: the definition's `kind`, for every flavor.
+    for (source, expected) in [
+        ("p1p1Counter", boost(up)),
+        ("m1m1Counter", boost(down)),
+        (
+            "flyingCounter",
+            CounterKind::Keyword {
+                keyword: "Flying".to_owned(),
+            },
+        ),
+        (
+            "chargeCounter",
+            CounterKind::Named {
+                label: "Charge".to_owned(),
+            },
+        ),
+    ] {
+        let read: CounterKind = builtin
+            .macros
+            .read_str_restricted(source)
+            .unwrap_or_else(|error| panic!("{source} reads at a `CounterKind` position: {error}"));
+        assert_eq!(read, expected, "{source}");
+    }
+
+    // At a `CounterKindSource` position: every spelling is one value. The
+    // declaration's name reads in a card; the constructor spellings are how a
+    // macro BODY writes it (amass's `Printed(Boost(…))`), since `Delta` is a
+    // `semantic_expression` a card may not write raw.
+    let printed = CounterKindSource::Printed { kind: boost(up) };
+    for (source, in_a_card) in [
+        ("p1p1Counter", true),
+        ("Printed(p1p1Counter)", true),
+        ("Printed(kind: p1p1Counter)", true),
+        ("Printed(Boost(power: Up(1), toughness: Up(1)))", false),
+        ("Boost(power: Up(1), toughness: Up(1))", false),
+    ] {
+        let read: Result<CounterKindSource, _> = if in_a_card {
+            builtin.macros.read_str_restricted(source)
+        } else {
+            builtin.macros.read_str(source)
+        };
+        let read = read.unwrap_or_else(|error| {
+            panic!("{source} reads at a `CounterKindSource` position: {error}")
+        });
+        assert_eq!(read, printed, "{source}");
+    }
+    // The source's own constructors still win over the fall-through.
+    let own: CounterKindSource = builtin
+        .macros
+        .read_str_restricted("Those")
+        .expect("a native `CounterKindSource` constructor reads");
+    assert_eq!(own, CounterKindSource::Those);
+
+    // The injection WRITES bare too, and the bare text reads back.
+    let options = deckmaste_semantics_v2::ron::raw_options();
+    let written = options
+        .to_string(&printed)
+        .expect("a counter kind source writes");
+    assert!(
+        !written.contains("Printed"),
+        "the dialect elides the injection: {written}"
+    );
+    let read_back: CounterKindSource = builtin
+        .macros
+        .read_str(&written)
+        .expect("the bare written form reads back");
+    assert_eq!(read_back, printed);
+
+    // A card writes the declaration's name, never the node it expands to.
+    let error = builtin
+        .macros
+        .read_str_restricted::<CounterKind>(
+            r#"Counter(kind: Named(label: "Charge"), holder: Object, confers: [])"#,
+        )
+        .expect_err("a counter definition is not author vocabulary");
+    assert!(
+        error.to_string().contains("Counter"),
+        "the refusal must name the constructor: {error}"
+    );
+}
+
+/// `NounWord::Type` is an injection (§11.1): "that creature" is
+/// `that(Creature)`, the same value as the written-out forms, while the
+/// pronoun word's own constructors keep winning.
+#[test]
+fn a_bare_card_type_reads_as_the_pronoun_word_it_types() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let read = |source: &str| -> NounPhrase {
+        builtin
+            .macros
+            .read_str_restricted(source)
+            .unwrap_or_else(|error| panic!("{source} reads in a card: {error}"))
+    };
+    let bare = read("that(Creature)");
+    assert_eq!(bare, read("that(Type(Creature))"));
+    assert_eq!(bare, read("that(w: Type(type: Creature))"));
+    let NounPhrase::Pro { reach, .. } = &bare else {
+        panic!("that(…) is a pronoun: {bare:?}");
+    };
+    assert_eq!(
+        reach,
+        &Reach::Word {
+            word: deckmaste_semantics_v2::words::NounWord::Type {
+                r#type: CardType::Creature,
+            },
+        }
+    );
+
+    // The word's own constructors are untouched by the fall-through.
+    let player = read("that(Player)");
+    let NounPhrase::Pro { reach, .. } = &player else {
+        panic!("that(…) is a pronoun: {player:?}");
+    };
+    assert_eq!(
+        reach,
+        &Reach::Word {
+            word: deckmaste_semantics_v2::words::NounWord::Player,
+        }
+    );
+    let join = read("that(w: Join)");
+    let NounPhrase::Pro { reach, .. } = &join else {
+        panic!("that(…) is a pronoun: {join:?}");
+    };
+    assert_eq!(
+        reach,
+        &Reach::Word {
+            word: deckmaste_semantics_v2::words::NounWord::Join,
+        }
+    );
+
+    // The injection writes bare, and the bare text reads back.
+    let written = deckmaste_semantics_v2::ron::raw_options()
+        .to_string(&bare)
+        .expect("a pronoun writes");
+    assert!(
+        !written.contains("Type("),
+        "the dialect elides the injection: {written}"
+    );
+    let read_back: NounPhrase = builtin
+        .macros
+        .read_str(&written)
+        .expect("the bare written form reads back");
+    assert_eq!(read_back, bare);
+}
+
+/// `amass` is a re-spelling, not a semantic change: written over the helper
+/// macros, it expands to exactly the basis term its body spelled out before
+/// (the constructor-by-constructor body, `Param`s substituted) [CR#701.47a].
+#[test]
+fn amass_expands_to_the_term_its_constructor_body_spelled() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let amass: Instruction = builtin
+        .macros
+        .read_str_restricted("amass(zombie, 2)")
+        .expect("amass reads in a card");
+    let basis: Instruction = builtin
+        .macros
+        .read_str(
+            r#"
+            Sequentially([
+                    DoIf(
+                        condition: Not(Exists(Described(
+                            determiner: Bare,
+                            predicate: And([
+                                HasSubtype(Of(host: Creature, label: "Army")),
+                                HasType(Creature),
+                                HasPossessor(axis: Controller, possessor: You),
+                            ]),
+                        ))),
+                        instruction: CreateObject(
+                            count: 1,
+                            spec: Token(
+                                spec: Written((characteristics: (
+                                    colors: [Black],
+                                    types: [Creature],
+                                    subtypes: [Of(host: Creature, label: "Zombie"), Of(host: Creature, label: "Army")],
+                                    power: 0,
+                                    toughness: 0,
+                                ))),
+                                riders: [],
+                            ),
+                            agent: You,
+                        ),
+                        otherwise: None,
+                    ),
+                    Choose(
+                        first: None,
+                        chosen: Described(
+                            determiner: A(Unmarked),
+                            predicate: And([
+                                HasSubtype(Of(host: Creature, label: "Army")),
+                                HasType(Creature),
+                                HasPossessor(axis: Controller, possessor: You),
+                            ]),
+                        ),
+                        disclosure: Openly,
+                        when: None,
+                        agent: None,
+                    ),
+                    PutCounters(
+                        amount: Lit(value: 2),
+                        kind: Printed(Boost(power: Up(1), toughness: Up(1))),
+                        on: Pro(reach: Word(Type(Creature)), plurality: One, window: Whole),
+                    ),
+                    DoIf(
+                        condition: Not(Matches(
+                            subject: Pro(reach: Bare, plurality: One, window: Whole),
+                            predicate: HasSubtype(Of(host: Creature, label: "Zombie")),
+                        )),
+                        instruction: Establish(
+                            spec: CharacteristicChange(
+                                subject: Pro(reach: Bare, plurality: One, window: Whole),
+                                edits: [
+                                    TypeLine(op: Adds, changes: (subtypes: [Of(host: Creature, label: "Zombie")])),
+                                ],
+                            ),
+                            duration: None,
+                        ),
+                        otherwise: None,
+                    ),
+                ])
+            "#,
+        )
+        .expect("the constructor-spelled body reads");
+    assert_eq!(amass, basis);
+}
+
+/// The two helpers that spell amass's token and type change [CR#701.47a]
+/// expand to exactly the basis terms they stand for.
+#[test]
+fn the_create_token_and_add_subtype_helpers_expand_to_their_basis_terms() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+
+    // The token `amass` creates, with its `Param(0)` taken as `zombie`.
+    let helper: Instruction = builtin
+        .macros
+        .read_str_restricted("createToken(you, creatureToken(0, 0, [Black], [zombie, army]))")
+        .expect("createToken reads in a card");
+    let basis: Instruction = builtin
+        .macros
+        .read_str(
+            r#"CreateObject(
+                count: 1,
+                spec: Token(
+                    spec: Written((characteristics: (
+                        colors: [Black],
+                        types: [Creature],
+                        subtypes: [Of(host: Creature, label: "Zombie"), Of(host: Creature, label: "Army")],
+                        power: 0,
+                        toughness: 0,
+                    ))),
+                    riders: [],
+                ),
+                agent: You,
+            )"#,
+        )
+        .expect("the basis term reads");
+    assert_eq!(helper, basis);
+
+    // The count defaults to one, and takes a caller's amount.
+    let two: Instruction = builtin
+        .macros
+        .read_str_restricted("createToken(you, creatureToken(0, 0, [Black], [zombie, army]), 2)")
+        .expect("createToken takes a count");
+    let Instruction::CreateObject { count, .. } = &two else {
+        panic!("createToken is a CreateObject: {two:?}");
+    };
+    assert_eq!(count, &Amount::Lit { value: 2 });
+
+    let helper: StaticSpec = builtin
+        .macros
+        .read_str_restricted("addSubtype(this, zombie)")
+        .expect("addSubtype reads in a card");
+    let basis: StaticSpec = builtin
+        .macros
+        .read_str(
+            r#"CharacteristicChange(
+                subject: this,
+                edits: [TypeLine(op: Adds, changes: (subtypes: [Of(host: Creature, label: "Zombie")]))],
+            )"#,
+        )
+        .expect("the basis term reads");
+    assert_eq!(helper, basis);
 }
 
 /// Only a `semantic_expression` kind restricts. A word type registered as a

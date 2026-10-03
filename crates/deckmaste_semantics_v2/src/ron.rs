@@ -89,6 +89,19 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::words::ColorOrColorless::kind());
     kinds.add(crate::phrase::ColorTerm::kind());
     kinds.add(crate::words::Color::kind());
+    // The counter injection (§11.1): `CounterKindSource::Printed` embeds a
+    // `CounterKind`, so both links register — the host for its fall-through,
+    // the payload for its derived dispatch set (a counter declaration's family
+    // kind shares the name).
+    kinds.add(crate::abilities::CounterKindSource::kind());
+    kinds.add(crate::words::CounterKind::kind());
+    // The pronoun-word injection (§11.1): `NounWord::Type` embeds a
+    // `CardType`, so "that creature" is `that(Creature)`.
+    kinds.add(crate::words::NounWord::kind());
+    kinds.add(crate::words::CardType::kind());
+    // The subtype declarations' family kind, registered from the type's own
+    // derive so it carries `Of`/`Spell` as its dispatch set.
+    kinds.add(crate::words::Subtype::kind());
     // A word type, not a `semantic_expression`, but macroable all the same:
     // `plugins_v2`'s turn-part declarations register at this very name, so the
     // kind must be the derived one that carries the type's dispatch set. A
@@ -164,21 +177,19 @@ pub const EXPRESSION_KINDS: &[&str] = &[
 /// The variants of a HAND-BUILT kind that stay natively spellable under a
 /// restricted read.
 ///
-/// A kind registered from `#[derive(SupportsMacros)]` carries its own dispatch
-/// set, so the carve-out below reads the variants off the kind. A hand-built
-/// kind carries none — `CounterKind` is registered because a declaration
-/// family bears its name, not because the type derives — so the variant names
-/// are written here. It is a word type, not a `semantic_expression`, so a card
-/// writes it as it always did.
+/// A kind registered from `SupportsMacros` carries its own dispatch set, so
+/// the carve-out below reads the variants off the kind. A hand-built kind
+/// carries none, so the variant names are written here.
 ///
-/// `Subtype` used to be the other entry. It is macro-only since
+/// `Subtype` used to be an entry. It is macro-only since
 /// `plugins-v2-subtypes-macro-only`: every subtype has a declaration whose
 /// name a card writes, so the constructor is basis rather than author
 /// vocabulary and `Subtype` stands in [`EXPRESSION_KINDS`] above instead.
-const HAND_BUILT_NATIVE: &[(&str, &[&str])] = &[
-    ("CounterKind", &["Boost", "Keyword", "Named"]),
-    ("HeaderPossessor", &["NoPossessor", "ByPlayer", "ByTurn"]),
-];
+/// `CounterKind` was the other: it now derives `SupportsMacros` (it is the
+/// payload of `CounterKindSource::Printed`), and its derived kind's
+/// dispatch set is the same three constructors, so its row went with it.
+const HAND_BUILT_NATIVE: &[(&str, &[&str])] =
+    &[("HeaderPossessor", &["NoPossessor", "ByPlayer", "ByTurn"])];
 
 /// The literal leaves (§11.1): Lean tags these `semantic_literal`, and
 /// `onlyMacros` admits a literal where it refuses a constructor. A card writes
@@ -264,11 +275,10 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::words::ColorOrColorless>("ColorOrColorless");
     types.add_typed::<crate::phrase::ColorTerm>("ColorTerm");
     types.add_typed::<crate::words::Color>("Color");
-    // Not a `SupportsMacros` kind (it has no macro dispatch of its own —
-    // `plugins_v2` spells a subtype with the native `Of`/`Spell` constructor,
-    // never a bare declared-subtype macro name), but a real v2 syntax type a
-    // declaration's signature needs to name: Amass's amassed subtype
-    // [CR#701.47a].
+    types.add_typed::<crate::words::CardType>("CardType");
+    // A card writes a subtype as its declaration's bare name (`zombie`),
+    // which denotes the subtype its definition names; a declaration's
+    // signature names the type too: Amass's amassed subtype [CR#701.47a].
     types.add_typed::<crate::words::Subtype>("Subtype");
     // Likewise no dispatch set of its own (`plugins_v2` never writes a bare
     // `SearchScope` macro), but Search's declaration signature

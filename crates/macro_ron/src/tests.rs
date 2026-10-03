@@ -4038,3 +4038,174 @@ fn a_default_may_not_reference_an_elidable_param() {
         .to_string();
     assert!(error.contains("omittable param `a`"), "{error}");
 }
+
+// ---------------------------------------------------------------------------
+// `#[macro_ron(denoted_by(...))]` fixtures
+//
+// `Term` is the marked type: besides its own constructors, the spelling
+// `Made` reads at a `Term` position as a `Decl` (a plain serde type the
+// consumer owns) and projects to the `Term` it names — the shape of a
+// registry declaration whose name denotes its term. `Source` embeds `Term`
+// as `CounterKindSource` embeds `CounterKind`. `Plain` is `Term` without the
+// marker.
+
+#[cfg(feature = "derive")]
+mod denoted {
+    use serde::Deserialize;
+
+    use crate::KindSet;
+    use crate::MacroDef;
+    use crate::MacroSet;
+    use crate::Params;
+    use crate::SupportsMacros;
+
+    /// The consumer's definition type: NOT macro-aware, and unknown to the
+    /// derive except through the projection the marker names.
+    #[derive(Debug, Clone, PartialEq, Deserialize)]
+    enum Decl {
+        Made { term: Term, note: u32 },
+        Unmade { note: u32 },
+    }
+
+    impl Decl {
+        fn made_term(&self) -> Option<&Term> {
+            match self {
+                Self::Made { term, .. } => Some(term),
+                Self::Unmade { .. } => None,
+            }
+        }
+    }
+
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    #[macro_ron(denoted_by(Made, term = Decl::made_term))]
+    #[macro_ron(denoted_by(Unmade, term = Decl::made_term))]
+    enum Term {
+        A,
+        B { n: u32 },
+    }
+
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Plain {
+        A,
+        B { n: u32 },
+    }
+
+    #[derive(Debug, Clone, PartialEq, crate::SupportsMacros)]
+    enum Source {
+        Own,
+        #[macro_ron(embed)]
+        Printed {
+            term: Term,
+        },
+    }
+
+    /// The three kinds, each marking its own dispatch set natively spellable
+    /// the way a word-type consumer does, and one declaration macro `made`
+    /// whose body is the definition node.
+    fn set() -> MacroSet {
+        let mut kinds = KindSet::new();
+        kinds.add(Term::kind().natively_spellable(Term::ALL_VARIANTS.iter().copied()));
+        kinds.add(Plain::kind().natively_spellable(Plain::ALL_VARIANTS.iter().copied()));
+        kinds.add(Source::kind().natively_spellable(Source::OWN_VARIANTS.iter().copied()));
+        let mut set = MacroSet::new(kinds).with_options(super::options());
+        set.insert(&MacroDef {
+            name: "made".into(),
+            kinds: vec!["Term".into()],
+            params: Params::default(),
+            template: None,
+            plural: None,
+            frames: Vec::new(),
+            metadata: (),
+            body: "Made(term: B(n: 2), note: 7)".into(),
+        })
+        .unwrap();
+        set
+    }
+
+    /// The denoted spelling reads at the marked position and projects to the
+    /// term it names — written out, and through a declaration macro.
+    #[test]
+    fn a_denoted_spelling_reads_and_projects() {
+        let term: Term = set().read_str("Made(term: A, note: 1)").unwrap();
+        assert_eq!(term, Term::A);
+        let term: Term = set().read_str_restricted("made").unwrap();
+        assert_eq!(term, Term::B { n: 2 });
+        // The type's own constructors are untouched.
+        let term: Term = set().read_str_restricted("B(n: 3)").unwrap();
+        assert_eq!(term, Term::B { n: 3 });
+    }
+
+    /// A spelling that reads but whose projection finds no term is an error
+    /// naming the spelling and the type, not a silent default.
+    #[test]
+    fn a_denoted_spelling_without_a_term_is_refused() {
+        let err = set().read_str::<Term>("Unmade(note: 1)").unwrap_err();
+        let message = err.to_string();
+        assert!(
+            message.contains("Unmade") && message.contains("Term"),
+            "{message}"
+        );
+    }
+
+    /// The spelling is not a variant of the type: it is absent from both
+    /// dispatch lists and from the signature tables.
+    #[test]
+    fn a_denoted_spelling_is_not_in_the_dispatch_set() {
+        assert_eq!(Term::OWN_VARIANTS, &["A", "B"]);
+        assert_eq!(Term::ALL_VARIANTS, &["A", "B"]);
+        assert!(Term::ALL_SIGNATURES.iter().all(|(name, _)| *name != "Made"));
+        assert_eq!(Term::kind().variants(), &["A", "B"]);
+    }
+
+    /// A restricted read — a card — refuses the raw spelling by name, while
+    /// the macro whose expansion is that spelling still reads (above).
+    #[test]
+    fn a_denoted_spelling_is_refused_under_a_restricted_read() {
+        let err = set()
+            .read_str_restricted::<Term>("Made(term: A, note: 1)")
+            .unwrap_err();
+        assert!(err.to_string().contains("Made"), "{err}");
+    }
+
+    /// A host that embeds a marked type still routes a bare payload name, a
+    /// payload macro, and the payload's own constructors through the
+    /// injection, and its own constructors still win.
+    #[test]
+    fn a_host_embedding_a_marked_type_still_routes_through_the_injection() {
+        let source: Source = set().read_str_restricted("made").unwrap();
+        assert_eq!(
+            source,
+            Source::Printed {
+                term: Term::B { n: 2 }
+            }
+        );
+        let source: Source = set().read_str_restricted("A").unwrap();
+        assert_eq!(source, Source::Printed { term: Term::A });
+        let source: Source = set().read_str_restricted("Printed(term: made)").unwrap();
+        assert_eq!(
+            source,
+            Source::Printed {
+                term: Term::B { n: 2 }
+            }
+        );
+        let source: Source = set().read_str("Made(term: A, note: 1)").unwrap();
+        assert_eq!(source, Source::Printed { term: Term::A });
+        let source: Source = set().read_str_restricted("Own").unwrap();
+        assert_eq!(source, Source::Own);
+        assert_eq!(Source::ALL_VARIANTS, &["Own", "Printed", "A", "B"]);
+    }
+
+    /// Without the marker the same enum derives exactly as before: same
+    /// dispatch set, and the spelling is an unknown variant.
+    #[test]
+    fn an_unmarked_type_is_unchanged() {
+        assert_eq!(Plain::OWN_VARIANTS, Term::OWN_VARIANTS);
+        assert_eq!(Plain::ALL_VARIANTS, Term::ALL_VARIANTS);
+        let plain: Plain = set().read_str("B(n: 1)").unwrap();
+        assert_eq!(plain, Plain::B { n: 1 });
+        let err = set()
+            .read_str::<Plain>("Made(term: A, note: 1)")
+            .unwrap_err();
+        assert!(err.to_string().contains("Made"), "{err}");
+    }
+}

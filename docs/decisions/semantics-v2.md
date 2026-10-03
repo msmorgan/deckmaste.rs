@@ -287,7 +287,12 @@ rather than as an identity and capitalise it at that boundary — `cargo xtask
 facts`'s keyword and subtype overlays, through `label_of`/`name_of` there — and
 one stopped taking it at all: an ability word's italic label is now its
 SPELLING, which is what the bench writes (`abilityWord "will of the council"`).
-`lean-macros-from-ron` is an identity on names.
+`lean-macros-from-ron` is an identity on names, with one mechanical
+exception: a RON name that is a Lean keyword is spelled in Lean with a
+trailing underscore — `exists` ↔ `exists_` — the escape the mirror's
+constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
+Lean's reserved words, so the declaration keeps the plain name (ruling,
+2026-10-04).
 
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
@@ -326,7 +331,10 @@ per-type convenience, and each off by default in `macro_ron` — v2's
   derive refuses a second. The chain is hand-chosen, never enumerated from
   the mirror: today `ManaSymbol::Simple`, `SimpleManaSymbol::Specific`,
   `ColorOrColorless::Of` and `ColorTerm::Lit`, which is v1's chain mapped
-  onto v2. Native dispatch always wins: an identifier the position's own
+  onto v2; `CounterKindSource::Printed`, so a bare `p1p1Counter` is a
+  printed counter kind (ruling, 2026-10-03: "p1p1Counter should read bare,
+  with Printed the default constructor"); and `NounWord::Type`, so "that
+  creature" is `that(Creature)` (ruling, 2026-10-04). Native dispatch always wins: an identifier the position's own
   grammar or macro namespace claims is never routed.
 
   An injection also WRITES bare, so a card file spells the colour and
@@ -382,8 +390,8 @@ per-type convenience, and each off by default in `macro_ron` — v2's
   colour, a subtype, a turn part, the mana chain), and the two literal leaves
   (`Amount::Lit`, `SimpleManaSymbol::Generic`) stay written-out-able, which is
   what `semantic_literal` buys in Lean. A hand-built kind carries no dispatch
-  set to read variants off, so `Subtype`, `CounterKind` and `HeaderPossessor`
-  name theirs in `ron.rs`.
+  set to read variants off, so `HeaderPossessor`, the one left, names its
+  variants in `ron.rs`; `Subtype` and `CounterKind` derive theirs.
 - **A numeral reads at its leaf.** Lean marks `Amount.lit` and
   `SimpleManaSymbol.generic` `semantic_literal`; the mirror marks the same
   two `#[macro_ron(literal)]`, the marker v1 already uses for `StatValue`'s
@@ -421,9 +429,19 @@ says.
 `macro_ron` gains the reader rules §11.1 records — the unknown-field refusal,
 injections, positional application, numeral leaves — all off by default and
 all consumer-declared: two `MacroSet` switches (`denying_unknown_fields`,
-`reading_positional_arguments`) and two `#[macro_ron(...)]` markers on the
-mirror (`embed`, `literal`). A `MacroSet` with neither switch, over types
-carrying neither marker, reads exactly as it did before. What a macro's own
+`reading_positional_arguments`) and three `#[macro_ron(...)]` markers on the
+mirror (`embed`, `literal`, `denoted_by`). A `MacroSet` with neither switch,
+over types carrying none of the markers, reads exactly as it did before.
+`denoted_by(Spelling, term = path)` is the type-level one: it declares that a
+Registry Definition's spelling also reads at the type's position and denotes
+the term `path` finds in it — a definition's name denotes its term, so
+`p1p1Counter`, whose body is its `Definition::Counter` node, reads at a
+`CounterKind` position as that node's `kind`, and a subtype declaration reads
+at a `Subtype` position as its `subtype`. The spelling is not one of the
+type's variants, so a card writing the node raw is refused by name; the
+projection is the mirror's (`Definition::counter_term`,
+`Definition::subtype_term`), and `macro_ron` knows nothing of it (ruling,
+2026-10-03; the derive marker, 2026-10-04). What a macro's own
 BODY may write is what a card may write, because a body is read at the
 position it expands to and goes through the same reader. A macro's declared
 signature still determines its hole vocabulary: positional signatures resolve
@@ -508,9 +526,11 @@ Beside the ported phrasings is the ALIAS layer: one identity macro per
 constructor of a `semantic_expression` type, `draw(amount: …, agent: …)` for
 `Draw`, which is what `declare_semantic_primitives` generates in Lean and what
 makes §11.1's macro-only rule satisfiable — a card that may write only macros
-needs a macro for every constructor. 245 of them are declarations; the rest of
+needs a macro for every constructor. 244 of them are declarations; the rest of
 the basis is already covered by a phrasing macro of the same name (the 27
-above among them, whose narrower signature is the one a card writes), and Lean
+above among them, whose narrower signature is the one a card writes, and
+`exists`, whose `Predicate` signature is Lean's `exists_` phrasing — the
+`NounPhrase` form gets its own macro when a card first needs one), and Lean
 tags `NounPhrase.pro`, `NounPhrase.gap`, `Amount.parameter` and each type's
 `withBindings`/`inCaller` `internal_expansion`, so it mints no alias for them
 either. `gap` is the one exception this landing made: `Storm Fleet Spy` writes

@@ -10,7 +10,7 @@
 // which is a predicate over the permanent, not a property of one counter.
 // Routed to `semantics-v2-counter-annihilation-sba`.
 CounterKind(
-    name: "m1M1Counter",
+    name: "m1m1Counter",
     params: [],
     spelling: "-1/-1",
     body: Counter(

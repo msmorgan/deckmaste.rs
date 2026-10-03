@@ -1767,7 +1767,7 @@ fn report(t: &Table) -> bool {
 fn counter_stub_spellings(dir: &Path) -> anyhow::Result<Vec<String>> {
     let mut spellings = Vec::new();
     for name in stub_names(dir)? {
-        if name == "p1P1Counter" || name == "m1M1Counter" {
+        if name == "p1p1Counter" || name == "m1m1Counter" {
             continue;
         }
         let path = dir.join(format!("{name}.ron"));

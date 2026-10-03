@@ -65,5 +65,6 @@ pub use support::concat_signatures;
 pub use support::concat_variants;
 pub use support::concat_variants_excluding;
 pub use support::count_kept;
+pub use support::read_denoted;
 pub use traverse::Expand;
 pub use traverse::Normalize;

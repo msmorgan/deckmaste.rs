@@ -489,3 +489,70 @@ where
         Ok((a, b, c))
     }
 }
+
+/// Reads an already-tagged variant as the type `D` a `denoted_by` marker
+/// names, then takes the term `term` finds in it — the runtime half of
+/// `#[macro_ron(denoted_by(Spelling, term = path))]`.
+///
+/// The marked type's own `deserialize_enum` has already read the tag
+/// `ident`; this replays it to `D`'s ordinary `Deserialize`, so `D` reads its
+/// variant exactly as it would at a position of its own, and `access` keeps
+/// whatever wrapping the macro layer gave it. `term` is the consumer's typed
+/// projection: `macro_ron` knows neither `D` nor what it denotes. A spelling
+/// that reads but denotes nothing of the marked type is an error naming both.
+///
+/// # Errors
+///
+/// If the variant does not read as `D`, or `term` finds no term in it.
+pub fn read_denoted<'de, D, T, A>(
+    ident: &str,
+    access: A,
+    owner: &'static str,
+    term: impl FnOnce(&D) -> Option<&T>,
+) -> Result<T, A::Error>
+where
+    D: Deserialize<'de>,
+    T: Clone,
+    A: VariantAccess<'de>,
+{
+    let read = D::deserialize(Tagged { ident, access })?;
+    term(&read).cloned().ok_or_else(|| {
+        de::Error::custom(format_args!(
+            "`{ident}` reads here but denotes no `{owner}`"
+        ))
+    })
+}
+
+/// A deserializer over one already-tagged variant: every request is answered
+/// with the variant itself, which is all an enum's `Deserialize` asks for.
+struct Tagged<'a, A> {
+    ident: &'a str,
+    access: A,
+}
+
+impl<'de, A: VariantAccess<'de>> de::Deserializer<'de> for Tagged<'_, A> {
+    type Error = A::Error;
+
+    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
+        visitor.visit_enum(self)
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct map struct enum identifier ignored_any
+    }
+}
+
+impl<'de, A: VariantAccess<'de>> de::EnumAccess<'de> for Tagged<'_, A> {
+    type Error = A::Error;
+    type Variant = A;
+
+    fn variant_seed<S: de::DeserializeSeed<'de>>(
+        self,
+        seed: S,
+    ) -> Result<(S::Value, Self::Variant), Self::Error> {
+        let tag = seed.deserialize(de::value::StrDeserializer::<A::Error>::new(self.ident))?;
+        Ok((tag, self.access))
+    }
+}

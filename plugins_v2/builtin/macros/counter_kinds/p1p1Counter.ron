@@ -5,7 +5,7 @@
 // Inherently strip-immune: a creature whose abilities are all removed still
 // gets the bonus.
 CounterKind(
-    name: "p1P1Counter",
+    name: "p1p1Counter",
     params: [],
     spelling: "+1/+1",
     body: Counter(

@@ -1,0 +1,12 @@
+// "<subject> is a <subtype> in addition to its other types": a type-changing
+// effect that adds one subtype [CR#205.1b], applied in the type-changing layer
+// [CR#613.1d].
+(
+    name: "addSubtype",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "subtype": Subtype},
+    body: CharacteristicChange(
+        subject: Param(subject),
+        edits: [TypeLine(op: Adds, changes: (subtypes: [Param(subtype)]))],
+    ),
+)

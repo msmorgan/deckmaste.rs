@@ -1,0 +1,13 @@
+// "<agent> creates <count> <characteristics> token(s)" [CR#111.2]: a token
+// whose characteristics the creating instruction writes [CR#111.3], with no
+// riders. One token unless the caller says otherwise.
+(
+    name: "createToken",
+    kinds: [Instruction],
+    params: {"agent": NounPhrase, "characteristics": CharacteristicBundle, "count": Default(Amount, 1)},
+    body: CreateObject(
+        count: Param(count),
+        spec: Token(spec: Written(characteristics: Param(characteristics)), riders: []),
+        agent: Param(agent),
+    ),
+)

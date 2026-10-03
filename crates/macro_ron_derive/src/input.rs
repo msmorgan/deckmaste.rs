@@ -74,6 +74,24 @@ pub struct Variant {
 pub struct Input {
     pub ident: Ident,
     pub variants: Vec<Variant>,
+    /// Type-level `#[macro_ron(denoted_by(Spelling, term = path))]` markers,
+    /// in declaration order. Empty unless the type declares one.
+    pub denoted: Vec<Denoted>,
+}
+
+/// A spelling that also reads at this type's position and DENOTES a value of
+/// it: `#[macro_ron(denoted_by(Counter, term = crate::rules::Definition::counter_term))]`.
+///
+/// The spelling is a variant of another type `D` — the argument type of
+/// `term`, a `fn(&D) -> Option<&Self>` the consumer supplies — and the
+/// position reads it as `D` and takes the term `term` finds there. It is NOT
+/// one of this type's variants: it stays out of `OWN_VARIANTS`,
+/// `ALL_VARIANTS` and the signature tables, so it never dispatches from a
+/// parent and a restricted read refuses it like any other name the kind does
+/// not mark natively spellable. Only the type's own `Deserialize` accepts it.
+pub struct Denoted {
+    pub spelling: Ident,
+    pub term: syn::Path,
 }
 
 impl Input {
@@ -159,6 +177,7 @@ pub fn parse(input: &DeriveInput) -> Result<Input> {
              (serde attrs are only forwarded from struct-variant fields)",
         ));
     }
+    let denoted = type_markers(&input.attrs)?;
     let mut variants = Vec::new();
     for v in &data.variants {
         let (marker, flatten_exclude) = variant_marker(&v.attrs)?;
@@ -199,10 +218,62 @@ pub fn parse(input: &DeriveInput) -> Result<Input> {
             "an enum carries at most one `embed` variant              (two untagged fall-throughs would race for the same identifier)",
         ));
     }
+    // A denoted spelling that is also one of the type's own variant names
+    // would race the variant for the same identifier.
+    for d in &denoted {
+        if variants.iter().any(|v| v.ident == d.spelling) {
+            return Err(Error::new(
+                d.spelling.span(),
+                "a `denoted_by` spelling cannot also be a variant of the type \
+                 (the two readings would race for the same identifier)",
+            ));
+        }
+    }
+    if let Some(d) = denoted.iter().enumerate().find_map(|(i, d)| {
+        denoted[..i]
+            .iter()
+            .any(|e| e.spelling == d.spelling)
+            .then_some(d)
+    }) {
+        return Err(Error::new(
+            d.spelling.span(),
+            "a `denoted_by` spelling is declared twice",
+        ));
+    }
     Ok(Input {
         ident: input.ident.clone(),
         variants,
+        denoted,
     })
+}
+
+/// The type-level `#[macro_ron(...)]` markers: only `denoted_by(Spelling,
+/// term = path)`, repeatable for distinct spellings.
+fn type_markers(attrs: &[Attribute]) -> Result<Vec<Denoted>> {
+    let mut denoted = Vec::new();
+    for attr in attrs.iter().filter(|a| a.path().is_ident("macro_ron")) {
+        attr.parse_nested_meta(|meta| {
+            if !meta.path.is_ident("denoted_by") {
+                return Err(meta.error("expected `denoted_by(Spelling, term = path)` on the type"));
+            }
+            let content;
+            syn::parenthesized!(content in meta.input);
+            let spelling: Ident = content.parse()?;
+            content.parse::<syn::Token![,]>()?;
+            let key: Ident = content.parse()?;
+            if key != "term" {
+                return Err(Error::new(key.span(), "expected `term = path`"));
+            }
+            content.parse::<syn::Token![=]>()?;
+            let term: syn::Path = content.parse()?;
+            if !content.is_empty() {
+                return Err(content.error("unexpected tokens after `term = path`"));
+            }
+            denoted.push(Denoted { spelling, term });
+            Ok(())
+        })?;
+    }
+    Ok(denoted)
 }
 
 fn variant_marker(attrs: &[Attribute]) -> Result<(Option<Marker>, Vec<Ident>)> {

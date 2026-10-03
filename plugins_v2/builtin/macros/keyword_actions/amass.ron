@@ -13,66 +13,21 @@ KeywordAction(
         third_person: "amasses",
         frame_set: Custom(frames: [[ObjectNounPhrase, Amount]]),
     ),
-    body: Sequentially([
-        DoIf(
-            condition: Not(Exists(Described(
-                determiner: Bare,
-                predicate: And([
-                    HasSubtype(Of(host: Creature, label: "Army")),
-                    HasType(Creature),
-                    HasPossessor(axis: Controller, possessor: You),
-                ]),
-            ))),
-            instruction: CreateObject(
-                count: 1,
-                spec: Token(
-                    spec: Written((characteristics: (
-                        colors: [Black],
-                        types: [Creature],
-                        subtypes: [Param(0), Of(host: Creature, label: "Army")],
-                        power: 0,
-                        toughness: 0,
-                    ))),
-                    riders: [],
-                ),
-                agent: You,
-            ),
-            otherwise: None,
+    body: sequentially([
+        // "If you don't control an Army, create a 0/0 black <subtype> Army
+        // creature token."
+        doIf(
+            not(exists(armyYouControl)),
+            createToken(you, creatureToken(0, 0, [Black], [Param(0), army])),
         ),
-        Choose(
-            first: None,
-            chosen: Described(
-                determiner: A(Unmarked),
-                predicate: And([
-                    HasSubtype(Of(host: Creature, label: "Army")),
-                    HasType(Creature),
-                    HasPossessor(axis: Controller, possessor: You),
-                ]),
-            ),
-            disclosure: Openly,
-            when: None,
-            agent: None,
-        ),
-        PutCounters(
-            amount: Param(1),
-            kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-            on: Pro(reach: Word(Type(Creature)), plurality: One, window: Whole),
-        ),
-        DoIf(
-            condition: Not(Matches(
-                subject: Pro(reach: Bare, plurality: One, window: Whole),
-                predicate: HasSubtype(Param(0)),
-            )),
-            instruction: Establish(
-                spec: CharacteristicChange(
-                    subject: Pro(reach: Bare, plurality: One, window: Whole),
-                    edits: [
-                        TypeLine(op: Adds, changes: (subtypes: [Param(0)])),
-                    ],
-                ),
-                duration: None,
-            ),
-            otherwise: None,
+        // "Choose an Army you control."
+        choose(a(armyYouControl)),
+        // "Put N +1/+1 counters on it."
+        putCounters(Param(1), p1p1Counter, that(Creature)),
+        // "It's a <subtype> in addition to its other types."
+        doIf(
+            not(matches(it, hasSubtype(Param(0)))),
+            establish(addSubtype(it, Param(0))),
         ),
     ]),
 )
