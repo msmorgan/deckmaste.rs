@@ -77,7 +77,7 @@ theorem okCastWindowOnSpell :
   decide
 
 /-- The same sentence spelled as a static permitting the cast. A cast window is stated by the
-spell [CR#506.7], which is `okCastWindowOnSpell`'s window slot, not a permission a spell
+spell [CR#506.8], which is `okCastWindowOnSpell`'s window slot, not a permission a spell
 card's static ability grants. -/
 theorem badCastWindowAsDeonticStatic :
     Card.check

@@ -682,7 +682,7 @@ pub(super) fn filter_noun(filter: &Predicate) -> String {
             None => base,
         };
         // The self-exclusion "other" prefix rides outermost — ahead of any
-        // adjective adjunct too ([CR#205.3g]-style: "for each other
+        // adjective adjunct too ("for each other
         // attacking Goblin", never "attacking other Goblin").
         let base = match self_exclusion_prefix(filter) {
             Some(prefix) => format!("{prefix} {base}"),
@@ -764,7 +764,7 @@ fn adjective_adjunct(filter: &Predicate) -> Option<&'static str> {
 }
 
 /// The self-exclusion "other" prefix among a filter's `And` parts
-/// ([CR#205.3g]-style anaphora, "each OTHER creature") — `Not(Ref(This))` ->
+/// ("each other creature") — `Not(Ref(This))` ->
 /// "other", read ahead of the base noun (and any adjective adjunct):
 /// Goblin Piledriver's "for each other attacking Goblin". Bare-noun register
 /// only — mid-sentence subject position reads "another" instead
