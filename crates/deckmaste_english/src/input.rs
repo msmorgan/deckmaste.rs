@@ -169,50 +169,7 @@ fn normalize_sentence_case_line(line: &str) -> String {
     output
 }
 
-/// Removes parenthesized reminder text before English parsing.
-///
-/// Parentheses are lexical trivia in Oracle text for this phase. One ordinary
-/// space immediately before a balanced group is removed with it; unmatched
-/// opening parentheses are preserved.
-#[must_use]
-pub fn strip_reminder_text(text: &str) -> String {
-    let mut output = String::with_capacity(text.len());
-    let mut group = String::new();
-    let mut depth = 0_usize;
-
-    for character in text.chars() {
-        if depth == 0 {
-            if character == '(' {
-                depth = 1;
-                group.push(character);
-            } else {
-                output.push(character);
-            }
-        } else {
-            group.push(character);
-            match character {
-                '(' => depth += 1,
-                ')' => {
-                    depth -= 1;
-                    if depth == 0 {
-                        group.clear();
-                        if output.ends_with(' ') {
-                            output.pop();
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    output.push_str(&group);
-    output
-        .lines()
-        .filter(|line| !line.trim().is_empty())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
+pub use deckmaste_data::oracle_text::strip_reminder_text;
 
 #[cfg(test)]
 mod tests {

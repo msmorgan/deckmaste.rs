@@ -138,7 +138,7 @@ impl LegacyCatalogSet {
 
         for card in OracleCardReader::new(oracle_cards) {
             let card = card?;
-            if card.vintage_playable() {
+            if card.supported() {
                 for unit in card.oracle_units() {
                     for keyword in unit.keywords() {
                         let keyword = normalize_variant_name(keyword);

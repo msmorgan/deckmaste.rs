@@ -19,6 +19,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 
 pub mod academyruins;
+pub mod oracle_text;
 pub mod scryfall;
 
 #[derive(Debug, Clone)]

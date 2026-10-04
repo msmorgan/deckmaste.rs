@@ -105,6 +105,8 @@ pub(super) struct FaceReport {
     pub raw_text: Option<String>,
     pub raw_text_sha256: String,
     pub source_sha256: String,
+    pub analyzed_source: String,
+    pub analyzed_source_sha256: String,
     pub unknown_words: Vec<UnknownWord>,
     pub enumeration: Enumeration,
     pub census: Census,
@@ -124,6 +126,11 @@ pub(super) struct FaceReport {
 impl FaceReport {
     pub fn new(face: &SelectedFace, field: SourceField) -> Self {
         let raw = face.text.as_deref();
+        let source = field.source(face).unwrap_or("");
+        let analyzed_source = match field {
+            SourceField::Text => deckmaste_data::oracle_text::strip_reminder_text(source),
+            SourceField::TypeLine => source.to_owned(),
+        };
         Self {
             id: face.identity.clone(),
             oracle_id: face.oracle_id.clone(),
@@ -137,6 +144,8 @@ impl FaceReport {
             raw_text: raw.map(str::to_owned),
             raw_text_sha256: digest(raw.unwrap_or("").as_bytes()),
             source_sha256: digest(field.source(face).unwrap_or("").as_bytes()),
+            analyzed_source_sha256: digest(analyzed_source.as_bytes()),
+            analyzed_source,
             unknown_words: Vec::new(),
             enumeration: Enumeration::Failed,
             census: Census::Undetermined,
@@ -207,7 +216,7 @@ impl Totals {
             totals.checked_readings += face.checked_readings;
             cpu = cpu.zip(face.thread_cpu_ns).map(|(sum, n)| sum + n);
             if face.checked_readings > 0 {
-                totals.checked_text_bytes += bytes;
+                totals.checked_text_bytes += face.analyzed_source.len();
                 checked_cpu = checked_cpu.zip(face.thread_cpu_ns).map(|(sum, n)| sum + n);
             }
         }
@@ -315,7 +324,7 @@ impl Report {
             .and_then(|out| String::from_utf8(out.stdout).ok())
             .map(|text| text.trim().to_owned());
         Self {
-            schema_version: 3,
+            schema_version: 4,
             field: args.field,
             input: args.data.clone(),
             input_sha256: corpus.snapshot_sha256.clone(),
@@ -334,7 +343,7 @@ impl Report {
             lexical_inventory_sha256: inventory_sha256,
             change_id,
             support_filter: SUPPORT_FILTER,
-            input_policy: "Analyze the selected raw face field with its declared root Category, without normalization or removal of reminders. Missing fields are analyzed as empty with null retained in metadata. source_sha256 and all analysis metrics refer to the selected field; raw_text and type_line always retain their original meanings.",
+            input_policy: "Strip balanced parenthesized reminder text before analyzing rules text as a Document; Type Lines are unchanged. Reminder contents are not parsed. Missing fields are analyzed as empty with null retained in metadata. raw_text, type_line and source_sha256 retain the original selected field. analyzed_source and analyzed_source_sha256 identify the parser input; lexical offsets and roundtrip validation refer to analyzed_source. source_bytes counts original bytes; checked_text_bytes counts analyzed bytes.",
             validation_scope: "Every counted Reading passes declaration admission, lexical ownership/context, byte-exact realization, and node/word traversal comparison against materialization traces. Independent linguistic correctness and the independently constructed-value roundtrip law are NOT checked by this corpus command.",
             fingerprint_encoding: "SHA-256 of generated Reading Debug; diagnostic identity within this source tree, not a stable serialization contract. Node fingerprints include complete subtrees.",
             reading_limit: args.reading_limit.map(std::num::NonZeroUsize::get),

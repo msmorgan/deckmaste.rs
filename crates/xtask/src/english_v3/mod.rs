@@ -182,15 +182,17 @@ fn analyze_face(
 ) -> Result<FaceReport> {
     let cpu_start = report::thread_cpu_ns();
     let started = Instant::now();
-    let raw = args.field.source(face).unwrap_or("");
     let mut result = FaceReport::new(face, args.field);
-    let analyzed = lexicon.analyze_source(raw, None);
+    let analyzed = lexicon.analyze_source(
+        args.field.source(face).unwrap_or(""),
+        Some(&result.analyzed_source),
+    );
     for range in analyzed.unknown_words() {
         let bytes = analyzed
             .byte_range(range.start, range.end)
             .context("unknown lexical word has invalid coordinates")?;
         result.unknown_words.push(UnknownWord {
-            text: raw[bytes.clone()].to_owned(),
+            text: result.analyzed_source[bytes.clone()].to_owned(),
             start: bytes.start,
             end: bytes.end,
         });
@@ -227,7 +229,12 @@ fn analyze_face(
                         continue;
                     }
                 };
-                match validate(&value, raw, lexicon, args.field.category()) {
+                match validate(
+                    &value,
+                    &result.analyzed_source,
+                    lexicon,
+                    args.field.category(),
+                ) {
                     Ok(reading) => {
                         if !checked.insert(reading.clone()) {
                             result.issues.push(Issue::DuplicateReading);

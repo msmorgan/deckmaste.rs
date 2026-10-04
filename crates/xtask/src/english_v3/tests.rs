@@ -128,7 +128,7 @@ fn copy_source_fields(target: &mut serde_json::Value, source: &serde_json::Value
 }
 
 #[test]
-fn raw_face_census_preserves_support_identity_and_unknown_byte_ranges() {
+fn face_census_preserves_raw_text_and_strips_reminders_before_parsing() {
     let bytes = serde_json::to_vec(&json!({"data": {
         "A": [card(Some("Draw cards."), "Legal"), card(Some("Draw cards."), "Restricted")],
         "B": [card(Some("Creatures attacks."), "Legal")],
@@ -161,19 +161,17 @@ fn raw_face_census_preserves_support_identity_and_unknown_byte_ranges() {
             Census::One,
             Census::One,
             Census::No,
-            Census::No,
+            Census::One,
             Census::One,
             Census::One
         ]
     );
     assert!(faces[2].unknown_words.is_empty());
     assert_eq!(faces[3].raw_text.as_deref(), Some("Draw cards. (éphantom)"));
-    let unknown = &faces[3].unknown_words;
-    assert_eq!(unknown.len(), 1);
-    assert_eq!(
-        (&*unknown[0].text, unknown[0].start, unknown[0].end),
-        ("éphantom", 13, 22)
-    );
+    assert_eq!(faces[3].analyzed_source, "Draw cards.");
+    assert_eq!(faces[3].source_sha256, faces[3].raw_text_sha256);
+    assert_eq!(faces[3].analyzed_source_sha256, faces[0].source_sha256);
+    assert!(faces[3].unknown_words.is_empty());
     assert_eq!(faces[4].raw_text, None);
     assert_eq!(faces[5].raw_text.as_deref(), Some(""));
     assert_ne!(faces[4].id, faces[5].id);
@@ -379,4 +377,27 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
         validate(&traced, "Instant", lexicon(), Category::Document),
         Err(Issue::RootCategory)
     );
+}
+
+#[test]
+fn unknown_word_offsets_and_roundtrips_use_the_stripped_source() {
+    let bytes = serde_json::to_vec(&json!({"data": {
+        "A": [card(Some("(ignored éphantom) Draw cards. éphantom."), "Legal")]
+    }}))
+    .unwrap();
+    let corpus = selected_corpus(&bytes);
+    let faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &args(None)).unwrap();
+    let face = &faces[0];
+    assert_eq!(face.analyzed_source, " Draw cards. éphantom.");
+    let unknown = &face.unknown_words;
+    assert_eq!(unknown.len(), 1);
+    assert_eq!(
+        (&*unknown[0].text, unknown[0].start, unknown[0].end),
+        ("éphantom", 13, 22)
+    );
+    assert_eq!(
+        &face.analyzed_source[unknown[0].start..unknown[0].end],
+        "éphantom"
+    );
+    assert!(face.issues.is_empty());
 }

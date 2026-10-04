@@ -19,7 +19,7 @@ use sha2::Digest;
 use sha2::Sha256;
 
 pub(crate) const SUPPORT_FILTER: &str =
-    "Scryfall legalities.vintage is exactly legal or restricted";
+    "Scryfall legalities.vintage is exactly legal or restricted AND set_type is not funny";
 
 /// Reproducible union of explicit identities/names and conjunctive predicates.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
@@ -191,7 +191,7 @@ pub(crate) fn load_selected(
     for card in OracleCardReader::new(BufReader::new(file)) {
         let card = card.with_context(|| format!("reading {}", path.display()))?;
         records_scanned += 1;
-        if !card.vintage_playable() {
+        if !card.supported() {
             continue;
         }
         let mut selected_from_card = Vec::new();

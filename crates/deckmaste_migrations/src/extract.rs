@@ -368,7 +368,7 @@ pub fn extract_cards(plugin_dir: &Path) -> Result<(), ExtractError> {
             path: oracle_path.clone(),
             source,
         })?;
-        if !card.vintage_playable() {
+        if !card.supported() {
             continue;
         }
         let final_path = cards_dir.join(card_file(&card.name));

@@ -4,6 +4,8 @@ use std::path::PathBuf;
 /// Failure to load or reconcile authored lexical declarations.
 #[derive(Debug, thiserror::Error)]
 pub enum LoadError {
+    #[error("reading card-name source: {0}")]
+    Oracle(#[from] deckmaste_data::scryfall::OracleCardReadError),
     #[error("{operation} {}: {source}", path.display())]
     Io {
         operation: &'static str,

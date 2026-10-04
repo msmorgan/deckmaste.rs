@@ -86,8 +86,15 @@ features and explicitly retained spelling variants. Computed source positions
 are not grammatical identity. Every non-derivable surface distinction admitted
 by the grammar must be recoverable by the declaration-driven renderer; the
 lexical integration pins how it is represented. Keep raw source and any
-preexisting normalization distinct. Tests starting from independently
-constructed values remain required alongside corpus parse/render checks.
+preexisting normalization distinct. The supported corpus requires Vintage
+playability (legal or restricted) and excludes Scryfall `set_type: funny`.
+Remove balanced parenthesized reminder text before lexical analysis; reminder
+contents are outside the current parsing scope. Retain the original Oracle
+text as source metadata, record the stripped parser input separately, and apply
+both roundtrip laws to that input. Preserve card-name spellings; legendary
+permanent nicknames are reversible lexical variants of the full name.
+Tests starting from independently constructed values remain required alongside
+corpus parse/render checks.
 
 ## Chart admission and ambiguity
 

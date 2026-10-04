@@ -17,11 +17,14 @@ cargo xtask english-v3 --data data/scryfall/oracle-cards.jsonl \
 ```
 
 The command requires an explicit face selector or `--all`, applies that
-selection before grammar work, and analyzes supported faces without normalization or removal of
-reminders. `--field text` (the default) parses rules text as a Document;
+selection before grammar work, and excludes Scryfall funny sets even when
+Vintage-legal. Balanced parenthesized reminder text is stripped before lexical
+analysis; its contents are outside the parsing scope. `--field text` (the default) parses rules text as a Document;
 `--field type-line` parses Type Lines. Missing fields are analyzed as empty,
 with null retained in the report. Metadata preserves both original fields;
-source hashes, offsets, census and timing metrics refer to the selected field.
+`source_sha256` hashes the original selected field. `analyzed_source` and its
+hash record the actual parser input; lexical offsets and roundtrip checks refer
+to that input. Card names are preserved verbatim.
 
 Enumeration is complete by default. `--reading-limit N` caps requests without
 claiming uniqueness or an exact total before exhaustion. `--samples-per-face N`

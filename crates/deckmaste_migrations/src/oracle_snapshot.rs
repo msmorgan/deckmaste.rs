@@ -68,7 +68,7 @@ pub fn write(
     let mut cards = Vec::new();
     for card in OracleCardReader::new(oracle_cards) {
         let card = card?;
-        let supported = card.vintage_playable();
+        let supported = card.supported();
         for unit in card.oracle_units() {
             let type_line = unit.type_line();
             let parts = type_line

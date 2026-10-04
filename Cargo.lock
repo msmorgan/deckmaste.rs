@@ -585,6 +585,7 @@ dependencies = [
  "deckmaste_catalogs",
  "deckmaste_construction_compiler",
  "deckmaste_constructions_macro",
+ "deckmaste_data",
  "deckmaste_features",
  "hashbrown 0.15.5",
  "proptest",
@@ -655,6 +656,7 @@ version = "0.1.0"
 dependencies = [
  "deckmaste_catalogs",
  "deckmaste_construction_core",
+ "deckmaste_data",
  "deckmaste_lexical",
  "macro_ron",
  "ron",

@@ -8,6 +8,7 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
 # RuleImpl's generated arm carries &'static runtime::GroupData — the
 # declaration-as-data face the constructions! macro emits.
 deckmaste_construction_compiler = { version = "0.1.0", path = "../deckmaste_construction_compiler" }

@@ -62,6 +62,8 @@ pub struct OracleCard {
     pub name: String,
     pub layout: String,
     #[serde(default)]
+    pub set_type: Option<String>,
+    #[serde(default)]
     pub mana_cost: Option<String>,
     #[serde(default, rename = "cmc")]
     pub mana_value: Option<f64>,
@@ -94,6 +96,12 @@ pub struct OracleCard {
 }
 
 impl OracleCard {
+    /// Whether this source record is Vintage-playable and outside a funny set.
+    #[must_use]
+    pub fn supported(&self) -> bool {
+        self.vintage_playable() && self.set_type.as_deref() != Some("funny")
+    }
+
     #[must_use]
     pub fn vintage_playable(&self) -> bool {
         let root = matches!(
@@ -632,6 +640,23 @@ mod tests {
     use std::io::Cursor;
 
     use super::*;
+
+    #[test]
+    fn supported_requires_vintage_playability_and_excludes_funny_sets() {
+        for (legality, set_type, expected) in [
+            ("legal", "expansion", true),
+            ("restricted", "masters", true),
+            ("banned", "expansion", false),
+            ("not_legal", "expansion", false),
+            ("legal", "funny", false),
+            ("restricted", "funny", false),
+        ] {
+            let input = serde_json::json!({"object":"card", "id":"p", "oracle_id":"o", "name":"Fixture", "layout":"normal", "legalities":{"vintage":legality}, "set_type":set_type});
+            let card: OracleCard = serde_json::from_value(input).unwrap();
+            assert_eq!(card.supported(), expected, "{legality}/{set_type}");
+            assert_eq!(card.set_type.as_deref(), Some(set_type));
+        }
+    }
 
     #[test]
     fn oracle_jsonl_stream_preserves_single_face_source_fields() {

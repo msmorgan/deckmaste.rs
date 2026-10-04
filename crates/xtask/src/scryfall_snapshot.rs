@@ -198,7 +198,7 @@ fn reconcile(args: &ReconcileArgs) -> anyhow::Result<()> {
     let mut new_by_oracle = BTreeMap::<String, Vec<String>>::new();
     for card in deckmaste_data::scryfall::OracleCardReader::new(BufReader::new(new_file)) {
         let card = card.context("reading new Scryfall snapshot for reconciliation")?;
-        let supported = card.vintage_playable();
+        let supported = card.supported();
         for unit in card.oracle_units() {
             let identity = unit.identity().to_string();
             let face = NewFace {

@@ -3,6 +3,7 @@
 //! Callers receive normalized declarations and do not observe the temporary
 //! source formats used to salvage the current inventory.
 
+mod card_names;
 mod error;
 pub use error::LoadError;
 
@@ -45,6 +46,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     legacy::plugins::load(root, &mut output)?;
     let directory = root.join("data/gen/catalogs");
     let catalogs = deckmaste_catalogs::CatalogSet::load(&directory)?;
+    let nicknames = card_names::load(root)?;
     for kind in catalogs.kinds() {
         for surface in catalogs.get(kind) {
             let owner = format!("catalog:{}/{}", kind.filename(), surface);
@@ -62,6 +64,9 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
             let mut lexeme = Lexeme::invariant(&owner, surface, category, source);
             lexeme.capitalization = Capitalization::Exact;
             if kind == deckmaste_catalogs::CatalogKind::CardNames {
+                if let Some(nickname) = nicknames.get(surface) {
+                    lexeme.forms[0].surfaces = Some(vec![surface.clone(), nickname.clone()]);
+                }
                 lexeme
                     .properties
                     .features
@@ -173,6 +178,46 @@ mod tests {
             assert!(analyzed.matches.iter().any(|found| {
                 found.start == 0 && found.end == analyzed.tokens.len() && found.reading == reading
             }));
+        }
+    }
+}
+
+#[cfg(test)]
+mod card_name_tests {
+    use super::*;
+    use deckmaste_lexical::{LexicalReading, Lexicon};
+
+    #[test]
+    fn legendary_nicknames_are_reversible_variants_of_the_full_name() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let sources = load_workspace(&root).unwrap();
+        for (full, short) in [
+            ("Nissa Revane", "Nissa"),
+            ("King Darien XLVIII", "King Darien"),
+            ("The Balrog, Durin's Bane", "The Balrog"),
+            ("Tor Wauki the Younger", "Tor Wauki"),
+        ] {
+            let lexeme = sources
+                .lexemes
+                .iter()
+                .find(|lexeme| lexeme.lemma == full)
+                .unwrap();
+            assert_eq!(
+                lexeme.forms[0].surfaces,
+                Some(vec![full.into(), short.into()])
+            );
+            let lexicon = Lexicon::new([lexeme.clone()]).unwrap();
+            let mut spelled = Vec::new();
+            for value in lexicon.values() {
+                let reading = LexicalReading::Word(value.clone());
+                let text = lexicon.realize(&reading).unwrap();
+                let analyzed = lexicon.analyze_source(&text, None);
+                assert!(analyzed.matches.iter().any(|found| found.start == 0
+                    && found.end == analyzed.tokens.len()
+                    && found.reading == reading));
+                spelled.push(text);
+            }
+            assert_eq!(spelled, [full, short]);
         }
     }
 }
