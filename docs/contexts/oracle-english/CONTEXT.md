@@ -158,6 +158,16 @@ entry reserves it for the printed line
 A conventional written representation using symbols, numerals, or other
 specialized marks rather than ordinary word-and-phrase grammar alone.
 
+**Mana Phrase** (project term):
+A phrase realized by mana notation or coordinated alternatives of that notation,
+used as a selected Complement. Its symbols preserve lexical identity and are
+licensed separately from symbols that appear only in Costs.
+
+**Amount Complement** (project term):
+A numeric Complement selected by a declared Amount Frame Slot. Its notation
+preserves the quantity's structure; the slot is distinct from a nominal Object
+and from a frequency Adjunct.
+
 **Sentence**:
 The highest ordinary syntactic unit of Oracle text, terminated by sentence
 punctuation and containing one or more Clauses.

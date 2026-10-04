@@ -132,6 +132,13 @@
     (identity: Remove, bare: "remove", third_person: "removes", preterite: Some("removed"), frames: [
         Predicate([ObjectNounPhrase, Lex("Preposition", "From"), Role("FrameComplement")]),
     ]),
+    (identity: Assign, bare: "assign", third_person: "assigns", frames: [
+        Predicate([ObjectNounPhrase]),
+    ]),
+    (identity: Change, bare: "change", third_person: "changes", frames: [
+        Predicate([]),
+        Predicate([ObjectNounPhrase]),
+    ]),
     (identity: Trigger, bare: "trigger", third_person: "triggers", frames: [
         Predicate([]),
         Predicate([ObjectNounPhrase]),

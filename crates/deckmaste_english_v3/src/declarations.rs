@@ -31,6 +31,7 @@ constructions! {
         feature KeywordParameterClass { Nullary, Amount, Cost }
         feature LabelKind { AbilityWord }
         feature SymbolUse { Cost }
+        feature ManaSymbolUse { Yes }
         feature TypeLineRole { Supertype, CardType, Subtype }
         feature IdentityUse { Name }
         feature AttributiveForm { GerundParticiple }
@@ -70,6 +71,7 @@ constructions! {
         category FiniteObjectGap(number, person);
         category BareObjectGap();
         category Cardinal(number);
+        category Amount();
         category MeasurePhrase(MeasureKind);
         category UnsignedScalar();
         category ScalarComponent();
@@ -83,6 +85,8 @@ constructions! {
         category CostContinuation();
         category CostSymbols();
         category CostSymbol();
+        category ManaPhrase();
+        category ManaSymbol();
         category Parenthetical();
         category QuotedText();
         category Mode();
@@ -102,6 +106,7 @@ constructions! {
 
         frame Intransitive = "(kind: \"Predicate\", items: [])";
         frame Transitive = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\"))])";
+        frame ManaComplement = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"ManaPhrase\"))])";
         frame ObjectName = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\")), Argument((relation: Complement, category: \"Name\"))])";
         frame BareNominal = "(kind: \"Nominal\", items: [])";
         frame NominalSymbols = "(kind: \"Nominal\", items: [Marked(vocabulary: \"Preposition\", member: \"Of\", slot: (relation: Complement, category: \"CostSymbols\"))])";
@@ -118,6 +123,7 @@ constructions! {
         frame ObjectEquality = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\")), Argument((relation: Complement, category: \"ScalarEquality\"))])";
         frame KeywordObject = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"KeywordPhrase\"))])";
         frame QuotedObject = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"QuotedText\"))])";
+        frame AmountComplement = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"Amount\"))])";
         frame CardinalComplement = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"Cardinal\"))])";
 
         // Plain form is shared by finite imperatives and nonfinite infinitivals.
@@ -341,6 +347,15 @@ constructions! {
 
         construction CostSymbols: CostSymbols {
             form [first: CostSymbol, rest: repeat(CostSymbol, "")];
+        }
+
+        construction ManaPhrase: ManaPhrase {
+            form [first: ManaSymbol, rest: repeat(ManaSymbol, "")];
+        }
+
+        construction NamedManaSymbol: ManaSymbol {
+            form ["{", symbol: lexical(Symbol), "}"];
+            require symbol.ManaSymbolUse = Yes;
         }
 
         construction NamedCostSymbol: CostSymbol {
@@ -774,6 +789,15 @@ constructions! {
             export Voice = Active;
         }
 
+        construction FiniteManaComplement: FinitePredicate {
+            form [head: lexical(Verb), " ", complement: ManaPhrase];
+            require head.finiteness = Finite;
+            require head.frame = ManaComplement;
+            export number = head.number;
+            export person = head.person;
+            export Voice = Active;
+        }
+
         construction FiniteLocative: FinitePredicate {
             form [head: lexical(Verb), " ", complement: LocativeComplement];
             require head.frame = Locative;
@@ -859,6 +883,14 @@ constructions! {
         construction SecondaryTransitive: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", object: AccusativePhrase];
             require head.frame = Transitive;
+            export form = secondary_form(head.form);
+            export Voice = Active;
+            export OvertHead = Yes;
+        }
+
+        construction SecondaryManaComplement: SecondaryVerbPhrase {
+            form [head: lexical(Verb), " ", complement: ManaPhrase];
+            require head.frame = ManaComplement;
             export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
@@ -1364,6 +1396,31 @@ constructions! {
         construction SecondaryCardinal: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", count: Cardinal];
             require head.frame = CardinalComplement;
+            export form = secondary_form(head.form);
+            export Voice = Active;
+            export OvertHead = Yes;
+        }
+        construction CardinalAmount: Amount {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Cardinal;
+        }
+
+        construction ScalarAmount: Amount {
+            form [value: UnsignedScalar];
+        }
+
+        construction FiniteAmount: FinitePredicate {
+            form [head: lexical(Verb), " ", amount: Amount];
+            require head.frame = AmountComplement;
+            require head.finiteness = Finite;
+            export number = head.number;
+            export person = head.person;
+            export Voice = Active;
+        }
+
+        construction SecondaryAmount: SecondaryVerbPhrase {
+            form [head: lexical(Verb), " ", amount: Amount];
+            require head.frame = AmountComplement;
             export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
