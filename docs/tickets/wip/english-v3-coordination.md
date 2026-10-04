@@ -117,8 +117,10 @@ Deviations and additions:
   notation remains independent. New source owners: Coordinator/Nor and Coordinator/AndOr.
 - Generated materialization, Clone and structural ordering now dispatch through
   separate per-rule/per-constructor helpers. The expanded grammar exposed stack
-  overflows in normal workers. Materialization dispatch dropped from 2,103,560 to
-  11,352 bytes; recursive Clone/Ord no longer reserve grammar-wide temporary space.
+  overflows in normal workers. An intermediate repair diagnostic measured
+  materialization dispatch dropping from 2,103,560 to 11,352 bytes; this is not a
+  stack measurement of the final expanded 458-construction grammar. Recursive
+  Clone/Ord no longer reserve grammar-wide temporary space.
   The existing normal-worker nested-document test passes unchanged. One independent
   trait regression preserves variant, form, lexical, optional/repeated-child order,
   Clone identity and all pairwise relations across 12 constructed values.
@@ -154,8 +156,11 @@ WIP is untouched. No unresolved glossary gap remains for this landing.
 ### REPORT
 
 Measured 2026-10-04 on grammar change tvmpxymwzptlwnvqsrynyorkqtsykrmo,
-report child urwtwmuxvzsrmrworpsnqkwkzmtwpnts, covered 4,991.
-Kata refresh before final checks was a no-op. Source SHA-256:
+report child splpxurmnqlrkzwmpxmrwoysttqplyrm, covered 4,991.
+The first Kata refresh was a no-op. A sibling keyword-body feature landed
+during verification; a second refresh incorporated its declaration-reader changes.
+Fresh complete text/type/lexical runs preserve every exact face count, selected
+fingerprint and lexical inventory. Source SHA-256:
 49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb. Lexical inventory SHA-256:
 de810adc0d9241abce10d8f2453845a50fba58dc9b6d099722ed91df2e4a41f9. Construction count: 178 before, 458 after;
 Category count: 65 before, 110 after. No English coverage-lock field exists
@@ -181,16 +186,16 @@ form literals and new form-literal/vocabulary overlaps: none; coordinators and
 markers are lexical fields, while separators are punctuation. No verb ownership
 or morphology declaration was moved out of its macro.
 
-Text: 75.724 seconds debug corpus wall, 1,563,590 ns/B checked-text thread CPU, 24 workers, host load [10.11083984375, 9.712890625, 8.57568359375].
-Type Line: 7.950 seconds debug corpus wall, 172,255 ns/B checked-text thread CPU, 24 workers, host load [7.85693359375, 9.26904296875, 8.42724609375].
+Text: 56.488 seconds debug corpus wall, 1,369,308 ns/B checked-text thread CPU, 24 workers, host load [3.21826171875, 3.20947265625, 6.35888671875].
+Type Line: 4.865 seconds debug corpus wall, 163,275 ns/B checked-text thread CPU, 24 workers, host load [13.39990234375, 6.73779296875, 7.41064453125].
 These runs overlapped the reverse-dependency gate on a loaded host. The text
 run exceeds the 16.26-second quiet-host advisory; this is reported performance,
 not an optimized cutover claim or a grammatical admission gate.
 
 Reproduction artifacts are local inspection files, not source dependencies:
-/tmp/coordination-final-text.json, /tmp/coordination-final-types.json,
-/tmp/coordination-lexical-final.json, /tmp/coordination-ambiguity-audit.json and
-/tmp/coordination-final-gate.log. Complete text/type runs use --all --workers 24
+/tmp/coordination-refreshed-text.json, /tmp/coordination-refreshed-types.json,
+/tmp/coordination-refreshed-lexical.json, /tmp/coordination-ambiguity-audit.json and
+/tmp/coordination-refreshed-gate.log. Complete text/type runs use --all --workers 24
 without a reading limit; text retains one cheapest checked sample per face.
 
 ### Added constructions
