@@ -228,3 +228,37 @@ request limit does not claim exhaustion or report a total Reading count. A
 request for the next distinct Reading can still traverse duplicate Derivations;
 the iterator's separate counters disclose that cost. The 4/16/64-sentence test
 compares recognition work and two requested Readings for growing ambiguity.
+
+## CGEL distinctions
+
+The connected declarations distinguish ordinary pre-head adjective phrases from
+complemented postpositive phrases (CGEL, Ch. 6 §3.3, pp. 550–553). An integrated
+PP noun modifier attaches inside the Nominal, under the determiner; there is no
+unrestricted external NP attachment (Ch. 5 §§13–14.2, pp. 436–447). Restricted
+peripheral modifier constructions and exceptional short attributive comparatives
+remain separate coverage work.
+
+Locative copulas select a Locative Complement rather than treating their PP as
+an adjunct or substituting an elliptical auxiliary analysis (Ch. 4 §5.2,
+pp. 257–260). Auxiliary ellipsis remains available where context can recover it;
+its presence does not replace the ordinary locative reading.
+
+Prepositions can select NPs, finite clauses, or both, as declared by their
+lexemes. Conditional *if* is a preposition; interrogative *if*, *whether*, and
+relative *that* retain their subordinator analyses (Ch. 7 §1, p. 600).
+Temporal *when*, *whenever*, and *while* have clause-complement PP readings;
+CGEL also recognises fused-relative readings, which require a separate gap
+construction (Ch. 12 §6.4, pp. 1078–1079).
+
+Clause coordination accepts both comma and unpunctuated binary forms. Serial
+NP, clause, and predicate coordination has an ordered series with a final
+coordinator and an optional serial comma; its summaries retain agreement,
+case, voice, and verb-form constraints (Ch. 15 §1.1, pp. 1275–1278). Coordination
+inside a Nominal and coordination of other phrase categories remain coverage
+work.
+
+Plain verb form does not carry a lexical Finiteness value. Secondary Verb
+Phrases constrain their heads by Word Form, and the imperative construction
+supplies finite clause status (Ch. 3 §§1.8.1–2, pp. 88–90). Gerund-participles
+and past participles remain nonfinite. Tensed lexical bundles retain their
+Number, Person, Tense, and Finiteness correlation.

@@ -29,7 +29,7 @@ pub(crate) fn applicable(category: Category, form: WordForm, features: &FeatureB
         }
         WordForm::Plain | WordForm::GerundParticiple | WordForm::PastParticiple => {
             category == Category::Verb
-                && features.finiteness == Some(Finiteness::Nonfinite)
+                && features.finiteness == (form != WordForm::Plain).then_some(Finiteness::Nonfinite)
                 && features.tense.is_none()
                 && features.person.is_none()
                 && features.number.is_none()

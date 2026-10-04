@@ -67,7 +67,7 @@ fn inventory_category(name: &str) -> Option<Category> {
         "PredicativeAdjective" | "AttributiveAdjective" | "ColorWord" | "ScalarDegree" => {
             Category::Adjective
         }
-        "Preposition" => Category::Preposition,
+        "Preposition" | "TriggerMarker" => Category::Preposition,
         "PredicateNegator" | "LocativeProform" | "FrequencyAdverb" | "FocusAdverb"
         | "ReplacementMarker" => Category::Adverb,
         "ComparativeQuantifier"
@@ -80,7 +80,6 @@ fn inventory_category(name: &str) -> Option<Category> {
         | "PossessiveAbsolutePronoun"
         | "ReflexivePronoun"
         | "IndefinitePronoun" => Category::Pronoun,
-        "TriggerMarker" => Category::Subordinator,
         "Variable" | "ChapterNumeral" => Category::Numeral,
         "Supertype" => Category::Catalog,
         "FixedCostSymbol" => Category::Symbol,

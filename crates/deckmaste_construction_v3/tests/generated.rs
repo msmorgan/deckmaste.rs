@@ -308,14 +308,7 @@ fn lexical_frames_and_open_properties_reach_the_governing_construction() {
         open,
     ])
     .unwrap();
-    let mut head = word(
-        "head",
-        WordForm::Plain,
-        FeatureBundle {
-            finiteness: Some(deckmaste_lexical::Finiteness::Nonfinite),
-            ..FeatureBundle::default()
-        },
-    );
+    let mut head = word("head", WordForm::Plain, FeatureBundle::default());
     head.frame = Some(0);
     let independent = fixture::Reading::VerbPhrase {
         form: 0,

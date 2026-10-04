@@ -157,7 +157,7 @@ impl Lexeme {
         lexeme
     }
 
-    /// Declares a regular verb's complete finite bundles and nonfinite forms.
+    /// Declares a regular verb's primary bundles and secondary forms.
     /// Callers replace irregular slots or remove unavailable slots before
     /// indexing.
     #[must_use]
@@ -172,7 +172,8 @@ impl Lexeme {
         .map(|form| FormDeclaration {
             form,
             features: crate::FeatureBundle {
-                finiteness: Some(crate::Finiteness::Nonfinite),
+                finiteness: (form != crate::WordForm::Plain)
+                    .then_some(crate::Finiteness::Nonfinite),
                 ..crate::FeatureBundle::default()
             },
             surfaces: None,

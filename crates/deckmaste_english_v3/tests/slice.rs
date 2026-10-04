@@ -146,7 +146,7 @@ fn imperative(complement: Reading, modifier: Option<Reading>) -> Reading {
         "verb:cast",
         WordForm::Plain,
         FeatureBundle {
-            finiteness: Some(Finiteness::Nonfinite),
+            finiteness: None,
             ..FeatureBundle::default()
         },
     );

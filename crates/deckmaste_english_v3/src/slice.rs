@@ -74,7 +74,6 @@ constructions! {
         construction BarePredicate: BarePredicate {
             form [head: lexical(Verb), " ", complement: NounPhrase, modifier: optional(Adjunct)];
             require head.form = Plain;
-            require head.finiteness = Nonfinite;
             require head.frame = Object;
         }
         construction FiniteClause: Clause {

@@ -3,7 +3,6 @@ use std::collections::BTreeSet;
 use deckmaste_construction_v3::constructions;
 use deckmaste_english_v3::parse;
 use deckmaste_lexical::FeatureBundle;
-use deckmaste_lexical::Finiteness;
 use deckmaste_lexical::Frame;
 use deckmaste_lexical::FrameItem;
 use deckmaste_lexical::FrameSlot;
@@ -81,10 +80,7 @@ fn complete_frame_signatures_and_selected_indices_survive_compilation() {
             value: LexicalReading::Word(LexicalValue {
                 lexeme: "verb".into(),
                 form: WordForm::Plain,
-                features: FeatureBundle {
-                    finiteness: Some(Finiteness::Nonfinite),
-                    ..FeatureBundle::default()
-                },
+                features: FeatureBundle::default(),
                 variant: 0,
                 capitalization: SurfaceCase::Declared,
             }),

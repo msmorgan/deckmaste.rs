@@ -132,7 +132,7 @@ fn cast_preserves_plain_present_preterite_and_participle_alternatives() {
     let readings = complete(&lexicon, "cast");
 
     for expected in [
-        word("v:cast", WordForm::Plain, nonfinite()),
+        word("v:cast", WordForm::Plain, FeatureBundle::default()),
         word(
             "v:cast",
             WordForm::Present,
@@ -626,7 +626,7 @@ fn invalid_constructed_values_are_rejected() {
     let lexicon = Lexicon::new([noun("n:counter", "counter")]).unwrap();
     for reading in [
         word("n:counter", WordForm::Plural, nominal(Number::Singular)),
-        word("v:counter", WordForm::Plain, nonfinite()),
+        word("v:counter", WordForm::Plain, FeatureBundle::default()),
         numeral(4_000, Numeral::Roman),
         numeral(2, Numeral::Arabic(true)),
         initial(numeral(4, Numeral::Roman)),
@@ -868,4 +868,48 @@ fn bound_forms_expose_adjacent_hosts_without_guessing_unknown_hosts() {
         assert!(!lexicon.analyze(text).unknown_words().is_empty(), "{text}");
     }
     assert!(lexicon.analyze("outlandish").matches.is_empty());
+}
+
+#[test]
+fn plain_forms_do_not_assign_finiteness_but_participles_do() {
+    let lexicon = Lexicon::new([verb("v:draw", "draw")]).unwrap();
+    let plain = word("v:draw", WordForm::Plain, FeatureBundle::default());
+    assert!(complete(&lexicon, "draw").contains(&plain));
+    assert_eq!(lexicon.realize(&plain).unwrap(), "draw");
+    for finiteness in [Finiteness::Finite, Finiteness::Nonfinite] {
+        let falsely_classified = word(
+            "v:draw",
+            WordForm::Plain,
+            FeatureBundle {
+                finiteness: Some(finiteness),
+                ..FeatureBundle::default()
+            },
+        );
+        assert!(matches!(
+            lexicon.realize(&falsely_classified),
+            Err(LexicalError::UnlicensedValue)
+        ));
+        let mut declaration = verb("v:draw", "draw");
+        declaration
+            .forms
+            .iter_mut()
+            .find(|slot| slot.form == WordForm::Plain)
+            .unwrap()
+            .features
+            .finiteness = Some(finiteness);
+        assert!(matches!(
+            Lexicon::new([declaration]),
+            Err(LexicalError::Declaration { .. })
+        ));
+    }
+    assert!(complete(&lexicon, "drawing").contains(&word(
+        "v:draw",
+        WordForm::GerundParticiple,
+        nonfinite()
+    )));
+    assert!(complete(&lexicon, "drawed").contains(&word(
+        "v:draw",
+        WordForm::PastParticiple,
+        nonfinite()
+    )));
 }

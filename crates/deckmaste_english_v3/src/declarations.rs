@@ -14,7 +14,9 @@ constructions! {
         feature Targeting { No, Yes }
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase }
-        feature AdverbialSubordinator { Yes }
+        feature FiniteClauseComplement { Yes }
+        feature LocativeUse { No, Yes }
+        feature AdjectiveStructure { Simple, Complemented }
         feature RelativeSubordinator { Yes }
         feature Voice { Active, Passive, Mixed }
         feature OvertHead { No, Yes }
@@ -39,11 +41,10 @@ constructions! {
         category ParagraphItem();
         category ParagraphContinuation();
         category Sentence();
-        category Clause();
+        category Clause(finiteness);
         category FiniteClause();
-        category SubordinateClause();
         category FinitePredicate(number, person, Voice);
-        category NonfinitePredicate(form, Voice, OvertHead);
+        category SecondaryVerbPhrase(form, Voice, OvertHead);
         category BarePredicate(Voice, OvertHead);
         category ParticipialPredicate(Voice, OvertHead);
         category PastParticiplePredicate(Voice, OvertHead);
@@ -56,10 +57,11 @@ constructions! {
         category NounPhrase(number, person, CaseUse);
         category NominativePhrase(number, person, CaseUse);
         category AccusativePhrase(number, person, CaseUse);
-        category AdjectivePhrase();
+        category AdjectivePhrase(AdjectiveStructure);
         category Name();
         category NamePredicate();
-        category PrepositionPhrase();
+        category PrepositionPhrase(LocativeUse);
+        category LocativeComplement();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause();
         category FiniteObjectGap(number, person);
@@ -90,12 +92,18 @@ constructions! {
         category Subtypes();
         category SubtypeContinuation();
 
+        category ClauseSeries(finiteness);
+        category FinitePredicateSeries(number, person, Voice);
+        category SecondaryPredicateSeries(form, Voice, OvertHead);
+        category NounPhraseSeries(number, person, CaseUse, CoordinationKind);
+
         frame Intransitive = "(kind: \"Predicate\", items: [])";
         frame Transitive = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\"))])";
         frame ObjectName = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"NounPhrase\")), Argument((relation: Complement, category: \"Name\"))])";
         frame BareNominal = "(kind: \"Nominal\", items: [])";
         frame NominalSymbols = "(kind: \"Nominal\", items: [Marked(vocabulary: \"Preposition\", member: \"Of\", slot: (relation: Complement, category: \"CostSymbols\"))])";
         frame Predicative = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"PredicativeComplement\"))])";
+        frame Locative = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"LocativeComplement\"))])";
         frame BareAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"BarePredicate\"))])";
         frame ParticipialAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"ParticipialPredicate\"))])";
         frame PerfectAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement, category: \"PastParticiplePredicate\"))])";
@@ -109,6 +117,13 @@ constructions! {
         frame QuotedObject = "(kind: \"Predicate\", items: [Argument((relation: Object, category: \"QuotedText\"))])";
         frame CardinalComplement = "(kind: \"Predicate\", items: [Argument((relation: Complement, category: \"Cardinal\"))])";
 
+        // Plain form is shared by finite imperatives and nonfinite infinitivals.
+        table secondary_form(form) -> form {
+            (Plain) => Plain,
+            (GerundParticiple) => GerundParticiple,
+            (PastParticiple) => PastParticiple,
+        }
+
         table additive_person(person, person) -> person {
             (First, First) => First,
             (First, Second) => First,
@@ -119,6 +134,38 @@ constructions! {
             (Third, First) => First,
             (Third, Second) => Second,
             (Third, Third) => Third,
+        }
+
+        table coordinate_number(CoordinationKind, number, number) -> number {
+            (Additive, Singular, Singular) => Plural,
+            (Additive, Singular, Plural) => Plural,
+            (Additive, Plural, Singular) => Plural,
+            (Additive, Plural, Plural) => Plural,
+            (Alternative, Singular, Singular) => Singular,
+            (Alternative, Singular, Plural) => Plural,
+            (Alternative, Plural, Singular) => Singular,
+            (Alternative, Plural, Plural) => Plural,
+        }
+
+        table coordinate_person(CoordinationKind, person, person) -> person {
+            (Additive, First, First) => First,
+            (Additive, First, Second) => First,
+            (Additive, First, Third) => First,
+            (Additive, Second, First) => First,
+            (Additive, Second, Second) => Second,
+            (Additive, Second, Third) => Second,
+            (Additive, Third, First) => First,
+            (Additive, Third, Second) => Second,
+            (Additive, Third, Third) => Third,
+            (Alternative, First, First) => First,
+            (Alternative, First, Second) => Second,
+            (Alternative, First, Third) => Third,
+            (Alternative, Second, First) => First,
+            (Alternative, Second, Second) => Second,
+            (Alternative, Second, Third) => Third,
+            (Alternative, Third, First) => First,
+            (Alternative, Third, Second) => Second,
+            (Alternative, Third, Third) => Third,
         }
 
         table common_case(CaseUse, CaseUse) -> CaseUse {
@@ -356,11 +403,13 @@ constructions! {
 
         construction Declarative: Clause {
             form [clause: FiniteClause];
+            export finiteness = Finite;
         }
 
         construction Imperative: Clause {
             form [predicate: BarePredicate];
             require predicate.OvertHead = Yes;
+            export finiteness = Finite;
         }
 
         construction FiniteClause: FiniteClause {
@@ -369,29 +418,118 @@ constructions! {
             agree subject.person = predicate.person;
         }
 
-        construction InitialSubordinate: Clause {
-            form [dependent: SubordinateClause, ", ", clause: Clause];
-        }
-
-        construction FinalSubordinate: Clause {
-            form [clause: Clause, " ", dependent: SubordinateClause];
-        }
-
-        construction SubordinateClause: SubordinateClause {
-            form [marker: lexical(Subordinator), " ", clause: FiniteClause];
-            require marker.AdverbialSubordinator = Yes;
-        }
-
         construction InitialPreposition: Clause {
             form [dependent: PrepositionPhrase, ", ", clause: Clause];
+            export finiteness = clause.finiteness;
         }
 
         construction ClausalPreposition: Clause {
             form [clause: Clause, " ", dependent: PrepositionPhrase];
+            export finiteness = clause.finiteness;
         }
 
         construction ClauseCoordination: Clause {
             form [left: Clause, ", ", coordinator: lexical(Coordinator), " ", right: Clause];
+            form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause];
+            agree left.finiteness = right.finiteness;
+            export finiteness = left.finiteness;
+        }
+
+        construction ClauseSeriesEnd: ClauseSeries {
+            form [left: Clause, ", ", coordinator: lexical(Coordinator), " ", right: Clause];
+            form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause];
+            agree left.finiteness = right.finiteness;
+            export finiteness = left.finiteness;
+        }
+
+        construction ClauseSeriesContinuation: ClauseSeries {
+            form [left: Clause, ", ", rest: ClauseSeries];
+            agree left.finiteness = rest.finiteness;
+            export finiteness = left.finiteness;
+        }
+
+        construction SerialClause: Clause {
+            form [left: Clause, ", ", rest: ClauseSeries];
+            agree left.finiteness = rest.finiteness;
+            export finiteness = left.finiteness;
+        }
+
+        construction FinitePredicateSeriesEnd: FinitePredicateSeries {
+            form [left: FinitePredicate, ", ", coordinator: lexical(Coordinator), " ", right: FinitePredicate];
+            form [left: FinitePredicate, " ", coordinator: lexical(Coordinator), " ", right: FinitePredicate];
+            agree left.number = right.number;
+            export number = left.number;
+            agree left.person = right.person;
+            export person = left.person;
+            export Voice = coordinated_voice(left.Voice, right.Voice);
+        }
+
+        construction FinitePredicateSeriesContinuation: FinitePredicateSeries {
+            form [left: FinitePredicate, ", ", rest: FinitePredicateSeries];
+            agree left.number = rest.number;
+            export number = left.number;
+            agree left.person = rest.person;
+            export person = left.person;
+            export Voice = coordinated_voice(left.Voice, rest.Voice);
+        }
+
+        construction SerialFinitePredicate: FinitePredicate {
+            form [left: FinitePredicate, ", ", rest: FinitePredicateSeries];
+            agree left.number = rest.number;
+            export number = left.number;
+            agree left.person = rest.person;
+            export person = left.person;
+            export Voice = coordinated_voice(left.Voice, rest.Voice);
+        }
+
+        construction SecondaryPredicateSeriesEnd: SecondaryPredicateSeries {
+            form [left: SecondaryVerbPhrase, ", ", coordinator: lexical(Coordinator), " ", right: SecondaryVerbPhrase];
+            form [left: SecondaryVerbPhrase, " ", coordinator: lexical(Coordinator), " ", right: SecondaryVerbPhrase];
+            agree left.form = right.form;
+            export form = left.form;
+            export Voice = coordinated_voice(left.Voice, right.Voice);
+            export OvertHead = overt_predicates(left.OvertHead, right.OvertHead);
+        }
+
+        construction SecondaryPredicateSeriesContinuation: SecondaryPredicateSeries {
+            form [left: SecondaryVerbPhrase, ", ", rest: SecondaryPredicateSeries];
+            agree left.form = rest.form;
+            export form = left.form;
+            export Voice = coordinated_voice(left.Voice, rest.Voice);
+            export OvertHead = overt_predicates(left.OvertHead, rest.OvertHead);
+        }
+
+        construction SerialSecondaryPredicate: SecondaryVerbPhrase {
+            form [left: SecondaryVerbPhrase, ", ", rest: SecondaryPredicateSeries];
+            agree left.form = rest.form;
+            export form = left.form;
+            export Voice = coordinated_voice(left.Voice, rest.Voice);
+            export OvertHead = overt_predicates(left.OvertHead, rest.OvertHead);
+        }
+
+        construction NounPhraseSeriesEnd: NounPhraseSeries {
+            form [left: NounPhrase, ", ", coordinator: lexical(Coordinator), " ", right: NounPhrase];
+            form [left: NounPhrase, " ", coordinator: lexical(Coordinator), " ", right: NounPhrase];
+            export number = coordinate_number(coordinator.CoordinationKind, left.number, right.number);
+            export person = coordinate_person(coordinator.CoordinationKind, left.person, right.person);
+            export CaseUse = common_case(left.CaseUse, right.CaseUse);
+            export CoordinationKind = coordinator.CoordinationKind;
+        }
+
+        construction NounPhraseSeriesContinuation: NounPhraseSeries {
+            form [left: NounPhrase, ", ", rest: NounPhraseSeries];
+            export number = coordinate_number(rest.CoordinationKind, left.number, rest.number);
+            export person = coordinate_person(rest.CoordinationKind, left.person, rest.person);
+            export CaseUse = common_case(left.CaseUse, rest.CaseUse);
+            export CoordinationKind = rest.CoordinationKind;
+        }
+
+        construction SerialNounPhrase: NounPhrase {
+            form [left: NounPhrase, ", ", rest: NounPhraseSeries];
+            export number = coordinate_number(rest.CoordinationKind, left.number, rest.number);
+            export person = coordinate_person(rest.CoordinationKind, left.person, rest.person);
+            export CaseUse = common_case(left.CaseUse, rest.CaseUse);
+
         }
 
         construction Noun: Nominal {
@@ -422,16 +560,27 @@ constructions! {
         construction Adjective: AdjectivePhrase {
             form [head: lexical(Adjective)];
             require head.framing = Unframed;
+            export AdjectiveStructure = Simple;
         }
 
         construction IntransitiveAdjective: AdjectivePhrase {
             form [head: lexical(Adjective)];
             require head.frame = Intransitive;
+            export AdjectiveStructure = Simple;
         }
 
         construction PremodifiedNominal: Nominal {
             form [modifier: AdjectivePhrase, " ", head: Nominal];
+            require modifier.AdjectiveStructure = Simple;
             require head.Targeting = No;
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = head.Targeting;
+        }
+
+        construction PostpositiveNominal: Nominal {
+            form [head: Nominal, " ", modifier: AdjectivePhrase];
+            require modifier.AdjectiveStructure = Complemented;
             export number = head.number;
             export countability = head.countability;
             export Targeting = head.Targeting;
@@ -559,13 +708,6 @@ constructions! {
             export CaseUse = accusative_case(head.CaseUse);
         }
 
-        construction PostmodifiedNounPhrase: NounPhrase {
-            form [head: NounPhrase, " ", modifier: PrepositionPhrase];
-            export number = head.number;
-            export person = head.person;
-            export CaseUse = head.CaseUse;
-        }
-
         construction AdditiveNounPhrase: NounPhrase {
             form [left: NounPhrase, " ", coordinator: lexical(Coordinator), " ", right: NounPhrase];
             require coordinator.CoordinationKind = Additive;
@@ -585,6 +727,18 @@ constructions! {
         construction PrepositionPhrase: PrepositionPhrase {
             form [head: lexical(Preposition), " ", complement: AccusativePhrase];
             require head.PrepositionComplement = NounPhrase;
+            export LocativeUse = head.LocativeUse;
+        }
+
+        construction ClauseComplementPreposition: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: FiniteClause];
+            require head.FiniteClauseComplement = Yes;
+            export LocativeUse = No;
+        }
+
+        construction LocativeComplement: LocativeComplement {
+            form [phrase: PrepositionPhrase];
+            require phrase.LocativeUse = Yes;
         }
 
         construction AdjectivalComplement: PredicativeComplement {
@@ -608,6 +762,15 @@ constructions! {
             form [head: lexical(Verb), " ", object: AccusativePhrase];
             require head.finiteness = Finite;
             require head.frame = Transitive;
+            export number = head.number;
+            export person = head.person;
+            export Voice = Active;
+        }
+
+        construction FiniteLocative: FinitePredicate {
+            form [head: lexical(Verb), " ", complement: LocativeComplement];
+            require head.frame = Locative;
+            require head.finiteness = Finite;
             export number = head.number;
             export person = head.person;
             export Voice = Active;
@@ -656,63 +819,65 @@ constructions! {
             export Voice = head.Voice;
         }
 
-        construction NonfiniteIntransitive: NonfinitePredicate {
+        construction SecondaryIntransitive: SecondaryVerbPhrase {
             form [head: lexical(Verb)];
-            require head.finiteness = Nonfinite;
             require head.frame = Intransitive;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }
 
-        construction NonfiniteTransitive: NonfinitePredicate {
+        construction SecondaryTransitive: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", object: AccusativePhrase];
-            require head.finiteness = Nonfinite;
             require head.frame = Transitive;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }
 
-        construction NonfinitePredicative: NonfinitePredicate {
+        construction SecondaryLocative: SecondaryVerbPhrase {
+            form [head: lexical(Verb), " ", complement: LocativeComplement];
+            require head.frame = Locative;
+            export form = secondary_form(head.form);
+            export OvertHead = Yes;
+            export Voice = Active;
+        }
+
+        construction SecondaryPredicative: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", complement: PredicativeComplement];
-            require head.finiteness = Nonfinite;
             require head.frame = Predicative;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }
 
-        construction NonfiniteBareAuxiliary: NonfinitePredicate {
+        construction SecondaryBareAuxiliary: SecondaryVerbPhrase {
             form [head: lexical(Verb), complement: BareComplement];
-            require head.finiteness = Nonfinite;
             require head.frame = BareAuxiliary;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = complement.Voice;
             export OvertHead = Yes;
         }
 
-        construction NonfiniteParticipialAuxiliary: NonfinitePredicate {
+        construction SecondaryParticipialAuxiliary: SecondaryVerbPhrase {
             form [head: lexical(Verb), complement: ParticipialComplement];
-            require head.finiteness = Nonfinite;
             require head.frame = ParticipialAuxiliary;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = complement.Voice;
             export OvertHead = Yes;
         }
 
-        construction NonfinitePerfectAuxiliary: NonfinitePredicate {
+        construction SecondaryPerfectAuxiliary: SecondaryVerbPhrase {
             form [head: lexical(Verb), complement: PerfectComplement];
-            require head.finiteness = Nonfinite;
             require head.frame = PerfectAuxiliary;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = complement.Voice;
             export OvertHead = Yes;
         }
 
-        construction NonfinitePreposition: NonfinitePredicate {
-            form [head: NonfinitePredicate, " ", modifier: PrepositionPhrase];
-            export form = head.form;
+        construction SecondaryPreposition: SecondaryVerbPhrase {
+            form [head: SecondaryVerbPhrase, " ", modifier: PrepositionPhrase];
+            export form = secondary_form(head.form);
             export Voice = head.Voice;
             export OvertHead = head.OvertHead;
         }
@@ -726,8 +891,8 @@ constructions! {
             export Voice = coordinated_voice(left.Voice, right.Voice);
         }
 
-        construction NonfinitePredicateCoordination: NonfinitePredicate {
-            form [left: NonfinitePredicate, " ", coordinator: lexical(Coordinator), " ", right: NonfinitePredicate];
+        construction SecondaryVerbPhraseCoordination: SecondaryVerbPhrase {
+            form [left: SecondaryVerbPhrase, " ", coordinator: lexical(Coordinator), " ", right: SecondaryVerbPhrase];
             agree left.form = right.form;
             export form = left.form;
             export Voice = coordinated_voice(left.Voice, right.Voice);
@@ -735,21 +900,21 @@ constructions! {
         }
 
         construction BarePredicate: BarePredicate {
-            form [head: NonfinitePredicate];
+            form [head: SecondaryVerbPhrase];
             require head.form = Plain;
             export Voice = head.Voice;
             export OvertHead = head.OvertHead;
         }
 
         construction ProgressiveComplement: ParticipialPredicate {
-            form [head: NonfinitePredicate];
+            form [head: SecondaryVerbPhrase];
             require head.form = GerundParticiple;
             export Voice = head.Voice;
             export OvertHead = head.OvertHead;
         }
 
         construction PassiveComplement: ParticipialPredicate {
-            form [head: NonfinitePredicate];
+            form [head: SecondaryVerbPhrase];
             require head.form = PastParticiple;
             require head.Voice = Passive;
             export Voice = Passive;
@@ -757,16 +922,15 @@ constructions! {
         }
 
         construction PerfectComplement: PastParticiplePredicate {
-            form [head: NonfinitePredicate];
+            form [head: SecondaryVerbPhrase];
             require head.form = PastParticiple;
             export Voice = head.Voice;
             export OvertHead = head.OvertHead;
         }
 
-        construction PassivePredicate: NonfinitePredicate {
+        construction PassivePredicate: SecondaryVerbPhrase {
             form [head: lexical(Verb)];
             require head.form = PastParticiple;
-            require head.finiteness = Nonfinite;
             require head.frame = Transitive;
             export form = PastParticiple;
             export Voice = Passive;
@@ -798,7 +962,6 @@ constructions! {
 
         construction BareObjectGap: BareObjectGap {
             form [head: lexical(Verb)];
-            require head.finiteness = Nonfinite;
             require head.form = Plain;
             require head.frame = Transitive;
         }
@@ -946,6 +1109,7 @@ constructions! {
         construction OrdinalPremodifier: AdjectivePhrase {
             form [head: lexical(Numeral)];
             require head.numeral_kind = Ordinal;
+            export AdjectiveStructure = Simple;
         }
 
         construction GroupedScalarNumeral: MeasurePhrase {
@@ -1015,11 +1179,10 @@ constructions! {
             export Voice = Active;
         }
 
-        construction NonfiniteSlashMeasure: NonfinitePredicate {
+        construction SecondarySlashMeasure: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", measure: SlashPair];
-            require head.finiteness = Nonfinite;
             require head.frame = SlashMeasure;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }
@@ -1049,6 +1212,7 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: MeasurePhrase];
             require head.MeasurePreposition = Yes;
             require complement.MeasureKind = Scalar;
+            export LocativeUse = No;
         }
 
         construction MeasuredNounPhrase: NounPhrase {
@@ -1081,6 +1245,7 @@ constructions! {
 
         construction EqualityAdjective: AdjectivePhrase {
             form [complement: EqualityComplement];
+            export AdjectiveStructure = Complemented;
         }
 
         construction OrderingComplement: OrderingComplement {
@@ -1092,6 +1257,7 @@ constructions! {
 
         construction OrderingAdjective: AdjectivePhrase {
             form [complement: OrderingComplement];
+            export AdjectiveStructure = Complemented;
         }
 
         construction FiniteMeasure: FinitePredicate {
@@ -1113,21 +1279,19 @@ constructions! {
             export Voice = Active;
         }
 
-        construction NonfiniteMeasure: NonfinitePredicate {
+        construction SecondaryMeasure: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", measure: MeasurePhrase];
-            require head.finiteness = Nonfinite;
             require head.frame = Measure;
             require measure.MeasureKind = Scalar;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }
 
-        construction NonfiniteObjectEquality: NonfinitePredicate {
+        construction SecondaryObjectEquality: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", object: AccusativePhrase, " ", complement: EqualityComplement];
-            require head.finiteness = Nonfinite;
             require head.frame = ObjectEquality;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }
@@ -1141,11 +1305,10 @@ constructions! {
             export Voice = Active;
         }
 
-        construction NonfiniteKeywordObject: NonfinitePredicate {
+        construction SecondaryKeywordObject: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", object: KeywordPhrase];
-            require head.finiteness = Nonfinite;
             require head.frame = KeywordObject;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }
@@ -1159,20 +1322,18 @@ constructions! {
             export Voice = Active;
         }
 
-        construction NonfiniteQuotedObject: NonfinitePredicate {
+        construction SecondaryQuotedObject: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", object: QuotedText];
-            require head.finiteness = Nonfinite;
             require head.frame = QuotedObject;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }
 
-        construction NonfiniteCardinal: NonfinitePredicate {
+        construction SecondaryCardinal: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", count: Cardinal];
-            require head.finiteness = Nonfinite;
             require head.frame = CardinalComplement;
-            export form = head.form;
+            export form = secondary_form(head.form);
             export Voice = Active;
             export OvertHead = Yes;
         }

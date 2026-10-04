@@ -716,12 +716,12 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
         "core-verb:Get",
         WordForm::Plain,
         FeatureBundle {
-            finiteness: Some(Finiteness::Nonfinite),
+            finiteness: None,
             ..FeatureBundle::default()
         },
     );
     get.frame = Some(0);
-    let value = Reading::NonfiniteSlashMeasure {
+    let value = Reading::SecondarySlashMeasure {
         form: 0,
         head: get.clone(),
         measure: Box::new(Reading::SlashPair {
@@ -738,7 +738,7 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
     };
     assert_eq!(value.realize(lexicon()).unwrap(), "get +3/-2");
     assert_eq!(
-        readings("get +3/-2", Category::NonfinitePredicate),
+        readings("get +3/-2", Category::SecondaryVerbPhrase),
         BTreeSet::from([value.clone()])
     );
     let mut leaves = Vec::new();
@@ -948,7 +948,7 @@ fn nested_document_admission_uses_a_normal_worker_stack() {
         "core-verb:Attack",
         WordForm::Plain,
         FeatureBundle {
-            finiteness: Some(Finiteness::Nonfinite),
+            finiteness: None,
             ..FeatureBundle::default()
         },
     );
@@ -965,7 +965,7 @@ fn nested_document_admission_uses_a_normal_worker_stack() {
                     form: 0,
                     predicate: Box::new(Reading::BarePredicate {
                         form: 0,
-                        head: Box::new(Reading::NonfiniteIntransitive { form: 0, head }),
+                        head: Box::new(Reading::SecondaryIntransitive { form: 0, head }),
                     }),
                 }),
             }),
@@ -1073,4 +1073,245 @@ fn independent_type_line_retains_flat_groups_and_lexical_identity() {
         .admit(lexicon())
         .is_err()
     );
+}
+
+#[test]
+fn complemented_adjectives_are_postpositive_in_both_directions() {
+    // CGEL Ch. 6 §3.3, pp. 550–553: complements constrain attributive position.
+    let mut adjective = word(
+        "vocab:ScalarDegree/Equal",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    adjective.frame = Some(0);
+    let modifier = Reading::EqualityAdjective {
+        form: 0,
+        complement: Box::new(Reading::EqualityComplement {
+            form: 0,
+            head: adjective,
+            marker: word(
+                "vocab:Preposition/To",
+                WordForm::Invariant,
+                FeatureBundle::default(),
+            ),
+            measure: Box::new(Reading::UngroupedScalarNumeral {
+                form: 0,
+                head: numeral(2, deckmaste_lexical::Numeral::Arabic(false)),
+            }),
+        }),
+    };
+    let mut noun = word(
+        "lexeme:CommonNoun/Amount",
+        WordForm::Singular,
+        FeatureBundle {
+            number: Some(Number::Singular),
+            ..FeatureBundle::default()
+        },
+    );
+    noun.frame = Some(0);
+    noun.countability = Some(true);
+    let head = Reading::BareFramedNoun {
+        form: 0,
+        head: noun,
+    };
+    let valid = Reading::PostpositiveNominal {
+        form: 0,
+        head: Box::new(head.clone()),
+        modifier: Box::new(modifier.clone()),
+    };
+    assert_eq!(valid.realize(lexicon()).unwrap(), "amount equal to 2");
+    assert_eq!(
+        readings("amount equal to 2", Category::Nominal),
+        BTreeSet::from([valid])
+    );
+    let invalid = Reading::PremodifiedNominal {
+        form: 0,
+        modifier: Box::new(modifier),
+        head: Box::new(head),
+    };
+    assert!(invalid.admit(lexicon()).is_err());
+    assert!(invalid.realize(lexicon()).is_err());
+    assert!(readings("an equal to 2 amount", Category::NounPhrase).is_empty());
+    assert!(!readings("an amount equal to 2", Category::NounPhrase).is_empty());
+    assert!(!readings("a white creature", Category::NounPhrase).is_empty());
+    assert!(readings("a creature white", Category::NounPhrase).is_empty());
+}
+
+#[test]
+fn integrated_pp_modifiers_stay_inside_the_nominal() {
+    // CGEL Ch. 5 §14.2, pp. 444–447; external modifiers have separate licensing.
+    let values = readings("the creature on the battlefield", Category::NounPhrase);
+    assert_eq!(values.len(), 1);
+    let Reading::DeterminedNounPhrase { head, .. } = values.into_iter().next().unwrap() else {
+        panic!("determiner must include the restriction")
+    };
+    assert!(matches!(*head, Reading::PostmodifiedNominal { .. }));
+    assert!(!readings("Draw creatures on the battlefield.", Category::Document).is_empty());
+}
+
+#[test]
+fn copular_location_has_a_selected_complement_reading() {
+    // CGEL Ch. 4 §5.2, pp. 257–260: locative complement, not predicative or adjunct.
+    for text in [
+        "You are on the battlefield.",
+        "Cards are in the graveyard.",
+        "You aren't on the battlefield.",
+        "Be on the battlefield.",
+    ] {
+        let values = readings(text, Category::Document);
+        let mut selected = Vec::new();
+        for value in &values {
+            value
+                .visit(&mut |node| {
+                    if matches!(
+                        node,
+                        Reading::FiniteLocative { .. } | Reading::SecondaryLocative { .. }
+                    ) {
+                        selected.push(node.clone());
+                    }
+                })
+                .unwrap();
+        }
+        assert!(
+            !selected.is_empty(),
+            "missing selected location for {text:?}"
+        );
+        for mut value in selected {
+            let (Reading::FiniteLocative { head, .. } | Reading::SecondaryLocative { head, .. }) =
+                &mut value
+            else {
+                unreachable!()
+            };
+            let LexicalReading::Word(v) = &head.value else { unreachable!() };
+            let lexeme = &lexicon().lexemes()[&v.lexeme];
+            head.frame = Some(
+                lexeme
+                    .properties
+                    .frames
+                    .iter()
+                    .position(|f| f.items.is_empty())
+                    .unwrap_or(0),
+            );
+            assert!(
+                value.admit(lexicon()).is_err(),
+                "a non-locative frame cannot license this complement"
+            );
+        }
+    }
+    assert!(
+        readings("is because you draw cards", Category::FinitePredicate)
+            .iter()
+            .all(|r| !matches!(r, Reading::FiniteLocative { .. }))
+    );
+}
+
+#[test]
+fn clause_taking_prepositions_keep_their_category_and_complement_selection() {
+    // CGEL Ch. 7 §1, p. 600: a clause complement does not turn a P into a subordinator.
+    for text in [
+        "until you draw cards",
+        "before you draw cards",
+        "after you draw cards",
+        "because you draw cards",
+        "if you draw cards",
+        "when you draw cards",
+    ] {
+        let values = readings(text, Category::PrepositionPhrase);
+        assert!(!values.is_empty(), "missing PP for {text:?}");
+        for value in values {
+            let Reading::ClauseComplementPreposition { head, .. } = value else {
+                panic!("expected a clause-complement PP")
+            };
+            let LexicalReading::Word(v) = head.value else { unreachable!() };
+            assert_eq!(
+                lexicon().lexemes()[&v.lexeme].category,
+                deckmaste_lexical::Category::Preposition
+            );
+        }
+    }
+    assert!(readings("with you draw cards", Category::PrepositionPhrase).is_empty());
+    assert!(readings("that you draw cards", Category::PrepositionPhrase).is_empty());
+    assert!(readings("whether you draw cards", Category::PrepositionPhrase).is_empty());
+    assert!(readings("until draw cards", Category::PrepositionPhrase).is_empty());
+    assert!(!readings("Until you draw cards, draw cards.", Category::Document).is_empty());
+    assert!(!readings("creatures that attack", Category::Nominal).is_empty());
+    assert_eq!(
+        lexicon().lexemes()["vocab:Subordinator/If"].category,
+        deckmaste_lexical::Category::Subordinator
+    );
+}
+
+#[test]
+fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
+    // CGEL Ch. 15 §1.1, pp. 1275–1278: multiple coordinates form one series.
+    for text in [
+        "You attack and they attack.",
+        "You attack, and they attack.",
+        "Draw cards, discard cards, and gain life.",
+        "You draw cards, discard cards, and gain life.",
+        "You draw cards, discard cards and gain life.",
+        "You and they attack.",
+        "You, they, and creatures attack.",
+        "Cards, creatures, artifacts, and lands are legendary.",
+        "Draw cards, creatures, and artifacts.",
+        "Draw cards, creatures or artifacts.",
+    ] {
+        assert!(
+            !readings(text, Category::Document).is_empty(),
+            "no coordination for {text:?}"
+        );
+    }
+    for text in [
+        "You, they, and creatures attacks.",
+        "Draw cards, creatures, and they.",
+        "You draws cards, discard cards, and gain life.",
+        "Draw cards, discard cards, and.",
+    ] {
+        assert!(
+            readings(text, Category::Document).is_empty(),
+            "invalid coordination for {text:?}"
+        );
+    }
+    let values = readings(
+        "cards, creatures, artifacts, and lands",
+        Category::NounPhrase,
+    );
+    assert_eq!(values.len(), 1);
+    let Reading::SerialNounPhrase { rest, .. } = values.into_iter().next().unwrap() else {
+        panic!("expected flat series")
+    };
+    let Reading::NounPhraseSeriesContinuation { rest, .. } = *rest else {
+        panic!("expected four coordinates")
+    };
+    assert!(matches!(*rest, Reading::NounPhraseSeriesEnd { .. }));
+}
+
+#[test]
+fn plain_form_leaves_finiteness_to_the_clause_construction() {
+    // CGEL Ch. 3 §§1.8.1–2, pp. 88–90: imperatives are finite, despite plain form.
+    let imperatives = readings("Draw cards", Category::Clause);
+    assert!(!imperatives.is_empty());
+    let declaratives = readings("Cards are drawn", Category::Clause);
+    let reference = declaratives
+        .into_iter()
+        .next()
+        .unwrap()
+        .admit(lexicon())
+        .unwrap();
+    for value in imperatives {
+        assert_eq!(value.admit(lexicon()).unwrap(), reference);
+        value
+            .visit_words(&mut |head| {
+                if let LexicalReading::Word(v) = &head.value
+                    && v.form == WordForm::Plain
+                {
+                    assert_eq!(v.features.finiteness, None);
+                }
+            })
+            .unwrap();
+    }
+    assert!(readings("draws cards", Category::BarePredicate).is_empty());
+    assert!(readings("drawing cards", Category::BarePredicate).is_empty());
+    assert!(!readings("You may draw cards.", Category::Document).is_empty());
+    assert!(!readings("Cards are being drawn.", Category::Document).is_empty());
 }

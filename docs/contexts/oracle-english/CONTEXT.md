@@ -170,8 +170,9 @@ A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.
 
 **Subordinator**:
-A grammatical marker that introduces a Subordinate Clause and marks its
-dependent status.
+A grammatical marker, such as content-clause or relative *that*, *whether*, or
+interrogative *if*, that marks a Clause as subordinate. A Preposition taking a
+Clause Complement is still a Preposition.
 
 **Adjective**:
 A lexical Category whose members characteristically modify Nominals or serve
@@ -252,8 +253,17 @@ This is distinct from a Game Model Predicate.
 A phrase headed by a verb.
 
 **Bare Predicate**:
-The Predicate shape available where no finite tense is expressed, such as the
-complement of a modal auxiliary or of a causative verb.
+A Predicate headed by a plain-form verb. It can occur in a finite imperative
+or as a nonfinite Complement; the Word Form alone does not determine Finiteness.
+
+**Secondary Verb Phrase**:
+A Verb Phrase whose head has a secondary Word Form: plain, gerund-participle,
+or past participle. Plain form is shared by finite imperatives and subjunctives
+and nonfinite infinitivals; participial forms are nonfinite.
+
+**Locative Complement**:
+A Complement expressing location, source, or goal. It is distinct from a
+predicative Complement and from an optional locative Adjunct.
 
 **Lexical Verb Phrase**:
 An instantiated lexical verb together with the complements it selects, before
