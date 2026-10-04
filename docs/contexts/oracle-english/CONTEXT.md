@@ -368,6 +368,14 @@ A Modifier that follows its head in the linear order.
 **Coordination**:
 A construction joining two or more coordinate units.
 
+**Correlative Coordination**:
+A Coordination with a marker associated with its first Conjunct and a paired
+Coordinator, as in *both … and*, *either … or*, or *neither … nor*.
+
+**Shared Complement**:
+A Complement realized once after coordinated heads that each independently
+license its grammatical function.
+
 **Conjunct**:
 One of the units joined in a Coordination.
 

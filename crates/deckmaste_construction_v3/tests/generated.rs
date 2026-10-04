@@ -107,6 +107,65 @@ fn atom(id: &str) -> fixture::Reading {
     }
 }
 
+#[test]
+fn generated_structural_traits_preserve_variant_form_and_child_distinctions() {
+    use fixture::Reading;
+    let ordered = [
+        atom("a"),
+        atom("b"),
+        Reading::Atom {
+            form: 1,
+            word: word("a", WordForm::Invariant, FeatureBundle::default()),
+        },
+        Reading::Phrase {
+            form: 0,
+            left: Box::new(atom("a")),
+            right: None,
+        },
+        Reading::Phrase {
+            form: 0,
+            left: Box::new(atom("a")),
+            right: Some(Box::new(atom("b"))),
+        },
+        Reading::Phrase {
+            form: 0,
+            left: Box::new(atom("b")),
+            right: None,
+        },
+        Reading::Phrase {
+            form: 1,
+            left: Box::new(atom("a")),
+            right: None,
+        },
+        Reading::List {
+            form: 0,
+            items: vec![],
+        },
+        Reading::List {
+            form: 0,
+            items: vec![atom("a")],
+        },
+        Reading::List {
+            form: 0,
+            items: vec![atom("a"), atom("b")],
+        },
+        Reading::Empty { form: 0 },
+        Reading::Empty { form: 1 },
+    ];
+    for (left_index, left) in ordered.iter().enumerate() {
+        assert_eq!(left.clone(), *left);
+        for (right_index, right) in ordered.iter().enumerate() {
+            assert_eq!(left.cmp(right), left_index.cmp(&right_index));
+            assert_eq!(left.partial_cmp(right), Some(left_index.cmp(&right_index)));
+            assert_eq!(left == right, left_index == right_index);
+        }
+    }
+    assert_eq!(
+        ordered.iter().cloned().collect::<BTreeSet<_>>().len(),
+        ordered.len()
+    );
+}
+
 fn census(
     lexicon: &Lexicon,
     text: &str,

@@ -1,0 +1,158 @@
+use deckmaste_english_v3::{
+    grammar::{Category, Grammar, Reading, Word},
+    parse,
+};
+use deckmaste_lexical::{
+    Case, FeatureBundle, LexicalReading, LexicalValue, Lexicon, Number, SurfaceCase, WordForm,
+};
+use std::{collections::BTreeSet, path::Path, sync::OnceLock};
+
+fn lexicon() -> &'static Lexicon {
+    static LEXICON: OnceLock<Lexicon> = OnceLock::new();
+    LEXICON.get_or_init(|| {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        Lexicon::new(
+            deckmaste_lexical_source::load_workspace(&root)
+                .unwrap()
+                .lexemes,
+        )
+        .unwrap()
+    })
+}
+fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
+    let grammar = Grammar::default();
+    let input = lexicon().analyze(text);
+    let forest = parse(&grammar, lexicon(), &input, &category).unwrap();
+    grammar
+        .readings(&forest)
+        .map(|value| {
+            let value = value.unwrap();
+            assert_eq!(value.realize(lexicon()).unwrap(), text);
+            value
+        })
+        .collect()
+}
+fn word(id: &str, form: WordForm, number: Option<Number>) -> Word {
+    Word {
+        value: LexicalReading::Word(LexicalValue {
+            lexeme: id.into(),
+            form,
+            features: FeatureBundle {
+                number,
+                ..FeatureBundle::default()
+            },
+            variant: 0,
+            capitalization: SurfaceCase::Declared,
+        }),
+        countability: None,
+        frame: None,
+    }
+}
+fn assert_laws(value: Reading, text: &str, category: Category) {
+    value.admit(lexicon()).unwrap();
+    assert_eq!(value.realize(lexicon()).unwrap(), text);
+    let parsed = readings(text, category);
+    assert!(
+        parsed.contains(&value),
+        "independent value missing for {text:?}"
+    );
+    let reparsed = parsed.get(&value).unwrap();
+    let mut nodes = Vec::new();
+    value.visit(&mut |node| nodes.push(node.clone())).unwrap();
+    let mut parsed_nodes = Vec::new();
+    reparsed
+        .visit(&mut |node| parsed_nodes.push(node.clone()))
+        .unwrap();
+    assert_eq!(nodes, parsed_nodes);
+    let mut words = Vec::new();
+    value
+        .visit_words(&mut |word| words.push(word.clone()))
+        .unwrap();
+    let mut parsed_words = Vec::new();
+    reparsed
+        .visit_words(&mut |word| parsed_words.push(word.clone()))
+        .unwrap();
+    assert_eq!(words, parsed_words);
+}
+
+fn possessed(noun: &str, possessor_number: Number) -> Reading {
+    let mut head = word(
+        &format!("lexeme:CommonNoun/{noun}"),
+        WordForm::Singular,
+        Some(Number::Singular),
+    );
+    head.countability = Some(true);
+    let mut possessor = word(
+        "vocab:PossessiveDeterminerPronoun/Your",
+        WordForm::Invariant,
+        Some(possessor_number),
+    );
+    let LexicalReading::Word(value) = &mut possessor.value else { unreachable!() };
+    value.features.person = Some(deckmaste_lexical::Person::Second);
+    value.features.case = Some(Case::Genitive);
+    Reading::PossessiveNounPhrase {
+        form: 0,
+        possessor,
+        head: Box::new(Reading::Noun { form: 0, head }),
+    }
+}
+
+#[test]
+fn possessed_bases_preserve_both_possessor_numbers_before_coordination() {
+    for (noun, text) in [("Hand", "your hand"), ("Graveyard", "your graveyard")] {
+        let singular = possessed(noun, Number::Singular);
+        let plural = possessed(noun, Number::Plural);
+        assert_laws(singular.clone(), text, Category::NounPhrase);
+        assert_laws(plural.clone(), text, Category::NounPhrase);
+        assert_eq!(
+            readings(text, Category::NounPhrase),
+            BTreeSet::from([singular, plural])
+        );
+    }
+    for text in [
+        "their hand",
+        "his graveyard",
+        "her hand",
+        "the command zone",
+    ] {
+        assert!(
+            !readings(text, Category::NounPhrase).is_empty(),
+            "no base NP for {text:?}"
+        );
+    }
+    for text in ["yours hand", "they hand", "your", "your the hand"] {
+        assert!(
+            readings(text, Category::NounPhrase).is_empty(),
+            "invalid possessed NP for {text:?}"
+        );
+    }
+}
+
+#[test]
+fn authentic_possessed_preposition_bases_then_their_coordination() {
+    // Next of Kin; verify each base before the full coordinated constituent.
+    for text in ["from your hand", "from the command zone"] {
+        assert!(
+            !readings(text, Category::PrepositionPhrase).is_empty(),
+            "no PP base for {text:?}"
+        );
+    }
+    assert!(
+        !readings(
+            "from your hand or from the command zone",
+            Category::PrepositionPhrase
+        )
+        .is_empty()
+    );
+    for text in [
+        "Draw your hand.",
+        "You draw your hand.",
+        "Your hand enters.",
+    ] {
+        assert!(
+            !readings(text, Category::Document).is_empty(),
+            "no possessed NP composition for {text:?}"
+        );
+    }
+    assert!(readings("Your hand enter.", Category::Document).is_empty());
+}

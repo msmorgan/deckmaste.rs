@@ -1249,12 +1249,10 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
         "You attack, and they attack.",
         "Draw cards, discard cards, and gain life.",
         "You draw cards, discard cards, and gain life.",
-        "You draw cards, discard cards and gain life.",
         "You and they attack.",
         "You, they, and creatures attack.",
         "Cards, creatures, artifacts, and lands are legendary.",
         "Draw cards, creatures, and artifacts.",
-        "Draw cards, creatures or artifacts.",
     ] {
         assert!(
             !readings(text, Category::Document).is_empty(),
@@ -1266,6 +1264,9 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
         "Draw cards, creatures, and they.",
         "You draws cards, discard cards, and gain life.",
         "Draw cards, discard cards, and.",
+        "You draw cards, discard cards and gain life.",
+        "Draw cards, creatures or artifacts.",
+        "You attack, they attack and creatures attack.",
     ] {
         assert!(
             readings(text, Category::Document).is_empty(),
@@ -1276,14 +1277,63 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
         "cards, creatures, artifacts, and lands",
         Category::NounPhrase,
     );
-    assert_eq!(values.len(), 1);
-    let Reading::SerialNounPhrase { rest, .. } = values.into_iter().next().unwrap() else {
-        panic!("expected flat series")
+    let noun = |id: &str| {
+        let mut head = word(
+            id,
+            WordForm::Plural,
+            FeatureBundle {
+                number: Some(Number::Plural),
+                ..FeatureBundle::default()
+            },
+        );
+        head.countability = Some(true);
+        Reading::Noun { form: 0, head }
     };
-    let Reading::NounPhraseSeriesContinuation { rest, .. } = *rest else {
-        panic!("expected four coordinates")
+    let [cards, creatures, artifacts, lands] = [
+        "lexeme:CommonNoun/Card",
+        "lexeme:type/creature",
+        "lexeme:type/artifact",
+        "lexeme:type/land",
+    ]
+    .map(noun);
+    let and = word(
+        "vocab:Coordinator/And",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    let bare = |head| Reading::BarePlural {
+        form: 0,
+        head: Box::new(head),
     };
-    assert!(matches!(*rest, Reading::NounPhraseSeriesEnd { .. }));
+    let phrases = Reading::SerialNounPhrase {
+        form: 0,
+        left: Box::new(bare(cards.clone())),
+        rest: Box::new(Reading::NounPhraseSeriesContinuation {
+            form: 0,
+            left: Box::new(bare(creatures.clone())),
+            rest: Box::new(Reading::NounPhraseSeriesEnd {
+                form: 0,
+                left: Box::new(bare(artifacts.clone())),
+                coordinator: and.clone(),
+                right: Box::new(bare(lands.clone())),
+            }),
+        }),
+    };
+    let nominal = bare(Reading::SerialNominal {
+        form: 0,
+        left: Box::new(cards),
+        rest: Box::new(Reading::NominalSeriesContinuation {
+            form: 0,
+            left: Box::new(creatures),
+            rest: Box::new(Reading::NominalSeriesEnd {
+                form: 0,
+                left: Box::new(artifacts),
+                coordinator: and,
+                right: Box::new(lands),
+            }),
+        }),
+    });
+    assert_eq!(values, BTreeSet::from([phrases, nominal]));
 }
 
 #[test]

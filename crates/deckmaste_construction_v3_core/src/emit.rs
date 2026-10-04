@@ -320,9 +320,11 @@ fn ast(ir: &Ir) -> TokenStream {
         node_methods.extend(methods);
     }
     let cost_methods = emit_cost_methods(ir);
+    let structural_traits = emit_structural_traits(ir);
     quote! {
-        #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
+        #[derive(Debug)]
         pub enum Reading { #(#variants),* }
+        #structural_traits
         impl Reading {
             #[must_use]
             pub fn category(&self) -> Category { match self { #(#categories),* } }
@@ -391,6 +393,77 @@ fn emit_cost_methods(ir: &Ir) -> TokenStream {
     }
 }
 
+// Keep recursive structural operations proportional to the selected variant.
+// Variant and field order exactly match Rust's derived structural ordering.
+fn emit_structural_traits(ir: &Ir) -> TokenStream {
+    let mut ranks = vec![];
+    let mut clones = vec![];
+    let mut comparisons = vec![];
+    let mut methods = vec![];
+    for (index, constructor) in ir.constructors.iter().enumerate() {
+        let name = &constructor.name;
+        let fields: Vec<_> = constructor.fields.iter().map(|(name, _)| name).collect();
+        let left: Vec<_> = (0..fields.len())
+            .map(|i| format_ident!("__left{i}"))
+            .collect();
+        let right: Vec<_> = (0..fields.len())
+            .map(|i| format_ident!("__right{i}"))
+            .collect();
+        let clone_method = format_ident!("__clone{index}");
+        let compare_method = format_ident!("__compare{index}");
+        ranks.push(quote!(Self::#name { .. } => #index));
+        clones.push(quote!(Self::#name { .. } => self.#clone_method()));
+        comparisons.push(quote!(Self::#name { .. } => self.#compare_method(other)));
+        let fallback = if ir.constructors.len() == 1 {
+            TokenStream::new()
+        } else {
+            quote!(else { unreachable!() })
+        };
+        methods.push(quote! {
+            #[inline(never)]
+            fn #clone_method(&self) -> Self {
+                let Self::#name { form, #(#fields),* } = self #fallback;
+                Self::#name { form: *form, #(#fields: #fields.clone()),* }
+            }
+            #[inline(never)]
+            fn #compare_method(&self, other: &Self) -> ::core::cmp::Ordering {
+                let Self::#name { form: left_form, #(#fields: #left),* } = self #fallback;
+                let Self::#name { form: right_form, #(#fields: #right),* } = other #fallback;
+                let ordering = left_form.cmp(right_form);
+                if ordering != ::core::cmp::Ordering::Equal { return ordering; }
+                #(
+                    let ordering = #left.cmp(#right);
+                    if ordering != ::core::cmp::Ordering::Equal { return ordering; }
+                )*
+                ::core::cmp::Ordering::Equal
+            }
+        });
+    }
+    quote! {
+        impl Reading {
+            fn __variant_rank(&self) -> usize { match self { #(#ranks),* } }
+            #(#methods)*
+        }
+        impl ::core::clone::Clone for Reading {
+            fn clone(&self) -> Self { match self { #(#clones),* } }
+        }
+        impl ::core::cmp::Ord for Reading {
+            fn cmp(&self, other: &Self) -> ::core::cmp::Ordering {
+                let ordering = self.__variant_rank().cmp(&other.__variant_rank());
+                if ordering != ::core::cmp::Ordering::Equal { return ordering; }
+                match self { #(#comparisons),* }
+            }
+        }
+        impl ::core::cmp::PartialOrd for Reading {
+            fn partial_cmp(&self, other: &Self) -> Option<::core::cmp::Ordering> { Some(self.cmp(other)) }
+        }
+        impl ::core::cmp::PartialEq for Reading {
+            fn eq(&self, other: &Self) -> bool { self.cmp(other) == ::core::cmp::Ordering::Equal }
+        }
+        impl ::core::cmp::Eq for Reading {}
+    }
+}
+
 fn emit_node_methods(
     constructor: usize,
     name: &syn::Ident,
@@ -445,7 +518,8 @@ fn emit_node_methods(
 }
 
 fn materializer(ir: &Ir) -> TokenStream {
-    let cases = ir.rules.iter().enumerate().map(|(index, rule)| {
+    let mut methods = Vec::new();
+    let cases: Vec<_> = ir.rules.iter().enumerate().map(|(index, rule)| {
         let arity = rule.symbols.len();
         let body = match &rule.build {
             Build::Construction { constructor, form, slots } => {
@@ -479,7 +553,23 @@ fn materializer(ir: &Ir) -> TokenStream {
                 Ok(Value::Repeated(sequence))
             },
         };
-        quote!(#index => { if children.len() != #arity { return Err(Error::Internal); } let mut children = children.into_iter(); #body })
-    });
-    quote!(impl Grammar { fn materialize(&self, production: usize, children: Vec<Value>) -> Result<Value, Error> { match production { #(#cases,)* _ => Err(Error::Internal) } } })
+        let method = format_ident!("__materialize{index}");
+        // Debug builds otherwise reserve temporaries for every production in
+        // one frame, making stack use grow with the entire grammar.
+        methods.push(quote! {
+            #[inline(never)]
+            fn #method(&self, children: Vec<Value>) -> Result<Value, Error> {
+                if children.len() != #arity { return Err(Error::Internal); }
+                let mut children = children.into_iter();
+                #body
+            }
+        });
+        quote!(#index => self.#method(children))
+    }).collect();
+    quote!(impl Grammar {
+        fn materialize(&self, production: usize, children: Vec<Value>) -> Result<Value, Error> {
+            match production { #(#cases,)* _ => Err(Error::Internal) }
+        }
+        #(#methods)*
+    })
 }

@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-# Complete Oracle coordination over independently verified phrase types
+# Compose Oracle coordination over independently verified phrase types
 
 Verify non-coordinated constituents before composing their coordinations.
 Cover nominal, noun-phrase, adjective, adverb, preposition, quantity, notation,

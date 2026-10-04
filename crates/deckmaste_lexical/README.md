@@ -92,7 +92,9 @@ the resulting `Consonant`/`Vowel` feature, never the spelling or lexeme identity
 
 `SurfaceStructure::Word` rejects embedded whitespace, separators and quotation
 boundaries in lemmas and overrides. Internal hyphens and apostrophes are word
-characters only in their permitted spelling positions. `Multiword` declares a
+characters only in their permitted spelling positions. An internal slash
+between alphabetic characters is also permitted in an explicitly declared word;
+numeric slash notation retains its separate notation category. `Multiword` declares a
 sequence of words with exact single-space separators. `Opaque` is reserved for
 catalog, keyword and notation categories; a noun cannot escape word validation
 by claiming an opaque spelling. Catalog and keyword entries retain their exact

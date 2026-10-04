@@ -798,6 +798,42 @@ fn an_italic_run_no_declaration_spells_is_a_flavor_word() {
 }
 
 #[test]
+fn declared_alphabetic_slash_compounds_preserve_identity_without_guessing_parts() {
+    let lexicon = Lexicon::new([
+        invariant("coordinator:inclusive", "and/or", Category::Coordinator),
+        invariant("coordinator:translated", "oui/non", Category::Coordinator),
+    ])
+    .unwrap();
+    for (owner, surface) in [
+        ("coordinator:inclusive", "and/or"),
+        ("coordinator:translated", "oui/non"),
+    ] {
+        let expected = word(owner, WordForm::Invariant, FeatureBundle::default());
+        assert_eq!(lexicon.realize(&expected).unwrap(), surface);
+        assert_eq!(complete(&lexicon, surface), BTreeSet::from([expected]));
+    }
+    for surface in [
+        "and", "or", "and / or", "and/ or", "and /or", "and/nor", "and//or",
+    ] {
+        assert!(complete(&lexicon, surface).is_empty(), "{surface}");
+    }
+    for surface in ["/word", "word/", "word//word", "1/2", "word/2", "2/word"] {
+        for binding in [Binding::Free, Binding::Bound] {
+            let mut entry = invariant("invalid", surface, Category::Coordinator);
+            entry.binding = binding;
+            assert!(Lexicon::new([entry]).is_err(), "{surface} {binding:?}");
+        }
+        let mut entry = invariant("invalid-variant", "ordinary", Category::Coordinator);
+        entry.forms[0].surfaces = Some(vec![surface.into()]);
+        assert!(Lexicon::new([entry]).is_err(), "override {surface}");
+    }
+    let notation = Lexicon::new([invariant("notation", "1/2", Category::Symbol)]).unwrap();
+    let expected = word("notation", WordForm::Invariant, FeatureBundle::default());
+    assert_eq!(notation.realize(&expected).unwrap(), "1/2");
+    assert_eq!(complete(&notation, "1/2"), BTreeSet::from([expected]));
+}
+
+#[test]
 fn ordinary_recipes_reject_separator_and_quote_boundaries() {
     for surface in [
         "two words",

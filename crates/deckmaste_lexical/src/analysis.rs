@@ -512,6 +512,11 @@ fn valid_word(word: &str, binding: Binding) -> bool {
     !characters.is_empty()
         && characters.iter().enumerate().all(|(index, ch)| {
             word_character(*ch)
+                || *ch == '/'
+                    && index > 0
+                    && characters[index - 1].is_alphabetic()
+                    && index + 1 < characters.len()
+                    && characters[index + 1].is_alphabetic()
                 || matches!(ch, '\'' | '’' | '-')
                     && (index > 0 && word_character(characters[index - 1])
                         || matches!(binding, Binding::Suffix | Binding::Bound))
