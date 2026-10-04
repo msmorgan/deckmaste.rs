@@ -2,6 +2,6 @@
 (
     name: "paidCostRead",
     kinds: [Amount],
-    params: {"which": PaidCostName, "window": Lookback, "subject": NounPhrase},
+    params: {"which": PaidCostName, "subject": NounPhrase, "window": Default(Any, None)},
     body: Paid(Readback(Param(which), Param(window)), Param(subject)),
 )

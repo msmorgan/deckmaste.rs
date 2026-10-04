@@ -1,0 +1,7 @@
+// "planeswalker"
+(
+    name: "planeswalker",
+    kinds: [Predicate],
+    params: [],
+    body: HasType(Planeswalker),
+)

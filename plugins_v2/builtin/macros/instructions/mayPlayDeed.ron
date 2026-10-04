@@ -1,7 +1,7 @@
-// "<player> may <deed> <what> [as though …] [rider]"
+// "<player> may <deed> <what> [rider] [as though …]"
 (
     name: "mayPlayDeed",
     kinds: [StaticSpec],
-    params: {"deed": Deed, "player": NounPhrase, "what": NounPhrase, "asThough": AsThough, "rider": DeonticRider},
+    params: {"deed": Deed, "player": NounPhrase, "what": NounPhrase, "rider": DeonticRider, "asThough": Default(Any, None)},
     body: DeonticRule(Param(player), Permit, [Param(deed)], Agent, None, Counterpart(Param(what)), Param(asThough), Param(rider)),
 )

@@ -1,0 +1,7 @@
+// "If <event> would happen, <replacement> instead."
+(
+    name: "insteadOf",
+    kinds: [StaticSpec],
+    params: {"event": GameEvent, "replacement": Instruction},
+    body: Replacement(Param(event), [], None, Param(replacement), Repeatedly, None),
+)

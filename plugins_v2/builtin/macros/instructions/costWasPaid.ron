@@ -2,6 +2,6 @@
 (
     name: "costWasPaid",
     kinds: [Condition],
-    params: {"which": PaidCostName, "window": Lookback, "subject": NounPhrase},
+    params: {"which": PaidCostName, "subject": NounPhrase, "window": Default(Any, None)},
     body: CompareAmt(paidCostRead(which: Param(which), window: Param(window), subject: Param(subject)), AtLeast, 1),
 )

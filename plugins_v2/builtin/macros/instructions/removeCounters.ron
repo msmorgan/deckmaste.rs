@@ -1,7 +1,7 @@
-// "remove <quantity> <kind> counters from <from_>" [CR#122.1].
+// "remove <quantity> <kind> counters from <from>" [CR#122.1].
 (
     name: "removeCounters",
     kinds: [Instruction],
-    params: {"quantity": Quantity, "kind": CounterKindSource, "from_": NounPhrase},
-    body: RemoveCounters(Param(quantity), Param(kind), Param(from_)),
+    params: {"quantity": Quantity, "kind": CounterKindSource, "from": NounPhrase},
+    body: RemoveCounters(Param(quantity), Param(kind), Param(from)),
 )

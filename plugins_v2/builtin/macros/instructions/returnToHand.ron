@@ -1,0 +1,7 @@
+// "<agent> returns <subject> to its owner's hand"
+(
+    name: "returnToHand",
+    kinds: [Instruction],
+    params: {"agent": NounPhrase, "subject": NounPhrase},
+    body: Enact(Return, Move(Param(subject), hand, []), Param(agent)),
+)

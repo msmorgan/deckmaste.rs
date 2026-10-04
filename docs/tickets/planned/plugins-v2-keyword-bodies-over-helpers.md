@@ -42,9 +42,10 @@ is a separate landing (see Follow-ups).
 5. **Lean.** RON names are not bound by Lean keywords: the `by_`, `while_`,
    `from_` and `as_` parameters lose their underscores. `Macros.lean` is not
    edited here.
-6. **Reader.** `[Block]` reads as `[Core(Block)]`; a declared keyword name
-   reads bare where a keyword term is wanted. Bare designation names and an
-   `exchange` alias wait.
+6. **Reader.** `[Block]` reads as `[Core(Block)]`. Bare keyword names
+   (`hasKeyword(shadow)`), bare designation names and an `exchange` alias
+   wait: a keyword's term has to be built from its label, and `denoted_by`
+   today only projects a term already inside the node.
 7. **Clean-up.** `plusOnePlusOne` and `minusOneMinusOne` retire in favour of
    the counter declarations. The helper parameters that refuse `None` are
    retyped so they can be omitted.

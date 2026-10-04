@@ -1,0 +1,7 @@
+// "the number of <subject>"
+(
+    name: "numberOf",
+    kinds: [Amount],
+    params: {"subject": NounPhrase},
+    body: CountOf(Param(subject)),
+)

@@ -99,6 +99,10 @@ pub fn kinds() -> KindSet {
     // `CardType`, so "that creature" is `that(Creature)`.
     kinds.add(crate::words::NounWord::kind());
     kinds.add(crate::words::CardType::kind());
+    // The deed injection (§11.1): `Deed::Core` embeds a `CoreDeed`, so a
+    // deontic rule's deeds read `[Block]` for `[Core(deed: Block)]`.
+    kinds.add(crate::words::Deed::kind());
+    kinds.add(crate::words::CoreDeed::kind());
     // The subtype declarations' family kind, registered from the type's own
     // derive so it carries `Of`/`Spell` as its dispatch set.
     kinds.add(crate::words::Subtype::kind());
@@ -311,6 +315,7 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::abilities::DamageScope>("DamageScope");
     types.add_typed::<crate::abilities::DeckCondition>("DeckCondition");
     types.add_typed::<crate::words::Deed>("Deed");
+    types.add_typed::<crate::words::CoreDeed>("CoreDeed");
     types.add_typed::<Vec<crate::words::Deed>>("Deeds");
     types.add_typed::<crate::words::Delta<crate::phrase::Amount>>("Delta");
     types.add_typed::<crate::abilities::DeonticPatient>("DeonticPatient");

@@ -1,0 +1,7 @@
+// "<source> deals combat damage to <patient>"
+(
+    name: "dealsCombatDamage",
+    kinds: [GameEvent],
+    params: {"source": NounPhrase, "patient": NounPhrase},
+    body: Damage(CombatOnly, Param(source), Param(patient)),
+)

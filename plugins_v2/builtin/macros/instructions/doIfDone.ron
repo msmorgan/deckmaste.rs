@@ -1,0 +1,7 @@
+// "<body>. [If you do, <if_did>.] [If you can't, <if_not>.]": the body is required.
+(
+    name: "doIfDone",
+    kinds: [Instruction],
+    params: {"body": Instruction, "if_did": Default(Any, None), "if_not": Default(Any, None)},
+    body: WithContinuation(Required, Param(body), Param(if_did), Param(if_not)),
+)

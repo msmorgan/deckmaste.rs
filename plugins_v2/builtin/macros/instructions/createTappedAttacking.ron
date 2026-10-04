@@ -1,0 +1,7 @@
+// "<agent> creates <count> <token> tokens that are tapped and attacking"
+(
+    name: "createTappedAttacking",
+    kinds: [Instruction],
+    params: {"agent": NounPhrase, "count": Amount, "token": CharacteristicBundle},
+    body: CreateObject(Param(count), Token(spec: Written(characteristics: Param(token)), riders: [EntersAs(Tapped), EntersAttacking(None)]), Param(agent)),
+)

@@ -1,0 +1,7 @@
+// "<player> may cast this card [from <from>] by paying <cost> rather than its mana cost"
+(
+    name: "mayCastFor",
+    kinds: [StaticSpec],
+    params: {"player": NounPhrase, "cost": Cost, "from": Default(Any, None)},
+    body: DeonticRule(Param(player), Permit, [Action("Cast")], Agent, None, Counterpart(This), None, Play(Param(from), None, None, false, PayingInstead(Param(cost)))),
+)

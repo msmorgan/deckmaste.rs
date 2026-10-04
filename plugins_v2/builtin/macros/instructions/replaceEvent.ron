@@ -2,6 +2,6 @@
 (
     name: "replaceEvent",
     kinds: [Instruction],
-    params: {"event": GameEvent, "replacement": Instruction, "duration": Duration},
+    params: {"event": GameEvent, "replacement": Instruction, "duration": Default(Any, None)},
     body: Establish(Replacement(Param(event), [], None, Param(replacement), Repeatedly, None), Param(duration)),
 )

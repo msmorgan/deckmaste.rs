@@ -1,0 +1,7 @@
+// "<subject> gets <power>/<toughness> [<duration>]", both halves naming the subject.
+(
+    name: "gets",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "power": Delta, "toughness": Delta, "duration": Default(Any, None)},
+    body: Establish(Conjunction(None, [Modification(Param(subject), Power, Param(power)), Modification(Param(subject), Toughness, Param(toughness))]), Param(duration)),
+)

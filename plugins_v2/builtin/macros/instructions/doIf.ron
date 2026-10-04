@@ -1,7 +1,7 @@
-// "if <condition>, <instruction>", with no else branch.
+// "if <condition>, <instruction>[; otherwise, <otherwise>]"
 (
     name: "doIf",
     kinds: [Instruction],
-    params: {"condition": Condition, "instruction": Instruction},
-    body: DoIf(Param(condition), Param(instruction), None),
+    params: {"condition": Condition, "instruction": Instruction, "otherwise": Default(Any, None)},
+    body: DoIf(Param(condition), Param(instruction), Param(otherwise)),
 )

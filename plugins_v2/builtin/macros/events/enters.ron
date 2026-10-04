@@ -1,0 +1,7 @@
+// "<subject> enters [from <from>]"
+(
+    name: "enters",
+    kinds: [GameEvent],
+    params: {"subject": NounPhrase, "from": Default(Any, None)},
+    body: ZoneChange(Param(subject), Param(from), battlefield, After),
+)

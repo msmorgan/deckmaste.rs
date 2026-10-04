@@ -1,6 +1,0 @@
-(
-    name: "minusOneMinusOne",
-    kinds: [CounterKind],
-    params: [],
-    body: Boost(Down(amount: 1), Down(amount: 1)),
-)

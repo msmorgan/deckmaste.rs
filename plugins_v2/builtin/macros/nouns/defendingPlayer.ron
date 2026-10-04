@@ -1,0 +1,7 @@
+// "defending player"
+(
+    name: "defendingPlayer",
+    kinds: [NounPhrase],
+    params: [],
+    body: CombatPlayer(Defending),
+)

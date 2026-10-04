@@ -1,6 +1,7 @@
+// "<subject> becomes blocked [by <by>]"
 (
     name: "becomesBlocked",
     kinds: [GameEvent],
-    params: {"subject": NounPhrase, "by_": NounPhrase},
-    body: Combat(BlockedBy, Param(subject), Param(by_)),
+    params: {"subject": NounPhrase, "by": Default(Any, None)},
+    body: Combat(BlockedBy, Param(subject), Param(by)),
 )

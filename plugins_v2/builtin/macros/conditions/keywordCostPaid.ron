@@ -1,0 +1,7 @@
+// "if <subject>'s <label> cost was paid"
+(
+    name: "keywordCostPaid",
+    kinds: [Condition],
+    params: {"label": KeywordLabel, "subject": NounPhrase},
+    body: costWasPaid(ByKeyword(Param(label)), Param(subject)),
+)

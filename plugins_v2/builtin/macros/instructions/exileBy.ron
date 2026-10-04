@@ -1,0 +1,7 @@
+// "<agent> exiles <subject>"
+(
+    name: "exileBy",
+    kinds: [Instruction],
+    params: {"agent": NounPhrase, "subject": NounPhrase},
+    body: Enact(Action("Exile"), Move(Param(subject), exileZone, []), Param(agent)),
+)

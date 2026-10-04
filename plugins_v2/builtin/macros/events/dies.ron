@@ -1,0 +1,7 @@
+// "<subject> dies": is put into a graveyard from the battlefield [CR#700.4].
+(
+    name: "dies",
+    kinds: [GameEvent],
+    params: {"subject": NounPhrase},
+    body: ZoneChange(Param(subject), Zones([battlefield]), graveyard, Before),
+)

@@ -1,0 +1,7 @@
+// "<per> for each <p>"
+(
+    name: "forEach",
+    kinds: [Amount],
+    params: {"per": Amount, "p": Predicate},
+    body: times(Param(per), countOf(Param(p))),
+)

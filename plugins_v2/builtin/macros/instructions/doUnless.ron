@@ -1,0 +1,7 @@
+// "<instruction> unless <agent> pays <cost>"
+(
+    name: "doUnless",
+    kinds: [Instruction],
+    params: {"agent": NounPhrase, "instruction": Instruction, "cost": Cost},
+    body: WithContinuation(Optional(Param(agent)), Pay(Param(cost), Once, Param(agent)), None, Param(instruction)),
+)

@@ -500,6 +500,8 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "CounterKind" => render::<words::CounterKind>,
         "NounWord" => render::<words::NounWord>,
         "CardType" => render::<words::CardType>,
+        "Deed" => render::<words::Deed>,
+        "CoreDeed" => render::<words::CoreDeed>,
         "Subtype" => render::<words::Subtype>,
         "TurnPart" => render::<words::TurnPart>,
         "Disclosure" => render::<words::Disclosure>,

@@ -342,8 +342,9 @@ per-type convenience, and each off by default in `macro_ron` — v2's
   `ColorOrColorless::Of` and `ColorTerm::Lit`, which is v1's chain mapped
   onto v2; `CounterKindSource::Printed`, so a bare `p1p1Counter` is a
   printed counter kind (ruling, 2026-10-03: "p1p1Counter should read bare,
-  with Printed the default constructor"); and `NounWord::Type`, so "that
-  creature" is `that(Creature)` (ruling, 2026-10-04). Native dispatch always wins: an identifier the position's own
+  with Printed the default constructor"); `NounWord::Type`, so "that
+  creature" is `that(Creature)` (ruling, 2026-10-04); and `Deed::Core`, so a
+  deontic rule's deeds read `[Block]` for `[Core(deed: Block)]`. Native dispatch always wins: an identifier the position's own
   grammar or macro namespace claims is never routed.
 
   An injection also WRITES bare, so a card file spells the colour and
@@ -461,14 +462,20 @@ sequence mapped by declaration order; mixed calls remain invalid.
 ### 12.1 The helper macro layer
 
 `lean/Semantics/Macros.lean`'s 409 `semantic_macro`s are the phrasings a card
-writes over the constructor basis. 306 of them are declarations under
+writes over the constructor basis. 304 of them are declarations under
 `plugins_v2/builtin/macros/<family>/` — the families are the Lean file's own
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
-`nouns`, `mana`, `durations`, `amounts`, `counters`, `instructions`, `events`,
+`nouns`, `mana`, `durations`, `amounts`, `instructions`, `events`,
 `abilities`) — each a plain meta with `name`, `kinds`, `params` and `body` and
-no spelling or grammar. The name is the Lean name verbatim (§11), the kind is
+no spelling or grammar. Lean's `counters` section (`plusOnePlusOne`,
+`minusOneMinusOne`) has no declarations: the counter declarations
+`p1p1Counter` and `m1m1Counter` name the same kinds and read bare at a counter
+position. The name is the Lean name verbatim (§11), the kind is
 the Lean return type, and the signature is NAMED, with Lean's own defaults as
-parameter defaults. A list-typed parameter registers under the PLURAL of its
+parameter defaults. A RON signature may default a binder further, and move a
+defaulted binder last, so that a positional call can leave it out; and a binder
+Lean escapes as a keyword (`by_`, `from_`, `while_`, `as_`) takes its plain
+name. A list-typed parameter registers under the PLURAL of its
 element type, v1's convention (`Abilities` for `Vec<Ability>`); a Lean
 `abbrev` registers under the alias's own name, since that is what the
 signature writes. `lean-macros-from-ron` generates `Macros.lean` from these

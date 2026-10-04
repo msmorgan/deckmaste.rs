@@ -1,0 +1,7 @@
+// "<subject> can't be blocked by <blockers>"
+(
+    name: "cantBeBlockedBy",
+    kinds: [StaticSpec],
+    params: {"subject": NounPhrase, "blockers": Predicate},
+    body: DeonticRule(Param(subject), Forbid, [Block], Patient, None, Counterpart(allOf(Param(blockers))), None, NoRider),
+)

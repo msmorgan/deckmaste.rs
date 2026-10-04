@@ -184,7 +184,7 @@ fn every_ported_alias_expands() {
         Predicate: "happenedTo(event: FlipsCoin(player: You, call: None), lookback: ThisTurn)",
         Instruction: "shiftResult(amount: Lit(value: 1))",
         Instruction: "delay(event: FlipsCoin(player: You, call: None), instruction: Shuffle(agent: You))",
-        Instruction: "removeCounters(quantity: Range(low: 1, high: 1), kind: Printed(kind: Named(label: \"charge\")), from_: You)",
+        Instruction: "removeCounters(quantity: Range(low: 1, high: 1), kind: Printed(kind: Named(label: \"charge\")), from: You)",
         GameEvent: "counterEvent(move: Put, kind: Named(label: \"charge\"), batch: One, subject: You)",
         GameEvent: "tokensCreated(tokens: You)",
         Condition: "exists(p: HasType(Creature))",

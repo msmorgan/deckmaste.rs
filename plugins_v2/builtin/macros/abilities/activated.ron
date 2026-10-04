@@ -2,6 +2,13 @@
 (
     name: "activated",
     kinds: [Ability],
-    params: {"cost": Cost, "instruction": Instruction},
-    body: Activated(Param(cost), Param(instruction), None, None, None, None),
+    params: {
+        "cost": Cost,
+        "instruction": Instruction,
+        "timing": Default(Any, None),
+        "limit": Default(Any, None),
+        "guard": Default(Any, None),
+        "activator": Default(Any, None),
+    },
+    body: Activated(Param(cost), Param(instruction), Param(timing), Param(limit), Param(guard), Param(activator)),
 )

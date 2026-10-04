@@ -289,7 +289,7 @@ pub type KeywordActionLabel = String;
 /// Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
 /// [CR#508.1,509.1] and the other actions the rules define in their own sections. Closed, so a law
 /// matches them structurally instead of naming a lexeme.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum CoreDeed {
     Attack,
     Block,
@@ -318,11 +318,20 @@ pub enum StateBasedCause {
 /// A deed: something a card's text says is done. Three sources define one, and only the middle
 /// one is open: the core rules [CR#508.1,509.1,709.5f], the keyword actions the registry declares
 /// [CR#701.1], and the verb a keyword ability defines for itself [CR#702.122b,702.171a,702.26a].
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Deed {
-    Core { deed: CoreDeed },
-    Action { label: KeywordActionLabel },
-    OfAbility { keyword: KeywordLabel },
+    /// Carries only the core deed, so a bare `Block` reads here: "can't
+    /// block" is a deontic rule over `[Block]` (§11.1).
+    #[macro_ron(embed)]
+    Core {
+        deed: CoreDeed,
+    },
+    Action {
+        label: KeywordActionLabel,
+    },
+    OfAbility {
+        keyword: KeywordLabel,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

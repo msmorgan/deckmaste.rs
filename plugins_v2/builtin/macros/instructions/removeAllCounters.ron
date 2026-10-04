@@ -2,6 +2,6 @@
 (
     name: "removeAllCounters",
     kinds: [Instruction],
-    params: {"kind": CounterKindSource, "from_": NounPhrase},
-    body: RemoveCounters(None, Param(kind), Param(from_)),
+    params: {"kind": CounterKindSource, "from": NounPhrase},
+    body: RemoveCounters(None, Param(kind), Param(from)),
 )

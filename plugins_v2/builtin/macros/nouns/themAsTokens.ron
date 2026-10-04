@@ -1,0 +1,7 @@
+// "them", reading back the tokens just created.
+(
+    name: "themAsTokens",
+    kinds: [NounPhrase],
+    params: [],
+    body: Pro(TokenBorn, Many, Whole),
+)
