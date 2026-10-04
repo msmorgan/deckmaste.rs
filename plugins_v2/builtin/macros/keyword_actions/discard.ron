@@ -9,9 +9,6 @@ KeywordAction(
         bare: "discard",
         frame_set: Transitive,
     ),
-    body: Enact(
-        verb: Action("Discard"),
-        instruction: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
-        agent: Param(1),
-    ),
+    agent: Param(1),
+    body: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
 )

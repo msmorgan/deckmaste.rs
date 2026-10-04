@@ -9,59 +9,55 @@ KeywordAbility(
     // permanent is on the battlefield, put an age counter on it. Then you may pay
     // [cost] for each age counter on it. If you don't, sacrifice it."
     // [CR#702.24a]
-    body: Keyword(
-        keyword: "CumulativeUpkeep",
-        params: [Cost(Param(0))],
-        body: [
-            Triggered(
-                event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(You)),
-                alternatives: [],
-                r#while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: Matches(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
-                ),
-                instruction: Sequentially(
-                    steps: [
-                        PutCounters(
-                            amount: 1,
-                            kind: Printed(Named("Age")),
-                            on: AsMarker(marker: Permanent, subject: This),
-                        ),
-                        WithContinuation(
-                            policy: Optional(You),
-                            body: Pay(
-                                cost: Scaled(
-                                    cost: Param(0),
-                                    amount: Arith(
-                                        op: Times,
-                                        left: 1,
-                                        right: StatOf(
-                                            axis: Counter(Named("Age")),
-                                            subject: AsMarker(marker: Permanent, subject: This),
-                                        ),
+    body: [
+        Triggered(
+            event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(You)),
+            alternatives: [],
+            r#while: None,
+            joins: [],
+            timing: None,
+            limit: None,
+            intervening: Matches(
+                subject: AsMarker(marker: Permanent, subject: This),
+                predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
+            ),
+            instruction: Sequentially(
+                steps: [
+                    PutCounters(
+                        amount: 1,
+                        kind: Printed(Named("Age")),
+                        on: AsMarker(marker: Permanent, subject: This),
+                    ),
+                    WithContinuation(
+                        policy: Optional(You),
+                        body: Pay(
+                            cost: Scaled(
+                                cost: Param(0),
+                                amount: Arith(
+                                    op: Times,
+                                    left: 1,
+                                    right: StatOf(
+                                        axis: Counter(Named("Age")),
+                                        subject: AsMarker(marker: Permanent, subject: This),
                                     ),
                                 ),
-                                times: Once,
-                                agent: You,
                             ),
-                            if_did: None,
-                            if_not: Enact(
-                                verb: Action("Sacrifice"),
-                                instruction: Move(
-                                    subject: AsMarker(marker: Permanent, subject: This),
-                                    to: Zone(zone: Graveyard, scope: Bare),
-                                    riders: [],
-                                ),
-                                agent: You,
-                            ),
+                            times: Once,
+                            agent: You,
                         ),
-                    ],
-                ),
+                        if_did: None,
+                        if_not: Enact(
+                            verb: Action("Sacrifice"),
+                            instruction: Move(
+                                subject: AsMarker(marker: Permanent, subject: This),
+                                to: Zone(zone: Graveyard, scope: Bare),
+                                riders: [],
+                            ),
+                            agent: You,
+                        ),
+                    ),
+                ],
             ),
-        ],
-    ),
+        ),
+    ],
 )

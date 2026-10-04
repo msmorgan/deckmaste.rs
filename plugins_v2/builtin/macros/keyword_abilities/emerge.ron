@@ -10,5 +10,4 @@ KeywordAbility(
     // [CR#702.119a]. Nothing links the second static back to the creature the first
     // one's cost sacrificed: `Predicate::ExiledWith` is the only linked reference,
     // and a `Reach::Stamped` pronoun cannot read out of a sibling ability's cost.
-    body: Keyword(keyword: "Emerge", params: [Cost(Param(0))], body: []),
 )

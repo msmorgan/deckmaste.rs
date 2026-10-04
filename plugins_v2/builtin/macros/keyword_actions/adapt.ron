@@ -9,9 +9,7 @@ KeywordAction(
         bare: "adapt",
         frame_set: MeasureComplement,
     ),
-    body: Enact(
-        verb: Action("Adapt"),
-        instruction: DoIf(
+    body: DoIf(
         condition: Not(Matches(
             subject: AsMarker(marker: Permanent, subject: This),
             predicate: HasCounters(Boost(power: Up(1), toughness: Up(1))),
@@ -22,7 +20,5 @@ KeywordAction(
             on: AsMarker(marker: Permanent, subject: This),
         ),
         otherwise: None,
-    ),
-        agent: None,
     ),
 )

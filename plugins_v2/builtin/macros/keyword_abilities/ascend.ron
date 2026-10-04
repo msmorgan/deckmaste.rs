@@ -12,5 +12,4 @@ KeywordAbility(
     // state-checked clause and its `StateBasedCause` has the single value
     // `NonpositiveLife`. The spell form [CR#702.131a] is a spell ability, which
     // `Ability.category` leaves categoryless and `keywordBodyFits` refuses.
-    body: Keyword(keyword: "Ascend", params: [], body: []),
 )

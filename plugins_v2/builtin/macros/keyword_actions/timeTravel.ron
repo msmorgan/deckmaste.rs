@@ -13,9 +13,7 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Intransitive,
     ),
-    body: Enact(
-        verb: Action("Time Travel"),
-        instruction: Sequentially([
+    body: Sequentially([
         Choose(
             first: None,
             chosen: Described(
@@ -57,6 +55,4 @@ KeywordAction(
             ),
         ),
     ]),
-        agent: None,
-    ),
 )

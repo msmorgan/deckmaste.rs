@@ -9,81 +9,77 @@ KeywordAbility(
     // card with the same mana value as the discarded card, reveal that card, and put
     // it into your hand. Then shuffle your library. Activate only as a sorcery."
     // [CR#702.53a]
-    body: Keyword(
-        keyword: "Transmute",
-        params: [Cost(Param(0))],
-        body: [
-            Activated(
-                cost: Compound(
-                    costs: [
-                        Param(0),
-                        Perform(
-                            instruction: Enact(
-                                verb: Action("Discard"),
-                                instruction: Move(
-                                    subject: This,
-                                    to: Zone(zone: Graveyard, scope: Bare),
-                                    riders: [],
-                                ),
-                                agent: You,
+    body: [
+        Activated(
+            cost: Compound(
+                costs: [
+                    Param(0),
+                    Perform(
+                        instruction: Enact(
+                            verb: Action("Discard"),
+                            instruction: Move(
+                                subject: This,
+                                to: Zone(zone: Graveyard, scope: Bare),
+                                riders: [],
                             ),
+                            agent: You,
                         ),
-                    ],
-                ),
-                instruction: Sequentially(
-                    steps: [
-                        Search(
-                            scope: OneZone(
-                                zone: Zone(zone: Library, scope: PossessedBy(You)),
-                            ),
-                            quantity: Range(low: 1, high: 1),
-                            predicate: And(
-                                conjuncts: [
-                                    IsCard,
-                                    Compare(
-                                        axes: [Stat(ManaValue)],
-                                        comparator: Eq,
-                                        bound: StatOf(
-                                            axis: Stat(ManaValue),
-                                            subject: Pro(
-                                                reach: Verbed(
-                                                    verb: Action("Discard"),
-                                                    word: Card,
-                                                    marking: Attributive,
-                                                ),
-                                                plurality: One,
-                                                window: Whole,
+                    ),
+                ],
+            ),
+            instruction: Sequentially(
+                steps: [
+                    Search(
+                        scope: OneZone(
+                            zone: Zone(zone: Library, scope: PossessedBy(You)),
+                        ),
+                        quantity: Range(low: 1, high: 1),
+                        predicate: And(
+                            conjuncts: [
+                                IsCard,
+                                Compare(
+                                    axes: [Stat(ManaValue)],
+                                    comparator: Eq,
+                                    bound: StatOf(
+                                        axis: Stat(ManaValue),
+                                        subject: Pro(
+                                            reach: Verbed(
+                                                verb: Action("Discard"),
+                                                word: Card,
+                                                marking: Attributive,
                                             ),
+                                            plurality: One,
+                                            window: Whole,
                                         ),
                                     ),
-                                ],
-                            ),
-                            agent: You,
-                        ),
-                        Expose(
-                            verb: Reveal,
-                            exposed: Cards(
-                                cards: Pro(
-                                    reach: Bare,
-                                    plurality: One,
-                                    window: Top(1),
                                 ),
+                            ],
+                        ),
+                        agent: You,
+                    ),
+                    Expose(
+                        verb: Reveal,
+                        exposed: Cards(
+                            cards: Pro(
+                                reach: Bare,
+                                plurality: One,
+                                window: Top(1),
                             ),
-                            agent: You,
                         ),
-                        Move(
-                            subject: Pro(reach: Bare, plurality: One, window: Top(1)),
-                            to: Zone(zone: Hand, scope: Bare),
-                            riders: [],
-                        ),
-                        Shuffle(You),
-                    ],
-                ),
-                timing: AsSorcery,
-                limit: None,
-                guard: None,
-                activator: None,
+                        agent: You,
+                    ),
+                    Move(
+                        subject: Pro(reach: Bare, plurality: One, window: Top(1)),
+                        to: Zone(zone: Hand, scope: Bare),
+                        riders: [],
+                    ),
+                    Shuffle(You),
+                ],
             ),
-        ],
-    ),
+            timing: AsSorcery,
+            limit: None,
+            guard: None,
+            activator: None,
+        ),
+    ],
 )

@@ -13,5 +13,5 @@ KeywordAbility(
     // kind is a `NounPhrase` (the retired parser parsed "Enchant creature you control" through
     // it) and `KeywordParam::Subject` carries a `Predicate`. Nothing converts one to
     // the other, so the argument cannot be forwarded into the body.
-    body: Keyword(keyword: "Champion", params: [], body: []),
+    keyword_params: [],
 )

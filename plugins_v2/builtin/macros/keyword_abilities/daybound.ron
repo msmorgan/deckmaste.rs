@@ -11,5 +11,4 @@ KeywordAbility(
     // acts on a game-designation change without using the stack [CR#702.145c], and
     // the second excepts one named ability from a prohibition; neither has a
     // `StaticSpec`.
-    body: Keyword(keyword: "Daybound", params: [], body: []),
 )

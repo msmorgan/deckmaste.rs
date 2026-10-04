@@ -10,9 +10,7 @@ KeywordAction(
         bare: "earthbend",
         frame_set: MeasureComplement,
     ),
-    body: Enact(
-        verb: Action("Earthbend"),
-        instruction: Sequentially([
+    body: Sequentially([
         Establish(
             spec: CharacteristicChange(
                 subject: Described(
@@ -61,6 +59,4 @@ KeywordAction(
             ),
         ),
     ]),
-        agent: None,
-    ),
 )

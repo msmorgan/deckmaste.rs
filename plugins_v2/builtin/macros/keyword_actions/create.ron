@@ -11,6 +11,7 @@ KeywordAction(
         bare: "create",
         frame_set: Transitive,
     ),
+    deed: None,
     body: CreateObject(
         count: Param(0),
         spec: Token(spec: Param(1), riders: []),

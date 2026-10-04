@@ -9,5 +9,4 @@ KeywordAbility(
     // ability that FOLLOWS the keyword [CR#702.177a]. A keyword definition is a list
     // of abilities of its own; nothing lets one qualify the ability printed after
     // it (the cause Backup and Cleave share).
-    body: Keyword(keyword: "Exhaust", params: [], body: []),
 )

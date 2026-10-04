@@ -12,5 +12,4 @@ KeywordAbility(
     // no `StaticSpec` creates one, and `Instruction::Delay` is an instruction that no
     // static clause carries outside a `Replacement`'s own replacement (the cause
     // Blitz and Dash share).
-    body: Keyword(keyword: "Rebound", params: [], body: []),
 )

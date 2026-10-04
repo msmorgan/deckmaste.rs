@@ -30,6 +30,7 @@ use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::{self};
+use deckmaste_semantics_v2::keywords;
 use deckmaste_semantics_v2::ron::macro_set;
 use deckmaste_semantics_v2::rules::Definition;
 use deckmaste_semantics_v2::words::CardType;
@@ -248,8 +249,20 @@ pub(super) fn keyword_definitions(
         let body = declared
             .body()
             .with_context(|| format!("{name}: keyword ability has no declaration body"))?;
+        let params = declared
+            .params()
+            .unwrap_or_default()
+            .iter()
+            .map(|param| macro_ron::ParamType::plain(param.as_str()))
+            .collect();
+        let term = keywords::keyword_ability_body(
+            name,
+            &macro_ron::Params::Positional(params),
+            body.get_ron(),
+        )
+        .map_err(|reason| anyhow::anyhow!("{name}: {reason}"))?;
         let KeywordBody::Keyword { keyword, body, .. } = macro_set()
-            .read_str(body.get_ron())
+            .read_str(&term)
             .with_context(|| format!("reading keyword ability {name}"))?;
         let categories = body.iter().map(DefinitionAbility::category).collect();
         result.push(KeywordDefinition {
@@ -388,28 +401,11 @@ fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
         .collect()
 }
 
-/// A keyword action's checker label [CR#701.1]: the declaration's camelCase
-/// name read as the words it spells, each capitalized, so `collectEvidence` is
-/// "Collect Evidence". A keyword-action declaration writes no label of its own
-/// — its body is the action's instructions — and the hand-written `actFacts`
-/// table in `Check/Words.lean` keys its rows this way.
-fn action_label(name: &str) -> String {
-    let mut words: Vec<String> = Vec::new();
-    for ch in name.chars() {
-        if ch.is_uppercase() || words.is_empty() {
-            words.push(String::new());
-        }
-        let word = words.last_mut().expect("a word was just pushed");
-        if word.is_empty() {
-            word.extend(ch.to_uppercase());
-        } else {
-            word.push(ch);
-        }
-    }
-    words.join(" ")
-}
-
 /// Every keyword-action declaration's checker label, in declaration order.
+///
+/// The label is the one the declaration's own `Enact` deed carries
+/// ([`keywords::keyword_action_label`]): the words the camelCase name spells,
+/// each capitalized, so `collectEvidence` is "Collect Evidence".
 ///
 /// The columns themselves are the checker's own data, hand-written as
 /// `actFacts` in `Check/Words.lean`; this list is what `Proofs/Tables.lean`
@@ -422,7 +418,7 @@ fn action_labels(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<S
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::KeywordAction)
     {
-        let label = action_label(declared.identity().name());
+        let label = keywords::keyword_action_label(declared.identity().name());
         anyhow::ensure!(
             seen.insert(label.clone()),
             "{}: two keyword actions share the checker label {label}",
@@ -802,8 +798,7 @@ mod tests {
         fs::write(
             temp.path()
                 .join("plugins_v2/builtin/macros/keyword_abilities/TestKeyword.ron"),
-            "KeywordAbility(name: \"TestKeyword\", params: [], spelling: \"test keyword\", \
-             body: Keyword(keyword: \"TestKeyword\", params: [], body: []))",
+            "KeywordAbility(name: \"TestKeyword\", params: [], spelling: \"test keyword\")",
         )
         .unwrap();
         let error = render(temp.path()).unwrap_err().to_string();

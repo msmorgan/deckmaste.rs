@@ -7,39 +7,35 @@ KeywordAbility(
     ),
     // "A creature with fear can't be blocked except by artifact creatures and/or
     // black creatures." [CR#702.36b]
-    body: Keyword(
-        keyword: "Fear",
-        params: [],
-        body: [
-            Static(
-                spec: DeonticRule(
-                    subject: AsType(type: Creature, subject: This, subtype: None),
-                    compulsion: Forbid,
-                    deeds: [Core(Block)],
-                    role: Patient,
-                    bound: None,
-                    patient: Counterpart(
-                        patient: Described(
-                            determiner: All,
-                            predicate: And(
-                                conjuncts: [
-                                    HasType(Creature),
-                                    Not(
-                                        predicate: Or(
-                                            disjuncts: [
-                                                HasType(Artifact),
-                                                ColorIs(Black),
-                                            ],
-                                        ),
+    body: [
+        Static(
+            spec: DeonticRule(
+                subject: AsType(type: Creature, subject: This, subtype: None),
+                compulsion: Forbid,
+                deeds: [Core(Block)],
+                role: Patient,
+                bound: None,
+                patient: Counterpart(
+                    patient: Described(
+                        determiner: All,
+                        predicate: And(
+                            conjuncts: [
+                                HasType(Creature),
+                                Not(
+                                    predicate: Or(
+                                        disjuncts: [
+                                            HasType(Artifact),
+                                            ColorIs(Black),
+                                        ],
                                     ),
-                                ],
-                            ),
+                                ),
+                            ],
                         ),
                     ),
-                    as_though: None,
-                    rider: NoRider,
                 ),
+                as_though: None,
+                rider: NoRider,
             ),
-        ],
-    ),
+        ),
+    ],
 )

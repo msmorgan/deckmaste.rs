@@ -15,15 +15,12 @@ KeywordAction(
         third_person: "faces a villainous choice",
         frame_set: Intransitive,
     ),
-    body: Enact(
-        verb: Action("Face A Villainous Choice"),
-        instruction: ChooseModes(
-            quantity: Range(low: 1, high: 1),
-            modes: [
-                (None, Param(0)),
-                (None, Param(1)),
-            ],
-        ),
-        agent: Param(2),
+    agent: Param(2),
+    body: ChooseModes(
+        quantity: Range(low: 1, high: 1),
+        modes: [
+            (None, Param(0)),
+            (None, Param(1)),
+        ],
     ),
 )

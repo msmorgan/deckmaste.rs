@@ -10,9 +10,8 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Intransitive,
     ),
-    body: Enact(
-        verb: Action("Forage"),
-        instruction: ChooseModes(
+    agent: Param(0),
+    body: ChooseModes(
         quantity: Range(low: 1, high: 1),
         modes: [
             (None, Enact(
@@ -47,7 +46,5 @@ KeywordAction(
                 agent: Param(0),
             )),
         ],
-    ),
-        agent: Param(0),
     ),
 )

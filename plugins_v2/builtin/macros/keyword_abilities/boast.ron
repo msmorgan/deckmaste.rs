@@ -11,5 +11,4 @@ KeywordAbility(
     // argument cannot be carried in `params`, and the definition wraps that
     // argument's cost and effect in new `guard` and `limit` riders, which requires
     // reading them out of it.
-    body: Keyword(keyword: "Boast", params: [], body: []),
 )

@@ -9,53 +9,49 @@ KeywordAbility(
     // as you cast this spell if you or one of your teammates has cast another spell
     // this turn." [CR#702.117a] "You or one of your teammates" is the group
     // `PlayerGroupWord::YourTeam` names.
-    body: Keyword(
-        keyword: "Surge",
-        params: [Cost(Param(0))],
-        body: [
-            Static(
-                spec: Conditional(
-                    spec: DeonticRule(
-                        subject: You,
-                        compulsion: Permit,
-                        deeds: [Action("Cast")],
-                        role: Agent,
-                        bound: None,
-                        patient: Counterpart(This),
-                        as_though: None,
-                        rider: Play(
-                            from: None,
-                            limit: None,
-                            timing: None,
-                            exclusive: false,
-                            payment: PayingInstead(Param(0)),
-                        ),
+    body: [
+        Static(
+            spec: Conditional(
+                spec: DeonticRule(
+                    subject: You,
+                    compulsion: Permit,
+                    deeds: [Action("Cast")],
+                    role: Agent,
+                    bound: None,
+                    patient: Counterpart(This),
+                    as_though: None,
+                    rider: Play(
+                        from: None,
+                        limit: None,
+                        timing: None,
+                        exclusive: false,
+                        payment: PayingInstead(Param(0)),
                     ),
-                    condition: Happened(
-                        subject: PlayerGroup(YourTeam),
-                        lookback: Mk(
-                            event: Casts(
-                                player: Gap(Player),
-                                spell: Described(
-                                    determiner: A(Unmarked),
-                                    predicate: And(
-                                        conjuncts: [
-                                            InZone(Zone(zone: Stack, scope: Bare)),
-                                            Not(AbilityHead(AnyOnStack)),
-                                            OtherThan(
-                                                anchor: AsMarker(marker: Spell, subject: This),
-                                            ),
-                                        ],
-                                    ),
-                                ),
-                                from: None,
-                            ),
-                            lookback: ThisTurn,
-                        ),
-                    ),
-                    marking: AsLongAs,
                 ),
+                condition: Happened(
+                    subject: PlayerGroup(YourTeam),
+                    lookback: Mk(
+                        event: Casts(
+                            player: Gap(Player),
+                            spell: Described(
+                                determiner: A(Unmarked),
+                                predicate: And(
+                                    conjuncts: [
+                                        InZone(Zone(zone: Stack, scope: Bare)),
+                                        Not(AbilityHead(AnyOnStack)),
+                                        OtherThan(
+                                            anchor: AsMarker(marker: Spell, subject: This),
+                                        ),
+                                    ],
+                                ),
+                            ),
+                            from: None,
+                        ),
+                        lookback: ThisTurn,
+                    ),
+                ),
+                marking: AsLongAs,
             ),
-        ],
-    ),
+        ),
+    ],
 )

@@ -7,38 +7,34 @@ KeywordAbility(
     ),
     // "Spectacle [cost]" means "You may pay [cost] rather than pay this spell's mana
     // cost if an opponent lost life this turn." [CR#702.137a]
-    body: Keyword(
-        keyword: "Spectacle",
-        params: [Cost(Param(0))],
-        body: [
-            Static(
-                spec: Conditional(
-                    spec: DeonticRule(
-                        subject: You,
-                        compulsion: Permit,
-                        deeds: [Action("Cast")],
-                        role: Agent,
-                        bound: None,
-                        patient: Counterpart(This),
-                        as_though: None,
-                        rider: Play(
-                            from: None,
-                            limit: None,
-                            timing: None,
-                            exclusive: false,
-                            payment: PayingInstead(Param(0)),
-                        ),
+    body: [
+        Static(
+            spec: Conditional(
+                spec: DeonticRule(
+                    subject: You,
+                    compulsion: Permit,
+                    deeds: [Action("Cast")],
+                    role: Agent,
+                    bound: None,
+                    patient: Counterpart(This),
+                    as_though: None,
+                    rider: Play(
+                        from: None,
+                        limit: None,
+                        timing: None,
+                        exclusive: false,
+                        payment: PayingInstead(Param(0)),
                     ),
-                    condition: Happened(
-                        subject: Described(determiner: A(Unmarked), predicate: Opponent),
-                        lookback: Mk(
-                            event: LifeChanges(player: Gap(Player), r#move: Down),
-                            lookback: ThisTurn,
-                        ),
-                    ),
-                    marking: AsLongAs,
                 ),
+                condition: Happened(
+                    subject: Described(determiner: A(Unmarked), predicate: Opponent),
+                    lookback: Mk(
+                        event: LifeChanges(player: Gap(Player), r#move: Down),
+                        lookback: ThisTurn,
+                    ),
+                ),
+                marking: AsLongAs,
             ),
-        ],
-    ),
+        ),
+    ],
 )

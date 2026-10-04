@@ -14,9 +14,8 @@ KeywordAction(
             frames: [[], [Lex("Preposition", "With"), ObjectNounPhrase]],
         ),
     ),
-    body: Enact(
-        verb: Action("Clash"),
-        instruction: Sequentially([
+    agent: Param(0),
+    body: Sequentially([
         Expose(
             verb: Reveal,
             exposed: Cards(LibrarySlice(end: Top, amount: 1, whose: Param(0))),
@@ -38,6 +37,4 @@ KeywordAction(
             if_not: None,
         ),
     ]),
-        agent: Param(0),
-    ),
 )

@@ -8,73 +8,69 @@ KeywordAbility(
     // "Dredge N" means "As long as you have at least N cards in your library, if you
     // would draw a card, you may instead mill N cards and return this card from your
     // graveyard to your hand." [CR#702.52a]
-    body: Keyword(
-        keyword: "Dredge",
-        params: [Number(Param(0))],
-        body: [
-            Static(
-                spec: Conditional(
-                    spec: Replacement(
-                        event: Draws(You),
-                        alternatives: [],
-                        timing: None,
-                        replacement: WithContinuation(
-                            policy: Optional(You),
-                            body: Sequentially(
-                                steps: [
-                                    Enact(
-                                        verb: Action("Mill"),
-                                        instruction: Move(
-                                            subject: LibrarySlice(
-                                                end: Top,
-                                                amount: Param(0),
-                                                whose: You,
-                                            ),
-                                            to: Zone(zone: Graveyard, scope: Bare),
-                                            riders: [],
+    body: [
+        Static(
+            spec: Conditional(
+                spec: Replacement(
+                    event: Draws(You),
+                    alternatives: [],
+                    timing: None,
+                    replacement: WithContinuation(
+                        policy: Optional(You),
+                        body: Sequentially(
+                            steps: [
+                                Enact(
+                                    verb: Action("Mill"),
+                                    instruction: Move(
+                                        subject: LibrarySlice(
+                                            end: Top,
+                                            amount: Param(0),
+                                            whose: You,
                                         ),
-                                        agent: You,
+                                        to: Zone(zone: Graveyard, scope: Bare),
+                                        riders: [],
                                     ),
-                                    Enact(
-                                        verb: Core(Return),
-                                        instruction: Move(
-                                            subject: This,
-                                            to: Zone(zone: Hand, scope: Bare),
-                                            riders: [],
+                                    agent: You,
+                                ),
+                                Enact(
+                                    verb: Core(Return),
+                                    instruction: Move(
+                                        subject: This,
+                                        to: Zone(zone: Hand, scope: Bare),
+                                        riders: [],
+                                    ),
+                                    agent: You,
+                                ),
+                            ],
+                        ),
+                        if_did: None,
+                        if_not: None,
+                    ),
+                    r#use: Repeatedly,
+                    limit: None,
+                ),
+                condition: CompareAmt(
+                    subject: CountOf(
+                        group: Described(
+                            determiner: Bare,
+                            predicate: And(
+                                conjuncts: [
+                                    IsCard,
+                                    InZone(
+                                        zone: Zone(
+                                            zone: Library,
+                                            scope: PossessedBy(You),
                                         ),
-                                        agent: You,
                                     ),
                                 ],
                             ),
-                            if_did: None,
-                            if_not: None,
                         ),
-                        r#use: Repeatedly,
-                        limit: None,
                     ),
-                    condition: CompareAmt(
-                        subject: CountOf(
-                            group: Described(
-                                determiner: Bare,
-                                predicate: And(
-                                    conjuncts: [
-                                        IsCard,
-                                        InZone(
-                                            zone: Zone(
-                                                zone: Library,
-                                                scope: PossessedBy(You),
-                                            ),
-                                        ),
-                                    ],
-                                ),
-                            ),
-                        ),
-                        comparator: AtLeast,
-                        bound: Param(0),
-                    ),
-                    marking: AsLongAs,
+                    comparator: AtLeast,
+                    bound: Param(0),
                 ),
+                marking: AsLongAs,
             ),
-        ],
-    ),
+        ),
+    ],
 )

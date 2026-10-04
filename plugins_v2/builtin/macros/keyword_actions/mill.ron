@@ -9,13 +9,10 @@ KeywordAction(
         bare: "mill",
         frame_set: Transitive,
     ),
-    body: Enact(
-        verb: Action("Mill"),
-        instruction: Move(
+    agent: Param(2),
+    body: Move(
         subject: LibrarySlice(end: Top, amount: Param(0), whose: Param(1)),
         to: Zone(zone: Graveyard, scope: Bare),
         riders: [],
-    ),
-        agent: Param(2),
     ),
 )

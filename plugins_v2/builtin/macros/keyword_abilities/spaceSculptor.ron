@@ -11,5 +11,4 @@ KeywordAbility(
     // [CR#702.158c], rather than quoting an expansion, so there is no definition to
     // write.
     // The entry defines only how the game treats the keyword (ruling 2026-09-07).
-    body: Keyword(keyword: "SpaceSculptor", params: [], body: []),
 )

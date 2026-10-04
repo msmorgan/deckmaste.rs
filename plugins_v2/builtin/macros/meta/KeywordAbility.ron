@@ -1,6 +1,13 @@
 // `kinds` names the family first and the semantic kind second: `KeywordAbility`
 // is the declaration's identity, `Ability` the position its body occupies, so
 // a keyword ability resolves where a card writes an ability.
+//
+// A declaration file writes its keyword's definition as the list of abilities
+// alone (`body`, omitted when empty). The body here is the record of what the
+// file wrote, and `deckmaste_semantics_v2::keywords` builds the keyword's
+// `Keyword(keyword: <label>, params: <arguments>, body: <abilities>)` term
+// from it: the label is the name capitalized, and the arguments forward the
+// declared parameters in order unless the file writes `keyword_params`.
 (
     name: "KeywordAbility",
     kinds: [Macro],
@@ -9,7 +16,8 @@
         "params": Elidable(Any),
         "spelling": String,
         "grammar": Elidable(Any),
-        "body": Default(Any, ()),
+        "keyword_params": Elidable(Any),
+        "body": Default(Any, []),
     },
     body: (
         name: Param(name),
@@ -19,6 +27,6 @@
             spelling: Param(spelling),
             grammar: Param(grammar),
         ),
-        body: Param(body),
+        body: (keyword_params: Param(keyword_params), abilities: Param(body)),
     ),
 )

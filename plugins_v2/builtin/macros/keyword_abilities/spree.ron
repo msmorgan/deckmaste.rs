@@ -12,5 +12,4 @@ KeywordAbility(
     // charge for the modes chosen there (the cause Entwine, Escalate and Tiered
     // share). The keyword's registry row already carries `wants_modes`, which is how
     // the workbench reads this pairing.
-    body: Keyword(keyword: "Spree", params: [], body: []),
 )

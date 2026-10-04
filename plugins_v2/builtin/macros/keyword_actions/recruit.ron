@@ -10,9 +10,7 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Intransitive,
     ),
-    body: Enact(
-        verb: Action("Recruit"),
-        instruction: Sequentially([
+    body: Sequentially([
         Draw(amount: 1, agent: Param(0)),
         Enact(
             verb: Action("Discard"),
@@ -51,6 +49,4 @@ KeywordAction(
             otherwise: None,
         ),
     ]),
-        agent: None,
-    ),
 )

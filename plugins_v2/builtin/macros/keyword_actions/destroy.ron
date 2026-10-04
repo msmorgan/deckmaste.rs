@@ -10,9 +10,5 @@ KeywordAction(
         bare: "destroy",
         frame_set: Transitive,
     ),
-    body: Enact(
-        verb: Action("Destroy"),
-        instruction: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
-        agent: None,
-    ),
+    body: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
 )

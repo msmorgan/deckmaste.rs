@@ -10,5 +10,4 @@ KeywordAbility(
     // damage-assignment rules [CR#702.22c..702.22j] rather than quoting an
     // expansion, so there is no definition to write.
     // The entry defines only how the game treats the keyword (ruling 2026-09-07).
-    body: Keyword(keyword: "Banding", params: [], body: []),
 )

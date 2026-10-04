@@ -9,5 +9,4 @@ KeywordAbility(
     // combat damage step" [CR#702.4a]; the entry states the two-step damage rule
     // [CR#702.4b] rather than quoting an expansion.
     // The entry defines only how the game treats the keyword (ruling 2026-09-07).
-    body: Keyword(keyword: "DoubleStrike", params: [], body: []),
 )

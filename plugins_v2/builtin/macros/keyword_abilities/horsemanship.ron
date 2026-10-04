@@ -7,36 +7,32 @@ KeywordAbility(
     ),
     // "A creature with horsemanship can't be blocked by creatures without
     // horsemanship." [CR#702.31b]
-    body: Keyword(
-        keyword: "Horsemanship",
-        params: [],
-        body: [
-            Static(
-                spec: DeonticRule(
-                    subject: AsType(type: Creature, subject: This, subtype: None),
-                    compulsion: Forbid,
-                    deeds: [Core(Block)],
-                    role: Patient,
-                    bound: None,
-                    patient: Counterpart(
-                        patient: Described(
-                            determiner: All,
-                            predicate: And(
-                                conjuncts: [
-                                    HasType(Creature),
-                                    Not(
-                                        predicate: HasKeyword(
-                                            keyword: The("Horsemanship"),
-                                        ),
+    body: [
+        Static(
+            spec: DeonticRule(
+                subject: AsType(type: Creature, subject: This, subtype: None),
+                compulsion: Forbid,
+                deeds: [Core(Block)],
+                role: Patient,
+                bound: None,
+                patient: Counterpart(
+                    patient: Described(
+                        determiner: All,
+                        predicate: And(
+                            conjuncts: [
+                                HasType(Creature),
+                                Not(
+                                    predicate: HasKeyword(
+                                        keyword: The("Horsemanship"),
                                     ),
-                                ],
-                            ),
+                                ),
+                            ],
                         ),
                     ),
-                    as_though: None,
-                    rider: NoRider,
                 ),
+                as_though: None,
+                rider: NoRider,
             ),
-        ],
-    ),
+        ),
+    ],
 )

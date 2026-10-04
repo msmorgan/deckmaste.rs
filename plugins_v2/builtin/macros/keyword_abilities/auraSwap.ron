@@ -7,44 +7,40 @@ KeywordAbility(
     ),
     // "Aura swap [cost]" means "[Cost]: You may exchange this permanent with an
     // Aura card in your hand." [CR#702.65a]
-    body: Keyword(
-        keyword: "AuraSwap",
-        params: [Cost(Param(0))],
-        body: [
-            Activated(
-                cost: Param(0),
-                instruction: WithContinuation(
-                    policy: Optional(You),
-                    body: Exchange(
-                        exchanged: CardsAcross(
-                            left: AsMarker(marker: Permanent, subject: This),
-                            right: Described(
-                                determiner: A(Unmarked),
-                                predicate: And(
-                                    conjuncts: [
-                                        IsCard,
-                                        HasSubtype(
-                                            subtype: Of(host: Enchantment, label: "Aura"),
+    body: [
+        Activated(
+            cost: Param(0),
+            instruction: WithContinuation(
+                policy: Optional(You),
+                body: Exchange(
+                    exchanged: CardsAcross(
+                        left: AsMarker(marker: Permanent, subject: This),
+                        right: Described(
+                            determiner: A(Unmarked),
+                            predicate: And(
+                                conjuncts: [
+                                    IsCard,
+                                    HasSubtype(
+                                        subtype: Of(host: Enchantment, label: "Aura"),
+                                    ),
+                                    InZone(
+                                        zone: Zone(
+                                            zone: Hand,
+                                            scope: PossessedBy(You),
                                         ),
-                                        InZone(
-                                            zone: Zone(
-                                                zone: Hand,
-                                                scope: PossessedBy(You),
-                                            ),
-                                        ),
-                                    ],
-                                ),
+                                    ),
+                                ],
                             ),
                         ),
                     ),
-                    if_did: None,
-                    if_not: None,
                 ),
-                timing: None,
-                limit: None,
-                guard: None,
-                activator: None,
+                if_did: None,
+                if_not: None,
             ),
-        ],
-    ),
+            timing: None,
+            limit: None,
+            guard: None,
+            activator: None,
+        ),
+    ],
 )

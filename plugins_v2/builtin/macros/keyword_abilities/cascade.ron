@@ -9,5 +9,4 @@ KeywordAbility(
     // mana cost if the resulting spell's mana value is less than this spell's mana
     // value" [CR#702.85a]. No `NounPhrase` denotes the spell a permitted cast would
     // produce, so its mana value cannot be compared.
-    body: Keyword(keyword: "Cascade", params: [], body: []),
 )

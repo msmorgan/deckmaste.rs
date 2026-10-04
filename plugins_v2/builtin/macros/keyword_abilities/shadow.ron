@@ -8,35 +8,16 @@ KeywordAbility(
     // "A creature with shadow can't be blocked by creatures without shadow, and a
     // creature without shadow can't be blocked by creatures with shadow."
     // [CR#702.28b]
-    body: Keyword(
-        keyword: "Shadow",
-        params: [],
-        body: [
-            Static(
-                spec: DeonticRule(
-                    subject: AsType(type: Creature, subject: This, subtype: None),
-                    compulsion: Forbid,
-                    deeds: [Core(Block)],
-                    role: Patient,
-                    bound: None,
-                    patient: Counterpart(
-                        patient: Described(
-                            determiner: All,
-                            predicate: And(
-                                conjuncts: [
-                                    HasType(Creature),
-                                    Not(HasKeyword(The("Shadow"))),
-                                ],
-                            ),
-                        ),
-                    ),
-                    as_though: None,
-                    rider: NoRider,
-                ),
-            ),
-            Static(
-                spec: DeonticRule(
-                    subject: Described(
+    body: [
+        Static(
+            spec: DeonticRule(
+                subject: AsType(type: Creature, subject: This, subtype: None),
+                compulsion: Forbid,
+                deeds: [Core(Block)],
+                role: Patient,
+                bound: None,
+                patient: Counterpart(
+                    patient: Described(
                         determiner: All,
                         predicate: And(
                             conjuncts: [
@@ -45,25 +26,40 @@ KeywordAbility(
                             ],
                         ),
                     ),
-                    compulsion: Forbid,
-                    deeds: [Core(Block)],
-                    role: Patient,
-                    bound: None,
-                    patient: Counterpart(
-                        patient: Described(
-                            determiner: All,
-                            predicate: And(
-                                conjuncts: [
-                                    HasType(Creature),
-                                    HasKeyword(The("Shadow")),
-                                ],
-                            ),
+                ),
+                as_though: None,
+                rider: NoRider,
+            ),
+        ),
+        Static(
+            spec: DeonticRule(
+                subject: Described(
+                    determiner: All,
+                    predicate: And(
+                        conjuncts: [
+                            HasType(Creature),
+                            Not(HasKeyword(The("Shadow"))),
+                        ],
+                    ),
+                ),
+                compulsion: Forbid,
+                deeds: [Core(Block)],
+                role: Patient,
+                bound: None,
+                patient: Counterpart(
+                    patient: Described(
+                        determiner: All,
+                        predicate: And(
+                            conjuncts: [
+                                HasType(Creature),
+                                HasKeyword(The("Shadow")),
+                            ],
                         ),
                     ),
-                    as_though: None,
-                    rider: NoRider,
                 ),
+                as_though: None,
+                rider: NoRider,
             ),
-        ],
-    ),
+        ),
+    ],
 )

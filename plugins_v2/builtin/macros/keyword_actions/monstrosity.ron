@@ -12,9 +12,7 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: MeasureComplement,
     ),
-    body: Enact(
-        verb: Action("Monstrosity"),
-        instruction: DoIf(
+    body: DoIf(
         condition: Not(Matches(
             subject: AsMarker(marker: Permanent, subject: This),
             predicate: HasDesignation(designation: "monstrous", holder: None),
@@ -32,7 +30,5 @@ KeywordAction(
             ),
         ]),
         otherwise: None,
-    ),
-        agent: None,
     ),
 )

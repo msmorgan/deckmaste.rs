@@ -15,6 +15,7 @@ KeywordAction(
             ],
         ),
     ),
+    deed: None,
     body: Vote(
         first: None,
         disclosure: Param(0),

@@ -11,13 +11,10 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    body: Enact(
-        verb: Action("Suspect"),
-        instruction: GainDesignation(
+    agent: Param(1),
+    body: GainDesignation(
         subject: Param(0),
         designation: "suspected",
         duration: None,
-    ),
-        agent: Param(1),
     ),
 )

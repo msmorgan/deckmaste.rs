@@ -11,5 +11,4 @@ KeywordAbility(
     // Ascend, Awaken, Cipher and Epic share); the first also creates a delayed
     // triggered ability at each of your precombat main phases for the rest of the
     // game.
-    body: Keyword(keyword: "Paradigm", params: [], body: []),
 )

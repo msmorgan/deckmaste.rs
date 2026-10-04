@@ -14,9 +14,4 @@ KeywordAbility(
     // (upkeep counter removal and the last-counter trigger) function in the exile zone
     // on a card the first ability put there, and a definition cannot depend on a half
     // that is not written.
-    body: Keyword(
-        keyword: "Suspend",
-        params: [Number(Param(0)), Cost(Param(1))],
-        body: [],
-    ),
 )

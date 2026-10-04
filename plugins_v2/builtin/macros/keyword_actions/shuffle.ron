@@ -21,5 +21,6 @@ KeywordAction(
             ],
         ),
     ),
+    deed: None,
     body: Shuffle(Param(0)),
 )

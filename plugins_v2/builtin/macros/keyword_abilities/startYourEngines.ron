@@ -10,5 +10,4 @@ KeywordAbility(
     // becomes 1. This is a state-based action." [CR#702.179a,704.5aa] The entry states
     // the rule rather than quoting an expansion, so there is no definition to write.
     // The entry defines only how the game treats the keyword (ruling 2026-09-07).
-    body: Keyword(keyword: "StartYourEngines", params: [], body: []),
 )

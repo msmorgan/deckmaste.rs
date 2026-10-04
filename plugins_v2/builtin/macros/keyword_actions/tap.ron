@@ -9,9 +9,5 @@ KeywordAction(
         participle: "tapped",
         frame_set: Transitive,
     ),
-    body: Enact(
-        verb: Action("Tap"),
-        instruction: SetStatus(status: Tapped, subject: Param(0)),
-        agent: None,
-    ),
+    body: SetStatus(status: Tapped, subject: Param(0)),
 )

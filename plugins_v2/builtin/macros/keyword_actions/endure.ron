@@ -9,9 +9,7 @@ KeywordAction(
         bare: "endure",
         frame_set: MeasureComplement,
     ),
-    body: Enact(
-        verb: Action("Endure"),
-        instruction: ChooseModes(
+    body: ChooseModes(
         quantity: Range(low: 1, high: 1),
         modes: [
             (None, PutCounters(
@@ -34,7 +32,5 @@ KeywordAction(
                 agent: PossessorOf(axis: Controller, subject: Param(0)),
             )),
         ],
-    ),
-        agent: None,
     ),
 )

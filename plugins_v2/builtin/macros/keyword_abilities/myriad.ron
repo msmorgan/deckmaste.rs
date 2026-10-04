@@ -9,125 +9,121 @@ KeywordAbility(
     // defending player, you may create a token that's a copy of this creature that's
     // tapped and attacking that player or a planeswalker they control. If one or more
     // tokens are created this way, exile the tokens at end of combat." [CR#702.116a]
-    body: Keyword(
-        keyword: "Myriad",
-        params: [],
-        body: [
-            Triggered(
-                event: Combat(
-                    relation: AttackerOf,
-                    subject: AsType(type: Creature, subject: This, subtype: None),
-                    counterpart: None,
-                ),
-                alternatives: [],
-                r#while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: None,
-                instruction: Sequentially(
-                    steps: [
-                        DoForEach(
-                            group: Described(
-                                determiner: Each,
-                                predicate: And(
-                                    conjuncts: [
-                                        Opponent,
-                                        OtherThan(CombatPlayer(Defending)),
-                                    ],
-                                ),
-                            ),
-                            body: WithContinuation(
-                                policy: Optional(You),
-                                body: CreateObject(
-                                    count: 1,
-                                    spec: Token(
-                                        spec: CopyOf(
-                                            source: AsType(
-                                                type: Creature,
-                                                subject: This,
-                                                subtype: None,
-                                            ),
-                                            exceptions: [],
-                                        ),
-                                        riders: [
-                                            EntersAs(Tapped),
-                                            EntersAttacking(
-                                                defender: Or(
-                                                    phrases: [
-                                                        Pro(
-                                                            reach: Word(Player),
-                                                            plurality: One,
-                                                            window: Whole,
-                                                        ),
-                                                        Described(
-                                                            determiner: A(Unmarked),
-                                                            predicate: And(
-                                                                conjuncts: [
-                                                                    HasType(Planeswalker),
-                                                                    HasPossessor(
-                                                                        axis: Controller,
-                                                                        possessor: Pro(
-                                                                            reach: Word(
-                                                                                word: Player,
-                                                                            ),
-                                                                            plurality: One,
-                                                                            window: Whole,
-                                                                        ),
-                                                                    ),
-                                                                ],
-                                                            ),
-                                                        ),
-                                                    ],
-                                                ),
-                                            ),
-                                        ],
-                                    ),
-                                    agent: You,
-                                ),
-                                if_did: None,
-                                if_not: None,
+    body: [
+        Triggered(
+            event: Combat(
+                relation: AttackerOf,
+                subject: AsType(type: Creature, subject: This, subtype: None),
+                counterpart: None,
+            ),
+            alternatives: [],
+            r#while: None,
+            joins: [],
+            timing: None,
+            limit: None,
+            intervening: None,
+            instruction: Sequentially(
+                steps: [
+                    DoForEach(
+                        group: Described(
+                            determiner: Each,
+                            predicate: And(
+                                conjuncts: [
+                                    Opponent,
+                                    OtherThan(CombatPlayer(Defending)),
+                                ],
                             ),
                         ),
-                        DoIf(
-                            condition: CompareAmt(
-                                subject: CountOf(
-                                    group: Pro(
+                        body: WithContinuation(
+                            policy: Optional(You),
+                            body: CreateObject(
+                                count: 1,
+                                spec: Token(
+                                    spec: CopyOf(
+                                        source: AsType(
+                                            type: Creature,
+                                            subject: This,
+                                            subtype: None,
+                                        ),
+                                        exceptions: [],
+                                    ),
+                                    riders: [
+                                        EntersAs(Tapped),
+                                        EntersAttacking(
+                                            defender: Or(
+                                                phrases: [
+                                                    Pro(
+                                                        reach: Word(Player),
+                                                        plurality: One,
+                                                        window: Whole,
+                                                    ),
+                                                    Described(
+                                                        determiner: A(Unmarked),
+                                                        predicate: And(
+                                                            conjuncts: [
+                                                                HasType(Planeswalker),
+                                                                HasPossessor(
+                                                                    axis: Controller,
+                                                                    possessor: Pro(
+                                                                        reach: Word(
+                                                                            word: Player,
+                                                                        ),
+                                                                        plurality: One,
+                                                                        window: Whole,
+                                                                    ),
+                                                                ),
+                                                            ],
+                                                        ),
+                                                    ),
+                                                ],
+                                            ),
+                                        ),
+                                    ],
+                                ),
+                                agent: You,
+                            ),
+                            if_did: None,
+                            if_not: None,
+                        ),
+                    ),
+                    DoIf(
+                        condition: CompareAmt(
+                            subject: CountOf(
+                                group: Pro(
+                                    reach: TokenBorn,
+                                    plurality: Many,
+                                    window: Whole,
+                                ),
+                            ),
+                            comparator: AtLeast,
+                            bound: 1,
+                        ),
+                        instruction: Delay(
+                            event: BeginningOf(
+                                quantifier: The,
+                                part: EndOfCombat,
+                                whose: NoPossessor,
+                            ),
+                            alternatives: [],
+                            duration: None,
+                            body: Enact(
+                                verb: Action("Exile"),
+                                instruction: Move(
+                                    subject: Pro(
                                         reach: TokenBorn,
                                         plurality: Many,
                                         window: Whole,
                                     ),
+                                    to: Zone(zone: Exile, scope: Bare),
+                                    riders: [],
                                 ),
-                                comparator: AtLeast,
-                                bound: 1,
+                                agent: You,
                             ),
-                            instruction: Delay(
-                                event: BeginningOf(
-                                    quantifier: The,
-                                    part: EndOfCombat,
-                                    whose: NoPossessor,
-                                ),
-                                alternatives: [],
-                                duration: None,
-                                body: Enact(
-                                    verb: Action("Exile"),
-                                    instruction: Move(
-                                        subject: Pro(
-                                            reach: TokenBorn,
-                                            plurality: Many,
-                                            window: Whole,
-                                        ),
-                                        to: Zone(zone: Exile, scope: Bare),
-                                        riders: [],
-                                    ),
-                                    agent: You,
-                                ),
-                            ),
-                            otherwise: None,
                         ),
-                    ],
-                ),
+                        otherwise: None,
+                    ),
+                ],
             ),
-        ],
-    ),
+        ),
+    ],
 )

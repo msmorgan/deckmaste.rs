@@ -1,6 +1,14 @@
 // `kinds` names the family first and the semantic kind second: `KeywordAction`
 // is the declaration's identity, `Instruction` the position its body occupies,
 // so a keyword action resolves where a card writes an instruction.
+//
+// A declaration file writes its action's instruction (`body`) and the agent
+// that does it (`agent`, `None` when omitted). The body here is the record of
+// what the file wrote, and `deckmaste_semantics_v2::keywords` builds the
+// action's definition from it: `Enact(verb: <deed>, instruction: <body>,
+// agent: <agent>)`, where the deed is `Action(<label>)`, the label the words
+// the name spells, unless the file writes `deed`. `deed: None` leaves the
+// instruction unwrapped, and a declaration with no body stays bodyless.
 (
     name: "KeywordAction",
     kinds: [Macro],
@@ -9,6 +17,8 @@
         "params": Elidable(Any),
         "spelling": String,
         "grammar": Elidable(Any),
+        "deed": Elidable(Any),
+        "agent": Default(Any, None),
         "body": Default(Any, ()),
     },
     body: (
@@ -19,6 +29,6 @@
             spelling: Param(spelling),
             grammar: Param(grammar),
         ),
-        body: Param(body),
+        body: (deed: Param(deed), agent: Param(agent), instruction: Param(body)),
     ),
 )

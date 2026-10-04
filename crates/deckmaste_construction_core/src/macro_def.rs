@@ -1064,7 +1064,8 @@ struct ValidationSourceMap {
 /// signature to check its `Param` holes for; a DERIVED body is the meta's own,
 /// built out of the declaration's other fields — the subtype metas' `Subtype`
 /// definition node, which every subtype declaration carries without writing it
-/// (`plugins-v2-subtypes-macro-only`).
+/// (`plugins-v2-subtypes-macro-only`), or the keyword-ability meta's record of
+/// an empty list of abilities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BodySource {
     Authored(SourcePosition),
@@ -1111,8 +1112,8 @@ enum GrammarSourceMap {
 
 #[derive(Deserialize)]
 enum DiagnosticInvocation<'a> {
-    KeywordAction(#[serde(borrow)] DiagnosticFields<'a>),
-    KeywordAbility(#[serde(borrow)] DiagnosticFields<'a>),
+    KeywordAction(#[serde(borrow)] DiagnosticKeywordAction<'a>),
+    KeywordAbility(#[serde(borrow)] DiagnosticKeywordAbility<'a>),
     AbilityWord(#[serde(borrow)] DiagnosticFields<'a>),
     Subtype(#[serde(borrow)] DiagnosticSubtype<'a>),
     SpellSubtype(#[serde(borrow)] DiagnosticSubtype<'a>),
@@ -1133,6 +1134,48 @@ struct DiagnosticFields<'a> {
     spelling: &'a RawValue,
     #[serde(default, borrow)]
     grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(default, borrow)]
+    body: Option<&'a RawValue>,
+}
+
+/// The keyword-ability meta's signature: the common fields, plus the
+/// `keyword_params` override. Its body is the keyword's list of abilities,
+/// which the meta defaults to empty, so a declaration that writes none still
+/// carries one — derived, like a subtype's.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiagnosticKeywordAbility<'a> {
+    #[serde(borrow)]
+    name: &'a RawValue,
+    #[serde(default, borrow)]
+    params: Option<&'a RawValue>,
+    #[serde(borrow)]
+    spelling: &'a RawValue,
+    #[serde(default, borrow)]
+    grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(rename = "keyword_params", default, borrow)]
+    _keyword_params: Option<&'a RawValue>,
+    #[serde(default, borrow)]
+    body: Option<&'a RawValue>,
+}
+
+/// The keyword-action meta's signature: the common fields, plus the `deed`
+/// the action names and the `agent` that does it.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiagnosticKeywordAction<'a> {
+    #[serde(borrow)]
+    name: &'a RawValue,
+    #[serde(default, borrow)]
+    params: Option<&'a RawValue>,
+    #[serde(borrow)]
+    spelling: &'a RawValue,
+    #[serde(default, borrow)]
+    grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(rename = "deed", default, borrow)]
+    _deed: Option<&'a RawValue>,
+    #[serde(rename = "agent", default, borrow)]
+    _agent: Option<&'a RawValue>,
     #[serde(default, borrow)]
     body: Option<&'a RawValue>,
 }
@@ -1167,6 +1210,7 @@ struct DiagnosticFieldValues<'a> {
     /// The authored body, for a family whose meta takes one; `None` for the
     /// subtype families, whose meta derives it instead.
     body: Option<&'a RawValue>,
+    /// Whether the meta derives a body when the file writes none.
     derived_body: bool,
 }
 
@@ -1398,9 +1442,33 @@ impl ValidationSourceMap {
             })?;
 
         match diagnostic {
-            DiagnosticInvocation::KeywordAction(fields)
-            | DiagnosticInvocation::KeywordAbility(fields)
-            | DiagnosticInvocation::AbilityWord(fields)
+            DiagnosticInvocation::KeywordAbility(fields) => Self::from_fields(
+                path,
+                source,
+                declaration,
+                DiagnosticFieldValues {
+                    name: fields.name,
+                    params: fields.params,
+                    spelling: fields.spelling,
+                    grammar: fields.grammar,
+                    body: fields.body,
+                    derived_body: true,
+                },
+            ),
+            DiagnosticInvocation::KeywordAction(fields) => Self::from_fields(
+                path,
+                source,
+                declaration,
+                DiagnosticFieldValues {
+                    name: fields.name,
+                    params: fields.params,
+                    spelling: fields.spelling,
+                    grammar: fields.grammar,
+                    body: fields.body,
+                    derived_body: false,
+                },
+            ),
+            DiagnosticInvocation::AbilityWord(fields)
             | DiagnosticInvocation::Type(fields)
             | DiagnosticInvocation::TurnPart(fields)
             | DiagnosticInvocation::CounterKind(fields)

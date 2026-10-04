@@ -10,5 +10,4 @@ KeywordAbility(
     // creatures with flying and/or reach". The entry quotes no expansion of reach
     // itself.
     // The entry defines only how the game treats the keyword (ruling 2026-09-07).
-    body: Keyword(keyword: "Reach", params: [], body: []),
 )

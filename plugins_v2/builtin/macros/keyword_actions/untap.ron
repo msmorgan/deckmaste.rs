@@ -9,9 +9,5 @@ KeywordAction(
         participle: "untapped",
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
     ),
-    body: Enact(
-        verb: Action("Untap"),
-        instruction: SetStatus(status: Untapped, subject: Param(0)),
-        agent: None,
-    ),
+    body: SetStatus(status: Untapped, subject: Param(0)),
 )

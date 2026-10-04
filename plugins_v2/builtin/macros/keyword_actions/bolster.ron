@@ -12,9 +12,7 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: MeasureComplement,
     ),
-    body: Enact(
-        verb: Action("Bolster"),
-        instruction: Sequentially([
+    body: Sequentially([
         Choose(
             first: None,
             chosen: Described(
@@ -42,6 +40,4 @@ KeywordAction(
             on: Pro(reach: Word(Type(Creature)), plurality: One, window: Whole),
         ),
     ]),
-        agent: None,
-    ),
 )

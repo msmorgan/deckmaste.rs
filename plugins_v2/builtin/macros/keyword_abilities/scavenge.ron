@@ -8,51 +8,47 @@ KeywordAbility(
     // "Scavenge [cost]" means "[Cost], Exile this card from your graveyard: Put a
     // number of +1/+1 counters equal to the power of the card you exiled on target
     // creature. Activate only as a sorcery." [CR#702.97a]
-    body: Keyword(
-        keyword: "Scavenge",
-        params: [Cost(Param(0))],
-        body: [
-            Activated(
-                cost: Compound(
-                    costs: [
-                        Param(0),
-                        Perform(
-                            instruction: Enact(
-                                verb: Action("Exile"),
-                                instruction: Move(
-                                    subject: This,
-                                    to: Zone(zone: Exile, scope: Bare),
-                                    riders: [],
-                                ),
-                                agent: You,
+    body: [
+        Activated(
+            cost: Compound(
+                costs: [
+                    Param(0),
+                    Perform(
+                        instruction: Enact(
+                            verb: Action("Exile"),
+                            instruction: Move(
+                                subject: This,
+                                to: Zone(zone: Exile, scope: Bare),
+                                riders: [],
                             ),
-                        ),
-                    ],
-                ),
-                instruction: PutCounters(
-                    amount: StatOf(
-                        axis: Stat(Power),
-                        subject: Pro(
-                            reach: Verbed(
-                                verb: Action("Exile"),
-                                word: Card,
-                                marking: Attributive,
-                            ),
-                            plurality: One,
-                            window: Whole,
+                            agent: You,
                         ),
                     ),
-                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                    on: Described(
-                        determiner: Target(Range(low: 1, high: 1)),
-                        predicate: HasType(Creature),
-                    ),
-                ),
-                timing: AsSorcery,
-                limit: None,
-                guard: None,
-                activator: None,
+                ],
             ),
-        ],
-    ),
+            instruction: PutCounters(
+                amount: StatOf(
+                    axis: Stat(Power),
+                    subject: Pro(
+                        reach: Verbed(
+                            verb: Action("Exile"),
+                            word: Card,
+                            marking: Attributive,
+                        ),
+                        plurality: One,
+                        window: Whole,
+                    ),
+                ),
+                kind: Printed(Boost(power: Up(1), toughness: Up(1))),
+                on: Described(
+                    determiner: Target(Range(low: 1, high: 1)),
+                    predicate: HasType(Creature),
+                ),
+            ),
+            timing: AsSorcery,
+            limit: None,
+            guard: None,
+            activator: None,
+        ),
+    ],
 )

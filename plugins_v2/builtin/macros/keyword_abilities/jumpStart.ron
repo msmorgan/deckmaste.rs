@@ -9,5 +9,4 @@ KeywordAbility(
     // resulting spell is an instant or sorcery spell by discarding a card as an
     // ADDITIONAL cost to cast it" [CR#702.133a]. `PlayPayment` offers only the card's
     // own cost, no cost, or a replacement cost — never its own cost plus another.
-    body: Keyword(keyword: "JumpStart", params: [], body: []),
 )

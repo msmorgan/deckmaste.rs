@@ -12,9 +12,5 @@ KeywordAction(
             frames: [[ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]],
         ),
     ),
-    body: Enact(
-        verb: Action("Attach"),
-        instruction: Attachment(move: Attached, subject: Param(0), host: Param(1)),
-        agent: None,
-    ),
+    body: Attachment(move: Attached, subject: Param(0), host: Param(1)),
 )

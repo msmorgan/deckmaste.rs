@@ -9,9 +9,7 @@ KeywordAction(
         bare: "proliferate",
         frame_set: Intransitive,
     ),
-    body: Enact(
-        verb: Action("Proliferate"),
-        instruction: Sequentially([
+    body: Sequentially([
         Choose(
             first: None,
             chosen: Described(
@@ -34,6 +32,4 @@ KeywordAction(
             on: EachOf(Pro(reach: Word(Join), plurality: Many, window: Whole)),
         ),
     ]),
-        agent: None,
-    ),
 )

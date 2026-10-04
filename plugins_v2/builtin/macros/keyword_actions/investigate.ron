@@ -10,9 +10,8 @@ KeywordAction(
         bare: "investigate",
         frame_set: Intransitive,
     ),
-    body: Enact(
-        verb: Action("Investigate"),
-        instruction: CreateObject(
+    agent: Param(0),
+    body: CreateObject(
         count: 1,
         spec: Token(
             spec: Written((characteristics: (
@@ -36,8 +35,6 @@ KeywordAction(
             ))),
             riders: [],
         ),
-        agent: Param(0),
-    ),
         agent: Param(0),
     ),
 )

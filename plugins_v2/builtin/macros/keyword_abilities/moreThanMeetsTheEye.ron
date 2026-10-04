@@ -10,9 +10,4 @@ KeywordAbility(
     // converted casts its other face [CR#701.28a]; `PlayPayment` has no clause
     // substituting the cast object's characteristics, so nothing says which face the
     // permitted cast produces (the cause Disguise and Morph share).
-    body: Keyword(
-        keyword: "MoreThanMeetsTheEye",
-        params: [Cost(Param(0))],
-        body: [],
-    ),
 )

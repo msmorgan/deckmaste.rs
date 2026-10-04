@@ -9,5 +9,6 @@ KeywordAction(
         bare: "reveal",
         frame_set: Transitive,
     ),
+    deed: None,
     body: Expose(verb: Reveal, exposed: Cards(Param(0)), agent: Param(1)),
 )

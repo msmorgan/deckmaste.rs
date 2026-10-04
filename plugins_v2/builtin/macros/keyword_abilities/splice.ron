@@ -11,9 +11,4 @@ KeywordAbility(
     // [CR#702.47a] That is a text-changing effect [CR#702.47c,612.1]; no
     // `CharacteristicEdit` copies one object's rules text onto another —
     // `AddedAbilities` takes written abilities, not a card's text box.
-    body: Keyword(
-        keyword: "Splice",
-        params: [Quality(Param(0)), Cost(Param(1))],
-        body: [],
-    ),
 )

@@ -7,39 +7,35 @@ KeywordAbility(
     ),
     // "This creature can't be blocked except by creatures with flying and/or
     // reach." [CR#702.9b]
-    body: Keyword(
-        keyword: "Flying",
-        params: [],
-        body: [
-            Static(
-                spec: DeonticRule(
-                    subject: AsType(type: Creature, subject: This, subtype: None),
-                    compulsion: Forbid,
-                    deeds: [Core(Block)],
-                    role: Patient,
-                    bound: None,
-                    patient: Counterpart(
-                        patient: Described(
-                            determiner: All,
-                            predicate: And(
-                                conjuncts: [
-                                    HasType(Creature),
-                                    Not(
-                                        predicate: Or(
-                                            disjuncts: [
-                                                HasKeyword(The("Flying")),
-                                                HasKeyword(The("Reach")),
-                                            ],
-                                        ),
+    body: [
+        Static(
+            spec: DeonticRule(
+                subject: AsType(type: Creature, subject: This, subtype: None),
+                compulsion: Forbid,
+                deeds: [Core(Block)],
+                role: Patient,
+                bound: None,
+                patient: Counterpart(
+                    patient: Described(
+                        determiner: All,
+                        predicate: And(
+                            conjuncts: [
+                                HasType(Creature),
+                                Not(
+                                    predicate: Or(
+                                        disjuncts: [
+                                            HasKeyword(The("Flying")),
+                                            HasKeyword(The("Reach")),
+                                        ],
                                     ),
-                                ],
-                            ),
+                                ),
+                            ],
                         ),
                     ),
-                    as_though: None,
-                    rider: NoRider,
                 ),
+                as_though: None,
+                rider: NoRider,
             ),
-        ],
-    ),
+        ),
+    ],
 )

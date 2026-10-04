@@ -248,7 +248,14 @@ generator ticket.
 `plugins_v2/` is the v2 plugin format. `plugins/builtin_v2` moves to
 `plugins_v2/builtin`, with a symlink at the old path until all declaration readers use the new one. One declaration file per macro carries `name`,
 `params`, `spelling`, `grammar`, and a semantic `body`: the lexical-source adapter reads the
-spelling and grammar, semantics_v2 reads the params and body. The file is
+spelling and grammar, semantics_v2 reads the params and body. A keyword
+declaration's file writes only the part of its definition that does not follow
+from its name and signature — a keyword ability's list of abilities (omitted
+when empty), a keyword action's instruction and its `agent` — and semantics_v2
+builds the `Keyword(...)` or `Enact(verb: Action(...), ...)` wrapper around it
+(`deckmaste_semantics_v2::keywords`); a file writes `keyword_params` or
+`deed: None` where its definition does not take the derived arguments or deed.
+The file is
 the shared contract; neither crate depends on the other for it, and an xtask
 drift test loads every declaration both ways. Today's bodyless declarations
 (keyword actions, keyword abilities, ability words, turn parts) grow bodies
@@ -282,10 +289,12 @@ mirror's constructors stay PascalCase, so `draw` is the macro and `Draw(…)` th
 constructor, exactly as Lean's `.draw`/`draw` separates the two (ruling,
 2026-09-07). The file stem is still the name. Nothing else moves: spelling,
 grammar and every semantic label a body writes are unchanged, and the emitted
-Lean is byte-identical across the rename. Two readers take a name as a LABEL
-rather than as an identity and capitalise it at that boundary — `cargo xtask
-facts`'s keyword and subtype overlays, through `label_of`/`name_of` there — and
-one stopped taking it at all: an ability word's italic label is now its
+Lean is byte-identical across the rename. The keyword declarations take a name
+as a LABEL rather than as an identity and capitalise it at that boundary — a
+keyword ability's label is its name capitalized, a keyword action's the words
+its name spells, each capitalized (`deckmaste_semantics_v2::keywords`, which
+`cargo xtask facts` reads them through) — and one reader stopped taking it at
+all: an ability word's italic label is now its
 SPELLING, which is what the bench writes (`abilityWord "will of the council"`).
 `lean-macros-from-ron` is an identity on names, with one mechanical
 exception: a RON name that is a Lean keyword is spelled in Lean with a

@@ -9,9 +9,4 @@ KeywordAbility(
     // [CR#702.113a]. `Ability.category` is `none` for `Ability::Spell`, so
     // `keywordBodyFits` refuses a spell ability in a keyword definition; the
     // alternative cost alone would be half the definition.
-    body: Keyword(
-        keyword: "Awaken",
-        params: [Number(Param(0)), Cost(Param(1))],
-        body: [],
-    ),
 )

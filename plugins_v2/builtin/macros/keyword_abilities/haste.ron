@@ -9,5 +9,4 @@ KeywordAbility(
     // summoning-sickness exemptions [CR#702.10b,702.10c] rather than quoting an
     // expansion.
     // The entry defines only how the game treats the keyword (ruling 2026-09-07).
-    body: Keyword(keyword: "Haste", params: [], body: []),
 )

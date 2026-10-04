@@ -9,5 +9,4 @@ KeywordAbility(
     // "as this creature attacks, you may tap up to one untapped creature you
     // control". No `StaticSpec` attaches a cost to the attack declaration; `Cost`
     // reaches activation, casting and play, never declaring an attacker.
-    body: Keyword(keyword: "Enlist", params: [], body: []),
 )

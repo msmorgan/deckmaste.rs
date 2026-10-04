@@ -9,93 +9,89 @@ KeywordAbility(
     // choose new targets for the copy. If you copy the spell, choose an opponent.
     // That player copies the spell and may choose new targets for that copy."
     // [CR#702.144a]
-    body: Keyword(
-        keyword: "Demonstrate",
-        params: [],
-        body: [
-            Triggered(
-                event: Casts(
-                    player: You,
-                    spell: AsMarker(marker: Spell, subject: This),
-                    from: None,
+    body: [
+        Triggered(
+            event: Casts(
+                player: You,
+                spell: AsMarker(marker: Spell, subject: This),
+                from: None,
+            ),
+            alternatives: [],
+            r#while: None,
+            joins: [],
+            timing: None,
+            limit: None,
+            intervening: None,
+            instruction: WithContinuation(
+                policy: Optional(You),
+                body: Sequentially(
+                    steps: [
+                        Copy(
+                            sort: FromStack,
+                            subject: AsMarker(marker: Spell, subject: This),
+                            times: 1,
+                            exceptions: [],
+                            agent: You,
+                        ),
+                        WithContinuation(
+                            policy: Optional(You),
+                            body: ChooseNewTargets(
+                                subject: Pro(
+                                    reach: Word(Copy),
+                                    plurality: One,
+                                    window: Whole,
+                                ),
+                            ),
+                            if_did: None,
+                            if_not: None,
+                        ),
+                    ],
                 ),
-                alternatives: [],
-                r#while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: None,
-                instruction: WithContinuation(
-                    policy: Optional(You),
-                    body: Sequentially(
-                        steps: [
-                            Copy(
-                                sort: FromStack,
-                                subject: AsMarker(marker: Spell, subject: This),
-                                times: 1,
-                                exceptions: [],
-                                agent: You,
+                if_did: Sequentially(
+                    steps: [
+                        Choose(
+                            first: None,
+                            chosen: Described(
+                                determiner: A(Unmarked),
+                                predicate: Opponent,
                             ),
-                            WithContinuation(
-                                policy: Optional(You),
-                                body: ChooseNewTargets(
-                                    subject: Pro(
-                                        reach: Word(Copy),
-                                        plurality: One,
-                                        window: Whole,
-                                    ),
-                                ),
-                                if_did: None,
-                                if_not: None,
+                            disclosure: Openly,
+                            when: None,
+                            agent: You,
+                        ),
+                        Copy(
+                            sort: FromStack,
+                            subject: AsMarker(marker: Spell, subject: This),
+                            times: 1,
+                            exceptions: [],
+                            agent: Described(
+                                determiner: The,
+                                predicate: ChosenPlayer(r#ref: TheChoice),
                             ),
-                        ],
-                    ),
-                    if_did: Sequentially(
-                        steps: [
-                            Choose(
-                                first: None,
-                                chosen: Described(
-                                    determiner: A(Unmarked),
-                                    predicate: Opponent,
-                                ),
-                                disclosure: Openly,
-                                when: None,
-                                agent: You,
-                            ),
-                            Copy(
-                                sort: FromStack,
-                                subject: AsMarker(marker: Spell, subject: This),
-                                times: 1,
-                                exceptions: [],
+                        ),
+                        WithContinuation(
+                            policy: Optional(
                                 agent: Described(
                                     determiner: The,
                                     predicate: ChosenPlayer(r#ref: TheChoice),
                                 ),
                             ),
-                            WithContinuation(
-                                policy: Optional(
-                                    agent: Described(
-                                        determiner: The,
-                                        predicate: ChosenPlayer(r#ref: TheChoice),
-                                    ),
+                            // "that copy": the one the chosen player just made,
+                            // not the caster's, which is still on the stack.
+                            body: ChooseNewTargets(
+                                subject: Pro(
+                                    reach: Word(Copy),
+                                    plurality: One,
+                                    window: Top(1),
                                 ),
-                                // "that copy": the one the chosen player just made,
-                                // not the caster's, which is still on the stack.
-                                body: ChooseNewTargets(
-                                    subject: Pro(
-                                        reach: Word(Copy),
-                                        plurality: One,
-                                        window: Top(1),
-                                    ),
-                                ),
-                                if_did: None,
-                                if_not: None,
                             ),
-                        ],
-                    ),
-                    if_not: None,
+                            if_did: None,
+                            if_not: None,
+                        ),
+                    ],
                 ),
+                if_not: None,
             ),
-        ],
-    ),
+        ),
+    ],
 )

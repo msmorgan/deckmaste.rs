@@ -13,9 +13,4 @@ KeywordAbility(
     // sacrificed — `Predicate::ExiledWith` is the only linked-reference predicate and
     // a `Reach::Stamped` pronoun cannot read out of a sibling clause's cost (the
     // cause Emerge and Harmonize share).
-    body: Keyword(
-        keyword: "Offering",
-        params: [Quality(Param(0))],
-        body: [],
-    ),
 )

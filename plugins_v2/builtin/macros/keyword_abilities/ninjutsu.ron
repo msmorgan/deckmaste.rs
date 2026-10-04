@@ -8,65 +8,61 @@ KeywordAbility(
     // "Ninjutsu [cost]" means "[Cost], Reveal this card from your hand, Return an
     // unblocked attacking creature you control to its owner's hand: Put this card
     // onto the battlefield from your hand tapped and attacking." [CR#702.49a]
-    body: Keyword(
-        keyword: "Ninjutsu",
-        params: [Cost(Param(0))],
-        body: [
-            Activated(
-                cost: Compound(
-                    costs: [
-                        Param(0),
-                        Perform(
-                            instruction: Expose(
-                                verb: Reveal,
-                                exposed: Cards(This),
-                                agent: You,
-                            ),
+    body: [
+        Activated(
+            cost: Compound(
+                costs: [
+                    Param(0),
+                    Perform(
+                        instruction: Expose(
+                            verb: Reveal,
+                            exposed: Cards(This),
+                            agent: You,
                         ),
-                        Perform(
-                            instruction: Enact(
-                                verb: Core(Return),
-                                instruction: Move(
-                                    subject: Described(
-                                        determiner: A(Unmarked),
-                                        predicate: And(
-                                            conjuncts: [
-                                                HasType(Creature),
-                                                InCombat(
-                                                    relation: AttackerOf,
+                    ),
+                    Perform(
+                        instruction: Enact(
+                            verb: Core(Return),
+                            instruction: Move(
+                                subject: Described(
+                                    determiner: A(Unmarked),
+                                    predicate: And(
+                                        conjuncts: [
+                                            HasType(Creature),
+                                            InCombat(
+                                                relation: AttackerOf,
+                                                counterpart: None,
+                                            ),
+                                            Not(
+                                                predicate: InCombat(
+                                                    relation: BlockedBy,
                                                     counterpart: None,
                                                 ),
-                                                Not(
-                                                    predicate: InCombat(
-                                                        relation: BlockedBy,
-                                                        counterpart: None,
-                                                    ),
-                                                ),
-                                                HasPossessor(
-                                                    axis: Controller,
-                                                    possessor: You,
-                                                ),
-                                            ],
-                                        ),
+                                            ),
+                                            HasPossessor(
+                                                axis: Controller,
+                                                possessor: You,
+                                            ),
+                                        ],
                                     ),
-                                    to: Zone(zone: Hand, scope: Bare),
-                                    riders: [],
                                 ),
-                                agent: You,
+                                to: Zone(zone: Hand, scope: Bare),
+                                riders: [],
                             ),
+                            agent: You,
                         ),
-                    ],
-                ),
-                instruction: Move(
-                    subject: This,
-                    to: Zone(zone: Battlefield, scope: Bare),
-                    riders: [EntersAs(Tapped), EntersAttacking(None)],
-                ),
-                timing: None,
-                limit: None,
-                guard: None,
-                activator: None,
+                    ),
+                ],
             ),
-        ],
-    ),
+            instruction: Move(
+                subject: This,
+                to: Zone(zone: Battlefield, scope: Bare),
+                riders: [EntersAs(Tapped), EntersAttacking(None)],
+            ),
+            timing: None,
+            limit: None,
+            guard: None,
+            activator: None,
+        ),
+    ],
 )

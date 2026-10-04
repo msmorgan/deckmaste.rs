@@ -12,5 +12,4 @@ KeywordAbility(
     // `Predicate` projects an ability's own chapter number, so the `unless` clause
     // cannot be written. [CR#702.155b]'s two intrinsic abilities are a separate
     // grant the keyword's own definition does not carry.
-    body: Keyword(keyword: "ReadAhead", params: [], body: []),
 )

@@ -107,6 +107,10 @@ pub enum LoadError {
         path: PathBuf,
         source: Box<::ron::error::SpannedError>,
     },
+    /// A keyword declaration whose definition could not be built from what
+    /// its file writes (`crate::keywords`).
+    #[error("building the definition `{path}` declares: {reason}")]
+    Definition { path: PathBuf, reason: String },
     #[error("registering `{path}`: {source}")]
     Register {
         path: PathBuf,
@@ -212,6 +216,20 @@ fn read_macros(
             match macros.read_str::<MacroDef<OpaqueMetadata>>(&source) {
                 Ok(read) => {
                     let definition = read.erase_metadata();
+                    // A keyword declaration's meta-macro hands over what the
+                    // file wrote; the declaration builds the wrapper around it
+                    // (`crate::keywords`).
+                    let family = definition.kinds.first().map_or("", |kind| kind.as_str());
+                    let definition = match crate::keywords::definition_body(
+                        family,
+                        definition.name.as_str(),
+                        &definition.params,
+                        definition.body(),
+                    ) {
+                        Ok(Some(body)) => definition.with_body(&body),
+                        Ok(None) => definition,
+                        Err(reason) => return Err(LoadError::Definition { path, reason }),
+                    };
                     // Two ways a same-named collision is harmless, so this
                     // check only refuses the third:
                     //  - IDENTITY: the body's own outermost identifier is the

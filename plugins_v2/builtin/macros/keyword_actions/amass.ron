@@ -13,6 +13,7 @@ KeywordAction(
         third_person: "amasses",
         frame_set: Custom(frames: [[ObjectNounPhrase, Amount]]),
     ),
+    deed: None,
     body: sequentially([
         // "If you don't control an Army, create a 0/0 black <subtype> Army
         // creature token."

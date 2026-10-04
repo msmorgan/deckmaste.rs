@@ -9,63 +9,59 @@ KeywordAbility(
     // for a creature card with the same mana value as this permanent and put it onto
     // the battlefield. Then shuffle your library. Activate only as a sorcery."
     // [CR#702.71a]
-    body: Keyword(
-        keyword: "Transfigure",
-        params: [Cost(Param(0))],
-        body: [
-            Activated(
-                cost: Compound(
-                    costs: [
-                        Param(0),
-                        Perform(
-                            instruction: Enact(
-                                verb: Action("Sacrifice"),
-                                instruction: Move(
-                                    subject: AsMarker(marker: Permanent, subject: This),
-                                    to: Zone(zone: Graveyard, scope: Bare),
-                                    riders: [],
-                                ),
-                                agent: You,
-                            ),
-                        ),
-                    ],
-                ),
-                instruction: Sequentially(
-                    steps: [
-                        Search(
-                            scope: OneZone(
-                                zone: Zone(zone: Library, scope: PossessedBy(You)),
-                            ),
-                            quantity: Range(low: 1, high: 1),
-                            predicate: And(
-                                conjuncts: [
-                                    IsCard,
-                                    HasType(Creature),
-                                    Compare(
-                                        axes: [Stat(ManaValue)],
-                                        comparator: Eq,
-                                        bound: StatOf(
-                                            axis: Stat(ManaValue),
-                                            subject: AsMarker(marker: Permanent, subject: This),
-                                        ),
-                                    ),
-                                ],
+    body: [
+        Activated(
+            cost: Compound(
+                costs: [
+                    Param(0),
+                    Perform(
+                        instruction: Enact(
+                            verb: Action("Sacrifice"),
+                            instruction: Move(
+                                subject: AsMarker(marker: Permanent, subject: This),
+                                to: Zone(zone: Graveyard, scope: Bare),
+                                riders: [],
                             ),
                             agent: You,
                         ),
-                        Move(
-                            subject: Pro(reach: Bare, plurality: One, window: Top(1)),
-                            to: Zone(zone: Battlefield, scope: Bare),
-                            riders: [],
-                        ),
-                        Shuffle(You),
-                    ],
-                ),
-                timing: AsSorcery,
-                limit: None,
-                guard: None,
-                activator: None,
+                    ),
+                ],
             ),
-        ],
-    ),
+            instruction: Sequentially(
+                steps: [
+                    Search(
+                        scope: OneZone(
+                            zone: Zone(zone: Library, scope: PossessedBy(You)),
+                        ),
+                        quantity: Range(low: 1, high: 1),
+                        predicate: And(
+                            conjuncts: [
+                                IsCard,
+                                HasType(Creature),
+                                Compare(
+                                    axes: [Stat(ManaValue)],
+                                    comparator: Eq,
+                                    bound: StatOf(
+                                        axis: Stat(ManaValue),
+                                        subject: AsMarker(marker: Permanent, subject: This),
+                                    ),
+                                ),
+                            ],
+                        ),
+                        agent: You,
+                    ),
+                    Move(
+                        subject: Pro(reach: Bare, plurality: One, window: Top(1)),
+                        to: Zone(zone: Battlefield, scope: Bare),
+                        riders: [],
+                    ),
+                    Shuffle(You),
+                ],
+            ),
+            timing: AsSorcery,
+            limit: None,
+            guard: None,
+            activator: None,
+        ),
+    ],
 )

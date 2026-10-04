@@ -8,44 +8,40 @@ KeywordAbility(
     // "Mayhem [cost]" means "As long as you discarded this card this turn, you may
     // cast it from your graveyard by paying [cost] rather than paying its mana
     // cost." [CR#702.187b]
-    body: Keyword(
-        keyword: "Mayhem",
-        params: [Cost(Param(0))],
-        body: [
-            Static(
-                spec: Conditional(
-                    spec: DeonticRule(
-                        subject: You,
-                        compulsion: Permit,
-                        deeds: [Action("Cast")],
-                        role: Agent,
-                        bound: None,
-                        patient: Counterpart(This),
-                        as_though: None,
-                        rider: Play(
-                            from: Zone(zone: Graveyard, scope: PossessedBy(You)),
-                            limit: None,
-                            timing: None,
-                            exclusive: false,
-                            payment: PayingInstead(Param(0)),
-                        ),
+    body: [
+        Static(
+            spec: Conditional(
+                spec: DeonticRule(
+                    subject: You,
+                    compulsion: Permit,
+                    deeds: [Action("Cast")],
+                    role: Agent,
+                    bound: None,
+                    patient: Counterpart(This),
+                    as_though: None,
+                    rider: Play(
+                        from: Zone(zone: Graveyard, scope: PossessedBy(You)),
+                        limit: None,
+                        timing: None,
+                        exclusive: false,
+                        payment: PayingInstead(Param(0)),
                     ),
-                    condition: Happened(
-                        subject: You,
-                        lookback: Mk(
-                            event: VerbedEvent(
-                                agent: Gap(Player),
-                                verb: Action("Discard"),
-                                patient: This,
-                                becomes: None,
-                                locus: None,
-                            ),
-                            lookback: ThisTurn,
-                        ),
-                    ),
-                    marking: AsLongAs,
                 ),
+                condition: Happened(
+                    subject: You,
+                    lookback: Mk(
+                        event: VerbedEvent(
+                            agent: Gap(Player),
+                            verb: Action("Discard"),
+                            patient: This,
+                            becomes: None,
+                            locus: None,
+                        ),
+                        lookback: ThisTurn,
+                    ),
+                ),
+                marking: AsLongAs,
             ),
-        ],
-    ),
+        ),
+    ],
 )

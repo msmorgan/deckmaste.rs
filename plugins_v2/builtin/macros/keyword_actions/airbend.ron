@@ -10,9 +10,8 @@ KeywordAction(
         bare: "airbend",
         frame_set: Transitive,
     ),
-    body: Enact(
-        verb: Action("Airbend"),
-        instruction: Sequentially([
+    agent: Param(1),
+    body: Sequentially([
         Move(subject: Param(0), to: Zone(zone: Exile, scope: Bare), riders: []),
         Establish(
             spec: DeonticRule(
@@ -42,6 +41,4 @@ KeywordAction(
             )),
         ),
     ]),
-        agent: Param(1),
-    ),
 )

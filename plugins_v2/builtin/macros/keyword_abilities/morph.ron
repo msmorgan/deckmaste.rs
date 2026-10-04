@@ -11,5 +11,4 @@ KeywordAbility(
     // the cast object's characteristics, so the face-down 2/2 the permitted cast
     // produces cannot be written — the cause Disguise, which is morph with ward,
     // already carries.
-    body: Keyword(keyword: "Morph", params: [Cost(Param(0))], body: []),
 )

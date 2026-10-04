@@ -9,5 +9,5 @@ KeywordAbility(
     // {2} to exile a card from hand face down does not use the stack, and the entry
     // states the rule rather than quoting an expansion. No instruction or static
     // performs a special action (the cause Companion shares).
-    body: Keyword(keyword: "Foretell", params: [], body: []),
+    keyword_params: [],
 )

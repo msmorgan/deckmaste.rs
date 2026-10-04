@@ -12,5 +12,4 @@ KeywordAbility(
     // commander or speaks about the period before the game. `DeckCondition`
     // describes a deck's cards, not who commands it, and there is no predicate for a
     // commander (the second half of the cause Freerunning carries).
-    body: Keyword(keyword: "Partner", params: [], body: []),
 )

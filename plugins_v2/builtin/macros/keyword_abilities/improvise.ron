@@ -9,5 +9,4 @@ KeywordAbility(
     // tap an untapped artifact you control rather than pay that mana" [CR#702.126a] —
     // the per-mana-symbol payment alternative convoke, delve and assist also want, and
     // that no `StaticSpec` offers.
-    body: Keyword(keyword: "Improvise", params: [], body: []),
 )

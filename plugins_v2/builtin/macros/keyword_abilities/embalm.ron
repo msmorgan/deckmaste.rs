@@ -9,54 +9,50 @@ KeywordAbility(
     // token that's a copy of this card, except it's white, it has no mana cost, and
     // it's a Zombie in addition to its other types. Activate only as a sorcery."
     // [CR#702.128a]
-    body: Keyword(
-        keyword: "Embalm",
-        params: [Cost(Param(0))],
-        body: [
-            Activated(
-                cost: Compound(
-                    costs: [
-                        Param(0),
-                        Perform(
-                            instruction: Enact(
-                                verb: Action("Exile"),
-                                instruction: Move(
-                                    subject: This,
-                                    to: Zone(zone: Exile, scope: Bare),
-                                    riders: [],
-                                ),
-                                agent: You,
+    body: [
+        Activated(
+            cost: Compound(
+                costs: [
+                    Param(0),
+                    Perform(
+                        instruction: Enact(
+                            verb: Action("Exile"),
+                            instruction: Move(
+                                subject: This,
+                                to: Zone(zone: Exile, scope: Bare),
+                                riders: [],
                             ),
+                            agent: You,
                         ),
-                    ],
-                ),
-                instruction: CreateObject(
-                    count: 1,
-                    spec: Token(
-                        spec: CopyOf(
-                            source: This,
-                            exceptions: [
-                                Edits(
-                                    edits: [
-                                        Colors(op: Sets, colors: r#Some([White])),
-                                        ManaCost(None),
-                                        TypeLine(
-                                            op: Adds,
-                                            changes: (subtypes: [Of(host: Creature, label: "Zombie")]),
-                                        ),
-                                    ],
-                                ),
-                            ],
-                        ),
-                        riders: [],
                     ),
-                    agent: You,
-                ),
-                timing: AsSorcery,
-                limit: None,
-                guard: None,
-                activator: None,
+                ],
             ),
-        ],
-    ),
+            instruction: CreateObject(
+                count: 1,
+                spec: Token(
+                    spec: CopyOf(
+                        source: This,
+                        exceptions: [
+                            Edits(
+                                edits: [
+                                    Colors(op: Sets, colors: r#Some([White])),
+                                    ManaCost(None),
+                                    TypeLine(
+                                        op: Adds,
+                                        changes: (subtypes: [Of(host: Creature, label: "Zombie")]),
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    riders: [],
+                ),
+                agent: You,
+            ),
+            timing: AsSorcery,
+            limit: None,
+            guard: None,
+            activator: None,
+        ),
+    ],
 )

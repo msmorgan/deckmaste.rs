@@ -12,5 +12,4 @@ KeywordAbility(
     // only state-checked clause and its `StateBasedCause` has the single value
     // `NonpositiveLife` (the cause Ascend carries — city's blessing and enduring
     // story are the same shape).
-    body: Keyword(keyword: "Storied", params: [], body: []),
 )

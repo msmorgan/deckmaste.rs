@@ -13,5 +13,5 @@ KeywordAbility(
     // spells that as the `Card::Prototype` wrapper, so the keyword carries no
     // registry row at all — `crates/xtask/src/facts.rs` excludes it by name, and
     // `keywordDefinition "Prototype"` is therefore empty for every category.
-    body: Keyword(keyword: "Prototype", params: [], body: []),
+    keyword_params: [],
 )

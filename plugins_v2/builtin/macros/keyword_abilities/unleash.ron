@@ -12,5 +12,4 @@ KeywordAbility(
     // `TokenRider` and only `TokenRider::AsCopyOf` carries an `optional` flag (the
     // cause Riot and Tribute share), so the first half cannot be written and a body
     // carrying only the second would be a wrong analysis.
-    body: Keyword(keyword: "Unleash", params: [], body: []),
 )

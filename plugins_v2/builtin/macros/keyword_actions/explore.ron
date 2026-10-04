@@ -13,9 +13,7 @@ KeywordAction(
         bare: "explore",
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
     ),
-    body: Enact(
-        verb: Action("Explore"),
-        instruction: Sequentially([
+    body: Sequentially([
         Expose(
             verb: Reveal,
             exposed: Cards(LibrarySlice(
@@ -54,6 +52,4 @@ KeywordAction(
             ]),
         ),
     ]),
-        agent: None,
-    ),
 )

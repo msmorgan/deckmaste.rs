@@ -17,6 +17,7 @@ pub mod coverage;
 pub mod derive_cards;
 pub mod english;
 pub mod english_v3;
+pub mod expansions;
 pub mod extract;
 pub mod facts;
 pub mod fidelity;

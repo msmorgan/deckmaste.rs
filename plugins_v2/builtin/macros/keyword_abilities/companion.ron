@@ -10,5 +10,5 @@ KeywordAbility(
     // speaks about the zone outside the game or about special actions. The
     // declaration's `Condition` parameter is a phrase `Condition`, which cannot fill
     // `KeywordParam::DeckCondition` either, so the argument is not forwardable.
-    body: Keyword(keyword: "Companion", params: [], body: []),
+    keyword_params: [],
 )

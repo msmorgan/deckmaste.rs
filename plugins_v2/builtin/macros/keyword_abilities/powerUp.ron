@@ -9,5 +9,4 @@ KeywordAbility(
     // ships, so there is no definition to port, and the declaration's argument is an
     // `Ability`, which `KeywordParam` has no variant to forward (the cause Boast,
     // Gift, Infinity, Max Speed, Solved and Visit share).
-    body: Keyword(keyword: "PowerUp", params: [], body: []),
 )

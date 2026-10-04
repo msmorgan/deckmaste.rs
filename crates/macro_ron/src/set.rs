@@ -281,6 +281,18 @@ impl<Metadata> MacroDef<Metadata> {
         &self.body
     }
 
+    /// This definition with its body replaced by `body`, trimmed as a read
+    /// body is.
+    ///
+    /// For a consumer that derives a declaration's final body from the one its
+    /// meta-macro produced: `body` is crate-private, so the value cannot be
+    /// rebuilt from outside otherwise.
+    #[must_use]
+    pub fn with_body(mut self, body: &str) -> Self {
+        self.body = body.trim().into();
+        self
+    }
+
     /// The consumer-owned metadata payload.
     #[must_use]
     pub fn metadata(&self) -> &Metadata {

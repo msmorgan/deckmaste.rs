@@ -9,9 +9,5 @@ KeywordAction(
         bare: "heal",
         frame_set: Transitive,
     ),
-    body: Enact(
-        verb: Action("Heal"),
-        instruction: ClearDamage(Param(0)),
-        agent: None,
-    ),
+    body: ClearDamage(Param(0)),
 )

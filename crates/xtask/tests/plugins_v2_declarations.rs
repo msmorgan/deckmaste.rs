@@ -160,6 +160,8 @@ fn an_ability_word_invocation_expands_at_an_ability_position() {
 /// The declaration is a temporary one because the builtin keyword-action
 /// stubs are still bodyless; what it exercises is the family's kinds
 /// (`[KeywordAction, Instruction]`), which come from the shared meta-macro.
+/// It writes `deed: None`, so its instruction is its definition unwrapped;
+/// [`a_keyword_declaration_builds_its_wrapper`] covers the wrapped default.
 #[test]
 fn a_keyword_action_invocation_expands_at_an_instruction_position() {
     let dir = temp_plugin(&[
@@ -169,6 +171,7 @@ fn a_keyword_action_invocation_expands_at_an_instruction_position() {
                 name: "DrawFor",
                 params: [Amount],
                 spelling: "draw for <Param(0)>",
+                deed: None,
                 body: Draw(amount: Param(0), agent: You),
             )"#,
         ),
@@ -219,6 +222,45 @@ fn a_keyword_action_invocation_expands_at_an_instruction_position() {
         )
         .expect("the expansion's own shape reads directly");
     assert_eq!(card, &written_out);
+}
+
+/// A keyword declaration's file writes only what its definition does not
+/// follow from: the declaration builds the `Keyword(...)` term around a
+/// keyword ability's abilities, forwarding its declared parameters unless the
+/// file overrides them, and the `Enact(...)` deed around a keyword action's
+/// instruction, unless the file names no deed or writes no instruction.
+#[test]
+fn a_keyword_declaration_builds_its_wrapper() {
+    let plugin = Plugin::load(builtin()).expect("semantics_v2 reads the builtin declarations");
+    let body = |kind: &str, name: &str| {
+        plugin
+            .declarations
+            .get(&(macro_ron::Ident::from(kind), macro_ron::Ident::from(name)))
+            .unwrap_or_else(|| panic!("{kind} {name} is declared"))
+            .definition
+            .body()
+            .to_owned()
+    };
+    // Forwarded: `gift` declares a `Subject` and writes no abilities.
+    assert_eq!(
+        body("KeywordAbility", "gift"),
+        r#"Keyword(keyword: "Gift", params: [Subject(Param(0))], body: [])"#
+    );
+    // Overridden: `champion` declares a `Subject` it cannot forward.
+    assert_eq!(
+        body("KeywordAbility", "champion"),
+        r#"Keyword(keyword: "Champion", params: [], body: [])"#
+    );
+    // The default deed is the action the name spells.
+    assert_eq!(
+        body("KeywordAction", "destroy"),
+        "Enact(verb: Action(\"Destroy\"), instruction: Move(subject: Param(0), to: Zone(zone: \
+         Graveyard, scope: Bare), riders: []), agent: None)"
+    );
+    // A bodyless action stays bodyless.
+    assert_eq!(body("KeywordAction", "scry"), "()");
+    // `deed: None` leaves the instruction unwrapped.
+    assert_eq!(body("KeywordAction", "shuffle"), "Shuffle(Param(0))");
 }
 
 /// A turn-part declaration whose body is the constructor of the same name

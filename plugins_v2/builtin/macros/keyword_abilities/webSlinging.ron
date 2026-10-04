@@ -8,57 +8,53 @@ KeywordAbility(
     // "Web-slinging [cost]" means "You may cast this spell by paying [cost] and
     // returning a tapped creature you control to its owner's hand rather than paying
     // its mana cost." [CR#702.188a]
-    body: Keyword(
-        keyword: "WebSlinging",
-        params: [Cost(Param(0))],
-        body: [
-            Static(
-                spec: DeonticRule(
-                    subject: You,
-                    compulsion: Permit,
-                    deeds: [Action("Cast")],
-                    role: Agent,
-                    bound: None,
-                    patient: Counterpart(This),
-                    as_though: None,
-                    rider: Play(
-                        from: None,
-                        limit: None,
-                        timing: None,
-                        exclusive: false,
-                        payment: PayingInstead(
-                            cost: Compound(
-                                costs: [
-                                    Param(0),
-                                    Perform(
-                                        instruction: Enact(
-                                            verb: Core(Return),
-                                            instruction: Move(
-                                                subject: Described(
-                                                    determiner: A(Unmarked),
-                                                    predicate: And(
-                                                        conjuncts: [
-                                                            HasType(Creature),
-                                                            HasStatus(Tapped),
-                                                            HasPossessor(
-                                                                axis: Controller,
-                                                                possessor: You,
-                                                            ),
-                                                        ],
-                                                    ),
+    body: [
+        Static(
+            spec: DeonticRule(
+                subject: You,
+                compulsion: Permit,
+                deeds: [Action("Cast")],
+                role: Agent,
+                bound: None,
+                patient: Counterpart(This),
+                as_though: None,
+                rider: Play(
+                    from: None,
+                    limit: None,
+                    timing: None,
+                    exclusive: false,
+                    payment: PayingInstead(
+                        cost: Compound(
+                            costs: [
+                                Param(0),
+                                Perform(
+                                    instruction: Enact(
+                                        verb: Core(Return),
+                                        instruction: Move(
+                                            subject: Described(
+                                                determiner: A(Unmarked),
+                                                predicate: And(
+                                                    conjuncts: [
+                                                        HasType(Creature),
+                                                        HasStatus(Tapped),
+                                                        HasPossessor(
+                                                            axis: Controller,
+                                                            possessor: You,
+                                                        ),
+                                                    ],
                                                 ),
-                                                to: Zone(zone: Hand, scope: Bare),
-                                                riders: [],
                                             ),
-                                            agent: You,
+                                            to: Zone(zone: Hand, scope: Bare),
+                                            riders: [],
                                         ),
+                                        agent: You,
                                     ),
-                                ],
-                            ),
+                                ),
+                            ],
                         ),
                     ),
                 ),
             ),
-        ],
-    ),
+        ),
+    ],
 )

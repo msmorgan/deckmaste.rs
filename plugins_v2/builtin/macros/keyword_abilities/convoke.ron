@@ -10,5 +10,4 @@ KeywordAbility(
     // creature of that color you control rather than pay that mana" [CR#702.51a].
     // `Cost` has no per-symbol payment alternative; `StaticSpec::AltCost` replaces a
     // whole cost.
-    body: Keyword(keyword: "Convoke", params: [], body: []),
 )

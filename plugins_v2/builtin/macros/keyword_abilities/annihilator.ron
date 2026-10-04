@@ -7,35 +7,31 @@ KeywordAbility(
     ),
     // "Annihilator N" means "Whenever this creature attacks, defending player
     // sacrifices N permanents." [CR#702.86a]
-    body: Keyword(
-        keyword: "Annihilator",
-        params: [Number(Param(0))],
-        body: [
-            Triggered(
-                event: Combat(
-                    relation: AttackerOf,
-                    subject: AsType(type: Creature, subject: This, subtype: None),
-                    counterpart: None,
-                ),
-                alternatives: [],
-                r#while: None,
-                joins: [],
-                timing: None,
-                limit: None,
-                intervening: None,
-                instruction: Enact(
-                    verb: Action("Sacrifice"),
-                    instruction: Move(
-                        subject: Described(
-                            determiner: Count(quantity: ExactlyOf(Param(0)), mode: None),
-                            predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
-                        ),
-                        to: Zone(zone: Graveyard, scope: Bare),
-                        riders: [],
-                    ),
-                    agent: CombatPlayer(Defending),
-                ),
+    body: [
+        Triggered(
+            event: Combat(
+                relation: AttackerOf,
+                subject: AsType(type: Creature, subject: This, subtype: None),
+                counterpart: None,
             ),
-        ],
-    ),
+            alternatives: [],
+            r#while: None,
+            joins: [],
+            timing: None,
+            limit: None,
+            intervening: None,
+            instruction: Enact(
+                verb: Action("Sacrifice"),
+                instruction: Move(
+                    subject: Described(
+                        determiner: Count(quantity: ExactlyOf(Param(0)), mode: None),
+                        predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
+                    ),
+                    to: Zone(zone: Graveyard, scope: Bare),
+                    riders: [],
+                ),
+                agent: CombatPlayer(Defending),
+            ),
+        ),
+    ],
 )

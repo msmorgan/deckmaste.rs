@@ -27,6 +27,7 @@ pub mod abilities;
 pub mod card;
 pub mod events;
 pub mod facts;
+pub mod keywords;
 pub mod lean_emit;
 pub mod phrase;
 pub mod reader;
