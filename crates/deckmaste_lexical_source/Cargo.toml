@@ -8,10 +8,14 @@ publish = false
 workspace = true
 
 [dependencies]
-anyhow = "1.0.102"
+thiserror = { workspace = true }
+syn = { version = "2.0.117", features = ["full", "parsing"] }
 deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 deckmaste_construction_core = { version = "0.1.0", path = "../deckmaste_construction_core" }
 deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3.27.0"

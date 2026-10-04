@@ -4,6 +4,7 @@ error[E0423]: cannot initialize a tuple struct which contains private fields
 7 |     NounInstance(NounInstanceKind::Mass(Noun::Word(Vocab::Card)))
   |     ^^^^^^^^^^^^
   |
+  = note: a struct named `NounInstance` exists in another namespace
 note: constructor is not visible here due to private fields
  --> src/word/noun.rs
   |

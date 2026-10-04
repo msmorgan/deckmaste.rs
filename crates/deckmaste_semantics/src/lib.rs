@@ -212,6 +212,7 @@ pub use mana::ManaProduction;
 pub use mana::ManaRider;
 pub use mana::ManaSpec;
 pub use mana::ManaSymbol;
+pub use mana::ParseManaError;
 pub use mana::PlanarFace;
 pub use mana::SimpleManaSymbol;
 pub use mana::SymbolPred;

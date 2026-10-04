@@ -8,6 +8,7 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+thiserror = { workspace = true }
 anyhow = { version = "1.0.102" }
 deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
 deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }

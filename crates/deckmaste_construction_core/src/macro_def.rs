@@ -41,17 +41,41 @@ const DECLARATION_META_MACROS: &[&str] = &[
     include_str!("../../../plugins_v2/builtin/macros/meta/Type.ron"),
 ];
 
-fn declaration_reader() -> Result<macro_ron::MacroSet, String> {
+/// Failure to build the reader from embedded declaration meta-macros.
+#[derive(Debug, thiserror::Error)]
+pub enum DeclarationReaderError {
+    #[error("invalid builtin declaration meta-macro at index {index}: {source}")]
+    Parse {
+        index: usize,
+        #[source]
+        source: Box<ron::error::SpannedError>,
+    },
+    #[error("invalid builtin declaration meta-macro {name}: {source}")]
+    Insert {
+        name: String,
+        #[source]
+        source: macro_ron::InsertError,
+    },
+}
+
+fn declaration_reader() -> Result<macro_ron::MacroSet, DeclarationReaderError> {
     let mut kinds = macro_ron::KindSet::new();
     kinds.add(macro_ron::Kind::new("Macro"));
     let mut reader = macro_ron::MacroSet::new(kinds).with_options(macro_options());
-    for source in DECLARATION_META_MACROS {
-        let definition: macro_ron::MacroDef = reader
-            .read_str(source)
-            .map_err(|error| format!("invalid builtin declaration meta-macro: {error}"))?;
+    for (index, source) in DECLARATION_META_MACROS.iter().enumerate() {
+        let definition: macro_ron::MacroDef =
+            reader
+                .read_str(source)
+                .map_err(|source| DeclarationReaderError::Parse {
+                    index,
+                    source: Box::new(source),
+                })?;
         reader
             .insert(&definition)
-            .map_err(|error| format!("invalid builtin declaration meta-macro: {error}"))?;
+            .map_err(|source| DeclarationReaderError::Insert {
+                name: definition.name.to_string(),
+                source,
+            })?;
     }
     Ok(reader)
 }
@@ -63,7 +87,7 @@ fn declaration_reader() -> Result<macro_ron::MacroSet, String> {
 /// # Errors
 ///
 /// Returns an error if an embedded declaration meta-macro is invalid.
-pub fn declaration_macro_set() -> Result<macro_ron::MacroSet, String> {
+pub fn declaration_macro_set() -> Result<macro_ron::MacroSet, DeclarationReaderError> {
     declaration_reader()
 }
 
@@ -1304,6 +1328,12 @@ pub enum ValidationError {
 /// A path-authenticated read or validation failure.
 #[derive(Debug, thiserror::Error)]
 pub enum ReadError {
+    #[error("building declaration reader for `{path}`: {source}")]
+    Reader {
+        path: PathBuf,
+        #[source]
+        source: Box<DeclarationReaderError>,
+    },
     #[error("reading `{path}`: {source}")]
     Io {
         path: PathBuf,
@@ -1329,7 +1359,8 @@ impl ReadError {
     #[must_use]
     pub fn path(&self) -> &Path {
         match self {
-            ReadError::Io { path, .. }
+            ReadError::Reader { path, .. }
+            | ReadError::Io { path, .. }
             | ReadError::Parse { path, .. }
             | ReadError::Validate { path, .. } => path,
         }
@@ -1338,7 +1369,7 @@ impl ReadError {
     #[must_use]
     pub fn position(&self) -> Option<SourcePosition> {
         match self {
-            ReadError::Io { .. } => None,
+            ReadError::Reader { .. } | ReadError::Io { .. } => None,
             ReadError::Parse { source, .. } => Some(SourcePosition {
                 line: source.span.start.line,
                 column: source.span.start.col,
@@ -1351,7 +1382,7 @@ impl ReadError {
     pub fn validation(&self) -> Option<&ValidationError> {
         match self {
             ReadError::Validate { source, .. } => Some(source),
-            ReadError::Io { .. } | ReadError::Parse { .. } => None,
+            ReadError::Reader { .. } | ReadError::Io { .. } | ReadError::Parse { .. } => None,
         }
     }
 }
@@ -1602,8 +1633,9 @@ pub fn read_str(
     source: &str,
 ) -> Result<NormalizedDeclaration, ReadError> {
     let path = path.into();
-    let reader = declaration_reader().map_err(|reason| {
-        source_map_parse_error(&path, SourcePosition { line: 1, column: 1 }, &reason)
+    let reader = declaration_reader().map_err(|source| ReadError::Reader {
+        path: path.clone(),
+        source: Box::new(source),
     })?;
     read_mapped(&reader, path, source).map(|mapped| mapped.declaration)
 }
@@ -1657,7 +1689,10 @@ fn read_sources_mapped(
             || PathBuf::from("<declarations>"),
             |source| source.path.clone(),
         );
-        source_map_parse_error(&path, SourcePosition { line: 1, column: 1 }, &reason)
+        ReadError::Reader {
+            path,
+            source: Box::new(reason),
+        }
     })?;
     sources.sort_by(|left, right| left.path.cmp(&right.path));
     let mut first_by_identity: HashMap<DeclarationIdentity, PathBuf> = HashMap::new();

@@ -1,8 +1,7 @@
+use crate::CatalogError;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
-use anyhow::Context;
-use anyhow::bail;
 use regex::Regex;
 
 use crate::CatalogKind;
@@ -22,7 +21,7 @@ pub(crate) struct ExtractedCatalogs {
     pub(crate) supertypes: BTreeSet<String>,
 }
 
-pub(crate) fn extract(cr: &str) -> anyhow::Result<BTreeMap<CatalogKind, BTreeSet<String>>> {
+pub(crate) fn extract(cr: &str) -> Result<BTreeMap<CatalogKind, BTreeSet<String>>, CatalogError> {
     let extracted = extract_shared(cr)?;
     let lines: Vec<&str> = cr.lines().map(|line| line.trim_end_matches('\r')).collect();
     let mut catalogs = BTreeMap::new();
@@ -45,7 +44,7 @@ pub(crate) fn extract(cr: &str) -> anyhow::Result<BTreeMap<CatalogKind, BTreeSet
     Ok(catalogs)
 }
 
-pub(crate) fn extract_shared(cr: &str) -> anyhow::Result<ExtractedCatalogs> {
+pub(crate) fn extract_shared(cr: &str) -> Result<ExtractedCatalogs, CatalogError> {
     let lines: Vec<&str> = cr.lines().map(|line| line.trim_end_matches('\r')).collect();
     Ok(ExtractedCatalogs {
         ability_words: parse_list_rule(
@@ -115,7 +114,11 @@ pub(crate) fn extract_shared(cr: &str) -> anyhow::Result<ExtractedCatalogs> {
     })
 }
 
-fn numbered_rule<'a>(lines: &'a [&str], number: &str, catalog: &str) -> anyhow::Result<&'a str> {
+fn numbered_rule<'a>(
+    lines: &'a [&str],
+    number: &str,
+    catalog: &str,
+) -> Result<&'a str, CatalogError> {
     let prefix = format!("{number} ");
     let matches: Vec<&str> = lines
         .iter()
@@ -123,17 +126,21 @@ fn numbered_rule<'a>(lines: &'a [&str], number: &str, catalog: &str) -> anyhow::
         .collect();
     match matches.as_slice() {
         [text] => Ok(*text),
-        _ => bail!(
-            "{catalog}: expected one {number} body rule, found {}",
-            matches.len()
-        ),
+        _ => Err(CatalogError::RuleCount {
+            catalog: catalog.into(),
+            rule: number.into(),
+            found: matches.len(),
+        }),
     }
 }
 
-fn sentence_after<'a>(text: &'a str, lead: &str, catalog: &str) -> anyhow::Result<&'a str> {
+fn sentence_after<'a>(text: &'a str, lead: &str, catalog: &str) -> Result<&'a str, CatalogError> {
     let (_, tail) = text
         .split_once(lead)
-        .with_context(|| format!("{catalog}: expected {lead:?}"))?;
+        .ok_or_else(|| CatalogError::MissingLead {
+            catalog: catalog.into(),
+            lead: lead.into(),
+        })?;
     let mut parenthesis_depth = 0_u32;
     for (index, character) in tail.char_indices() {
         match character {
@@ -143,7 +150,9 @@ fn sentence_after<'a>(text: &'a str, lead: &str, catalog: &str) -> anyhow::Resul
             _ => {}
         }
     }
-    bail!("{catalog}: expected list sentence to end with a period")
+    Err(CatalogError::UnterminatedList {
+        catalog: catalog.into(),
+    })
 }
 
 fn normalize_name(name: &str) -> String {
@@ -157,17 +166,22 @@ fn normalize_name(name: &str) -> String {
     })
 }
 
-fn english_list(source: &str, catalog: &str) -> anyhow::Result<BTreeSet<String>> {
+fn english_list(source: &str, catalog: &str) -> Result<BTreeSet<String>, CatalogError> {
     let parenthetical = Regex::new(r"\s*\([^)]*\)").expect("fixed parenthetical regex");
     let source = parenthetical.replace_all(source, "");
     let source = source.replace(", and ", ", ");
     let values = source.split(',').map(normalize_name).collect::<Vec<_>>();
     if let Some(index) = values.iter().position(String::is_empty) {
-        bail!("{catalog}: blank CR list member at position {}", index + 1);
+        return Err(CatalogError::BlankListMember {
+            catalog: catalog.into(),
+            position: index + 1,
+        });
     }
     let values = values.into_iter().collect::<BTreeSet<_>>();
     if values.is_empty() {
-        bail!("{catalog}: empty CR list");
+        return Err(CatalogError::EmptyList {
+            catalog: catalog.into(),
+        });
     }
     Ok(values)
 }
@@ -177,7 +191,7 @@ fn parse_list_rule(
     number: &str,
     lead: &str,
     catalog: &str,
-) -> anyhow::Result<BTreeSet<String>> {
+) -> Result<BTreeSet<String>, CatalogError> {
     let text = numbered_rule(lines, number, catalog)?;
     english_list(sentence_after(text, lead, catalog)?, catalog)
 }
@@ -187,7 +201,7 @@ fn parse_subtype_rule(
     number: &str,
     category: &str,
     catalog: &str,
-) -> anyhow::Result<BTreeSet<String>> {
+) -> Result<BTreeSet<String>, CatalogError> {
     parse_list_rule(
         lines,
         number,
@@ -196,7 +210,7 @@ fn parse_subtype_rule(
     )
 }
 
-fn parse_creature_types(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
+fn parse_creature_types(lines: &[&str]) -> Result<BTreeSet<String>, CatalogError> {
     const CATALOG: &str = "creature-types";
     let text = numbered_rule(
         lines, "205.3m", // cite: noncompliant-line -- machine-readable parser key
@@ -217,7 +231,7 @@ fn parse_creature_types(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
     Ok(values)
 }
 
-fn parse_battle_type(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
+fn parse_battle_type(lines: &[&str]) -> Result<BTreeSet<String>, CatalogError> {
     const CATALOG: &str = "battle-types";
     let text = numbered_rule(
         lines, "205.3q", // cite: noncompliant-line -- machine-readable parser key
@@ -235,7 +249,7 @@ fn parse_headings(
     section_title: &str,
     compound_names: &[&str],
     catalog: &str,
-) -> anyhow::Result<BTreeSet<String>> {
+) -> Result<BTreeSet<String>, CatalogError> {
     let section_prefix = format!("{section}.");
     let heading = Regex::new(r"^([0-9]+)\. (.+)$").expect("fixed heading regex");
     let body_rule = Regex::new(r"^[0-9]+[a-z]+ ").expect("fixed body-rule regex");
@@ -247,33 +261,57 @@ fn parse_headings(
         };
         if let Some(title) = candidate.strip_prefix(' ') {
             if title != section_title {
-                bail!(
-                    "{catalog}: expected {section}. {section_title}, found section-title lookalike {line:?}"
-                );
+                return Err(CatalogError::SectionTitle {
+                    catalog: catalog.into(),
+                    section,
+                    title: section_title.into(),
+                    line: (*line).into(),
+                });
             }
             continue;
         }
         if body_rule.is_match(candidate) {
             continue;
         }
-        let captures = heading
-            .captures(candidate)
-            .with_context(|| format!("{catalog}: malformed {section} keyword heading {line:?}"))?;
+        let captures =
+            heading
+                .captures(candidate)
+                .ok_or_else(|| CatalogError::MalformedHeading {
+                    catalog: catalog.into(),
+                    section,
+                    line: (*line).into(),
+                })?;
         let number = captures[1]
             .parse::<u16>()
-            .with_context(|| format!("{catalog}: invalid {section} heading number in {line:?}"))?;
+            .map_err(|source| CatalogError::HeadingNumber {
+                catalog: catalog.into(),
+                section,
+                line: (*line).into(),
+                source,
+            })?;
         if number == 0 {
-            bail!("{catalog}: invalid {section}.0 heading");
+            return Err(CatalogError::ZeroHeading {
+                catalog: catalog.into(),
+                section,
+            });
         }
         if !heading_numbers.insert(number) {
-            bail!("{catalog}: duplicate {section}.{number} heading");
+            return Err(CatalogError::DuplicateHeading {
+                catalog: catalog.into(),
+                section,
+                number,
+            });
         }
         if number == 1 {
             continue;
         }
         let name = &captures[2];
         if normalize_name(name).is_empty() {
-            bail!("{catalog}: blank {section}.{number} heading name");
+            return Err(CatalogError::BlankHeading {
+                catalog: catalog.into(),
+                section,
+                number,
+            });
         }
         if compound_names.contains(&name) {
             values.extend(name.split(" and ").map(normalize_name));
@@ -284,12 +322,15 @@ fn parse_headings(
         }
     }
     if values.is_empty() {
-        bail!("{catalog}: found no {section} keyword headings");
+        return Err(CatalogError::MissingHeadings {
+            catalog: catalog.into(),
+            section,
+        });
     }
     Ok(values)
 }
 
-fn parse_counter_kind_phrases(lines: &[&str]) -> anyhow::Result<BTreeSet<String>> {
+fn parse_counter_kind_phrases(lines: &[&str]) -> Result<BTreeSet<String>, CatalogError> {
     let listed = sentence_after(
         numbered_rule(
             lines,
@@ -301,7 +342,7 @@ fn parse_counter_kind_phrases(lines: &[&str]) -> anyhow::Result<BTreeSet<String>
     )?;
     let concrete = listed
         .strip_suffix(", as well as any variants of those keywords")
-        .context("counter-kind-phrases: expected open-variant suffix")?;
+        .ok_or(CatalogError::MissingCounterSuffix)?;
     let mut values = english_list(concrete, "counter-kind-phrases")?;
     values.retain(|value| value.split_whitespace().count() > 1);
     Ok(values)

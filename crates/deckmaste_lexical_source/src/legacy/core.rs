@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::Path;
 
-use anyhow::Context;
+use crate::LoadError;
 use deckmaste_construction_core as construction;
 use deckmaste_construction_core::macro_def as metadata;
 use deckmaste_lexical::Capitalization;
@@ -29,10 +28,16 @@ pub(crate) fn load(
     root: &Path,
     output: &mut LexicalSources,
     paradigms: &mut BTreeMap<String, crate::native::Paradigm>,
-) -> anyhow::Result<()> {
-    let text = fs::read_to_string(root.join(VOCABULARY_PATH))?;
-    let invocation = construction::invocation_from_source(&text)?;
-    let declarations = construction::parse_declarations(invocation.tokens)?;
+) -> Result<(), LoadError> {
+    let path = root.join(VOCABULARY_PATH);
+    let text = crate::error::read(&path)?;
+    let invocation =
+        construction::invocation_from_source(&text).map_err(|source| LoadError::Vocabulary {
+            path: path.clone(),
+            source,
+        })?;
+    let declarations = construction::parse_declarations(invocation.tokens)
+        .map_err(|source| LoadError::Vocabulary { path, source })?;
     for declaration in declarations.declarations {
         match declaration {
             construction::Declaration::Vocab(vocab) => export_vocab(vocab, output),
@@ -47,13 +52,15 @@ pub(crate) fn load(
                 .ok()
                 .map(|verbs| (path, verbs))
         });
-    let (path, verbs) = inventories
-        .next()
-        .context("no authored core verb inventory found in the transitional source tree")?;
-    anyhow::ensure!(
-        inventories.next().is_none(),
-        "multiple authored core verb inventories found in the transitional source tree"
-    );
+    let (path, verbs) = inventories.next().ok_or(LoadError::MissingVerbInventory)?;
+    if let Some((other, _)) = inventories.next() {
+        return Err(LoadError::MultipleVerbInventories {
+            paths: std::iter::once(path)
+                .chain(std::iter::once(other))
+                .chain(inventories.map(|(path, _)| path))
+                .collect(),
+        });
+    }
     let provenance = path.strip_prefix(root).unwrap_or(&path).to_string_lossy();
     for verb in verbs {
         let paradigm = paradigms.remove(&format!("core-verb:{}", verb.identity.0));
@@ -137,7 +144,7 @@ fn export_vocab(vocab: construction::Vocab, output: &mut LexicalSources) {
 fn export_noun(
     declaration: construction::Lexeme,
     output: &mut LexicalSources,
-) -> anyhow::Result<()> {
+) -> Result<(), LoadError> {
     let inventory = declaration.name.to_string();
     if inventory != "CommonNoun" || declaration.morphology != "EnglishNoun" {
         for member in declaration.members {
@@ -164,7 +171,12 @@ fn export_noun(
             Some("Count") => vec![Countability::Count],
             Some("Mass") => vec![Countability::Mass],
             Some("Both") => vec![Countability::Count, Countability::Mass],
-            other => anyhow::bail!("{owner}: unmapped declared countability {other:?}"),
+            other => {
+                return Err(LoadError::Countability {
+                    owner,
+                    value: other.map(str::to_owned),
+                });
+            }
         };
         let mut lexeme = Lexeme::noun(
             &owner,
@@ -177,13 +189,21 @@ fn export_noun(
             let form = match replacement.feature.to_string().as_str() {
                 "Singular" => WordForm::Singular,
                 "Plural" => WordForm::Plural,
-                other => anyhow::bail!("{owner}: unmapped noun inflection {other}"),
+                other => {
+                    return Err(LoadError::NounInflection {
+                        owner,
+                        value: other.into(),
+                    });
+                }
             };
             let slot = lexeme
                 .forms
                 .iter_mut()
                 .find(|slot| slot.form == form)
-                .with_context(|| format!("{owner}: override for unavailable {form:?}"))?;
+                .ok_or_else(|| LoadError::UnavailableForm {
+                    owner: owner.clone(),
+                    form,
+                })?;
             slot.surfaces = Some(vec![replacement.surface.value()]);
         }
         output.lexemes.push(lexeme);

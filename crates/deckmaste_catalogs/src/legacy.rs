@@ -1,11 +1,12 @@
+use crate::CatalogError;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fs;
 use std::io::BufRead;
 use std::path::Path;
 
-use anyhow::Context;
-use anyhow::bail;
+use crate::error::IoContext;
+
 use deckmaste_data::scryfall::OracleCardReader;
 
 use crate::cr;
@@ -94,7 +95,7 @@ impl LegacyCatalogSet {
     ///
     /// Returns an error when the CR or Scryfall Oracle Cards input is malformed
     /// or the complete legacy inventory cannot be built.
-    pub fn generate(cr: &str, oracle_cards: impl BufRead) -> anyhow::Result<Self> {
+    pub fn generate(cr: &str, oracle_cards: impl BufRead) -> Result<Self, CatalogError> {
         let extracted = cr::extract_shared(cr)?;
         let mut entries = BTreeMap::from([
             (LegacyCatalogKind::AbilityWords, extracted.ability_words),
@@ -131,10 +132,12 @@ impl LegacyCatalogSet {
             .collect();
         let abilities = entries
             .get_mut(&LegacyCatalogKind::KeywordAbilities)
-            .context("legacy catalog set has no keyword-abilities catalog")?;
+            .ok_or_else(|| CatalogError::MissingCatalog {
+                catalog: "keyword-abilities".into(),
+            })?;
 
         for card in OracleCardReader::new(oracle_cards) {
-            let card = card.context("parsing Scryfall Oracle Cards JSONL")?;
+            let card = card?;
             if card.vintage_playable() {
                 for unit in card.oracle_units() {
                     for keyword in unit.keywords() {
@@ -160,7 +163,7 @@ impl LegacyCatalogSet {
     pub fn load(
         generated_dir: impl AsRef<Path>,
         scryfall_dir: impl AsRef<Path>,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, CatalogError> {
         let generated_dir = generated_dir.as_ref();
         let mut entries = BTreeMap::new();
         for kind in LegacyCatalogKind::GENERATED {
@@ -173,10 +176,14 @@ impl LegacyCatalogSet {
         let flavor_path = scryfall_dir
             .as_ref()
             .join(LegacyCatalogKind::FlavorWords.filename());
-        let flavor_bytes =
-            fs::read(&flavor_path).with_context(|| format!("reading {}", flavor_path.display()))?;
-        let flavor_catalog = deckmaste_data::scryfall::Catalog::parse(&flavor_bytes)
-            .with_context(|| format!("parsing {}", flavor_path.display()))?;
+        let flavor_bytes = fs::read(&flavor_path).at("reading", &flavor_path)?;
+        let flavor_catalog =
+            deckmaste_data::scryfall::Catalog::parse(&flavor_bytes).map_err(|source| {
+                CatalogError::Json {
+                    path: flavor_path,
+                    source,
+                }
+            })?;
         entries.insert(
             LegacyCatalogKind::FlavorWords,
             flavor_catalog
@@ -195,7 +202,7 @@ impl LegacyCatalogSet {
     /// # Errors
     ///
     /// Returns an error when rendering, staging, or replacing the output fails.
-    pub fn write_to(&self, output: impl AsRef<Path>) -> anyhow::Result<()> {
+    pub fn write_to(&self, output: impl AsRef<Path>) -> Result<(), CatalogError> {
         io::write_line_directory(
             output.as_ref(),
             LegacyCatalogKind::GENERATED
@@ -212,10 +219,12 @@ impl LegacyCatalogSet {
     /// Returns an error naming the first missing legacy catalog.
     pub fn from_entries(
         catalogs: BTreeMap<LegacyCatalogKind, BTreeSet<String>>,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, CatalogError> {
         for kind in LegacyCatalogKind::ALL {
             if !catalogs.contains_key(&kind) {
-                bail!("missing {} catalog", kind.filename());
+                return Err(CatalogError::MissingCatalog {
+                    catalog: kind.filename().into(),
+                });
             }
         }
         Ok(Self { catalogs })

@@ -11,7 +11,7 @@ use std::io::BufReader;
 use std::path::Path;
 use std::sync::LazyLock;
 
-use anyhow::Context;
+use crate::ExtractError;
 use deckmaste_catalogs::CatalogSet;
 use deckmaste_core::plugin::card_file;
 use deckmaste_data::DataStr;
@@ -193,8 +193,8 @@ fn this_self_ref_to_tilde(text: &str) -> String {
     THIS_NOUN.replace_all(text, "~").into_owned()
 }
 
-fn ron_color(code: &str) -> anyhow::Result<Color> {
-    Color::from_code(code).ok_or_else(|| anyhow::anyhow!("unrecognized color indicator: {code:?}"))
+fn ron_color(code: &str) -> Result<Color, ExtractError> {
+    Color::from_code(code).ok_or_else(|| ExtractError::ColorIndicator { code: code.into() })
 }
 
 /// One derived type/subtype/supertype name → a bare-ident `RawIdent`
@@ -239,10 +239,12 @@ impl ExtractFace {
     fn from_unit(
         unit: deckmaste_data::scryfall::OracleUnit<'_>,
         catalogs: &CatalogSet,
-    ) -> anyhow::Result<Self> {
+    ) -> Result<Self, ExtractError> {
         let type_line = unit
             .type_line()
-            .context("Scryfall Oracle unit has no type_line")?;
+            .ok_or_else(|| ExtractError::MissingTypeLine {
+                name: unit.display_name().into(),
+            })?;
         let parts = catalogs.parse_type_line(type_line)?;
         Ok(Self {
             name: unit.display_name().to_owned(),
@@ -266,7 +268,10 @@ impl ExtractFace {
 ///
 /// # Errors
 /// If the mana cost or a color indicator fails to parse.
-fn face(card: &ExtractFace, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result<TodoCardFace> {
+fn face(
+    card: &ExtractFace,
+    keyword_abilities: &[DataStr<'_>],
+) -> Result<TodoCardFace, ExtractError> {
     let face_name = card.name.as_str();
     let is_legendary = card.supertypes.iter().any(|t| t == "Legendary");
     let abilities = card.text.as_deref().map_or_else(Vec::new, |text| {
@@ -291,7 +296,11 @@ fn face(card: &ExtractFace, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result
             .mana_cost
             .as_deref()
             .map(str::parse)
-            .transpose()?
+            .transpose()
+            .map_err(|source| ExtractError::ManaCost {
+                name: face_name.into(),
+                source,
+            })?
             .unwrap_or_default(),
         color_indicator: card
             .color_indicator
@@ -299,7 +308,7 @@ fn face(card: &ExtractFace, keyword_abilities: &[DataStr<'_>]) -> anyhow::Result
             .unwrap_or_default()
             .iter()
             .map(|c| ron_color(c))
-            .collect::<anyhow::Result<_>>()?,
+            .collect::<Result<_, ExtractError>>()?,
         supertypes: card.supertypes.iter().map(|t| ident(t)).collect(),
         types: card.types.iter().map(|t| ident(t)).collect(),
         subtypes: card.subtypes.iter().map(|t| ident(t)).collect(),
@@ -322,7 +331,7 @@ fn todo_card(
     layout: &str,
     faces: &[ExtractFace],
     keyword_abilities: &[DataStr<'_>],
-) -> anyhow::Result<Option<TodoCard>> {
+) -> Result<Option<TodoCard>, ExtractError> {
     Ok(match (layout, faces) {
         ("normal", [f]) => Some(TodoCard::Normal(face(f, keyword_abilities)?)),
         ("modal_dfc", [front, back]) => Some(TodoCard::TwoFaced {
@@ -339,20 +348,26 @@ fn todo_card(
 ///
 /// # Errors
 /// If the Scryfall/keyword data is unreadable or a card fails to render.
-pub fn extract_cards(plugin_dir: &Path) -> anyhow::Result<()> {
+pub fn extract_cards(plugin_dir: &Path) -> Result<(), ExtractError> {
     let layout = crate::layout::PluginLayout::new(plugin_dir)?;
     let cards_dir = layout.cards_dir()?;
     let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
     let oracle_path = data_root.join("scryfall/oracle-cards.jsonl");
-    let oracle =
-        File::open(&oracle_path).with_context(|| format!("opening {}", oracle_path.display()))?;
+    let oracle = File::open(&oracle_path).map_err(|source| ExtractError::Io {
+        operation: "opening",
+        path: oracle_path.clone(),
+        source,
+    })?;
     let catalogs = CatalogSet::load(data_root.join("gen/catalogs"))?;
     let keywords_bytes = deckmaste_data::academyruins::keywords_bytes()?;
     let keyword_abilities =
         deckmaste_data::academyruins::Keywords::parse(&keywords_bytes)?.keyword_abilities;
 
     for card in OracleCardReader::new(BufReader::new(oracle)) {
-        let card = card.with_context(|| format!("reading {}", oracle_path.display()))?;
+        let card = card.map_err(|source| ExtractError::Oracle {
+            path: oracle_path.clone(),
+            source,
+        })?;
         if !card.vintage_playable() {
             continue;
         }
@@ -364,12 +379,15 @@ pub fn extract_cards(plugin_dir: &Path) -> anyhow::Result<()> {
         let faces = card
             .oracle_units()
             .map(|unit| ExtractFace::from_unit(unit, &catalogs))
-            .collect::<anyhow::Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>, ExtractError>>()?;
         let Some(card) = todo_card(&card.layout, &faces, &keyword_abilities)? else {
             continue;
         };
-        std::fs::write(&todo_path, render(&card)?)
-            .with_context(|| format!("writing {}", todo_path.display()))?;
+        std::fs::write(&todo_path, render(&card)?).map_err(|source| ExtractError::Io {
+            operation: "writing",
+            path: todo_path.clone(),
+            source,
+        })?;
         eprintln!("wrote {}", todo_path.display());
     }
     Ok(())
@@ -397,6 +415,28 @@ mod tests {
     }
 
     /// `stat_value` is the only branchy conversion; pin every arm.
+    #[test]
+    fn invalid_face_fields_are_structured_errors() {
+        let mut card = creature(None);
+        card.color_indicator = Some(vec!["invalid".into()]);
+        match face(&card, &[]).unwrap_err() {
+            ExtractError::ColorIndicator { code } => assert_eq!(code, "invalid"),
+            other => panic!("{other:?}"),
+        }
+        card.color_indicator = None;
+        card.mana_cost = Some("{invalid}".into());
+        let error = face(&card, &[]).unwrap_err();
+        match &error {
+            ExtractError::ManaCost { name, .. } => assert_eq!(name, &card.name),
+            other => panic!("{other:?}"),
+        }
+        assert!(
+            std::error::Error::source(&error)
+                .unwrap()
+                .is::<deckmaste_semantics::ParseManaError>()
+        );
+    }
+
     #[test]
     fn stat_value_branches() {
         assert_eq!(stat_value("2"), StatValue::Number(2));

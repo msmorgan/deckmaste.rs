@@ -469,10 +469,11 @@ dependencies = [
 name = "deckmaste_catalogs"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "deckmaste_data",
  "regex",
+ "serde_json",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]
@@ -551,9 +552,9 @@ dependencies = [
 name = "deckmaste_data"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
 ]
 
@@ -652,13 +653,15 @@ dependencies = [
 name = "deckmaste_lexical_source"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "deckmaste_catalogs",
  "deckmaste_construction_core",
  "deckmaste_lexical",
  "macro_ron",
  "ron",
  "serde",
+ "syn 2.0.117",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]
@@ -690,6 +693,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]

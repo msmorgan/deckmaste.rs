@@ -1,3 +1,4 @@
+use crate::CatalogError;
 use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fmt;
@@ -5,7 +6,7 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::Context;
+use crate::error::IoContext;
 
 /// Differences between immediate entries in two catalog directories.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -51,7 +52,7 @@ impl fmt::Display for DirectoryDiff {
 pub fn compare_directories(
     expected: impl AsRef<Path>,
     actual: impl AsRef<Path>,
-) -> anyhow::Result<DirectoryDiff> {
+) -> Result<DirectoryDiff, CatalogError> {
     let expected = expected.as_ref();
     let actual = actual.as_ref();
     let expected_names = directory_names(expected)?;
@@ -74,27 +75,33 @@ pub fn compare_directories(
         let expected_path = expected.join(name);
         let actual_path = actual.join(name);
         let expected_is_file = fs::symlink_metadata(&expected_path)
-            .with_context(|| format!("reading expected entry {}", expected_path.display()))?
+            .at("reading expected entry", &expected_path)?
             .file_type()
             .is_file();
         let actual_is_file = fs::symlink_metadata(&actual_path)
-            .with_context(|| format!("reading actual entry {}", actual_path.display()))?
+            .at("reading actual entry", &actual_path)?
             .file_type()
             .is_file();
 
         match (expected_is_file, actual_is_file) {
             (true, true) => {
-                if fs::read(&expected_path)
-                    .with_context(|| format!("reading expected file {}", expected_path.display()))?
-                    != fs::read(&actual_path)
-                        .with_context(|| format!("reading actual file {}", actual_path.display()))?
+                if fs::read(&expected_path).at("reading expected file", &expected_path)?
+                    != fs::read(&actual_path).at("reading actual file", &actual_path)?
                 {
                     diff.changed.push(PathBuf::from(name));
                 }
             }
-            (false, false) => anyhow::bail!("shared non-file entry {}", Path::new(name).display()),
+            (false, false) => {
+                return Err(CatalogError::SharedNonFile {
+                    path: expected_path,
+                });
+            }
             (true, false) => diff.unexpected.push(PathBuf::from(name)),
-            (false, true) => anyhow::bail!("expected non-file entry {}", Path::new(name).display()),
+            (false, true) => {
+                return Err(CatalogError::ExpectedNonFile {
+                    path: expected_path,
+                });
+            }
         }
     }
 
@@ -104,13 +111,13 @@ pub fn compare_directories(
     Ok(diff)
 }
 
-fn directory_names(directory: &Path) -> anyhow::Result<BTreeSet<OsString>> {
+fn directory_names(directory: &Path) -> Result<BTreeSet<OsString>, CatalogError> {
     fs::read_dir(directory)
-        .with_context(|| format!("reading catalog directory {}", directory.display()))?
+        .at("reading catalog directory", directory)?
         .map(|entry| {
             entry
                 .map(|entry| entry.file_name())
-                .with_context(|| format!("reading entry in {}", directory.display()))
+                .at("reading directory entry", directory)
         })
         .collect()
 }

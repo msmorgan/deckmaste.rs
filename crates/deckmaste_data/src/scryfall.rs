@@ -3,7 +3,6 @@ use std::fmt;
 use std::io;
 use std::io::BufRead;
 
-use anyhow::Context;
 use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
@@ -35,7 +34,7 @@ impl<'a> Catalog<'a> {
 /// # Errors
 ///
 /// Returns an error when the named catalog snapshot cannot be read.
-pub fn catalog_bytes(name: &str) -> anyhow::Result<Vec<u8>> {
+pub fn catalog_bytes(name: &str) -> Result<Vec<u8>, crate::DataError> {
     DataRoot::workspace_default().read(format!("catalogs/{name}.json"))
 }
 
@@ -616,13 +615,15 @@ impl<R: BufRead> Iterator for OracleCardReader<R> {
 /// # Errors
 ///
 /// Returns an error when `data/scryfall/oracle-cards.jsonl` cannot be opened.
-pub fn oracle_cards() -> anyhow::Result<OracleCardReader<io::BufReader<std::fs::File>>> {
+pub fn oracle_cards() -> Result<OracleCardReader<io::BufReader<std::fs::File>>, crate::DataError> {
     let path = DataRoot::workspace_default()
         .0
         .join("scryfall/oracle-cards.jsonl");
-    let file = std::fs::File::open(&path)
-        .map_err(anyhow::Error::from)
-        .with_context(|| format!("opening {}", path.display()))?;
+    let file = std::fs::File::open(&path).map_err(|source| crate::DataError::Io {
+        operation: "opening",
+        path,
+        source,
+    })?;
     Ok(OracleCardReader::new(io::BufReader::new(file)))
 }
 

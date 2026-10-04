@@ -1,7 +1,6 @@
-use std::fs;
 use std::path::Path;
 
-use anyhow::Context;
+use crate::LoadError;
 use deckmaste_construction_core::macro_def as metadata;
 use deckmaste_lexical::Binding;
 use deckmaste_lexical::Capitalization;
@@ -21,15 +20,16 @@ use deckmaste_lexical::WordForm;
 use crate::LexicalSources;
 use crate::source;
 
-pub(crate) fn load(root: &Path, output: &mut LexicalSources) -> anyhow::Result<()> {
+pub(crate) fn load(root: &Path, output: &mut LexicalSources) -> Result<(), LoadError> {
     let declarations = metadata::read_builtin_v2(root.join("plugins_v2/builtin"))?;
-    let reader = metadata::declaration_macro_set().map_err(anyhow::Error::msg)?;
+    let reader = metadata::declaration_macro_set()?;
     for normalized in declarations {
         let path = normalized.provenance().path();
-        let text = fs::read_to_string(path)?;
+        let text = crate::error::read(path)?;
         let definition: macro_ron::MacroDef<metadata::Metadata> =
-            reader.read_str(&text).with_context(|| {
-                format!("reading authored lexical metadata from {}", path.display())
+            reader.read_str(&text).map_err(|source| LoadError::Decode {
+                path: path.into(),
+                source: Box::new(source),
             })?;
         let owner = format!(
             "lexeme:{}/{}",

@@ -149,7 +149,7 @@ pub enum TodoCard {
 ///
 /// Returns an error if the value cannot be serialized as RON (e.g. a `Parsed`
 /// ability holding text that is not valid RON).
-pub fn render(card: &TodoCard) -> anyhow::Result<String> {
+pub fn render(card: &TodoCard) -> Result<String, ron::Error> {
     Ok(crate::ron_output::to_string_pretty(card)? + "\n")
 }
 

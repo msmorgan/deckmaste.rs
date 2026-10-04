@@ -33,7 +33,7 @@ impl<'a> Keywords<'a> {
 /// # Errors
 ///
 /// Returns an error when the configured keyword-list snapshot cannot be read.
-pub fn keywords_bytes() -> anyhow::Result<Vec<u8>> {
+pub fn keywords_bytes() -> Result<Vec<u8>, crate::DataError> {
     DataRoot::workspace_default().read("rules/keywords.json")
 }
 

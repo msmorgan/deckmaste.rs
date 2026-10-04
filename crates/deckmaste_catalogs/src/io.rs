@@ -1,3 +1,4 @@
+use crate::CatalogError;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::env;
@@ -7,10 +8,11 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::Context;
+use crate::error::IoContext;
 
 use crate::CatalogKind;
 use crate::CatalogSet;
+use crate::OutputProblem;
 
 impl CatalogSet {
     /// Loads the complete canonical catalog inventory from plain UTF-8 line files.
@@ -19,7 +21,7 @@ impl CatalogSet {
     ///
     /// Returns an error when a required file is missing, is not UTF-8, or
     /// contains a blank entry.
-    pub fn load(directory: impl AsRef<Path>) -> anyhow::Result<Self> {
+    pub fn load(directory: impl AsRef<Path>) -> Result<Self, CatalogError> {
         let directory = directory.as_ref();
         let mut entries = BTreeMap::new();
 
@@ -38,7 +40,7 @@ impl CatalogSet {
     ///
     /// Returns an error when rendering, staging, or replacing the output directory
     /// fails. An existing output directory is restored if staging cannot replace it.
-    pub fn write_to(&self, output: impl AsRef<Path>) -> anyhow::Result<()> {
+    pub fn write_to(&self, output: impl AsRef<Path>) -> Result<(), CatalogError> {
         write_line_directory(
             output.as_ref(),
             CatalogKind::ALL
@@ -52,7 +54,7 @@ impl CatalogSet {
         &self,
         output: impl AsRef<Path>,
         place: impl FnOnce(&Path, &Path) -> io::Result<()>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), CatalogError> {
         write_line_directory_with_placement(
             output.as_ref(),
             CatalogKind::ALL
@@ -63,17 +65,15 @@ impl CatalogSet {
     }
 }
 
-pub(crate) fn read_line_catalog(path: &Path) -> anyhow::Result<BTreeSet<String>> {
-    let contents =
-        fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+pub(crate) fn read_line_catalog(path: &Path) -> Result<BTreeSet<String>, CatalogError> {
+    let contents = fs::read_to_string(path).at("reading", path)?;
     let mut catalog = BTreeSet::new();
     for (line_number, line) in contents.split_terminator('\n').enumerate() {
         if line.is_empty() {
-            anyhow::bail!(
-                "blank entry in {} at line {}",
-                path.display(),
-                line_number + 1
-            );
+            return Err(CatalogError::BlankEntry {
+                path: path.into(),
+                line: line_number + 1,
+            });
         }
         catalog.insert(line.to_owned());
     }
@@ -83,7 +83,7 @@ pub(crate) fn read_line_catalog(path: &Path) -> anyhow::Result<BTreeSet<String>>
 pub(crate) fn write_line_directory<'a>(
     output: &Path,
     entries: impl IntoIterator<Item = (&'static str, &'a BTreeSet<String>)>,
-) -> anyhow::Result<()> {
+) -> Result<(), CatalogError> {
     write_line_directory_with_placement(output, entries, |source, destination| {
         fs::rename(source, destination)
     })
@@ -93,35 +93,29 @@ fn write_line_directory_with_placement<'a>(
     output: &Path,
     entries: impl IntoIterator<Item = (&'static str, &'a BTreeSet<String>)>,
     place: impl FnOnce(&Path, &Path) -> io::Result<()>,
-) -> anyhow::Result<()> {
+) -> Result<(), CatalogError> {
     let output = validate_output(output)?;
     let parent = output
         .parent()
-        .context("catalog output must have a parent")?;
+        .ok_or_else(|| invalid_output(&output, OutputProblem::MissingParent))?;
 
     let rendered = entries
         .into_iter()
         .map(|(filename, values)| render(filename, values))
-        .collect::<anyhow::Result<Vec<_>>>()?;
+        .collect::<Result<Vec<_>, CatalogError>>()?;
     let staging = tempfile::Builder::new()
         .prefix(".catalogs-")
         .tempdir_in(parent)
-        .with_context(|| format!("creating catalog staging directory in {}", parent.display()))?;
+        .at("creating catalog staging directory", parent)?;
     for (filename, contents) in rendered {
         fs::write(staging.path().join(filename), contents)
-            .with_context(|| format!("staging {filename}"))?;
+            .at("staging", &staging.path().join(filename))?;
     }
     let staging_path = staging.keep();
 
     let backup = if output.exists() { Some(unique_backup_path(parent)?) } else { None };
     if let Some(backup) = &backup {
-        fs::rename(&output, backup).with_context(|| {
-            format!(
-                "moving existing catalog output {} aside to {}",
-                output.display(),
-                backup.display()
-            )
-        })?;
+        fs::rename(&output, backup).at("moving existing catalog output aside", &output)?;
     }
 
     if let Err(error) = place(&staging_path, &output) {
@@ -129,26 +123,32 @@ fn write_line_directory_with_placement<'a>(
             && let Err(restore_error) = fs::rename(backup, &output)
         {
             let _ = fs::remove_dir_all(&staging_path);
-            return Err(restore_error).with_context(|| {
-                format!(
-                    "restoring catalog output {} after replacement failure: {error}",
-                    output.display()
-                )
+            return Err(CatalogError::Restore {
+                output,
+                backup: backup.clone(),
+                staging: staging_path,
+                replacement: error,
+                source: restore_error,
             });
         }
         let _ = fs::remove_dir_all(&staging_path);
-        return Err(error)
-            .with_context(|| format!("moving staged catalog directory into {}", output.display()));
+        return Err(error).at("moving staged catalog directory into", &output);
     }
 
     if let Some(backup) = backup {
-        fs::remove_dir_all(&backup)
-            .with_context(|| format!("removing catalog backup {}", backup.display()))?;
+        fs::remove_dir_all(&backup).at("removing catalog backup", &backup)?;
     }
     Ok(())
 }
 
-fn validate_output(output: &Path) -> anyhow::Result<PathBuf> {
+fn invalid_output(path: &Path, problem: OutputProblem) -> CatalogError {
+    CatalogError::InvalidOutput {
+        path: path.into(),
+        problem,
+    }
+}
+
+fn validate_output(output: &Path) -> Result<PathBuf, CatalogError> {
     let parent = output
         .parent()
         .filter(|parent| !parent.as_os_str().is_empty())
@@ -156,84 +156,67 @@ fn validate_output(output: &Path) -> anyhow::Result<PathBuf> {
     let name = output
         .file_name()
         .filter(|name| !name.is_empty())
-        .context("catalog output must name a directory")?;
+        .ok_or_else(|| invalid_output(output, OutputProblem::MissingName))?;
     let parent = canonicalize_parent_allowing_missing(parent)?;
     let normalized = parent.join(name);
     let filesystem_root = normalized
         .ancestors()
         .last()
-        .context("catalog output must not be empty")?;
+        .ok_or_else(|| invalid_output(output, OutputProblem::Empty))?;
     if normalized == filesystem_root {
-        anyhow::bail!(
-            "catalog output {} must not be a filesystem root",
-            normalized.display()
-        );
+        return Err(invalid_output(&normalized, OutputProblem::FilesystemRoot));
     }
 
-    let current = fs::canonicalize(env::current_dir().context("reading current directory")?)
-        .context("canonicalizing current directory")?;
+    let current =
+        fs::canonicalize(env::current_dir().at("reading current directory", Path::new("."))?)
+            .at("canonicalizing current directory", Path::new("."))?;
     if current.starts_with(&normalized) {
-        anyhow::bail!(
-            "catalog output {} must not be the current directory or its ancestor",
-            normalized.display()
-        );
+        return Err(invalid_output(&normalized, OutputProblem::CurrentDirectory));
     }
 
     let workspace_root = fs::canonicalize(
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
             .and_then(Path::parent)
-            .context("finding project workspace root")?,
+            .ok_or_else(|| invalid_output(output, OutputProblem::WorkspaceRoot))?,
     )
-    .context("canonicalizing project workspace root")?;
+    .at(
+        "canonicalizing project workspace root",
+        Path::new(env!("CARGO_MANIFEST_DIR")),
+    )?;
     if workspace_root.starts_with(&normalized) {
-        anyhow::bail!(
-            "catalog output {} must not be the project workspace root or its ancestor",
-            normalized.display()
-        );
+        return Err(invalid_output(&normalized, OutputProblem::WorkspaceRoot));
     }
 
     match fs::symlink_metadata(&normalized) {
         Ok(metadata) if !metadata.file_type().is_dir() => {
-            anyhow::bail!(
-                "catalog output {} must be a real directory when it already exists",
-                normalized.display()
-            );
+            return Err(invalid_output(&normalized, OutputProblem::NotDirectory));
         }
         Ok(_) => {
-            for entry in fs::read_dir(&normalized)
-                .with_context(|| format!("reading catalog output {}", normalized.display()))?
-            {
-                let entry = entry.with_context(|| {
-                    format!("reading entry in catalog output {}", normalized.display())
-                })?;
+            for entry in fs::read_dir(&normalized).at("reading catalog output", &normalized)? {
+                let entry = entry.at("reading entry in catalog output", &normalized)?;
                 let path = entry.path();
                 if !fs::symlink_metadata(&path)
-                    .with_context(|| format!("reading catalog output entry {}", path.display()))?
+                    .at("reading catalog output entry", &path)?
                     .file_type()
                     .is_file()
                 {
-                    anyhow::bail!(
-                        "catalog output contains non-regular entry {}",
-                        path.display()
-                    );
+                    return Err(invalid_output(&path, OutputProblem::NonRegularEntry));
                 }
             }
         }
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
         Err(error) => {
-            return Err(error)
-                .with_context(|| format!("reading catalog output {}", normalized.display()));
+            return Err(error).at("reading catalog output", &normalized);
         }
     }
 
-    fs::create_dir_all(&parent)
-        .with_context(|| format!("creating catalog output parent {}", parent.display()))?;
+    fs::create_dir_all(&parent).at("creating catalog output parent", &parent)?;
 
     Ok(normalized)
 }
 
-fn canonicalize_parent_allowing_missing(parent: &Path) -> anyhow::Result<PathBuf> {
+fn canonicalize_parent_allowing_missing(parent: &Path) -> Result<PathBuf, CatalogError> {
     let original = parent;
     let mut ancestor = parent;
     let mut missing = Vec::<OsString>::new();
@@ -247,12 +230,9 @@ fn canonicalize_parent_allowing_missing(parent: &Path) -> anyhow::Result<PathBuf
                 return Ok(canonical);
             }
             Err(error) if error.kind() == io::ErrorKind::NotFound => {
-                let component = ancestor.file_name().with_context(|| {
-                    format!(
-                        "catalog output parent {} contains an unresolved path component",
-                        original.display()
-                    )
-                })?;
+                let component = ancestor
+                    .file_name()
+                    .ok_or_else(|| invalid_output(original, OutputProblem::UnresolvedComponent))?;
                 missing.push(component.to_owned());
                 ancestor = ancestor
                     .parent()
@@ -260,12 +240,7 @@ fn canonicalize_parent_allowing_missing(parent: &Path) -> anyhow::Result<PathBuf
                     .unwrap_or_else(|| Path::new("."));
             }
             Err(error) => {
-                return Err(error).with_context(|| {
-                    format!(
-                        "canonicalizing catalog output parent {}",
-                        original.display()
-                    )
-                });
+                return Err(error).at("canonicalizing catalog output parent", original);
             }
         }
     }
@@ -274,15 +249,20 @@ fn canonicalize_parent_allowing_missing(parent: &Path) -> anyhow::Result<PathBuf
 fn render(
     filename: &'static str,
     entries: &BTreeSet<String>,
-) -> anyhow::Result<(&'static str, String)> {
+) -> Result<(&'static str, String), CatalogError> {
     if entries.is_empty() {
-        anyhow::bail!("catalog {filename} must contain at least one entry");
+        return Err(CatalogError::EmptyCatalog {
+            catalog: filename.into(),
+        });
     }
-    if entries
+    if let Some(entry) = entries
         .iter()
-        .any(|entry| entry.is_empty() || entry.contains('\n'))
+        .find(|entry| entry.is_empty() || entry.contains('\n'))
     {
-        anyhow::bail!("catalog {filename} contains an empty or multiline entry");
+        return Err(CatalogError::InvalidEntry {
+            catalog: filename.into(),
+            entry: entry.clone(),
+        });
     }
 
     Ok((
@@ -294,15 +274,13 @@ fn render(
     ))
 }
 
-fn unique_backup_path(parent: &Path) -> anyhow::Result<PathBuf> {
+fn unique_backup_path(parent: &Path) -> Result<PathBuf, CatalogError> {
     let backup = tempfile::Builder::new()
         .prefix(".catalogs-backup-")
         .tempdir_in(parent)
-        .with_context(|| format!("creating catalog backup directory in {}", parent.display()))?;
+        .at("creating catalog backup directory", parent)?;
     let backup_path = backup.path().to_path_buf();
-    backup
-        .close()
-        .with_context(|| format!("preparing a backup location in {}", parent.display()))?;
+    backup.close().at("preparing a backup location", parent)?;
     Ok(backup_path)
 }
 
@@ -372,6 +350,18 @@ mod tests {
 
         let error = CatalogSet::load(&dir).unwrap_err();
 
+        match &error {
+            crate::CatalogError::Io { path, source, .. } => {
+                assert_eq!(path, &dir.join("battle-types.txt"));
+                assert!(
+                    std::error::Error::source(&error)
+                        .unwrap()
+                        .is::<std::io::Error>()
+                );
+                assert_eq!(source.kind(), std::io::ErrorKind::NotFound);
+            }
+            other => panic!("{other:?}"),
+        }
         assert!(error.to_string().contains("battle-types.txt"));
         assert!(
             error
@@ -393,6 +383,18 @@ mod tests {
 
         let error = CatalogSet::load(&dir).unwrap_err();
 
+        match &error {
+            crate::CatalogError::Io { path, source, .. } => {
+                assert_eq!(path, &dir.join("battle-types.txt"));
+                assert!(
+                    std::error::Error::source(&error)
+                        .unwrap()
+                        .is::<std::io::Error>()
+                );
+                assert_eq!(source.kind(), std::io::ErrorKind::InvalidData);
+            }
+            other => panic!("{other:?}"),
+        }
         assert!(error.to_string().contains("battle-types.txt"));
         assert!(
             error
@@ -414,6 +416,13 @@ mod tests {
 
         let error = CatalogSet::load(&dir).unwrap_err();
 
+        match &error {
+            crate::CatalogError::BlankEntry { path, line } => {
+                assert_eq!(path, &dir.join("battle-types.txt"));
+                assert_eq!(*line, 2);
+            }
+            other => panic!("{other:?}"),
+        }
         assert!(error.to_string().contains("battle-types.txt"));
         assert!(error.to_string().contains("line 2"));
         assert!(
@@ -561,6 +570,17 @@ mod tests {
                 .write_to(&output)
                 .unwrap_err();
 
+            match &error {
+                crate::CatalogError::EmptyCatalog { catalog } => {
+                    assert!(entries.is_empty());
+                    assert_eq!(catalog, "battle-types.txt");
+                }
+                crate::CatalogError::InvalidEntry { catalog, entry } => {
+                    assert_eq!(catalog, "battle-types.txt");
+                    assert!(entries.contains(entry));
+                }
+                other => panic!("{other:?}"),
+            }
             assert!(error.to_string().contains("battle-types.txt"));
             assert!(!output.exists());
         }

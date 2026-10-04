@@ -1,8 +1,7 @@
+use crate::CatalogError;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::io::BufRead;
-
-use anyhow::bail;
 
 use crate::CatalogKind;
 use crate::cards;
@@ -30,7 +29,7 @@ impl CatalogSet {
     ///
     /// Returns an error when an authoritative input is malformed or cannot
     /// produce the complete canonical inventory.
-    pub fn generate(cr: &str, oracle_cards: impl BufRead) -> anyhow::Result<Self> {
+    pub fn generate(cr: &str, oracle_cards: impl BufRead) -> Result<Self, CatalogError> {
         let mut entries = cr::extract(cr)?;
         entries.insert(CatalogKind::CardNames, cards::extract(oracle_cards)?);
         Self::from_entries(entries)
@@ -41,10 +40,14 @@ impl CatalogSet {
     /// # Errors
     ///
     /// Returns an error naming the first missing catalog kind.
-    pub fn from_entries(catalogs: BTreeMap<CatalogKind, BTreeSet<String>>) -> anyhow::Result<Self> {
+    pub fn from_entries(
+        catalogs: BTreeMap<CatalogKind, BTreeSet<String>>,
+    ) -> Result<Self, CatalogError> {
         for kind in CatalogKind::ALL {
             if !catalogs.contains_key(&kind) {
-                bail!("missing {} catalog", kind.filename());
+                return Err(CatalogError::MissingCatalog {
+                    catalog: kind.filename().into(),
+                });
             }
         }
         Ok(Self { catalogs })
@@ -66,7 +69,7 @@ impl CatalogSet {
     ///
     /// Returns an error when the type line has no card-type token or a
     /// subtype sequence cannot be partitioned into declared multiword labels.
-    pub fn parse_type_line(&self, type_line: &str) -> anyhow::Result<TypeLineParts> {
+    pub fn parse_type_line(&self, type_line: &str) -> Result<TypeLineParts, CatalogError> {
         let (left, right) = type_line
             .split_once(" — ")
             .map_or((type_line, None), |(left, right)| (left, Some(right)));
@@ -86,7 +89,9 @@ impl CatalogSet {
             }
         }
         if card_types.is_empty() {
-            bail!("type line {type_line:?} contains no declared card type");
+            return Err(CatalogError::MissingCardType {
+                type_line: type_line.into(),
+            });
         }
 
         let subtype_catalogs = [

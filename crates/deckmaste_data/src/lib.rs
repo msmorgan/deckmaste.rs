@@ -4,7 +4,17 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
-use anyhow::Context;
+/// Failure to access a snapshot file.
+#[derive(Debug, thiserror::Error)]
+pub enum DataError {
+    #[error("{operation} {}: {source}", path.display())]
+    Io {
+        operation: &'static str,
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+}
 use serde::Deserialize;
 use serde::Deserializer;
 
@@ -30,9 +40,13 @@ impl DataRoot {
     /// # Errors
     ///
     /// Returns an error when the file cannot be read.
-    pub fn read(&self, relative: impl AsRef<Path>) -> anyhow::Result<Vec<u8>> {
+    pub fn read(&self, relative: impl AsRef<Path>) -> Result<Vec<u8>, DataError> {
         let path = self.0.join(relative);
-        std::fs::read(&path).with_context(|| format!("reading {}", path.display()))
+        std::fs::read(&path).map_err(|source| DataError::Io {
+            operation: "reading",
+            path,
+            source,
+        })
     }
 }
 
@@ -103,5 +117,28 @@ impl<'de: 'a, 'a> Deserialize<'de> for DataStr<'a> {
         }
 
         deserializer.deserialize_str(DataStrVisitor(std::marker::PhantomData))
+    }
+}
+
+#[cfg(test)]
+mod error_tests {
+    use super::{DataError, DataRoot};
+    use std::error::Error;
+
+    #[test]
+    fn missing_snapshot_preserves_path_and_io_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let error = DataRoot::new(directory.path())
+            .read("missing.json")
+            .unwrap_err();
+        let DataError::Io {
+            path,
+            source,
+            operation,
+        } = &error;
+        assert_eq!(path, &directory.path().join("missing.json"));
+        assert_eq!(*operation, "reading");
+        assert_eq!(source.kind(), std::io::ErrorKind::NotFound);
+        assert!(error.source().unwrap().is::<std::io::Error>());
     }
 }

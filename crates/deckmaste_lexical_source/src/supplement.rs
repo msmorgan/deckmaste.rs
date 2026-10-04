@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use anyhow::Context;
+use crate::LoadError;
 use deckmaste_lexical::Lexeme;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
@@ -29,10 +29,11 @@ struct Override {
     surfaces: Vec<String>,
 }
 
-pub(crate) fn apply(root: &Path, output: &mut LexicalSources) -> anyhow::Result<()> {
+pub(crate) fn apply(root: &Path, output: &mut LexicalSources) -> Result<(), LoadError> {
     let path = "crates/deckmaste_lexical_source/lexicon/overrides.ron";
-    let text = std::fs::read_to_string(root.join(path)).context("reading lexical overrides")?;
-    let supplement = ron::from_str(&text).context("decoding lexical overrides")?;
+    let full_path = root.join(path);
+    let text = crate::error::read(&full_path)?;
+    let supplement = crate::error::decode(&full_path, &text)?;
     apply_declarations(path, supplement, output)
 }
 
@@ -40,7 +41,7 @@ fn apply_declarations(
     path: &str,
     supplement: Supplement,
     output: &mut LexicalSources,
-) -> anyhow::Result<()> {
+) -> Result<(), LoadError> {
     output.lexemes.extend(supplement.lexemes);
     let mut replaced = BTreeSet::new();
     for replacement in supplement.overrides {
@@ -48,7 +49,10 @@ fn apply_declarations(
             .lexemes
             .iter_mut()
             .find(|lexeme| lexeme.id == replacement.owner)
-            .with_context(|| format!("{path}: unknown override owner {}", replacement.owner))?;
+            .ok_or_else(|| LoadError::UnknownOverrideOwner {
+                path: path.into(),
+                owner: replacement.owner.clone(),
+            })?;
         let mut changed = false;
         for slot in &mut lexeme.forms {
             if slot.form == replacement.form
@@ -59,32 +63,36 @@ fn apply_declarations(
                     .person
                     .is_none_or(|person| slot.features.person == Some(person))
             {
-                anyhow::ensure!(
-                    replaced.insert((replacement.owner.clone(), slot.form, slot.features.clone())),
-                    "{path}: overlapping overrides for {} {:?}",
-                    replacement.owner,
-                    slot.form
-                );
-                if let Some(authored) = &slot.surfaces {
-                    anyhow::ensure!(
-                        authored
-                            .iter()
-                            .all(|surface| replacement.surfaces.contains(surface)),
-                        "{path}: override for {} {:?} discards an authored surface {authored:?}; reconcile its source",
-                        replacement.owner,
-                        slot.form
-                    );
+                if !replaced.insert((replacement.owner.clone(), slot.form, slot.features.clone())) {
+                    return Err(LoadError::OverlappingOverrides {
+                        path: path.into(),
+                        owner: replacement.owner,
+                        form: slot.form,
+                    });
+                }
+                if let Some(authored) = &slot.surfaces
+                    && !authored
+                        .iter()
+                        .all(|surface| replacement.surfaces.contains(surface))
+                {
+                    return Err(LoadError::DiscardedSurfaces {
+                        path: path.into(),
+                        owner: replacement.owner,
+                        form: slot.form,
+                        authored: authored.clone(),
+                    });
                 }
                 slot.surfaces = Some(replacement.surfaces.clone());
                 changed = true;
             }
         }
-        anyhow::ensure!(
-            changed,
-            "{path}: no slot selected for {} {:?}",
-            replacement.owner,
-            replacement.form
-        );
+        if !changed {
+            return Err(LoadError::NoOverrideSlot {
+                path: path.into(),
+                owner: replacement.owner,
+                form: replacement.form,
+            });
+        }
         lexeme.properties.features.insert(
             format!(
                 "OverrideSource:{:?}:{:?}:{:?}",
@@ -119,10 +127,12 @@ mod tests {
 
         let error = apply_declarations("discovered-source", supplement, &mut output).unwrap_err();
 
-        assert!(
-            error
-                .to_string()
-                .contains("discovered-source: unknown override owner missing-owner")
-        );
+        match error {
+            LoadError::UnknownOverrideOwner { path, owner } => {
+                assert_eq!(path, std::path::Path::new("discovered-source"));
+                assert_eq!(owner, "missing-owner");
+            }
+            other => panic!("{other:?}"),
+        }
     }
 }

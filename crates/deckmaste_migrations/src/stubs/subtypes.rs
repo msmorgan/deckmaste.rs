@@ -20,7 +20,7 @@ fn type_filename(name: &str) -> String {
         .collect()
 }
 
-pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
+pub(super) fn generate(plugin: &super::PluginLayout) -> Result<(), crate::StubError> {
     // The catalog files are named "<category>-types.json".
     let categories: [(&str, &str); 7] = [
         ("artifact", "Artifact"),
@@ -34,7 +34,12 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
 
     for (category, prefix) in categories {
         let catalog_bytes = scryfall::catalog_bytes(&format!("{category}-types"))?;
-        let catalog = scryfall::Catalog::parse(&catalog_bytes)?;
+        let catalog = scryfall::Catalog::parse(&catalog_bytes).map_err(|source| {
+            crate::StubError::Catalog {
+                category: category.into(),
+                source,
+            }
+        })?;
         let dest_dir = plugin.subtype_macros_dir(category)?;
         // The sibling `builtin` plugin (the universal prelude) may already
         // define this category's subtypes — e.g. Aura/Equipment/Fortification
@@ -49,9 +54,12 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
             // Two printed names must not chop to one ident: the second
             // would silently skip behind `is_unimplemented`.
             if let Some(previous) = idents.insert(ident.clone(), subtype.to_string()) {
-                anyhow::bail!(
-                    "subtype idents collide: {previous:?} and {subtype:?} both produce `{ident}`"
-                );
+                return Err(crate::StubError::IdentCollision {
+                    category: category.into(),
+                    first: previous,
+                    second: subtype.to_string(),
+                    ident,
+                });
             }
             // Defined by the builtin prelude already (with its `confers:`):
             // don't emit a stub that would override it.
@@ -78,7 +86,10 @@ pub(super) fn generate(plugin: &super::PluginLayout) -> anyhow::Result<()> {
             } else {
                 format!("{prefix}Type(name: \"{ident}\", template: \"{subtype}\")\n")
             };
-            std::fs::write(&dest, invocation)?;
+            std::fs::write(&dest, invocation).map_err(|source| crate::StubError::Write {
+                path: dest.clone(),
+                source,
+            })?;
             eprintln!("wrote {}", dest.display());
         }
     }

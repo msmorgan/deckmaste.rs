@@ -3,13 +3,15 @@
 //! Callers receive normalized declarations and do not observe the temporary
 //! source formats used to salvage the current inventory.
 
+mod error;
+pub use error::LoadError;
+
 mod legacy;
 mod native;
 mod supplement;
 
 use std::path::Path;
 
-use anyhow::Context;
 use deckmaste_lexical::Capitalization;
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
@@ -27,7 +29,7 @@ pub struct LexicalSources {
 /// # Errors
 /// Returns an error when a source cannot be read or normalized, an override
 /// has no target, or two declarations produce the same lexical identity.
-pub fn load_workspace(root: &Path) -> anyhow::Result<LexicalSources> {
+pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     let mut output = LexicalSources {
         lexemes: Vec::new(),
         unmapped: Vec::new(),
@@ -35,15 +37,14 @@ pub fn load_workspace(root: &Path) -> anyhow::Result<LexicalSources> {
     let mut native = native::load(root)?;
     output.lexemes.extend(native.lexemes);
     legacy::core::load(root, &mut output, &mut native.core_verb_paradigms)?;
-    anyhow::ensure!(
-        native.core_verb_paradigms.is_empty(),
-        "unresolved core verb paradigm owners: {:?}",
-        native.core_verb_paradigms.keys().collect::<Vec<_>>()
-    );
+    if !native.core_verb_paradigms.is_empty() {
+        return Err(LoadError::UnresolvedParadigms {
+            owners: native.core_verb_paradigms.into_keys().collect(),
+        });
+    }
     legacy::plugins::load(root, &mut output)?;
     let directory = root.join("data/gen/catalogs");
-    let catalogs = deckmaste_catalogs::CatalogSet::load(&directory)
-        .context("loading canonical lexical catalogs")?;
+    let catalogs = deckmaste_catalogs::CatalogSet::load(&directory)?;
     for kind in catalogs.kinds() {
         for surface in catalogs.get(kind) {
             let owner = format!("catalog:{}/{}", kind.filename(), surface);
@@ -103,13 +104,15 @@ pub fn load_workspace(root: &Path) -> anyhow::Result<LexicalSources> {
         }
     }
     output.lexemes.sort_by(|left, right| left.id.cmp(&right.id));
-    anyhow::ensure!(
-        output
-            .lexemes
-            .windows(2)
-            .all(|pair| pair[0].id != pair[1].id),
-        "duplicate lexical export identity"
-    );
+    if let Some(pair) = output
+        .lexemes
+        .windows(2)
+        .find(|pair| pair[0].id == pair[1].id)
+    {
+        return Err(LoadError::DuplicateIdentity {
+            identity: pair[0].id.clone(),
+        });
+    }
     output.unmapped.sort();
     output.unmapped.dedup();
     Ok(output)

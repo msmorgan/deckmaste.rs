@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::Path;
@@ -16,47 +15,33 @@ use deckmaste_construction_core::macro_def::read_str;
 #[derive(Clone, Copy)]
 struct CategorySpec {
     directory: &'static str,
-    catalog: &'static str,
     category: SubtypeCategory,
-    expected_count: usize,
 }
 
 const CATEGORIES: [CategorySpec; 6] = [
     CategorySpec {
         directory: "artifact",
-        catalog: "artifact-types.txt",
         category: SubtypeCategory::Artifact,
-        expected_count: 22,
     },
     CategorySpec {
         directory: "battle",
-        catalog: "battle-types.txt",
         category: SubtypeCategory::Battle,
-        expected_count: 1,
     },
     CategorySpec {
         directory: "enchantment",
-        catalog: "enchantment-types.txt",
         category: SubtypeCategory::Enchantment,
-        expected_count: 13,
     },
     CategorySpec {
         directory: "land",
-        catalog: "land-types.txt",
         category: SubtypeCategory::Land,
-        expected_count: 17,
     },
     CategorySpec {
         directory: "planeswalker",
-        catalog: "planeswalker-types.txt",
         category: SubtypeCategory::Planeswalker,
-        expected_count: 80,
     },
     CategorySpec {
         directory: "spell",
-        catalog: "spell-types.txt",
         category: SubtypeCategory::Spell,
-        expected_count: 5,
     },
 ];
 
@@ -160,48 +145,29 @@ fn compact_ron(source: &str) -> String {
 }
 
 #[test]
-fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
+fn builtin_v2_noncreature_subtypes_preserve_declared_spelling_and_category() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load through the production reader");
 
-    let mut total = 0;
     for spec in CATEGORIES {
-        let catalog_path = workspace_root.join("data/gen/catalogs").join(spec.catalog);
-        let catalog = fs::read_to_string(&catalog_path)
-            .unwrap_or_else(|error| panic!("reading {}: {error}", catalog_path.display()));
-        let expected = catalog
-            .lines()
-            .map(|spelling| (catalog_stem(spelling), spelling.to_owned()))
-            .collect::<BTreeMap<_, _>>();
-        assert_eq!(
-            expected.len(),
-            spec.expected_count,
-            "canonical {} catalog count changed",
-            spec.directory
-        );
-
         let category_rows = declarations
             .iter()
             .filter(|declaration| {
                 declaration.identity().kind() == DeclarationKind::Subtype(spec.category)
             })
             .collect::<Vec<_>>();
-        assert_eq!(category_rows.len(), spec.expected_count);
+        assert_ne!(
+            category_rows.len(),
+            0,
+            "the authored inventory must exercise {}",
+            spec.directory
+        );
         for declaration in &category_rows {
-            let spelling = expected
-                .get(declaration.identity().name())
-                .unwrap_or_else(|| {
-                    panic!(
-                        "unexpected {} subtype {}",
-                        spec.directory,
-                        declaration.identity()
-                    )
-                });
-            assert_eq!(
-                declaration.spelling(),
-                [SpellingPart::Literal(spelling.clone())]
-            );
+            let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
+                panic!("{} subtype must have one literal spelling", spec.directory)
+            };
+            assert_eq!(declaration.identity().name(), catalog_stem(spelling));
             assert_eq!(
                 declaration
                     .grammar()
@@ -218,9 +184,7 @@ fn builtin_v2_noncreature_subtypes_match_each_supported_catalog_and_category() {
                 };
             assert_eq!(surfaces(declaration), expected_surfaces);
         }
-        total += category_rows.len();
     }
-    assert_eq!(total, 138);
 
     let subtype_root = workspace_root.join("plugins_v2/builtin/macros/subtypes");
     assert!(

@@ -43,7 +43,7 @@ fn validation(source: &str) -> ValidationError {
     assert!(position.column >= 1);
     match error {
         ReadError::Validate { source, .. } => source,
-        ReadError::Io { .. } | ReadError::Parse { .. } => {
+        ReadError::Reader { .. } | ReadError::Io { .. } | ReadError::Parse { .. } => {
             panic!("expected validation error, got {error}")
         }
     }

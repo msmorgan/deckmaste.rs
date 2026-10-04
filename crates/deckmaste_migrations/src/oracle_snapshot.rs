@@ -4,7 +4,18 @@
 use std::io::BufRead;
 use std::io::Write;
 
-use anyhow::Context;
+/// Failure to project or write an Oracle snapshot.
+#[derive(Debug, thiserror::Error)]
+pub enum SnapshotError {
+    #[error("parsing Scryfall Oracle Cards JSONL: {0}")]
+    Oracle(#[from] deckmaste_data::scryfall::OracleCardReadError),
+    #[error(transparent)]
+    Catalog(#[from] deckmaste_catalogs::CatalogError),
+    #[error("writing snapshot record: {0}")]
+    Record(#[from] serde_json::Error),
+    #[error("writing snapshot output: {0}")]
+    Output(#[from] std::io::Error),
+}
 use deckmaste_catalogs::CatalogSet;
 use deckmaste_data::scryfall::OracleCardReader;
 use serde::Serialize;
@@ -53,10 +64,10 @@ pub fn write(
     oracle_cards: impl BufRead,
     catalogs: &CatalogSet,
     mut output: impl Write,
-) -> anyhow::Result<usize> {
+) -> Result<usize, SnapshotError> {
     let mut cards = Vec::new();
     for card in OracleCardReader::new(oracle_cards) {
-        let card = card.context("parsing Scryfall Oracle Cards JSONL")?;
+        let card = card?;
         let supported = card.vintage_playable();
         for unit in card.oracle_units() {
             let type_line = unit.type_line();

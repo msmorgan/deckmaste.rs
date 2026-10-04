@@ -1,6 +1,9 @@
 //! Card data pipeline (extract, resolve) plus macro-stub generation for plugin
 //! data directories.
 
+mod error;
+pub use error::{ExtractError, LayoutError, StubError};
+
 pub mod extract;
 pub mod graduate;
 mod ident;

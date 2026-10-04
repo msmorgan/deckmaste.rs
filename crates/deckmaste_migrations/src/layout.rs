@@ -4,35 +4,40 @@ use std::path::PathBuf;
 use deckmaste_core::plugin::CARDS_DIR;
 use deckmaste_core::plugin::MACROS_DIR;
 
+use crate::LayoutError;
+
 pub struct PluginLayout(PathBuf);
 
 impl PluginLayout {
-    pub fn new(base: &Path) -> anyhow::Result<Self> {
-        let base = base.canonicalize()?;
-        if !base.exists() {
-            return Err(anyhow::anyhow!(
-                "Plugin base directory does not exist: {}",
-                base.display()
-            ));
-        }
+    pub fn new(base: &Path) -> Result<Self, LayoutError> {
+        let base = base.canonicalize().map_err(|source| LayoutError::Io {
+            operation: "canonicalizing plugin base",
+            path: base.into(),
+            source,
+        })?;
         if !base.is_dir() {
-            return Err(anyhow::anyhow!(
-                "Plugin base path is not a directory: {}",
-                base.display()
-            ));
+            return Err(LayoutError::NotDirectory { path: base });
         }
         Ok(Self(base.clone()))
     }
 
-    fn dir(&self, path: &str) -> anyhow::Result<PathBuf> {
+    fn dir(&self, path: &str) -> Result<PathBuf, LayoutError> {
         let dir_path = self.0.join(path);
-        std::fs::create_dir_all(&dir_path)?;
-        let dir_path = dir_path.canonicalize()?;
+        std::fs::create_dir_all(&dir_path).map_err(|source| LayoutError::Io {
+            operation: "creating plugin directory",
+            path: dir_path.clone(),
+            source,
+        })?;
+        let dir_path = dir_path.canonicalize().map_err(|source| LayoutError::Io {
+            operation: "canonicalizing plugin directory",
+            path: dir_path.clone(),
+            source,
+        })?;
         if !dir_path.starts_with(&self.0) {
-            return Err(anyhow::anyhow!(
-                "path is outside of plugin layout: {}",
-                dir_path.display()
-            ));
+            return Err(LayoutError::OutsideRoot {
+                path: dir_path,
+                root: self.0.clone(),
+            });
         }
         Ok(dir_path)
     }
@@ -40,7 +45,7 @@ impl PluginLayout {
     /// Where a category's subtype-definition macros live —
     /// `macros/types/<category>/` — under `macros/` since they are ordinary
     /// (meta-produced) macro definitions.
-    pub fn subtype_macros_dir(&self, category: &str) -> anyhow::Result<PathBuf> {
+    pub fn subtype_macros_dir(&self, category: &str) -> Result<PathBuf, LayoutError> {
         self.dir(&format!("{MACROS_DIR}/types/{category}"))
     }
 
@@ -65,7 +70,7 @@ impl PluginLayout {
         Some(builtin.join(format!("{MACROS_DIR}/types/{category}")))
     }
 
-    pub fn cards_dir(&self) -> anyhow::Result<PathBuf> {
+    pub fn cards_dir(&self) -> Result<PathBuf, LayoutError> {
         self.dir(CARDS_DIR)
     }
 }

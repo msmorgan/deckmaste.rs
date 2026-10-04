@@ -4,6 +4,7 @@ error[E0423]: cannot initialize a tuple struct which contains private fields
 6 |     GerundClause(GerundClauseKind::Base {
   |     ^^^^^^^^^^^^
   |
+  = note: a struct named `GerundClause` exists in another namespace
 note: constructor is not visible here due to private fields
  --> src/syntax/clause.rs
   |

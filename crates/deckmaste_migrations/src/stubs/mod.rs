@@ -20,7 +20,7 @@ fn is_unimplemented(final_path: &Path) -> bool {
 ///
 /// # Errors
 /// If the plugin layout is unusable or the subtype generator fails.
-pub fn generate_stubs(plugin_dir: &Path) -> anyhow::Result<()> {
+pub fn generate_stubs(plugin_dir: &Path) -> Result<(), crate::StubError> {
     let plugin = PluginLayout::new(plugin_dir)?;
     subtypes::generate(&plugin)?;
     Ok(())

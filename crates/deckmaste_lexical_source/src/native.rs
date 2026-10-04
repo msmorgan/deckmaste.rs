@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use anyhow::Context;
+use crate::LoadError;
 use deckmaste_lexical::FormDeclaration;
 use deckmaste_lexical::Frame;
 use deckmaste_lexical::FrameItem;
@@ -31,33 +31,43 @@ pub(crate) struct Paradigm {
 
 pub(crate) const PATH: &str = "crates/deckmaste_lexical_source/lexicon/core.ron";
 
-pub(crate) fn load(root: &Path) -> anyhow::Result<Inventory> {
-    let text =
-        std::fs::read_to_string(root.join(PATH)).context("reading v3 lexical declarations")?;
-    ron::from_str(&text).context("decoding v3 lexical declarations")
+pub(crate) fn load(root: &Path) -> Result<Inventory, LoadError> {
+    let path = root.join(PATH);
+    let text = crate::error::read(&path)?;
+    crate::error::decode(&path, &text)
 }
 
 pub(crate) fn reconcile_frames(
     lexemes: &mut [Lexeme],
     markers: &BTreeMap<String, (String, String)>,
-) -> anyhow::Result<()> {
+) -> Result<(), LoadError> {
     let identities: BTreeMap<_, _> = lexemes
         .iter()
         .map(|lexeme| (lexeme.id.clone(), lexeme.lemma.clone()))
         .collect();
     for (surface, (vocabulary, member)) in markers {
         let lemma = marker_lemma(&identities, vocabulary, member)?;
-        anyhow::ensure!(
-            lemma == surface,
-            "frame marker {vocabulary}/{member} does not spell declared literal {surface:?}"
-        );
+        if lemma != surface {
+            return Err(LoadError::MarkerSpelling {
+                vocabulary: vocabulary.clone(),
+                member: member.clone(),
+                surface: surface.clone(),
+                lemma: lemma.into(),
+            });
+        }
     }
     for lexeme in lexemes {
         for frame in &mut lexeme.properties.frames {
-            anyhow::ensure!(!frame.kind.is_empty(), "{}: empty frame kind", lexeme.id);
+            if frame.kind.is_empty() {
+                return Err(LoadError::EmptyFrameKind {
+                    owner: lexeme.id.clone(),
+                });
+            }
             for item in &mut frame.items {
-                reconcile_item(item, markers, &identities)
-                    .with_context(|| format!("frame for {}", lexeme.id))?;
+                reconcile_item(item, markers, &identities).map_err(|source| LoadError::Frame {
+                    owner: lexeme.id.clone(),
+                    source: Box::new(source),
+                })?;
             }
         }
     }
@@ -67,17 +77,19 @@ pub(crate) fn reconcile_frames(
 pub(crate) fn add_frames(
     lexemes: &mut [Lexeme],
     additions: BTreeMap<String, Vec<Frame>>,
-) -> anyhow::Result<()> {
+) -> Result<(), LoadError> {
     for (owner, frames) in additions {
         let lexeme = lexemes
             .iter_mut()
             .find(|lexeme| lexeme.id == owner)
-            .with_context(|| format!("unknown frame owner {owner}"))?;
+            .ok_or_else(|| LoadError::UnknownOwner {
+                property: "frame",
+                owner: owner.clone(),
+            })?;
         for frame in frames {
-            anyhow::ensure!(
-                !lexeme.properties.frames.contains(&frame),
-                "duplicate added frame for {owner}"
-            );
+            if lexeme.properties.frames.contains(&frame) {
+                return Err(LoadError::DuplicateFrame { owner });
+            }
             lexeme.properties.frames.push(frame);
         }
         lexeme
@@ -91,12 +103,15 @@ pub(crate) fn add_frames(
 pub(crate) fn replace_forms(
     lexemes: &mut [Lexeme],
     replacements: BTreeMap<String, Vec<FormDeclaration>>,
-) -> anyhow::Result<()> {
+) -> Result<(), LoadError> {
     for (owner, forms) in replacements {
         let lexeme = lexemes
             .iter_mut()
             .find(|lexeme| lexeme.id == owner)
-            .with_context(|| format!("unknown form owner {owner}"))?;
+            .ok_or_else(|| LoadError::UnknownOwner {
+                property: "form",
+                owner: owner.clone(),
+            })?;
         lexeme.forms = forms;
         lexeme
             .properties
@@ -109,21 +124,22 @@ pub(crate) fn replace_forms(
 pub(crate) fn add_features(
     lexemes: &mut [Lexeme],
     additions: BTreeMap<String, BTreeMap<String, String>>,
-) -> anyhow::Result<()> {
+) -> Result<(), LoadError> {
     for (owner, features) in additions {
         let lexeme = lexemes
             .iter_mut()
             .find(|lexeme| lexeme.id == owner)
-            .with_context(|| format!("unknown feature owner {owner}"))?;
+            .ok_or_else(|| LoadError::UnknownOwner {
+                property: "feature",
+                owner: owner.clone(),
+            })?;
         for (name, value) in features {
-            anyhow::ensure!(
-                !name.is_empty() && !value.is_empty(),
-                "empty feature declaration for {owner}"
-            );
-            anyhow::ensure!(
-                !lexeme.properties.features.contains_key(&name),
-                "duplicate feature {name} for {owner}"
-            );
+            if name.is_empty() || value.is_empty() {
+                return Err(LoadError::EmptyFeature { owner, name, value });
+            }
+            if lexeme.properties.features.contains_key(&name) {
+                return Err(LoadError::DuplicateFeature { owner, name });
+            }
             lexeme
                 .properties
                 .features
@@ -138,7 +154,7 @@ fn marker_lemma<'a>(
     identities: &'a BTreeMap<String, String>,
     vocabulary: &str,
     member: &str,
-) -> anyhow::Result<&'a str> {
+) -> Result<&'a str, LoadError> {
     let candidates = [
         format!("vocab:{vocabulary}/{member}"),
         format!("lexeme:{vocabulary}/{member}"),
@@ -147,10 +163,13 @@ fn marker_lemma<'a>(
         .iter()
         .filter_map(|id| identities.get(id))
         .collect();
-    anyhow::ensure!(
-        found.len() == 1,
-        "frame marker {vocabulary}/{member} must resolve to one declared identity"
-    );
+    if found.len() != 1 {
+        return Err(LoadError::MarkerIdentity {
+            vocabulary: vocabulary.into(),
+            member: member.into(),
+            found: found.len(),
+        });
+    }
     Ok(found[0])
 }
 
@@ -158,11 +177,14 @@ fn reconcile_item(
     item: &mut FrameItem,
     markers: &BTreeMap<String, (String, String)>,
     identities: &BTreeMap<String, String>,
-) -> anyhow::Result<()> {
+) -> Result<(), LoadError> {
     if let FrameItem::Literal(surface) = item {
-        let (vocabulary, member) = markers
-            .get(surface)
-            .with_context(|| format!("unresolved frame literal {surface:?}"))?;
+        let (vocabulary, member) =
+            markers
+                .get(surface)
+                .ok_or_else(|| LoadError::UnresolvedLiteral {
+                    surface: surface.clone(),
+                })?;
         *item = FrameItem::Marker {
             vocabulary: vocabulary.clone(),
             member: member.clone(),
@@ -178,10 +200,14 @@ fn reconcile_item(
             slot,
         } => {
             marker_lemma(identities, vocabulary, member)?;
-            anyhow::ensure!(!slot.category.is_empty(), "empty frame slot category");
+            if slot.category.is_empty() {
+                return Err(LoadError::EmptySlotCategory);
+            }
         }
         FrameItem::Argument(slot) => {
-            anyhow::ensure!(!slot.category.is_empty(), "empty frame slot category");
+            if slot.category.is_empty() {
+                return Err(LoadError::EmptySlotCategory);
+            }
         }
         FrameItem::Optional(item) => reconcile_item(item, markers, identities)?,
         FrameItem::Literal(_) => unreachable!("literal reconciled above"),
@@ -467,26 +493,54 @@ mod tests {
             kind: "Predicate".into(),
             items: vec![FrameItem::Literal("to".into())],
         }];
-        assert!(
-            reconcile_frames(&mut lexemes, &BTreeMap::new())
-                .unwrap_err()
-                .chain()
-                .any(|error| error.to_string().contains("unresolved frame literal"))
+        let error = reconcile_frames(&mut lexemes, &BTreeMap::new()).unwrap_err();
+        match &error {
+            LoadError::Frame { owner, source } => {
+                assert_eq!(owner, "verb");
+                match source.as_ref() {
+                    LoadError::UnresolvedLiteral { surface } => assert_eq!(surface, "to"),
+                    other => panic!("{other:?}"),
+                }
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(
+            std::error::Error::source(&error).unwrap().to_string(),
+            "unresolved frame literal \"to\""
         );
         let markers = BTreeMap::from([("to".into(), ("Preposition".into(), "To".into()))]);
-        assert!(reconcile_frames(&mut lexemes, &markers).is_err());
+        match reconcile_frames(&mut lexemes, &markers).unwrap_err() {
+            LoadError::MarkerIdentity {
+                vocabulary,
+                member,
+                found,
+            } => {
+                assert_eq!(vocabulary, "Preposition");
+                assert_eq!(member, "To");
+                assert_eq!(found, 0);
+            }
+            other => panic!("{other:?}"),
+        }
         lexemes.push(Lexeme::invariant(
             "vocab:Preposition/To",
             "from",
             Category::Preposition,
             crate::source(deckmaste_lexical::SourceKind::Core, "test", "marker"),
         ));
-        assert!(
-            reconcile_frames(&mut lexemes, &markers)
-                .unwrap_err()
-                .to_string()
-                .contains("does not spell")
-        );
+        match reconcile_frames(&mut lexemes, &markers).unwrap_err() {
+            LoadError::MarkerSpelling {
+                vocabulary,
+                member,
+                surface,
+                lemma,
+            } => {
+                assert_eq!(vocabulary, "Preposition");
+                assert_eq!(member, "To");
+                assert_eq!(surface, "to");
+                assert_eq!(lemma, "from");
+            }
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]
@@ -498,13 +552,18 @@ mod tests {
             crate::source(deckmaste_lexical::SourceKind::Core, "test", "determiner"),
         )];
         let features = BTreeMap::from([("DeterminerUse".into(), "SingularCount".into())]);
-        assert!(
-            add_features(
-                &mut declarations,
-                BTreeMap::from([("missing".into(), features.clone())])
-            )
-            .is_err()
-        );
+        match add_features(
+            &mut declarations,
+            BTreeMap::from([("missing".into(), features.clone())]),
+        )
+        .unwrap_err()
+        {
+            LoadError::UnknownOwner { property, owner } => {
+                assert_eq!(property, "feature");
+                assert_eq!(owner, "missing");
+            }
+            other => panic!("{other:?}"),
+        }
         add_features(
             &mut declarations,
             BTreeMap::from([("determiner".into(), features)]),
@@ -520,13 +579,18 @@ mod tests {
         );
         let before = declarations.clone();
         let replacement = BTreeMap::from([("DeterminerUse".into(), "Mass".into())]);
-        assert!(
-            add_features(
-                &mut declarations,
-                BTreeMap::from([("determiner".into(), replacement)])
-            )
-            .is_err()
-        );
+        match add_features(
+            &mut declarations,
+            BTreeMap::from([("determiner".into(), replacement)]),
+        )
+        .unwrap_err()
+        {
+            LoadError::DuplicateFeature { owner, name } => {
+                assert_eq!(owner, "determiner");
+                assert_eq!(name, "DeterminerUse");
+            }
+            other => panic!("{other:?}"),
+        }
         assert_eq!(declarations, before);
     }
     #[test]

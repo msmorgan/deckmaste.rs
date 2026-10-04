@@ -4,6 +4,7 @@ error[E0423]: cannot initialize a tuple struct which contains private fields
 5 |     NounPhrase(kind)
   |     ^^^^^^^^^^
   |
+  = note: a struct named `NounPhrase` exists in another namespace
 note: constructor is not visible here due to private fields
  --> src/syntax/phrase.rs
   |

@@ -1,3 +1,6 @@
+mod error;
+pub use error::{CatalogError, OutputProblem};
+
 mod cards;
 mod cr;
 mod diff;
@@ -179,6 +182,13 @@ mod tests {
             ORACLE_FIXTURE.as_bytes(),
         )
         .unwrap_err();
+        match &card_type_error {
+            crate::CatalogError::MissingLead { catalog, lead } => {
+                assert_eq!(catalog, "card-types");
+                assert_eq!(lead, "The card types are ");
+            }
+            other => panic!("{other:?}"),
+        }
         assert!(card_type_error.to_string().contains("card-types"));
 
         let counter_error = CatalogSet::generate(
@@ -276,6 +286,12 @@ mod tests {
         entries.insert(CatalogKind::AbilityWords, BTreeSet::new());
 
         let error = CatalogSet::from_entries(entries).unwrap_err();
+        match &error {
+            crate::CatalogError::MissingCatalog { catalog } => {
+                assert_eq!(catalog, "artifact-types.txt");
+            }
+            other => panic!("{other:?}"),
+        }
         assert!(error.to_string().contains("artifact-types"));
     }
 

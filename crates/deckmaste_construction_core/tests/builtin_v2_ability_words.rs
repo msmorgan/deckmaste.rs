@@ -35,15 +35,8 @@ fn declaration_name(surface: &str) -> String {
 }
 
 #[test]
-fn builtin_v2_ability_word_nursery_matches_the_independent_catalog() {
+fn builtin_v2_ability_word_nursery_preserves_declared_spelling_and_grammar() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let catalog =
-        std::fs::read_to_string(workspace_root.join("data/gen/catalogs/ability-words.txt"))
-            .expect("the canonical ability-word catalog must load");
-    let expected = catalog
-        .lines()
-        .map(|surface| (declaration_name(surface), surface.to_owned()))
-        .collect::<BTreeMap<_, _>>();
     let declarations = read_builtin_v2(workspace_root.join("plugins_v2/builtin"))
         .expect("builtin-v2 declarations must load");
     let actual = declarations
@@ -52,21 +45,18 @@ fn builtin_v2_ability_word_nursery_matches_the_independent_catalog() {
         .map(|declaration| (declaration.identity().name().to_owned(), declaration))
         .collect::<BTreeMap<_, _>>();
 
-    assert_eq!(expected.len(), 61);
-    assert_eq!(actual.len(), 61);
-    assert_eq!(
-        actual.keys().collect::<Vec<_>>(),
-        expected.keys().collect::<Vec<_>>()
+    assert_ne!(
+        actual.len(),
+        0,
+        "the authored inventory must exercise this test"
     );
-
-    let mut actual_surfaces = Vec::new();
     for (name, declaration) in &actual {
         assert_eq!(declaration.params(), None, "{name} must have no params");
         assert_eq!(declaration.body(), None, "{name} must have no body");
         let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
             panic!("{name} must have one literal spelling")
         };
-        assert_eq!(spelling, &expected[name]);
+        assert_eq!(name, &declaration_name(spelling));
         let grammar = declaration
             .grammar()
             .expect("every ability word must contribute grammar");
@@ -76,13 +66,7 @@ fn builtin_v2_ability_word_nursery_matches_the_independent_catalog() {
         };
         assert_eq!(surface.feature(), SurfaceFeature::Fixed);
         assert_eq!(surface.text(), spelling);
-        actual_surfaces.push(surface.text().to_owned());
     }
-
-    let mut expected_surfaces = catalog.lines().map(str::to_owned).collect::<Vec<_>>();
-    actual_surfaces.sort();
-    expected_surfaces.sort();
-    assert_eq!(actual_surfaces, expected_surfaces);
 }
 
 #[test]

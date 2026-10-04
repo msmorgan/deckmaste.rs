@@ -4,6 +4,7 @@ error[E0423]: cannot initialize a tuple struct which contains private fields
 4 |     let _ = NonEmpty(Vec::<()>::new());
   |             ^^^^^^^^
   |
+  = note: a struct named `NonEmpty` exists in another namespace
 note: constructor is not visible here due to private fields
  --> $WORKSPACE/crates/deckmaste_construction_compiler/src/runtime.rs
   |

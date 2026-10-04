@@ -4,6 +4,7 @@ error[E0423]: cannot initialize a tuple struct which contains private fields
  7 |     Quantity(QuantityKind::Exact(NumberLiteral {
    |     ^^^^^^^^
    |
+   = note: a struct named `Quantity` exists in another namespace
 note: constructor is not visible here due to private fields
   --> src/syntax/phrase.rs
    |

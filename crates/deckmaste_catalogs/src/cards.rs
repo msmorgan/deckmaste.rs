@@ -1,23 +1,24 @@
+use crate::CatalogError;
 use std::collections::BTreeSet;
 use std::io::BufRead;
 
-use anyhow::Context;
 use deckmaste_data::scryfall::OracleCardReader;
 
-pub(crate) fn extract(oracle_cards: impl BufRead) -> anyhow::Result<BTreeSet<String>> {
+pub(crate) fn extract(oracle_cards: impl BufRead) -> Result<BTreeSet<String>, CatalogError> {
     let mut names = BTreeSet::new();
 
     for card in OracleCardReader::new(oracle_cards) {
-        let card = card.context("parsing Scryfall Oracle Cards JSONL")?;
+        let card = card?;
         if !card.vintage_playable() {
             continue;
         }
         for unit in card.oracle_units() {
             let selected = unit.display_name();
-            anyhow::ensure!(
-                !selected.contains(" // "),
-                "card-names: composite name without a selected face: {selected:?}"
-            );
+            if selected.contains(" // ") {
+                return Err(CatalogError::CompositeCardName {
+                    name: selected.into(),
+                });
+            }
             names.insert(selected.to_owned());
         }
     }

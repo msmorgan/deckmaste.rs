@@ -85,7 +85,7 @@ pub fn run(args: &CatalogArgs) -> anyhow::Result<()> {
 }
 
 fn generate(args: &GenerateArgs) -> anyhow::Result<()> {
-    generate_catalogs(&args.cr, &args.oracle_cards)?.write_to(&args.output)
+    Ok(generate_catalogs(&args.cr, &args.oracle_cards)?.write_to(&args.output)?)
 }
 
 fn check(args: &CheckArgs) -> anyhow::Result<()> {
@@ -106,15 +106,17 @@ fn text(args: &TextArgs) -> anyhow::Result<()> {
         fs::read_to_string(&args.cr).with_context(|| format!("reading {}", args.cr.display()))?;
     let oracle_cards = File::open(&args.oracle_cards)
         .with_context(|| format!("opening {}", args.oracle_cards.display()))?;
-    LegacyCatalogSet::generate(&cr, BufReader::new(oracle_cards))
-        .with_context(|| {
-            format!(
-                "extracting legacy catalogs from CR {}; keyword augmentation source {}",
-                args.cr.display(),
-                args.oracle_cards.display()
-            )
-        })?
-        .write_to(&args.output)
+    Ok(
+        LegacyCatalogSet::generate(&cr, BufReader::new(oracle_cards))
+            .with_context(|| {
+                format!(
+                    "extracting legacy catalogs from CR {}; keyword augmentation source {}",
+                    args.cr.display(),
+                    args.oracle_cards.display()
+                )
+            })?
+            .write_to(&args.output)?,
+    )
 }
 
 fn generate_catalogs(cr_path: &Path, oracle_cards_path: &Path) -> anyhow::Result<CatalogSet> {

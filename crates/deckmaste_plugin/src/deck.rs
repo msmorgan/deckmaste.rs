@@ -1,8 +1,39 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use anyhow::Context;
-use anyhow::Result;
+/// Failure to read, parse, or resolve a decklist.
+#[derive(Debug, thiserror::Error)]
+pub enum DeckError {
+    #[error("reading decklist {}: {source}", path.display())]
+    Io {
+        path: std::path::PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("parsing decklist {}: {source}", path.display())]
+    Parse {
+        path: std::path::PathBuf,
+        #[source]
+        source: DeckParseError,
+    },
+    #[error("deck {deck:?}: unknown card {card:?}")]
+    UnknownCard { deck: String, card: String },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum DeckParseError {
+    #[error("line {line}: expected `<count> <card name>`, got {text:?}")]
+    MissingCount { line: usize, text: String },
+    #[error("line {line}: invalid count {count:?}: {source}")]
+    InvalidCount {
+        line: usize,
+        count: String,
+        #[source]
+        source: std::num::ParseIntError,
+    },
+    #[error("line {line}: count must be greater than 0")]
+    ZeroCount { line: usize },
+}
 
 use crate::LoadedCard;
 use crate::plugin::Plugin;
@@ -25,13 +56,18 @@ impl Deck {
     ///
     /// # Errors
     /// If the file can't be read or a line is malformed.
-    pub fn load(path: &Path) -> Result<Deck> {
-        let text = std::fs::read_to_string(path)
-            .with_context(|| format!("reading decklist {}", path.display()))?;
-        Self::parse(&text).with_context(|| format!("parsing decklist {}", path.display()))
+    pub fn load(path: &Path) -> Result<Deck, DeckError> {
+        let text = std::fs::read_to_string(path).map_err(|source| DeckError::Io {
+            path: path.into(),
+            source,
+        })?;
+        Self::parse(&text).map_err(|source| DeckError::Parse {
+            path: path.into(),
+            source,
+        })
     }
 
-    fn parse(text: &str) -> Result<Deck> {
+    fn parse(text: &str) -> Result<Deck, DeckParseError> {
         let mut name = String::new();
         let mut entries = Vec::new();
         for (i, raw) in text.lines().enumerate() {
@@ -43,17 +79,24 @@ impl Deck {
                 name = rest.trim().to_string();
                 continue;
             }
-            let (count, card) = line.split_once(char::is_whitespace).with_context(|| {
-                format!(
-                    "line {}: expected `<count> <card name>`, got {line:?}",
-                    i + 1
-                )
+            let (count, card) = line.split_once(char::is_whitespace).ok_or_else(|| {
+                DeckParseError::MissingCount {
+                    line: i + 1,
+                    text: line.into(),
+                }
             })?;
-            let count: usize = count
-                .trim()
-                .parse()
-                .with_context(|| format!("line {}: invalid count {count:?}", i + 1))?;
-            anyhow::ensure!(count > 0, "line {}: count must be greater than 0", i + 1);
+            let count: usize =
+                count
+                    .trim()
+                    .parse()
+                    .map_err(|source| DeckParseError::InvalidCount {
+                        line: i + 1,
+                        count: count.into(),
+                        source,
+                    })?;
+            if count == 0 {
+                return Err(DeckParseError::ZeroCount { line: i + 1 });
+            }
             entries.push(DeckEntry {
                 count,
                 card: card.trim().to_string(),
@@ -73,13 +116,16 @@ impl Deck {
     ///
     /// # Errors
     /// If a card name resolves in none of the plugins.
-    pub fn resolve(&self, plugins: &[&Plugin]) -> Result<Arc<[Arc<LoadedCard>]>> {
+    pub fn resolve(&self, plugins: &[&Plugin]) -> Result<Arc<[Arc<LoadedCard>]>, DeckError> {
         let mut out = Vec::new();
         for entry in self.entries.iter() {
             let card = plugins
                 .iter()
                 .find_map(|p| p.card(&entry.card).ok())
-                .with_context(|| format!("deck {:?}: unknown card {:?}", self.name, entry.card))?;
+                .ok_or_else(|| DeckError::UnknownCard {
+                    deck: self.name.clone(),
+                    card: entry.card.clone(),
+                })?;
             let card = Arc::new(card);
             out.extend(std::iter::repeat_n(Arc::clone(&card), entry.count));
         }
@@ -93,6 +139,28 @@ mod tests {
 
     fn plugins_dir(rel: &str) -> std::path::PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join(rel)
+    }
+
+    #[test]
+    fn loader_reports_path_line_count_and_source() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("deck.txt");
+        std::fs::write(&path, "name: Example\ninvalid Card\n").unwrap();
+        let error = Deck::load(&path).unwrap_err();
+        match &error {
+            DeckError::Parse {
+                path: actual,
+                source: DeckParseError::InvalidCount { line, count, .. },
+            } => {
+                assert_eq!(actual, &path);
+                assert_eq!(*line, 2);
+                assert_eq!(count, "invalid");
+            }
+            other => panic!("{other:?}"),
+        }
+        let source = std::error::Error::source(&error).unwrap();
+        assert!(source.is::<DeckParseError>());
+        assert!(source.source().unwrap().is::<std::num::ParseIntError>());
     }
 
     #[test]
