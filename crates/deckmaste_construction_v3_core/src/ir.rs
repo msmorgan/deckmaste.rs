@@ -60,6 +60,7 @@ pub(crate) struct TableExport {
 }
 
 pub(crate) struct Constructor {
+    pub cost: u64,
     pub name: Ident,
     pub category: usize,
     pub fields: Vec<(Ident, FieldType)>,
@@ -310,6 +311,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             }
         }
         constructors.push(Constructor {
+            cost: construction.cost.unwrap_or(1),
             name: construction.name.clone(),
             category,
             fields,

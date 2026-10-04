@@ -243,8 +243,14 @@ fn analyze_face(
                         for node in &value.nodes {
                             *result.constructions.entry(node.construction).or_default() += 1;
                         }
-                        if result.samples.len() < args.samples_per_face {
-                            result.samples.push(Sample::new(reading, &value, lexicon));
+                        if args.samples_per_face != 0 {
+                            let total_cost =
+                                reading.total_cost().context("validated reading cost")?;
+                            report::retain_sample(
+                                &mut result.samples,
+                                Sample::new(reading, &value, lexicon, total_cost),
+                                args.samples_per_face,
+                            );
                         }
                     }
                     Err(issue) => result.issues.push(issue),

@@ -319,6 +319,7 @@ fn ast(ir: &Ir) -> TokenStream {
         words.push(word);
         node_methods.extend(methods);
     }
+    let cost_methods = emit_cost_methods(ir);
     quote! {
         #[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd)]
         pub enum Reading { #(#variants),* }
@@ -328,6 +329,7 @@ fn ast(ir: &Ir) -> TokenStream {
             /// The declaration that constructs this node.
             #[must_use]
             pub fn construction(&self) -> &'static str { match self { #(#constructions),* } }
+            #cost_methods
             /// Check a constructed value directly against declaration admission.
             /// # Errors
             /// Reports an invalid form, lexical value, constituent or feature equation.
@@ -363,6 +365,29 @@ fn ast(ir: &Ir) -> TokenStream {
             /// Reports an invalid surface alternative.
             pub fn visit_words(&self, visitor: &mut impl FnMut(&Word)) -> Result<(), Error> { match self { #(#words),* } }
         }
+    }
+}
+
+fn emit_cost_methods(ir: &Ir) -> TokenStream {
+    let costs = ir.constructors.iter().map(|constructor| {
+        let name = &constructor.name;
+        let cost = constructor.cost;
+        quote!(Self::#name { .. } => #cost)
+    });
+    quote! {
+            /// The declared preference cost of this construction.
+            #[must_use]
+            pub fn local_cost(&self) -> u64 { match self { #(#costs),* } }
+            /// Sum construction costs throughout this reading; lexical leaves cost zero.
+            /// # Errors
+            /// Reports an invalid surface alternative or a cost exceeding `u64`.
+            pub fn total_cost(&self) -> Result<u64, Error> {
+                let mut total = Some(0_u64);
+                self.visit(&mut |node| {
+                    total = total.and_then(|value| value.checked_add(node.local_cost()));
+                })?;
+                total.ok_or(Error::CostOverflow)
+            }
     }
 }
 

@@ -159,3 +159,19 @@ fn declaration_errors_are_compile_errors_not_proc_macro_panics() {
         assert!(expansion.to_string().contains("compile_error"));
     }
 }
+
+#[test]
+fn rejects_duplicate_and_invalid_construction_costs() {
+    rejects(
+        quote! { mod bad { category A(); construction A: A { cost 1; cost 2; form []; } } },
+        "duplicate construction cost",
+    );
+    for cost in [quote!(-1), quote!(1.5), quote!(18446744073709551616)] {
+        assert!(
+            compile(
+                quote! { mod bad { category A(); construction A: A { cost #cost; form []; } } }
+            )
+            .is_err()
+        );
+    }
+}

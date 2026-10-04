@@ -1,0 +1,187 @@
+use std::collections::BTreeSet;
+use std::path::Path;
+use std::sync::OnceLock;
+
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::Grammar;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_english_v3::parse;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Lexicon;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
+
+fn lexicon() -> &'static Lexicon {
+    static LEXICON: OnceLock<Lexicon> = OnceLock::new();
+    LEXICON.get_or_init(|| {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        Lexicon::new(
+            deckmaste_lexical_source::load_workspace(&root)
+                .unwrap()
+                .lexemes,
+        )
+        .unwrap()
+    })
+}
+
+fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
+    let grammar = Grammar::default();
+    let input = lexicon().analyze(text);
+    let forest = parse(&grammar, lexicon(), &input, &category).unwrap();
+    grammar
+        .readings(&forest)
+        .map(|reading| {
+            let reading = reading.unwrap();
+            assert_eq!(reading.realize(lexicon()).unwrap(), text);
+            reading
+        })
+        .collect()
+}
+
+fn word(id: &str, form: WordForm, number: Option<Number>) -> Word {
+    Word {
+        value: LexicalReading::Word(LexicalValue {
+            lexeme: id.into(),
+            form,
+            features: FeatureBundle {
+                number,
+                ..FeatureBundle::default()
+            },
+            variant: 0,
+            capitalization: SurfaceCase::Declared,
+        }),
+        frame: None,
+        countability: None,
+    }
+}
+
+#[test]
+fn nominal_complement_pp_cannot_become_a_free_clause_or_verb_adjunct() {
+    let mut creature = word(
+        "lexeme:type/creature",
+        WordForm::Plural,
+        Some(Number::Plural),
+    );
+    creature.countability = Some(true);
+    let nominal = Reading::Noun {
+        form: 0,
+        head: creature,
+    };
+    let pp = Reading::PrepositionPhrase {
+        form: 0,
+        head: word("vocab:Preposition/Of", WordForm::Invariant, None),
+        complement: Box::new(Reading::AccusativePhrase {
+            form: 0,
+            head: Box::new(Reading::BarePlural {
+                form: 0,
+                head: Box::new(nominal.clone()),
+            }),
+        }),
+    };
+    pp.admit(lexicon()).unwrap();
+    assert_eq!(
+        readings("of creatures", Category::PrepositionPhrase),
+        BTreeSet::from([pp.clone()])
+    );
+    let clause = readings("draw cards", Category::Clause)
+        .into_iter()
+        .next()
+        .unwrap();
+    let finite = readings("draws cards", Category::FinitePredicate)
+        .into_iter()
+        .next()
+        .unwrap();
+    let secondary = readings("draw cards", Category::SecondaryVerbPhrase)
+        .into_iter()
+        .next()
+        .unwrap();
+    for invalid in [
+        Reading::InitialPreposition {
+            form: 0,
+            dependent: Box::new(pp.clone()),
+            clause: Box::new(clause.clone()),
+        },
+        Reading::ClausalPreposition {
+            form: 0,
+            clause: Box::new(clause),
+            dependent: Box::new(pp.clone()),
+        },
+        Reading::FinitePreposition {
+            form: 0,
+            head: Box::new(finite),
+            modifier: Box::new(pp.clone()),
+        },
+        Reading::SecondaryPreposition {
+            form: 0,
+            head: Box::new(secondary),
+            modifier: Box::new(pp.clone()),
+        },
+    ] {
+        assert!(invalid.admit(lexicon()).is_err());
+    }
+    let value = Reading::PostmodifiedNominal {
+        form: 0,
+        head: Box::new(nominal),
+        modifier: Box::new(pp),
+    };
+    value.admit(lexicon()).unwrap();
+    assert!(readings("creatures of creatures", Category::Nominal).contains(&value));
+    assert_eq!(value.realize(lexicon()).unwrap(), "creatures of creatures");
+}
+
+#[test]
+fn pp_adjuncts_and_selected_locatives_keep_their_readings() {
+    for (text, category) in [
+        ("Draw cards from them.", Category::Document),
+        ("Until you draw cards, draw cards.", Category::Document),
+        ("Creatures attack by 2 plus 2.", Category::Document),
+        (
+            "this creature remains on the battlefield",
+            Category::FiniteClause,
+        ),
+        ("number of creatures", Category::Nominal),
+    ] {
+        assert!(
+            !readings(text, category).is_empty(),
+            "no Reading for {text:?}"
+        );
+    }
+}
+
+#[test]
+fn distribution_preserves_nominal_ambiguity_without_detached_of_adjuncts() {
+    // Blessings of Nature and Grove's Bounty, with reminder text stripped.
+    for text in [
+        "Distribute four +1/+1 counters among any number of target creatures.\nMiracle {G}",
+        "Distribute X +1/+1 counters among any number of target creatures you control.",
+    ] {
+        let values = readings(text, Category::Document);
+        assert!(!values.is_empty());
+        for value in values {
+            value
+                .visit(&mut |node| {
+                    let pp = match node {
+                        Reading::InitialPreposition { dependent, .. }
+                        | Reading::ClausalPreposition { dependent, .. } => Some(dependent),
+                        Reading::FinitePreposition { modifier, .. }
+                        | Reading::SecondaryPreposition { modifier, .. } => Some(modifier),
+                        _ => None,
+                    };
+                    if let Some(pp) = pp {
+                        let mut leaves = Vec::new();
+                        pp.visit_words(&mut |word| leaves.push(word.value.clone()))
+                            .unwrap();
+                        let LexicalReading::Word(head) = &leaves[0] else {
+                            panic!("expected a preposition word");
+                        };
+                        assert_ne!(head.lexeme, "vocab:Preposition/Of");
+                    }
+                })
+                .unwrap();
+        }
+    }
+}

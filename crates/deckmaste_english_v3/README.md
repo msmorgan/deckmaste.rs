@@ -35,6 +35,16 @@ parser metrics, selection provenance, snapshot hashes and timings, and is writte
 command. Linguistic correctness and independently constructed-value roundtrips
 require separate evidence.
 
+Stored samples rank by total Construction Cost, then by their fingerprint for
+deterministic ties. Each Construction defaults to cost 1; a declaration can
+override it with `cost 100;`. Lexical leaves contribute zero. Generated
+`local_cost()` and `total_cost()` expose the weights and their checked sum.
+Costs affect presentation only: admission, Reading identity, enumeration and
+the complete no/one/multiple census remain unchanged. When enumeration is
+limited, the samples are cheapest among the enumerated Readings, with no claim
+that an unseen Reading costs more. Generic label fallback Constructions can
+carry a higher cost than declared-label Constructions without discarding either.
+
 ## Admission and packing
 
 An Earley item is `(production, dot, origin, end, state)`. There is exactly one

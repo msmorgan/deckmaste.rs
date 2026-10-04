@@ -401,3 +401,27 @@ fn unknown_word_offsets_and_roundtrips_use_the_stripped_source() {
     );
     assert!(face.issues.is_empty());
 }
+
+#[test]
+fn cheapest_frequency_sample_preserves_all_readings_in_census() {
+    let bytes = serde_json::to_vec(&json!({"data": {
+        "Jadelight Spelunker": [card(Some("When this creature enters, it explores X times."), "Legal")]
+    }})).unwrap();
+    let corpus = selected_corpus(&bytes);
+    let mut options = args(None);
+    options.samples_per_face = 1;
+    let faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &options).unwrap();
+    let face = &faces[0];
+    assert!(face.issues.is_empty(), "{:?}", face.issues);
+    assert_eq!(face.census, Census::Multiple);
+    assert_eq!(face.exact_readings, Some(2));
+    let serialized = serde_json::to_value(face).unwrap();
+    assert_eq!(serialized["samples"].as_array().unwrap().len(), 1);
+    assert!(
+        serialized["samples"][0]["tree"]
+            .as_str()
+            .unwrap()
+            .contains("FiniteFrequency")
+    );
+    assert_eq!(serialized["samples"][0]["total_cost"], 20);
+}

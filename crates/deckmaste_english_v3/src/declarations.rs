@@ -14,6 +14,8 @@ constructions! {
         feature Targeting { No, Yes }
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase }
+        feature AdverbialUse { Yes, No }
+        feature FrequencyUnit { Yes }
         feature FiniteClauseComplement { Yes }
         feature LocativeUse { No, Yes }
         feature AdjectiveStructure { Simple, Complemented }
@@ -60,8 +62,9 @@ constructions! {
         category AdjectivePhrase(AdjectiveStructure);
         category Name();
         category NamePredicate();
-        category PrepositionPhrase(LocativeUse);
+        category PrepositionPhrase(LocativeUse, AdverbialUse);
         category LocativeComplement();
+        category FrequencyPhrase();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause();
         category FiniteObjectGap(number, person);
@@ -420,11 +423,13 @@ constructions! {
 
         construction InitialPreposition: Clause {
             form [dependent: PrepositionPhrase, ", ", clause: Clause];
+            require dependent.AdverbialUse = Yes;
             export finiteness = clause.finiteness;
         }
 
         construction ClausalPreposition: Clause {
             form [clause: Clause, " ", dependent: PrepositionPhrase];
+            require dependent.AdverbialUse = Yes;
             export finiteness = clause.finiteness;
         }
 
@@ -728,12 +733,14 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: AccusativePhrase];
             require head.PrepositionComplement = NounPhrase;
             export LocativeUse = head.LocativeUse;
+            export AdverbialUse = head.AdverbialUse;
         }
 
         construction ClauseComplementPreposition: PrepositionPhrase {
             form [head: lexical(Preposition), " ", complement: FiniteClause];
             require head.FiniteClauseComplement = Yes;
             export LocativeUse = No;
+            export AdverbialUse = Yes;
         }
 
         construction LocativeComplement: LocativeComplement {
@@ -812,8 +819,30 @@ constructions! {
             export Voice = complement.Voice;
         }
 
+        construction CountedFrequency: FrequencyPhrase {
+            form [quantity: Cardinal, " ", head: lexical(Noun)];
+            require head.FrequencyUnit = Yes;
+            require head.countability = Count;
+            agree quantity.number = head.number;
+        }
+
+        construction FiniteFrequency: FinitePredicate {
+            form [head: FinitePredicate, " ", modifier: FrequencyPhrase];
+            export number = head.number;
+            export person = head.person;
+            export Voice = head.Voice;
+        }
+
+        construction SecondaryFrequency: SecondaryVerbPhrase {
+            form [head: SecondaryVerbPhrase, " ", modifier: FrequencyPhrase];
+            export form = secondary_form(head.form);
+            export Voice = head.Voice;
+            export OvertHead = head.OvertHead;
+        }
+
         construction FinitePreposition: FinitePredicate {
             form [head: FinitePredicate, " ", modifier: PrepositionPhrase];
+            require modifier.AdverbialUse = Yes;
             export number = head.number;
             export person = head.person;
             export Voice = head.Voice;
@@ -877,6 +906,7 @@ constructions! {
 
         construction SecondaryPreposition: SecondaryVerbPhrase {
             form [head: SecondaryVerbPhrase, " ", modifier: PrepositionPhrase];
+            require modifier.AdverbialUse = Yes;
             export form = secondary_form(head.form);
             export Voice = head.Voice;
             export OvertHead = head.OvertHead;
@@ -1213,6 +1243,7 @@ constructions! {
             require head.MeasurePreposition = Yes;
             require complement.MeasureKind = Scalar;
             export LocativeUse = No;
+            export AdverbialUse = Yes;
         }
 
         construction MeasuredNounPhrase: NounPhrase {

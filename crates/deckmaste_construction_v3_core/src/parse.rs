@@ -37,6 +37,7 @@ pub(crate) struct FeatureTable {
 }
 
 pub(crate) struct Construction {
+    pub cost: Option<u64>,
     pub name: Ident,
     pub category: Ident,
     pub forms: Vec<Vec<Part>>,
@@ -188,6 +189,7 @@ fn parse_construction(body: ParseStream<'_>, name: Ident) -> syn::Result<Constru
     let contents;
     braced!(contents in body);
     let mut construction = Construction {
+        cost: None,
         name,
         category,
         forms: vec![],
@@ -198,6 +200,16 @@ fn parse_construction(body: ParseStream<'_>, name: Ident) -> syn::Result<Constru
     while !contents.is_empty() {
         let directive: Ident = contents.parse()?;
         match directive.to_string().as_str() {
+            "cost" => {
+                let value: syn::LitInt = contents.parse()?;
+                let value = value.base10_parse::<u64>()?;
+                if construction.cost.replace(value).is_some() {
+                    return Err(syn::Error::new(
+                        directive.span(),
+                        "duplicate construction cost",
+                    ));
+                }
+            }
             "boundary" | "onset" => {
                 let value: Ident = contents.parse()?;
                 let slot = if directive == "boundary" {
@@ -252,7 +264,7 @@ fn parse_construction(body: ParseStream<'_>, name: Ident) -> syn::Result<Constru
                 return Err(syn::Error::new(
                     directive.span(),
                     format!(
-                        "construction {}: unknown generated obligation; expected form, export, agree, require, boundary or onset",
+                        "construction {}: unknown generated obligation; expected form, export, agree, require, boundary, onset or cost",
                         construction.name
                     ),
                 ));

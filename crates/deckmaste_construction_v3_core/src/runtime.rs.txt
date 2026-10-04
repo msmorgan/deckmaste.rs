@@ -160,6 +160,7 @@ impl Word {
 
 #[derive(Debug)]
 pub enum Error {
+    CostOverflow,
     Invalid(&'static str, &'static str),
     Lexical(::deckmaste_lexical::LexicalError),
     Internal,
@@ -172,6 +173,7 @@ impl ::std::fmt::Display for Error {
                 write!(f, "declaration {name}: invalid {obligation}")
             }
             Self::Lexical(error) => ::std::fmt::Display::fmt(error, f),
+            Self::CostOverflow => f.write_str("construction cost overflow"),
             Self::Internal => f.write_str("generated materialization obligation failed"),
         }
     }

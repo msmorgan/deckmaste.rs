@@ -132,6 +132,22 @@
     (identity: Remove, bare: "remove", third_person: "removes", preterite: Some("removed"), frames: [
         Predicate([ObjectNounPhrase, Lex("Preposition", "From"), Role("FrameComplement")]),
     ]),
+    (identity: Trigger, bare: "trigger", third_person: "triggers", frames: [
+        Predicate([]),
+        Predicate([ObjectNounPhrase]),
+    ]),
+    (identity: Remain, bare: "remain", third_person: "remains", frames: [
+        Predicate([PredicativeComplement]),
+        Predicate([Role("LocativeComplement")]),
+    ]),
+    (identity: Resolve, bare: "resolve", third_person: "resolves", frames: [
+        Predicate([]),
+        Predicate([ObjectNounPhrase]),
+    ]),
+    (identity: Distribute, bare: "distribute", third_person: "distributes", frames: [
+        Predicate([ObjectNounPhrase]),
+        Predicate([ObjectNounPhrase, MarkedRole("Preposition", "Among", "NounPhrase")]),
+    ]),
     (identity: Return, bare: "return", third_person: "returns", preterite: Some("returned"), frames: [
         Predicate([
             Role("Object"),

@@ -58,6 +58,7 @@ struct WordSample {
 
 #[derive(Debug, Serialize)]
 pub(super) struct Sample {
+    total_cost: u64,
     id: String,
     tree: String,
     nodes: Vec<NodeIdentity>,
@@ -65,7 +66,12 @@ pub(super) struct Sample {
 }
 
 impl Sample {
-    pub fn new(reading: &Reading, traced: &TracedValue, lexicon: &Lexicon) -> Self {
+    pub fn new(
+        reading: &Reading,
+        traced: &TracedValue,
+        lexicon: &Lexicon,
+        total_cost: u64,
+    ) -> Self {
         let words = traced
             .words
             .iter()
@@ -83,6 +89,7 @@ impl Sample {
             })
             .collect();
         Self {
+            total_cost,
             id: digest(format!("{reading:?}").as_bytes()),
             tree: format!("{reading:#?}"),
             nodes: traced.nodes.clone(),
@@ -402,4 +409,44 @@ pub(super) fn thread_cpu_ns() -> Option<u128> {
     // SAFETY: successful clock_gettime initialized both fields.
     let time = unsafe { time.assume_init() };
     Some(u128::try_from(time.tv_sec).ok()? * 1_000_000_000 + u128::try_from(time.tv_nsec).ok()?)
+}
+
+/// Keep the cheapest samples among readings actually enumerated, including late arrivals.
+pub(super) fn retain_sample(samples: &mut Vec<Sample>, sample: Sample, limit: usize) {
+    samples.push(sample);
+    samples.sort_by(|left, right| (left.total_cost, &left.id).cmp(&(right.total_cost, &right.id)));
+    samples.truncate(limit);
+}
+
+#[cfg(test)]
+mod sample_tests {
+    use super::Sample;
+    use super::retain_sample;
+
+    fn sample(cost: u64, id: &str) -> Sample {
+        Sample {
+            total_cost: cost,
+            id: id.into(),
+            tree: String::new(),
+            nodes: vec![],
+            words: vec![],
+        }
+    }
+
+    #[test]
+    fn late_cheaper_samples_replace_earlier_samples_and_ties_are_deterministic() {
+        let mut samples = vec![];
+        for (cost, id) in [(100, "fallback"), (2, "b"), (1, "cheap"), (2, "a")] {
+            retain_sample(&mut samples, sample(cost, id), 2);
+        }
+        assert_eq!(
+            samples
+                .iter()
+                .map(|s| (s.total_cost, s.id.as_str()))
+                .collect::<Vec<_>>(),
+            [(1, "cheap"), (2, "a")]
+        );
+        retain_sample(&mut samples, sample(0, "discard"), 0);
+        assert_eq!(samples.len(), 0);
+    }
 }

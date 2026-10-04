@@ -30,6 +30,11 @@ Derivations of the same Reading are the same Reading; they are not an
 Ambiguity.
 _Avoid_: Reading for the proof rather than the analysis
 
+**Construction Cost** (project term):
+A nonnegative preference weight on a Construction. A Reading's total sums
+the costs of its Construction occurrences; lower totals rank earlier without
+changing grammatical admission or erasing alternative Readings.
+
 **Lexeme**:
 An abstract lexical item underlying its inflected Word Forms.
 
@@ -322,6 +327,20 @@ _Avoid_: Numerative
 **Adjunct**:
 An optional dependent that modifies a phrase without being selected as its
 Complement.
+
+**Frequency Adjunct**:
+An Adjunct that quantifies occurrences of a situation, such as *X times* or
+*twice*. Frequency quantifies situations rather than time points or periods
+(CGEL, Ch. 8, §9, pp. 713–716).
+
+**Frequency Phrase** (project term):
+A phrase licensed to function as a Frequency Adjunct; a counted Noun Phrase
+can have this function without becoming an Object or changing its noun's
+Part of Speech.
+
+**Adverbial Use**:
+The licensed use of a phrase as an Adjunct to a predicate or Clause, distinct
+from nominal modification or a selected Complement.
 
 **Duration Phrase**:
 An Adjunct that bounds how long the effect of its Clause lasts, such as *until

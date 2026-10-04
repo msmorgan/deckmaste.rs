@@ -98,6 +98,14 @@ corpus parse/render checks.
 
 ## Chart admission and ambiguity
 
+Amendment (2026-10-04): Construction Costs may rank a preferred presentation
+while retaining all grammatical Readings. Default cost is 1, declarations may
+assign nonnegative overrides, and a Reading's total counts its Construction
+occurrences. Costs do not decide admission, change Reading identity, prune the
+forest or replace the complete ambiguity census. Limited enumeration can rank
+only its observed Readings. This permits an expensive generic label fallback
+without confusing preference with grammatical validity.
+
 Retain Earley-family chart parsing. The lexical layer supplies alternatives;
 the grammar composes Categories, lexical frame requirements and feature/
 dependency constraints. Chart completion must operate on sufficient grammatical
