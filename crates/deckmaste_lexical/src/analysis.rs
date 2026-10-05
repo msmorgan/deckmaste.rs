@@ -537,7 +537,10 @@ fn valid_surface(surface: &str, structure: SurfaceStructure, binding: Binding) -
 }
 
 fn canonical_measure_component(component: &str) -> bool {
-    if let Some(unsigned) = component.strip_prefix('+') {
+    if let Some(unsigned) = component
+        .strip_prefix('+')
+        .or_else(|| component.strip_prefix('-'))
+    {
         Numeral::Arabic(false)
             .parse(unsigned)
             .is_ok_and(|value| value >= 0)

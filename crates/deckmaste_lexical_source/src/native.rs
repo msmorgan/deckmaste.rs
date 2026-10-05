@@ -16,12 +16,63 @@ pub(crate) struct Inventory {
     pub category_feature_defaults: BTreeMap<deckmaste_lexical::Category, BTreeMap<String, String>>,
     #[serde(default)]
     pub adjective_classes: Vec<AdjectiveClass>,
+    #[serde(default)]
+    pub compound_noun_classes: Vec<CompoundNounClass>,
     pub core_verb_paradigms: BTreeMap<String, Paradigm>,
     pub frame_markers: BTreeMap<String, (String, String)>,
     pub frame_additions: BTreeMap<String, Vec<Frame>>,
     pub form_replacements: BTreeMap<String, Vec<FormDeclaration>>,
     #[serde(default)]
     pub feature_additions: BTreeMap<String, BTreeMap<String, String>>,
+}
+
+/// A native authoring class with one declared noun head and stem notation.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CompoundNounClass {
+    pub head: String,
+    pub stem_structure: deckmaste_construction_core::macro_def::CompoundStemStructure,
+    #[serde(default)]
+    pub stem_onset: Option<deckmaste_construction_core::macro_def::Onset>,
+    pub members: Vec<CompoundNounMember>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CompoundNounMember {
+    pub owner: String,
+    pub stem: String,
+}
+
+pub(crate) fn compound_noun_declarations(
+    classes: Vec<CompoundNounClass>,
+) -> Result<Vec<crate::compound::Declaration>, LoadError> {
+    let mut declarations = Vec::new();
+    for class in classes {
+        if class.members.is_empty() {
+            return Err(LoadError::InvalidCompoundClass {
+                reason: "empty member list",
+            });
+        }
+        for member in class.members {
+            if member.owner.is_empty() || member.stem.is_empty() {
+                return Err(LoadError::InvalidCompoundClass {
+                    reason: "owner and stem must be nonempty",
+                });
+            }
+            declarations.push(crate::compound::Declaration {
+                source: crate::source(deckmaste_lexical::SourceKind::Core, PATH, &member.owner),
+                recipe: deckmaste_construction_core::macro_def::CompoundNounGrammar {
+                    head: class.head.clone(),
+                    stem: member.stem,
+                    stem_structure: class.stem_structure,
+                    stem_onset: class.stem_onset,
+                },
+                noun_class: None,
+            });
+        }
+    }
+    Ok(declarations)
 }
 
 /// A declared adjective class and the negative joining shared by its members.

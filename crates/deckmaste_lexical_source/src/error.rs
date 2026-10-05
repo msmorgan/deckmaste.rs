@@ -42,6 +42,14 @@ pub enum LoadError {
     },
     #[error("invalid adjective class member {owner:?}: {reason}")]
     InvalidAdjectiveClassMember { owner: String, reason: &'static str },
+    #[error("invalid compound noun class: {reason}")]
+    InvalidCompoundClass { reason: &'static str },
+    #[error("compound head {owner}: {source}")]
+    CompoundHeadLexical {
+        owner: String,
+        #[source]
+        source: deckmaste_lexical::LexicalError,
+    },
     #[error("compound head {owner} must be a declared noun")]
     InvalidCompoundHead { owner: String },
     #[error("duplicate added frame for {owner}")]

@@ -150,3 +150,40 @@ fn authentic_counter_np_coordination_keeps_whole_compound_conjuncts() {
     // Negative shared-modifier probe: macro compounds do not license free charge/loyalty modifiers.
     assert!(readings("charge and loyalty counters", Category::NounPhrase).is_empty());
 }
+
+#[test]
+fn authentic_numeric_counter_compounds_preserve_article_pronunciation() {
+    // Sapphire Drake: "Each creature you control with a +1/+1 counter on it has flying."
+    exact("a +1/+1 counter", Category::NounPhrase, indefinite("p1p1"));
+    // Bloodied Ghost: "This creature enters with a -1/-1 counter on it."
+    exact("a -1/-1 counter", Category::NounPhrase, indefinite("m1m1"));
+    for text in ["an +1/+1 counter", "an -1/-1 counter"] {
+        assert!(readings(text, Category::NounPhrase).is_empty());
+    }
+}
+
+#[test]
+fn authentic_additional_numeric_counter_kinds_keep_signed_zero_notation() {
+    for (text, owner) in [
+        // Ebon Praetor.
+        ("a +1/+0 counter", "P1P0"),
+        // Takklemaggot.
+        ("a -0/-1 counter", "M0M1"),
+        // Greater Werewolf.
+        ("a -0/-2 counter", "M0M2"),
+        // Jabari's Influence.
+        ("a -1/-0 counter", "M1M0"),
+    ] {
+        exact(
+            text,
+            Category::NounPhrase,
+            Reading::IndefiniteNounPhrase {
+                form: 0,
+                determiner: article(),
+                head: Box::new(noun(&format!(
+                    "lexeme:counter_kind_numeric/{owner}/compound-noun"
+                ))),
+            },
+        );
+    }
+}

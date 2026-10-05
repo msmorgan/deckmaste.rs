@@ -18,14 +18,8 @@ use deckmaste_lexical::SourceKind;
 use deckmaste_lexical::WordForm;
 
 use crate::LexicalSources;
+use crate::compound::Declaration as PendingCompoundNoun;
 use crate::source;
-
-pub(crate) struct PendingCompoundNoun {
-    owner: String,
-    path: String,
-    recipe: metadata::CompoundNounGrammar,
-    noun_class: Option<metadata::NounClassSemantics>,
-}
 
 pub(crate) fn load(
     root: &Path,
@@ -50,8 +44,7 @@ pub(crate) fn load(
         let path = path.strip_prefix(root).unwrap_or(path).to_string_lossy();
         if let Some(recipe) = normalized.compound_noun() {
             compounds.push(PendingCompoundNoun {
-                owner: owner.clone(),
-                path: path.to_string(),
+                source: source(SourceKind::Plugin, &path, &owner),
                 recipe: recipe.clone(),
                 noun_class: normalized.noun_class(),
             });
@@ -59,67 +52,6 @@ pub(crate) fn load(
         export_metadata(&owner, &path, definition.metadata, &normalized, output);
     }
     Ok(compounds)
-}
-
-/// Supplementary compounds inherit the final declared noun-head paradigm.
-pub(crate) fn add_compound_nouns(
-    output: &mut LexicalSources,
-    compounds: Vec<PendingCompoundNoun>,
-) -> Result<(), LoadError> {
-    for compound in compounds {
-        let head = output
-            .lexemes
-            .iter()
-            .find(|entry| entry.id == compound.recipe.head)
-            .ok_or_else(|| LoadError::UnknownOwner {
-                property: "compound noun head",
-                owner: compound.recipe.head.clone(),
-            })?;
-        if head.category != Category::Noun {
-            return Err(LoadError::InvalidCompoundHead {
-                owner: compound.recipe.head,
-            });
-        }
-        let mut noun = head.clone();
-        noun.id = format!("{}/compound-noun", compound.owner);
-        noun.lemma = format!("{} {}", compound.recipe.stem, head.lemma);
-        noun.source = source(SourceKind::Plugin, &compound.path, &compound.owner);
-        for slot in &mut noun.forms {
-            if let Some(surfaces) = &mut slot.surfaces {
-                for surface in surfaces {
-                    *surface = format!("{} {surface}", compound.recipe.stem);
-                }
-            }
-        }
-        noun.onsets.clear();
-        noun.article_onsets.clear();
-        for feature in ["Onset", "SingularOnset", "PluralOnset"] {
-            noun.properties.features.remove(feature);
-            noun.properties
-                .features
-                .remove(&format!("FeatureSource:{feature}"));
-        }
-        noun.properties
-            .features
-            .insert("CompoundHead".into(), compound.recipe.head);
-        if let Some(class) = compound.noun_class {
-            noun.properties.features.insert(
-                "locative_temporal_license".into(),
-                format!("{:?}", class.locative_temporal_license),
-            );
-            noun.properties
-                .features
-                .insert("relationality".into(), format!("{:?}", class.relationality));
-        }
-        noun.surface_structure = match compound.recipe.stem_structure {
-            metadata::CompoundStemStructure::Word => deckmaste_lexical::SurfaceStructure::Multiword,
-            metadata::CompoundStemStructure::Measure => {
-                deckmaste_lexical::SurfaceStructure::MeasuredCompound
-            }
-        };
-        output.lexemes.push(noun);
-    }
-    Ok(())
 }
 
 fn export_metadata(

@@ -104,3 +104,17 @@ emitted tokens reconcile exactly against the old syntax. Unknown, duplicate,
 lexical/fixed-category targets and policy-column misuse reject. The unused
 additive-person table is removed after a zero-consumer check. The compiler
 suite now passes 58 tests; focused independent English host tests pass 16.
+
+
+Whole-current-grammar proof reconstructs all 68 header bindings and 28 structured
+frames using the old spellings, then compares complete compiler output:
+2,336,737 bytes match exactly. The resulting grammar has 312 typed instances
+and 525 actual chart productions, with 213 named families. The proof removes
+no form, selection, equation, cost or AST field. Scratch evidence:
+/tmp/systemic-english-compiler-equivalence.json.
+
+Direct lexical-head predicates and shared coordinated-head predicates have
+Word versus Reading fields. Collapsing them through SelectedVerbHead would
+change ASTs, traversal and costs. A deeper typed frame-consumption seam with
+explicit lexical/coordinated adapters could save another 100–180 lines; do not
+replace this proof-backed refactor with a shape-only merge or hidden renaming.

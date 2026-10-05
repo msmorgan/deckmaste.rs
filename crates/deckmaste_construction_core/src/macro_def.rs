@@ -122,6 +122,8 @@ pub struct CompoundNounGrammar {
     pub stem: String,
     #[serde(default)]
     pub stem_structure: CompoundStemStructure,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stem_onset: Option<Onset>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
@@ -1224,6 +1226,8 @@ struct DiagnosticFields<'a> {
     grammar: Option<DiagnosticGrammar<'a>>,
     #[serde(rename = "compound_stem", default, borrow)]
     _compound_stem: Option<&'a RawValue>,
+    #[serde(rename = "compound_onset", default, borrow)]
+    _compound_onset: Option<&'a RawValue>,
     #[serde(default, borrow)]
     body: Option<&'a RawValue>,
 }

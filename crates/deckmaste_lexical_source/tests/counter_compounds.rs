@@ -101,6 +101,12 @@ fn independently_constructed_compound_values_satisfy_both_lexical_laws() {
         ] {
             let expected = value(&owner, form, number);
             assert_eq!(LEXICON.realize(&expected).unwrap(), text);
+            if structure == SurfaceStructure::MeasuredCompound {
+                assert_eq!(
+                    LEXICON.surface_features(&expected).unwrap().onset,
+                    Some(Onset::Consonant)
+                );
+            }
             let actual: BTreeSet<_> = LEXICON
                 .analyze(text)
                 .matches
@@ -134,5 +140,84 @@ fn compound_export_does_not_promote_or_coordinate_its_internal_stems() {
         assert!(!LEXICON.analyze(text).matches.into_iter().any(|matched|
             matched.start == 0 && matched.end == text.chars().count()
                 && matches!(matched.reading, LexicalReading::Word(value) if value.lexeme.ends_with("/compound-noun"))));
+    }
+}
+
+#[test]
+fn native_counter_notation_inventory_has_exact_independent_singular_and_plural_values() {
+    // Oracle witnesses include Lightning Serpent, Ebon Praetor, Greater
+    // Werewolf, Takklemaggot, Jabari's Influence, and Frankenstein's Monster.
+    let expected_members = [
+        ("P1P0", "+1/+0"),
+        ("P2P2", "+2/+2"),
+        ("P2P0", "+2/+0"),
+        ("M0M1", "-0/-1"),
+        ("P0P1", "+0/+1"),
+        ("M0M2", "-0/-2"),
+        ("M2M2", "-2/-2"),
+        ("P0P2", "+0/+2"),
+        ("P1P2", "+1/+2"),
+        ("M2M1", "-2/-1"),
+        ("M1M0", "-1/-0"),
+    ];
+    let actual_owners: BTreeSet<_> = LEXICON
+        .lexemes()
+        .keys()
+        .filter(|owner| owner.starts_with("lexeme:counter_kind_numeric/"))
+        .cloned()
+        .collect();
+    assert_eq!(
+        actual_owners,
+        expected_members
+            .iter()
+            .map(|(name, _)| format!("lexeme:counter_kind_numeric/{name}/compound-noun"))
+            .collect()
+    );
+    for (name, stem) in expected_members {
+        let owner = format!("lexeme:counter_kind_numeric/{name}/compound-noun");
+        let noun = &LEXICON.lexemes()[&owner];
+        assert_eq!(noun.surface_structure, SurfaceStructure::MeasuredCompound);
+        assert_eq!(noun.source.kind, SourceKind::Core);
+        assert_eq!(
+            noun.source.path,
+            "crates/deckmaste_lexical_source/lexicon/core.ron"
+        );
+        assert_eq!(noun.properties.features["SlashPremodifierUse"], "No");
+        assert_eq!(noun.properties.countability, [Countability::Count]);
+        for (form, number, head) in [
+            (WordForm::Singular, Number::Singular, "counter"),
+            (WordForm::Plural, Number::Plural, "counters"),
+        ] {
+            let expected = value(&owner, form, number);
+            let text = format!("{stem} {head}");
+            assert_eq!(LEXICON.realize(&expected).unwrap(), text);
+            assert_eq!(
+                LEXICON.surface_features(&expected).unwrap().onset,
+                Some(Onset::Consonant)
+            );
+            let actual: BTreeSet<_> = LEXICON
+                .analyze(&text)
+                .matches
+                .into_iter()
+                .filter(|matched| matched.start == 0 && matched.end == text.chars().count())
+                .filter_map(|matched| match &matched.reading {
+                    LexicalReading::Word(value) if value.lexeme == owner => Some(matched.reading),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(actual, BTreeSet::from([expected]));
+        }
+    }
+    for undeclared in ["+3/+7 counter", "-0/-3 counters", "-00/-1 counter"] {
+        assert!(
+            !LEXICON
+                .analyze(undeclared)
+                .matches
+                .into_iter()
+                .any(|matched| matched.start == 0
+                    && matched.end == undeclared.chars().count()
+                    && matches!(matched.reading, LexicalReading::Word(value)
+                    if value.lexeme.starts_with("lexeme:counter_kind_numeric/")))
+        );
     }
 }

@@ -1543,6 +1543,7 @@ fn counter_compound_class_recipe_preserves_stem_structure_and_fixed_term() {
             head: "lexeme:CommonNoun/Counter".into(),
             stem: "charge".into(),
             stem_structure: CompoundStemStructure::Word,
+            stem_onset: None,
         })
     );
     assert_eq!(
@@ -1552,13 +1553,17 @@ fn counter_compound_class_recipe_preserves_stem_structure_and_fixed_term() {
     let measured = read_str(
         source_path("p1p1Counter.ron"),
         r#"CounterKind(
-        name: "p1p1Counter", params: [], spelling: "+1/+1", compound_stem: Measure,
+        name: "p1p1Counter", params: [], spelling: "+1/+1", compound_stem: Measure, compound_onset: Consonant,
     )"#,
     )
     .unwrap();
     assert_eq!(
         measured.compound_noun().unwrap().stem_structure,
         CompoundStemStructure::Measure
+    );
+    assert_eq!(
+        measured.compound_noun().unwrap().stem_onset,
+        Some(Onset::Consonant)
     );
     assert!(measured.grammar().is_none());
     assert_eq!(

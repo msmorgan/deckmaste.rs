@@ -10,6 +10,25 @@
             "vocab:Supertype/Snow", "vocab:Supertype/World",
         ],
     )],
+    // Additional Oracle counter notation uses the same declared noun-head recipe.
+    compound_noun_classes: [(
+        head: "lexeme:CommonNoun/Counter",
+        stem_structure: Measure,
+        stem_onset: Some(Consonant),
+        members: [
+            (owner: "lexeme:counter_kind_numeric/P1P0", stem: "+1/+0"),
+            (owner: "lexeme:counter_kind_numeric/P2P2", stem: "+2/+2"),
+            (owner: "lexeme:counter_kind_numeric/P2P0", stem: "+2/+0"),
+            (owner: "lexeme:counter_kind_numeric/M0M1", stem: "-0/-1"),
+            (owner: "lexeme:counter_kind_numeric/P0P1", stem: "+0/+1"),
+            (owner: "lexeme:counter_kind_numeric/M0M2", stem: "-0/-2"),
+            (owner: "lexeme:counter_kind_numeric/M2M2", stem: "-2/-2"),
+            (owner: "lexeme:counter_kind_numeric/P0P2", stem: "+0/+2"),
+            (owner: "lexeme:counter_kind_numeric/P1P2", stem: "+1/+2"),
+            (owner: "lexeme:counter_kind_numeric/M2M1", stem: "-2/-1"),
+            (owner: "lexeme:counter_kind_numeric/M1M0", stem: "-1/-0"),
+        ],
+    )],
     category_feature_defaults: {
         Keyword: {"KeywordMarker": "None", "KeywordSeparator": "Space", "KeywordParameterSeparator": "Space", "KeywordQualityNumber": "Any", "KeywordPayloadOrder": "AfterHead", "BoundKeyword": "No"},
         Noun: {"NominalBareClass": "None", "NominalAdjunctClass": "None"},

@@ -4,6 +4,7 @@
 //! source formats used to salvage the current inventory.
 
 mod card_names;
+mod compound;
 mod error;
 pub use error::LoadError;
 
@@ -43,7 +44,10 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
             owners: native.core_verb_paradigms.into_keys().collect(),
         });
     }
-    let compounds = legacy::plugins::load(root, &mut output)?;
+    let mut compounds = legacy::plugins::load(root, &mut output)?;
+    compounds.extend(native::compound_noun_declarations(
+        native.compound_noun_classes,
+    )?);
     let directory = root.join("data/gen/catalogs");
     let catalogs = deckmaste_catalogs::CatalogSet::load(&directory)?;
     let nicknames = card_names::load(root)?;
@@ -100,7 +104,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     native::replace_forms(&mut output.lexemes, native.form_replacements)?;
     native::add_frames(&mut output.lexemes, native.frame_additions)?;
     native::add_features(&mut output.lexemes, native.feature_additions)?;
-    legacy::plugins::add_compound_nouns(&mut output, compounds)?;
+    compound::add_compound_nouns(&mut output, compounds)?;
     native::add_adjective_classes(&mut output.lexemes, native.adjective_classes)?;
     native::add_category_feature_defaults(&mut output.lexemes, native.category_feature_defaults)?;
     native::reconcile_frames(&mut output.lexemes, &native.frame_markers)?;

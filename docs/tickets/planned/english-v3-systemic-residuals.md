@@ -213,3 +213,32 @@ validated materialization trace. Every candidate still undergoes complete
 admission, byte-exact realization, traversal and duplicate validation; sample
 retention does not cap Reading enumeration. A regression verifies late cheaper
 samples, deterministic identity ties, rejected expensive payloads and zero limit.
+
+
+The one-Reading diagnostic examines all 32,828 identities but deliberately does
+not establish complete reading counts. It finds 4,397 newly covered identities
+and 54 lost identities relative to the verified 6,186-covered baseline. All
+54 losses contain indefinite numeric counter compounds: removing the old
+syntactic slash analysis exposed absent plus/minus pronunciation onsets in the
+new lexical recipe. STOP: these are regressions, not permitted count changes.
+The correction must declare compound-stem onset in the macro, preserve both
+noun forms and prove independently supplied a +1/+1 and a -1/-1 counter values.
+Do not use this capped diagnostic as final coverage or ambiguity evidence.
+
+
+STOP resolution: explicit compound onset restores 53 affected faces, with all
+2,785 retained Readings checked exactly and zero issues. Lightning Serpent's
+remaining +1/+0 gap is restored by the native declared compound class: eleven
+additional attested numeric stems reuse the same head-paradigm factory, for
+84 owned counter compounds total. Signed zero retains its exact Oracle spelling;
+validation separates the authored sign from canonical unsigned magnitude.
+Independent exact NP tests cover Ebon Praetor, Takklemaggot, Greater Werewolf
+and Jabari's Influence. Lightning Serpent now parses as a complete face with
+zero issues. No syntactic counter slash-premodifier analysis is reinstated.
+Frankenstein's Monster's shared numeric tail remains a separate restricted
+coordination obligation; adding its +2/+0 stem does not claim that host solved.
+
+The broad gate's three facts-test failures occurred during concurrent macro
+metadata changes: the binary embedded the prior CounterKind signature but read
+the new declaration files. A rebuilt facts suite passes all 17 tests. No
+fixture was weakened for those failures; the frozen-tree gate must pass anew.

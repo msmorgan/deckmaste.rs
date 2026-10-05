@@ -7,6 +7,7 @@
         "spelling": String,
         "grammar": Elidable(Any),
         "compound_stem": Default(Any, Word),
+        "compound_onset": Elidable(Any),
         "body": Default(Any, ()),
     },
     body: (
@@ -20,6 +21,7 @@
                 head: "lexeme:CommonNoun/Counter",
                 stem: Param(spelling),
                 stem_structure: Param(compound_stem),
+                stem_onset: Param(compound_onset),
             ),
             noun_class: (
                 locative_temporal_license: OnLicensed,
