@@ -217,6 +217,17 @@ predicative complements (CGEL, pp. 633, 1268).
 The grammatical organization of a predication's participants, including the
 active and passive patterns of Subject and Complement realization.
 
+**Bare Passive**:
+A nonfinite passive Clause without an expanding catenative verb such as *be* or
+*get*. It may include an overt Subject or an internalised *by*-Complement
+(CGEL, Ch. 16 §10.1.1, p. 1430).
+
+**Participial Use** (project term):
+The distinction, in participial Complement selection, between a Bare Passive
+and an ordinary lexical or auxiliary predicate. An expanded passive has
+ordinary auxiliary structure while containing a Bare Passive Complement;
+Coordination preserves the uses of its members (CGEL, pp. 1430–1431).
+
 **Polarity**:
 The grammatical distinction between positive and negative expressions.
 

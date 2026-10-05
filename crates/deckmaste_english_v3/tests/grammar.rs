@@ -428,12 +428,15 @@ fn independently_constructed_auxiliary_ellipsis_roundtrips_without_discourse_con
             head: auxiliary,
             complement: Box::new(Reading::BareEllipsis {
                 form: 0,
-                omission: Box::new(Reading::OmittedPlainActive { form: 0 }),
+                omission: Box::new(Reading::OmittedPlain { form: 0 }),
             }),
         }),
     };
     assert_eq!(value.realize(lexicon()).unwrap(), "you do");
-    assert!(readings("you do", Category::FiniteClause).contains(&value));
+    assert_eq!(
+        readings("you do", Category::FiniteClause),
+        BTreeSet::from([value.clone()])
+    );
     let mut before = vec![];
     value
         .visit_words(&mut |word| before.push(word.clone()))
