@@ -13,7 +13,7 @@ KeywordAbility(
     body: [
         static(
             insteadOf(
-                verbedEvent(a(anyPlayer), Action("Discard"), this),
+                discards(a(anyPlayer), this),
                 enact(Action("Discard"), move(this, hand, exileZone)),
             ),
         ),

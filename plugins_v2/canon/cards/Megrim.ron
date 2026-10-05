@@ -1,0 +1,12 @@
+// "Whenever an opponent discards a card, this enchantment deals 2 damage to
+// that player." "That player" is the opponent the discard event names.
+SingleFaced(face: (
+    characteristics: (
+        name: "Megrim",
+        cost: [2, Black],
+        types: [Enchantment],
+        text: [
+            triggered(discards(a(opponent), a(card)), dealDamage(thisEnchantment, 2, that(Player))),
+        ],
+    ),
+))

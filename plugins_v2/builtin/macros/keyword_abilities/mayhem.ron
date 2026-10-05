@@ -12,7 +12,7 @@ KeywordAbility(
         static(
             onlyWhile(
                 mayCastFor(you, Param(0), graveyardOf(you)),
-                happened(verbedEvent(gap(Player), Action("Discard"), this), you, ThisTurn),
+                happened(discards(gap(Player), this), you, ThisTurn),
             ),
         ),
     ],

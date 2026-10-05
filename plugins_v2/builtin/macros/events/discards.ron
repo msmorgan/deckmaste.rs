@@ -1,0 +1,8 @@
+// "<player> discards <card>": the discard deed with the player who did it
+// [CR#701.9a], as `casts` names who cast.
+(
+    name: "discards",
+    kinds: [GameEvent],
+    params: {"player": Subject, "card": Subject},
+    body: verbedEvent(Param(player), Action("Discard"), Param(card)),
+)
