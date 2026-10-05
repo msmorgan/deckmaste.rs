@@ -360,7 +360,7 @@ pub(crate) fn replace_forms(
 /// Apply authored category defaults only where an individual declaration is silent.
 pub(crate) fn add_category_feature_defaults(
     lexemes: &mut [Lexeme],
-    defaults: BTreeMap<deckmaste_lexical::Category, BTreeMap<String, String>>,
+    defaults: &BTreeMap<deckmaste_lexical::Category, BTreeMap<String, String>>,
 ) -> Result<(), LoadError> {
     for lexeme in lexemes {
         if let Some(features) = defaults.get(&lexeme.category) {

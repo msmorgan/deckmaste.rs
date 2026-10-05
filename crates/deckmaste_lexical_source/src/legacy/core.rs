@@ -366,9 +366,18 @@ mod tests {
         assert_eq!(lexeme.id, "core-verb:Draw");
         assert_eq!(lexeme.source.owner, "core-verb:Draw");
         let lexicon = Lexicon::new(output.lexemes).unwrap();
-        assert!(!lexicon.analyze("drawn").matches.is_empty());
-        assert!(!lexicon.analyze("drew").matches.is_empty());
-        assert!(lexicon.analyze("drawed").matches.is_empty());
+        assert_ne!(
+            lexicon.analyze("drawn").matches,
+            [] as [deckmaste_lexical::LexicalMatch; 0]
+        );
+        assert_ne!(
+            lexicon.analyze("drew").matches,
+            [] as [deckmaste_lexical::LexicalMatch; 0]
+        );
+        assert_eq!(
+            lexicon.analyze("drawed").matches,
+            [] as [deckmaste_lexical::LexicalMatch; 0]
+        );
     }
 
     #[test]
@@ -389,7 +398,7 @@ mod tests {
             panic!("expected vocab");
         };
         export_vocab(vocab, &mut output);
-        assert!(output.lexemes.is_empty());
+        assert_eq!(output.lexemes, [] as [deckmaste_lexical::Lexeme; 0]);
         assert_eq!(
             output.unmapped,
             ["vocab UndeclaredDistribution::Example: \"mystery\""]
@@ -421,9 +430,21 @@ mod tests {
         };
         export_noun(noun, &mut output).unwrap();
         let lexicon = Lexicon::new(output.lexemes).unwrap();
-        assert!(!lexicon.analyze("abilities").matches.is_empty());
-        assert!(lexicon.analyze("abilitys").matches.is_empty());
-        assert!(!lexicon.analyze("mana").matches.is_empty());
-        assert!(lexicon.analyze("manas").matches.is_empty());
+        assert_ne!(
+            lexicon.analyze("abilities").matches,
+            [] as [deckmaste_lexical::LexicalMatch; 0]
+        );
+        assert_eq!(
+            lexicon.analyze("abilitys").matches,
+            [] as [deckmaste_lexical::LexicalMatch; 0]
+        );
+        assert_ne!(
+            lexicon.analyze("mana").matches,
+            [] as [deckmaste_lexical::LexicalMatch; 0]
+        );
+        assert_eq!(
+            lexicon.analyze("manas").matches,
+            [] as [deckmaste_lexical::LexicalMatch; 0]
+        );
     }
 }

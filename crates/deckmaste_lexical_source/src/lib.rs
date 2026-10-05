@@ -107,7 +107,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     compound::add_compound_nouns(&mut output, compounds)?;
     native::add_adjective_classes(&mut output.lexemes, native.adjective_classes)?;
     native::add_participial_adjectives(&mut output.lexemes, native.participial_adjective_classes)?;
-    native::add_category_feature_defaults(&mut output.lexemes, native.category_feature_defaults)?;
+    native::add_category_feature_defaults(&mut output.lexemes, &native.category_feature_defaults)?;
     native::reconcile_frames(&mut output.lexemes, &native.frame_markers)?;
     for lexeme in &mut output.lexemes {
         if lexeme.source.kind == SourceKind::Catalog || lexeme.category == Category::Keyword {
@@ -116,7 +116,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
             lexeme.surface_structure = SurfaceStructure::Multiword;
         }
     }
-    output.lexemes.sort_by(|left, right| left.id.cmp(&right.id));
+    output.lexemes.sort_by_key(|left| left.id);
     if let Some(pair) = output
         .lexemes
         .windows(2)

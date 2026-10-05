@@ -1951,6 +1951,78 @@ pub fn read_builtin_v2(root: impl AsRef<Path>) -> Result<Vec<NormalizedDeclarati
         .collect())
 }
 
+fn validate_metadata(
+    path: &Path,
+    source_map: &ValidationSourceMap,
+    kind: DeclarationKind,
+    metadata: &Metadata,
+) -> Result<(), ReadError> {
+    if metadata.type_word.is_some()
+        && metadata
+            .grammar
+            .as_ref()
+            .is_some_and(|grammar| !matches!(grammar, Grammar::Noun { .. }))
+    {
+        return Err(validation_error_at(
+            path,
+            source_map.declaration,
+            ValidationError::TypeWordGrammarMismatch,
+        ));
+    }
+    if metadata.keyword_syntax.is_some()
+        && (kind != DeclarationKind::KeywordAbility
+            || metadata
+                .grammar
+                .as_ref()
+                .is_some_and(|grammar| !matches!(grammar, Grammar::FixedKeyword { .. })))
+    {
+        return Err(validation_error_at(
+            path,
+            source_map.declaration,
+            ValidationError::KeywordSyntaxGrammarMismatch,
+        ));
+    }
+    if metadata.compound_noun.as_ref().is_some_and(|compound| {
+        compound.head.is_empty()
+            || compound.stem.is_empty()
+            || metadata
+                .grammar
+                .as_ref()
+                .is_some_and(|grammar| !matches!(grammar, Grammar::FixedTerm { .. }))
+    }) {
+        return Err(validation_error_at(
+            path,
+            source_map.declaration,
+            ValidationError::CompoundNounGrammarMismatch,
+        ));
+    }
+    let noun_bearing = matches!(
+        kind,
+        DeclarationKind::Subtype(_)
+            | DeclarationKind::Type
+            | DeclarationKind::TurnPart
+            | DeclarationKind::CounterKind
+    );
+    match (noun_bearing, &metadata.noun_class) {
+        (true, None) => {
+            return Err(validation_error_at(
+                path,
+                source_map.declaration,
+                ValidationError::MissingNounClassSemantics { kind },
+            ));
+        }
+        (false, Some(_)) => {
+            return Err(validation_error_at(
+                path,
+                source_map.declaration,
+                ValidationError::UnexpectedNounClassSemantics { kind },
+            ));
+        }
+        (true, Some(_)) | (false, None) => {}
+    }
+    Ok(())
+}
+
 fn normalize(
     path: PathBuf,
     definition: &macro_ron::MacroDef<Metadata>,
@@ -1968,6 +2040,7 @@ fn normalize(
     } else {
         None
     };
+    validate_metadata(&path, source_map, kind, &definition.metadata)?;
     let Metadata {
         spelling,
         grammar,
@@ -1977,66 +2050,6 @@ fn normalize(
         compound_noun,
         category: _,
     } = definition.metadata.clone();
-    if type_word.is_some()
-        && grammar
-            .as_ref()
-            .is_some_and(|grammar| !matches!(grammar, Grammar::Noun { .. }))
-    {
-        return Err(validation_error_at(
-            &path,
-            source_map.declaration,
-            ValidationError::TypeWordGrammarMismatch,
-        ));
-    }
-    if keyword_syntax.is_some()
-        && (kind != DeclarationKind::KeywordAbility
-            || grammar
-                .as_ref()
-                .is_some_and(|grammar| !matches!(grammar, Grammar::FixedKeyword { .. })))
-    {
-        return Err(validation_error_at(
-            &path,
-            source_map.declaration,
-            ValidationError::KeywordSyntaxGrammarMismatch,
-        ));
-    }
-    if compound_noun.as_ref().is_some_and(|compound| {
-        compound.head.is_empty()
-            || compound.stem.is_empty()
-            || grammar
-                .as_ref()
-                .is_some_and(|grammar| !matches!(grammar, Grammar::FixedTerm { .. }))
-    }) {
-        return Err(validation_error_at(
-            &path,
-            source_map.declaration,
-            ValidationError::CompoundNounGrammarMismatch,
-        ));
-    }
-    let noun_bearing = matches!(
-        kind,
-        DeclarationKind::Subtype(_)
-            | DeclarationKind::Type
-            | DeclarationKind::TurnPart
-            | DeclarationKind::CounterKind
-    );
-    match (noun_bearing, noun_class) {
-        (true, None) => {
-            return Err(validation_error_at(
-                &path,
-                source_map.declaration,
-                ValidationError::MissingNounClassSemantics { kind },
-            ));
-        }
-        (false, Some(_)) => {
-            return Err(validation_error_at(
-                &path,
-                source_map.declaration,
-                ValidationError::UnexpectedNounClassSemantics { kind },
-            ));
-        }
-        (true, Some(_)) | (false, None) => {}
-    }
     let body = source_map
         .body
         .is_present()

@@ -14,6 +14,7 @@ use deckmaste_lexical::Lexeme;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
 use deckmaste_lexical::Relation;
+use deckmaste_lexical::Source;
 use deckmaste_lexical::SourceKind;
 use deckmaste_lexical::WordForm;
 
@@ -69,7 +70,44 @@ fn export_metadata(
         ));
         return;
     };
-    let mut lexeme = match grammar {
+    let mut lexeme = grammar_lexeme(owner, path, grammar, provenance, normalized, output);
+    export_distribution(&mut lexeme, normalized, authored.noun_class);
+    if let Some(type_word) = normalized.type_word() {
+        if type_word.noun_modifier {
+            lexeme
+                .properties
+                .features
+                .insert("NounPremodifier".into(), "Yes".into());
+        }
+        output.lexemes.push(crate::native::negative_lexeme(
+            &lexeme,
+            type_word.negative_prefix_join,
+        ));
+    }
+    // Parameterized spelling remains a grammar recipe, not guessed ordinary
+    // words.
+    if normalized
+        .spelling()
+        .iter()
+        .any(|part| matches!(part, metadata::SpellingPart::Param(_)))
+    {
+        output.unmapped.push(format!(
+            "parameterized-spelling {owner}: {:?}",
+            authored.spelling
+        ));
+    }
+    output.lexemes.push(lexeme);
+}
+
+fn grammar_lexeme(
+    owner: &str,
+    path: &str,
+    grammar: metadata::Grammar,
+    provenance: Source,
+    normalized: &metadata::NormalizedDeclaration,
+    output: &mut LexicalSources,
+) -> Lexeme {
+    match grammar {
         metadata::Grammar::Verb {
             bare,
             bare_onset,
@@ -155,16 +193,22 @@ fn export_metadata(
             block_label,
             parameter,
         } => {
-            export_keyword_supplements(
-                owner,
-                path,
-                &surface,
-                bound_suffix,
-                participial_adjective,
-                block_label,
-                normalized.keyword_parameter_class(),
-                output,
-            );
+            if let Some(suffix) = bound_suffix {
+                output.lexemes.push(bound_suffix_lexeme(
+                    owner,
+                    path,
+                    suffix,
+                    normalized.keyword_parameter_class(),
+                ));
+            }
+            if let Some(adjective) = participial_adjective {
+                output.lexemes.push(participial_adjective_lexeme(
+                    owner, path, &surface, adjective,
+                ));
+            }
+            if let Some(label) = block_label {
+                output.lexemes.push(block_label_lexeme(owner, path, label));
+            }
             let mut lexeme = Lexeme::invariant(owner, surface, Category::Keyword, provenance);
             lexeme.source.kind = SourceKind::Keyword;
             if let Some(onset) = onset {
@@ -195,33 +239,7 @@ fn export_metadata(
             }
             lexeme
         }
-    };
-    export_distribution(&mut lexeme, normalized, authored.noun_class);
-    if let Some(type_word) = normalized.type_word() {
-        if type_word.noun_modifier {
-            lexeme
-                .properties
-                .features
-                .insert("NounPremodifier".into(), "Yes".into());
-        }
-        output.lexemes.push(crate::native::negative_lexeme(
-            &lexeme,
-            type_word.negative_prefix_join,
-        ));
     }
-    // Parameterized spelling remains a grammar recipe, not guessed ordinary
-    // words.
-    if normalized
-        .spelling()
-        .iter()
-        .any(|part| matches!(part, metadata::SpellingPart::Param(_)))
-    {
-        output.unmapped.push(format!(
-            "parameterized-spelling {owner}: {:?}",
-            authored.spelling
-        ));
-    }
-    output.lexemes.push(lexeme);
 }
 
 fn export_distribution(
@@ -281,87 +299,88 @@ fn export_distribution(
     }
 }
 
-fn export_keyword_supplements(
+fn bound_suffix_lexeme(
+    owner: &str,
+    path: &str,
+    suffix: metadata::BoundSuffixGrammar,
+    parameter_class: Option<metadata::KeywordParameterClass>,
+) -> Lexeme {
+    let suffix_owner = format!("{owner}/bound-suffix");
+    let mut lexeme = Lexeme::invariant(
+        &suffix_owner,
+        suffix.surface,
+        Category::Keyword,
+        source(SourceKind::Keyword, path, owner),
+    );
+    lexeme
+        .properties
+        .features
+        .insert("KeywordPayloadOrder".into(), "BoundSuffix".into());
+    lexeme
+        .properties
+        .features
+        .insert("BoundKeyword".into(), "Yes".into());
+    if let Some(class) = parameter_class {
+        lexeme.properties.features.insert(
+            "KeywordParameterClass".into(),
+            match class {
+                metadata::KeywordParameterClass::Unsupported(class) => format!("{class:?}"),
+                class => format!("{class:?}"),
+            },
+        );
+    }
+    lexeme.binding = Binding::Suffix;
+    lexeme.capitalization = Capitalization::Exact;
+    lexeme
+}
+
+fn participial_adjective_lexeme(
     owner: &str,
     path: &str,
     surface: &str,
-    bound_suffix: Option<metadata::BoundSuffixGrammar>,
-    participial_adjective: Option<metadata::ParticipialAdjectiveGrammar>,
-    block_label: Option<metadata::BlockLabelGrammar>,
-    parameter_class: Option<metadata::KeywordParameterClass>,
-    output: &mut LexicalSources,
-) {
-    if let Some(suffix) = bound_suffix {
-        let suffix_owner = format!("{owner}/bound-suffix");
-        let mut lexeme = Lexeme::invariant(
-            &suffix_owner,
-            suffix.surface,
-            Category::Keyword,
-            source(SourceKind::Keyword, path, owner),
-        );
+    adjective: metadata::ParticipialAdjectiveGrammar,
+) -> Lexeme {
+    let spelling = match adjective.surface {
+        metadata::DerivedSurface::Derived => deckmaste_lexical::default_participle(surface),
+        metadata::DerivedSurface::Override(spelling) => spelling,
+        metadata::DerivedSurface::Unavailable => {
+            unreachable!("the declaration reader rejects an unavailable adjective")
+        }
+    };
+    let mut lexeme = Lexeme::invariant(
+        format!("{owner}/adjective"),
+        spelling,
+        Category::Adjective,
+        source(SourceKind::Keyword, path, owner),
+    );
+    lexeme.properties.features.insert(
+        "BareSingularUse".into(),
+        if adjective.bare_singular_use { "Yes" } else { "No" }.into(),
+    );
+    if let Some(onset) = adjective.onset {
         lexeme
             .properties
             .features
-            .insert("KeywordPayloadOrder".into(), "BoundSuffix".into());
+            .insert("Onset".into(), format!("{onset:?}"));
+    }
+    lexeme
+}
+
+fn block_label_lexeme(owner: &str, path: &str, label: metadata::BlockLabelGrammar) -> Lexeme {
+    let label_owner = format!("{owner}/block-label");
+    let mut lexeme = Lexeme::invariant(
+        &label_owner,
+        label.surface,
+        Category::Keyword,
+        source(SourceKind::Keyword, path, owner),
+    );
+    if let Some(onset) = label.onset {
         lexeme
             .properties
             .features
-            .insert("BoundKeyword".into(), "Yes".into());
-        if let Some(class) = parameter_class {
-            lexeme.properties.features.insert(
-                "KeywordParameterClass".into(),
-                match class {
-                    metadata::KeywordParameterClass::Unsupported(class) => format!("{class:?}"),
-                    class => format!("{class:?}"),
-                },
-            );
-        }
-        lexeme.binding = Binding::Suffix;
-        lexeme.capitalization = Capitalization::Exact;
-        output.lexemes.push(lexeme);
+            .insert("Onset".into(), format!("{onset:?}"));
     }
-    if let Some(adjective) = participial_adjective {
-        let spelling = match adjective.surface {
-            metadata::DerivedSurface::Derived => deckmaste_lexical::default_participle(surface),
-            metadata::DerivedSurface::Override(spelling) => spelling,
-            metadata::DerivedSurface::Unavailable => {
-                unreachable!("the declaration reader rejects an unavailable adjective")
-            }
-        };
-        let mut lexeme = Lexeme::invariant(
-            format!("{owner}/adjective"),
-            spelling,
-            Category::Adjective,
-            source(SourceKind::Keyword, path, owner),
-        );
-        lexeme.properties.features.insert(
-            "BareSingularUse".into(),
-            if adjective.bare_singular_use { "Yes" } else { "No" }.into(),
-        );
-        if let Some(onset) = adjective.onset {
-            lexeme
-                .properties
-                .features
-                .insert("Onset".into(), format!("{onset:?}"));
-        }
-        output.lexemes.push(lexeme);
-    }
-    if let Some(label) = block_label {
-        let label_owner = format!("{owner}/block-label");
-        let mut lexeme = Lexeme::invariant(
-            &label_owner,
-            label.surface,
-            Category::Keyword,
-            source(SourceKind::Keyword, path, owner),
-        );
-        if let Some(onset) = label.onset {
-            lexeme
-                .properties
-                .features
-                .insert("Onset".into(), format!("{onset:?}"));
-        }
-        output.lexemes.push(lexeme);
-    }
+    lexeme
 }
 
 fn verb_derived(
@@ -586,30 +605,22 @@ mod tests {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        export_keyword_supplements(
+        output.lexemes.push(participial_adjective_lexeme(
             "default",
             "fixture",
             "fortify",
-            None,
-            Some(metadata::ParticipialAdjectiveGrammar::default()),
-            None,
-            None,
-            &mut output,
-        );
-        export_keyword_supplements(
+            metadata::ParticipialAdjectiveGrammar::default(),
+        ));
+        output.lexemes.push(participial_adjective_lexeme(
             "override",
             "fixture",
             "equip",
-            None,
-            Some(metadata::ParticipialAdjectiveGrammar {
+            metadata::ParticipialAdjectiveGrammar {
                 bare_singular_use: false,
                 surface: metadata::DerivedSurface::Override("equipped".into()),
                 onset: None,
-            }),
-            None,
-            None,
-            &mut output,
-        );
+            },
+        ));
         let lexicon = Lexicon::new(output.lexemes).unwrap();
         for (owner, spelling) in [
             ("default/adjective", "fortified"),
@@ -629,6 +640,9 @@ mod tests {
                 spelling
             );
         }
-        assert!(lexicon.analyze("equiped").matches.is_empty());
+        assert_eq!(
+            lexicon.analyze("equiped").matches,
+            [] as [deckmaste_lexical::LexicalMatch; 0]
+        );
     }
 }
