@@ -80,7 +80,7 @@ theorem graveyardDestinationRejectsEntryRiders :
 
 theorem graveyardDestinationAcceptsCounterRiders :
     Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard
-      [.withCounters (.lit 1) (.printed plusOnePlusOne) .fresh]) = [] := by decide
+      [.withCounters (.lit 1) (.printed p1p1Counter) .fresh]) = [] := by decide
 
 theorem pronounMovePreservesCopyOriginAndOuterBindings :
     Instruction.intro [⟨.the, .one, .ability (some .copy)⟩, ⟨.the, .one, .player false⟩]
@@ -206,7 +206,7 @@ theorem counterIsSingleEnactedMove (subject : NounPhrase) :
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
     countOutcomes .countersRemoved (Instruction.intro []
-      (loseCounters (some (.printed (.named "Poison")))
+      (loseCounters (some (.printed (.named "poison")))
         (some (.lit 1)) .you)) = 1 := by decide
 
 theorem ownPowerCanReadAnExistingReference :
@@ -229,7 +229,7 @@ theorem postposedCounterConditionReadsTheUnmovedSpell :
 
 theorem losingCountersAmountReadsItsPlayer :
     Instruction.check [] (loseCounters
-      (some (.printed (.named "Poison"))) (some (lifeTotalOf they)) (a .opponent)) = [] := by decide
+      (some (.printed (.named "poison"))) (some (lifeTotalOf they)) (a .opponent)) = [] := by decide
 
 theorem regenerationCanProtectANoncreaturePermanent :
     Instruction.check [] (regenerate (target artifact)) = [] := by decide

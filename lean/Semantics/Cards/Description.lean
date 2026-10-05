@@ -169,7 +169,7 @@ def topple : Spelled := spelled <| .singleFaced
 
 /-- "each opponent with three or more poison counters" -/
 def corruptedOpponents : NounPhrase :=
-  each (Primitives.Predicate.and [Primitives.Predicate.opponent, Primitives.Predicate.compare [.counter (.named "Poison")] .atLeast (.lit 3)])
+  each (Primitives.Predicate.and [Primitives.Predicate.opponent, Primitives.Predicate.compare [.counter (.named "poison")] .atLeast (.lit 3)])
 theorem okCorruptedOpponents : NounPhrase.check (some .player) [] corruptedOpponents = [] := by
   decide
 
@@ -511,7 +511,7 @@ theorem okIronMastiffIgnore : Instruction.check [] ironMastiffIgnore = [] := by 
 def xenosquirrelsShift : Ability :=
   Primitives.Ability.triggered (Primitives.GameEvent.rollsDice Primitives.NounPhrase.you .one none Primitives.RollWatch.anyResult) [] none [] none none none
     (Primitives.Instruction.offer
-      (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed plusOnePlusOne)) thisCreature)
+      (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed p1p1Counter)) thisCreature)
       (some (shiftResult (.lit 1))) none (agent := Primitives.NounPhrase.you))
 theorem okXenosquirrelsShift : Ability.check [] xenosquirrelsShift = [] := by decide
 

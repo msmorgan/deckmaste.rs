@@ -6,7 +6,7 @@ CounterKind(
     spelling: "shadow",
     grammar: FixedTerm(surface: "shadow"),
     body: Counter(
-        kind: Keyword(keyword: "Shadow"),
+        kind: Named(name: "shadowCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

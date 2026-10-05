@@ -81,7 +81,7 @@ def orchardElemental : Spelled := spelled <| .singleFaced
               (Primitives.Instruction.sequentially
                 [ voteStartingWith Primitives.NounPhrase.you .openly
                     (Primitives.Ballot.byLabel ["sprout", "harvest"]) (agent := (each Primitives.Predicate.anyPlayer)),
-                  Primitives.Instruction.putCounters (times (.lit 2) (Primitives.Amount.votesFor "sprout")) (Primitives.CounterKindSource.printed plusOnePlusOne)
+                  Primitives.Instruction.putCounters (times (.lit 2) (Primitives.Amount.votesFor "sprout")) (Primitives.CounterKindSource.printed p1p1Counter)
                     thisCreature,
                   gainLife (times (.lit 3) (Primitives.Amount.votesFor "harvest")) (agent := Primitives.NounPhrase.you) ])) ],
       power := stat 2, toughness := stat 2 } }
@@ -142,7 +142,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
               (Primitives.Instruction.sequentially
                 [ voteStartingWith Primitives.NounPhrase.you .openly
                     (Primitives.Ballot.byLabel ["strength", "numbers"]) (agent := (each Primitives.Predicate.anyPlayer)),
-                  Primitives.Instruction.putCounters (Primitives.Amount.votesFor "strength") (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature,
+                  Primitives.Instruction.putCounters (Primitives.Amount.votesFor "strength") (Primitives.CounterKindSource.printed p1p1Counter) thisCreature,
                   create (Primitives.Amount.votesFor "numbers")
                     (creatureToken 1 1 [.white] [creatureType "Soldier"]) ])) ],
       power := stat 2, toughness := stat 2 } }

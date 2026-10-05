@@ -8,5 +8,5 @@ CounterKind(
     params: [],
     spelling: "luck",
     grammar: FixedTerm(surface: "luck"),
-    body: Counter(kind: Named(label: "Luck"), holder: Object, confers: []),
+    body: Counter(kind: Named(name: "luckCounter"), holder: Object, confers: []),
 )

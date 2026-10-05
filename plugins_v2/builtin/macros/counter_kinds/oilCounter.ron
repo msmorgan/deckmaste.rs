@@ -8,5 +8,5 @@ CounterKind(
     params: [],
     spelling: "oil",
     grammar: FixedTerm(surface: "oil"),
-    body: Counter(kind: Named(label: "Oil"), holder: Object, confers: []),
+    body: Counter(kind: Named(name: "oilCounter"), holder: Object, confers: []),
 )

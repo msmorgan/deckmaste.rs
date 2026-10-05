@@ -6,7 +6,7 @@ CounterKind(
     spelling: "menace",
     grammar: FixedTerm(surface: "menace"),
     body: Counter(
-        kind: Keyword(keyword: "Menace"),
+        kind: Named(name: "menaceCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

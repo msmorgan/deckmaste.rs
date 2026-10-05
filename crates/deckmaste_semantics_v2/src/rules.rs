@@ -18,9 +18,9 @@
 //!   twin of `Ability::Static` rather than a wider one.
 //! - [`DamageResultRule::remove`] is a [`CounterKind`], where v1 wrote a
 //!   `CounterRef` resolved against a declared counter registry. `CounterKind`
-//!   IS that key: the Lean checker reads `Named`'s label against the generated
-//!   counter facts, refusing an undeclared label and requiring the counter's
-//!   declared holder to be the kind the recipient binds.
+//!   IS that key: the Lean checker reads the kind's name against the
+//!   generated counter facts, refusing an undeclared name and requiring the
+//!   counter's declared holder to be the kind the recipient binds.
 
 use macro_ron::Expand;
 use serde::Deserialize;
@@ -108,12 +108,16 @@ pub enum Conferral {
 /// subtypes,designations}` declaration carries.
 ///
 /// `cargo xtask facts generate` writes `lean/Semantics/Check/Facts.lean` from
-/// these: a counter definition's `Named` kind is a [`crate::facts::CounterFacts`]
-/// row, a subtype definition a [`crate::facts::SubtypeFacts`] row, a
-/// designation definition a [`crate::facts::DesignationFacts`] row. A counter
-/// named by a `CounterKind` constructor of its own — a +X/+Y counter
-/// [CR#122.1a] or a keyword counter [CR#122.1b] — contributes no row to the
-/// table of named counters, because nothing looks it up by label.
+/// these: every counter definition is a [`crate::facts::CounterFacts`] row
+/// labelled with its kind's name, a subtype definition a
+/// [`crate::facts::SubtypeFacts`] row, a designation definition a
+/// [`crate::facts::DesignationFacts`] row.
+///
+/// A counter definition's `confers` states what ONE counter of its kind
+/// confers, and the model applies it once per counter held (Lean
+/// `Semantics.Definition.counter`): a +1/+1 counter confers "+1/+1"
+/// [CR#122.1a], a keyword counter its keyword [CR#122.1b]. No conferral reads
+/// the count of its own kind.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Definition {
     Counter {

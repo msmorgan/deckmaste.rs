@@ -10,7 +10,7 @@ CounterKind(
     spelling: "flying",
     grammar: FixedTerm(surface: "flying"),
     body: Counter(
-        kind: Keyword(keyword: "Flying"),
+        kind: Named(name: "flyingCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

@@ -384,9 +384,11 @@ semantic_macro forEach (per : Nat) (p : Predicate) : Amount := times (.lit per) 
 
 /-! ## Counters -/
 
-semantic_macro plusOnePlusOne : CounterKind := .boost (.up 1) (.up 1)
-semantic_macro flyingCounter : CounterKind := .keyword "Flying"
-semantic_macro minusOneMinusOne : CounterKind := .boost (.down 1) (.down 1)
+/-- The bench's spelling of a counter declaration's name read as its kind, as a bare
+`p1p1Counter` reads in `plugins_v2`. Any other kind is written `.named "<declaration name>"`. -/
+semantic_macro p1p1Counter : CounterKind := .named "p1p1Counter"
+semantic_macro flyingCounter : CounterKind := .named "flyingCounter"
+semantic_macro m1m1Counter : CounterKind := .named "m1m1Counter"
 
 /-! ## Instructions -/
 
@@ -830,7 +832,7 @@ semantic_macro amass (subtype : String) (count : Nat) : Instruction :=
           (creatureToken 0 0 [.black] [creatureType subtype, creatureType "Army"]))
         none,
       choose (a armyYouControl),
-      .putCounters (.lit count) (.printed plusOnePlusOne) (that (.type .creature)),
+      .putCounters (.lit count) (.printed p1p1Counter) (that (.type .creature)),
       .doIf (itIsntA (.hasSubtype (creatureType subtype)))
         (.establish
           (Primitives.StaticSpec.qualityChange it .adds
@@ -842,7 +844,7 @@ put N +1/+1 counters on it and it becomes monstrous." -/
 semantic_macro makeMonstrous (amount : Amount) : Instruction :=
   .doIf (.not (.matches thisPermanent (.hasDesignation "monstrous" none)))
     (.sequentially
-      [ .putCounters amount (.printed plusOnePlusOne) thisPermanent,
+      [ .putCounters amount (.printed p1p1Counter) thisPermanent,
         .gainDesignation thisPermanent "monstrous" none ])
     none
 semantic_macro get (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
@@ -1007,7 +1009,7 @@ semantic_macro amass (subtype : String) (count : Nat) : Instruction :=
         (create (.lit 1) (creatureToken 0 0 [.black] [creatureType subtype, creatureType "Army"]))
         none,
       choose (a army),
-      .putCounters (.lit count) (.printed plusOnePlusOne) (itPrior (choose (a army))),
+      .putCounters (.lit count) (.printed p1p1Counter) (itPrior (choose (a army))),
       .doIf (.not (.matches (itPrior (choose (a army))) (.hasSubtype (creatureType subtype))))
         (.establish
           (Primitives.StaticSpec.qualityChange (itPrior (choose (a army))) .adds
@@ -1202,7 +1204,7 @@ semantic_macro renownExpansion (count : Nat) : Ability :=
   triggeredIf (dealsCombatDamage thisCreature (a .anyPlayer))
     (.not (.matches thisCreature (.hasDesignation "renowned" none)))
     (.sequentially
-      [ .putCounters (.lit count) (.printed plusOnePlusOne) thisCreature,
+      [ .putCounters (.lit count) (.printed p1p1Counter) thisCreature,
         .gainDesignation thisCreature "renowned" none ])
 /-- Storm's reminder text: "When you cast this spell, copy it for each other spell that was cast
 before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
@@ -1224,8 +1226,8 @@ semantic_macro cumulativeUpkeepExpansion (cost : Cost) : Ability :=
   triggeredIf (.beginningOf .the .upkeep (.byPlayer .you))
     (.matches thisPermanent (.inZone battlefield))
     (.sequentially
-      [ .putCounters (.lit 1) (.printed (.named "Age")) thisPermanent,
-        Primitives.Instruction.offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "Age") thisPermanent))) .once
+      [ .putCounters (.lit 1) (.printed (.named "ageCounter")) thisPermanent,
+        Primitives.Instruction.offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "ageCounter") thisPermanent))) .once
             (agent := .you)) none (some (sacrifice thisPermanent (agent := .you))) (agent := .you)
             ])
 /-- "Cumulative upkeep [cost]" with its reminder text. -/
@@ -1252,9 +1254,9 @@ enters with N +1/+1 counters on it" and "When this permanent is put into a grave
 battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on
 this permanent." -/
 semantic_macro modularExpansion (count : Nat) : List Ability :=
-  [ .static (entersWithCounters thisPermanent (.lit count) plusOnePlusOne),
+  [ .static (entersWithCounters thisPermanent (.lit count) p1p1Counter),
     when (Primitives.GameEvent.dies thisPermanent)
-      (offer (.putCounters (countersOn plusOnePlusOne thisPermanent) (.printed plusOnePlusOne)
+      (offer (.putCounters (countersOn p1p1Counter thisPermanent) (.printed p1p1Counter)
         (target (.and [artifact, creature]))) (agent := .you)) ]
 /-- "Modular N" with its definition. -/
 semantic_macro modular (count : Nat) : Ability :=

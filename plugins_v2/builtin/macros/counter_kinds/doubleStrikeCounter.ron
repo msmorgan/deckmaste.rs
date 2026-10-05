@@ -6,7 +6,7 @@ CounterKind(
     spelling: "double strike",
     grammar: FixedTerm(surface: "double strike"),
     body: Counter(
-        kind: Keyword(keyword: "DoubleStrike"),
+        kind: Named(name: "doubleStrikeCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

@@ -100,7 +100,7 @@ def orneryDilophosaur : Ability :=
 theorem okOrneryDilophosaur : Ability.check [] orneryDilophosaur = [] := by decide
 def incisorGlider : Ability :=
   triggeredIf (attacks thisCreature)
-    (Primitives.Condition.compareAmt (countersOn (.named "Poison") (a Primitives.Predicate.opponent)) .atLeast (.lit 3))
+    (Primitives.Condition.compareAmt (countersOn (.named "poison") (a Primitives.Predicate.opponent)) .atLeast (.lit 3))
     (get (allOf creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn))
 theorem okIncisorGlider : Ability.check [] incisorGlider = [] := by decide
 def stormFleetSpy : Ability :=
@@ -525,11 +525,11 @@ def wavebreakHippocamp : Ability :=
 theorem okWavebreakHippocamp : Ability.check [] wavebreakHippocamp = [] := by decide
 /-- Midnight Clock -/
 def midnightClockHeader : GameEvent :=
-  Primitives.GameEvent.nthOccurrence (.nth 12) none (counterEvent .put (.named "Hour") .one thisArtifact)
+  Primitives.GameEvent.nthOccurrence (.nth 12) none (counterEvent .put (.named "hourCounter") .one thisArtifact)
 theorem okMidnightClockHeader : GameEvent.check [] midnightClockHeader = [] := by decide
 /-- Political Triumph -/
 def politicalTriumphHeader : GameEvent :=
-  Primitives.GameEvent.nthOccurrence (.nth 4) none (counterEvent .put (.named "Plan") .one thisEnchantment)
+  Primitives.GameEvent.nthOccurrence (.nth 4) none (counterEvent .put (.named "planCounter") .one thisEnchantment)
 theorem okPoliticalTriumphHeader : GameEvent.check [] politicalTriumphHeader = [] := by decide
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=

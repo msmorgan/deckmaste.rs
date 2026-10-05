@@ -548,12 +548,12 @@ reads the subject as "it". -/
 theorem ageCounterPumpTwin :
     Ability.check []
       (.static
-        (getsPt thisCreature (.up (times (.lit 1) (countersOn (.named "Age") it)))
-          (.up (times (.lit 1) (countersOn (.named "Age") it))))) =
+        (getsPt thisCreature (.up (times (.lit 1) (countersOn (.named "ageCounter") it)))
+          (.up (times (.lit 1) (countersOn (.named "ageCounter") it))))) =
       Ability.check []
         (.static
-          (getsPtTwoHalves thisCreature (.up (times (.lit 1) (countersOn (.named "Age") it)))
-            (.up (times (.lit 1) (countersOn (.named "Age") it))))) := by
+          (getsPtTwoHalves thisCreature (.up (times (.lit 1) (countersOn (.named "ageCounter") it)))
+            (.up (times (.lit 1) (countersOn (.named "ageCounter") it))))) := by
   decide
 
 /-- Nyxathid: "As this creature enters, choose an opponent. This creature gets −1/−1 for each

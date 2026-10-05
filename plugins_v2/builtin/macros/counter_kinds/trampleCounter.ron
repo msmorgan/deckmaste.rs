@@ -6,7 +6,7 @@ CounterKind(
     spelling: "trample",
     grammar: FixedTerm(surface: "trample"),
     body: Counter(
-        kind: Keyword(keyword: "Trample"),
+        kind: Named(name: "trampleCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

@@ -37,7 +37,7 @@ theorem badConditionalArmAntecedent :
       (.sequentially
         [ .doOnlyIf (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]))
             (exists_ creatureYouControl) none,
-          .putCounters (.lit 1) (.printed plusOnePlusOne) it ]) = [.anaphor .bare .one 0] := by
+          .putCounters (.lit 1) (.printed p1p1Counter) it ]) = [.anaphor .bare .one 0] := by
   decide
 
 theorem badBothArmsAntecedent :
@@ -47,7 +47,7 @@ theorem badBothArmsAntecedent :
             (some (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])))
             (some (create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Soldier"]))) (agent :=
                 .you),
-          .putCounters (.lit 1) (.printed plusOnePlusOne) it ]) = [.anaphor .bare .one 0] := by
+          .putCounters (.lit 1) (.printed p1p1Counter) it ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Put target creature onto the battlefield." -/

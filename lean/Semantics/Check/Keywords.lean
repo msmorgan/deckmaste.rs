@@ -49,7 +49,6 @@ def allKnownKeywordTerms : List KeywordTerm → Bool
   | [] => true
   | k :: ks => k.known && allKnownKeywordTerms ks
 
-def keywordCounterOk (k : KeywordLabel) : Bool := (keywordFactsFor k).elim false (·.counterEligible)
 def keywordStackRegime (k : KeywordLabel) : Option StackRegime := keywordFactsFor k >>= (·.regime)
 def keywordFunctionsOnStack (k : KeywordLabel) : Bool :=
   (keywordFactsFor k).elim false (·.functionsOnStack)
@@ -79,11 +78,10 @@ def CostNamed.nameable : CostNamed → Bool
   | .ofKeyword kw => keywordCosts kw
   | .ofSpecialAction _ => true
 
-/-- Idris `KeywordCounterEligible`, `knownCounter`, `counterShift` folded: is the counter kind
-one the tables admit? -/
-def CounterKind.known : CounterKind → Bool
-  | .boost p t => counterShift p && counterShift t
-  | .keyword k => keywordCounterOk k
-  | .named l => knownCounter l
+/-- Is the counter kind one the tables admit? One registry lookup: a kind is a counter
+declaration's name, and the counter facts table has a row for every declaration [CR#122.1], so
+a +X/+Y counter [CR#122.1a] and a keyword counter [CR#122.1b] are known exactly when they are
+declared. -/
+def CounterKind.known (c : CounterKind) : Bool := knownCounter c.name
 
 end Semantics

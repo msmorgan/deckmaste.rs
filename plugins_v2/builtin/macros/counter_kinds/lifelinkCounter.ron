@@ -6,7 +6,7 @@ CounterKind(
     spelling: "lifelink",
     grammar: FixedTerm(surface: "lifelink"),
     body: Counter(
-        kind: Keyword(keyword: "Lifelink"),
+        kind: Named(name: "lifelinkCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

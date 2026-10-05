@@ -7,7 +7,7 @@ CounterKind(
     spelling: "decayed",
     grammar: FixedTerm(surface: "decayed"),
     body: Counter(
-        kind: Keyword(keyword: "Decayed"),
+        kind: Named(name: "decayedCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

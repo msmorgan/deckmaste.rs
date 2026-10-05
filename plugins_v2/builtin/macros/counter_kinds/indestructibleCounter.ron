@@ -6,7 +6,7 @@ CounterKind(
     spelling: "indestructible",
     grammar: FixedTerm(surface: "indestructible"),
     body: Counter(
-        kind: Keyword(keyword: "Indestructible"),
+        kind: Named(name: "indestructibleCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

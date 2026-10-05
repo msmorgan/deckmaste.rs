@@ -63,10 +63,11 @@ pub trait Facts {
     /// undeclared label. Lean `DesignationLabel.holder`.
     fn designation_holder(&self, designation: &str) -> Option<Kind>;
 
-    /// The kind a named counter sits on. Lean `CounterFacts.holder`, whose
-    /// fallback for an undeclared label is [`Kind::Object`].
-    fn counter_holder(&self, label: &str) -> Kind {
-        let _ = label;
+    /// The kind a counter of the kind named `name` sits on. Lean
+    /// `CounterFacts.holder`, whose fallback for an undeclared name is
+    /// [`Kind::Object`].
+    fn counter_holder(&self, name: &str) -> Kind {
+        let _ = name;
         Kind::Object
     }
 }
@@ -202,8 +203,7 @@ pub fn kind_of_reach(reach: &Reach) -> Kind {
 #[must_use]
 pub fn scope_of_counter_kind(kind: &CounterKind, facts: &impl Facts) -> Kind {
     match kind {
-        CounterKind::Boost { .. } | CounterKind::Keyword { .. } => Kind::Object,
-        CounterKind::Named { label } => facts.counter_holder(label),
+        CounterKind::Named { name } => facts.counter_holder(name),
     }
 }
 

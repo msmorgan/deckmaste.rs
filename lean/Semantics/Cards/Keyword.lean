@@ -313,7 +313,7 @@ def grimdancer : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
             (Primitives.TokenRider.withCounters (.lit 2)
-              (Primitives.CounterKindSource.distinctChosen [.keyword "Menace", .keyword "Deathtouch", .keyword "Lifelink"]) .fresh)) ],
+              (Primitives.CounterKindSource.distinctChosen [.named "menaceCounter", .named "deathtouchCounter", .named "lifelinkCounter"]) .fresh)) ],
       power := stat 3, toughness := stat 3 } }
 
 def divineVisitation : Spelled := spelled <| .singleFaced
@@ -765,7 +765,7 @@ def drumbellower : Spelled := spelled <| .singleFaced
 def tayamLine : StaticSpec :=
   entersWithAdditionalCounters
     (each (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.otherThan thisCreature])) (.lit 1)
-    (.keyword "Vigilance")
+    (.named "vigilanceCounter")
 theorem okTayamLine : StaticSpec.check [] tayamLine = [] := by decide
 
 def clarionConqueror : Spelled := spelled <| .singleFaced
@@ -865,7 +865,7 @@ def vexingSphinx : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           cumulativeUpkeep (Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone yourHand)))),
-          when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.draw (countersOn (.named "Age") it) (agent := Primitives.NounPhrase.you)) ],
+          when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.draw (countersOn (.named "ageCounter") it) (agent := Primitives.NounPhrase.you)) ],
       power := stat 4, toughness := stat 4 } }
 
 def manaChains : Spelled := spelled <| .singleFaced
@@ -1148,7 +1148,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
 def tourachDiscardTrigger : Ability :=
   whenever (Primitives.GameEvent.verbedEvent (some anOpponent) (.action "Discard") (some (a
     Primitives.Predicate.isCard)) none none)
-    (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature)
+    (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature)
 theorem okTourachDiscardTrigger : Ability.check [] tourachDiscardTrigger = [] := by decide
 
 /-- Shimmering Glasskite -/
@@ -1292,7 +1292,7 @@ def containmentPriest : Spelled := spelled <| .singleFaced
 
 /-- Veiling Oddity -/
 def veilingOddityLine : Ability :=
-  triggeredWhile (lastCounterRemoved (.named "Time") Primitives.NounPhrase.this)
+  triggeredWhile (lastCounterRemoved (.named "timeCounter") Primitives.NounPhrase.this)
     (Primitives.Concurrent.whileTrue (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.inZone exileZone)))
     (Primitives.Instruction.establish (deontic (allOf creature) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
       (some Primitives.Duration.thisTurn))
@@ -1572,8 +1572,8 @@ def earthenGoo : Spelled := spelled <| .singleFaced
         [ keyword "Trample",
           cumulativeUpkeep (Primitives.Cost.either (Primitives.Cost.mana [pip .red]) (Primitives.Cost.mana [pip .green])),
           Primitives.Ability.static (getsPt thisCreature
-            (Primitives.Delta.up (times (.lit 1) (countersOn (.named "Age") it)))
-            (Primitives.Delta.up (times (.lit 1) (countersOn (.named "Age") it)))) ],
+            (Primitives.Delta.up (times (.lit 1) (countersOn (.named "ageCounter") it)))
+            (Primitives.Delta.up (times (.lit 1) (countersOn (.named "ageCounter") it)))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Mutagen Connoisseur -/

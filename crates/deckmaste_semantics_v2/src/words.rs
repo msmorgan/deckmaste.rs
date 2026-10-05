@@ -841,29 +841,32 @@ pub enum DefinedSlots {
     BothEach,
 }
 
-/// A counter's kind [CR#122.1]: a +X/+Y boost [CR#122.1a], a keyword counter
-/// [CR#122.1b], or a counter known by its name.
+/// A counter's kind [CR#122.1]: the NAME of the counter declaration that
+/// defines it, verbatim (`p1p1Counter`, `flyingCounter`, `chargeCounter`).
+/// What a counter of the kind does is its Registry Definition
+/// ([`crate::rules::Definition::Counter`]), and which kinds exist is the
+/// counter facts table generated from those definitions.
 ///
-/// A counter DECLARATION's name reads here too, as the kind its definition
-/// names (Lean `Semantics.Definition.counterTerm`): `p1p1Counter` expands to
-/// its `Definition::Counter` node, and the `denoted_by` marker reads that
-/// node at this position as its `kind`, so `p1p1Counter` is
-/// `Boost(power: Up(amount: 1), toughness: Up(amount: 1))`. `Counter` is not
-/// one of this type's constructors, so a card writing the node raw is
-/// refused by name (§11.1).
+/// A type of its own rather than a `String`, so a counter DECLARATION's name
+/// reads here bare (Lean `Semantics.Definition.counterTerm`): `p1p1Counter`
+/// expands to its `Definition::Counter` node, and the `denoted_by` marker
+/// reads that node at this position as its `kind`, which is
+/// `Named(name: "p1p1Counter")`. `Counter` is not one of this type's
+/// constructors, so a card writing the node raw is refused by name (§11.1).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 #[macro_ron(denoted_by(Counter, term = crate::rules::Definition::counter_term))]
 pub enum CounterKind {
-    Boost {
-        power: Delta<u32>,
-        toughness: Delta<u32>,
-    },
-    Keyword {
-        keyword: KeywordLabel,
-    },
-    Named {
-        label: String,
-    },
+    Named { name: String },
+}
+
+impl CounterKind {
+    /// The declaration name the kind is — Lean `Semantics.CounterKind.name`.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Named { name } => name,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

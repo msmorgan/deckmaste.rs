@@ -1472,11 +1472,6 @@ def Delta.amount {α : Type} : Delta α → α
   | .down x => x
   | .set x => x
 
-/-- A counter only adds to or subtracts from power and toughness [CR#122.1a]. -/
-def counterShift : Delta Nat → Bool
-  | .set _ => false
-  | _ => true
-
 def supersDistinct : List Supertype → Bool
   | [] => true
   | s :: ss => !ss.elem s && supersDistinct ss
@@ -1611,10 +1606,13 @@ def distinctCounterLabels : List CounterFacts → Bool
 def counterFactsFor (l : String) : Option CounterFacts := counterFacts.find? (·.label == l)
 def knownCounter (l : String) : Bool := (counterFactsFor l).isSome
 
-def CounterKind.scope : CounterKind → Kind
-  | .boost _ _ => .object
-  | .keyword _ => .object
-  | .named l => (counterFactsFor l).elim .object (·.holder)
+/-- The counter kind's name, which is the label of its facts row. -/
+def CounterKind.name : CounterKind → String
+  | .named n => n
+
+/-- What a counter of this kind is placed on [CR#122.1], read from the registry for every kind.
+An undeclared kind is refused `.knownCounter` and reads as an object's here. -/
+def CounterKind.scope (c : CounterKind) : Kind := (counterFactsFor c.name).elim .object (·.holder)
 
 def ProjAxis.scope : ProjAxis → Kind
   | .stat _ => .object

@@ -129,9 +129,9 @@ pub const SAMPLES: &[&str] = &[
     "Of(host: Creature, label: \"Sample\")",
     "Of(host: Creature, label: \"Sample B\")",
     // CounterKind, CounterKindSource.
-    "Named(label: \"Sample\")",
-    "Named(label: \"Sample B\")",
-    "Printed(kind: Named(label: \"Sample\"))",
+    "Named(name: \"Sample\")",
+    "Named(name: \"Sample B\")",
+    "Printed(kind: Named(name: \"Sample\"))",
     // TurnPart.
     "Upkeep",
     "DrawStep",
@@ -924,7 +924,7 @@ mod tests {
                 ),
                 PutCounters(
                     amount: Lit(value: {amount}),
-                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
+                    kind: Printed(Named(name: "p1p1Counter")),
                     on: Pro(reach: Word(Type(Creature)), plurality: One, window: Whole),
                 ),
                 DoIf(

@@ -115,9 +115,9 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ whenever (Primitives.GameEvent.flipsCoin Primitives.NounPhrase.you (some .wins))
-            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "Luck")) thisEnchantment),
+            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "luckCounter")) thisEnchantment),
           triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-            (Primitives.Condition.compareAmt (countersOn (.named "Luck") thisEnchantment) .atLeast (.lit 10))
+            (Primitives.Condition.compareAmt (countersOn (.named "luckCounter") thisEnchantment) .atLeast (.lit 10))
             (Primitives.Instruction.conclude .winGame (agent := Primitives.NounPhrase.you)) ] } }
 
 /-- Karplusan Minotaur's win arm -/
@@ -195,7 +195,7 @@ theorem planeswalkerBackWithoutLoyaltyOk :
 def garrukRelentlessFlip : Ability :=
   when
     (Primitives.GameEvent.stateHolds
-      (Primitives.Condition.matches thisPlaneswalker (Primitives.Predicate.compare [.counter (.named "Loyalty")] .atMost (.lit 2))))
+      (Primitives.Condition.matches thisPlaneswalker (Primitives.Predicate.compare [.counter (.named "loyaltyCounter")] .atMost (.lit 2))))
     (transform thisPlaneswalker)
 theorem okGarrukRelentlessFlip : Ability.check [] garrukRelentlessFlip = [] := by decide
 

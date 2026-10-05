@@ -13,7 +13,7 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.Counters
 
 /-- "a +1/+1 counter", printed. -/
-def p11 : CounterKindSource := .printed plusOnePlusOne
+def p11 : CounterKindSource := .printed p1p1Counter
 
 /-- "of the chosen creature type" -/
 theorem okChosenCreatureType :
@@ -263,7 +263,7 @@ theorem okPutBoostCounterOnCreature :
 
 /-- "Put a poison counter on target creature." -/
 theorem badPutPoisonOnCreature :
-    Instruction.check [] (.putCounters (.lit 1) (.printed (.named "Poison")) (target creature))
+    Instruction.check [] (.putCounters (.lit 1) (.printed (.named "poison")) (target creature))
       = [.counterSourceScope] := by
   decide
 
@@ -271,17 +271,17 @@ theorem badPutPoisonOnCreature :
 theorem badGetsBoostCounter :
     Instruction.check [] (.putCounters (.lit 1) p11 .you) = [.counterSourceScope] := by decide
 
-/-- "a +1/+1 counter": a counter kind adds to or subtracts from power and toughness
-[CR#122.1a]; it never sets either to a number. -/
-theorem okBoostCounterKind : CounterKind.check (.boost (.up 1) (.up 1)) = [] := by decide
+/-- "a +1/+1 counter": a +X/+Y counter is a declared kind like any other [CR#122.1a]. -/
+theorem okBoostCounterKind : CounterKind.check p1p1Counter = [] := by decide
 
-/-- "a 1/1 counter" -/
+/-- "a 1/1 counter": a counter adds to or subtracts from power and toughness [CR#122.1a] and
+never sets either, so no counter declaration is a 1/1 counter, and the name is unknown. -/
 theorem badSetBoostCounter :
-    CounterKind.check (.boost (.set 1) (.up 1)) = [.knownCounter] := by decide
+    CounterKind.check (.named "1/1Counter") = [.knownCounter] := by decide
 
 /-- "Each opponent loses all poison counters." -/
 theorem okLosesAllPoisonCounters :
-    Instruction.check [] (loseCounters (some (.printed (.named "Poison"))) none (agent := (each
+    Instruction.check [] (loseCounters (some (.printed (.named "poison"))) none (agent := (each
         .opponent)))
       = [] := by
   decide
@@ -294,36 +294,36 @@ theorem badLosesAllBoostCounters :
 
 /-- "the number of +1/+1 counters on this creature" -/
 theorem okCountersHeldByObject :
-    Amount.check [] (countersOn plusOnePlusOne thisCreature) = [] := by decide
+    Amount.check [] (countersOn p1p1Counter thisCreature) = [] := by decide
 
 /-- "the number of +1/+1 counters you have" -/
 theorem badCountersHeldByPlayer :
-    Amount.check [] (countersOn plusOnePlusOne .you) = [.kindMismatch .object .player] := by
+    Amount.check [] (countersOn p1p1Counter .you) = [.kindMismatch .object .player] := by
   decide
 
 /-- "When the last +1/+1 counter is removed from this creature, draw a card." -/
 theorem okLastBoostCounterRemoved :
     Ability.check []
-      (when (lastCounterRemoved plusOnePlusOne thisCreature) (draw (.lit 1) (agent := .you)))
+      (when (lastCounterRemoved p1p1Counter thisCreature) (draw (.lit 1) (agent := .you)))
       = [] := by
   decide
 
 /-- "When the last poison counter is removed from this creature, draw a card." -/
 theorem badLastPoisonCounterRemoved :
     Ability.check []
-      (when (lastCounterRemoved (.named "Poison") thisCreature) (draw (.lit 1) (agent := .you)))
+      (when (lastCounterRemoved (.named "poison") thisCreature) (draw (.lit 1) (agent := .you)))
       = [.counterKindNamed .object] := by
   decide
 
 /-- "Put a charge counter on this artifact." -/
 theorem okChargeCounterOnArtifact :
-    Instruction.check [] (.putCounters (.lit 1) (.printed (.named "Charge")) thisArtifact)
+    Instruction.check [] (.putCounters (.lit 1) (.printed (.named "chargeCounter")) thisArtifact)
       = [] := by
   decide
 
 /-- "Each player gets a charge counter." -/
 theorem badGetsChargeCounter :
-    Instruction.check [] (.putCounters (.lit 1) (.printed (.named "Charge")) .you)
+    Instruction.check [] (.putCounters (.lit 1) (.printed (.named "chargeCounter")) .you)
       = [.counterSourceScope] := by
   decide
 
@@ -331,14 +331,14 @@ theorem badGetsChargeCounter :
 theorem okManyCounterBatchSize :
     StaticSpec.check []
       (.replacement
-        (.counterEvent .put (some plusOnePlusOne) (a creatureYouControl) .many none false) [] none
+        (.counterEvent .put (some p1p1Counter) (a creatureYouControl) .many none false) [] none
         (.putCounters (plus .thatMuch (.lit 1)) p11 it) .repeatedly none) = [] := by
   decide
 
 theorem badSingularCounterBatchSize :
     StaticSpec.check []
       (.replacement
-        (.counterEvent .put (some plusOnePlusOne) (a creatureYouControl) .one none false) [] none
+        (.counterEvent .put (some p1p1Counter) (a creatureYouControl) .one none false) [] none
         (.putCounters (plus .thatMuch (.lit 1)) p11 it) .repeatedly none)
       = [.quantOutcomeInScope 0] := by
   decide
@@ -346,39 +346,40 @@ theorem badSingularCounterBatchSize :
 /-- "Whenever one or more +1/+1 counters are put on a creature you control, …" -/
 theorem okUncausedCounterWithAgent :
     GameEvent.check []
-      (.counterEvent .put (some plusOnePlusOne) (a creatureYouControl) .many (some .you) false)
+      (.counterEvent .put (some p1p1Counter) (a creatureYouControl) .many (some .you) false)
       = [] := by
   decide
 
 theorem badCausedCounterWithAgent :
     GameEvent.check []
-      (.counterEvent .put (some plusOnePlusOne) (a creatureYouControl) .many (some .you) true)
+      (.counterEvent .put (some p1p1Counter) (a creatureYouControl) .many (some .you) true)
       = [.causedByOk] := by
   decide
 
 /-- "each creature with a +1/+1 counter on it" -/
 theorem okPlusOneCounterDescription :
-    Predicate.check .object [] (.hasCounters (some plusOnePlusOne)) = [] := by decide
+    Predicate.check .object [] (.hasCounters (some p1p1Counter)) = [] := by decide
 
 /-- "each creature with a poison counter on it" -/
 theorem badPoisonCounterDescription :
-    Predicate.check .object [] (.hasCounters (some (.named "Poison")))
+    Predicate.check .object [] (.hasCounters (some (.named "poison")))
       = [.counterKindNamed .object] := by
   decide
 
 /-- "a first strike counter" -/
-theorem okFirstStrikeKeywordCounter : CounterKind.check (.keyword "FirstStrike") = [] := by
+theorem okFirstStrikeKeywordCounter :
+    CounterKind.check (.named "firstStrikeCounter") = [] := by
   decide
 
 /-- "a cumulative upkeep counter" -/
 theorem badCumulativeUpkeepCounter :
-    CounterKind.check (.keyword "CumulativeUpkeep") = [.knownCounter] := by decide
+    CounterKind.check (.named "cumulativeUpkeepCounter") = [.knownCounter] := by decide
 
 /-- "your choice of a +1/+1 counter or a first strike counter on it." -/
 theorem okCounterMenu :
     StaticSpec.check []
       (.entryRider thisCreature
-        (.withCounters (.lit 1) (.chosen [plusOnePlusOne, .keyword "FirstStrike"]) .fresh))
+        (.withCounters (.lit 1) (.chosen [p1p1Counter, .named "firstStrikeCounter"]) .fresh))
       = [] := by
   decide
 
@@ -391,20 +392,20 @@ theorem badEmptyCounterMenu :
 /-- "Put your choice of a +1/+1 counter or a first strike counter on target creature." -/
 theorem okSameScopeCounterMenu :
     Instruction.check []
-      (.putCounters (.lit 1) (.chosen [plusOnePlusOne, .keyword "FirstStrike"]) (target creature))
+      (.putCounters (.lit 1) (.chosen [p1p1Counter, .named "firstStrikeCounter"]) (target creature))
       = [] := by
   decide
 
 /-- "Put your choice of a +1/+1 counter or a poison counter on target creature." -/
 theorem badMixedScopeCounterMenu :
     Instruction.check []
-      (.putCounters (.lit 1) (.chosen [plusOnePlusOne, .named "Poison"]) (target creature))
+      (.putCounters (.lit 1) (.chosen [p1p1Counter, .named "poison"]) (target creature))
       = [.counterSourceScope] := by
   decide
 
 /-- "Put a poison counter on target opponent." -/
 theorem okPoisonCounterLabel :
-    Instruction.check [] (.putCounters (.lit 1) (.printed (.named "Poison")) (target .opponent))
+    Instruction.check [] (.putCounters (.lit 1) (.printed (.named "poison")) (target .opponent))
       = [] := by
   decide
 
@@ -414,10 +415,17 @@ theorem badUnknownCounterLabel :
       = [.knownCounter] := by
   decide
 
-/-- "Put a flying counter on target creature." [CR#122.1b] -/
+/-- "Put a flying counter on target creature." [CR#122.1b], written with the keyword's label:
+the kind is the declaration's name, `flyingCounter`, and "Flying" names no counter. -/
 theorem badKeywordCounterNamedPlainly :
     Instruction.check [] (.putCounters (.lit 1) (.printed (.named "Flying")) (target creature))
       = [.knownCounter] := by
+  decide
+
+/-- "Put a flying counter on target creature." [CR#122.1b], written with the declared name. -/
+theorem okKeywordCounterByName :
+    Instruction.check [] (.putCounters (.lit 1) (.printed flyingCounter) (target creature))
+      = [] := by
   decide
 
 def afterCountersPut : Bindings :=
@@ -438,7 +446,7 @@ theorem badThoseKindsUnannounced :
 theorem okInterceptsCounterEvent :
     StaticSpec.check []
       (.replacement
-        (.counterEvent .put (some plusOnePlusOne) (a creatureYouControl) .many none false) [] none
+        (.counterEvent .put (some p1p1Counter) (a creatureYouControl) .many none false) [] none
         (.putCounters (plus .thatMuch (.lit 1)) p11 it) .repeatedly none) = [] := by
   decide
 
@@ -562,9 +570,9 @@ theorem okOtherThanExiledByThisAbility :
       (activated
         (.compound [.tapSymbol, .perform (exile (a (.and [.not land, .inZone (handOf .you)])))])
         (.sequentially
-          [ .putCounters (.lit 4) (.printed (.named "Time"))
+          [ .putCounters (.lit 4) (.printed (.named "timeCounter"))
               (theVerbed (.action "Exile") .card .attributive .one),
-            .removeCounters (some (exactly 1)) (some (.printed (.named "Time")))
+            .removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter")))
               (each (.and
                 [ .otherThan (theVerbed (.action "Exile") .card .attributive .one),
                   .hasPossessor .owner .you, .inZone exileZone ])) ])) = [] := by
@@ -576,7 +584,7 @@ targeting law the same bare "other" fails. -/
 theorem badBareOtherWithoutAnchor :
     Ability.check []
       (activated .tapSymbol
-        (.removeCounters (some (exactly 1)) (some (.printed (.named "Time")))
+        (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter")))
           (each (.and [.other, .hasPossessor .owner .you, .inZone exileZone]))))
       = [.anyTargeted .object, .otherAnchored] := by
   decide

@@ -88,7 +88,7 @@ private def literalAmass : Instruction :=
         (Actor.create (.lit 1) (creatureToken 0 0 [.black] [creatureType "Orc", creatureType "Army"]))
         none,
       Actor.choose (a Actor.army),
-      .putCounters (.lit 2) (.printed plusOnePlusOne) (that (.type .creature)),
+      .putCounters (.lit 2) (.printed p1p1Counter) (that (.type .creature)),
       .doIf (itIsntA (.hasSubtype (creatureType "Orc")))
         (.establish (Primitives.StaticSpec.qualityChange it .adds
           (.bundle { characteristics := { subtypes := [creatureType "Orc"] } } none)) none)

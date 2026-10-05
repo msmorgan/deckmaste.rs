@@ -61,9 +61,9 @@ def workhorse : Spelled := spelled <| .singleFaced
     { name := "Workhorse", cost := some [generic 6], types := [.artifact, .creature],
       subtypes := [creatureType "Horse"],
       text :=
-        [ Primitives.Ability.static (entersWithCounters thisCreature (.lit 4) plusOnePlusOne),
+        [ Primitives.Ability.static (entersWithCounters thisCreature (.lit 4) p1p1Counter),
           activated
-            (Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed plusOnePlusOne)) thisCreature))
+            (Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed p1p1Counter)) thisCreature))
             (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.colorless]]) [] (agent := Primitives.NounPhrase.you)) ],
       power := stat 0, toughness := stat 0 } }
 
@@ -129,7 +129,7 @@ def duskLegionDuelist : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Vampire", creatureType "Soldier"],
       text :=
         [ keyword "Vigilance",
-          triggeredOnlyOnce (counterEvent .put plusOnePlusOne .many thisCreature) Primitives.UsageLimit.oncePerTurn
+          triggeredOnlyOnce (counterEvent .put p1p1Counter .many thisCreature) Primitives.UsageLimit.oncePerTurn
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -199,7 +199,7 @@ def ragingRavine : Spelled := spelled <| .singleFaced
                       subtypes := [creatureType "Elemental"],
                       text :=
                         [ whenever (attacks thisCreature)
-                            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature) ],
+                            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
                       power := stat 3, toughness := stat 3 } }
                   (some .land)))
               (some untilEndOfTurn)) ] } }
@@ -326,10 +326,10 @@ def mercadianBazaar : Spelled := spelled <| .singleFaced
     { name := "Mercadian Bazaar", types := [.land],
       text :=
         [ Primitives.Ability.static (entersTapped thisLand),
-          activated Primitives.Cost.tapSymbol (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "Storage")) thisLand),
+          activated Primitives.Cost.tapSymbol (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "storageCounter")) thisLand),
           activated
             (Primitives.Cost.compound [Primitives.Cost.tapSymbol,
-              Primitives.Cost.perform (Primitives.Instruction.removeCounters (some anyNumber) (some (Primitives.CounterKindSource.printed (.named "Storage"))) thisLand)])
+              Primitives.Cost.perform (Primitives.Instruction.removeCounters (some anyNumber) (some (Primitives.CounterKindSource.printed (.named "storageCounter"))) thisLand)])
             (Primitives.Instruction.addMana removedThisWay (Primitives.ProducedMana.runs [[.of .red]]) [] (agent := Primitives.NounPhrase.you)) ] } }
 
 /-- Rootcoil Creeper -/
@@ -346,10 +346,10 @@ def blackManaBattery : Spelled := spelled <| .singleFaced
     { name := "Black Mana Battery", cost := some [generic 4], types := [.artifact],
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.tapSymbol])
-            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "Charge")) thisArtifact),
+            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "chargeCounter")) thisArtifact),
           activated
             (Primitives.Cost.compound [Primitives.Cost.tapSymbol,
-              Primitives.Cost.perform (Primitives.Instruction.removeCounters (some anyNumber) (some (Primitives.CounterKindSource.printed (.named "Charge"))) thisArtifact)])
+              Primitives.Cost.perform (Primitives.Instruction.removeCounters (some anyNumber) (some (Primitives.CounterKindSource.printed (.named "chargeCounter"))) thisArtifact)])
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .black]]) [] (agent := Primitives.NounPhrase.you),
                 Primitives.Instruction.addMana removedThisWay (Primitives.ProducedMana.runs [[.of .black]]) [] (agent := Primitives.NounPhrase.you) ]) ] } }
@@ -460,7 +460,7 @@ def dragonstormGlobe : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (entersWithAdditionalCounters
             (each (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Dragon"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
-            (.lit 1) plusOnePlusOne),
+            (.lit 1) p1p1Counter),
           activated Primitives.Cost.tapSymbol (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.anyColor .sameColor) [] (agent := Primitives.NounPhrase.you)) ] } }
 
 def sageOfFables : Spelled := spelled <| .singleFaced
@@ -471,10 +471,10 @@ def sageOfFables : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (entersWithAdditionalCounters
             (each (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Wizard"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
                          Primitives.Predicate.otherThan thisCreature]))
-            (.lit 1) plusOnePlusOne),
+            (.lit 1) p1p1Counter),
           activated
             (Primitives.Cost.compound [Primitives.Cost.mana [generic 2],
-              Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed plusOnePlusOne))
+              Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed p1p1Counter))
                 (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))])
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ],
       power := stat 2, toughness := stat 2 } }
@@ -600,10 +600,10 @@ def ratchetBomb : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Ratchet Bomb", cost := some [generic 2], types := [.artifact],
       text :=
-        [ activated Primitives.Cost.tapSymbol (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "Charge")) thisArtifact),
+        [ activated Primitives.Cost.tapSymbol (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "chargeCounter")) thisArtifact),
           activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice thisArtifact (agent := Primitives.NounPhrase.you))])
             (destroy (each (Primitives.Predicate.and [Primitives.Predicate.not land, permanent,
-              Primitives.Predicate.compare [.stat .manaValue] .eq (countersOn (.named "Charge") thisArtifact)]))) ] } }
+              Primitives.Predicate.compare [.stat .manaValue] .eq (countersOn (.named "chargeCounter") thisArtifact)]))) ] } }
 
 def solGrail : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -751,10 +751,10 @@ def investigatorsJournal : Spelled := spelled <| .singleFaced
     { name := "Investigator's Journal", cost := some [generic 2], types := [.artifact],
       subtypes := [artifactType "Book", artifactType "Clue"],
       text :=
-        [ Primitives.Ability.static (entersWithCounters thisArtifact greatestCreaturesAPlayerControls (.named "Suspect")),
+        [ Primitives.Ability.static (entersWithCounters thisArtifact greatestCreaturesAPlayerControls (.named "suspectCounter")),
           activated
             (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.tapSymbol,
-              Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "Suspect"))) thisArtifact)])
+              Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "suspectCounter"))) thisArtifact)])
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.perform (sacrifice thisArtifact (agent :=
               Primitives.NounPhrase.you))])
@@ -765,11 +765,11 @@ def engineeredExplosives : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Engineered Explosives", cost := some [.variable], types := [.artifact],
       text :=
-        [ Primitives.Ability.static (entersWithCounters thisArtifact (colorsSpentToCast thisArtifact) (.named "Charge")),
+        [ Primitives.Ability.static (entersWithCounters thisArtifact (colorsSpentToCast thisArtifact) (.named "chargeCounter")),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.perform (sacrifice thisArtifact (agent :=
               Primitives.NounPhrase.you))])
             (destroy (each (Primitives.Predicate.and [permanent, Primitives.Predicate.not land,
-              Primitives.Predicate.compare [.stat .manaValue] .eq (countersOn (.named "Charge") thisArtifact)]))) ] } }
+              Primitives.Predicate.compare [.stat .manaValue] .eq (countersOn (.named "chargeCounter") thisArtifact)]))) ] } }
 
 /-- Radiant Flames (converge is an ability word [CR#207.2c]) -/
 def radiantFlames : Spelled := spelled <| .singleFaced
@@ -796,7 +796,7 @@ def hibernationsEndTrigger : Ability :=
     (offer
       (Primitives.Instruction.sequentially
         [ searchLibraryFor (exactly 1)
-            (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .eq (countersOn (.named "Age") thisEnchantment)]),
+            (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .eq (countersOn (.named "ageCounter") thisEnchantment)]),
           putOntoBattlefield (that .card),
           shuffle ]) (agent := Primitives.NounPhrase.you))
 theorem okHibernationsEndTrigger : Ability.check [] hibernationsEndTrigger = [] := by decide
@@ -1065,7 +1065,7 @@ def animalAttendant : Spelled := spelled <| .singleFaced
                   (a (Primitives.Predicate.and [Primitives.Predicate.not (Primitives.Predicate.hasSubtype (creatureType "Human")), creature, spell]))
                   (Primitives.Instruction.establish
                     (Primitives.StaticSpec.entryRider (Primitives.NounPhrase.resolvedPermanent (that .spell))
-                      (Primitives.TokenRider.withCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) .additional))
+                      (Primitives.TokenRider.withCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) .additional))
                     none) ] (agent := Primitives.NounPhrase.you)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -1151,7 +1151,7 @@ def fellwarStone : Spelled := spelled <| .singleFaced
 def iceCauldronNotedMana : Ability :=
   activated
     (Primitives.Cost.compound [Primitives.Cost.tapSymbol,
-      Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "Charge"))) thisArtifact)])
+      Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "chargeCounter"))) thisArtifact)])
     (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.lastNoted thisArtifact)
       [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toCast (Primitives.Predicate.exiledWith thisArtifact)]] (agent := Primitives.NounPhrase.you))
 theorem okIceCauldronNotedMana : Ability.check [] iceCauldronNotedMana = [] := by decide

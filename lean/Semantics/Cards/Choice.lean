@@ -250,7 +250,7 @@ def helicaGlider : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Nightmare", creatureType "Squirrel"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
-            (Primitives.TokenRider.withCounters (.lit 1) (Primitives.CounterKindSource.chosen [flyingCounter, .keyword "FirstStrike"]) .fresh)) ],
+            (Primitives.TokenRider.withCounters (.lit 1) (Primitives.CounterKindSource.chosen [flyingCounter, .named "firstStrikeCounter"]) .fresh)) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Eager Construct -/
@@ -1430,7 +1430,7 @@ def requisitionRaid : Spelled := spelled <| .singleFaced
             [ (some (Primitives.Cost.mana [generic 1]), destroy (target artifact)),
               (some (Primitives.Cost.mana [generic 1]), destroy (target enchantment)),
               (some (Primitives.Cost.mana [generic 1]),
-               Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne)
+               Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter)
                  (each (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (target Primitives.Predicate.anyPlayer)]))) ]) ] } }
 
 /-- Rustler Rampage -/

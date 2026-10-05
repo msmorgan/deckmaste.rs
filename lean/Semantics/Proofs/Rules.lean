@@ -31,7 +31,7 @@ A planeswalker's loyalty on the battlefield is its loyalty-counter count [CR#306
 so the condition reads the counters and not the printed characteristic. -/
 def loyaltyZero : SbaRule :=
   { scope := .hasType .planeswalker,
-    when := .compareAmt (countersOn (.named "Loyalty") .this) .eq (.lit 0),
+    when := .compareAmt (countersOn (.named "loyaltyCounter") .this) .eq (.lit 0),
     then_ := move .this graveyard }
 theorem okLoyaltyZero : SbaRule.check loyaltyZero = [] := by decide
 
@@ -40,7 +40,7 @@ graveyard." A battle's defense on the battlefield is its defense-counter count [
 the Siege exclusion is a subtype read, not a seam. -/
 def battleDefenseZero : SbaRule :=
   { scope := .and [.hasType .battle, .not (.hasSubtype (.of .battle "Siege"))],
-    when := .compareAmt (countersOn (.named "Defense") .this) .eq (.lit 0),
+    when := .compareAmt (countersOn (.named "defenseCounter") .this) .eq (.lit 0),
     then_ := move .this graveyard }
 theorem okBattleDefenseZero : SbaRule.check battleDefenseZero = [] := by decide
 
@@ -73,7 +73,7 @@ def planeswalkerLoyalty : ConferralRule :=
     confer :=
       .static
         (.replacement (Primitives.GameEvent.enters .this none) [] none
-          (.putCounters (.statOf (.stat .loyalty) .this) (.printed (.named "Loyalty")) .this)
+          (.putCounters (.statOf (.stat .loyalty) .this) (.printed (.named "loyaltyCounter")) .this)
           .repeatedly none) }
 theorem okPlaneswalkerLoyalty : ConferralRule.check planeswalkerLoyalty = [] := by decide
 
@@ -97,31 +97,31 @@ theorem badConferralOfSpellAbility :
 /-- [CR#120.3c] "Damage dealt to a planeswalker causes that many loyalty counters to be removed
 from that planeswalker." -/
 def planeswalkerLoyaltyDamage : DamageResultRule :=
-  { recipient := .hasType .planeswalker, remove := .named "Loyalty" }
+  { recipient := .hasType .planeswalker, remove := .named "loyaltyCounter" }
 theorem okPlaneswalkerLoyaltyDamage :
     DamageResultRule.check planeswalkerLoyaltyDamage = [] := by decide
 
 /-- [CR#120.3h] "Damage dealt to a battle causes that many defense counters to be removed from
 that battle." -/
 def battleDefenseDamage : DamageResultRule :=
-  { recipient := .hasType .battle, remove := .named "Defense" }
+  { recipient := .hasType .battle, remove := .named "defenseCounter" }
 theorem okBattleDefenseDamage : DamageResultRule.check battleDefenseDamage = [] := by decide
 
 /-- Damage can't be dealt to an object that isn't a battle, a creature, or a planeswalker
 [CR#120.1a]. -/
 theorem badDamageResultRecipient :
-    DamageResultRule.check { recipient := enchantment, remove := .named "Loyalty" }
+    DamageResultRule.check { recipient := enchantment, remove := .named "loyaltyCounter" }
       = [.damageRecipient] := by
   decide
 
 /-- The counter registry declares who holds each counter [CR#122.1]: an energy counter is a
 player's, so no damage to a permanent removes one. -/
 theorem badDamageResultCounterHolder :
-    DamageResultRule.check { recipient := .hasType .planeswalker, remove := .named "Energy" }
+    DamageResultRule.check { recipient := .hasType .planeswalker, remove := .named "energy" }
       = [.counterKindNamed .object] := by
   decide
 
-/-- A counter kind is a registry key, and "loyalty" is not the declared label. -/
+/-- A counter kind is a registry key, and "loyalty" is not the declared name (`loyaltyCounter`). -/
 theorem badDamageResultUndeclaredCounter :
     DamageResultRule.check { recipient := .hasType .planeswalker, remove := .named "loyalty" }
       = [.knownCounter] := by
@@ -131,25 +131,59 @@ theorem badDamageResultUndeclaredCounter :
 
 /-- [CR#122.1] "A counter is a marker placed on an object or player." A charge counter is a
 marker and nothing else: the CR gives it no behavior of its own, so it confers nothing. -/
-def chargeCounter : Definition := .counter (.named "Charge") .object []
+def chargeCounter : Definition := .counter (.named "chargeCounter") .object []
 theorem okChargeCounter : Definition.check chargeCounter = [] := by decide
 
 /-- [CR#122.1b] "A keyword counter on a permanent … causes that object to gain that keyword."
 The grant states a quality of the bearer rather than giving it an ability of its own
 [CR#113.12], so it is the ability-free `property` flavor. -/
 def flyingCounter : Definition :=
-  .counter (.keyword "Flying") .object [.property (.abilityGrant .this (keyword "Flying"))]
+  .counter (.named "flyingCounter") .object [.property (.abilityGrant .this (keyword "Flying"))]
 theorem okFlyingCounter : Definition.check flyingCounter = [] := by decide
+
+/-- [CR#122.1a] "A +X/+Y counter on a creature … adds X to that object's power and Y to that
+object's toughness." The definition states what ONE counter confers, "+1/+1" in layer 7c
+[CR#613.4c], and the model applies it once per counter held, so the conferral reads no count.
+
+The definition is refused `.zoneIs .battlefield`, as its retired spelling was (twice, below): a
+stat change's subject must be a permanent, where a +1/+1 counter also counts "on a creature
+card in a zone other than the battlefield" [CR#122.1a]. No gate runs `Definition.check` over
+the declarations, so the refusal is pinned here and routed, not fixed. -/
+def p1p1CounterDefinition : Definition :=
+  .counter (.named "p1p1Counter") .object
+    [.property (.ptModification .this (.up (.lit 1)) (.up (.lit 1)))]
+theorem p1p1CounterDefinitionZone :
+    Definition.check p1p1CounterDefinition = [.zoneIs .battlefield] := by decide
+
+/-- [CR#122.1a]: the minus counter's twin of `p1p1CounterDefinition`, subtracting 1 from each stat. -/
+def m1m1CounterDefinition : Definition :=
+  .counter (.named "m1m1Counter") .object
+    [.property (.ptModification .this (.down (.lit 1)) (.down (.lit 1)))]
+theorem m1m1CounterDefinitionZone :
+    Definition.check m1m1CounterDefinition = [.zoneIs .battlefield] := by decide
+
+/-- The retired spelling of `p1p1Counter`'s conferral, which multiplied each stat by the count of
+its own kind on the bearer, in two single-stat changes. Its refusals are the per-counter form's
+with the second stat change's zone check repeated; nothing is refused for reading its own count
+or for not reading it, because multiplicity is the model's reading of a counter definition and
+the checker computes none. -/
+def p1p1CounterCountMultiplied : Definition :=
+  .counter (.named "p1p1Counter") .object
+    [ .property (.modification .this .power (.up (.statOf (.counter (.named "p1p1Counter")) .this))),
+      .property (.modification .this .toughness (.up (.statOf (.counter (.named "p1p1Counter")) .this))) ]
+theorem p1p1CounterCountMultipliedTwin :
+    Definition.check p1p1CounterCountMultiplied =
+      Definition.check p1p1CounterDefinition ++ [.zoneIs .battlefield] := by decide
 
 /-- [CR#122.1f] "If a player has ten or more poison counters, that player loses the game." A
 poison counter is a player's. -/
-theorem okPoisonCounter : Definition.check (.counter (.named "Poison") .player []) = [] := by
+theorem okPoisonCounter : Definition.check (.counter (.named "poison") .player []) = [] := by
   decide
 
 /-- A counter is placed on an object or a player [CR#122.1] and on nothing else; a color is
 neither. -/
 theorem badCounterHolder :
-    Definition.check (.counter (.named "Charge") (.quality .color) [])
+    Definition.check (.counter (.named "chargeCounter") (.quality .color) [])
       = [.definitionHolder (.quality .color)] := by
   decide
 

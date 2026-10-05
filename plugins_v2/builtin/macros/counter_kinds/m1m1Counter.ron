@@ -1,6 +1,7 @@
 // The -1/-1 counter ([CR#122.1a]): each subtracts 1 from power and toughness
 // in layer 7c ([CR#613.4c]), conferred directly as the ability-free `Property`
-// flavor and scaled by how many the object holds.
+// flavor. The conferral is what ONE counter confers; the model applies it once
+// per counter held, so it reads no count.
 //
 // STOP (semantics-v2-definition-bodies). The annihilation rule ([CR#704.5q])
 // is not written here. It removes "N +1/+1 and N -1/-1 counters … where N is
@@ -16,25 +17,10 @@ CounterKind(
     compound_onset: Consonant,
     spelling: "-1/-1",
     body: Counter(
-        kind: Boost(power: Down(amount: 1), toughness: Down(amount: 1)),
+        kind: Named(name: "m1m1Counter"),
         holder: Object,
         confers: [
-            Property(spec: Modification(
-                subject: This,
-                stat: Power,
-                delta: Down(amount: StatOf(
-                    axis: Counter(kind: Boost(power: Down(amount: 1), toughness: Down(amount: 1))),
-                    subject: This,
-                )),
-            )),
-            Property(spec: Modification(
-                subject: This,
-                stat: Toughness,
-                delta: Down(amount: StatOf(
-                    axis: Counter(kind: Boost(power: Down(amount: 1), toughness: Down(amount: 1))),
-                    subject: This,
-                )),
-            )),
+            Property(spec: PtModification(subject: This, power: Down(amount: 1), toughness: Down(amount: 1))),
         ],
     ),
 )

@@ -84,11 +84,8 @@ def DesignationScope.narrowable : DesignationScope → Bool
   | .heldBy .object => true
   | _ => false
 
-/-- A counter named by a label declares one [CR#122.1]; a +X/+Y counter [CR#122.1a] and a
-keyword counter [CR#122.1b] are named by their own `CounterKind` constructor instead. -/
-def CounterKind.declaresName : CounterKind → Bool
-  | .named label => !label.isEmpty
-  | _ => true
+/-- A counter declares its name [CR#122.1]; the registry has no way to reach a nameless one. -/
+def CounterKind.declaresName (c : CounterKind) : Bool := !c.name.isEmpty
 
 /-- The obligations of one registry definition. A counter is placed on an object or a player
 [CR#122.1]; a subtype [CR#205.3] and a designation [CR#701.15b] are looked up by the name they

@@ -70,13 +70,13 @@ theorem badThatCreatureIsSelf :
 /-- "the last Intervention counter is removed from this enchantment by you" -/
 theorem okAnnouncingRemovalAgent :
     GameEvent.check []
-      (.counterEvent .removed (some (.named "Intervention")) thisEnchantment .emptying (some .you)
+      (.counterEvent .removed (some (.named "interventionCounter")) thisEnchantment .emptying (some .you)
         false) = [] := by
   decide
 
 theorem badAnnouncingRemovalAgent :
     GameEvent.check []
-      (.counterEvent .removed (some (.named "Intervention")) thisEnchantment .emptying
+      (.counterEvent .removed (some (.named "interventionCounter")) thisEnchantment .emptying
         (some (target .anyPlayer)) false) = [.eventAgent] := by
   decide
 
@@ -187,13 +187,13 @@ theorem badKeywordCostPaymentThatMuch :
 
 /-- "whenever one or more time counters are put on this enchantment" -/
 theorem okManyCountersOnPlacement :
-    GameEvent.check [] (.counterEvent .put (some (.named "Time")) thisEnchantment .many none false)
+    GameEvent.check [] (.counterEvent .put (some (.named "timeCounter")) thisEnchantment .many none false)
       = [] := by
   decide
 
 /-- "when the last time counter is put on this enchantment" -/
 theorem badLastCounterOnPlacement :
-    GameEvent.check [] (.counterEvent .put (some (.named "Time")) thisEnchantment .emptying none
+    GameEvent.check [] (.counterEvent .put (some (.named "timeCounter")) thisEnchantment .emptying none
         false)
       = [.counterBatchOk] := by
   decide
@@ -280,7 +280,7 @@ theorem badCrimeByAllPlayers :
 /-- "… you may remove a +1/+1 counter from this creature. If you do, increase or decrease the
 result by 1." -/
 def rollShiftBody : Instruction :=
-  Primitives.Instruction.offer (.removeCounters (some (exactly 1)) (some (.printed plusOnePlusOne)) thisCreature)
+  Primitives.Instruction.offer (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature)
     (some (shiftResult (.lit 1))) none (agent := .you)
 
 /-- "After you roll a die, you may remove a +1/+1 counter from this creature. If you do,

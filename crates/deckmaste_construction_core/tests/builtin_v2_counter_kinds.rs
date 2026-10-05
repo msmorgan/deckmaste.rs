@@ -147,7 +147,7 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("Counter(kind: Named(label: \"Energy\"), holder: Player, confers: [])")
+            .contains("Counter(kind: Named(name: \"energy\"), holder: Player, confers: [])")
     );
     assert!(
         counter(&declarations, "deathtouchCounter")
@@ -161,7 +161,9 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("Counter(kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1)))")
+            .contains(
+                "PtModification(subject: This, power: Up(amount: 1), toughness: Up(amount: 1))"
+            )
     );
 
     let synthetic = read_str(

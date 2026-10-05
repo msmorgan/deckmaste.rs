@@ -7,7 +7,7 @@ CounterKind(
     spelling: "exalted",
     grammar: FixedTerm(surface: "exalted"),
     body: Counter(
-        kind: Keyword(keyword: "Exalted"),
+        kind: Named(name: "exaltedCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

@@ -520,10 +520,14 @@ inductive DefinedSlots where
   | powerAlone | toughnessAlone | bothEach
   deriving DecidableEq, Repr
 
+/-- A counter's kind [CR#122.1]: the NAME of the counter declaration that defines it, verbatim
+(`p1p1Counter`, `flyingCounter`, `chargeCounter`). "Counters with the same name or description
+are interchangeable" [CR#122.1], so the name is all a kind is. What a counter of the kind does
+is its Registry Definition (`Definition.counter`: holder and conferrals), and which kinds exist
+is the counter facts table generated from those definitions, so a +1/+1 counter [CR#122.1a] and
+a keyword counter [CR#122.1b] are looked up exactly as a charge counter is. -/
 inductive CounterKind where
-  | boost (power toughness : Delta Nat)
-  | keyword (keyword : KeywordLabel)
-  | named (label : String)
+  | named (name : String)
   deriving DecidableEq, Repr
 
 inductive ProjAxis where

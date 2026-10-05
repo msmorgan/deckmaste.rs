@@ -2,5 +2,5 @@ CounterKind(
     name: "soulCounter",
     params: [],
     spelling: "soul",
-    body: Counter(kind: Named(label: "Soul"), holder: Object, confers: []),
+    body: Counter(kind: Named(name: "soulCounter"), holder: Object, confers: []),
 )

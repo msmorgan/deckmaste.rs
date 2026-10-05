@@ -684,9 +684,9 @@ def myrPrototype : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Myr"],
       text :=
         [ at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature),
+            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature),
           Primitives.Ability.static (deontic thisCreature
-            (Primitives.Compulsion.gatedBy (scaledMana .generic (times (.lit 1) (countersOn plusOnePlusOne it))))
+            (Primitives.Compulsion.gatedBy (scaledMana .generic (times (.lit 1) (countersOn p1p1Counter it))))
             [.core .attack, .core .block] .agent Primitives.DeonticPatient.noPatient) ],
       power := stat 2, toughness := stat 2 } }
 

@@ -6,7 +6,7 @@ CounterKind(
     spelling: "first strike",
     grammar: FixedTerm(surface: "first strike"),
     body: Counter(
-        kind: Keyword(keyword: "FirstStrike"),
+        kind: Named(name: "firstStrikeCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

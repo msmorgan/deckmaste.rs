@@ -6,7 +6,7 @@ CounterKind(
     spelling: "haste",
     grammar: FixedTerm(surface: "haste"),
     body: Counter(
-        kind: Keyword(keyword: "Haste"),
+        kind: Named(name: "hasteCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

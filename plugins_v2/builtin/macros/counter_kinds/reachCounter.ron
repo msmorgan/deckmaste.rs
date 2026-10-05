@@ -6,7 +6,7 @@ CounterKind(
     spelling: "reach",
     grammar: FixedTerm(surface: "reach"),
     body: Counter(
-        kind: Keyword(keyword: "Reach"),
+        kind: Named(name: "reachCounter"),
         holder: Object,
         confers: [
             Property(spec: AbilityGrant(

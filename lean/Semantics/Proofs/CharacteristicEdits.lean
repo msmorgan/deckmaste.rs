@@ -84,7 +84,7 @@ theorem subjectIsNotPublishedBeforeItsEdits :
 
 theorem copySpecificAdditionsRemainSeparate :
     CopyExcept.checkAll [] [.ability (keyword "Flying"),
-      .entersWithCounters (.lit 1) plusOnePlusOne .fresh] = [] := by decide
+      .entersWithCounters (.lit 1) p1p1Counter .fresh] = [] := by decide
 
 
 theorem abilityOnlyCopyInputNeedsNoEmptyEditBlock :

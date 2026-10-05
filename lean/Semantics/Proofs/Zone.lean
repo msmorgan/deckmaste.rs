@@ -646,13 +646,13 @@ theorem badUntapCapGraveyardSet :
 /-- "if this creature is attacking" -/
 theorem okMatchesBattlefieldZone :
     Ability.check []
-      (.triggered (lastCounterRemoved (.named "Time") thisCreature) [] none [] none none
+      (.triggered (lastCounterRemoved (.named "timeCounter") thisCreature) [] none [] none none
         (some (.matches thisCreature attacking)) (draw (.lit 1) (agent := .you))) = [] := by
   decide
 
 theorem badExileCheckOnSortedSelf :
     Ability.check []
-      (.triggered (lastCounterRemoved (.named "Time") thisCreature) [] none [] none none
+      (.triggered (lastCounterRemoved (.named "timeCounter") thisCreature) [] none [] none none
         (some (.matches thisCreature (.inZone exileZone))) (draw (.lit 1) (agent := .you))) =
             [.zoneFits] := by
   decide

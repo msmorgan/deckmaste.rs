@@ -87,13 +87,23 @@ inductive Conferral where
 registry declares a namespace's members [CR#122.1,205.3,701.15b]; this is one member's
 definition, where a `RulesTables` row is scoped by a predicate and names nothing.
 
-`Semantics.Check.Facts` is generated from these: a counter definition's `.named` kind is a
-`CounterFacts` row, a subtype definition is a `SubtypeFacts` row, a designation definition is
-a `DesignationFacts` row. A definition whose kind is a `CounterKind` of its own — a +X/+Y
-counter [CR#122.1a] or a keyword counter [CR#122.1b] — contributes no row to the table of
-named counters, because it is not looked up by label. -/
+`Semantics.Check.Facts` is generated from these: every counter definition is a `CounterFacts`
+row labelled with its kind's name, a subtype definition is a `SubtypeFacts` row, a designation
+definition is a `DesignationFacts` row. -/
 inductive Definition where
-  /-- A counter [CR#122.1]: what it is, what holds it, and what it does to its bearer. -/
+  /-- A counter [CR#122.1]: its kind, what holds it, and what it does to its bearer.
+
+  The kind is the declaration's own name; the declaration meta-macro writes it from the name the
+  file declares, so the author never writes it and nothing in the body refers to the counter
+  being defined. `confers` states what ONE counter of the kind confers, and the model applies it
+  once per counter held: a +1/+1 counter confers "+1/+1" [CR#122.1a,613.4c], so N of them give
+  +N/+N, and a keyword counter confers its keyword [CR#122.1b,613.1f], so N of them grant it N
+  times, which is having it once (flying's own rule: [CR#702.9c]). No conferral reads the
+  number of counters of its own kind. The reading is the model's; the checker checks each
+  conferral once, in the empty binding context (`Definition.check`), and computes no
+  multiplicity. A counter whose rule makes one or more of it create a single effect — a shield,
+  stun or finality counter [CR#122.1c,122.1d,122.1h] — writes no conferral today; giving it one
+  needs a reading this one is not. -/
   | counter (kind : CounterKind) (holder : Kind) (confers : List Conferral)
   /-- A subtype [CR#205.3] and the rules its type rule defines for it, empty for the subtypes
   that are inert vocabulary. -/
@@ -122,7 +132,8 @@ def Definition.subtypeTerm : Definition → Option Subtype
   | .counter .. | .designation .. => none
 
 /-- The counter half of `Definition.subtypeTerm`: a counter definition names its `kind`, so a
-counter declaration's name read at a `CounterKind` position is the kind it defines. -/
+counter declaration's name read at a `CounterKind` position is the kind it defines, which is
+that same name. -/
 def Definition.counterTerm : Definition → Option CounterKind
   | .counter kind _holder _confers => some kind
   | .subtype .. | .designation .. => none

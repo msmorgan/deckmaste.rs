@@ -249,7 +249,7 @@ fn the_three_rules_tables_load() {
             },
             kind: CounterKindSource::Printed {
                 kind: CounterKind::Named {
-                    label: "Loyalty".to_string(),
+                    name: "loyaltyCounter".to_string(),
                 },
             },
             on: NounPhrase::This,
@@ -263,13 +263,13 @@ fn the_three_rules_tables_load() {
             r#type: CardType::Planeswalker
         }
     );
-    // The counter is a registry key: the Lean checker refuses a label the
+    // The counter is a registry key: the Lean checker refuses a name the
     // counter facts do not declare, and requires its declared holder to be the
     // kind the recipient binds.
     assert_eq!(
         damage.remove,
         CounterKind::Named {
-            label: "Loyalty".to_string(),
+            name: "loyaltyCounter".to_string(),
         }
     );
 }
@@ -664,29 +664,19 @@ fn a_counter_macro_denotes_the_kind_its_definition_names_and_reads_bare_as_print
     let builtin =
         Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
             .expect("the builtin declarations load");
-    let boost = |delta: fn(u32) -> deckmaste_semantics_v2::words::Delta<u32>| CounterKind::Boost {
-        power: delta(1),
-        toughness: delta(1),
+    let named = |name: &str| CounterKind::Named {
+        name: name.to_owned(),
     };
-    let up = |amount| deckmaste_semantics_v2::words::Delta::Up { amount };
-    let down = |amount| deckmaste_semantics_v2::words::Delta::Down { amount };
 
-    // At a `CounterKind` position: the definition's `kind`, for every flavor.
+    // At a `CounterKind` position: the definition's `kind`, which is the
+    // declaration's own name, for every counter (a +X/+Y counter, a keyword
+    // counter and a marker counter alike).
     for (source, expected) in [
-        ("p1p1Counter", boost(up)),
-        ("m1m1Counter", boost(down)),
-        (
-            "flyingCounter",
-            CounterKind::Keyword {
-                keyword: "Flying".to_owned(),
-            },
-        ),
-        (
-            "chargeCounter",
-            CounterKind::Named {
-                label: "Charge".to_owned(),
-            },
-        ),
+        ("p1p1Counter", named("p1p1Counter")),
+        ("m1m1Counter", named("m1m1Counter")),
+        ("flyingCounter", named("flyingCounter")),
+        ("chargeCounter", named("chargeCounter")),
+        ("poison", named("poison")),
     ] {
         let read: CounterKind = builtin
             .macros
@@ -697,15 +687,16 @@ fn a_counter_macro_denotes_the_kind_its_definition_names_and_reads_bare_as_print
 
     // At a `CounterKindSource` position: every spelling is one value. The
     // declaration's name reads in a card; the constructor spellings are how a
-    // macro BODY writes it (amass's `Printed(Boost(…))`), since `Delta` is a
-    // `semantic_expression` a card may not write raw.
-    let printed = CounterKindSource::Printed { kind: boost(up) };
+    // macro BODY could write it.
+    let printed = CounterKindSource::Printed {
+        kind: named("p1p1Counter"),
+    };
     for (source, in_a_card) in [
         ("p1p1Counter", true),
         ("Printed(p1p1Counter)", true),
         ("Printed(kind: p1p1Counter)", true),
-        ("Printed(Boost(power: Up(1), toughness: Up(1)))", false),
-        ("Boost(power: Up(1), toughness: Up(1))", false),
+        (r#"Printed(Named(name: "p1p1Counter"))"#, false),
+        (r#"Named(name: "p1p1Counter")"#, false),
     ] {
         let read: Result<CounterKindSource, _> = if in_a_card {
             builtin.macros.read_str_restricted(source)
@@ -743,7 +734,7 @@ fn a_counter_macro_denotes_the_kind_its_definition_names_and_reads_bare_as_print
     let error = builtin
         .macros
         .read_str_restricted::<CounterKind>(
-            r#"Counter(kind: Named(label: "Charge"), holder: Object, confers: [])"#,
+            r#"Counter(kind: Named(name: "chargeCounter"), holder: Object, confers: [])"#,
         )
         .expect_err("a counter definition is not author vocabulary");
     assert!(
@@ -877,7 +868,7 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                     ),
                     PutCounters(
                         amount: Lit(value: 2),
-                        kind: Printed(Boost(power: Up(1), toughness: Up(1))),
+                        kind: Printed(Named(name: "p1p1Counter")),
                         on: Pro(reach: Word(Type(Creature)), plurality: One, window: Whole),
                     ),
                     DoIf(
@@ -979,12 +970,12 @@ fn a_word_types_constructor_still_reads_under_restriction() {
     assert_eq!(colour, Color::White);
     let counter: deckmaste_semantics_v2::words::CounterKind = builtin
         .macros
-        .read_str_restricted(r#"Named(label: "charge")"#)
+        .read_str_restricted(r#"Named(name: "chargeCounter")"#)
         .expect("a counter kind is not a semantic expression");
     assert_eq!(
         counter,
         deckmaste_semantics_v2::words::CounterKind::Named {
-            label: "charge".to_owned(),
+            name: "chargeCounter".to_owned(),
         }
     );
 }

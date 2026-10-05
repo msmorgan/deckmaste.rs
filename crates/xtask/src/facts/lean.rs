@@ -2,7 +2,7 @@
 //!
 //! A declaration's BODY is its `Definition` node (counters, subtypes,
 //! designations) or its `Ability.keyword` term (keyword abilities), and every
-//! column those carry is read from them: a counter's kind and holder, a
+//! column those carry is read from them: a counter's name and holder, a
 //! subtype's identity, a designation's six columns, a keyword's word and the
 //! categories its definition is written in [CR#702.1], and — across families —
 //! which keywords a counter is a counter of [CR#122.1b].
@@ -31,12 +31,14 @@ use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::{self};
 use deckmaste_semantics_v2::abilities::Ability;
+use deckmaste_semantics_v2::abilities::StaticSpec;
 use deckmaste_semantics_v2::keywords;
+use deckmaste_semantics_v2::phrase::NounPhrase;
 use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::ron::macro_set;
+use deckmaste_semantics_v2::rules::Conferral;
 use deckmaste_semantics_v2::rules::Definition;
 use deckmaste_semantics_v2::words::CardType;
-use deckmaste_semantics_v2::words::CounterKind;
 use deckmaste_semantics_v2::words::DesignationScope;
 use deckmaste_semantics_v2::words::Kind;
 use deckmaste_semantics_v2::words::RoomHalf;
@@ -309,7 +311,9 @@ pub(super) fn keyword_definitions(
 
 /// The keywords a counter declaration makes a counter of [CR#122.1b]. The
 /// registry declares one counter per keyword the rule names, so eligibility is
-/// read off the counter family rather than restated on the keyword row.
+/// read off the counter family rather than restated on the keyword row: a
+/// keyword counter is the counter whose conferral grants its bearer the
+/// keyword ("causes that object to gain that keyword").
 pub(super) fn counter_eligible_keywords(
     declarations: &[NormalizedDeclaration],
 ) -> anyhow::Result<BTreeSet<String>> {
@@ -326,12 +330,21 @@ pub(super) fn counter_eligible_keywords(
         let body: Definition = dialect
             .read_str(body.get_ron())
             .with_context(|| format!("reading counter {name}"))?;
-        if let Definition::Counter {
-            kind: CounterKind::Keyword { keyword },
-            ..
-        } = body
-        {
-            result.insert(keyword);
+        let Definition::Counter { confers, .. } = body else {
+            continue;
+        };
+        for conferral in confers {
+            if let Conferral::Property {
+                spec:
+                    StaticSpec::AbilityGrant {
+                        subject: NounPhrase::This,
+                        ability,
+                    },
+            } = conferral
+                && let Ability::Keyword { keyword, .. } = *ability
+            {
+                result.insert(keyword);
+            }
         }
     }
     Ok(result)
@@ -477,17 +490,17 @@ fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<St
         let Definition::Counter { kind, holder, .. } = body else {
             anyhow::bail!("{name}: a counter declaration defines a counter");
         };
-        // `counterFacts` is the table of NAMED counters, which is what
-        // `Check/Words.lean` looks a bare label up in. A counter Lean names
-        // with a `CounterKind` constructor of its own — a +X/+Y counter
-        // [CR#122.1a] or a keyword counter [CR#122.1b] — is not looked up by
-        // label and contributes no row.
-        let CounterKind::Named { label } = kind else {
-            continue;
-        };
+        // `counterFacts` is the table `Check/Words.lean` looks every counter
+        // kind up in, and a kind is its declaration's name, so every counter
+        // declaration is one row labelled with that name.
+        anyhow::ensure!(
+            kind.name() == name,
+            "{name}: a counter declaration's kind is its own name, not `{}`",
+            kind.name()
+        );
         result.push(format!(
             "\u{27e8}{}, {}\u{27e9}",
-            quoted(&label),
+            quoted(kind.name()),
             kind_of(&holder)?
         ));
     }
@@ -856,34 +869,43 @@ mod tests {
         let source = fs::read_to_string(&path).unwrap();
         fs::write(path, source.replace("holder: Player", "holder: Object")).unwrap();
         let generated = render(temp.path()).unwrap();
-        assert!(generated.contains("⟨\"Poison\", .object⟩"));
-        assert!(!generated.contains("⟨\"Poison\", .player⟩"));
+        assert!(generated.contains("⟨\"poison\", .object⟩"));
+        assert!(!generated.contains("⟨\"poison\", .player⟩"));
     }
 
-    /// A counter Lean names with a `CounterKind` constructor of its own
-    /// [CR#122.1a,122.1b] carries its conferral payload instead of a fact row,
-    /// and the generated table of `named` counters leaves it out.
+    /// A counter's kind is its declaration's name, so every counter
+    /// declaration is a row labelled with that name: a +X/+Y counter
+    /// [CR#122.1a] and a keyword counter [CR#122.1b] as much as a marker
+    /// counter [CR#122.1]. (Re-spelled from
+    /// `a_counter_carrying_a_conferral_payload_declares_no_named_row`, whose
+    /// kind shapes are retired.)
     #[test]
-    fn a_counter_carrying_a_conferral_payload_declares_no_named_row() {
-        let temp = fixture();
-        let path = temp
-            .path()
-            .join("plugins_v2/builtin/macros/counter_kinds/chargeCounter.ron");
-        let source = fs::read_to_string(&path).unwrap();
-        assert!(
-            render(temp.path())
-                .unwrap()
-                .contains("⟨\"Charge\", .object⟩")
-        );
-        fs::write(
-            &path,
-            source.replace(
-                "kind: Named(label: \"Charge\")",
-                "kind: Keyword(keyword: \"Flying\")",
-            ),
+    fn every_counter_declares_a_row_labelled_with_its_name() {
+        let generated = render(fixture().path()).unwrap();
+        for row in [
+            "⟨\"chargeCounter\", .object⟩",
+            "⟨\"p1p1Counter\", .object⟩",
+            "⟨\"flyingCounter\", .object⟩",
+            "⟨\"poison\", .player⟩",
+        ] {
+            assert!(generated.contains(row), "{row}");
+        }
+        assert!(!generated.contains("\"Charge\""));
+    }
+
+    /// A keyword counter is the counter whose conferral grants the keyword
+    /// [CR#122.1b], so the keyword's eligibility follows the conferral rather
+    /// than the counter's name.
+    #[test]
+    fn a_keyword_counter_is_read_off_its_conferral() {
+        let declarations = macro_def::read_builtin_v2(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"),
         )
         .unwrap();
-        assert!(!render(temp.path()).unwrap().contains("\"Charge\""));
+        let keywords = counter_eligible_keywords(&declarations).unwrap();
+        assert_eq!(keywords.len(), 15, "{keywords:?}");
+        assert!(keywords.contains("Flying") && keywords.contains("Shadow"));
+        assert!(!keywords.contains("Charge"));
     }
 
     /// Every designation column is the declaration's own, so changing one in
@@ -952,8 +974,8 @@ mod tests {
             ),
             (
                 "counter_kinds/shieldCounter.ron",
-                "Counter(kind: Named(label: \"Shield\"), holder: Object, confers: [])",
-                "Counter(Named(\"Shield\"), Object, [])",
+                "Counter(kind: Named(name: \"shieldCounter\"), holder: Object, confers: [])",
+                "Counter(Named(\"shieldCounter\"), Object, [])",
             ),
         ];
 
@@ -980,7 +1002,7 @@ mod tests {
             "the designation row moved"
         );
         assert!(
-            by_name.contains("⟨\"Shield\", .object⟩"),
+            by_name.contains("⟨\"shieldCounter\", .object⟩"),
             "the counter row moved"
         );
         assert_eq!(by_name, render(positional.path()).unwrap());

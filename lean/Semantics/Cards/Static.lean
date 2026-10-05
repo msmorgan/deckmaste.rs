@@ -173,7 +173,7 @@ def rainOfGore : Spelled := spelled <| .singleFaced
 
 /-- Master Chef -/
 def masterChefGrantedAbility : Ability :=
-  Primitives.Ability.static (entersWithAdditionalCounters thisCreature (.lit 1) plusOnePlusOne)
+  Primitives.Ability.static (entersWithAdditionalCounters thisCreature (.lit 1) p1p1Counter)
 theorem okMasterChefGrantedAbility : Ability.check [] masterChefGrantedAbility = [] := by decide
 
 def anointedProcession : Spelled := spelled <| .singleFaced
@@ -694,7 +694,7 @@ def luxiorEquippedPermanent : Ability :=
 theorem okLuxiorEquippedPermanent : Ability.check [] luxiorEquippedPermanent = [] := by decide
 /-- Nahiri, the Unforgiving's compleated reminder -/
 def nahiriCompleatedEntry : Ability :=
-  Primitives.Ability.static (entersWithFewerCounters thisPlaneswalker (.lit 2) (.named "Loyalty"))
+  Primitives.Ability.static (entersWithFewerCounters thisPlaneswalker (.lit 2) (.named "loyaltyCounter"))
 theorem okNahiriCompleatedEntry : Ability.check [] nahiriCompleatedEntry = [] := by decide
 /-- Nimble Mongoose -/
 def nimbleMongoose : Ability :=

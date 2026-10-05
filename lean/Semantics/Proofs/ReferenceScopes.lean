@@ -18,7 +18,7 @@ private def playerX : NounPhrase :=
   each (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .eq (.letter .x)])
 private def powerAfter (bs : Bindings) : Bindings :=
   StaticSpec.intro bs (.modification (target creature) .power (.up (.letter .x)))
-private def previous : Instruction := .putCounters (.lit 1) (.printed plusOnePlusOne) creatureX
+private def previous : Instruction := .putCounters (.lit 1) (.printed p1p1Counter) creatureX
 private def subjectCondition : Condition := .matches creatureX creature
 private def libraryCards : NounPhrase := .librarySlice .top (.lit 2) playerX
 

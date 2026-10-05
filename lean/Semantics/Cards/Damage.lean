@@ -82,7 +82,7 @@ def yawgmothDemon : Instruction :=
 theorem okYawgmothDemon : Instruction.check [] yawgmothDemon = [] := by decide
 def arcBlade : Instruction :=
   Primitives.Instruction.sequentially
-    [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (target anyTarget), exileWithCounters Primitives.NounPhrase.this (.lit 3) (.named "Time") ]
+    [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (target anyTarget), exileWithCounters Primitives.NounPhrase.this (.lit 3) (.named "timeCounter") ]
 theorem okArcBlade : Instruction.check [] arcBlade = [] := by decide
 def abrade : Instruction :=
   chooseModes (exactly 1) [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target creature), destroy (target artifact)]
@@ -1089,7 +1089,7 @@ def heartOfBogardan : Spelled := spelled <| .singleFaced
                   [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) targetPlayerOrPlaneswalker,
                     Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) eachCreatureThatSplitControls ],
                 Primitives.Instruction.define .x
-                  (Primitives.Amount.arith .minus (times (.lit 2) (countersOn (.named "Age") thisEnchantment)) (.lit 2)) ]) ] } }
+                  (Primitives.Amount.arith .minus (times (.lit 2) (countersOn (.named "ageCounter") thisEnchantment)) (.lit 2)) ]) ] } }
 
 /-- Burn at the Stake -/
 def burnAtTheStake : Spelled := spelled <| .singleFaced
@@ -1397,13 +1397,13 @@ def terminationFacilitator : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Assassin"],
       text :=
         [ activatedOnlyDuring Primitives.Cost.tapSymbol
-            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "Bounty"))
+            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "bountyCounter"))
               (target (Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker])))
             Primitives.Timing.asSorcery,
           whenever
             (Primitives.GameEvent.isDealtDamage .any
               (a (Primitives.Predicate.and [Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker], Primitives.Predicate.hasPossessor .controller anOpponent,
-                        Primitives.Predicate.hasCounters (some (.named "Bounty"))])))
+                        Primitives.Predicate.hasCounters (some (.named "bountyCounter"))])))
             (destroy it) ],
       power := stat 1, toughness := stat 3 } }
 
