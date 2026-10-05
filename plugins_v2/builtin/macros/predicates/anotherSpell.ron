@@ -1,7 +1,8 @@
-// "another spell": a spell other than this one.
+// "another spell": a spell other than this one, as Lean's `stormExpansion`
+// writes it [CR#112.1].
 (
     name: "anotherSpell",
     kinds: [Predicate],
     params: [],
-    body: And([InZone(stack), Not(AbilityHead(AnyOnStack)), OtherThan(thisSpell)]),
+    body: and([spell, otherThan(thisSpell)]),
 )
