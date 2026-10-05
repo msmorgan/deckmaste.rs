@@ -187,7 +187,8 @@ fn face_census_preserves_raw_text_and_strips_reminders_before_parsing() {
 #[test]
 fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
     let bytes = serde_json::to_vec(&json!({"data": {
-        "Ambiguous": [card(Some("You draw cards."), "Legal")],
+        "Ambiguous": [card(Some("Draw cards with counters."), "Legal")],
+        "SingularYou": [card(Some("You draw cards."), "Legal")],
         "Unique": [card(Some("Draw cards."), "Legal")]
     }}))
     .unwrap();
@@ -206,12 +207,19 @@ fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
     assert_eq!(two[0].census, Census::Multiple);
     assert_eq!(two[0].enumeration, Enumeration::Limited);
     assert_eq!(two[0].exact_readings, None);
-    assert_eq!(two[1].census, Census::One);
-    assert_eq!(two[1].exact_readings, Some(1));
+    for face in &two[1..] {
+        assert_eq!(face.census, Census::One);
+        assert_eq!(face.exact_readings, Some(1));
+    }
     let all = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(None)).unwrap();
     assert_eq!(all[0].census, Census::Multiple);
     assert_eq!(all[0].enumeration, Enumeration::Complete);
     assert_eq!(all[0].exact_readings, Some(all[0].checked_readings));
+    for face in &all[1..] {
+        assert_eq!(face.census, Census::One);
+        assert_eq!(face.enumeration, Enumeration::Complete);
+        assert_eq!(face.exact_readings, Some(1));
+    }
     assert!(all.iter().all(|face| face.issues.is_empty()));
 }
 

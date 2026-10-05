@@ -89,7 +89,7 @@ after 36.680s; quiet-host reference 16.26s. After
 [13.0966796875, 8.396484375, 5.5703125]. Gate and lexical/type censuses overlapped the after run;
 this is not a controlled quiet-host speed comparison.
 
-Tests added: 6; existing tests re-spelled/renamed: 1; restored, removed
+Tests added: 6; existing tests re-spelled/renamed: 2; restored, removed
 or newly ignored: 0. Focused lexical-source tests pass 3/3; focused English
 tests pass 3/3 new and 2/2 existing possessive tests. An initial new fixture
 incorrectly expected one orientation analysis; investigation established three
@@ -103,4 +103,10 @@ Formatting and citation checks pass; zero noncompliant strings and stale
 citations. No CR citation is added or changed. The first gate compiled the
 initial overly narrow orientation fixtures; its two failures are covered by
 the corrected complete independent four-value sets and the passing focused
-rerun. The final full gate validates the frozen fixture files.
+rerun. The rerun confirms all source/construction/English package tests pass. Its
+xtask enumeration fixture still presumed plural You: the original You draw
+cards and Draw cards witnesses are retained as unique, and Draw cards with
+counters supplies genuine PP-attachment ambiguity. Its capped/complete
+assertions remain, with exact totals for both original witnesses. The focused
+updated enumeration test passes. Only the affected xtask package is rerun
+after this final test-only change; the other three package results are retained.
