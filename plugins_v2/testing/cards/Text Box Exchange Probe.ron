@@ -1,0 +1,20 @@
+// A probe for the text-box exchange, quoting no real card: "{T}: Exchange
+// the text boxes of this creature and another target creature." Each
+// permanent's rules text becomes the other's previous rules text
+// [CR#701.12h].
+SingleFaced(face: (
+    characteristics: (
+        name: "Text Box Exchange Probe",
+        cost: [2, Blue],
+        types: [Creature],
+        subtypes: [wizard],
+        power: 1,
+        toughness: 1,
+        text: [
+            activated(
+                cost: tapSymbol,
+                instruction: exchangeTextBoxes(thisCreature, target(otherCreature(this))),
+            ),
+        ],
+    ),
+))

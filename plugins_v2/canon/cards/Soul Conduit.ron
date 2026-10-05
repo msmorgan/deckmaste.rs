@@ -1,0 +1,16 @@
+// "{6}, {T}: Two target players exchange life totals." [CR#701.12c]
+SingleFaced(face: (
+    characteristics: (
+        name: "Soul Conduit",
+        cost: [6],
+        types: [Artifact],
+        text: [
+            activated(
+                cost: compound([mana([6]), tapSymbol]),
+                instruction: exchangeLifeTotals(
+                    described(determiner: Target(exactly(2)), predicate: anyPlayer),
+                ),
+            ),
+        ],
+    ),
+))

@@ -1,0 +1,19 @@
+// "Defender / {T}: Exchange your life total with this creature's
+// toughness." [CR#702.3b,701.12g]
+SingleFaced(face: (
+    characteristics: (
+        name: "Tree of Redemption",
+        cost: [3, Green],
+        types: [Creature],
+        subtypes: [plant],
+        power: 0,
+        toughness: 13,
+        text: [
+            defender,
+            activated(
+                cost: tapSymbol,
+                instruction: exchangeValues(lifeTotalOf(you), toughnessOf(thisCreature)),
+            ),
+        ],
+    ),
+))

@@ -1,0 +1,15 @@
+// "{5}: Exchange control of this artifact and target nonland permanent."
+// [CR#701.12b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Avarice Totem",
+        cost: [1],
+        types: [Artifact],
+        text: [
+            activated(
+                cost: mana([5]),
+                instruction: exchangeControl(thisArtifact, target(and([permanent, not(land)]))),
+            ),
+        ],
+    ),
+))

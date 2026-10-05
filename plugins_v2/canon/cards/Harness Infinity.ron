@@ -1,0 +1,18 @@
+// "Exchange your hand and graveyard. / Exile Harness Infinity." Two whole
+// zones are exchanged, even if one is empty [CR#701.12f].
+SingleFaced(face: (
+    characteristics: (
+        name: "Harness Infinity",
+        cost: [1, Black, Black, Black, Green, Green, Green],
+        types: [Instant],
+        text: [
+            spell(
+                timing: None,
+                instruction: sequentially([
+                    exchangeZones(yourHand, graveyardOf(you)),
+                    exile(thisSpell),
+                ]),
+            ),
+        ],
+    ),
+))
