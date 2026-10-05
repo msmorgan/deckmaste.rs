@@ -13,7 +13,7 @@ KeywordAbility(
     body: [
         triggered(
             becomesBlocked(thisCreature, a(and([creature, not(hasKeyword(The("Flanking")))]))),
-            gets(that(Creature), down(1), down(1), untilEndOfTurn),
+            getsBoth(that(Creature), down(1), untilEndOfTurn),
         ),
     ],
 )

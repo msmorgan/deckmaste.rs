@@ -12,7 +12,7 @@ KeywordAbility(
         triggeredIf(
             attacks(a(creatureYouControl)),
             compareAmt(countOf(and([creature, attacking])), Eq, 1),
-            gets(that(Creature), up(1), up(1), untilEndOfTurn),
+            getsBoth(that(Creature), up(1), untilEndOfTurn),
         ),
     ],
 )

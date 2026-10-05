@@ -10,7 +10,7 @@ KeywordAbility(
     body: [
         triggered(
             casts(you, a(and([inZone(stack), not(creature)]))),
-            gets(thisCreature, up(1), up(1), untilEndOfTurn),
+            getsBoth(thisCreature, up(1), untilEndOfTurn),
         ),
     ],
 )

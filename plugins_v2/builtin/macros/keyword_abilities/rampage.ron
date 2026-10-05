@@ -10,14 +10,8 @@ KeywordAbility(
     body: [
         triggered(
             becomesBlocked(thisCreature),
-            gets(
+            getsBoth(
                 thisCreature,
-                up(
-                    times(
-                        Param(0),
-                        minus(countOf(and([creature, inCombat(BlockerOf, thisCreature)])), 1),
-                    ),
-                ),
                 up(
                     times(
                         Param(0),

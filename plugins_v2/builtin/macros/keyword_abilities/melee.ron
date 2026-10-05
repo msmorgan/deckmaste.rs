@@ -10,18 +10,8 @@ KeywordAbility(
     body: [
         triggered(
             attacks(thisCreature),
-            gets(
+            getsBoth(
                 thisCreature,
-                up(
-                    times(
-                        1,
-                        eventCount(
-                            attacksWith(you, gap(Player), a(creature)),
-                            bare(opponent),
-                            ThisCombat,
-                        ),
-                    ),
-                ),
                 up(
                     times(
                         1,

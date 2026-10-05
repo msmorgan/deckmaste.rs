@@ -11,7 +11,7 @@ KeywordAbility(
         triggeredOr(
             blocks(thisCreature),
             [becomesBlocked(thisCreature)],
-            gets(thisCreature, up(Param(0)), up(Param(0)), untilEndOfTurn),
+            getsBoth(thisCreature, up(Param(0)), untilEndOfTurn),
         ),
     ],
 )

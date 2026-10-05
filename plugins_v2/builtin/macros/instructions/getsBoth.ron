@@ -1,0 +1,8 @@
+// "<subject> gets +X/+X [<duration>]": the same delta to power and toughness,
+// written once [CR#613.4c].
+(
+    name: "getsBoth",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "delta": Delta, "duration": Default(Any, None)},
+    body: Establish(PtModification(Param(subject), Param(delta), Param(delta)), Param(duration)),
+)

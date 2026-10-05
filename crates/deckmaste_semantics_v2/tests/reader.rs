@@ -1023,3 +1023,52 @@ fn a_subtype_in_a_card_is_the_declarations_name_and_not_its_constructor() {
         "the refusal must name the kind: {error}"
     );
 }
+
+/// "Target creature gets +2/+2 until end of turn" is one `PtModification`
+/// whose subject is written once, so the one target is written once.
+#[test]
+fn gets_writes_one_stat_change_naming_its_subject_once() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let gets: Instruction = builtin
+        .macros
+        .read_str_restricted("gets(target(creature), up(2), up(2), untilEndOfTurn)")
+        .expect("gets reads in a card");
+    let basis: Instruction = builtin
+        .macros
+        .read_str_restricted(
+            "establish(ptModification(target(creature), up(2), up(2)), untilEndOfTurn)",
+        )
+        .expect("the constructor aliases read in a card");
+    assert_eq!(gets, basis);
+    let Instruction::Establish { spec, .. } = &gets else {
+        panic!("gets establishes a static clause: {gets:?}");
+    };
+    assert!(
+        matches!(**spec, StaticSpec::PtModification { .. }),
+        "one node, not a conjunction of two modifications: {spec:?}"
+    );
+}
+
+/// `getsBoth(subject, delta, duration)` is `gets` with the one delta written
+/// for both stats.
+#[test]
+fn gets_both_is_gets_with_the_same_delta_twice() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let both: Instruction = builtin
+        .macros
+        .read_str_restricted(
+            "getsBoth(thisCreature, up(times(2, countOf(creature))), untilEndOfTurn)",
+        )
+        .expect("getsBoth reads in a card");
+    let gets: Instruction = builtin
+        .macros
+        .read_str_restricted(
+            "gets(thisCreature, up(times(2, countOf(creature))), up(times(2, countOf(creature))), untilEndOfTurn)",
+        )
+        .expect("gets reads in a card");
+    assert_eq!(both, gets);
+}

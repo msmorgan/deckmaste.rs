@@ -1,7 +1,8 @@
-// "<subject> gets <power>/<toughness> [<duration>]", both halves naming the subject.
+// "<subject> gets <power>/<toughness> [<duration>]": one change to both stats,
+// the subject written once [CR#613.4c].
 (
     name: "gets",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "power": Delta, "toughness": Delta, "duration": Default(Any, None)},
-    body: Establish(Conjunction(None, [Modification(Param(subject), Power, Param(power)), Modification(Param(subject), Toughness, Param(toughness))]), Param(duration)),
+    body: Establish(PtModification(Param(subject), Param(power), Param(toughness)), Param(duration)),
 )
