@@ -332,7 +332,7 @@ constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
 Lean's reserved words, so the declaration keeps the plain name (ruling,
 2026-10-04).
 
-Seven helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `exileFrom`, `selectRandom` and `theirHand` (no Lean macro).
+Thirteen helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `exileFrom`, `selectRandom`, `theirHand` and the six exchange helpers `exchangeControl`, `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues` and `exchangeTextBoxes` (no Lean macro; the bench writes the constructor alias `Primitives.Instruction.exchange` with the `Exchanged` arm, and each helper expands to that same term).
 
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
@@ -622,7 +622,14 @@ tags `NounPhrase.pro`, `NounPhrase.gap`, `Amount.parameter` and each type's
 `withBindings`/`inCaller` `internal_expansion`, so it mints no alias for them
 either. `gap` is the one exception this landing made: `Storm Fleet Spy` writes
 a gap outright, and a card with no way to write what it means is worse than a
-deviation from the tag. A `Condition` alias lives under `macros/conditions/`,
+deviation from the tag.
+`Instruction.Exchange` has no alias, because the bodyless keyword
+action `exchange` owns the name; a card writes it through one helper per
+`Exchanged` arm, each the constructor with that arm (`exchangeControl`,
+`exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues`,
+`exchangeTextBoxes`; owner, 2026-10-05), so the all-or-nothing rule
+[CR#701.12a] stays on the one node.
+A `Condition` alias lives under `macros/conditions/`,
 which is a family Lean's `Macros.lean` has no section for — `Predicate` and
 `Condition` share three constructor names (`Not`, `And`, `Or`) and one file
 holds one macro.
