@@ -1,0 +1,8 @@
+// "<performer> may <body>. If they don't, <otherwise>.": `may` with only its
+// "if they don't" branch. The performer decides and performs both branches.
+(
+    name: "mayOrElse",
+    kinds: [Instruction],
+    params: {"body": Instruction, "otherwise": Instruction},
+    body: may(Param(body), None, Param(otherwise)),
+)

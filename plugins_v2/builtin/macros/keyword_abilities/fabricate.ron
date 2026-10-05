@@ -11,9 +11,9 @@ KeywordAbility(
     body: [
         triggered(
             enters(thisPermanent),
-            may(
-                body: putCounters(Param(0), p1p1Counter, thisPermanent),
-                if_not: createToken(artifactCreatureToken(1, 1, [], [servo]), Param(0)),
+            mayOrElse(
+                putCounters(Param(0), p1p1Counter, thisPermanent),
+                createToken(artifactCreatureToken(1, 1, [], [servo]), Param(0)),
             ),
         ),
     ],

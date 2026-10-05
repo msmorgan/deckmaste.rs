@@ -25,9 +25,9 @@ KeywordAbility(
             ),
             act(
                 ownerOf(this),
-                may(
-                    body: establish(mayCastFor(ownerOf(this), Param(0), exileZone)),
-                    if_not: move(this, wherever, graveyard),
+                mayOrElse(
+                    establish(mayCastFor(ownerOf(this), Param(0), exileZone)),
+                    move(this, wherever, graveyard),
                 ),
             ),
         ),
