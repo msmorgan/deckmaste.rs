@@ -1,0 +1,10 @@
+// "<performer> may cast <what> from <zone> [by paying <cost> rather than its
+// mana cost]": a cast permission whose permitted player is the actor (Lean
+// `Actor.mayCastFrom`). Lean takes no payment and writes `itsOwnCost`, the
+// default here; `exclusive` is the play rider's "and from no other zone".
+(
+    name: "mayCastFrom",
+    kinds: [StaticSpec],
+    params: {"what": NounPhrase, "zone": ZoneExpr, "paying": Default(Any, ItsOwnCost), "exclusive": Default(Any, false)},
+    body: mayPlayDeed(Action("Cast"), actor, Param(what), Play(Param(zone), None, None, Param(exclusive), Param(paying))),
+)

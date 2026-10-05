@@ -13,12 +13,7 @@ KeywordAbility(
     // `DeonticRider::Play` spells with `exclusive: true`.
     body: [
         static(
-            mayPlayDeed(
-                Action("Cast"),
-                you,
-                this,
-                Play(graveyardOf(you), None, None, true, ItsOwnCost),
-            ),
+            mayCastFrom(this, graveyardOf(you), ItsOwnCost, true),
         ),
         static(
             onlyWhile(
