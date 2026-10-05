@@ -54,8 +54,8 @@ construction traversal and lexical traversal/ownership. Zero issues, failures,
 limited enumerations or internal errors. Source and lexical inventory hashes are
 unchanged. No word-, card-, construction- or lexical-owner-naming guard is added.
 
-Scratch evidence: `/tmp/coordination-schemas-final.json`,
-`/tmp/coordination-schemas-final-reconciliation.json`,
+Scratch evidence: `/tmp/coordination-schemas-refreshed.json`,
+`/tmp/coordination-schemas-refreshed-reconciliation.json`,
 `/tmp/coordination-final-mapping.json` and `/tmp/schema-contract-review.json`.
 The mapping is a bijective re-spelling of grammatical AST identity, not a
 selection or Reading-pruning policy. Sample ordering/fingerprints can change
@@ -101,7 +101,7 @@ budget. Existing card-coverage residuals are unchanged.
 
 ### REPORT
 
-Measured change `zlylpyxkomvulnvtmqvxzswuvrqyyopp`, covered 6,186, 24 workers,
+Measured refreshed change `krzqrwxllknpmmzrwrvztnkllvnonmpw`, covered 6,186, 24 workers,
 unlimited Readings, one sample per face. Source SHA-256
 `49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb`; lexical SHA-256
 `3d56de49f2e3203130fc710231516aa3dfa67247a944ef330c1f79395c28cae1`.
@@ -119,13 +119,45 @@ Lexical homograph and form-literal/vocabulary overlap inventories are unchanged
 from the stamped voice-fix/type-macro baselines; no morphology or lexical source
 change is made.
 
-Performance advisory: final corpus wall 66.574 seconds against the 16.26-second
-quiet-host reference; checked-text thread CPU 963,849 ns/B, host load
-[12.1982421875,9.138671875,7.5849609375], 24 workers. Package tests overlapped the
+Performance advisory: refreshed corpus wall 37.138 seconds against the 16.26-second
+quiet-host reference; checked-text thread CPU 837,965 ns/B, host load
+[7.166015625,9.5966796875,9.28662109375], 24 workers. Package tests overlapped the
 census. This is runtime provenance, not a fitted performance gate.
 
-Changed-path gate derives
-`cargo test -p deckmaste_construction_core -p deckmaste_construction_v3_core -p deckmaste_lexical_source -p deckmaste_semantics_v2 -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`.
+Refreshed changed-path gate derives
+`cargo test -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`.
+The initial pre-refresh scope also included construction_core, lexical_source
+and semantics_v2 because the default line advanced with another feature.
 Final formatting check exits 0 (stable rustfmt warns about nightly-only options).
-Citation check: 0 noncompliant, 15,844 checked, 0 stale; no CR citations changed.
+Citation check: 0 noncompliant, 15,870 checked, 0 stale; no CR citations changed.
 Independent final compiler/contract review found no blockers.
+
+
+Additional re-spelling: one xtask test retains Jadelight Spelunker's exact input,
+two-Reading census, one retained sample and cost 20, replacing the retired
+FiniteFrequency string check with FrequencyPredicate plus its finite Category
+identity. The isolated corrected test passes. This brings re-spelled function
+bodies to 45 (44 English, one xtask); no test is removed or ignored.
+
+Refresh incorporates the completed keyword-body/semantics feature from default;
+English grammar/compiler and lexical-source files are unchanged by that refresh.
+The refreshed complete census independently preserves every identity and Reading
+count. The earlier, already-running broad gate had compiled old semantics tests
+before refresh and then read new plugin data; its stale corpus failures are
+checked again against freshly compiled semantics tests, without changing either
+feature to accommodate those failures.
+
+
+Fresh `cargo test -p deckmaste_semantics_v2 --test corpus` exits 0: all six
+corpus tests pass, resolving the stale pre-refresh binary/data mismatch. No
+semantics or plugin source is changed by this feature. The refreshed citation
+check covers 15,870 citations; the increased total comes from the incorporated
+feature, with zero stale or noncompliant sites.
+
+
+Final refreshed gate exits 0: 539 tests pass across 47 suites,
+zero failures, 1 existing ignored test. Lean workbench integration and doc tests
+pass. The existing ignored xtask test is
+`macros::templates::tests::macro_schema_census_count_matches_21`, whose documented
+blocker is the on-demand live-corpus census cross-check. This feature changes no
+ignore attributes. Refreshed formatting and citation checks exit 0.
