@@ -24,7 +24,8 @@ preserve the separate attributive spellings.
 
 Required reverse-dependency gate:
 `cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`.
-The gate discovers the initial five new noun tests; the final targeted run
+The required gate passes, including the existing whole-corpus and Lean
+integration checks. It discovers the initial five new noun tests; the final targeted run
 `cargo test -p deckmaste_lexical_source -p deckmaste_english_v3 --test multiword_lexemes`
 passes all eight final tests, including the three orientation additions.
 Formatting and citation checks pass (zero noncompliant strings and stale
