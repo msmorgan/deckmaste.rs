@@ -16,10 +16,10 @@ KeywordAbility(
             asSorcery,
         ),
         activated(
-            cost: Param(0),
-            instruction: enact(Action("Attach"), attachment(Unattached, thisPermanent)),
-            timing: asSorcery,
-            guard: matches(thisPermanent, attachment(side: Attachment, counterpart: a(creature))),
+            Param(0),
+            enact(Action("Attach"), attachment(Unattached, thisPermanent)),
+            asSorcery,
+            matches(thisPermanent, attachment(Attachment, a(creature))),
         ),
     ],
 )

@@ -10,15 +10,7 @@ KeywordAbility(
     // blockers.
     body: [
         static(
-            deonticRule(
-                subject: thisCreature,
-                compulsion: Forbid,
-                deeds: [Block],
-                role: Patient,
-                bound: MoreThan(1),
-                patient: Counterpart(allOf(creature)),
-                rider: NoRider,
-            ),
+            deonticRule(thisCreature, Forbid, [Block], Patient, Counterpart(allOf(creature)), NoRider, MoreThan(1)),
         ),
     ],
 )

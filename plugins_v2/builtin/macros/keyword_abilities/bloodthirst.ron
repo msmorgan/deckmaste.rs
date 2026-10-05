@@ -11,7 +11,7 @@ KeywordAbility(
         static(
             onlyWhile(
                 entersWithCounters(thisPermanent, Param(0), p1p1Counter),
-                happened(damage(kind: Any, patient: gap(Player)), anOpponent, ThisTurn),
+                happened(damage(Any, gap(Player)), anOpponent, ThisTurn),
             ),
         ),
     ],

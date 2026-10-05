@@ -10,7 +10,7 @@ KeywordAbility(
     body: [
         static(
             insteadOf(
-                verbedEvent(verb: Action("Destroy"), patient: attachHost(Enchanted, Permanent)),
+                verbedEvent(Action("Destroy"), attachHost(Enchanted, Permanent)),
                 sequentially([clearDamage(attachHost(Enchanted, Permanent)), destroy(thisAura)]),
             ),
         ),

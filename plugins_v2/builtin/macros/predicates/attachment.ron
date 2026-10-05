@@ -4,6 +4,6 @@
 (
     name: "attachment",
     kinds: [Predicate],
-    params: {"side": Any, "word": Default(Any, None), "counterpart": Default(Any, None)},
+    params: {"side": Any, "counterpart": Default(Any, None), "word": Default(Any, None)},
     body: Attachment(side: Param(side), word: Param(word), counterpart: Param(counterpart)),
 )

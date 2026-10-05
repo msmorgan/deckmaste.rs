@@ -20,7 +20,7 @@ KeywordAbility(
         triggered(
             // "this way": the exile the replacement above performed.
             causes(
-                Event(verbedEvent(verb: Action("Discard"), patient: this)),
+                Event(verbedEvent(Action("Discard"), this)),
                 zoneChange(this, Zones([hand]), exileZone, After),
             ),
             act(

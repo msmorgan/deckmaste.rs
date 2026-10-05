@@ -4,5 +4,5 @@
     name: "discards",
     kinds: [GameEvent],
     params: {"player": Subject, "card": Subject},
-    body: verbedEvent(Param(player), Action("Discard"), Param(card)),
+    body: verbedEvent(Action("Discard"), Param(card), Param(player)),
 )

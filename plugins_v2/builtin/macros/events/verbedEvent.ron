@@ -4,6 +4,6 @@
 (
     name: "verbedEvent",
     kinds: [GameEvent],
-    params: {"agent": Default(Any, None), "verb": Deed, "patient": Default(Any, None), "becomes": Default(Any, None), "locus": Default(Any, None)},
+    params: {"verb": Deed, "patient": Default(Any, None), "agent": Default(Any, None), "becomes": Default(Any, None), "locus": Default(Any, None)},
     body: VerbedEvent(agent: Param(agent), verb: Param(verb), patient: Param(patient), becomes: Param(becomes), locus: Param(locus)),
 )
