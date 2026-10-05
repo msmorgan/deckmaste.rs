@@ -1,0 +1,17 @@
+// A probe for the actor handoff, quoting no real card: "Target opponent
+// amasses Orcs 2." A keyword action handed to another player, so the amass
+// wrapper records that opponent as its performer and "you control" in its
+// reminder text reads as the opponent [CR#701.47a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Amass Handoff Probe",
+        cost: [1, Black],
+        types: [Sorcery],
+        text: [
+            spell(
+                timing: None,
+                instruction: act(target(opponent), amass(orc, 2)),
+            ),
+        ],
+    ),
+))

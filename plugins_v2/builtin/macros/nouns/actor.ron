@@ -1,0 +1,10 @@
+// `NounPhrase.Actor` under Lean's own name for it: whoever performs the
+// instruction this phrase is part of, the controller [CR#109.5] unless an
+// enclosing `act` hands the instruction to another player (ADR 7, ruling
+// 2026-10-05; the alias, ADR 12.1).
+(
+    name: "actor",
+    kinds: [NounPhrase],
+    params: [],
+    body: Actor,
+)

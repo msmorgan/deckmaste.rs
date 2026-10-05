@@ -1,6 +1,7 @@
 // "Target player reveals their hand. You choose a nonland card from it. That
-// player discards that card. You lose 2 life." You choose; the discard moves
-// the card that was chosen [CR#701.9b].
+// player discards that card. You lose 2 life." The target player reveals and
+// discards, each through a handoff; you choose, and the discard moves the
+// card that was chosen [CR#701.9b].
 SingleFaced(face: (
     characteristics: (
         name: "Thoughtseize",
@@ -10,10 +11,10 @@ SingleFaced(face: (
             spell(
                 timing: None,
                 instruction: sequentially([
-                    revealTheirHand(target(anyPlayer)),
-                    choose(you, a(and([isCard, not(land), inZone(handOf(they))]))),
-                    discard(that(Card)),
-                    loseLife(2, you),
+                    act(target(anyPlayer), revealHand),
+                    choose(actor, a(and([not(land), cardIn(handOf(they))]))),
+                    act(they, discard(that(Card))),
+                    loseLife(2, actor),
                 ]),
             ),
         ],

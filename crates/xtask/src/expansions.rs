@@ -882,14 +882,14 @@ mod tests {
         );
         let raw = |amount: u32| {
             format!(
-                r#"Sequentially([
+                r#"Enact(verb: Action("Amass"), instruction: Sequentially([
                 DoIf(
                     condition: Not(Exists(Described(
                         determiner: Bare,
                         predicate: And([
                             HasSubtype(Of(host: Creature, label: "Army")),
                             HasType(Creature),
-                            HasPossessor(axis: Controller, possessor: You),
+                            HasPossessor(axis: Controller, possessor: Actor),
                         ]),
                     ))),
                     instruction: CreateObject(
@@ -904,7 +904,7 @@ mod tests {
                             ))),
                             riders: [],
                         ),
-                        agent: You,
+                        agent: Actor,
                     ),
                     otherwise: None,
                 ),
@@ -915,12 +915,12 @@ mod tests {
                         predicate: And([
                             HasSubtype(Of(host: Creature, label: "Army")),
                             HasType(Creature),
-                            HasPossessor(axis: Controller, possessor: You),
+                            HasPossessor(axis: Controller, possessor: Actor),
                         ]),
                     ),
                     disclosure: Openly,
                     when: None,
-                    agent: None,
+                    agent: Some(Actor),
                 ),
                 PutCounters(
                     amount: Lit(value: {amount}),
@@ -943,7 +943,7 @@ mod tests {
                     ),
                     otherwise: None,
                 ),
-            ])"#
+            ]), agent: Some(Actor))"#
             )
         };
         let body = |text: &str| {

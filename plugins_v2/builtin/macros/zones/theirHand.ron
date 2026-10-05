@@ -1,0 +1,7 @@
+// "their hand": the hand of the player "they" reads.
+(
+    name: "theirHand",
+    kinds: [ZoneExpr],
+    params: [],
+    body: handOf(player: they),
+)

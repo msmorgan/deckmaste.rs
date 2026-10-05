@@ -1,0 +1,10 @@
+// `Instruction.Act` under Lean's own name for it: the handoff, "<player>
+// <body>". Inside the body `actor` is that player; a distributive player
+// ("each opponent") has each member perform the whole body (ADR 7, ruling
+// 2026-10-05; the alias, ADR 12.1).
+(
+    name: "act",
+    kinds: [Instruction],
+    params: {"player": NounPhrase, "body": Instruction},
+    body: Act(player: Param(player), body: Param(body)),
+)

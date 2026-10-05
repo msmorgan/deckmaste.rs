@@ -1,6 +1,7 @@
 // "When this creature enters, each opponent discards a card." Each opponent
-// chooses a card in their hand, then those cards are discarded together
-// [CR#101.4,701.9b].
+// performs the discard through a handoff, choosing a card from their own hand
+// [CR#701.9a,701.9b]; that the discards happen together [CR#101.4] is
+// lowering's concern.
 SingleFaced(face: (
     characteristics: (
         name: "Burglar Rat",
@@ -10,10 +11,7 @@ SingleFaced(face: (
         text: [
             triggered(
                 event: enters(asType(type: Creature, subject: this, subtype: None)),
-                instruction: sequentially([
-                    choose(each(opponent), a(cardIn(hand))),
-                    discard(them),
-                ]),
+                instruction: act(each(opponent), discard(a(isCard))),
             ),
         ],
         power: 1,

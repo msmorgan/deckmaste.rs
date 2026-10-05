@@ -1,0 +1,7 @@
+// "<performer> reveals their hand": the actor exposes their own hand.
+(
+    name: "revealHand",
+    kinds: [Instruction],
+    params: [],
+    body: Expose(verb: Reveal, exposed: Zone(handOf(player: Actor)), agent: Actor),
+)

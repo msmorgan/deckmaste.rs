@@ -809,9 +809,10 @@ fn a_bare_card_type_reads_as_the_pronoun_word_it_types() {
     assert_eq!(read_back, bare);
 }
 
-/// `amass` is a re-spelling, not a semantic change: written over the helper
-/// macros, it expands to exactly the basis term its body spelled out before
-/// (the constructor-by-constructor body, `Param`s substituted) [CR#701.47a].
+/// `amass` written over the helper macros expands to exactly the basis term
+/// its body spells constructor by constructor, `Param`s substituted
+/// [CR#701.47a]: the deed "Amass" done by the actor, whose reminder text reads
+/// "you" as the actor.
 #[test]
 fn amass_expands_to_the_term_its_constructor_body_spelled() {
     let builtin =
@@ -825,14 +826,14 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
         .macros
         .read_str(
             r#"
-            Sequentially([
+            Enact(verb: Action("Amass"), instruction: Sequentially([
                     DoIf(
                         condition: Not(Exists(Described(
                             determiner: Bare,
                             predicate: And([
                                 HasSubtype(Of(host: Creature, label: "Army")),
                                 HasType(Creature),
-                                HasPossessor(axis: Controller, possessor: You),
+                                HasPossessor(axis: Controller, possessor: Actor),
                             ]),
                         ))),
                         instruction: CreateObject(
@@ -847,7 +848,7 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                                 ))),
                                 riders: [],
                             ),
-                            agent: You,
+                            agent: Actor,
                         ),
                         otherwise: None,
                     ),
@@ -858,12 +859,12 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                             predicate: And([
                                 HasSubtype(Of(host: Creature, label: "Army")),
                                 HasType(Creature),
-                                HasPossessor(axis: Controller, possessor: You),
+                                HasPossessor(axis: Controller, possessor: Actor),
                             ]),
                         ),
                         disclosure: Openly,
                         when: None,
-                        agent: None,
+                        agent: Some(Actor),
                     ),
                     PutCounters(
                         amount: Lit(value: 2),
@@ -886,7 +887,7 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                         ),
                         otherwise: None,
                     ),
-                ])
+                ]), agent: Some(Actor))
             "#,
         )
         .expect("the constructor-spelled body reads");

@@ -1,5 +1,6 @@
-// "Target player discards two cards at random." The random selection is
-// marked on the indefinite [CR#701.9b]; the hand names the player once.
+// "Target player discards two cards at random." The target player discards
+// through a handoff, from their own hand [CR#701.9a]; the random selection is
+// marked on the indefinite [CR#701.9b].
 SingleFaced(face: (
     characteristics: (
         name: "Hymn to Tourach",
@@ -8,9 +9,7 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: discard(
-                    random(exactly(2), cardIn(handOf(target(anyPlayer)))),
-                ),
+                instruction: act(target(anyPlayer), discard(random(exactly(2), isCard))),
             ),
         ],
     ),

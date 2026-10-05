@@ -1,7 +1,13 @@
 // "Amass <subtype> N" with its reminder text [CR#701.47a]: "If you don't
-// control an Army, create a 0/0 black <subtype> Army creature token. Choose
-// an Army you control. Put N +1/+1 counters on it. It's a <subtype> in
-// addition to its other types." Lean `amass`, with the amassed subtype
+// control an Army creature, create a 0/0 black <subtype> Army creature token.
+// Choose an Army creature you control. Put N +1/+1 counters on that creature.
+// If it isn't a <subtype>, it becomes a <subtype> in addition to its other
+// types." "You" is the actor: whoever performs the action, the controller
+// unless a handoff names another player. Lean `Actor.amass`, which reads
+// "that creature" and "it" through `itPrior`; this body reads them bare, as
+// the Lean pin `okLiteralAmassBare` spells it. The action is wrapped as the
+// deed "Amass", so "whenever you amass" and "the Army you amassed" have a
+// deed to name [CR#701.47b,701.47c]. The amassed subtype is
 // typed `Subtype` rather than Lean's own `String` (it is spliced into a
 // `Vec<Subtype>` position twice, which no `String` value can fill).
 KeywordAction(
@@ -13,19 +19,20 @@ KeywordAction(
         third_person: "amasses",
         frame_set: Custom(frames: [[ObjectNounPhrase, Amount]]),
     ),
-    deed: None,
+    agent: actor,
     body: sequentially([
-        // "If you don't control an Army, create a 0/0 black <subtype> Army
-        // creature token."
+        // "If you don't control an Army creature, create a 0/0 black
+        // <subtype> Army creature token."
         doIf(
-            not(exists(armyYouControl)),
-            createToken(you, creatureToken(0, 0, [Black], [Param(0), army])),
+            not(exists(and([hasSubtype(army), creature, actorControls]))),
+            createToken(actor, creatureToken(0, 0, [Black], [Param(0), army])),
         ),
-        // "Choose an Army you control."
-        choose(None, a(armyYouControl)),
-        // "Put N +1/+1 counters on it."
+        // "Choose an Army creature you control."
+        choose(actor, a(and([hasSubtype(army), creature, actorControls]))),
+        // "Put N +1/+1 counters on that creature."
         putCounters(Param(1), p1p1Counter, that(Creature)),
-        // "It's a <subtype> in addition to its other types."
+        // "If it isn't a <subtype>, it becomes a <subtype> in addition to its
+        // other types."
         doIf(
             not(matches(it, hasSubtype(Param(0)))),
             establish(addSubtype(it, Param(0))),
