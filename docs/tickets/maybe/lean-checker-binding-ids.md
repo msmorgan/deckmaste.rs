@@ -92,4 +92,5 @@ structure in the context, re-read this ticket before promoting it.
 Began on 2026-10-05 as a proposal to replace the context with an unwindowed
 discourse-referent map and to strip zone and provenance from bindings. That
 was rejected the same day against the rulings above. Only the addressing
-observation survives.
+observation survives here. The motivation behind that proposal, better
+anaphor resolution from prior art, is `lean-drt-anaphora-refactor`.
