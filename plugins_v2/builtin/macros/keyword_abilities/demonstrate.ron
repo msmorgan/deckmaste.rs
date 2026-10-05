@@ -13,14 +13,13 @@ KeywordAbility(
         triggered(
             casts(you, thisSpell),
             may(
-                you,
-                sequentially([copySpell(you, thisSpell), may(you, chooseNewTargets(that(Copy)))]),
+                sequentially([copySpell(thisSpell), may(chooseNewTargets(that(Copy)))]),
                 sequentially([
-                    choose(you, anOpponent),
-                    copySpell(the(chosenPlayer), thisSpell),
+                    choose(anOpponent),
+                    act(the(chosenPlayer), copySpell(thisSpell)),
                     // "that copy": the one the chosen player just made,
                     // not the caster's, which is still on the stack.
-                    may(the(chosenPlayer), chooseNewTargets(Pro(Word(Copy), One, top(1)))),
+                    act(the(chosenPlayer), may(chooseNewTargets(Pro(Word(Copy), One, top(1))))),
                 ]),
             ),
         ),

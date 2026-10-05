@@ -1,9 +1,10 @@
 // `Instruction.CreateObject` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// basis has a constructor (ADR 12.1). The agent is the actor: the alias
+// takes no performer (ADR 7, ruling 2026-10-05).
 (
     name: "createObject",
     kinds: [Instruction],
-    params: {"count": Amount, "spec": Any, "agent": Subject},
-    body: CreateObject(count: Param(count), spec: Param(spec), agent: Param(agent)),
+    params: {"count": Amount, "spec": Any},
+    body: CreateObject(count: Param(count), spec: Param(spec), agent: actor),
 )

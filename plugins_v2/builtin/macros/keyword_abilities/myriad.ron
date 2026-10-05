@@ -16,7 +16,6 @@ KeywordAbility(
                 doForEach(
                     each(and([opponent, otherThan(defendingPlayer)])),
                     may(
-                        you,
                         createObject(
                             1,
                             Token(
@@ -28,13 +27,12 @@ KeywordAbility(
                                     ),
                                 ],
                             ),
-                            you,
                         ),
                     ),
                 ),
                 doIf(
                     compareAmt(numberOf(themAsTokens), AtLeast, 1),
-                    atNext(EndOfCombat, exileBy(you, themAsTokens)),
+                    atNext(EndOfCombat, exile(themAsTokens)),
                 ),
             ]),
         ),

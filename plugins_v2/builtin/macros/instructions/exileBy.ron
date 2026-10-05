@@ -1,7 +1,0 @@
-// "<agent> exiles <subject>", from `from` when the text states an origin.
-(
-    name: "exileBy",
-    kinds: [Instruction],
-    params: {"agent": NounPhrase, "subject": NounPhrase, "from": Default(ZoneExpr, Wherever)},
-    body: Enact(Action("Exile"), Move(Param(subject), Param(from), exileZone, []), Param(agent)),
-)

@@ -13,7 +13,7 @@ KeywordAbility(
             compound([
                 Param(0),
                 perform(reveal(this)),
-                perform(returnToHand(you, a(and([creature, attacking, unblocked, youControl])))),
+                perform(returnToHand(a(and([creature, attacking, unblocked, youControl])))),
             ]),
             putOntoBattlefieldTappedAttacking(this, yourHand),
         ),

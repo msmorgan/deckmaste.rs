@@ -13,11 +13,10 @@ KeywordAbility(
             casts(you, thisSpell),
             sequentially([
                 copySpell(
-                    you,
                     thisSpell,
                     eventCount(casts(gap(Player), a(anotherSpell)), a(anyPlayer), EarlierThisTurn),
                 ),
-                may(you, chooseNewTargets(those(Copy))),
+                may(chooseNewTargets(those(Copy))),
             ]),
         ),
     ],

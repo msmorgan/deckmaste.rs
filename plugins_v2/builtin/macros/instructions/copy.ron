@@ -1,9 +1,10 @@
 // `Instruction.Copy` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// basis has a constructor (ADR 12.1). The agent is the actor: the alias
+// takes no performer (ADR 7, ruling 2026-10-05).
 (
     name: "copy",
     kinds: [Instruction],
-    params: {"sort": Any, "subject": Subject, "times": Amount, "exceptions": Default(Any, []), "agent": Subject},
-    body: Copy(sort: Param(sort), subject: Param(subject), times: Param(times), exceptions: Param(exceptions), agent: Param(agent)),
+    params: {"sort": Any, "subject": Subject, "times": Amount, "exceptions": Default(Any, [])},
+    body: Copy(sort: Param(sort), subject: Param(subject), times: Param(times), exceptions: Param(exceptions), agent: actor),
 )

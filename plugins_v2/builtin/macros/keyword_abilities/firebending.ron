@@ -11,7 +11,7 @@ KeywordAbility(
         triggered(
             attacks(thisCreature),
             sequentially([
-                addMana(amount: Param(0), produced: Runs([[Red]]), agent: you),
+                addMana(Param(0), Runs([[Red]])),
                 establish(manaRetention(you, ThisMana), untilEndOfCombat),
             ]),
         ),

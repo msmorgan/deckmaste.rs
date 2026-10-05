@@ -11,7 +11,7 @@ KeywordAbility(
     body: [
         triggered(
             dies(thisPermanent),
-            createToken(you, creatureToken(1, 1, [White, Black], [spirit], [flying]), Param(0)),
+            createToken(creatureToken(1, 1, [White, Black], [spirit], [flying]), Param(0)),
         ),
     ],
 )

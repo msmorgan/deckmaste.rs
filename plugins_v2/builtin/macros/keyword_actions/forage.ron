@@ -12,8 +12,7 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     body: chooseOne(
-        exileBy(
-            actor,
+        exileFrom(
             counted(exactly(3), cardIn(graveyardOf(actor))),
             graveyardOf(actor),
         ),

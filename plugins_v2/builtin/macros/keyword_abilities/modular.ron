@@ -14,7 +14,6 @@ KeywordAbility(
         triggered(
             dies(thisPermanent),
             may(
-                you,
                 putCounters(
                     countersOn(p1p1Counter, thisPermanent),
                     p1p1Counter,

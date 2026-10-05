@@ -26,7 +26,6 @@ SingleFaced(face: (
                         ),
                         riders: [],
                     ),
-                    agent: you,
                 ),
             ),
             storm,

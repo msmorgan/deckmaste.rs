@@ -12,7 +12,6 @@ KeywordAbility(
         triggered(
             attacks(thisCreature),
             may(
-                you,
                 establish(
                     deontic(
                         target(and([creature, controlledBy(defendingPlayer)])),

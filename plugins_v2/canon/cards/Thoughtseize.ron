@@ -12,7 +12,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: sequentially([
                     act(target(anyPlayer), revealHand),
-                    choose(actor, a(and([not(land), cardIn(handOf(they))]))),
+                    choose(a(and([not(land), cardIn(handOf(they))]))),
                     act(they, discard(that(Card))),
                     loseLife(2),
                 ]),

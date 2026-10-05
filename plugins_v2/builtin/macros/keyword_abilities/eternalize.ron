@@ -11,7 +11,7 @@ KeywordAbility(
     // sorcery." [CR#702.129a]
     body: [
         activated(
-            compound([Param(0), perform(exileBy(you, this, graveyardOf(you)))]),
+            compound([Param(0), perform(exileFrom(this, graveyardOf(you)))]),
             create(
                 1,
                 copyOf(

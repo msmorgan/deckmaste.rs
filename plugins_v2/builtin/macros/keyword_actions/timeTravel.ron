@@ -19,7 +19,6 @@ KeywordAction(
     agent: None,
     body: sequentially([
         choose(
-            actor,
             counted(
                 anyNumber,
                 or([

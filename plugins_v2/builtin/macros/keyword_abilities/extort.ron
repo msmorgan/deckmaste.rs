@@ -12,8 +12,7 @@ KeywordAbility(
         triggered(
             casts(you, a(spell)),
             may(
-                you,
-                pay(mana([Hybrid(White, Black)]), Once, you),
+                pay(mana([Hybrid(White, Black)]), Once),
                 // The opponents' loss is written with its group performer
                 // rather than handed off: `act(each(opponent), loseLife(1))`
                 // leaves "the total life lost this way" no outcome in scope

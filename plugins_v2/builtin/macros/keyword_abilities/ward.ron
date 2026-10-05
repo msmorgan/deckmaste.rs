@@ -14,7 +14,7 @@ KeywordAbility(
                 thisPermanent,
                 a(and([inZone(stack), controlledBy(playerGroup(YourOpponents))])),
             ),
-            doUnless(controllerOf(that(Stack)), counter(that(Stack)), Param(0)),
+            act(controllerOf(that(Stack)), doUnless(counter(that(Stack)), Param(0))),
         ),
     ],
 )

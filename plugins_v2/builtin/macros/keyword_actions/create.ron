@@ -13,5 +13,5 @@ KeywordAction(
         frame_set: Transitive,
     ),
     deed: None,
-    body: createObject(Param(0), Token(Param(1), []), actor),
+    body: createObject(Param(0), Token(Param(1), [])),
 )

@@ -18,7 +18,6 @@ KeywordAction(
     agent: None,
     body: sequentially([
         choose(
-            actor,
             a(and([
                 creature,
                 actorControls,

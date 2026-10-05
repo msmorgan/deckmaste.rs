@@ -16,7 +16,7 @@ KeywordAction(
     // records none.
     agent: None,
     body: sequentially([
-        choose(actor, a(and([isToken, creature, permanent, actorControls]))),
+        choose(a(and([isToken, creature, permanent, actorControls]))),
         create(1, copyOf(that(Token))),
     ]),
 )

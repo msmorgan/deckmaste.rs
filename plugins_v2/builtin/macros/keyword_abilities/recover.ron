@@ -12,10 +12,9 @@ KeywordAbility(
         triggered(
             zoneChange(a(creature), Zones([battlefield]), graveyardOf(you), Before),
             may(
-                you,
-                pay(Param(0), Once, you),
-                returnToHand(you, this, graveyardOf(you)),
-                exileBy(you, this),
+                pay(Param(0), Once),
+                returnToHand(this, graveyardOf(you)),
+                exile(this),
             ),
         ),
     ],

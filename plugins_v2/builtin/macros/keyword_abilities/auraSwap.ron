@@ -11,7 +11,6 @@ KeywordAbility(
         activated(
             Param(0),
             may(
-                you,
                 Exchange(
                     CardsAcross(
                         thisPermanent,

@@ -23,10 +23,12 @@ KeywordAbility(
                 Event(verbedEvent(verb: Action("Discard"), patient: this)),
                 zoneChange(this, Zones([hand]), exileZone, After),
             ),
-            may(
-                agent: ownerOf(this),
-                body: establish(mayCastFor(ownerOf(this), Param(0), exileZone)),
-                if_not: move(this, wherever, graveyard),
+            act(
+                ownerOf(this),
+                may(
+                    body: establish(mayCastFor(ownerOf(this), Param(0), exileZone)),
+                    if_not: move(this, wherever, graveyard),
+                ),
             ),
         ),
     ],

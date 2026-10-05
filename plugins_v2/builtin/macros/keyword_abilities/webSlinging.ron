@@ -14,7 +14,7 @@ KeywordAbility(
                 you,
                 compound([
                     Param(0),
-                    perform(returnToHand(you, a(and([creature, tapped, youControl])))),
+                    perform(returnToHand(a(and([creature, tapped, youControl])))),
                 ]),
             ),
         ),

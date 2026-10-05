@@ -1,0 +1,8 @@
+// "<performer> exiles <subject> from <from>": the exile with its origin
+// stated. Without one, a caller writes the `exile` keyword action.
+(
+    name: "exileFrom",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "from": ZoneExpr},
+    body: Enact(Action("Exile"), Move(Param(subject), Param(from), exileZone, []), actor),
+)

@@ -10,7 +10,7 @@ KeywordAbility(
     // creature. Activate only as a sorcery." [CR#702.97a]
     body: [
         activated(
-            compound([Param(0), perform(exileBy(you, this, graveyardOf(you)))]),
+            compound([Param(0), perform(exileFrom(this, graveyardOf(you)))]),
             putCounters(
                 powerOf(theVerbed(Action("Exile"), Card, Attributive, One)),
                 p1p1Counter,

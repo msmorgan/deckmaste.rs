@@ -12,10 +12,10 @@ KeywordAbility(
         triggered(
             casts(you, thisSpell),
             sequentially([
-                copySpell(you, thisSpell, eventCount(dies(gap(Object)), bare(permanent), ThisTurn)),
+                copySpell(thisSpell, eventCount(dies(gap(Object)), bare(permanent), ThisTurn)),
                 doIf(
                     matches(thisSpell, targets(a(isSource), SomeTarget)),
-                    may(you, chooseNewTargets(those(Copy))),
+                    may(chooseNewTargets(those(Copy))),
                 ),
             ]),
         ),

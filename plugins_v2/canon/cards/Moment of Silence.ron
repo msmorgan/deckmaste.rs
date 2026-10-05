@@ -7,13 +7,12 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: skipPart(
-                    part: combatPhase,
-                    count: 1,
-                    agent: described(
+                instruction: act(
+                    described(
                         determiner: Target(range(low: 1, high: 1)),
                         predicate: anyPlayer,
                     ),
+                    skipPart(part: combatPhase, count: 1),
                 ),
             ),
         ],

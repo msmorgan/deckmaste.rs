@@ -12,9 +12,7 @@ KeywordAbility(
         triggered(
             dies(thisPermanent),
             may(
-                you,
                 returnToHand(
-                    you,
                     target(
                         and([
                             isCard,

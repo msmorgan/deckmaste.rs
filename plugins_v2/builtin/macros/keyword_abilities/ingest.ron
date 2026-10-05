@@ -10,7 +10,7 @@ KeywordAbility(
     body: [
         triggered(
             dealsCombatDamage(thisCreature, a(anyPlayer)),
-            exileBy(they, librarySlice(Top, 1, they)),
+            act(they, exile(librarySlice(Top, 1, they))),
         ),
     ],
 )

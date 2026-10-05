@@ -905,7 +905,7 @@ fn the_create_token_and_add_subtype_helpers_expand_to_their_basis_terms() {
     // The token `amass` creates, with its `Param(0)` taken as `zombie`.
     let helper: Instruction = builtin
         .macros
-        .read_str_restricted("createToken(you, creatureToken(0, 0, [Black], [zombie, army]))")
+        .read_str_restricted("createToken(creatureToken(0, 0, [Black], [zombie, army]))")
         .expect("createToken reads in a card");
     let basis: Instruction = builtin
         .macros
@@ -922,7 +922,7 @@ fn the_create_token_and_add_subtype_helpers_expand_to_their_basis_terms() {
                     ))),
                     riders: [],
                 ),
-                agent: You,
+                agent: Actor,
             )"#,
         )
         .expect("the basis term reads");
@@ -931,7 +931,7 @@ fn the_create_token_and_add_subtype_helpers_expand_to_their_basis_terms() {
     // The count defaults to one, and takes a caller's amount.
     let two: Instruction = builtin
         .macros
-        .read_str_restricted("createToken(you, creatureToken(0, 0, [Black], [zombie, army]), 2)")
+        .read_str_restricted("createToken(creatureToken(0, 0, [Black], [zombie, army]), 2)")
         .expect("createToken takes a count");
     let Instruction::CreateObject { count, .. } = &two else {
         panic!("createToken is a CreateObject: {two:?}");

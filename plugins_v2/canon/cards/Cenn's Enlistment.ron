@@ -29,7 +29,6 @@ SingleFaced(face: (
                         ),
                         riders: [],
                     ),
-                    agent: you,
                 ),
             ),
             retrace,

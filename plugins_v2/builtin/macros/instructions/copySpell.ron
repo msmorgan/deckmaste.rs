@@ -1,7 +1,7 @@
-// "<agent> copies <subject> [<times> times]"
+// "<performer> copies <subject> [<times> times]"
 (
     name: "copySpell",
     kinds: [Instruction],
-    params: {"agent": NounPhrase, "subject": NounPhrase, "times": Default(Amount, 1)},
-    body: Copy(FromStack, Param(subject), Param(times), [], Param(agent)),
+    params: {"subject": NounPhrase, "times": Default(Amount, 1)},
+    body: Copy(FromStack, Param(subject), Param(times), [], actor),
 )

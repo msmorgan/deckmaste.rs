@@ -1,9 +1,10 @@
 // `Instruction.SkipPart` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// basis has a constructor (ADR 12.1). The agent is the actor: the alias
+// takes no performer (ADR 7, ruling 2026-10-05).
 (
     name: "skipPart",
     kinds: [Instruction],
-    params: {"part": TurnPart, "count": Amount, "agent": Subject},
-    body: SkipPart(part: Param(part), count: Param(count), agent: Param(agent)),
+    params: {"part": TurnPart, "count": Amount},
+    body: SkipPart(part: Param(part), count: Param(count), agent: actor),
 )

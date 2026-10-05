@@ -24,10 +24,10 @@ KeywordAction(
         // <subtype> Army creature token."
         doIf(
             not(exists(and([hasSubtype(army), creature, actorControls]))),
-            createToken(actor, creatureToken(0, 0, [Black], [Param(0), army])),
+            createToken(creatureToken(0, 0, [Black], [Param(0), army])),
         ),
         // "Choose an Army creature you control."
-        choose(actor, a(and([hasSubtype(army), creature, actorControls]))),
+        choose(a(and([hasSubtype(army), creature, actorControls]))),
         // "Put N +1/+1 counters on that creature."
         putCounters(Param(1), p1p1Counter, that(Creature)),
         // "If it isn't a <subtype>, it becomes a <subtype> in addition to its

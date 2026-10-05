@@ -1,7 +1,7 @@
-// "<agent> may <body>. [If they do, <if_did>.] [If they don't, <if_not>.]"
+// "<performer> may <body>. [If they do, <if_did>.] [If they don't, <if_not>.]"
 (
     name: "may",
     kinds: [Instruction],
-    params: {"agent": NounPhrase, "body": Instruction, "if_did": Default(Any, None), "if_not": Default(Any, None)},
-    body: WithContinuation(Optional(Param(agent)), Param(body), Param(if_did), Param(if_not)),
+    params: {"body": Instruction, "if_did": Default(Any, None), "if_not": Default(Any, None)},
+    body: WithContinuation(Optional(actor), Param(body), Param(if_did), Param(if_not)),
 )

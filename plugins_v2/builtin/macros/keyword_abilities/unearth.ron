@@ -13,9 +13,9 @@ KeywordAbility(
         activated(
             Param(0),
             sequentially([
-                returnToBattlefield(subject: this, agent: you, from: graveyardOf(you)),
+                returnToBattlefield(subject: this, agent: actor, from: graveyardOf(you)),
                 gain(thisPermanent, haste),
-                atNext(EndStep, exileBy(you, thisPermanent)),
+                atNext(EndStep, exile(thisPermanent)),
                 replaceEvent(leavesZone(thisPermanent, battlefield), exile(thisPermanent)),
             ]),
             asSorcery,

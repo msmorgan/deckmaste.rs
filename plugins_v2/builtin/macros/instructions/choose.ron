@@ -1,9 +1,8 @@
-// "<agent> chooses <subject>", openly unless the caller says otherwise. The
-// chooser comes first and is always written; a term with no chooser passes
-// `None`.
+// "<performer> chooses <subject>", openly unless the caller says otherwise.
+// The chooser is the actor.
 (
     name: "choose",
     kinds: [Instruction],
-    params: {"agent": Any, "subject": NounPhrase, "disclosure": Default(Disclosure, Openly)},
-    body: Choose(None, Param(subject), Param(disclosure), None, Param(agent)),
+    params: {"subject": NounPhrase, "disclosure": Default(Disclosure, Openly)},
+    body: Choose(None, Param(subject), Param(disclosure), None, actor),
 )

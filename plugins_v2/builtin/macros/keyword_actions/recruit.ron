@@ -16,7 +16,7 @@ KeywordAction(
         discard(a(cardIn(handOf(actor)))),
         doIf(
             not(matches(theVerbed(Action("Discard"), Card, ThisWay, One), land)),
-            createToken(actor, creatureToken(1, 1, [White], [human, soldier])),
+            createToken(creatureToken(1, 1, [White], [human, soldier])),
         ),
     ]),
 )

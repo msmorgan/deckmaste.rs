@@ -1,9 +1,10 @@
 // `Instruction.Conclude` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// basis has a constructor (ADR 12.1). The agent is the actor: the alias
+// takes no performer (ADR 7, ruling 2026-10-05).
 (
     name: "conclude",
     kinds: [Instruction],
-    params: {"verb": Any, "agent": Subject},
-    body: Conclude(verb: Param(verb), agent: Param(agent)),
+    params: {"verb": Any},
+    body: Conclude(verb: Param(verb), agent: actor),
 )

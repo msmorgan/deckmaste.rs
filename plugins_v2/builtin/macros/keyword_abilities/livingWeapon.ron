@@ -12,7 +12,7 @@ KeywordAbility(
         triggered(
             enters(thisEquipment),
             sequentially([
-                createToken(you, creatureToken(0, 0, [Black], [phyrexian, germ])),
+                createToken(creatureToken(0, 0, [Black], [phyrexian, germ])),
                 // "this Equipment": a bare `This` has no zone, and an
                 // attachment's subject must be on the battlefield.
                 attach(thisEquipment, itAsToken),

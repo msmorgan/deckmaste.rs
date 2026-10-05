@@ -26,7 +26,7 @@ KeywordAction(
                 move(that(Card), wherever, hand),
                 sequentially([
                     putCounters(1, p1p1Counter, Param(0)),
-                    may(actor, move(that(Card), wherever, graveyard)),
+                    may(move(that(Card), wherever, graveyard)),
                 ]),
             ),
         ]),
