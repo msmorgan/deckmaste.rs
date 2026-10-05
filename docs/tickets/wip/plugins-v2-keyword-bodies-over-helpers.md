@@ -71,3 +71,67 @@ but no changed or missing file, and the skipped list must match. Plus
 - `plugins-v2-keyword-body-defects`: what the survey found that is not a
   re-spelling.
 - `semantics-v2-counter-kind-is-a-name`.
+
+## Landing record
+
+Measured on change `sksxppymstuk` (2026-10-04). Landing 1 (the expansions
+command, declaration wrappers, helper vocabulary, `Deed::Core` injection,
+ratchet test) integrated earlier the same day from an ad-hoc workspace; this
+record covers the whole ticket.
+
+**Proof.**
+- `cargo xtask expansions`: every re-spelling step compared equal to the
+  baseline taken before it, including the skipped list. Against the baseline
+  after the last term change the final tree differs only by the new
+  `predicates/cardIn` declaration.
+- `lean/scripts/build` passes; `cargo xtask lean-check`: canon 122/122, testing
+  2/2; `cargo xtask facts check`: both files up to date, never regenerated.
+- Gate: `cargo test -p deckmaste_construction_core -p deckmaste_lexical_source
+  -p deckmaste_semantics_v2 -p deckmaste_construction_v3 -p deckmaste_english_v3
+  -p xtask` — 1099 passed, 0 failed, 1 ignored (the pre-existing census test).
+- `cargo xtask cite check`: 0 non-compliant, 0 stale.
+
+**Result.** 39 Keyword Action and 95 Keyword Ability bodies re-spelled; the 95
+empty ability bodies have no `body:` at all. The two families are 4,368 lines,
+from about 8,400. The ratchet allowlist is 8 files, from 135: `search`,
+`shuffle`, `vote` (identity bodies), `meld` (a move with riders), `auraSwap`
+(no `exchange` alias), `demonstrate`, `transfigure`, `transmute` (the
+most-recent-binding pronoun).
+
+**Tests.** Re-spelled: 11 Rust fixtures and 121 Lean pin and bench sites, each
+keeping its subject and asserted outcome. Added: 10 Rust tests and 4 canon
+cards (Thoughtseize, Hymn to Tourach, Stormbind, Burglar Rat). Removed: 0.
+Ignored: 0. Restored: 0.
+
+**Deviations and additions.** The ticket says a term change is a separate
+landing. On the owner's direction during the session, two went in here, each
+as its own change with a normalised expansions diff showing nothing else moved:
+- `Move(subject, from, to, riders)` with a required origin and a `wherever`
+  zone expression; 66 declarations gained the field.
+- `discard(cards)` with no agent; 7 declarations' Discard deeds lost theirs.
+Also beyond the letter: `choose` names its chooser first; `selectAtRandom`;
+`move(subject, from, to)`; an origin on `exileBy`, `returnToHand`,
+`returnToBattlefield` and `putOntoBattlefieldTappedAttacking`; `youOwn`,
+`ownedBy`, `cardIn`; the facts generator reads the built term through the
+plugin instead of the source spelling. `plusOnePlusOne` and
+`minusOneMinusOne` are gone.
+
+**STOPs.**
+- Dropping discard's agent stopped on distribution ("each opponent discards a
+  card"). Resolved by the owner's model: an inline indefinite implies its own
+  selection [CR#701.9b]; distributed discards are a distributed `choose` then
+  one discard, as an interim spelling.
+- Letting a cost be a sequence stopped because `badSequentialCost` would flip.
+  Dropped; no cost pin changed.
+- The converted ability bodies broke `cargo xtask facts`, which read source
+  spellings. Fixed in the generator; the generated files did not change.
+- Bare keyword names were not built (working decision 6).
+
+**Not done from the agreed scope.** The counter and type declarations that
+write raw conferrals: `types/` has no expansions coverage, so a re-spelling
+could not be proven identical. Routed with the rest of the residue to
+`plugins-v2-keyword-body-defects`; the agent questions are in
+`semantics-v2-action-agents`.
+
+**Glossary gaps.** The Game Model glossary defines neither the zone-expression
+vocabulary (`wherever`) nor the agent of an action.
