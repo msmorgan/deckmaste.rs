@@ -184,6 +184,32 @@ reflexive-enclosure or number-slot arm remains. Macro authoring still establishe
 trusted expansion origin; these are checker/reference guarantees, not an engine
 execution proof.
 
+## The performer and the handoff
+
+`NounPhrase.actor` is whoever performs the instruction it is part of: the
+controller [CR#109.5] unless an enclosing `Instruction.act` names another
+player. `act player body` checks `player` as a player and its body in
+`actorCtx`. A handoff frame records the performer's structural facts (the
+captured-subject `NounShape`); the innermost frame decides. Outside every
+handoff, and inside `act you`, `actor` reads exactly as `you` in every rule.
+
+Rules that ask whether a phrase is the controller read `actor` in its handoff:
+`actorView` and `isYouIn` for the payer, self-exchange and opponent's-library
+checks; `Cost.paidByYouAs` for cost payers, where a handoff inside
+`Cost.perform` makes its body that player's payment. A cost may hand its
+instruction to another player (`costActionOk`), and its handoff twin gives the
+same refusals as the explicit-agent spelling. An agent slot holding `actor` is
+singular, so `enact`, `offer` and choice agents take their one-player paths;
+distribution belongs to the handoff. `sameKnownZone` does not equate two
+`actor` zones, since nested handoffs can name different players.
+
+A handoff does not record the possessor of the hand or battlefield its body
+draws on: object bindings carry no possessor, so a discard by a player other
+than the hand's owner is not refused. `Proofs/Actor.lean` pins the handoff
+cards, the bindings each kind of performer leaves, nested handoffs, nested
+abilities, captured `actor`, and every explicit-agent cost against its twin.
+These are checker guarantees, not an execution proof.
+
 ## Scheduling fields
 
 For `skipUntap`, `skipPart`, `addTurn`, and `addPart`, let `bs`
@@ -243,11 +269,12 @@ be inferred from a failed pronoun:
 | `doIf`, `doOnlyIf` | Each branch checks before either branch's effects. Postposed conditions see the primary instruction's pre-state. Branch-local mentions and outcomes do not escape; facts about prior mentions are joined across branches. |
 | `doForEach`, `doForEachKind`, `repeat_ (.fixed …)` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
 | `enact` | The subject establishes `agentCtx`; distributive execution checks `enactKeepsOuter`. Tag/body trust is established at the macro authoring boundary above. |
+| `act` (handoff) | The body is checked in `actorCtx`: the player's `agentIntro` under a handoff frame that `actor` reads. A singular performer exports the body's profile outside the frame, so a targeted performer stays published; a distributive performer follows `doForEach` (preserve outer bindings, pluralize exported local mentions). |
 | Delayed, reflexive and `triggerThisWay` clauses | Use `delayedCtx`, `reflexCtx` or `thisWayCtx`. The enclosed body's private mentions do not escape as ordinary sequential mentions. |
 | Replacement and held clauses | Use `replacedCtx` or the held body's announcements. Do not export the event as already completed. |
 | Event alternatives and joined headers | Check arms from the common input; `sharedCtx`/`joinedCtx` compute what the combined header can expose. |
 | Activated abilities | Check the cost after dropping its local X; the body sees only public cost mentions. Timing, guard and activator clauses use the ability's enclosing context. |
-| Granted/keyword/token/emblem abilities | A nested ability has its own scope. Keyword bodies, token characteristic text and emblem abilities use the empty context; grant checks use the grant's enclosing context. |
+| Granted/keyword/token/emblem abilities | A nested ability has its own scope. Keyword bodies, token characteristic text and emblem abilities use the empty context; grant checks use the grant's enclosing context. A nested ability's performer is its own controller: inside a handoff, `ownPerformerCtx` adds a frame back to "you" before its cost, header or body is checked. |
 | Card text versus nested lists | `Ability.checkText` threads line-level choices; `Ability.checkAll` checks sibling abilities in one supplied context. |
 | Printed boxes | Literal-only; they do not read discourse. Effect-written stat slots instead thread their Amount expressions. |
 | Named-card choice domain | The card-description predicate is closed (`Predicate.check .object []`). Other choice-domain payloads use the consumer's context. |
@@ -479,7 +506,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `OptOk` | Optional consumers use their `Opt*.check` or `map`/`getD` branches; absence introduces no payload to check. |
 | `Joins` | `joinKinds`, `Predicate.kindOfAll`, and `NounPhrase.kind?` derive the resulting kind; there is no independently supplied result index. |
 | `KnownAct` | `knownAct`/`knownActs` at deed consumers read the deed facts; the macro definition is trusted to supply the corresponding expansion. |
-| `Payload` | `Payload.kind` derives the kind from the constructor; `Binding` has no separate kind field that can disagree. |
+| `Payload` | `Payload.kind` derives the kind from the constructor; `Binding` has no separate kind field that can disagree. The checker-private `parameterFrame` and `actor` frames are not referents; windows, caller masks, forgetting and `countOnes` pass over handoff frames. |
 | `HeadTy` | `NounPhrase.ty` and `Payload.ty` derive lists of known card-type facts; joined kinds retain evidence per half. |
 | `DieSides` | `DieSides.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Targetable` | `Kind.targetable` at `DetPhrase.check`, copying and target consumers. |
@@ -601,6 +628,9 @@ frame closes. A noun result carries its full context, additions, returned
 address, and value, so a macro can return any captured subject. Movement updates
 that returned subject while the scope is live. Explicit resolved/type/marker
 views remain attached to the returned value.
+
+A captured `actor` is read as `actor` itself: it introduces nothing, and a frozen
+parameter shape would record the controller even inside a handoff.
 
 Captured numeric and noun reads retain the structural facts their consumers
 need. Numeric facts include literal cardinality; noun facts include source and

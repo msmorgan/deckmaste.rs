@@ -59,7 +59,9 @@ Event constructors retain their predication forms. Instruction composition uses 
 lives in `Repetition.fixed`. An explicit instruction agent
 is a trailing named argument. `exile thisPermanent` omits the agent;
 `exile thisPermanent (agent := NounPhrase.you)` supplies one. Omission preserves
-`none` for optional agent slots; required player slots default to `.you`.
+`none` for optional agent slots; required player slots default to `.you`. The `Actor`
+helpers fill the agent slot with `actor`, whoever performs the instruction: the
+controller unless an enclosing `act player body` hands it to another player.
 `choose` also accepts `(disclosure := .secretly)`.
 
 Combat predicates and events carry a `CombatRelation`; `statOf` takes a

@@ -333,7 +333,7 @@ mutual
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
     | .pay c _ who =>
       NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c ++
-        refuse c.payable .payable ++ refuse (payAgreesOk (who.actorView bs) c) .payAgrees
+        refuse c.payable .payable ++ refuse (payAgreesOkIn bs who c) .payAgrees
     | .act who body =>
       let inner := actorCtx bs who
       NounPhrase.check (some .player) bs who ++ Instruction.check inner body ++

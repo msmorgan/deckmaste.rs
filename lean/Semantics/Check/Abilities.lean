@@ -824,26 +824,41 @@ mutual
   termination_by structural cs => cs
 end
 
+/-- `actor` itself, through scope wrappers. -/
+def NounPhrase.isActor : NounPhrase → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.isActor
+  | .actor => true
+  | _ => false
+
+/-- Whether a performed cost instruction is the controller's, given whether its performer is.
+A life payment targets its payer; granting life may target anyone [CR#119.4]. A handoff names
+the performer of its body, so a payment inside it is judged as that player's. -/
+def Instruction.paidByYouAs (performerIsYou : Bool) : Instruction → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.paidByYouAs performerIsYou
+  | .changeLife (.down _) who => if who.isActor then performerIsYou else who.isYou
+  | .enact _ _ (some subj) => if subj.isActor then performerIsYou else subj.isYou
+  | .act who body => body.paidByYouAs (if who.isActor then performerIsYou else who.isYou)
+  | _ => true
+
 mutual
-  def Cost.paidByYou : Cost → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.paidByYou
-    | .scaled c _ => c.paidByYou
-    /- A life payment targets its payer; granting life may target anyone [CR#119.4]. -/
-    | .perform instruction =>
-      match instruction.scopeBody with
-      | .changeLife (.down _) who => who.isYou
-      | .enact _ _ (some subj) => subj.isYou
-      | _ => true
-    | .compound cs => Cost.allPaidByYou cs
-    | .or cs => Cost.allPaidByYou cs
+  /-- `paidByYou` with the cost's performer given: the controller outside every handoff. -/
+  def Cost.paidByYouAs (performerIsYou : Bool) : Cost → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.paidByYouAs performerIsYou
+    | .scaled c _ => c.paidByYouAs performerIsYou
+    | .perform instruction => instruction.paidByYouAs performerIsYou
+    | .compound cs => Cost.allPaidByYouAs performerIsYou cs
+    | .or cs => Cost.allPaidByYouAs performerIsYou cs
     | _ => true
   termination_by structural c => c
 
-  def Cost.allPaidByYou : List Cost → Bool
+  def Cost.allPaidByYouAs (performerIsYou : Bool) : List Cost → Bool
     | [] => true
-    | c :: cs => c.paidByYou && Cost.allPaidByYou cs
+    | c :: cs => c.paidByYouAs performerIsYou && Cost.allPaidByYouAs performerIsYou cs
   termination_by structural cs => cs
 end
+
+/-- A cost the controller pays: its performer is the controller. -/
+def Cost.paidByYou (c : Cost) : Bool := c.paidByYouAs true
 
 /-- A keyword whose parameter cost the controller pays ("cumulative upkeep {2}", "ward {2}")
 takes a cost payable by you; a deed done by another player is not a payment of it. -/
@@ -855,6 +870,11 @@ def keywordCostPaidByYou (k : KeywordLabel) (params : List KeywordParam) : Bool 
 
 
 def payAgreesOk (who : NounPhrase) (c : Cost) : Bool := !who.isYou || c.paidByYou
+
+/-- `payAgreesOk` read in its handoff: the payer through `actorView`, and an `actor` inside the
+cost as the current performer. -/
+def payAgreesOkIn (bs : Bindings) (who : NounPhrase) (c : Cost) : Bool :=
+  !(who.actorView bs).isYou || c.paidByYouAs (NounPhrase.actor.isYouIn bs)
 
 mutual
   def Cost.offBattlefield : Cost → Bool
@@ -999,6 +1019,7 @@ mutual
     | .moveCounters _ _ src dst => src.costNounOk && dst.costNounOk
     | .doubleCounters on => on.costNounOk
     | .enact _ e _ => e.costActionOk
+    | .act who body => who.costNounOk && body.costActionOk
     | .withContinuation _ body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid &&
         Instruction.costActionOkOpt ifNot
     | .doOnlyIf e _ otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise

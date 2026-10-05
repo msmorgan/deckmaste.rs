@@ -80,6 +80,28 @@ theorem badAmassBareItAfterDestroy :
       = [.anaphor .bare .one 2, .anaphor .bare .one 2] := by
   decide
 
+/-- The brief's amass body as the RON declaration expands it: bare "that creature" and "it"
+(`Actor.amass` reads through `itPrior`). -/
+private def literalAmass : Instruction :=
+  .sequentially
+    [ .doIf (.not (exists_ Actor.army))
+        (Actor.create (.lit 1) (creatureToken 0 0 [.black] [creatureType "Orc", creatureType "Army"]))
+        none,
+      Actor.choose (a Actor.army),
+      .putCounters (.lit 2) (.printed plusOnePlusOne) (that (.type .creature)),
+      .doIf (itIsntA (.hasSubtype (creatureType "Orc")))
+        (.establish (Primitives.StaticSpec.qualityChange it .adds
+          (.bundle { characteristics := { subtypes := [creatureType "Orc"] } } none)) none)
+        none ]
+
+/-- "Amass Orcs 2" in the literal spelling checks on its own. -/
+theorem okLiteralAmassBare : Instruction.check [] literalAmass = [] := by decide
+
+/-- "Target opponent amasses Orcs 2" in the literal spelling: the opponent is a player, so no
+second object is in view, and it checks. -/
+theorem okLiteralAmassHandedOff : Instruction.check [] (act (target .opponent) literalAmass) = [] := by
+  decide
+
 /-! ## The actor outside a handoff is the controller -/
 
 /-- "Draw a card.": the same refusals and the same published bindings as `agent := you`. -/
@@ -117,12 +139,168 @@ theorem okActorOwnPayerCost :
     Ability.check [] (.activated (payLife actor 2) (Actor.draw (.lit 1)) none none none none) = [] := by
   decide
 
-/-- "Target opponent loses 2 life: Draw a card.": a cost is not handed to another player. -/
-theorem badHandedOffCost :
+/-- "Target opponent loses 2 life: Draw a card.": a cost may hand its instruction to another
+player, and a life payment inside the handoff is that player's, not the controller's. -/
+theorem badHandedOffLifeCost :
     Ability.check []
       (.activated (.perform (act (target .opponent) (Actor.loseLife (.lit 2)))) (Actor.draw (.lit 1))
         none none none none)
-      = [.costAction] := by
+      = [.costPaidByYou] := by
+  decide
+
+/-! ## Costs: each handoff twin judged as its explicit-agent form
+
+Every cost instruction on the bench or in the pins whose agent is not "you", written once with
+the explicit agent and once handed off; both give the same refusals. -/
+
+private def drawOne : Instruction := draw (.lit 1) (agent := .you)
+
+/-- Wall of Shards: "Cumulative upkeep—An opponent gains 1 life." -/
+theorem wallOfShardsHandoffTwin :
+    Ability.check [] (cumulativeUpkeep (.perform (act anOpponent (Actor.gainLife (.lit 1))))) = [] ∧
+      Ability.check [] (cumulativeUpkeep (.perform (act anOpponent (Actor.gainLife (.lit 1))))) =
+        Ability.check [] (cumulativeUpkeep (.perform (gainLife (.lit 1) (agent := anOpponent)))) := by
+  decide
+
+/-- Varchild's War-Riders: "Cumulative upkeep—Have an opponent create a 1/1 red Survivor creature
+token." -/
+theorem varchildsWarRidersHandoffTwin :
+    Ability.check []
+        (cumulativeUpkeep (.perform (act anOpponent
+          (Actor.create (.lit 1) (creatureToken 1 1 [.red] [creatureType "Survivor"]))))) = [] ∧
+      Ability.check []
+          (cumulativeUpkeep (.perform (act anOpponent
+            (Actor.create (.lit 1) (creatureToken 1 1 [.red] [creatureType "Survivor"]))))) =
+        Ability.check []
+          (cumulativeUpkeep (.perform (Primitives.Instruction.create (.lit 1)
+            (.written (creatureToken 1 1 [.red] [creatureType "Survivor"])) [] (agent := anOpponent)))) := by
+  decide
+
+private def controlsForest : Condition :=
+  exists_ (.and [land, .hasSubtype (landType "Forest"), .hasPossessor .controller .you])
+
+/-- Invigorate: "If you control a Forest, rather than pay this spell's mana cost, you may have an
+opponent gain 3 life." -/
+theorem invigorateHandoffTwin :
+    Ability.check []
+        (.static (onlyWhile (.altCost .this (some (.perform (act anOpponent (Actor.gainLife (.lit 3))))))
+          controlsForest)) = [] ∧
+      Ability.check []
+          (.static (onlyWhile (.altCost .this (some (.perform (act anOpponent (Actor.gainLife (.lit 3))))))
+            controlsForest)) =
+        Ability.check []
+          (.static (onlyWhile (.altCost .this (some (.perform (gainLife (.lit 3) (agent := anOpponent)))))
+            controlsForest)) := by
+  decide
+
+private def blockersTheyControl : Amount :=
+  times (.lit 1) (countOf (.and [creature, blocking, .hasPossessor .controller they]))
+
+/-- Heat Wave: "Nonblue creatures can't block creatures you control unless their controller pays 1
+life for each blocking creature they control." -/
+theorem heatWaveHandoffTwin :
+    Ability.check []
+        (.static (deontic (allOf (.and [creature, .not (.colorIs .blue)]))
+          (.gatedBy (.perform (act they (Actor.loseLife blockersTheyControl)))) [.core .block] .agent
+          (.counterpart (allOf creatureYouControl)))) = [] ∧
+      Ability.check []
+          (.static (deontic (allOf (.and [creature, .not (.colorIs .blue)]))
+            (.gatedBy (.perform (act they (Actor.loseLife blockersTheyControl)))) [.core .block] .agent
+            (.counterpart (allOf creatureYouControl)))) =
+        Ability.check []
+          (.static (deontic (allOf (.and [creature, .not (.colorIs .blue)]))
+            (.gatedBy (.perform (loseLife blockersTheyControl (agent := they)))) [.core .block] .agent
+            (.counterpart (allOf creatureYouControl)))) := by
+  decide
+
+/-- Killing Wave: "For each creature, its controller sacrifices it unless they pay X life." -/
+theorem killingWaveHandoffTwin :
+    Instruction.check []
+        (Primitives.Instruction.doForEach (each creature)
+          (doUnless (sacrifice it (agent := they)) (.perform (act they (Actor.loseLife (.letter .x))))
+            (agent := controllerOf it))) = [] ∧
+      Instruction.check []
+          (Primitives.Instruction.doForEach (each creature)
+            (doUnless (sacrifice it (agent := they)) (.perform (act they (Actor.loseLife (.letter .x))))
+              (agent := controllerOf it))) =
+        Instruction.check []
+          (Primitives.Instruction.doForEach (each creature)
+            (doUnless (sacrifice it (agent := they)) (.perform (loseLife (.letter .x) (agent := they)))
+              (agent := controllerOf it))) := by
+  decide
+
+/-- "An opponent sacrifices a creature: Draw a card." (`Keyword.badForeignSacrificeCost`) -/
+theorem foreignSacrificeCostHandoffTwin :
+    Ability.check [] (.activated (.perform (act anOpponent (Actor.sacrifice (a creature)))) drawOne
+        none none none none) = [.costPaidByYou] ∧
+      Ability.check [] (.activated (.perform (act anOpponent (Actor.sacrifice (a creature)))) drawOne
+          none none none none) =
+        Ability.check [] (.activated (.perform (sacrifice (a creature) (agent := anOpponent))) drawOne
+          none none none none) := by
+  decide
+
+/-- "An opponent pays 2 life: Draw a card." (`Keyword.badForeignPayerCost`) -/
+theorem foreignPayerCostHandoffTwin :
+    Ability.check [] (.activated (.perform (act anOpponent (Actor.loseLife (.lit 2)))) drawOne
+        none none none none) = [.costPaidByYou] ∧
+      Ability.check [] (.activated (.perform (act anOpponent (Actor.loseLife (.lit 2)))) drawOne
+          none none none none) =
+        Ability.check [] (.activated (payLife anOpponent 2) drawOne none none none none) := by
+  decide
+
+/-- "Cumulative upkeep—An opponent loses 1 life." (`Mana.badOpponentPaysYourCost`) -/
+theorem opponentPaysYourCostHandoffTwin :
+    Ability.check [] (keywordCosting "CumulativeUpkeep" (.perform (act anOpponent (Actor.loseLife (.lit 1)))))
+        = [.keywordCostPaidByYou "CumulativeUpkeep"] ∧
+      Ability.check [] (keywordCosting "CumulativeUpkeep" (.perform (act anOpponent (Actor.loseLife (.lit 1))))) =
+        Ability.check [] (keywordCosting "CumulativeUpkeep" (.perform (loseLife (.lit 1) (agent := anOpponent)))) := by
+  decide
+
+/-- "You may pay an opponent's 1 life. If you do, draw a card." (`Choice.badMismatchedPayer`) -/
+theorem mismatchedPayerHandoffTwin :
+    Instruction.check []
+        (Primitives.Instruction.offer (.pay (.perform (act anOpponent (Actor.loseLife (.lit 1)))) .once
+          (agent := .you)) none (some drawOne) (agent := .you)) = [.payAgrees] ∧
+      Instruction.check []
+          (Primitives.Instruction.offer (.pay (.perform (act anOpponent (Actor.loseLife (.lit 1)))) .once
+            (agent := .you)) none (some drawOne) (agent := .you)) =
+        Instruction.check []
+          (Primitives.Instruction.offer (.pay (payLife anOpponent 1) .once (agent := .you)) none
+            (some drawOne) (agent := .you)) := by
+  decide
+
+/-- "Pay 2 life: Draw a card." handed to "you" (`Keyword.okOwnPayerCost`). -/
+theorem ownPayerCostHandoffTwin :
+    Ability.check [] (.activated (.perform (act .you (Actor.loseLife (.lit 2)))) drawOne
+        none none none none) = [] ∧
+      Ability.check [] (.activated (.perform (act .you (Actor.loseLife (.lit 2)))) drawOne
+          none none none none) =
+        Ability.check [] (.activated (payLife .you 2) drawOne none none none none) := by
+  decide
+
+/-! ## A captured `actor` keeps its handoff -/
+
+private semantic_macro capturedLifeLoss (who : capture NounPhrase) : Instruction :=
+  .changeLife (.down (.lit 1)) who
+
+/-- "You may pay 1 life of <who>. If you do, draw a card.", the payer being "you". -/
+private def youPayWith (c : Cost) : Instruction :=
+  Primitives.Instruction.offer (.pay c .once (agent := .you)) none (some (Actor.draw (.lit 1)))
+    (agent := .you)
+
+/-- With no handoff, `actor` passed through a `capture` parameter is the controller, so the
+controller pays their own life. -/
+theorem okCapturedActorIsYou :
+    Instruction.check [] (youPayWith (.perform (capturedLifeLoss actor))) = [] := by
+  decide
+
+/-- Inside "target opponent …", the same captured `actor` is the opponent: the controller paying
+the opponent's life is refused, exactly as the uncaptured `Actor.loseLife` is. -/
+theorem badCapturedActorIsTheHandedPlayer :
+    Instruction.check [] (act (target .opponent) (youPayWith (.perform (capturedLifeLoss actor))))
+        = [.payAgrees] ∧
+      Instruction.check [] (act (target .opponent) (youPayWith (.perform (Actor.loseLife (.lit 1)))))
+        = [.payAgrees] := by
   decide
 
 /-! ## Handoffs -/

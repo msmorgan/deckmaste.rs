@@ -976,6 +976,8 @@ semantic_macro revealHand : Instruction := .expose .reveal (.zone (handOf .actor
 semantic_macro draw (amount : Amount) : Instruction := .draw amount (agent := .actor)
 /-- "<performer> loses N life" -/
 semantic_macro loseLife (amount : Amount) : Instruction := .changeLife (.down amount) (agent := .actor)
+/-- "<performer> gains N life" -/
+semantic_macro gainLife (amount : Amount) : Instruction := .changeLife (.up amount) (agent := .actor)
 /-- "<performer> chooses <subject>" -/
 semantic_macro choose (subject : NounPhrase) : Instruction :=
   .choose none subject .openly none (agent := some .actor)

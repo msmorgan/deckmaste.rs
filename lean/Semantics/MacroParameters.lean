@@ -13,6 +13,9 @@ instance : MacroCapture NounPhrase where
   input := CaptureInput.subject
   read scope index source := match source with
     | .pro _ _ (.parameter _ _) => source
+    /- `actor` introduces nothing and denotes whoever performs the instruction at the read, so
+    it is read as itself; a captured shape would freeze it as the controller. -/
+    | .actor => source
     | _ => .pro (.parameter ⟨source.kindOr .object, source.isAbility, source.isYou,
         source.selfDefinedOk, source.ascribable, twoPartiesOk source, source.opponentOnly,
         source.bareThis⟩) source.plur (.parameter scope index)
