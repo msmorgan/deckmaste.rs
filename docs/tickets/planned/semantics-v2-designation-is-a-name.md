@@ -36,6 +36,45 @@ constraints apply.
    `suspect`, `renown`): `hasDesignation("renowned")` becomes
    `hasDesignation(renowned)`.
 
+## What the counter landing gives this one
+
+`semantics-v2-counter-kind-is-a-name` built the pattern; it is three pieces,
+each copyable:
+
+- **The type.** Lean `inductive CounterKind | named (name : String)` with a
+  `CounterKind.name` accessor; mirror `enum CounterKind { Named { name: String
+  } }` with `name()`, carrying `#[macro_ron(denoted_by(Counter, term =
+  crate::rules::Definition::counter_term))]` unchanged. A one-constructor
+  inductive because `denoted_by` attaches only to an enum. For designations:
+  `DesignationLabel.named (name : String)`, mirror `Named { name }`, and a
+  `#[macro_ron(denoted_by(Designation, term =
+  crate::rules::Definition::designation_term))]` with a new
+  `designation_term` projection (Lean `Definition.designationTerm`; the doc
+  comment on `Definition.subtypeTerm` already anticipates it).
+- **The name comes from the meta, not the body.** The `denoted_by`
+  projection reads the EXPANDED body, which does not know the macro's name,
+  so the definition node must carry it, and a declaration must not write it
+  (that would be self-reference). The counter meta takes the definition's
+  fields as parameters and writes `Counter(kind: Named(name: Param(name)), …)`
+  itself; `meta/Designation.ron` would take `scope`, `effectful`, `zone`,
+  `type`, `half` and write `Designation(label: Named(name: Param(name)), …)`.
+  `deckmaste_construction_core`'s declaration schema then needs a
+  `DiagnosticDesignation` with a derived body (see `DiagnosticCounterKind`
+  and `DiagnosticSubtype` in `macro_def.rs`).
+- **Facts.** The generator reads each body through the builtin plugin's
+  macros (`counter_definitions` in `crates/xtask/src/facts/lean.rs`) and
+  refuses a term whose name is not the declaration's own; the facts row's
+  label is the name. Every Lean pin, bench card and RON body that writes a
+  label string then re-spells to the name (`.named "monstrous"`, bare
+  `monstrous` in RON); the counter landing's normaliser for the
+  expansion/card-dump comparison is at the orchestrator's scratchpad
+  (`counters/normalise.py`).
+
+One difference: designation labels are today the spelled phrase
+("the monarch", "left half unlocked"), not the declaration name, so every
+label changes text, and any check that reads the label as English (Room
+halves, `RoomHalf.designation`) must read the name instead.
+
 ## Proof
 
 `cargo xtask lean-check` passes; `cargo xtask expansions` before/after is
