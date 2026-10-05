@@ -32,6 +32,9 @@ me but sure I guess"). Re-spell each caller listed onto the helper.
   it" is `act(ownerOf(it), establish(mayCastFrom(it, exileZone, mana([2]))))`;
   this relies on `semantics-v2-actor-handoff`'s prototype finding that `actor`
   reads as the controller inside a static ability. Needs A and B.
+  (2026-10-05: confirmed by the Lean pins `okStaticActorPermission` and
+  `okHandedCastPermission` in `Proofs/Actor.lean`, over Lean's
+  `Actor.mayCastFrom (what) (zone)`, which has no `paying` parameter.)
 - `cantBeBlockedByFewerThan(subject, n)` — the bound in menace. *Independent*.
 - Event helper `discards(player, card)`, and **Megrim** joins canon to prove
   "whenever … discards": "Whenever an opponent discards a card, this
@@ -58,7 +61,8 @@ me but sure I guess"). Re-spell each caller listed onto the helper.
   [CR#111.7,704.5d]. *Independent*.
 - Fix the `amass` comment to the rule's wording, "Put N +1/+1 counters on that
   creature" [CR#701.47a], not "on it" (`semantics-v2-actor-handoff` re-spells
-  `amass` and may do this first). *Independent*.
+  `amass` and may do this first). *Independent*. (2026-10-05: done by
+  `semantics-v2-actor-handoff`; nothing left here.)
 - Reorder helper parameters freely so required ones precede defaulted ones,
   removing the named calls forced by order today: `returnToBattlefield`
   (riders before agent and origin), `activated` (limit before guard),

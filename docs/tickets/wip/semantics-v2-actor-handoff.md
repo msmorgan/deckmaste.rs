@@ -38,13 +38,21 @@ plan as `semantics-v2-action-agents`.
   Burglar Rat becomes `act(each(opponent), discard(a(card)))`. That the
   discards happen at the same time [CR#101.4] is a lowering concern, not
   written.
+  *Correction, 2026-10-05, at landing:* no `card` macro exists; the card
+  writes `a(isCard)`, the existing identity alias. Whether `card` replaces
+  it is routed to `plugins-v2-implicit-actor-spelling`.
 - **The verb supplies its own restriction.** A discard is from the actor's
   hand [CR#701.9a] and a sacrifice is of something the actor controls
   [CR#701.21a], so neither is written: `discard(a(card))`,
   `discard(aRandom(card))`, `sacrifice(a(creature))`. This is the existing
   rule in `docs/decisions/semantics-v2.md` §7 ("A verb's implicit restrictions
   must be expressible both ways — as predicate conjuncts on a choice…"); the
-  checker may need to learn it. `choose` still names a zone when it needs one
+  checker may need to learn it.
+  *Correction, 2026-10-05, at landing:* it learned the zone half only (an
+  indefinite patient naming no zone is selected where the deed's patient
+  lives). The possessor half (the discarder's own hand, the sacrificer's own
+  permanent) cannot be checked, because object bindings record no possessor:
+  `semantics-v2-bindings-carry-no-possessor`. `choose` still names a zone when it needs one
   (Thoughtseize: `choose(a(and([not(land), cardIn(handOf(they))])))`).
 - **Every named action records its actor, discard included.** Owner: "yeah i
   guess this is right, albeit a tad redundant". In landing (2) keyword action
@@ -108,6 +116,15 @@ act(controllerOf(it), amass(goblin, x))
 `revealHand` and `theirHand` do not exist yet (today:
 `revealTheirHand(agent)`, `handOf(they)`); add them here.
 
+*Correction, 2026-10-05, at landing:* two of these spellings cannot be
+written as they stand. `card` is not a macro (`isCard` is). `army` is a
+Subtype declaration, not a predicate, so `and([army, actorControls])` is
+written `and([hasSubtype(army), creature, actorControls])`, as Lean's
+`Actor.army` is ("an Army creature" [CR#701.47a]). Azog is not written in
+RON in this landing; its Lean pin `okAzogControllerAmasses` amasses Goblins
+2 in place of X ("where X is that creature's power"). The bodies above are
+left as approved; the landing record lists what was written instead.
+
 ## Why no per-action table decides who performs
 
 Movement actions need a performer too, so the 2026-10-04 plan to class each
@@ -167,6 +184,7 @@ that touch this: `Proofs/Choice.lean` `okAgentScopedChoice`,
 6. **Canon proof.** Re-spell Thoughtseize, Burglar Rat and Hymn to Tourach over
    `act`. Expected Hymn body, derived from the rule above and not separately
    approved: `act(target(anyPlayer), discard(random(exactly(2), card)))`.
+   (*Correction, 2026-10-05, at landing:* written with `isCard`.)
    *Orchestrator's call, not the owner's:* in this landing the helpers still
    take their agent parameters, so these cards may pass `you`/`actor`
    explicitly where a helper still demands it (`choose(actor, …)`,
@@ -204,6 +222,9 @@ that touch this: `Proofs/Choice.lean` `okAgentScopedChoice`,
 - `cargo xtask expansions` before/after differs only in `amass`, the three
   re-spelled canon cards and the new macros; list each changed term in the
   landing record.
+  *Correction, 2026-10-05, at landing:* it also differs in Relentless
+  Advance, the one canon card that calls `amass`, and in the new testing
+  card Amass Handoff Probe. Both follow from the `amass` change.
 - The prototype's four answers are recorded, each with its pin.
 
 ## Done on 2026-10-04, still standing
@@ -261,3 +282,171 @@ that touch this: `Proofs/Choice.lean` `okAgentScopedChoice`,
 - `mayCastFrom` and the airbend re-spelling
   (`plugins-v2-keyword-helper-additions`).
 - How lowering redistributes a handoff to the performing players.
+
+## Landing record
+
+The series, oldest first: `oovutvzxwusx` (Lean model, checker, Rust
+mirror), `zlmknqwsmnsw` (claim), `lmxpwsnutysy` (handoffs inside costs,
+captured `actor`, `lean/CONTRACTS.md`), `xsrqvmvypmqk` (RON macros, `amass`,
+three canon cards, one testing card, two re-spelled tests), `utuqoppspxov`
+(ADR ruling, glossary), `nlollzqpwnpt` (this record, follow-on tickets, the
+§12.1 recount). Every measurement below was taken on the tip; the code tree
+is the same at `xsrqvmvypmqk`, `utuqoppspxov` and `nlollzqpwnpt`, which change
+only `docs/`. The intermediate changes were not built or tested one by one.
+
+**Proof.**
+- `lean/scripts/build` (lake build, `--wfail`): Build completed successfully
+  (81 jobs). `lean/Semantics/Proofs/Actor.lean` holds 44 theorems, each
+  closed by `decide` against an exact expected value. No other file under
+  `lean/Semantics/Proofs/` changed, so every existing pin keeps its asserted
+  outcome, the four named in "What exists" (`okAgentScopedChoice`,
+  `badUnchooseredTheyControl`, `okDistributedChoiceReadsAsGroup`,
+  `badDistributedChoiceReadSingular`) among them. `lean/Semantics/Cards` is
+  untouched.
+- `cargo xtask lean-check` (85.4s): `plugins_v2/canon` 122/122 cards prove
+  `Card.check = []`, including Relentless Advance, Thoughtseize, Burglar Rat
+  and Hymn to Tourach; `plugins_v2/testing` 3/3 (Grizzly Bears, Lightning
+  Bolt, and the new Amass Handoff Probe, `act(target(opponent), amass(orc,
+  2))`).
+- Gate: `cargo xtask gate --changed` derived `cargo test -p
+  deckmaste_construction_core -p deckmaste_lexical_source -p
+  deckmaste_semantics_v2 -p deckmaste_construction_v3 -p
+  deckmaste_english_v3 -p xtask`; run with `--no-fail-fast`: 87 test
+  binaries, 1166 passed, 0 failed, 1 ignored (the same test ignored before
+  this landing). `lean_drift` 4/4; `cargo test -p xtask --test lean_check`
+  4/4.
+- `cargo xtask facts check`: up to date. `cargo xtask cite check
+  --list-noncompliant`: 0; `cargo xtask cite check`: 0 stale.
+- `cargo xtask expansions` before and after (session scratch, not tracked):
+  declarations 1497 → 1502, 0 failed. Added: `act`, `actor`,
+  `actorControls`, `revealHand`, `theirHand`. Changed declaration: `amass`
+  only, now `Enact(Action("Amass"), Sequentially([...]), Some(Actor))` with
+  `Actor` where `You` stood and the choice's agent `Some(Actor)` where it was
+  `None`. Changed card terms: Thoughtseize, Burglar Rat, Hymn to Tourach
+  (re-spelled) and Relentless Advance (through `amass`, its source
+  unchanged); one new testing card.
+- rustfmt and clippy: the changed lines are clean. `cargo +nightly fmt --all
+  --check` already fails in files this landing does not touch, and `cargo
+  clippy -D warnings` already stops on an existing error in
+  `crates/macro_ron/src/set.rs:745`. Neither was introduced here.
+
+**The prototype's answers.**
+- *`actor` in a static ability* reads as the controller:
+  `okStaticActorPermission` (the same refusals as the `you` spelling) and
+  `okHandedCastPermission` ("Its owner may cast it from exile" under
+  `act(ownerOf(it), …)`).
+- *`discard(a(card))` with no zone*: refused `[.zoneFits]` before this
+  landing (observed in the prototype, not pinned at the old outcome). The
+  rule that makes it check is the verb's own zone: an indefinite patient that
+  names no zone is selected where the deed's patient lives
+  (`enactPatientZoneOk`, [CR#701.9a]). Pins `okBurglarRat`,
+  `okHymnToTourach`.
+- *Can the checker require a discard's actor to own the hand?* No, nor a
+  sacrifice's actor to control the permanent [CR#701.21a]: object bindings
+  record no possessor. The two shapes that check although the rules forbid
+  them were evaluated in the prototype and are not pinned; they are
+  `semantics-v2-bindings-carry-no-possessor`.
+- *Bindings after a handoff*: a targeted performer stays published below the
+  body's mentions (`handedTargetStaysBound`; `okThoughtseize` reads it as
+  "they" in the next two steps); a pronoun performer adds only the body
+  (`handedPronounAddsOnlyTheBody`); `act(each(opponent), …)` publishes the
+  members' mentions and the group, pluralized (`handedGroupPublishesPlurals`,
+  `okDistributedDiscardReadsAsGroup`, `badDistributedDiscardReadSingular`);
+  `act(you, …)` is transparent (`handedToYouIsTransparent`).
+- `enact` cannot serve as the handoff: it needs a known deed, accepts a body
+  whose label does not match it, and rebinds nothing. A prototype finding;
+  `okDiscardWrapperCarriesActor` and `okDiscardWrapperWithAgent` pin only
+  that the Discard deed takes the actor or an explicit player as agent.
+- `amass`: the literal RON body checks alone and handed to a target
+  opponent (`okLiteralAmassBare`, `okLiteralAmassHandedOff`); the older
+  explicit-agent Lean `amass` is refused after "destroy target creature"
+  (`badAmassBareItAfterDestroy`, two `.anaphor .bare .one 2`), while
+  `Actor.amass`, which reads the Army through `itPrior`, checks there
+  (`okAzogControllerAmasses`, Goblins 2 in place of X). That the literal RON
+  body is refused after a destroy is inferred, not pinned.
+
+**Tests.** Restored: 0. Re-spelled: 2, each keeping its subject and its
+value comparison: `deckmaste_semantics_v2/tests/reader.rs`
+`amass_expands_to_the_term_its_constructor_body_spelled` and
+`xtask/src/expansions.rs` `tests::a_helper_spelling_and_its_constructor_spelling_print_the_same`
+(the expected term gains the Amass wrapper and `Actor` for `You`). Ignored:
+0. Added: 44 Lean pins in `Proofs/Actor.lean` and one testing card. Removed:
+0. Within the series the prototype's own pin `badHandedOffCost` (expected
+`[.costAction]`) became `badHandedOffLifeCost` (the same ability, expected
+`[.costPaidByYou]`) when handoffs inside costs were allowed; it never existed
+on the default line.
+
+**Deviations and additions.**
+1. Cards write `isCard` where the approved bodies say `card`: `isCard` is
+   the existing identity alias of `Predicate.IsCard`, and §12.1 of
+   `docs/decisions/semantics-v2.md` allows one alias per constructor. Adding
+   or renaming is the owner's call.
+2. `amass` writes `and([hasSubtype(army), creature, actorControls])`, since
+   `army` is a Subtype declaration, not a predicate.
+3. Relentless Advance changed through `amass`; the ticket's expansions
+   expectation missed it (corrected above).
+4. The helpers keep their agent parameters in this landing (the ticket
+   allowed it), so Thoughtseize writes `choose(actor, …)` and
+   `loseLife(2, actor)`, and `amass` writes `agent: actor`,
+   `createToken(actor, …)` and `choose(actor, …)`.
+5. Today's `discard` declaration still records no agent and a bare hand,
+   where Lean's `Actor.discard` writes the actor in both, until
+   `plugins-v2-implicit-actor-spelling`.
+6. Beyond the ticket's letter: handoffs inside costs (`costActionOk`,
+   `Cost.paidByYouAs`), with ten pins comparing each explicit-agent cost to
+   its handoff twin: five cards (Wall of Shards, Varchild's War-Riders,
+   Invigorate, Heat Wave, Killing Wave), four refusals
+   (`foreignSacrificeCostHandoffTwin`, `foreignPayerCostHandoffTwin`,
+   `opponentPaysYourCostHandoffTwin`, `mismatchedPayerHandoffTwin`) and one
+   acceptance (`ownPayerCostHandoffTwin`); the captured-`actor`
+   pass-through in `MacroCapture.read` (`okCapturedActorIsYou`,
+   `badCapturedActorIsTheHandedPlayer`); the performer reset for nested
+   abilities, `ownPerformerCtx` (`badGrantedAbilityKeepsItsOwnPerformer`);
+   a checker-private `Payload.actor` frame; the patient-zone rule
+   `enactPatientZoneOk`; `sameKnownZone` deliberately not equating two
+   `actor` zones; `Actor.gainLife` in Lean; the testing card Amass Handoff
+   Probe.
+7. §12.1's macro counts were recounted (this change): 409 → 424
+   `semantic_macro`s, 304 → 315 declarations, 103 → 107 Lean-only in seven
+   buckets (a new `Actor` bucket of 10; the Primitives, computes and
+   calls-one-of-the-above buckets lose six macros ported by earlier
+   landings); §11's "Three helpers are named apart" is now five
+   (`revealHand`, `theirHand`). The method is stated in §12.1. Not
+   recounted: the alias count "244 of them are declarations". None of the
+   five new declarations is in that class (`act` and `actor` are identity
+   aliases but share their names with Lean phrasings), so this landing does
+   not change it; whether it held before is unchecked.
+
+**STOPs.** One. The ticket contradicted a recorded ruling
+(`docs/decisions/semantics-v2.md` §7: "Agents are explicit … supplied by the
+frame as an explicit `You` in the term"). It was put to the owner before any
+work; the owner superseded it on 2026-10-05, and §7 now carries the dated
+ruling, which also records that `macros-are-declarative.md` and
+`card-authoring-binds-no-implicits.md` are not contradicted.
+
+**Glossary.** **Actor** and **Handoff** added to
+`docs/contexts/game-model/CONTEXT.md` [CR#109.5], with `_Avoid_` lines
+keeping "agent" for the Decision Point sense and "you" for the controller.
+This closes yesterday's gap "the agent of an action"; no new gap found.
+
+**Not applicable.** Coverage lock, selection census, licensing-checker
+totals, homograph and form-literal inventories and the performance advisory:
+no English grammar, lexicon or corpus input changed, so `coverage` was not
+run.
+
+**Routed.**
+- `plugins-v2-implicit-actor-spelling`: helpers lose their agent
+  parameters; keyword actions lose `agent:`; the discard declaration gains
+  the actor and the actor's hand, and its comment loses "the deed takes no
+  agent"; `card` versus `isCard` and an `army` predicate, for the owner; the
+  §11 sentences that become false there.
+- `semantics-v2-drop-agent-fields`: the 16 required and 3 optional agent
+  fields, `ContinuationPolicy.optional`'s agent, and the Lean bench's
+  explicit `agent := you`.
+- `semantics-v2-keyword-body-reference-scope`: a keyword body's bare
+  pronouns see the calling card's mentions (Azog); pin the literal body
+  after a destroy.
+- `semantics-v2-bindings-carry-no-possessor`: the possessor half of
+  discard's and sacrifice's own restrictions [CR#701.9a,701.21a].
+- `plugins-v2-keyword-helper-additions`: `mayCastFrom` with `paying` and
+  airbend, `discards` and Megrim. Its `amass` comment fix is done here.
