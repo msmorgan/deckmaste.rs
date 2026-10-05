@@ -13,7 +13,6 @@ constructions! {
     }
     vocab BareCopula { Be = "be", }
     vocab PredicativeAdjective { Legendary = "legendary", }
-    vocab FaceOrientation { FaceUp = "face up", }
     vocab ArbitraryDeterminer { Any = "any", Random = "a random", }
     vocab Preposition {
         After = "after" {

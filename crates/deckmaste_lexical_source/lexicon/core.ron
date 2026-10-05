@@ -106,6 +106,20 @@
     },
     lexemes: [
         (
+            id: "vocab:Preposition/FaceDown", lemma: "face down", category: Preposition,
+            properties: (countability: [], features: {"PrepositionComplement": "None", "LocativeUse": "Yes", "AdverbialUse": "Yes"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/FaceDown"),
+            capitalization: Initial, binding: Free, surface_structure: Multiword,
+        ),
+        (
+            id: "vocab:Preposition/FaceUp", lemma: "face up", category: Preposition,
+            properties: (countability: [], features: {"PrepositionComplement": "None", "LocativeUse": "Yes", "AdverbialUse": "Yes"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/FaceUp"),
+            capitalization: Initial, binding: Free, surface_structure: Multiword,
+        ),
+        (
             id: "vocab:Coordinator/AndOr", lemma: "and/or", category: Coordinator,
             properties: (countability: [], features: {"CoordinationKind": "Alternative", "NoncorrelativeCoordination": "Yes"}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -161,6 +175,20 @@
             forms: [(form: Singular, features: (number: Some(Singular)))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Devotion"),
             capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "lexeme:CommonNoun/ManaValue", lemma: "mana value", category: Noun,
+            properties: (countability: [Count], features: {}, frames: []),
+            forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/ManaValue"),
+            capitalization: Initial, binding: Free, surface_structure: Multiword,
+        ),
+        (
+            id: "lexeme:CommonNoun/ManaCost", lemma: "mana cost", category: Noun,
+            properties: (countability: [Count], features: {}, frames: []),
+            forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/ManaCost"),
+            capitalization: Initial, binding: Free, surface_structure: Multiword,
         ),
         (
             id: "lexeme:CommonNoun/Time", lemma: "time", category: Noun,

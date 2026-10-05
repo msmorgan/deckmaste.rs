@@ -36,7 +36,8 @@ the costs of its Construction occurrences; lower totals rank earlier without
 changing grammatical admission or erasing alternative Readings.
 
 **Lexeme**:
-An abstract lexical item underlying its inflected Word Forms.
+An abstract lexical item underlying its inflected Word Forms. A lexical item
+may consist of several orthographic words, as in *mana value* and *mana cost*.
 
 **Lemma**:
 The conventional citation form used to identify a Lexeme.
@@ -89,8 +90,9 @@ The use of uppercase and lowercase letters in a written expression.
 
 **Word Payload** (project term):
 The characters a lexical Word Form owns. A Word Payload is nonempty and contains
-no source whitespace and no quotation delimiter; separators and delimiters
-belong to the surrounding Realization, not to the word.
+no quotation delimiter. A multiword lexical form owns its declared internal
+spaces; external separators and delimiters belong to the surrounding
+Realization. Arbitrary source whitespace is not a lexical form.
 
 **Feature Bundle**:
 A correlated collection of grammatical feature values describing one analysis.
@@ -201,7 +203,9 @@ A lexical Category whose members head phrases expressing relations and
 characteristically select Complements.
 
 **Preposition Phrase**:
-A phrase headed by a Preposition together with its selected Complements.
+A phrase headed by a Preposition, with any selected Complements. Lexicalized
+*face down* and *face up* have no overt Complement and function as adjuncts or
+predicative complements (CGEL, pp. 633, 1268).
 
 **Voice**:
 The grammatical organization of a predication's participants, including the
@@ -503,7 +507,8 @@ _Avoid_: Prefix for the Keyword Quality it binds to
 `tapped`, `goaded`, `suspected`, `saddled` are the **Participles** of their
 keyword-action verbs, used attributively or predicatively; `monstrous` is an
 **Adjective**; `the monarch`, `the initiative` are **Noun Phrases**; `face down`
-is an **Adjective Phrase**. Whether such a form names a status [CR#110.5] or a
-designation [CR#701.15b] is Game Model semantics resolved through the verb
+is a lexicalized **Preposition Phrase** (analysis adopted 2026-10-04,
+superseding this part of the 2026-09-05 ruling). Whether such a form names a
+status [CR#110.5] or a designation [CR#701.15b] is Game Model semantics resolved through the verb
 declaration, never a grammatical class. _Avoid_ "Status", "Designation" as the
 name of a vocabulary, codec, or construction in the grammar (ruling 2026-09-05).

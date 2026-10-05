@@ -13,7 +13,7 @@ constructions! {
         feature CaseUse { Common, Nominative, Accusative }
         feature Targeting { No, Yes }
         feature CoordinationKind { Additive, Alternative, Adversative }
-        feature PrepositionComplement { NounPhrase }
+        feature PrepositionComplement { NounPhrase, None }
         feature AdverbialUse { Yes, No }
         feature FrequencyUnit { Yes }
         feature FiniteClauseComplement { Yes }
@@ -750,6 +750,13 @@ constructions! {
         construction PrepositionPhrase: PrepositionPhrase {
             form [head: lexical(Preposition), " ", complement: AccusativePhrase];
             require head.PrepositionComplement = NounPhrase;
+            export LocativeUse = head.LocativeUse;
+            export AdverbialUse = head.AdverbialUse;
+        }
+
+        construction IntransitivePreposition: PrepositionPhrase {
+            form [head: lexical(Preposition)];
+            require head.PrepositionComplement = None;
             export LocativeUse = head.LocativeUse;
             export AdverbialUse = head.AdverbialUse;
         }
