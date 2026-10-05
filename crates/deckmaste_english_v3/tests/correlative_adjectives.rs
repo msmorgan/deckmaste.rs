@@ -28,15 +28,15 @@ fn word(id: &str, form: WordForm, number: Option<Number>) -> Word {
         frame: None,
     }
 }
-fn assert_laws(value: Reading, text: &str, category: Category) {
+fn assert_laws(value: &Reading, text: &str, category: Category) {
     value.admit(lexicon()).unwrap();
     assert_eq!(value.realize(lexicon()).unwrap(), text);
     let parsed = readings(text, category);
     assert!(
-        parsed.contains(&value),
+        parsed.contains(value),
         "independent value missing for {text:?}"
     );
-    let reparsed = parsed.get(&value).unwrap();
+    let reparsed = parsed.get(value).unwrap();
     let mut nodes = Vec::new();
     value.visit(&mut |node| nodes.push(node.clone())).unwrap();
     let mut parsed_nodes = Vec::new();
@@ -73,7 +73,7 @@ fn independently_constructed_correlative_adjectives_have_explicit_hosts() {
         right: Box::new(color("Green")),
     };
     assert_laws(
-        both.clone(),
+        &both.clone(),
         "both red and green",
         Category::CorrelativeAdjectivePhrase,
     );
@@ -82,7 +82,7 @@ fn independently_constructed_correlative_adjectives_have_explicit_hosts() {
         phrase: Box::new(both.clone()),
     };
     assert_laws(
-        complement,
+        &complement,
         "both red and green",
         Category::PredicativeComplement,
     );
@@ -100,7 +100,7 @@ fn independently_constructed_correlative_adjectives_have_explicit_hosts() {
         }),
         modifier: Box::new(both),
     };
-    assert_laws(nominal, "creature both red and green", Category::Nominal);
+    assert_laws(&nominal, "creature both red and green", Category::Nominal);
     for text in [
         "it is both red and green",
         "it is either red or green",
@@ -141,7 +141,7 @@ fn correlative_adjectival_serials_preserve_marker_and_oxford_comma() {
         rest: Box::new(end),
     };
     assert_laws(
-        serial,
+        &serial,
         "either red, green, or blue",
         Category::CorrelativeAdjectivePhrase,
     );

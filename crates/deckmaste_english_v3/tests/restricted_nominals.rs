@@ -47,7 +47,7 @@ fn noun(owner: &str) -> Reading {
     }
 }
 
-fn exact(text: &str, expected: Reading) {
+fn exact(text: &str, expected: &Reading) {
     expected.admit(&LEXICON).unwrap();
     assert_eq!(expected.realize(&LEXICON).unwrap(), text);
     let actual = readings(text);
@@ -92,7 +92,7 @@ fn authentic_bare_status_nominals_keep_modifier_and_head_identity() {
     ] {
         exact(
             text,
-            Reading::BareStatusNounPhrase {
+            &Reading::BareStatusNounPhrase {
                 form: 0,
                 modifier: invariant(owner, capitalization),
                 head: Box::new(noun(head)),
@@ -106,7 +106,7 @@ fn a_status_modifier_keeps_its_existing_determiner_bearing_composition() {
     // Ramses Overdark: "{T}: Destroy target enchanted creature."
     exact(
         "target enchanted creature",
-        Reading::TargetNounPhrase {
+        &Reading::TargetNounPhrase {
             form: 0,
             marker: invariant("vocab:TargetingMarker/Target", SurfaceCase::Declared),
             head: Box::new(Reading::PremodifiedNominal {

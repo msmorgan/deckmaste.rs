@@ -142,11 +142,10 @@ fn authentic_explore_frequency_and_transitive_frame_are_preserved() {
     assert!(spelunker.iter().any(|reading| {
         let mut found = false;
         reading.visit(&mut |node| {
-            if let Reading::FrequencyPredicate { category: Category::FinitePredicate, form: 0,head, .. } = node {
-                if let Reading::IntransitivePredicate { category: Category::FinitePredicate, form: 0,head, .. } = head.as_ref() {
+            if let Reading::FrequencyPredicate { category: Category::FinitePredicate, form: 0,head, .. } = node
+                && let Reading::IntransitivePredicate { category: Category::FinitePredicate, form: 0,head, .. } = head.as_ref() {
                     found |= matches!(&head.value, LexicalReading::Word(value) if value.lexeme == "lexeme:keyword_action/explore") && head.frame == Some(0);
                 }
-            }
         }).unwrap();
         found
     }));

@@ -611,7 +611,7 @@ fn packed_inspection_and_bounded_requests_do_not_enumerate_the_document() {
         let mut iterator = forest.readings(&grammar);
         let mut dump = Vec::new();
         forest.write_packed(&mut dump).unwrap();
-        assert!(!dump.is_empty());
+        assert_ne!(dump, [] as [u8; 0]);
         assert_eq!(iterator.metrics().builds, 0);
         let first = iterator.next().unwrap().unwrap();
         let second = iterator.next().unwrap().unwrap();
@@ -656,7 +656,7 @@ fn recognition_consumes_supplied_alternatives_without_rescanning() {
         |m| !matches!(&m.reading, LexicalReading::Word(w) if w.features.tense == Some(Tense::Past)),
     );
     let forest = parse(&grammar, &lexicon, &input, &Category::Clause).unwrap();
-    assert!(forest.roots().is_empty());
+    assert_eq!(forest.roots(), []);
 }
 
 #[test]

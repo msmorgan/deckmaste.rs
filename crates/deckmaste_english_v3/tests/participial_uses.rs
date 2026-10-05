@@ -64,7 +64,7 @@ fn verb(owner: &str, form: WordForm, frame: usize) -> Word {
     }
     head
 }
-fn exact(text: &str, category: Category, expected: Reading) {
+fn exact(text: &str, category: Category, expected: &Reading) {
     expected.admit(&LEXICON).unwrap();
     assert_eq!(expected.realize(&LEXICON).unwrap(), text);
     let grammar = Grammar::default();
@@ -108,7 +108,7 @@ fn authentic_attacking_and_blocking_modifiers_retain_verbal_identity() {
         exact(
             text,
             Category::NounPhrase,
-            Reading::TargetNounPhrase {
+            &Reading::TargetNounPhrase {
                 form: 0,
                 marker: word("vocab:TargetingMarker/Target"),
                 head: Box::new(Reading::ParticipialPremodifier {
@@ -133,7 +133,7 @@ fn authentic_tapped_and_untapped_modifiers_retain_adjective_identity() {
         exact(
             text,
             Category::NounPhrase,
-            Reading::TargetNounPhrase {
+            &Reading::TargetNounPhrase {
                 form: 0,
                 marker: word("vocab:TargetingMarker/Target"),
                 head: Box::new(Reading::PremodifiedNominal {
@@ -157,7 +157,7 @@ fn idyllic_beachfront_enters_with_an_adjectival_depictive() {
     exact(
         "This land enters tapped.",
         Category::Sentence,
-        Reading::Sentence {
+        &Reading::Sentence {
             form: 0,
             clause: Box::new(Reading::Declarative {
                 form: 0,
@@ -194,7 +194,7 @@ fn righteous_blow_keeps_coordinated_verbal_modifiers_under_the_nominal() {
     exact(
         "target attacking or blocking creature",
         Category::NounPhrase,
-        Reading::TargetNounPhrase {
+        &Reading::TargetNounPhrase {
             form: 0,
             marker: word("vocab:TargetingMarker/Target"),
             head: Box::new(Reading::ParticipialPremodifier {
@@ -224,7 +224,7 @@ fn yore_tiller_nephilim_coordinates_adjectival_and_participial_depictives() {
     exact(
         "tapped and attacking",
         Category::DepictivePhrase,
-        Reading::Coordination {
+        &Reading::Coordination {
             form: 0,
             category: Category::DepictivePhrase,
             left: Box::new(Reading::AdjectivalDepictive {
@@ -300,7 +300,7 @@ fn grafdiggers_cage_enter_the_battlefield_keeps_an_object_complement() {
     exact(
         "enter the battlefield",
         Category::SecondaryVerbPhrase,
-        Reading::TransitivePredicate {
+        &Reading::TransitivePredicate {
             form: 0,
             category: Category::SecondaryVerbPhrase,
             head: verb("core-verb:Enter", WordForm::Plain, 1),
@@ -378,7 +378,7 @@ fn authentic_complemented_participial_postmodifiers_preserve_their_objects_and_a
     exact(
         "creature attacking you",
         Category::Nominal,
-        Reading::ParticipialPostmodifiedNominal {
+        &Reading::ParticipialPostmodifiedNominal {
             form: 0,
             head: Box::new(noun("lexeme:type/creature")),
             modifier: Box::new(Reading::TransitivePredicate {
@@ -400,7 +400,7 @@ fn authentic_complemented_participial_postmodifiers_preserve_their_objects_and_a
     exact(
         "target creature blocking this creature",
         Category::NounPhrase,
-        Reading::TargetNounPhrase {
+        &Reading::TargetNounPhrase {
             form: 0,
             marker: word("vocab:TargetingMarker/Target"),
             head: Box::new(Reading::ParticipialPostmodifiedNominal {
@@ -426,7 +426,7 @@ fn authentic_complemented_participial_postmodifiers_preserve_their_objects_and_a
     exact(
         "player being attacked",
         Category::Nominal,
-        Reading::ParticipialPostmodifiedNominal {
+        &Reading::ParticipialPostmodifiedNominal {
             form: 0,
             head: Box::new(noun("lexeme:CommonNoun/Player")),
             modifier: Box::new(Reading::ParticipialAuxiliaryPredicate {
@@ -464,7 +464,7 @@ fn hero_of_bladehold_mixed_be_complement_preserves_adjective_and_progressive() {
     exact(
         "tokens that are tapped and attacking",
         Category::Nominal,
-        Reading::SubjectRelativeNominal {
+        &Reading::SubjectRelativeNominal {
             form: 0,
             head: Box::new(Reading::Noun {
                 form: 0,
@@ -506,13 +506,13 @@ fn movement(
     mixed: bool,
 ) -> Reading {
     let mut head = verb(owner, form, frame);
-    if form == WordForm::PastParticiple {
-        if let LexicalReading::Word(value) = &mut head.value {
-            value.features = FeatureBundle {
-                finiteness: Some(Finiteness::Nonfinite),
-                ..Default::default()
-            };
-        }
+    if form == WordForm::PastParticiple
+        && let LexicalReading::Word(value) = &mut head.value
+    {
+        value.features = FeatureBundle {
+            finiteness: Some(Finiteness::Nonfinite),
+            ..Default::default()
+        };
     }
     Reading::ComplementedDepictivePredicate {
         form: 0,
@@ -528,7 +528,7 @@ fn movement(
         modifier: Box::new(depictive(mixed)),
     }
 }
-fn exact_alternatives(text: &str, expected: BTreeSet<Reading>) {
+fn exact_alternatives(text: &str, expected: &BTreeSet<Reading>) {
     let grammar = Grammar::default();
     let analyzed = LEXICON.analyze(text);
     let forest = parse(
@@ -539,8 +539,8 @@ fn exact_alternatives(text: &str, expected: BTreeSet<Reading>) {
     )
     .unwrap();
     let actual: BTreeSet<_> = grammar.readings(&forest).map(Result::unwrap).collect();
-    assert_eq!(actual, expected);
-    for expected in &expected {
+    assert_eq!(actual, *expected);
+    for expected in expected {
         expected.admit(&LEXICON).unwrap();
         assert_eq!(expected.realize(&LEXICON).unwrap(), text);
         let parsed = actual.get(expected).unwrap();
@@ -561,6 +561,10 @@ fn exact_alternatives(text: &str, expected: BTreeSet<Reading>) {
     }
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one scenario: three attested movement sentences checked against the same destination-before-depictive analysis"
+)]
 fn actual_movement_constituents_keep_selected_destination_before_depictive() {
     // Senu, Keen-Eyed Protector: "... put it onto the battlefield attacking."
     let it = accusative(Reading::AccusativePronoun {
@@ -571,7 +575,7 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
             Person::Third,
         ),
     });
-    let expected = [WordForm::Plain, WordForm::PastParticiple]
+    let expected: BTreeSet<_> = [WordForm::Plain, WordForm::PastParticiple]
         .into_iter()
         .flat_map(|form| {
             let intended = movement(
@@ -583,13 +587,13 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
                 false,
             );
             let mut head = verb("core-verb:Put", form, 6);
-            if form == WordForm::PastParticiple {
-                if let LexicalReading::Word(value) = &mut head.value {
-                    value.features = FeatureBundle {
-                        finiteness: Some(Finiteness::Nonfinite),
-                        ..Default::default()
-                    };
-                }
+            if form == WordForm::PastParticiple
+                && let LexicalReading::Word(value) = &mut head.value
+            {
+                value.features = FeatureBundle {
+                    finiteness: Some(Finiteness::Nonfinite),
+                    ..Default::default()
+                };
             }
             let alternate = Reading::SelectedObjectPrepositionPredicate {
                 form: 0,
@@ -610,7 +614,7 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
             [intended, alternate]
         })
         .collect();
-    exact_alternatives("put it onto the battlefield attacking", expected);
+    exact_alternatives("put it onto the battlefield attacking", &expected);
     // Preeminent Captain: "... put a Soldier creature card from your hand onto
     // the battlefield tapped and attacking."
     let from_hand = Reading::PrepositionPhrase {
@@ -662,7 +666,7 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
     if let LexicalReading::Word(value) = &mut article.value {
         value.features.number = Some(Number::Singular);
     }
-    let expected = nominals
+    let expected: BTreeSet<_> = nominals
         .into_iter()
         .flat_map(|head| {
             let object = accusative(Reading::IndefiniteNounPhrase {
@@ -686,7 +690,7 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
         .collect();
     exact_alternatives(
         "put a Soldier creature card from your hand onto the battlefield tapped and attacking",
-        expected,
+        &expected,
     );
     // Yore-Tiller Nephilim: "... return target creature card from your
     // graveyard to the battlefield tapped and attacking."
@@ -713,7 +717,7 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
         premodify("lexeme:type/creature", postmodify(card.clone())),
         postmodify(premodify("lexeme:type/creature", card)),
     ];
-    let expected = nominals
+    let expected: BTreeSet<_> = nominals
         .into_iter()
         .map(|head| {
             let object = accusative(Reading::TargetNounPhrase {
@@ -733,7 +737,7 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
         .collect();
     exact_alternatives(
         "return target creature card from your graveyard to the battlefield tapped and attacking",
-        expected,
+        &expected,
     );
 }
 #[test]

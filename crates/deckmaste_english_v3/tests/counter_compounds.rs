@@ -48,7 +48,7 @@ fn noun(owner: &str) -> Reading {
     }
 }
 
-fn exact(text: &str, category: Category, expected: Reading) {
+fn exact(text: &str, category: Category, expected: &Reading) {
     expected.admit(&LEXICON).unwrap();
     assert_eq!(expected.realize(&LEXICON).unwrap(), text);
     let actual = readings(text, category);
@@ -89,20 +89,20 @@ fn authentic_counter_compounds_preserve_macro_owner_and_noun_inflection() {
     exact(
         "a charge counter",
         Category::NounPhrase,
-        indefinite("charge"),
+        &indefinite("charge"),
     );
     // Coalition Relic: "...remove all charge counters from this artifact."
     let mut counters = counter("charge");
-    if let Reading::Noun { head, .. } = &mut counters {
-        if let LexicalReading::Word(value) = &mut head.value {
-            value.form = WordForm::Plural;
-            value.features.number = Some(Number::Plural);
-        }
+    if let Reading::Noun { head, .. } = &mut counters
+        && let LexicalReading::Word(value) = &mut head.value
+    {
+        value.form = WordForm::Plural;
+        value.features.number = Some(Number::Plural);
     }
     exact(
         "charge counters",
         Category::NounPhrase,
-        Reading::BarePlural {
+        &Reading::BarePlural {
             form: 0,
             head: Box::new(counters),
         },
@@ -115,7 +115,7 @@ fn authentic_counter_np_coordination_keeps_whole_compound_conjuncts() {
     exact(
         "a reach counter or a vigilance counter",
         Category::NounPhrase,
-        Reading::Coordination {
+        &Reading::Coordination {
             category: Category::NounPhrase,
             form: 0,
             left: Box::new(indefinite("reach")),
@@ -132,9 +132,9 @@ fn authentic_counter_np_coordination_keeps_whole_compound_conjuncts() {
 fn authentic_numeric_counter_compounds_preserve_article_pronunciation() {
     // Sapphire Drake: "Each creature you control with a +1/+1 counter on it has
     // flying."
-    exact("a +1/+1 counter", Category::NounPhrase, indefinite("p1p1"));
+    exact("a +1/+1 counter", Category::NounPhrase, &indefinite("p1p1"));
     // Bloodied Ghost: "This creature enters with a -1/-1 counter on it."
-    exact("a -1/-1 counter", Category::NounPhrase, indefinite("m1m1"));
+    exact("a -1/-1 counter", Category::NounPhrase, &indefinite("m1m1"));
     for text in ["an +1/+1 counter", "an -1/-1 counter"] {
         assert!(readings(text, Category::NounPhrase).is_empty());
     }
@@ -155,7 +155,7 @@ fn authentic_additional_numeric_counter_kinds_keep_signed_zero_notation() {
         exact(
             text,
             Category::NounPhrase,
-            Reading::IndefiniteNounPhrase {
+            &Reading::IndefiniteNounPhrase {
                 form: 0,
                 determiner: article(),
                 head: Box::new(noun(&format!(

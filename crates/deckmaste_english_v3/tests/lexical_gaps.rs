@@ -116,12 +116,12 @@ fn independent_intransitive_values_retain_frame_and_lexical_identity() {
         );
         let mut nodes = Vec::new();
         value.visit(&mut |node| nodes.push(node.clone())).unwrap();
-        assert_eq!(nodes, [value.clone()]);
+        assert_eq!(nodes, std::slice::from_ref(&value));
         let mut leaves = Vec::new();
         value
             .visit_words(&mut |word| leaves.push(word.clone()))
             .unwrap();
-        assert_eq!(leaves, [head.clone()]);
+        assert_eq!(leaves, std::slice::from_ref(&head));
         let mut transitive = head;
         transitive.frame = Some(1);
         assert!(

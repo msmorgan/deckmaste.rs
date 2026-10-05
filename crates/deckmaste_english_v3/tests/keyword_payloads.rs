@@ -48,7 +48,7 @@ fn noun(owner: &str) -> Reading {
     }
 }
 
-fn exact(text: &str, expected: Reading) {
+fn exact(text: &str, expected: &Reading) {
     expected
         .admit(&LEXICON)
         .unwrap_or_else(|error| panic!("{text}: {error:?}"));
@@ -122,7 +122,7 @@ fn authentic_quality_and_subject_keywords_keep_declared_payloads() {
     // Vulshok Refugee: "Protection from red".
     exact(
         "Protection from red",
-        Reading::QualityKeyword {
+        &Reading::QualityKeyword {
             form: 0,
             head: keyword("protection"),
             quality: Box::new(marked(
@@ -139,11 +139,11 @@ fn authentic_quality_and_subject_keywords_keep_declared_payloads() {
     );
     // Myr Enforcer: "Affinity for artifacts" (followed by reminder text).
     let mut artifacts = noun("lexeme:type/artifact");
-    if let Reading::Noun { head, .. } = &mut artifacts {
-        if let LexicalReading::Word(value) = &mut head.value {
-            value.form = WordForm::Plural;
-            value.features.number = Some(Number::Plural);
-        }
+    if let Reading::Noun { head, .. } = &mut artifacts
+        && let LexicalReading::Word(value) = &mut head.value
+    {
+        value.form = WordForm::Plural;
+        value.features.number = Some(Number::Plural);
     }
     let nominal = Reading::QualityKeyword {
         form: 0,
@@ -182,7 +182,7 @@ fn authentic_quality_and_subject_keywords_keep_declared_payloads() {
     // Evil Presence: "Enchant land".
     exact(
         "Enchant land",
-        Reading::SubjectKeyword {
+        &Reading::SubjectKeyword {
             form: 0,
             head: keyword("enchant"),
             subject: Box::new(noun("lexeme:type/land")),
@@ -194,7 +194,7 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
     // Rift Bolt: "Suspend 1—{R}" (followed by reminder text).
     exact(
         "Suspend 1—{R}",
-        Reading::AmountCostKeyword {
+        &Reading::AmountCostKeyword {
             form: 0,
             head: keyword("suspend"),
             amount: Box::new(Reading::UngroupedScalarNumeral {
@@ -208,7 +208,7 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
     // Rust Goliath: "Prototype {3}{G}{G} — 3/5" (followed by reminder text).
     exact(
         "Prototype {3}{G}{G} — 3/5",
-        Reading::CostPowerToughnessKeyword {
+        &Reading::CostPowerToughnessKeyword {
             form: 0,
             head: keyword("prototype"),
             cost: Box::new(cost(
@@ -234,14 +234,14 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
     );
     // Kodama's Might: "Splice onto Arcane {G}" (followed by reminder text).
     let mut arcane = noun("lexeme:spell_subtype/arcane");
-    if let Reading::Noun { head, .. } = &mut arcane {
-        if let LexicalReading::Word(value) = &mut head.value {
-            value.capitalization = SurfaceCase::Declared;
-        }
+    if let Reading::Noun { head, .. } = &mut arcane
+        && let LexicalReading::Word(value) = &mut head.value
+    {
+        value.capitalization = SurfaceCase::Declared;
     }
     exact(
         "Splice onto Arcane {G}",
-        Reading::QualityCostKeyword {
+        &Reading::QualityCostKeyword {
             form: 0,
             head: keyword("splice"),
             quality: Box::new(marked(
@@ -316,7 +316,7 @@ fn authentic_boast_payload_preserves_activated_ability_structure() {
     };
     exact(
         "Boast — {1}{W}: Tap target creature.",
-        Reading::ClausalKeyword {
+        &Reading::ClausalKeyword {
             form: 0,
             head: keyword("boast"),
             separator: Box::new(Reading::SpacedDashKeywordSeparator { form: 0 }),

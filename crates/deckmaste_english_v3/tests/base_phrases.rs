@@ -40,15 +40,15 @@ fn numeral(value: i32, notation: Numeral) -> Word {
         frame: None,
     }
 }
-fn assert_laws(value: Reading, text: &str, category: Category) {
+fn assert_laws(value: &Reading, text: &str, category: Category) {
     value.admit(lexicon()).unwrap();
     assert_eq!(value.realize(lexicon()).unwrap(), text);
     let parsed = readings(text, category);
     assert!(
-        parsed.contains(&value),
+        parsed.contains(value),
         "independent value missing for {text:?}"
     );
-    let reparsed = parsed.get(&value).unwrap();
+    let reparsed = parsed.get(value).unwrap();
     let mut nodes = Vec::new();
     value.visit(&mut |node| nodes.push(node.clone())).unwrap();
     let mut parsed_nodes = Vec::new();
@@ -139,7 +139,7 @@ fn independent_uncoordinated_phrase_primitives_roundtrip() {
         (keyword, "flying", Category::KeywordPhrase),
         (adverb, "again", Category::AdverbPhrase),
     ] {
-        assert_laws(value, text, category);
+        assert_laws(&value, text, category);
     }
 }
 
@@ -160,7 +160,7 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
         }),
     };
     assert_laws(
-        infinitive.clone(),
+        &infinitive.clone(),
         "to attack",
         Category::InfinitiveComplement,
     );
@@ -172,7 +172,11 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
         head: choose.clone(),
         complement: Box::new(infinitive.clone()),
     };
-    assert_laws(predicate, "choose to attack", Category::SecondaryVerbPhrase);
+    assert_laws(
+        &predicate,
+        "choose to attack",
+        Category::SecondaryVerbPhrase,
+    );
     choose.frame = Some(0);
     assert!(
         Reading::InfinitivePredicate {

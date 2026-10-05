@@ -110,8 +110,7 @@ fn legendary() -> Reading {
             lexeme.category == deckmaste_lexical::Category::Adjective && lexeme.lemma == "legendary"
         })
         .unwrap()
-        .id
-        .clone();
+        .id;
     Reading::AdjectivalComplement {
         form: 0,
         phrase: Box::new(Reading::Adjective {

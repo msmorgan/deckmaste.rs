@@ -48,7 +48,7 @@ fn noun(owner: &str) -> Reading {
     }
 }
 
-fn exact(text: &str, category: Category, expected: Reading) {
+fn exact(text: &str, category: Category, expected: &Reading) {
     expected.admit(&LEXICON).unwrap();
     assert_eq!(expected.realize(&LEXICON).unwrap(), text);
     let actual = readings(text, category);
@@ -72,7 +72,7 @@ fn authentic_boundary_pp_keeps_its_bare_interval_structure() {
     exact(
         "until end of turn",
         Category::PrepositionPhrase,
-        Reading::BareTemporalPreposition {
+        &Reading::BareTemporalPreposition {
             form: 0,
             head: invariant("vocab:Preposition/Until", SurfaceCase::Declared),
             complement: Box::new(Reading::BareBoundaryNominal {
@@ -108,7 +108,7 @@ fn authentic_temporal_and_manner_adjuncts_keep_their_noun_identity() {
         exact(
             text,
             Category::NominalAdjunctPhrase,
-            Reading::NominalAdjunctPhrase {
+            &Reading::NominalAdjunctPhrase {
                 form: 0,
                 determiner: invariant("vocab:SingularDemonstrative/This", SurfaceCase::Declared),
                 head: Box::new(noun(owner)),

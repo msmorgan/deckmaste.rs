@@ -30,15 +30,15 @@ fn word(id: &str, form: WordForm, number: Option<Number>) -> Word {
         frame: None,
     }
 }
-fn assert_laws(value: Reading, text: &str, category: Category) {
+fn assert_laws(value: &Reading, text: &str, category: Category) {
     value.admit(lexicon()).unwrap();
     assert_eq!(value.realize(lexicon()).unwrap(), text);
     let parsed = readings(text, category);
     assert!(
-        parsed.contains(&value),
+        parsed.contains(value),
         "independent value missing for {text:?}"
     );
-    let reparsed = parsed.get(&value).unwrap();
+    let reparsed = parsed.get(value).unwrap();
     let mut nodes = Vec::new();
     value.visit(&mut |node| nodes.push(node.clone())).unwrap();
     let mut parsed_nodes = Vec::new();
@@ -87,7 +87,7 @@ fn selected_keyword_pp_bases_roundtrip_before_coordination() {
         ),
     ] {
         let value = pp(marker, keyword(id));
-        assert_laws(value.clone(), text, Category::PrepositionPhrase);
+        assert_laws(&value.clone(), text, Category::PrepositionPhrase);
         assert_eq!(
             readings(text, Category::PrepositionPhrase),
             BTreeSet::from([value])
@@ -108,7 +108,7 @@ fn keyword_pp_coordinates_only_after_its_primitive_is_licensed() {
         right: Box::new(keyword("lexeme:keyword_ability/haste")),
     };
     assert_laws(
-        pp("With", complement),
+        &pp("With", complement),
         "with flying and haste",
         Category::PrepositionPhrase,
     );

@@ -40,15 +40,15 @@ fn numeral(value: i32, notation: Numeral) -> Word {
         frame: None,
     }
 }
-fn assert_laws(value: Reading, text: &str, category: Category) {
+fn assert_laws(value: &Reading, text: &str, category: Category) {
     value.admit(lexicon()).unwrap();
     assert_eq!(value.realize(lexicon()).unwrap(), text);
     let parsed = readings(text, category);
     assert!(
-        parsed.contains(&value),
+        parsed.contains(value),
         "independent value missing for {text:?}"
     );
-    let reparsed = parsed.get(&value).unwrap();
+    let reparsed = parsed.get(value).unwrap();
     let mut nodes = Vec::new();
     value.visit(&mut |node| nodes.push(node.clone())).unwrap();
     let mut parsed_nodes = Vec::new();
@@ -78,7 +78,7 @@ macro_rules! check_family {
             coordinator: coordinator.clone(),
             right: Box::new(base.clone()),
         };
-        assert_laws(binary, &format!("{} and {}", $text, $text), $category);
+        assert_laws(&binary, &format!("{} and {}", $text, $text), $category);
         let end = Reading::$end {
             category: Category::$series,
             form: 0,
@@ -93,7 +93,7 @@ macro_rules! check_family {
             rest: Box::new(end),
         };
         assert_laws(
-            serial,
+            &serial,
             &format!("{}, {}, and {}", $text, $text, $text),
             $category,
         );

@@ -694,11 +694,11 @@ fn cycles_are_reported_without_losing_finite_siblings() {
     assert_eq!(readings.next(), None);
     assert_eq!(readings.metrics().cyclic_derivations, 1);
     let unproductive = Fixture::new(vec![("S", vec![nt("S")], Action::Erase, "cycle")]);
-    assert!(
+    assert_eq!(
         parse(&unproductive, &lexicon, &lexicon.analyze(""), &"S")
             .unwrap()
-            .roots()
-            .is_empty()
+            .roots(),
+        []
     );
 }
 

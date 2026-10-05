@@ -206,7 +206,7 @@ fn all_notation_families_compose_and_reject_non_oxford_serials() {
         ),
     ] {
         for text in [base, binary, serial] {
-            assert!(!readings(text, category.clone()).is_empty(), "{text}");
+            assert!(!readings(text, category).is_empty(), "{text}");
         }
         assert!(readings(invalid, category).is_empty(), "{invalid}");
     }

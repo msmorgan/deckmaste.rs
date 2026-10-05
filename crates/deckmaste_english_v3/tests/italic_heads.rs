@@ -72,7 +72,7 @@ fn check(text: &str, expected: &Reading) {
     expected
         .visit_words(&mut |word| words.push(word.clone()))
         .unwrap();
-    assert!(!words.is_empty());
+    assert_ne!(words, [] as [deckmaste_english_v3::grammar::Word; 0]);
     for word in words {
         LEXICON.realize(&word.value).unwrap();
     }

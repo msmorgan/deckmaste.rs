@@ -48,7 +48,7 @@ fn noun(owner: &str) -> Reading {
     }
 }
 
-fn exact(text: &str, category: Category, expected: Reading) {
+fn exact(text: &str, category: Category, expected: &Reading) {
     expected
         .admit(&LEXICON)
         .unwrap_or_else(|error| panic!("{text}: {error:?}"));
@@ -155,7 +155,7 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
     exact(
         "put into a graveyard",
         Category::SecondaryVerbPhrase,
-        expected.clone(),
+        &expected.clone(),
     );
     let Reading::SelectedGapPrepositionPredicate {
         head, complement, ..
@@ -195,7 +195,7 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
     exact(
         "creature dealt damage this way",
         Category::Nominal,
-        Reading::ParticipialPostmodifiedNominal {
+        &Reading::ParticipialPostmodifiedNominal {
             form: 0,
             head: Box::new(noun("lexeme:type/creature")),
             modifier: Box::new(Reading::NominalAdjunctPredicate {
@@ -222,7 +222,7 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
     exact(
         "each card discarded this way",
         Category::NounPhrase,
-        Reading::DeterminedNounPhrase {
+        &Reading::DeterminedNounPhrase {
             form: 0,
             determiner: invariant("vocab:FloatedQuantifier/Each", SurfaceCase::Declared),
             head: Box::new(Reading::ParticipialPostmodifiedNominal {

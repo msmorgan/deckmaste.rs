@@ -80,12 +80,12 @@ fn clause(subject: Reading, predicate: Reading) -> Reading {
     }
 }
 
-fn exact(text: &str, category: Category, expected: BTreeSet<Reading>) {
-    for value in &expected {
+fn exact(text: &str, category: Category, expected: &BTreeSet<Reading>) {
+    for value in expected {
         assert_eq!(value.realize(&LEXICON).unwrap(), text);
         value.admit(&LEXICON).unwrap();
     }
-    assert_eq!(readings(text, category), expected);
+    assert_eq!(readings(text, category), *expected);
 }
 
 fn noun(owner: &str) -> Reading {
@@ -108,7 +108,7 @@ fn authentic_you_and_draw_clause_have_only_singular_second_person_values() {
     exact(
         "you",
         Category::NounPhrase,
-        BTreeSet::from([
+        &BTreeSet::from([
             you(),
             Reading::AccusativePronoun {
                 form: 0,
@@ -135,7 +135,7 @@ fn authentic_you_and_draw_clause_have_only_singular_second_person_values() {
     exact(
         "you draw a card",
         Category::FiniteClause,
-        BTreeSet::from([clause(
+        &BTreeSet::from([clause(
             you(),
             Reading::TransitivePredicate {
                 category: Category::FinitePredicate,
@@ -175,7 +175,7 @@ fn authentic_coordinated_subject_retains_singular_you_leaf() {
     exact(
         "you and target opponent",
         Category::NominativePhrase,
-        BTreeSet::from([Reading::CasePhrase {
+        &BTreeSet::from([Reading::CasePhrase {
             category: Category::NominativePhrase,
             form: 0,
             head: Box::new(subject),
@@ -207,15 +207,15 @@ fn authentic_discard_clause_has_no_plural_second_person_leaves() {
     exact(
         "you discard your hand",
         Category::FiniteClause,
-        BTreeSet::from([expected.clone()]),
+        &BTreeSet::from([expected.clone()]),
     );
     let mut second_person = vec![];
     expected
         .visit_words(&mut |word| {
-            if let LexicalReading::Word(value) = &word.value {
-                if value.features.person == Some(Person::Second) {
-                    second_person.push(value.features.number);
-                }
+            if let LexicalReading::Word(value) = &word.value
+                && value.features.person == Some(Person::Second)
+            {
+                second_person.push(value.features.number);
             }
         })
         .unwrap();

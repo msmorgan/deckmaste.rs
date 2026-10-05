@@ -27,7 +27,7 @@ fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
     }
 }
 
-fn exact(text: &str, category: Category, expected: Reading) {
+fn exact(text: &str, category: Category, expected: &Reading) {
     expected.admit(&LEXICON).unwrap();
     assert_eq!(expected.realize(&LEXICON).unwrap(), text);
     let actual = readings(text, category);
@@ -53,7 +53,7 @@ fn authentic_card_references_have_independent_proper_name_np_values() {
         exact(
             name,
             Category::NounPhrase,
-            Reading::ProperNameNounPhrase {
+            &Reading::ProperNameNounPhrase {
                 form: 0,
                 head: Box::new(Reading::CatalogName {
                     form: 0,

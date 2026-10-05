@@ -31,15 +31,15 @@ fn word(id: &str, form: WordForm, number: Option<Number>) -> Word {
         frame: None,
     }
 }
-fn assert_laws(value: Reading, text: &str, category: Category) {
+fn assert_laws(value: &Reading, text: &str, category: Category) {
     value.admit(lexicon()).unwrap();
     assert_eq!(value.realize(lexicon()).unwrap(), text);
     let parsed = readings(text, category);
     assert!(
-        parsed.contains(&value),
+        parsed.contains(value),
         "independent value missing for {text:?}"
     );
-    let reparsed = parsed.get(&value).unwrap();
+    let reparsed = parsed.get(value).unwrap();
     let mut nodes = Vec::new();
     value.visit(&mut |node| nodes.push(node.clone())).unwrap();
     let mut parsed_nodes = Vec::new();
@@ -87,7 +87,7 @@ fn possessed_bases_preserve_singular_second_person_before_coordination() {
     for (noun, text) in [("Hand", "your hand"), ("Graveyard", "your graveyard")] {
         let singular = possessed(noun, Number::Singular);
         let plural = possessed(noun, Number::Plural);
-        assert_laws(singular.clone(), text, Category::NounPhrase);
+        assert_laws(&singular.clone(), text, Category::NounPhrase);
         assert!(plural.admit(lexicon()).is_err());
         assert!(plural.realize(lexicon()).is_err());
         assert_eq!(
