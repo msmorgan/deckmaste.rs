@@ -56,17 +56,15 @@ owner on 2026-10-05; the decisions are recorded in
   `.enact (.action "Discard") (.move subject (.zone .hand (.possessedBy
   .actor)) graveyard []) (agent := some .actor)` [CR#701.9a]. This landing
   makes the RON declaration match it.
-- **`card` or `isCard`: a naming question for the owner.** The approved
-  bodies write `a(card)`; no `card` macro exists, and the cards write
-  `a(isCard)`, the existing identity alias of `Predicate.IsCard`. §12.1 of
-  `docs/decisions/semantics-v2.md` allows one alias per constructor, so
-  `card` would be a rename of `isCard` or a phrasing beside it. Ask before
-  re-spelling; do not add both silently.
-- **`army` is a subtype, not a predicate.** The approved `amass` body's
-  `and([army, actorControls])` is written `and([hasSubtype(army), creature,
-  actorControls])` (Lean `Actor.army`). A predicate named `army` beside
-  the subtype declaration is possible (`creature` is both a type and a
-  predicate declaration) but is a new phrasing, so it is the owner's call.
+- **`card`, not `isCard`: decided 2026-10-05.** The approved bodies write
+  `a(card)`. The owner chose the rename ("your recs are fine"): the alias of
+  `Predicate.IsCard` is `card` in RON, named apart from Lean's `isCard`
+  (§11 of `docs/decisions/semantics-v2.md`), and every caller writes
+  `card`; no second alias is added.
+- **No `army` predicate: decided 2026-10-05.** `army` stays a subtype, and
+  `amass` keeps `and([hasSubtype(army), creature, actorControls])` (Lean
+  `Actor.army`); the owner declined a predicate named `army` beside the
+  subtype declaration ("your recs are fine").
 - **ADR sentences that become false here.** In
   `docs/decisions/semantics-v2.md` §11, "a keyword action's instruction and
   its `agent`" (the declarations lose `agent:`); re-check "a file writes

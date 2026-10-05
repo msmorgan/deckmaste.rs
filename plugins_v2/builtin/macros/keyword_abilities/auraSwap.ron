@@ -14,7 +14,7 @@ KeywordAbility(
                 Exchange(
                     CardsAcross(
                         thisPermanent,
-                        a(and([isCard, hasSubtype(aura), inZone(yourHand)])),
+                        a(and([card, hasSubtype(aura), inZone(yourHand)])),
                     ),
                 ),
             ),

@@ -16,7 +16,7 @@ KeywordAbility(
                 searchLibraryFor(
                     exactly(1),
                     and([
-                        isCard,
+                        card,
                         compare(
                             [Stat(ManaValue)],
                             Eq,

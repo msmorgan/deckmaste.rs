@@ -1,0 +1,10 @@
+// `Predicate.IsCard` under the name a card reads it by, "card": the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1). Named apart from Lean's `isCard` (ADR
+// 11; the owner, 2026-10-05).
+(
+    name: "card",
+    kinds: [Predicate],
+    params: [],
+    body: IsCard,
+)

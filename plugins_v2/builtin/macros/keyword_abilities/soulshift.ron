@@ -15,7 +15,7 @@ KeywordAbility(
                 returnToHand(
                     target(
                         and([
-                            isCard,
+                            card,
                             hasSubtype(spirit),
                             compare([Stat(ManaValue)], AtMost, Param(0)),
                             inZone(graveyardOf(you)),

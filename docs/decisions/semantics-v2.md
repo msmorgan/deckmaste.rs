@@ -332,7 +332,7 @@ constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
 Lean's reserved words, so the declaration keeps the plain name (ruling,
 2026-10-04).
 
-Six helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `exileFrom`, `selectRandom` and `theirHand` (no Lean macro).
+Seven helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `exileFrom`, `selectRandom` and `theirHand` (no Lean macro).
 
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
@@ -493,7 +493,7 @@ sequence mapped by declaration order; mixed calls remain invalid.
 ### 12.1 The helper macro layer
 
 `lean/Semantics/Macros.lean`'s 424 `semantic_macro`s are the phrasings a card
-writes over the constructor basis. 315 of them are declarations under
+writes over the constructor basis. 314 of them are declarations under
 `plugins_v2/builtin/macros/<family>/` — the families are the Lean file's own
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
 `nouns`, `mana`, `durations`, `amounts`, `instructions`, `events`,
@@ -520,12 +520,14 @@ next bucket — their keyword-action declarations already own the name, with a
 body that is the constructor with the actor in its agent slot (an identity body
 until the 2026-10-05 ruling, §7).
 
-The other 107 stay Lean-only, in seven buckets. (Counts recounted
-2026-10-05 at `semantics-v2-actor-handoff`: every line of `Macros.lean`
+The other 108 stay Lean-only, in eight buckets. (Counts recounted
+2026-10-05 at `semantics-v2-actor-handoff`, and again at
+`plugins-v2-implicit-actor-spelling`, where `revealTheirHand` left the
+declarations: every line of `Macros.lean`
 beginning `semantic_macro`, an `Actor` namespace prefix kept; a macro is a
 declaration when a file of the same name, a trailing `_` dropped, exists under
 one of the twelve families above or `macros/conditions/`, or when §11 names
-its helper apart. 424 = 315 declarations + the two `counters` macros + 107.
+its helper apart. 424 = 314 declarations + the two `counters` macros + 108.
 Six macros the earlier count left here had ported since and are gone from
 their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
 `doUnless`, `forEach`, `leavesZone`.)
@@ -586,6 +588,8 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
   `Actor.army`, `Actor.choose`, `Actor.create`, `Actor.discard`,
   `Actor.draw`, `Actor.gainLife`, `Actor.loseLife`, `Actor.mayCastFrom`,
   `Actor.sacrifice`.
+- **Its RON helper was retired for a handoff (1).** `revealTheirHand`: a card
+  writes `act(player, revealHand)` (§7, ruling 2026-10-05).
 
 A binder Lean declares `Option T` with a `:= none` default takes the param
 type `Any`, not `T`: a param type validates the DEFAULT as well as the

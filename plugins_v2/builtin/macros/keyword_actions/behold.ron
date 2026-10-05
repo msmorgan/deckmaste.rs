@@ -13,7 +13,7 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: chooseOne(
-        reveal(a(and([isCard, Param(0), inZone(handOf(actor))]))),
+        reveal(a(and([card, Param(0), inZone(handOf(actor))]))),
         choose(a(and([Param(0), permanent, actorControls]))),
     ),
 )

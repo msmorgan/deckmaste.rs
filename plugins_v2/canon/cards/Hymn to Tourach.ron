@@ -9,7 +9,7 @@ SingleFaced(face: (
         text: [
             spell(
                 timing: None,
-                instruction: act(target(anyPlayer), discard(random(exactly(2), isCard))),
+                instruction: act(target(anyPlayer), discard(random(exactly(2), card))),
             ),
         ],
     ),

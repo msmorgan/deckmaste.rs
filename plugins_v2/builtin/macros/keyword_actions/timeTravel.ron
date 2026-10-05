@@ -24,7 +24,7 @@ KeywordAction(
                 or([
                     and([permanent, actorControls, hasCounters(timeCounter)]),
                     and([
-                        isCard,
+                        card,
                         inZone(exileZone),
                         ownedBy(actor),
                         hasCounters(timeCounter),

@@ -1,10 +1,12 @@
 ---
 needs: []
 ---
-**Should every keyword action body be read in its own reference scope, seeing
-only its parameters and what it introduces itself?** A question for the owner,
-found while prototyping the actor handoff (`semantics-v2-actor-handoff`,
-2026-10-05). Standard constraints apply.
+**Every keyword action body is read in its own reference scope, seeing only
+its parameters and what it introduces itself.** Decided 2026-10-05: yes. The
+owner accepted the recommendation "a keyword action body should be read in its
+own scope, seeing only its parameters and what it introduces" ("your recs are
+fine"). Found while prototyping the actor handoff
+(`semantics-v2-actor-handoff`, 2026-10-05). Standard constraints apply.
 
 ## The defect
 
@@ -60,17 +62,16 @@ refusals) before relying on it.
   A captured subject is selected once and keeps its identity; parameter
   windows point at actual slots and add no ordinary pronoun candidate.
 
-## The question
+## The decision and what remains open
 
-Should a keyword action body be read in its own reference scope, so that its
-pronouns see only its parameters and what the body itself introduces, never
-the calling card's mentions? [CR#701.47a] defines amass as a self-contained
+Decided 2026-10-05: a keyword action body is read in its own reference scope,
+so that its pronouns see only its parameters and what the body itself
+introduces, never the calling card's mentions. [CR#701.47a] defines amass as a self-contained
 procedure ("Choose an Army creature you control. Put N +1/+1 counters on that
 creature."), so "that creature" there cannot mean anything the card said
-before. If yes: where the scope is opened (the loader's `Enact` wrapper, the
-`act` handoff, or a body-level form), and whether the same holds for keyword
-ability bodies and helper macros. If no: how a RON body names its own
-introduction without a computed window.
+before. Still to settle in the work: where the scope is opened (the loader's
+`Enact` wrapper, the `act` handoff, or a body-level form), and whether the
+same holds for keyword ability bodies and helper macros.
 
 Related: `semantics-v2-anaphor-resolution-heuristics` (how a pronoun with two
 candidates resolves in card text). This ticket is narrower: a body's pronouns
