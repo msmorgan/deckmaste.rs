@@ -24,12 +24,14 @@ private def onePlayer : Bindings := [⟨.the, .one, .player false⟩]
 
 /-- Thoughtseize: "Target player reveals their hand. You choose a nonland card from it. That
 player discards that card. You lose 2 life." The handoff leaves the target player published, so
-"their hand" and the second handoff to "that player" read it. -/
+"their hand" and the second handoff to "that player" read it. "A nonland card from it" says
+`isCard` as the RON card's `cardIn` does: a token can sit in a hand until state-based actions
+are checked [CR#111.7,704.5d]. -/
 theorem okThoughtseize :
     Instruction.check []
       (.sequentially
         [ act (target .anyPlayer) Actor.revealHand,
-          choose (a (.and [.not land, .inZone (handOf they)])),
+          choose (a (.and [.not land, .and [.isCard, .inZone (handOf they)]])),
           act they (Actor.discard (that .card)),
           Actor.loseLife (.lit 2) ]) = [] := by
   decide
