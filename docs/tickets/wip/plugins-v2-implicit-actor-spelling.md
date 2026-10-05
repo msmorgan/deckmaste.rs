@@ -326,3 +326,35 @@ run. Lean pins and the Lean bench: no Lean file changed.
 - `semantics-v2-drop-agent-fields`: now needs both tickets above; its "Left
   by" section lists every performer still written in `plugins_v2/`.
 - `semantics-v2-keyword-body-reference-scope`: decided, open for work.
+
+**After the record (S7).** A review found that the mechanical rule gave ward
+the wrong counterer: `act(controllerOf(that(Stack)), doUnless(counter(…),
+cost))` handed the counter to the player who may pay. Ward now reads
+`act(controllerOf(that(Stack)), doUnless(act(you, counter(that(Stack))),
+Param(0)))` [CR#702.21a]; the term gains `Act(You, …)` around the counter, a
+deliberate change outside the identity and handoff classes (only
+`keyword_abilities/ward` and Rimeshield Frost Giant changed). Every handoff
+this landing introduced (9 declarations, 13 cards, the 2 calls S6 added) was
+re-read against its printed text: 24 checked, 1 fixed (ward); every other
+unwritten performer inside a handed-off body is that player's (afflict,
+annihilator, demonstrate, evoke, ingest, madness, endure, explore; Arrogant
+Wurm, Cirdan the Shipwright, Culling Drone, Damocles Base, Deadeye Tracker,
+Eldrazi Conscription, Incarnation Technique, Ingot Chewer, Khenra Eternal,
+Moment of Silence, Ominous Harvest twice, Endure Handoff Probe; Damocles
+already hands "you draw two cards" back with `act(you, …)`). §12.1's alias
+paragraph was corrected (the example is now `clearDamage`, the nine
+agentless aliases are named as departing from Lean's, and seven helpers keep
+an agent parameter: `changeLife` and six optional ones). Gate on the S7 tree:
+`cargo xtask lean-check` canon 122/122, testing 4/4; `cargo xtask facts
+check` up to date; the derived nine-crate `cargo test … --no-fail-fast`: 96
+binaries, 1244 passed, 0 failed, 1 ignored; cite check 0 noncompliant, 0
+stale.
+
+**After the refresh.** The default line gained "Intern lexical identities with
+dpsi Ident" between the measurements above and integration. On the refreshed
+tip `ryoukzuxsrou`: `cargo xtask lean-check` canon 122/122, testing 4/4; the
+nine-crate gate command above with `--no-fail-fast`: 96 binaries, 1245
+passed, 0 failed, 1 ignored (one test more than before, from the lexical
+landing); `cargo xtask cite check` 0 stale, 0 non-compliant; the ticket graph
+check passes. `cargo xtask gate --changed` now derives the narrower six-crate
+command; the wider one was run.

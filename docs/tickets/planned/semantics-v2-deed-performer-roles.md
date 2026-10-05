@@ -136,8 +136,9 @@ instructions in the order written."
   `controllerOf(Param(0))` inside the wrapper, while the wrapper would
   record the outer actor, which is a different player when the permanent is
   another player's.
-- Ward is spelled `act(controllerOf(that(Stack)), doUnless(counter(that(Stack)),
-  Param(0)))`, so once counter records the actor, the recorded counterer is
-  the player who declined to pay, not the ward ability's controller. Ward
-  needs re-spelling (or `doUnless` a different shape) before counter records
-  its actor.
+- Ward was re-spelled in `plugins-v2-implicit-actor-spelling` (S7) as
+  `act(controllerOf(that(Stack)), doUnless(act(you, counter(that(Stack))),
+  Param(0)))` [CR#702.21a], so once counter records the actor, the recorded
+  counterer is the ward ability's controller. What remains: whether
+  `doUnless` should take the payer and the doer as two parts of one shape
+  rather than a handoff nested in a handoff.

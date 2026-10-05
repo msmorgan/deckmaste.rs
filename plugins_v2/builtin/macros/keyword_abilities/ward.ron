@@ -14,7 +14,10 @@ KeywordAbility(
                 thisPermanent,
                 a(and([inZone(stack), controlledBy(playerGroup(YourOpponents))])),
             ),
-            act(controllerOf(that(Stack)), doUnless(counter(that(Stack)), Param(0))),
+            // [CR#702.21a]: "counter that spell or ability unless that player
+            // pays [cost]". The spell's controller decides and pays; the
+            // counter is the ward ability's own, so it is handed back to you.
+            act(controllerOf(that(Stack)), doUnless(act(you, counter(that(Stack))), Param(0))),
         ),
     ],
 )

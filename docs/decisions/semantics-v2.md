@@ -598,17 +598,22 @@ argument, and `None` is not a `T`. Four ported declarations carried
 binder they defaulted; `every_ported_alias_expands` is what caught it.
 
 Beside the ported phrasings is the ALIAS layer: one identity macro per
-constructor of a `semantic_expression` type, `draw(amount: …, agent: …)` for
-`Draw`, which is what `declare_semantic_primitives` generates in Lean and what
-makes §11.1's macro-only rule satisfiable — a card that may write only macros
-needs a macro for every constructor. The aliases of the constructors with a
-required agent take no agent and write `actor` there (§7, ruling 2026-10-05):
-`addMana`, `conclude`, `copy`, `createObject`, `expose`, `pay`,
-`rerollStored`, `separateIntoPiles`, `skipPart`. Two keep it: `changeLife`,
-because extort's loss is written with each opponent as its agent (handed to
-them, "the total life lost this way" is refused, Lean `quantOutcomeInScope`),
-and `enact` and `insertPart`, whose agent is optional and `None` where no
-performer is recorded. Of the aliases, 244 are declarations; the rest of
+constructor of a `semantic_expression` type, `clearDamage(subject: …)` for
+`ClearDamage`, which is what `declare_semantic_primitives` generates in Lean
+and what makes §11.1's macro-only rule satisfiable — a card that may write
+only macros needs a macro for every constructor. The aliases of constructors
+with a required agent depart from Lean's: nine take no agent and write
+`actor` there (§7, ruling 2026-10-05), so `skipPart(part: …, count: …)`
+stands for `SkipPart(part, count, agent: Actor)` while the Lean-generated
+alias still takes the agent — `addMana`, `conclude`, `copy`, `createObject`,
+`expose`, `pay`, `rerollStored`, `separateIntoPiles`, `skipPart`. The tenth,
+`changeLife`, keeps its agent, because extort's loss is written with each
+opponent as its agent (handed to them, "the total life lost this way" is
+refused, Lean `quantOutcomeInScope`). Seven helpers keep an agent parameter
+in all: `changeLife`, and six whose agent is optional and `None` where no
+performer is recorded, as in Lean's `Option NounPhrase := none` (`enact`,
+`insertPart`, `returnTo`, `returnToBattlefield`, `meldInto`,
+`exileWithCounters`). Of the aliases, 244 are declarations; the rest of
 the basis is already covered by a phrasing macro of the same name (the 27
 above among them, whose narrower signature is the one a card writes, and
 `exists`, whose `Predicate` signature is Lean's `exists_` phrasing — the
