@@ -52,6 +52,7 @@ KeywordAction(
                 verb: Core(Return),
                 instruction: Move(
                     subject: Pro(reach: Word(Type(Land)), plurality: One, window: Whole),
+                    from: Wherever,
                     to: Zone(zone: Battlefield, scope: Bare),
                     riders: [EntersAs(Tapped), Under(You)],
                 ),

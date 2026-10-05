@@ -10,5 +10,5 @@ KeywordAction(
         frame_set: Transitive,
     ),
     agent: Param(1),
-    body: Move(subject: Param(0), to: Zone(zone: Graveyard, scope: Bare), riders: []),
+    body: Move(subject: Param(0), from: Zone(zone: Battlefield, scope: Bare), to: Zone(zone: Graveyard, scope: Bare), riders: []),
 )

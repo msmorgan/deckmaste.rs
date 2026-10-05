@@ -1,8 +1,9 @@
 // "put <subject> into <destination>": the untagged move, which is no
-// destruction and no keyword action of its own [CR#701.8b].
+// destruction and no keyword action of its own [CR#701.8b]. `from` is the
+// origin the text states ("from your graveyard"); unstated, it is `wherever`.
 (
     name: "move",
     kinds: [Instruction],
-    params: {"subject": NounPhrase, "destination": ZoneExpr},
-    body: Move(Param(subject), Param(destination), []),
+    params: {"subject": NounPhrase, "destination": ZoneExpr, "from": Default(ZoneExpr, Wherever)},
+    body: Move(Param(subject), Param(from), Param(destination), []),
 )

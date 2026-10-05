@@ -18,6 +18,7 @@ KeywordAbility(
                         verb: Core(Return),
                         instruction: Move(
                             subject: This,
+                            from: Zone(zone: Graveyard, scope: PossessedBy(You)),
                             to: Zone(zone: Battlefield, scope: Bare),
                             riders: [],
                         ),
@@ -42,6 +43,7 @@ KeywordAbility(
                             verb: Action("Exile"),
                             instruction: Move(
                                 subject: AsMarker(marker: Permanent, subject: This),
+                                from: Wherever,
                                 to: Zone(zone: Exile, scope: Bare),
                                 riders: [],
                             ),
@@ -62,6 +64,7 @@ KeywordAbility(
                                 verb: Action("Exile"),
                                 instruction: Move(
                                     subject: AsMarker(marker: Permanent, subject: This),
+                                    from: Wherever,
                                     to: Zone(zone: Exile, scope: Bare),
                                     riders: [],
                                 ),

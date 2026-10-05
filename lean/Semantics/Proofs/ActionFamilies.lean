@@ -47,10 +47,10 @@ theorem badEmblemWithSpellAbility :
 
 
 private def exiledAbility : Bindings :=
-  Instruction.intro [] (.move (target (.abilityHead .anyActivated)) exileZone [])
+  Instruction.intro [] (.move (target (.abilityHead .anyActivated)) .wherever exileZone [])
 
 private def graveyardAbility : Bindings :=
-  Instruction.intro [] (.move (target (.abilityHead .anyActivated)) graveyard [])
+  Instruction.intro [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard [])
 
 theorem exiledAbilityKeepsItsLocation :
     NounPhrase.zone exiledAbility (that .ability) = some .exile := by decide
@@ -72,19 +72,19 @@ theorem movementPublishesItsRequiredDestination :
     NounPhrase.zone graveyardAbility (that .ability) = some .graveyard := by decide
 
 theorem movementAcceptsAnAbilitySubject :
-    Instruction.check [] (.move (target (.abilityHead .anyActivated)) graveyard []) = [] := by decide
+    Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard []) = [] := by decide
 
 theorem graveyardDestinationRejectsEntryRiders :
-    Instruction.check [] (.move (target (.abilityHead .anyActivated)) graveyard [.entersAs .tapped]) =
+    Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard [.entersAs .tapped]) =
       [.ridersFit] := by decide
 
 theorem graveyardDestinationAcceptsCounterRiders :
-    Instruction.check [] (.move (target (.abilityHead .anyActivated)) graveyard
+    Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard
       [.withCounters (.lit 1) (.printed plusOnePlusOne) .fresh]) = [] := by decide
 
 theorem pronounMovePreservesCopyOriginAndOuterBindings :
     Instruction.intro [⟨.the, .one, .ability (some .copy)⟩, ⟨.the, .one, .player false⟩]
-      (.move (that .ability) graveyard []) =
+      (.move (that .ability) .wherever graveyard []) =
       [⟨.the, .one, .ability (some .copy) (some .graveyard)⟩, ⟨.the, .one, .player false⟩] := by rfl
 
 theorem abilityUnionRetainsCommonLocation :
@@ -130,7 +130,7 @@ theorem clearDamageDoesNotPublishDamageDealt :
 
 
 theorem movingThisAbilityRetainsAbilityIdentity :
-    Instruction.intro [] (.move thisAbility exileZone []) =
+    Instruction.intro [] (.move thisAbility .wherever exileZone []) =
       [⟨.self, .one, .ability none (some .exile)⟩] := by rfl
 
 
@@ -202,7 +202,7 @@ theorem counterPreservesTheAbilityCategory :
 
 theorem counterIsSingleEnactedMove (subject : NounPhrase) :
     Primitives.Instruction.counterSpell subject =
-      .enact (.action "Counter") (.move subject graveyard []) := by rfl
+      .enact (.action "Counter") (.move subject (.zone .stack .bare) graveyard []) := by rfl
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
     countOutcomes .countersRemoved (Instruction.intro []
@@ -255,7 +255,7 @@ theorem aliasesAcrossNestedFramesRemainOneObjectAfterShuffle :
 theorem conditionalForgettingKeepsTheOperandScope :
     Instruction.check [] (.withBindings 0 [.subject (a (.inZone yourLibrary))] (.sequentially [
       .doIf (.matches .you .anyPlayer) (.shuffle .you) none,
-      .move (operand 0) graveyard []])) = [] := by decide
+      .move (operand 0) .wherever graveyard []])) = [] := by decide
 
 theorem capturePreservesTheResolvedPermanentView :
     Instruction.check [] (fight

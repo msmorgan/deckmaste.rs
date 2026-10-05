@@ -63,6 +63,7 @@ KeywordAbility(
                             plurality: One,
                             window: Whole,
                         ),
+                        from: Zone(zone: Stack, scope: Bare),
                         to: Zone(zone: Graveyard, scope: Bare),
                         riders: [],
                     ),

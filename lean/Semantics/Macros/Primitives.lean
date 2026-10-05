@@ -125,9 +125,9 @@ end Semantics.Macros.Primitives.Instruction
 
 namespace Semantics.Macros.Primitives.Instruction
 
-/-- Counter is one labeled stack-to-graveyard move. -/
+/-- Counter is one labeled stack-to-graveyard move [CR#701.6a]. -/
 semantic_macro counterSpell (subject : NounPhrase) : Semantics.Instruction :=
-  .enact (.action "Counter") (.move subject (.zone .graveyard .bare) [])
+  .enact (.action "Counter") (.move subject (.zone .stack .bare) (.zone .graveyard .bare) [])
 
 end Semantics.Macros.Primitives.Instruction
 
@@ -171,9 +171,9 @@ semantic_macro putInto (subject : NounPhrase) (destination : ZoneExpr) (from_ : 
     Semantics.GameEvent :=
   let before : Bool := match from_ with
     | some (.zones zs) => !zs.isEmpty && zs.all (fun z =>
-        z.sort == .battlefield || z.sort == .graveyard ||
-          ((destination.sort == .hand || destination.sort == .library) &&
-            (z.sort == .exile || z.sort == .stack || z.sort == .command)))
+        z.sort == some .battlefield || z.sort == some .graveyard ||
+          ((destination.sort == some .hand || destination.sort == some .library) &&
+            (z.sort == some .exile || z.sort == some .stack || z.sort == some .command)))
     | _ => false
   .zoneChange subject from_ (some destination) (if before then .before else .after)
 

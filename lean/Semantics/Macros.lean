@@ -389,29 +389,29 @@ semantic_macro minusOneMinusOne : CounterKind := .boost (.down 1) (.down 1)
 /-! ## Instructions -/
 
 semantic_macro move (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
-  .move subject destination []
+  .move subject .wherever destination []
 semantic_macro destroy (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Destroy") (.move subject graveyard []) (agent := agent)
+  .enact (.action "Destroy") (.move subject (.zone .battlefield .bare) graveyard []) (agent := agent)
 semantic_macro exile (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Exile") (.move subject exileZone []) (agent := agent)
+  .enact (.action "Exile") (.move subject .wherever exileZone []) (agent := agent)
 /-- "exile <subject> with N <kind> counters on it" -/
 semantic_macro exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind)
     (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Exile") (.move subject exileZone [.withCounters amount (.printed kind) .fresh])
+  .enact (.action "Exile") (.move subject .wherever exileZone [.withCounters amount (.printed kind) .fresh])
       (agent := agent)
 semantic_macro sacrifice (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Sacrifice") (.move subject graveyard []) (agent := some agent)
+  .enact (.action "Sacrifice") (.move subject (.zone .battlefield .bare) graveyard []) (agent := some agent)
 /-- "<agent> sacrifices it": the permanent slot's occupant. -/
 semantic_macro sacrificeIt (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   sacrifice (.pro (.atSlot .permanent) .one .whole) (agent := agent)
 /-- "<agent> puts <subject> <destination>" -/
 semantic_macro put (subject : NounPhrase) (destination : ZoneExpr) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
-  .enact (.core .put) (.move subject destination []) (agent := some agent)
+  .enact (.core .put) (.move subject .wherever destination []) (agent := some agent)
 /-- "return <subject> to <zone>" -/
 semantic_macro returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider)
     (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.core .return_) (.move subject destination riders) (agent := agent)
+  .enact (.core .return_) (.move subject .wherever destination riders) (agent := agent)
 /-- "return <subject> to the battlefield" -/
 semantic_macro returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject battlefield []
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
@@ -420,23 +420,23 @@ semantic_macro returnToBattlefieldTransformed (subject controller : NounPhrase) 
 /-- "return <subject> to the battlefield under <who>'s control with N <kind> counters on it" -/
 semantic_macro returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
     (kind : CounterKind) : Instruction :=
-  .move subject battlefield [.under who, .withCounters amount (.printed kind) .fresh]
+  .move subject .wherever battlefield [.under who, .withCounters amount (.printed kind) .fresh]
 /-- "transform <subject>" -/
 semantic_macro transform (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Transform") (.turnOver subject) (agent := agent)
 /-- "meld <subject> into <name>" -/
 semantic_macro meldInto (subject : NounPhrase) (into : String) (agent : Option NounPhrase := none) :
     Instruction :=
-  .enact (.action "Meld") (.move subject battlefield [.entersMelded into]) (agent := agent)
+  .enact (.action "Meld") (.move subject .wherever battlefield [.entersMelded into]) (agent := agent)
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a].
 This retains the existing fragment; face-down characteristics and the turn-up special
 action are not represented here. -/
 semantic_macro manifestPlacement (subject : NounPhrase) : Instruction :=
-  .enact (.action "Manifest") (.move subject battlefield []) (agent := none)
+  .enact (.action "Manifest") (.move subject .wherever battlefield []) (agent := none)
 semantic_macro tap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Tap") (.setStatus .tapped subject) (agent := agent)
 semantic_macro discard (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Discard") (.move subject graveyard []) (agent := some agent)
+  .enact (.action "Discard") (.move subject (.zone .hand .bare) graveyard []) (agent := some agent)
 semantic_macro shuffle (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .shuffle (agent := agent)
 semantic_macro untap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Untap") (.setStatus .untapped subject) (agent := agent)
@@ -445,17 +445,17 @@ semantic_macro exileUntil (subject : NounPhrase) (event : GameEvent) : Instructi
   .holdUntil (exile subject) event
 /-- "<agent> mills <amount> cards" from <whose> library. -/
 semantic_macro mill (amount : Amount) (whose : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Mill") (.move (.librarySlice .top amount whose) graveyard []) (agent := some
+  .enact (.action "Mill") (.move (.librarySlice .top amount whose) (.zone .library .bare) graveyard []) (agent := some
       agent)
-semantic_macro putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject battlefield []
+semantic_macro putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject .wherever battlefield []
 semantic_macro putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
-  .move subject battlefield [.entersAs .tapped]
+  .move subject .wherever battlefield [.entersAs .tapped]
 /-- "put <subject> onto the battlefield under your control" -/
 semantic_macro putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
-  .move subject battlefield [.under .you]
+  .move subject .wherever battlefield [.under .you]
 /-- "put <subject> onto the battlefield tapped and attacking" -/
 semantic_macro putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
-  .move subject battlefield [.entersAs .tapped, .entersAttacking none]
+  .move subject .wherever battlefield [.entersAs .tapped, .entersAttacking none]
 /-- "Search your library for <quantity> <p>" -/
 semantic_macro searchLibraryFor (quantity : Quantity) (p : Predicate) (agent : NounPhrase := Primitives.NounPhrase.you) :
     Instruction :=
@@ -528,7 +528,7 @@ semantic_macro foundCard : NounPhrase := itVerbed (.action "Search")
 /-- "reveal it": the card a search found. -/
 semantic_macro revealIt : Instruction := revealCards foundCard
 semantic_macro shuffleInto (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Shuffle") (.move subject ((.library .shuffled none none .bare)) []) (agent := some
+  .enact (.action "Shuffle") (.move subject .wherever ((.library .shuffled none none .bare)) []) (agent := some
       agent)
 semantic_macro doIf (condition : Condition) (instruction : Instruction) : Instruction :=
   .doIf condition instruction none

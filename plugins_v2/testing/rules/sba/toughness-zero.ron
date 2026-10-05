@@ -9,6 +9,6 @@
             comparator: AtMost,
             bound: 0,
         ),
-        then: Move(subject: This, to: Zone(zone: Graveyard, scope: Bare), riders: []),
+        then: Move(subject: This, from: Wherever, to: Zone(zone: Graveyard, scope: Bare), riders: []),
     ),
 ]

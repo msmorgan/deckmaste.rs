@@ -145,6 +145,9 @@ pub enum ZoneExpr {
         offset: Option<Ordinal>,
         scope: Box<ZoneScope>,
     },
+    /// "From wherever it is": a move's origin that names no zone, as exile's
+    /// is [CR#701.13a].
+    Wherever,
 }
 
 /// Where a name comes from: printed, chosen, or "with the same name as …".

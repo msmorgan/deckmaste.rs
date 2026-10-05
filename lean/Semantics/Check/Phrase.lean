@@ -217,36 +217,38 @@ def LibraryPlace.shuffles : LibraryPlace → Bool
   | .shuffled => true
   | _ => false
 
-def ZoneExpr.sort : ZoneExpr → Zone
+/-- The zone an expression names; "wherever it is" names none. -/
+def ZoneExpr.sort : ZoneExpr → Option Zone
   | .withBindings _ _ body | .inCaller _ body => body.sort
-  | .zone z _ => z
-  | .library _ _ _ _ => .library
+  | .zone z _ => some z
+  | .library _ _ _ _ => some .library
+  | .wherever => none
 
 def ZoneExpr.arrangement : ZoneExpr → Option Arrangement
   | .withBindings _ _ body | .inCaller _ body => body.arrangement
-  | .zone _ _ => none
+  | .zone _ _ | .wherever => none
   | .library _ ord _ _ => ord
 
 def ZoneExpr.ordinal : ZoneExpr → Option Ordinal
   | .withBindings _ _ body | .inCaller _ body => body.ordinal
-  | .zone _ _ => none
+  | .zone _ _ | .wherever => none
   | .library _ _ off _ => off
 
 def ZoneExpr.shuffles : ZoneExpr → Bool
   | .withBindings _ _ body | .inCaller _ body => body.shuffles
-  | .zone _ _ => false
+  | .zone _ _ | .wherever => false
   | .library place _ _ _ => place.shuffles
 
 def afterMoveTo (to : ZoneExpr) (out : Bindings) : Bindings :=
   if to.shuffles then afterShuffle out else out
 
 def sourceZone : Option EventSource → Option Zone
-  | some (.zones [z]) => some z.sort
+  | some (.zones [z]) => z.sort
   | _ => none
 
 def EventSource.zonesOk (ok : Zone → Bool) : EventSource → Bool
   | .anywhere => true
-  | .zones zs | .anywhereBut zs => !zs.isEmpty && zs.all (fun z => ok z.sort)
+  | .zones zs | .anywhereBut zs => !zs.isEmpty && zs.all (fun z => z.sort.any ok)
 
 def LookbackClause.event : LookbackClause → GameEvent
   | .mk ev _ => ev
@@ -394,7 +396,7 @@ end
 mutual
   def Predicate.seedZone : Predicate → Option Zone
     | .withBindings _ _ body | .inCaller _ body => body.seedZone
-    | .inZone z => some z.sort
+    | .inZone z => z.sort
     | .inCombat .attackedBy _ => none
     | .inCombat _ _ => some .battlefield
     | .hasDesignation d _ => d.seedZone
@@ -1412,6 +1414,7 @@ mutual
     | .zone _ .bare => []
     | .library pl _ _ (.possessedBy n) => LibraryPlace.introduced bs pl ++ (NounPhrase.result bs n).introduced bs
     | .library pl _ _ .bare => LibraryPlace.introduced bs pl
+    | .wherever => []
   termination_by structural x => x
 
   def ZoneExpr.introducedAll (bs : Bindings) : List ZoneExpr → List Binding
@@ -1955,7 +1958,7 @@ def optQuantIntro (bs : Bindings) : Option Quantity → Bindings
   | some q => q.intro bs
 
 def SearchScope.zone : SearchScope → Option Zone
-  | .oneZone z => some z.sort
+  | .oneZone z => z.sort
   | .someZones _ _ => none
 
 def SearchScope.introduced (bs : Bindings) : SearchScope → List Binding
@@ -2102,9 +2105,9 @@ def interveningIntro (bs : Bindings) : Option Condition → Bindings
 def playSourceOk : Option Zone → Option ZoneExpr → Bool → Bool
   | zn, none, false => zn.elim true Zone.placementDestOk
   | zn, some z, false =>
-    playableFrom (some z.sort) && (!zn.elim true Zone.placementDestOk || zoneFits zn (some z.sort))
+    playableFrom z.sort && (!zn.elim true Zone.placementDestOk || zoneFits zn z.sort)
   | _, none, true => true
-  | _, some z, true => playableFrom (some z.sort)
+  | _, some z, true => playableFrom z.sort
 
 def Condition.isAnd : Condition → Bool
   | .withBindings _ _ body | .inCaller _ body => body.isAnd

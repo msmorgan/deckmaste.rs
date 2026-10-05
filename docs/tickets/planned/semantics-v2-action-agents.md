@@ -21,6 +21,38 @@ Working direction, not a ruling.
 - Where it is absent, the TERM drops the agent too. A macro that hard-codes
   `You` inside is the implicit agent this ticket removes.
 
+## `Move` needs a `from`
+
+The `Move` instruction carried only a destination; only the `ZoneChange` event
+had an origin. So the discard term said nothing about a hand, and the agent was
+the one thing tying it to a player. Owner's direction: "discard is specifically
+move from hand to gy" and "it's intrinsically tied to a player because the card
+must move from a hand".
+
+**Done.** `Move` now has a required origin, `Move(subject, from, to, riders)`
+in Lean and the mirror. Origin-agnostic text is an explicit zone expression,
+`wherever` (Lean `ZoneExpr.wherever`, mirror `ZoneExpr::Wherever`, RON macro
+`zones/wherever`), not an absent field: exile is "move it to the exile zone
+from wherever it is" [CR#701.13a]. Each move states its origin — the action's
+own where its rule gives one (discard from its owner's hand [CR#701.9a],
+destroy and sacrifice from the battlefield [CR#701.8a,701.21a], counter from
+the stack [CR#701.6a], mill from the library [CR#701.17a]), else the zone the
+card or keyword text names ("from your graveyard"), else `wherever`. The
+generic `move` helper takes a trailing `from` defaulting to `wherever`; the
+other helpers pass `wherever`. The checker reads the origin as a zone
+expression and has no origin rules yet.
+
+**Not done: dropping discard's agent.** With the hand in the term an agentless
+discard checks on every canon card, but the agent also carries what the hand
+does not: who distributes and who chooses. "Each opponent discards a card"
+writes the distributor as the agent (`distributedDeedReadsBackPlural`,
+`badDistributedDiscardSingular` in `Proofs/Anaphora.lean`, and the bench cards
+with `each`/`target`/`that` discarders). Spelled agentless as "a card in each
+opponent's hand" the checker reads ONE card — plural readback refused,
+singular accepted — the opposite of those pins. Decide how an agentless move
+distributes over players and who chooses an indefinite before removing the
+agent.
+
 ## Constraints
 
 - "Whenever you discard" must keep working: with no agent on the move, the

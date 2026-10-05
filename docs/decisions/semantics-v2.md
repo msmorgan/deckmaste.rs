@@ -82,14 +82,14 @@ Never rules classifications: timing
 (announce vs. resolution), staleness, and agreement are always functions
 of the stored surface facts.
 The same derive-don't-store rule applies across layers — inflection derives
-from the subject, a move's from-zone derives from the referent's fold-state,
-a delayed clause's settled-particular reading derives from the determiner the
-author wrote (staleness itself is object identity plus the fire-time zone
+from the subject, a delayed clause's settled-particular reading derives from
+the determiner the author wrote (staleness itself is object identity plus the fire-time zone
 expectation [CR#603.7c], as §2 states), and a
 hand/library/graveyard destination's owner derives from the moved card itself
 ([CR#400.3] — the possessive is mandatory surface with fully derivable
 content: the style guide's return templating always writes it, and rendering
-re-adds it).
+re-adds it). A move's origin is not derived: the term states it, as a zone or
+as `wherever` when the text names none ("from wherever it is" [CR#701.13a]).
 
 ## 4. Anaphora and carriers
 
@@ -140,8 +140,8 @@ declarations. The hand-written Lean macro layer
 (`lean/Semantics/Macros.lean`) is a stand-in to be generated from those
 declarations eventually (`lean-macros-from-ron`). The
 `Composite` tag is itself basis: `destroy x = Composite Destroy (Move x
-Graveyard)` keeps the tag that deontics key on — indestructible cants the
-Destroy action and ignores an untagged move [CR#701.8a,702.12b,701.8b]. A
+Battlefield Graveyard)` keeps the tag that deontics key on — indestructible
+cants the Destroy action and ignores an untagged move [CR#701.8a,702.12b,701.8b]. A
 keyword-ability macro carries the keyword's own definition as its
 `Ability.keyword` body (ruling, 2026-09-06): a card may write the keyword
 bare, and a written definition is an ability of one of the categories the

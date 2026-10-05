@@ -28,6 +28,7 @@ KeywordAbility(
                         amount: 1,
                         whose: Pro(reach: Word(Player), plurality: One, window: Whole),
                     ),
+                    from: Wherever,
                     to: Zone(zone: Exile, scope: Bare),
                     riders: [],
                 ),

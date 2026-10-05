@@ -186,6 +186,7 @@ fn the_three_rules_tables_load() {
         sba.then,
         Instruction::Move {
             subject: NounPhrase::This,
+            from: ZoneExpr::Wherever,
             to: ZoneExpr::Zone {
                 zone: Zone::Graveyard,
                 scope: Box::new(ZoneScope::Bare),

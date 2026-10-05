@@ -22,7 +22,7 @@ KeywordAction(
                         Mana([2]),
                         Perform(Enact(
                             verb: Action("Sacrifice"),
-                            instruction: Move(subject: This, to: Zone(zone: Graveyard, scope: Bare), riders: []),
+                            instruction: Move(subject: This, from: Zone(zone: Battlefield, scope: Bare), to: Zone(zone: Graveyard, scope: Bare), riders: []),
                             agent: You,
                         )),
                     ]),

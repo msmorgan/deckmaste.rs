@@ -869,6 +869,7 @@ pub enum Instruction {
     },
     Move {
         subject: NounPhrase,
+        from: ZoneExpr,
         to: ZoneExpr,
         riders: Vec<TokenRider>,
     },

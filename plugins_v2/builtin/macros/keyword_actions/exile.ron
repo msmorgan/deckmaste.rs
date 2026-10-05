@@ -12,5 +12,5 @@ KeywordAction(
             [ObjectNounPhrase, PredicativeComplement],
         ]),
     ),
-    body: Move(subject: Param(0), to: Zone(zone: Exile, scope: Bare), riders: []),
+    body: Move(subject: Param(0), from: Wherever, to: Zone(zone: Exile, scope: Bare), riders: []),
 )

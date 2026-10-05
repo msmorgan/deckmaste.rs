@@ -12,7 +12,7 @@ KeywordAction(
     ),
     agent: Param(1),
     body: Sequentially([
-        Move(subject: Param(0), to: Zone(zone: Exile, scope: Bare), riders: []),
+        Move(subject: Param(0), from: Wherever, to: Zone(zone: Exile, scope: Bare), riders: []),
         Establish(
             spec: DeonticRule(
                 subject: PossessorOf(

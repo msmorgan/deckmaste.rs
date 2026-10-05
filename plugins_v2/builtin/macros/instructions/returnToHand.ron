@@ -3,5 +3,5 @@
     name: "returnToHand",
     kinds: [Instruction],
     params: {"agent": NounPhrase, "subject": NounPhrase},
-    body: Enact(Return, Move(Param(subject), hand, []), Param(agent)),
+    body: Enact(Return, Move(Param(subject), wherever, hand, []), Param(agent)),
 )

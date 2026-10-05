@@ -135,7 +135,7 @@ mutual
         refuse (OptOrdinal.ok (rank.map (·.1))) .ordinalNonZero
     | .castFrom z =>
       kindCheck k (some .object) ++ ZoneExpr.checkIn gap bs z ++
-        refuse (playableFrom (some z.sort)) .playableFrom
+        refuse (playableFrom z.sort) .playableFrom
     | .inCombat r none => kindCheck k (some .object) ++ refuse r.bare .combatRelOk
     | .inCombat r (some m) =>
       NounPhrase.checkIn gap none bs m ++
@@ -473,6 +473,7 @@ mutual
       LibraryPlace.checkIn gap bs place ++ refuse (place.arrangementOk ord) .placeArrangementFits ++
         refuse (place.ordinalOk off) .placeOrdinalFits ++
         refuse (OptOrdinal.ok off) .ordinalNonZero ++ ZoneScope.checkIn gap .library bs scope
+    | .wherever => (⟨[], false⟩ : CheckResult)
   termination_by structural z => z
 
   def ZoneExpr.checkAllIn (gap : Option Kind) (bs : Bindings) : List ZoneExpr → CheckResult
@@ -725,7 +726,7 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
         refuse (!actNamesLocus v || locus.isSome) .complementWritten ++
         (match locus with
          | none => (⟨[], false⟩ : CheckResult)
-         | some z => refuse ((actLociOf v).elem z.sort) .lookbackLocus)
+         | some z => refuse (z.sort.any fun zn => (actLociOf v).elem zn) .lookbackLocus)
     | .tappedForMana who what ty =>
       let bs' := optAgentIntro bs who
       OptNoun.checkIn gap (some .player) bs who ++ NounPhrase.checkIn gap (some .object) bs' what ++
@@ -811,7 +812,9 @@ def Ballot.check (bs : Bindings) : Ballot → List Refusal
 
 def Exposed.check (bs : Bindings) : Exposed → List Refusal
   | .cards n => NounPhrase.check (some .object) bs n
-  | .zone z => ZoneExpr.check bs z ++ refuse z.sort.exposable (.exposableZone z.sort)
+  | .zone z => ZoneExpr.check bs z ++ match z.sort with
+    | some s => refuse s.exposable (.exposableZone s)
+    | none => []
   | .choice q =>
     let n := countChoice q bs
     refuse (n == 1) (.choiceRef .theChoice q n)

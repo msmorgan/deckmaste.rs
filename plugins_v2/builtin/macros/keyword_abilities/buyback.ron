@@ -23,6 +23,7 @@ KeywordAbility(
                     timing: None,
                     replacement: Move(
                         subject: AsMarker(marker: Spell, subject: This),
+                        from: Wherever,
                         to: Zone(zone: Hand, scope: Bare),
                         riders: [],
                     ),

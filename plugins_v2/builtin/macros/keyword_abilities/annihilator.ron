@@ -27,6 +27,7 @@ KeywordAbility(
                         determiner: Count(quantity: ExactlyOf(Param(0)), mode: None),
                         predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
                     ),
+                    from: Zone(zone: Battlefield, scope: Bare),
                     to: Zone(zone: Graveyard, scope: Bare),
                     riders: [],
                 ),

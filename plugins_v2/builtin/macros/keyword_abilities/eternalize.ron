@@ -19,6 +19,7 @@ KeywordAbility(
                             verb: Action("Exile"),
                             instruction: Move(
                                 subject: This,
+                                from: Zone(zone: Graveyard, scope: PossessedBy(You)),
                                 to: Zone(zone: Exile, scope: Bare),
                                 riders: [],
                             ),

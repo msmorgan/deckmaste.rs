@@ -26,6 +26,7 @@ KeywordAbility(
                     verb: Action("Discard"),
                     instruction: Move(
                         subject: This,
+                        from: Zone(zone: Hand, scope: Bare),
                         to: Zone(zone: Exile, scope: Bare),
                         riders: [],
                     ),
@@ -84,6 +85,7 @@ KeywordAbility(
                 if_did: None,
                 if_not: Move(
                     subject: This,
+                    from: Wherever,
                     to: Zone(zone: Graveyard, scope: Bare),
                     riders: [],
                 ),

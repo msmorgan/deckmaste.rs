@@ -1,0 +1,8 @@
+// "From wherever it is": a move's origin that names no zone, as exile's is
+// [CR#701.13a].
+(
+    name: "wherever",
+    kinds: [ZoneExpr],
+    params: [],
+    body: Wherever,
+)

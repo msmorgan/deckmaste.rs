@@ -44,6 +44,7 @@ KeywordAbility(
                                                     ],
                                                 ),
                                             ),
+                                            from: Wherever,
                                             to: Zone(zone: Hand, scope: Bare),
                                             riders: [],
                                         ),

@@ -45,6 +45,7 @@ KeywordAbility(
                         verb: Action("Exile"),
                         instruction: Move(
                             subject: AsMarker(marker: Spell, subject: This),
+                            from: Wherever,
                             to: Zone(zone: Exile, scope: Bare),
                             riders: [],
                         ),

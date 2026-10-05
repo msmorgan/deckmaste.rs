@@ -3,5 +3,5 @@
     name: "exileBy",
     kinds: [Instruction],
     params: {"agent": NounPhrase, "subject": NounPhrase},
-    body: Enact(Action("Exile"), Move(Param(subject), exileZone, []), Param(agent)),
+    body: Enact(Action("Exile"), Move(Param(subject), wherever, exileZone, []), Param(agent)),
 )

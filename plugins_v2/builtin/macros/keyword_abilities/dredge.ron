@@ -27,6 +27,7 @@ KeywordAbility(
                                             amount: Param(0),
                                             whose: You,
                                         ),
+                                        from: Zone(zone: Library, scope: Bare),
                                         to: Zone(zone: Graveyard, scope: Bare),
                                         riders: [],
                                     ),
@@ -36,6 +37,7 @@ KeywordAbility(
                                     verb: Core(Return),
                                     instruction: Move(
                                         subject: This,
+                                        from: Zone(zone: Graveyard, scope: PossessedBy(You)),
                                         to: Zone(zone: Hand, scope: Bare),
                                         riders: [],
                                     ),

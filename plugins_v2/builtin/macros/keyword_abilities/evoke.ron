@@ -51,6 +51,7 @@ KeywordAbility(
                 verb: Action("Sacrifice"),
                 instruction: Move(
                     subject: AsMarker(marker: Permanent, subject: This),
+                    from: Zone(zone: Battlefield, scope: Bare),
                     to: Zone(zone: Graveyard, scope: Bare),
                     riders: [],
                 ),

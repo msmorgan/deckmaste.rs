@@ -25,6 +25,7 @@ KeywordAction(
             policy: Optional(Param(0)),
             body: Move(
                 subject: Pro(reach: Word(Card), plurality: One, window: Whole),
+                from: Wherever,
                 to: Library(
                     place: OneEnd(Bottom),
                     order: None,

@@ -46,6 +46,7 @@ KeywordAbility(
                                         ],
                                     ),
                                 ),
+                                from: Wherever,
                                 to: Zone(zone: Hand, scope: Bare),
                                 riders: [],
                             ),
@@ -56,6 +57,7 @@ KeywordAbility(
             ),
             instruction: Move(
                 subject: This,
+                from: Zone(zone: Hand, scope: PossessedBy(You)),
                 to: Zone(zone: Battlefield, scope: Bare),
                 riders: [EntersAs(Tapped), EntersAttacking(None)],
             ),

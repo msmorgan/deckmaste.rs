@@ -32,6 +32,7 @@ KeywordAbility(
                                     subject: This,
                                     subtype: Of(host: Enchantment, label: "Aura"),
                                 ),
+                                from: Zone(zone: Battlefield, scope: Bare),
                                 to: Zone(zone: Graveyard, scope: Bare),
                                 riders: [],
                             ),

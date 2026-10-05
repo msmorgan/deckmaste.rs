@@ -58,6 +58,9 @@ mutual
     | zone (zone : Zone) (scope : ZoneScope)
     | library (place : LibraryPlace) (order : Option Arrangement) (offset : Option Ordinal)
         (scope : ZoneScope)
+    /-- "From wherever it is": a move's origin that names no zone, as exile's is
+    [CR#701.13a]. -/
+    | wherever
 
   /-- Where a name comes from: printed, chosen, or "with the same name as …". -/
   inductive NameSource where

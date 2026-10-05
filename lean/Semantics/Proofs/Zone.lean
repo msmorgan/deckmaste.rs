@@ -143,14 +143,14 @@ theorem badDistributedZoneMoveRead :
 /-- "When target creature dies this turn, return that card to the battlefield." -/
 theorem okDiesBattlefield :
     Instruction.check []
-      (.delay (Primitives.GameEvent.dies (target creature)) [] (some .thisTurn) (.move (that .card) battlefield []))
+      (.delay (Primitives.GameEvent.dies (target creature)) [] (some .thisTurn) (.move (that .card) .wherever battlefield []))
       = [] := by
   decide
 
 theorem badDiesInGraveyard :
     Instruction.check []
       (.delay (Primitives.GameEvent.dies (target (.and [creature, .inZone (graveyardOf .you)]))) [] (some .thisTurn)
-        (.move (that .card) battlefield [])) = [.zoneFits] := by
+        (.move (that .card) .wherever battlefield [])) = [.zoneFits] := by
   decide
 
 /-- "not of a color other than white" -/
@@ -198,11 +198,11 @@ theorem badConflictingZones :
   decide
 
 /-- "Return target creature to its owner's hand." -/
-theorem okMoveToHand : Instruction.check [] (.move (target creature) hand []) = [] := by decide
+theorem okMoveToHand : Instruction.check [] (.move (target creature) .wherever hand []) = [] := by decide
 
 /-- "Put target creature into target player's hand." -/
 theorem badMoveToTargetsHand :
-    Instruction.check [] (.move (target creature) ((handOf (target .anyPlayer))) []) = [.destOk] := by
+    Instruction.check [] (.move (target creature) .wherever ((handOf (target .anyPlayer))) []) = [.destOk] := by
   decide
 
 /-- "Destroy target creature." -/
@@ -229,14 +229,14 @@ theorem badDestroyGraveyardCard :
 
 /-- "Destroy a creature." -/
 theorem okKnownKeywordAction :
-    Instruction.check [] (.enact (.action "Destroy") (.move (a creature) graveyard []) (agent :=
+    Instruction.check [] (.enact (.action "Destroy") (.move (a creature) (.zone .battlefield .bare) graveyard []) (agent :=
         none))
       = [] := by
   decide
 
 /-- A keyword action the registry does not declare -/
 theorem badUnknownKeywordAction :
-    Instruction.check [] (.enact (.action "Descry") (.move (a creature) graveyard []) (agent :=
+    Instruction.check [] (.enact (.action "Descry") (.move (a creature) .wherever graveyard []) (agent :=
         none))
       = [.knownAct (.action "Descry")] := by
   decide
@@ -244,7 +244,7 @@ theorem badUnknownKeywordAction :
 /-- "You exile a card from your hand." -/
 theorem okAgentedKnownAct :
     Instruction.check []
-      (.enact (.action "Exile") (.move (a (.inZone hand)) exileZone []) (agent := (some .you)))
+      (.enact (.action "Exile") (.move (a (.inZone hand)) .wherever exileZone []) (agent := (some .you)))
       = [] := by
   decide
 
@@ -252,7 +252,7 @@ theorem okAgentedKnownAct :
 four lands", Burning of Xinye), so its facts row's agent role names a player. -/
 theorem okAgentedDestroy :
     Instruction.check []
-      (.enact (.action "Destroy") (.move (target creature) graveyard []) (agent := (some .you)))
+      (.enact (.action "Destroy") (.move (target creature) (.zone .battlefield .bare) graveyard []) (agent := (some .you)))
       = [] := by
   decide
 
@@ -445,24 +445,24 @@ theorem badGainControlGraveyard :
 theorem okPluralOrderRider :
     Instruction.check []
       (.sequentially
-        [revealCards (topSlice (.lit 4)), .move (those .card) ((onBottomIn .anyOrder)) []]) = [] := by
+        [revealCards (topSlice (.lit 4)), .move (those .card) .wherever ((onBottomIn .anyOrder)) []]) = [] := by
   decide
 
 theorem badSingularOrderRider :
     Instruction.check []
-      (.sequentially [lookAt (topSlice (.lit 1)), .move (that .card) ((onBottomIn .anyOrder)) []])
+      (.sequentially [lookAt (topSlice (.lit 1)), .move (that .card) .wherever ((onBottomIn .anyOrder)) []])
       = [.arrangementOk] := by
   decide
 
 /-- "Look at the top four cards of your library. Put them into your hand." -/
 theorem okSliceCardRead :
-    Instruction.check [] (.sequentially [lookAt (topSlice (.lit 4)), .move (those .card) hand []])
+    Instruction.check [] (.sequentially [lookAt (topSlice (.lit 4)), .move (those .card) .wherever hand []])
       = [] := by
   decide
 
 theorem badSliceTypeRead :
     Instruction.check []
-      (.sequentially [lookAt (topSlice (.lit 4)), .move (those (.type .creature)) hand []])
+      (.sequentially [lookAt (topSlice (.lit 4)), .move (those (.type .creature)) .wherever hand []])
       = [.anaphor (.word (.type .creature)) .many 0] := by
   decide
 
@@ -520,7 +520,7 @@ theorem badPartitiveOfPartitive :
 theorem badEachOfTheRest :
     Instruction.check []
       (.sequentially
-        [ lookAt (topSlice (.lit 4)), .move (someOf (exactly 1) them) hand [],
+        [ lookAt (topSlice (.lit 4)), .move (someOf (exactly 1) them) .wherever hand [],
           exile (.eachOf (theRest .object)) ]) = [.groupMention] := by
   decide
 
@@ -539,7 +539,7 @@ theorem badWouldDieInGraveyard :
 /-- "Reveal the top card of your library. Put that card into your hand." -/
 theorem okSingularCardRetag :
     Instruction.check []
-      (.sequentially [revealCards (topSlice (.lit 1)), .move (that .card) hand []]) = [] := by
+      (.sequentially [revealCards (topSlice (.lit 1)), .move (that .card) .wherever hand []]) = [] := by
   decide
 
 /-- "Exile target creature until this creature leaves the battlefield. Put that card into
@@ -549,30 +549,30 @@ theorem okHeldUntilExileRetag :
     Instruction.check []
       (.sequentially
         [ exileUntil (target creature) (leavesBattlefield thisCreature),
-          .move (that .card) hand [] ]) = [] := by
+          .move (that .card) .wherever hand [] ]) = [] := by
   decide
 
 /-- "Put target creature onto the battlefield tapped." -/
 theorem okMoveRidersToBattlefield :
-    Instruction.check [] (.move (target creature) battlefield [.entersAs .tapped]) = [] := by decide
+    Instruction.check [] (.move (target creature) .wherever battlefield [.entersAs .tapped]) = [] := by decide
 
 /-- "Put target creature into its owner's graveyard tapped." -/
 theorem badMoveRidersToGraveyard :
-    Instruction.check [] (.move (target creature) graveyard [.entersAs .tapped])
+    Instruction.check [] (.move (target creature) .wherever graveyard [.entersAs .tapped])
       = [.ridersFit] := by
   decide
 
 /-- "Put target creature into its owner's hand under your control." -/
 theorem badMoveControlToHand :
-    Instruction.check [] (.move (target creature) hand [.under .you]) = [.ridersFit] := by decide
+    Instruction.check [] (.move (target creature) .wherever hand [.under .you]) = [.ridersFit] := by decide
 
 /-- "Put target creature onto the battlefield under your control." -/
 theorem okMoveRidersSingularController :
-    Instruction.check [] (.move (target creature) battlefield [.under .you]) = [] := by decide
+    Instruction.check [] (.move (target creature) .wherever battlefield [.under .you]) = [] := by decide
 
 /-- "Put target creature onto the battlefield under the other players' control." -/
 theorem badMoveRidersPluralController :
-    Instruction.check [] (.move (target creature) battlefield [.under (allOf otherPlayer)])
+    Instruction.check [] (.move (target creature) .wherever battlefield [.under (allOf otherPlayer)])
       = [.ctrlOverride] := by
   decide
 
@@ -720,7 +720,7 @@ theorem okAgentChoosesSomeOf :
 theorem badAgentChooseTheRest :
     Instruction.check []
       (.sequentially
-        [ lookAt (topSlice (.lit 4)), .move (someOf (exactly 1) them) hand [],
+        [ lookAt (topSlice (.lit 4)), .move (someOf (exactly 1) them) .wherever hand [],
           .choose none (theRest .object) .openly none (agent := (some (a .opponent))) ])
             = [.choiceClause] := by
   decide
@@ -883,12 +883,12 @@ theorem okCounterAbility :
 
 /-- "Exile target creature." -/
 theorem okObjectMovedToAZone :
-    Instruction.check [] (.move (target creature) exileZone []) = [] := by decide
+    Instruction.check [] (.move (target creature) .wherever exileZone []) = [] := by decide
 
 /-- Abilities can be exiled with other objects on the stack [CR#724.1b,724.2b].
 The former `badAbilityMovedToAZone` pin asserted the explicitly retired blanket prohibition. -/
 theorem okAbilityMovedToAZone :
-    Instruction.check [] (.move (target (.abilityHead .anyActivated)) exileZone [])
+    Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever exileZone [])
       = [] := by
   decide
 

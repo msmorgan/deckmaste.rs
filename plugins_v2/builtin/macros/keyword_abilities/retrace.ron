@@ -48,6 +48,7 @@ KeywordAbility(
                                                     ],
                                                 ),
                                             ),
+                                            from: Zone(zone: Hand, scope: Bare),
                                             to: Zone(zone: Graveyard, scope: Bare),
                                             riders: [],
                                         ),

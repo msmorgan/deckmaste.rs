@@ -33,7 +33,7 @@ def causedByOk (byEffect : Bool) (by_ : Option NounPhrase) : Bool := !(byEffect 
 observed endpoint, including excluded origins. -/
 def EventSource.admits (z : Zone) : EventSource → Bool
   | .anywhere => true
-  | .zones zs => zs.any (fun origin => origin.sort == z)
+  | .zones zs => zs.any (fun origin => origin.sort == some z)
   | .anywhereBut zs => !zs.any (fun origin => match origin.scopeBody with
       | .zone sort .bare => sort == z
       | .library _ _ _ .bare => z == .library
@@ -42,7 +42,7 @@ def EventSource.admits (z : Zone) : EventSource → Bool
 def transitionSubjectOk (z : Option Zone) (src : Option EventSource) (dest : Option ZoneExpr) :
     ObservationPoint → Bool
   | .before => z.elim true (fun zone => src.elim true (EventSource.admits zone))
-  | .after => zoneFits z (dest.map ZoneExpr.sort)
+  | .after => zoneFits z (dest.bind ZoneExpr.sort)
 
 /-- Battlefield, stack, exile, and command are single shared zones. A purported move
 from one of these zones back to itself is not a zone change. Player-owned zones may
@@ -54,7 +54,7 @@ def transitionEndpointsOk (src : Option EventSource) (dest : Option ZoneExpr) : 
   possible && match src, dest with
   | some (.zones zs), some to =>
     !zs.all (fun from_ => from_.sort == to.sort &&
-      ([Zone.battlefield, .stack, .exile, .command].contains to.sort))
+      (to.sort.any [Zone.battlefield, .stack, .exile, .command].contains))
   | _, _ => true
 
 def castSourceOk : Option EventSource → Bool
@@ -168,7 +168,7 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .inCaller scope body => leaveCaller bs (body.after (enterCaller scope bs))
   | .damage _ none none => bs
   | .zoneChange n src to _ =>
-    let subjects := moveIntro bs none n (to.map ZoneExpr.sort)
+    let subjects := moveIntro bs none n (to.bind ZoneExpr.sort)
     let origins := OptEventSource.introduced subjects src ++ subjects
     OptZoneExpr.introduced origins to ++ origins
   | .damage _ none (some to) => outcomeB .damageDealt :: selfSubjIntro bs to

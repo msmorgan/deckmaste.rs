@@ -55,7 +55,9 @@ def Exchanged.check (bs : Bindings) : Exchanged → List Refusal
       refuse (cardSwapZonesOk (NounPhrase.zone bs a) (NounPhrase.zone bs' b)) .cardSwapZones
   | .zones a b =>
     ZoneExpr.check bs a ++ ZoneExpr.check (ZoneExpr.introduced bs a ++ bs) b ++
-      refuse (zoneSwapOk a.sort b.sort) .zoneSwap
+      refuse (match a.sort, b.sort with
+        | some x, some y => zoneSwapOk x y
+        | _, _ => false) .zoneSwap
   | .values a b =>
     let bs' := Amount.intro bs a
     Amount.check bs a ++ Amount.check bs' b ++ refuse a.settableValue .settableValue ++
@@ -216,13 +218,14 @@ mutual
       OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs' voters ++
         Ballot.check (nomIntro bs' voters) ballot ++
         refuse (choiceOrderOk first (some voters)) .choiceOrder
-    | .move what to riders =>
+    | .move what from_ to riders =>
       let bs' := nomIntro bs what
-      NounPhrase.check none bs what ++ ZoneExpr.check bs' to ++ TokenRider.checkAll bs' riders ++
+      NounPhrase.check none bs what ++ ZoneExpr.check bs' from_ ++ ZoneExpr.check bs' to ++
+        TokenRider.checkAll bs' riders ++
         refuse what.movable .movable ++ refuse to.destOk .destOk ++
         refuse (orderOk what.plur to) .arrangementOk ++
-        refuse (destTypeOk (NounPhrase.ty bs what) to.sort) .placeable ++
-        refuse (ridersFitZone riders to.sort) .ridersFit
+        refuse (to.sort.all (destTypeOk (NounPhrase.ty bs what))) .placeable ++
+        refuse (to.sort.all (ridersFitZone riders)) .ridersFit
     | .copy src what times exc agent =>
       let bs' := nomIntro bs agent
       let bs'' := nomIntro bs' what

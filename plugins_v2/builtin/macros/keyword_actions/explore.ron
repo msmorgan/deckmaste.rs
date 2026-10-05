@@ -30,6 +30,7 @@ KeywordAction(
             ),
             instruction: Move(
                 subject: Pro(reach: Word(Card), plurality: One, window: Whole),
+                from: Wherever,
                 to: Zone(zone: Hand, scope: Bare),
                 riders: [],
             ),
@@ -43,6 +44,7 @@ KeywordAction(
                     policy: Optional(PossessorOf(axis: Controller, subject: Param(0))),
                     body: Move(
                         subject: Pro(reach: Word(Card), plurality: One, window: Whole),
+                        from: Wherever,
                         to: Zone(zone: Graveyard, scope: Bare),
                         riders: [],
                     ),

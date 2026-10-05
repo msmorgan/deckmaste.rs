@@ -114,6 +114,7 @@ KeywordAbility(
                                         plurality: Many,
                                         window: Whole,
                                     ),
+                                    from: Wherever,
                                     to: Zone(zone: Exile, scope: Bare),
                                     riders: [],
                                 ),

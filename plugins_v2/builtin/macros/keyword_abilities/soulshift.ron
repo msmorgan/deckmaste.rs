@@ -47,6 +47,7 @@ KeywordAbility(
                                 ],
                             ),
                         ),
+                        from: Zone(zone: Graveyard, scope: PossessedBy(You)),
                         to: Zone(zone: Hand, scope: Bare),
                         riders: [],
                     ),

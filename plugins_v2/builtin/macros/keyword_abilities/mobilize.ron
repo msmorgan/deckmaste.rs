@@ -60,6 +60,7 @@ KeywordAbility(
                                     plurality: Many,
                                     window: Whole,
                                 ),
+                                from: Zone(zone: Battlefield, scope: Bare),
                                 to: Zone(zone: Graveyard, scope: Bare),
                                 riders: [],
                             ),

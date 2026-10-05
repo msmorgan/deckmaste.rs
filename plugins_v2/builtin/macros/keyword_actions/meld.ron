@@ -12,6 +12,7 @@ KeywordAction(
     ),
     body: Move(
         subject: Param(0),
+        from: Wherever,
         to: Zone(zone: Battlefield, scope: Bare),
         riders: [EntersMelded(Param(1))],
     ),

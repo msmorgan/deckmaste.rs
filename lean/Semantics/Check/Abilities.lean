@@ -265,7 +265,7 @@ def DividedVerb.intro (bs : Bindings) : DividedVerb → Bindings
 def Instruction.enactPatient : Instruction → Option NounPhrase
   | .withBindings scope inputs body => body.enactPatient.map (.withBindings scope inputs)
   | .inCaller scope body => body.enactPatient.map (.inCaller scope)
-  | .move n _ _ => some n
+  | .move n _ _ _ => some n
   | _ => none
 
 mutual
@@ -861,8 +861,8 @@ end
 def Instruction.heldUntilOk : Instruction → Bool
   | .withBindings _ _ body | .inCaller _ body => body.heldUntilOk
   | .setStatus .phasedOut _ => true
-  | .move _ _ _ => true
-  | .enact _ (.move _ _ _) none => true
+  | .move _ _ _ _ => true
+  | .enact _ (.move _ _ _ _) none => true
   | _ => false
 
 inductive EncloseUse where
@@ -890,7 +890,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
     | _ => .agentless
   | .pay _ _ _ | .enact _ _ _ | .separateIntoPiles _ _ _ _ | .chooseNewTargets _ | .createObject _ _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
-  | .move _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
+  | .move _ _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
   | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _
   | .rerollStored _ _ _ => .reflexive
   | .applyResultsTable _ => .notOneAction
@@ -953,7 +953,7 @@ mutual
     | .chooseNewTargets what => what.costNounOk
     | .copyTargets cp _ => cp.costNounOk
     | .choose _ n _ _ _ => n.costNounOk
-    | .move what _ _ => what.costNounOk
+    | .move what _ _ _ => what.costNounOk
     | .exchange what => what.costOk
     | .addMana _ _ _ who => who.costNounOk
     | .expose _ _ who => who.costNounOk
@@ -1012,19 +1012,19 @@ def doesProfile (bs : Bindings) (pl : Plurality) (s : NounPhrase) (v : Deed) (e 
     (ep : InstrProfile) : InstrProfile :=
   let bs' := agentIntro bs s
   match pl, e with
-  | .many, .move what@(.theRest _ _) to _ =>
+  | .many, .move what@(.theRest _ _) _ to _ =>
     ⟨distributedDelta bs s (nomIntro bs' what) ++ nomIntro bs s,
      afterMoveTo to (partsClosed (nomIntro bs s)),
      some (distributedDelta bs s (stampIntro bs' (some v) what) ++ nomIntro bs s), []⟩
-  | .many, .move what to _ =>
+  | .many, .move what _ to _ =>
     ⟨distributedDelta bs s (nomIntro bs' what) ++ nomIntro bs s,
-     afterMoveTo to (distributedDelta bs s (moveIntro bs' (some v) what (some to.sort)) ++ nomIntro bs s),
+     afterMoveTo to (distributedDelta bs s (moveIntro bs' (some v) what to.sort) ++ nomIntro bs s),
      some (distributedDelta bs s (stampIntro bs' (some v) what) ++ nomIntro bs s), []⟩
   | .many, .setStatus _ n =>
     ⟨nomIntro bs s, distributedDelta bs s (stampIntro bs' (some v) n) ++ nomIntro bs s, none, []⟩
   | .many, _ => ⟨nomIntro bs s, nomIntro bs s, none, ep.deed⟩
-  | .one, .move what to _ =>
-    ⟨nomIntro bs' what, afterMoveTo to (moveIntro bs' (some v) what (some to.sort)),
+  | .one, .move what _ to _ =>
+    ⟨nomIntro bs' what, afterMoveTo to (moveIntro bs' (some v) what to.sort),
      some (stampIntro bs' (some v) what), []⟩
   | .one, .setStatus _ n => ⟨nomIntro bs' n, stampIntro bs' (some v) n, none, []⟩
   | .one, _ => ep
@@ -1104,8 +1104,8 @@ mutual
     | .choose _ n _ _ by_ => sameIntro (chooseIntro bs by_ n) []
     | .revealChoices _ => sameIntro bs []
     | .vote _ _ _ _ => sameIntro bs [outcomeB .voteHeld]
-    | .move what to _ =>
-      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what (some to.sort)), none, []⟩
+    | .move what _ to _ =>
+      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what to.sort), none, []⟩
     | .exchange what => sameIntro (what.intro bs) what.deed
     /- "Gains"/"loses" name the event outright [CR#119.3]; a set total leaves the gain or loss
     to follow from the new total [CR#119.5]. -/
@@ -1142,8 +1142,8 @@ mutual
     | .removeCounters q _ from_ => sameIntro (nomIntro (optQuantIntro bs q) from_) [outcomeB .countersRemoved]
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []
     | .doubleCounters on => sameIntro (nomIntro bs on) []
-    | .enact v (.move what to _) none =>
-      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what (some to.sort)),
+    | .enact v (.move what _ to _) none =>
+      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what to.sort),
        some (stampIntro bs (some v) what), []⟩
     | .enact v (.setStatus _ n) none => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
     | .enact _ e none => Instruction.profile bs e
@@ -1508,7 +1508,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .gainDesignation _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ _ => []
   | .drawGame | .restartGame | .separateIntoPiles _ _ _ _ => []
   | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ _ => []
-  | .move _ _ riders => TokenRider.ridersSlots riders
+  | .move _ _ _ riders => TokenRider.ridersSlots riders
   -- How many copies to make: a count [CR#107.1b].
   | .copy _ _ times _ _ => [(times, .clamped)]
   | .chooseNewTargets _ | .copyTargets _ _ => []

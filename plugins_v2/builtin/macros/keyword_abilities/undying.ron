@@ -33,6 +33,7 @@ KeywordAbility(
                 verb: Core(Return),
                 instruction: Move(
                     subject: AsMarker(marker: Permanent, subject: This),
+                    from: Wherever,
                     to: Zone(zone: Battlefield, scope: Bare),
                     riders: [
                         Under(

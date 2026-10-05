@@ -73,10 +73,10 @@ private def callerCreature : Bindings :=
   [⟨.the, .one, .object [.creature] (some .battlefield) none none none⟩]
 
 theorem suppliedBodyKeepsItsCallerPronoun :
-    (announceThen (target artifact) (.move it graveyard [])).check callerCreature = [] := by decide
+    (announceThen (target artifact) (.move it .wherever graveyard [])).check callerCreature = [] := by decide
 
 theorem suppliedBodyUpdatesItsOriginalReferent :
-    let after := (announceThen (target artifact) (.move it graveyard [])).intro callerCreature
+    let after := (announceThen (target artifact) (.move it .wherever graveyard [])).intro callerCreature
     (after.find? (fun b => b.ty == [.creature])).map Binding.zone = some (some .graveyard) := by decide
 
 private semantic_macro onChosen (chosen : capture NounPhrase)
@@ -172,7 +172,7 @@ theorem predicateScopesDoNotConcealNegatedZones :
 private semantic_macro secondSubject (left right : capture NounPhrase) : NounPhrase := right
 
 private semantic_macro moveSubject (subject : capture NounPhrase) : Instruction :=
-  .move subject graveyard []
+  .move subject .wherever graveyard []
 
 theorem nounMacrosCanReturnASecondCapturedSubject :
     (moveSubject (secondSubject (target creature) (target creature))).check [] = [] := by decide
@@ -189,7 +189,7 @@ theorem movingAScopedNounUpdatesItsReturnedSubject :
 private semantic_macro forwardedSubject (subject : capture NounPhrase) : NounPhrase := subject
 
 private semantic_macro moveThroughNestedAlias (subject : capture NounPhrase) : Instruction :=
-  .sequentially [.move (forwardedSubject subject) graveyard [], .setStatus .tapped subject]
+  .sequentially [.move (forwardedSubject subject) .wherever graveyard [], .setStatus .tapped subject]
 
 theorem nestedNounResultsKeepOuterInlineAliasesLive :
     (moveThroughNestedAlias (.asType .creature .this none)).check [] = [.zoneIs .battlefield] :=
@@ -304,7 +304,7 @@ private def discardedInstruction (_ : Instruction) : Flag := ⟨true⟩
 private semantic_macro configuredDraw (_flag : Bool) : Instruction := .draw (.lit 1)
 
 private semantic_macro dependentSubjects (first second : capture NounPhrase) : Instruction :=
-  .sequentially [.move second graveyard [], .setStatus .tapped first]
+  .sequentially [.move second .wherever graveyard [], .setStatus .tapped first]
 
 theorem dependentCapturesFollowDeclarationOrderRatherThanBodyUse :
     (dependentSubjects (target creature) it).check [] = [.zoneIs .battlefield] := by decide
@@ -377,7 +377,7 @@ example : Spelled := spelled <| .singleFaced
       text := [Primitives.Ability.spell none (expand (drawTwice (.lit 1) .you))] } }
 
 private semantic_macro scopedMove (subject : capture NounPhrase) : Instruction :=
-  .move subject graveyard []
+  .move subject .wherever graveyard []
 
 theorem scopedEnactedMoveRetainsSourceZoneCheck :
     (Instruction.enact (.action "Destroy")

@@ -22,6 +22,7 @@ KeywordAction(
                         InZone(Zone(zone: Hand, scope: PossessedBy(Param(0)))),
                     ]),
                 ),
+                from: Zone(zone: Hand, scope: Bare),
                 to: Zone(zone: Graveyard, scope: Bare),
                 riders: [],
             ),

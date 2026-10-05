@@ -12,6 +12,7 @@ KeywordAction(
     agent: Param(2),
     body: Move(
         subject: LibrarySlice(end: Top, amount: Param(0), whose: Param(1)),
+        from: Zone(zone: Library, scope: Bare),
         to: Zone(zone: Graveyard, scope: Bare),
         riders: [],
     ),
