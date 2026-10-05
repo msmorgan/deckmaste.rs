@@ -32,3 +32,39 @@ The underlying engine `deckmaste_english_v3::parse` already natively accepts any
 - `cargo xtask english-v3 probe --text "target tapped creature" --category noun-phrase` parses and outputs the structural reading.
 - Missing vocabulary reports unknown-word diagnostics clearly.
 - `cargo xtask gate --changed --run`, `cargo fmt --all --check`, and `cargo xtask cite check` pass.
+
+## Landing record
+
+Change `oksmympqtpnsotlyvzrynurnuxnqlqzq`: direct fragment inspection is
+implemented in xtask, using the unchanged lexical inventory, generated grammar,
+packed recognizer and existing admission/roundtrip/traversal validator.
+
+PROVE: no grammar, lexical declaration, construction or coverage identity changed;
+no coverage losses or re-coverage obligations arise. Both required fragments
+produce one admitted reading with byte-exact realization and matching lexical
+and construction traversal identities. Unknown words retain byte-offset diagnostics,
+including after a multibyte character. Recognition-only inspection materializes
+zero readings. Internal/materialization/validation issues are reported and fail
+the command. No licensing checks or word-naming guards were introduced.
+
+DISCLOSE: no new corpus coverage or selection-policy change is claimed. Forest
+root counts describe admitted summary groups; inspected-reading counts are
+explicitly capped, and reports state whether enumeration exhausted the forest.
+No preference ranking or pruning was added. Deviations and additions: the
+optional manifest flag is omitted; two focused tests cover CLI compatibility,
+case-insensitive category resolution, required fragments, unknown vocabulary,
+packed diagnostics and recognition-only operation. Tests restored 0, re-spelled
+0, newly ignored 0, added 2, removed 0. Existing census tests retain their
+assertions with the optional CLI output representation. README usage was added.
+No STOPs or glossary gaps arose.
+
+REPORT: this is CLI/reporting work, so corpus coverage, lock covered count,
+construction census, homograph/overlap inventories, licensing totals and
+coverage performance telemetry were not remeasured. Their underlying grammar
+and lexicon are unchanged; no corpus performance or coverage claim is made.
+
+Validation: both acceptance CLI examples pass; `cargo fmt --all --check` passes;
+`cargo xtask cite check` reports 0 stale citations. The changed gate selects
+`cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`.
+The changed gate passes, including 358 xtask unit tests (1 existing ignored
+test), the construction/runtime suites, integration tests and doc tests.

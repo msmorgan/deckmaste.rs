@@ -40,10 +40,11 @@ fn lexicon() -> &'static Lexicon {
 
 fn args(limit: Option<usize>) -> EnglishV3Args {
     EnglishV3Args {
+        command: None,
         field: SourceField::Text,
         data: "unused.json".into(),
         selection: CorpusSelectionArgs::default(),
-        output: "unused-report.json".into(),
+        output: Some("unused-report.json".into()),
         reading_limit: limit.map(|n| NonZeroUsize::new(n).unwrap()),
         samples_per_face: 2,
         workers: NonZeroUsize::new(2).unwrap(),
@@ -298,7 +299,7 @@ fn a_failed_validation_is_written_before_the_command_returns_an_error() {
     let corpus = selected_corpus(&bytes);
     let mut args = args(None);
     let directory = tempfile::tempdir().unwrap();
-    args.output = directory.path().join("report.json");
+    args.output = Some(directory.path().join("report.json"));
     let mut faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &args).unwrap();
     faces[0].issues.push(Issue::ConstructionTraversal);
     let report = Report::new(
@@ -316,7 +317,7 @@ fn a_failed_validation_is_written_before_the_command_returns_an_error() {
     let mut output = Vec::new();
     assert!(write_report(&args, &report, &mut output).is_err());
     let saved: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&args.output).unwrap()).unwrap();
+        serde_json::from_slice(&std::fs::read(args.output.as_ref().unwrap()).unwrap()).unwrap();
     assert_eq!(saved["totals"]["issues"], 1);
     assert_eq!(
         saved["faces"][0]["issues"][0]["kind"],

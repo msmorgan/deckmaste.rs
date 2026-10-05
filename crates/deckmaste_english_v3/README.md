@@ -8,6 +8,29 @@ for `grammar` in `src/declarations.rs`. The `slice` module is a bounded
 compiler/runtime fixture. The runtime has no v2 parser, compiler or Semantics
 dependency; integration tests load the authored lexical inventory.
 
+## Fragment probe
+
+```sh
+cargo xtask english-v3 probe --text "Draw a card." --category sentence
+cargo xtask english-v3 probe --text "target tapped creature" --category noun-phrase --json --packed
+```
+
+`probe` analyzes exact free text with the declared lexicon, without corpus
+selection or normalization. Category names are case-insensitive kebab-case;
+the default is `document`. An invalid name lists available categories.
+`--readings N` caps inspected distinct readings (default 4); zero reports only
+recognition. Admitted forest roots are summary groups, not a reading count.
+The report marks whether enumeration exhausted the forest; a capped count is
+only the number inspected. Each inspected reading is checked for exact
+realization, admission and structural/lexical traversal identity.
+
+Text output includes lexical alternatives, vocabulary gaps and reading trees.
+`--json` writes the same diagnostics as one JSON object on stdout, including
+realized strings and validation issues. `--packed` adds chart counters and a
+packed-node/family dump to either format. Missing vocabulary and no readings
+are diagnostic results; internal or validation failures fail the command after
+reporting them.
+
 ## Raw corpus census
 
 ```sh

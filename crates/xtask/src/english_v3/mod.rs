@@ -1,5 +1,6 @@
 //! Raw supported-corpus census for the generated v3 grammar.
 
+mod probe;
 mod report;
 mod validation;
 
@@ -65,7 +66,10 @@ impl SourceField {
 }
 
 #[derive(Debug, Args)]
+#[command(subcommand_negates_reqs = true)]
 pub struct EnglishV3Args {
+    #[command(subcommand)]
+    pub command: Option<probe::Command>,
     /// Face field to parse with its declared root Category.
     #[arg(long, value_enum, default_value = "text")]
     pub field: SourceField,
@@ -75,8 +79,8 @@ pub struct EnglishV3Args {
     #[command(flatten)]
     pub(crate) selection: CorpusSelectionArgs,
     /// Destination for the reproducible face census and diagnostics.
-    #[arg(long)]
-    pub output: PathBuf,
+    #[arg(long, required = true)]
+    pub output: Option<PathBuf>,
     /// Cap candidate requests per face. Omit for a complete census.
     #[arg(long)]
     pub reading_limit: Option<NonZeroUsize>,
@@ -93,6 +97,9 @@ pub struct EnglishV3Args {
 /// Reports input/output failures and any internal or validation issue, after
 /// writing the report when analysis completed. No Reading is a census result.
 pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
+    if let Some(probe::Command::Probe(args)) = &args.command {
+        return probe::run(args, output);
+    }
     let started = Instant::now();
     let corpus = args.selection.load(&args.data)?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -121,8 +128,12 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
 }
 
 fn write_report(args: &EnglishV3Args, report: &Report, output: &mut dyn Write) -> Result<()> {
-    let file = std::fs::File::create(&args.output)
-        .with_context(|| format!("creating {}", args.output.display()))?;
+    let destination = args
+        .output
+        .as_ref()
+        .context("corpus evaluation requires --output")?;
+    let file = std::fs::File::create(destination)
+        .with_context(|| format!("creating {}", destination.display()))?;
     let mut writer = BufWriter::new(file);
     serde_json::to_writer(&mut writer, report).context("writing English v3 census")?;
     writer.write_all(b"\n")?;
@@ -148,11 +159,11 @@ fn write_report(args: &EnglishV3Args, report: &Report, output: &mut dyn Write) -
             .checked_text_cpu_ns_per_byte
             .map_or_else(|| "unavailable".into(), |n| n.to_string())
     )?;
-    writeln!(output, "Report: {}", args.output.display())?;
+    writeln!(output, "Report: {}", destination.display())?;
     ensure!(
         report.totals.issues == 0,
         "English v3 issues recorded in {}",
-        args.output.display()
+        destination.display()
     );
     Ok(())
 }
