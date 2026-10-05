@@ -51,7 +51,6 @@ constructions! {
         feature ManaSymbolUse { Yes }
         feature TypeLineRole { Supertype, CardType, Subtype }
         feature IdentityUse { Name }
-        feature AttributiveForm { GerundParticiple }
         feature NominalComplementMarker { Of }
         feature NounPremodifier { Yes }
         feature VPFinalAdjunct { Yes, No }
@@ -65,6 +64,7 @@ constructions! {
         feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
         feature PredicativeKind { Adjectival, Nominal, Mixed }
+        feature DepictiveKind { Adjectival, Participial, Mixed }
         feature NominalLicense { AnyNominal }
         feature KeywordComplement { Yes }
 
@@ -83,11 +83,15 @@ constructions! {
         category ParticipialPredicate();
         category PastParticiplePredicate();
         category PredicativeComplement(PredicativeKind);
+        category DepictivePhrase(DepictiveKind);
+        category DepictivePhraseSeries(DepictiveKind);
         category Ellipsis(form);
         category BareComplement();
         category ParticipialComplement();
         category PerfectComplement();
         category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse);
+        category VerbalPremodifier();
+        category VerbalPremodifierSeries();
         category NounPremodifier();
         category NounPremodifierSeries();
         category NounPhrase(number, person, CaseUse, Targeting);
@@ -487,6 +491,14 @@ constructions! {
                 Right.PredicativeKind);
         }
 
+        policy DepictiveListEnd<Right, Source> {
+            export DepictiveKind = combined_depictive_kind(left.DepictiveKind, Right.DepictiveKind);
+        }
+
+        policy UnlikeDepictives<Right, Source> {
+            export DepictiveKind = unlike_depictive_kind(left.DepictiveKind, Right.DepictiveKind);
+        }
+
         policy UnlikePredicatives<Right, Source> {
             export PredicativeKind = unlike_predicative_kind(left.PredicativeKind,
                 Right.PredicativeKind);
@@ -633,6 +645,13 @@ constructions! {
         schema AmountPredicate {
             form [head: lexical(Verb), " ", amount: node];
             require head.frame = AmountComplement;
+        }
+
+        // Bounded Oracle host: a complete lexical intransitive predicate.
+        // Complemented and auxiliary hosts need their own ellipsis-safe refinement.
+        schema DepictivePredicate {
+            form [head: lexical(Verb), " ", modifier: DepictivePhrase];
+            require head.frame = Intransitive;
         }
 
         schema AdverbPredicate {
@@ -1170,6 +1189,7 @@ constructions! {
             (FinitePredicateSeries, FinitePredicate, FiniteConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, SecondaryConjunctProperties),
             (NounPhraseSeries, NounPhrase, NounCoordinationAgreement, CoordinatorKindSummary),
+            (VerbalPremodifierSeries, VerbalPremodifier),
             (NounPremodifierSeries, NounPremodifier),
             (ManaPhraseSeries, ManaPhrase),
             (CardinalSeries, Cardinal, CardinalListEnd),
@@ -1189,6 +1209,7 @@ constructions! {
             (FiniteObjectGapSeries, FiniteObjectGap, FiniteConcord),
             (BareObjectGapSeries, BareObjectGap),
             (FiniteClauseSeries, FiniteClause),
+            (DepictivePhraseSeries, DepictivePhrase, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, PredicativeListEnd),
             (SelectedPrepositionHeadSeries, SelectedPrepositionHead, PrepositionPermissions),
         ] {
@@ -1206,6 +1227,7 @@ constructions! {
             (FinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement, CoordinatorKindSummary),
+            (VerbalPremodifierSeries, VerbalPremodifier, Self),
             (NounPremodifierSeries, NounPremodifier, Self),
             (ManaPhraseSeries, ManaPhrase, Self),
             (CardinalSeries, Cardinal, Self, CardinalListEnd),
@@ -1226,6 +1248,7 @@ constructions! {
             (FiniteObjectGapSeries, FiniteObjectGap, Self, FiniteConcord),
             (BareObjectGapSeries, BareObjectGap, Self),
             (FiniteClauseSeries, FiniteClause, Self),
+            (DepictivePhraseSeries, DepictivePhrase, Self, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListEnd),
             (SelectedPrepositionHeadSeries, SelectedPrepositionHead, Self, PrepositionPermissions),
         ] {
@@ -1241,6 +1264,7 @@ constructions! {
             (FinitePredicate, Self, FinitePredicateSeries, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryConjunctProperties),
             (NounPhrase, Self, NounPhraseSeries, NounCoordinationAgreement),
+            (VerbalPremodifier, Self, VerbalPremodifierSeries),
             (NounPremodifier, Self, NounPremodifierSeries),
             (ManaPhrase, Self, ManaPhraseSeries),
             (Cardinal, Self, CardinalSeries, CardinalAgreement),
@@ -1260,6 +1284,7 @@ constructions! {
             (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteConcord),
             (BareObjectGap, Self, BareObjectGapSeries),
             (CoordinatedFiniteClause, FiniteClause, FiniteClauseSeries),
+            (DepictivePhrase, Self, DepictivePhraseSeries, UnlikeDepictives),
             (PredicativeComplement, Self, PredicativeComplementSeries, UnlikePredicatives),
             (SelectedPrepositionHead, Self, SelectedPrepositionHeadSeries, PrepositionPermissions,
                 SharedHeadStatus),
@@ -1307,6 +1332,7 @@ constructions! {
             require head.framing = Unframed;
         }
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord>: [
+            (VerbalPremodifier, Self),
             (NounPremodifier, Self),
             (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
@@ -1330,6 +1356,7 @@ constructions! {
             (FrequencyPhrase, Self),
             (BareObjectGap, Self),
             (CoordinatedFiniteClause, FiniteClause),
+            (DepictivePhrase, Self, UnlikeDepictives),
             (PredicativeComplement, Self, UnlikePredicatives),
             (SelectedPrepositionHead, Self, PrepositionPermissions, SharedHeadStatus),
         ] {
@@ -1357,12 +1384,15 @@ constructions! {
             require modifier.AdjectiveStructure = Complemented;
         }
 
+        construction VerbalPremodifier: VerbalPremodifier {
+            form [head: lexical(Verb)];
+            require head.form = GerundParticiple;
+            require head.frame = Intransitive;
+        }
+
         construction ParticipialPremodifier: Nominal {
-            form [modifier: lexical(Verb), " ", head: Nominal];
+            form [modifier: VerbalPremodifier, " ", head: Nominal];
             use NominalHeadProperties;
-            require modifier.form = GerundParticiple;
-            require modifier.AttributiveForm = GerundParticiple;
-            require modifier.frame = Intransitive;
             require head.Targeting = No;
         }
 
@@ -1498,6 +1528,19 @@ constructions! {
         construction AdjectivalComplement: PredicativeComplement {
             form [phrase: AdjectivePhrase];
             export PredicativeKind = Adjectival;
+        }
+
+        // CGEL pp. 262, 1265: optional depictives are adjuncts.
+        construction AdjectivalDepictive: DepictivePhrase {
+            form [phrase: AdjectivePhrase];
+            export DepictiveKind = Adjectival;
+        }
+
+        construction ParticipialDepictive: DepictivePhrase {
+            form [phrase: SecondaryVerbPhrase];
+            require phrase.form = GerundParticiple;
+            require phrase.ParticipialUse = Ordinary;
+            export DepictiveKind = Participial;
         }
 
         construction NominalComplement: PredicativeComplement {
@@ -2080,6 +2123,12 @@ constructions! {
             export VPFinalAdjunct = head.VPFinalAdjunct;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
         }
+        instance DepictivePredicate<Result, Properties>: [
+            (FinitePredicate, FiniteHeadAgreement),
+            (SecondaryVerbPhrase, OrdinarySecondaryHead),
+        ] {
+            use Properties;
+        }
         instance AdverbPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, AdverbPhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, Self, AdverbPhrase, SecondaryAdjunctProjection),
@@ -2289,6 +2338,27 @@ constructions! {
             (Mixed, Nominal) => Mixed,
             (Adjectival, Mixed) => Mixed,
             (Nominal, Mixed) => Mixed,
+            (Mixed, Mixed) => Mixed,
+        }
+
+        table combined_depictive_kind(DepictiveKind, DepictiveKind) -> DepictiveKind {
+            (Adjectival, Adjectival) => Adjectival,
+            (Participial, Participial) => Participial,
+            (Adjectival, Participial) => Mixed,
+            (Participial, Adjectival) => Mixed,
+            (Mixed, Adjectival) => Mixed,
+            (Mixed, Participial) => Mixed,
+            (Adjectival, Mixed) => Mixed,
+            (Participial, Mixed) => Mixed,
+            (Mixed, Mixed) => Mixed,
+        }
+        table unlike_depictive_kind(DepictiveKind, DepictiveKind) -> DepictiveKind {
+            (Adjectival, Participial) => Mixed,
+            (Participial, Adjectival) => Mixed,
+            (Mixed, Adjectival) => Mixed,
+            (Mixed, Participial) => Mixed,
+            (Adjectival, Mixed) => Mixed,
+            (Participial, Mixed) => Mixed,
             (Mixed, Mixed) => Mixed,
         }
 

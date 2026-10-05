@@ -42,6 +42,12 @@ pub enum LoadError {
     },
     #[error("invalid adjective class member {owner:?}: {reason}")]
     InvalidAdjectiveClassMember { owner: String, reason: &'static str },
+    #[error("participial adjective source {owner}: {source}")]
+    ParticipialAdjectiveLexical {
+        owner: String,
+        #[source]
+        source: deckmaste_lexical::LexicalError,
+    },
     #[error("invalid compound noun class: {reason}")]
     InvalidCompoundClass { reason: &'static str },
     #[error("compound head {owner}: {source}")]

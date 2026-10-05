@@ -297,10 +297,10 @@ adjuncts is intentional and independently checked; new selected-frame and
 counter-compound structures replace those paths. These count changes are not
 proof that all remaining alternative attachments are correct.
 
-Corpus wall time is 235.015 s, with 960,452 ns/B checked-text thread CPU,
+Corpus wall time is 235,015 ms, with 960,452 ns/B checked-text thread CPU,
 24 workers and host load 3.59/3.83/3.64. This exceeds the 16.26 s advisory.
 Avacyn, Guardian Angel still has 33,856 Readings; its 0.099 s chart and
-150.638 s complete validation show that structural enumeration/validation,
+150,638 ms complete validation show that structural enumeration/validation,
 not chart admission, dominates this face. Keep performance and independent
 attachment/function audits as cutover blockers; do not conflate a roundtrip
 census with a linguistic-correctness audit.
@@ -343,3 +343,84 @@ metadata, but needs an explicitly declared compatible stem class before a
 generic bound-quality consumer can admit it without inventing creaturewalk.
 Route that lexical declaration/consumer obligation during this ticket's cause
 audit. Keyword-label completion does not discharge these body or stem cases.
+
+
+## Participial host residuals
+
+Morphology-derived tapped/untapped adjectives and intransitive gerund-participle
+Premodifiers now have bounded implementation in english-v3-participial-uses.
+The depictive host selects a complete lexical intransitive frame. Refining it
+to already complemented and auxiliary predicates remains open; it must not
+accept a missing auxiliary complement as the verb described by an Adjunct.
+Strefan, Maurer Progenitor; Preeminent Captain; Senu, Keen-Eyed Protector; and
+Kaalia of the Vast retain this complemented movement-host obligation.
+Mixed copular/progressive be coordination remains required for Hero of
+Bladehold, Dalkovan Encampment, Leonin Warleader, Hanweir Garrison and Hanweir,
+the Writhing Township (CGEL, Ch. 15 §3.2, p. 1327). Gerund-participial nominal
+postmodifiers remain required for Blessed Reversal, Apothecary White, Lulu,
+Coils of the Medusa, Knight of Dusk, Master of Arms, Flowstone Salamander and
+Godo's Irregulars (CGEL, Ch. 14 §9, pp. 1264–1265); alternate clause-adjunct
+Readings do not discharge their intended nominal attachment.
+
+
+### Participial-use landing record
+
+Measured tree vsslqwsslzkuvoxtqxstvtyvqupxqqvp, covered count 12,360. The
+complete 24-worker census of all 32,828 supported faces reports 20,468 no,
+6,275 one and 6,085 multiple Readings, compared with 21,434 / 5,768 / 5,626
+on xpspnuqp. All 966 newly covered identities and their selected structures,
+all 990 changed Reading counts, and the empty loss list are preserved in
+`data/reports/english-v3/participial-uses-zzvtuvvp/reconciliation.json`.
+No enumeration limit was used. All 127,704 Readings pass lexical ownership,
+exact realization and construction/word traversal checks: zero issues,
+duplicates, internal failures, limited faces or failed faces. Costs rank
+presentation without removing alternatives.
+
+Tap/untap adjective entries reuse their verbs' final past-participle forms;
+the four duplicate, unmapped Status spellings are removed. Attacking and
+blocking retain verbal gerund-participle structure. Independent expected
+values cover authentic single/coordinated modifiers, Idyllic Beachfront's
+depictive and Grafdigger's Cage's transitive enter. The CGEL consultant audited
+all 965 focused newly covered selected analyses. Rooting Moloch adds the
+remaining grammatical alternative: its cycling-ability modifier is verbal,
+with an odd interpretation; intended keyword-name modification remains an
+obligation here. No semantic admission restriction or positive nonsense
+fixture was added.
+
+STOPs resolved: a broad depictive attachment accepted five mixed-be cases
+through participial ellipsis and broke an existing shared-auxiliary rejection.
+The final host checks a lexical intransitive frame; the wider hosts above stay
+open. Retiring enter's predicative frame exposed 15 ordinary transitive-enter
+regressions in the first full census. An explicit transitive frame restores
+all 15; the final complete census loses no previously covered identity. The
+intermediate census/reconciliation remain ignored diagnostic evidence.
+
+Deviations and additions: three ordinary Constructions (VerbalPremodifier,
+AdjectivalDepictive, ParticipialDepictive) and one schema (DepictivePredicate)
+express distinct grammatical constituents/functions. Ten category instances
+reuse the existing binary/Oxford coordination and head-agreement schemas.
+The grammar now has 167 ordinary Constructions plus 54 schemas: 221 names,
+328 instances, 547 compiled Productions and 2,622 declaration lines. No verb
+flags are added; AttributiveForm is retired. Enter/put/return optional
+predicatives are corrected to adjunct obligations; enter gains its ordinary
+transitive frame. Existing glossary definitions are refined and Depictive
+Adjunct is defined with CGEL citations. Three pre-existing citation-looking
+decimal timings are re-spelled as milliseconds in existing planned tickets.
+
+Tests: 10 added, one existing independent-value test re-spelled, zero removed
+or newly ignored. `cargo xtask gate --changed --run` derives and passes
+`cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3
+-p deckmaste_english_v3 -p xtask`: 622 passed across 68 suites; one existing
+on-demand live-corpus test remains ignored. Final formatting check passes;
+citation checks report zero noncompliant sites and zero stale citations.
+All new admission constraints read declared form/frame/category properties;
+zero word-naming guards are introduced. The named homograph and literal/word
+overlap inventories are in the report directory's `lexical-inventories.txt`;
+tapped/untapped gain adjective homographs, with no new form-literal overlap.
+
+Performance advisory: complete census wall time 198,156 ms exceeds the
+16.26-second quiet-host advisory, with 959,018 ns/B checked-text thread CPU,
+24 workers and host load 2.85 / 5.52 / 5.10. Input SHA-256 remains
+49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb;
+lexical inventory SHA-256 is
+380696e63c4b8ede7c80d12b9c469648f52c832dbe01a2555eedc163e14df1f5.

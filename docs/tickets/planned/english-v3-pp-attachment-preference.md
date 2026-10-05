@@ -5,7 +5,7 @@ needs: []
 
 Use **Avacyn, Guardian Angel** as the primary specimen for examining and
 improving PP attachment in `english_v3`. The verified systemic-hosts census
-records **33,856 Readings**, a **0.099 s chart** and **150.638 s complete
+records **33,856 Readings**, a **0.099 s chart** and **150,638 ms complete
 validation** on tree `ovrpzmymkzkpvquyrypvokmxkzrrzlsl`, lock covered 11,249.
 These are historical measurements, not fixed acceptance counts. Reproduce the
 specimen on the implementation tree and identify which attachment alternatives

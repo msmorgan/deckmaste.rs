@@ -173,12 +173,6 @@ constructions! {
         Red = "red",
         White = "white",
     }
-    vocab Status {
-        Attacking = "attacking",
-        Blocking = "blocking",
-        Tapped = "tapped",
-        Untapped = "untapped",
-    }
     vocab IndefinitePronoun { Everything = "everything", }
     vocab SingularDemonstrative { This = "this", That = "that", }
     vocab FixedCostSymbol {

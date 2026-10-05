@@ -63,9 +63,9 @@
     ]),
     (identity: Enter, bare: "enter", third_person: "enters", preterite: Some("entered"), frames: [
         Predicate([]),
-        Predicate([PredicativeComplement]),
+        Predicate([ObjectNounPhrase]),
         Predicate([Lex("Preposition", "With"), ObjectNounPhrase, Lex("Preposition", "On"), Role("FrameComplement")]),
-        Predicate([Role("Object"), OptionalRole("PredicativeComplement"), OptionalMarkedRole("Preposition", "Under", "Object")]),
+        Predicate([Role("Object"), OptionalMarkedRole("Preposition", "Under", "Object")]),
         Predicate([MarkedRole("Preposition", "Under", "Object")]),
     ]),
     (identity: Flip, bare: "flip", third_person: "flips", preterite: Some("flipped"), frames: [
@@ -115,7 +115,6 @@
             OptionalLex("Preposition", "From"),
             Lex("Preposition", "Onto"),
             Role("FrameComplement"),
-            OptionalRole("PredicativeComplement"),
             OptionalMarkedRole("Preposition", "Under", "Object"),
         ]),
         Predicate([Role("Object"), OptionalLex("Preposition", "From"), Lex("Preposition", "On"), Role("FrameComplement")]),
@@ -165,7 +164,6 @@
             OptionalLex("Preposition", "From"),
             Lex("Preposition", "To"),
             Role("FrameComplement"),
-            OptionalRole("PredicativeComplement"),
             OptionalMarkedRole("Preposition", "Under", "Object"),
         ]),
     ]),

@@ -17,6 +17,8 @@ pub(crate) struct Inventory {
     #[serde(default)]
     pub adjective_classes: Vec<AdjectiveClass>,
     #[serde(default)]
+    pub participial_adjective_classes: Vec<ParticipialAdjectiveClass>,
+    #[serde(default)]
     pub compound_noun_classes: Vec<CompoundNounClass>,
     pub core_verb_paradigms: BTreeMap<String, Paradigm>,
     pub frame_markers: BTreeMap<String, (String, String)>,
@@ -73,6 +75,94 @@ pub(crate) fn compound_noun_declarations(
         }
     }
     Ok(declarations)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct ParticipialAdjectiveClass {
+    pub form: deckmaste_lexical::WordForm,
+    pub members: Vec<String>,
+}
+
+pub(crate) fn add_participial_adjectives(
+    lexemes: &mut Vec<Lexeme>,
+    classes: Vec<ParticipialAdjectiveClass>,
+) -> Result<(), LoadError> {
+    use deckmaste_lexical::{Category, LexicalReading, Lexicon, SurfaceCase, WordForm};
+    for class in classes {
+        if class.members.is_empty()
+            || !matches!(
+                class.form,
+                WordForm::PastParticiple | WordForm::GerundParticiple
+            )
+        {
+            return Err(LoadError::InvalidAdjectiveClassMember {
+                owner: String::new(),
+                reason: "expected a participial form and nonempty class",
+            });
+        }
+        for owner in class.members {
+            let verb = lexemes
+                .iter()
+                .find(|entry| entry.id == owner)
+                .ok_or_else(|| LoadError::UnknownOwner {
+                    property: "participial adjective class",
+                    owner: owner.clone(),
+                })?;
+            if verb.category != Category::Verb
+                || !verb.forms.iter().any(|slot| slot.form == class.form)
+            {
+                return Err(LoadError::InvalidAdjectiveClassMember {
+                    owner,
+                    reason: "expected a verb with the selected participial form",
+                });
+            }
+            let inventory = Lexicon::new([verb.clone()]).map_err(|source| {
+                LoadError::ParticipialAdjectiveLexical {
+                    owner: owner.clone(),
+                    source,
+                }
+            })?;
+            let mut surfaces = Vec::new();
+            let mut onsets = BTreeMap::new();
+            for value in inventory.values().filter(|value| {
+                value.form == class.form && value.capitalization == SurfaceCase::Declared
+            }) {
+                let reading = LexicalReading::Word(value.clone());
+                let surface = inventory.realize(&reading).map_err(|source| {
+                    LoadError::ParticipialAdjectiveLexical {
+                        owner: owner.clone(),
+                        source,
+                    }
+                })?;
+                let features = inventory.surface_features(&reading).map_err(|source| {
+                    LoadError::ParticipialAdjectiveLexical {
+                        owner: owner.clone(),
+                        source,
+                    }
+                })?;
+                if let Some(onset) = features.onset {
+                    onsets.insert(surface.clone(), onset);
+                }
+                if !surfaces.contains(&surface) {
+                    surfaces.push(surface);
+                }
+            }
+            let mut adjective = Lexeme::invariant(
+                format!("{owner}/adjective"),
+                surfaces[0].clone(),
+                Category::Adjective,
+                verb.source.clone(),
+            );
+            adjective.forms[0].surfaces = Some(surfaces);
+            adjective.capitalization = verb.capitalization;
+            adjective.binding = verb.binding;
+            adjective.surface_structure = verb.surface_structure;
+            adjective.onsets = onsets;
+            lexemes.push(adjective);
+        }
+    }
+    Ok(())
 }
 
 /// A declared adjective class and the negative joining shared by its members.
@@ -900,5 +990,82 @@ mod adjective_class_tests {
         add_adjective_classes(&mut entries, vec![class(&["class/member"])]).unwrap();
         assert_eq!(entries[0].category, Category::Adjective);
         assert_eq!(entries[0].surface_structure, SurfaceStructure::Word);
+    }
+}
+
+#[cfg(test)]
+mod participial_adjective_tests {
+    use super::*;
+    use deckmaste_lexical::{Category, LexicalProperties, SourceKind, WordForm};
+
+    #[test]
+    fn final_verb_forms_supply_adjectives_without_verbal_features() {
+        // Idyllic Beachfront and Pacifism attest these adjective spellings.
+        for (lemma, override_surface) in [("tap", Some("tapped")), ("enchant", None)] {
+            let owner = format!("verb/{lemma}");
+            let mut verb =
+                Lexeme::verb(&owner, lemma, crate::source(SourceKind::Core, PATH, &owner));
+            let slot = verb
+                .forms
+                .iter_mut()
+                .find(|slot| slot.form == WordForm::PastParticiple)
+                .unwrap();
+            slot.surfaces = override_surface.map(|surface| vec![surface.into()]);
+            let original = verb.clone();
+            let mut entries = vec![verb];
+            add_participial_adjectives(
+                &mut entries,
+                vec![ParticipialAdjectiveClass {
+                    form: WordForm::PastParticiple,
+                    members: vec![owner.clone()],
+                }],
+            )
+            .unwrap();
+            assert_eq!(entries[0], original);
+            let spelling = if lemma == "tap" { "tapped" } else { "enchanted" };
+            let mut expected = Lexeme::invariant(
+                format!("{owner}/adjective"),
+                spelling,
+                Category::Adjective,
+                original.source.clone(),
+            );
+            expected.forms[0].surfaces = Some(vec![spelling.into()]);
+            expected.onsets.insert(
+                spelling.into(),
+                if lemma == "tap" {
+                    deckmaste_lexical::Onset::Consonant
+                } else {
+                    deckmaste_lexical::Onset::Vowel
+                },
+            );
+            assert_eq!(entries[1], expected);
+            assert_eq!(entries[1].properties, LexicalProperties::default());
+        }
+    }
+
+    #[test]
+    fn participial_class_rejects_missing_forms_and_nonverbs() {
+        let owner = "class/member";
+        let entry = Lexeme::invariant(
+            owner,
+            "tapped",
+            Category::Adjective,
+            crate::source(SourceKind::Core, PATH, owner),
+        );
+        let mut verb = Lexeme::verb(owner, "tap", entry.source.clone());
+        verb.forms
+            .retain(|slot| slot.form != WordForm::PastParticiple);
+        for invalid in [entry, verb] {
+            assert!(matches!(
+                add_participial_adjectives(
+                    &mut vec![invalid],
+                    vec![ParticipialAdjectiveClass {
+                        form: WordForm::PastParticiple,
+                        members: vec![owner.into()],
+                    }]
+                ),
+                Err(LoadError::InvalidAdjectiveClassMember { .. })
+            ));
+        }
     }
 }

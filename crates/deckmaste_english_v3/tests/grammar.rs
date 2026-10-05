@@ -229,7 +229,10 @@ fn independent_participial_premodifier_preserves_verb_form_and_distribution() {
     modifier.frame = Some(0);
     let value = Reading::ParticipialPremodifier {
         form: 0,
-        modifier: modifier.clone(),
+        modifier: Box::new(Reading::VerbalPremodifier {
+            form: 0,
+            head: modifier.clone(),
+        }),
         head: Box::new(Reading::Noun {
             form: 0,
             head: noun.clone(),
@@ -249,7 +252,10 @@ fn independent_participial_premodifier_preserves_verb_form_and_distribution() {
     assert!(
         Reading::ParticipialPremodifier {
             form: 0,
-            modifier,
+            modifier: Box::new(Reading::VerbalPremodifier {
+                form: 0,
+                head: modifier
+            }),
             head: Box::new(Reading::Noun {
                 form: 0,
                 head: noun

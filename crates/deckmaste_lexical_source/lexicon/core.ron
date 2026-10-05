@@ -10,6 +10,10 @@
             "vocab:Supertype/Snow", "vocab:Supertype/World",
         ],
     )],
+    participial_adjective_classes: [(
+        form: PastParticiple,
+        members: ["lexeme:keyword_action/tap", "lexeme:keyword_action/untap"],
+    )],
     // Additional Oracle counter notation uses the same declared noun-head recipe.
     compound_noun_classes: [(
         head: "lexeme:CommonNoun/Counter",
@@ -265,7 +269,7 @@
         ),
         (
             id: "lexeme:Verb/Defend", lemma: "defend", category: Verb,
-            properties: (countability: [], features: {"AttributiveForm": "GerundParticiple"}, frames: [(kind: "Predicate", items: []), (kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase"))])]),
+            properties: (countability: [], features: {}, frames: [(kind: "Predicate", items: []), (kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase"))])]),
             forms: [
                 (form: Plain, features: ()),
                 (form: GerundParticiple, features: (finiteness: Some(Nonfinite))),

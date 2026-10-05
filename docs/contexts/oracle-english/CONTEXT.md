@@ -204,7 +204,9 @@ Clause Complement is still a Preposition.
 
 **Adjective**:
 A lexical Category whose members characteristically modify Nominals or serve
-as predicative Complements.
+as predicative Complements. A participial spelling can also have a distinct
+Adjective analysis, as with *tapped*; sharing a spelling does not turn every
+Participle into an Adjective (CGEL, Ch. 6 §2.4.3, pp. 540–542).
 
 **Adjective Phrase**:
 A phrase headed by an Adjective.
@@ -390,7 +392,14 @@ A Modifier that precedes its head in the linear order. A noun used as a
 Premodifier remains a noun: *creature* in *creature card* does not acquire an
 Adjective lexical identity (CGEL, pp. 444, 537–538). Type and subtype declarations
 license their singular noun forms for this function; the head determines the
-Nominal's Number and Countability.
+Nominal's Number and Countability. A verbal gerund-participle can also be a
+Premodifier, as in *attacking creature*, without becoming an Adjective
+(CGEL, Ch. 6 §2.4.3, pp. 541–542).
+
+**Depictive Adjunct**:
+An optional predicative Adjunct describing a participant during the situation,
+as in *enters tapped and attacking*; it may be an Adjective Phrase or a
+gerund-participial Clause (CGEL, Ch. 4 §5.3, pp. 262–263; Ch. 14 §9, p. 1265).
 
 **Postmodifier**:
 A Modifier that follows its head in the linear order.
