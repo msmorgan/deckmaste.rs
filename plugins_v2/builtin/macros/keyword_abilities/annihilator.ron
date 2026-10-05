@@ -10,7 +10,7 @@ KeywordAbility(
     body: [
         triggered(
             attacks(thisCreature),
-            sacrifice(counted(exactlyOf(Param(0)), permanent), defendingPlayer),
+            act(defendingPlayer, sacrifice(counted(exactlyOf(Param(0)), permanent))),
         ),
     ],
 )

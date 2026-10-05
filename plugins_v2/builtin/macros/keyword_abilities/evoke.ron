@@ -13,7 +13,7 @@ KeywordAbility(
         triggeredIf(
             enters(thisPermanent),
             keywordCostPaid("Evoke", thisPermanent),
-            sacrifice(thisPermanent, controllerOf(thisPermanent)),
+            act(controllerOf(thisPermanent), sacrifice(thisPermanent)),
         ),
     ],
 )

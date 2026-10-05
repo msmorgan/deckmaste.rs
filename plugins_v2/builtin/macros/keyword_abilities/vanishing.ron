@@ -16,6 +16,6 @@ KeywordAbility(
             matches(thisPermanent, hasCounters(timeCounter)),
             removeCounters(exactly(1), timeCounter, thisPermanent),
         ),
-        triggered(lastCounterRemoved(timeCounter, thisPermanent), sacrifice(thisPermanent, you)),
+        triggered(lastCounterRemoved(timeCounter, thisPermanent), sacrifice(thisPermanent)),
     ],
 )

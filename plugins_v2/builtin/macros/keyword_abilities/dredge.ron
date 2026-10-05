@@ -16,7 +16,7 @@ KeywordAbility(
                     may(
                         you,
                         sequentially([
-                            mill(Param(0), you, you),
+                            mill(Param(0)),
                             returnToHand(you, this, graveyardOf(you)),
                         ]),
                     ),

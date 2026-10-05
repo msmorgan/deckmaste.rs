@@ -16,7 +16,6 @@ KeywordAbility(
                         // presupposes: `IsToken` seeds it on its own, and
                         // coordinated arms must seed alike.
                         a(or([and([artifact, permanent]), and([enchantment, permanent]), isToken])),
-                        you,
                     ),
                 ),
                 true,

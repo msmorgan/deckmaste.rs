@@ -1,16 +1,15 @@
-// "Airbend [objects]" [CR#701.65a]: the named player exiles them, and for as
+// "Airbend [objects]" [CR#701.65a]: the actor exiles them, and for as
 // long as each exiled card remains exiled its owner may cast it by paying {2}
 // rather than its mana cost. The permission is a continuous deontic clause
 // scoped to the exile, read back off the airbending stamp.
 KeywordAction(
     name: "airbend",
-    params: [Subject, Subject],
+    params: [Subject],
     spelling: "airbend",
     grammar: Verb(
         bare: "airbend",
         frame_set: Transitive,
     ),
-    agent: Param(1),
     body: sequentially([
         move(Param(0), wherever, exileZone),
         establish(

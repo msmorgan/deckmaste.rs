@@ -1,14 +1,15 @@
 // "[Player] reveals [cards]" [CR#701.20a]: show them to all players for as long
 // as the effect needs. Revealing moves nothing [CR#701.20b]. Lean
-// `revealCards`, which carries no deed tag of its own.
+// `revealCards`, which carries no deed tag of its own. The revealer is the
+// actor.
 KeywordAction(
     name: "reveal",
-    params: [Subject, Subject],
+    params: [Subject],
     spelling: "reveal",
     grammar: Verb(
         bare: "reveal",
         frame_set: Transitive,
     ),
     deed: None,
-    body: revealCards(Param(0), Param(1)),
+    body: revealCards(Param(0), actor),
 )

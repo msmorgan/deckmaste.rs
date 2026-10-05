@@ -14,7 +14,7 @@ KeywordAbility(
             beginningOfYour(Upkeep),
             doIfDone(
                 body: removeCounters(exactly(1), fadeCounter, thisPermanent),
-                if_not: sacrifice(thisPermanent, you),
+                if_not: sacrifice(thisPermanent),
             ),
         ),
     ],

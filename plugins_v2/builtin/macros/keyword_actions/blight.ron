@@ -1,5 +1,6 @@
 // "Blight N" [CR#701.68a] = put N -1/-1 counters on a creature you control. The
-// chosen creature is the "blighted creature" [CR#701.68c].
+// chosen creature is the "blighted creature" [CR#701.68c]. "You" is the
+// actor, whoever blights.
 KeywordAction(
     name: "blight",
     params: [Amount],
@@ -8,6 +9,5 @@ KeywordAction(
         bare: "blight",
         frame_set: MeasureComplement,
     ),
-    agent: you,
-    body: putCounters(Param(0), m1m1Counter, a(creatureYouControl)),
+    body: putCounters(Param(0), m1m1Counter, a(and([creature, actorControls]))),
 )

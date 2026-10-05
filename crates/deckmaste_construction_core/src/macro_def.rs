@@ -1256,7 +1256,9 @@ struct DiagnosticKeywordAbility<'a> {
 }
 
 /// The keyword-action meta's signature: the common fields, plus the `deed`
-/// the action names and the `agent` that does it.
+/// the action names. It names no performer: whoever performs the action is
+/// the actor (ADR 7, ruling 2026-10-05), and `agent` is present only as
+/// `agent: None`, for a deed whose performer is not a player.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DiagnosticKeywordAction<'a> {

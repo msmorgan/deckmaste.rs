@@ -1,6 +1,7 @@
 // "Behold a [quality]" [CR#701.4a] = "Reveal a [quality] card from your hand or
 // choose a [quality] permanent you control on the battlefield." The disjunction
-// is the beholding player's choice, so it is a one-of-two mode choice.
+// is the beholding player's choice, so it is a one-of-two mode choice. "You"
+// is the actor, whoever beholds.
 KeywordAction(
     name: "behold",
     params: [Quality],
@@ -11,9 +12,8 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    agent: you,
     body: chooseOne(
-        reveal(a(and([isCard, Param(0), inZone(yourHand)])), you),
-        choose(you, a(and([Param(0), permanent, youControl]))),
+        reveal(a(and([isCard, Param(0), inZone(handOf(actor))]))),
+        choose(actor, a(and([Param(0), permanent, actorControls]))),
     ),
 )

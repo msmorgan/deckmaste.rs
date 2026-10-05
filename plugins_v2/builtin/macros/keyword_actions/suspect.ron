@@ -3,7 +3,7 @@
 // the designation's own consequences [CR#701.60c], not this clause's.
 KeywordAction(
     name: "suspect",
-    params: [Subject, Subject],
+    params: [Subject],
     spelling: "suspect",
     grammar: Verb(
         bare: "suspect",
@@ -11,6 +11,5 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    agent: Param(1),
     body: gainDesignation(Param(0), "suspected"),
 )

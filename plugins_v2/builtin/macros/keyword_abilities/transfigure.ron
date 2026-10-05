@@ -11,7 +11,7 @@ KeywordAbility(
     // [CR#702.71a]
     body: [
         activated(
-            compound([Param(0), perform(sacrifice(thisPermanent, you))]),
+            compound([Param(0), perform(sacrifice(thisPermanent))]),
             sequentially([
                 searchLibraryFor(
                     exactly(1),
@@ -22,7 +22,7 @@ KeywordAbility(
                     ]),
                 ),
                 putOntoBattlefield(Pro(Bare, One, top(1))),
-                shuffle(you),
+                shuffle,
             ]),
             asSorcery,
         ),

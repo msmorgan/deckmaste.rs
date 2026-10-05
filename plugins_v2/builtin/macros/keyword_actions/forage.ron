@@ -1,8 +1,9 @@
 // "Forage" [CR#701.61a] = "Exile three cards from your graveyard or sacrifice a
-// Food." The disjunction is the foraging player's choice.
+// Food." The disjunction is the foraging player's choice. "You" is the actor,
+// whoever forages.
 KeywordAction(
     name: "forage",
-    params: [Subject],
+    params: [],
     spelling: "forage",
     grammar: Verb(
         bare: "forage",
@@ -10,13 +11,12 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Intransitive,
     ),
-    agent: Param(0),
     body: chooseOne(
         exileBy(
-            Param(0),
-            counted(exactly(3), cardIn(graveyardOf(Param(0)))),
-            graveyardOf(Param(0)),
+            actor,
+            counted(exactly(3), cardIn(graveyardOf(actor))),
+            graveyardOf(actor),
         ),
-        sacrifice(a(and([hasSubtype(food), permanent, controlledBy(Param(0))])), Param(0)),
+        sacrifice(a(and([hasSubtype(food), permanent, controlledBy(actor)]))),
     ),
 )

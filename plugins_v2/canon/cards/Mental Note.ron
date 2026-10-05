@@ -9,7 +9,7 @@ SingleFaced(face: (
             spell(
                 timing: None,
                 instruction: sequentially([
-                    mill(2, you, you),
+                    mill(2),
                     draw(amount: 1, agent: you),
                 ]),
             ),

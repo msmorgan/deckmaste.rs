@@ -17,7 +17,7 @@ KeywordAbility(
                 putCounters(1, ageCounter, thisPermanent),
                 doUnless(
                     you,
-                    sacrifice(thisPermanent, you),
+                    sacrifice(thisPermanent),
                     scaled(Param(0), times(1, countersOn(ageCounter, thisPermanent))),
                 ),
             ]),

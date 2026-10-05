@@ -16,7 +16,6 @@ SingleFaced(face: (
                             hasPossessor(axis: Controller, possessor: you),
                         ]),
                     ),
-                    you,
                 )),
                 offered: false,
             )),

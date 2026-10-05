@@ -1,7 +1,7 @@
 // "Earthbend N" [CR#701.66a] = "Target land you control becomes a 0/0 land
 // creature with haste in addition to its other types. Put N +1/+1 counters on
 // it. When that land dies or is put into exile, return it to the battlefield
-// tapped under your control."
+// tapped under your control." "You" is the actor, whoever earthbends.
 KeywordAction(
     name: "earthbend",
     params: [Amount],
@@ -13,7 +13,7 @@ KeywordAction(
     body: sequentially([
         establish(
             characteristicChange(
-                target(and([land, youControl])),
+                target(and([land, actorControls])),
                 [
                     TypeLine(Adds, (types: [Creature])),
                     Stat(Sets, Power, 0),
@@ -25,7 +25,7 @@ KeywordAction(
         putCounters(Param(0), p1p1Counter, that(Land)),
         delay(
             dies(that(Land)),
-            returnToBattlefield(that(Land), [EntersAs(Tapped), Under(you)]),
+            returnToBattlefield(that(Land), [EntersAs(Tapped), Under(actor)]),
             [zoneChange(that(Land), Zones([battlefield]), exileZone, Before)],
         ),
     ]),

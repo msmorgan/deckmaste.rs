@@ -2,13 +2,17 @@
 // is the declaration's identity, `Instruction` the position its body occupies,
 // so a keyword action resolves where a card writes an instruction.
 //
-// A declaration file writes its action's instruction (`body`) and the agent
-// that does it (`agent`, `None` when omitted). The body here is the record of
-// what the file wrote, and `deckmaste_semantics_v2::keywords` builds the
-// action's definition from it: `Enact(verb: <deed>, instruction: <body>,
-// agent: <agent>)`, where the deed is `Action(<label>)`, the label the words
-// the name spells, unless the file writes `deed`. `deed: None` leaves the
-// instruction unwrapped, and a declaration with no body stays bodyless.
+// A declaration file writes its action's instruction (`body`) and never who
+// performs it: that is the actor, the controller unless a handoff
+// (`act(player, …)`) names another player (ADR 7, ruling 2026-10-05). The
+// body here is the record of what the file wrote, and
+// `deckmaste_semantics_v2::keywords` builds the action's definition from it:
+// `Enact(verb: <deed>, instruction: <body>, agent: Some(Actor))`, where the
+// deed is `Action(<label>)`, the label the words the name spells, unless the
+// file writes `deed`. `deed: None` leaves the instruction unwrapped, and a
+// declaration with no body stays bodyless. A file may write `agent: None`,
+// and nothing else there, for a deed the checker gives no player performer
+// (Lean `actFacts`, `enactAgentOk`): the wrapper then records none.
 (
     name: "KeywordAction",
     kinds: [Macro],
@@ -18,7 +22,7 @@
         "spelling": String,
         "grammar": Elidable(Any),
         "deed": Elidable(Any),
-        "agent": Default(Any, None),
+        "agent": Elidable(Any),
         "body": Default(Any, ()),
     },
     body: (

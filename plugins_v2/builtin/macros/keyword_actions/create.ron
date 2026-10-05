@@ -1,16 +1,17 @@
-// "<agent> creates N <token>" [CR#701.7a]: the creating spell or ability
+// "<performer> creates N <token>" [CR#701.7a]: the creating spell or ability
 // defines the token's characteristics [CR#111.3,111.4]. Lean `create`, with
 // the token argument typed `TokenSpec` rather than Lean's own
 // `CharacteristicBundle` (the raw instruction's `spec` field wants the
-// wider type; a caller writes `Written(characteristics: (...))`).
+// wider type; a caller writes `Written(characteristics: (...))`). The
+// creator is the actor.
 KeywordAction(
     name: "create",
-    params: [Amount, TokenSpec, Subject],
+    params: [Amount, TokenSpec],
     spelling: "create",
     grammar: Verb(
         bare: "create",
         frame_set: Transitive,
     ),
     deed: None,
-    body: createObject(Param(0), Token(Param(1), []), Param(2)),
+    body: createObject(Param(0), Token(Param(1), []), actor),
 )

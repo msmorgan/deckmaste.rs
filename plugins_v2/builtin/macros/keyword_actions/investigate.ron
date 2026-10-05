@@ -4,19 +4,18 @@
 // characteristics are the definition, not a lookup.
 KeywordAction(
     name: "investigate",
-    params: [Subject],
+    params: [],
     spelling: "investigate",
     grammar: Verb(
         bare: "investigate",
         frame_set: Intransitive,
     ),
-    agent: Param(0),
     body: createToken(
-        Param(0),
+        actor,
         (
             characteristics: (
                 subtypes: [clue],
-                text: [activated(compound([mana([2]), perform(sacrifice(this, you))]), draw(1))],
+                text: [activated(compound([mana([2]), perform(sacrifice(this))]), draw(1))],
                 types: [Artifact],
             ),
         ),

@@ -16,7 +16,6 @@ SingleFaced(face: (
                         power: 1,
                         toughness: 1,
                     ))),
-                    you,
                 ),
             ),
         ],

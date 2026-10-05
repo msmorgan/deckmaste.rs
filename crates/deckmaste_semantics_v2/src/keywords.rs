@@ -2,21 +2,27 @@
 //!
 //! A keyword ability's definition is an `Ability.keyword` term
 //! [CR#702.1] — `Keyword(keyword: <label>, params: <arguments>, body:
-//! <abilities>)` — and a keyword action's is the deed it names done
-//! [CR#701.1] — `Enact(verb: Action(<label>), instruction: <instruction>,
-//! agent: <agent>)`. Every part of both wrappers but the abilities, the
-//! instruction and the agent follows from the declaration's name and
+//! <abilities>)` — and a keyword action's is the deed it names done by the
+//! actor [CR#701.1,109.5] — `Enact(verb: Action(<label>), instruction:
+//! <instruction>, agent: Some(Actor))`. Every part of both wrappers but the
+//! abilities and the instruction follows from the declaration's name and
 //! parameter signature, so the file writes only those, and this module builds
-//! the rest. The meta-macros (`macros/meta/KeywordAbility.ron`,
+//! the rest. A declaration names no performer: whoever performs the action is
+//! the actor, and another player performs it only under a handoff
+//! (`act(player, …)`, ADR 7, ruling 2026-10-05). A declaration may write
+//! `agent: None` and nothing else there, for a deed the checker gives no
+//! player performer (Lean `actFacts`, `enactAgentOk`): the wrapper then
+//! records none. The meta-macros (`macros/meta/KeywordAbility.ron`,
 //! `KeywordAction.ron`) hand over what the file wrote as a record in the
 //! body position:
 //!
 //! - a keyword ability's `(keyword_params: …, abilities: …)`, where
-//!   `keyword_params` is present only when the file overrides the arguments
-//!   the signature would forward;
-//! - a keyword action's `(deed: …, agent: …, instruction: …)`, where `deed`
-//!   is present only when the file names one: `None` for an action whose
-//!   definition is not a single named deed, written unwrapped.
+//!   `keyword_params` is present only when the file overrides the arguments the
+//!   signature would forward;
+//! - a keyword action's `(deed: …, agent: …, instruction: …)`, where `deed` is
+//!   present only when the file names one: `None` for an action whose
+//!   definition is not a single named deed, written unwrapped; and `agent` only
+//!   when the file writes `agent: None`.
 //!
 //! The labels are the two boundaries at which a declaration's name is read as
 //! a label rather than as an identity: a keyword ability's is the name
@@ -109,7 +115,8 @@ pub fn keyword_ability_body(name: &str, params: &Params, body: &str) -> Result<S
 }
 
 /// A keyword action's definition from its meta-macro's record: the
-/// instruction wrapped as the deed the action names, unless the declaration
+/// instruction wrapped as the deed the action names, done by the actor, unless
+/// the declaration
 /// has no instruction (`()`, the meta's omitted-body default) or names no
 /// deed (`deed: None`).
 ///
@@ -126,7 +133,16 @@ pub fn keyword_action_body(name: &str, body: &str) -> Result<String, String> {
         Some(deed) => deed.to_owned(),
         None => format!("Action(\"{}\")", keyword_action_label(name)),
     };
-    let agent = record.required("agent")?;
+    let agent = match record.get("agent") {
+        None => "Some(Actor)",
+        Some("None") => "None",
+        Some(other) => {
+            return Err(format!(
+                "keyword action `{name}` writes `agent: {other}`; an action's performer is the \
+                 actor, and a declaration may write only `agent: None`"
+            ));
+        }
+    };
     Ok(format!(
         "Enact(verb: {deed}, instruction: {instruction}, agent: {agent})"
     ))
@@ -292,24 +308,30 @@ mod tests {
     #[test]
     fn a_keyword_action_enacts_its_deed() {
         assert_eq!(
-            keyword_action_body(
-                "timeTravel",
-                "(agent: None, instruction: Shuffle(agent: You))"
-            )
-            .unwrap(),
-            "Enact(verb: Action(\"Time Travel\"), instruction: Shuffle(agent: You), agent: None)"
+            keyword_action_body("timeTravel", "(instruction: Shuffle(agent: Actor))").unwrap(),
+            "Enact(verb: Action(\"Time Travel\"), instruction: Shuffle(agent: Actor), agent: \
+             Some(Actor))"
         );
         assert_eq!(
             keyword_action_body(
                 "shuffle",
-                "(deed: None, agent: None, instruction: Shuffle(agent: You))"
+                "(deed: None, instruction: Shuffle(agent: Actor))"
             )
             .unwrap(),
-            "Shuffle(agent: You)"
+            "Shuffle(agent: Actor)"
         );
         assert_eq!(
-            keyword_action_body("scry", "(agent: None, instruction: ())").unwrap(),
+            keyword_action_body("scry", "(instruction: ())").unwrap(),
             "()"
         );
+        assert_eq!(
+            keyword_action_body("adapt", "(agent: None, instruction: Shuffle(agent: Actor))")
+                .unwrap(),
+            "Enact(verb: Action(\"Adapt\"), instruction: Shuffle(agent: Actor), agent: None)"
+        );
+        let error =
+            keyword_action_body("discard", "(agent: You, instruction: Shuffle(agent: You))")
+                .unwrap_err();
+        assert!(error.contains("agent: None"), "{error}");
     }
 }

@@ -1,11 +1,11 @@
-// "Clash" [CR#701.30a]: the player reveals the top card of their library and
+// "Clash" [CR#701.30a]: the actor reveals the top card of their library and
 // may then put that card on the bottom of their library. "Clash with an
 // opponent" [CR#701.30b] is a separate printed shape and a separate macro. The
 // library the card goes back to is its own owner's, derived rather than written
 // [CR#400.3].
 KeywordAction(
     name: "clash",
-    params: [Subject],
+    params: [],
     spelling: "clash",
     grammar: Verb(
         bare: "clash",
@@ -14,9 +14,8 @@ KeywordAction(
             frames: [[], [Lex("Preposition", "With"), ObjectNounPhrase]],
         ),
     ),
-    agent: Param(0),
     body: sequentially([
-        reveal(librarySlice(Top, 1, Param(0)), Param(0)),
-        may(Param(0), move(that(Card), wherever, onBottom)),
+        reveal(librarySlice(Top, 1, actor)),
+        may(actor, move(that(Card), wherever, onBottom)),
     ]),
 )

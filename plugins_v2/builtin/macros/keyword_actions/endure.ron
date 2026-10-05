@@ -9,6 +9,9 @@ KeywordAction(
         bare: "endure",
         frame_set: MeasureComplement,
     ),
+    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
+    // records none.
+    agent: None,
     body: chooseOne(
         putCounters(Param(1), p1p1Counter, Param(0)),
         createToken(controllerOf(Param(0)), creatureTokenOf(Param(1), Param(1), [White], [spirit])),

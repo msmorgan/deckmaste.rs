@@ -251,16 +251,22 @@ fn a_keyword_declaration_builds_its_wrapper() {
         body("KeywordAbility", "champion"),
         r#"Keyword(keyword: "Champion", params: [], body: [])"#
     );
-    // The default deed is the action the name spells.
+    // The default deed is the action the name spells, done by the actor.
     assert_eq!(
         body("KeywordAction", "destroy"),
         "Enact(verb: Action(\"Destroy\"), instruction: move(Param(0), battlefield, graveyard), \
-         agent: None)"
+         agent: Some(Actor))"
+    );
+    // `agent: None` records no performer, for a deed whose performer is not
+    // a player.
+    assert_eq!(
+        body("KeywordAction", "heal"),
+        "Enact(verb: Action(\"Heal\"), instruction: clearDamage(Param(0)), agent: None)"
     );
     // A bodyless action stays bodyless.
     assert_eq!(body("KeywordAction", "scry"), "()");
     // `deed: None` leaves the instruction unwrapped.
-    assert_eq!(body("KeywordAction", "shuffle"), "Shuffle(Param(0))");
+    assert_eq!(body("KeywordAction", "shuffle"), "Shuffle(actor)");
 }
 
 /// A turn-part declaration whose body is the constructor of the same name

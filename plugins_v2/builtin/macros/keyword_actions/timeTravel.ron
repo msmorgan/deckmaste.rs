@@ -2,7 +2,8 @@
 // one or more time counters on them and/or suspended cards you own in exile
 // with one or more time counters on them, and for each put a time counter on it
 // or remove one from it. A suspended card is read as its state — an exiled card
-// its owner owns bearing time counters [CR#702.62a].
+// its owner owns bearing time counters [CR#702.62a]. "You" is the actor,
+// whoever time travels.
 KeywordAction(
     name: "timeTravel",
     params: [],
@@ -13,17 +14,20 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Intransitive,
     ),
+    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
+    // records none.
+    agent: None,
     body: sequentially([
         choose(
-            you,
+            actor,
             counted(
                 anyNumber,
                 or([
-                    and([permanent, youControl, hasCounters(timeCounter)]),
+                    and([permanent, actorControls, hasCounters(timeCounter)]),
                     and([
                         isCard,
                         inZone(exileZone),
-                        youOwn,
+                        ownedBy(actor),
                         hasCounters(timeCounter),
                     ]),
                 ]),

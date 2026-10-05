@@ -1,8 +1,9 @@
 // "Recruit" [CR#701.70a] = "Draw a card, then discard a card. If you discarded a
 // nonland card this way, create a 1/1 white Human Soldier creature token."
+// "You" is the actor, whoever recruits.
 KeywordAction(
     name: "recruit",
-    params: [Subject],
+    params: [],
     spelling: "recruit",
     grammar: Verb(
         bare: "recruit",
@@ -11,11 +12,11 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     body: sequentially([
-        draw(1, Param(0)),
-        discard(a(cardIn(handOf(Param(0))))),
+        draw(1, actor),
+        discard(a(cardIn(handOf(actor)))),
         doIf(
             not(matches(theVerbed(Action("Discard"), Card, ThisWay, One), land)),
-            createToken(Param(0), creatureToken(1, 1, [White], [human, soldier])),
+            createToken(actor, creatureToken(1, 1, [White], [human, soldier])),
         ),
     ]),
 )

@@ -1,6 +1,7 @@
 // "Populate" [CR#701.36a] = "Choose a creature token you control and create a
 // token that's a copy of that creature token." Controlling no creature token
 // creates nothing [CR#701.36b]; that is the choice failing, not a branch.
+// "You" is the actor, whoever populates.
 KeywordAction(
     name: "populate",
     params: [],
@@ -11,8 +12,11 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Intransitive,
     ),
+    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
+    // records none.
+    agent: None,
     body: sequentially([
-        choose(you, a(and([isToken, creature, permanent, youControl]))),
-        create(1, copyOf(that(Token)), you),
+        choose(actor, a(and([isToken, creature, permanent, actorControls]))),
+        create(1, copyOf(that(Token))),
     ]),
 )

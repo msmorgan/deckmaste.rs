@@ -2,6 +2,7 @@
 // toughness or tied for least toughness among creatures you control. Put N
 // +1/+1 counters on that creature." The tie is the superlative's own: a
 // least-toughness reading admits every creature that reaches the minimum.
+// "You" is the actor, whoever bolsters.
 KeywordAction(
     name: "bolster",
     params: [Amount],
@@ -12,10 +13,17 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: MeasureComplement,
     ),
+    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
+    // records none.
+    agent: None,
     body: sequentially([
         choose(
-            you,
-            a(and([creature, youControl, superlative(Min, Stat(Toughness), creatureYouControl)])),
+            actor,
+            a(and([
+                creature,
+                actorControls,
+                superlative(Min, Stat(Toughness), and([creature, actorControls])),
+            ])),
         ),
         putCounters(Param(0), p1p1Counter, that(Creature)),
     ]),

@@ -33,7 +33,7 @@ SingleFaced(face: (
                         subject: asType(type: Creature, subject: this, subtype: None),
                         counterpart: None,
                     ),
-                ], instruction: vote(Secretly, ByCandidate(described( determiner: A(Unmarked), predicate: anyPlayer, )), described(determiner: Each, predicate: anyPlayer))),
+                ], instruction: act(described(determiner: Each, predicate: anyPlayer), vote(Secretly, ByCandidate(described( determiner: A(Unmarked), predicate: anyPlayer, ))))),
         ],
     ),
 ))

@@ -13,7 +13,7 @@ KeywordAbility(
             attacks(thisCreature),
             sequentially([
                 createTappedAttacking(you, Param(0), creatureToken(1, 1, [Red], [warrior])),
-                atNext(EndStep, sacrifice(themAsTokens, you)),
+                atNext(EndStep, sacrifice(themAsTokens)),
             ]),
         ),
     ],

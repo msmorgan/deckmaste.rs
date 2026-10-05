@@ -4,7 +4,8 @@
 // may put that card into their graveyard. The card is read back off the library
 // slice the reveal opened, as the printed reminder text reads it ("that card");
 // the hand it goes to is its own owner's, derived rather than written
-// [CR#400.3].
+// [CR#400.3]. The controller does every step, so the body is handed to them
+// once.
 KeywordAction(
     name: "explore",
     params: [Subject],
@@ -13,15 +14,21 @@ KeywordAction(
         bare: "explore",
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
     ),
-    body: sequentially([
-        reveal(librarySlice(Top, 1, controllerOf(Param(0))), controllerOf(Param(0))),
-        doIf(
-            matches(that(Card), land),
-            move(that(Card), wherever, hand),
-            sequentially([
-                putCounters(1, p1p1Counter, Param(0)),
-                may(controllerOf(Param(0)), move(that(Card), wherever, graveyard)),
-            ]),
-        ),
-    ]),
+    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
+    // records none.
+    agent: None,
+    body: act(
+        controllerOf(Param(0)),
+        sequentially([
+            reveal(librarySlice(Top, 1, controllerOf(Param(0)))),
+            doIf(
+                matches(that(Card), land),
+                move(that(Card), wherever, hand),
+                sequentially([
+                    putCounters(1, p1p1Counter, Param(0)),
+                    may(actor, move(that(Card), wherever, graveyard)),
+                ]),
+            ),
+        ]),
+    ),
 )

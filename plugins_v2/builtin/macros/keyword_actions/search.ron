@@ -1,9 +1,10 @@
-// "<agent> searches <scope> for <predicate>" [CR#701.23a]. The raw
+// "<performer> searches <scope> for <predicate>" [CR#701.23a], the performer
+// the actor. The raw
 // `Instruction::search` constructor already is the act, so no `Enact` deed
 // wrapper; `scope` is a `SearchScope` and the count a `Quantity`.
 KeywordAction(
     name: "search",
-    params: [SearchScope, Quantity, Quality, Subject],
+    params: [SearchScope, Quantity, Quality],
     spelling: "search",
     grammar: Verb(
         bare: "search",
@@ -18,5 +19,5 @@ KeywordAction(
         ),
     ),
     deed: None,
-    body: Search(Param(0), Param(1), Param(2), Param(3)),
+    body: Search(Param(0), Param(1), Param(2), actor),
 )

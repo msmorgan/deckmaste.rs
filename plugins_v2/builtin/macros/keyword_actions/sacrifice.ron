@@ -1,14 +1,14 @@
-// "[Player] sacrifices [permanent]" [CR#701.21a]: its controller moves it from
+// "[Player] sacrifices [permanent]" [CR#701.21a]: its controller, the actor,
+// moves it from
 // the battlefield directly to its owner's graveyard. Sacrificing is not
 // destroying, so nothing that replaces destruction sees it. Lean `sacrifice`.
 KeywordAction(
     name: "sacrifice",
-    params: [Subject, Subject],
+    params: [Subject],
     spelling: "sacrifice",
     grammar: Verb(
         bare: "sacrifice",
         frame_set: Transitive,
     ),
-    agent: Param(1),
     body: move(Param(0), battlefield, graveyard),
 )

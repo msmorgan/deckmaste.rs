@@ -9,6 +9,6 @@ KeywordAbility(
     // sacrifice it at end of combat." [CR#702.147a]
     body: [
         static(playerCant(Block, thisCreature)),
-        triggered(attacks(thisCreature), atNext(EndOfCombat, sacrifice(thisPermanent, you))),
+        triggered(attacks(thisCreature), atNext(EndOfCombat, sacrifice(thisPermanent))),
     ],
 )
