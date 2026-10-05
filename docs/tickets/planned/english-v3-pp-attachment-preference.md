@@ -80,3 +80,13 @@ Preference effects, both roundtrip laws, lexical ownership/traversal and interna
 failures. Record the chosen design and its limits; success requires defensible
 attachments and useful Preference, not a predetermined Reading-count reduction
 or compulsory uniqueness. Standard constraints apply.
+
+
+## Related follow-ups
+
+The grammatical licensing and attachment-domain investigation is owned by
+[english-v3-attachment-domain-audit](english-v3-attachment-domain-audit.md).
+This ticket retains attachment heuristic scoring and non-destructive Preference.
+[english-v3-packed-preferred-readings](english-v3-packed-preferred-readings.md)
+owns the efficient packed-forest access path; coordinate the score/tie interface
+without treating runtime improvements or preference as grammatical pruning.

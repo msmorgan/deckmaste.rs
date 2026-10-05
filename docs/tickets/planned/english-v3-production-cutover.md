@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-systemic-residuals]
+needs: [english-v3-systemic-residuals, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord]
 ---
 # Cut production English consumers over to v3
 

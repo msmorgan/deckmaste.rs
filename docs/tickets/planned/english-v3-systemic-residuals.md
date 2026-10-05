@@ -511,3 +511,26 @@ checked-text thread CPU, 24 workers and host load
 tree and covered count above; concurrent test activity prevents treating this
 run as a quiet-host comparison. The broader systemic cause audit and legacy
 optional source/controller frames remain open.
+
+
+## Architecture probe follow-ups (2026-10-05)
+
+Bounded owners from the exact-span exploration, ordered for implementation:
+
+1. english-v3-generic-frame-consumption: consume ordered typed lexical Frame Slots;
+   Amass's declared NP-plus-Amount frame has no consumer despite readable arguments.
+2. english-v3-scalar-cardinals: compose “up to” quantities with the shared NP system.
+3. english-v3-number-transparent-concord: retain the nominal head while propagating
+   quantificational number's obligatory plural Agreement from its Of Complement.
+4. english-v3-targeting-projection-duplication: audit the two bare-target routes
+   without discarding distinct targeting functions or modifier scopes.
+
+english-v3-attachment-domain-audit records the measured Avacyn decomposition,
+passive-agent Complement obligation and unresolved auxiliary/temporal attachment
+hypotheses. english-v3-scope-preserving-sequence-schemas owns the optional compact
+schema experiment; english-v3-packed-preferred-readings owns lazy preferred access
+without changing complete enumeration. Speculative flattening or attachment bans
+are not accepted repairs. No 80-percent coverage forecast or raw occurrence count
+is a promised gain. Preserve cause classification and actual identity reconciliation
+here after each implementation. The three demonstrated composition defects are
+explicit production-cutover prerequisites; the broader audit remains open.
