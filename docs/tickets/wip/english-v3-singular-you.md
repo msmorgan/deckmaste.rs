@@ -31,12 +31,19 @@ plural feature bundles and the Yourselves source declaration/form replacement
 are removed directly; no filtering hides an otherwise admitted Reading.
 The requested omission comment is beside the SubjectPronoun declaration.
 
-The existing possessed-bases test retains Hand/Graveyard and all other
-witnesses; it now rejects plural Your and requires the exact surviving singular
-analysis. Its name reflects the corrected premise. No test is deleted or
-ignored. No construction is added or removed; cost ranking and genuine
-structural ambiguities remain untouched. No glossary gap or contradictory
-recorded ruling was found; the user explicitly supplies the Oracle restriction.
+Positive witnesses now use real Oracle passages or attested constituents with
+card/context comments: Greta and Tinybones for you draw a card, Apocalypse for
+You discard your hand, Bloodroot Apothecary for you and target opponent,
+Next of Kin for possessive PPs, and Deep Sight, Reach Through Mists and
+Revitalize for enumeration and source-validation checks. Bare pronoun lexical
+values remain independent morphology witnesses. Invented draw-your-hand and
+face-down-player positives are retired at the user's explicit instruction;
+no production grammar filter is added. The lexical ADR records that grammatical
+nonsense may be admitted but must not become invented positive regression
+contracts; actual fragments need their actual context.
+
+No construction is added or removed; cost ranking and genuine structural
+ambiguities remain untouched. No test function is deleted or ignored.
 
 ### REPORT
 
@@ -89,24 +96,25 @@ after 36.680s; quiet-host reference 16.26s. After
 [13.0966796875, 8.396484375, 5.5703125]. Gate and lexical/type censuses overlapped the after run;
 this is not a controlled quiet-host speed comparison.
 
-Tests added: 6; existing tests re-spelled/renamed: 2; restored, removed
-or newly ignored: 0. Focused lexical-source tests pass 3/3; focused English
-tests pass 3/3 new and 2/2 existing possessive tests. An initial new fixture
-incorrectly expected one orientation analysis; investigation established three
-existing PP-modified participial-ellipsis alternatives. The exact independent
-expected set now includes all four analyses for both singular and coordinated
-plural subjects. No production behavior was changed to hide those readings.
+Tests added: 6; existing tests re-spelled: 9 (both possessive tests and seven
+xtask census/validation tests); restored, removed or newly ignored: 0.
+Focused lexical-source tests pass 3/3; final authentic English tests pass 3/3
+new and 2/2 existing possessive tests. All eight xtask English-v3 tests pass
+with the final authentic witnesses. One inherited enumeration expectation
+relied on the retired plural You analysis; the final capped-enumeration test
+uses Deep Sight's actual two-Reading Oracle text plus two unique real texts,
+preserving limited/complete/unknown-total assertions. Reminder/Unicode fault
+injections remain diagnostic probes around valid Oracle text, not positive
+nonsense grammar examples.
 
 Required gate: `cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`.
+The source/construction/English package suites pass. The affected xtask package
+rerun passes its complete suite, including existing whole-corpus and Lean
+integration checks. Subsequent edits change only test witnesses and documentation;
+all affected final English/xtask test files are rerun and pass. Production corpus
+results are unchanged and reused. Initial draft orientation fixtures and the
+intermediate invented PP-attachment example were rejected by the user and
+replaced by authentic examples before landing.
 
 Formatting and citation checks pass; zero noncompliant strings and stale
-citations. No CR citation is added or changed. The first gate compiled the
-initial overly narrow orientation fixtures; its two failures are covered by
-the corrected complete independent four-value sets and the passing focused
-rerun. The rerun confirms all source/construction/English package tests pass. Its
-xtask enumeration fixture still presumed plural You: the original You draw
-cards and Draw cards witnesses are retained as unique, and Draw cards with
-counters supplies genuine PP-attachment ambiguity. Its capped/complete
-assertions remain, with exact totals for both original witnesses. The focused
-updated enumeration test passes. Only the affected xtask package is rerun
-after this final test-only change; the other three package results are retained.
+citations. No CR citation is added or changed.

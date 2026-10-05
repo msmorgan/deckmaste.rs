@@ -99,6 +99,8 @@ fn possessed(noun: &str, possessor_number: Number) -> Reading {
 
 #[test]
 fn possessed_bases_preserve_singular_second_person_before_coordination() {
+    // Apocalypse: "You discard your hand."
+    // Skyfisher Spider: "... each creature card in your graveyard."
     for (noun, text) in [("Hand", "your hand"), ("Graveyard", "your graveyard")] {
         let singular = possessed(noun, Number::Singular);
         let plural = possessed(noun, Number::Plural);
@@ -110,12 +112,9 @@ fn possessed_bases_preserve_singular_second_person_before_coordination() {
             BTreeSet::from([singular])
         );
     }
-    for text in [
-        "their hand",
-        "his graveyard",
-        "her hand",
-        "the command zone",
-    ] {
+    // Mind Extraction: "Target player reveals their hand ..."
+    // Next of Kin: "... from your hand or from the command zone ..."
+    for text in ["their hand", "the command zone"] {
         assert!(
             !readings(text, Category::NounPhrase).is_empty(),
             "no base NP for {text:?}"
@@ -146,14 +145,19 @@ fn authentic_possessed_preposition_bases_then_their_coordination() {
         .is_empty()
     );
     for text in [
-        "Draw your hand.",
-        "You draw your hand.",
-        "Your hand enters.",
+        // Phyrexian Dragon Engine: "... you may discard your hand."
+        "you may discard your hand",
+        // Apocalypse: "Exile all permanents. You discard your hand."
+        "You discard your hand.",
     ] {
         assert!(
-            !readings(text, Category::Document).is_empty(),
+            !readings(
+                text,
+                if text.ends_with('.') { Category::Document } else { Category::Clause }
+            )
+            .is_empty(),
             "no possessed NP composition for {text:?}"
         );
     }
-    assert!(readings("Your hand enter.", Category::Document).is_empty());
+    assert!(readings("You discards your hand.", Category::Document).is_empty());
 }

@@ -129,10 +129,12 @@ fn copy_source_fields(target: &mut serde_json::Value, source: &serde_json::Value
 
 #[test]
 fn face_census_preserves_raw_text_and_strips_reminders_before_parsing() {
+    // Reach Through Mists supplies the positive Oracle sentence; the added
+    // reminder is a synthetic normalization probe, not a grammar witness.
     let bytes = serde_json::to_vec(&json!({"data": {
-        "A": [card(Some("Draw cards."), "Legal"), card(Some("Draw cards."), "Restricted")],
+        "A": [card(Some("Draw a card."), "Legal"), card(Some("Draw a card."), "Restricted")],
         "B": [card(Some("Creatures attacks."), "Legal")],
-        "C": [card(Some("Draw cards. (éphantom)"), "Legal")],
+        "C": [card(Some("Draw a card. (éphantom)"), "Legal")],
         "D": [card(None, "Legal"), card(Some(""), "Legal")],
         "Excluded": [card(Some("quuxblorf."), "NotLegal")]
     }}))
@@ -167,8 +169,11 @@ fn face_census_preserves_raw_text_and_strips_reminders_before_parsing() {
         ]
     );
     assert!(faces[2].unknown_words.is_empty());
-    assert_eq!(faces[3].raw_text.as_deref(), Some("Draw cards. (éphantom)"));
-    assert_eq!(faces[3].analyzed_source, "Draw cards.");
+    assert_eq!(
+        faces[3].raw_text.as_deref(),
+        Some("Draw a card. (éphantom)")
+    );
+    assert_eq!(faces[3].analyzed_source, "Draw a card.");
     assert_eq!(faces[3].source_sha256, faces[3].raw_text_sha256);
     assert_eq!(faces[3].analyzed_source_sha256, faces[0].source_sha256);
     assert!(faces[3].unknown_words.is_empty());
@@ -186,10 +191,12 @@ fn face_census_preserves_raw_text_and_strips_reminders_before_parsing() {
 
 #[test]
 fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
+    // Authentic complete Oracle texts: Deep Sight is ambiguous in the current
+    // grammar; Reach Through Mists and Revitalize each have one Reading.
     let bytes = serde_json::to_vec(&json!({"data": {
-        "Ambiguous": [card(Some("Draw cards with counters."), "Legal")],
-        "SingularYou": [card(Some("You draw cards."), "Legal")],
-        "Unique": [card(Some("Draw cards."), "Legal")]
+        "Deep Sight": [card(Some("You draw a card and gain 1 life."), "Legal")],
+        "Reach Through Mists": [card(Some("Draw a card."), "Legal")],
+        "Revitalize": [card(Some("You gain 3 life.\nDraw a card."), "Legal")]
     }}))
     .unwrap();
     let corpus = selected_corpus(&bytes);
@@ -225,9 +232,10 @@ fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
 
 #[test]
 fn worker_count_does_not_change_chart_results() {
+    // Reach Through Mists and the first sentence of Revitalize.
     let bytes = serde_json::to_vec(&json!({"data": {
-        "A": [card(Some("Draw cards."), "Legal")],
-        "B": [card(Some("You draw cards."), "Restricted")]
+        "A": [card(Some("Draw a card."), "Legal")],
+        "B": [card(Some("You gain 3 life."), "Restricted")]
     }}))
     .unwrap();
     let corpus = selected_corpus(&bytes);
@@ -259,26 +267,26 @@ fn worker_count_does_not_change_chart_results() {
 #[test]
 fn validation_compares_exact_surface_and_both_traversal_identities() {
     let grammar = Grammar::default();
-    let input = lexicon().analyze("Draw cards.");
+    let input = lexicon().analyze("Draw a card.");
     let forest = parse(&grammar, lexicon(), &input, &Category::Document).unwrap();
     let traced = forest.readings(Tracing(&grammar)).next().unwrap().unwrap();
-    assert!(validate(&traced, "Draw cards.", lexicon(), Category::Document).is_ok());
+    assert!(validate(&traced, "Draw a card.", lexicon(), Category::Document).is_ok());
     assert_eq!(
-        validate(&traced, "draw cards.", lexicon(), Category::Document),
+        validate(&traced, "draw a card.", lexicon(), Category::Document),
         Err(Issue::Roundtrip {
-            realized: "Draw cards.".into()
+            realized: "Draw a card.".into()
         })
     );
     let mut wrong_nodes = traced.clone();
     wrong_nodes.nodes.swap(0, 1);
     assert_eq!(
-        validate(&wrong_nodes, "Draw cards.", lexicon(), Category::Document),
+        validate(&wrong_nodes, "Draw a card.", lexicon(), Category::Document),
         Err(Issue::ConstructionTraversal)
     );
     let mut wrong_words = traced.clone();
     wrong_words.words.swap(0, 1);
     assert_eq!(
-        validate(&wrong_words, "Draw cards.", lexicon(), Category::Document),
+        validate(&wrong_words, "Draw a card.", lexicon(), Category::Document),
         Err(Issue::LexicalTraversal)
     );
 }
@@ -286,7 +294,7 @@ fn validation_compares_exact_surface_and_both_traversal_identities() {
 #[test]
 fn a_failed_validation_is_written_before_the_command_returns_an_error() {
     let bytes =
-        serde_json::to_vec(&json!({"data":{"A":[card(Some("Draw cards."), "Legal")]}})).unwrap();
+        serde_json::to_vec(&json!({"data":{"A":[card(Some("Draw a card."), "Legal")]}})).unwrap();
     let corpus = selected_corpus(&bytes);
     let mut args = args(None);
     let directory = tempfile::tempdir().unwrap();
@@ -324,9 +332,10 @@ fn a_failed_validation_is_written_before_the_command_returns_an_error() {
 
 #[test]
 fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text() {
+    // Memnarch supplies the authentic positive type line.
     let mut valid = card(Some("Unknownword."), "Legal");
-    valid["type"] = json!("Legendary Artifact Creature — Human Wizard");
-    let mut invalid = card(Some("Draw cards."), "Legal");
+    valid["type"] = json!("Legendary Artifact Creature — Wizard");
+    let mut invalid = card(Some("Draw a card."), "Legal");
     invalid["type"] = json!("Creature Legendary");
     let bytes = serde_json::to_vec(&json!({"data": {
         "A": [valid], "B": [invalid], "C": [card(None, "Legal")]
@@ -345,13 +354,13 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
     assert_eq!(faces[0].raw_text.as_deref(), Some("Unknownword."));
     assert_eq!(
         faces[0].type_line.as_deref(),
-        Some("Legendary Artifact Creature — Human Wizard")
+        Some("Legendary Artifact Creature — Wizard")
     );
     assert_eq!(faces[0].id, text[0].id);
     assert_eq!(faces[0].raw_text_sha256, text[0].raw_text_sha256);
     assert_eq!(
         faces[0].source_sha256,
-        crate::raw_corpus::digest("Legendary Artifact Creature — Human Wizard".as_bytes())
+        crate::raw_corpus::digest("Legendary Artifact Creature — Wizard".as_bytes())
     );
     assert!(
         faces
@@ -374,7 +383,7 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
     assert_eq!(saved["field"], "type_line");
     assert_eq!(
         saved["totals"]["source_bytes"],
-        "Legendary Artifact Creature — Human Wizard".len() + "Creature Legendary".len()
+        "Legendary Artifact Creature — Wizard".len() + "Creature Legendary".len()
     );
     assert_eq!(saved["totals"]["supported_faces_without_source"], 1);
     let input = lexicon().analyze("Instant");
@@ -390,18 +399,18 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
 #[test]
 fn unknown_word_offsets_and_roundtrips_use_the_stripped_source() {
     let bytes = serde_json::to_vec(&json!({"data": {
-        "A": [card(Some("(ignored éphantom) Draw cards. éphantom."), "Legal")]
+        "A": [card(Some("(ignored éphantom) Draw a card. éphantom."), "Legal")]
     }}))
     .unwrap();
     let corpus = selected_corpus(&bytes);
     let faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &args(None)).unwrap();
     let face = &faces[0];
-    assert_eq!(face.analyzed_source, " Draw cards. éphantom.");
+    assert_eq!(face.analyzed_source, " Draw a card. éphantom.");
     let unknown = &face.unknown_words;
     assert_eq!(unknown.len(), 1);
     assert_eq!(
         (&*unknown[0].text, unknown[0].start, unknown[0].end),
-        ("éphantom", 13, 22)
+        ("éphantom", 14, 23)
     );
     assert_eq!(
         &face.analyzed_source[unknown[0].start..unknown[0].end],

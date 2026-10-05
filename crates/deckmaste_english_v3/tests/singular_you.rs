@@ -94,67 +94,6 @@ fn clause(subject: Reading, predicate: Reading) -> Reading {
     }
 }
 
-fn orientation(number: Number) -> Reading {
-    Reading::FiniteLocative {
-        form: 0,
-        head: verb("core-verb:Be", 2, number),
-        complement: Box::new(Reading::LocativeComplement {
-            form: 0,
-            phrase: Box::new(Reading::IntransitivePreposition {
-                form: 0,
-                head: word(
-                    "vocab:Preposition/FaceDown",
-                    WordForm::Invariant,
-                    FeatureBundle::default(),
-                ),
-            }),
-        }),
-    }
-}
-
-// The existing grammar admits auxiliary ellipsis without discourse context.
-// Its three PP-modified alternatives retain the same subject concord as
-// the independently selected locative predication.
-fn orientation_clauses(subject: &Reading, number: Number) -> BTreeSet<Reading> {
-    let ellipses = [
-        Reading::ProgressiveEllipsis {
-            form: 0,
-            omission: Box::new(Reading::OmittedGerundParticipleActive { form: 0 }),
-        },
-        Reading::ProgressiveEllipsis {
-            form: 0,
-            omission: Box::new(Reading::OmittedGerundParticiplePassive { form: 0 }),
-        },
-        Reading::PassiveEllipsis {
-            form: 0,
-            omission: Box::new(Reading::OmittedPastParticiplePassive { form: 0 }),
-        },
-    ];
-    let mut expected = BTreeSet::from([clause(subject.clone(), orientation(number))]);
-    for complement in ellipses {
-        expected.insert(clause(
-            subject.clone(),
-            Reading::FinitePreposition {
-                form: 0,
-                head: Box::new(Reading::FiniteParticipialAuxiliary {
-                    form: 0,
-                    head: verb("core-verb:Be", 1, number),
-                    complement: Box::new(complement),
-                }),
-                modifier: Box::new(Reading::IntransitivePreposition {
-                    form: 0,
-                    head: word(
-                        "vocab:Preposition/FaceDown",
-                        WordForm::Invariant,
-                        FeatureBundle::default(),
-                    ),
-                }),
-            },
-        ));
-    }
-    expected
-}
-
 fn exact(text: &str, category: Category, expected: BTreeSet<Reading>) {
     for value in &expected {
         assert_eq!(value.realize(&LEXICON).unwrap(), text);
@@ -163,8 +102,23 @@ fn exact(text: &str, category: Category, expected: BTreeSet<Reading>) {
     assert_eq!(readings(text, category), expected);
 }
 
+fn noun(owner: &str) -> Reading {
+    let mut head = word(
+        owner,
+        WordForm::Singular,
+        FeatureBundle {
+            number: Some(Number::Singular),
+            ..Default::default()
+        },
+    );
+    head.countability = Some(true);
+    Reading::Noun { form: 0, head }
+}
+
 #[test]
-fn independent_you_values_and_present_predicates_use_singular_second_person() {
+fn authentic_you_and_draw_clause_have_only_singular_second_person_values() {
+    // Greta, Sweettooth Scourge: "You draw a card and you lose 1 life."
+    // Tinybones, Trinket Thief: "... you draw a card and you lose 1 life."
     exact(
         "you",
         Category::NounPhrase,
@@ -176,29 +130,49 @@ fn independent_you_values_and_present_predicates_use_singular_second_person() {
             },
         ]),
     );
+    let card = Reading::AccusativePhrase {
+        form: 0,
+        head: Box::new(Reading::IndefiniteNounPhrase {
+            form: 0,
+            determiner: word(
+                "vocab:Article/Indefinite",
+                WordForm::Invariant,
+                FeatureBundle {
+                    number: Some(Number::Singular),
+                    ..Default::default()
+                },
+            ),
+            head: Box::new(noun("lexeme:CommonNoun/Card")),
+        }),
+    };
     exact(
-        "you attack",
+        "you draw a card",
         Category::FiniteClause,
         BTreeSet::from([clause(
             you(),
-            Reading::FiniteIntransitive {
+            Reading::FiniteTransitive {
                 form: 0,
-                head: verb("core-verb:Attack", 0, Number::Singular),
+                head: verb("core-verb:Draw", 0, Number::Singular),
+                object: Box::new(card),
             },
         )]),
     );
-    exact(
-        "you are face down",
-        Category::FiniteClause,
-        orientation_clauses(&you(), Number::Singular),
-    );
-    for text in ["you attacks", "you is face down"] {
-        assert!(readings(text, Category::FiniteClause).is_empty(), "{text}");
-    }
+    assert!(readings("you draws a card", Category::FiniteClause).is_empty());
 }
 
 #[test]
-fn coordinated_singular_you_subjects_still_require_plural_concord() {
+fn authentic_coordinated_subject_retains_singular_you_leaf() {
+    // Bloodroot Apothecary: "When this creature enters, you and target opponent
+    // each create a Treasure token." Test the attested subject constituent.
+    let target = Reading::TargetNounPhrase {
+        form: 0,
+        marker: word(
+            "vocab:TargetingMarker/Target",
+            WordForm::Invariant,
+            FeatureBundle::default(),
+        ),
+        head: Box::new(noun("lexeme:CommonNoun/Opponent")),
+    };
     let subject = Reading::AdditiveNounPhrase {
         form: 0,
         left: Box::new(you()),
@@ -207,48 +181,39 @@ fn coordinated_singular_you_subjects_still_require_plural_concord() {
             WordForm::Invariant,
             FeatureBundle::default(),
         ),
-        right: Box::new(you()),
+        right: Box::new(target),
     };
     exact(
-        "you and you are face down",
-        Category::FiniteClause,
-        orientation_clauses(&subject, Number::Plural),
+        "you and target opponent",
+        Category::NominativePhrase,
+        BTreeSet::from([Reading::NominativePhrase {
+            form: 0,
+            head: Box::new(subject),
+        }]),
     );
-    assert!(readings("you and you is face down", Category::FiniteClause).is_empty());
 }
 
 #[test]
-fn repeated_second_person_occurrences_do_not_create_plural_lexical_leaves() {
-    let mut hand = word(
-        "lexeme:CommonNoun/Hand",
-        WordForm::Singular,
-        FeatureBundle {
-            number: Some(Number::Singular),
-            ..Default::default()
-        },
-    );
-    hand.countability = Some(true);
+fn authentic_discard_clause_has_no_plural_second_person_leaves() {
+    // Apocalypse: "Exile all permanents. You discard your hand."
     let object = Reading::AccusativePhrase {
         form: 0,
         head: Box::new(Reading::PossessiveNounPhrase {
             form: 0,
             possessor: pronoun("vocab:PossessiveDeterminerPronoun/Your", Case::Genitive),
-            head: Box::new(Reading::Noun {
-                form: 0,
-                head: hand,
-            }),
+            head: Box::new(noun("lexeme:CommonNoun/Hand")),
         }),
     };
     let expected = clause(
         you(),
         Reading::FiniteTransitive {
             form: 0,
-            head: verb("core-verb:Draw", 0, Number::Singular),
+            head: verb("lexeme:keyword_action/discard", 0, Number::Singular),
             object: Box::new(object),
         },
     );
     exact(
-        "you draw your hand",
+        "you discard your hand",
         Category::FiniteClause,
         BTreeSet::from([expected.clone()]),
     );

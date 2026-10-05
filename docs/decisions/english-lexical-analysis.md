@@ -96,6 +96,14 @@ permanent nicknames are reversible lexical variants of the full name.
 Tests starting from independently constructed values remain required alongside
 corpus parse/render checks.
 
+Amendment (2026-10-04): grammatical game-semantic nonsense remains admissible,
+but do not make invented nonsense instructions positive regression contracts.
+Use real Oracle passages or attested constituents, recording their card and
+context. A fragment occurring on cards does not make an invented standalone
+effect an appropriate witness. Independently construct the corresponding values
+and preserve structural assertions; this witness policy adds no semantic filter
+to admission.
+
 ## Chart admission and ambiguity
 
 Amendment (2026-10-04): Construction Costs may rank a preferred presentation
