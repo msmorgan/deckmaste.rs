@@ -544,6 +544,7 @@ fn canonical_measure_component(component: &str) -> bool {
         Numeral::Arabic(false)
             .parse(unsigned)
             .is_ok_and(|value| value >= 0)
+            || (component.starts_with('-') && Numeral::Arabic(false).parse(component).is_ok())
     } else {
         Numeral::Arabic(false).parse(component).is_ok()
     }

@@ -118,6 +118,8 @@ constructions! {
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
         category KeywordQualityPrepositionSeries(KeywordMarker, KeywordQualityNumber);
+        category SelectedComplementTail(KeywordMarker, HeadCoordination);
+        category SelectedComplementTailSeries(KeywordMarker, HeadCoordination);
         category KeywordSeparator(KeywordSeparator);
         category KeywordContinuation();
         category Cost();
@@ -965,6 +967,15 @@ constructions! {
         table parameter_separator(KeywordParameterSeparator, KeywordSeparator) -> Selection {
             (Space, Space) => Yes, (Dash, Dash) => Yes, (SpacedDash, SpacedDash) => Yes,
         }
+        policy SelectedTailConcord<Right, Source> {
+            require left.HeadCoordination = No;
+            agree left.KeywordMarker = Right.KeywordMarker;
+            export KeywordMarker = left.KeywordMarker;
+            export HeadCoordination = Yes;
+        }
+        policy PrimitiveRightTail<Right, Source> {
+            require Right.HeadCoordination = No;
+        }
         policy QualityPrepositionConcord<Right, Source> {
             agree left.KeywordMarker = Right.KeywordMarker;
             export KeywordMarker = left.KeywordMarker;
@@ -1129,6 +1140,8 @@ constructions! {
             Properties = NoConcord>: [
             (ClauseSeries, Clause, NoConcord),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, QualityPrepositionConcord),
+            (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
+                PrimitiveRightTail),
             (FinitePredicateSeries, FinitePredicate, FiniteConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, SecondaryConjunctProperties),
             (NounPhraseSeries, NounPhrase, NounCoordinationAgreement, CoordinatorKindSummary),
@@ -1164,6 +1177,7 @@ constructions! {
             (ClauseSeries, Clause, Self, NoConcord),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, Self,
                 QualityPrepositionConcord),
+            (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
             (FinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement, CoordinatorKindSummary),
@@ -1198,6 +1212,7 @@ constructions! {
             (Clause, Self, ClauseSeries, NoConcord),
             (KeywordQualityPreposition, Self, KeywordQualityPrepositionSeries,
                 QualityPrepositionConcord),
+            (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
             (FinitePredicate, Self, FinitePredicateSeries, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryConjunctProperties),
             (NounPhrase, Self, NounPhraseSeries, NounCoordinationAgreement),
@@ -1269,6 +1284,7 @@ constructions! {
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord>: [
             (NounPremodifier, Self),
             (KeywordQualityPreposition, Self, QualityPrepositionConcord),
+            (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (NounPhrase, Self, NounCoordinationAgreement),
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
@@ -1510,6 +1526,25 @@ constructions! {
             (ObjectToObject, To) => Yes, (ObjectIntoObject, Into) => Yes,
             (ObjectOnObject, On) => Yes, (ObjectOntoObject, Onto) => Yes,
             (ObjectForObject, For) => Yes,
+        }
+        // CGEL Ch15 §4.3 pp1341–1343: parallel NP+PP tails under one selected verb.
+        construction ObjectPrepositionTail: SelectedComplementTail {
+            form [object: AccusativePhrase, " ", marker: lexical(Preposition), " ",
+                complement: AccusativePhrase];
+            require marker.PrepositionComplement = NounPhrase;
+            export KeywordMarker = marker.KeywordMarker;
+            export HeadCoordination = No;
+        }
+        schema SelectedComplementClustersPredicate {
+            form [head: lexical(Verb), " ", tail: SelectedComplementTail];
+            require tail.HeadCoordination = Yes;
+            require selected_object_marker(head.frame, tail.KeywordMarker) = Yes;
+        }
+        instance SelectedComplementClustersPredicate<Result, Properties>: [
+            (FinitePredicate, FiniteHeadAgreement),
+            (SecondaryVerbPhrase, OrdinarySecondaryHead),
+        ] {
+            use Properties;
         }
         schema SelectedObjectPrepositionPredicate {
             form [head: lexical(Verb), " ", object: AccusativePhrase, " ",

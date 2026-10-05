@@ -116,3 +116,11 @@ fn a_declared_signed_zero_preserves_its_written_sign_in_both_noun_forms() {
         assert_eq!(actual, BTreeSet::from([expected]));
     }
 }
+
+#[test]
+fn measured_components_preserve_the_signed_codec_boundary() {
+    assert!(Lexicon::new([noun("-2147483648/+1 counter")]).is_ok());
+    for bad in ["-2147483649/+1 counter", "+2147483648/+1 counter"] {
+        assert!(Lexicon::new([noun(bad)]).is_err(), "{bad:?}");
+    }
+}

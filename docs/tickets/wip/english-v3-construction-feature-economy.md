@@ -118,3 +118,11 @@ Word versus Reading fields. Collapsing them through SelectedVerbHead would
 change ASTs, traversal and costs. A deeper typed frame-consumption seam with
 explicit lexical/coordinated adapters could save another 100–180 lines; do not
 replace this proof-backed refactor with a shape-only merge or hidden renaming.
+
+
+The selected-tail correction adds two justified grammatical families and four
+coordination instance rows, reusing all coordination productions: 215 named
+families, 2,519 physical declaration lines, maximum width 100. Reconstructing
+old frame and binding spellings in the entire expanded grammar still yields
+exact emitted-token equality, now 2,368,391 bytes. It does not erase the selected
+frame, coordination status, marker or independent functions of either NP.

@@ -242,3 +242,32 @@ The broad gate's three facts-test failures occurred during concurrent macro
 metadata changes: the binary embedded the prior CounterKind signature but read
 the new declaration files. A rebuilt facts suite passes all 17 tests. No
 fixture was weakened for those failures; the frozen-tree gate must pass anew.
+
+
+## Selected complement coordination and PP licensing
+
+The PP audit checks 1,366 previously covered marker-bearing faces under a
+lexicon-only to/into/onto adjunct-permission correction. Exactly 37 lose all
+Readings; all require parallel object+recipient clusters (Arc Trail, Char,
+Fireslinger and related witnesses), with no into/onto losses. One reusable
+selected-tail host now checks the complete governing verb frame and requires
+coordination. Its primitive tail keeps its two NP functions separate; binary
+and Oxford-serial forms reuse existing coordination schemas and require equal
+markers. The direct uncoordinated host stays separate, avoiding duplicate ASTs.
+CGEL Ch15 §4.3 pp1341–1343 identifies right nonce-constituent coordination,
+explicitly NP+to-PP sequences under give; this is not verb gapping or ellipsis.
+
+Ordinary to/into/onto PPs no longer license independent VP/Clause adjuncts.
+Selected verb complements and nominal PP modifiers remain available; the
+unsupported limiting maximum PP remains explicit. Three new independent tests
+cover full Arc Trail/Char sentences and Fireslinger's Activated Ability, reject
+mixed/wrong frames and the uncoordinated cluster host, preserve Lightning Bolt's
+direct selected AST, and reject recipient lifting above dealt/be/would in an
+actual Avacyn constituent. The Avacyn census decreases from 41,209 intermediate
+Readings to 33,856, all checked/exact; the remaining nominal/agent attachments
+require further independent analysis. Reducing this count is not its rationale.
+
+The subsequent one-Reading diagnostic finds 5,063 newly covered identities and
+zero lost covered identities relative to the verified baseline. It is not a
+complete ambiguity census. The full English suite passes 147 tests across 35
+suites, zero ignored. The refreshed unlimited census remains required.

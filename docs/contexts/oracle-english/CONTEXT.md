@@ -398,6 +398,11 @@ A Modifier that follows its head in the linear order.
 **Coordination**:
 A construction joining two or more coordinate units.
 
+**Right Nonce-constituent Coordination**:
+Coordination of parallel sequences at a clause's right edge, each sequence
+independently filling the same functions under a shared head; coordination
+gives the sequences constituent status (CGEL, Ch. 15 §4.3, pp. 1341–1343).
+
 **Correlative Coordination**:
 A Coordination with a marker associated with its first Conjunct and a paired
 Coordinator, as in *both … and*, *either … or*, or *neither … nor*.
