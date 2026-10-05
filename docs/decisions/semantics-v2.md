@@ -303,6 +303,8 @@ constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
 Lean's reserved words, so the declaration keeps the plain name (ruling,
 2026-10-04).
 
+Three helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `random` (Lean `countedAtRandom`) and `selectRandom` (no Lean macro).
+
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
 `keyword_abilities`, `keyword_actions`, `subtypes`, `turn_parts`, `types` —

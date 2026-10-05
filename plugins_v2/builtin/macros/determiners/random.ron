@@ -1,6 +1,6 @@
 // "N <p> at random"
 (
-    name: "countedAtRandom",
+    name: "random",
     kinds: [NounPhrase],
     params: {"q": Quantity, "p": Predicate},
     body: Described(Count(Param(q), AtRandom), Param(p)),

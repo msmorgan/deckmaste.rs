@@ -1,6 +1,6 @@
 // "a … at random"
 (
-    name: "aAtRandom",
+    name: "aRandom",
     kinds: [NounPhrase],
     params: {"p": Predicate},
     body: Described(A(AtRandom), Param(p)),

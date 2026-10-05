@@ -9,7 +9,7 @@ SingleFaced(face: (
             spell(
                 timing: None,
                 instruction: discard(
-                    countedAtRandom(exactly(2), cardIn(handOf(target(anyPlayer)))),
+                    random(exactly(2), cardIn(handOf(target(anyPlayer)))),
                 ),
             ),
         ],
