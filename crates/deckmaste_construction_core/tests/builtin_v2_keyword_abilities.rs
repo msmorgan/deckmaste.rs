@@ -209,6 +209,10 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
                 preposition: FixedLexeme("Preposition".to_owned(), "From".to_owned()),
                 nominal_number: None,
             }),
+            "splice" => Some(FixedKeywordParameterGrammar::Quality {
+                preposition: FixedLexeme("Preposition".to_owned(), "Onto".to_owned()),
+                nominal_number: None,
+            }),
             _ => None,
         };
         assert_eq!(
@@ -301,6 +305,7 @@ fn prepositional_quality_keywords_declare_their_selected_markers() {
     for (name, member, nominal_number) in [
         ("affinity", "For", Some(FixedKeywordNominalNumber::Plural)),
         ("protection", "From", None),
+        ("splice", "Onto", None),
     ] {
         assert_eq!(
             ability(&declarations, name).grammar().unwrap().recipe(),

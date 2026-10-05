@@ -29,7 +29,23 @@ constructions! {
         feature MeasurePosition { Before, After }
         feature MeasureKind { Scalar, Pair }
         feature ComparisonMarker { Equality, Ordering }
-        feature KeywordParameterClass { Nullary, Amount, Cost }
+        feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
+            QualityCost, Ability, Condition, CostPowerToughness }
+        feature NominalBareClass { None, Interval, Boundary }
+        feature NominalAdjunctClass { None, Temporal, Manner } default None;
+        feature SlashPremodifierUse { No, Yes } default Yes;
+        feature NominalAdjunctDeterminer { None, Demonstrative, Temporal }
+        feature BareSingularUse { No, Yes }
+        feature RelativeUse { Yes }
+        feature KeywordMarker { None, For, From, Onto, To, Into, At, With, Of, On, Under }
+        feature KeywordPayloadOrder { AfterHead, BeforeHead, BoundSuffix }
+        feature BoundKeyword { No, Yes }
+        feature KeywordSeparator { Space, Dash, SpacedDash }
+        feature KeywordParameterSeparator { Space, Dash, SpacedDash }
+        feature KeywordQualityNumber { Any, Singular, Plural }
+        feature Selection { Yes }
+        feature Function { Genitive }
+        feature HostEnding { Default, PluralS }
         feature LabelKind { AbilityWord }
         feature SymbolUse { Cost }
         feature ManaSymbolUse { Yes }
@@ -71,7 +87,7 @@ constructions! {
         category BareComplement();
         category ParticipialComplement();
         category PerfectComplement();
-        category Nominal(number, countability, Targeting);
+        category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse);
         category NounPremodifier();
         category NounPremodifierSeries();
         category NounPhrase(number, person, CaseUse);
@@ -83,6 +99,9 @@ constructions! {
         category PrepositionPhrase(LocativeUse, AdverbialUse);
         category LocativeComplement();
         category FrequencyPhrase();
+        category NominalAdjunctPhrase();
+        category BareTemporalNominal(NominalBareClass);
+        category BoundaryComplement();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause();
         category FiniteObjectGap(number, person);
@@ -96,6 +115,10 @@ constructions! {
         category EqualityComplement();
         category OrderingComplement();
         category KeywordPhrase();
+        category KeywordQuality(KeywordQualityNumber);
+        category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
+        category KeywordQualityPrepositionSeries(KeywordMarker, KeywordQualityNumber);
+        category KeywordSeparator(KeywordSeparator);
         category KeywordContinuation();
         category Cost();
         category CostComponent();
@@ -131,7 +154,9 @@ constructions! {
         category MeasurePhraseSeries(MeasureKind);
         category KeywordPhraseSeries();
         category QuotedTextSeries();
-        category NominalSeries(number, countability, Targeting);
+        category NominalSeries(
+            number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse
+        );
         category AdjectivePhraseSeries(AdjectiveStructure);
         category PrepositionPhraseSeries(LocativeUse, AdverbialUse);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct);
@@ -169,47 +194,39 @@ constructions! {
         category SelectedPrepositionHeadSeries(LocativeUse, AdverbialUse);
         category CorrelativeFiniteClauseSeries(CorrelativeCoordinator);
 
-        frame Intransitive = "(kind: \"Predicate\", items: [])";
-        frame Transitive = "(kind: \"Predicate\", items: [Argument((relation: Object, category:\
-        \"NounPhrase\"))])";
-        frame ManaComplement = "(kind: \"Predicate\", items: [Argument((relation: Complement,\
-        category: \"ManaPhrase\"))])";
-        frame ObjectName = "(kind: \"Predicate\", items: [Argument((relation: Object, category:\
-        \"NounPhrase\")), Argument((relation: Complement, category: \"Name\"))])";
-        frame BareNominal = "(kind: \"Nominal\", items: [])";
-        frame NominalSymbols = "(kind: \"Nominal\", items: [Marked(vocabulary: \"Preposition\",\
-        member: \"Of\", slot: (relation: Complement, category: \"CostSymbols\"))])";
-        frame Predicative = "(kind: \"Predicate\", items: [Argument((relation: Complement,\
-        category: \"PredicativeComplement\"))])";
-        frame Locative = "(kind: \"Predicate\", items: [Argument((relation: Complement, category:\
-        \"LocativeComplement\"))])";
-        frame BareAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement,\
-        category: \"BarePredicate\"))])";
-        frame ParticipialAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation:\
-        Complement, category: \"ParticipialPredicate\"))])";
-        frame PerfectAuxiliary = "(kind: \"Auxiliary\", items: [Argument((relation: Complement,\
-        category: \"PastParticiplePredicate\"))])";
-        frame Measure = "(kind: \"Predicate\", items: [Argument((relation: Complement, category:\
-        \"MeasurePhrase\"))])";
-        frame SlashMeasure = "(kind: \"Predicate\", items: [Argument((relation: Complement,\
-        category: \"PowerToughnessAdjustment\"))])";
-        frame Equality = "(kind: \"Predicate\", items: [Marked(vocabulary: \"Preposition\",\
-        member: \"To\", slot: (relation: Complement, category: \"MeasurePhrase\"))])";
-        frame Ordering = "(kind: \"Predicate\", items: [Marked(vocabulary: \"Preposition\",\
-        member: \"Than\", slot: (relation: Complement, category: \"MeasurePhrase\"))])";
-        frame ObjectEquality = "(kind: \"Predicate\", items: [Argument((relation: Object,\
-        category: \"NounPhrase\")), Argument((relation: Complement, category:\
-        \"ScalarEquality\"))])";
-        frame KeywordObject = "(kind: \"Predicate\", items: [Argument((relation: Object, category:\
-        \"KeywordPhrase\"))])";
-        frame QuotedObject = "(kind: \"Predicate\", items: [Argument((relation: Object, category:\
-        \"QuotedText\"))])";
-        frame AmountComplement = "(kind: \"Predicate\", items: [Argument((relation: Complement,\
-        category: \"Amount\"))])";
-        frame CardinalComplement = "(kind: \"Predicate\", items: [Argument((relation: Complement,\
-        category: \"Cardinal\"))])";
-        frame InfinitiveSelection = "(kind: \"Predicate\", items: [Argument((relation: Complement,\
-        category: \"InfinitiveComplement\"))])";
+        frame Intransitive = Predicate();
+        frame Transitive = Predicate(Object(NounPhrase));
+        frame ManaComplement = Predicate(Complement(ManaPhrase));
+        frame ObjectName = Predicate(Object(NounPhrase), Complement(Name));
+        frame BareNominal = Nominal();
+        frame NominalSymbols = Nominal(Marked(Preposition, Of, Complement(CostSymbols)));
+        frame Predicative = Predicate(Complement(PredicativeComplement));
+        frame Locative = Predicate(Complement(LocativeComplement));
+        frame BareAuxiliary = Auxiliary(Complement(BarePredicate));
+        frame ParticipialAuxiliary = Auxiliary(Complement(ParticipialPredicate));
+        frame PerfectAuxiliary = Auxiliary(Complement(PastParticiplePredicate));
+        frame Measure = Predicate(Complement(MeasurePhrase));
+        frame SlashMeasure = Predicate(Complement(PowerToughnessAdjustment));
+        frame Equality = Predicate(Marked(Preposition, To, Complement(MeasurePhrase)));
+        frame Ordering = Predicate(Marked(Preposition, Than, Complement(MeasurePhrase)));
+        frame ObjectEquality = Predicate(Object(NounPhrase), Complement(ScalarEquality));
+        frame KeywordObject = Predicate(Object(KeywordPhrase));
+        frame QuotedObject = Predicate(Object(QuotedText));
+        frame AmountComplement = Predicate(Complement(Amount));
+        frame CardinalComplement = Predicate(Complement(Cardinal));
+        frame InfinitiveSelection = Predicate(Complement(InfinitiveComplement));
+
+        frame ObjectToObject = Predicate(Object(NounPhrase), Preposition(To), Object(NounPhrase));
+        frame ObjectIntoObject = Predicate(
+            Object(NounPhrase), Preposition(Into), Object(NounPhrase)
+        );
+        frame ObjectOnObject = Predicate(Object(NounPhrase), Preposition(On), Object(NounPhrase));
+        frame ObjectOntoObject = Predicate(
+            Object(NounPhrase), Preposition(Onto), Object(NounPhrase)
+        );
+        frame ObjectForObject = Predicate(Object(NounPhrase), Preposition(For), Object(NounPhrase));
+        frame AtObject = Predicate(Preposition(At), Object(NounPhrase));
+        frame Ditransitive = Predicate(Object(NounPhrase), Object(NounPhrase));
 
         // Plain form is shared by finite imperatives and nonfinite infinitivals.
         table secondary_form(form) -> form {
@@ -218,17 +235,6 @@ constructions! {
             (PastParticiple) => PastParticiple,
         }
 
-        table additive_person(person, person) -> person {
-            (First, First) => First,
-            (First, Second) => First,
-            (First, Third) => First,
-            (Second, First) => First,
-            (Second, Second) => Second,
-            (Second, Third) => Second,
-            (Third, First) => First,
-            (Third, Second) => Second,
-            (Third, Third) => Third,
-        }
 
         table coordinate_number(CoordinationKind, number, number) -> number {
             (Additive, Singular, Singular) => Plural,
@@ -341,6 +347,8 @@ constructions! {
             export number = head.number;
             export countability = head.countability;
             export Targeting = head.Targeting;
+            export NominalAdjunctClass = head.NominalAdjunctClass;
+            export SlashPremodifierUse = head.SlashPremodifierUse;
         }
 
         policy PredicateHeadAgreement {
@@ -394,6 +402,8 @@ constructions! {
             export number = head.number;
             export countability = head.countability;
             export Targeting = No;
+            export NominalAdjunctClass = head.NominalAdjunctClass;
+            export SlashPremodifierUse = head.SlashPremodifierUse;
         }
 
         policy PrepositionHeadPermissions {
@@ -449,6 +459,10 @@ constructions! {
             agree left.countability = Right.countability;
             agree left.number = Right.number;
             export Targeting = left.Targeting;
+            export NominalAdjunctClass = nominal_adjunct_concord(left.NominalAdjunctClass,
+                Right.NominalAdjunctClass);
+            export SlashPremodifierUse = slash_premodifier_concord(left.SlashPremodifierUse,
+                Right.SlashPremodifierUse);
             export countability = left.countability;
             export number = left.number;
         }
@@ -564,6 +578,10 @@ constructions! {
         schema PerfectAuxiliaryPredicate {
             form [head: lexical(Verb), complement: node];
             require head.frame = PerfectAuxiliary;
+        }
+
+        schema NominalAdjunctPredicate {
+            form [head: node, " ", modifier: NominalAdjunctPhrase];
         }
 
         schema FrequencyPredicate {
@@ -930,6 +948,128 @@ constructions! {
             require head.KeywordParameterClass = Cost;
         }
 
+        table quality_number(number) -> KeywordQualityNumber {
+            (Singular) => Singular, (Plural) => Plural,
+        }
+        table compatible_quality(KeywordQualityNumber, KeywordQualityNumber) -> Selection {
+            (Any, Any) => Yes, (Any, Singular) => Yes, (Any, Plural) => Yes,
+            (Singular, Singular) => Yes, (Plural, Plural) => Yes,
+        }
+        table coordinated_quality(KeywordQualityNumber, KeywordQualityNumber)
+            -> KeywordQualityNumber {
+            (Any, Any) => Any, (Any, Singular) => Any, (Any, Plural) => Any,
+            (Singular, Any) => Any, (Singular, Singular) => Singular,
+            (Singular, Plural) => Any, (Plural, Any) => Any,
+            (Plural, Singular) => Any, (Plural, Plural) => Plural,
+        }
+        table parameter_separator(KeywordParameterSeparator, KeywordSeparator) -> Selection {
+            (Space, Space) => Yes, (Dash, Dash) => Yes, (SpacedDash, SpacedDash) => Yes,
+        }
+        policy QualityPrepositionConcord<Right, Source> {
+            agree left.KeywordMarker = Right.KeywordMarker;
+            export KeywordMarker = left.KeywordMarker;
+            export KeywordQualityNumber = coordinated_quality(left.KeywordQualityNumber,
+                Right.KeywordQualityNumber);
+        }
+        construction AdjectivalKeywordQuality: KeywordQuality {
+            form [phrase: AdjectivePhrase];
+            require phrase.AdjectiveStructure = Simple;
+            export KeywordQualityNumber = Any;
+        }
+        construction NominalKeywordQuality: KeywordQuality {
+            form [phrase: Nominal];
+            require phrase.Targeting = No;
+            export KeywordQualityNumber = quality_number(phrase.number);
+        }
+        table keyword_quality_marker(KeywordMarker) -> Selection {
+            (For) => Yes, (From) => Yes, (Onto) => Yes,
+        }
+        construction KeywordQualityPreposition: KeywordQualityPreposition {
+            form [head: lexical(Preposition), " ", quality: KeywordQuality];
+            require keyword_quality_marker(head.KeywordMarker) = Yes;
+            export KeywordMarker = head.KeywordMarker;
+            export KeywordQualityNumber = quality.KeywordQualityNumber;
+        }
+        construction SpaceKeywordSeparator: KeywordSeparator {
+            form [" "];
+            export KeywordSeparator = Space;
+        }
+        construction DashKeywordSeparator: KeywordSeparator {
+            form ["—"];
+            export KeywordSeparator = Dash;
+        }
+        construction SpacedDashKeywordSeparator: KeywordSeparator {
+            form [" — "];
+            export KeywordSeparator = SpacedDash;
+        }
+        construction QualityKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", quality: KeywordQualityPreposition];
+            require head.KeywordParameterClass = Quality;
+            require head.KeywordPayloadOrder = AfterHead;
+            require head.KeywordSeparator = Space;
+            agree head.KeywordMarker = quality.KeywordMarker;
+            require compatible_quality(head.KeywordQualityNumber,
+                quality.KeywordQualityNumber) = Yes;
+        }
+        construction BeforeHeadQualityKeyword: KeywordPhrase {
+            form [quality: KeywordQuality, " ", head: lexical(Keyword)];
+            require head.KeywordParameterClass = Quality;
+            require head.KeywordPayloadOrder = BeforeHead;
+            require head.KeywordMarker = None;
+            require compatible_quality(head.KeywordQualityNumber,
+                quality.KeywordQualityNumber) = Yes;
+        }
+
+        construction SubjectKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", subject: Nominal];
+            require head.KeywordParameterClass = Subject;
+            require head.KeywordSeparator = Space;
+            require subject.Targeting = No;
+        }
+        construction AmountCostKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", amount: MeasurePhrase,
+                separator: KeywordSeparator, cost: CostSymbols];
+            require head.KeywordParameterClass = AmountCost;
+            require head.KeywordSeparator = Space;
+            require amount.MeasureKind = Scalar;
+            require parameter_separator(head.KeywordParameterSeparator,
+                separator.KeywordSeparator) = Yes;
+        }
+        construction QualityCostKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", quality: KeywordQualityPreposition,
+                separator: KeywordSeparator, cost: CostSymbols];
+            require head.KeywordParameterClass = QualityCost;
+            require head.KeywordSeparator = Space;
+            agree head.KeywordMarker = quality.KeywordMarker;
+            require compatible_quality(head.KeywordQualityNumber,
+                quality.KeywordQualityNumber) = Yes;
+            require parameter_separator(head.KeywordParameterSeparator,
+                separator.KeywordSeparator) = Yes;
+        }
+        category ClausalKeywordPayload(KeywordParameterClass);
+        construction AbilityKeywordPayload: ClausalKeywordPayload {
+            form [body: Ability];
+            export KeywordParameterClass = Ability;
+        }
+        construction ConditionKeywordPayload: ClausalKeywordPayload {
+            form [body: Sentence];
+            export KeywordParameterClass = Condition;
+        }
+        construction ClausalKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), separator: KeywordSeparator,
+                body: ClausalKeywordPayload];
+            agree head.KeywordParameterClass = body.KeywordParameterClass;
+            agree head.KeywordSeparator = separator.KeywordSeparator;
+        }
+        construction CostPowerToughnessKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", cost: CostSymbols,
+                separator: KeywordSeparator, size: SlashPair];
+            require head.KeywordParameterClass = CostPowerToughness;
+            require head.KeywordSeparator = Space;
+            require parameter_separator(head.KeywordParameterSeparator,
+                separator.KeywordSeparator) = Yes;
+        }
+
         construction RemindedKeyword: KeywordPhrase {
             form [keyword: KeywordPhrase, " ", reminder: Parenthetical];
         }
@@ -988,6 +1128,7 @@ constructions! {
         instance CoordinationSeriesEnd<Result, Member, Agreement = NoConcord,
             Properties = NoConcord>: [
             (ClauseSeries, Clause, NoConcord),
+            (KeywordQualityPrepositionSeries, KeywordQualityPreposition, QualityPrepositionConcord),
             (FinitePredicateSeries, FinitePredicate, FiniteConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, SecondaryConjunctProperties),
             (NounPhraseSeries, NounPhrase, NounCoordinationAgreement, CoordinatorKindSummary),
@@ -1017,9 +1158,12 @@ constructions! {
             use Agreement(right, coordinator);
             use Properties(right, coordinator);
         }
-        instance CoordinationSeriesContinuation<Result, Member, Tail, Agreement = NoConcord,
+        instance CoordinationSeriesContinuation<
+            Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
             (ClauseSeries, Clause, Self, NoConcord),
+            (KeywordQualityPrepositionSeries, KeywordQualityPreposition, Self,
+                QualityPrepositionConcord),
             (FinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement, CoordinatorKindSummary),
@@ -1046,14 +1190,14 @@ constructions! {
             (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListEnd),
             (SelectedPrepositionHeadSeries, SelectedPrepositionHead, Self, PrepositionPermissions),
         ] {
-            bind left = Member;
-            bind rest = Tail;
             use Agreement(rest, rest);
             use Properties(rest, rest);
         }
-        instance SerialCoordination<Result, Member, Tail, Agreement = NoConcord,
+        instance SerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
             (Clause, Self, ClauseSeries, NoConcord),
+            (KeywordQualityPreposition, Self, KeywordQualityPrepositionSeries,
+                QualityPrepositionConcord),
             (FinitePredicate, Self, FinitePredicateSeries, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryConjunctProperties),
             (NounPhrase, Self, NounPhraseSeries, NounCoordinationAgreement),
@@ -1080,8 +1224,6 @@ constructions! {
             (SelectedPrepositionHead, Self, SelectedPrepositionHeadSeries, PrepositionPermissions,
                 SharedHeadStatus),
         ] {
-            bind left = Member;
-            bind rest = Tail;
             use Agreement(rest, rest);
             use Properties(rest, rest);
         }
@@ -1126,6 +1268,7 @@ constructions! {
         }
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord>: [
             (NounPremodifier, Self),
+            (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (NounPhrase, Self, NounCoordinationAgreement),
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
@@ -1187,6 +1330,14 @@ constructions! {
             require head.IdentityUse = Name;
         }
 
+        // CGEL p. 516: a referential proper name has NP status. Oracle names
+        // refer to one card even when the written title contains plural nouns.
+        construction ProperNameNounPhrase: NounPhrase {
+            form [head: Name];
+            export number = Singular;
+            use ThirdPersonCommonCase;
+        }
+
         construction PassiveNamePredicate: NamePredicate {
             form [head: lexical(Verb), " ", complement: Name];
             require head.form = PastParticiple;
@@ -1205,6 +1356,8 @@ constructions! {
             export number = head.number;
             export countability = head.countability;
             export Targeting = Yes;
+            export NominalAdjunctClass = None;
+            export SlashPremodifierUse = head.SlashPremodifierUse;
         }
 
         construction PostmodifiedNominal: Nominal {
@@ -1257,11 +1410,10 @@ constructions! {
             require head.case = Nominative;
             export CaseUse = Nominative;
         }
-        instance CasePhrase<Result, Head, Properties>: [
+        instance CasePhrase<Result, Head: head, Properties>: [
             (NominativePhrase, NounPhrase, NominativeCase),
             (AccusativePhrase, NounPhrase, AccusativeCase),
         ] {
-            bind head = Head;
             use Properties;
         }
 
@@ -1311,54 +1463,184 @@ constructions! {
         ] {
             use Properties;
         }
-        instance TransitivePredicate<Result, Object, Properties>: [
+        instance TransitivePredicate<Result, Object: object, Properties>: [
             (FinitePredicate, AccusativePhrase, FiniteHeadAgreement),
             (SecondaryVerbPhrase, AccusativePhrase, OrdinarySecondaryHead),
         ] {
-            bind object = Object;
             use Properties;
         }
-        instance ManaComplementPredicate<Result, Complement, Properties>: [
+        instance ManaComplementPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, ManaPhrase, FiniteHeadAgreement),
             (SecondaryVerbPhrase, ManaPhrase, OrdinarySecondaryHead),
         ] {
-            bind complement = Complement;
             use Properties;
         }
-        instance LocativePredicate<Result, Complement, Properties>: [
+        instance LocativePredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, LocativeComplement, FiniteHeadAgreement),
             (SecondaryVerbPhrase, LocativeComplement, OrdinarySecondaryHead),
         ] {
-            bind complement = Complement;
             use Properties;
         }
-        instance PredicativePredicate<Result, Complement, Properties>: [
+        instance PredicativePredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, PredicativeComplement, FiniteHeadAgreement),
             (SecondaryVerbPhrase, PredicativeComplement, OrdinarySecondaryHead),
         ] {
-            bind complement = Complement;
             use Properties;
         }
-        instance BareAuxiliaryPredicate<Result, Complement, Properties>: [
+        instance BareAuxiliaryPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, BareComplement, FiniteHeadAgreement),
             (SecondaryVerbPhrase, BareComplement, OrdinarySecondaryHead),
         ] {
-            bind complement = Complement;
             use Properties;
         }
-        instance ParticipialAuxiliaryPredicate<Result, Complement, Properties>: [
+        instance ParticipialAuxiliaryPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, ParticipialComplement, FiniteHeadAgreement),
             (SecondaryVerbPhrase, ParticipialComplement, OrdinarySecondaryHead),
         ] {
-            bind complement = Complement;
             use Properties;
         }
-        instance PerfectAuxiliaryPredicate<Result, Complement, Properties>: [
+        instance PerfectAuxiliaryPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, PerfectComplement, FiniteHeadAgreement),
             (SecondaryVerbPhrase, PerfectComplement, OrdinarySecondaryHead),
         ] {
-            bind complement = Complement;
             use Properties;
+        }
+
+        table selected_object_marker(frame, KeywordMarker) -> Selection {
+            (ObjectToObject, To) => Yes, (ObjectIntoObject, Into) => Yes,
+            (ObjectOnObject, On) => Yes, (ObjectOntoObject, Onto) => Yes,
+            (ObjectForObject, For) => Yes,
+        }
+        schema SelectedObjectPrepositionPredicate {
+            form [head: lexical(Verb), " ", object: AccusativePhrase, " ",
+                marker: lexical(Preposition), " ", complement: AccusativePhrase];
+            require selected_object_marker(head.frame, marker.KeywordMarker) = Yes;
+        }
+        instance SelectedObjectPrepositionPredicate<Result, Properties>: [
+            (FinitePredicate, FiniteHeadAgreement),
+            (SecondaryVerbPhrase, OrdinarySecondaryHead),
+        ] {
+            use Properties;
+        }
+        schema SelectedGapPrepositionPredicate {
+            form [head: lexical(Verb), " ", marker: lexical(Preposition), " ",
+                complement: AccusativePhrase];
+            require selected_object_marker(head.frame, marker.KeywordMarker) = Yes;
+        }
+        policy PlainGapHead {
+            require head.form = Plain;
+        }
+        policy BarePassiveHead {
+            require head.form = PastParticiple;
+            export form = PastParticiple;
+            export ParticipialUse = BarePassive;
+        }
+        instance SelectedGapPrepositionPredicate<Result, Properties>: [
+            (FiniteObjectGap, FiniteHeadAgreement),
+            (BareObjectGap, PlainGapHead),
+            (SecondaryVerbPhrase, BarePassiveHead),
+        ] {
+            use Properties;
+        }
+        schema SelectedPrepositionPredicate {
+            form [head: lexical(Verb), " ", marker: lexical(Preposition), " ",
+                complement: AccusativePhrase];
+            require head.frame = AtObject;
+            require marker.KeywordMarker = At;
+        }
+        instance SelectedPrepositionPredicate<Result, Properties>: [
+            (FinitePredicate, FiniteHeadAgreement),
+            (SecondaryVerbPhrase, OrdinarySecondaryHead),
+        ] {
+            use Properties;
+        }
+        construction RetainedObjectPassive: SecondaryVerbPhrase {
+            form [head: lexical(Verb), " ", object: AccusativePhrase];
+            require head.frame = Ditransitive;
+            use BarePassiveHead;
+        }
+        construction PassivePostmodifiedNominal: Nominal {
+            form [head: Nominal, " ", modifier: SecondaryVerbPhrase];
+            require modifier.form = PastParticiple;
+            require modifier.ParticipialUse = BarePassive;
+            use NominalHeadProperties;
+        }
+
+        // CGEL pp. 698 and 671: licensed temporal and manner NPs as adjuncts.
+        table nominal_adjunct_license(NominalAdjunctDeterminer, NominalAdjunctClass)
+            -> Selection {
+            (Demonstrative, Temporal) => Yes,
+            (Demonstrative, Manner) => Yes,
+            (Temporal, Temporal) => Yes,
+        }
+        table nominal_adjunct_concord(NominalAdjunctClass, NominalAdjunctClass)
+            -> NominalAdjunctClass {
+            (None, None) => None, (None, Temporal) => None, (None, Manner) => None,
+            (Temporal, None) => None, (Temporal, Temporal) => Temporal,
+            (Temporal, Manner) => None, (Manner, None) => None,
+            (Manner, Temporal) => None, (Manner, Manner) => Manner,
+        }
+        construction NominalAdjunctPhrase: NominalAdjunctPhrase {
+            form [determiner: lexical(Determinative), " ", head: Nominal];
+            require head.Targeting = No;
+            require head.number = Singular;
+            require nominal_adjunct_license(determiner.NominalAdjunctDeterminer,
+                head.NominalAdjunctClass) = Yes;
+        }
+        instance NominalAdjunctPredicate<Result, Head: head, Properties>: [
+            (FinitePredicate, Self, PredicateHeadAgreement),
+            (SecondaryVerbPhrase, Self, SecondaryProjection),
+            (FiniteObjectGap, Self, PredicateHeadAgreement),
+            (BareObjectGap, Self, NoFeatures),
+        ] {
+            use Properties;
+        }
+
+        // CGEL pp. 409–410: restricted bare count NPs in selected PP frames.
+        construction BareIntervalNominal: BareTemporalNominal {
+            form [head: lexical(Noun)];
+            require head.NominalBareClass = Interval;
+            require head.number = Singular;
+            export NominalBareClass = Interval;
+        }
+        construction OrdinaryBoundaryComplement: BoundaryComplement {
+            form [phrase: AccusativePhrase];
+        }
+        construction BareBoundaryComplement: BoundaryComplement {
+            form [phrase: BareTemporalNominal];
+            require phrase.NominalBareClass = Interval;
+        }
+        construction BareBoundaryNominal: BareTemporalNominal {
+            form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
+                complement: BoundaryComplement];
+            require head.NominalBareClass = Boundary;
+            require head.number = Singular;
+            require marker.NominalComplementMarker = Of;
+            export NominalBareClass = Boundary;
+        }
+        construction BareTemporalPreposition: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: BareTemporalNominal];
+            agree head.NominalBareClass = complement.NominalBareClass;
+            use PrepositionHeadPermissions;
+        }
+
+        // The declared modifier licenses this Oracle-register bare singular NP.
+        construction BareStatusNounPhrase: NounPhrase {
+            form [modifier: lexical(Adjective), " ", head: Nominal];
+            require modifier.BareSingularUse = Yes;
+            require head.number = Singular;
+            require head.countability = Count;
+            require head.Targeting = No;
+            use NounPhraseHeadAgreement;
+        }
+
+        construction PronounSubjectRelative: SubjectRelativeClause {
+            form [marker: lexical(Pronoun), " ", predicate: FinitePredicate];
+            require marker.RelativeUse = Yes;
+            require marker.case = Nominative;
+            agree marker.person = predicate.person;
+            agree marker.number = predicate.number;
+            export number = predicate.number;
         }
 
         construction CountedFrequency: FrequencyPhrase {
@@ -1367,21 +1649,17 @@ constructions! {
             require head.countability = Count;
             agree quantity.number = head.number;
         }
-        instance FrequencyPredicate<Result, Head, Modifier, Properties>: [
+        instance FrequencyPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, FrequencyPhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, Self, FrequencyPhrase, SecondaryProjection),
         ] {
-            bind head = Head;
-            bind modifier = Modifier;
             use Properties;
         }
 
-        instance PrepositionPredicate<Result, Head, Modifier, Properties>: [
+        instance PrepositionPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, PrepositionPhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, Self, PrepositionPhrase, SecondaryProjection),
         ] {
-            bind head = Head;
-            bind modifier = Modifier;
             use Properties;
         }
 
@@ -1479,12 +1757,11 @@ constructions! {
             form [];
             export form = PastParticiple;
         }
-        instance OvertComplement<Result, Predicate>: [
+        instance OvertComplement<Result, Predicate: predicate>: [
             (BareComplement, BarePredicate),
             (ParticipialComplement, ParticipialPredicate),
             (PerfectComplement, PastParticiplePredicate),
         ] {
-            bind predicate = Predicate;
         }
 
         construction BareEllipsis: BareComplement {
@@ -1588,17 +1865,22 @@ constructions! {
             export MeasureKind = Pair;
         }
 
+        table slash_premodifier_concord(SlashPremodifierUse, SlashPremodifierUse)
+            -> SlashPremodifierUse {
+            (Yes, Yes) => Yes, (Yes, No) => No, (No, Yes) => No, (No, No) => No,
+        }
+
         construction SlashModifiedNominal: Nominal {
             form [modifier: SlashPair, " ", head: Nominal];
+            require head.SlashPremodifierUse = Yes;
             use NominalHeadProperties;
             require head.Targeting = No;
             require head.countability = Count;
         }
-        instance SlashMeasurePredicate<Result, Measure, Properties>: [
+        instance SlashMeasurePredicate<Result, Measure: measure, Properties>: [
             (FinitePredicate, SlashPair, FiniteHeadAgreement),
             (SecondaryVerbPhrase, SlashPair, OrdinarySecondaryHead),
         ] {
-            bind measure = Measure;
             use Properties;
         }
 
@@ -1676,35 +1958,31 @@ constructions! {
             form [complement: OrderingComplement];
             export AdjectiveStructure = Complemented;
         }
-        instance MeasurePredicate<Result, Measure, Properties>: [
+        instance MeasurePredicate<Result, Measure: measure, Properties>: [
             (FinitePredicate, MeasurePhrase, FiniteHeadAgreement),
             (SecondaryVerbPhrase, MeasurePhrase, OrdinarySecondaryHead),
         ] {
-            bind measure = Measure;
             use Properties;
         }
-        instance ObjectEqualityPredicate<Result, Object, Complement, Properties>: [
+        instance ObjectEqualityPredicate<
+            Result, Object: object, Complement: complement, Properties>: [
             (FinitePredicate, AccusativePhrase, EqualityComplement, FiniteHeadAgreement),
             (SecondaryVerbPhrase, AccusativePhrase, EqualityComplement, OrdinarySecondaryHead),
         ] {
-            bind object = Object;
-            bind complement = Complement;
             use Properties;
         }
 
-        instance KeywordObjectPredicate<Result, Object, Properties>: [
+        instance KeywordObjectPredicate<Result, Object: object, Properties>: [
             (FinitePredicate, KeywordPhrase, FiniteHeadAgreement),
             (SecondaryVerbPhrase, KeywordPhrase, OrdinarySecondaryHead),
         ] {
-            bind object = Object;
             use Properties;
         }
 
-        instance QuotedObjectPredicate<Result, Object, Properties>: [
+        instance QuotedObjectPredicate<Result, Object: object, Properties>: [
             (FinitePredicate, QuotedText, FiniteHeadAgreement),
             (SecondaryVerbPhrase, QuotedText, OrdinarySecondaryHead),
         ] {
-            bind object = Object;
             use Properties;
         }
 
@@ -1722,11 +2000,10 @@ constructions! {
         construction ScalarAmount: Amount {
             form [value: UnsignedScalar];
         }
-        instance AmountPredicate<Result, Amount, Properties>: [
+        instance AmountPredicate<Result, Amount: amount, Properties>: [
             (FinitePredicate, Amount, FiniteHeadAgreement),
             (SecondaryVerbPhrase, Amount, OrdinarySecondaryHead),
         ] {
-            bind amount = Amount;
             use Properties;
         }
 
@@ -1735,12 +2012,10 @@ constructions! {
             export VPFinalAdjunct = head.VPFinalAdjunct;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
         }
-        instance AdverbPredicate<Result, Head, Modifier, Properties>: [
+        instance AdverbPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, AdverbPhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, Self, AdverbPhrase, SecondaryAdjunctProjection),
         ] {
-            bind head = Head;
-            bind modifier = Modifier;
             use Properties;
         }
 
@@ -1754,11 +2029,10 @@ constructions! {
             form [marker: lexical(Subordinator), " ", predicate: BarePredicate];
             require marker.InfinitivalMarker = Yes;
         }
-        instance InfinitivePredicate<Result, Complement, Properties>: [
+        instance InfinitivePredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, InfinitiveComplement, FiniteHeadAgreement),
             (SecondaryVerbPhrase, InfinitiveComplement, OrdinarySecondaryHead),
         ] {
-            bind complement = Complement;
             use Properties;
         }
 
@@ -1786,126 +2060,102 @@ constructions! {
             (Adversative, Plural, Plural) => Plural,
         }
 
-        instance SharedObjectComplement<Result, Head, Object, Properties>: [
+        instance SharedObjectComplement<Result, Head: head, Object: object, Properties>: [
             (FinitePredicate, FiniteSelectedHead, AccusativePhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase,
                 OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind object = Object;
             use Properties;
         }
-        instance SharedPredicativeComplement<Result, Head, Complement, Properties>: [
+        instance SharedPredicativeComplement<
+            Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, PredicativeComplement, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, PredicativeComplement,
                 OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind complement = Complement;
             use Properties;
         }
-        instance SharedLocativeComplement<Result, Head, Complement, Properties>: [
+        instance SharedLocativeComplement<Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, LocativeComplement, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, LocativeComplement,
                 OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind complement = Complement;
             use Properties;
         }
-        instance SharedManaComplement<Result, Head, Complement, Properties>: [
+        instance SharedManaComplement<Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, ManaPhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, ManaPhrase, OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind complement = Complement;
             use Properties;
         }
-        instance SharedAmountComplement<Result, Head, Amount, Properties>: [
+        instance SharedAmountComplement<Result, Head: head, Amount: amount, Properties>: [
             (FinitePredicate, FiniteSelectedHead, Amount, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, Amount, OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind amount = Amount;
             use Properties;
         }
-        instance SharedMeasureComplement<Result, Head, Measure, Properties>: [
+        instance SharedMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
             (FinitePredicate, FiniteSelectedHead, MeasurePhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, MeasurePhrase, OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind measure = Measure;
             use Properties;
         }
-        instance SharedSlashMeasureComplement<Result, Head, Measure, Properties>: [
+        instance SharedSlashMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
             (FinitePredicate, FiniteSelectedHead, SlashPair, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, SlashPair, OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind measure = Measure;
             use Properties;
         }
-        instance SharedKeywordComplement<Result, Head, Object, Properties>: [
+        instance SharedKeywordComplement<Result, Head: head, Object: object, Properties>: [
             (FinitePredicate, FiniteSelectedHead, KeywordPhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, KeywordPhrase, OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind object = Object;
             use Properties;
         }
-        instance SharedQuotedComplement<Result, Head, Object, Properties>: [
+        instance SharedQuotedComplement<Result, Head: head, Object: object, Properties>: [
             (FinitePredicate, FiniteSelectedHead, QuotedText, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, QuotedText, OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind object = Object;
             use Properties;
         }
-        instance SharedAuxiliaryBareComplement<Result, Head, Complement, Properties>: [
+        instance SharedAuxiliaryBareComplement<
+            Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, BareComplement, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, BareComplement, OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind complement = Complement;
             use Properties;
         }
-        instance SharedAuxiliaryParticipleComplement<Result, Head, Complement, Properties>: [
+        instance SharedAuxiliaryParticipleComplement<
+            Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, ParticipialComplement, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, ParticipialComplement,
                 OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind complement = Complement;
             use Properties;
         }
-        instance SharedAuxiliaryPerfectComplement<Result, Head, Complement, Properties>: [
+        instance SharedAuxiliaryPerfectComplement<
+            Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, PerfectComplement, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, PerfectComplement,
                 OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind complement = Complement;
             use Properties;
         }
-        instance SharedObjectNameComplement<Result, Head, Object, Complement, Properties>: [
+        instance SharedObjectNameComplement<
+            Result, Head: head, Object: object, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, AccusativePhrase, Name, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, Name,
                 OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind object = Object;
-            bind complement = Complement;
             use Properties;
         }
-        instance SharedObjectEqualityComplement<Result, Head, Object, Complement, Properties>: [
+        instance SharedObjectEqualityComplement<
+            Result, Head: head, Object: object, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, AccusativePhrase, EqualityComplement,
                 PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, EqualityComplement,
                 OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind object = Object;
-            bind complement = Complement;
             use Properties;
         }
 
@@ -2034,7 +2284,8 @@ constructions! {
             use Properties(right, coordinator);
             use Status(right, coordinator);
         }
-        instance CorrelativeSeriesContinuation<Result, Member, Tail, Agreement = NoConcord,
+        instance CorrelativeSeriesContinuation<
+            Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, Status = NoConcord>: [
             (CorrelativeClauseSeries, Clause, Self, NoConcord),
             (CorrelativeFinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
@@ -2060,13 +2311,11 @@ constructions! {
             (CorrelativeBareObjectGapSeries, BareObjectGap, Self),
             (CorrelativeFiniteClauseSeries, FiniteClause, Self),
         ] {
-            bind left = Member;
-            bind rest = Tail;
             use Agreement(rest, rest);
             use Properties(rest, rest);
             use Status(rest, rest);
         }
-        instance EitherSerialCoordination<Result, Member, Tail, Agreement = NoConcord,
+        instance EitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
             (Clause, Self, CorrelativeClauseSeries, NoConcord),
             (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord),
@@ -2091,8 +2340,6 @@ constructions! {
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries),
             (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries),
         ] {
-            bind left = Member;
-            bind rest = Tail;
             use Agreement(rest, rest);
             use Properties(rest, rest);
         }
@@ -2145,7 +2392,7 @@ constructions! {
             use Properties(right, coordinator);
         }
 
-        instance NeitherSerialCoordination<Result, Member, Tail, Agreement = NoConcord,
+        instance NeitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
             (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord),
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries,
@@ -2168,10 +2415,18 @@ constructions! {
             (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteConcord),
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries),
         ] {
-            bind left = Member;
-            bind rest = Tail;
             use Agreement(rest, rest);
             use Properties(rest, rest);
+        }
+
+        // CGEL pp. 467–468: a genitive NP determines the following nominal.
+        construction SingularGenitiveNounPhrase: NounPhrase {
+            form [possessor: NounPhrase, marker: lexical(Clitic), " ", head: Nominal];
+            require possessor.CaseUse = Common;
+            require possessor.number = Singular;
+            require marker.Function = Genitive;
+            require marker.HostEnding = Default;
+            use NounPhraseHeadAgreement;
         }
 
         construction PossessiveNounPhrase: NounPhrase {
@@ -2186,22 +2441,19 @@ constructions! {
             require head.KeywordComplement = Yes;
             use PrepositionHeadPermissions;
         }
-        instance SharedCardinalComplement<Result, Head, Complement, Properties>: [
+        instance SharedCardinalComplement<Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, Cardinal, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, Cardinal, OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind complement = Complement;
             use Properties;
         }
 
-        instance SharedInfinitiveComplement<Result, Head, Complement, Properties>: [
+        instance SharedInfinitiveComplement<
+            Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, InfinitiveComplement, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, InfinitiveComplement,
                 OrdinarySelectedPredicate),
         ] {
-            bind head = Head;
-            bind complement = Complement;
             use Properties;
         }
 

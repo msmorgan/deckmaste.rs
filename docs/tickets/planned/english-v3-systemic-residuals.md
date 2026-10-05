@@ -131,3 +131,85 @@ Reconcile the 6,396 unclassified, 85 frame and 196 flavor ledgers by identity;
 count subtraction is not a cause audit. Do not close this ticket or declare
 these residuals long-tail from the present sample. The current DRY pass and
 its verification belong to the attached feature-economy ticket.
+
+
+## Restricted Oracle host repairs (2026-10-05)
+
+The next implementation batch adds declared keyword parameter/separator/order
+metadata and typed quality, subject, amount-cost, quality-cost, ability,
+condition and prototype hosts. Ordinary binary/Oxford coordination schemas are
+reused for keyword quality PPs. Keyword payloads keep their declared marker,
+number, separator and ownership constraints; unsupported bound landwalk stems
+remain explicit rather than accepting arbitrary nominal stems.
+
+Temporal/manner NP adjuncts use declared noun and determiner classes. Bare
+end-of-turn PPs are separately licensed; bare count nouns do not become general
+Subjects or Objects. Finite preterite relatives use existing finite agreement.
+Who keeps its pronoun analysis. Past-participial postnominals use bare-passive
+structure, including recipient-first deal with its retained damage Object.
+Selected put/look/search/deal frames retain their complete marker signatures.
+Card-name catalog entries project to singular NPs without changing catalog
+morphology. Equipped, enchanted and fortified bare singular NPs are explicitly
+licensed Oracle-register uses; other participial adjectives gain no such rule.
+Singular NP genitives preserve the head's number independently of the possessor.
+
+CGEL authority: temporal NPs Ch8 §6.3 p698; this way Ch8 §2.1 p671;
+selected bare count uses Ch5 §8.5 pp409–410; relative who Ch12 §3.5.6
+pp1056–1057; bare passives Ch14 §9 pp1264–1265; recipient-first passive
+Ch16 §10.1.2 pp1432–1433; genitives Ch5 §16.3 pp467–468 and §16.5.1
+pp472–473. These analyses inform the grammar; Oracle attestation and declared
+lexical licenses restrict its supported distribution.
+
+All 73 CounterKind declarations now supply owned compound nouns from one
+recipe, preserving singular/plural head paradigms and the original fixed-term
+owners. Numeric compounds use validated measured structure. The counter head
+rejects the former syntactic slash-premodifier analysis. Whole counter NPs can
+coordinate; the modifier-sharing charge-and-loyalty-counters analysis rejects.
+CGEL compound diagnostics: Ch5 §14.4 pp448–451; head plural morphology:
+Ch18 §4.1.7 p1594. Ordinary English alternatives do not expand Oracle licenses.
+
+Independent expected-value tests cover actual keyword payloads, temporal and
+manner adjuncts, restricted status NPs, Seedborn Muse genitives, selected frames
+and retained-object passives, Lightning Bolt/Rift Bolt names, Coalition Relic
+counter nouns and Flycatcher Giraffid counter-NP coordination. Original article
+fixtures are preserved: typed feature defaults repair absent custom lexical
+properties, while invalid authored values still reject.
+
+The first complete intermediate census adds 3,193 covered identities with zero
+lost covered identities (6,186 → 9,379). Its 98,778 admitted Readings all
+roundtrip and preserve traversal. This is intermediate evidence; the later
+selected-frame, name and compound changes require final reconciliation.
+Generic PP attachment remains an independent grammatical-correctness audit;
+passing roundtrip laws does not discharge it. Reduced if-able hosts, bound
+landwalk stems, flavor heads, ordered shared frame segments and the full
+identity-level residual classification remain open.
+
+
+The independent attachment audit confirms a complement-function defect in
+Avacyn, Guardian Angel: a recipient to-PP can attach above would/be/dealt as
+an adjunct rather than belonging to the selected deal frame. Its intermediate
+41,209 Readings are 203² attachment alternatives across two similar abilities,
+not protection-keyword ambiguity. NP attachments remain distinct until a
+syntactic analysis disproves them; semantic oddness alone is insufficient.
+To/into/onto adjunct permissions need coordinated repair with selected-frame
+breadth. Diligent Zookeeper's limiting to a maximum of 10 is a real independent
+adjunct and must receive its own restricted license. Other destination hosts
+currently relying on generic adjunct admission need frame reconciliation before
+changing those permissions. Preserve this defect as a cutover blocker; the
+roundtrip census does not certify these readings' grammatical correctness.
+
+
+Catalog nickname attestation now excludes full titles and other complete
+card-title mentions: Captain Sisay does not invent Captain, and Nissa's Chosen
+does not invent a Nissa Revane self-reference. Genuine independent shortened
+and possessive references remain variants of their original owner. The prior
+Nissa lexical-source positive fixture is replaced with actual Dina usage;
+actual-source negative witnesses and independently supplied values check this
+precision repair. This changes lexical spelling availability, not grammar costs.
+
+Corpus diagnostics now test sample cost/identity priority before building the
+large pretty-printed sample payload. Root fingerprints reuse the already
+validated materialization trace. Every candidate still undergoes complete
+admission, byte-exact realization, traversal and duplicate validation; sample
+retention does not cap Reading enumeration. A regression verifies late cheaper
+samples, deterministic identity ties, rejected expensive payloads and zero limit.

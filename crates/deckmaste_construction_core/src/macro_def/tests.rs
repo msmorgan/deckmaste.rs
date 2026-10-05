@@ -1500,3 +1500,72 @@ fn grammatical_frame_items_preserve_relation_category_marker_and_optionality() {
         }
     );
 }
+
+#[test]
+fn keyword_syntax_is_typed_and_requires_a_fixed_keyword_recipe() {
+    // Boast's attested line begins “Boast — {1}{W}: ...”.
+    let source = r#"KeywordAbility(
+        name: "boast", params: [Ability], spelling: "boast",
+        keyword_syntax: (head_separator: SpacedDash),
+        grammar: FixedKeyword(surface: "boast"),
+    )"#;
+    let declaration = read_str(source_path("boast.ron"), source).unwrap();
+    assert_eq!(
+        declaration.keyword_syntax(),
+        Some(KeywordLexicalSyntax {
+            head_separator: KeywordSeparator::SpacedDash,
+            parameter_separator: KeywordSeparator::Space,
+            payload_order: KeywordPayloadOrder::AfterHead,
+        })
+    );
+    let invalid = source.replace(
+        "FixedKeyword(surface: \"boast\")",
+        "Noun(singular: \"boast\")",
+    );
+    assert_eq!(
+        validation(&invalid),
+        ValidationError::KeywordSyntaxGrammarMismatch
+    );
+    let unknown = source.replace("SpacedDash", "Unknown");
+    assert!(read_str(source_path("boast.ron"), &unknown).is_err());
+}
+
+#[test]
+fn counter_compound_class_recipe_preserves_stem_structure_and_fixed_term() {
+    let source = r#"CounterKind(
+        name: "chargeCounter", params: [], spelling: "charge",
+        grammar: FixedTerm(surface: "charge"),
+    )"#;
+    let declaration = read_str(source_path("chargeCounter.ron"), source).unwrap();
+    assert_eq!(
+        declaration.compound_noun(),
+        Some(&CompoundNounGrammar {
+            head: "lexeme:CommonNoun/Counter".into(),
+            stem: "charge".into(),
+            stem_structure: CompoundStemStructure::Word,
+        })
+    );
+    assert_eq!(
+        declaration.grammar().unwrap().recipe(),
+        &GrammarRecipe::FixedTerm
+    );
+    let measured = read_str(
+        source_path("p1p1Counter.ron"),
+        r#"CounterKind(
+        name: "p1p1Counter", params: [], spelling: "+1/+1", compound_stem: Measure,
+    )"#,
+    )
+    .unwrap();
+    assert_eq!(
+        measured.compound_noun().unwrap().stem_structure,
+        CompoundStemStructure::Measure
+    );
+    assert!(measured.grammar().is_none());
+    assert_eq!(
+        validation(&source.replace(
+            "FixedTerm(surface: \"charge\")",
+            "Noun(singular: \"charge\")"
+        )),
+        ValidationError::CompoundNounGrammarMismatch
+    );
+}

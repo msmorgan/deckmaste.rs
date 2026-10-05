@@ -246,11 +246,18 @@ fn analyze_face(
                         if args.samples_per_face != 0 {
                             let total_cost =
                                 reading.total_cost().context("validated reading cost")?;
-                            report::retain_sample(
-                                &mut result.samples,
-                                Sample::new(reading, &value, lexicon, total_cost),
+                            if report::sample_would_be_retained(
+                                &result.samples,
+                                total_cost,
+                                &value.nodes[0].sha256,
                                 args.samples_per_face,
-                            );
+                            ) {
+                                report::retain_sample(
+                                    &mut result.samples,
+                                    Sample::new(reading, &value, lexicon, total_cost),
+                                    args.samples_per_face,
+                                );
+                            }
                         }
                     }
                     Err(issue) => result.issues.push(issue),

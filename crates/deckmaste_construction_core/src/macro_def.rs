@@ -104,10 +104,60 @@ pub struct Metadata {
     pub noun_class: Option<NounClassSemantics>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub type_word: Option<TypeWordGrammar>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub keyword_syntax: Option<KeywordLexicalSyntax>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub compound_noun: Option<CompoundNounGrammar>,
     /// Only subtype declarations carry a category; it forms part of their
     /// category-safe identity after normalization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<SubtypeCategory>,
+}
+
+/// A supplemental lexical compound with an immutable authored stem and noun head.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct CompoundNounGrammar {
+    pub head: String,
+    pub stem: String,
+    #[serde(default)]
+    pub stem_structure: CompoundStemStructure,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+pub enum CompoundStemStructure {
+    #[default]
+    Word,
+    Measure,
+}
+
+/// Declaration-owned separators for the head and successive keyword payloads.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct KeywordLexicalSyntax {
+    #[serde(default)]
+    pub head_separator: KeywordSeparator,
+    #[serde(default)]
+    pub parameter_separator: KeywordSeparator,
+    #[serde(default)]
+    pub payload_order: KeywordPayloadOrder,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+pub enum KeywordSeparator {
+    #[default]
+    Space,
+    Dash,
+    SpacedDash,
+}
+
+/// Position of a declared payload relative to its keyword head.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize, Serialize)]
+pub enum KeywordPayloadOrder {
+    #[default]
+    AfterHead,
+    BeforeHead,
+    BoundSuffix,
 }
 
 /// Lexical uses declared by a type-word authoring class.
@@ -393,6 +443,9 @@ pub enum FixedKeywordNominalNumber {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ParticipialAdjectiveGrammar {
+    /// Exceptional bare singular nominal use licensed by the declaration.
+    #[serde(default)]
+    pub bare_singular_use: bool,
     /// Omission derives the English participle from the fixed keyword surface.
     #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
     pub surface: DerivedSurface,
@@ -689,6 +742,8 @@ pub struct NormalizedDeclaration {
     grammar: Option<GrammarRow>,
     noun_class: Option<NounClassSemantics>,
     type_word: Option<TypeWordGrammar>,
+    keyword_syntax: Option<KeywordLexicalSyntax>,
+    compound_noun: Option<CompoundNounGrammar>,
     body: Option<Box<RawValue>>,
     provenance: SourceProvenance,
 }
@@ -728,6 +783,16 @@ impl NormalizedDeclaration {
     #[must_use]
     pub fn type_word(&self) -> Option<TypeWordGrammar> {
         self.type_word
+    }
+
+    #[must_use]
+    pub fn keyword_syntax(&self) -> Option<KeywordLexicalSyntax> {
+        self.keyword_syntax
+    }
+
+    #[must_use]
+    pub fn compound_noun(&self) -> Option<&CompoundNounGrammar> {
+        self.compound_noun.as_ref()
     }
 
     #[must_use]
@@ -1157,6 +1222,8 @@ struct DiagnosticFields<'a> {
     spelling: &'a RawValue,
     #[serde(default, borrow)]
     grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(rename = "compound_stem", default, borrow)]
+    _compound_stem: Option<&'a RawValue>,
     #[serde(default, borrow)]
     body: Option<&'a RawValue>,
 }
@@ -1176,6 +1243,8 @@ struct DiagnosticKeywordAbility<'a> {
     spelling: &'a RawValue,
     #[serde(default, borrow)]
     grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(rename = "keyword_syntax", default, borrow)]
+    _keyword_syntax: Option<&'a RawValue>,
     #[serde(rename = "keyword_params", default, borrow)]
     _keyword_params: Option<&'a RawValue>,
     #[serde(default, borrow)]
@@ -1339,6 +1408,12 @@ pub enum ValidationError {
     UnexpectedNounClassSemantics { kind: DeclarationKind },
     #[error("a type-word lexical recipe requires Noun grammar when grammar is declared")]
     TypeWordGrammarMismatch,
+    #[error("a keyword syntax recipe requires a keyword ability with FixedKeyword grammar")]
+    KeywordSyntaxGrammarMismatch,
+    #[error(
+        "a compound-noun supplement requires a nonempty stem and head, and FixedTerm grammar when present"
+    )]
+    CompoundNounGrammarMismatch,
     #[error("v2 semantic declarations require positional parameter signatures")]
     NamedParameters,
     #[error("v2 semantic declaration parameters must be plain type names")]
@@ -1892,6 +1967,8 @@ fn normalize(
         grammar,
         noun_class,
         type_word,
+        keyword_syntax,
+        compound_noun,
         category: _,
     } = definition.metadata.clone();
     if type_word.is_some()
@@ -1903,6 +1980,31 @@ fn normalize(
             &path,
             source_map.declaration,
             ValidationError::TypeWordGrammarMismatch,
+        ));
+    }
+    if keyword_syntax.is_some()
+        && (kind != DeclarationKind::KeywordAbility
+            || grammar
+                .as_ref()
+                .is_some_and(|grammar| !matches!(grammar, Grammar::FixedKeyword { .. })))
+    {
+        return Err(validation_error_at(
+            &path,
+            source_map.declaration,
+            ValidationError::KeywordSyntaxGrammarMismatch,
+        ));
+    }
+    if compound_noun.as_ref().is_some_and(|compound| {
+        compound.head.is_empty()
+            || compound.stem.is_empty()
+            || grammar
+                .as_ref()
+                .is_some_and(|grammar| !matches!(grammar, Grammar::FixedTerm { .. }))
+    }) {
+        return Err(validation_error_at(
+            &path,
+            source_map.declaration,
+            ValidationError::CompoundNounGrammarMismatch,
         ));
     }
     let noun_bearing = matches!(
@@ -2024,6 +2126,8 @@ fn normalize(
         grammar,
         noun_class,
         type_word,
+        keyword_syntax,
+        compound_noun,
         body,
         provenance: SourceProvenance { path },
     })

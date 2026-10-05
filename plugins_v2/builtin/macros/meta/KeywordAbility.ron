@@ -16,6 +16,7 @@
         "params": Elidable(Any),
         "spelling": String,
         "grammar": Elidable(Any),
+        "keyword_syntax": Elidable(Any),
         "keyword_params": Elidable(Any),
         "body": Default(Any, []),
     },
@@ -26,6 +27,7 @@
         metadata: (
             spelling: Param(spelling),
             grammar: Param(grammar),
+            keyword_syntax: Param(keyword_syntax),
         ),
         body: (keyword_params: Param(keyword_params), abilities: Param(body)),
     ),

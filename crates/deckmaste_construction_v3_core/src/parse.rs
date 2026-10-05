@@ -1,3 +1,7 @@
+use deckmaste_lexical_model::Frame;
+use deckmaste_lexical_model::FrameItem;
+use deckmaste_lexical_model::FrameSlot;
+use deckmaste_lexical_model::Relation;
 use syn::Ident;
 use syn::LitStr;
 use syn::Token;
@@ -14,7 +18,7 @@ pub(crate) struct Declaration {
     pub module: Ident,
     pub categories: Vec<Category>,
     pub features: Vec<Feature>,
-    pub frames: Vec<(Ident, LitStr)>,
+    pub frames: Vec<(Ident, Frame)>,
     pub tables: Vec<FeatureTable>,
     pub constructions: Vec<Construction>,
     pub capitalization: Option<Ident>,
@@ -28,6 +32,7 @@ pub(crate) struct Category {
 pub(crate) struct Feature {
     pub name: Ident,
     pub values: Vec<Ident>,
+    pub default: Option<Ident>,
 }
 
 pub(crate) struct FeatureTable {
@@ -87,6 +92,7 @@ pub(crate) enum Equation {
     ExportTable(Ident, Ident, Vec<Reference>),
     Agree(Reference, Reference),
     Require(Reference, Ident),
+    RequireTable(Ident, Vec<Reference>, Ident),
 }
 
 fn names(input: ParseStream<'_>) -> syn::Result<Vec<Ident>> {
@@ -149,14 +155,26 @@ impl Parse for Declaration {
                 "feature" => {
                     let values;
                     braced!(values in body);
+                    let values = names(&values)?;
+                    let default = if body.peek(Ident) && body.fork().parse::<Ident>()? == "default"
+                    {
+                        body.parse::<Ident>()?;
+                        let value = body.parse()?;
+                        body.parse::<Token![;]>()?;
+                        Some(value)
+                    } else {
+                        None
+                    };
                     result.features.push(Feature {
                         name,
-                        values: names(&values)?,
+                        values,
+                        default,
                     });
                 }
                 "frame" => {
                     body.parse::<Token![=]>()?;
-                    result.frames.push((name, body.parse()?));
+                    let frame = parse_frame(&body)?;
+                    result.frames.push((name, frame));
                     body.parse::<Token![;]>()?;
                 }
                 "table" => {
@@ -540,6 +558,101 @@ impl Parse for Declaration {
     }
 }
 
+fn parse_frame(input: ParseStream<'_>) -> syn::Result<Frame> {
+    if input.peek(LitStr) {
+        let text: LitStr = input.parse()?;
+        return ron::from_str(&text.value()).map_err(|error| {
+            syn::Error::new(text.span(), format!("lexical frame signature: {error}"))
+        });
+    }
+    let kind: Ident = input.parse()?;
+    let items;
+    parenthesized!(items in input);
+    Ok(Frame {
+        kind: kind.to_string(),
+        items: items
+            .parse_terminated(parse_frame_item, Token![,])?
+            .into_iter()
+            .collect(),
+    })
+}
+
+fn frame_name(input: ParseStream<'_>) -> syn::Result<String> {
+    if input.peek(LitStr) {
+        Ok(input.parse::<LitStr>()?.value())
+    } else {
+        Ok(input.parse::<Ident>()?.to_string())
+    }
+}
+
+fn parse_frame_slot(input: ParseStream<'_>) -> syn::Result<FrameSlot> {
+    let relation: Ident = input.parse()?;
+    let category;
+    parenthesized!(category in input);
+    let result = frame_slot(&relation, &category)?;
+    if !category.is_empty() {
+        return Err(category.error("frame relation requires exactly one category"));
+    }
+    Ok(result)
+}
+
+fn frame_slot(relation: &Ident, category: ParseStream<'_>) -> syn::Result<FrameSlot> {
+    let relation = match relation.to_string().as_str() {
+        "Subject" => Relation::Subject,
+        "Object" => Relation::Object,
+        "Complement" => Relation::Complement,
+        _ => {
+            return Err(syn::Error::new(
+                relation.span(),
+                "expected frame relation Subject, Object or Complement",
+            ));
+        }
+    };
+    Ok(FrameSlot {
+        relation,
+        category: frame_name(category)?,
+    })
+}
+
+fn parse_frame_item(input: ParseStream<'_>) -> syn::Result<FrameItem> {
+    let kind: Ident = input.parse()?;
+    let arguments;
+    parenthesized!(arguments in input);
+    let item = match kind.to_string().as_str() {
+        "Subject" | "Object" | "Complement" => FrameItem::Argument(frame_slot(&kind, &arguments)?),
+        "Optional" => FrameItem::Optional(Box::new(parse_frame_item(&arguments)?)),
+        "Literal" => FrameItem::Literal(arguments.parse::<LitStr>()?.value()),
+        "Marked" => {
+            let vocabulary = frame_name(&arguments)?;
+            arguments.parse::<Token![,]>()?;
+            let member = frame_name(&arguments)?;
+            arguments.parse::<Token![,]>()?;
+            let slot = parse_frame_slot(&arguments)?;
+            FrameItem::Marked {
+                vocabulary,
+                member,
+                slot,
+            }
+        }
+        "Marker" => {
+            let vocabulary = frame_name(&arguments)?;
+            arguments.parse::<Token![,]>()?;
+            FrameItem::Marker {
+                vocabulary,
+                member: frame_name(&arguments)?,
+            }
+        }
+        _ => FrameItem::Marker {
+            vocabulary: kind.to_string(),
+            member: frame_name(&arguments)?,
+        },
+    };
+    if !arguments.is_empty() {
+        return Err(arguments.error("unexpected frame item arguments"));
+    }
+    Ok(item)
+}
+
 fn parse_construction(
     body: ParseStream<'_>,
     name: Ident,
@@ -549,6 +662,7 @@ fn parse_construction(
     let mut parameters = Vec::new();
     let mut defaults = Vec::new();
     let mut rows = Vec::new();
+    let mut bindings = Vec::new();
     if policy && body.peek(Token![<]) {
         body.parse::<Token![<]>()?;
         loop {
@@ -567,7 +681,26 @@ fn parse_construction(
         if body.peek(Token![<]) {
             body.parse::<Token![<]>()?;
             loop {
-                parameters.push(body.parse::<Ident>()?);
+                let parameter = body.parse::<Ident>()?;
+                parameters.push(parameter.clone());
+                if body.peek(Token![:]) {
+                    body.parse::<Token![:]>()?;
+                    let fields = if body.peek(syn::token::Paren) {
+                        let fields;
+                        parenthesized!(fields in body);
+                        let fields = names(&fields)?;
+                        if fields.is_empty() {
+                            return Err(syn::Error::new(
+                                parameter.span(),
+                                "category binding needs a field target",
+                            ));
+                        }
+                        fields
+                    } else {
+                        vec![body.parse::<Ident>()?]
+                    };
+                    bindings.extend(fields.into_iter().map(|field| (field, parameter.clone())));
+                }
                 let default = if body.peek(Token![=]) {
                     body.parse::<Token![=]>()?;
                     Some(body.call(Ident::parse_any)?)
@@ -617,7 +750,7 @@ fn parse_construction(
         defaults,
         rows,
         shared: false,
-        bindings: vec![],
+        bindings,
         uses: vec![],
         cost: None,
         name,
@@ -707,11 +840,23 @@ fn parse_construction(
                     .push(Equation::Agree(left, reference(&contents)?));
             }
             "require" => {
-                let left = reference(&contents)?;
-                contents.parse::<Token![=]>()?;
-                construction
-                    .equations
-                    .push(Equation::Require(left, contents.parse()?));
+                let equation = if contents.peek2(syn::token::Paren) {
+                    let table = contents.parse()?;
+                    let arguments;
+                    parenthesized!(arguments in contents);
+                    let arguments = arguments.parse_terminated(reference, Token![,])?;
+                    contents.parse::<Token![=]>()?;
+                    Equation::RequireTable(
+                        table,
+                        arguments.into_iter().collect(),
+                        contents.parse()?,
+                    )
+                } else {
+                    let left = reference(&contents)?;
+                    contents.parse::<Token![=]>()?;
+                    Equation::Require(left, contents.parse()?)
+                };
+                construction.equations.push(equation);
             }
             _ => {
                 return Err(syn::Error::new(
@@ -788,7 +933,9 @@ impl Equation {
     fn references_mut(&mut self) -> Vec<&mut Reference> {
         match self {
             Self::Export(_, reference) | Self::Require(reference, _) => vec![reference],
-            Self::ExportTable(_, _, arguments) => arguments.iter_mut().collect(),
+            Self::ExportTable(_, _, arguments) | Self::RequireTable(_, arguments, _) => {
+                arguments.iter_mut().collect()
+            }
             Self::Agree(left, right) => vec![left, right],
             Self::ExportConstant(_, _) => vec![],
         }

@@ -143,7 +143,7 @@ fn assign_and_change_have_complete_regular_paradigms_and_declared_frames() {
 }
 
 #[test]
-fn single_and_extra_are_invariant_adjectives_without_invented_features() {
+fn single_and_extra_are_invariant_adjectives_with_declared_default_license() {
     for (owner, spelling) in [
         ("vocab:Adjective/Single", "single"),
         ("vocab:Adjective/Extra", "extra"),
@@ -152,7 +152,16 @@ fn single_and_extra_are_invariant_adjectives_without_invented_features() {
         assert_eq!(lexeme.category, Category::Adjective);
         assert_eq!(lexeme.source.kind, SourceKind::Core);
         assert_eq!(lexeme.source.owner, owner);
-        assert!(lexeme.properties.features.is_empty());
+        assert_eq!(
+            lexeme.properties.features,
+            std::collections::BTreeMap::from([
+                ("BareSingularUse".into(), "No".into()),
+                (
+                    "FeatureSource:BareSingularUse".into(),
+                    "crates/deckmaste_lexical_source/lexicon/core.ron".into()
+                ),
+            ])
+        );
         assert!(lexeme.properties.frames.is_empty());
         assert!(lexeme.properties.countability.is_empty());
         assert_eq!(

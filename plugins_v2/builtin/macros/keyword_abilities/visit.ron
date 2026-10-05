@@ -2,6 +2,7 @@ KeywordAbility(
     name: "visit",
     params: [Ability],
     spelling: "visit",
+    keyword_syntax: (head_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "visit",
     ),

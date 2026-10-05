@@ -90,7 +90,7 @@ impl Sample {
             .collect();
         Self {
             total_cost,
-            id: digest(format!("{reading:?}").as_bytes()),
+            id: traced.nodes[0].sha256.clone(),
             tree: format!("{reading:#?}"),
             nodes: traced.nodes.clone(),
             words,
@@ -411,6 +411,20 @@ pub(super) fn thread_cpu_ns() -> Option<u128> {
     Some(u128::try_from(time.tv_sec).ok()? * 1_000_000_000 + u128::try_from(time.tv_nsec).ok()?)
 }
 
+/// Decide before building a diagnostic payload; this never limits Reading validation.
+pub(super) fn sample_would_be_retained(
+    samples: &[Sample],
+    total_cost: u64,
+    id: &str,
+    limit: usize,
+) -> bool {
+    limit != 0
+        && (samples.len() < limit
+            || samples
+                .last()
+                .is_some_and(|last| (total_cost, id) < (last.total_cost, last.id.as_str())))
+}
+
 /// Keep the cheapest samples among readings actually enumerated, including late arrivals.
 pub(super) fn retain_sample(samples: &mut Vec<Sample>, sample: Sample, limit: usize) {
     samples.push(sample);
@@ -422,6 +436,7 @@ pub(super) fn retain_sample(samples: &mut Vec<Sample>, sample: Sample, limit: us
 mod sample_tests {
     use super::Sample;
     use super::retain_sample;
+    use super::sample_would_be_retained;
 
     fn sample(cost: u64, id: &str) -> Sample {
         Sample {
@@ -431,6 +446,34 @@ mod sample_tests {
             nodes: vec![],
             words: vec![],
         }
+    }
+
+    #[test]
+    fn payload_preflight_preserves_cost_and_identity_order_without_zero_limit_work() {
+        let mut samples = vec![];
+        let mut built = 0;
+        for (cost, id) in [
+            (100, "fallback"),
+            (2, "b"),
+            (1, "cheap"),
+            (2, "z"),
+            (2, "a"),
+            (50, "unused"),
+        ] {
+            if sample_would_be_retained(&samples, cost, id, 2) {
+                built += 1;
+                retain_sample(&mut samples, sample(cost, id), 2);
+            }
+        }
+        assert_eq!(built, 4);
+        assert_eq!(
+            samples
+                .iter()
+                .map(|s| (s.total_cost, s.id.as_str()))
+                .collect::<Vec<_>>(),
+            [(1, "cheap"), (2, "a")]
+        );
+        assert!(!sample_would_be_retained(&samples, 0, "unused", 0));
     }
 
     #[test]

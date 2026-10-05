@@ -6,6 +6,7 @@
         "params": Elidable(Any),
         "spelling": String,
         "grammar": Elidable(Any),
+        "compound_stem": Default(Any, Word),
         "body": Default(Any, ()),
     },
     body: (
@@ -15,6 +16,11 @@
         metadata: (
             spelling: Param(spelling),
             grammar: Param(grammar),
+            compound_noun: (
+                head: "lexeme:CommonNoun/Counter",
+                stem: Param(spelling),
+                stem_structure: Param(compound_stem),
+            ),
             noun_class: (
                 locative_temporal_license: OnLicensed,
                 relationality: NonRelational,

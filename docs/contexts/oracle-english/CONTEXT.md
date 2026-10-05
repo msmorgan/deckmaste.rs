@@ -39,6 +39,11 @@ changing grammatical admission or erasing alternative Readings.
 An abstract lexical item underlying its inflected Word Forms. A lexical item
 may consist of several orthographic words, as in *mana value* and *mana cost*.
 
+**Compound Noun**:
+A noun Lexeme formed from two or more bases, as in *charge counter*; its
+constituents form a lexical unit rather than freely independent syntactic
+Modifiers (CGEL, Ch. 5 §14.4, pp. 448–451).
+
 **Type Word** (project term):
 A Lexeme sourced from a declared card-type, subtype or supertype inventory for
 ordinary noun or adjective use in Oracle text. It is distinct from an exact

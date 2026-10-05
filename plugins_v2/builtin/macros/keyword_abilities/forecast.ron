@@ -2,6 +2,7 @@ KeywordAbility(
     name: "forecast",
     params: [Ability],
     spelling: "forecast",
+    keyword_syntax: (head_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "forecast",
     ),

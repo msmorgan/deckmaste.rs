@@ -20,7 +20,18 @@ use deckmaste_lexical::WordForm;
 use crate::LexicalSources;
 use crate::source;
 
-pub(crate) fn load(root: &Path, output: &mut LexicalSources) -> Result<(), LoadError> {
+pub(crate) struct PendingCompoundNoun {
+    owner: String,
+    path: String,
+    recipe: metadata::CompoundNounGrammar,
+    noun_class: Option<metadata::NounClassSemantics>,
+}
+
+pub(crate) fn load(
+    root: &Path,
+    output: &mut LexicalSources,
+) -> Result<Vec<PendingCompoundNoun>, LoadError> {
+    let mut compounds = Vec::new();
     let declarations = metadata::read_builtin_v2(root.join("plugins_v2/builtin"))?;
     let reader = metadata::declaration_macro_set()?;
     for normalized in declarations {
@@ -37,7 +48,76 @@ pub(crate) fn load(root: &Path, output: &mut LexicalSources) -> Result<(), LoadE
             normalized.identity().name()
         );
         let path = path.strip_prefix(root).unwrap_or(path).to_string_lossy();
+        if let Some(recipe) = normalized.compound_noun() {
+            compounds.push(PendingCompoundNoun {
+                owner: owner.clone(),
+                path: path.to_string(),
+                recipe: recipe.clone(),
+                noun_class: normalized.noun_class(),
+            });
+        }
         export_metadata(&owner, &path, definition.metadata, &normalized, output);
+    }
+    Ok(compounds)
+}
+
+/// Supplementary compounds inherit the final declared noun-head paradigm.
+pub(crate) fn add_compound_nouns(
+    output: &mut LexicalSources,
+    compounds: Vec<PendingCompoundNoun>,
+) -> Result<(), LoadError> {
+    for compound in compounds {
+        let head = output
+            .lexemes
+            .iter()
+            .find(|entry| entry.id == compound.recipe.head)
+            .ok_or_else(|| LoadError::UnknownOwner {
+                property: "compound noun head",
+                owner: compound.recipe.head.clone(),
+            })?;
+        if head.category != Category::Noun {
+            return Err(LoadError::InvalidCompoundHead {
+                owner: compound.recipe.head,
+            });
+        }
+        let mut noun = head.clone();
+        noun.id = format!("{}/compound-noun", compound.owner);
+        noun.lemma = format!("{} {}", compound.recipe.stem, head.lemma);
+        noun.source = source(SourceKind::Plugin, &compound.path, &compound.owner);
+        for slot in &mut noun.forms {
+            if let Some(surfaces) = &mut slot.surfaces {
+                for surface in surfaces {
+                    *surface = format!("{} {surface}", compound.recipe.stem);
+                }
+            }
+        }
+        noun.onsets.clear();
+        noun.article_onsets.clear();
+        for feature in ["Onset", "SingularOnset", "PluralOnset"] {
+            noun.properties.features.remove(feature);
+            noun.properties
+                .features
+                .remove(&format!("FeatureSource:{feature}"));
+        }
+        noun.properties
+            .features
+            .insert("CompoundHead".into(), compound.recipe.head);
+        if let Some(class) = compound.noun_class {
+            noun.properties.features.insert(
+                "locative_temporal_license".into(),
+                format!("{:?}", class.locative_temporal_license),
+            );
+            noun.properties
+                .features
+                .insert("relationality".into(), format!("{:?}", class.relationality));
+        }
+        noun.surface_structure = match compound.recipe.stem_structure {
+            metadata::CompoundStemStructure::Word => deckmaste_lexical::SurfaceStructure::Multiword,
+            metadata::CompoundStemStructure::Measure => {
+                deckmaste_lexical::SurfaceStructure::MeasuredCompound
+            }
+        };
+        output.lexemes.push(noun);
     }
     Ok(())
 }
@@ -150,6 +230,7 @@ fn export_metadata(
                 bound_suffix,
                 participial_adjective,
                 block_label,
+                normalized.keyword_parameter_class(),
                 output,
             );
             let mut lexeme = Lexeme::invariant(owner, surface, Category::Keyword, provenance);
@@ -159,6 +240,20 @@ fn export_metadata(
                     .properties
                     .features
                     .insert("Onset".into(), format!("{onset:?}"));
+            }
+            if let Some(metadata::FixedKeywordParameterGrammar::Quality {
+                preposition,
+                nominal_number,
+            }) = &parameter
+            {
+                lexeme
+                    .properties
+                    .features
+                    .insert("KeywordMarker".into(), preposition.1.clone());
+                lexeme.properties.features.insert(
+                    "KeywordQualityNumber".into(),
+                    nominal_number.map_or_else(|| "Any".into(), |number| format!("{number:?}")),
+                );
             }
             if let Some(parameter) = parameter {
                 lexeme
@@ -220,10 +315,27 @@ fn export_distribution(
             .insert("source_recipe".into(), format!("{:?}", grammar.recipe()));
     }
     if let Some(parameter) = normalized.keyword_parameter_class() {
-        lexeme
-            .properties
-            .features
-            .insert("KeywordParameterClass".into(), format!("{parameter:?}"));
+        lexeme.properties.features.insert(
+            "KeywordParameterClass".into(),
+            match parameter {
+                metadata::KeywordParameterClass::Unsupported(class) => format!("{class:?}"),
+                class => format!("{class:?}"),
+            },
+        );
+    }
+    if let Some(syntax) = normalized.keyword_syntax() {
+        lexeme.properties.features.insert(
+            "KeywordPayloadOrder".into(),
+            format!("{:?}", syntax.payload_order),
+        );
+        lexeme.properties.features.insert(
+            "KeywordSeparator".into(),
+            format!("{:?}", syntax.head_separator),
+        );
+        lexeme.properties.features.insert(
+            "KeywordParameterSeparator".into(),
+            format!("{:?}", syntax.parameter_separator),
+        );
     }
     if let Some(class) = noun_class {
         lexeme.properties.features.insert(
@@ -244,6 +356,7 @@ fn export_keyword_supplements(
     bound_suffix: Option<metadata::BoundSuffixGrammar>,
     participial_adjective: Option<metadata::ParticipialAdjectiveGrammar>,
     block_label: Option<metadata::BlockLabelGrammar>,
+    parameter_class: Option<metadata::KeywordParameterClass>,
     output: &mut LexicalSources,
 ) {
     if let Some(suffix) = bound_suffix {
@@ -254,6 +367,23 @@ fn export_keyword_supplements(
             Category::Keyword,
             source(SourceKind::Keyword, path, owner),
         );
+        lexeme
+            .properties
+            .features
+            .insert("KeywordPayloadOrder".into(), "BoundSuffix".into());
+        lexeme
+            .properties
+            .features
+            .insert("BoundKeyword".into(), "Yes".into());
+        if let Some(class) = parameter_class {
+            lexeme.properties.features.insert(
+                "KeywordParameterClass".into(),
+                match class {
+                    metadata::KeywordParameterClass::Unsupported(class) => format!("{class:?}"),
+                    class => format!("{class:?}"),
+                },
+            );
+        }
         lexeme.binding = Binding::Suffix;
         lexeme.capitalization = Capitalization::Exact;
         output.lexemes.push(lexeme);
@@ -271,6 +401,10 @@ fn export_keyword_supplements(
             spelling,
             Category::Adjective,
             source(SourceKind::Keyword, path, owner),
+        );
+        lexeme.properties.features.insert(
+            "BareSingularUse".into(),
+            if adjective.bare_singular_use { "Yes" } else { "No" }.into(),
         );
         if let Some(onset) = adjective.onset {
             lexeme
@@ -527,6 +661,7 @@ mod tests {
             None,
             Some(metadata::ParticipialAdjectiveGrammar::default()),
             None,
+            None,
             &mut output,
         );
         export_keyword_supplements(
@@ -535,9 +670,11 @@ mod tests {
             "equip",
             None,
             Some(metadata::ParticipialAdjectiveGrammar {
+                bare_singular_use: false,
                 surface: metadata::DerivedSurface::Override("equipped".into()),
                 onset: None,
             }),
+            None,
             None,
             &mut output,
         );

@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "splice",
     grammar: FixedKeyword(
         surface: "splice",
+        parameter: Quality(preposition: ("Preposition", "Onto")),
     ),
     // STOP. "Splice onto [quality] [cost]" means "You may reveal this card from your
     // hand as you cast a [quality] spell. If you do, THAT SPELL GAINS THE TEXT OF THIS

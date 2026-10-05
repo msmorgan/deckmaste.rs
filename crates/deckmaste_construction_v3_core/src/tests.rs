@@ -9,6 +9,138 @@ fn rejects(input: proc_macro2::TokenStream, expected: &str) {
 }
 
 #[test]
+fn custom_feature_defaults_are_explicit_typed_and_cannot_replace_builtins() {
+    compile(quote! {
+        mod valid {
+            feature Class { None, Special } default None;
+            category Atom(Class);
+            schema Atom {
+                form [word: lexical(Noun)];
+                export Class = word.Class;
+            }
+            instance Atom: Atom {}
+        }
+    })
+    .unwrap();
+    rejects(
+        quote! { mod bad { feature Class { None, Special } default Unknown; } },
+        "not a value of feature Class",
+    );
+    rejects(
+        quote! { mod bad { feature number { Singular, Plural } default Singular; } },
+        "unique generated identity required",
+    );
+    for declaration in [
+        quote! { mod bad { feature Class { None } default; } },
+        quote! { mod bad { feature Class { None } default None } },
+        quote! { mod bad { feature Class { None } default None; default None; } },
+    ] {
+        assert!(compile(declaration).is_err());
+    }
+}
+
+#[test]
+fn structured_frame_signatures_preserve_typed_ir_and_every_generated_projection() {
+    for (structured, serialized) in [
+        (
+            quote!(Predicate(Object(NounPhrase))),
+            r#"(kind:"Predicate",items:[Argument((relation:Object,category:"NounPhrase"))])"#,
+        ),
+        (
+            quote!(Predicate(
+                Object(NounPhrase),
+                Preposition(To),
+                Object(NounPhrase)
+            )),
+            r#"(kind:"Predicate",items:[Argument((relation:Object,category:"NounPhrase")),Marker(vocabulary:"Preposition",member:"To"),Argument((relation:Object,category:"NounPhrase"))])"#,
+        ),
+        (
+            quote!(Auxiliary(Complement(ParticipialPredicate))),
+            r#"(kind:"Auxiliary",items:[Argument((relation:Complement,category:"ParticipialPredicate"))])"#,
+        ),
+        (quote!(Nominal()), r#"(kind:"Nominal",items:[])"#),
+        (
+            quote!(Nominal(Marked(Preposition, Of, Complement(CostSymbols)))),
+            r#"(kind:"Nominal",items:[Marked(vocabulary:"Preposition",member:"Of",slot:(relation:Complement,category:"CostSymbols"))])"#,
+        ),
+        (
+            quote!(Custom(
+                Subject(UnboundCategory),
+                Optional(Optional(Object("other category"))),
+                Optional(Marked(
+                    "custom vocabulary",
+                    "member",
+                    Complement(UnboundCategory)
+                )),
+                Marker(Object, ReservedMember),
+                Literal("legacy signature")
+            )),
+            r#"(kind:"Custom",items:[Argument((relation:Subject,category:"UnboundCategory")),Optional(Optional(Argument((relation:Object,category:"other category")))),Optional(Marked(vocabulary:"custom vocabulary",member:"member",slot:(relation:Complement,category:"UnboundCategory"))),Marker(vocabulary:"Object",member:"ReservedMember"),Literal("legacy signature")])"#,
+        ),
+    ] {
+        let declaration = |signature: proc_macro2::TokenStream| {
+            quote! {
+                mod fixture {
+                    frame Selected = #signature;
+                    feature Verdict { Yes }
+                    table selected(frame) -> Verdict { (Selected) => Yes }
+                    category Head(frame);
+                    construction Head: Head {
+                        form [head: lexical(Verb)];
+                        export frame = head.frame;
+                        require selected(head.frame) = Yes;
+                    }
+                }
+            }
+        };
+        let old = declaration(quote!(#serialized));
+        let new = declaration(structured);
+        let old_ir = crate::ir::validate(syn::parse2(old.clone()).unwrap()).unwrap();
+        let new_ir = crate::ir::validate(syn::parse2(new.clone()).unwrap()).unwrap();
+        assert_eq!(old_ir.frames, new_ir.frames);
+        assert_eq!(
+            compile(old).unwrap().to_string(),
+            compile(new).unwrap().to_string()
+        );
+    }
+}
+
+#[test]
+fn structured_frames_reject_malformed_items_and_cross_syntax_duplicates() {
+    for signature in [
+        quote!(Predicate),
+        quote!(Predicate(Object())),
+        quote!(Predicate(Object(NounPhrase, Other))),
+        quote!(Predicate(Preposition(To, Of))),
+        quote!(Predicate(Optional())),
+        quote!(Predicate(Optional(Object(NounPhrase), Object(NounPhrase)))),
+        quote!(Predicate(Marked(Preposition, Of, Unknown(NounPhrase)))),
+        quote!(Predicate(Marked(
+            Preposition,
+            Of,
+            Object(NounPhrase, Other)
+        ))),
+        quote!(Predicate(Literal(Unquoted))),
+    ] {
+        let result = std::panic::catch_unwind(|| {
+            compile(quote! {
+                mod bad { frame Invalid = #signature; }
+            })
+        });
+        assert!(result.expect("frame diagnostics must not panic").is_err());
+    }
+    rejects(
+        quote! {
+            mod bad {
+                frame Old = r#"(kind:"Predicate",items:[Argument((relation:Object,category:"NounPhrase"))])"#;
+                frame New = Predicate(Object(NounPhrase));
+            }
+        },
+        "duplicate frame signature",
+    );
+}
+
+#[test]
 fn rejects_surface_loss_and_duplicate_ownership() {
     rejects(
         quote! { mod bad { category A(); construction Lost: A { form [word: lexical(Noun)]; form []; } } },
@@ -126,6 +258,71 @@ fn feature_tables_reject_untyped_ambiguous_and_inaccessible_calls() {
     ] {
         rejects(input, expected);
     }
+}
+
+#[test]
+fn table_requirements_validate_calls_constants_and_policy_references() {
+    let table = quote! {
+        feature Verdict { Yes, No }
+        table selected(number, person) -> Verdict { (Singular, Third) => Yes }
+    };
+    for (equation, expected) in [
+        (
+            quote!(require unknown(head.number) = Yes;),
+            "unknown feature table",
+        ),
+        (
+            quote!(require selected(head.number) = Yes;),
+            "call has wrong arity",
+        ),
+        (
+            quote!(require selected(head.person, head.number) = Yes;),
+            "argument has wrong domain",
+        ),
+        (
+            quote!(require selected(head.number, head.person) = Singular;),
+            "not a value of feature Verdict",
+        ),
+        (
+            quote!(require selected(missing.number, head.person) = Yes;),
+            "cannot reach field missing",
+        ),
+    ] {
+        rejects(
+            quote! {
+                mod bad { #table category A(); construction A: A {
+                    form [head: lexical(Pronoun)]; #equation
+                } }
+            },
+            expected,
+        );
+    }
+    rejects(
+        quote! {
+            mod bad { #table category A(); category B();
+                construction A: A { form [head: B]; require selected(head.number, head.person) = Yes; }
+                construction B: B { form []; }
+            }
+        },
+        "cannot reach head.number",
+    );
+    rejects(
+        quote! {
+            mod bad { #table category A();
+                construction A: A { form [head: optional(A)]; require selected(head.number, head.person) = Yes; }
+            }
+        },
+        "optional/repeated fields have no single feature value",
+    );
+    rejects(
+        quote! {
+            mod bad { #table category A();
+                policy Selection<Other> { require selected(Other.number, absent.person) = Yes; }
+                construction A: A { form [head: lexical(Pronoun)]; use Selection(head); }
+            }
+        },
+        "policy reference must name a caller field",
+    );
 }
 
 #[test]
@@ -483,4 +680,116 @@ fn field_policy_expansion_is_identical_to_authored_equations_for_right_and_rest(
         .unwrap();
         assert_eq!(plain.to_string(), two_parameters.to_string());
     }
+}
+
+#[test]
+fn header_category_bindings_emit_exactly_the_existing_explicit_bind_contracts() {
+    let shared = quote! {
+        category A(number);
+        category B(number);
+        construction Atom: A {
+            form [head: lexical(Noun)]; export number = head.number;
+        }
+        policy Concord<Left, Right> {
+            agree Left.number = Right.number; export number = Left.number;
+        }
+        schema Pair {
+            cost 7;
+            boundary Initial;
+            form [left: node, " and ", right: node];
+        }
+        schema Container {
+            form ["[", child: optional(node), ":", children: repeat(node, "; "), "]"];
+            export number = Singular;
+        }
+    };
+    let explicit = compile(quote! { mod same {
+        #shared
+        instance Pair<Result, Member=A, Rule=Concord>: [(A), (B, A)] {
+            bind left, right = Member;
+            use Rule(left, right);
+        }
+        instance Container<Result, Member>: [(A, A), (B, A)] {
+            bind child, children = Member;
+        }
+    } })
+    .unwrap();
+    let bound = compile(quote! { mod same {
+        #shared
+        instance Pair<Result, Member: (left, right)=A, Rule=Concord>: [(A), (B, A)] {
+            use Rule(left, right);
+        }
+        instance Container<Result, Child: child, Children: children>: [(A, A, A), (B, A, A)] {}
+    } })
+    .unwrap();
+    assert_eq!(explicit.to_string(), bound.to_string());
+}
+
+#[test]
+fn header_category_bindings_reject_invalid_targets_and_policy_roles() {
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema One { form [head: node]; }
+            instance One<Result, Child: head>: [(A, A)] { bind head = A; }
+        } },
+        "exactly one category binding",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema One { form [head: node]; }
+            instance One<Result, Child: (head, head)>: [(A, A)] {}
+        } },
+        "exactly one category binding",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema One { form [head: node]; }
+            instance One<Result, Child: unknown>: [(A, A)] { bind head = A; }
+        } },
+        "binding must name a generic node field",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema One { form [head: lexical(Noun)]; }
+            instance One<Result, Child: head>: [(A, A)] {}
+        } },
+        "binding must name a generic node field",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema One { form [head: A]; }
+            instance One<Result, Child: head>: [(A, A)] {}
+        } },
+        "binding must name a generic node field",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Noop {}
+            schema One { form [head: node]; }
+            instance One<Result, Rule: head>: [(A, Noop)] { use Rule; }
+        } },
+        "exactly one category or policy role",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema One { form [head: node]; }
+            instance One<Result, Child: ()>: [(A, A)] {}
+        } },
+        "needs a field target",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema One { form [head: node]; }
+            instance One<Result, Child: head>: [(A, Missing)] {}
+        } },
+        "unknown constituent Category",
+    );
 }

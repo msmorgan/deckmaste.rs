@@ -7,6 +7,7 @@
 CounterKind(
     name: "p1p1Counter",
     params: [],
+    compound_stem: Measure,
     spelling: "+1/+1",
     body: Counter(
         kind: Boost(power: Up(amount: 1), toughness: Up(amount: 1)),

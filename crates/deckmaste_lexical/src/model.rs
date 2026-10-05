@@ -64,6 +64,8 @@ pub enum SurfaceStructure {
     Word,
     /// An explicitly declared sequence of words separated by single spaces.
     Multiword,
+    /// A declared Arabic measure pair followed by a single noun head word.
+    MeasuredCompound,
     /// Catalog and notation entries retain their declared atomicity.
     Opaque,
 }

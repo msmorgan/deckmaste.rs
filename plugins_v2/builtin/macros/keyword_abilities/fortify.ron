@@ -4,7 +4,7 @@ KeywordAbility(
     spelling: "fortify",
     grammar: FixedKeyword(
         surface: "fortify",
-        participial_adjective: (surface: "fortified",),
+        participial_adjective: (bare_singular_use: true, surface: "fortified",),
     ),
     // "Fortify [cost]" means "[Cost]: Attach this Fortification to target land you
     // control. Activate only as a sorcery." [CR#702.67a]

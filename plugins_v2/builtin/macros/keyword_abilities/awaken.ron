@@ -2,6 +2,7 @@ KeywordAbility(
     name: "awaken",
     params: [Amount, Cost],
     spelling: "awaken",
+    keyword_syntax: (parameter_separator: Dash),
     grammar: FixedKeyword(
         surface: "awaken",
     ),

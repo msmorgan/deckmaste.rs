@@ -43,7 +43,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
             owners: native.core_verb_paradigms.into_keys().collect(),
         });
     }
-    legacy::plugins::load(root, &mut output)?;
+    let compounds = legacy::plugins::load(root, &mut output)?;
     let directory = root.join("data/gen/catalogs");
     let catalogs = deckmaste_catalogs::CatalogSet::load(&directory)?;
     let nicknames = card_names::load(root)?;
@@ -100,12 +100,14 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     native::replace_forms(&mut output.lexemes, native.form_replacements)?;
     native::add_frames(&mut output.lexemes, native.frame_additions)?;
     native::add_features(&mut output.lexemes, native.feature_additions)?;
+    legacy::plugins::add_compound_nouns(&mut output, compounds)?;
     native::add_adjective_classes(&mut output.lexemes, native.adjective_classes)?;
+    native::add_category_feature_defaults(&mut output.lexemes, native.category_feature_defaults)?;
     native::reconcile_frames(&mut output.lexemes, &native.frame_markers)?;
     for lexeme in &mut output.lexemes {
         if lexeme.source.kind == SourceKind::Catalog || lexeme.category == Category::Keyword {
             lexeme.surface_structure = SurfaceStructure::Opaque;
-        } else if lexeme.lemma.contains(' ') {
+        } else if lexeme.surface_structure == SurfaceStructure::Word && lexeme.lemma.contains(' ') {
             lexeme.surface_structure = SurfaceStructure::Multiword;
         }
     }
@@ -193,7 +195,7 @@ mod card_name_tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let sources = load_workspace(&root).unwrap();
         for (full, short) in [
-            ("Nissa Revane", "Nissa"),
+            ("Dina, Soul Steeper", "Dina"),
             ("King Darien XLVIII", "King Darien"),
             ("The Balrog, Durin's Bane", "The Balrog"),
             ("Tor Wauki the Younger", "Tor Wauki"),

@@ -79,3 +79,28 @@ Verification: `cargo xtask gate --changed --run` exits zero: 1119 passed
 tests across 75 suites, 1 existing on-demand live-corpus test ignored.
 Lean integration and documentation tests pass. `cargo fmt --all --check`
 and `cargo xtask cite check` pass (15,871 citations, zero stale).
+
+
+## Compiler support for the coverage batch
+
+Typed table requirements express correlated partial selection constraints
+without dummy output ports. Explicit custom-feature defaults distinguish an
+absent lexical property from an invalid authored value; no-default and built-in
+feature checks retain their strict behavior. Reading admission and realization
+share an immutable grammar, while lexical inventories remain caller supplied.
+Structured frame declarations replace 28 escaped RON strings; compiler tests
+prove identical typed frames and emitted tokens across both syntaxes, including
+marked and optional slots. The compiler/runtime suite passes 56 tests.
+
+The expanded grammar currently has 161 ordinary constructions and 52 schemas
+(213 named), 2,484 physical lines, maximum width 100. This remains too near the
+ultimate line ceiling; further safe schema reuse is under audit. No count-based
+Reading pruning or compacted formatting is introduced.
+
+
+Explicit typed instance-header bindings replace 68 repeated body bindings,
+including grouped field targets. The generated Reading fields and complete
+emitted tokens reconcile exactly against the old syntax. Unknown, duplicate,
+lexical/fixed-category targets and policy-column misuse reject. The unused
+additive-person table is removed after a zero-consumer check. The compiler
+suite now passes 58 tests; focused independent English host tests pass 16.

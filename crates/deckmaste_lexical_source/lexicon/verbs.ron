@@ -50,6 +50,8 @@
         Predicate([Amount]),
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]),
+        // Recipient-first ditransitive; Oracle: “this creature is dealt damage”.
+        Predicate([ObjectNounPhrase, ObjectNounPhrase]),
     ]),
     (identity: Die, bare: "die", third_person: "dies", preterite: Some("died"), frames: [Predicate([])]),
     (identity: Didnt, bare: "didn't", third_person: "didn't", frames: [Auxiliary]),
@@ -89,6 +91,7 @@
     ]),
     (identity: Look, bare: "look", third_person: "looks", preterite: Some("looked"), frames: [
         Predicate([Lex("Preposition", "At"), Role("Object")]),
+        Predicate([Lex("Preposition", "At"), ObjectNounPhrase]),
     ]),
     (identity: Lose, bare: "lose", third_person: "loses", preterite: Some("lost"), frames: [
         Predicate([ObjectNounPhrase]),
@@ -128,6 +131,7 @@
             Role("ArbitraryDeterminer"),
             Literal("order"),
         ]),
+        Predicate([ObjectNounPhrase, Lex("Preposition", "Onto"), ObjectNounPhrase]),
     ]),
     (identity: Remove, bare: "remove", third_person: "removes", preterite: Some("removed"), frames: [
         Predicate([ObjectNounPhrase, Lex("Preposition", "From"), Role("FrameComplement")]),

@@ -2,6 +2,7 @@ KeywordAbility(
     name: "solved",
     params: [Ability],
     spelling: "solved",
+    keyword_syntax: (head_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "solved",
     ),

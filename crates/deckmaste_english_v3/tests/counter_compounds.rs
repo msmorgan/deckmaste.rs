@@ -1,0 +1,152 @@
+use std::collections::BTreeSet;
+use std::path::Path;
+use std::sync::LazyLock;
+
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::Grammar;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_english_v3::parse;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Lexicon;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
+
+static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    Lexicon::new(
+        deckmaste_lexical_source::load_workspace(&root)
+            .unwrap()
+            .lexemes,
+    )
+    .unwrap()
+});
+
+fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
+    Word {
+        value: LexicalReading::Word(LexicalValue {
+            lexeme: owner.into(),
+            form: WordForm::Invariant,
+            features: FeatureBundle::default(),
+            variant: 0,
+            capitalization,
+        }),
+        frame: None,
+        countability: None,
+    }
+}
+
+fn noun(owner: &str) -> Reading {
+    Reading::Noun {
+        form: 0,
+        head: Word {
+            value: LexicalReading::Word(LexicalValue {
+                lexeme: owner.into(),
+                form: WordForm::Singular,
+                features: FeatureBundle {
+                    number: Some(Number::Singular),
+                    ..Default::default()
+                },
+                variant: 0,
+                capitalization: SurfaceCase::Declared,
+            }),
+            frame: None,
+            countability: Some(true),
+        },
+    }
+}
+
+fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
+    let grammar = Grammar::default();
+    let analyzed = LEXICON.analyze(text);
+    let forest = parse(&grammar, &LEXICON, &analyzed, &category).unwrap();
+    grammar
+        .readings(&forest)
+        .map(|value| {
+            let value = value.unwrap();
+            assert_eq!(value.realize(&LEXICON).unwrap(), text);
+            value
+        })
+        .collect()
+}
+
+fn exact(text: &str, category: Category, expected: Reading) {
+    expected.admit(&LEXICON).unwrap();
+    assert_eq!(expected.realize(&LEXICON).unwrap(), text);
+    let actual = readings(text, category);
+    assert_eq!(actual, BTreeSet::from([expected.clone()]));
+    let mut expected_words = Vec::new();
+    expected
+        .visit_words(&mut |word| expected_words.push(word.clone()))
+        .unwrap();
+    let mut actual_words = Vec::new();
+    actual
+        .first()
+        .unwrap()
+        .visit_words(&mut |word| actual_words.push(word.clone()))
+        .unwrap();
+    assert_eq!(actual_words, expected_words);
+}
+
+fn article() -> Word {
+    let mut word = invariant("vocab:Article/Indefinite", SurfaceCase::Declared);
+    if let LexicalReading::Word(value) = &mut word.value {
+        value.features.number = Some(Number::Singular);
+    }
+    word
+}
+fn counter(kind: &str) -> Reading {
+    noun(&format!("lexeme:counter_kind/{kind}Counter/compound-noun"))
+}
+fn indefinite(kind: &str) -> Reading {
+    Reading::IndefiniteNounPhrase {
+        form: 0,
+        determiner: article(),
+        head: Box::new(counter(kind)),
+    }
+}
+#[test]
+fn authentic_counter_compounds_preserve_macro_owner_and_noun_inflection() {
+    // Coalition Relic: "{T}: Put a charge counter on this artifact."
+    exact(
+        "a charge counter",
+        Category::NounPhrase,
+        indefinite("charge"),
+    );
+    // Coalition Relic: "...remove all charge counters from this artifact."
+    let mut counters = counter("charge");
+    if let Reading::Noun { head, .. } = &mut counters {
+        if let LexicalReading::Word(value) = &mut head.value {
+            value.form = WordForm::Plural;
+            value.features.number = Some(Number::Plural);
+        }
+    }
+    exact(
+        "charge counters",
+        Category::NounPhrase,
+        Reading::BarePlural {
+            form: 0,
+            head: Box::new(counters),
+        },
+    );
+}
+#[test]
+fn authentic_counter_np_coordination_keeps_whole_compound_conjuncts() {
+    // Flycatcher Giraffid: "This creature enters with your choice of a reach counter or a vigilance counter on it."
+    exact(
+        "a reach counter or a vigilance counter",
+        Category::NounPhrase,
+        Reading::Coordination {
+            category: Category::NounPhrase,
+            form: 0,
+            left: Box::new(indefinite("reach")),
+            coordinator: invariant("vocab:Coordinator/Or", SurfaceCase::Declared),
+            right: Box::new(indefinite("vigilance")),
+        },
+    );
+    // Negative shared-modifier probe: macro compounds do not license free charge/loyalty modifiers.
+    assert!(readings("charge and loyalty counters", Category::NounPhrase).is_empty());
+}

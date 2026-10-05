@@ -42,6 +42,8 @@ pub enum LoadError {
     },
     #[error("invalid adjective class member {owner:?}: {reason}")]
     InvalidAdjectiveClassMember { owner: String, reason: &'static str },
+    #[error("compound head {owner} must be a declared noun")]
+    InvalidCompoundHead { owner: String },
     #[error("duplicate added frame for {owner}")]
     DuplicateFrame { owner: String },
     #[error("{owner}: empty frame kind")]

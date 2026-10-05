@@ -108,6 +108,63 @@ fn atom(id: &str) -> fixture::Reading {
 }
 
 #[test]
+fn shared_grammar_admission_always_uses_the_supplied_lexicon() {
+    let features = FeatureBundle {
+        number: Some(Number::Singular),
+        person: Some(Person::First),
+        ..FeatureBundle::default()
+    };
+    let environment = |surface: &str, features: FeatureBundle| {
+        let mut declaration = invariant("speaker", surface, Category::Pronoun);
+        declaration.forms[0].features = features;
+        Lexicon::new(vec![declaration]).unwrap()
+    };
+    let first = environment("alpha", features.clone());
+    let second = environment("beta", features.clone());
+    let changed = environment(
+        "alpha",
+        FeatureBundle {
+            person: Some(Person::Third),
+            ..features.clone()
+        },
+    );
+    let missing = Lexicon::new(vec![]).unwrap();
+    let reading = fixture::Reading::Subject {
+        form: 0,
+        word: word("speaker", WordForm::Invariant, features),
+    };
+    let grammar = fixture::Grammar::default();
+    std::thread::scope(|scope| {
+        for (lexicon, surface) in [(&first, "alpha"), (&second, "beta")] {
+            let reading = &reading;
+            let grammar = &grammar;
+            scope.spawn(move || {
+                for _ in 0..4 {
+                    assert!(reading.admit(lexicon).is_ok());
+                    assert_eq!(reading.realize(lexicon).unwrap(), surface);
+                    let forest = parse(
+                        grammar,
+                        lexicon,
+                        &lexicon.analyze(surface),
+                        &fixture::Category::Subject,
+                    )
+                    .unwrap();
+                    let actual: BTreeSet<_> =
+                        grammar.readings(&forest).map(Result::unwrap).collect();
+                    assert_eq!(actual, BTreeSet::from([reading.clone()]));
+                }
+            });
+        }
+        scope.spawn(|| {
+            for lexicon in [&changed, &missing] {
+                assert!(reading.admit(lexicon).is_err());
+                assert!(reading.realize(lexicon).is_err());
+            }
+        });
+    });
+}
+
+#[test]
 fn generated_structural_traits_preserve_variant_form_and_child_distinctions() {
     use fixture::Reading;
     let ordered = [

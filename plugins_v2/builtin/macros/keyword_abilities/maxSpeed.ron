@@ -2,6 +2,7 @@ KeywordAbility(
     name: "maxSpeed",
     params: [Ability],
     spelling: "max speed",
+    keyword_syntax: (head_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "max speed",
     ),

@@ -2,6 +2,7 @@ KeywordAbility(
     name: "boast",
     params: [Ability],
     spelling: "boast",
+    keyword_syntax: (head_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "boast",
     ),

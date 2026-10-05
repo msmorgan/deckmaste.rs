@@ -64,6 +64,24 @@ instance Coordination<Result, Member, Agreement>: [
 }
 ```
 
+Category parameters may bind their schema fields in the header:
+
+```rust
+instance Coordination<Result, Member: (left, right), Agreement>: [
+    (Nominal, Self, SameNumber),
+    (CountNominal, Self, SameNumber),
+] {
+    use Agreement;
+}
+```
+
+`Head: head` replaces `bind head = Head`; grouped targets replace the equivalent
+shared-category binding. Defaults follow the targets, for example
+`Member: (left, right) = Self`. Targets must be declared generic node fields;
+unknown, duplicate, lexical or fixed-category targets reject. Policy parameters
+cannot bind fields. Header bindings expand to the same checked contracts and
+Reading fields as body bindings.
+
 The first parameter selects the result Category. Other parameters have exactly
 one declared role: a Category in bindings or a policy in `use`. Each row supplies
 those explicit Categories and policies; unused or mixed-role parameters are
@@ -168,6 +186,13 @@ enums. A declaration can add a finite distribution feature:
 property. Undeclared or absent values never act as wildcards. Agreement keeps
 whole lexical feature bundles correlated.
 
+A custom feature may explicitly provide an absent-property default:
+`feature Class { None, Special } default None;`. Only an absent lexical property
+uses that default; an authored value outside the declared domain remains absent
+from projection and cannot satisfy an obligation. Features without defaults and
+builtin feature domains retain their existing absence behavior. Defaults do not
+replace required exports from child Categories.
+
 `onset` and `article_onset` share the `Consonant`/`Vowel` domain. The Lexicon
 normalizes pronunciation and the selected article variant before admission.
 Every Category automatically exposes `onset`, derived from its first pronounced
@@ -223,16 +248,44 @@ values, never lexical identities, spellings or ASTs. Their input registers
 survive until completion, preserving correlations and future admissibility;
 both parsing and checked construction evaluate the same generated table.
 
-`frame Name = "<RON Frame>";` declares a complete data-only lexical frame
-signature. It preserves frame kind, ordered items, grammatical relations,
-Categories, marker identities and optional/marked nesting. For example:
+A table can also constrain admission without exporting a parent feature:
 
 ```text
-frame Object = "(kind: \"transitive\", items: [Argument((relation: Complement, category: \"Nominal\"))])";
+require permitted(head.frame, complement.number) = Yes;
 ```
 
+The named table must declare the argument domains and the expected constant's
+output domain. A missing input tuple or a different output rejects the candidate.
+These relational guards work in constructions, schemas and policies, including
+field-parameter substitution. Their input registers remain correlated through
+completion, using the same table lookup as derived exports; they add no Category
+summary feature or Reading field.
+
+`frame Name = Kind(items...);` declares a complete data-only lexical frame
+signature. It preserves the exact frame kind, ordered items, grammatical
+relations, Categories, marker identities and optional/marked nesting:
+
+```text
+frame Transitive = Predicate(Object(NounPhrase));
+frame ObjectToObject = Predicate(Object(NounPhrase), Preposition(To), Object(NounPhrase));
+frame Predicative = Predicate(Complement(PredicativeComplement));
+frame BareNominal = Nominal();
+frame NominalSymbols = Nominal(Marked(Preposition, Of, Complement(CostSymbols)));
+frame OptionalObject = Predicate(Optional(Object(NounPhrase)));
+```
+
+`Subject(Category)`, `Object(Category)` and `Complement(Category)` create
+argument slots. `Vocabulary(Member)` creates a standalone marker;
+`Marker(Vocabulary, Member)` also supports vocabulary names reserved by this
+syntax. `Marked(Vocabulary, Member, Relation(Category))` combines a marker and
+slot. `Optional(item)` nests any item, and `Literal("text")` retains legacy
+literal data. Categories, vocabularies and members accept identifiers or string
+literals. They are frame data, so they need not name grammar Categories.
+Frame kinds remain open identifiers. The existing `frame Name = "<RON Frame>";`
+syntax remains supported and produces identical typed data and generated code.
+
 A head Construction can export `frame = head.frame`; a governing Construction
-can `require head.frame = Object`. Matching reads the declared lexical property,
+can `require head.frame = Transitive`. Matching reads the declared lexical property,
 never a lexeme name or input word. Frames not in this grammar's inventory remain
 lexical choices, but cannot satisfy a required or exported frame feature.
 Duplicate frame signatures are rejected. As with any grammar declaration,

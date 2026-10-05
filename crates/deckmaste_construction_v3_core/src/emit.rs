@@ -80,6 +80,14 @@ fn grammar(ir: &Ir) -> TokenStream {
             });
             quote!(TableExport { feature: #feature, registers: vec![#(#registers),*], rows: vec![#(#rows),*] })
         });
+        let table_requirements = rule.table_requirements.iter().map(|requirement| {
+            let registers = &requirement.registers;
+            let expected = &requirement.expected;
+            let rows = ir.tables[requirement.table].rows.iter().map(|(inputs, output)| {
+                quote!((vec![#(#inputs),*], #output))
+            });
+            quote!(TableRequirement { registers: vec![#(#registers),*], rows: vec![#(#rows),*], expected: #expected })
+        });
         let boundary = rule.boundary.as_ref().map_or_else(|| quote!(None), |name| quote!(Some(Boundary::#name)));
         let onset = rule.onset.as_ref().map_or_else(|| quote!(None), |name| quote!(Some(::deckmaste_lexical::Onset::#name)));
         quote!(Rule {
@@ -89,28 +97,52 @@ fn grammar(ir: &Ir) -> TokenStream {
             initial: vec![#(#initial),*],
             exports: vec![#(#exports),*],
             table_exports: vec![#(#table_exports),*],
+            table_requirements: vec![#(#table_requirements),*],
             release: vec![#(#release),*]
         })
     });
-    quote! { impl Default for Grammar {
-        fn default() -> Self { Self { rules: vec![#(#rules),*], productions: vec![#(#productions),*] } }
-    } }
+    quote! {
+        impl Default for Grammar {
+            fn default() -> Self { Self { rules: vec![#(#rules),*], productions: vec![#(#productions),*] } }
+        }
+        impl Grammar {
+            fn for_admission() -> &'static Self {
+                static GRAMMAR: ::std::sync::OnceLock<Grammar> = ::std::sync::OnceLock::new();
+                GRAMMAR.get_or_init(Self::default)
+            }
+        }
+    }
 }
 
 fn projection(ir: &Ir) -> TokenStream {
-    let features = ir.features.iter().enumerate().filter_map(|(index, domain)| match &domain.kind {
-        DomainKind::Builtin(ty) if domain.name != "form" => {
-            let field = format_ident!("{}", domain.name);
-            let ty = format_ident!("{ty}");
-            Some(quote!(base.values[#index] = features.#field.map(FeatureValue::#ty);))
-        }
-        DomainKind::Custom => {
-            let name = &domain.name;
-            let values = domain.values.iter().enumerate().map(|(value, name)| quote!(#name => Some(FeatureValue::Custom(#index, #value))));
-            Some(quote!(base.values[#index] = properties.features.get(#name).and_then(|value| match value.as_str() { #(#values,)* _ => None });))
-        }
-        _ => None,
-    });
+    let features = ir
+        .features
+        .iter()
+        .enumerate()
+        .filter_map(|(index, domain)| match &domain.kind {
+            DomainKind::Builtin(ty) if domain.name != "form" => {
+                let field = format_ident!("{}", domain.name);
+                let ty = format_ident!("{ty}");
+                Some(quote!(base.values[#index] = features.#field.map(FeatureValue::#ty);))
+            }
+            DomainKind::Custom { default } => {
+                let name = &domain.name;
+                let values = domain.values.iter().enumerate().map(
+                    |(value, name)| quote!(#name => Some(FeatureValue::Custom(#index, #value))),
+                );
+                let absent = default.map_or_else(
+                    || quote!(None),
+                    |value| quote!(Some(FeatureValue::Custom(#index, #value))),
+                );
+                Some(
+                    quote!(base.values[#index] = match properties.features.get(#name) {
+                Some(value) => match value.as_str() { #(#values,)* _ => None },
+                None => #absent,
+            };),
+                )
+            }
+            _ => None,
+        });
     let frames = ir.frames.iter().map(|(_, frame)| frame_tokens(frame));
     quote! {
         fn project(features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
@@ -375,7 +407,7 @@ fn ast(ir: &Ir) -> TokenStream {
             /// # Errors
             /// Reports an invalid form, lexical value, constituent or feature equation.
             pub fn admit(&self, lexicon: &::deckmaste_lexical::Lexicon) -> Result<Summary, Error> {
-                let summary = self.admit_with(&Grammar::default(), lexicon)?;
+                let summary = self.admit_with(Grammar::for_admission(), lexicon)?;
                 let mut output = Realization::new();
                 self.write(lexicon, &mut output)?;
                 output.check_context(lexicon)?;
@@ -387,7 +419,7 @@ fn ast(ir: &Ir) -> TokenStream {
             /// # Errors
             /// Reports the same admission errors as `admit`.
             pub fn realize(&self, lexicon: &::deckmaste_lexical::Lexicon) -> Result<String, Error> {
-                self.admit_with(&Grammar::default(), lexicon)?;
+                self.admit_with(Grammar::for_admission(), lexicon)?;
                 let mut output = Realization::new();
                 self.write(lexicon, &mut output)?;
                 output.check_context(lexicon)?;

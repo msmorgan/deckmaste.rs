@@ -2,6 +2,7 @@ KeywordAbility(
     name: "companion",
     params: [Condition],
     spelling: "companion",
+    keyword_syntax: (head_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "companion",
     ),

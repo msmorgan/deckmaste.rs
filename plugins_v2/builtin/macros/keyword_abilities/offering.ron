@@ -2,6 +2,7 @@ KeywordAbility(
     name: "offering",
     params: [Quality],
     spelling: "offering",
+    keyword_syntax: (payload_order: BeforeHead),
     grammar: FixedKeyword(
         surface: "offering",
     ),

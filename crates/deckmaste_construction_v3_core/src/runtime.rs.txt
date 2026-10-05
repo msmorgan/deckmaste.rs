@@ -186,6 +186,24 @@ struct TableExport {
     rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
 }
 
+struct TableRequirement {
+    registers: Vec<usize>,
+    rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
+    expected: FeatureValue,
+}
+
+fn table_value<'a>(
+    registers: &[usize],
+    rows: &'a [(Vec<FeatureValue>, FeatureValue)],
+    state: &State,
+) -> Option<&'a FeatureValue> {
+    rows.iter().find_map(|(inputs, output)| {
+        registers.iter().zip(inputs).all(|(&register, value)| {
+            state.registers.get(register).and_then(Option::as_ref) == Some(value)
+        }).then_some(output)
+    })
+}
+
 enum Boundary {
     Initial,
     Interior,
@@ -198,6 +216,7 @@ struct Rule {
     initial: Vec<Option<FeatureValue>>,
     exports: Vec<(usize, usize)>,
     table_exports: Vec<TableExport>,
+    table_requirements: Vec<TableRequirement>,
     release: Vec<Vec<usize>>,
 }
 
@@ -243,19 +262,16 @@ impl Rule {
             summary.surface.onset = Some(onset);
         }
         summary.values[12] = summary.surface.onset.map(FeatureValue::Onset);
+        for requirement in &self.table_requirements {
+            if table_value(&requirement.registers, &requirement.rows, state)? != &requirement.expected {
+                return None;
+            }
+        }
         for &(feature, register) in &self.exports {
             summary.values[feature] = Some(state.registers.get(register)?.as_ref()?.clone());
         }
         for export in &self.table_exports {
-            let (_, output) = export.rows.iter().find(|(inputs, _)| {
-                export
-                    .registers
-                    .iter()
-                    .zip(inputs)
-                    .all(|(&register, value)| {
-                        state.registers.get(register).and_then(Option::as_ref) == Some(value)
-                    })
-            })?;
+            let output = table_value(&export.registers, &export.rows, state)?;
             summary.values[export.feature] = Some(output.clone());
         }
         Some(summary)

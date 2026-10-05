@@ -13,6 +13,8 @@ use serde::Deserialize;
 pub(crate) struct Inventory {
     pub lexemes: Vec<Lexeme>,
     #[serde(default)]
+    pub category_feature_defaults: BTreeMap<deckmaste_lexical::Category, BTreeMap<String, String>>,
+    #[serde(default)]
     pub adjective_classes: Vec<AdjectiveClass>,
     pub core_verb_paradigms: BTreeMap<String, Paradigm>,
     pub frame_markers: BTreeMap<String, (String, String)>,
@@ -210,6 +212,37 @@ pub(crate) fn replace_forms(
             .properties
             .features
             .insert("FormSource".into(), PATH.into());
+    }
+    Ok(())
+}
+
+/// Apply authored category defaults only where an individual declaration is silent.
+pub(crate) fn add_category_feature_defaults(
+    lexemes: &mut [Lexeme],
+    defaults: BTreeMap<deckmaste_lexical::Category, BTreeMap<String, String>>,
+) -> Result<(), LoadError> {
+    for lexeme in lexemes {
+        if let Some(features) = defaults.get(&lexeme.category) {
+            for (name, value) in features {
+                if name.is_empty() || value.is_empty() {
+                    return Err(LoadError::EmptyFeature {
+                        owner: lexeme.id.clone(),
+                        name: name.clone(),
+                        value: value.clone(),
+                    });
+                }
+                if !lexeme.properties.features.contains_key(name) {
+                    lexeme
+                        .properties
+                        .features
+                        .insert(name.clone(), value.clone());
+                    lexeme
+                        .properties
+                        .features
+                        .insert(format!("FeatureSource:{name}"), PATH.into());
+                }
+            }
+        }
     }
     Ok(())
 }

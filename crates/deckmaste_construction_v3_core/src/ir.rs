@@ -42,7 +42,7 @@ pub(crate) enum DomainKind {
     NumeralSign,
     Framing,
     Onset,
-    Custom,
+    Custom { default: Option<usize> },
 }
 
 pub(crate) struct FeatureTable {
@@ -57,6 +57,13 @@ pub(crate) struct TableExport {
     pub feature: usize,
     pub table: usize,
     pub registers: Vec<usize>,
+}
+
+#[derive(Clone)]
+pub(crate) struct TableRequirement {
+    pub table: usize,
+    pub registers: Vec<usize>,
+    pub expected: TokenStream,
 }
 
 pub(crate) struct Constructor {
@@ -89,6 +96,7 @@ pub(crate) struct Rule {
     pub initial: Vec<Option<TokenStream>>,
     pub exports: Vec<(usize, usize)>,
     pub table_exports: Vec<TableExport>,
+    pub table_requirements: Vec<TableRequirement>,
     pub release: Vec<Vec<usize>>,
     pub build: Build,
     pub boundary: Option<Ident>,
@@ -223,25 +231,36 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         for value in &feature.values {
             reserve(&mut values, value)?;
         }
+        let default = feature
+            .default
+            .as_ref()
+            .map(|default| {
+                feature
+                    .values
+                    .iter()
+                    .position(|value| value == default)
+                    .ok_or_else(|| {
+                        error(default, &format!("not a value of feature {}", feature.name))
+                    })
+            })
+            .transpose()?;
         features.push(Domain {
             name: feature.name.to_string(),
             values: feature.values.iter().map(ToString::to_string).collect(),
-            kind: DomainKind::Custom,
+            kind: DomainKind::Custom { default },
         });
     }
     let mut frames = vec![];
     let mut frame_names = BTreeSet::new();
-    for (name, text) in &declaration.frames {
+    for (name, frame) in &declaration.frames {
         reserve(&mut frame_names, name)?;
-        let frame: Frame = ron::from_str(&text.value())
-            .map_err(|e| error(name, &format!("lexical frame signature: {e}")))?;
-        if frames.iter().any(|(_, previous)| previous == &frame) {
+        if frames.iter().any(|(_, previous)| previous == frame) {
             return Err(error(
                 name,
                 "duplicate frame signature would introduce a false grammatical choice",
             ));
         }
-        frames.push((name.clone(), frame));
+        frames.push((name.clone(), frame.clone()));
     }
     features[7].values = frames.iter().map(|(name, _)| name.to_string()).collect();
     let mut names = BTreeSet::new();
@@ -478,6 +497,10 @@ fn normalize(
                         .table_exports
                         .iter()
                         .any(|export| export.registers.contains(&register))
+                    && !plan
+                        .table_requirements
+                        .iter()
+                        .any(|requirement| requirement.registers.contains(&register))
                     && let Some(last) = checks
                         .iter()
                         .rposition(|c| c.iter().any(|(_, r)| *r == register))
@@ -495,6 +518,7 @@ fn normalize(
                 onset: construction.onset.clone(),
                 exports: plan.exports.clone(),
                 table_exports: plan.table_exports.clone(),
+                table_requirements: plan.table_requirements.clone(),
                 release,
                 build: Build::Construction {
                     constructor: index,
@@ -596,7 +620,7 @@ fn value(ir: &Ir, feature: usize, name: &Ident) -> syn::Result<TokenStream> {
             let value = format_ident!("{}", domain.values[index]);
             quote!(FeatureValue::Onset(::deckmaste_lexical::Onset::#value))
         }
-        DomainKind::Custom => quote!(FeatureValue::Custom(#feature, #index)),
+        DomainKind::Custom { .. } => quote!(FeatureValue::Custom(#feature, #index)),
     })
 }
 
@@ -605,6 +629,7 @@ struct EquationPlan {
     initial: Vec<Option<TokenStream>>,
     exports: Vec<(usize, usize)>,
     table_exports: Vec<TableExport>,
+    table_requirements: Vec<TableRequirement>,
 }
 
 fn resolve_reference(
@@ -680,7 +705,7 @@ fn equations(
                 refs.insert(resolve(r)?);
             }
             Equation::ExportConstant(_, _) => {}
-            Equation::ExportTable(_, _, arguments) => {
+            Equation::ExportTable(_, _, arguments) | Equation::RequireTable(_, arguments, _) => {
                 for argument in arguments {
                     refs.insert(resolve(argument)?);
                 }
@@ -719,6 +744,27 @@ fn equations(
         initial: vec![None; refs.len()],
         exports: vec![],
         table_exports: vec![],
+        table_requirements: vec![],
+    };
+    let table_call = |table_name: &Ident, arguments: &[Reference]| -> syn::Result<_> {
+        let table = ir
+            .tables
+            .iter()
+            .position(|table| table.name == *table_name)
+            .ok_or_else(|| error(table_name, "unknown feature table"))?;
+        let declaration = &ir.tables[table];
+        if arguments.len() != declaration.inputs.len() {
+            return Err(error(table_name, "feature table call has wrong arity"));
+        }
+        let mut registers = vec![];
+        for (argument, domain) in arguments.iter().zip(&declaration.inputs) {
+            let source = position(argument)?;
+            if refs[source].1 != *domain {
+                return Err(error(table_name, "feature table argument has wrong domain"));
+            }
+            registers.push(groups[source]);
+        }
+        Ok((table, registers))
     };
     let mut exported = BTreeSet::new();
     for equation in equations {
@@ -769,11 +815,7 @@ fn equations(
             }
             Equation::ExportTable(name, table_name, arguments) => {
                 let feature = feature_index(&ir.features, name)?;
-                let table = ir
-                    .tables
-                    .iter()
-                    .position(|table| table.name == *table_name)
-                    .ok_or_else(|| error(table_name, "unknown feature table"))?;
+                let (table, registers) = table_call(table_name, arguments)?;
                 let declaration = &ir.tables[table];
                 if declaration.output != feature
                     || !interfaces[construction.category].contains(&feature)
@@ -784,21 +826,19 @@ fn equations(
                         "export must supply each declared Category feature exactly once from the same domain",
                     ));
                 }
-                if arguments.len() != declaration.inputs.len() {
-                    return Err(error(table_name, "feature table call has wrong arity"));
-                }
-                let mut registers = vec![];
-                for (argument, domain) in arguments.iter().zip(&declaration.inputs) {
-                    let source = position(argument)?;
-                    if refs[source].1 != *domain {
-                        return Err(error(table_name, "feature table argument has wrong domain"));
-                    }
-                    registers.push(groups[source]);
-                }
                 plan.table_exports.push(TableExport {
                     feature,
                     table,
                     registers,
+                });
+            }
+            Equation::RequireTable(table_name, arguments, constant) => {
+                let (table, registers) = table_call(table_name, arguments)?;
+                let expected = value(ir, ir.tables[table].output, constant)?;
+                plan.table_requirements.push(TableRequirement {
+                    table,
+                    registers,
+                    expected,
                 });
             }
             Equation::Agree(_, _) => {}
@@ -824,6 +864,7 @@ fn helper(ir: &mut Ir, category: usize, symbols: Vec<Symbol>, build: Build) {
         onset: None,
         exports: vec![],
         table_exports: vec![],
+        table_requirements: vec![],
         release: vec![vec![]; size],
         build,
     });

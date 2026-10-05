@@ -2,6 +2,7 @@ KeywordAbility(
     name: "prototype",
     params: [Cost, Power, Toughness],
     spelling: "prototype",
+    keyword_syntax: (parameter_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "prototype",
     ),

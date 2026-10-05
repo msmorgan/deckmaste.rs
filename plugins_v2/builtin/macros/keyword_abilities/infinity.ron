@@ -2,6 +2,7 @@ KeywordAbility(
     name: "infinity",
     params: [Ability],
     spelling: "∞",
+    keyword_syntax: (head_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "∞",
         onset: Vowel,
