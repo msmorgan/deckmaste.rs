@@ -54,7 +54,7 @@ theorem okSecretPlans : Ability.check [] secretPlans = [] := by decide
 
 /-- Teferi's Imp -/
 def teferisImpPhasesOut : Ability :=
-  whenever (Primitives.GameEvent.statusEvent thisCreature .phasedOut) (discard (a (Primitives.Predicate.inZone hand)))
+  whenever (Primitives.GameEvent.statusEvent thisCreature .phasedOut) (discard (a (Primitives.Predicate.inZone yourHand)))
 theorem okTeferisImpPhasesOut : Ability.check [] teferisImpPhasesOut = [] := by decide
 /-- Teferi's Imp -/
 def teferisImpPhasesIn : Ability :=
@@ -692,7 +692,7 @@ theorem okWurmwallSweeperTrigger : Ability.check [] wurmwallSweeperTrigger = [] 
 /-- Case of the Crimson Pulse -/
 def caseOfTheCrimsonPulseTrigger : Ability :=
   when (Primitives.GameEvent.enters thisCase none)
-    (Primitives.Instruction.sequentially [discard (a (Primitives.Predicate.inZone hand)), Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)])
+    (Primitives.Instruction.sequentially [discard (a (Primitives.Predicate.inZone yourHand)), Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)])
 theorem okCaseOfTheCrimsonPulseTrigger : Ability.check [] caseOfTheCrimsonPulseTrigger = [] := by
   decide
 

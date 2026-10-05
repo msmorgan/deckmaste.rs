@@ -938,7 +938,7 @@ theorem distributedDeedReadsBackPlural :
 theorem okTheVerbedAfterSingularDiscard :
     Instruction.check []
       (.sequentially
-        [ discard (a (.inZone hand)),
+        [ discard (a (.inZone yourHand)),
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [] := by
   decide

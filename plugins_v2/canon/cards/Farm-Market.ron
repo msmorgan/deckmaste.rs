@@ -44,7 +44,7 @@ Split(
                         discard(
                             described(
                                 determiner: Count(quantity: range(low: 2, high: 2), mode: None),
-                                predicate: cardIn(zone(zone: Hand, scope: PossessedBy(you))),
+                                predicate: cardIn(yourHand),
                             ),
                         ),
                     ]),

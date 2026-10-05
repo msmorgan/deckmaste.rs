@@ -194,7 +194,7 @@ theorem badPayAsCost :
 /-- "Discard a card, then sacrifice a creature:" -/
 theorem badSequentialCost :
     Ability.check []
-      (act (.perform (.sequentially [discard (a (.inZone hand)), sacrifice (a creature)
+      (act (.perform (.sequentially [discard (a (.inZone yourHand)), sacrifice (a creature)
           (agent := .you)]))
         (draw (.lit 1) (agent := .you))) = [.costAction] := by
   decide
@@ -203,7 +203,7 @@ theorem badSequentialCost :
 theorem badSimultaneousCost :
     Ability.check []
       (act
-        (.perform (.simultaneously [discard (a (.inZone hand)), sacrifice (a
+        (.perform (.simultaneously [discard (a (.inZone yourHand)), sacrifice (a
             creature) (agent := .you)]))
         (draw (.lit 1) (agent := .you))) = [.costAction] := by
   decide
@@ -219,7 +219,7 @@ theorem okCompoundCost :
     Ability.check []
       (act
         (.compound
-          [.perform (discard (a (.inZone hand))), .perform (sacrifice (a creature)
+          [.perform (discard (a (.inZone yourHand))), .perform (sacrifice (a creature)
               (agent := .you))])
         (draw (.lit 1) (agent := .you))) = [] := by
   decide

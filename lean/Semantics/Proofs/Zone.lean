@@ -215,7 +215,7 @@ theorem badDestroyGraveyard :
   decide
 
 /-- "You discard a card." -/
-theorem okDiscardHand : Instruction.check [] (discard (a (.inZone hand))) = [] := by
+theorem okDiscardHand : Instruction.check [] (discard (a (.inZone yourHand))) = [] := by
     decide
 
 /-- "You discard a creature." -/
@@ -302,7 +302,7 @@ theorem badAttackingInHand :
 
 /-- "Discard a card." -/
 theorem okDiscardACardFromHand :
-    Instruction.check [] (discard (a (.inZone hand))) = [] := by decide
+    Instruction.check [] (discard (a (.inZone yourHand))) = [] := by decide
 
 /-- "Discard this creature." -/
 theorem badDiscardThisCreature :
@@ -325,7 +325,7 @@ theorem badDoubleOther :
 /-- "You discard a card." -/
 theorem okDiscardHandCard :
     Instruction.check [⟨.a, .one, .object [] none none none none⟩]
-      (discard (a (.inZone hand))) = [] := by
+      (discard (a (.inZone yourHand))) = [] := by
   decide
 
 /-- "You discard it." -/
@@ -382,7 +382,7 @@ theorem badTrailingPostStateZone :
 
 /-- "Choose a card in your hand. You discard that card." -/
 theorem okChosenCardRemention :
-    Instruction.check [] (.sequentially [choose (a (.inZone hand)), discard (that .card)])
+    Instruction.check [] (.sequentially [choose (a (.inZone yourHand)), discard (that .card)])
       = [] := by
   decide
 
@@ -806,7 +806,7 @@ theorem distributedDeedReadsBackPluralUnderAnnouncement :
 
 /-- "Discard a card. Simultaneously, exile that card." -/
 theorem okThatAfterSingularDiscard :
-    Instruction.check [] (.simultaneously [discard (a (.inZone hand)), exile
+    Instruction.check [] (.simultaneously [discard (a (.inZone yourHand)), exile
         (that .card)])
       = [] := by
   decide

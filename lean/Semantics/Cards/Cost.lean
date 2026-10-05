@@ -466,7 +466,7 @@ def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           activated
-            (Primitives.Cost.perform (discard (withTheSameName (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone hand])))))
+            (Primitives.Cost.perform (discard (withTheSameName (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone yourHand])))))
             (Primitives.Instruction.draw (.lit 4) (agent := Primitives.NounPhrase.you)) ],
       power := stat 5, toughness := stat 6 } }
 
@@ -785,7 +785,7 @@ def generalTazriPump : Ability :=
 theorem okGeneralTazriPump : Ability.check [] generalTazriPump = [] := by decide
 /-- Diplomatic Escort -/
 def diplomaticEscortLine : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone hand)))])
+  activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone yourHand)))])
     (Primitives.Instruction.counterSpell
       (target (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.targets (a creature) .someTarget])))
 theorem okDiplomaticEscortLine : Ability.check [] diplomaticEscortLine = [] := by decide

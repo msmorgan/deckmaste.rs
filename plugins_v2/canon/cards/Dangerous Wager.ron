@@ -15,7 +15,7 @@ SingleFaced(face: (
                     discard(
                         described(
                             determiner: All,
-                            predicate: cardIn(zone(zone: Hand, scope: PossessedBy(you))),
+                            predicate: cardIn(yourHand),
                         ),
                     ),
                     draw(amount: 2, agent: you),

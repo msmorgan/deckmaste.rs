@@ -600,7 +600,7 @@ def abolish : Spelled := spelled <| .singleFaced
     { name := "Abolish", cost := some [generic 1, pip .white, pip .white], types := [.instant],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
-            (some (Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (landType "Plains"), Primitives.Predicate.inZone hand])))))),
+            (some (Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (landType "Plains"), Primitives.Predicate.inZone yourHand])))))),
           Primitives.Ability.spell none (destroy (target (Primitives.Predicate.or [artifact, enchantment]))) ] } }
 
 def gush : Spelled := spelled <| .singleFaced

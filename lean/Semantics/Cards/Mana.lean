@@ -23,7 +23,7 @@ def boshIronGolem : Ability :=
       (target anyTarget))
 theorem okBoshIronGolem : Ability.check [] boshIronGolem = [] := by decide
 def pyromancy : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (discard (aAtRandom (Primitives.Predicate.inZone hand)))])
+  activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (discard (aAtRandom (Primitives.Predicate.inZone yourHand)))])
     (Primitives.Instruction.dealDamage thisEnchantment
       (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
       (target anyTarget))
@@ -378,7 +378,7 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ choose (target anyTarget),
               Primitives.Instruction.draw (.lit 3) (agent := Primitives.NounPhrase.you),
-              discard (a (Primitives.Predicate.inZone hand)),
+              discard (a (Primitives.Predicate.inZone yourHand)),
               Primitives.Instruction.dealDamage Primitives.NounPhrase.this
                 (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
                 thatJoin ]) ] } }
@@ -946,7 +946,7 @@ def moxDiamond : Spelled := spelled <| .singleFaced
     { name := "Mox Diamond", cost := some [], types := [.artifact],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.enters Primitives.NounPhrase.this none) [] none
-            (Primitives.Instruction.offer (discard (a (Primitives.Predicate.and [land, Primitives.Predicate.inZone hand])))
+            (Primitives.Instruction.offer (discard (a (Primitives.Predicate.and [land, Primitives.Predicate.inZone yourHand])))
               (some (putOntoBattlefield Primitives.NounPhrase.this)) (some (move Primitives.NounPhrase.this graveyard)) (agent := Primitives.NounPhrase.you))
             .repeatedly none),
           activated Primitives.Cost.tapSymbol (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.anyColor .sameColor) [] (agent := Primitives.NounPhrase.you)) ] } }

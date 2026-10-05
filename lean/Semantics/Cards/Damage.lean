@@ -898,7 +898,7 @@ def bullseyeModalCost : Ability :=
   activated
     (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.tapSymbol,
       Primitives.Cost.perform (chooseModes (exactly 1)
-        [ sacrifice (a artifact) (agent := Primitives.NounPhrase.you), discard (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone hand])) ])])
+        [ sacrifice (a artifact) (agent := Primitives.NounPhrase.you), discard (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone yourHand])) ])])
     (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (target anyTarget))
 theorem okBullseyeModalCost : Ability.check [] bullseyeModalCost = [] := by decide
 

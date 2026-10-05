@@ -155,6 +155,8 @@ semantic_macro choiceOfTopOrBottom (chooser : NounPhrase) : ZoneExpr :=
 semantic_macro nthFromTopOrBottom (ordinal : Ordinal) : ZoneExpr :=
   .library (.eitherEnd none) none (some ordinal) .bare
 semantic_macro handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
+/-- "your hand" -/
+semantic_macro yourHand : ZoneExpr := handOf .you
 semantic_macro graveyardOf (player : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy player)
 /-- "Nth from the top of its owner's library" -/
 semantic_macro nthFromTop (ordinal : Ordinal) : ZoneExpr := .library (.oneEnd .top) none (some ordinal) .bare

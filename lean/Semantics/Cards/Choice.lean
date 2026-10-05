@@ -16,11 +16,11 @@ open Semantics Semantics.Macros
 namespace Semantics.Cards
 
 def carefulStudy : Instruction :=
-  Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you), discard (counted (exactly 2) (Primitives.Predicate.inZone hand))]
+  Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you), discard (counted (exactly 2) (Primitives.Predicate.inZone yourHand))]
 theorem okCarefulStudy : Instruction.check [] carefulStudy = [] := by decide
 
 def zombieInfestation : Ability :=
-  activated (Primitives.Cost.perform (discard (counted (exactly 2) (Primitives.Predicate.inZone hand))))
+  activated (Primitives.Cost.perform (discard (counted (exactly 2) (Primitives.Predicate.inZone yourHand))))
     (create (.lit 1) (creatureToken 2 2 [.black] [creatureType "Zombie"]))
 theorem okZombieInfestation : Ability.check [] zombieInfestation = [] := by decide
 
@@ -98,7 +98,7 @@ def carnophage : Instruction := doUnless (Primitives.Instruction.setStatus .tapp
     := Primitives.NounPhrase.you)
 theorem okCarnophage : Instruction.check [] carnophage = [] := by decide
 def solitaryConfinement : Instruction :=
-  Primitives.Instruction.offer (discard (a (Primitives.Predicate.inZone hand))) none (some (sacrifice thisEnchantment (agent
+  Primitives.Instruction.offer (discard (a (Primitives.Predicate.inZone yourHand))) none (some (sacrifice thisEnchantment (agent
       := Primitives.NounPhrase.you))) (agent := Primitives.NounPhrase.you)
 theorem okSolitaryConfinement : Instruction.check [] solitaryConfinement = [] := by decide
 
@@ -549,7 +549,7 @@ def foundingOfOmashu : Spelled := spelled <| .singleFaced
       text :=
         [ when (Primitives.GameEvent.chapterMark [1]) (create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Ally"])),
           when (Primitives.GameEvent.chapterMark [2])
-            (Primitives.Instruction.offer (discard (a (Primitives.Predicate.inZone hand))) (some (Primitives.Instruction.draw (.lit 1) (agent :=
+            (Primitives.Instruction.offer (discard (a (Primitives.Predicate.inZone yourHand))) (some (Primitives.Instruction.draw (.lit 1) (agent :=
                 Primitives.NounPhrase.you))) none (agent := Primitives.NounPhrase.you)),
           when (Primitives.GameEvent.chapterMark [3])
             (get (allOf creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn)) ] }
@@ -973,7 +973,7 @@ def cryptLurker : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.offer
               (chooseModes (exactly 1)
                 [ sacrifice (a creature) (agent := Primitives.NounPhrase.you),
-                  discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone hand])) ])
+                  discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone yourHand])) ])
               (some (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))) none (agent := Primitives.NounPhrase.you)) ],
       power := stat 3, toughness := stat 4 } }
 
@@ -1130,7 +1130,7 @@ def moonlitMeditation : Spelled := spelled <| .singleFaced
             .repeatedly (some Primitives.UsageLimit.oncePerTurn)) ] } }
 
 def discardUpToTwoThenDrawThatMany : Instruction :=
-  Primitives.Instruction.sequentially [discard (counted (upTo 2) (Primitives.Predicate.inZone hand)), Primitives.Instruction.draw Primitives.Amount.groupSize (agent :=
+  Primitives.Instruction.sequentially [discard (counted (upTo 2) (Primitives.Predicate.inZone yourHand)), Primitives.Instruction.draw Primitives.Amount.groupSize (agent :=
       Primitives.NounPhrase.you)]
 theorem okDiscardUpToTwoThenDrawThatMany :
     Instruction.check [] discardUpToTwoThenDrawThatMany = [] := by decide

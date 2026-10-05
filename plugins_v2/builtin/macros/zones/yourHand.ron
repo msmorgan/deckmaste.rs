@@ -1,0 +1,6 @@
+(
+    name: "yourHand",
+    kinds: [ZoneExpr],
+    params: [],
+    body: handOf(player: You),
+)

@@ -14,7 +14,7 @@ KeywordAbility(
                 you,
                 compound([
                     itsManaCost,
-                    perform(discard(a(and([isCard, land, inZone(handOf(you))])))),
+                    perform(discard(a(and([isCard, land, inZone(yourHand)])))),
                 ]),
                 graveyardOf(you),
             ),

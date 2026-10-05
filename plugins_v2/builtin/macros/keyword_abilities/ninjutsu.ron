@@ -15,7 +15,7 @@ KeywordAbility(
                 perform(reveal(this, you)),
                 perform(returnToHand(you, a(and([creature, attacking, unblocked, youControl])))),
             ]),
-            putOntoBattlefieldTappedAttacking(this, handOf(you)),
+            putOntoBattlefieldTappedAttacking(this, yourHand),
         ),
     ],
 )

@@ -28,7 +28,7 @@ theorem badOwnedBattlefield :
 target." -/
 theorem okDiscardedCardWord :
     Ability.check []
-      (act (.perform (discard (aAtRandom (.inZone hand))))
+      (act (.perform (discard (aAtRandom (.inZone yourHand))))
         (.dealDamage .this
           (.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
           (target anyTarget))) = [] := by
@@ -36,7 +36,7 @@ theorem okDiscardedCardWord :
 
 theorem badDiscardedCreatureWord :
     Ability.check []
-      (act (.perform (discard (aAtRandom (.and [creature, .inZone hand]))))
+      (act (.perform (discard (aAtRandom (.and [creature, .inZone yourHand]))))
         (.dealDamage .this
           (.statOf (.stat .manaValue)
             (theVerbed (.action "Discard") (.type .creature) .attributive .one))

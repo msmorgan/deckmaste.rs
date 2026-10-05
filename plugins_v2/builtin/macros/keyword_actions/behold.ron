@@ -13,7 +13,7 @@ KeywordAction(
     ),
     agent: you,
     body: chooseOne(
-        reveal(a(and([isCard, Param(0), inZone(handOf(you))])), you),
+        reveal(a(and([isCard, Param(0), inZone(yourHand)])), you),
         choose(you, a(and([Param(0), permanent, youControl]))),
     ),
 )

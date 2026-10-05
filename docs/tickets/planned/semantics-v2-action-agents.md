@@ -70,8 +70,15 @@ Still open:
   discard of what was chosen (`choose(each(opponent), a(card in hand))`, then
   `discard(them)`): the players choose in turn order, then the discards happen
   together [CR#101.4]. Burglar Rat proves it end to end.
-- **The bare hand.** Under a distributed `choose`, and in an inline indefinite,
-  a bare hand means the selector's own hand by convention; nothing checks it.
+- **The bare hand.** Where the discarder, chooser or payer is you, the hand is
+  written `yourHand` (Stormbind's cost is `discard(aAtRandom(cardIn(yourHand)))`);
+  a hand that belongs to another player is written `handOf(…)`. A bare hand
+  remains in two places. The first is the discard move's own origin, where it is
+  "its owner's hand" by the rule [CR#701.9a]. The second is the description under
+  a distributed `choose` (Burglar Rat, Spectacle, Liliana, Syphon Mind, the
+  distributed pins), where it means each chooser's own hand. That second reading
+  is a convention nothing checks, and it goes away with an inline distributed
+  form.
 - **`choose` with no chooser.** `amass` and `proliferate` pass `None`; who
   chooses there is this ticket's question.
 - **Player–card pairing.** A later step that needs each player paired with their

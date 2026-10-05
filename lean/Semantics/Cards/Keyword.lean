@@ -864,7 +864,7 @@ def vexingSphinx : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Sphinx"],
       text :=
         [ keyword "Flying",
-          cumulativeUpkeep (Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone hand)))),
+          cumulativeUpkeep (Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone yourHand)))),
           when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.draw (countersOn (.named "Age") it) (agent := Primitives.NounPhrase.you)) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -1732,7 +1732,7 @@ def pureHalf : Instruction := destroy (target (Primitives.Predicate.and [permane
 theorem okPureHalf : Instruction.check [] pureHalf = [] := by decide
 /-- Korlash -/
 def grandeurDiscardCost : Cost :=
-  Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.named (Primitives.NameSource.printed "Korlash, Heir to Blackblade"), Primitives.Predicate.otherThan Primitives.NounPhrase.this, Primitives.Predicate.inZone hand])))
+  Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.named (Primitives.NameSource.printed "Korlash, Heir to Blackblade"), Primitives.Predicate.otherThan Primitives.NounPhrase.this, Primitives.Predicate.inZone yourHand])))
 theorem okGrandeurDiscardCost : Cost.check [] grandeurDiscardCost = [] := by decide
 /-- Gyruda, Doom of Depths -/
 def gyrudaCompanion : Ability := companion (Primitives.DeckCondition.everyCardIs Primitives.Predicate.isCard (Primitives.DeckTrait.manaValueParity .even))

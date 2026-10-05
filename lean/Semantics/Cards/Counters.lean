@@ -1159,7 +1159,7 @@ def charnelTroll : Spelled := spelled <| .singleFaced
           activated
             (Primitives.Cost.compound
               [ Primitives.Cost.mana [pip .black, pip .green],
-                Primitives.Cost.perform (discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone hand]))) ])
+                Primitives.Cost.perform (discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone yourHand]))) ])
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature) ],
       power := stat 4, toughness := stat 4 } }
 
