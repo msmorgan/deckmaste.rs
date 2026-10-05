@@ -1,31 +1,20 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
+mod common;
 
+use std::collections::BTreeSet;
+
+use common::LEXICON;
+use common::readings;
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
-use deckmaste_english_v3::parse;
 use deckmaste_lexical::Case;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
 use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::WordForm;
-
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
 
 fn word(owner: &str) -> Word {
     Word {
@@ -108,15 +97,6 @@ fn protection(left: Reading) -> Reading {
         }),
     }
 }
-fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let analyzed = LEXICON.analyze(text);
-    let forest = parse(&grammar, &LEXICON, &analyzed, &category).unwrap();
-    grammar
-        .readings(&forest)
-        .map(|value| value.unwrap())
-        .collect()
-}
 fn exact(text: &str, expected: BTreeSet<Reading>) {
     assert_eq!(readings(text, Category::KeywordPhrase), expected);
     for value in expected {
@@ -148,7 +128,8 @@ fn protection_head() -> LexicalReading {
 }
 #[test]
 fn authentic_coordinated_qualities_preserve_determined_noun_phrase_structure() {
-    // Jeweled Spirit, with both legitimate bare-plural constituent analyses retained.
+    // Jeweled Spirit, with both legitimate bare-plural constituent analyses
+    // retained.
     let artifacts = noun("lexeme:type/artifact", Number::Plural);
     exact(
         "Protection from artifacts or from the color of your choice",

@@ -1,17 +1,16 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::OnceLock;
+mod common;
 
+use std::collections::BTreeSet;
+
+use common::lexicon;
+use common::readings;
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
-use deckmaste_english_v3::parse;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::Finiteness;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Numeral;
 use deckmaste_lexical::Person;
@@ -19,31 +18,6 @@ use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::Tense;
 use deckmaste_lexical::WordForm;
 
-fn lexicon() -> &'static Lexicon {
-    static LEXICON: OnceLock<Lexicon> = OnceLock::new();
-    LEXICON.get_or_init(|| {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        Lexicon::new(
-            deckmaste_lexical_source::load_workspace(&root)
-                .unwrap()
-                .lexemes,
-        )
-        .unwrap()
-    })
-}
-fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let input = lexicon().analyze(text);
-    let forest = parse(&grammar, lexicon(), &input, &category).unwrap();
-    grammar
-        .readings(&forest)
-        .map(|value| {
-            let value = value.unwrap();
-            assert_eq!(value.realize(lexicon()).unwrap(), text);
-            value
-        })
-        .collect()
-}
 fn numeral(value: i32, notation: Numeral) -> Word {
     Word {
         value: LexicalReading::Numeral {

@@ -1,32 +1,21 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
+mod common;
 
+use std::collections::BTreeSet;
+
+use common::LEXICON;
+use common::readings;
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
-use deckmaste_english_v3::parse;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::Finiteness;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
 use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::Tense;
 use deckmaste_lexical::WordForm;
-
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
 
 fn word(owner: &str, form: WordForm, features: FeatureBundle, frame: Option<usize>) -> Word {
     Word {
@@ -56,20 +45,6 @@ fn verb(owner: &str, frame: usize, form: WordForm) -> Word {
         },
         Some(frame),
     )
-}
-
-fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let input = LEXICON.analyze(text);
-    let forest = parse(&grammar, &LEXICON, &input, &category).unwrap();
-    grammar
-        .readings(&forest)
-        .map(|value| {
-            let value = value.unwrap();
-            assert_eq!(value.realize(&LEXICON).unwrap(), text);
-            value
-        })
-        .collect()
 }
 
 fn passive(owner: &str, frame: usize) -> Reading {
@@ -150,7 +125,8 @@ fn independent_authentic_perfect_passives_preserve_both_auxiliary_layers() {
 
 #[test]
 fn authentic_mixed_coordination_retains_ordinary_and_passive_predicates() {
-    // Sneaky Homunculus: "This creature can't block or be blocked by creatures with power 2 or greater."
+    // Sneaky Homunculus: "This creature can't block or be blocked by creatures
+    // with power 2 or greater."
     let value = Reading::Coordination {
         category: Category::SecondaryVerbPhrase,
         form: 0,
@@ -176,7 +152,8 @@ fn authentic_mixed_coordination_retains_ordinary_and_passive_predicates() {
 
 #[test]
 fn auxiliary_selection_rejects_bare_passives_and_repeated_passive_auxiliaries() {
-    // Invalid diagnostic strings are negative witnesses, not Oracle instructions.
+    // Invalid diagnostic strings are negative witnesses, not Oracle
+    // instructions.
     for text in ["have destroyed", "be been destroyed"] {
         assert!(
             readings(text, Category::SecondaryVerbPhrase).is_empty(),

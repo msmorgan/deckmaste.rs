@@ -1,34 +1,11 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
+mod common;
 
-use deckmaste_english_v3::grammar::{Category, Grammar, Reading, Word};
-use deckmaste_english_v3::parse;
+use common::LEXICON;
+use common::readings;
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
 use deckmaste_lexical::*;
-
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
-
-fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let input = LEXICON.analyze(text);
-    let forest = parse(&grammar, &LEXICON, &input, &category).unwrap();
-    grammar
-        .readings(&forest)
-        .map(|reading| {
-            let reading = reading.unwrap();
-            assert_eq!(reading.realize(&LEXICON).unwrap(), text);
-            reading
-        })
-        .collect()
-}
 
 fn lexical(
     owner: &str,

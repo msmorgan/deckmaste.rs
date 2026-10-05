@@ -1,29 +1,18 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
+mod common;
 
+use std::collections::BTreeSet;
+
+use common::LEXICON;
+use common::readings;
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
-use deckmaste_english_v3::parse;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::WordForm;
-
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
 
 fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
     Word {
@@ -57,20 +46,6 @@ fn noun(owner: &str) -> Reading {
             countability: Some(true),
         },
     }
-}
-
-fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let analyzed = LEXICON.analyze(text);
-    let forest = parse(&grammar, &LEXICON, &analyzed, &category).unwrap();
-    grammar
-        .readings(&forest)
-        .map(|value| {
-            let value = value.unwrap();
-            assert_eq!(value.realize(&LEXICON).unwrap(), text);
-            value
-        })
-        .collect()
 }
 
 fn exact(text: &str, category: Category, expected: Reading) {
@@ -124,7 +99,8 @@ fn authentic_boundary_pp_keeps_its_bare_interval_structure() {
 #[test]
 fn authentic_temporal_and_manner_adjuncts_keep_their_noun_identity() {
     // Ashen-Skin Zubera: "...for each Zubera that died this turn."
-    // Boldwyr Heavyweights: "Then each player who searched their library this way shuffles."
+    // Boldwyr Heavyweights: "Then each player who searched their library this
+    // way shuffles."
     for (text, owner) in [
         ("this turn", "lexeme:CommonNoun/Turn"),
         ("this way", "lexeme:CommonNoun/Way"),
@@ -180,7 +156,8 @@ fn authentic_preterite_host_preserves_temporal_adjunct_attachment() {
     };
     expected.admit(&LEXICON).unwrap();
     assert_eq!(expected.realize(&LEXICON).unwrap(), "died this turn");
-    // An isolated finite predicate retains all compatible person/number bundles.
+    // An isolated finite predicate retains all compatible person/number
+    // bundles.
     let mut alternatives = BTreeSet::new();
     for number in [Number::Singular, Number::Plural] {
         for person in [Person::First, Person::Second, Person::Third] {

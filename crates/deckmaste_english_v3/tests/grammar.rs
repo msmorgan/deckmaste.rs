@@ -1,46 +1,22 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::OnceLock;
+mod common;
 
+use std::collections::BTreeSet;
+
+use common::lexicon;
+use common::readings;
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
-use deckmaste_english_v3::parse;
 use deckmaste_lexical::Case;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::Finiteness;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
 use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::Tense;
 use deckmaste_lexical::WordForm;
-
-fn lexicon() -> &'static Lexicon {
-    static LEXICON: OnceLock<Lexicon> = OnceLock::new();
-    LEXICON.get_or_init(|| {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let source = deckmaste_lexical_source::load_workspace(&root).unwrap();
-        Lexicon::new(source.lexemes).unwrap()
-    })
-}
-
-fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let lexicon = lexicon();
-    let input = lexicon.analyze(text);
-    let forest = parse(&grammar, lexicon, &input, &category).unwrap();
-    let mut values = BTreeSet::new();
-    for value in grammar.readings(&forest) {
-        let value = value.unwrap();
-        assert_eq!(value.realize(lexicon).unwrap(), text);
-        assert!(values.insert(value), "duplicate Reading for {text:?}");
-    }
-    values
-}
 
 #[test]
 fn authored_vocabulary_composes_across_the_grammar() {
@@ -1155,7 +1131,8 @@ fn complemented_adjectives_are_postpositive_in_both_directions() {
 
 #[test]
 fn integrated_pp_modifiers_stay_inside_the_nominal() {
-    // CGEL Ch. 5 §14.2, pp. 444–447; external modifiers have separate licensing.
+    // CGEL Ch. 5 §14.2, pp. 444–447; external modifiers have separate
+    // licensing.
     let values = readings("the creature on the battlefield", Category::NounPhrase);
     assert_eq!(values.len(), 1);
     let Reading::DeterminedNounPhrase { head, .. } = values.into_iter().next().unwrap() else {
@@ -1167,7 +1144,8 @@ fn integrated_pp_modifiers_stay_inside_the_nominal() {
 
 #[test]
 fn copular_location_has_a_selected_complement_reading() {
-    // CGEL Ch. 4 §5.2, pp. 257–260: locative complement, not predicative or adjunct.
+    // CGEL Ch. 4 §5.2, pp. 257–260: locative complement, not predicative or
+    // adjunct.
     for text in [
         "You are on the battlefield.",
         "Cards are in the graveyard.",
@@ -1248,7 +1226,8 @@ fn copular_location_has_a_selected_complement_reading() {
 
 #[test]
 fn clause_taking_prepositions_keep_their_category_and_complement_selection() {
-    // CGEL Ch. 7 §1, p. 600: a clause complement does not turn a P into a subordinator.
+    // CGEL Ch. 7 §1, p. 600: a clause complement does not turn a P into a
+    // subordinator.
     for text in [
         "until you draw cards",
         "before you draw cards",
@@ -1385,7 +1364,8 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
 
 #[test]
 fn plain_form_leaves_finiteness_to_the_clause_construction() {
-    // CGEL Ch. 3 §§1.8.1–2, pp. 88–90: imperatives are finite, despite plain form.
+    // CGEL Ch. 3 §§1.8.1–2, pp. 88–90: imperatives are finite, despite plain
+    // form.
     let imperatives = readings("Draw cards", Category::Clause);
     assert!(!imperatives.is_empty());
     let declaratives = readings("Cards are drawn", Category::Clause);

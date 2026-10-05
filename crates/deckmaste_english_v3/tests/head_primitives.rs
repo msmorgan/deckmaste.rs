@@ -1,10 +1,11 @@
+mod common;
+
 use std::collections::BTreeSet;
 
+use common::readings_with_lexicon as readings;
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
-use deckmaste_english_v3::parse;
 use deckmaste_lexical::Countability;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::Finiteness;
@@ -194,13 +195,6 @@ fn cards() -> Reading {
     }
 }
 
-fn readings(lexicon: &Lexicon, text: &str, category: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let analyzed = lexicon.analyze(text);
-    let forest = parse(&grammar, lexicon, &analyzed, &category).unwrap();
-    grammar.readings(&forest).map(Result::unwrap).collect()
-}
-
 #[test]
 fn independent_atomic_heads_preserve_every_exact_selected_signature() {
     let lexicon = lexicon();
@@ -219,8 +213,9 @@ fn independent_atomic_heads_preserve_every_exact_selected_signature() {
 #[test]
 fn independent_atomic_heads_reject_wrong_signature_index_and_morphology() {
     let lexicon = lexicon();
-    // Selection now belongs to the consuming host, rather than a head variant name.
-    // Preserve the exact predicative-frame witness against an object-selecting host.
+    // Selection now belongs to the consuming host, rather than a head variant
+    // name. Preserve the exact predicative-frame witness against an
+    // object-selecting host.
     let wrong_head = primitive(1, false);
     assert_eq!(
         wrong_head,

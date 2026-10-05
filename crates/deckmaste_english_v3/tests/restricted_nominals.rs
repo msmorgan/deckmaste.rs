@@ -1,29 +1,17 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
+mod common;
 
-use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
+use std::collections::BTreeSet;
+
+use common::LEXICON;
+use common::noun_phrase_readings as readings;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
-use deckmaste_english_v3::parse;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::WordForm;
-
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
 
 fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
     Word {
@@ -57,20 +45,6 @@ fn noun(owner: &str) -> Reading {
             countability: Some(true),
         },
     }
-}
-
-fn readings(text: &str) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let analyzed = LEXICON.analyze(text);
-    let forest = parse(&grammar, &LEXICON, &analyzed, &Category::NounPhrase).unwrap();
-    grammar
-        .readings(&forest)
-        .map(|value| {
-            let value = value.unwrap();
-            assert_eq!(value.realize(&LEXICON).unwrap(), text);
-            value
-        })
-        .collect()
 }
 
 fn exact(text: &str, expected: Reading) {
@@ -152,7 +126,8 @@ fn a_status_modifier_keeps_its_existing_determiner_bearing_composition() {
 
 #[test]
 fn unlicensed_adjectives_do_not_admit_bare_singular_count_nominals() {
-    // These are negative grammatical probes; they are not invented positive card instructions.
+    // These are negative grammatical probes; they are not invented positive
+    // card instructions.
     assert!(
         LEXICON
             .lexemes()
@@ -175,7 +150,8 @@ fn unlicensed_adjectives_do_not_admit_bare_singular_count_nominals() {
 
 #[test]
 fn authentic_full_genitive_possessor_preserves_internal_structure() {
-    // Seedborn Muse: "Untap all permanents you control during each other player's untap step."
+    // Seedborn Muse: "Untap all permanents you control during each other
+    // player's untap step."
     let possessor = Reading::DeterminedNounPhrase {
         form: 0,
         determiner: invariant("vocab:FloatedQuantifier/Each", SurfaceCase::Declared),
@@ -196,7 +172,8 @@ fn authentic_full_genitive_possessor_preserves_internal_structure() {
         }),
         head: Box::new(noun("lexeme:CommonNoun/Step")),
     };
-    // Existing lexical turn-part ownership and compositional adjective + noun are both retained.
+    // Existing lexical turn-part ownership and compositional adjective + noun
+    // are both retained.
     let expected: BTreeSet<_> = [head, noun("lexeme:turn_part/untapStep")]
         .into_iter()
         .map(|head| Reading::SingularGenitiveNounPhrase {
@@ -214,7 +191,8 @@ fn authentic_full_genitive_possessor_preserves_internal_structure() {
         );
     }
     assert_eq!(readings("each other player's untap step"), expected);
-    // Negative probes exercise case, already-genitive pronouns, and plural possessors.
+    // Negative probes exercise case, already-genitive pronouns, and plural
+    // possessors.
     for text in [
         "you's untap step",
         "its's untap step",

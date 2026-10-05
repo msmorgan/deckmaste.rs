@@ -1,29 +1,18 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
+mod common;
 
+use std::collections::BTreeSet;
+
+use common::LEXICON;
+use common::readings;
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
-use deckmaste_english_v3::parse;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::WordForm;
-
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
 
 fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
     Word {
@@ -57,20 +46,6 @@ fn noun(owner: &str) -> Reading {
             countability: Some(true),
         },
     }
-}
-
-fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
-    let analyzed = LEXICON.analyze(text);
-    let forest = parse(&grammar, &LEXICON, &analyzed, &category).unwrap();
-    grammar
-        .readings(&forest)
-        .map(|value| {
-            let value = value.unwrap();
-            assert_eq!(value.realize(&LEXICON).unwrap(), text);
-            value
-        })
-        .collect()
 }
 
 fn exact(text: &str, category: Category, expected: Reading) {
@@ -147,7 +122,8 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
         unreachable!()
     };
     *head = verb("core-verb:Put", WordForm::PastParticiple, 6);
-    // Put is syncretic: the isolated VP also has an ordinary past-participial reading.
+    // Put is syncretic: the isolated VP also has an ordinary past-participial
+    // reading.
     for value in [&plain, &participial] {
         value.admit(&LEXICON).unwrap();
         assert_eq!(
@@ -163,7 +139,8 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
     if let LexicalReading::Word(value) = &mut article.value {
         value.features.number = Some(Number::Singular);
     }
-    // Planar Void: "Whenever another card is put into a graveyard from anywhere, exile that card."
+    // Planar Void: "Whenever another card is put into a graveyard from
+    // anywhere, exile that card."
     let expected = Reading::SelectedGapPrepositionPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,
@@ -201,7 +178,8 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
 }
 #[test]
 fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
-    // Aggravate: "Each creature dealt damage this way attacks this turn if able."
+    // Aggravate: "Each creature dealt damage this way attacks this turn if
+    // able."
     let mut damage = noun("lexeme:CommonNoun/Damage");
     if let Reading::Noun { head, .. } = &mut damage {
         head.countability = Some(false);
@@ -263,7 +241,8 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
         },
     );
     // The generic noun modifier now permits gerund-participial clauses.
-    // Preserve the original passive-only exclusion: attacking is not a bare passive.
+    // Preserve the original passive-only exclusion: attacking is not a bare
+    // passive.
     let invalid = Reading::PassiveComplement {
         form: 0,
         head: Box::new(Reading::IntransitivePredicate {

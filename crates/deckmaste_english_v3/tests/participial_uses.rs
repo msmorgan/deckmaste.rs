@@ -1,7 +1,8 @@
-use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
+mod common;
 
+use std::collections::BTreeSet;
+
+use common::LEXICON;
 use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
@@ -11,22 +12,12 @@ use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::Finiteness;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::LexicalValue;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
 use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::Tense;
 use deckmaste_lexical::WordForm;
 
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
 fn word(owner: &str) -> Word {
     Word {
         value: LexicalReading::Word(LexicalValue {
@@ -304,7 +295,8 @@ fn hero_of_bladehold_auxiliary_frame_is_not_an_intransitive_depictive_host() {
 
 #[test]
 fn grafdiggers_cage_enter_the_battlefield_keeps_an_object_complement() {
-    // Grafdigger's Cage: "Creature cards in graveyards and libraries can't enter the battlefield."
+    // Grafdigger's Cage: "Creature cards in graveyards and libraries can't
+    // enter the battlefield."
     exact(
         "enter the battlefield",
         Category::SecondaryVerbPhrase,
@@ -619,7 +611,8 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
         })
         .collect();
     exact_alternatives("put it onto the battlefield attacking", expected);
-    // Preeminent Captain: "... put a Soldier creature card from your hand onto the battlefield tapped and attacking."
+    // Preeminent Captain: "... put a Soldier creature card from your hand onto
+    // the battlefield tapped and attacking."
     let from_hand = Reading::PrepositionPhrase {
         form: 0,
         head: word("vocab:Preposition/From"),
@@ -695,7 +688,8 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
         "put a Soldier creature card from your hand onto the battlefield tapped and attacking",
         expected,
     );
-    // Yore-Tiller Nephilim: "... return target creature card from your graveyard to the battlefield tapped and attacking."
+    // Yore-Tiller Nephilim: "... return target creature card from your
+    // graveyard to the battlefield tapped and attacking."
     let from_graveyard = Reading::PrepositionPhrase {
         form: 0,
         head: word("vocab:Preposition/From"),
@@ -744,7 +738,8 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
 }
 #[test]
 fn participial_postmodifiers_and_mixed_complements_reject_wrong_form_or_function() {
-    // CGEL p. 1523: Oracle English excludes stranded gerund-participial auxiliaries.
+    // CGEL p. 1523: Oracle English excludes stranded gerund-participial
+    // auxiliaries.
     for complement in [
         Reading::ProgressiveEllipsis {
             form: 0,
@@ -802,7 +797,8 @@ fn participial_postmodifiers_and_mixed_complements_reject_wrong_form_or_function
             .is_err()
         );
     }
-    // An incompatible selected frame cannot consume the destination-plus-depictive host.
+    // An incompatible selected frame cannot consume the
+    // destination-plus-depictive host.
     let wrong_frame = movement(
         "core-verb:Put",
         0,
