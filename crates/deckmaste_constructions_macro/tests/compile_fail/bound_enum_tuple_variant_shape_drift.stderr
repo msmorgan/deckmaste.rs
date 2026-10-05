@@ -10,10 +10,20 @@ error[E0164]: expected tuple struct or tuple variant, found struct variant `Choi
    | |_^ not a tuple struct or tuple variant
    |
    = note: this error originates in the macro `deckmaste_constructions_macro::constructions` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: the struct variant's fields are being ignored
+help: add the names to match a struct variant's fields
    |
-10 | } { left: _, right: _ }
-   |   +++++++++++++++++++++
+10 ~ } { left: deckmaste_constructions_macro::constructions! {
+11 +     group tuple_shape_drift;
+12 +     element choice bind Choice {
+13 +         variant Pair(left: lex u8, right: lex u8),
+14 +     }
+15 + }, right: deckmaste_constructions_macro::constructions! {
+16 +     group tuple_shape_drift;
+17 +     element choice bind Choice {
+18 +         variant Pair(left: lex u8, right: lex u8),
+19 +     }
+20 + } }
+   |
 
 error[E0533]: expected value, found struct variant `Choice::Pair`
   --> tests/compile_fail/bound_enum_tuple_variant_shape_drift.rs:5:1
