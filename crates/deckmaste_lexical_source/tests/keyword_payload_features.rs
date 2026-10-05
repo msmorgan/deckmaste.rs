@@ -150,7 +150,7 @@ fn keyword_suffixes_keep_their_binding_and_supplement_identity() {
         feature(suffix, "BoundKeyword", "Yes");
         feature(suffix, "KeywordMarker", "None");
         feature(suffix, "KeywordQualityNumber", "Any");
-        assert_ne!(suffix.id, suffix.source.owner);
+        assert_ne!(suffix.id.as_str(), suffix.source.owner);
     }
 }
 

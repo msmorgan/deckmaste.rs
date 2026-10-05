@@ -197,7 +197,7 @@ impl Materializer<Summary, Option<Summary>> for &Fixture {
                 provenance,
             } => {
                 if let LexicalReading::Word(value) = &occurrence.reading {
-                    assert_eq!(provenance.as_ref().unwrap().owner, value.lexeme);
+                    assert_eq!(provenance.as_ref().unwrap().owner, value.lexeme.as_str());
                 }
                 Reading::Word(occurrence.reading.clone(), summary.unwrap().clone())
             }

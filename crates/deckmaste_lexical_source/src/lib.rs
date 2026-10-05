@@ -123,7 +123,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
         .find(|pair| pair[0].id == pair[1].id)
     {
         return Err(LoadError::DuplicateIdentity {
-            identity: pair[0].id.clone(),
+            identity: pair[0].id,
         });
     }
     output.unmapped.sort();

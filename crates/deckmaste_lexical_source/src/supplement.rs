@@ -48,7 +48,7 @@ fn apply_declarations(
         let lexeme = output
             .lexemes
             .iter_mut()
-            .find(|lexeme| lexeme.id == replacement.owner)
+            .find(|lexeme| lexeme.id == replacement.owner.as_str())
             .ok_or_else(|| LoadError::UnknownOverrideOwner {
                 path: path.into(),
                 owner: replacement.owner.clone(),

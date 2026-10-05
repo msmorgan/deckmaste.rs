@@ -34,7 +34,9 @@ pub enum LoadError {
     #[error("unresolved core verb paradigm owners: {owners:?}")]
     UnresolvedParadigms { owners: Vec<String> },
     #[error("duplicate lexical export identity {identity}")]
-    DuplicateIdentity { identity: String },
+    DuplicateIdentity {
+        identity: deckmaste_lexical::LexemeId,
+    },
     #[error("unknown {property} owner {owner}")]
     UnknownOwner {
         property: &'static str,

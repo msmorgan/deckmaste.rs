@@ -104,7 +104,7 @@ pub(crate) fn add_participial_adjectives(
         for owner in class.members {
             let verb = lexemes
                 .iter()
-                .find(|entry| entry.id == owner)
+                .find(|entry| entry.id == owner.as_str())
                 .ok_or_else(|| LoadError::UnknownOwner {
                     property: "participial adjective class",
                     owner: owner.clone(),
@@ -187,7 +187,7 @@ pub(crate) fn add_adjective_classes(
         for owner in class.members {
             let lexeme = lexemes
                 .iter_mut()
-                .find(|lexeme| lexeme.id == owner)
+                .find(|lexeme| lexeme.id == owner.as_str())
                 .ok_or_else(|| LoadError::UnknownOwner {
                     property: "adjective class",
                     owner: owner.clone(),
@@ -231,7 +231,7 @@ pub(crate) fn negative_lexeme(
         deckmaste_construction_core::macro_def::NegativePrefixJoin::Hyphenated => "non-",
     };
     let mut negative = parent.clone();
-    negative.id = format!("{}/non", parent.id);
+    negative.id = format!("{}/non", parent.id).as_str().into();
     negative.lemma = format!("{prefix}{}", negative.lemma);
     for slot in &mut negative.forms {
         if let Some(surfaces) = &mut slot.surfaces {
@@ -279,7 +279,7 @@ pub(crate) fn reconcile_frames(
 ) -> Result<(), LoadError> {
     let identities: BTreeMap<_, _> = lexemes
         .iter()
-        .map(|lexeme| (lexeme.id.clone(), lexeme.lemma.clone()))
+        .map(|lexeme| (lexeme.id, lexeme.lemma.clone()))
         .collect();
     for (surface, (vocabulary, member)) in markers {
         let lemma = marker_lemma(&identities, vocabulary, member)?;
@@ -296,12 +296,12 @@ pub(crate) fn reconcile_frames(
         for frame in &mut lexeme.properties.frames {
             if frame.kind.is_empty() {
                 return Err(LoadError::EmptyFrameKind {
-                    owner: lexeme.id.clone(),
+                    owner: lexeme.id.to_string(),
                 });
             }
             for item in &mut frame.items {
                 reconcile_item(item, markers, &identities).map_err(|source| LoadError::Frame {
-                    owner: lexeme.id.clone(),
+                    owner: lexeme.id.to_string(),
                     source: Box::new(source),
                 })?;
             }
@@ -317,7 +317,7 @@ pub(crate) fn add_frames(
     for (owner, frames) in additions {
         let lexeme = lexemes
             .iter_mut()
-            .find(|lexeme| lexeme.id == owner)
+            .find(|lexeme| lexeme.id == owner.as_str())
             .ok_or_else(|| LoadError::UnknownOwner {
                 property: "frame",
                 owner: owner.clone(),
@@ -343,7 +343,7 @@ pub(crate) fn replace_forms(
     for (owner, forms) in replacements {
         let lexeme = lexemes
             .iter_mut()
-            .find(|lexeme| lexeme.id == owner)
+            .find(|lexeme| lexeme.id == owner.as_str())
             .ok_or_else(|| LoadError::UnknownOwner {
                 property: "form",
                 owner: owner.clone(),
@@ -367,7 +367,7 @@ pub(crate) fn add_category_feature_defaults(
             for (name, value) in features {
                 if name.is_empty() || value.is_empty() {
                     return Err(LoadError::EmptyFeature {
-                        owner: lexeme.id.clone(),
+                        owner: lexeme.id.to_string(),
                         name: name.clone(),
                         value: value.clone(),
                     });
@@ -395,7 +395,7 @@ pub(crate) fn add_features(
     for (owner, features) in additions {
         let lexeme = lexemes
             .iter_mut()
-            .find(|lexeme| lexeme.id == owner)
+            .find(|lexeme| lexeme.id == owner.as_str())
             .ok_or_else(|| LoadError::UnknownOwner {
                 property: "feature",
                 owner: owner.clone(),
@@ -418,7 +418,7 @@ pub(crate) fn add_features(
 }
 
 fn marker_lemma<'a>(
-    identities: &'a BTreeMap<String, String>,
+    identities: &'a BTreeMap<deckmaste_lexical::LexemeId, String>,
     vocabulary: &str,
     member: &str,
 ) -> Result<&'a str, LoadError> {
@@ -428,7 +428,7 @@ fn marker_lemma<'a>(
     ];
     let found: Vec<_> = candidates
         .iter()
-        .filter_map(|id| identities.get(id))
+        .filter_map(|id| identities.get(id.as_str()))
         .collect();
     if found.len() != 1 {
         return Err(LoadError::MarkerIdentity {
@@ -443,7 +443,7 @@ fn marker_lemma<'a>(
 fn reconcile_item(
     item: &mut FrameItem,
     markers: &BTreeMap<String, (String, String)>,
-    identities: &BTreeMap<String, String>,
+    identities: &BTreeMap<deckmaste_lexical::LexemeId, String>,
 ) -> Result<(), LoadError> {
     if let FrameItem::Literal(surface) = item {
         let (vocabulary, member) =
@@ -587,7 +587,7 @@ mod tests {
             ("Amount", vec![Count]),
         ] {
             assert_eq!(
-                lexicon.lexemes()[&format!("lexeme:CommonNoun/{id}")]
+                lexicon.lexemes()[format!("lexeme:CommonNoun/{id}").as_str()]
                     .properties
                     .countability,
                 uses

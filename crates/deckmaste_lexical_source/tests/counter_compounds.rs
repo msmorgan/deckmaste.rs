@@ -46,7 +46,7 @@ fn counter_class_exports_owned_complete_noun_paradigms() {
         );
         assert_eq!(compound.source.kind, SourceKind::Plugin);
         assert_eq!(
-            compound.id,
+            compound.id.as_str(),
             format!("{}/compound-noun", compound.source.owner)
         );
         assert!(
@@ -94,7 +94,10 @@ fn independently_constructed_compound_values_satisfy_both_lexical_laws() {
         ),
     ] {
         let owner = format!("lexeme:counter_kind/{name}/compound-noun");
-        assert_eq!(LEXICON.lexemes()[&owner].surface_structure, structure);
+        assert_eq!(
+            LEXICON.lexemes()[owner.as_str()].surface_structure,
+            structure
+        );
         for (text, form, number) in [
             (singular, WordForm::Singular, Number::Singular),
             (plural, WordForm::Plural, Number::Plural),
@@ -113,7 +116,9 @@ fn independently_constructed_compound_values_satisfy_both_lexical_laws() {
                 .into_iter()
                 .filter(|matched| matched.start == 0 && matched.end == text.chars().count())
                 .filter_map(|matched| match &matched.reading {
-                    LexicalReading::Word(value) if value.lexeme == owner => Some(matched.reading),
+                    LexicalReading::Word(value) if value.lexeme == owner.as_str() => {
+                        Some(matched.reading)
+                    }
                     _ => None,
                 })
                 .collect();
@@ -126,7 +131,7 @@ fn independently_constructed_compound_values_satisfy_both_lexical_laws() {
 fn compound_export_does_not_promote_or_coordinate_its_internal_stems() {
     for stem in ["chargeCounter", "loyaltyCounter"] {
         let owner = format!("lexeme:counter_kind/{stem}");
-        let original = &LEXICON.lexemes()[&owner];
+        let original = &LEXICON.lexemes()[owner.as_str()];
         assert_eq!(original.category, Category::Keyword);
         assert_eq!(original.forms.len(), 1);
         assert_eq!(original.forms[0].form, WordForm::Invariant);
@@ -164,7 +169,7 @@ fn native_counter_notation_inventory_has_exact_independent_singular_and_plural_v
         .lexemes()
         .keys()
         .filter(|owner| owner.starts_with("lexeme:counter_kind_numeric/"))
-        .cloned()
+        .map(|owner| owner.to_string())
         .collect();
     assert_eq!(
         actual_owners,
@@ -175,7 +180,7 @@ fn native_counter_notation_inventory_has_exact_independent_singular_and_plural_v
     );
     for (name, stem) in expected_members {
         let owner = format!("lexeme:counter_kind_numeric/{name}/compound-noun");
-        let noun = &LEXICON.lexemes()[&owner];
+        let noun = &LEXICON.lexemes()[owner.as_str()];
         assert_eq!(noun.surface_structure, SurfaceStructure::MeasuredCompound);
         assert_eq!(noun.source.kind, SourceKind::Core);
         assert_eq!(
@@ -201,7 +206,9 @@ fn native_counter_notation_inventory_has_exact_independent_singular_and_plural_v
                 .into_iter()
                 .filter(|matched| matched.start == 0 && matched.end == text.chars().count())
                 .filter_map(|matched| match &matched.reading {
-                    LexicalReading::Word(value) if value.lexeme == owner => Some(matched.reading),
+                    LexicalReading::Word(value) if value.lexeme == owner.as_str() => {
+                        Some(matched.reading)
+                    }
                     _ => None,
                 })
                 .collect();

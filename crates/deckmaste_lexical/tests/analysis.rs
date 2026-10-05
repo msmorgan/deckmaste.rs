@@ -54,7 +54,7 @@ fn nonfinite() -> FeatureBundle {
 
 fn word(id: &str, form: WordForm, features: FeatureBundle) -> LexicalReading {
     LexicalReading::Word(LexicalValue {
-        lexeme: id.to_owned(),
+        lexeme: id.into(),
         form,
         features,
         variant: 0,
@@ -772,7 +772,7 @@ fn an_italic_run_no_declaration_spells_is_a_flavor_word() {
     assert_eq!(
         lexicon.analyze_italic_head("Battalion"),
         ItalicHead::AbilityWord(LexicalValue {
-            lexeme: "lexeme:ability_word/battalion".to_owned(),
+            lexeme: "lexeme:ability_word/battalion".into(),
             form: WordForm::Invariant,
             features: FeatureBundle::default(),
             variant: 0,
@@ -1044,4 +1044,49 @@ fn declared_ability_words_keep_an_additional_open_flavor_reading() {
             label: "Equip".into()
         }
     );
+}
+
+#[test]
+fn lexical_ids_are_interned_across_declarations_values_and_wire_formats() {
+    fn copied<T: Copy>(value: T) -> T {
+        value
+    }
+    let declared = noun("lexical-id-wire/card", "card");
+    let id = copied(declared.id);
+    let json = serde_json::to_value(&declared).unwrap();
+    assert_eq!(json["id"], "lexical-id-wire/card");
+    let restored: Lexeme = serde_json::from_value(json.clone()).unwrap();
+    assert_eq!(restored, declared);
+    assert!(std::ptr::eq(restored.id.as_str(), id.as_str()));
+    assert_eq!(serde_json::to_value(&restored).unwrap(), json);
+    let ron = ron::to_string(&declared).unwrap();
+    let restored: Lexeme = ron::from_str(&ron).unwrap();
+    assert_eq!(restored, declared);
+    assert!(std::ptr::eq(restored.id.as_str(), id.as_str()));
+
+    let lexicon = Lexicon::new([declared.clone()]).unwrap();
+    assert_eq!(lexicon.lexemes()["lexical-id-wire/card"], declared);
+    let analyzed = lexicon.analyze("card");
+    let LexicalReading::Word(value) = &analyzed.matches[0].reading else {
+        panic!("declared word")
+    };
+    assert_eq!(value.lexeme, id);
+    assert!(std::ptr::eq(value.lexeme.as_str(), id.as_str()));
+    let json = serde_json::to_value(&analyzed.matches[0].reading).unwrap();
+    assert_eq!(json["Word"]["lexeme"], "lexical-id-wire/card");
+    let restored: LexicalReading = serde_json::from_value(json).unwrap();
+    assert_eq!(restored, analyzed.matches[0].reading);
+    assert_eq!(lexicon.realize(&restored).unwrap(), "card");
+    let LexicalReading::Word(value) = restored else { panic!("declared word") };
+    assert!(std::ptr::eq(value.lexeme.as_str(), id.as_str()));
+
+    let absent = "lexical-id-lookup-never-interned";
+    assert!(LexemeId::get(absent).is_none());
+    assert!(!lexicon.lexemes().contains_key(absent));
+    assert!(lexicon.analyze(absent).matches.is_empty());
+    assert!(LexemeId::get(absent).is_none());
+    assert!(matches!(
+        Lexicon::new([declared.clone(), declared]),
+        Err(LexicalError::Declaration { .. })
+    ));
 }

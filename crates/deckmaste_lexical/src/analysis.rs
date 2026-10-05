@@ -19,7 +19,10 @@ use crate::numeral::NumeralCodec;
 #[derive(Debug, thiserror::Error)]
 pub enum LexicalError {
     #[error("invalid lexical declaration {lexeme}: {reason}")]
-    Declaration { lexeme: String, reason: String },
+    Declaration {
+        lexeme: crate::LexemeId,
+        reason: String,
+    },
     #[error("lexical value is not licensed by this lexicon")]
     UnlicensedValue,
 }
@@ -148,7 +151,7 @@ struct TrieNode {
 /// Loading and inspecting it needs no construction grammar or compiler.
 #[derive(Debug)]
 pub struct Lexicon {
-    lexemes: BTreeMap<String, Lexeme>,
+    lexemes: BTreeMap<crate::LexemeId, Lexeme>,
     surfaces: BTreeMap<LexicalValue, String>,
     surface_features: BTreeMap<LexicalValue, crate::SurfaceFeatures>,
     trie: Vec<TrieNode>,
@@ -169,7 +172,7 @@ impl Lexicon {
         };
         for lexeme in lexemes {
             let error = |reason: &str| LexicalError::Declaration {
-                lexeme: lexeme.id.clone(),
+                lexeme: lexeme.id,
                 reason: reason.to_owned(),
             };
             if lexeme.id.is_empty()
@@ -238,7 +241,7 @@ impl Lexicon {
                         return Err(error("spelling violates its declared word boundaries"));
                     }
                     let value = LexicalValue {
-                        lexeme: lexeme.id.clone(),
+                        lexeme: lexeme.id,
                         form: declaration.form,
                         features: declaration.features.clone(),
                         variant,
@@ -300,7 +303,7 @@ impl Lexicon {
                     "article onsets must cover every determinative spelling",
                 ));
             }
-            result.lexemes.insert(lexeme.id.clone(), lexeme);
+            result.lexemes.insert(lexeme.id, lexeme);
         }
         Ok(result)
     }
@@ -322,7 +325,7 @@ impl Lexicon {
     }
 
     #[must_use]
-    pub fn lexemes(&self) -> &BTreeMap<String, Lexeme> {
+    pub fn lexemes(&self) -> &BTreeMap<crate::LexemeId, Lexeme> {
         &self.lexemes
     }
 

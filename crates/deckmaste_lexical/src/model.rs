@@ -94,13 +94,13 @@ pub struct Lexeme {
 impl Lexeme {
     #[must_use]
     pub fn invariant(
-        id: impl Into<crate::LexemeId>,
+        id: impl AsRef<str>,
         lemma: impl Into<String>,
         category: crate::Category,
         source: Source,
     ) -> Self {
         Self {
-            id: id.into(),
+            id: crate::LexemeId::new(id.as_ref()),
             lemma: lemma.into(),
             category,
             properties: LexicalProperties::default(),
@@ -127,7 +127,7 @@ impl Lexeme {
 
     #[must_use]
     pub fn noun(
-        id: impl Into<crate::LexemeId>,
+        id: impl AsRef<str>,
         lemma: impl Into<String>,
         countability: Vec<crate::Countability>,
         source: Source,
@@ -163,7 +163,7 @@ impl Lexeme {
     /// Callers replace irregular slots or remove unavailable slots before
     /// indexing.
     #[must_use]
-    pub fn verb(id: impl Into<crate::LexemeId>, lemma: impl Into<String>, source: Source) -> Self {
+    pub fn verb(id: impl AsRef<str>, lemma: impl Into<String>, source: Source) -> Self {
         let mut lexeme = Self::invariant(id, lemma, crate::Category::Verb, source);
         lexeme.forms = [
             crate::WordForm::Plain,

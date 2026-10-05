@@ -171,11 +171,17 @@ fn shared_schema_roundtrips_independent_category_instances_and_lexical_traversal
         value
             .visit_words(&mut |word| {
                 if let LexicalReading::Word(value) = &word.value {
-                    owners.push(value.lexeme.clone());
+                    owners.push(value.lexeme);
                 }
             })
             .unwrap();
-        assert_eq!(owners, vec![left.to_owned(), right.to_owned()]);
+        assert_eq!(
+            owners,
+            vec![
+                deckmaste_lexical::LexemeId::new(left),
+                deckmaste_lexical::LexemeId::new(right)
+            ]
+        );
         let mut constructions = vec![];
         value
             .visit(&mut |node| constructions.push(node.construction()))
@@ -306,7 +312,7 @@ fn field_parameter_policy_preserves_independent_recursive_series_and_rejects_dis
     value
         .visit_words(&mut |word| {
             if let LexicalReading::Word(value) = &word.value {
-                owners.push(value.lexeme.clone());
+                owners.push(value.lexeme);
             }
         })
         .unwrap();

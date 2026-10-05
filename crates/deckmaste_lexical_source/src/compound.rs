@@ -19,7 +19,7 @@ pub(crate) fn add_compound_nouns(
         let head = output
             .lexemes
             .iter()
-            .find(|entry| entry.id == compound.recipe.head)
+            .find(|entry| entry.id == compound.recipe.head.as_str())
             .ok_or_else(|| LoadError::UnknownOwner {
                 property: "compound noun head",
                 owner: compound.recipe.head.clone(),
@@ -30,7 +30,9 @@ pub(crate) fn add_compound_nouns(
             });
         }
         let mut noun = head.clone();
-        noun.id = format!("{}/compound-noun", compound.source.owner);
+        noun.id = format!("{}/compound-noun", compound.source.owner)
+            .as_str()
+            .into();
         noun.lemma = format!("{} {}", compound.recipe.stem, head.lemma);
         noun.source = compound.source;
         for slot in &mut noun.forms {
@@ -46,7 +48,7 @@ pub(crate) fn add_compound_nouns(
             let head_lexicon =
                 deckmaste_lexical::Lexicon::new([head.clone()]).map_err(|source| {
                     LoadError::CompoundHeadLexical {
-                        owner: head.id.clone(),
+                        owner: head.id.to_string(),
                         source,
                     }
                 })?;
@@ -57,7 +59,7 @@ pub(crate) fn add_compound_nouns(
                 let head_surface = head_lexicon
                     .realize(&deckmaste_lexical::LexicalReading::Word(value.clone()))
                     .map_err(|source| LoadError::CompoundHeadLexical {
-                        owner: head.id.clone(),
+                        owner: head.id.to_string(),
                         source,
                     })?;
                 noun.onsets.insert(

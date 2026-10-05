@@ -136,7 +136,7 @@ fn declared_type_words_preserve_complete_independent_noun_paradigms() {
             (owner.to_owned(), singular, plural),
             (format!("{owner}/non"), negative_singular, negative_plural),
         ] {
-            let lexeme = &LEXICON.lexemes()[&id];
+            let lexeme = &LEXICON.lexemes()[id.as_str()];
             assert_eq!(lexeme.category, Category::Noun);
             assert_eq!(lexeme.properties.countability, [Countability::Count]);
             assert_eq!(lexeme.properties.features["NounPremodifier"], "Yes");
@@ -185,7 +185,7 @@ fn declared_type_words_preserve_complete_independent_noun_paradigms() {
             assert_eq!(
                 LEXICON
                     .values()
-                    .filter(|v| v.lexeme == id)
+                    .filter(|v| v.lexeme == id.as_str())
                     .cloned()
                     .collect::<BTreeSet<_>>(),
                 expected

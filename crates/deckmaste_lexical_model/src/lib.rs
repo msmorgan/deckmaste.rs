@@ -3,8 +3,10 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-/// Stable identity of a declared lexeme.
-pub type LexemeId = String;
+/// Stable, interned identity of a declared lexeme.
+/// IDs are copied through lexical values and serialize as their original text.
+/// Intern only declaration identities; arbitrary input and spellings stay owned.
+pub type LexemeId = dpsi::Ident;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum Category {

@@ -26,12 +26,12 @@ fn supertype_adjectives_have_owned_positive_and_negative_values_without_duplicat
             (owner.to_owned(), spelling.to_owned()),
             (format!("{owner}/non"), format!("non{spelling}")),
         ] {
-            let entry = &lexicon.lexemes()[&id];
+            let entry = &lexicon.lexemes()[id.as_str()];
             assert_eq!(entry.category, Category::Adjective);
             assert_eq!(entry.source.owner, owner);
             for capitalization in [SurfaceCase::Declared, SurfaceCase::Initial] {
                 let expected = LexicalReading::Word(LexicalValue {
-                    lexeme: id.clone(),
+                    lexeme: id.as_str().into(),
                     form: WordForm::Invariant,
                     features: FeatureBundle::default(),
                     variant: 0,
@@ -50,7 +50,9 @@ fn supertype_adjectives_have_owned_positive_and_negative_values_without_duplicat
                     .into_iter()
                     .filter(|matched| matched.start == 0 && matched.end == text.chars().count())
                     .filter_map(|matched| match &matched.reading {
-                        LexicalReading::Word(value) if value.lexeme == id => Some(matched.reading),
+                        LexicalReading::Word(value) if value.lexeme == id.as_str() => {
+                            Some(matched.reading)
+                        }
                         _ => None,
                     })
                     .collect();

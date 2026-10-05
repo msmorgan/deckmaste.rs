@@ -203,8 +203,8 @@ struct Report {
     supported_faces: usize,
     supported_faces_without_text: usize,
     independent_values_checked: usize,
-    lexeme_sources: BTreeMap<String, Source>,
-    lexeme_inventory: BTreeMap<String, LexemeInventory>,
+    lexeme_sources: BTreeMap<deckmaste_lexical::LexemeId, Source>,
+    lexeme_inventory: BTreeMap<deckmaste_lexical::LexemeId, LexemeInventory>,
     /// Declared frame signatures belong to lexical identities; they are not
     /// stand-alone surface readings or constructed grammar values.
     declared_frame_signatures: usize,
@@ -311,7 +311,7 @@ fn analyze_cards(faces: &[SelectedFace], lexicon: &Lexicon, workers: usize) -> R
         lexeme_sources: lexicon
             .lexemes()
             .iter()
-            .map(|(id, lexeme)| (id.clone(), lexeme.source.clone()))
+            .map(|(id, lexeme)| (*id, lexeme.source.clone()))
             .collect(),
         lexeme_inventory: lexeme_inventory(lexicon),
         declared_frame_signatures: lexicon
@@ -427,25 +427,22 @@ fn merge_nested_count_map<K: Ord, J: Ord>(
     }
 }
 
-fn lexeme_inventory(lexicon: &Lexicon) -> BTreeMap<String, LexemeInventory> {
-    let mut counts = BTreeMap::<&str, usize>::new();
+fn lexeme_inventory(lexicon: &Lexicon) -> BTreeMap<deckmaste_lexical::LexemeId, LexemeInventory> {
+    let mut counts = BTreeMap::<deckmaste_lexical::LexemeId, usize>::new();
     for value in lexicon.values() {
-        *counts.entry(&value.lexeme).or_default() += 1;
+        *counts.entry(value.lexeme).or_default() += 1;
     }
     lexicon
         .lexemes()
         .iter()
         .map(|(id, lexeme)| {
             (
-                id.clone(),
+                *id,
                 LexemeInventory {
                     lemma: lexeme.lemma.clone(),
                     category: lexeme.category,
                     properties: lexeme.properties.clone(),
-                    independent_values_checked: counts
-                        .get(id.as_str())
-                        .copied()
-                        .unwrap_or_default(),
+                    independent_values_checked: counts.get(id).copied().unwrap_or_default(),
                 },
             )
         })
