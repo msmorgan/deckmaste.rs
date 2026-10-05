@@ -101,6 +101,30 @@ directives are allowed in schemas, instances and ordinary constructions.
 Policies cannot declare forms, bindings, surface obligations, costs or nested
 policy uses. Reuse supplies equations, never a new AST construction.
 
+Policies may parameterize equation field references:
+
+```rust
+policy FiniteConcord<Other> {
+    agree left.number = Other.number;
+    agree left.person = Other.person;
+    export number = left.number;
+    export person = left.person;
+}
+```
+
+`use FiniteConcord(right);` and `use FiniteConcord(rest);` instantiate the same
+explicit equations with different declared caller fields. Only field positions
+in references substitute; feature names, tables, constants and Categories do
+not. Parameter names must be unique, argument arity must match, and every
+argument and fixed policy reference must name a caller field. The ordinary
+Category-interface and feature-domain checks still apply after substitution.
+Field parameters have no defaults and policies cannot call other policies.
+
+A row-selected policy composes with arguments, as in `use Agreement(right);`.
+Every policy named in that column must accept that argument count. An explicitly
+empty `policy NoConcord<Other> {}` is allowed; even its unused argument must name
+a declared field. No-argument policies retain `use Name;` syntax.
+
 The chart still instantiates concrete category-sensitive Productions. Count
 shared AST constructions separately from category instances and chart
 Productions (`Grammar::productions()` through the runtime trait). Generic

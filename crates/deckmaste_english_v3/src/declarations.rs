@@ -23,7 +23,6 @@ constructions! {
         feature AdjectiveStructure { Simple, Complemented }
         feature RelativeSubordinator { Yes }
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
-        feature OvertHead { No, Yes }
         feature ScalarVariable { Yes }
         feature MeasureOperator { Yes }
         feature MeasurePreposition { Yes }
@@ -60,13 +59,13 @@ constructions! {
         category ParagraphItem();
         category ParagraphContinuation();
         category Sentence();
-        category Clause(finiteness);
+        category Clause();
         category FiniteClause();
         category FinitePredicate(number, person);
-        category SecondaryVerbPhrase(form, ParticipialUse, OvertHead);
-        category BarePredicate(OvertHead);
-        category ParticipialPredicate(OvertHead);
-        category PastParticiplePredicate(OvertHead);
+        category SecondaryVerbPhrase(form, ParticipialUse);
+        category BarePredicate();
+        category ParticipialPredicate();
+        category PastParticiplePredicate();
         category PredicativeComplement(PredicativeKind);
         category Ellipsis(form);
         category BareComplement();
@@ -116,12 +115,12 @@ constructions! {
         category CardTypeContinuation();
         category Subtypes();
         category SubtypeContinuation();
-        category ClauseSeries(finiteness);
+        category ClauseSeries();
         category FinitePredicateSeries(number, person);
-        category SecondaryPredicateSeries(form, ParticipialUse, OvertHead);
+        category SecondaryPredicateSeries(form, ParticipialUse);
         category NounPhraseSeries(number, person, CaseUse, CoordinationKind);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct);
-        category InfinitiveComplement(OvertHead);
+        category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination);
         category SecondarySelectedHead(form, FrameUse, HeadCoordination);
         category FiniteSelectedHeadSeries(number, person, FrameUse);
@@ -136,37 +135,32 @@ constructions! {
         category AdjectivePhraseSeries(AdjectiveStructure);
         category PrepositionPhraseSeries(LocativeUse, AdverbialUse);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct);
-        category InfinitiveComplementSeries(OvertHead);
+        category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(number, person);
         category BareObjectGapSeries();
         category CoordinatedFiniteClause();
         category FiniteClauseSeries();
         category PredicativeComplementSeries(PredicativeKind);
-        category CorrelativeClauseSeries(finiteness, CorrelativeCoordinator, CoordinationKind);
-        category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator,
-            CoordinationKind);
-        category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, OvertHead,
-            CorrelativeCoordinator, CoordinationKind);
+        category CorrelativeClauseSeries(CorrelativeCoordinator);
+        category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator);
+        category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator);
         category CorrelativeNounPhraseSeries(number, person, CaseUse, CorrelativeCoordinator,
             CoordinationKind);
         category CorrelativePrepositionPhraseSeries(LocativeUse, AdverbialUse,
-            CorrelativeCoordinator, CoordinationKind);
+            CorrelativeCoordinator);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
-            CorrelativeCoordinator, CoordinationKind);
-        category CorrelativeManaPhraseSeries(CorrelativeCoordinator, CoordinationKind);
+            CorrelativeCoordinator);
+        category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
         category CorrelativeCardinalSeries(number, CorrelativeCoordinator, CoordinationKind);
-        category CorrelativeAmountSeries(CorrelativeCoordinator, CoordinationKind);
-        category CorrelativeMeasurePhraseSeries(MeasureKind, CorrelativeCoordinator,
-            CoordinationKind);
-        category CorrelativeKeywordPhraseSeries(CorrelativeCoordinator, CoordinationKind);
-        category CorrelativeQuotedTextSeries(CorrelativeCoordinator, CoordinationKind);
-        category CorrelativeInfinitiveComplementSeries(OvertHead, CorrelativeCoordinator,
-            CoordinationKind);
+        category CorrelativeAmountSeries(CorrelativeCoordinator);
+        category CorrelativeMeasurePhraseSeries(MeasureKind, CorrelativeCoordinator);
+        category CorrelativeKeywordPhraseSeries(CorrelativeCoordinator);
+        category CorrelativeQuotedTextSeries(CorrelativeCoordinator);
+        category CorrelativeInfinitiveComplementSeries(CorrelativeCoordinator);
         category CorrelativeFiniteSelectedHeadSeries(number, person, FrameUse,
-            CorrelativeCoordinator, CoordinationKind);
-        category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator,
-            CoordinationKind);
+            CorrelativeCoordinator);
+        category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator);
         category CorrelativeAdjectivePhrase();
         category CorrelativeAdjectiveSeries(CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(number, person, CorrelativeCoordinator);
@@ -301,13 +295,6 @@ constructions! {
             (Mixed, Mixed) => Mixed,
         }
 
-        table overt_predicates(OvertHead, OvertHead) -> OvertHead {
-            (No, No) => No,
-            (No, Yes) => No,
-            (Yes, No) => No,
-            (Yes, Yes) => Yes,
-        }
-
         table determined_number(DeterminerUse, number, countability) -> number {
             (SingularCount, Singular, Count) => Singular,
             (Unrestricted, Singular, Count) => Singular,
@@ -340,89 +327,14 @@ constructions! {
             (InfinitiveSelection) => Infinitive,
         }
 
-        policy SecondaryConjunctProperties {
-            agree left.form = right.form;
-            export form = left.form;
-            export ParticipialUse = coordinated_participial_use(left.ParticipialUse,
-                right.ParticipialUse);
-            export OvertHead = overt_predicates(left.OvertHead, right.OvertHead);
-        }
-
-        policy SecondaryListProperties {
-            agree left.form = rest.form;
-            export form = left.form;
-            export ParticipialUse = coordinated_participial_use(left.ParticipialUse,
-                rest.ParticipialUse);
-            export OvertHead = overt_predicates(left.OvertHead, rest.OvertHead);
-        }
-
-        policy NounCoordinationAgreement {
-            export number = coordinate_number(coordinator.CoordinationKind, left.number,
-                right.number);
-            export person = coordinate_person(coordinator.CoordinationKind, left.person,
-                right.person);
-            export CaseUse = common_case(left.CaseUse, right.CaseUse);
-        }
-
-        policy NounListAgreement {
-            export number = coordinate_number(rest.CoordinationKind, left.number, rest.number);
-            export person = coordinate_person(rest.CoordinationKind, left.person, rest.person);
-            export CaseUse = common_case(left.CaseUse, rest.CaseUse);
-        }
-
-        policy CoordinatedMeasureKind {
-            agree left.MeasureKind = right.MeasureKind;
-            export MeasureKind = left.MeasureKind;
-        }
-
-        policy SerialMeasureKind {
-            agree left.MeasureKind = rest.MeasureKind;
-            export MeasureKind = left.MeasureKind;
-        }
-
-        policy CoordinatedFiniteness {
-            agree left.finiteness = right.finiteness;
-            export finiteness = left.finiteness;
-        }
-
-        policy SerialFiniteness {
-            agree left.finiteness = rest.finiteness;
-            export finiteness = left.finiteness;
-        }
-
         policy FiniteHeadAgreement {
             require head.finiteness = Finite;
             export number = head.number;
             export person = head.person;
         }
 
-        policy FiniteConcord {
-            agree left.number = right.number;
-            agree left.person = right.person;
-            export number = left.number;
-            export person = left.person;
-        }
-
-        policy FiniteListConcord {
-            agree left.number = rest.number;
-            agree left.person = rest.person;
-            export number = left.number;
-            export person = left.person;
-        }
-
         policy SecondaryHeadForm {
             export form = secondary_form(head.form);
-            export OvertHead = Yes;
-        }
-
-        policy SecondaryConcord {
-            agree left.form = right.form;
-            export form = left.form;
-        }
-
-        policy SecondaryListConcord {
-            agree left.form = rest.form;
-            export form = left.form;
         }
 
         policy NominalHeadProperties {
@@ -431,54 +343,12 @@ constructions! {
             export Targeting = head.Targeting;
         }
 
-        policy SelectedFrameConcord {
-            agree left.FrameUse = right.FrameUse;
-            export FrameUse = left.FrameUse;
-        }
-
-        policy SelectedFrameListConcord {
-            agree left.FrameUse = rest.FrameUse;
-            export FrameUse = left.FrameUse;
-        }
-
-        policy PrepositionPermissions {
-            export AdverbialUse = coordinated_adverbial_use(left.AdverbialUse, right.AdverbialUse);
-            export LocativeUse = coordinated_locative_use(left.LocativeUse, right.LocativeUse);
-        }
-
-        policy PrepositionListPermissions {
-            export AdverbialUse = coordinated_adverbial_use(left.AdverbialUse, rest.AdverbialUse);
-            export LocativeUse = coordinated_locative_use(left.LocativeUse, rest.LocativeUse);
-        }
-
-        policy AdverbPermissions {
-            export VPFinalAdjunct = coordinated_final_adjunct(left.VPFinalAdjunct,
-                right.VPFinalAdjunct);
-            export ClauseInitialAdjunct = coordinated_initial_adjunct(left.ClauseInitialAdjunct,
-                right.ClauseInitialAdjunct);
-        }
-
-        policy AdverbListPermissions {
-            export VPFinalAdjunct = coordinated_final_adjunct(left.VPFinalAdjunct,
-                rest.VPFinalAdjunct);
-            export ClauseInitialAdjunct = coordinated_initial_adjunct(left.ClauseInitialAdjunct,
-                rest.ClauseInitialAdjunct);
-        }
-
         policy PredicateHeadAgreement {
             export number = head.number;
             export person = head.person;
         }
 
         policy NoFeatures {
-        }
-
-        policy FinalCoordinatorKind {
-            export CoordinationKind = coordinator.CoordinationKind;
-        }
-
-        policy SerialCoordinatorKind {
-            export CoordinationKind = rest.CoordinationKind;
         }
 
         policy NominativeCase {
@@ -490,134 +360,22 @@ constructions! {
         }
 
         policy SecondaryProjection {
-            export OvertHead = head.OvertHead;
             export ParticipialUse = head.ParticipialUse;
             export form = secondary_form(head.form);
         }
 
         policy SecondaryAdjunctProjection {
-            export OvertHead = head.OvertHead;
             export ParticipialUse = head.ParticipialUse;
             export form = head.form;
         }
 
-        policy SelectedSecondaryForm {
-            export form = secondary_form(head.form);
-        }
-
-        policy CardinalAgreement {
-            export number = cardinal_coordinate_number(coordinator.CoordinationKind, left.number,
-                right.number);
-        }
-
-        policy CardinalListEnd {
-            export CoordinationKind = coordinator.CoordinationKind;
-            export number = cardinal_coordinate_number(coordinator.CoordinationKind, left.number,
-                right.number);
-        }
-
-        policy CardinalListTail {
-            export CoordinationKind = rest.CoordinationKind;
-            export number = cardinal_coordinate_number(rest.CoordinationKind, left.number,
-                rest.number);
-        }
-
-        policy CardinalListAgreement {
-            export number = cardinal_coordinate_number(rest.CoordinationKind, left.number,
-                rest.number);
-        }
-
-        policy SharedHeadStatus {
-            export HeadCoordination = Yes;
-        }
-
-        policy NominalConcord {
-            agree left.Targeting = right.Targeting;
-            agree left.countability = right.countability;
-            agree left.number = right.number;
-            export Targeting = left.Targeting;
-            export countability = left.countability;
-            export number = left.number;
-        }
-
-        policy NominalListConcord {
-            agree left.Targeting = rest.Targeting;
-            agree left.countability = rest.countability;
-            agree left.number = rest.number;
-            export Targeting = left.Targeting;
-            export countability = left.countability;
-            export number = left.number;
-        }
-
-        policy AdjectiveStructureMerge {
-            export AdjectiveStructure = coordinated_adjective_structure(left.AdjectiveStructure,
-                right.AdjectiveStructure);
-        }
-
-        policy AdjectiveListStructure {
-            export AdjectiveStructure = coordinated_adjective_structure(left.AdjectiveStructure,
-                rest.AdjectiveStructure);
-        }
-
-        policy OvertConjunctHeads {
-            export OvertHead = overt_predicates(left.OvertHead, right.OvertHead);
-        }
-
-        policy OvertListHeads {
-            export OvertHead = overt_predicates(left.OvertHead, rest.OvertHead);
-        }
-
-        policy UnlikePredicatives {
-            export PredicativeKind = unlike_predicative_kind(left.PredicativeKind,
-                right.PredicativeKind);
-        }
-
-        policy PredicativeListEnd {
-            export PredicativeKind = combined_predicative_kind(left.PredicativeKind,
-                right.PredicativeKind);
-        }
-
-        policy PredicativeListTail {
-            export PredicativeKind = combined_predicative_kind(left.PredicativeKind,
-                rest.PredicativeKind);
-        }
-
-        policy PredicativeListKind {
-            export PredicativeKind = unlike_predicative_kind(left.PredicativeKind,
-                rest.PredicativeKind);
-        }
-
-        policy OvertListEnd {
-            export CoordinationKind = coordinator.CoordinationKind;
-            export OvertHead = overt_predicates(left.OvertHead, right.OvertHead);
-        }
-
-        policy OvertCorrelativeListTail {
-            export CoordinationKind = rest.CoordinationKind;
-            export OvertHead = overt_predicates(left.OvertHead, rest.OvertHead);
-        }
-
-        policy SharedFrameListConcord {
-            agree left.FrameUse = rest.FrameUse;
-            export FrameUse = left.FrameUse;
-            export HeadCoordination = Yes;
-        }
-
-        policy SharedFrameConcord {
-            agree left.FrameUse = right.FrameUse;
-            export FrameUse = left.FrameUse;
-            export HeadCoordination = Yes;
-        }
-
         policy OrdinarySecondaryHead {
             export form = secondary_form(head.form);
-            export OvertHead = Yes;
             export ParticipialUse = Ordinary;
         }
 
         policy OrdinarySelectedPredicate {
             export form = head.form;
-            export OvertHead = Yes;
             export ParticipialUse = Ordinary;
         }
 
@@ -641,6 +399,108 @@ constructions! {
         policy PrepositionHeadPermissions {
             export AdverbialUse = head.AdverbialUse;
             export LocativeUse = head.LocativeUse;
+        }
+
+        policy AdjectiveStructureMerge<Right, Source> {
+            export AdjectiveStructure = coordinated_adjective_structure(left.AdjectiveStructure,
+                Right.AdjectiveStructure);
+        }
+
+        policy AdverbPermissions<Right, Source> {
+            export VPFinalAdjunct = coordinated_final_adjunct(left.VPFinalAdjunct,
+                Right.VPFinalAdjunct);
+            export ClauseInitialAdjunct = coordinated_initial_adjunct(left.ClauseInitialAdjunct,
+                Right.ClauseInitialAdjunct);
+        }
+
+        policy CardinalAgreement<Right, Source> {
+            export number = cardinal_coordinate_number(Source.CoordinationKind, left.number,
+                Right.number);
+        }
+
+        policy CardinalListEnd<Right, Source> {
+            export CoordinationKind = Source.CoordinationKind;
+            export number = cardinal_coordinate_number(Source.CoordinationKind, left.number,
+                Right.number);
+        }
+
+        policy CoordinatedMeasureKind<Right, Source> {
+            agree left.MeasureKind = Right.MeasureKind;
+            export MeasureKind = left.MeasureKind;
+        }
+
+        policy CoordinatorKindSummary<Right, Source> {
+            export CoordinationKind = Source.CoordinationKind;
+        }
+
+        policy FiniteConcord<Right, Source> {
+            agree left.number = Right.number;
+            agree left.person = Right.person;
+            export number = left.number;
+            export person = left.person;
+        }
+
+        policy NoConcord<Right, Source> {
+
+        }
+
+        policy NominalConcord<Right, Source> {
+            agree left.Targeting = Right.Targeting;
+            agree left.countability = Right.countability;
+            agree left.number = Right.number;
+            export Targeting = left.Targeting;
+            export countability = left.countability;
+            export number = left.number;
+        }
+
+        policy NounCoordinationAgreement<Right, Source> {
+            export number = coordinate_number(Source.CoordinationKind, left.number,
+                Right.number);
+            export person = coordinate_person(Source.CoordinationKind, left.person,
+                Right.person);
+            export CaseUse = common_case(left.CaseUse, Right.CaseUse);
+        }
+
+        policy PredicativeListEnd<Right, Source> {
+            export PredicativeKind = combined_predicative_kind(left.PredicativeKind,
+                Right.PredicativeKind);
+        }
+
+        policy UnlikePredicatives<Right, Source> {
+            export PredicativeKind = unlike_predicative_kind(left.PredicativeKind,
+                Right.PredicativeKind);
+        }
+
+        policy PrepositionPermissions<Right, Source> {
+            export AdverbialUse = coordinated_adverbial_use(left.AdverbialUse, Right.AdverbialUse);
+            export LocativeUse = coordinated_locative_use(left.LocativeUse, Right.LocativeUse);
+        }
+
+        policy SecondaryConcord<Right, Source> {
+            agree left.form = Right.form;
+            export form = left.form;
+        }
+
+        policy SecondaryConjunctProperties<Right, Source> {
+            agree left.form = Right.form;
+            export form = left.form;
+            export ParticipialUse = coordinated_participial_use(left.ParticipialUse,
+                Right.ParticipialUse);
+        }
+
+        policy SelectedFrameConcord<Right, Source> {
+            agree left.FrameUse = Right.FrameUse;
+            export FrameUse = left.FrameUse;
+        }
+
+        policy SharedFrameConcord<Right, Source> {
+            agree left.FrameUse = Right.FrameUse;
+            export FrameUse = left.FrameUse;
+            export HeadCoordination = Yes;
+        }
+
+        policy SharedHeadStatus<Right, Source> {
+            export HeadCoordination = Yes;
         }
 
         schema CoordinationSeriesEnd {
@@ -1016,7 +876,6 @@ constructions! {
         construction ActionCost: CostComponent {
             boundary Initial;
             form [action: BarePredicate];
-            require action.OvertHead = Yes;
         }
 
         construction SymbolCost: CostComponent {
@@ -1099,13 +958,10 @@ constructions! {
 
         construction Declarative: Clause {
             form [clause: FiniteClause];
-            export finiteness = Finite;
         }
 
         construction Imperative: Clause {
             form [predicate: BarePredicate];
-            require predicate.OvertHead = Yes;
-            export finiteness = Finite;
         }
 
         construction FiniteClause: FiniteClause {
@@ -1117,27 +973,24 @@ constructions! {
         construction InitialPreposition: Clause {
             form [dependent: PrepositionPhrase, ", ", clause: Clause];
             require dependent.AdverbialUse = Yes;
-            export finiteness = clause.finiteness;
         }
 
         construction ClausalPreposition: Clause {
             form [clause: Clause, " ", dependent: PrepositionPhrase];
             require dependent.AdverbialUse = Yes;
-            export finiteness = clause.finiteness;
         }
 
         construction ClauseCoordination: Clause {
             form [left: Clause, ", ", coordinator: lexical(Coordinator), " ", right: Clause];
             form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause];
-            use CoordinatedFiniteness;
             require coordinator.NoncorrelativeCoordination = Yes;
         }
-        instance CoordinationSeriesEnd<Result, Member, Agreement = NoFeatures,
-            Properties = NoFeatures>: [
-            (ClauseSeries, Clause, CoordinatedFiniteness),
+        instance CoordinationSeriesEnd<Result, Member, Agreement = NoConcord,
+            Properties = NoConcord>: [
+            (ClauseSeries, Clause, NoConcord),
             (FinitePredicateSeries, FinitePredicate, FiniteConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, SecondaryConjunctProperties),
-            (NounPhraseSeries, NounPhrase, NounCoordinationAgreement, FinalCoordinatorKind),
+            (NounPhraseSeries, NounPhrase, NounCoordinationAgreement, CoordinatorKindSummary),
             (NounPremodifierSeries, NounPremodifier),
             (ManaPhraseSeries, ManaPhrase),
             (CardinalSeries, Cardinal, CardinalListEnd),
@@ -1152,7 +1005,7 @@ constructions! {
             (AdjectivePhraseSeries, AdjectivePhrase, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, PrepositionPermissions),
             (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions),
-            (InfinitiveComplementSeries, InfinitiveComplement, OvertConjunctHeads),
+            (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
             (FiniteObjectGapSeries, FiniteObjectGap, FiniteConcord),
             (BareObjectGapSeries, BareObjectGap),
@@ -1161,78 +1014,76 @@ constructions! {
             (SelectedPrepositionHeadSeries, SelectedPrepositionHead, PrepositionPermissions),
         ] {
             bind left, right = Member;
-            use Agreement;
-            use Properties;
+            use Agreement(right, coordinator);
+            use Properties(right, coordinator);
         }
-        instance CoordinationSeriesContinuation<Result, Member, Tail, Agreement = NoFeatures,
-            Properties = NoFeatures>: [
-            (ClauseSeries, Clause, Self, SerialFiniteness),
-            (FinitePredicateSeries, FinitePredicate, Self, FiniteListConcord),
-            (SecondaryPredicateSeries, SecondaryVerbPhrase, Self, SecondaryListProperties),
-            (NounPhraseSeries, NounPhrase, Self, NounListAgreement, SerialCoordinatorKind),
+        instance CoordinationSeriesContinuation<Result, Member, Tail, Agreement = NoConcord,
+            Properties = NoConcord>: [
+            (ClauseSeries, Clause, Self, NoConcord),
+            (FinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
+            (SecondaryPredicateSeries, SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
+            (NounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement, CoordinatorKindSummary),
             (NounPremodifierSeries, NounPremodifier, Self),
             (ManaPhraseSeries, ManaPhrase, Self),
-            (CardinalSeries, Cardinal, Self, CardinalListTail),
+            (CardinalSeries, Cardinal, Self, CardinalListEnd),
             (AmountSeries, Amount, Self),
-            (MeasurePhraseSeries, MeasurePhrase, Self, SerialMeasureKind),
+            (MeasurePhraseSeries, MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhraseSeries, KeywordPhrase, Self),
             (QuotedTextSeries, QuotedText, Self),
-            (FiniteSelectedHeadSeries, FiniteSelectedHead, Self, FiniteListConcord,
-                SelectedFrameListConcord),
-            (SecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryListConcord,
-                SelectedFrameListConcord),
-            (NominalSeries, Nominal, Self, NominalListConcord),
-            (AdjectivePhraseSeries, AdjectivePhrase, Self, AdjectiveListStructure),
-            (PrepositionPhraseSeries, PrepositionPhrase, Self, PrepositionListPermissions),
-            (AdverbPhraseSeries, AdverbPhrase, Self, AdverbListPermissions),
-            (InfinitiveComplementSeries, InfinitiveComplement, Self, OvertListHeads),
+            (FiniteSelectedHeadSeries, FiniteSelectedHead, Self, FiniteConcord,
+                SelectedFrameConcord),
+            (SecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
+                SelectedFrameConcord),
+            (NominalSeries, Nominal, Self, NominalConcord),
+            (AdjectivePhraseSeries, AdjectivePhrase, Self, AdjectiveStructureMerge),
+            (PrepositionPhraseSeries, PrepositionPhrase, Self, PrepositionPermissions),
+            (AdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions),
+            (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
-            (FiniteObjectGapSeries, FiniteObjectGap, Self, FiniteListConcord),
+            (FiniteObjectGapSeries, FiniteObjectGap, Self, FiniteConcord),
             (BareObjectGapSeries, BareObjectGap, Self),
             (FiniteClauseSeries, FiniteClause, Self),
-            (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListTail),
-            (SelectedPrepositionHeadSeries, SelectedPrepositionHead, Self,
-                PrepositionListPermissions),
+            (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListEnd),
+            (SelectedPrepositionHeadSeries, SelectedPrepositionHead, Self, PrepositionPermissions),
         ] {
             bind left = Member;
             bind rest = Tail;
-            use Agreement;
-            use Properties;
+            use Agreement(rest, rest);
+            use Properties(rest, rest);
         }
-        instance SerialCoordination<Result, Member, Tail, Agreement = NoFeatures,
-            Properties = NoFeatures>: [
-            (Clause, Self, ClauseSeries, SerialFiniteness),
-            (FinitePredicate, Self, FinitePredicateSeries, FiniteListConcord),
-            (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryListProperties),
-            (NounPhrase, Self, NounPhraseSeries, NounListAgreement),
+        instance SerialCoordination<Result, Member, Tail, Agreement = NoConcord,
+            Properties = NoConcord>: [
+            (Clause, Self, ClauseSeries, NoConcord),
+            (FinitePredicate, Self, FinitePredicateSeries, FiniteConcord),
+            (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryConjunctProperties),
+            (NounPhrase, Self, NounPhraseSeries, NounCoordinationAgreement),
             (NounPremodifier, Self, NounPremodifierSeries),
             (ManaPhrase, Self, ManaPhraseSeries),
-            (Cardinal, Self, CardinalSeries, CardinalListAgreement),
+            (Cardinal, Self, CardinalSeries, CardinalAgreement),
             (Amount, Self, AmountSeries),
-            (MeasurePhrase, Self, MeasurePhraseSeries, SerialMeasureKind),
+            (MeasurePhrase, Self, MeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, KeywordPhraseSeries),
             (QuotedText, Self, QuotedTextSeries),
-            (FiniteSelectedHead, Self, FiniteSelectedHeadSeries, FiniteListConcord,
-                SharedFrameListConcord),
-            (SecondarySelectedHead, Self, SecondarySelectedHeadSeries, SecondaryListConcord,
-                SharedFrameListConcord),
-            (Nominal, Self, NominalSeries, NominalListConcord),
-            (AdjectivePhrase, Self, AdjectivePhraseSeries, AdjectiveListStructure),
-            (PrepositionPhrase, Self, PrepositionPhraseSeries, PrepositionListPermissions),
-            (AdverbPhrase, Self, AdverbPhraseSeries, AdverbListPermissions),
-            (InfinitiveComplement, Self, InfinitiveComplementSeries, OvertListHeads),
+            (FiniteSelectedHead, Self, FiniteSelectedHeadSeries, FiniteConcord, SharedFrameConcord),
+            (SecondarySelectedHead, Self, SecondarySelectedHeadSeries, SecondaryConcord,
+                SharedFrameConcord),
+            (Nominal, Self, NominalSeries, NominalConcord),
+            (AdjectivePhrase, Self, AdjectivePhraseSeries, AdjectiveStructureMerge),
+            (PrepositionPhrase, Self, PrepositionPhraseSeries, PrepositionPermissions),
+            (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions),
+            (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
-            (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteListConcord),
+            (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteConcord),
             (BareObjectGap, Self, BareObjectGapSeries),
             (CoordinatedFiniteClause, FiniteClause, FiniteClauseSeries),
-            (PredicativeComplement, Self, PredicativeComplementSeries, PredicativeListKind),
-            (SelectedPrepositionHead, Self, SelectedPrepositionHeadSeries,
-                PrepositionListPermissions, SharedHeadStatus),
+            (PredicativeComplement, Self, PredicativeComplementSeries, UnlikePredicatives),
+            (SelectedPrepositionHead, Self, SelectedPrepositionHeadSeries, PrepositionPermissions,
+                SharedHeadStatus),
         ] {
             bind left = Member;
             bind rest = Tail;
-            use Agreement;
-            use Properties;
+            use Agreement(rest, rest);
+            use Properties(rest, rest);
         }
 
         construction Noun: Nominal {
@@ -1273,7 +1124,7 @@ constructions! {
             require head.form = Singular;
             require head.framing = Unframed;
         }
-        instance Coordination<Result, Member, Agreement = NoFeatures, Properties = NoFeatures>: [
+        instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord>: [
             (NounPremodifier, Self),
             (NounPhrase, Self, NounCoordinationAgreement),
             (FinitePredicate, Self, FiniteConcord),
@@ -1291,7 +1142,7 @@ constructions! {
             (AdjectivePhrase, Self, AdjectiveStructureMerge),
             (PrepositionPhrase, Self, PrepositionPermissions),
             (AdverbPhrase, Self, AdverbPermissions),
-            (InfinitiveComplement, Self, OvertConjunctHeads),
+            (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
             (BareObjectGap, Self),
             (CoordinatedFiniteClause, FiniteClause),
@@ -1299,8 +1150,8 @@ constructions! {
             (SelectedPrepositionHead, Self, PrepositionPermissions, SharedHeadStatus),
         ] {
             bind left, right = Member;
-            use Agreement;
-            use Properties;
+            use Agreement(right, coordinator);
+            use Properties(right, coordinator);
         }
 
         construction NounPremodifiedNominal: Nominal {
@@ -1537,27 +1388,23 @@ constructions! {
         construction BarePredicate: BarePredicate {
             form [head: SecondaryVerbPhrase];
             require head.form = Plain;
-            export OvertHead = head.OvertHead;
         }
 
         construction ProgressiveComplement: ParticipialPredicate {
             form [head: SecondaryVerbPhrase];
             require head.form = GerundParticiple;
-            export OvertHead = head.OvertHead;
         }
 
         construction PassiveComplement: ParticipialPredicate {
             form [head: SecondaryVerbPhrase];
             require head.form = PastParticiple;
             require head.ParticipialUse = BarePassive;
-            export OvertHead = head.OvertHead;
         }
 
         construction PerfectComplement: PastParticiplePredicate {
             form [head: SecondaryVerbPhrase];
             require head.form = PastParticiple;
             require head.ParticipialUse = Ordinary;
-            export OvertHead = head.OvertHead;
         }
 
         construction PassivePredicate: SecondaryVerbPhrase {
@@ -1566,7 +1413,6 @@ constructions! {
             require head.frame = Transitive;
             export form = PastParticiple;
             export ParticipialUse = BarePassive;
-            export OvertHead = Yes;
         }
 
         construction SubjectRelativeClause: SubjectRelativeClause {
@@ -1902,14 +1748,11 @@ constructions! {
             form [modifier: AdverbPhrase, " ", clause: Clause];
             form [modifier: AdverbPhrase, ", ", clause: Clause];
             require modifier.ClauseInitialAdjunct = Yes;
-            export finiteness = clause.finiteness;
         }
 
         construction ToInfinitive: InfinitiveComplement {
             form [marker: lexical(Subordinator), " ", predicate: BarePredicate];
             require marker.InfinitivalMarker = Yes;
-            require predicate.OvertHead = Yes;
-            export OvertHead = predicate.OvertHead;
         }
         instance InfinitivePredicate<Result, Complement, Properties>: [
             (FinitePredicate, InfinitiveComplement, FiniteHeadAgreement),
@@ -1923,7 +1766,7 @@ constructions! {
 
         instance SelectedVerbHead<Result, Properties>: [
             (FiniteSelectedHead, FiniteHeadAgreement),
-            (SecondarySelectedHead, SelectedSecondaryForm),
+            (SecondarySelectedHead, SecondaryHeadForm),
         ] {
             use Properties;
         }
@@ -2133,9 +1976,9 @@ constructions! {
 
         // Correlative prefixes: Both binary only; main Clause Either only.
         // Nominal/AdjP deferred until pre-head placement is represented in summaries.
-        instance EitherCoordination<Result, Member, Agreement = NoFeatures,
-            Properties = NoFeatures>: [
-            (Clause, Self, CoordinatedFiniteness),
+        instance EitherCoordination<Result, Member, Agreement = NoConcord,
+            Properties = NoConcord>: [
+            (Clause, Self, NoConcord),
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
@@ -2147,7 +1990,7 @@ constructions! {
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
             (QuotedText, Self),
-            (InfinitiveComplement, Self, OvertConjunctHeads),
+            (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase),
@@ -2156,114 +1999,104 @@ constructions! {
             (CoordinatedFiniteClause, FiniteClause),
         ] {
             bind left, right = Member;
-            use Agreement;
-            use Properties;
+            use Agreement(right, coordinator);
+            use Properties(right, coordinator);
         }
 
-        instance CorrelativeSeriesEnd<Result, Member, Agreement = NoFeatures,
-            Properties = NoFeatures, Status = NoFeatures>: [
-            (CorrelativeClauseSeries, Clause, CoordinatedFiniteness, FinalCoordinatorKind),
-            (CorrelativeFinitePredicateSeries, FinitePredicate, FiniteConcord,
-                FinalCoordinatorKind),
-            (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase, SecondaryConjunctProperties,
-                FinalCoordinatorKind),
+        instance CorrelativeSeriesEnd<Result, Member, Agreement = NoConcord, Properties = NoConcord,
+            Status = NoConcord>: [
+            (CorrelativeClauseSeries, Clause, NoConcord),
+            (CorrelativeFinitePredicateSeries, FinitePredicate, FiniteConcord),
+            (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase,
+                SecondaryConjunctProperties),
             (CorrelativeNounPhraseSeries, NounPhrase, NounCoordinationAgreement,
-                FinalCoordinatorKind),
-            (CorrelativePrepositionPhraseSeries, PrepositionPhrase, PrepositionPermissions,
-                FinalCoordinatorKind),
-            (CorrelativeAdverbPhraseSeries, AdverbPhrase, AdverbPermissions, FinalCoordinatorKind),
-            (CorrelativeManaPhraseSeries, ManaPhrase, FinalCoordinatorKind),
+                CoordinatorKindSummary),
+            (CorrelativePrepositionPhraseSeries, PrepositionPhrase, PrepositionPermissions),
+            (CorrelativeAdverbPhraseSeries, AdverbPhrase, AdverbPermissions),
+            (CorrelativeManaPhraseSeries, ManaPhrase),
             (CorrelativeCardinalSeries, Cardinal, CardinalListEnd),
-            (CorrelativeAmountSeries, Amount, FinalCoordinatorKind),
-            (CorrelativeMeasurePhraseSeries, MeasurePhrase, CoordinatedMeasureKind,
-                FinalCoordinatorKind),
-            (CorrelativeKeywordPhraseSeries, KeywordPhrase, FinalCoordinatorKind),
-            (CorrelativeQuotedTextSeries, QuotedText, FinalCoordinatorKind),
-            (CorrelativeInfinitiveComplementSeries, InfinitiveComplement, OvertListEnd),
+            (CorrelativeAmountSeries, Amount),
+            (CorrelativeMeasurePhraseSeries, MeasurePhrase, CoordinatedMeasureKind),
+            (CorrelativeKeywordPhraseSeries, KeywordPhrase),
+            (CorrelativeQuotedTextSeries, QuotedText),
+            (CorrelativeInfinitiveComplementSeries, InfinitiveComplement),
             (CorrelativeFiniteSelectedHeadSeries, FiniteSelectedHead, FiniteConcord,
-                SelectedFrameConcord, FinalCoordinatorKind),
+                SelectedFrameConcord),
             (CorrelativeSecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
-                SelectedFrameConcord, FinalCoordinatorKind),
+                SelectedFrameConcord),
             (CorrelativeAdjectiveSeries, AdjectivePhrase),
             (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, FiniteConcord),
             (CorrelativeBareObjectGapSeries, BareObjectGap),
             (CorrelativeFiniteClauseSeries, FiniteClause),
         ] {
             bind left, right = Member;
-            use Agreement;
-            use Properties;
-            use Status;
+            use Agreement(right, coordinator);
+            use Properties(right, coordinator);
+            use Status(right, coordinator);
         }
-        instance CorrelativeSeriesContinuation<Result, Member, Tail, Agreement = NoFeatures,
-            Properties = NoFeatures, Status = NoFeatures>: [
-            (CorrelativeClauseSeries, Clause, Self, SerialFiniteness, SerialCoordinatorKind),
-            (CorrelativeFinitePredicateSeries, FinitePredicate, Self, FiniteListConcord,
-                SerialCoordinatorKind),
+        instance CorrelativeSeriesContinuation<Result, Member, Tail, Agreement = NoConcord,
+            Properties = NoConcord, Status = NoConcord>: [
+            (CorrelativeClauseSeries, Clause, Self, NoConcord),
+            (CorrelativeFinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase, Self,
-                SecondaryListProperties, SerialCoordinatorKind),
-            (CorrelativeNounPhraseSeries, NounPhrase, Self, NounListAgreement,
-                SerialCoordinatorKind),
-            (CorrelativePrepositionPhraseSeries, PrepositionPhrase, Self,
-                PrepositionListPermissions, SerialCoordinatorKind),
-            (CorrelativeAdverbPhraseSeries, AdverbPhrase, Self, AdverbListPermissions,
-                SerialCoordinatorKind),
-            (CorrelativeManaPhraseSeries, ManaPhrase, Self, SerialCoordinatorKind),
-            (CorrelativeCardinalSeries, Cardinal, Self, CardinalListTail),
-            (CorrelativeAmountSeries, Amount, Self, SerialCoordinatorKind),
-            (CorrelativeMeasurePhraseSeries, MeasurePhrase, Self, SerialMeasureKind,
-                SerialCoordinatorKind),
-            (CorrelativeKeywordPhraseSeries, KeywordPhrase, Self, SerialCoordinatorKind),
-            (CorrelativeQuotedTextSeries, QuotedText, Self, SerialCoordinatorKind),
-            (CorrelativeInfinitiveComplementSeries, InfinitiveComplement, Self,
-                OvertCorrelativeListTail),
-            (CorrelativeFiniteSelectedHeadSeries, FiniteSelectedHead, Self, FiniteListConcord,
-                SelectedFrameListConcord, SerialCoordinatorKind),
-            (CorrelativeSecondarySelectedHeadSeries, SecondarySelectedHead, Self,
-                SecondaryListConcord, SelectedFrameListConcord, SerialCoordinatorKind),
+                SecondaryConjunctProperties),
+            (CorrelativeNounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement,
+                CoordinatorKindSummary),
+            (CorrelativePrepositionPhraseSeries, PrepositionPhrase, Self, PrepositionPermissions),
+            (CorrelativeAdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions),
+            (CorrelativeManaPhraseSeries, ManaPhrase, Self),
+            (CorrelativeCardinalSeries, Cardinal, Self, CardinalListEnd),
+            (CorrelativeAmountSeries, Amount, Self),
+            (CorrelativeMeasurePhraseSeries, MeasurePhrase, Self, CoordinatedMeasureKind),
+            (CorrelativeKeywordPhraseSeries, KeywordPhrase, Self),
+            (CorrelativeQuotedTextSeries, QuotedText, Self),
+            (CorrelativeInfinitiveComplementSeries, InfinitiveComplement, Self),
+            (CorrelativeFiniteSelectedHeadSeries, FiniteSelectedHead, Self, FiniteConcord,
+                SelectedFrameConcord),
+            (CorrelativeSecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
+                SelectedFrameConcord),
             (CorrelativeAdjectiveSeries, AdjectivePhrase, Self),
-            (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, Self, FiniteListConcord),
+            (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, Self, FiniteConcord),
             (CorrelativeBareObjectGapSeries, BareObjectGap, Self),
             (CorrelativeFiniteClauseSeries, FiniteClause, Self),
         ] {
             bind left = Member;
             bind rest = Tail;
-            use Agreement;
-            use Properties;
-            use Status;
+            use Agreement(rest, rest);
+            use Properties(rest, rest);
+            use Status(rest, rest);
         }
-        instance EitherSerialCoordination<Result, Member, Tail, Agreement = NoFeatures,
-            Properties = NoFeatures>: [
-            (Clause, Self, CorrelativeClauseSeries, SerialFiniteness),
-            (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteListConcord),
+        instance EitherSerialCoordination<Result, Member, Tail, Agreement = NoConcord,
+            Properties = NoConcord>: [
+            (Clause, Self, CorrelativeClauseSeries, NoConcord),
+            (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord),
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries,
-                SecondaryListProperties),
-            (NounPhrase, Self, CorrelativeNounPhraseSeries, NounListAgreement),
-            (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries,
-                PrepositionListPermissions),
-            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbListPermissions),
+                SecondaryConjunctProperties),
+            (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
+            (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, PrepositionPermissions),
+            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
-            (Cardinal, Self, CorrelativeCardinalSeries, CardinalListAgreement),
+            (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),
-            (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, SerialMeasureKind),
+            (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries),
-            (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, OvertListHeads),
-            (FiniteSelectedHead, Self, CorrelativeFiniteSelectedHeadSeries, FiniteListConcord,
-                SharedFrameListConcord),
-            (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries,
-                SecondaryListConcord, SharedFrameListConcord),
+            (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
+            (FiniteSelectedHead, Self, CorrelativeFiniteSelectedHeadSeries, FiniteConcord,
+                SharedFrameConcord),
+            (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries, SecondaryConcord,
+                SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries),
-            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteListConcord),
+            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteConcord),
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries),
             (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries),
         ] {
             bind left = Member;
             bind rest = Tail;
-            use Agreement;
-            use Properties;
+            use Agreement(rest, rest);
+            use Properties(rest, rest);
         }
-        instance BothCoordination<Result, Member, Agreement = NoFeatures,
-            Properties = NoFeatures>: [
+        instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord>: [
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
@@ -2275,7 +2108,7 @@ constructions! {
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
             (QuotedText, Self),
-            (InfinitiveComplement, Self, OvertConjunctHeads),
+            (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase),
@@ -2283,12 +2116,12 @@ constructions! {
             (BareObjectGap, Self),
         ] {
             bind left, right = Member;
-            use Agreement;
-            use Properties;
+            use Agreement(right, coordinator);
+            use Properties(right, coordinator);
         }
 
-        instance NeitherCoordination<Result, Member, Agreement = NoFeatures,
-            Properties = NoFeatures>: [
+        instance NeitherCoordination<Result, Member, Agreement = NoConcord,
+            Properties = NoConcord>: [
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
@@ -2300,7 +2133,7 @@ constructions! {
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
             (QuotedText, Self),
-            (InfinitiveComplement, Self, OvertConjunctHeads),
+            (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase),
@@ -2308,38 +2141,37 @@ constructions! {
             (BareObjectGap, Self),
         ] {
             bind left, right = Member;
-            use Agreement;
-            use Properties;
+            use Agreement(right, coordinator);
+            use Properties(right, coordinator);
         }
 
-        instance NeitherSerialCoordination<Result, Member, Tail, Agreement = NoFeatures,
-            Properties = NoFeatures>: [
-            (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteListConcord),
+        instance NeitherSerialCoordination<Result, Member, Tail, Agreement = NoConcord,
+            Properties = NoConcord>: [
+            (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord),
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries,
-                SecondaryListProperties),
-            (NounPhrase, Self, CorrelativeNounPhraseSeries, NounListAgreement),
-            (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries,
-                PrepositionListPermissions),
-            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbListPermissions),
+                SecondaryConjunctProperties),
+            (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
+            (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, PrepositionPermissions),
+            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
-            (Cardinal, Self, CorrelativeCardinalSeries, CardinalListAgreement),
+            (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),
-            (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, SerialMeasureKind),
+            (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries),
-            (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, OvertListHeads),
-            (FiniteSelectedHead, Self, CorrelativeFiniteSelectedHeadSeries, FiniteListConcord,
-                SharedFrameListConcord),
-            (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries,
-                SecondaryListConcord, SharedFrameListConcord),
+            (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
+            (FiniteSelectedHead, Self, CorrelativeFiniteSelectedHeadSeries, FiniteConcord,
+                SharedFrameConcord),
+            (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries, SecondaryConcord,
+                SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries),
-            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteListConcord),
+            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteConcord),
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries),
         ] {
             bind left = Member;
             bind rest = Tail;
-            use Agreement;
-            use Properties;
+            use Agreement(rest, rest);
+            use Properties(rest, rest);
         }
 
         construction PossessiveNounPhrase: NounPhrase {

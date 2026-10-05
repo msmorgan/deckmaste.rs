@@ -12,15 +12,17 @@ constructions! {
         category Nominal(number, Eligible);
         category OtherNominal(number, Eligible);
         category Adjective(Eligible);
-        policy SameNumber {
-            agree left.number = right.number;
+        policy SameNumber<Right> {
+            agree left.number = Right.number;
             export number = left.number;
         }
-        policy SingularSameNumber {
-            agree left.number = right.number;
+        policy SingularSameNumber<Right> {
+            agree left.number = Right.number;
             require left.number = Singular;
             export number = left.number;
         }
+        policy NoConcord<Right> {}
+        category Series(number, Eligible);
         construction Noun: Nominal {
             form [head: lexical(Noun)];
             require head.countability = Count;
@@ -45,11 +47,22 @@ constructions! {
             (OtherNominal, Self, SingularSameNumber),
         ] {
             bind left, right = Member;
-            use Agreement;
+            use Agreement(right);
         }
         instance Coordination: Adjective {
             bind left = Adjective;
             bind right = Adjective;
+            use NoConcord(right);
+        }
+        construction SeriesEnd: Series {
+            form [left: Nominal, ", and ", right: Nominal];
+            use SameNumber(right);
+            export Eligible = Yes;
+        }
+        construction SeriesContinue: Series {
+            form [left: Nominal, ", ", rest: Series];
+            use SameNumber(rest);
+            export Eligible = Yes;
         }
     }
 }
@@ -266,6 +279,44 @@ fn policy_rows_keep_explicitly_different_feature_constraints() {
             &lexicon,
             "creatures and artifacts",
             grammar::Category::OtherNominal
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn field_parameter_policy_preserves_independent_recursive_series_and_rejects_disagreement() {
+    let lexicon = lexicon();
+    let value = grammar::Reading::SeriesContinue {
+        form: 0,
+        left: Box::new(leaf(&lexicon, "creature", WordForm::Singular)),
+        rest: Box::new(grammar::Reading::SeriesEnd {
+            form: 0,
+            left: Box::new(leaf(&lexicon, "artifact", WordForm::Singular)),
+            right: Box::new(leaf(&lexicon, "creature", WordForm::Singular)),
+        }),
+    };
+    let text = "creature, artifact, and creature";
+    assert_eq!(value.realize(&lexicon).unwrap(), text);
+    assert_eq!(
+        readings(&lexicon, text, grammar::Category::Series),
+        BTreeSet::from([value.clone()])
+    );
+    let mut owners = Vec::new();
+    value
+        .visit_words(&mut |word| {
+            if let LexicalReading::Word(value) = &word.value {
+                owners.push(value.lexeme.clone());
+            }
+        })
+        .unwrap();
+    assert_eq!(owners, ["creature", "artifact", "creature"]);
+    assert_eq!(value.total_cost().unwrap(), 5);
+    assert!(
+        readings(
+            &lexicon,
+            "creatures, artifact, and creature",
+            grammar::Category::Series
         )
         .is_empty()
     );

@@ -44,7 +44,7 @@ pub(crate) struct Construction {
     pub rows: Vec<Vec<Ident>>,
     pub shared: bool,
     pub bindings: Vec<(Ident, Ident)>,
-    pub uses: Vec<Ident>,
+    pub uses: Vec<PolicyUse>,
     pub cost: Option<u64>,
     pub name: Ident,
     pub category: Ident,
@@ -52,6 +52,12 @@ pub(crate) struct Construction {
     pub equations: Vec<Equation>,
     pub boundary: Option<Ident>,
     pub onset: Option<Ident>,
+}
+
+#[derive(Clone)]
+pub(crate) struct PolicyUse {
+    pub name: Ident,
+    pub arguments: Vec<Ident>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -181,20 +187,20 @@ impl Parse for Declaration {
                     });
                 }
                 "policy" => {
-                    policies.push(parse_construction(&body, name, true)?);
+                    policies.push(parse_construction(&body, name, true, true)?);
                 }
                 "schema" => {
-                    schemas.push(parse_construction(&body, name, true)?);
+                    schemas.push(parse_construction(&body, name, true, false)?);
                 }
                 "instance" => {
-                    let mut instance = parse_construction(&body, name, false)?;
+                    let mut instance = parse_construction(&body, name, false, false)?;
                     instance.shared = true;
                     result.constructions.push(instance);
                 }
                 "construction" => {
                     result
                         .constructions
-                        .push(parse_construction(&body, name, false)?);
+                        .push(parse_construction(&body, name, false, false)?);
                 }
                 _ => {
                     return Err(syn::Error::new(
@@ -234,7 +240,10 @@ impl Parse for Declaration {
                         .bindings
                         .iter()
                         .any(|(_, value)| value == parameter);
-                let policy_role = construction.uses.iter().any(|value| value == parameter);
+                let policy_role = construction
+                    .uses
+                    .iter()
+                    .any(|value| value.name == *parameter);
                 category_roles.push(category_role);
                 if category_role == policy_role {
                     return Err(syn::Error::new(
@@ -271,8 +280,22 @@ impl Parse for Declaration {
                             "default row category must be declared",
                         ));
                     }
-                } else if !policies.iter().any(|policy| policy.name == *default) {
-                    return Err(syn::Error::new(default.span(), "unknown policy default"));
+                } else {
+                    let policy = policies
+                        .iter()
+                        .find(|policy| policy.name == *default)
+                        .ok_or_else(|| syn::Error::new(default.span(), "unknown policy default"))?;
+                    if construction
+                        .uses
+                        .iter()
+                        .filter(|application| application.name == construction.parameters[index])
+                        .any(|application| application.arguments.len() != policy.parameters.len())
+                    {
+                        return Err(syn::Error::new(
+                            default.span(),
+                            "policy default field argument arity must match parameters",
+                        ));
+                    }
                 }
             }
             for row in &construction.rows {
@@ -327,9 +350,9 @@ impl Parse for Declaration {
                     if let Some(index) = construction
                         .parameters
                         .iter()
-                        .position(|parameter| parameter == policy)
+                        .position(|parameter| *parameter == policy.name)
                     {
-                        *policy = row[index].clone();
+                        policy.name = row[index].clone();
                     }
                 }
                 instance.parameters.clear();
@@ -344,6 +367,14 @@ impl Parse for Declaration {
             if !policy_names.insert(policy.name.to_string()) {
                 return Err(syn::Error::new(policy.name.span(), "duplicate policy"));
             }
+            let unique: std::collections::BTreeSet<_> =
+                policy.parameters.iter().map(ToString::to_string).collect();
+            if unique.len() != policy.parameters.len() {
+                return Err(syn::Error::new(
+                    policy.name.span(),
+                    "duplicate policy field parameter",
+                ));
+            }
             if !policy.forms.is_empty()
                 || !policy.bindings.is_empty()
                 || !policy.uses.is_empty()
@@ -357,13 +388,57 @@ impl Parse for Declaration {
                 ));
             }
         }
+        let schema_fields: std::collections::BTreeMap<_, _> = schemas
+            .iter()
+            .map(|schema| (schema.name.to_string(), declared_fields(&schema.forms)))
+            .collect();
         for owner in schemas.iter_mut().chain(result.constructions.iter_mut()) {
-            for name in &owner.uses {
+            let fields = if owner.shared {
+                schema_fields
+                    .get(&owner.name.to_string())
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                declared_fields(&owner.forms)
+            };
+            for application in &owner.uses {
                 let policy = policies
                     .iter()
-                    .find(|policy| policy.name == *name)
-                    .ok_or_else(|| syn::Error::new(name.span(), "unknown policy"))?;
-                owner.equations.extend(policy.equations.clone());
+                    .find(|policy| policy.name == application.name)
+                    .ok_or_else(|| syn::Error::new(application.name.span(), "unknown policy"))?;
+                if policy.parameters.len() != application.arguments.len() {
+                    return Err(syn::Error::new(
+                        application.name.span(),
+                        "policy field argument arity must match parameters",
+                    ));
+                }
+                for argument in &application.arguments {
+                    if !fields.contains(&argument.to_string()) {
+                        return Err(syn::Error::new(
+                            argument.span(),
+                            "policy argument must name a caller field",
+                        ));
+                    }
+                }
+                let mut equations = policy.equations.clone();
+                for equation in &mut equations {
+                    for reference in equation.references_mut() {
+                        if let Some(index) = policy
+                            .parameters
+                            .iter()
+                            .position(|parameter| *parameter == reference.field)
+                        {
+                            reference.field = application.arguments[index].clone();
+                        }
+                        if !fields.contains(&reference.field.to_string()) {
+                            return Err(syn::Error::new(
+                                reference.field.span(),
+                                "policy reference must name a caller field",
+                            ));
+                        }
+                    }
+                }
+                owner.equations.extend(equations);
             }
         }
         let mut schema_names = std::collections::BTreeSet::new();
@@ -469,10 +544,23 @@ fn parse_construction(
     body: ParseStream<'_>,
     name: Ident,
     schema: bool,
+    policy: bool,
 ) -> syn::Result<Construction> {
     let mut parameters = Vec::new();
     let mut defaults = Vec::new();
     let mut rows = Vec::new();
+    if policy && body.peek(Token![<]) {
+        body.parse::<Token![<]>()?;
+        loop {
+            parameters.push(body.parse::<Ident>()?);
+            defaults.push(None);
+            if body.peek(Token![>]) {
+                break;
+            }
+            body.parse::<Token![,]>()?;
+        }
+        body.parse::<Token![>]>()?;
+    }
     let category = if schema {
         name.clone()
     } else {
@@ -543,7 +631,15 @@ fn parse_construction(
         let directive: Ident = contents.call(Ident::parse_any)?;
         match directive.to_string().as_str() {
             "use" => {
-                construction.uses.push(contents.parse()?);
+                let name = contents.parse()?;
+                let arguments = if contents.peek(syn::token::Paren) {
+                    let arguments;
+                    parenthesized!(arguments in contents);
+                    names(&arguments)?
+                } else {
+                    Vec::new()
+                };
+                construction.uses.push(PolicyUse { name, arguments });
             }
             "bind" => {
                 let mut fields = vec![contents.parse::<Ident>()?];
@@ -675,4 +771,26 @@ fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {
         form.parse::<Token![,]>()?;
     }
     Ok(parts)
+}
+
+fn declared_fields(forms: &[Vec<Part>]) -> std::collections::BTreeSet<String> {
+    forms
+        .iter()
+        .flatten()
+        .filter_map(|part| match part {
+            Part::Field(name, _) => Some(name.to_string()),
+            Part::Literal(_) => None,
+        })
+        .collect()
+}
+
+impl Equation {
+    fn references_mut(&mut self) -> Vec<&mut Reference> {
+        match self {
+            Self::Export(_, reference) | Self::Require(reference, _) => vec![reference],
+            Self::ExportTable(_, _, arguments) => arguments.iter_mut().collect(),
+            Self::Agree(left, right) => vec![left, right],
+            Self::ExportConstant(_, _) => vec![],
+        }
+    }
 }

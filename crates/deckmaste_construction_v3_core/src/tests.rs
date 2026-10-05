@@ -377,3 +377,110 @@ fn explicit_row_defaults_keep_typed_checked_prefixes() {
         "default row category must be declared",
     );
 }
+
+#[test]
+fn policy_field_arguments_are_bounded_and_checked_at_every_use() {
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Empty<Field, Field> {}
+            construction Leaf: A { form [head: lexical(Noun)]; }
+        } },
+        "duplicate policy field parameter",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Empty<Field> {}
+            construction Leaf: A { form [head: lexical(Noun)]; use Empty; }
+        } },
+        "arity must match",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Empty<Field> {}
+            construction Leaf: A { form [head: lexical(Noun)]; use Empty(missing); }
+        } },
+        "argument must name a caller field",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Free { require missing.number = Singular; }
+            construction Leaf: A { form [head: lexical(Noun)]; use Free; }
+        } },
+        "reference must name a caller field",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Recursive<Field> { use Recursive(Field); }
+            construction Leaf: A { form [head: lexical(Noun)]; }
+        } },
+        "only feature equations",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Empty {}
+            policy Argument<Field> {}
+            schema Leaf { form [head: lexical(Noun)]; }
+            instance Leaf<Result, Rule=Empty>: [(A, Argument)] { use Rule(head); }
+        } },
+        "default field argument arity",
+    );
+}
+
+#[test]
+fn field_policy_expansion_is_identical_to_authored_equations_for_right_and_rest() {
+    for name in ["right", "rest"] {
+        let other = quote::format_ident!("{name}");
+        let header = quote! {
+            category Nominal(number);
+            table echo(number) -> number { (Singular) => Singular, (Plural) => Plural }
+            construction Noun: Nominal {
+                form [head: lexical(Noun)];
+                export number = head.number;
+            }
+        };
+        let plain = compile(quote! { mod same {
+            #header
+            construction Pair: Nominal {
+                form [left: Nominal, " and ", #other: Nominal];
+                agree left.number = #other.number;
+                require #other.number = Singular;
+                export number = echo(#other.number);
+            }
+        } })
+        .unwrap();
+        let reused = compile(quote! { mod same {
+            #header
+            policy Concord<Other> {
+                agree left.number = Other.number;
+                require Other.number = Singular;
+                export number = echo(Other.number);
+            }
+            construction Pair: Nominal {
+                form [left: Nominal, " and ", #other: Nominal];
+                use Concord(#other);
+            }
+        } })
+        .unwrap();
+        assert_eq!(plain.to_string(), reused.to_string());
+        let two_parameters = compile(quote! { mod same {
+            #header
+            policy Concord<Other, Source> {
+                agree Source.number = Other.number;
+                require Other.number = Singular;
+                export number = echo(Other.number);
+            }
+            construction Pair: Nominal {
+                form [left: Nominal, " and ", #other: Nominal];
+                use Concord(#other, left);
+            }
+        } })
+        .unwrap();
+        assert_eq!(plain.to_string(), two_parameters.to_string());
+    }
+}

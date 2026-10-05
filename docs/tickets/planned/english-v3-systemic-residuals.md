@@ -65,7 +65,7 @@ an unmet requirement regardless of parse count.
 Reproduce baseline reports using the activation landing's commands and current
 supported snapshot; old ignored artifacts are optional evidence, never required
 ticket inputs. Focused corroboration uses `cargo xtask english-v3 --data
-<subset.json> --output <report.json> --samples-per-face 1024 --workers 2` with
+<subset.json> --output <report.json> --samples-per-face 1024 --workers 24` with
 the nine frame witnesses and no reading limit. Synthetic probes separate
 article admission (`Draw a card.` versus `Draw the card.`), capitalization
 (`draw the card.`), and numeral duplication (`Gain 1 life.` has two Readings,
@@ -89,3 +89,45 @@ Earley/packed admission contract. V2 remains untouched until cutover. STOP and
 report rather than use destructive preference, word-named guards, opaque
 leaves, eager AST products or a fixed coverage percentage as the handoff test.
 Standard constraints apply.
+
+## Progress reconciliation (2026-10-05)
+
+The lexical-measures and article-variants prerequisites are done. Recent work
+also supplies lexicalized mana value/cost and face up/down, class-owned type
+noun/modifier and negation entries, singular-only you, ordinary binary/Oxford
+serial/correlative coordination, selected-head sharing, and corrected ellipsis
+and passive/perfect selection. These resolve portions of the implementation
+ledger, not this final audit's acceptance conditions.
+
+The coordination-schema landing preserves coverage while reducing 462 named
+constructions to 182. The attached construction-feature-economy work further
+shares agreement contracts and removes proven constant or unused feature
+propagation; it adds no coverage and discharges no missing grammatical host.
+
+The complete current census examines 32,828 supported faces: 26,642 no Reading,
+4,246 one, 1,940 multiple; 6,186 covered and 28,799 checked/exact Readings. All
+20 named migration witnesses have known spellings, but 19 still have no
+whole-face Reading. Absorbing Man and Titania has two, with the auxiliary
+Object Gap shape present; an independent complete expected-set regression
+remains owed. Known spelling does not prove the needed lexical analysis.
+
+Keep the following obligations open:
+
+- Ordered frame segments: several selected heads sharing one complement do
+  not implement one head with several ordered amount/recipient segments.
+  Lower Fireslinger ambiguity does not establish that structure. The existing
+  frame-coordination ticket owns this repair and depends on keyword-labels.
+- Keyword parameters and labels: the keyword-labels ticket remains the owner;
+  quality, subject and compound parameter hosts require implementation. The
+  historical claim of a flavor-word fallback is not supported by the current
+  declarations and cannot discharge the 196-identity obligation.
+- Temporal NP adjuncts and preterite relatives; reduced passive postnominals
+  retaining an Object; the eleven passive-temporal witnesses; relative and
+  comparative-cost host breadth; attachment, scope, Type Line within-group
+  ordering and document obligations still require discriminating witnesses.
+
+The old 32,641-face activation snapshot differs from the current snapshot.
+Reconcile the 6,396 unclassified, 85 frame and 196 flavor ledgers by identity;
+count subtraction is not a cause audit. Do not close this ticket or declare
+these residuals long-tail from the present sample. The current DRY pass and
+its verification belong to the attached feature-economy ticket.
