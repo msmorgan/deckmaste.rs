@@ -389,13 +389,14 @@ theorem okGetsBattlefield :
       (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
   decide
 
-/-- "Destroy target creature. It gets +3/+3 until end of turn." Both halves of the boost read
-the destroyed creature. -/
+/-- "Destroy target creature. It gets +3/+3 until end of turn." The boost reads the destroyed
+creature, refused once (the two-modification spelling, whose halves each read it, is
+`GetsBothDeltas.badGetsGraveyardTwoHalves`). -/
 theorem badGetsGraveyard :
     Instruction.check []
       (.sequentially
         [destroy (target creature), get it (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)])
-      = [.zoneIs .battlefield, .zoneIs .battlefield] := by
+      = [.zoneIs .battlefield] := by
   decide
 
 /-- "Choose a creature. This deals 3 damage to each creature not chosen this way." -/

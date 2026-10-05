@@ -1295,6 +1295,9 @@ mutual
     | .inCaller scope body => leaveCaller bs (body.intro (enterCaller scope bs))
     | .letterDefinition l amt => defineLetter l (Amount.intro bs amt)
     | .modification n _ d => Delta.introduced (selfSubjIntro bs n) d ++ selfSubjIntro bs n
+    | .ptModification n p t =>
+      let afterPower := Delta.introduced (selfSubjIntro bs n) p ++ selfSubjIntro bs n
+      Delta.introduced afterPower t ++ afterPower
     | .ptDefinition n _ amt =>
       outcomeB .namedNumber :: (Amount.introduced (selfSubjIntro bs n) amt ++ selfSubjIntro bs n)
     | .ptSwitch n => selfSubjIntro bs n
@@ -1542,6 +1545,7 @@ def Cost.numberSlots : Cost → List (Amount × NumberRegime)
 def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .withBindings _ _ body | .inCaller _ body => body.numberSlots
   | .modification _ _ delta => delta.numberSlots
+  | .ptModification _ power toughness => power.numberSlots ++ toughness.numberSlots
   -- An effect that sets a power and toughness, the exception [CR#107.1b] names.
   | .ptDefinition _ _ amount => [(amount, .signed)]
   | .ptSwitch _ => []

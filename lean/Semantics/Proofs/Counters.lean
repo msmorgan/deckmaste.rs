@@ -72,15 +72,15 @@ theorem okAltHeaderAgreeingReadback :
       = [] := by
   decide
 
-/-- The Idris pin refutes the first anaphor; unresolved, the subject has no zone, and the
-toughness half's `it` reads back the same missing antecedent. -/
+/-- The Idris pin refutes the anaphor; unresolved, the subject has no zone. The subject is
+written once, so each is refused once (the two-modification spelling, which re-read it, is
+`GetsBothDeltas.badAltHeaderMixedReadbackTwoHalves`). -/
 theorem badAltHeaderMixedReadback :
     Ability.check []
       (.triggered (blocks thisCreature none)
         [becomesBlocked thisCreature (some (a creature))] none [] none none none
         (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
-      = [ .anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield,
-          .anaphor .bare .one 0, .zoneIs .battlefield ] := by
+      = [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by
   decide
 
 theorem badThreeArmHeaderReadback :

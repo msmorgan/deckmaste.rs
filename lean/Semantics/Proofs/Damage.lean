@@ -767,11 +767,13 @@ theorem okGetsCreature :
       (get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) = [] := by
   decide
 
-/-- "Target source gets +1/+1 until end of turn." [CR#609.7a] -/
+/-- "Target source gets +1/+1 until end of turn." [CR#609.7a] The subject is written once,
+so its zone is refused once (the two-modification spelling is
+`GetsBothDeltas.badGetsSourceTwoHalves`). -/
 theorem badGetsSource :
     Instruction.check []
       (get (target source) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))
-      = [.zoneIs .battlefield, .zoneIs .battlefield] := by
+      = [.zoneIs .battlefield] := by
   decide
 
 end Semantics.Proofs.Damage

@@ -895,30 +895,27 @@ theorem okOwnPowerWithoutNewMention :
       = [] := by
   decide
 
-/-- "Target creature gets +1/+1" -/
+/-- "Target creature gets +1/+1": the shared subject read once, by the one stat change. (The
+two-modification spelling it had is `GetsBothDeltas.okOwnReadsOneInDeltaTwoHalves`.) -/
 theorem okOwnReadsOneInDelta :
     Instruction.check []
       (establishFor (target creature)
-        [ .modification (.pro .bare .one (.top (NounPhrase.introduced [] (target creature)).length))
-            .power
-            (.up (.lit 1)),
-          .modification (.pro .bare .one (.top (NounPhrase.introduced [] (target creature)).length))
-            .toughness (.up (.lit 1)) ]
+        [ .ptModification (.pro .bare .one (.top (NounPhrase.introduced [] (target creature)).length))
+            (.up (.lit 1)) (.up (.lit 1)) ]
         none) = [] := by
   decide
 
+/-- "Both target creature and target artifact get +1/+1", the shared subject read as "it":
+ambiguous between the two, refused once. (The two-modification spelling it had, refused once
+per half, is `GetsBothDeltas.badSharedSubjectTwoInDeltaTwoHalves`.) -/
 theorem badSharedSubjectTwoInDelta :
     Instruction.check []
       (establishFor (Primitives.NounPhrase.both (target creature) (target artifact))
-        [ .modification
+        [ .ptModification
             (.pro .bare .one
               (.top (NounPhrase.introduced [] (Primitives.NounPhrase.both (target creature) (target artifact))).length))
-            .power (.up (.lit 1)),
-          .modification
-            (.pro .bare .one
-              (.top (NounPhrase.introduced [] (Primitives.NounPhrase.both (target creature) (target artifact))).length))
-            .toughness (.up (.lit 1)) ]
-        none) = [.anaphor .bare .one 2, .anaphor .bare .one 2] := by
+            (.up (.lit 1)) (.up (.lit 1)) ]
+        none) = [.anaphor .bare .one 2] := by
   decide
 
 theorem badOwnTwoInDelta :

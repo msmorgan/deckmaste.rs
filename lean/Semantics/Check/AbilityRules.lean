@@ -623,6 +623,12 @@ mutual
     | .modification n what d =>
       NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) d.amount ++
         zoneIsCheck (NounPhrase.zone bs n) .battlefield ++ refuse what.modifyOk .modifyStat
+    -- The subject is checked once; the toughness delta reads what the power delta announced,
+    -- as the toughness half of a two-modification conjunction does.
+    | .ptModification n p t =>
+      NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) p.amount ++
+        zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
+        Amount.check (Delta.introduced (selfSubjIntro bs n) p ++ selfSubjIntro bs n) t.amount
     | .ptDefinition n _ amt =>
       NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) amt ++
         refuse n.selfDefinedOk .selfDefinedOk

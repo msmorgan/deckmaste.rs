@@ -757,12 +757,9 @@ semantic_macro itsOther (subject : NounPhrase) (delta : Delta Amount) : NounPhra
     (sameWindow
       (Delta.introduced (selfSubjIntro [] subject) delta ++
         NounPhrase.selfSubjIntroduced subject ++ NounPhrase.introduced [] subject))
-/-- "<subject> gets +P/+T [until …]": the two stat changes as one static clause; the toughness
-half reads its subject back as "it". -/
+/-- "<subject> gets +P/+T [until …]": one change to both stats, the subject written once. -/
 semantic_macro getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
-  .conjunction none
-    [.modification subject .power power, .modification (itsOther subject power) .toughness
-        toughness]
+  .ptModification subject power toughness
 /-- "<subject> has base power and toughness P/T" -/
 semantic_macro getsBase (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
   getsPt subject (.set power) (.set toughness)

@@ -506,6 +506,15 @@ pub enum StaticSpec {
         stat: Stat,
         delta: Delta<Amount>,
     },
+    /// "<subject> gets +P/+T" and "<subject> has base power and toughness P/T": one change
+    /// to power and toughness together, its subject written once. Each delta is the one a
+    /// `Modification` of that stat would carry: a set applies in layer 7b, a change by an
+    /// amount in layer 7c [CR#613.4b,613.4c].
+    PtModification {
+        subject: NounPhrase,
+        power: Delta<Amount>,
+        toughness: Delta<Amount>,
+    },
     PtDefinition {
         subject: NounPhrase,
         slots: DefinedSlots,

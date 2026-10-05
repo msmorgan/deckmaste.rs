@@ -30,6 +30,7 @@ import Semantics.Proofs.TypeEvidence
 import Semantics.Proofs.Turn
 import Semantics.Proofs.Zone
 import Semantics.Proofs.Actor
+import Semantics.Proofs.GetsBothDeltas
 
 /-!
 # Semantics.Proofs

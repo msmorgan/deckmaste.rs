@@ -21,15 +21,15 @@ theorem okGetsBattlefieldSubject :
   decide
 
 /-- "That creature gets +2/+0 as long as this creature is attacking." The Idris pin refutes
-the first anaphor; unresolved, the subject has no zone, and the toughness half's `it` reads
-back the same missing antecedent. -/
+the anaphor; unresolved, the subject has no zone. The subject is written once, so each is
+refused once (the two-modification spelling, which re-read it, is
+`GetsBothDeltas.badThatCreatureIsCondSubjectTwoHalves`). -/
 theorem badThatCreatureIsCondSubject :
     Ability.check []
       (.static
         (onlyWhile (getsPt (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)))
           (.matches thisCreature attacking)))
-      = [ .anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield,
-          .anaphor .bare .one 0, .zoneIs .battlefield ] := by
+      = [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by
   decide
 
 /-- "Equipped creature gets +1/+1." -/
