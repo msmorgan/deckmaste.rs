@@ -574,9 +574,20 @@ impl Repository {
                 continue;
             }
             let absolute = self.root.join(&relative);
-            if absolute.is_file() {
-                files.push((relative, absolute));
+            if !absolute.is_file() {
+                continue;
             }
+            // A symlink into the repository is the same content as its target:
+            // the target is scanned (or exempt) under its own name, so the link
+            // is skipped rather than counted twice or escaping the exclusions.
+            if std::fs::symlink_metadata(&absolute)
+                .is_ok_and(|metadata| metadata.file_type().is_symlink())
+                && let (Ok(target), Ok(root)) = (absolute.canonicalize(), self.root.canonicalize())
+                && target.starts_with(&root)
+            {
+                continue;
+            }
+            files.push((relative, absolute));
         }
         anyhow::ensure!(
             !files.is_empty(),
@@ -2198,6 +2209,38 @@ const CR_FIXTURE: &str = "rule 100.1";
         assert_eq!(
             added_diff_lines(diff),
             BTreeSet::from([("src/a.rs".into(), 3)])
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlink_to_an_exempt_or_scanned_file_adds_nothing() {
+        let fixture = Fixture::new();
+        fixture.write("data/rules/cr.txt", CR);
+        fixture.write(
+            "cite-config.json",
+            r#"{
+                "format": "bracketed",
+                "sources": { "globs": ["*.md"], "exclude": ["EXEMPT.md"] }
+            }"#,
+        );
+        fixture.write("EXEMPT.md", "Never write CR 100.1 or [CR#100.1].\n");
+        fixture.write("SCANNED.md", "See [CR#100.1].\n");
+        std::os::unix::fs::symlink("EXEMPT.md", fixture.path().join("LINK_EXEMPT.md")).unwrap();
+        std::os::unix::fs::symlink("SCANNED.md", fixture.path().join("LINK_SCANNED.md")).unwrap();
+        let repo = Repository::load(fixture.path()).unwrap();
+        let files: Vec<String> = repo
+            .source_files()
+            .unwrap()
+            .into_iter()
+            .map(|(relative, _)| relative)
+            .collect();
+        assert_eq!(files, ["SCANNED.md"]);
+        assert!(repo.noncompliant_hits().unwrap().is_empty());
+        assert_eq!(
+            repo.citation_sites().unwrap().len(),
+            1,
+            "a symlink to a scanned file is not counted twice"
         );
     }
 
