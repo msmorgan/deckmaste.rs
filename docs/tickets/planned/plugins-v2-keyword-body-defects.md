@@ -1,67 +1,70 @@
 ---
 needs: []
 ---
-**Keyword declarations that are wrong or inconsistent, found while surveying
-them for re-spelling (2026-10-04).** None is a re-spelling, so none is fixed by
-`plugins-v2-keyword-bodies-over-helpers`. Split this ticket when one is picked
-up. Standard constraints apply.
+**Residue of the 2026-10-04 keyword-body survey: what is deferred, what stays
+as it is on purpose, and what is still unwritten.** Split on 2026-10-05; the
+actionable items moved to their own tickets (table below). What remains here
+is either a recorded decision not to change something, or a backlog with no
+card asking for it yet. Standard constraints apply.
 
-- **`gift` cannot be invoked.** It declares `params: [Subject]` and puts that
-  parameter where a predicate is required. Owner's direction: gift is
-  non-normative and gets one macro per printed variant (`giftACard`,
-  `giftATappedFish`, …). Take the variant list from the CR snapshot.
-- **`champion`, `enchant`, `companion`, `foretell` declare a parameter the
-  keyword term drops.** Owner: these "may need new mechanisms that allow
-  different parts of the game state to be addressed that currently cannot
-  be". They carry `keyword_params: []` until then. `enchant` is marked
+## Where the other items went
+
+| Item (old wording) | Now in |
+|---|---|
+| `gift` cannot be invoked | `plugins-v2-gift-variants` |
+| The bodyless `exchange` shadows the `Exchange` alias; `auraSwap` keeps a constructor | `plugins-v2-exchange-helpers` |
+| Scope: `assemble`, `hiddenAgenda`, `spaceSculptor`, `visit` | `plugins-v2-out-of-scope-keywords` (`assemble` stays, blank) |
+| Lean has bodies for fight, scry and surveil | `plugins-v2-scry-surveil-fight-bodies` |
+| Helpers proposed, not built (`mayOrElse`, "+X/+X", token copy, Servo token, cast permission, menace's bound) | `plugins-v2-keyword-helper-additions` |
+| Named calls forced by parameter order | `plugins-v2-keyword-helper-additions` |
+| `returnToBattlefieldWithCounters` omits the return wrapper | `plugins-v2-keyword-helper-additions` (delete it; see below) |
+| Storm, split second and surge flatten "another spell" | `plugins-v2-keyword-helper-additions` |
+| Bushido, exalted, flanking, melee, prowess and rampage repeat the subject in the toughness half | `semantics-v2-gets-both-deltas` |
+| `isCard` written inconsistently | `plugins-v2-keyword-helper-additions` |
+| `amass` has no `Enact` wrapper | `semantics-v2-actor-handoff` |
+| The `exile` keyword action has no agent | `plugins-v2-implicit-actor-spelling` (`exileBy` retires) |
+
+## Corrections to the old text (2026-10-05)
+
+- "Eight bodies write the raw wrapper" for exile is false now: eight files call
+  the `exileBy` helper (ingest, scavenge, myriad, embalm, eternalize, recover,
+  unearth, forage), which the handoff turns into `exile(…)` under the actor.
+- Old text quoting `aAtRandom` now reads `aRandom`.
+- `returnToBattlefieldWithCounters`: "one of the two is wrong" was mistaken.
+  The RON helper has no callers, and persist and undying already go through
+  `returnToBattlefield`; the helper is deleted.
+
+## Stays as it is, on purpose
+
+- **Sequenced costs stay refused** (`Instruction.costActionOk` in
+  `lean/Semantics/Check/Abilities.lean`, pin `badSequentialCost` in
+  `Proofs/Deontic.lean`). The reason, to be recorded beside the rule: costs are
+  paid "in any order" [CR#601.2h], which a cost written as an ordered
+  sequence would contradict, and no Vintage-legal card has "then" inside a
+  cost. The rule's other inconsistencies (it
+  accepts a sequence inside a fixed repeat, and accepts conditionals and loops)
+  wait until costs are next touched.
+- **Deferred, unchanged:** `champion`, `enchant`, `companion`, `foretell`
+  declare a parameter the keyword term drops and carry `keyword_params: []`.
+  Owner: they "may need new mechanisms that allow different parts of the game
+  state to be addressed that currently cannot be". `enchant` is marked
   "Settled empty" and still drops its subject.
 - **`prototype`** forwards nothing by design: its cost, power and toughness are
   the inset frame's alternative characteristics [CR#718.1,718.2], modelled as
-  `Card::Prototype`. Its declared params describe the printed line only. Listed
-  so nobody "fixes" it.
-- **`returnToBattlefieldWithCounters`** omits the return wrapper that persist
-  and undying write by hand. One of the two is wrong.
-- **`demonstrate`** refers to its copy two different ways in parallel
-  branches.
-- **`amass`** has no `Enact` wrapper while `bolster` and `adapt` do.
-- **Storm, split second and surge** flatten "another spell" into one
-  conjunction; **bushido, exalted, flanking, melee, prowess and rampage**
-  repeat the subject in the toughness half. Lean's macros write both
-  differently. Decide which side is right.
-- **The `exile` Keyword Action has no agent** and eight bodies write the raw
-  wrapper to get one. Folded into `semantics-v2-action-agents`.
-- **The bodyless `exchange` Keyword Action** shadows any alias for the
-  `Exchange` instruction, so `auraSwap` keeps a constructor.
-- **24 Keyword Actions have no body.** Lean has bodies for fight, scry and
-  surveil.
-- **Scope.** `assemble` is defined as "a keyword action in the Unstable set"
-  [CR#701.45a]. `hiddenAgenda`, `spaceSculptor` and `visit` were flagged as
-  possibly out of scope from memory, unverified; check them against the card
-  data before removing anything.
+  `Card::Prototype`. A frame fact; listed so nobody "fixes" it.
+- **`demonstrate`** stays on the raw allowlist with `Pro(Word(Copy), One,
+  top(1))` for "that copy" (the chosen player's copy, not the caster's). No
+  `latest` helper is built: one use does not justify a name.
 
-## Residue from the keyword-body sweep (2026-10-04)
+## Backlog, waiting for a card or a pass
 
-- **Helpers proposed, not built; the owner has not ruled on names.**
-  `mayOrElse(player, body, otherwise)` for "you may …; if you don't, …"
-  (fabricate, fading and madness fall to named calls because the "if you do"
-  slot comes first); one change applied to both power and toughness for
-  "+X/+X" (melee, rampage); a token-copy helper for myriad's tapped-and-attacking
-  copy; a token helper that takes extra card types (fabricate's Servo); a
-  general cast permission (`airbend`, aftermath); a bound on "can't be blocked
-  by" (menace).
-- **Named calls forced by parameter order.** `returnToBattlefield` (riders
-  before agent and origin), `activated` (limit before guard), `deonticRule`,
-  `damage`, `verbedEvent`, `addMana`.
+- **21 keyword actions have no body** and wait for a card that needs one:
+  activate, assemble (blank on purpose), cast, cloak, collectEvidence,
+  connive, discover, double, exchange (bodyless on purpose, for parsing),
+  fateseal, incubate, learn, manifest, manifestDread, play, regenerate,
+  support, theRingTemptsYou, triple, ventureIntoTheDungeon, waterbend.
 - **The counter and type declarations still write raw conferrals.** `types/`
   is skipped by `cargo xtask expansions`, so give it coverage before
-  re-spelling.
+  re-spelling. (The counter declarations are rewritten by
+  `semantics-v2-counter-kind-is-a-name`; do this after it.)
 - **Helper macros' own bodies** were left for a later pass.
-- **The cost-action rule has no recorded rationale and is inconsistent.** It
-  refuses a sequence but accepts one inside a fixed repeat, and accepts
-  conditionals and loops. `badSequentialCost` was ported from Idris without a
-  reason. Costs are paid "in any order" [CR#601.2h], which is a possible
-  basis; re-derive the rule from that when costs are next touched.
-- **`isCard` is written inconsistently.** The Lean bench writes "a card in
-  hand" without it; RON writes `cardIn(hand)`. A token can sit in a hand,
-  graveyard or exile until state-based actions are checked [CR#111.7,704.5d],
-  so the conjunct is meaningful; bring the bench into line.
