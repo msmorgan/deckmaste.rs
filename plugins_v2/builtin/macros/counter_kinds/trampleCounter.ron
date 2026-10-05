@@ -5,14 +5,6 @@ CounterKind(
     params: [],
     spelling: "trample",
     grammar: FixedTerm(surface: "trample"),
-    body: Counter(
-        kind: Named(name: "trampleCounter"),
-        holder: Object,
-        confers: [
-            Property(spec: AbilityGrant(
-                subject: This,
-                ability: Keyword(keyword: "Trample", params: [], body: []),
-            )),
-        ],
-    ),
+    holder: Object,
+    confers: [grants(keyword("Trample"))],
 )

@@ -743,6 +743,49 @@ fn a_counter_macro_denotes_the_kind_its_definition_names_and_reads_bare_as_print
     );
 }
 
+/// A counter declaration's conferral helpers (`macros/conferrals/`) write what
+/// ONE counter confers, and the model applies it once per counter held: a
+/// +1/+1 counter's is "+1/+1" with no count in it [CR#122.1a], a keyword
+/// counter's is the keyword [CR#122.1b].
+#[test]
+fn a_counter_conferral_helper_writes_what_one_counter_confers() {
+    use deckmaste_semantics_v2::rules::Conferral;
+    use deckmaste_semantics_v2::words::Delta;
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    let read = |source: &str| -> Conferral {
+        builtin
+            .macros
+            .read_str(source)
+            .unwrap_or_else(|error| panic!("{source} reads as a conferral: {error}"))
+    };
+    let one = || Amount::Lit { value: 1 };
+    assert_eq!(
+        read("boost(up(1), up(1))"),
+        Conferral::Property {
+            spec: StaticSpec::PtModification {
+                subject: NounPhrase::This,
+                power: Delta::Up { amount: one() },
+                toughness: Delta::Up { amount: one() },
+            },
+        }
+    );
+    assert_eq!(
+        read(r#"grants(keyword("Flying"))"#),
+        Conferral::Property {
+            spec: StaticSpec::AbilityGrant {
+                subject: NounPhrase::This,
+                ability: Box::new(Ability::Keyword {
+                    keyword: "Flying".to_owned(),
+                    params: vec![],
+                    body: vec![],
+                }),
+            },
+        }
+    );
+}
+
 /// `NounWord::Type` is an injection (§11.1): "that creature" is
 /// `that(Creature)`, the same value as the written-out forms, while the
 /// pronoun word's own constructors keep winning.

@@ -3,5 +3,5 @@ CounterKind(
     params: [],
     spelling: "time",
     grammar: FixedTerm(surface: "time"),
-    body: Counter(kind: Named(name: "timeCounter"), holder: Object, confers: []),
+    holder: Object,
 )

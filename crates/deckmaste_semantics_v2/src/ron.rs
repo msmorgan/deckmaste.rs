@@ -134,6 +134,11 @@ pub fn kinds() -> KindSet {
     kinds.add(Kind::new("HeaderPossessor"));
     kinds.add(Kind::new("LevelBand"));
     kinds.add(Kind::new("PrototypeFrame"));
+    // A registry definition's conferral (`crate::rules::Conferral`), where a
+    // counter declaration's conferral helpers expand (`macros/conferrals/`).
+    // Hand-built for the same reason: the type is no `semantic_expression`
+    // and carries no dispatch set a derive would read.
+    kinds.add(Kind::new("Conferral"));
     // Declaration positions: `Macro` is where a meta-macro's product is read
     // (`macros/meta/`), and each declaration kind is where the declarations it
     // produces register.

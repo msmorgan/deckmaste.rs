@@ -309,16 +309,18 @@ pub(super) fn keyword_definitions(
     Ok(result)
 }
 
-/// The keywords a counter declaration makes a counter of [CR#122.1b]. The
-/// registry declares one counter per keyword the rule names, so eligibility is
-/// read off the counter family rather than restated on the keyword row: a
-/// keyword counter is the counter whose conferral grants its bearer the
-/// keyword ("causes that object to gain that keyword").
-pub(super) fn counter_eligible_keywords(
+/// Every counter declaration's name and `Definition` node, in declaration
+/// order. The meta-macro derives the body from the declaration's name, holder
+/// and conferrals, and the conferrals may be written over the builtin helpers
+/// (`macros/conferrals/`), so the body is read through the builtin plugin's
+/// macros rather than the bare dialect.
+fn counter_definitions(
     declarations: &[NormalizedDeclaration],
-) -> anyhow::Result<BTreeSet<String>> {
-    let dialect = macro_set();
-    let mut result = BTreeSet::new();
+    plugin_dir: &Path,
+) -> anyhow::Result<Vec<(String, Definition)>> {
+    let plugin =
+        Plugin::load(plugin_dir).with_context(|| format!("loading {}", plugin_dir.display()))?;
+    let mut result = Vec::new();
     for row in declarations
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::CounterKind)
@@ -327,9 +329,26 @@ pub(super) fn counter_eligible_keywords(
         let body = row
             .body()
             .with_context(|| format!("{name}: counter has no declaration body"))?;
-        let body: Definition = dialect
+        let body: Definition = plugin
+            .macros
             .read_str(body.get_ron())
             .with_context(|| format!("reading counter {name}"))?;
+        result.push((name.to_owned(), body));
+    }
+    Ok(result)
+}
+
+/// The keywords a counter declaration makes a counter of [CR#122.1b]. The
+/// registry declares one counter per keyword the rule names, so eligibility is
+/// read off the counter family rather than restated on the keyword row: a
+/// keyword counter is the counter whose conferral grants its bearer the
+/// keyword ("causes that object to gain that keyword").
+pub(super) fn counter_eligible_keywords(
+    declarations: &[NormalizedDeclaration],
+    plugin_dir: &Path,
+) -> anyhow::Result<BTreeSet<String>> {
+    let mut result = BTreeSet::new();
+    for (_, body) in counter_definitions(declarations, plugin_dir)? {
         let Definition::Counter { confers, .. } = body else {
             continue;
         };
@@ -356,7 +375,7 @@ fn keyword_rows(
 ) -> anyhow::Result<Vec<String>> {
     let overlays = overlay();
     let definitions = keyword_definitions(declarations, plugin_dir)?;
-    let counter_keywords = counter_eligible_keywords(declarations)?;
+    let counter_keywords = counter_eligible_keywords(declarations, plugin_dir)?;
     for definition in &definitions {
         anyhow::ensure!(
             overlays.iter().any(|row| row.label == definition.word)
@@ -473,20 +492,12 @@ fn action_labels(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<S
     Ok(result)
 }
 
-fn counter_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
-    let dialect = macro_set();
+fn counter_rows(
+    declarations: &[NormalizedDeclaration],
+    plugin_dir: &Path,
+) -> anyhow::Result<Vec<String>> {
     let mut result = Vec::new();
-    for row in declarations
-        .iter()
-        .filter(|row| row.identity().kind() == DeclarationKind::CounterKind)
-    {
-        let name = row.identity().name();
-        let body = row
-            .body()
-            .with_context(|| format!("{name}: counter has no declaration body"))?;
-        let body: Definition = dialect
-            .read_str(body.get_ron())
-            .with_context(|| format!("reading counter {name}"))?;
+    for (name, body) in counter_definitions(declarations, plugin_dir)? {
         let Definition::Counter { kind, holder, .. } = body else {
             anyhow::bail!("{name}: a counter declaration defines a counter");
         };
@@ -685,7 +696,7 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
         &mut out,
         "counterFacts",
         "CounterFacts",
-        &counter_rows(&declarations)?,
+        &counter_rows(&declarations, &root.join("plugins_v2/builtin"))?,
     );
     table(
         &mut out,
@@ -902,7 +913,11 @@ mod tests {
             Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"),
         )
         .unwrap();
-        let keywords = counter_eligible_keywords(&declarations).unwrap();
+        let keywords = counter_eligible_keywords(
+            &declarations,
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"),
+        )
+        .unwrap();
         assert_eq!(keywords.len(), 15, "{keywords:?}");
         assert!(keywords.contains("Flying") && keywords.contains("Shadow"));
         assert!(!keywords.contains("Charge"));
@@ -961,9 +976,13 @@ mod tests {
         );
     }
 
-    /// A body is read through the v2 dialect, so a constructor applied in its
-    /// declared binder order is the same row as the same constructor applied
-    /// by name — which is what lets the four stub families write the dialect.
+    /// A body is read through the v2 dialect, so a constructor or helper
+    /// applied in its declared binder order is the same row as the same one
+    /// applied by name — which is what lets the four stub families write the
+    /// dialect. (The counter half was a counter body's `Counter(…)`; a counter
+    /// declaration no longer writes its body, so it is re-spelled over the
+    /// conferral helper a keyword counter writes, whose row is the keyword's
+    /// `counterEligible` column.)
     #[test]
     fn a_positional_body_reads_to_the_same_row() {
         const BODIES: [(&str, &str, &str); 2] = [
@@ -973,9 +992,9 @@ mod tests {
                 "scope: HeldBy(Player)",
             ),
             (
-                "counter_kinds/shieldCounter.ron",
-                "Counter(kind: Named(name: \"shieldCounter\"), holder: Object, confers: [])",
-                "Counter(Named(\"shieldCounter\"), Object, [])",
+                "counter_kinds/shadowCounter.ron",
+                "grants(ability: keyword(label: \"Shadow\"))",
+                "grants(keyword(\"Shadow\"))",
             ),
         ];
 
@@ -1002,7 +1021,9 @@ mod tests {
             "the designation row moved"
         );
         assert!(
-            by_name.contains("⟨\"shieldCounter\", .object⟩"),
+            by_name.contains(
+                "{ word := \"Shadow\", argumentSchemas := [[]], counterEligible := true,"
+            ),
             "the counter row moved"
         );
         assert_eq!(by_name, render(positional.path()).unwrap());

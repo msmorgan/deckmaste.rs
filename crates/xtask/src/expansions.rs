@@ -48,6 +48,7 @@ use deckmaste_semantics_v2::card;
 use deckmaste_semantics_v2::phrase;
 use deckmaste_semantics_v2::reader::Declaration;
 use deckmaste_semantics_v2::reader::Plugin;
+use deckmaste_semantics_v2::rules;
 use deckmaste_semantics_v2::rules::Definition;
 use deckmaste_semantics_v2::triggers;
 use deckmaste_semantics_v2::words;
@@ -509,6 +510,7 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "Delta" => render::<words::Delta<phrase::Amount>>,
         "LevelBand" => render::<card::LevelBand>,
         "PrototypeFrame" => render::<card::PrototypeFrame>,
+        "Conferral" => render::<rules::Conferral>,
         _ => return None,
     })
 }

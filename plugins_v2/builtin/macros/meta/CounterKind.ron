@@ -1,3 +1,11 @@
+// A counter declaration [CR#122.1]. Its body is the `Counter` definition the
+// meta-macro builds from the declaration's own parts: the kind is the
+// declaration's NAME, verbatim (`p1p1Counter`), so the author never writes it
+// and nothing in a declaration refers to the counter it declares; `holder` is
+// what the counter is placed on (an object unless the declaration says a
+// player [CR#122.1]), and `confers` is what ONE counter of the kind
+// confers, which the model applies once per counter held (the conferral
+// helpers in `conferrals/` write the usual ones).
 (
     name: "CounterKind",
     kinds: [Macro],
@@ -8,7 +16,8 @@
         "grammar": Elidable(Any),
         "compound_stem": Default(Any, Word),
         "compound_onset": Elidable(Any),
-        "body": Default(Any, ()),
+        "holder": Default(Any, Object),
+        "confers": Default(Any, []),
     },
     body: (
         name: Param(name),
@@ -28,6 +37,6 @@
                 relationality: NonRelational,
             ),
         ),
-        body: Param(body),
+        body: Counter(kind: Named(name: Param(name)), holder: Param(holder), confers: Param(confers)),
     ),
 )

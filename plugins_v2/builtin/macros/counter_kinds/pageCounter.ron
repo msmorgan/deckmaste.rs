@@ -2,5 +2,5 @@ CounterKind(
     name: "pageCounter",
     params: [],
     spelling: "page",
-    body: Counter(kind: Named(name: "pageCounter"), holder: Object, confers: []),
+    holder: Object,
 )

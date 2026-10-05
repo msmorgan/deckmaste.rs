@@ -389,6 +389,12 @@ semantic_macro forEach (per : Nat) (p : Predicate) : Amount := times (.lit per) 
 semantic_macro p1p1Counter : CounterKind := .named "p1p1Counter"
 semantic_macro flyingCounter : CounterKind := .named "flyingCounter"
 semantic_macro m1m1Counter : CounterKind := .named "m1m1Counter"
+/-- What one +X/+Y counter confers [CR#122.1a]: "+X/+Y" to its bearer [CR#613.4c]. A counter
+definition's conferral is per counter (`Definition.counter`), so the deltas read no count. -/
+semantic_macro boost (power toughness : Delta Amount) : Conferral :=
+  .property (.ptModification .this power toughness)
+/-- What one keyword counter confers [CR#122.1b]: its bearer gains the keyword [CR#613.1f]. -/
+semantic_macro grants (ability : Ability) : Conferral := .property (.abilityGrant .this ability)
 
 /-! ## Instructions -/
 

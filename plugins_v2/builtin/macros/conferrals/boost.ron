@@ -1,0 +1,9 @@
+// What one +X/+Y counter confers [CR#122.1a]: "+X/+Y" to its bearer in layer
+// 7c [CR#613.4c], as the ability-free `Property` flavor. A counter
+// declaration's conferral is per counter, so the deltas read no count.
+(
+    name: "boost",
+    kinds: [Conferral],
+    params: {"power": Delta, "toughness": Delta},
+    body: Property(spec: PtModification(subject: This, power: Param(power), toughness: Param(toughness))),
+)

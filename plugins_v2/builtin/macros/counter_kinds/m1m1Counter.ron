@@ -16,11 +16,6 @@ CounterKind(
     compound_stem: Measure,
     compound_onset: Consonant,
     spelling: "-1/-1",
-    body: Counter(
-        kind: Named(name: "m1m1Counter"),
-        holder: Object,
-        confers: [
-            Property(spec: PtModification(subject: This, power: Down(amount: 1), toughness: Down(amount: 1))),
-        ],
-    ),
+    holder: Object,
+    confers: [boost(down(1), down(1))],
 )

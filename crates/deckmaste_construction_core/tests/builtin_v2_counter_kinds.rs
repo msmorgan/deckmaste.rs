@@ -147,14 +147,14 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("Counter(kind: Named(name: \"energy\"), holder: Player, confers: [])")
+            .contains("Counter(kind: Named(name: \"energy\"), holder: Player, confers:[])")
     );
     assert!(
         counter(&declarations, "deathtouchCounter")
             .body()
             .unwrap()
             .get_ron()
-            .contains("AbilityGrant(\n                subject: This,\n                ability: Keyword(keyword: \"Deathtouch\", params: [], body: []),\n            )")
+            .contains("Counter(kind: Named(name: \"deathtouchCounter\"), holder: Object, confers: [grants(keyword(\"Deathtouch\"))])")
     );
     assert!(
         counter(&declarations, "p1p1Counter")
@@ -162,7 +162,7 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             .unwrap()
             .get_ron()
             .contains(
-                "PtModification(subject: This, power: Up(amount: 1), toughness: Up(amount: 1))"
+                "Counter(kind: Named(name: \"p1p1Counter\"), holder: Object, confers: [boost(up(1), up(1))])"
             )
     );
 
@@ -173,7 +173,7 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             params: [],
             spelling: "quest",
             grammar: FixedTerm(surface: "quest"),
-            body: Counter(name: "Quest"),
+            holder: Object,
         )"#,
     )
     .expect("a same-plugin single-token counter kind needs no catalog membership");

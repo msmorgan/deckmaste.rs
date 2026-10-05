@@ -1,0 +1,9 @@
+// What one keyword counter confers [CR#122.1b]: its bearer gains the keyword
+// in layer 6 [CR#613.1f], as the ability-free `Property` flavor
+// [CR#113.12]. Granting it once per counter held is having it once.
+(
+    name: "grants",
+    kinds: [Conferral],
+    params: {"ability": Ability},
+    body: Property(spec: AbilityGrant(subject: This, ability: Param(ability))),
+)

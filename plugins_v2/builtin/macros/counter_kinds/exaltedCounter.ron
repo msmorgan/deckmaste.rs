@@ -6,14 +6,6 @@ CounterKind(
     params: [],
     spelling: "exalted",
     grammar: FixedTerm(surface: "exalted"),
-    body: Counter(
-        kind: Named(name: "exaltedCounter"),
-        holder: Object,
-        confers: [
-            Property(spec: AbilityGrant(
-                subject: This,
-                ability: Keyword(keyword: "Exalted", params: [], body: []),
-            )),
-        ],
-    ),
+    holder: Object,
+    confers: [grants(keyword("Exalted"))],
 )

@@ -141,6 +141,14 @@ def flyingCounter : Definition :=
   .counter (.named "flyingCounter") .object [.property (.abilityGrant .this (keyword "Flying"))]
 theorem okFlyingCounter : Definition.check flyingCounter = [] := by decide
 
+/-- The conferral helpers are the raw conferrals: `grants` is `flyingCounter`'s, and `boost` is
+the one stat change carrying both deltas. -/
+theorem grantsIsTheKeywordConferral :
+    grants (keyword "Flying") = .property (.abilityGrant .this (keyword "Flying")) := rfl
+theorem boostIsOneStatChange :
+    boost (.up (.lit 1)) (.up (.lit 1)) =
+      .property (.ptModification .this (.up (.lit 1)) (.up (.lit 1))) := rfl
+
 /-- [CR#122.1a] "A +X/+Y counter on a creature … adds X to that object's power and Y to that
 object's toughness." The definition states what ONE counter confers, "+1/+1" in layer 7c
 [CR#613.4c], and the model applies it once per counter held, so the conferral reads no count.
@@ -150,15 +158,14 @@ stat change's subject must be a permanent, where a +1/+1 counter also counts "on
 card in a zone other than the battlefield" [CR#122.1a]. No gate runs `Definition.check` over
 the declarations, so the refusal is pinned here and routed, not fixed. -/
 def p1p1CounterDefinition : Definition :=
-  .counter (.named "p1p1Counter") .object
-    [.property (.ptModification .this (.up (.lit 1)) (.up (.lit 1)))]
+  .counter (.named "p1p1Counter") .object [boost (.up (.lit 1)) (.up (.lit 1))]
 theorem p1p1CounterDefinitionZone :
     Definition.check p1p1CounterDefinition = [.zoneIs .battlefield] := by decide
 
-/-- [CR#122.1a]: the minus counter's twin of `p1p1CounterDefinition`, subtracting 1 from each stat. -/
+/-- [CR#122.1a]: the minus counter's twin of `p1p1CounterDefinition`, subtracting 1 from each
+stat. -/
 def m1m1CounterDefinition : Definition :=
-  .counter (.named "m1m1Counter") .object
-    [.property (.ptModification .this (.down (.lit 1)) (.down (.lit 1)))]
+  .counter (.named "m1m1Counter") .object [boost (.down (.lit 1)) (.down (.lit 1))]
 theorem m1m1CounterDefinitionZone :
     Definition.check m1m1CounterDefinition = [.zoneIs .battlefield] := by decide
 
@@ -167,10 +174,11 @@ its own kind on the bearer, in two single-stat changes. Its refusals are the per
 with the second stat change's zone check repeated; nothing is refused for reading its own count
 or for not reading it, because multiplicity is the model's reading of a counter definition and
 the checker computes none. -/
+def ownCount : Amount := .statOf (.counter (.named "p1p1Counter")) .this
 def p1p1CounterCountMultiplied : Definition :=
   .counter (.named "p1p1Counter") .object
-    [ .property (.modification .this .power (.up (.statOf (.counter (.named "p1p1Counter")) .this))),
-      .property (.modification .this .toughness (.up (.statOf (.counter (.named "p1p1Counter")) .this))) ]
+    [ .property (.modification .this .power (.up ownCount)),
+      .property (.modification .this .toughness (.up ownCount)) ]
 theorem p1p1CounterCountMultipliedTwin :
     Definition.check p1p1CounterCountMultiplied =
       Definition.check p1p1CounterDefinition ++ [.zoneIs .battlefield] := by decide

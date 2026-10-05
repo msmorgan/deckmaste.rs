@@ -2,19 +2,14 @@
 // toughness in layer 7c ([CR#613.4c]). Confers the boost DIRECTLY (a
 // continuous effect, the ability-free `Property` flavor) — not an ability that
 // grants a boost. The conferral is what ONE counter confers; the model applies
-// it once per counter held, so it reads no count. Inherently strip-immune: a creature whose abilities are all removed still
-// gets the bonus.
+// it once per counter held, so it reads no count. Inherently strip-immune: a
+// creature whose abilities are all removed still gets the bonus.
 CounterKind(
     name: "p1p1Counter",
     params: [],
     compound_stem: Measure,
     compound_onset: Consonant,
     spelling: "+1/+1",
-    body: Counter(
-        kind: Named(name: "p1p1Counter"),
-        holder: Object,
-        confers: [
-            Property(spec: PtModification(subject: This, power: Up(amount: 1), toughness: Up(amount: 1))),
-        ],
-    ),
+    holder: Object,
+    confers: [boost(up(1), up(1))],
 )

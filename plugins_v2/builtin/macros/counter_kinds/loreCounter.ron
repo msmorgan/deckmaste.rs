@@ -11,5 +11,5 @@ CounterKind(
     params: [],
     spelling: "lore",
     grammar: FixedTerm(surface: "lore"),
-    body: Counter(kind: Named(name: "loreCounter"), holder: Object, confers: []),
+    holder: Object,
 )

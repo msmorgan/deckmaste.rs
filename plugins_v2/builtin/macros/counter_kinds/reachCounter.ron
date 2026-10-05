@@ -5,14 +5,6 @@ CounterKind(
     params: [],
     spelling: "reach",
     grammar: FixedTerm(surface: "reach"),
-    body: Counter(
-        kind: Named(name: "reachCounter"),
-        holder: Object,
-        confers: [
-            Property(spec: AbilityGrant(
-                subject: This,
-                ability: Keyword(keyword: "Reach", params: [], body: []),
-            )),
-        ],
-    ),
+    holder: Object,
+    confers: [grants(keyword("Reach"))],
 )

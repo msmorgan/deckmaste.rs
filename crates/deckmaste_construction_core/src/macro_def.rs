@@ -1209,7 +1209,7 @@ enum DiagnosticInvocation<'a> {
     SpellSubtype(#[serde(borrow)] DiagnosticSubtype<'a>),
     Type(#[serde(borrow)] DiagnosticFields<'a>),
     TurnPart(#[serde(borrow)] DiagnosticFields<'a>),
-    CounterKind(#[serde(borrow)] DiagnosticFields<'a>),
+    CounterKind(#[serde(borrow)] DiagnosticCounterKind<'a>),
     Designation(#[serde(borrow)] DiagnosticFields<'a>),
 }
 
@@ -1300,13 +1300,39 @@ struct DiagnosticSubtype<'a> {
     _rules: Option<&'a RawValue>,
 }
 
+/// The counter meta's signature: the common fields, the compound columns, and
+/// the definition's `holder` and `confers`, and NO `body` — the meta derives
+/// the `Counter` definition node from them and from the declaration's own
+/// name, which is the counter's kind (`semantics-v2-counter-kind-is-a-name`),
+/// so a counter declaration writing a body by hand is an unknown field here.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiagnosticCounterKind<'a> {
+    #[serde(borrow)]
+    name: &'a RawValue,
+    #[serde(default, borrow)]
+    params: Option<&'a RawValue>,
+    #[serde(borrow)]
+    spelling: &'a RawValue,
+    #[serde(default, borrow)]
+    grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(rename = "compound_stem", default, borrow)]
+    _compound_stem: Option<&'a RawValue>,
+    #[serde(rename = "compound_onset", default, borrow)]
+    _compound_onset: Option<&'a RawValue>,
+    #[serde(rename = "holder", default, borrow)]
+    _holder: Option<&'a RawValue>,
+    #[serde(rename = "confers", default, borrow)]
+    _confers: Option<&'a RawValue>,
+}
+
 struct DiagnosticFieldValues<'a> {
     name: &'a RawValue,
     params: Option<&'a RawValue>,
     spelling: &'a RawValue,
     grammar: Option<DiagnosticGrammar<'a>>,
     /// The authored body, for a family whose meta takes one; `None` for the
-    /// subtype families, whose meta derives it instead.
+    /// subtype and counter families, whose meta derives it instead.
     body: Option<&'a RawValue>,
     /// Whether the meta derives a body when the file writes none.
     derived_body: bool,
@@ -1577,7 +1603,6 @@ impl ValidationSourceMap {
             DiagnosticInvocation::AbilityWord(fields)
             | DiagnosticInvocation::Type(fields)
             | DiagnosticInvocation::TurnPart(fields)
-            | DiagnosticInvocation::CounterKind(fields)
             | DiagnosticInvocation::Designation(fields) => Self::from_fields(
                 path,
                 source,
@@ -1589,6 +1614,19 @@ impl ValidationSourceMap {
                     grammar: fields.grammar,
                     body: fields.body,
                     derived_body: false,
+                },
+            ),
+            DiagnosticInvocation::CounterKind(counter) => Self::from_fields(
+                path,
+                source,
+                declaration,
+                DiagnosticFieldValues {
+                    name: counter.name,
+                    params: counter.params,
+                    spelling: counter.spelling,
+                    grammar: counter.grammar,
+                    body: None,
+                    derived_body: true,
                 },
             ),
             DiagnosticInvocation::Subtype(subtype)

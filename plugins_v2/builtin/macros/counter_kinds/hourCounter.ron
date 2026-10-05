@@ -2,5 +2,5 @@ CounterKind(
     name: "hourCounter",
     params: [],
     spelling: "hour",
-    body: Counter(kind: Named(name: "hourCounter"), holder: Object, confers: []),
+    holder: Object,
 )
