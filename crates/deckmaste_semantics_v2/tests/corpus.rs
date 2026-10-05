@@ -276,8 +276,10 @@ fn every_card_writes_and_reads_back_to_the_same_value() {
 /// corpus, not a rule about the dialect: a new card authored the long way is
 /// caught here rather than drifting back one file at a time.
 ///
-/// The four spellings are the ones a single `(constructor, binder)` pair fixes
-/// unambiguously across the whole mirror. `ColorOrColorless::Of` and
+/// The five spellings are the ones a single `(constructor, binder)` pair fixes
+/// unambiguously across the whole mirror; `Printed(kind:` is the counter
+/// injection's (`CounterKindSource::Printed`), which reads a bare declaration
+/// name (`p1p1Counter`) since `semantics-v2-counter-kind-is-a-name`. `ColorOrColorless::Of` and
 /// `ColorTerm::Lit` are deliberately absent: `Of(color:` is also
 /// `ManaMatch::Of`'s spelling, so the text alone does not say which
 /// constructor is written, and a guard that cannot tell them apart would
@@ -290,6 +292,7 @@ fn no_source_file_writes_out_an_elided_constructor() {
         "Specific(color:",
         "Generic(amount:",
         "Lit(value:",
+        "Printed(kind:",
     ];
     let mut checked = 0;
     for dir in [
