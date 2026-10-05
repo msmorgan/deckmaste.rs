@@ -52,7 +52,7 @@ KeywordAbility(
                                             to: Zone(zone: Graveyard, scope: Bare),
                                             riders: [],
                                         ),
-                                        agent: You,
+                                        agent: None,
                                     ),
                                 ),
                             ],

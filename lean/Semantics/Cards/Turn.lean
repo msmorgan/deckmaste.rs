@@ -94,7 +94,7 @@ def apathy : Spelled := spelled <| .singleFaced
             (some (controllerOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature))))),
           at_ (beginningOfPossessed .the .upkeep
                 (controllerOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature))))
-            (Primitives.Instruction.offer (discard (aAtRandom (Primitives.Predicate.inZone hand)) (agent := (that .player)))
+            (Primitives.Instruction.offer (discard (aAtRandom (Primitives.Predicate.inZone (handOf (that .player)))))
               (some (untap (that (.type .creature)))) none (agent := (that .player))) ] } }
 
 def felidarSovereign : Spelled := spelled <| .singleFaced

@@ -12,7 +12,7 @@ KeywordAction(
     ),
     body: sequentially([
         draw(1, Param(0)),
-        discard(a(and([isCard, inZone(handOf(Param(0)))])), Param(0)),
+        discard(a(and([isCard, inZone(handOf(Param(0)))]))),
         doIf(
             not(matches(theVerbed(Action("Discard"), Card, ThisWay, One), land)),
             createToken(Param(0), creatureToken(1, 1, [White], [human, soldier])),

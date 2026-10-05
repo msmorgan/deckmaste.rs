@@ -40,8 +40,8 @@ def immersturmSkullcairn : Ability :=
     (Primitives.Cost.compound [Primitives.Cost.mana [generic 1, pip .black, pip .red, pip .red], Primitives.Cost.tapSymbol,
       Primitives.Cost.perform (sacrifice thisLand (agent := Primitives.NounPhrase.you))])
     (Primitives.Instruction.sequentially
-      [ Primitives.Instruction.dealDamage it (.lit 3) (target Primitives.Predicate.anyPlayer), discard (a (Primitives.Predicate.inZone hand)) (agent := (that
-          .player)) ])
+      [ Primitives.Instruction.dealDamage it (.lit 3) (target Primitives.Predicate.anyPlayer), discard (a (Primitives.Predicate.inZone (handOf (that
+          .player)))) ])
     Primitives.Timing.asSorcery
 theorem okImmersturmSkullcairn : Ability.check [] immersturmSkullcairn = [] := by decide
 def pyriteSpellbomb : Ability :=
@@ -774,7 +774,7 @@ def sonicShrieker : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget),
                 gainLife (.lit 2) (agent := Primitives.NounPhrase.you),
-                Primitives.Instruction.doIf (Primitives.Condition.dealtThisWay Primitives.Predicate.anyPlayer) (discard (a (Primitives.Predicate.inZone hand)) (agent := they)) none
+                Primitives.Instruction.doIf (Primitives.Condition.dealtThisWay Primitives.Predicate.anyPlayer) (discard (a (Primitives.Predicate.inZone (handOf they)))) none
                     ]) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -898,8 +898,7 @@ def bullseyeModalCost : Ability :=
   activated
     (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.tapSymbol,
       Primitives.Cost.perform (chooseModes (exactly 1)
-        [ sacrifice (a artifact) (agent := Primitives.NounPhrase.you), discard (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone hand]))
-            (agent := Primitives.NounPhrase.you) ])])
+        [ sacrifice (a artifact) (agent := Primitives.NounPhrase.you), discard (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone hand])) ])])
     (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (target anyTarget))
 theorem okBullseyeModalCost : Ability.check [] bullseyeModalCost = [] := by decide
 
@@ -912,8 +911,7 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
         [ keyword "Reach",
           when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget)),
           abilityWord "channel"
-            (activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 1, pip .red], Primitives.Cost.perform (discard Primitives.NounPhrase.this (agent :=
-                Primitives.NounPhrase.you))])
+            (activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 1, pip .red], Primitives.Cost.perform (discard Primitives.NounPhrase.this)])
               (Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget))) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -1028,19 +1026,19 @@ theorem okSoulOfShandalarGraveyardBolt :
 def blightning : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) targetPlayerOrPlaneswalker,
-      discard (counted (exactly 2) (Primitives.Predicate.inZone hand)) (agent := splitOverPlaneswalker) ]
+      discard (counted (exactly 2) (Primitives.Predicate.inZone (handOf splitOverPlaneswalker))) ]
 theorem okBlightning : Instruction.check [] blightning = [] := by decide
 /-- Rakdos's Return -/
 def rakdossReturn : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) targetOpponentOrPlaneswalker,
-      discard (counted (Primitives.Quantity.exactlyOf (Primitives.Amount.letter .x)) (Primitives.Predicate.inZone hand)) (agent := splitOverPlaneswalker) ]
+      discard (counted (Primitives.Quantity.exactlyOf (Primitives.Amount.letter .x)) (Primitives.Predicate.inZone (handOf splitOverPlaneswalker))) ]
 theorem okRakdossReturn : Instruction.check [] rakdossReturn = [] := by decide
 /-- Nicol Bolas, Planeswalker's ultimate -/
 def nicolBolasUltimate : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 7) targetPlayerOrPlaneswalker,
-      discard (counted (exactly 7) (Primitives.Predicate.inZone hand)) (agent := splitOverPlaneswalker),
+      discard (counted (exactly 7) (Primitives.Predicate.inZone (handOf splitOverPlaneswalker))),
       sacrifice (counted (exactly 7) permanent) (agent := splitOverPlaneswalker) ]
 theorem okNicolBolasUltimate : Instruction.check [] nicolBolasUltimate = [] := by decide
 /-- Pulse of the Forge -/
@@ -1334,9 +1332,9 @@ def diabolicEdict : Instruction := sacrifice (aTheirChoice creature) (agent := (
 theorem okDiabolicEdict : Instruction.check [] diabolicEdict = [] := by decide
 def innocentBlood : Instruction := sacrifice (aTheirChoice creature) (agent := (each Primitives.Predicate.anyPlayer))
 theorem okInnocentBlood : Instruction.check [] innocentBlood = [] := by decide
-def cryOfContrition : Instruction := discard (a (Primitives.Predicate.inZone hand)) (agent := (target Primitives.Predicate.anyPlayer))
+def cryOfContrition : Instruction := discard (a (Primitives.Predicate.inZone (handOf (target Primitives.Predicate.anyPlayer))))
 theorem okCryOfContrition : Instruction.check [] cryOfContrition = [] := by decide
-def cyclingCost : Instruction := discard Primitives.NounPhrase.this (agent := Primitives.NounPhrase.you)
+def cyclingCost : Instruction := discard Primitives.NounPhrase.this
 theorem okCyclingCost : Instruction.check [] cyclingCost = [] := by decide
 def raiseTheAlarm : Instruction :=
   create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Soldier"])

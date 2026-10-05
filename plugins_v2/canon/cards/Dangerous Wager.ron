@@ -20,7 +20,6 @@ SingleFaced(face: (
                                 inZone(zone(zone: Hand, scope: PossessedBy(you))),
                             ]),
                         ),
-                        you,
                     ),
                     draw(amount: 2, agent: you),
                 ]),

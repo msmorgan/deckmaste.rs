@@ -23,7 +23,7 @@ def masterDecoy : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .white], Primitives.Cost.tapSymbol]) (tap (target creature))
 theorem okMasterDecoy : Ability.check [] masterDecoy = [] := by decide
 def cycling : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.perform (discard Primitives.NounPhrase.this (agent := Primitives.NounPhrase.you))]) (Primitives.Instruction.draw (.lit
+  activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.perform (discard Primitives.NounPhrase.this)]) (Primitives.Instruction.draw (.lit
       1) (agent := Primitives.NounPhrase.you))
 theorem okCycling : Ability.check [] cycling = [] := by decide
 def merrowGrimeblotter : Ability :=
@@ -466,9 +466,7 @@ def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           activated
-            (Primitives.Cost.perform (discard
-              (withTheSameName (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone hand]))) (agent :=
-                  Primitives.NounPhrase.you)))
+            (Primitives.Cost.perform (discard (withTheSameName (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone hand])))))
             (Primitives.Instruction.draw (.lit 4) (agent := Primitives.NounPhrase.you)) ],
       power := stat 5, toughness := stat 6 } }
 
@@ -750,7 +748,7 @@ theorem okVoidMawPutCost : Ability.check [] voidMawPutCost = [] := by decide
 /-- Ghor-Clan Rampager -/
 def ghorClanRampager : Ability :=
   abilityWord "bloodrush"
-    (activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .red, pip .green], Primitives.Cost.perform (discard Primitives.NounPhrase.this (agent := Primitives.NounPhrase.you))])
+    (activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .red, pip .green], Primitives.Cost.perform (discard Primitives.NounPhrase.this)])
       (establishFor (target (Primitives.Predicate.and [creature, attacking]))
         [ Primitives.StaticSpec.modification (ownSubject (target (Primitives.Predicate.and [creature, attacking]))) .power (Primitives.Delta.up (.lit 4)),
           Primitives.StaticSpec.modification (ownSubject (target (Primitives.Predicate.and [creature, attacking]))) .toughness (Primitives.Delta.up (.lit
@@ -787,8 +785,7 @@ def generalTazriPump : Ability :=
 theorem okGeneralTazriPump : Ability.check [] generalTazriPump = [] := by decide
 /-- Diplomatic Escort -/
 def diplomaticEscortLine : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone hand)) (agent
-      := Primitives.NounPhrase.you))])
+  activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone hand)))])
     (Primitives.Instruction.counterSpell
       (target (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.targets (a creature) .someTarget])))
 theorem okDiplomaticEscortLine : Ability.check [] diplomaticEscortLine = [] := by decide

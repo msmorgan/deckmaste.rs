@@ -257,7 +257,7 @@ def contrabandLivestock : Instruction :=
 theorem okContrabandLivestock : Instruction.check [] contrabandLivestock = [] := by decide
 
 /-- Hypnotic Specter -/
-def hypnoticSpecterDiscard : Instruction := discard (aAtRandom (Primitives.Predicate.inZone hand)) (agent := they)
+def hypnoticSpecterDiscard : Instruction := discard (aAtRandom (Primitives.Predicate.inZone (handOf they)))
 theorem okHypnoticSpecterDiscard :
     Instruction.check [⟨.the, .one, .player false⟩] hypnoticSpecterDiscard = [] := by decide
 

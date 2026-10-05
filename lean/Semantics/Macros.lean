@@ -435,8 +435,10 @@ semantic_macro manifestPlacement (subject : NounPhrase) : Instruction :=
   .enact (.action "Manifest") (.move subject .wherever battlefield []) (agent := none)
 semantic_macro tap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Tap") (.setStatus .tapped subject) (agent := agent)
-semantic_macro discard (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Discard") (.move subject (.zone .hand .bare) graveyard []) (agent := some agent)
+/-- "discard <subject>": a move from its owner's hand [CR#701.9a]; no agent. An indefinite
+subject implies its own selection, by default the affected player's [CR#701.9b]. -/
+semantic_macro discard (subject : NounPhrase) : Instruction :=
+  .enact (.action "Discard") (.move subject (.zone .hand .bare) graveyard []) (agent := none)
 semantic_macro shuffle (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .shuffle (agent := agent)
 semantic_macro untap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
   .enact (.action "Untap") (.setStatus .untapped subject) (agent := agent)
@@ -1214,7 +1216,7 @@ semantic_macro activatedOnlyOnceIf (cost : Cost) (instruction : Instruction) (li
 /-- Cycling [cost]'s definition, an activated ability: "[Cost], Discard this card: Draw a card."
 [CR#702.29a] -/
 semantic_macro cyclingExpansion (cost : Cost) : Ability :=
-  activated (.compound [cost, .perform (discard .this (agent := .you))]) (draw (.lit 1))
+  activated (.compound [cost, .perform (discard .this)]) (draw (.lit 1))
 /-- "Cycling [cost]" with its definition. -/
 semantic_macro cycling (cost : Cost) : Ability :=
   .keyword "Cycling" [.cost cost] [cyclingExpansion cost]

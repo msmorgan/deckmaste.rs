@@ -30,7 +30,7 @@ KeywordAbility(
                         to: Zone(zone: Exile, scope: Bare),
                         riders: [],
                     ),
-                    agent: Pro(reach: Word(Player), plurality: One, window: Whole),
+                    agent: None,
                 ),
                 r#use: Repeatedly,
                 limit: None,

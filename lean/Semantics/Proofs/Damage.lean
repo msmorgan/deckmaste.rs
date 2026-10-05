@@ -677,9 +677,8 @@ theorem badCreatureHalfRead :
     Instruction.check []
       (.sequentially
         [ .dealDamage .this (.lit 3) (target (.or [.hasType .planeswalker, .anyPlayer])),
-          discard
-            (a (.inZone hand)) (agent := (Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one .whole)
-              (controllerOf (that (.type .creature))))) ]) = [.anaphor (.word (.type .creature))
+          discard (a (.inZone (handOf (Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one .whole)
+              (controllerOf (that (.type .creature))))))) ]) = [.anaphor (.word (.type .creature))
                   .one 0] := by
   decide
 

@@ -930,7 +930,7 @@ theorem badOwnTwoInDelta :
 theorem distributedDeedReadsBackPlural :
     Instruction.check []
       (.sequentially
-        [ discard (a (.inZone hand)) (agent := (each .opponent)),
+        [ .sequentially [choose (a (.inZone hand)) (agent := some (each .opponent)), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .many) ]) = [] := by
   decide
 
@@ -938,7 +938,7 @@ theorem distributedDeedReadsBackPlural :
 theorem okTheVerbedAfterSingularDiscard :
     Instruction.check []
       (.sequentially
-        [ discard (a (.inZone hand)) (agent := .you),
+        [ discard (a (.inZone hand)),
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [] := by
   decide
@@ -947,7 +947,7 @@ theorem okTheVerbedAfterSingularDiscard :
 theorem badDistributedDiscardSingular :
     Instruction.check []
       (.sequentially
-        [ discard (a (.inZone hand)) (agent := (each .opponent)),
+        [ .sequentially [choose (a (.inZone hand)) (agent := some (each .opponent)), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [.anaphor (.verbed (.action "Discard") .card .attributive) .one 0] := by
   decide

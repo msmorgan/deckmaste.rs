@@ -1,0 +1,17 @@
+// "Target player discards two cards at random." The random selection is
+// marked on the indefinite [CR#701.9b]; the hand names the player once.
+SingleFaced(face: (
+    characteristics: (
+        name: "Hymn to Tourach",
+        cost: [Black, Black],
+        types: [Sorcery],
+        text: [
+            spell(
+                timing: None,
+                instruction: discard(
+                    countedAtRandom(exactly(2), and([isCard, inZone(handOf(target(anyPlayer)))])),
+                ),
+            ),
+        ],
+    ),
+))

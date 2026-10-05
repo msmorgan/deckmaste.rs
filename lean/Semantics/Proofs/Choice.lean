@@ -551,7 +551,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Instruction.check []
       (offer
-        (.sequentially [discard (allOf (.inZone (handOf they))) (agent := they), draw (.lit 7) (agent :=
+        (.sequentially [discard (allOf (.inZone (handOf they))), draw (.lit 7) (agent :=
             they)]) (agent := (each .anyPlayer)))
       = [] := by
   decide

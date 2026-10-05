@@ -200,8 +200,7 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker],
       subtypes := [planeswalkerType "Liliana"],
       text :=
-        [ activated (Primitives.Cost.loyaltySymbol (.up 1)) (discard (a (Primitives.Predicate.inZone hand)) (agent := (each
-            Primitives.Predicate.anyPlayer))),
+        [ activated (Primitives.Cost.loyaltySymbol (.up 1)) (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.inZone hand)) (agent := some (each Primitives.Predicate.anyPlayer)), discard them]),
           activated (Primitives.Cost.loyaltySymbol (.down 2)) (sacrifice (a creature) (agent := (target
               Primitives.Predicate.anyPlayer))),
           activated (Primitives.Cost.loyaltySymbol (.down 6))

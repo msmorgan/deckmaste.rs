@@ -1,14 +1,16 @@
-// "[Player] discards [cards]" [CR#701.9a]: move them from that player's hand to
-// that player's graveyard. Lean `discard`; the agent is the discarding player,
-// written explicitly.
+// "Discard [cards]" [CR#701.9a]: move them from their owner's hand to that
+// player's graveyard. Lean `discard`. The hand is in the term, so the
+// discarding player is whoever owns it; the deed takes no agent. An
+// indefinite subject ("a card") implies its own selection, made by default by
+// the affected player [CR#701.9b]; a random selection is marked on the
+// indefinite.
 KeywordAction(
     name: "discard",
-    params: [Subject, Subject],
+    params: [Subject],
     spelling: "discard",
     grammar: Verb(
         bare: "discard",
         frame_set: Transitive,
     ),
-    agent: Param(1),
     body: move(Param(0), hand, graveyard),
 )

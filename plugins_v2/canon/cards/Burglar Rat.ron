@@ -1,0 +1,22 @@
+// "When this creature enters, each opponent discards a card." Each opponent
+// chooses a card in their hand, then those cards are discarded together
+// [CR#101.4,701.9b].
+SingleFaced(face: (
+    characteristics: (
+        name: "Burglar Rat",
+        cost: [1, Black],
+        types: [Creature],
+        subtypes: [rat],
+        text: [
+            triggered(
+                event: enters(asType(type: Creature, subject: this, subtype: None)),
+                instruction: sequentially([
+                    choose(each(opponent), a(and([isCard, inZone(hand)]))),
+                    discard(them),
+                ]),
+            ),
+        ],
+        power: 1,
+        toughness: 1,
+    ),
+))

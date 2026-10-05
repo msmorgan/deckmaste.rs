@@ -1,0 +1,21 @@
+// "Target player reveals their hand. You choose a nonland card from it. That
+// player discards that card. You lose 2 life." You choose; the discard moves
+// the card that was chosen [CR#701.9b].
+SingleFaced(face: (
+    characteristics: (
+        name: "Thoughtseize",
+        cost: [Black],
+        types: [Sorcery],
+        text: [
+            spell(
+                timing: None,
+                instruction: sequentially([
+                    revealTheirHand(target(anyPlayer)),
+                    choose(you, a(and([isCard, not(land), inZone(handOf(they))]))),
+                    discard(that(Card)),
+                    loseLife(2, you),
+                ]),
+            ),
+        ],
+    ),
+))

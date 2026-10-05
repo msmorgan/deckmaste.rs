@@ -724,7 +724,7 @@ def oonasBlackguard : Spelled := spelled <| .singleFaced
             (dealsCombatDamage
               (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.hasCounters (some plusOnePlusOne)]))
               (a Primitives.Predicate.anyPlayer))
-            (discard (a (Primitives.Predicate.inZone hand)) (agent := (that .player))) ],
+            (discard (a (Primitives.Predicate.inZone (handOf (that .player))))) ],
       power := stat 1, toughness := stat 1 } }
 
 def crumblingAshes : Spelled := spelled <| .singleFaced
@@ -1159,7 +1159,7 @@ def charnelTroll : Spelled := spelled <| .singleFaced
           activated
             (Primitives.Cost.compound
               [ Primitives.Cost.mana [pip .black, pip .green],
-                Primitives.Cost.perform (discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone hand])) (agent := Primitives.NounPhrase.you)) ])
+                Primitives.Cost.perform (discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone hand]))) ])
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed plusOnePlusOne) thisCreature) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -1220,7 +1220,7 @@ def neurokTransmuter : Instruction :=
 theorem okNeurokTransmuter : Instruction.check [] neurokTransmuter = [] := by decide
 def syphonMind : Instruction :=
   Primitives.Instruction.sequentially
-    [ discard (a (Primitives.Predicate.inZone hand)) (agent := (each otherPlayer)),
+    [ Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.inZone hand)) (agent := some (each otherPlayer)), discard them],
       Primitives.Instruction.doForEach (theVerbed (.action "Discard") .card .thisWay .many) (Primitives.Instruction.draw (.lit 1) (agent :=
           Primitives.NounPhrase.you)) ]
 theorem okSyphonMind : Instruction.check [] syphonMind = [] := by decide

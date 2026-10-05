@@ -1,0 +1,15 @@
+// "{2}, Discard a card at random: This enchantment deals 2 damage to any
+// target." The cost is one random discard from the payer's hand [CR#701.9b].
+SingleFaced(face: (
+    characteristics: (
+        name: "Stormbind",
+        cost: [1, Red, Green],
+        types: [Enchantment],
+        text: [
+            activated(
+                cost: compound([mana([2]), perform(discard(aAtRandom(and([isCard, inZone(hand)]))))]),
+                instruction: dealDamage(thisEnchantment, 2, target(anyTarget)),
+            ),
+        ],
+    ),
+))

@@ -864,7 +864,7 @@ def vexingSphinx : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Sphinx"],
       text :=
         [ keyword "Flying",
-          cumulativeUpkeep (Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone hand)) (agent := Primitives.NounPhrase.you))),
+          cumulativeUpkeep (Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone hand)))),
           when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.draw (countersOn (.named "Age") it) (agent := Primitives.NounPhrase.you)) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -1141,7 +1141,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
         [ keywordCosting "Spectacle" (Primitives.Cost.mana [generic 3, pip .black, pip .red]),
           triggeredIf (Primitives.GameEvent.enters thisCreature none)
             (costWasPaid (.byKeyword "Spectacle") none thisCreature)
-            (discard (a (Primitives.Predicate.inZone hand)) (agent := (each Primitives.Predicate.opponent))) ],
+            (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.inZone hand)) (agent := some (each Primitives.Predicate.opponent)), discard them]) ],
       power := stat 4, toughness := stat 2 } }
 
 /-- Tourach, Dread Cantor -/
@@ -1200,7 +1200,7 @@ def tourachDreadCantor : Spelled := spelled <| .singleFaced
           keywordQuality "Protection" (Primitives.Predicate.colorIs .white),
           tourachDiscardTrigger,
           triggeredIf (Primitives.GameEvent.enters thisCreature none) (costWasPaid (.byKeyword "Kicker") none thisCreature)
-            (discard (countedAtRandom (exactly 2) (Primitives.Predicate.inZone hand)) (agent := (target Primitives.Predicate.opponent))) ],
+            (discard (countedAtRandom (exactly 2) (Primitives.Predicate.inZone (handOf (target Primitives.Predicate.opponent))))) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Talrand's Invocation -/
@@ -1732,9 +1732,7 @@ def pureHalf : Instruction := destroy (target (Primitives.Predicate.and [permane
 theorem okPureHalf : Instruction.check [] pureHalf = [] := by decide
 /-- Korlash -/
 def grandeurDiscardCost : Cost :=
-  Primitives.Cost.perform (discard
-    (a (Primitives.Predicate.and [Primitives.Predicate.named (Primitives.NameSource.printed "Korlash, Heir to Blackblade"), Primitives.Predicate.otherThan Primitives.NounPhrase.this, Primitives.Predicate.inZone hand]))
-        (agent := Primitives.NounPhrase.you))
+  Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.named (Primitives.NameSource.printed "Korlash, Heir to Blackblade"), Primitives.Predicate.otherThan Primitives.NounPhrase.this, Primitives.Predicate.inZone hand])))
 theorem okGrandeurDiscardCost : Cost.check [] grandeurDiscardCost = [] := by decide
 /-- Gyruda, Doom of Depths -/
 def gyrudaCompanion : Ability := companion (Primitives.DeckCondition.everyCardIs Primitives.Predicate.isCard (Primitives.DeckTrait.manaValueParity .even))

@@ -49,7 +49,6 @@ Split(
                                     inZone(zone(zone: Hand, scope: PossessedBy(you))),
                                 ]),
                             ),
-                            you,
                         ),
                     ]),
                 ),

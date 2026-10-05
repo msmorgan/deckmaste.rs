@@ -38,42 +38,53 @@ own where its rule gives one (discard from its owner's hand [CR#701.9a],
 destroy and sacrifice from the battlefield [CR#701.8a,701.21a], counter from
 the stack [CR#701.6a], mill from the library [CR#701.17a]), else the zone the
 card or keyword text names ("from your graveyard"), else `wherever`. The
-generic `move` helper takes a trailing `from` defaulting to `wherever`; the
-other helpers pass `wherever`. The checker reads the origin as a zone
-expression and has no origin rules yet.
+generic helper is `move(subject, from, to)`, origin required and second;
+`exileBy` and `putOntoBattlefieldTappedAttacking` take a trailing `from`
+defaulting to `wherever`, and the other helpers pass `wherever`. The checker
+reads the origin as a zone expression and has no origin rules yet.
 
-**Not done: dropping discard's agent.** Owner's model: the choice is its own
-step with its own actor, and the discard is a pure object move —
-`discard(cards)` for determined cards, and `chooseAndDiscard(player, n)` as
-"`player` chooses n cards in hand, then those are discarded", with a
-distributing player passed directly (`chooseAndDiscard(each(opponent), 1)`):
-the players choose in turn order, then the discards happen simultaneously
-[CR#101.4]. The player is mentioned once, as the chooser; the hand stays bare.
+**Done: discard has no agent.** `discard(cards)` takes one parameter, the
+cards; its body is the move from hand to graveyard, and the discarding player
+is whoever owns that hand. `keyword_actions/discard.ron`, the Lean `discard`
+macro, every RON caller (Dangerous Wager, Farm // Market, `recruit`, and the
+raw Discard deeds of cycling, reinforce, retrace, transmute and madness) and
+the Lean bench and pins are re-spelled; every pin keeps its asserted outcome.
 
-Checked against the Lean checker (no declaration changed):
+The principle: an inline indefinite implies its own selection, and who makes
+it is not written in the term — lowering derives it: the payer for a cost
+[CR#118.1], the affected player for a discard [CR#701.9b]. Exceptions are
+written: "at random" is marked on the indefinite (Hymn to Tourach, Stormbind),
+and a different chooser is an explicit `choose` step because the card prints
+it as its own sentence (Thoughtseize). So "Discard a card" as a cost is one
+action, `discard(a(card in hand))`, and the refusal of a sequenced cost
+(`badSequentialCost`) stands. Where the old agent was what named whose hand
+("that player discards a card"), the hand now names the player once
+(`handOf(…)`). `choose` names its chooser first (`choose(agent, subject)`), and
+`selectAtRandom(quantity, what)` is a selection no player makes.
 
-- Resolution-time discards work. The three Anaphora pins re-spell as
-  choose-by-player then discard the chosen, and give their old results (each
-  opponent: plural read-back clean, singular refused with the same `anaphor`
-  refusal; you: singular read-back clean). Liliana of the Veil's +1, Syphon
-  Mind, the `that player` trigger, Mox Diamond's offer, the draw-then-discard
-  read-back and "each player may discard their hand" all check. A random
-  discard needs no chooser: two cards at random in target opponent's hand.
-- **Discard as a cost does not.** `Instruction.costActionOk` takes one action,
-  and `.sequentially [choose, discard]` is refused `costAction`: Diplomatic
-  Escort, Korlash's grandeur cost, Sphinx of the Chimes, Vexing Sphinx's
-  cumulative upkeep, and every other "Discard a card:" cost on the bench, and
-  `retrace`'s "discarding a land card". The smallest change would be to admit,
-  in a cost, a choose whose agent is the payer followed by one costed action
-  on what was chosen. That relaxes a check rule, so it waits for a decision.
-- **The read-back number is fixed in a RON body.** The discard must read the
-  chosen cards back with `it` (one chooser, one card) or `them` (several
-  choosers or cards), and a RON macro cannot pick one from its arguments.
+Still open:
 
-Open point: a later step that needs each player paired with their own card
-("each opponent discards a card, then loses life equal to that card's mana
-value") loses that pairing in a flat "those". No canon or bench card needs it
-today.
+- **An inline distributed form.** "Each opponent discards a card" has no inline
+  agentless spelling that the checker reads as one card per player. Until it
+  does, distribution is spelled as the distributed `choose` followed by one
+  discard of what was chosen (`choose(each(opponent), a(card in hand))`, then
+  `discard(them)`): the players choose in turn order, then the discards happen
+  together [CR#101.4]. Burglar Rat proves it end to end.
+- **The bare hand.** Under a distributed `choose`, and in an inline indefinite,
+  a bare hand means the selector's own hand by convention; nothing checks it.
+- **`choose` with no chooser.** `amass` and `proliferate` pass `None`; who
+  chooses there is this ticket's question.
+- **Player–card pairing.** A later step that needs each player paired with their
+  own card ("each opponent discards a card, then loses life equal to that
+  card's mana value") loses that pairing in a flat "those". No canon or bench
+  card needs it today.
+- **"Whenever you discard".** The constraint below still holds: the
+  derivation of the discarding player from the hand the card left is not yet
+  written.
+- **Causative wording.** The card data's "have <player> <verb>" sentences all
+  sit under "may" or a payment, and the term already names both players.
+  Rendering that wording (derived from the enclosing subject, or an explicit
+  wrapper) is a realization concern outside this ticket.
 
 ## Constraints
 
