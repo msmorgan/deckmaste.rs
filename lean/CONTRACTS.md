@@ -696,6 +696,24 @@ same reason it is refused for a grant. A damage result names a `CounterKind`,
 and the counter registry's declared holder is what fixes the recipient's kind;
 there is no second registry lookup.
 
+A counter's kind is a name: `CounterKind.named` carries the counter
+declaration's name verbatim (`p1p1Counter`, `flyingCounter`, `chargeCounter`),
+and "counters with the same name or description are interchangeable"
+[CR#122.1]. `CounterKind.check` is one registry lookup (`knownCounter`: does
+the generated `counterFacts` table have a row of that name), and
+`CounterKind.scope` reads the holder from the same row for every kind, a +X/+Y
+counter [CR#122.1a] and a keyword counter [CR#122.1b] included; the generator
+writes one row per counter declaration. A counter definition
+(`Definition.counter`, `Rules.lean`) states what ONE counter confers, and the
+model applies it once per counter held: the +1/+1 counter's conferral is
+"+1/+1" (`boost`, one `ptModification`), a keyword counter's is its keyword
+(`grants`). No conferral reads the count of its own kind. That reading is the
+model's: `Definition.check` checks each conferral once in the empty binding
+context and computes no multiplicity, so nothing in the checker depends on it
+(`Proofs/Rules.lean`, `p1p1CounterCountMultipliedTwin`). The checker refuses
+the +1/+1 and -1/-1 definitions `.zoneIs .battlefield`, which no gate runs
+(routed by `semantics-v2-counter-kind-is-a-name`'s landing record).
+
 The two lethal-damage state-based actions [CR#704.5g,704.5h] have no row: the
 grammar projects no marked damage and has no "since state-based actions were
 last checked" lookback. `Stat` likewise has no `defense` axis, so a battle's

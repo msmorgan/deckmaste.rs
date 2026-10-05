@@ -113,7 +113,12 @@ tapped/untapped, flipped/unflipped, face up/face down, and phased in/phased out
 **Counter**:
 A marker placed on an Object or Player that modifies its characteristics and/or
 interacts with a rule, Ability, or Effect ([CR#122.1]). Counters are not Objects
-and have no characteristics; a Counter is not a Token.
+and have no characteristics; a Counter is not a Token. Counters with the same
+name are interchangeable ([CR#122.1]), so a Counter's kind is its name: the
+name of the counter declaration that defines it, verbatim (`p1p1Counter`,
+`chargeCounter`), for a +X/+Y counter and a keyword counter as much as for any
+other ([CR#122.1a,122.1b]). What a Counter of the kind does is its Registry
+Definition.
 
 **Ability**:
 A rules-defined quality of an Object or Player, or an activated or triggered
@@ -511,7 +516,9 @@ no Ability behind it, which neither grants an Ability nor sets a characteristic
 
 **Registry Definition** (project term):
 What one registry declaration means — the rules content the declared name
-stands for. A Counter's kind, holder and Conferrals; a Subtype and its
+stands for. A Counter's kind, holder and Conferrals, the Conferrals being what
+ONE Counter of the kind confers, applied once per Counter held (a +1/+1
+counter confers +1/+1 [CR#122.1a]); a Subtype and its
 Conferrals; a Designation's holder and columns. A registry declares a
 namespace's members, so a Registry Definition names what it defines, where a
 Rules Table row names nothing and is scoped by a Predicate instead. The

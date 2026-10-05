@@ -216,6 +216,33 @@ mimicked.
   back as a computed pronoun (Lean `itsOther`), which a RON template cannot
   write, so a RON `gets` wrote the subject twice: two targets where the card
   has one (ruling, 2026-10-05, `semantics-v2-gets-both-deltas`).
+- **A counter's kind is a name; a counter definition states what one counter
+  confers.** `CounterKind` has one constructor, `named name` (mirror
+  `CounterKind::Named { name }`), whose name is the counter declaration's
+  name verbatim (`p1p1Counter`, `flyingCounter`, `chargeCounter`): counters
+  with the same name are interchangeable [CR#122.1], and the shapes that
+  restated a definition (`Boost(power, toughness)`, `Keyword(keyword)`,
+  `Named(label)`) are gone. It is a type of its own rather than a `String`, so
+  `denoted_by` (§12) still reads a bare declaration name at a counter
+  position. A kind is valid when the generated counter facts have a row of
+  that name, and the holder is read from that row for every kind. The
+  declaration does not write its kind: the `CounterKind` meta-macro builds the
+  `Counter` definition from the declaration's `name`, `holder` (an object
+  unless written) and `confers`, as the subtype metas build theirs, so
+  nothing in a declaration refers to the counter it declares. `confers` is
+  what ONE counter confers and the model applies it once per counter held:
+  the +1/+1 counter confers "+1/+1" (`boost(up(1), up(1))`, one
+  `ptModification`) [CR#122.1a,613.4c] and a keyword counter its keyword
+  (`grants(keyword("Flying"))`) [CR#122.1b,613.1f]; no conferral reads the
+  count of its own kind. Considered and rejected: a "this kind of counter"
+  form, and a "this macro" expander hole, which would be a new expander
+  feature ([macros-are-declarative](macros-are-declarative.md)). The
+  declaration's `spelling` stays the compound's stem ("+1/+1", "charge").
+  The annihilation of +1/+1 and -1/-1 counters [CR#704.5q] is not derived
+  from the kind and stays with `semantics-v2-counter-annihilation-sba`.
+  (Ruling, 2026-10-05, owner, `semantics-v2-counter-kind-is-a-name`; the
+  type's shape is the orchestrator's call, and the helper names `boost` and
+  `grants` are proposed to the owner.)
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.
@@ -301,8 +328,9 @@ drift test loads every declaration both ways. Today's bodyless declarations
 per family; no new bodyless declarations are added. A registry declaration's
 body is the DEFINITION of what it declares — `Semantics.Definition`, one
 `Rules.lean` constructor per registry family — and `cargo xtask facts generate`
-DERIVES `lean/Semantics/Check/Facts.lean` from it: a counter definition's
-`Named` kind is a `CounterFacts` row, a subtype definition a `SubtypeFacts`
+DERIVES `lean/Semantics/Check/Facts.lean` from it: every counter definition is
+a `CounterFacts` row labelled with its kind, its declaration's name (§7,
+ruling 2026-10-05), a subtype definition a `SubtypeFacts`
 row, a designation definition a `DesignationFacts` row, and a keyword
 ability's own `Ability.keyword` term supplies its word and the categories its
 definition is written in. Rust owns no mapping into the RON files (ruling,
@@ -487,7 +515,8 @@ over types carrying none of the markers, reads exactly as it did before.
 Registry Definition's spelling also reads at the type's position and denotes
 the term `path` finds in it — a definition's name denotes its term, so
 `p1p1Counter`, whose body is its `Definition::Counter` node, reads at a
-`CounterKind` position as that node's `kind`, and a subtype declaration reads
+`CounterKind` position as that node's `kind`, which is the name itself
+(`Named(name: "p1p1Counter")`, §7), and a subtype declaration reads
 at a `Subtype` position as its `subtype`. The spelling is not one of the
 type's variants, so a card writing the node raw is refused by name; the
 projection is the mirror's (`Definition::counter_term`,
@@ -508,10 +537,13 @@ writes over the constructor basis. 314 of them are declarations under
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
 `nouns`, `mana`, `durations`, `amounts`, `instructions`, `events`,
 `abilities`) — each a plain meta with `name`, `kinds`, `params` and `body` and
-no spelling or grammar. Lean's `counters` section (`plusOnePlusOne`,
-`minusOneMinusOne`) has no declarations: the counter declarations
-`p1p1Counter` and `m1m1Counter` name the same kinds and read bare at a counter
-position. The name is the Lean name verbatim (§11), the kind is
+no spelling or grammar. Lean's `counters` section (`p1p1Counter`,
+`m1m1Counter`, `flyingCounter`, renamed from `plusOnePlusOne` and
+`minusOneMinusOne` on 2026-10-05) has no declarations under these families:
+the counter declarations of the same names are those kinds and read bare at a
+counter position. Its two conferral helpers, `boost` and `grants`, are
+declarations under `macros/conferrals/`, the family a counter declaration's
+`confers` is written in. The name is the Lean name verbatim (§11), the kind is
 the Lean return type, and the signature is NAMED, with Lean's own defaults as
 parameter defaults. A RON signature may default a binder further, and move a
 defaulted binder last, so that a positional call can leave it out; and a binder
@@ -537,8 +569,9 @@ declarations: every line of `Macros.lean`
 beginning `semantic_macro`, an `Actor` namespace prefix kept; a macro is a
 declaration when a file of the same name, a trailing `_` dropped, exists under
 one of the twelve families above or `macros/conditions/`, or when §11 names
-its helper apart. 424 = 314 declarations + the two `counters` macros + 108.
-Six macros the earlier count left here had ported since and are gone from
+its helper apart. 424 = 314 declarations + the two `counters` macros + 108;
+`semantics-v2-counter-kind-is-a-name` renamed the `counters` macros and added
+`boost` and `grants`, both declared, without recounting. Six macros the earlier count left here had ported since and are gone from
 their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
 `doUnless`, `forEach`, `leavesZone`.)
 
