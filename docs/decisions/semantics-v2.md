@@ -158,17 +158,38 @@ mimicked.
 - One macro per verb lemma. Frames understand inflection, so surface
   agreement variants are one definition; the old macro layer's agreement
   pairs (draw/draws) do not carry into v2.
-- Agents are explicit; core constructors take every field required. The
+- Core constructors take every field required. A macro PARAMETER may carry
+  a default (§12, ruling 2026-09-07); a constructor field may not.
+- An instruction's performer is implicit: it is the ACTOR, the controller of
+  the spell or ability [CR#109.5], and another player performs an
+  instruction only through the handoff `act(player, instruction)` (Lean
+  `Instruction.act`), the one place a performer is written. The noun phrase
+  `actor` (Lean `NounPhrase.actor`) reads whoever performs the instruction
+  it is part of: outside every handoff it is checked exactly as `you`, the
+  innermost handoff wins, a distributive player ("each opponent") performs
+  the whole body member by member, and a nested ability (granted, token,
+  emblem) starts again with its own controller [CR#109.5]. The agent fields
+  the constructors still carry are filled with `actor` by helpers until
+  `semantics-v2-drop-agent-fields` deletes them (ruling, 2026-10-05,
+  `semantics-v2-actor-handoff`, superseding "Agents are explicit" and "The
   imperative's unpronounced subject is supplied by the frame as an explicit
-  `You` in the term. A macro PARAMETER may carry a default (§12, ruling
-  2026-09-07); a constructor field may not.
+  `You` in the term."). The owner: "Perhaps instructions have an implicit
+  performer, which can be handed off … Maybe the explicit actors version is
+  more a concern for lowering/core." The ruling does not contradict
+  [macros-are-declarative](macros-are-declarative.md): the handoff is a
+  model node, and the expander gains no ambient or inherited value. Nor does
+  it contradict
+  [card-authoring-binds-no-implicits](card-authoring-binds-no-implicits.md):
+  constructors still take every field, and a helper writes `actor` into an
+  agent field as an ordinary argument rather than leaving a slot defaulted.
 - Agentive verbs — those the CR gives a player actor — put that performer
-  in clause position and require it, the factored form of the real macros'
-  agent parameter: a dependent context cannot re-use the subject term at
-  each inner slot, so the slot rides the clause and lowering redistributes
-  it. Effect-verbs take that performer OPTIONALLY, since oracle text writes
-  destroy and exile both with a subject and as bare imperatives; object
-  sources are the verb's own argument.
+  in clause position, the factored form of the real macros' agent
+  parameter: a dependent context cannot re-use the subject term at each
+  inner slot, so the slot rides the clause and lowering redistributes it.
+  The clause does not write its performer: it is the actor (ruling,
+  2026-10-05, superseding "require it"). Effect-verbs take that performer
+  OPTIONALLY, since oracle text writes destroy and exile both with a subject
+  and as bare imperatives; object sources are the verb's own argument.
 - Choice method is surface data: "of their choice" and "at random" are
   marked indefinites mirroring the real macros' explicit chooser slot and
   its absence in the random variant; no CR rule derives a chooser.
@@ -176,10 +197,15 @@ mimicked.
   compile against.
 - A verb's implicit restrictions must be expressible both ways — as predicate
   conjuncts on a choice ("sacrifice a creature" chooses among `InZone
-  Battlefield`, `ControlledBy` the agent) and as fold-state demands on a
+  Battlefield`, `ControlledBy` the actor) and as fold-state demands on a
   definite referent ("sacrifice it" requires the referent currently
   battlefield-and-controlled) — and the two must agree. A restriction that
   cannot take both forms is un-de-macroed verb structure hiding in a filter.
+  An indefinite patient that names no zone ("discard a card") is selected
+  where the deed's patient lives, so the verb supplies its zone (ruling,
+  2026-10-05); the controller or possessor half is not yet checked, because
+  an object binding records no possessor
+  (`semantics-v2-bindings-carry-no-possessor`).
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.
@@ -303,7 +329,7 @@ constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
 Lean's reserved words, so the declaration keeps the plain name (ruling,
 2026-10-04).
 
-Three helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `random` (Lean `countedAtRandom`) and `selectRandom` (no Lean macro).
+Five helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `selectRandom` and `theirHand` (no Lean macro).
 
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
@@ -463,8 +489,8 @@ sequence mapped by declaration order; mixed calls remain invalid.
 
 ### 12.1 The helper macro layer
 
-`lean/Semantics/Macros.lean`'s 409 `semantic_macro`s are the phrasings a card
-writes over the constructor basis. 304 of them are declarations under
+`lean/Semantics/Macros.lean`'s 424 `semantic_macro`s are the phrasings a card
+writes over the constructor basis. 315 of them are declarations under
 `plugins_v2/builtin/macros/<family>/` — the families are the Lean file's own
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
 `nouns`, `mana`, `durations`, `amounts`, `instructions`, `events`,
@@ -490,7 +516,15 @@ ordinary declaration. The other two of the 29, `shuffle` and `vote`, are the
 next bucket — their keyword-action declarations already own the identity, with
 an identity body that is exactly what the Lean macro expands to.
 
-The other 103 stay Lean-only, in six buckets.
+The other 107 stay Lean-only, in seven buckets. (Counts recounted
+2026-10-05 at `semantics-v2-actor-handoff`: every line of `Macros.lean`
+beginning `semantic_macro`, an `Actor` namespace prefix kept; a macro is a
+declaration when a file of the same name, a trailing `_` dropped, exists under
+one of the twelve families above or `macros/conditions/`, or when §11 names
+its helper apart. 424 = 315 declarations + the two `counters` macros + 107.
+Six macros the earlier count left here had ported since and are gone from
+their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
+`doUnless`, `forEach`, `leavesZone`.)
 
 - **A spelled declaration already owns the identity (17).** The keyword
   families keep their own declarations: `companion`, `destroy`, `discard`,
@@ -498,32 +532,32 @@ The other 103 stay Lean-only, in six buckets.
   `proliferate`, `regenerate`, `sacrifice`, `shuffle`, `tap`, `transform`,
   `untap`, `vote`. A ported body that calls one of these calls the
   DECLARATION, under its declaration's positional signature.
-- **It calls a `Primitives.*` helper (28).** `Semantics.Macros.Primitives`
+- **It calls a `Primitives.*` helper (24).** `Semantics.Macros.Primitives`
   holds hand-written macros beside the constructor wrappers
   `declare_semantic_primitives` generates; a wrapper is the constructor and
   converts as one, but the hand-written helpers are a second Lean-side layer
   this port does not cover: `addPart`, `addPartThen`, `attachChoosing`,
-  `attachToIt`, `become`, `becomeColor`, `create`, `createTappedAttacking`,
-  `cumulativeUpkeepExpansion`, `dealsCombatDamage`, `doUnless`,
-  `doesntUntap`, `entersChoosing`, `entersChoosingFrom`,
+  `attachToIt`, `become`, `becomeColor`, `create`,
+  `cumulativeUpkeepExpansion`, `doesntUntap`, `entersChoosing`,
+  `entersChoosingFrom`,
   `entersChoosingPlayer`, `entersChoosingPlayerSecretly`,
-  `getAdditionalPart`, `leavesBattlefield`, `leavesZone`, `mayDeclineUntap`,
+  `getAdditionalPart`, `leavesBattlefield`, `mayDeclineUntap`,
   `offer`, `offerWhen`, `putIntoFrom`, `splitOverPermanent`,
   `splitOverPlaneswalker`, `untapsDuring`, `youAnd`, `youOr`.
-- **It computes (23).** Not a substitution bundle: a `let`, a `match`, a
+- **It computes (22).** Not a substitution bundle: a `let`, a `match`, a
   `.map` over an argument, an anonymous constructor, a plurality read off a
-  subject. `agentRef`, `amass`, `chooseModes`, `chooseSpree`,
+  subject. `agentRef`, `amass`, `chooseSpree`,
   `controllerSacrifices`, `dealDamageOwnPower`, `itCondSubject`, `itPrior`,
   `itsOther`, `joinedHead`, `joinedHeadWhile`, `lookAndSort`,
   `lookAndSortInto`, `lookedCards`, `lookedTop`, `loseCounters`, `modular`,
   `ownSubject`, `partyOf`, `requireBlockIt`, `rollRow`, `sacrificeIt`,
   `scaledMana`. These are routed to
   `semantics-v2-macro-capture-and-plurality`.
-- **It calls one of the above (28).** A macro that does not port takes its
+- **It calls one of the above (27).** A macro that does not port takes its
   callers with it. Some of these were blocked only by the 27 that have now
   ported and are available to a later port; the bucket is not re-derived here,
   because deciding it needs the converter this landing did not run: `after`, `at_`, `bushido`, `bushidoExpansion`,
-  `cumulativeUpkeep`, `cycling`, `cyclingExpansion`, `fateseal`, `forEach`,
+  `cumulativeUpkeep`, `cycling`, `cyclingExpansion`, `fateseal`,
   `fullParty`, `fullPartyOf`, `get`, `getsBase`, `getsPt`, `levelBand`,
   `loseAllCounters`, `party`, `partySize`, `partySizeOf`, `prototypeAlt`,
   `renown`, `renownExpansion`, `scry`, `storm`, `stormExpansion`, `surveil`,
@@ -533,6 +567,16 @@ The other 103 stay Lean-only, in six buckets.
   `partyRoles`, `stat`.
 - **It is defined by pattern matching on an argument (3).** `agentPlur`,
   `itOrThem`, `sameWindow`.
+- **It is a performer helper in the `Actor` namespace (10).** These fill an
+  agent slot with `actor` (§7, ruling 2026-10-05) and are what the RON helpers
+  become in `plugins-v2-implicit-actor-spelling`. Until then their RON names
+  belong to an explicit-agent helper (`choose`, `draw`, `gainLife`,
+  `loseLife`), to a spelled declaration (`amass`, `create`, `discard` and
+  `sacrifice` are keyword actions, `army` a subtype), or to nothing yet
+  (`mayCastFrom`, `plugins-v2-keyword-helper-additions`): `Actor.amass`,
+  `Actor.army`, `Actor.choose`, `Actor.create`, `Actor.discard`,
+  `Actor.draw`, `Actor.gainLife`, `Actor.loseLife`, `Actor.mayCastFrom`,
+  `Actor.sacrifice`.
 
 A binder Lean declares `Option T` with a `:= none` default takes the param
 type `Any`, not `T`: a param type validates the DEFAULT as well as the
