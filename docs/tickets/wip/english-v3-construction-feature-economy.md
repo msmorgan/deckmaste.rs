@@ -126,3 +126,11 @@ families, 2,519 physical declaration lines, maximum width 100. Reconstructing
 old frame and binding spellings in the entire expanded grammar still yields
 exact emitted-token equality, now 2,368,391 bytes. It does not erase the selected
 frame, coordination status, marker or independent functions of either NP.
+
+
+Final expanded grammar: 162 ordinary constructions, 53 schemas, 318 typed
+instances, 532 chart productions and 2,519 declaration lines, maximum width 100.
+The complete coverage record and remaining obligations are in the attached
+systemic-residuals ticket. This batch changes coverage; it is distinct from the
+prior 2,400→2,232 identity-preserving economy refactor. Whole-grammar compiler
+reconciliation proves the shared syntax itself does not change the final ASTs.

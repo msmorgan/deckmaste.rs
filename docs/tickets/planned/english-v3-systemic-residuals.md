@@ -271,3 +271,59 @@ The subsequent one-Reading diagnostic finds 5,063 newly covered identities and
 zero lost covered identities relative to the verified baseline. It is not a
 complete ambiguity census. The full English suite passes 147 tests across 35
 suites, zero ignored. The refreshed unlimited census remains required.
+
+
+## Verified coverage batch record
+
+Measured tree ovrpzmymkzkpvquyrypvokmxkzrrzlsl (empty child of uvymuyqo),
+lock covered count 11,249. Input SHA-256 remains
+49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb;
+lexical inventory SHA-256 is
+d261c3ea60c7b9f32c8b8b8b8972f3a1a15663cf831670e3d1270dd7a31cdd6e.
+The final refreshed, complete 24-worker census covers all 32,828 supported
+faces: 21,579 no, 5,898 one, 5,351 multiple. It adds 5,063 covered identities
+relative to the verified 6,186-covered baseline and loses none. All 110,285
+Readings pass declaration admission, lexical ownership/context, byte-exact
+realization and construction/word traversal. Zero limited or failed enumerations,
+duplicates, internal failures or validation issues. Costs rank samples only;
+no admitted Reading is pruned or capped.
+
+Every gained identity, exact count and selected sample fingerprint/cost/
+construction list is recorded in /tmp/systemic-hosts-final-reconciliation.json;
+the complete census is /tmp/systemic-hosts-final.json. There are 5,661 changed
+face reading counts, including 598 previously covered faces. Retirement of the
+syntactic numeric-counter analysis, unattested catalog aliases and lifted goal
+adjuncts is intentional and independently checked; new selected-frame and
+counter-compound structures replace those paths. These count changes are not
+proof that all remaining alternative attachments are correct.
+
+Corpus wall time is 235.015 s, with 960,452 ns/B checked-text thread CPU,
+24 workers and host load 3.59/3.83/3.64. This exceeds the 16.26 s advisory.
+Avacyn, Guardian Angel still has 33,856 Readings; its 0.099 s chart and
+150.638 s complete validation show that structural enumeration/validation,
+not chart admission, dominates this face. Keep performance and independent
+attachment/function audits as cutover blockers; do not conflate a roundtrip
+census with a linguistic-correctness audit.
+
+All 20 named migration obligations are reconciled against the current snapshot:
+Boldwyr Heavyweights (18), Ashen-Skin Zubera (8), Ballista Wielder (18) and
+Absorbing Man and Titania (2) have whole-face Readings; sixteen remain without
+one. Independent expected values now witness finite searched, temporal died,
+retained-object bare passive dealt and selected destination frames. Independent
+whole expected-set coverage remains owed for the auxiliary Object Gap witness;
+parsing alone does not discharge its ledger obligation. The named report is
+/tmp/systemic-named-register-final.json. Remaining label/body, ordered-destination,
+only-if/only-during, comparison, flavor, Type Line ordering and document cases
+retain their existing owners and structural obligations. This broad cause audit
+is still open and must not be automatically completed by integrating the batch.
+
+Validation: cargo xtask gate --changed --run passes 1,220 tests across 91 suites,
+with one existing on-demand live-corpus test ignored. The full English suite
+passes 147 tests across 35 suites. Compiler equivalence and independently
+supplied-value laws pass. cargo fmt --all --check and cargo xtask cite check
+pass; 15,871 citations checked, zero stale. The batch adds seven English test files. The compiler/runtime suite passes
+58 tests, covering typed guards, defaults, frame declarations, header bindings
+and the shared grammar cache; the new numeric article tests fix an observed
+regression. No existing English fixture is removed,
+ignored or re-spelled. The one lexical-source Nissa alias fixture is replaced
+with attested Dina, with new independent negative/possessive cases recording why.
