@@ -5,7 +5,9 @@
 - **Vintage-playable Magic only.** The grammar, the model, and the workbenches cover the cards
   and rules of normal Magic: whatever is legal in Vintage. Un-sets, Conspiracy, Planechase
   (planes, phenomena), Archenemy (schemes), Vanguard, and ante are out of scope, permanently.
-  Do not ask whether they are supported, and do not model, enumerate, or reserve room for them.
+  Unfinity's eternal-legal cards (those the card data marks Vintage-legal) are excluded for now
+  along with the rest of Unfinity. Do not ask whether they are supported, and do not model,
+  enumerate, or reserve room for them.
 
 ## Version control
 
