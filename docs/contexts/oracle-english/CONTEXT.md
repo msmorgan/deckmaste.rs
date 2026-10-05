@@ -265,7 +265,10 @@ Referent.
 
 **Ellipsis**:
 The omission of material whose grammatical content is recoverable from an
-Antecedent or context.
+Antecedent or context. Oracle English does not license stranded
+gerund-participial auxiliaries: stranded *being* is excluded in American
+English, and stranded *having* is dialect-restricted (CGEL, Ch. 17 §7.1,
+pp. 1522–1523).
 
 **Cardinal Numeral**:
 A numeral expressing a count, such as *one* or *two*.
@@ -402,10 +405,17 @@ as in *enters tapped and attacking*; it may be an Adjective Phrase or a
 gerund-participial Clause (CGEL, Ch. 4 §5.3, pp. 262–263; Ch. 14 §9, p. 1265).
 
 **Postmodifier**:
-A Modifier that follows its head in the linear order.
+A Modifier that follows its head in the linear order. Subjectless
+gerund-participial Clauses (*creature attacking you*, *player being attacked*)
+and Bare Passives can postmodify nouns without being Relative Clauses
+(CGEL, Ch. 14 §9, pp. 1264–1266).
 
 **Coordination**:
-A construction joining two or more coordinate units.
+A construction joining two or more coordinate units. Conjuncts can have
+different Categories when their grammatical function permits it, including
+an Adjective Phrase and a gerund-participial Clause under shared copular/
+progressive *be* (*are tapped and attacking*), without granting that selection
+to other copular verbs (CGEL, Ch. 15 §3.2, pp. 1327–1328).
 
 **Right Nonce-constituent Coordination**:
 Coordination of parallel sequences at a clause's right edge, each sequence

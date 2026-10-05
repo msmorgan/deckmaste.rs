@@ -166,6 +166,7 @@
             Role("FrameComplement"),
             OptionalMarkedRole("Preposition", "Under", "Object"),
         ]),
+        Predicate([ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]),
     ]),
     (identity: Roll, bare: "roll", third_person: "rolls", preterite: Some("rolled"), frames: [
         Predicate([ObjectNounPhrase]),

@@ -217,7 +217,7 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
     exact(
         "creature dealt damage this way",
         Category::Nominal,
-        Reading::PassivePostmodifiedNominal {
+        Reading::ParticipialPostmodifiedNominal {
             form: 0,
             head: Box::new(noun("lexeme:type/creature")),
             modifier: Box::new(Reading::NominalAdjunctPredicate {
@@ -247,7 +247,7 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
         Reading::DeterminedNounPhrase {
             form: 0,
             determiner: invariant("vocab:FloatedQuantifier/Each", SurfaceCase::Declared),
-            head: Box::new(Reading::PassivePostmodifiedNominal {
+            head: Box::new(Reading::ParticipialPostmodifiedNominal {
                 form: 0,
                 head: Box::new(noun("lexeme:CommonNoun/Card")),
                 modifier: Box::new(Reading::NominalAdjunctPredicate {
@@ -262,10 +262,11 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
             }),
         },
     );
-    let invalid = Reading::PassivePostmodifiedNominal {
+    // The generic noun modifier now permits gerund-participial clauses.
+    // Preserve the original passive-only exclusion: attacking is not a bare passive.
+    let invalid = Reading::PassiveComplement {
         form: 0,
-        head: Box::new(noun("lexeme:CommonNoun/Card")),
-        modifier: Box::new(Reading::IntransitivePredicate {
+        head: Box::new(Reading::IntransitivePredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),

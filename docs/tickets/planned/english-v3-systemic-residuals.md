@@ -349,18 +349,25 @@ audit. Keyword-label completion does not discharge these body or stem cases.
 
 Morphology-derived tapped/untapped adjectives and intransitive gerund-participle
 Premodifiers now have bounded implementation in english-v3-participial-uses.
-The depictive host selects a complete lexical intransitive frame. Refining it
-to already complemented and auxiliary predicates remains open; it must not
-accept a missing auxiliary complement as the verb described by an Adjunct.
-Strefan, Maurer Progenitor; Preeminent Captain; Senu, Keen-Eyed Protector; and
-Kaalia of the Vast retain this complemented movement-host obligation.
-Mixed copular/progressive be coordination remains required for Hero of
+The follow-up english-v3-participial-composition adds completed selected
+object-plus-PP depictive hosts, with ordinary auxiliaries wrapping those
+complete predicates. Bare elliptical auxiliaries do not become depictive
+hosts. Strefan, Maurer Progenitor; Preeminent Captain; Senu, Keen-Eyed Protector;
+and Kaalia of the Vast now have the intended movement attachment. Return gains
+an ordinary object-plus-to-PP frame, independently witnessed by Yore-Tiller
+Nephilim; its legacy optional source/controller frame is not implemented by
+this refinement.
+Mixed copular/progressive be coordination is now implemented for Hero of
 Bladehold, Dalkovan Encampment, Leonin Warleader, Hanweir Garrison and Hanweir,
-the Writhing Township (CGEL, Ch. 15 §3.2, p. 1327). Gerund-participial nominal
-postmodifiers remain required for Blessed Reversal, Apothecary White, Lulu,
+the Writhing Township (CGEL, Ch. 15 §3.2, p. 1327). Shared participial nominal
+postmodification supplies the intended attachment for Blessed Reversal, Apothecary White, Lulu,
 Coils of the Medusa, Knight of Dusk, Master of Arms, Flowstone Salamander and
-Godo's Irregulars (CGEL, Ch. 14 §9, pp. 1264–1265); alternate clause-adjunct
-Readings do not discharge their intended nominal attachment.
+Godo's Irregulars (CGEL, Ch. 14 §9, pp. 1264–1265). The American-English
+restriction on gerund-participial auxiliary stranding excludes the erroneous
+separate being-ellipsis modifier in Apothecary White (CGEL, Ch. 17 §7.1,
+pp. 1522–1523). Finite auxiliary ellipsis remains licensed; unusual but
+grammatical nominal attachments are retained. Intended keyword-name
+modification in Rooting Moloch remains an independent open obligation.
 
 
 ### Participial-use landing record
@@ -424,3 +431,83 @@ Performance advisory: complete census wall time 198,156 ms exceeds the
 49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb;
 lexical inventory SHA-256 is
 380696e63c4b8ede7c80d12b9c469648f52c832dbe01a2555eedc163e14df1f5.
+
+
+### Participial-composition landing record
+
+Measured tree vwtnryosyqklwttrvolmrmsyouwqssts, covered count 13226.
+The complete 24-worker census examines all 32,828 supported faces: 19,602 no,
+6,552 one and 6,674 multiple Readings, compared with 20,468 / 6,275 / 6,085
+on the participial-use baseline. All 866 gained identities and their selected
+analyses, all 883 changed Reading counts, and the empty loss list are preserved
+in `data/reports/english-v3/participial-composition-vwtnryos/reconciliation.json`;
+`census.json` and `metrics.json` preserve full counts and provenance. The
+CGEL consultant audited every gained selected analysis, plus all 149 expanded
+Readings of four previously covered finite-ellipsis attachment witnesses.
+No new syntactic defect was found; contextual or semantic oddness does not
+authorize removing otherwise grammatical alternatives.
+
+All 148,053 Readings pass declaration admission, lexical ownership/context,
+byte-exact realization and construction/word traversal checks. Zero issues,
+duplicates, internal failures, cyclic derivations, limited enumerations or
+failed faces. Costs rank samples without pruning. Auxiliary Complement
+realization is an orthogonal overt/elided distinction, local to the three
+auxiliary Complement Categories; it adds neither verb declaration flags nor
+state propagated throughout Verb Phrases. Both ordinary and shared secondary
+auxiliary consumers apply the American-English gerund-stranding restriction.
+
+Deviations and additions: one ordinary Construction
+(MixedCopularProgressiveComplement) and one schema
+(ComplementedDepictivePredicate) express the mixed-be Complement and the
+completed-predicate Depictive Adjunct. The existing passive-only nominal
+Construction becomes ParticipialPostmodifiedNominal with correlated
+gerund-ordinary / past-participle-bare-passive selection. Four Category
+instances reuse selected object-plus-PP hosts and predicate feature projection.
+Return gains an ordinary exact object-plus-to-PP frame at index 1, retaining
+its legacy frame. Its refinement supplies 845 of the gained faces; 21 other
+faces gain participial or mixed-be hosts. There are now 168 ordinary
+Constructions plus 55 schemas (223 names), 332 Category instances, 552 compiled
+Productions and 2,674 declaration lines, maximum width 100. The glossary
+refines Postmodifier, Coordination and Ellipsis; no new glossary term is needed.
+
+STOP resolution: the initial gerund modifier allowed an elliptical being
+followed by a separate bare-passive attacked modifier in Apothecary White.
+CGEL Ch. 17 §7.1, pp. 1522–1523 provides the local dialect/form restriction;
+the final face has 16 Readings with no omitted participles, preserving the
+independently supplied expanded-passive modifier. Finite auxiliary ellipsis
+remains grammatical, including the audited attachment alternatives. The old
+passive-only negative fixture is re-spelled through PassiveComplement using
+the same lexical/form/frame values, since gerund nominal modification is now
+intentionally supported. Its rejection assertion is retained.
+
+Tests: four added functions, one existing function re-spelled, zero removed or
+newly ignored; all eight prior participial-use tests remain intact. Independent
+full AST comparisons cover Blessed Reversal, Knight of Dusk, Apothecary White,
+Hero of Bladehold, Preeminent Captain, Senu and Yore-Tiller Nephilim. They
+preserve attested constituents, complete expected Reading sets and both
+roundtrip laws. The final gate command is
+`cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3
+-p deckmaste_english_v3 -p xtask`, derived by
+`cargo xtask gate --changed --run`. 626 tests pass across 68 suites; one existing
+on-demand live-corpus test remains ignored.
+Formatting and citation checks pass, with zero noncompliant citation sites and
+zero stale citations. No word-naming licensing guard is introduced; all new
+constraints read declared form/frame/category features.
+
+The named homograph and literal/word overlap inventories are in the report
+directory's `lexical-inventories.txt`: 1,469 homograph surfaces, zero overlaps,
+with surface lists unchanged from the baseline. Input SHA-256 remains
+49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb;
+lexical inventory SHA-256 is
+3a220f6420eb2ade061e0788184126014862f0dd1b306263b612598768775bd4.
+Return adds a declared lexical frame without changing spellings.
+The completed feature refresh is a no-op, so measured grammar behavior is
+unchanged by refresh.
+
+Performance advisory: complete corpus wall time 207,807 ms exceeds the
+16.26-second quiet-host advisory, with 1,031,953 ns/B
+checked-text thread CPU, 24 workers and host load
+3.31 / 5.25 / 3.98. These figures are stamped with the measured
+tree and covered count above; concurrent test activity prevents treating this
+run as a quiet-host comparison. The broader systemic cause audit and legacy
+optional source/controller frames remain open.

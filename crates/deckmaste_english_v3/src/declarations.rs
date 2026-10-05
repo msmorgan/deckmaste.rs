@@ -23,6 +23,7 @@ constructions! {
         feature AdjectiveStructure { Simple, Complemented }
         feature RelativeSubordinator { Yes }
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
+        feature AuxiliaryComplementRealization { Overt, Elided }
         feature ScalarVariable { Yes }
         feature MeasureOperator { Yes }
         feature MeasurePreposition { Yes }
@@ -79,6 +80,8 @@ constructions! {
         category FiniteClause();
         category FinitePredicate(number, person);
         category SecondaryVerbPhrase(form, ParticipialUse);
+        category FiniteDepictiveHost(number, person);
+        category SecondaryDepictiveHost(form, ParticipialUse);
         category BarePredicate();
         category ParticipialPredicate();
         category PastParticiplePredicate();
@@ -86,9 +89,9 @@ constructions! {
         category DepictivePhrase(DepictiveKind);
         category DepictivePhraseSeries(DepictiveKind);
         category Ellipsis(form);
-        category BareComplement();
-        category ParticipialComplement();
-        category PerfectComplement();
+        category BareComplement(AuxiliaryComplementRealization);
+        category ParticipialComplement(AuxiliaryComplementRealization);
+        category PerfectComplement(AuxiliaryComplementRealization);
         category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
@@ -584,19 +587,40 @@ constructions! {
             require head.frame = Predicative;
         }
 
+        // CGEL pp. 1522–1523: gerund-participial auxiliary stranding is outside Oracle English.
+        table auxiliary_realization(form, AuxiliaryComplementRealization) -> Selection {
+            (Plain, Overt) => Yes, (Plain, Elided) => Yes,
+            (Present, Overt) => Yes, (Present, Elided) => Yes,
+            (Preterite, Overt) => Yes, (Preterite, Elided) => Yes,
+            (PastParticiple, Overt) => Yes, (PastParticiple, Elided) => Yes,
+            (GerundParticiple, Overt) => Yes,
+        }
+        policy AuxiliarySelectedPredicate {
+            export form = head.form;
+            export ParticipialUse = Ordinary;
+            require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
+                = Yes;
+        }
+
         schema BareAuxiliaryPredicate {
             form [head: lexical(Verb), complement: node];
             require head.frame = BareAuxiliary;
+            require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
+                = Yes;
         }
 
         schema ParticipialAuxiliaryPredicate {
             form [head: lexical(Verb), complement: node];
             require head.frame = ParticipialAuxiliary;
+            require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
+                = Yes;
         }
 
         schema PerfectAuxiliaryPredicate {
             form [head: lexical(Verb), complement: node];
             require head.frame = PerfectAuxiliary;
+            require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
+                = Yes;
         }
 
         schema NominalAdjunctPredicate {
@@ -614,6 +638,7 @@ constructions! {
 
         schema OvertComplement {
             form [" ", predicate: node];
+            export AuxiliaryComplementRealization = Overt;
         }
 
         schema SlashMeasurePredicate {
@@ -647,11 +672,14 @@ constructions! {
             require head.frame = AmountComplement;
         }
 
-        // Bounded Oracle host: a complete lexical intransitive predicate.
-        // Complemented and auxiliary hosts need their own ellipsis-safe refinement.
+        // Complete lexical hosts keep auxiliary ellipsis outside depictive attachment.
         schema DepictivePredicate {
             form [head: lexical(Verb), " ", modifier: DepictivePhrase];
             require head.frame = Intransitive;
+        }
+
+        schema ComplementedDepictivePredicate {
+            form [head: node, " ", modifier: DepictivePhrase];
         }
 
         schema AdverbPredicate {
@@ -1628,6 +1656,8 @@ constructions! {
         instance SelectedObjectPrepositionPredicate<Result, Properties>: [
             (FinitePredicate, FiniteHeadAgreement),
             (SecondaryVerbPhrase, OrdinarySecondaryHead),
+            (FiniteDepictiveHost, FiniteHeadAgreement),
+            (SecondaryDepictiveHost, OrdinarySecondaryHead),
         ] {
             use Properties;
         }
@@ -1668,10 +1698,14 @@ constructions! {
             require head.frame = Ditransitive;
             use BarePassiveHead;
         }
-        construction PassivePostmodifiedNominal: Nominal {
+        // CGEL pp. 1264–1266: gerund-participial and bare-passive noun modifiers.
+        table participial_postmodifier(form, ParticipialUse) -> Selection {
+            (GerundParticiple, Ordinary) => Yes,
+            (PastParticiple, BarePassive) => Yes,
+        }
+        construction ParticipialPostmodifiedNominal: Nominal {
             form [head: Nominal, " ", modifier: SecondaryVerbPhrase];
-            require modifier.form = PastParticiple;
-            require modifier.ParticipialUse = BarePassive;
+            require participial_postmodifier(modifier.form, modifier.ParticipialUse) = Yes;
             use NominalHeadProperties;
         }
 
@@ -1782,6 +1816,13 @@ constructions! {
             require head.form = GerundParticiple;
         }
 
+        // CGEL p. 1327: unlike AdjP and progressive complements coordinated under be.
+        // The shared phrase describes their constituent structure; here it is a complement.
+        construction MixedCopularProgressiveComplement: ParticipialPredicate {
+            form [phrase: DepictivePhrase];
+            require phrase.DepictiveKind = Mixed;
+        }
+
         construction PassiveComplement: ParticipialPredicate {
             form [head: SecondaryVerbPhrase];
             require head.form = PastParticiple;
@@ -1876,21 +1917,25 @@ constructions! {
         construction BareEllipsis: BareComplement {
             form [omission: Ellipsis];
             require omission.form = Plain;
+            export AuxiliaryComplementRealization = Elided;
         }
 
         construction ProgressiveEllipsis: ParticipialComplement {
             form [omission: Ellipsis];
             require omission.form = GerundParticiple;
+            export AuxiliaryComplementRealization = Elided;
         }
 
         construction PassiveEllipsis: ParticipialComplement {
             form [omission: Ellipsis];
             require omission.form = PastParticiple;
+            export AuxiliaryComplementRealization = Elided;
         }
 
         construction PerfectEllipsis: PerfectComplement {
             form [omission: Ellipsis];
             require omission.form = PastParticiple;
+            export AuxiliaryComplementRealization = Elided;
         }
 
         construction Cardinal: Cardinal {
@@ -2129,6 +2174,12 @@ constructions! {
         ] {
             use Properties;
         }
+        instance ComplementedDepictivePredicate<Result, Head: head, Properties>: [
+            (FinitePredicate, FiniteDepictiveHost, PredicateHeadAgreement),
+            (SecondaryVerbPhrase, SecondaryDepictiveHost, SecondaryAdjunctProjection),
+        ] {
+            use Properties;
+        }
         instance AdverbPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, AdverbPhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, Self, AdverbPhrase, SecondaryAdjunctProjection),
@@ -2238,7 +2289,8 @@ constructions! {
         instance SharedAuxiliaryBareComplement<
             Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, BareComplement, PredicateHeadAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, BareComplement, OrdinarySelectedPredicate),
+            (SecondaryVerbPhrase, SecondarySelectedHead, BareComplement,
+                AuxiliarySelectedPredicate),
         ] {
             use Properties;
         }
@@ -2246,7 +2298,7 @@ constructions! {
             Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, ParticipialComplement, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, ParticipialComplement,
-                OrdinarySelectedPredicate),
+                AuxiliarySelectedPredicate),
         ] {
             use Properties;
         }
@@ -2254,7 +2306,7 @@ constructions! {
             Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, PerfectComplement, PredicateHeadAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, PerfectComplement,
-                OrdinarySelectedPredicate),
+                AuxiliarySelectedPredicate),
         ] {
             use Properties;
         }
