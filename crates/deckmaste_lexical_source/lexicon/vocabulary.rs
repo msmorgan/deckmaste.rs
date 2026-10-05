@@ -133,6 +133,8 @@ constructions! {
     vocab ReplacementMarker { Instead = "instead", }
     vocab PastPossession { Had = "had", }
     vocab TriggerMarker { When = "when", Whenever = "whenever", }
+    // Oracle "you" denotes one player: second-person plural is intentionally
+    // omitted from you, your, yours and the reflexive paradigm in core.ron.
     vocab SubjectPronoun { He = "he", It = "it", She = "she", They = "they", You = "you", }
     vocab ObjectPronoun { Her = "her", Him = "him", It = "it", Them = "them", You = "you", }
     vocab PossessiveDeterminerPronoun {
@@ -159,7 +161,6 @@ constructions! {
         Themself = "themself",
         Themselves = "themselves",
         Yourself = "yourself",
-        Yourselves = "yourselves",
     }
     vocab Variable { X = "X", Y = "Y", }
     vocab ColorWord {

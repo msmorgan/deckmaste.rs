@@ -98,15 +98,16 @@ fn possessed(noun: &str, possessor_number: Number) -> Reading {
 }
 
 #[test]
-fn possessed_bases_preserve_both_possessor_numbers_before_coordination() {
+fn possessed_bases_preserve_singular_second_person_before_coordination() {
     for (noun, text) in [("Hand", "your hand"), ("Graveyard", "your graveyard")] {
         let singular = possessed(noun, Number::Singular);
         let plural = possessed(noun, Number::Plural);
         assert_laws(singular.clone(), text, Category::NounPhrase);
-        assert_laws(plural.clone(), text, Category::NounPhrase);
+        assert!(plural.admit(lexicon()).is_err());
+        assert!(plural.realize(lexicon()).is_err());
         assert_eq!(
             readings(text, Category::NounPhrase),
-            BTreeSet::from([singular, plural])
+            BTreeSet::from([singular])
         );
     }
     for text in [
