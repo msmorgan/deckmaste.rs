@@ -184,8 +184,10 @@ one stops first.
   `Gets`, `LifeUp` and `LifeDown` fold away. A characteristic change is one
   `StaticSpec` row `Modify (referent) (property) (delta)`, named for
   [CR#613.4c]; "gets +1/+1 until end of turn" is `Continuously (Modify …)
-  span` and "+1/+1" is two `Modify`s combined by a macro; `Becomes` stays for
-  non-numeric characteristics. Life is not a continuous effect but one
+  span` and "+1/+1" is two `Modify`s combined by a macro (superseded
+  2026-10-05: "+1/+1" is one node carrying both deltas, Lean
+  `StaticSpec.ptModification`; see [semantics-v2](semantics-v2.md) §7);
+  `Becomes` stays for non-numeric characteristics. Life is not a continuous effect but one
   `Instruction` row over the same `Delta`, with the engine classifying gain,
   loss and no-op from the resulting total — macros never do arithmetic.
   Counters, loyalty included, keep their own lane.

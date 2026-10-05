@@ -206,6 +206,16 @@ mimicked.
   2026-10-05); the controller or possessor half is not yet checked, because
   an object binding records no possessor
   (`semantics-v2-bindings-carry-no-possessor`).
+- **One stat change carries both deltas.** "<subject> gets +P/+T" and
+  "<subject> has base power and toughness P/T" are one node,
+  `StaticSpec.ptModification subject power toughness` (mirror
+  `PtModification`, RON alias `ptModification`), with the subject written
+  once; each delta is the one a `modification` of that stat would carry
+  [CR#613.4b,613.4c]. A change to one stat stays `modification`. The
+  two-modification spelling needed its toughness half to read the subject
+  back as a computed pronoun (Lean `itsOther`), which a RON template cannot
+  write, so a RON `gets` wrote the subject twice: two targets where the card
+  has one (ruling, 2026-10-05, `semantics-v2-gets-both-deltas`).
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.
@@ -332,7 +342,7 @@ constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
 Lean's reserved words, so the declaration keeps the plain name (ruling,
 2026-10-04).
 
-Thirteen helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `exileFrom`, `selectRandom`, `theirHand` and the six exchange helpers `exchangeControl`, `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues` and `exchangeTextBoxes` (no Lean macro; the bench writes the constructor alias `Primitives.Instruction.exchange` with the `Exchanged` arm, and each helper expands to that same term).
+Fourteen helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `exileFrom`, `selectRandom`, `theirHand` and the six exchange helpers `exchangeControl`, `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues` and `exchangeTextBoxes` (no Lean macro; the bench writes the constructor alias `Primitives.Instruction.exchange` with the `Exchanged` arm, and each helper expands to that same term), and `getsBoth` (no Lean macro; "<subject> gets +X/+X", the one delta written for both stats of `StaticSpec.ptModification`, §7).
 
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
@@ -567,7 +577,11 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
   `fullParty`, `fullPartyOf`, `get`, `getsBase`, `getsPt`, `levelBand`,
   `loseAllCounters`, `party`, `partySize`, `partySizeOf`, `prototypeAlt`,
   `renown`, `renownExpansion`, `scry`, `storm`, `stormExpansion`, `surveil`,
-  `when`, `whenever`.
+  `when`, `whenever`. Three of them no longer call one: since
+  `semantics-v2-gets-both-deltas` (2026-10-05) `getsPt` writes the one node
+  `StaticSpec.ptModification` (§7), and `getsBase` and `get` call `getsPt`,
+  so none reaches `itsOther`. They stay counted here until a port takes them;
+  RON's `gets` and `getsBoth` already write the same node.
 - **It expands to no single position (4).** A macro occupies one position, and
   `List X` / `Option X` is not one: `copyCharacteristics`, `modularExpansion`,
   `partyRoles`, `stat`.

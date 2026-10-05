@@ -140,7 +140,7 @@ never an assumed fixed depth. The audit covers every affected helper:
 | `itCondSubject` | The condition's published mentions. The author no longer supplies a `Bindings` argument. |
 | `dealDamageOwnPower` | The source's self-subject introduction before the amount is read. The author no longer supplies a `Bindings` argument. |
 | `agentRef` | The agent's own introduction, including singularization of distributive agents. An agent introducing nothing is re-read directly. |
-| `itsOther` / `sameWindow` | The first stat modification's subject and amount introductions, in the same order as `StaticSpec.intro`. An originally empty introduction uses the whole context. |
+| `itsOther` / `sameWindow` | The first stat modification's subject and amount introductions, in the same order as `StaticSpec.intro`. An originally empty introduction uses the whole context. `getsPt` no longer uses it: "gets +P/+T" is the one node `StaticSpec.ptModification`, which checks its subject once and its toughness delta after its power delta's introductions; the bench's hand-written two-modification clauses still read their toughness half through it. |
 | `ownSubject` | The shared subject's introduction; an empty owned introduction remains empty and cannot capture an outer antecedent. |
 | `lookedCards` | The library slice's introduction, including its possessor's mentions. |
 | `attachToIt` / `requireBlockIt` | The containing context outside the current noun's introduction. Ambiguity within that outer context remains an error. |

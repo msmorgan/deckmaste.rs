@@ -22,6 +22,9 @@ me but sure I guess"). Re-spell each caller listed onto the helper.
   `semantics-v2-gets-both-deltas` has landed, write it over the
   one-modification form that ticket introduces; otherwise over `gets`, and
   that ticket re-spells it.
+  *Done, 2026-10-05, in `semantics-v2-gets-both-deltas`:* written over
+  `ptModification`; melee and rampage call it, and so do bushido, exalted,
+  flanking and prowess, whose two deltas were textually identical.
 - `createTokenCopy(source, riders)` — myriad's tapped-and-attacking token copy.
   Writes a creation, so needs B.
 - `artifactCreatureToken(power, toughness, colors, subtypes, abilities = [])` —
