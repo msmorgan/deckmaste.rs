@@ -1,0 +1,7 @@
+// "<performer> creates a token that's a copy of <source> [that's <riders>]".
+(
+    name: "createTokenCopy",
+    kinds: [Instruction],
+    params: {"source": Subject, "riders": Default(TokenRiders, [])},
+    body: createObject(1, Token(copyOf(Param(source)), Param(riders))),
+)

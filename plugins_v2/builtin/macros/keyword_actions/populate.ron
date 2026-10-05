@@ -17,6 +17,6 @@ KeywordAction(
     agent: None,
     body: sequentially([
         choose(a(and([isToken, creature, permanent, actorControls]))),
-        create(1, copyOf(that(Token))),
+        createTokenCopy(that(Token)),
     ]),
 )

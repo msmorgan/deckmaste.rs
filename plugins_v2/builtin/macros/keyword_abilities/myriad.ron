@@ -16,17 +16,12 @@ KeywordAbility(
                 doForEach(
                     each(and([opponent, otherThan(defendingPlayer)])),
                     may(
-                        createObject(
-                            1,
-                            Token(
-                                copyOf(thisCreature),
-                                [
-                                    EntersAs(Tapped),
-                                    EntersAttacking(
-                                        or([they, a(and([planeswalker, controlledBy(they)]))]),
-                                    ),
-                                ],
-                            ),
+                        createTokenCopy(
+                            thisCreature,
+                            [
+                                EntersAs(Tapped),
+                                EntersAttacking(or([they, a(and([planeswalker, controlledBy(they)]))])),
+                            ],
                         ),
                     ),
                 ),
