@@ -22,7 +22,7 @@ SingleFaced(face: (
                         who: you,
                         lookback: ThisTurn,
                     ),
-                    instruction: draw(amount: 1, agent: you),
+                    instruction: draw(1),
                 )
             ),
         ],

@@ -11,5 +11,5 @@ KeywordAction(
         frame_set: Transitive,
     ),
     deed: None,
-    body: revealCards(Param(0), actor),
+    body: revealCards(Param(0)),
 )

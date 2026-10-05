@@ -18,7 +18,7 @@ SingleFaced(face: (
                             predicate: cardIn(yourHand),
                         ),
                     ),
-                    draw(amount: 2, agent: you),
+                    draw(2),
                 ]),
             ),
         ],

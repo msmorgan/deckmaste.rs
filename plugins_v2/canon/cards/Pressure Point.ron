@@ -15,7 +15,7 @@ SingleFaced(face: (
                         determiner: Target(range(low: 1, high: 1)),
                         predicate: hasType(Creature),
                     )),
-                    draw(amount: 1, agent: you),
+                    draw(1),
                 ]),
             ),
         ],

@@ -1,7 +1,7 @@
-// "<agent> puts <subject> <destination>"
+// "<performer> puts <subject> <destination>"
 (
     name: "put",
     kinds: [Instruction],
-    params: {"subject": NounPhrase, "destination": ZoneExpr, "agent": Default(NounPhrase, You)},
-    body: Enact(verb: Core(Put), instruction: Move(Param(subject), wherever, Param(destination), []), agent: Param(agent)),
+    params: {"subject": NounPhrase, "destination": ZoneExpr},
+    body: Enact(verb: Core(Put), instruction: Move(Param(subject), wherever, Param(destination), []), agent: actor),
 )

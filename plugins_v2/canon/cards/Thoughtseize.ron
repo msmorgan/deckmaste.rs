@@ -14,7 +14,7 @@ SingleFaced(face: (
                     act(target(anyPlayer), revealHand),
                     choose(actor, a(and([not(land), cardIn(handOf(they))]))),
                     act(they, discard(that(Card))),
-                    loseLife(2, actor),
+                    loseLife(2),
                 ]),
             ),
         ],

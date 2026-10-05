@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: 2,
         toughness: 2,
         text: [
-            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: Zones([zone(zone: Battlefield, scope: Bare)]), to: zone(zone: Graveyard, scope: Bare), observation: Before, ), instruction: draw(amount: 1, agent: you)),
+            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: Zones([zone(zone: Battlefield, scope: Bare)]), to: zone(zone: Graveyard, scope: Bare), observation: Before, ), instruction: draw(1)),
             encore(mana([
                 5,
                 Blue,

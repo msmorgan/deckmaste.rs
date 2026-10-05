@@ -2,6 +2,6 @@
 (
     name: "gainControl",
     kinds: [Instruction],
-    params: {"subject": NounPhrase, "duration": Duration, "agent": Default(NounPhrase, You)},
-    body: Establish(ControlGrant(Param(agent), Param(subject)), Param(duration)),
+    params: {"subject": NounPhrase, "duration": Duration},
+    body: Establish(ControlGrant(actor, Param(subject)), Param(duration)),
 )

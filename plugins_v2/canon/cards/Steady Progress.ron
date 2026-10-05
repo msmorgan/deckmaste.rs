@@ -12,7 +12,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: sequentially([
                     proliferate,
-                    draw(amount: 1, agent: you),
+                    draw(1),
                 ]),
             ),
         ],

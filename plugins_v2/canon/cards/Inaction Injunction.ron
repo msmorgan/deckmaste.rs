@@ -21,7 +21,7 @@ SingleFaced(face: (
                             ),
                         ]),
                     )),
-                    draw(amount: 1, agent: you),
+                    draw(1),
                 ]),
             ),
         ],

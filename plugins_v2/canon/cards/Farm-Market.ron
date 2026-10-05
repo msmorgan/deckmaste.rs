@@ -40,7 +40,7 @@ Split(
                 spell(
                     timing: None,
                     instruction: sequentially([
-                        draw(amount: 2, agent: you),
+                        draw(2),
                         discard(
                             described(
                                 determiner: Count(quantity: range(low: 2, high: 2), mode: None),

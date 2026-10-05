@@ -21,7 +21,7 @@ SingleFaced(face: (
             )),
             spell(
                 timing: None,
-                instruction: draw(amount: 2, agent: you),
+                instruction: draw(2),
             ),
         ],
     ),

@@ -312,7 +312,7 @@ fn a_turn_part_declaration_may_name_its_own_constructor() {
                     types: [Instant],
                     text: [spell(
                         timing: duringPart(part: UpkeepStep, whose: None),
-                        instruction: draw(amount: Lit(value: 1), agent: you),
+                        instruction: draw(amount: Lit(value: 1)),
                     )],
                 ),
             ))"#,

@@ -10,7 +10,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: sequentially([
                     mill(2),
-                    draw(amount: 1, agent: you),
+                    draw(1),
                 ]),
             ),
         ],

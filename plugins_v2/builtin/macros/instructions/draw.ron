@@ -1,7 +1,7 @@
-// "<agent> draws <amount> card(s)" [CR#121.1].
+// "<performer> draws <amount> card(s)" [CR#121.1].
 (
     name: "draw",
     kinds: [Instruction],
-    params: {"amount": Amount, "agent": Default(NounPhrase, You)},
-    body: Draw(Param(amount), Param(agent)),
+    params: {"amount": Amount},
+    body: Draw(Param(amount), actor),
 )

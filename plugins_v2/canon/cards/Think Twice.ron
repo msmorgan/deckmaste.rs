@@ -8,7 +8,7 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            spell(timing: None, instruction: draw(amount: 1, agent: you)),
+            spell(timing: None, instruction: draw(1)),
             flashback(mana([
                 2,
                 Blue,

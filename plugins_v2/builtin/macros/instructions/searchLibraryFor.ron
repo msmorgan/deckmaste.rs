@@ -2,6 +2,6 @@
 (
     name: "searchLibraryFor",
     kinds: [Instruction],
-    params: {"quantity": Quantity, "p": Predicate, "agent": Default(NounPhrase, You)},
-    body: Search(scope: OneZone(yourLibrary), quantity: Param(quantity), predicate: Param(p), agent: Param(agent)),
+    params: {"quantity": Quantity, "p": Predicate},
+    body: Search(scope: OneZone(yourLibrary), quantity: Param(quantity), predicate: Param(p), agent: actor),
 )

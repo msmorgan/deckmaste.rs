@@ -2,6 +2,6 @@
 (
     name: "lookAtHandOf",
     kinds: [Instruction],
-    params: {"player": NounPhrase, "agent": Default(NounPhrase, You)},
-    body: Expose(verb: LookAt, exposed: Zone(handOf(player: Param(player))), agent: Param(agent)),
+    params: {"player": NounPhrase},
+    body: Expose(verb: LookAt, exposed: Zone(handOf(player: Param(player))), agent: actor),
 )
