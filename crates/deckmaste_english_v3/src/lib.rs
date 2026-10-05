@@ -58,6 +58,9 @@ pub enum LexicalFeatures<'a> {
         properties: &'a LexicalProperties,
         surface: deckmaste_lexical::SurfaceFeatures,
     },
+    FlavorWord {
+        surface: deckmaste_lexical::SurfaceFeatures,
+    },
     Numeral {
         value: i32,
         notation: Numeral,

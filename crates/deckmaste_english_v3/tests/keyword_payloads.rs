@@ -170,20 +170,40 @@ fn authentic_quality_and_subject_keywords_keep_declared_payloads() {
             value.features.number = Some(Number::Plural);
         }
     }
-    exact(
-        "Affinity for artifacts",
-        Reading::QualityKeyword {
-            form: 0,
-            head: keyword("affinity"),
-            quality: Box::new(marked(
-                "For",
-                Reading::NominalKeywordQuality {
+    let nominal = Reading::QualityKeyword {
+        form: 0,
+        head: keyword("affinity"),
+        quality: Box::new(marked(
+            "For",
+            Reading::NominalKeywordQuality {
+                form: 0,
+                phrase: Box::new(artifacts.clone()),
+            },
+        )),
+    };
+    let noun_phrase = Reading::QualityKeyword {
+        form: 0,
+        head: keyword("affinity"),
+        quality: Box::new(marked(
+            "For",
+            Reading::NounPhraseKeywordQuality {
+                form: 0,
+                phrase: Box::new(Reading::BarePlural {
                     form: 0,
-                    phrase: Box::new(artifacts),
-                },
-            )),
-        },
+                    head: Box::new(artifacts),
+                }),
+            },
+        )),
+    };
+    let expected = BTreeSet::from([nominal, noun_phrase]);
+    assert_eq!(
+        readings("Affinity for artifacts", Category::KeywordPhrase),
+        expected
     );
+    for value in expected {
+        value.admit(&LEXICON).unwrap();
+        assert_eq!(value.realize(&LEXICON).unwrap(), "Affinity for artifacts");
+    }
     // Evil Presence: "Enchant land".
     exact(
         "Enchant land",

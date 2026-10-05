@@ -24,6 +24,8 @@ pub enum Category {
     /// mapped. It never implicitly acquires an ordinary part of speech.
     Catalog,
     Keyword,
+    /// Open ability-head label, including its following em dash.
+    FlavorWord,
     Symbol,
 }
 
@@ -181,6 +183,9 @@ pub struct LexicalValue {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum LexicalReading {
     Word(LexicalValue),
+    FlavorWord {
+        label: String,
+    },
     Numeral {
         value: i32,
         notation: Numeral,

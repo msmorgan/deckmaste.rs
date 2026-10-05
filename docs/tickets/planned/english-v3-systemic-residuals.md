@@ -327,3 +327,19 @@ and the shared grammar cache; the new numeric article tests fix an observed
 regression. No existing English fixture is removed,
 ignored or re-spelled. The one lexical-source Nissa alias fixture is replaced
 with attested Dina, with new independent negative/possessive cases recording why.
+
+
+## Keyword-label residual handoff (2026-10-05)
+
+The keyword-label landing restores 59 of the 196 inherited flavor identities.
+The remaining 137 are explicitly owned here: 112 have an independently probed
+ability body without a Reading, and 25 have readable probed bodies but unresolved
+whole-face hosts or other abilities. These are discriminating observations, not
+a sole-cause classification. The identity/body-probe register is archived with
+the keyword-label landing. Lutri and the other probed Companion conditions still
+have ordinary body constituent failures; their declared Condition payload
+consumer exists. The declared Landwalk bound suffix also retains its lexical
+metadata, but needs an explicitly declared compatible stem class before a
+generic bound-quality consumer can admit it without inventing creaturewalk.
+Route that lexical declaration/consumer obligation during this ticket's cause
+audit. Keyword-label completion does not discharge these body or stem cases.

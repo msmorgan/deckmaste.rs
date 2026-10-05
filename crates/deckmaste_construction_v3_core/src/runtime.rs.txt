@@ -135,6 +135,12 @@ impl Word {
                     surface,
                 })
             }
+            ::deckmaste_lexical::LexicalReading::FlavorWord { .. } => {
+                if category != ::deckmaste_lexical::Category::FlavorWord {
+                    return Err(Error::Invalid("lexical", "Category"));
+                }
+                project(::deckmaste_english_v3::LexicalFeatures::FlavorWord { surface })
+            }
             ::deckmaste_lexical::LexicalReading::Numeral {
                 value, notation, ..
             } => {

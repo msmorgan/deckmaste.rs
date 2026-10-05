@@ -127,7 +127,9 @@ impl Grammar for Fixture {
                     vec![summary]
                 }
             }
-            LexicalFeatures::Numeral { .. } => vec![Summary::default()],
+            LexicalFeatures::Numeral { .. } | LexicalFeatures::FlavorWord { .. } => {
+                vec![Summary::default()]
+            }
         }
     }
 

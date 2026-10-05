@@ -146,6 +146,16 @@ impl<G: Grammar> Chart<'_, G> {
                         Some(lexeme.source.clone()),
                     )
                 }
+                LexicalReading::FlavorWord { .. } => {
+                    if occurrence.start != 0 && self.input.tokens[occurrence.start - 1] != '\n' {
+                        return Err(ParseError::UndeclaredOccurrence(index));
+                    }
+                    (
+                        Category::FlavorWord,
+                        LexicalFeatures::FlavorWord { surface },
+                        None,
+                    )
+                }
                 LexicalReading::Numeral {
                     value, notation, ..
                 } => (

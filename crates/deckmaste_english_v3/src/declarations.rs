@@ -46,7 +46,7 @@ constructions! {
         feature Selection { Yes }
         feature Function { Genitive }
         feature HostEnding { Default, PluralS }
-        feature LabelKind { AbilityWord }
+        feature LabelKind { None, AbilityWord, FlavorWord }
         feature SymbolUse { Cost }
         feature ManaSymbolUse { Yes }
         feature TypeLineRole { Supertype, CardType, Subtype }
@@ -69,7 +69,7 @@ constructions! {
         feature KeywordComplement { Yes }
 
         category Document();
-        category Ability();
+        category Ability(LabelKind);
         category AbilityContinuation();
         category Paragraph();
         category ParagraphItem();
@@ -90,7 +90,7 @@ constructions! {
         category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse);
         category NounPremodifier();
         category NounPremodifierSeries();
-        category NounPhrase(number, person, CaseUse);
+        category NounPhrase(number, person, CaseUse, Targeting);
         category NominativePhrase(number, person, CaseUse);
         category AccusativePhrase(number, person, CaseUse);
         category AdjectivePhrase(AdjectiveStructure);
@@ -143,7 +143,7 @@ constructions! {
         category ClauseSeries();
         category FinitePredicateSeries(number, person);
         category SecondaryPredicateSeries(form, ParticipialUse);
-        category NounPhraseSeries(number, person, CaseUse, CoordinationKind);
+        category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct);
         category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination);
@@ -172,8 +172,8 @@ constructions! {
         category CorrelativeClauseSeries(CorrelativeCoordinator);
         category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator);
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator);
-        category CorrelativeNounPhraseSeries(number, person, CaseUse, CorrelativeCoordinator,
-            CoordinationKind);
+        category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
+            CorrelativeCoordinator, CoordinationKind);
         category CorrelativePrepositionPhraseSeries(LocativeUse, AdverbialUse,
             CorrelativeCoordinator);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
@@ -390,6 +390,7 @@ constructions! {
         }
 
         policy NounPhraseHeadAgreement {
+            export Targeting = head.Targeting;
             export number = head.number;
             export person = Third;
             export CaseUse = Common;
@@ -469,7 +470,11 @@ constructions! {
             export number = left.number;
         }
 
+        table coordinated_targeting(Targeting, Targeting) -> Targeting {
+            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+        }
         policy NounCoordinationAgreement<Right, Source> {
+            export Targeting = coordinated_targeting(left.Targeting, Right.Targeting);
             export number = coordinate_number(Source.CoordinationKind, left.number,
                 Right.number);
             export person = coordinate_person(Source.CoordinationKind, left.person,
@@ -833,6 +838,7 @@ constructions! {
         }
 
         construction OrdinaryAbility: Ability {
+            export LabelKind = None;
             form [body: Paragraph];
         }
 
@@ -876,6 +882,7 @@ constructions! {
         }
 
         construction ActivatedAbility: Ability {
+            export LabelKind = None;
             form [cost: Cost, ": ", body: Paragraph];
         }
 
@@ -883,6 +890,16 @@ constructions! {
             boundary Initial;
             form [head: lexical(Keyword), " — ", body: Ability];
             require head.LabelKind = AbilityWord;
+            require body.LabelKind = None;
+            export LabelKind = AbilityWord;
+        }
+
+        construction FlavorWordHead: Ability {
+            cost 100;
+            boundary Initial;
+            form [head: lexical(FlavorWord), " ", body: Ability];
+            require body.LabelKind = None;
+            export LabelKind = FlavorWord;
         }
 
         construction Cost: Cost {
@@ -926,6 +943,7 @@ constructions! {
         }
 
         construction KeywordLine: Ability {
+            export LabelKind = None;
             boundary Initial;
             form [first: KeywordPhrase, rest: repeat(KeywordContinuation, "")];
         }
@@ -990,6 +1008,12 @@ constructions! {
         construction NominalKeywordQuality: KeywordQuality {
             form [phrase: Nominal];
             require phrase.Targeting = No;
+            export KeywordQualityNumber = quality_number(phrase.number);
+        }
+        construction NounPhraseKeywordQuality: KeywordQuality {
+            form [phrase: NounPhrase];
+            require phrase.Targeting = No;
+            require accusative_case(phrase.CaseUse) = Accusative;
             export KeywordQualityNumber = quality_number(phrase.number);
         }
         table keyword_quality_marker(KeywordMarker) -> Selection {
@@ -1060,6 +1084,7 @@ constructions! {
         category ClausalKeywordPayload(KeywordParameterClass);
         construction AbilityKeywordPayload: ClausalKeywordPayload {
             form [body: Ability];
+            require body.LabelKind = None;
             export KeywordParameterClass = Ability;
         }
         construction ConditionKeywordPayload: ClausalKeywordPayload {
@@ -1349,6 +1374,7 @@ constructions! {
         // CGEL p. 516: a referential proper name has NP status. Oracle names
         // refer to one card even when the written title contains plural nouns.
         construction ProperNameNounPhrase: NounPhrase {
+            export Targeting = No;
             form [head: Name];
             export number = Singular;
             use ThirdPersonCommonCase;
@@ -1382,6 +1408,7 @@ constructions! {
         }
 
         construction DeterminedNounPhrase: NounPhrase {
+            export Targeting = head.Targeting;
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require determiner.DeterminerKind = Ordinary;
             export number = determined_number(determiner.DeterminerUse, head.number,
@@ -1417,10 +1444,13 @@ constructions! {
             form [marker: lexical(Determinative), " ", head: Nominal];
             require marker.Targeting = Yes;
             require head.Targeting = No;
-            use NounPhraseHeadAgreement;
+            export number = head.number;
+            use ThirdPersonCommonCase;
+            export Targeting = Yes;
         }
 
         construction NominativePronoun: NounPhrase {
+            export Targeting = No;
             form [head: lexical(Pronoun)];
             use PredicateHeadAgreement;
             require head.case = Nominative;
@@ -1434,6 +1464,7 @@ constructions! {
         }
 
         construction AccusativePronoun: NounPhrase {
+            export Targeting = No;
             form [head: lexical(Pronoun)];
             use PredicateHeadAgreement;
             require head.case = Accusative;
@@ -1950,6 +1981,7 @@ constructions! {
         }
 
         construction MeasuredNounPhrase: NounPhrase {
+            export Targeting = No;
             form [quantity: MeasurePhrase, " ", head: lexical(Noun)];
             require head.MeasurePosition = Before;
             require quantity.MeasureKind = Scalar;
@@ -1960,6 +1992,7 @@ constructions! {
         }
 
         construction MeasuredAttribute: NounPhrase {
+            export Targeting = No;
             form [head: lexical(Noun), " ", quantity: MeasurePhrase];
             require head.MeasurePosition = After;
             require quantity.MeasureKind = Scalar;

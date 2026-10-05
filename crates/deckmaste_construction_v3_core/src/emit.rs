@@ -149,6 +149,7 @@ fn projection(ir: &Ir) -> TokenStream {
             let (form, features, properties, surface) = match features {
                 ::deckmaste_english_v3::LexicalFeatures::Word { form, features, properties, surface, .. } => (form, features, properties, surface),
                 ::deckmaste_english_v3::LexicalFeatures::Numeral { value, notation, surface } => return project_numeral(value, notation, surface),
+                ::deckmaste_english_v3::LexicalFeatures::FlavorWord { surface } => return vec![Summary::lexical(surface)],
             };
             let mut base = Summary::lexical(surface);
             #(#features)*

@@ -84,7 +84,7 @@ impl Sample {
                         .lexemes()
                         .get(&value.lexeme)
                         .map(|lexeme| lexeme.source.clone()),
-                    LexicalReading::Numeral { .. } => None,
+                    LexicalReading::Numeral { .. } | LexicalReading::FlavorWord { .. } => None,
                 },
             })
             .collect();

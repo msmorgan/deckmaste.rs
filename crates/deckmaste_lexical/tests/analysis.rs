@@ -76,6 +76,7 @@ fn initial(reading: LexicalReading) -> LexicalReading {
             capitalization: SurfaceCase::Initial,
             ..value
         }),
+        LexicalReading::FlavorWord { .. } => unreachable!(),
         LexicalReading::Numeral {
             value, notation, ..
         } => LexicalReading::Numeral {
@@ -357,7 +358,7 @@ fn past_readings(id: &str, variant: usize) -> BTreeSet<LexicalReading> {
         .into_iter()
         .map(|reading| match reading {
             LexicalReading::Word(value) => LexicalReading::Word(LexicalValue { variant, ..value }),
-            LexicalReading::Numeral { .. } => unreachable!(),
+            LexicalReading::Numeral { .. } | LexicalReading::FlavorWord { .. } => unreachable!(),
         })
         .collect()
 }
@@ -756,15 +757,17 @@ fn crossing_bound_matches_do_not_hide_unsegmentable_words() {
 /// and the run itself is the label.
 #[test]
 fn an_italic_run_no_declaration_spells_is_a_flavor_word() {
-    let lexicon = Lexicon::new([
-        invariant(
-            "lexeme:ability_word/battalion",
-            "Battalion",
-            Category::Keyword,
-        ),
-        verb("lexeme:keyword_action/attack", "attack"),
-    ])
-    .unwrap();
+    let mut battalion = invariant(
+        "lexeme:ability_word/battalion",
+        "Battalion",
+        Category::Keyword,
+    );
+    battalion
+        .properties
+        .features
+        .insert("LabelKind".into(), "AbilityWord".into());
+    let lexicon =
+        Lexicon::new([battalion, verb("lexeme:keyword_action/attack", "attack")]).unwrap();
 
     assert_eq!(
         lexicon.analyze_italic_head("Battalion"),
@@ -948,4 +951,97 @@ fn plain_forms_do_not_assign_finiteness_but_participles_do() {
         WordForm::PastParticiple,
         nonfinite()
     )));
+}
+
+#[test]
+fn flavor_heads_are_lossless_open_labels_at_line_starts() {
+    let lexicon = Lexicon::new([]).unwrap();
+    for (label, body) in [
+        // Astrologian's Planisphere and Blue Mage's Cane.
+        ("Diana", "Equip {2}"),
+        ("Spirit of the Whalaqee", "Equip {2}"),
+        // Deliberately unseen label establishes the open lexical class.
+        ("An Unlisted Label Ω!", "Equip {2}"),
+    ] {
+        let text = format!("{label} — {body}");
+        let expected = LexicalReading::FlavorWord {
+            label: label.into(),
+        };
+        let end = label.chars().count() + 2;
+        assert_eq!(
+            at(&lexicon.analyze(&text), 0, end),
+            BTreeSet::from([expected.clone()])
+        );
+        assert_eq!(lexicon.realize(&expected).unwrap(), format!("{label} —"));
+        let surface = lexicon.surface_features(&expected).unwrap();
+        assert!(surface.initial);
+        assert!(!surface.interior);
+        assert_eq!(surface.onset, None);
+        let prefixed = format!("Trample\n{text}");
+        assert_eq!(
+            at(&lexicon.analyze(&prefixed), 8, 8 + end),
+            BTreeSet::from([expected])
+        );
+    }
+    for text in [
+        " — Equip {2}",
+        "Diana— Equip {2}",
+        "Diana - Equip {2}",
+        "Diana\t — Equip {2}",
+        "Diana\n — Equip {2}",
+    ] {
+        assert!(
+            !lexicon
+                .analyze(text)
+                .matches
+                .iter()
+                .any(|found| matches!(found.reading, LexicalReading::FlavorWord { .. })),
+            "{text:?}"
+        );
+    }
+    let analyzed = lexicon.analyze("prefix Diana — Equip {2}");
+    assert!(!analyzed.matches.iter().any(
+        |found| found.start == 7 && matches!(found.reading, LexicalReading::FlavorWord { .. })
+    ));
+    for label in ["", "Diana\nOther", "Diana\tOther", "Diana — Other"] {
+        let reading = LexicalReading::FlavorWord {
+            label: label.into(),
+        };
+        assert!(lexicon.realize(&reading).is_err());
+        assert!(lexicon.surface_features(&reading).is_err());
+    }
+}
+
+#[test]
+fn declared_ability_words_keep_an_additional_open_flavor_reading() {
+    let mut channel = invariant("lexeme:ability_word/channel", "Channel", Category::Keyword);
+    channel
+        .properties
+        .features
+        .insert("LabelKind".into(), "AbilityWord".into());
+    let equip = invariant("lexeme:keyword_ability/equip", "Equip", Category::Keyword);
+    let lexicon = Lexicon::new([channel, equip]).unwrap();
+    // Mnemonic Sphere's ability head.
+    let analyzed = lexicon.analyze("Channel — {U}, Discard this card: Draw a card.");
+    assert_eq!(
+        at(&analyzed, 0, 9),
+        BTreeSet::from([LexicalReading::FlavorWord {
+            label: "Channel".into()
+        },])
+    );
+    assert!(
+        at(&analyzed, 0, 7)
+            .iter()
+            .any(|reading| matches!(reading, LexicalReading::Word(_)))
+    );
+    assert!(matches!(
+        lexicon.analyze_italic_head("Channel"),
+        ItalicHead::AbilityWord(_)
+    ));
+    assert_eq!(
+        lexicon.analyze_italic_head("Equip"),
+        ItalicHead::FlavorWord {
+            label: "Equip".into()
+        }
+    );
 }

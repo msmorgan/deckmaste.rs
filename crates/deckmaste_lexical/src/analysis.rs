@@ -28,12 +28,9 @@ pub enum LexicalError {
 /// [CR#207.2c,207.2d].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ItalicHead {
-    /// The run is spelled by a declared keyword-category Lexeme. At this
-    /// position that is an ability word: the ability words are a listed
-    /// inventory [CR#207.2c] and the only declared vocabulary an italic head
-    /// carries.
+    /// The run is spelled by a declared Ability Word [CR#207.2c].
     AbilityWord(LexicalValue),
-    /// No declaration spells the run. Flavor words are listed nowhere
+    /// No Ability Word declaration spells the run. Flavor words are listed nowhere
     /// [CR#207.2d] — each is tailored to the one ability it heads — so there
     /// is no inventory to consult and the run itself is the label.
     FlavorWord { label: String },
@@ -344,6 +341,15 @@ impl Lexicon {
         reading: &LexicalReading,
     ) -> Result<crate::SurfaceFeatures, LexicalError> {
         match reading {
+            LexicalReading::FlavorWord { .. } => {
+                self.realize(reading)?;
+                Ok(crate::SurfaceFeatures {
+                    onset: None,
+                    article_onset: None,
+                    initial: true,
+                    interior: false,
+                })
+            }
             LexicalReading::Word(value) => self
                 .surface_features
                 .get(value)
@@ -370,6 +376,12 @@ impl Lexicon {
     /// values.
     pub fn realize(&self, reading: &LexicalReading) -> Result<String, LexicalError> {
         match reading {
+            LexicalReading::FlavorWord { label } => {
+                if !valid_flavor_label(label) {
+                    return Err(LexicalError::UnlicensedValue);
+                }
+                Ok(format!("{label} —"))
+            }
             LexicalReading::Word(value) => self
                 .surfaces
                 .get(value)
@@ -401,7 +413,7 @@ impl Lexicon {
     /// Analyzes an italic run written at the head of an ability
     /// [CR#207.2c,207.2d].
     ///
-    /// A run no declaration spells is not a vocabulary gap here: it is a
+    /// A run no declared Ability Word spells is not a vocabulary gap here: it is a
     /// flavor word, and the label is the run verbatim. Nothing enumerates
     /// flavor words, so this is the only open slot the lexicon reports rather
     /// than an unknown word.
@@ -413,10 +425,15 @@ impl Lexicon {
             let LexicalReading::Word(value) = &found.reading else {
                 return None;
             };
-            let keyword = self
-                .lexemes
-                .get(&value.lexeme)
-                .is_some_and(|lexeme| lexeme.category == Category::Keyword);
+            let keyword = self.lexemes.get(&value.lexeme).is_some_and(|lexeme| {
+                lexeme.category == Category::Keyword
+                    && lexeme
+                        .properties
+                        .features
+                        .get("LabelKind")
+                        .map(String::as_str)
+                        == Some("AbilityWord")
+            });
             (found.start == 0 && found.end == whole && keyword).then(|| value.clone())
         });
         match declared {
@@ -502,11 +519,43 @@ impl Lexicon {
             })
             .collect::<Vec<_>>();
         numeral_matches(&tokens, &mut matches);
+        flavor_word_matches(&tokens, &mut matches);
         AnalyzedText {
             raw: raw.to_owned(),
             normalized: normalized.map(str::to_owned),
             tokens,
             matches,
+        }
+    }
+}
+
+fn valid_flavor_label(label: &str) -> bool {
+    !label.is_empty() && !label.chars().any(char::is_control) && !label.contains(" —")
+}
+
+fn flavor_word_matches(tokens: &[char], matches: &mut Vec<LexicalMatch>) {
+    for start in 0..tokens.len() {
+        if start != 0 && tokens[start - 1] != '\n' {
+            continue;
+        }
+        let line_end = tokens[start..]
+            .iter()
+            .position(|ch| ch.is_control())
+            .map_or(tokens.len(), |offset| start + offset);
+        let Some(offset) = tokens[start..line_end]
+            .windows(2)
+            .position(|pair| pair == [' ', '—'])
+        else {
+            continue;
+        };
+        let dash = start + offset + 1;
+        let label: String = tokens[start..dash - 1].iter().collect();
+        if valid_flavor_label(&label) {
+            matches.push(LexicalMatch {
+                start,
+                end: dash + 1,
+                reading: LexicalReading::FlavorWord { label },
+            });
         }
     }
 }
