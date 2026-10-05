@@ -1,5 +1,5 @@
 ---
-needs: [plugins-v2-implicit-actor-spelling]
+needs: [plugins-v2-implicit-actor-spelling, semantics-v2-group-handoff-publishes-no-outcome, semantics-v2-deed-performer-roles]
 ---
 **Delete the agent fields from the model once nothing spells them.** Landing
 (3) of the actor-handoff design agreed with the owner on 2026-10-05 (see
@@ -32,6 +32,13 @@ constraints apply.
    `lean_drift` holds.
 4. **RON.** The helpers stop writing `actor` into the deleted slots;
    `keywords.rs` writes `Enact(Action(label), body)`.
+
+Two tickets come first. `semantics-v2-group-handoff-publishes-no-outcome`:
+until a group handoff publishes the total "that much" reads, extort must
+write `changeLife` with each opponent as its agent, so that field cannot be
+deleted. `semantics-v2-deed-performer-roles`: until the twelve deeds the
+checker gives no player performer accept the actor, their declarations write
+`agent: None` and the loader keeps the `agent` field.
 
 ## Left by plugins-v2-implicit-actor-spelling (2026-10-05)
 
