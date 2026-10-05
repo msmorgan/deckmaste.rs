@@ -18,10 +18,5 @@ KeywordAction(
         ),
     ),
     deed: None,
-    body: Search(
-        scope: Param(0),
-        quantity: Param(1),
-        predicate: Param(2),
-        agent: Param(3),
-    ),
+    body: Search(Param(0), Param(1), Param(2), Param(3)),
 )

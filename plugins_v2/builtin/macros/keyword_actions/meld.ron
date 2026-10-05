@@ -10,10 +10,5 @@ KeywordAction(
         bare: "meld",
         frame_set: Transitive,
     ),
-    body: Move(
-        subject: Param(0),
-        from: Wherever,
-        to: Zone(zone: Battlefield, scope: Bare),
-        riders: [EntersMelded(Param(1))],
-    ),
+    body: Move(Param(0), wherever, battlefield, [EntersMelded(Param(1))]),
 )

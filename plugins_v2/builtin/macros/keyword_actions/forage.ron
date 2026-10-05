@@ -11,42 +11,16 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     agent: Param(0),
-    body: ChooseModes(
-        quantity: Range(low: 1, high: 1),
-        modes: [
-            (None, Enact(
-                verb: Action("Exile"),
-                instruction: Move(
-                    subject: Described(
-                        determiner: Count(quantity: Range(low: 3, high: 3), mode: None),
-                        predicate: And([
-                            IsCard,
-                            InZone(Zone(zone: Graveyard, scope: PossessedBy(Param(0)))),
-                        ]),
-                    ),
-                    from: Zone(zone: Graveyard, scope: PossessedBy(Param(0))),
-                    to: Zone(zone: Exile, scope: Bare),
-                    riders: [],
-                ),
-                agent: Param(0),
-            )),
-            (None, Enact(
-                verb: Action("Sacrifice"),
-                instruction: Move(
-                    subject: Described(
-                        determiner: A(Unmarked),
-                        predicate: And([
-                            HasSubtype(Of(host: Artifact, label: "Food")),
-                            InZone(Zone(zone: Battlefield, scope: Bare)),
-                            HasPossessor(axis: Controller, possessor: Param(0)),
-                        ]),
-                    ),
-                    from: Zone(zone: Battlefield, scope: Bare),
-                    to: Zone(zone: Graveyard, scope: Bare),
-                    riders: [],
-                ),
-                agent: Param(0),
-            )),
-        ],
+    body: chooseOne(
+        enact(
+            Action("Exile"),
+            move(
+                counted(exactly(3), and([isCard, inZone(graveyardOf(Param(0)))])),
+                exileZone,
+                graveyardOf(Param(0)),
+            ),
+            Param(0),
+        ),
+        sacrifice(a(and([hasSubtype(food), permanent, controlledBy(Param(0))])), Param(0)),
     ),
 )

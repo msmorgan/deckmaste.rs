@@ -16,10 +16,5 @@ KeywordAction(
         ),
     ),
     deed: None,
-    body: Vote(
-        first: None,
-        disclosure: Param(0),
-        ballot: Param(1),
-        agent: Param(2),
-    ),
+    body: Vote(None, Param(0), Param(1), Param(2)),
 )

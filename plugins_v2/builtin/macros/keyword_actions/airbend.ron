@@ -11,34 +11,16 @@ KeywordAction(
         frame_set: Transitive,
     ),
     agent: Param(1),
-    body: Sequentially([
-        Move(subject: Param(0), from: Wherever, to: Zone(zone: Exile, scope: Bare), riders: []),
-        Establish(
-            spec: DeonticRule(
-                subject: PossessorOf(
-                    axis: Owner,
-                    subject: Pro(reach: Stamped(Action("Airbend")), plurality: Many, window: Whole),
-                ),
-                compulsion: Permit,
-                deeds: [Action("Cast")],
-                role: Agent,
-                bound: None,
-                patient: Counterpart(
-                    patient: Pro(reach: Stamped(Action("Airbend")), plurality: Many, window: Whole),
-                ),
-                as_though: None,
-                rider: Play(
-                    from: Zone(zone: Exile, scope: Bare),
-                    limit: None,
-                    timing: None,
-                    exclusive: false,
-                    payment: PayingInstead(Mana([2])),
-                ),
+    body: sequentially([
+        move(Param(0), exileZone),
+        establish(
+            mayPlayDeed(
+                Action("Cast"),
+                ownerOf(themVerbed(Action("Airbend"))),
+                themVerbed(Action("Airbend")),
+                Play(exileZone, None, None, false, PayingInstead(mana([2]))),
             ),
-            duration: ForAsLongAs(Matches(
-                subject: Pro(reach: Stamped(Action("Airbend")), plurality: Many, window: Whole),
-                predicate: InZone(Zone(zone: Exile, scope: Bare)),
-            )),
+            forAsLongAs(matches(themVerbed(Action("Airbend")), inZone(exileZone))),
         ),
     ]),
 )

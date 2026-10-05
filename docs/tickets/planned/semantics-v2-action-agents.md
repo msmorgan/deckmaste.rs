@@ -42,16 +42,38 @@ generic `move` helper takes a trailing `from` defaulting to `wherever`; the
 other helpers pass `wherever`. The checker reads the origin as a zone
 expression and has no origin rules yet.
 
-**Not done: dropping discard's agent.** With the hand in the term an agentless
-discard checks on every canon card, but the agent also carries what the hand
-does not: who distributes and who chooses. "Each opponent discards a card"
-writes the distributor as the agent (`distributedDeedReadsBackPlural`,
-`badDistributedDiscardSingular` in `Proofs/Anaphora.lean`, and the bench cards
-with `each`/`target`/`that` discarders). Spelled agentless as "a card in each
-opponent's hand" the checker reads ONE card — plural readback refused,
-singular accepted — the opposite of those pins. Decide how an agentless move
-distributes over players and who chooses an indefinite before removing the
-agent.
+**Not done: dropping discard's agent.** Owner's model: the choice is its own
+step with its own actor, and the discard is a pure object move —
+`discard(cards)` for determined cards, and `chooseAndDiscard(player, n)` as
+"`player` chooses n cards in hand, then those are discarded", with a
+distributing player passed directly (`chooseAndDiscard(each(opponent), 1)`):
+the players choose in turn order, then the discards happen simultaneously
+[CR#101.4]. The player is mentioned once, as the chooser; the hand stays bare.
+
+Checked against the Lean checker (no declaration changed):
+
+- Resolution-time discards work. The three Anaphora pins re-spell as
+  choose-by-player then discard the chosen, and give their old results (each
+  opponent: plural read-back clean, singular refused with the same `anaphor`
+  refusal; you: singular read-back clean). Liliana of the Veil's +1, Syphon
+  Mind, the `that player` trigger, Mox Diamond's offer, the draw-then-discard
+  read-back and "each player may discard their hand" all check. A random
+  discard needs no chooser: two cards at random in target opponent's hand.
+- **Discard as a cost does not.** `Instruction.costActionOk` takes one action,
+  and `.sequentially [choose, discard]` is refused `costAction`: Diplomatic
+  Escort, Korlash's grandeur cost, Sphinx of the Chimes, Vexing Sphinx's
+  cumulative upkeep, and every other "Discard a card:" cost on the bench, and
+  `retrace`'s "discarding a land card". The smallest change would be to admit,
+  in a cost, a choose whose agent is the payer followed by one costed action
+  on what was chosen. That relaxes a check rule, so it waits for a decision.
+- **The read-back number is fixed in a RON body.** The discard must read the
+  chosen cards back with `it` (one chooser, one card) or `them` (several
+  choosers or cards), and a RON macro cannot pick one from its arguments.
+
+Open point: a later step that needs each player paired with their own card
+("each opponent discards a card, then loses life equal to that card's mana
+value") loses that pairing in a flat "those". No canon or bench card needs it
+today.
 
 ## Constraints
 

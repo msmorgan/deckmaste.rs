@@ -11,5 +11,5 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    body: SkipUntap(subject: Param(0), steps: 1),
+    body: skipUntap(Param(0), 1),
 )

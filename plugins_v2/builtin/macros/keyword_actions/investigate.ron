@@ -11,30 +11,14 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     agent: Param(0),
-    body: CreateObject(
-        count: 1,
-        spec: Token(
-            spec: Written((characteristics: (
+    body: createToken(
+        Param(0),
+        (
+            characteristics: (
+                subtypes: [clue],
+                text: [activated(compound([mana([2]), perform(sacrifice(this, you))]), draw(1))],
                 types: [Artifact],
-                subtypes: [Of(host: Artifact, label: "Clue")],
-                text: [Activated(
-                    cost: Compound([
-                        Mana([2]),
-                        Perform(Enact(
-                            verb: Action("Sacrifice"),
-                            instruction: Move(subject: This, from: Zone(zone: Battlefield, scope: Bare), to: Zone(zone: Graveyard, scope: Bare), riders: []),
-                            agent: You,
-                        )),
-                    ]),
-                    instruction: Draw(amount: 1, agent: You),
-                    timing: None,
-                    limit: None,
-                    guard: None,
-                    activator: None,
-                )],
-            ))),
-            riders: [],
+            ),
         ),
-        agent: Param(0),
     ),
 )

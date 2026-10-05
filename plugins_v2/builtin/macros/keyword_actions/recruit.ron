@@ -10,44 +10,12 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Intransitive,
     ),
-    body: Sequentially([
-        Draw(amount: 1, agent: Param(0)),
-        Enact(
-            verb: Action("Discard"),
-            instruction: Move(
-                subject: Described(
-                    determiner: A(Unmarked),
-                    predicate: And([
-                        IsCard,
-                        InZone(Zone(zone: Hand, scope: PossessedBy(Param(0)))),
-                    ]),
-                ),
-                from: Zone(zone: Hand, scope: Bare),
-                to: Zone(zone: Graveyard, scope: Bare),
-                riders: [],
-            ),
-            agent: Param(0),
-        ),
-        DoIf(
-            condition: Not(Matches(
-                subject: Pro(reach: Verbed(verb: Action("Discard"), word: Card, marking: ThisWay), plurality: One, window: Whole),
-                predicate: HasType(Land),
-            )),
-            instruction: CreateObject(
-                count: 1,
-                spec: Token(
-                    spec: Written((characteristics: (
-                        colors: [White],
-                        types: [Creature],
-                        subtypes: [Of(host: Creature, label: "Human"), Of(host: Creature, label: "Soldier")],
-                        power: 1,
-                        toughness: 1,
-                    ))),
-                    riders: [],
-                ),
-                agent: Param(0),
-            ),
-            otherwise: None,
+    body: sequentially([
+        draw(1, Param(0)),
+        discard(a(and([isCard, inZone(handOf(Param(0)))])), Param(0)),
+        doIf(
+            not(matches(theVerbed(Action("Discard"), Card, ThisWay, One), land)),
+            createToken(Param(0), creatureToken(1, 1, [White], [human, soldier])),
         ),
     ]),
 )

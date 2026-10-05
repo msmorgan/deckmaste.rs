@@ -9,27 +9,13 @@ KeywordAction(
         bare: "proliferate",
         frame_set: Intransitive,
     ),
-    body: Sequentially([
-        Choose(
-            first: None,
-            chosen: Described(
-                determiner: Count(quantity: Range(low: None, high: None), mode: None),
-                predicate: Or([
-                    And([
-                        InZone(Zone(zone: Battlefield, scope: Bare)),
-                        HasCounters(None),
-                    ]),
-                    Compare(axes: [AnyCounter(Player)], comparator: AtLeast, bound: 1),
-                ]),
+    body: sequentially([
+        choose(
+            counted(
+                anyNumber,
+                or([and([permanent, hasCounters]), compare([AnyCounter(Player)], AtLeast, 1)]),
             ),
-            disclosure: Openly,
-            when: None,
-            agent: None,
         ),
-        PutCounters(
-            amount: 1,
-            kind: Own,
-            on: EachOf(Pro(reach: Word(Join), plurality: Many, window: Whole)),
-        ),
+        putCounters(1, Own, eachOf(those(Join))),
     ]),
 )

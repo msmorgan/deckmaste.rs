@@ -10,5 +10,5 @@ KeywordAction(
         frame_set: Transitive,
     ),
     deed: None,
-    body: Expose(verb: Reveal, exposed: Cards(Param(0)), agent: Param(1)),
+    body: revealCards(Param(0), Param(1)),
 )

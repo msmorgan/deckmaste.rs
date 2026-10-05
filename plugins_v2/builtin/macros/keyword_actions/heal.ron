@@ -9,5 +9,5 @@ KeywordAction(
         bare: "heal",
         frame_set: Transitive,
     ),
-    body: ClearDamage(Param(0)),
+    body: clearDamage(Param(0)),
 )

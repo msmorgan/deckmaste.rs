@@ -10,5 +10,5 @@ KeywordAction(
         bare: "destroy",
         frame_set: Transitive,
     ),
-    body: Move(subject: Param(0), from: Zone(zone: Battlefield, scope: Bare), to: Zone(zone: Graveyard, scope: Bare), riders: []),
+    body: move(Param(0), graveyard, battlefield),
 )

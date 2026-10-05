@@ -254,9 +254,8 @@ fn a_keyword_declaration_builds_its_wrapper() {
     // The default deed is the action the name spells.
     assert_eq!(
         body("KeywordAction", "destroy"),
-        "Enact(verb: Action(\"Destroy\"), instruction: Move(subject: Param(0), from: Zone(zone: \
-         Battlefield, scope: Bare), to: Zone(zone: Graveyard, scope: Bare), riders: []), agent: \
-         None)"
+        "Enact(verb: Action(\"Destroy\"), instruction: move(Param(0), graveyard, battlefield), \
+         agent: None)"
     );
     // A bodyless action stays bodyless.
     assert_eq!(body("KeywordAction", "scry"), "()");

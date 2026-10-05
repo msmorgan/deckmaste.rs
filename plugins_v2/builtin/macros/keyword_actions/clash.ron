@@ -15,27 +15,8 @@ KeywordAction(
         ),
     ),
     agent: Param(0),
-    body: Sequentially([
-        Expose(
-            verb: Reveal,
-            exposed: Cards(LibrarySlice(end: Top, amount: 1, whose: Param(0))),
-            agent: Param(0),
-        ),
-        WithContinuation(
-            policy: Optional(Param(0)),
-            body: Move(
-                subject: Pro(reach: Word(Card), plurality: One, window: Whole),
-                from: Wherever,
-                to: Library(
-                    place: OneEnd(Bottom),
-                    order: None,
-                    offset: None,
-                    scope: Bare,
-                ),
-                riders: [],
-            ),
-            if_did: None,
-            if_not: None,
-        ),
+    body: sequentially([
+        reveal(librarySlice(Top, 1, Param(0)), Param(0)),
+        may(Param(0), move(that(Card), onBottom)),
     ]),
 )

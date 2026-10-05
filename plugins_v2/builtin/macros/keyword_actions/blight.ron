@@ -8,16 +8,6 @@ KeywordAction(
         bare: "blight",
         frame_set: MeasureComplement,
     ),
-    agent: You,
-    body: PutCounters(
-        amount: Param(0),
-        kind: Printed(Boost(power: Down(1), toughness: Down(1))),
-        on: Described(
-            determiner: A(Unmarked),
-            predicate: And([
-                HasType(Creature),
-                HasPossessor(axis: Controller, possessor: You),
-            ]),
-        ),
-    ),
+    agent: you,
+    body: putCounters(Param(0), m1m1Counter, a(creatureYouControl)),
 )

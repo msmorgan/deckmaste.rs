@@ -16,11 +16,5 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     agent: Param(2),
-    body: ChooseModes(
-        quantity: Range(low: 1, high: 1),
-        modes: [
-            (None, Param(0)),
-            (None, Param(1)),
-        ],
-    ),
+    body: chooseOne(Param(0), Param(1)),
 )

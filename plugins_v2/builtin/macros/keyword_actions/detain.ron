@@ -11,35 +11,14 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    body: Establish(
-        spec: Conjunction(subject: None, parts: [
-            DeonticRule(
-                subject: Param(0),
-                compulsion: Forbid,
-                deeds: [Core(Attack), Core(Block)],
-                role: Agent,
-                bound: None,
-                patient: NoPatient,
-                as_though: None,
-                rider: NoRider,
+    body: establishFor(
+        [
+            deontic(Param(0), Forbid, [Attack, Block], Agent, NoPatient),
+            objectCant(
+                Action("Activate"),
+                allOf(and([abilityHead(AnyActivated), abilityOf(Param(0))])),
             ),
-            DeonticRule(
-                subject: Described(
-                    determiner: All,
-                    predicate: And([
-                        AbilityHead(AnyActivated),
-                        AbilityOf(Param(0)),
-                    ]),
-                ),
-                compulsion: Forbid,
-                deeds: [Action("Activate")],
-                role: Patient,
-                bound: None,
-                patient: NoPatient,
-                as_though: None,
-                rider: NoRider,
-            ),
-        ]),
-        duration: Until(StartOf(part: Turn, whose: PossessorOf(axis: Controller, subject: This))),
+        ],
+        until(StartOf(Turn, controllerOf(this))),
     ),
 )

@@ -12,9 +12,5 @@ KeywordAction(
         frame_set: Transitive,
     ),
     agent: Param(1),
-    body: GainDesignation(
-        subject: Param(0),
-        designation: "suspected",
-        duration: None,
-    ),
+    body: gainDesignation(Param(0), "suspected"),
 )
