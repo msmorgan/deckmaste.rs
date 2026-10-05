@@ -277,10 +277,13 @@ generator ticket.
 spelling and grammar, semantics_v2 reads the params and body. A keyword
 declaration's file writes only the part of its definition that does not follow
 from its name and signature — a keyword ability's list of abilities (omitted
-when empty), a keyword action's instruction and its `agent` — and semantics_v2
-builds the `Keyword(...)` or `Enact(verb: Action(...), ...)` wrapper around it
-(`deckmaste_semantics_v2::keywords`); a file writes `keyword_params` or
-`deed: None` where its definition does not take the derived arguments or deed.
+when empty), a keyword action's instruction, never who performs it — and
+semantics_v2 builds the `Keyword(...)` or `Enact(verb: Action(...), ...)`
+wrapper around it (`deckmaste_semantics_v2::keywords`), recording the actor as
+the deed's performer (§7, ruling 2026-10-05); a file writes `keyword_params`,
+`deed: None` or `agent: None` where its definition does not take the derived
+arguments, the deed, or a player performer (the checker gives twelve deeds
+none: Lean `actFacts`, `enactAgentOk`).
 The file is
 the shared contract; neither crate depends on the other for it, and an xtask
 drift test loads every declaration both ways. Today's bodyless declarations
@@ -329,7 +332,7 @@ constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
 Lean's reserved words, so the declaration keeps the plain name (ruling,
 2026-10-04).
 
-Five helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `selectRandom` and `theirHand` (no Lean macro).
+Six helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `exileFrom`, `selectRandom` and `theirHand` (no Lean macro).
 
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
@@ -513,8 +516,9 @@ The 29 that were blocked because their name is a constructor of their own kind
 are unblocked by §11's case rule and 27 of them ported here: Lean's `.draw` /
 `draw` distinction is now RON's `Draw` / `draw`, so an alias macro is an
 ordinary declaration. The other two of the 29, `shuffle` and `vote`, are the
-next bucket — their keyword-action declarations already own the identity, with
-an identity body that is exactly what the Lean macro expands to.
+next bucket — their keyword-action declarations already own the name, with a
+body that is the constructor with the actor in its agent slot (an identity body
+until the 2026-10-05 ruling, §7).
 
 The other 107 stay Lean-only, in seven buckets. (Counts recounted
 2026-10-05 at `semantics-v2-actor-handoff`: every line of `Macros.lean`
@@ -568,12 +572,17 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
 - **It is defined by pattern matching on an argument (3).** `agentPlur`,
   `itOrThem`, `sameWindow`.
 - **It is a performer helper in the `Actor` namespace (10).** These fill an
-  agent slot with `actor` (§7, ruling 2026-10-05) and are what the RON helpers
-  become in `plugins-v2-implicit-actor-spelling`. Until then their RON names
-  belong to an explicit-agent helper (`choose`, `draw`, `gainLife`,
-  `loseLife`), to a spelled declaration (`amass`, `create`, `discard` and
-  `sacrifice` are keyword actions, `army` a subtype), or to nothing yet
-  (`mayCastFrom`, `plugins-v2-keyword-helper-additions`): `Actor.amass`,
+  agent slot with `actor` (§7, ruling 2026-10-05). Since
+  `plugins-v2-implicit-actor-spelling` six of them have a RON declaration of
+  the unprefixed name that writes the same term (`choose`, `draw`,
+  `gainLife`, `loseLife`, and the keyword actions `discard` and
+  `sacrifice`); the method keeps the `Actor` prefix, so they stay counted
+  here while the Lean bench's explicit-agent macros of those names remain.
+  The other four have none: `amass` writes the literal reminder text rather
+  than `itPrior`, `create` takes a `TokenSpec` where Lean takes the bundle
+  (`createToken` takes the bundle, count last), `army` is a subtype and no
+  predicate is added (owner, 2026-10-05), and `mayCastFrom` waits for
+  `plugins-v2-keyword-helper-additions`: `Actor.amass`,
   `Actor.army`, `Actor.choose`, `Actor.create`, `Actor.discard`,
   `Actor.draw`, `Actor.gainLife`, `Actor.loseLife`, `Actor.mayCastFrom`,
   `Actor.sacrifice`.
@@ -588,7 +597,14 @@ Beside the ported phrasings is the ALIAS layer: one identity macro per
 constructor of a `semantic_expression` type, `draw(amount: …, agent: …)` for
 `Draw`, which is what `declare_semantic_primitives` generates in Lean and what
 makes §11.1's macro-only rule satisfiable — a card that may write only macros
-needs a macro for every constructor. 244 of them are declarations; the rest of
+needs a macro for every constructor. The aliases of the constructors with a
+required agent take no agent and write `actor` there (§7, ruling 2026-10-05):
+`addMana`, `conclude`, `copy`, `createObject`, `expose`, `pay`,
+`rerollStored`, `separateIntoPiles`, `skipPart`. Two keep it: `changeLife`,
+because extort's loss is written with each opponent as its agent (handed to
+them, "the total life lost this way" is refused, Lean `quantOutcomeInScope`),
+and `enact` and `insertPart`, whose agent is optional and `None` where no
+performer is recorded. Of the aliases, 244 are declarations; the rest of
 the basis is already covered by a phrasing macro of the same name (the 27
 above among them, whose narrower signature is the one a card writes, and
 `exists`, whose `Predicate` signature is Lean's `exists_` phrasing — the

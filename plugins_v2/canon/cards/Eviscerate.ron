@@ -1,5 +1,5 @@
-// "Destroy target creature." The bare-imperative destroy: the effect performs
-// it, so the deed names no agent [CR#701.8a].
+// "Destroy target creature." The bare-imperative destroy [CR#701.8a]: the
+// deed records the actor, the spell's controller, as its performer.
 SingleFaced(face: (
     characteristics: (
         name: "Eviscerate",
