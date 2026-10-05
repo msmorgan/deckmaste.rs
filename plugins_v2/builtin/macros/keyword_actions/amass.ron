@@ -22,7 +22,7 @@ KeywordAction(
             createToken(you, creatureToken(0, 0, [Black], [Param(0), army])),
         ),
         // "Choose an Army you control."
-        choose(a(armyYouControl)),
+        choose(None, a(armyYouControl)),
         // "Put N +1/+1 counters on it."
         putCounters(Param(1), p1p1Counter, that(Creature)),
         // "It's a <subtype> in addition to its other types."

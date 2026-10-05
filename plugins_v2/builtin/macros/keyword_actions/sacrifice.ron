@@ -10,5 +10,5 @@ KeywordAction(
         frame_set: Transitive,
     ),
     agent: Param(1),
-    body: move(Param(0), graveyard, battlefield),
+    body: move(Param(0), battlefield, graveyard),
 )

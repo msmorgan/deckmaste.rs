@@ -1,7 +1,8 @@
-// "put <subject> onto the battlefield tapped and attacking"
+// "put <subject> onto the battlefield tapped and attacking", from `from` when
+// the text states an origin.
 (
     name: "putOntoBattlefieldTappedAttacking",
     kinds: [Instruction],
-    params: {"subject": NounPhrase},
-    body: Move(Param(subject), wherever, battlefield, [EntersAs(Tapped), EntersAttacking(None)]),
+    params: {"subject": NounPhrase, "from": Default(ZoneExpr, Wherever)},
+    body: Move(Param(subject), Param(from), battlefield, [EntersAs(Tapped), EntersAttacking(None)]),
 )

@@ -14,6 +14,6 @@ KeywordAction(
     agent: you,
     body: chooseOne(
         reveal(a(and([isCard, Param(0), inZone(handOf(you))])), you),
-        choose(subject: a(and([Param(0), permanent, youControl])), agent: you),
+        choose(you, a(and([Param(0), permanent, youControl]))),
     ),
 )

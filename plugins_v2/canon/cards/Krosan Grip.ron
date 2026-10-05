@@ -13,7 +13,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: enact(
                     verb: Action("Destroy"),
-                    instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: or( [ hasType(Artifact), hasType(Enchantment), ], ), ), destination: zone(zone: Graveyard, scope: Bare), from: zone(zone: Battlefield, scope: Bare)),
+                    instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: or( [ hasType(Artifact), hasType(Enchantment), ], ), ), from: zone(zone: Battlefield, scope: Bare), to: zone(zone: Graveyard, scope: Bare)),
                     agent: None,
                 ),
             ),

@@ -11,6 +11,7 @@ KeywordAction(
     ),
     body: sequentially([
         choose(
+            None,
             counted(
                 anyNumber,
                 or([and([permanent, hasCounters]), compare([AnyCounter(Player)], AtLeast, 1)]),

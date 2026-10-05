@@ -1,8 +1,9 @@
-// "choose <subject>", openly and by the resolving spell's controller
-// unless the caller says otherwise.
+// "<agent> chooses <subject>", openly unless the caller says otherwise. The
+// chooser comes first and is always written; a term with no chooser passes
+// `None`.
 (
     name: "choose",
     kinds: [Instruction],
-    params: {"subject": NounPhrase, "disclosure": Default(Disclosure, Openly), "agent": Default(Any, None)},
+    params: {"agent": Any, "subject": NounPhrase, "disclosure": Default(Disclosure, Openly)},
     body: Choose(None, Param(subject), Param(disclosure), None, Param(agent)),
 )

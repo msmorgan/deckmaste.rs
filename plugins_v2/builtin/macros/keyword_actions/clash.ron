@@ -17,6 +17,6 @@ KeywordAction(
     agent: Param(0),
     body: sequentially([
         reveal(librarySlice(Top, 1, Param(0)), Param(0)),
-        may(Param(0), move(that(Card), onBottom)),
+        may(Param(0), move(that(Card), wherever, onBottom)),
     ]),
 )

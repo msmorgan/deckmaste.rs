@@ -14,7 +14,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: enact(
                     verb: Core(Return),
-                    instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: inZone(zone(zone: Battlefield, scope: Bare)), ), destination: zone(zone: Hand, scope: Bare)),
+                    instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: inZone(zone(zone: Battlefield, scope: Bare)), ), from: wherever, to: zone(zone: Hand, scope: Bare)),
                     agent: None,
                 ),
             ),

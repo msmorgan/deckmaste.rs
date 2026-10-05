@@ -12,5 +12,5 @@ KeywordAction(
             [ObjectNounPhrase, PredicativeComplement],
         ]),
     ),
-    body: move(Param(0), exileZone),
+    body: move(Param(0), wherever, exileZone),
 )

@@ -12,7 +12,7 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     body: sequentially([
-        choose(subject: a(and([isToken, creature, permanent, youControl])), agent: you),
+        choose(you, a(and([isToken, creature, permanent, youControl]))),
         create(1, copyOf(that(Token)), you),
     ]),
 )

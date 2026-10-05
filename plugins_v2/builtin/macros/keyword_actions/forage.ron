@@ -12,14 +12,10 @@ KeywordAction(
     ),
     agent: Param(0),
     body: chooseOne(
-        enact(
-            Action("Exile"),
-            move(
-                counted(exactly(3), and([isCard, inZone(graveyardOf(Param(0)))])),
-                exileZone,
-                graveyardOf(Param(0)),
-            ),
+        exileBy(
             Param(0),
+            counted(exactly(3), and([isCard, inZone(graveyardOf(Param(0)))])),
+            graveyardOf(Param(0)),
         ),
         sacrifice(a(and([hasSubtype(food), permanent, controlledBy(Param(0))])), Param(0)),
     ),

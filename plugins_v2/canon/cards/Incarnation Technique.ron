@@ -16,7 +16,7 @@ SingleFaced(face: (
                     mill(5, you, you),
                     enact(
                         verb: Core(Return),
-                        instruction: move(subject: described( determiner: A(Unmarked), predicate: and( [ hasType(Creature), inZone( zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), destination: zone(zone: Battlefield, scope: Bare), from: zone(zone: Graveyard, scope: PossessedBy(you))),
+                        instruction: move(subject: described( determiner: A(Unmarked), predicate: and( [ hasType(Creature), inZone( zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), from: zone(zone: Graveyard, scope: PossessedBy(you)), to: zone(zone: Battlefield, scope: Bare)),
                         agent: you,
                     ),
                 ]),

@@ -12,7 +12,7 @@ KeywordAction(
     ),
     agent: Param(1),
     body: sequentially([
-        move(Param(0), exileZone),
+        move(Param(0), wherever, exileZone),
         establish(
             mayPlayDeed(
                 Action("Cast"),

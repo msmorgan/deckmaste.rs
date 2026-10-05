@@ -17,10 +17,10 @@ KeywordAction(
         reveal(librarySlice(Top, 1, controllerOf(Param(0))), controllerOf(Param(0))),
         doIf(
             matches(that(Card), land),
-            move(that(Card), hand),
+            move(that(Card), wherever, hand),
             sequentially([
                 putCounters(1, p1p1Counter, Param(0)),
-                may(controllerOf(Param(0)), move(that(Card), graveyard)),
+                may(controllerOf(Param(0)), move(that(Card), wherever, graveyard)),
             ]),
         ),
     ]),

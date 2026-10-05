@@ -1,0 +1,7 @@
+// "you own"
+(
+    name: "youOwn",
+    kinds: [Predicate],
+    params: [],
+    body: HasPossessor(Owner, You),
+)

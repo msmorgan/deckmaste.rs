@@ -15,19 +15,19 @@ KeywordAction(
     ),
     body: sequentially([
         choose(
-            subject: counted(
+            you,
+            counted(
                 anyNumber,
                 or([
                     and([permanent, youControl, hasCounters(timeCounter)]),
                     and([
                         isCard,
                         inZone(exileZone),
-                        hasPossessor(Owner, you),
+                        youOwn,
                         hasCounters(timeCounter),
                     ]),
                 ]),
             ),
-            agent: you,
         ),
         doForEach(
             them,

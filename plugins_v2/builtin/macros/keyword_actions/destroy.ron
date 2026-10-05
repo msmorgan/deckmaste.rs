@@ -10,5 +10,5 @@ KeywordAction(
         bare: "destroy",
         frame_set: Transitive,
     ),
-    body: move(Param(0), graveyard, battlefield),
+    body: move(Param(0), battlefield, graveyard),
 )

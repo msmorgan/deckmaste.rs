@@ -9,5 +9,5 @@ KeywordAction(
         bare: "counter",
         frame_set: Transitive,
     ),
-    body: move(Param(0), graveyard, stack),
+    body: move(Param(0), stack, graveyard),
 )
