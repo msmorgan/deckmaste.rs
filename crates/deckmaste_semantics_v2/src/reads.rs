@@ -327,6 +327,7 @@ pub fn kind_of_noun_phrase(phrase: &NounPhrase, facts: &impl Facts) -> Option<Ki
         }
         NounPhrase::Gap { kind } | NounPhrase::TheRest { kind, .. } => Some(kind.clone()),
         NounPhrase::You
+        | NounPhrase::Actor
         | NounPhrase::CombatPlayer { .. }
         | NounPhrase::PlayerGroup { .. }
         | NounPhrase::PossessorOf { .. } => Some(Kind::Player),

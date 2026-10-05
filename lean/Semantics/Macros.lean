@@ -954,6 +954,70 @@ semantic_macro cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p
   .deonticRule player .forbid [deed] .agent (some (.moreThan (.lit bound))) (.counterpart (allOf p))
     none .noRider
 
+/-! ## The performer and the handoff
+
+An instruction's performer is not written: it is `actor`, the controller [CR#109.5] unless an
+enclosing `act` hands the instruction to another player. The `Actor` helpers below fill an
+existing agent slot with `actor`; the explicit-agent macros above are unchanged. -/
+
+/-- "whoever performs this instruction" -/
+semantic_macro actor : NounPhrase := .actor
+/-- "<player> <body>": the handoff. "Target player discards a card" is
+`act (target .anyPlayer) (Actor.discard (a .isCard))`. -/
+semantic_macro act (player : NounPhrase) (body : Instruction) : Instruction := .act player body
+/-- "… <performer> controls" -/
+semantic_macro actorControls : Predicate := .hasPossessor .controller .actor
+
+namespace Actor
+
+/-- "<performer> reveals their hand" -/
+semantic_macro revealHand : Instruction := .expose .reveal (.zone (handOf .actor)) (agent := .actor)
+/-- "<performer> draws N cards" -/
+semantic_macro draw (amount : Amount) : Instruction := .draw amount (agent := .actor)
+/-- "<performer> loses N life" -/
+semantic_macro loseLife (amount : Amount) : Instruction := .changeLife (.down amount) (agent := .actor)
+/-- "<performer> chooses <subject>" -/
+semantic_macro choose (subject : NounPhrase) : Instruction :=
+  .choose none subject .openly none (agent := some .actor)
+/-- "<performer> creates N <token>" -/
+semantic_macro create (count : Amount) (token : CharacteristicBundle) : Instruction :=
+  Primitives.Instruction.create count (.written token) [] (agent := .actor)
+/-- "<performer> discards <subject>": a move from the performer's hand to the graveyard
+[CR#701.9a], recorded with its performer. -/
+semantic_macro discard (subject : NounPhrase) : Instruction :=
+  .enact (.action "Discard") (.move subject (.zone .hand (.possessedBy .actor)) graveyard [])
+    (agent := some .actor)
+/-- "<performer> sacrifices <subject>" [CR#701.21a] -/
+semantic_macro sacrifice (subject : NounPhrase) : Instruction :=
+  .enact (.action "Sacrifice") (.move subject (.zone .battlefield .bare) graveyard [])
+    (agent := some .actor)
+/-- "<performer> may cast <what> from <zone>", paying its own cost. -/
+semantic_macro mayCastFrom (what : NounPhrase) (zone : ZoneExpr) : StaticSpec :=
+  mayPlayDeed (.action "Cast") .actor what none (.play (some zone) none none false .itsOwnCost)
+/-- An Army the performer controls. -/
+semantic_macro army : Predicate := .and [.hasSubtype (creatureType "Army"), creature, actorControls]
+/-- "<performer> amasses <subtype> N" [CR#701.47a]: "If you don't control an Army creature,
+create a 0/0 black <subtype> Army creature token. Choose an Army creature you control. Put N
++1/+1 counters on that creature. If it isn't a <subtype>, it becomes a <subtype> in addition to
+its other types.", with "you" the performer. "That creature" and "it" are the chosen Army, read
+through the choice's own introduction (`itPrior`), so an object the enclosing text named
+("Its controller amasses …") is not a second candidate. -/
+semantic_macro amass (subtype : String) (count : Nat) : Instruction :=
+  .sequentially
+    [ .doIf (.not (exists_ army))
+        (create (.lit 1) (creatureToken 0 0 [.black] [creatureType subtype, creatureType "Army"]))
+        none,
+      choose (a army),
+      .putCounters (.lit count) (.printed plusOnePlusOne) (itPrior (choose (a army))),
+      .doIf (.not (.matches (itPrior (choose (a army))) (.hasSubtype (creatureType subtype))))
+        (.establish
+          (Primitives.StaticSpec.qualityChange (itPrior (choose (a army))) .adds
+            (.bundle { characteristics := { subtypes := [creatureType subtype] } } none))
+          none)
+        none ]
+
+end Actor
+
 /-! ## Events -/
 
 semantic_macro leavesBattlefield (subject : NounPhrase) : GameEvent :=

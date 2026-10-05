@@ -171,6 +171,9 @@ mutual
     | resolvedPermanent (spell : NounPhrase)
     | theGrantor (marker : MarkerWord)
     | you
+    /-- Whoever performs the instruction this phrase is part of: the controller [CR#109.5],
+    unless an enclosing `Instruction.act` hands the instruction to another player. -/
+    | actor
     | combatPlayer (role : CombatRole)
     | playerGroup (group : PlayerGroupWord)
     | described (determiner : DetPhrase) (predicate : Predicate)

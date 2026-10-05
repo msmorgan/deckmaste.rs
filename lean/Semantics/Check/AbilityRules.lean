@@ -329,11 +329,15 @@ mutual
       OptNoun.check (some .player) bs subj ++ Instruction.check (agentCtx bs subj) e ++
         refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk subj v) .enactAgentOk ++
         refuse (enactPatientZoneOk (agentCtx bs subj) v e) .zoneFits ++
-        refuse (enactLibraryOwnerOk v e) .opponentsLibrary ++
+        refuse (enactLibraryOwnerOkIn (agentCtx bs subj) v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
     | .pay c _ who =>
       NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c ++
-        refuse c.payable .payable ++ refuse (payAgreesOk who c) .payAgrees
+        refuse c.payable .payable ++ refuse (payAgreesOk (who.actorView bs) c) .payAgrees
+    | .act who body =>
+      let inner := actorCtx bs who
+      NounPhrase.check (some .player) bs who ++ Instruction.check inner body ++
+        refuse (who.plur == .one || keepsOuter inner body) .keepsOuter
     | .withContinuation policy body ifDid ifNot =>
       let bs' := policy.context bs
       (match policy with
@@ -749,12 +753,14 @@ mutual
         refuse (keywordBodyFits k body) (.keywordBodyFits k) ++
         refuse (keywordCostPaidByYou k param) (.keywordCostPaidByYou k)
     | .activated cost instr window limit guard activator =>
+      let bs := ownPerformerCtx bs
       let bsc := dropLetter .x bs
       Cost.check bsc cost ++ Instruction.check (publicOnly (cost.intro bsc)) instr ++
         refuse cost.tapOnce .costTapOnce ++ refuse cost.paidByYou .costPaidByYou ++
         OptTiming.check bs window ++ refuse (untriggeredLimitOk limit) .untriggeredLimit ++
         OptCondition.check bs guard ++ OptNoun.check (some .player) bs activator
     | .triggered ev alts while_ joins window limit intervening instr =>
+      let bs := ownPerformerCtx bs
       let hctx := headerCtx bs alts ev
       let jctx := joinedCtx bs joins hctx
       headerEventCheck bs ev ++ alts.flatMap (headerEventCheck bs) ++
@@ -763,8 +769,11 @@ mutual
         Instruction.check (interveningIntro jctx intervening) instr ++
         refuse (chapterDefaultsOk ev alts while_ joins window limit intervening) .chapterDefaults
     | .static se =>
+      let bs := ownPerformerCtx bs
       StaticSpec.check bs se ++ refuse (!anyTargetedAt (StaticSpec.intro bs se)) .nontarget
-    | .spell window instr => OptTiming.check bs window ++ Instruction.check bs instr
+    | .spell window instr =>
+      let bs := ownPerformerCtx bs
+      OptTiming.check bs window ++ Instruction.check bs instr
     | .mayBeginOnBattlefield => []
     | .alsoForKeywords ab ks =>
       Ability.check bs ab ++ refuse ab.keywordExtendable .keywordExtendable ++

@@ -95,7 +95,7 @@ def selfExchanged (bs : Bindings) (left right : Amount) : Bool :=
     let sameAddress := match first.address, second.address with
       | some a, some b => shiftAddress (second.introduced first.context).length a == b
       | _, _ => false
-    axis == otherAxis && (sameAddress || (a.isYou && b.isYou) ||
+    axis == otherAxis && (sameAddress || (a.isYouIn bs && b.isYouIn first.context) ||
       (a.selfDefinedOk && b.selfDefinedOk && a.ty bs == b.ty first.context))
   | _, _ => match left.scopeBody, right.scopeBody with
     | .theOutcome a, .theOutcome b => a == b
@@ -307,6 +307,12 @@ def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
 def enactLibraryOwnerOk (v : Deed) (e : Instruction) : Bool :=
   !actOpponentsLibrary v || e.lookedLibraryOwner.elim true NounPhrase.opponentOnly
 
+/-- `enactLibraryOwnerOk` with a library possessed by `actor` read in its handoff: inside
+`act (each opponent) …`, "their library" is an opponent's. -/
+def enactLibraryOwnerOkIn (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
+  !actOpponentsLibrary v ||
+    e.lookedLibraryOwner.elim true fun owner => (owner.actorView bs).opponentOnly
+
 def NounPhrase.bareThis : NounPhrase → Bool
   | .withBindings _ _ body | .inCaller _ body => body.bareThis
   | .pro (.parameter shape) _ _ => shape.bareThis
@@ -315,7 +321,8 @@ def NounPhrase.bareThis : NounPhrase → Bool
 
 /-- A deed done by name happens where the deed table says its patient lives ("destroy" on the
 battlefield [CR#701.8a], "discard" from a hand [CR#701.9a]); "this" is wherever the text is.
-The Idris carried this on each verb's macro. -/
+The Idris carried this on each verb's macro. An indefinite patient that names no zone ("discard
+a card") is selected where the deed's patient lives: the deed supplies that restriction. -/
 def enactPatientZoneOk (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
   match e.enactPatient with
   | none => true
@@ -323,7 +330,9 @@ def enactPatientZoneOk (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
     if n.bareThis then true else
     match actZoneOf v with
     | none => true
-    | some z => zoneIsB (NounPhrase.zone bs n) z
+    | some z =>
+      let written := NounPhrase.zone bs n
+      zoneIsB written z || (written.isNone && (n.det == some .a || n.det == some .count))
 
 /-- Idris `CtrlOverrideOk`: a single controller, or one per member of a group. -/
 def NounPhrase.ctrlOverrideOk : NounPhrase → Bool
@@ -357,6 +366,26 @@ def distributedDelta (bs : Bindings) (s : NounPhrase) (out : Bindings) : List Bi
   pluralizeIntroduced (out.take (out.length - (agentIntro bs s).length))
 
 def mayCtx (bs : Bindings) (d : NounPhrase) : Bindings := agentIntro bs d
+
+/-- What a handoff records about the player it hands the body to, with the same structural
+facts a captured macro subject keeps. Handing off to `actor` keeps the performer it re-reads. -/
+def NounPhrase.performerShape (bs : Bindings) (who : NounPhrase) : NounShape :=
+  let who := who.actorView bs
+  ⟨.player, false, who.isYou, who.selfDefinedOk, who.ascribable, twoPartiesOk who,
+    who.opponentOnly, false⟩
+
+/-- The body context of `act who`: the player's own introduction, as an `enact` agent's or an
+`offer` decider's (`agentIntro`, so "each opponent" is read one member at a time), under the
+handoff frame that `actor` reads. -/
+def actorCtx (bs : Bindings) (who : NounPhrase) : Bindings :=
+  ⟨.the, .one, .actor (who.performerShape bs)⟩ :: agentIntro bs who
+
+/-- A nested ability's text is performed by that ability's own controller [CR#109.5], not by
+the player an enclosing handoff named: inside a handoff, its context starts with a handoff
+frame back to "you". Outside every handoff the context is unchanged. -/
+def ownPerformerCtx (bs : Bindings) : Bindings :=
+  if bs.any Binding.isActorFrame then ⟨.the, .one, .actor (NounPhrase.performerShape [] .you)⟩ :: bs
+  else bs
 
 def ContinuationPolicy.context (bs : Bindings) : ContinuationPolicy → Bindings
   | .optional agent => mayCtx bs agent
@@ -896,6 +925,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .applyResultsTable _ => .notOneAction
   | .withContinuation _ body none _ => body.reflexEncloseUse
   | .withContinuation _ _ _ _ => .notOneAction
+  | .act _ body => body.reflexEncloseUse
   | .doOnlyIf e _ _ => e.reflexEncloseUse
   | .doIf _ _ _ | .doForEach _ _ | .doForEachKind _ _ _ _ => .notOneAction
   | .repeat_ (.fixed _ body) =>
@@ -918,6 +948,7 @@ def Instruction.thisWayOutcomeOk : Instruction → Bool
   | .withBindings _ _ body | .inCaller _ body => body.thisWayOutcomeOk
   | .delay _ _ _ _ => false
   | .withContinuation _ body _ _ => body.thisWayOutcomeOk
+  | .act _ body => body.thisWayOutcomeOk
   | _ => true
 
 def StaticSpec.definitionCostOk : StaticSpec → Bool
@@ -1149,6 +1180,19 @@ mutual
     | .enact _ e none => Instruction.profile bs e
     | .enact v e (some s) => doesProfile bs s.plur s v e (Instruction.profile (agentIntro bs s) e)
     | .pay c .once who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
+    /- One performer: the body's own profile outside the handoff frame, so the player the
+    handoff introduced stays published. Distributive performers follow `doForEach`: what each
+    member's body introduced is published as a group. -/
+    | .act who body =>
+      let inner := actorCtx bs who
+      let bodyP := Instruction.profile inner body
+      match who.plur with
+      | .one =>
+        ⟨dropActorFrame bodyP.pre, dropActorFrame bodyP.announced,
+         bodyP.rider.map dropActorFrame, bodyP.deed⟩
+      | .many =>
+        ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - inner.length)) ++
+          pluralizeIntroduced (NounPhrase.introduced bs who) ++ bs, none, []⟩
     | .pay c _ who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
         .repeatCount]⟩
     | .withContinuation policy body did notd =>
@@ -1319,6 +1363,7 @@ mutual
     | .choose _ _ _ _ _ => []
     | .sequentially es => Instruction.introducedChoicesAll es
     | .withContinuation _ body _ _ => body.introducedChoices
+    | .act _ body => body.introducedChoices
     | _ => []
   termination_by structural e => e
 
@@ -1539,7 +1584,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .removeCounters _ _ _ => []
   | .moveCounters amount _ _ _ => [(amount, .clamped)]
   | .doubleCounters _ => []
-  | .enact _ _ _ | .pay _ _ _ => []
+  | .enact _ _ _ | .pay _ _ _ | .act _ _ => []
   | .withContinuation _ _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ => []
   | .doForEach _ _ | .doForEachKind _ _ _ _ => []
   | .repeat_ repetition => repetition.numberSlots

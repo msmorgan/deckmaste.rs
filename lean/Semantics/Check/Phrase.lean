@@ -95,7 +95,7 @@ mutual
   def NounPhrase.kind? : NounPhrase → Option Kind
     | .withBindings _ _ body | .inCaller _ body => body.kind?
     | .gap k => some k
-    | .you | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
+    | .you | .actor | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
     | .described _ p => p.kind?
     | .eachOf g => g.kind?
     | .and ns | .or ns => some (NounPhrase.kindOfAll ns)
@@ -1023,11 +1023,29 @@ def NounPhrase.ascribable : NounPhrase → Bool
   | .this | .designated _ _ => true
   | _ => false
 
+/-- Whether the phrase is the controller. `actor` is read outside every handoff here; a rule
+that may sit inside a handoff asks `isYouIn`. -/
 def NounPhrase.isYou : NounPhrase → Bool
   | .pro (.parameter shape) _ _ => shape.isYou
   | .withBindings _ _ body | .inCaller _ body => body.isYou
-  | .you => true
+  | .you | .actor => true
   | _ => false
+
+/-- `actor` as the player it denotes at this point, for the context-free structural readers
+(`isYou`, `opponentOnly`): "you" outside every handoff and in `act you`, otherwise a parameter
+view carrying the facts the innermost handoff recorded. Other phrases are unchanged. The view
+is for those readers only; it is never checked or resolved against the context. -/
+def NounPhrase.actorView (bs : Bindings) : NounPhrase → NounPhrase
+  | .withBindings scope inputs body => .withBindings scope inputs (body.actorView bs)
+  | .inCaller scope body => .inCaller scope (body.actorView bs)
+  | .actor =>
+    match actorShape? bs with
+    | some shape => if shape.isYou then .you else .pro (.parameter shape) .one .whole
+    | none => .you
+  | n => n
+
+/-- `isYou` with `actor` read in its handoff. -/
+def NounPhrase.isYouIn (bs : Bindings) (n : NounPhrase) : Bool := (n.actorView bs).isYou
 
 mutual
   def NounPhrase.targeted : NounPhrase → Bool
@@ -1123,7 +1141,8 @@ mutual
   def NounPhrase.plur : NounPhrase → Plurality
     | .withBindings _ _ body | .inCaller _ body => body.plur
     | .gap _ => .one
-    | .this | .theGrantor _ | .combatPlayer _ | .you | .attachHost _ _ | .designated _ _ => .one
+    | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .attachHost _ _ | .designated _ _ =>
+      .one
     | .asType _ n _ => n.plur
     | .resolvedPermanent n => n.plur
     | .asMarker _ n => n.plur
@@ -1277,7 +1296,7 @@ mutual
       let result := NounPhrase.result (enterCaller scope bs) body
       { result with context := leaveCaller bs result.context }
     | .gap _ => ⟨bs, none, none, []⟩
-    | .this | .theGrantor _ | .combatPlayer _ | .you | .playerGroup _
+    | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .playerGroup _
     | .theRest _ _ | .attachHost _ _ | .designated _ _ => ⟨bs, none, none, []⟩
     | .asType t n _ =>
       (NounPhrase.result bs n).withValue
@@ -1619,7 +1638,7 @@ mutual
     | .withBindings scope inputs body => body.zone (captureBindings bs scope inputs)
     | .inCaller scope body => body.zone (enterCaller scope bs)
     | .gap _ => none
-    | .this | .combatPlayer _ | .you | .playerGroup _ | .or _
+    | .this | .combatPlayer _ | .you | .actor | .playerGroup _ | .or _
     | .possessorOf _ _ | .designated _ _ => none
     | .asType _ _ _ => some .battlefield
     | .resolvedPermanent _ => some .battlefield
@@ -1642,7 +1661,7 @@ mutual
     | .withBindings scope inputs body => body.ty (captureBindings bs scope inputs)
     | .inCaller scope body => body.ty (enterCaller scope bs)
     | .gap _ => []
-    | .this | .theGrantor _ | .combatPlayer _ | .you | .playerGroup _
+    | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .playerGroup _
     | .or _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _ => []
     | .asType t _ _ => [t]
     | .resolvedPermanent n => NounPhrase.ty bs n
@@ -2184,7 +2203,7 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
   | .theGrantor m =>
     ⟨.the, .one,
       .object [] z (mkStamp p m.grantorOrigin (z != some m.zone)) none none⟩ :: bs
-  | .you | .combatPlayer _ | .playerGroup _ | .designated _ _ => bs
+  | .you | .actor | .combatPlayer _ | .playerGroup _ | .designated _ _ => bs
   | .possessorOf ax m => nomIntro bs (.possessorOf ax m)
 termination_by structural n
 

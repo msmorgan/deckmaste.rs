@@ -990,6 +990,14 @@ pub enum Instruction {
         times: PayTimes,
         agent: NounPhrase,
     },
+    /// The handoff: `player` performs `body` ("target player discards a card").
+    /// Inside the body, `NounPhrase.actor` is that player; with a
+    /// distributive player ("each opponent") each member performs the whole
+    /// body.
+    Act {
+        player: NounPhrase,
+        body: Box<Instruction>,
+    },
     /// Branch on the decision or start of payment, independently of resulting events.
     WithContinuation {
         policy: ContinuationPolicy,

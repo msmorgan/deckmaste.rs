@@ -29,6 +29,7 @@ import Semantics.Proofs.Trigger
 import Semantics.Proofs.TypeEvidence
 import Semantics.Proofs.Turn
 import Semantics.Proofs.Zone
+import Semantics.Proofs.Actor
 
 /-!
 # Semantics.Proofs

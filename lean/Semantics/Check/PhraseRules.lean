@@ -264,7 +264,7 @@ mutual
         NounPhrase.checkIn gap ctx (enterCaller scope bs) body
     | .gap k => ⟨ctxCheck ctx (some k) ++ refuse (gap == some k) .lookbackSubject, true⟩
     | .this | .theGrantor _ => ctxCheck ctx (some .object)
-    | .you | .combatPlayer _ | .playerGroup _ => ctxCheck ctx (some .player)
+    | .you | .actor | .combatPlayer _ | .playerGroup _ => ctxCheck ctx (some .player)
     | .asType t n sub =>
       ctxCheck ctx (some .object) ++ NounPhrase.checkIn gap (some .object) bs n ++
         refuse n.ascribable .ascribable ++ refuse (ascriptionOk t sub) .ascriptionOk
