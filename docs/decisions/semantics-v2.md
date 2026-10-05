@@ -531,12 +531,12 @@ sequence mapped by declaration order; mixed calls remain invalid.
 
 ### 12.1 The helper macro layer
 
-`lean/Semantics/Macros.lean`'s 424 `semantic_macro`s are the phrasings a card
-writes over the constructor basis. 314 of them are declarations under
+`lean/Semantics/Macros.lean`'s 426 `semantic_macro`s are the phrasings a card
+writes over the constructor basis. 316 of them are declarations under
 `plugins_v2/builtin/macros/<family>/` — the families are the Lean file's own
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
 `nouns`, `mana`, `durations`, `amounts`, `instructions`, `events`,
-`abilities`) — each a plain meta with `name`, `kinds`, `params` and `body` and
+`abilities`, and `conferrals` for `boost` and `grants` below) — each a plain meta with `name`, `kinds`, `params` and `body` and
 no spelling or grammar. Lean's `counters` section (`p1p1Counter`,
 `m1m1Counter`, `flyingCounter`, renamed from `plusOnePlusOne` and
 `minusOneMinusOne` on 2026-10-05) has no declarations under these families:
@@ -570,10 +570,11 @@ declarations, and at `plugins-v2-keyword-helper-additions`, where
 every line of `Macros.lean`
 beginning `semantic_macro`, an `Actor` namespace prefix kept; a macro is a
 declaration when a file of the same name, a trailing `_` dropped, exists under
-one of the twelve families above or `macros/conditions/`, or when §11 names
-its helper apart. 424 = 314 declarations + the two `counters` macros + 108;
+one of the twelve families above, `macros/conferrals/` or `macros/conditions/`, or when §11 names
+its helper apart. 426 = 316 declarations + the two `counters` macros + 108;
 `semantics-v2-counter-kind-is-a-name` renamed the `counters` macros and added
-`boost` and `grants`, both declared, without recounting. Six macros the earlier count left here had ported since and are gone from
+`boost` and `grants`, both declared, and the recount after the merge with
+`plugins-v2-keyword-helper-additions` found 316 declarations. Six macros the earlier count left here had ported since and are gone from
 their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
 `doUnless`, `forEach`, `leavesZone`.)
 
