@@ -362,6 +362,12 @@ The sole counted non-ASCII exception is `∞` → `Infinity`. Thus, for example,
 punctuation, missing files, and extra files are hard errors. Identifiers are
 category-scoped; identical names in different stub directories do not collide.
 
+Amendment (2026-10-05, `plugins-v2-out-of-scope-keywords`): three
+`keyword-abilities.txt` lines have no file, because their mechanics are outside
+the repo's scope (CLAUDE.md, Scope): Hidden Agenda (Conspiracy), Space Sculptor
+(Unfinity) and Visit (Attractions). The `sector` designation went with Space
+Sculptor.
+
 The stub and declaration files are committed, hand-maintained source code.
 There is deliberately no stub generator: graduation edits these same records
 in place, so regeneration must never overwrite authored grammar or semantic

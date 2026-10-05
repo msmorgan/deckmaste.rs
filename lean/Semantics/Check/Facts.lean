@@ -206,7 +206,6 @@ def keywordFacts : List KeywordFacts :=
     { word := "Graft", argumentSchemas := [[⟨.number, none⟩]], definition := [.static, .triggered] },
     { word := "Gravestorm", argumentSchemas := [[]], functionsOnStack := true, onInstantOrSorceryCard := true, definition := [.triggered], regime := some .atCasting },
     { word := "Haunt", argumentSchemas := [[]], onInstantOrSorceryCard := true },
-    { word := "HiddenAgenda", argumentSchemas := [[]] },
     { word := "Hideaway", argumentSchemas := [[⟨.number, none⟩]] },
     { word := "Horsemanship", argumentSchemas := [[]], definition := [.static] },
     { word := "Increment", argumentSchemas := [[]], definition := [.triggered], regime := some .atCasting },
@@ -247,7 +246,6 @@ def keywordFacts : List KeywordFacts :=
     { word := "Solved", argumentSchemas := [[⟨.ability, none⟩]] },
     { word := "Soulbond", argumentSchemas := [[]] },
     { word := "Soulshift", argumentSchemas := [[⟨.number, none⟩]], definition := [.triggered] },
-    { word := "SpaceSculptor", argumentSchemas := [[]] },
     { word := "Splice", argumentSchemas := [[⟨.quality, some .object⟩, ⟨.cost, none⟩], [⟨.cost, none⟩]], onInstantOrSorceryCard := true, paidCost := true },
     { word := "Spree", argumentSchemas := [[]], functionsOnStack := true, onInstantOrSorceryCard := true, wantsModes := true, regime := some .atCasting },
     { word := "StartYourEngines", argumentSchemas := [[]] },
@@ -265,7 +263,6 @@ def keywordFacts : List KeywordFacts :=
     { word := "Undying", argumentSchemas := [[]], definition := [.triggered] },
     { word := "Unleash", argumentSchemas := [[]] },
     { word := "Vanishing", argumentSchemas := [[⟨.number, none⟩]], definition := [.static, .triggered, .triggered] },
-    { word := "Visit", argumentSchemas := [[⟨.ability, none⟩]] },
     { word := "WebSlinging", argumentSchemas := [[⟨.cost, none⟩]], functionsOnStack := true, paidCost := true, definition := [.static], regime := some .atCasting },
     { word := "Wither", argumentSchemas := [[]], regime := some .atResolution } ]
 
@@ -345,9 +342,6 @@ def designationTable : List DesignationFacts :=
     { label := "right half unlocked", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := some .right },
     { label := "Ring-bearer", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none },
     { label := "saddled", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none },
-    { label := "alpha sector", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none },
-    { label := "beta sector", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none },
-    { label := "gamma sector", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none },
     { label := "solved", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none },
     { label := "suspected", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none } ]
 

@@ -9,5 +9,5 @@ KeywordAbility(
     // STOP. Power-up has no [CR#702] entry in the Comprehensive Rules this repo
     // ships, so there is no definition to port, and the declaration's argument is an
     // `Ability`, which `KeywordParam` has no variant to forward (the cause Boast,
-    // Gift, Infinity, Max Speed, Solved and Visit share).
+    // Gift, Infinity, Max Speed and Solved share).
 )

@@ -38,7 +38,6 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             "rightHalfUnlocked",
             "ringBearer",
             "saddled",
-            "sector",
             "solved",
             "suspected",
         ],
@@ -158,17 +157,6 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .get_ron()
             .contains(r#"label: "level""#)
     );
-
-    let sector = &designations[16];
-    for label in ["alpha sector", "beta sector", "gamma sector"] {
-        assert!(
-            sector
-                .body()
-                .unwrap()
-                .get_ron()
-                .contains(&format!(r#"label: "{label}""#))
-        );
-    }
 }
 
 #[test]

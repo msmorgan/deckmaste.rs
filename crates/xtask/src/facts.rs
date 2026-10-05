@@ -981,10 +981,6 @@ fn overlay() -> Vec<Row> {
             ..D
         },
         Row {
-            label: "HiddenAgenda",
-            ..D
-        },
-        Row {
             label: "Hideaway",
             ..D
         },
@@ -1171,10 +1167,6 @@ fn overlay() -> Vec<Row> {
             ..D
         },
         Row {
-            label: "SpaceSculptor",
-            ..D
-        },
-        Row {
             label: "Splice",
             on_spell_card: true,
             paid_cost: true,
@@ -1259,10 +1251,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Vanishing",
-            ..D
-        },
-        Row {
-            label: "Visit",
             ..D
         },
         Row {
@@ -1491,7 +1479,7 @@ const GATE_COLUMNS: &str = "gate columns (regime, functionsOnStack, \
                             deckmaste_construction_core::macro_def::Metadata, which is \
                             deny_unknown_fields over spelling/grammar/noun_class/category, so a \
                             home in the stub schema moves that crate's English-v2 metadata seam \
-                            and all 195 stubs rather than this overlay.";
+                            and all 192 stubs rather than this overlay.";
 
 const ROLE_COLUMNS: &str = "actFacts role columns (agentRole, patientRole) stay hand-kept per \
                             deed: they are the gate on a deontic clause ([noun] can't/must \
@@ -1548,6 +1536,30 @@ const KEYWORD_ROWS_EXEMPT: &[Exempt] = &[
 /// one, so the list is empty; a stub the CR made a non-object property would
 /// be recorded here rather than rowed.
 const DESIGNATION_STUBS_EXEMPT: &[Exempt] = &[];
+
+/// `Words.Designation` constructors with no declaration. The sector
+/// designations [CR#702.158b] exist only for space sculptor, whose one card,
+/// Space Beleren, is an Unfinity card and outside this repo's scope; their
+/// declaration was retired (`plugins-v2-out-of-scope-keywords`), and the Idris
+/// reference keeps its constructors until it retires (`semantics-v1-cutover`).
+const DESIGNATION_ROWS_EXEMPT: &[Exempt] = &[
+    Exempt {
+        label: "AlphaSector",
+        reason: SECTOR_OUT_OF_SCOPE,
+    },
+    Exempt {
+        label: "BetaSector",
+        reason: SECTOR_OUT_OF_SCOPE,
+    },
+    Exempt {
+        label: "GammaSector",
+        reason: SECTOR_OUT_OF_SCOPE,
+    },
+];
+
+const SECTOR_OUT_OF_SCOPE: &str = "a sector designation [CR#702.158b]; space sculptor's one card \
+                                   is an Unfinity card, outside the repo's scope, so no \
+                                   declaration declares it";
 
 /// The designations whose declared label is not their Idris constructor
 /// name: `Words.Designation` spells the commander designation `CommanderD`
@@ -1824,7 +1836,7 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
             stubs: designation_labels(&declarations)?,
             rows: designation_ctors(&words),
             stub_exempt: DESIGNATION_STUBS_EXEMPT,
-            row_exempt: &[],
+            row_exempt: DESIGNATION_ROWS_EXEMPT,
             rows_bind: true,
         },
     ];
@@ -1975,6 +1987,15 @@ mod tests {
             assert!(
                 designations.contains(&(*declared).to_owned()),
                 "{declared}: no such declared label"
+            );
+        }
+        let words = fs::read_to_string(root().join(WORDS)).expect("reading Words.idr");
+        let ctors = designation_ctors(&words);
+        for e in DESIGNATION_ROWS_EXEMPT {
+            assert!(
+                ctors.contains(&e.label.to_owned()),
+                "{}: no such Idris constructor",
+                e.label
             );
         }
     }

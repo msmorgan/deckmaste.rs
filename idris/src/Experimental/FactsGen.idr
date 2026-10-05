@@ -143,7 +143,6 @@ keywordFacts =
   , { word := "Graft", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Gravestorm", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, bodied := True } defaultKeywordFacts
   , { word := "Haunt", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
-  , { word := "HiddenAgenda", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Hideaway", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Horsemanship", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Increment", paramShapes := [NoParam], regime := Just AtCasting, bodied := True } defaultKeywordFacts
@@ -184,7 +183,6 @@ keywordFacts =
   , { word := "Solved", paramShapes := [AbilityParam] } defaultKeywordFacts
   , { word := "Soulbond", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Soulshift", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
-  , { word := "SpaceSculptor", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Splice", paramShapes := [CompoundParam QualityHead], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Spree", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, wantsModes := True } defaultKeywordFacts
   , { word := "StartYourEngines", paramShapes := [NoParam] } defaultKeywordFacts
@@ -202,7 +200,6 @@ keywordFacts =
   , { word := "Undying", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Unleash", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Vanishing", paramShapes := [NumberParam] } defaultKeywordFacts
-  , { word := "Visit", paramShapes := [AbilityParam] } defaultKeywordFacts
   , { word := "WebSlinging", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, paidCost := True } defaultKeywordFacts
   , { word := "Wither", paramShapes := [NoParam], regime := Just AtResolution } defaultKeywordFacts
   ]

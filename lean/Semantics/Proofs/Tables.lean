@@ -44,8 +44,8 @@ theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by de
 
 /-- The enum-valued designation reaches the table under every one of its members, and each is
 effectful, so an instruction may confer it. -/
-theorem everySectorLabelIsAnEffectfulDesignation :
-    ["alpha sector", "beta sector", "gamma sector"].all DesignationLabel.checked = true := by decide
+theorem everyDayNightLabelIsAnEffectfulDesignation :
+    ["day", "night"].all DesignationLabel.checked = true := by decide
 
 /-- The two door designations are exactly the rows the table marks with a room half. -/
 theorem bothDoorLabelsAreDeclaredHalves :
@@ -58,7 +58,7 @@ theorem aRuleOnlyDesignationIsNotEffectful : DesignationLabel.checked "commander
   decide
 
 /-- A label outside the declared enum is no designation at all, so nothing may confer it. -/
-theorem anUndeclaredSectorIsNotADesignation :
-    DesignationLabel.checked "delta sector" = false := by decide
+theorem anUndeclaredDayNightLabelIsNotADesignation :
+    DesignationLabel.checked "dusk" = false := by decide
 
 end Semantics.Proofs.Tables

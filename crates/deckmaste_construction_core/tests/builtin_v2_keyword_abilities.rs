@@ -156,7 +156,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
     }
     assert_eq!(parameterized.insert("splice", &["Quality", "Cost"]), None);
     for name in [
-        "boast", "exhaust", "forecast", "infinity", "maxSpeed", "powerUp", "solved", "visit",
+        "boast", "exhaust", "forecast", "infinity", "maxSpeed", "powerUp", "solved",
     ] {
         assert_eq!(parameterized.insert(name, &["Ability"]), None);
     }
@@ -165,7 +165,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         parameterized.insert("prototype", &["Cost", "Power", "Toughness"]),
         None
     );
-    assert_eq!(parameterized.len(), 106);
+    assert_eq!(parameterized.len(), 105);
     parameterized
 }
 
@@ -327,7 +327,7 @@ fn unsupported_keyword_parameter_families_are_explicitly_deferred() {
         .expect("builtin-v2 declarations must load");
 
     for name in [
-        "boast", "exhaust", "forecast", "infinity", "maxSpeed", "powerUp", "solved", "visit",
+        "boast", "exhaust", "forecast", "infinity", "maxSpeed", "powerUp", "solved",
     ] {
         assert_eq!(
             ability(&declarations, name).keyword_parameter_class(),
