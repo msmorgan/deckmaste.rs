@@ -11,11 +11,9 @@ KeywordAbility(
         activated(
             Param(0),
             may(
-                Exchange(
-                    CardsAcross(
-                        thisPermanent,
-                        a(and([card, hasSubtype(aura), inZone(yourHand)])),
-                    ),
+                exchangeCards(
+                    thisPermanent,
+                    a(and([card, hasSubtype(aura), inZone(yourHand)])),
                 ),
             ),
         ),

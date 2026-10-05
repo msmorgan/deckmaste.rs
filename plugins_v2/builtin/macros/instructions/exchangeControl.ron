@@ -1,0 +1,10 @@
+// "Exchange control of <left> and <right>" [CR#701.12b]: if the two
+// permanents are controlled by different players, each of those players
+// gains control of the one the other controlled; if by the same player, it
+// does nothing. All or nothing, like every exchange [CR#701.12a].
+(
+    name: "exchangeControl",
+    kinds: [Instruction],
+    params: {"left": NounPhrase, "right": NounPhrase},
+    body: Exchange(ControlOf(Param(left), Param(right))),
+)

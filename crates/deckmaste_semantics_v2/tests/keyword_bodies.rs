@@ -45,7 +45,6 @@ use serde::de::DeserializeOwned;
 /// The keyword files that still write an expression constructor, by
 /// `<family>/<stem>`. Strike a file when it is re-spelled; never add one.
 const ALLOWED_RAW: &[&str] = &[
-    "keyword_abilities/auraSwap",
     "keyword_abilities/demonstrate",
     "keyword_abilities/transfigure",
     "keyword_abilities/transmute",

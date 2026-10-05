@@ -1,0 +1,10 @@
+// "Exchange <left> and <right>", two numerical values [CR#701.12g]: each
+// becomes equal to the other's previous value; a life total changes by
+// gaining or losing life, and a power or toughness by a continuous effect
+// that sets it. All or nothing, like every exchange [CR#701.12a].
+(
+    name: "exchangeValues",
+    kinds: [Instruction],
+    params: {"left": Amount, "right": Amount},
+    body: Exchange(Values(Param(left), Param(right))),
+)
