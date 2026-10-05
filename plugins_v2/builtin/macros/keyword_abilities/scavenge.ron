@@ -9,47 +9,14 @@ KeywordAbility(
     // number of +1/+1 counters equal to the power of the card you exiled on target
     // creature. Activate only as a sorcery." [CR#702.97a]
     body: [
-        Activated(
-            cost: Compound(
-                costs: [
-                    Param(0),
-                    Perform(
-                        instruction: Enact(
-                            verb: Action("Exile"),
-                            instruction: Move(
-                                subject: This,
-                                from: Zone(zone: Graveyard, scope: PossessedBy(You)),
-                                to: Zone(zone: Exile, scope: Bare),
-                                riders: [],
-                            ),
-                            agent: You,
-                        ),
-                    ),
-                ],
+        activated(
+            compound([Param(0), perform(exileBy(you, this, graveyardOf(you)))]),
+            putCounters(
+                powerOf(theVerbed(Action("Exile"), Card, Attributive, One)),
+                p1p1Counter,
+                target(creature),
             ),
-            instruction: PutCounters(
-                amount: StatOf(
-                    axis: Stat(Power),
-                    subject: Pro(
-                        reach: Verbed(
-                            verb: Action("Exile"),
-                            word: Card,
-                            marking: Attributive,
-                        ),
-                        plurality: One,
-                        window: Whole,
-                    ),
-                ),
-                kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                on: Described(
-                    determiner: Target(Range(low: 1, high: 1)),
-                    predicate: HasType(Creature),
-                ),
-            ),
-            timing: AsSorcery,
-            limit: None,
-            guard: None,
-            activator: None,
+            asSorcery,
         ),
     ],
 )

@@ -10,55 +10,17 @@ KeywordAbility(
     // [cost] for each age counter on it. If you don't, sacrifice it."
     // [CR#702.24a]
     body: [
-        Triggered(
-            event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(You)),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: Matches(
-                subject: AsMarker(marker: Permanent, subject: This),
-                predicate: InZone(Zone(zone: Battlefield, scope: Bare)),
-            ),
-            instruction: Sequentially(
-                steps: [
-                    PutCounters(
-                        amount: 1,
-                        kind: Printed(Named("Age")),
-                        on: AsMarker(marker: Permanent, subject: This),
-                    ),
-                    WithContinuation(
-                        policy: Optional(You),
-                        body: Pay(
-                            cost: Scaled(
-                                cost: Param(0),
-                                amount: Arith(
-                                    op: Times,
-                                    left: 1,
-                                    right: StatOf(
-                                        axis: Counter(Named("Age")),
-                                        subject: AsMarker(marker: Permanent, subject: This),
-                                    ),
-                                ),
-                            ),
-                            times: Once,
-                            agent: You,
-                        ),
-                        if_did: None,
-                        if_not: Enact(
-                            verb: Action("Sacrifice"),
-                            instruction: Move(
-                                subject: AsMarker(marker: Permanent, subject: This),
-                                from: Zone(zone: Battlefield, scope: Bare),
-                                to: Zone(zone: Graveyard, scope: Bare),
-                                riders: [],
-                            ),
-                            agent: You,
-                        ),
-                    ),
-                ],
-            ),
+        triggeredIf(
+            beginningOfYour(Upkeep),
+            matches(thisPermanent, permanent),
+            sequentially([
+                putCounters(1, ageCounter, thisPermanent),
+                doUnless(
+                    you,
+                    sacrifice(thisPermanent, you),
+                    scaled(Param(0), times(1, countersOn(ageCounter, thisPermanent))),
+                ),
+            ]),
         ),
     ],
 )

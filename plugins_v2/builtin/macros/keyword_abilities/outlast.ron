@@ -8,17 +8,10 @@ KeywordAbility(
     // "Outlast [cost]" means "[Cost], {T}: Put a +1/+1 counter on this creature.
     // Activate only as a sorcery." [CR#702.107a]
     body: [
-        Activated(
-            cost: Compound([Param(0), TapSymbol]),
-            instruction: PutCounters(
-                amount: 1,
-                kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                on: AsType(type: Creature, subject: This, subtype: None),
-            ),
-            timing: AsSorcery,
-            limit: None,
-            guard: None,
-            activator: None,
+        activated(
+            compound([Param(0), tapSymbol]),
+            putCounters(1, p1p1Counter, thisCreature),
+            asSorcery,
         ),
     ],
 )

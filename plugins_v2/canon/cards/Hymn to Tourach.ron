@@ -9,7 +9,7 @@ SingleFaced(face: (
             spell(
                 timing: None,
                 instruction: discard(
-                    countedAtRandom(exactly(2), and([isCard, inZone(handOf(target(anyPlayer)))])),
+                    countedAtRandom(exactly(2), cardIn(handOf(target(anyPlayer)))),
                 ),
             ),
         ],

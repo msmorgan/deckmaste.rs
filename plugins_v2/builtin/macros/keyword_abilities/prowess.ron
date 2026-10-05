@@ -8,44 +8,9 @@ KeywordAbility(
     // "Prowess" means "Whenever you cast a noncreature spell, this creature gets
     // +1/+1 until end of turn." [CR#702.108a]
     body: [
-        Triggered(
-            event: Casts(
-                player: You,
-                spell: Described(
-                    determiner: A(Unmarked),
-                    predicate: And(
-                        conjuncts: [
-                            InZone(Zone(zone: Stack, scope: Bare)),
-                            Not(HasType(Creature)),
-                        ],
-                    ),
-                ),
-                from: None,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: Establish(
-                spec: Conjunction(
-                    subject: None,
-                    parts: [
-                        Modification(
-                            subject: AsType(type: Creature, subject: This, subtype: None),
-                            stat: Power,
-                            delta: Up(1),
-                        ),
-                        Modification(
-                            subject: AsType(type: Creature, subject: This, subtype: None),
-                            stat: Toughness,
-                            delta: Up(1),
-                        ),
-                    ],
-                ),
-                duration: Until(EndOf(part: Turn, whose: None)),
-            ),
+        triggered(
+            casts(you, a(and([inZone(stack), not(creature)]))),
+            gets(thisCreature, up(1), up(1), untilEndOfTurn),
         ),
     ],
 )

@@ -8,20 +8,6 @@ KeywordAbility(
     // "Undaunted" means "This spell costs {1} less to cast for each opponent you have."
     // [CR#702.125a]
     body: [
-        Static(
-            spec: CostShift(
-                subject: AsMarker(marker: Spell, subject: This),
-                shift: Less(
-                    amount: Arith(
-                        op: Times,
-                        left: 1,
-                        right: CountOf(
-                            group: Described(determiner: Bare, predicate: Opponent),
-                        ),
-                    ),
-                    floor: None,
-                ),
-            ),
-        ),
+        static(costShift(thisSpell, Less(forEach(1, opponent), None))),
     ],
 )

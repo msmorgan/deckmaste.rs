@@ -8,37 +8,10 @@ KeywordAbility(
     // "A creature with skulk can't be blocked by creatures with greater power."
     // [CR#702.118b]
     body: [
-        Static(
-            spec: DeonticRule(
-                subject: AsType(type: Creature, subject: This, subtype: None),
-                compulsion: Forbid,
-                deeds: [Core(Block)],
-                role: Patient,
-                bound: None,
-                patient: Counterpart(
-                    patient: Described(
-                        determiner: All,
-                        predicate: And(
-                            conjuncts: [
-                                HasType(Creature),
-                                Compare(
-                                    axes: [Stat(Power)],
-                                    comparator: Greater,
-                                    bound: StatOf(
-                                        axis: Stat(Power),
-                                        subject: AsType(
-                                            type: Creature,
-                                            subject: This,
-                                            subtype: None,
-                                        ),
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
-                ),
-                as_though: None,
-                rider: NoRider,
+        static(
+            cantBeBlockedBy(
+                thisCreature,
+                and([creature, compare([Stat(Power)], Greater, powerOf(thisCreature))]),
             ),
         ),
     ],

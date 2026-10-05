@@ -9,41 +9,13 @@ KeywordAbility(
     // attacking creature with power less than this creature's power."
     // [CR#702.134a]
     body: [
-        Triggered(
-            event: Combat(
-                relation: AttackerOf,
-                subject: AsType(type: Creature, subject: This, subtype: None),
-                counterpart: None,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: PutCounters(
-                amount: 1,
-                kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                on: Described(
-                    determiner: Target(Range(low: 1, high: 1)),
-                    predicate: And(
-                        conjuncts: [
-                            HasType(Creature),
-                            InCombat(relation: AttackerOf, counterpart: None),
-                            Compare(
-                                axes: [Stat(Power)],
-                                comparator: Less,
-                                bound: StatOf(
-                                    axis: Stat(Power),
-                                    subject: AsType(
-                                        type: Creature,
-                                        subject: This,
-                                        subtype: None,
-                                    ),
-                                ),
-                            ),
-                        ],
-                    ),
+        triggered(
+            attacks(thisCreature),
+            putCounters(
+                1,
+                p1p1Counter,
+                target(
+                    and([creature, attacking, compare([Stat(Power)], Less, powerOf(thisCreature))]),
                 ),
             ),
         ),

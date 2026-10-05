@@ -9,66 +9,12 @@ KeywordAbility(
     // creature tokens. Those tokens enter tapped and attacking. Sacrifice them at
     // the beginning of the next end step." [CR#702.181a]
     body: [
-        Triggered(
-            event: Combat(
-                relation: AttackerOf,
-                subject: AsType(type: Creature, subject: This, subtype: None),
-                counterpart: None,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: Sequentially(
-                steps: [
-                    CreateObject(
-                        count: Param(0),
-                        spec: Token(
-                            spec: Written(
-                                characteristics: (
-                                    characteristics: (
-                                        colors: [Red],
-                                        types: [Creature],
-                                        subtypes: [Of(host: Creature, label: "Warrior")],
-                                        power: 1,
-                                        toughness: 1,
-                                    ),
-                                ),
-                            ),
-                            riders: [
-                                EntersAs(Tapped),
-                                EntersAttacking(None),
-                            ],
-                        ),
-                        agent: You,
-                    ),
-                    Delay(
-                        event: BeginningOf(
-                            quantifier: The,
-                            part: EndStep,
-                            whose: NoPossessor,
-                        ),
-                        alternatives: [],
-                        duration: None,
-                        body: Enact(
-                            verb: Action("Sacrifice"),
-                            instruction: Move(
-                                subject: Pro(
-                                    reach: TokenBorn,
-                                    plurality: Many,
-                                    window: Whole,
-                                ),
-                                from: Zone(zone: Battlefield, scope: Bare),
-                                to: Zone(zone: Graveyard, scope: Bare),
-                                riders: [],
-                            ),
-                            agent: You,
-                        ),
-                    ),
-                ],
-            ),
+        triggered(
+            attacks(thisCreature),
+            sequentially([
+                createTappedAttacking(you, Param(0), creatureToken(1, 1, [Red], [warrior])),
+                atNext(EndStep, sacrifice(themAsTokens, you)),
+            ]),
         ),
     ],
 )

@@ -8,40 +8,15 @@ KeywordAbility(
     // "Battle cry" means "Whenever this creature attacks, each other attacking
     // creature gets +1/+0 until end of turn." [CR#702.91a]
     body: [
-        Triggered(
-            event: Combat(
-                relation: AttackerOf,
-                subject: AsType(type: Creature, subject: This, subtype: None),
-                counterpart: None,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: Establish(
-                spec: Modification(
-                    subject: Described(
-                        determiner: Each,
-                        predicate: And(
-                            conjuncts: [
-                                HasType(Creature),
-                                InCombat(relation: AttackerOf, counterpart: None),
-                                OtherThan(
-                                    anchor: AsType(
-                                        type: Creature,
-                                        subject: This,
-                                        subtype: None,
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
-                    stat: Power,
-                    delta: Up(1),
+        triggered(
+            attacks(thisCreature),
+            establish(
+                modification(
+                    each(and([creature, attacking, otherThan(thisCreature)])),
+                    Power,
+                    up(1),
                 ),
-                duration: Until(EndOf(part: Turn, whose: None)),
+                untilEndOfTurn,
             ),
         ),
     ],

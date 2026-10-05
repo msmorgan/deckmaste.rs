@@ -10,77 +10,15 @@ KeywordAbility(
     // it would leave the battlefield, exile it instead of putting it anywhere else.
     // Activate only as a sorcery." [CR#702.84a]
     body: [
-        Activated(
-            cost: Param(0),
-            instruction: Sequentially(
-                steps: [
-                    Enact(
-                        verb: Core(Return),
-                        instruction: Move(
-                            subject: This,
-                            from: Zone(zone: Graveyard, scope: PossessedBy(You)),
-                            to: Zone(zone: Battlefield, scope: Bare),
-                            riders: [],
-                        ),
-                        agent: You,
-                    ),
-                    Establish(
-                        spec: AbilityGrant(
-                            subject: AsMarker(marker: Permanent, subject: This),
-                            ability: haste,
-                        ),
-                        duration: None,
-                    ),
-                    Delay(
-                        event: BeginningOf(
-                            quantifier: The,
-                            part: EndStep,
-                            whose: NoPossessor,
-                        ),
-                        alternatives: [],
-                        duration: None,
-                        body: Enact(
-                            verb: Action("Exile"),
-                            instruction: Move(
-                                subject: AsMarker(marker: Permanent, subject: This),
-                                from: Wherever,
-                                to: Zone(zone: Exile, scope: Bare),
-                                riders: [],
-                            ),
-                            agent: You,
-                        ),
-                    ),
-                    Establish(
-                        spec: Replacement(
-                            event: ZoneChange(
-                                subject: AsMarker(marker: Permanent, subject: This),
-                                from: Zones([Zone(zone: Battlefield, scope: Bare)]),
-                                to: None,
-                                observation: Before,
-                            ),
-                            alternatives: [],
-                            timing: None,
-                            replacement: Enact(
-                                verb: Action("Exile"),
-                                instruction: Move(
-                                    subject: AsMarker(marker: Permanent, subject: This),
-                                    from: Wherever,
-                                    to: Zone(zone: Exile, scope: Bare),
-                                    riders: [],
-                                ),
-                                agent: None,
-                            ),
-                            r#use: Repeatedly,
-                            limit: None,
-                        ),
-                        duration: None,
-                    ),
-                ],
-            ),
-            timing: AsSorcery,
-            limit: None,
-            guard: None,
-            activator: None,
+        activated(
+            Param(0),
+            sequentially([
+                returnToBattlefield(subject: this, agent: you, from: graveyardOf(you)),
+                gain(thisPermanent, haste),
+                atNext(EndStep, exileBy(you, thisPermanent)),
+                replaceEvent(leavesZone(thisPermanent, battlefield), exile(thisPermanent)),
+            ]),
+            asSorcery,
         ),
     ],
 )

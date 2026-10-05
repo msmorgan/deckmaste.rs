@@ -9,49 +9,23 @@ KeywordAbility(
     // charge counters on this permanent equal to the tapped creature's power.
     // Activate only as a sorcery." [CR#702.184a]
     body: [
-        Activated(
-            cost: Perform(
-                instruction: Enact(
-                    verb: Action("Tap"),
-                    instruction: SetStatus(
-                        status: Tapped,
-                        subject: Described(
-                            determiner: A(Unmarked),
-                            predicate: And(
-                                conjuncts: [
-                                    HasType(Creature),
-                                    OtherThan(
-                                        anchor: AsMarker(marker: Permanent, subject: This),
-                                    ),
-                                    HasStatus(Untapped),
-                                    HasPossessor(axis: Controller, possessor: You),
-                                ],
-                            ),
-                        ),
+        activated(
+            perform(
+                enact(
+                    Action("Tap"),
+                    setStatus(
+                        Tapped,
+                        a(and([creature, otherThan(thisPermanent), untapped, youControl])),
                     ),
-                    agent: You,
+                    you,
                 ),
             ),
-            instruction: PutCounters(
-                amount: StatOf(
-                    axis: Stat(Power),
-                    subject: Pro(
-                        reach: Verbed(
-                            verb: Action("Tap"),
-                            word: Type(Creature),
-                            marking: Attributive,
-                        ),
-                        plurality: One,
-                        window: Whole,
-                    ),
-                ),
-                kind: Printed(Named("Charge")),
-                on: AsMarker(marker: Permanent, subject: This),
+            putCounters(
+                powerOf(theVerbed(Action("Tap"), Creature, Attributive, One)),
+                chargeCounter,
+                thisPermanent,
             ),
-            timing: AsSorcery,
-            limit: None,
-            guard: None,
-            activator: None,
+            asSorcery,
         ),
     ],
 )

@@ -9,29 +9,10 @@ KeywordAbility(
     // or abilities your opponents control." [CR#702.11b] The player form
     // [CR#702.11c] is what a grant to a player reads.
     body: [
-        Static(
-            spec: DeonticRule(
-                subject: AsMarker(marker: Permanent, subject: This),
-                compulsion: Forbid,
-                deeds: [Core(Target)],
-                role: Patient,
-                bound: None,
-                patient: TargetedBy(
-                    patient: Described(
-                        determiner: All,
-                        predicate: And(
-                            conjuncts: [
-                                InZone(Zone(zone: Stack, scope: Bare)),
-                                HasPossessor(
-                                    axis: Controller,
-                                    possessor: PlayerGroup(YourOpponents),
-                                ),
-                            ],
-                        ),
-                    ),
-                ),
-                as_though: None,
-                rider: NoRider,
+        static(
+            cantBeTargetedBy(
+                thisPermanent,
+                allOf(and([inZone(stack), controlledBy(playerGroup(YourOpponents))])),
             ),
         ),
     ],

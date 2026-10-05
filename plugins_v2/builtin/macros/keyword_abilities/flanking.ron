@@ -11,52 +11,9 @@ KeywordAbility(
     // "The blocking creature" is the participant the trigger bound, so it reads as a
     // pronoun: `the` needs a uniquifying predicate and `blockerOf` is not one.
     body: [
-        Triggered(
-            event: Combat(
-                relation: BlockedBy,
-                subject: AsType(type: Creature, subject: This, subtype: None),
-                counterpart: Described(
-                    determiner: A(Unmarked),
-                    predicate: And(
-                        conjuncts: [
-                            HasType(Creature),
-                            Not(HasKeyword(The("Flanking"))),
-                        ],
-                    ),
-                ),
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: Establish(
-                spec: Conjunction(
-                    subject: None,
-                    parts: [
-                        Modification(
-                            subject: Pro(
-                                reach: Word(Type(Creature)),
-                                plurality: One,
-                                window: Whole,
-                            ),
-                            stat: Power,
-                            delta: Down(1),
-                        ),
-                        Modification(
-                            subject: Pro(
-                                reach: Word(Type(Creature)),
-                                plurality: One,
-                                window: Whole,
-                            ),
-                            stat: Toughness,
-                            delta: Down(1),
-                        ),
-                    ],
-                ),
-                duration: Until(EndOf(part: Turn, whose: None)),
-            ),
+        triggered(
+            becomesBlocked(thisCreature, a(and([creature, not(hasKeyword(The("Flanking")))]))),
+            gets(that(Creature), down(1), down(1), untilEndOfTurn),
         ),
     ],
 )

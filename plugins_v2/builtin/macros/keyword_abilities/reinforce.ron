@@ -8,36 +8,9 @@ KeywordAbility(
     // "Reinforce N—[cost]" means "[Cost], Discard this card: Put N +1/+1 counters on
     // target creature." [CR#702.77a]
     body: [
-        Activated(
-            cost: Compound(
-                costs: [
-                    Param(1),
-                    Perform(
-                        instruction: Enact(
-                            verb: Action("Discard"),
-                            instruction: Move(
-                                subject: This,
-                                from: Zone(zone: Hand, scope: Bare),
-                                to: Zone(zone: Graveyard, scope: Bare),
-                                riders: [],
-                            ),
-                            agent: None,
-                        ),
-                    ),
-                ],
-            ),
-            instruction: PutCounters(
-                amount: Param(0),
-                kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                on: Described(
-                    determiner: Target(Range(low: 1, high: 1)),
-                    predicate: HasType(Creature),
-                ),
-            ),
-            timing: None,
-            limit: None,
-            guard: None,
-            activator: None,
+        activated(
+            compound([Param(1), perform(discard(this))]),
+            putCounters(Param(0), p1p1Counter, target(creature)),
         ),
     ],
 )

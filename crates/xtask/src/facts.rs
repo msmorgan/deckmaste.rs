@@ -1321,7 +1321,7 @@ fn stub_field<'a>(src: &'a str, field: &str) -> Option<&'a str> {
 fn render(root: &Path) -> anyhow::Result<String> {
     let declarations =
         deckmaste_construction_core::macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
-    let definitions = lean::keyword_definitions(&declarations)?;
+    let definitions = lean::keyword_definitions(&declarations, &root.join("plugins_v2/builtin"))?;
     let counter_keywords = lean::counter_eligible_keywords(&declarations)?;
     let mut out = String::new();
     out.push_str(
@@ -1946,7 +1946,7 @@ mod tests {
         .expect("reading the builtin declarations");
         // The exemption tables name keywords, and a keyword is what its
         // declaration's body defines.
-        let stubs = lean::keyword_definitions(&declarations)
+        let stubs = lean::keyword_definitions(&declarations, &root().join("plugins_v2/builtin"))
             .expect("reading the keyword definitions")
             .into_iter()
             .map(|definition| definition.word)

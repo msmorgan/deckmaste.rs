@@ -10,58 +10,16 @@ KeywordAbility(
     // permanent. Activate only if this permanent is attached to a creature and only
     // as a sorcery." [CR#702.151a]
     body: [
-        Activated(
-            cost: Param(0),
-            instruction: Enact(
-                verb: Action("Attach"),
-                instruction: Attachment(
-                    r#move: Attached,
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    host: Described(
-                        determiner: Target(Range(low: 1, high: 1)),
-                        predicate: And(
-                            conjuncts: [
-                                HasType(Creature),
-                                OtherThan(
-                                    anchor: AsMarker(marker: Permanent, subject: This),
-                                ),
-                                HasPossessor(axis: Controller, possessor: You),
-                            ],
-                        ),
-                    ),
-                ),
-                agent: None,
-            ),
-            timing: AsSorcery,
-            limit: None,
-            guard: None,
-            activator: None,
+        activated(
+            Param(0),
+            attach(thisPermanent, target(and([creature, otherThan(thisPermanent), youControl]))),
+            asSorcery,
         ),
-        Activated(
+        activated(
             cost: Param(0),
-            instruction: Enact(
-                verb: Action("Attach"),
-                instruction: Attachment(
-                    r#move: Unattached,
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    host: None,
-                ),
-                agent: None,
-            ),
-            timing: AsSorcery,
-            limit: None,
-            guard: Matches(
-                subject: AsMarker(marker: Permanent, subject: This),
-                predicate: Attachment(
-                    side: Attachment,
-                    word: None,
-                    counterpart: Described(
-                        determiner: A(Unmarked),
-                        predicate: HasType(Creature),
-                    ),
-                ),
-            ),
-            activator: None,
+            instruction: enact(Action("Attach"), attachment(Unattached, thisPermanent)),
+            timing: asSorcery,
+            guard: matches(thisPermanent, attachment(side: Attachment, counterpart: a(creature))),
         ),
     ],
 )

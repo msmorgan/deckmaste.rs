@@ -7,7 +7,7 @@ SingleFaced(face: (
         types: [Enchantment],
         text: [
             activated(
-                cost: compound([mana([2]), perform(discard(aAtRandom(and([isCard, inZone(hand)]))))]),
+                cost: compound([mana([2]), perform(discard(aAtRandom(cardIn(hand))))]),
                 instruction: dealDamage(thisEnchantment, 2, target(anyTarget)),
             ),
         ],

@@ -1,0 +1,7 @@
+// "a card in <zone>": a card [CR#108.2] — not a token — in the zone.
+(
+    name: "cardIn",
+    kinds: [Predicate],
+    params: {"zone": ZoneExpr},
+    body: And([IsCard, InZone(Param(zone))]),
+)

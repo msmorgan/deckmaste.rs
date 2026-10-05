@@ -8,5 +8,7 @@ KeywordAbility(
     ),
     // "Kicker [cost]" means "You may pay an additional [cost] as you cast this spell."
     // [CR#702.33a]
-    body: [Static(AddedCost(cost: Param(0), offered: true))],
+    body: [
+        static(addedCost(Param(0), true)),
+    ],
 )

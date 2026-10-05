@@ -11,84 +11,22 @@ KeywordAbility(
     // rather than paying its mana cost. If that player doesn't, they put this card
     // into their graveyard." [CR#702.35a]
     body: [
-        Static(
-            spec: Replacement(
-                event: VerbedEvent(
-                    agent: Described(determiner: A(Unmarked), predicate: AnyPlayer),
-                    verb: Action("Discard"),
-                    patient: This,
-                    becomes: None,
-                    locus: None,
-                ),
-                alternatives: [],
-                timing: None,
-                replacement: Enact(
-                    verb: Action("Discard"),
-                    instruction: Move(
-                        subject: This,
-                        from: Zone(zone: Hand, scope: Bare),
-                        to: Zone(zone: Exile, scope: Bare),
-                        riders: [],
-                    ),
-                    agent: None,
-                ),
-                r#use: Repeatedly,
-                limit: None,
+        static(
+            insteadOf(
+                verbedEvent(a(anyPlayer), Action("Discard"), this),
+                enact(Action("Discard"), move(this, hand, exileZone)),
             ),
         ),
-        Triggered(
+        triggered(
             // "this way": the exile the replacement above performed.
-            event: Causes(
-                cause: Event(
-                    event: VerbedEvent(
-                        agent: None,
-                        verb: Action("Discard"),
-                        patient: This,
-                        becomes: None,
-                        locus: None,
-                    ),
-                ),
-                event: ZoneChange(
-                    subject: This,
-                    from: Zones([Zone(zone: Hand, scope: Bare)]),
-                    to: Zone(zone: Exile, scope: Bare),
-                    observation: After,
-                ),
+            causes(
+                Event(verbedEvent(verb: Action("Discard"), patient: this)),
+                zoneChange(this, Zones([hand]), exileZone, After),
             ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: WithContinuation(
-                policy: Optional(PossessorOf(axis: Owner, subject: This)),
-                body: Establish(
-                    spec: DeonticRule(
-                        subject: PossessorOf(axis: Owner, subject: This),
-                        compulsion: Permit,
-                        deeds: [Action("Cast")],
-                        role: Agent,
-                        bound: None,
-                        patient: Counterpart(This),
-                        as_though: None,
-                        rider: Play(
-                            from: Zone(zone: Exile, scope: Bare),
-                            limit: None,
-                            timing: None,
-                            exclusive: false,
-                            payment: PayingInstead(Param(0)),
-                        ),
-                    ),
-                    duration: None,
-                ),
-                if_did: None,
-                if_not: Move(
-                    subject: This,
-                    from: Wherever,
-                    to: Zone(zone: Graveyard, scope: Bare),
-                    riders: [],
-                ),
+            may(
+                agent: ownerOf(this),
+                body: establish(mayCastFor(ownerOf(this), Param(0), exileZone)),
+                if_not: move(this, wherever, graveyard),
             ),
         ),
     ],

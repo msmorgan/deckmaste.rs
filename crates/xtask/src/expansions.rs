@@ -582,10 +582,72 @@ fn expand_one(macros: &MacroSet, samples: &Samples, declaration: &Declaration) -
         ));
     };
 
-    let slots = match samples.slots(&definition.params) {
-        Ok(slots) => slots,
-        Err(reason) => return Outcome::Skipped(reason),
-    };
+    match instantiate(samples, name, &definition.params, |invocation| {
+        reader(macros, invocation)
+    }) {
+        Ok(Instantiated { invocation, value }) => {
+            Outcome::Printed(header(kind, &invocation) + &value)
+        }
+        Err(Uninstantiated::NoSlots(reason)) => Outcome::Skipped(reason),
+        Err(Uninstantiated::NoneRead {
+            attempts,
+            first_error,
+            any_untyped,
+        }) => {
+            if has_params {
+                // Listed, not failed: the samples may simply not fit (an `Any`
+                // hole at a word type no sample covers), or the signature may
+                // admit no argument at all. A declaration that printed before
+                // and is listed here after a re-spelling still shows in
+                // `diff -r`, as a missing `.expanded` file.
+                Outcome::Skipped(format!(
+                    "no sample instantiation reads at {kind} ({attempts} tried{}); first: \
+                     {first_error}",
+                    if any_untyped { "" } else { ", every parameter typed" }
+                ))
+            } else {
+                Outcome::Failed(format!("reading at {kind}: {first_error}"))
+            }
+        }
+    }
+}
+
+/// A declaration invoked with sample arguments, and what the invocation read
+/// as.
+pub struct Instantiated<R> {
+    /// The invocation text that read.
+    pub invocation: String,
+    /// What it read as.
+    pub value: R,
+}
+
+/// Why no sample invocation of a declaration read.
+pub enum Uninstantiated {
+    /// A parameter type no sample fills, or that is not registered.
+    NoSlots(String),
+    /// Every distinct assignment tried was refused.
+    NoneRead {
+        attempts: usize,
+        first_error: String,
+        any_untyped: bool,
+    },
+}
+
+/// Invokes the declaration `name` with its deterministic sample arguments —
+/// the first assignment, in [`SAMPLES`] order with no two parameters given
+/// the same text, that `read` accepts. This is the instantiation every
+/// `.expanded` file is printed from; `cargo xtask facts` reads keyword
+/// definitions through it too.
+///
+/// # Errors
+/// [`Uninstantiated`] when no assignment reads.
+pub fn instantiate<R>(
+    samples: &Samples,
+    name: &str,
+    params: &Params,
+    read: impl Fn(&str) -> Result<R, String>,
+) -> Result<Instantiated<R>, Uninstantiated> {
+    let slots = samples.slots(params).map_err(Uninstantiated::NoSlots)?;
     let any_untyped = slots.iter().any(|slot| slot.untyped);
     let mut first_error = None;
     let mut attempts = 0usize;
@@ -602,9 +664,9 @@ fn expand_one(macros: &MacroSet, samples: &Samples, declaration: &Declaration) -
             .all(|(i, text)| !texts[..i].contains(text));
         if distinct {
             attempts += 1;
-            let invocation = invocation(name, &definition.params, &slots, &texts);
-            match reader(macros, &invocation) {
-                Ok(text) => return Outcome::Printed(header(kind, &invocation) + &text),
+            let invocation = invocation(name, params, &slots, &texts);
+            match read(&invocation) {
+                Ok(value) => return Ok(Instantiated { invocation, value }),
                 Err(error) => {
                     first_error.get_or_insert_with(|| format!("`{invocation}`: {error}"));
                 }
@@ -617,20 +679,11 @@ fn expand_one(macros: &MacroSet, samples: &Samples, declaration: &Declaration) -
             break;
         }
     }
-    let error = first_error.unwrap_or_else(|| "no distinct sample assignment".to_owned());
-    if has_params {
-        // Listed, not failed: the samples may simply not fit (an `Any` hole
-        // at a word type no sample covers), or the signature may admit no
-        // argument at all. A declaration that printed before and is listed
-        // here after a re-spelling still shows in `diff -r`, as a missing
-        // `.expanded` file.
-        Outcome::Skipped(format!(
-            "no sample instantiation reads at {kind} ({attempts} tried{}); first: {error}",
-            if any_untyped { "" } else { ", every parameter typed" }
-        ))
-    } else {
-        Outcome::Failed(format!("reading at {kind}: {error}"))
-    }
+    Err(Uninstantiated::NoneRead {
+        attempts,
+        first_error: first_error.unwrap_or_else(|| "no distinct sample assignment".to_owned()),
+        any_untyped,
+    })
 }
 
 /// Steps `choice` to the next assignment in lexicographic order (last slot
@@ -677,13 +730,15 @@ struct Slot {
 }
 
 /// [`SAMPLES`] with each param type's validator, against one macro scope.
-struct Samples<'m> {
+pub struct Samples<'m> {
     macros: &'m MacroSet,
     types: macro_ron::ParamTypeSet,
 }
 
 impl<'m> Samples<'m> {
-    fn new(macros: &'m MacroSet) -> Self {
+    /// The samples over `macros`, the scope the invocations are read in.
+    #[must_use]
+    pub fn new(macros: &'m MacroSet) -> Self {
         Samples {
             macros,
             types: deckmaste_semantics_v2::ron::param_types(),

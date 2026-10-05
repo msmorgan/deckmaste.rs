@@ -1,7 +1,7 @@
-// "<agent> returns <subject> to its owner's hand"
+// "<agent> returns <subject> [from <from>] to its owner's hand"
 (
     name: "returnToHand",
     kinds: [Instruction],
-    params: {"agent": NounPhrase, "subject": NounPhrase},
-    body: Enact(Return, Move(Param(subject), wherever, hand, []), Param(agent)),
+    params: {"agent": NounPhrase, "subject": NounPhrase, "from": Default(ZoneExpr, Wherever)},
+    body: Enact(Return, Move(Param(subject), Param(from), hand, []), Param(agent)),
 )

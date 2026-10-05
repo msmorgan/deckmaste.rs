@@ -30,7 +30,9 @@ use deckmaste_construction_core::macro_def::DeclarationKind;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::{self};
+use deckmaste_semantics_v2::abilities::Ability;
 use deckmaste_semantics_v2::keywords;
+use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::ron::macro_set;
 use deckmaste_semantics_v2::rules::Definition;
 use deckmaste_semantics_v2::words::CardType;
@@ -48,6 +50,9 @@ use super::KEYWORD_STUBS_EXEMPT;
 use super::Regime;
 use super::Shape;
 use super::overlay;
+use crate::expansions::Samples;
+use crate::expansions::Uninstantiated;
+use crate::expansions::instantiate;
 
 pub(super) const GENERATED: &str = "lean/Semantics/Check/Facts.lean";
 
@@ -172,74 +177,86 @@ pub(super) struct KeywordDefinition {
     pub(super) params: Vec<String>,
 }
 
-/// A keyword-ability declaration's body, read for its shape alone.
-///
-/// The body is an `Ability.keyword` term whose payload may write `Param(n)` —
-/// a parameter reference only a macro EXPANSION resolves — so it cannot be
-/// read as a `deckmaste_semantics_v2::abilities::Ability`. What the table
-/// needs of it is the keyword it defines and the categories its definition is
-/// written in [CR#702.1], and both are visible without the payload: serde
-/// skips a field these types do not declare, so every `Param` inside one goes
-/// past as an ignored value.
+/// A keyword-ability declaration's built term, read for its shape alone: the
+/// keyword it defines and how many abilities its definition holds. The
+/// abilities may be written in macros and may hold `Param(n)` holes, so they
+/// go past unread here; their categories are read from the declaration's
+/// INVOKED term, through the plugin's own macros (`keyword_categories`).
 #[derive(Deserialize)]
 #[expect(
     dead_code,
     reason = "a field is declared so the reader accepts it and skips its value"
 )]
-enum KeywordBody {
+enum KeywordShape {
     Keyword {
         keyword: String,
         params: IgnoredAny,
-        body: Vec<DefinitionAbility>,
+        body: Vec<IgnoredAny>,
     },
 }
 
-/// One ability of a keyword's definition, read for its category alone
+/// The category of one ability of a keyword's definition
 /// [CR#113.3b,113.3c,113.3d]. A definition is written in one of the three
 /// [CR#702.1], so a body ability of any other shape is a refusal.
-#[derive(Deserialize)]
-#[expect(
-    dead_code,
-    reason = "a field is declared so the reader accepts it and skips its value"
-)]
-enum DefinitionAbility {
-    Static {
-        spec: IgnoredAny,
-    },
-    Triggered {
-        event: IgnoredAny,
-        alternatives: IgnoredAny,
-        r#while: IgnoredAny,
-        joins: IgnoredAny,
-        timing: IgnoredAny,
-        limit: IgnoredAny,
-        intervening: IgnoredAny,
-        instruction: IgnoredAny,
-    },
-    Activated {
-        cost: IgnoredAny,
-        instruction: IgnoredAny,
-        timing: IgnoredAny,
-        limit: IgnoredAny,
-        guard: IgnoredAny,
-        activator: IgnoredAny,
-    },
+fn category(ability: &Ability) -> anyhow::Result<&'static str> {
+    Ok(match ability {
+        Ability::Static { .. } => ".static",
+        Ability::Triggered { .. } => ".triggered",
+        Ability::Activated { .. } => ".activated",
+        other => anyhow::bail!("a keyword definition is static, triggered or activated: {other:?}"),
+    })
 }
 
-impl DefinitionAbility {
-    fn category(&self) -> &'static str {
-        match self {
-            DefinitionAbility::Static { .. } => ".static",
-            DefinitionAbility::Triggered { .. } => ".triggered",
-            DefinitionAbility::Activated { .. } => ".activated",
+/// The categories of a keyword ability's definition, read from the term the
+/// declaration builds when it is invoked with the deterministic sample
+/// arguments `cargo xtask expansions` prints it with — the abilities as the
+/// reader expands them, macros and all.
+fn keyword_categories(
+    plugin: &Plugin,
+    samples: &Samples,
+    name: &str,
+) -> anyhow::Result<Vec<&'static str>> {
+    let declaration = plugin
+        .declarations
+        .get(&(
+            macro_ron::Ident::from(keywords::KEYWORD_ABILITY),
+            macro_ron::Ident::from(name),
+        ))
+        .with_context(|| format!("{name}: the plugin registers no such keyword ability"))?;
+    let read = |invocation: &str| {
+        plugin
+            .macros
+            .read_str::<Ability>(invocation)
+            .map_err(|error| error.to_string())
+    };
+    let ability = match instantiate(samples, name, &declaration.definition.params, read) {
+        Ok(instantiated) => instantiated.value,
+        Err(Uninstantiated::NoSlots(reason)) => {
+            anyhow::bail!("{name}: the declaration cannot be invoked: {reason}")
         }
-    }
+        Err(Uninstantiated::NoneRead { first_error, .. }) => {
+            anyhow::bail!("{name}: no sample invocation reads: {first_error}")
+        }
+    };
+    let Ability::Keyword { body, .. } = ability else {
+        anyhow::bail!("{name}: the declaration does not build a keyword term");
+    };
+    body.iter().map(category).collect()
 }
 
 /// Every keyword-ability declaration's definition, in declaration order.
+///
+/// The keyword and the ability count come from the built term itself. A
+/// definition with no abilities has no categories and is never invoked —
+/// `gift` and the declarations taking an `Ability` argument have no sample
+/// invocation that reads, and need none. One with abilities is invoked
+/// through `plugin_dir`'s loaded plugin, and failing to invoke it is an
+/// error, never an empty row.
 pub(super) fn keyword_definitions(
     declarations: &[NormalizedDeclaration],
+    plugin_dir: &Path,
 ) -> anyhow::Result<Vec<KeywordDefinition>> {
+    let mut plugin = None;
     let mut result = Vec::new();
     for declared in declarations
         .iter()
@@ -261,10 +278,21 @@ pub(super) fn keyword_definitions(
             body.get_ron(),
         )
         .map_err(|reason| anyhow::anyhow!("{name}: {reason}"))?;
-        let KeywordBody::Keyword { keyword, body, .. } = macro_set()
+        let KeywordShape::Keyword { keyword, body, .. } = macro_set()
             .read_str(&term)
             .with_context(|| format!("reading keyword ability {name}"))?;
-        let categories = body.iter().map(DefinitionAbility::category).collect();
+        let categories = if body.is_empty() {
+            Vec::new()
+        } else {
+            if plugin.is_none() {
+                plugin = Some(
+                    Plugin::load(plugin_dir)
+                        .with_context(|| format!("loading {}", plugin_dir.display()))?,
+                );
+            }
+            let plugin = plugin.as_ref().expect("loaded above");
+            keyword_categories(plugin, &Samples::new(&plugin.macros), name)?
+        };
         result.push(KeywordDefinition {
             word: keyword,
             categories,
@@ -309,9 +337,12 @@ pub(super) fn counter_eligible_keywords(
     Ok(result)
 }
 
-fn keyword_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
+fn keyword_rows(
+    declarations: &[NormalizedDeclaration],
+    plugin_dir: &Path,
+) -> anyhow::Result<Vec<String>> {
     let overlays = overlay();
-    let definitions = keyword_definitions(declarations)?;
+    let definitions = keyword_definitions(declarations, plugin_dir)?;
     let counter_keywords = counter_eligible_keywords(declarations)?;
     for definition in &definitions {
         anyhow::ensure!(
@@ -635,7 +666,7 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
         &mut out,
         "keywordFacts",
         "KeywordFacts",
-        &keyword_rows(&declarations)?,
+        &keyword_rows(&declarations, &root.join("plugins_v2/builtin"))?,
     );
     table(
         &mut out,
@@ -722,7 +753,11 @@ mod tests {
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             path,
-            source.replace("params: [Cost]", "params:\n        [Amount]"),
+            // The body's cost hole stays a cost: a declaration whose body no
+            // longer fits its signature has no invocation to read.
+            source
+                .replace("params: [Cost]", "params:\n        [Amount]")
+                .replace("Param(0)", "tapSymbol"),
         )
         .unwrap();
         let generated = render(temp.path()).unwrap();
@@ -751,7 +786,9 @@ mod tests {
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             &path,
-            source.replace("params: [Cost]", "params: [Amount, Cost]"),
+            source
+                .replace("params: [Cost]", "params: [Amount, Cost]")
+                .replace("Param(0)", "Param(1)"),
         )
         .unwrap();
         let generated = render(temp.path()).unwrap();
@@ -765,7 +802,9 @@ mod tests {
         );
         fs::write(
             &path,
-            source.replace("params: [Cost]", "params: [Quality, Cost]"),
+            source
+                .replace("params: [Cost]", "params: [Quality, Cost]")
+                .replace("Param(0)", "Param(1)"),
         )
         .unwrap();
         let reordered = render(temp.path()).unwrap();

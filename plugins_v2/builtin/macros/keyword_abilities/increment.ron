@@ -10,72 +10,20 @@ KeywordAbility(
     // or this creature's toughness, put a +1/+1 counter on this creature."
     // [CR#702.191a]
     body: [
-        Triggered(
-            event: Casts(
-                player: You,
-                spell: Described(
-                    determiner: A(Unmarked),
-                    predicate: And(
-                        conjuncts: [
-                            InZone(Zone(zone: Stack, scope: Bare)),
-                            Not(AbilityHead(AnyOnStack)),
-                        ],
+        triggeredIf(
+            casts(you, a(spell)),
+            and([
+                matches(thisPermanent, creature),
+                or([
+                    compareAmt(manaValueSpentToCast(that(Spell)), Greater, powerOf(thisCreature)),
+                    compareAmt(
+                        manaValueSpentToCast(that(Spell)),
+                        Greater,
+                        toughnessOf(thisCreature),
                     ),
-                ),
-                from: None,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: And(
-                conjuncts: [
-                    Matches(
-                        subject: AsMarker(marker: Permanent, subject: This),
-                        predicate: HasType(Creature),
-                    ),
-                    Or(
-                        disjuncts: [
-                            CompareAmt(
-                                subject: Paid(
-                                    facet: ManaValueSpent,
-                                    subject: Pro(
-                                        reach: Word(Spell),
-                                        plurality: One,
-                                        window: Whole,
-                                    ),
-                                ),
-                                comparator: Greater,
-                                bound: StatOf(
-                                    axis: Stat(Power),
-                                    subject: AsType(type: Creature, subject: This, subtype: None),
-                                ),
-                            ),
-                            CompareAmt(
-                                subject: Paid(
-                                    facet: ManaValueSpent,
-                                    subject: Pro(
-                                        reach: Word(Spell),
-                                        plurality: One,
-                                        window: Whole,
-                                    ),
-                                ),
-                                comparator: Greater,
-                                bound: StatOf(
-                                    axis: Stat(Toughness),
-                                    subject: AsType(type: Creature, subject: This, subtype: None),
-                                ),
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-            instruction: PutCounters(
-                amount: 1,
-                kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                on: AsType(type: Creature, subject: This, subtype: None),
-            ),
+                ]),
+            ]),
+            putCounters(1, p1p1Counter, thisCreature),
         ),
     ],
 )

@@ -10,56 +10,22 @@ KeywordAbility(
     // One prohibition over two deeds, each with its own patient, is
     // `DeonticPatient::CounterpartsAt`.
     body: [
-        Static(
-            spec: Conditional(
-                spec: DeonticRule(
-                    subject: Described(determiner: All, predicate: AnyPlayer),
-                    compulsion: Forbid,
-                    deeds: [Action("Cast"), Action("Activate")],
-                    role: Agent,
-                    bound: None,
-                    patient: CounterpartsAt(
-                        complements: [
-                            (
-                                deed: Action("Cast"),
-                                counterpart: Described(
-                                    determiner: All,
-                                    predicate: And(
-                                        conjuncts: [
-                                            InZone(Zone(zone: Stack, scope: Bare)),
-                                            Not(AbilityHead(AnyOnStack)),
-                                            OtherThan(
-                                                anchor: AsMarker(
-                                                    marker: Spell,
-                                                    subject: This,
-                                                ),
-                                            ),
-                                        ],
-                                    ),
-                                ),
-                            ),
-                            (
-                                deed: Action("Activate"),
-                                counterpart: Described(
-                                    determiner: All,
-                                    predicate: And(
-                                        conjuncts: [
-                                            AbilityHead(AnyActivated),
-                                            Not(IsManaAbility),
-                                        ],
-                                    ),
-                                ),
-                            ),
-                        ],
-                    ),
-                    as_though: None,
-                    rider: NoRider,
+        static(
+            onlyWhile(
+                deontic(
+                    allOf(anyPlayer),
+                    Forbid,
+                    [Action("Cast"), Action("Activate")],
+                    Agent,
+                    CounterpartsAt([
+                        (counterpart: allOf(anotherSpell), deed: Action("Cast")),
+                        (
+                            counterpart: allOf(and([abilityHead(AnyActivated), not(isManaAbility)])),
+                            deed: Action("Activate"),
+                        ),
+                    ]),
                 ),
-                condition: Matches(
-                    subject: AsMarker(marker: Spell, subject: This),
-                    predicate: InZone(Zone(zone: Stack, scope: Bare)),
-                ),
-                marking: AsLongAs,
+                matches(thisSpell, inZone(stack)),
             ),
         ),
     ],

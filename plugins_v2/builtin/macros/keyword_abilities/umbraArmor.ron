@@ -8,40 +8,10 @@ KeywordAbility(
     // "Umbra armor" means "If enchanted permanent would be destroyed, instead remove
     // all damage marked on it and destroy this Aura." [CR#702.89a]
     body: [
-        Static(
-            spec: Replacement(
-                event: VerbedEvent(
-                    agent: None,
-                    verb: Action("Destroy"),
-                    patient: AttachHost(word: Enchanted, head: Permanent),
-                    becomes: None,
-                    locus: None,
-                ),
-                alternatives: [],
-                timing: None,
-                replacement: Sequentially(
-                    steps: [
-                        ClearDamage(
-                            subject: AttachHost(word: Enchanted, head: Permanent),
-                        ),
-                        Enact(
-                            verb: Action("Destroy"),
-                            instruction: Move(
-                                subject: AsType(
-                                    type: Enchantment,
-                                    subject: This,
-                                    subtype: Of(host: Enchantment, label: "Aura"),
-                                ),
-                                from: Zone(zone: Battlefield, scope: Bare),
-                                to: Zone(zone: Graveyard, scope: Bare),
-                                riders: [],
-                            ),
-                            agent: None,
-                        ),
-                    ],
-                ),
-                r#use: Repeatedly,
-                limit: None,
+        static(
+            insteadOf(
+                verbedEvent(verb: Action("Destroy"), patient: attachHost(Enchanted, Permanent)),
+                sequentially([clearDamage(attachHost(Enchanted, Permanent)), destroy(thisAura)]),
             ),
         ),
     ],

@@ -9,44 +9,23 @@ KeywordAbility(
     // it. If you don't, create N 1/1 colorless Servo artifact creature tokens."
     // [CR#702.123a]
     body: [
-        Triggered(
-            event: ZoneChange(
-                subject: AsMarker(marker: Permanent, subject: This),
-                from: None,
-                to: Zone(zone: Battlefield, scope: Bare),
-                observation: After,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: WithContinuation(
-                policy: Optional(You),
-                body: PutCounters(
-                    amount: Param(0),
-                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                    on: AsMarker(marker: Permanent, subject: This),
-                ),
-                if_did: None,
-                if_not: CreateObject(
-                    count: Param(0),
-                    spec: Token(
-                        spec: Written(
-                            characteristics: (
-                                characteristics: (
-                                    colors: [],
-                                    types: [Artifact, Creature],
-                                    subtypes: [Of(host: Creature, label: "Servo")],
-                                    power: 1,
-                                    toughness: 1,
-                                ),
-                            ),
+        triggered(
+            enters(thisPermanent),
+            may(
+                agent: you,
+                body: putCounters(Param(0), p1p1Counter, thisPermanent),
+                if_not: createToken(
+                    you,
+                    (
+                        characteristics: (
+                            colors: [],
+                            power: 1,
+                            subtypes: [servo],
+                            toughness: 1,
+                            types: [Artifact, Creature],
                         ),
-                        riders: [],
                     ),
-                    agent: You,
+                    Param(0),
                 ),
             ),
         ),

@@ -9,43 +9,12 @@ KeywordAbility(
     // opponent loses 1 life and you gain life equal to the total life lost this way."
     // [CR#702.101a]
     body: [
-        Triggered(
-            event: Casts(
-                player: You,
-                spell: Described(
-                    determiner: A(Unmarked),
-                    predicate: And(
-                        conjuncts: [
-                            InZone(Zone(zone: Stack, scope: Bare)),
-                            Not(AbilityHead(AnyOnStack)),
-                        ],
-                    ),
-                ),
-                from: None,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: WithContinuation(
-                policy: Optional(You),
-                body: Pay(
-                    cost: Mana([Hybrid(left: White, right: Black)]),
-                    times: Once,
-                    agent: You,
-                ),
-                if_did: Sequentially(
-                    steps: [
-                        ChangeLife(
-                            delta: Down(1),
-                            agent: Described(determiner: Each, predicate: Opponent),
-                        ),
-                        ChangeLife(delta: Up(ThatMuch), agent: You),
-                    ],
-                ),
-                if_not: None,
+        triggered(
+            casts(you, a(spell)),
+            may(
+                you,
+                pay(mana([Hybrid(White, Black)]), Once, you),
+                sequentially([loseLife(1, each(opponent)), gainLife(thatMuch)]),
             ),
         ),
     ],

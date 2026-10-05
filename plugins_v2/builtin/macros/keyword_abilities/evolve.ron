@@ -10,65 +10,13 @@ KeywordAbility(
     // greater than this creature's toughness, put a +1/+1 counter on this creature."
     // [CR#702.100a]
     body: [
-        Triggered(
-            event: ZoneChange(
-                subject: Described(
-                    determiner: A(Unmarked),
-                    predicate: And(
-                        conjuncts: [
-                            HasType(Creature),
-                            HasPossessor(axis: Controller, possessor: You),
-                        ],
-                    ),
-                ),
-                from: None,
-                to: Zone(zone: Battlefield, scope: Bare),
-                observation: After,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: Or(
-                disjuncts: [
-                    CompareAmt(
-                        subject: StatOf(
-                            axis: Stat(Power),
-                            subject: Pro(
-                                reach: Word(Type(Creature)),
-                                plurality: One,
-                                window: Whole,
-                            ),
-                        ),
-                        comparator: Greater,
-                        bound: StatOf(
-                            axis: Stat(Power),
-                            subject: AsType(type: Creature, subject: This, subtype: None),
-                        ),
-                    ),
-                    CompareAmt(
-                        subject: StatOf(
-                            axis: Stat(Toughness),
-                            subject: Pro(
-                                reach: Word(Type(Creature)),
-                                plurality: One,
-                                window: Whole,
-                            ),
-                        ),
-                        comparator: Greater,
-                        bound: StatOf(
-                            axis: Stat(Toughness),
-                            subject: AsType(type: Creature, subject: This, subtype: None),
-                        ),
-                    ),
-                ],
-            ),
-            instruction: PutCounters(
-                amount: 1,
-                kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                on: AsType(type: Creature, subject: This, subtype: None),
-            ),
+        triggeredIf(
+            enters(a(creatureYouControl)),
+            or([
+                compareAmt(powerOf(that(Creature)), Greater, powerOf(thisCreature)),
+                compareAmt(toughnessOf(that(Creature)), Greater, toughnessOf(thisCreature)),
+            ]),
+            putCounters(1, p1p1Counter, thisCreature),
         ),
     ],
 )

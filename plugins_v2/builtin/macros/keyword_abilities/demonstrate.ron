@@ -10,87 +10,18 @@ KeywordAbility(
     // That player copies the spell and may choose new targets for that copy."
     // [CR#702.144a]
     body: [
-        Triggered(
-            event: Casts(
-                player: You,
-                spell: AsMarker(marker: Spell, subject: This),
-                from: None,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: WithContinuation(
-                policy: Optional(You),
-                body: Sequentially(
-                    steps: [
-                        Copy(
-                            sort: FromStack,
-                            subject: AsMarker(marker: Spell, subject: This),
-                            times: 1,
-                            exceptions: [],
-                            agent: You,
-                        ),
-                        WithContinuation(
-                            policy: Optional(You),
-                            body: ChooseNewTargets(
-                                subject: Pro(
-                                    reach: Word(Copy),
-                                    plurality: One,
-                                    window: Whole,
-                                ),
-                            ),
-                            if_did: None,
-                            if_not: None,
-                        ),
-                    ],
-                ),
-                if_did: Sequentially(
-                    steps: [
-                        Choose(
-                            first: None,
-                            chosen: Described(
-                                determiner: A(Unmarked),
-                                predicate: Opponent,
-                            ),
-                            disclosure: Openly,
-                            when: None,
-                            agent: You,
-                        ),
-                        Copy(
-                            sort: FromStack,
-                            subject: AsMarker(marker: Spell, subject: This),
-                            times: 1,
-                            exceptions: [],
-                            agent: Described(
-                                determiner: The,
-                                predicate: ChosenPlayer(r#ref: TheChoice),
-                            ),
-                        ),
-                        WithContinuation(
-                            policy: Optional(
-                                agent: Described(
-                                    determiner: The,
-                                    predicate: ChosenPlayer(r#ref: TheChoice),
-                                ),
-                            ),
-                            // "that copy": the one the chosen player just made,
-                            // not the caster's, which is still on the stack.
-                            body: ChooseNewTargets(
-                                subject: Pro(
-                                    reach: Word(Copy),
-                                    plurality: One,
-                                    window: Top(1),
-                                ),
-                            ),
-                            if_did: None,
-                            if_not: None,
-                        ),
-                    ],
-                ),
-                if_not: None,
+        triggered(
+            casts(you, thisSpell),
+            may(
+                you,
+                sequentially([copySpell(you, thisSpell), may(you, chooseNewTargets(that(Copy)))]),
+                sequentially([
+                    choose(you, anOpponent),
+                    copySpell(the(chosenPlayer), thisSpell),
+                    // "that copy": the one the chosen player just made,
+                    // not the caster's, which is still on the stack.
+                    may(the(chosenPlayer), chooseNewTargets(Pro(Word(Copy), One, top(1)))),
+                ]),
             ),
         ),
     ],

@@ -8,29 +8,6 @@ KeywordAbility(
     // "Cycling [cost]" means "[Cost], Discard this card: Draw a card."
     // [CR#702.29a]
     body: [
-        Activated(
-            cost: Compound(
-                costs: [
-                    Param(0),
-                    Perform(
-                        instruction: Enact(
-                            verb: Action("Discard"),
-                            instruction: Move(
-                                subject: This,
-                                from: Zone(zone: Hand, scope: Bare),
-                                to: Zone(zone: Graveyard, scope: Bare),
-                                riders: [],
-                            ),
-                            agent: None,
-                        ),
-                    ),
-                ],
-            ),
-            instruction: Draw(amount: 1, agent: You),
-            timing: None,
-            limit: None,
-            guard: None,
-            activator: None,
-        ),
+        activated(compound([Param(0), perform(discard(this))]), draw(1)),
     ],
 )

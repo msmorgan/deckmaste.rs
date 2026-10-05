@@ -10,52 +10,25 @@ KeywordAbility(
     // cost, and it's a Zombie in addition to its other types. Activate only as a
     // sorcery." [CR#702.129a]
     body: [
-        Activated(
-            cost: Compound(
-                costs: [
-                    Param(0),
-                    Perform(
-                        instruction: Enact(
-                            verb: Action("Exile"),
-                            instruction: Move(
-                                subject: This,
-                                from: Zone(zone: Graveyard, scope: PossessedBy(You)),
-                                to: Zone(zone: Exile, scope: Bare),
-                                riders: [],
-                            ),
-                            agent: You,
-                        ),
-                    ),
-                ],
-            ),
-            instruction: CreateObject(
-                count: 1,
-                spec: Token(
-                    spec: CopyOf(
-                        source: This,
-                        exceptions: [
-                            Edits(
-                                edits: [
-                                    Colors(op: Sets, colors: r#Some([Black])),
-                                    Stat(op: Sets, axis: Power, amount: 4),
-                                    Stat(op: Sets, axis: Toughness, amount: 4),
-                                    ManaCost(None),
-                                    TypeLine(
-                                        op: Adds,
-                                        changes: (subtypes: [Of(host: Creature, label: "Zombie")]),
-                                    ),
-                                ],
-                            ),
-                        ],
-                    ),
-                    riders: [],
+        activated(
+            compound([Param(0), perform(exileBy(you, this, graveyardOf(you)))]),
+            create(
+                1,
+                copyOf(
+                    this,
+                    [
+                        Edits([
+                            Colors(Sets, Some([Black])),
+                            Stat(Sets, Power, 4),
+                            Stat(Sets, Toughness, 4),
+                            ManaCost(None),
+                            TypeLine(Adds, (subtypes: [zombie])),
+                        ]),
+                    ],
                 ),
-                agent: You,
+                you,
             ),
-            timing: AsSorcery,
-            limit: None,
-            guard: None,
-            activator: None,
+            asSorcery,
         ),
     ],
 )

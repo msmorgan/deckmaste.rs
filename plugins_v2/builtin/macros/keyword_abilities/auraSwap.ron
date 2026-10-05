@@ -8,39 +8,17 @@ KeywordAbility(
     // "Aura swap [cost]" means "[Cost]: You may exchange this permanent with an
     // Aura card in your hand." [CR#702.65a]
     body: [
-        Activated(
-            cost: Param(0),
-            instruction: WithContinuation(
-                policy: Optional(You),
-                body: Exchange(
-                    exchanged: CardsAcross(
-                        left: AsMarker(marker: Permanent, subject: This),
-                        right: Described(
-                            determiner: A(Unmarked),
-                            predicate: And(
-                                conjuncts: [
-                                    IsCard,
-                                    HasSubtype(
-                                        subtype: Of(host: Enchantment, label: "Aura"),
-                                    ),
-                                    InZone(
-                                        zone: Zone(
-                                            zone: Hand,
-                                            scope: PossessedBy(You),
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
+        activated(
+            Param(0),
+            may(
+                you,
+                Exchange(
+                    CardsAcross(
+                        thisPermanent,
+                        a(and([isCard, hasSubtype(aura), inZone(handOf(you))])),
                     ),
                 ),
-                if_did: None,
-                if_not: None,
             ),
-            timing: None,
-            limit: None,
-            guard: None,
-            activator: None,
         ),
     ],
 )

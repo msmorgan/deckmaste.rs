@@ -14,7 +14,7 @@ KeywordAction(
     body: chooseOne(
         exileBy(
             Param(0),
-            counted(exactly(3), and([isCard, inZone(graveyardOf(Param(0)))])),
+            counted(exactly(3), cardIn(graveyardOf(Param(0)))),
             graveyardOf(Param(0)),
         ),
         sacrifice(a(and([hasSubtype(food), permanent, controlledBy(Param(0))])), Param(0)),

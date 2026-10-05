@@ -9,57 +9,11 @@ KeywordAbility(
     // its mana cost" and "When this permanent enters, if its evoke cost was paid, its
     // controller sacrifices it." [CR#702.74a]
     body: [
-        Static(
-            spec: DeonticRule(
-                subject: You,
-                compulsion: Permit,
-                deeds: [Action("Cast")],
-                role: Agent,
-                bound: None,
-                patient: Counterpart(This),
-                as_though: None,
-                rider: Play(
-                    from: None,
-                    limit: None,
-                    timing: None,
-                    exclusive: false,
-                    payment: PayingInstead(Param(0)),
-                ),
-            ),
-        ),
-        Triggered(
-            event: ZoneChange(
-                subject: AsMarker(marker: Permanent, subject: This),
-                from: None,
-                to: Zone(zone: Battlefield, scope: Bare),
-                observation: After,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: CompareAmt(
-                subject: Paid(
-                    facet: Readback(which: ByKeyword("Evoke"), lookback: None),
-                    subject: AsMarker(marker: Permanent, subject: This),
-                ),
-                comparator: AtLeast,
-                bound: 1,
-            ),
-            instruction: Enact(
-                verb: Action("Sacrifice"),
-                instruction: Move(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    from: Zone(zone: Battlefield, scope: Bare),
-                    to: Zone(zone: Graveyard, scope: Bare),
-                    riders: [],
-                ),
-                agent: PossessorOf(
-                    axis: Controller,
-                    subject: AsMarker(marker: Permanent, subject: This),
-                ),
-            ),
+        static(mayCastFor(you, Param(0))),
+        triggeredIf(
+            enters(thisPermanent),
+            keywordCostPaid("Evoke", thisPermanent),
+            sacrifice(thisPermanent, controllerOf(thisPermanent)),
         ),
     ],
 )

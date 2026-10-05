@@ -11,57 +11,11 @@ KeywordAbility(
     // instead of putting it anywhere else any time it would leave the stack."
     // [CR#702.34a]
     body: [
-        Static(
-            spec: DeonticRule(
-                subject: You,
-                compulsion: Permit,
-                deeds: [Action("Cast")],
-                role: Agent,
-                bound: None,
-                patient: Counterpart(This),
-                as_though: None,
-                rider: Play(
-                    from: Zone(zone: Graveyard, scope: PossessedBy(You)),
-                    limit: None,
-                    timing: None,
-                    exclusive: false,
-                    payment: PayingInstead(Param(0)),
-                ),
-            ),
-        ),
-        Static(
-            spec: Conditional(
-                spec: Replacement(
-                    event: ZoneChange(
-                        subject: AsMarker(marker: Spell, subject: This),
-                        from: Zones([Zone(zone: Stack, scope: Bare)]),
-                        to: None,
-                        observation: Before,
-                    ),
-                    alternatives: [],
-                    timing: None,
-                    replacement: Enact(
-                        verb: Action("Exile"),
-                        instruction: Move(
-                            subject: AsMarker(marker: Spell, subject: This),
-                            from: Wherever,
-                            to: Zone(zone: Exile, scope: Bare),
-                            riders: [],
-                        ),
-                        agent: None,
-                    ),
-                    r#use: Repeatedly,
-                    limit: None,
-                ),
-                condition: CompareAmt(
-                    subject: Paid(
-                        facet: Readback(which: ByKeyword("Flashback"), lookback: None),
-                        subject: AsMarker(marker: Spell, subject: This),
-                    ),
-                    comparator: AtLeast,
-                    bound: 1,
-                ),
-                marking: AsLongAs,
+        static(mayCastFor(you, Param(0), graveyardOf(you))),
+        static(
+            onlyWhile(
+                insteadOf(leavesZone(thisSpell, stack), exile(thisSpell)),
+                keywordCostPaid("Flashback", thisSpell),
             ),
         ),
     ],

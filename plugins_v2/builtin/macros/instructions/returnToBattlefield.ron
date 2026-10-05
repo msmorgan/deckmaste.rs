@@ -1,7 +1,12 @@
-// "return <subject> to the battlefield [<riders>]"
+// "return <subject> [from <from>] to the battlefield [<riders>]"
 (
     name: "returnToBattlefield",
     kinds: [Instruction],
-    params: {"subject": NounPhrase, "riders": Default(TokenRiders, []), "agent": Default(Any, None)},
-    body: returnTo(subject: Param(subject), destination: battlefield, riders: Param(riders), agent: Param(agent)),
+    params: {
+        "subject": NounPhrase,
+        "riders": Default(TokenRiders, []),
+        "agent": Default(Any, None),
+        "from": Default(ZoneExpr, Wherever),
+    },
+    body: Enact(Return, Move(Param(subject), Param(from), battlefield, Param(riders)), Param(agent)),
 )

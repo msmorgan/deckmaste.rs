@@ -9,56 +9,11 @@ KeywordAbility(
     // creature without shadow can't be blocked by creatures with shadow."
     // [CR#702.28b]
     body: [
-        Static(
-            spec: DeonticRule(
-                subject: AsType(type: Creature, subject: This, subtype: None),
-                compulsion: Forbid,
-                deeds: [Core(Block)],
-                role: Patient,
-                bound: None,
-                patient: Counterpart(
-                    patient: Described(
-                        determiner: All,
-                        predicate: And(
-                            conjuncts: [
-                                HasType(Creature),
-                                Not(HasKeyword(The("Shadow"))),
-                            ],
-                        ),
-                    ),
-                ),
-                as_though: None,
-                rider: NoRider,
-            ),
-        ),
-        Static(
-            spec: DeonticRule(
-                subject: Described(
-                    determiner: All,
-                    predicate: And(
-                        conjuncts: [
-                            HasType(Creature),
-                            Not(HasKeyword(The("Shadow"))),
-                        ],
-                    ),
-                ),
-                compulsion: Forbid,
-                deeds: [Core(Block)],
-                role: Patient,
-                bound: None,
-                patient: Counterpart(
-                    patient: Described(
-                        determiner: All,
-                        predicate: And(
-                            conjuncts: [
-                                HasType(Creature),
-                                HasKeyword(The("Shadow")),
-                            ],
-                        ),
-                    ),
-                ),
-                as_though: None,
-                rider: NoRider,
+        static(cantBeBlockedBy(thisCreature, and([creature, not(hasKeyword(The("Shadow")))]))),
+        static(
+            cantBeBlockedBy(
+                allOf(and([creature, not(hasKeyword(The("Shadow")))])),
+                and([creature, hasKeyword(The("Shadow"))]),
             ),
         ),
     ],

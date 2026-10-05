@@ -9,17 +9,6 @@ KeywordAbility(
     // "Level up [cost]" means "[Cost]: Put a level counter on this permanent. Activate
     // only as a sorcery." [CR#702.87a]
     body: [
-        Activated(
-            cost: Param(0),
-            instruction: PutCounters(
-                amount: 1,
-                kind: Printed(Named("Level")),
-                on: AsMarker(marker: Permanent, subject: This),
-            ),
-            timing: AsSorcery,
-            limit: None,
-            guard: None,
-            activator: None,
-        ),
+        activated(Param(0), putCounters(1, levelCounter, thisPermanent), asSorcery),
     ],
 )

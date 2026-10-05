@@ -9,69 +9,19 @@ KeywordAbility(
     // would draw a card, you may instead mill N cards and return this card from your
     // graveyard to your hand." [CR#702.52a]
     body: [
-        Static(
-            spec: Conditional(
-                spec: Replacement(
-                    event: Draws(You),
-                    alternatives: [],
-                    timing: None,
-                    replacement: WithContinuation(
-                        policy: Optional(You),
-                        body: Sequentially(
-                            steps: [
-                                Enact(
-                                    verb: Action("Mill"),
-                                    instruction: Move(
-                                        subject: LibrarySlice(
-                                            end: Top,
-                                            amount: Param(0),
-                                            whose: You,
-                                        ),
-                                        from: Zone(zone: Library, scope: Bare),
-                                        to: Zone(zone: Graveyard, scope: Bare),
-                                        riders: [],
-                                    ),
-                                    agent: You,
-                                ),
-                                Enact(
-                                    verb: Core(Return),
-                                    instruction: Move(
-                                        subject: This,
-                                        from: Zone(zone: Graveyard, scope: PossessedBy(You)),
-                                        to: Zone(zone: Hand, scope: Bare),
-                                        riders: [],
-                                    ),
-                                    agent: You,
-                                ),
-                            ],
-                        ),
-                        if_did: None,
-                        if_not: None,
+        static(
+            onlyWhile(
+                insteadOf(
+                    draws(you),
+                    may(
+                        you,
+                        sequentially([
+                            mill(Param(0), you, you),
+                            returnToHand(you, this, graveyardOf(you)),
+                        ]),
                     ),
-                    r#use: Repeatedly,
-                    limit: None,
                 ),
-                condition: CompareAmt(
-                    subject: CountOf(
-                        group: Described(
-                            determiner: Bare,
-                            predicate: And(
-                                conjuncts: [
-                                    IsCard,
-                                    InZone(
-                                        zone: Zone(
-                                            zone: Library,
-                                            scope: PossessedBy(You),
-                                        ),
-                                    ),
-                                ],
-                            ),
-                        ),
-                    ),
-                    comparator: AtLeast,
-                    bound: Param(0),
-                ),
-                marking: AsLongAs,
+                compareAmt(countOf(cardIn(yourLibrary)), AtLeast, Param(0)),
             ),
         ),
     ],

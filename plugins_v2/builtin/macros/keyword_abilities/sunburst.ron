@@ -10,48 +10,16 @@ KeywordAbility(
     // for each color of mana spent to cast it. Otherwise, it enters with a charge
     // counter on it for each color of mana spent to cast it." [CR#702.44a]
     body: [
-        Static(
-            spec: Conditional(
-                spec: EntryRider(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    rider: WithCounters(
-                        amount: Paid(
-                            facet: ColorsSpent,
-                            subject: AsMarker(marker: Spell, subject: This),
-                        ),
-                        kind: Printed(
-                            kind: Boost(power: Up(1), toughness: Up(1)),
-                        ),
-                        mark: Fresh,
-                    ),
-                ),
-                condition: Matches(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    predicate: HasType(Creature),
-                ),
-                marking: AsLongAs,
+        static(
+            onlyWhile(
+                entersWithCounters(thisPermanent, colorsSpentToCast(thisSpell), p1p1Counter),
+                matches(thisPermanent, creature),
             ),
         ),
-        Static(
-            spec: Conditional(
-                spec: EntryRider(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    rider: WithCounters(
-                        amount: Paid(
-                            facet: ColorsSpent,
-                            subject: AsMarker(marker: Spell, subject: This),
-                        ),
-                        kind: Printed(Named("Charge")),
-                        mark: Fresh,
-                    ),
-                ),
-                condition: Not(
-                    condition: Matches(
-                        subject: AsMarker(marker: Permanent, subject: This),
-                        predicate: HasType(Creature),
-                    ),
-                ),
-                marking: AsLongAs,
+        static(
+            onlyWhile(
+                entersWithCounters(thisPermanent, colorsSpentToCast(thisSpell), chargeCounter),
+                not(matches(thisPermanent, creature)),
             ),
         ),
     ],

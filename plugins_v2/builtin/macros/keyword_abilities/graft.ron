@@ -10,57 +10,11 @@ KeywordAbility(
     // you may move a +1/+1 counter from this permanent onto that creature."
     // [CR#702.58a]
     body: [
-        Static(
-            spec: EntryRider(
-                subject: AsMarker(marker: Permanent, subject: This),
-                rider: WithCounters(
-                    amount: Param(0),
-                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                    mark: Fresh,
-                ),
-            ),
-        ),
-        Triggered(
-            event: ZoneChange(
-                subject: Described(
-                    determiner: A(Unmarked),
-                    predicate: And(
-                        conjuncts: [
-                            HasType(Creature),
-                            OtherThan(AsMarker(marker: Permanent, subject: This)),
-                        ],
-                    ),
-                ),
-                from: None,
-                to: Zone(zone: Battlefield, scope: Bare),
-                observation: After,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: Matches(
-                subject: AsMarker(marker: Permanent, subject: This),
-                predicate: HasCounters(
-                    kind: Boost(power: Up(1), toughness: Up(1)),
-                ),
-            ),
-            instruction: WithContinuation(
-                policy: Optional(You),
-                body: MoveCounters(
-                    amount: 1,
-                    kind: Printed(Boost(power: Up(1), toughness: Up(1))),
-                    source: AsMarker(marker: Permanent, subject: This),
-                    destination: Pro(
-                        reach: Word(Type(Creature)),
-                        plurality: One,
-                        window: Whole,
-                    ),
-                ),
-                if_did: None,
-                if_not: None,
-            ),
+        static(entersWithCounters(thisPermanent, Param(0), p1p1Counter)),
+        triggeredIf(
+            enters(a(otherCreature(thisPermanent))),
+            matches(thisPermanent, hasCounters(p1p1Counter)),
+            may(you, moveCounters(1, p1p1Counter, thisPermanent, that(Creature))),
         ),
     ],
 )

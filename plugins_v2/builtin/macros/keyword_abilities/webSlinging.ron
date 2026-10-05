@@ -9,52 +9,13 @@ KeywordAbility(
     // returning a tapped creature you control to its owner's hand rather than paying
     // its mana cost." [CR#702.188a]
     body: [
-        Static(
-            spec: DeonticRule(
-                subject: You,
-                compulsion: Permit,
-                deeds: [Action("Cast")],
-                role: Agent,
-                bound: None,
-                patient: Counterpart(This),
-                as_though: None,
-                rider: Play(
-                    from: None,
-                    limit: None,
-                    timing: None,
-                    exclusive: false,
-                    payment: PayingInstead(
-                        cost: Compound(
-                            costs: [
-                                Param(0),
-                                Perform(
-                                    instruction: Enact(
-                                        verb: Core(Return),
-                                        instruction: Move(
-                                            subject: Described(
-                                                determiner: A(Unmarked),
-                                                predicate: And(
-                                                    conjuncts: [
-                                                        HasType(Creature),
-                                                        HasStatus(Tapped),
-                                                        HasPossessor(
-                                                            axis: Controller,
-                                                            possessor: You,
-                                                        ),
-                                                    ],
-                                                ),
-                                            ),
-                                            from: Wherever,
-                                            to: Zone(zone: Hand, scope: Bare),
-                                            riders: [],
-                                        ),
-                                        agent: You,
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
-                ),
+        static(
+            mayCastFor(
+                you,
+                compound([
+                    Param(0),
+                    perform(returnToHand(you, a(and([creature, tapped, youControl])))),
+                ]),
             ),
         ),
     ],

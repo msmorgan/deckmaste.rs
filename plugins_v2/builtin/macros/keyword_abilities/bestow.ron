@@ -10,8 +10,6 @@ KeywordAbility(
     // [CR#702.103a] What a bestowed spell then becomes is [CR#702.103b]'s own rule,
     // not part of the quoted definition.
     body: [
-        Static(
-            spec: AltCost(subject: AsMarker(marker: Spell, subject: This), cost: Param(0)),
-        ),
+        static(altCost(thisSpell, Param(0))),
     ],
 )

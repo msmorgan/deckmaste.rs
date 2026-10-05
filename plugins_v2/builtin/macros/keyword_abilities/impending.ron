@@ -12,98 +12,29 @@ KeywordAbility(
     // beginning of your end step, if this permanent's impending cost was paid and it
     // has a time counter on it, remove a time counter from it." [CR#702.176a]
     body: [
-        Static(
-            spec: DeonticRule(
-                subject: You,
-                compulsion: Permit,
-                deeds: [Action("Cast")],
-                role: Agent,
-                bound: None,
-                patient: Counterpart(This),
-                as_though: None,
-                rider: Play(
-                    from: None,
-                    limit: None,
-                    timing: None,
-                    exclusive: false,
-                    payment: PayingInstead(Param(1)),
-                ),
+        static(mayCastFor(you, Param(1))),
+        static(
+            onlyWhile(
+                entersWithCounters(thisPermanent, Param(0), timeCounter),
+                keywordCostPaid("Impending", thisPermanent),
             ),
         ),
-        Static(
-            spec: Conditional(
-                spec: EntryRider(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    rider: WithCounters(
-                        amount: Param(0),
-                        kind: Printed(Named("Time")),
-                        mark: Fresh,
-                    ),
-                ),
-                condition: CompareAmt(
-                    subject: Paid(
-                        facet: Readback(which: ByKeyword("Impending"), lookback: None),
-                        subject: AsMarker(marker: Permanent, subject: This),
-                    ),
-                    comparator: AtLeast,
-                    bound: 1,
-                ),
-                marking: AsLongAs,
+        static(
+            onlyWhile(
+                characteristicChange(thisPermanent, [TypeLine(Loses, (types: [Creature]))]),
+                and([
+                    keywordCostPaid("Impending", thisPermanent),
+                    matches(thisPermanent, hasCounters(timeCounter)),
+                ]),
             ),
         ),
-        Static(
-            spec: Conditional(
-                spec: CharacteristicChange(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    edits: [TypeLine(op: Loses, changes: (types: [Creature]))],
-                ),
-                condition: And(
-                    conjuncts: [
-                        CompareAmt(
-                    subject: Paid(
-                        facet: Readback(which: ByKeyword("Impending"), lookback: None),
-                        subject: AsMarker(marker: Permanent, subject: This),
-                    ),
-                    comparator: AtLeast,
-                    bound: 1,
-                ),
-                        Matches(
-                            subject: AsMarker(marker: Permanent, subject: This),
-                            predicate: HasCounters(Named("Time")),
-                        ),
-                    ],
-                ),
-                marking: AsLongAs,
-            ),
-        ),
-        Triggered(
-            event: BeginningOf(quantifier: The, part: EndStep, whose: ByPlayer(You)),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: And(
-                conjuncts: [
-                    CompareAmt(
-                    subject: Paid(
-                        facet: Readback(which: ByKeyword("Impending"), lookback: None),
-                        subject: AsMarker(marker: Permanent, subject: This),
-                    ),
-                    comparator: AtLeast,
-                    bound: 1,
-                ),
-                    Matches(
-                        subject: AsMarker(marker: Permanent, subject: This),
-                        predicate: HasCounters(Named("Time")),
-                    ),
-                ],
-            ),
-            instruction: RemoveCounters(
-                quantity: Range(low: 1, high: 1),
-                kind: Printed(Named("Time")),
-                from: AsMarker(marker: Permanent, subject: This),
-            ),
+        triggeredIf(
+            beginningOfYour(EndStep),
+            and([
+                keywordCostPaid("Impending", thisPermanent),
+                matches(thisPermanent, hasCounters(timeCounter)),
+            ]),
+            removeCounters(exactly(1), timeCounter, thisPermanent),
         ),
     ],
 )

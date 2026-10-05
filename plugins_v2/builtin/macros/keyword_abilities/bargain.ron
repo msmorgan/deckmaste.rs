@@ -8,39 +8,18 @@ KeywordAbility(
     // "Bargain" means "As an additional cost to cast this spell, you may sacrifice
     // an artifact, enchantment, or token." [CR#702.166a]
     body: [
-        Static(
-            spec: AddedCost(
-                cost: Perform(
-                    instruction: Enact(
-                        verb: Action("Sacrifice"),
-                        instruction: Move(
-                            subject: Described(
-                                determiner: A(Unmarked),
-                                // Each arm carries the battlefield the sacrifice
-                                // presupposes: `IsToken` seeds it on its own, and
-                                // coordinated arms must seed alike.
-                                predicate: Or(
-                                    disjuncts: [
-                                        And([
-                                            HasType(Artifact),
-                                            InZone(Zone(zone: Battlefield, scope: Bare)),
-                                        ]),
-                                        And([
-                                            HasType(Enchantment),
-                                            InZone(Zone(zone: Battlefield, scope: Bare)),
-                                        ]),
-                                        IsToken,
-                                    ],
-                                ),
-                            ),
-                            from: Zone(zone: Battlefield, scope: Bare),
-                            to: Zone(zone: Graveyard, scope: Bare),
-                            riders: [],
-                        ),
-                        agent: You,
+        static(
+            addedCost(
+                perform(
+                    sacrifice(
+                        // Each arm carries the battlefield the sacrifice
+                        // presupposes: `IsToken` seeds it on its own, and
+                        // coordinated arms must seed alike.
+                        a(or([and([artifact, permanent]), and([enchantment, permanent]), isToken])),
+                        you,
                     ),
                 ),
-                offered: true,
+                true,
             ),
         ),
     ],

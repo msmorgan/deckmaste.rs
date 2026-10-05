@@ -10,15 +10,13 @@ KeywordAbility(
     // written `r#Some` because RON's implicit-some extension claims the bare
     // spelling for `Option`.
     body: [
-        Static(
-            spec: DamageRule(
-                kind: Any,
-                source: Unattributed,
-                scope: ToRecipient(
-                    recipient: AsType(type: Creature, subject: This, subtype: None),
-                ),
-                op: Prevent(cut: r#Some(Param(0)), also: None),
-                r#use: Repeatedly,
+        static(
+            damageRule(
+                Any,
+                Unattributed,
+                ToRecipient(thisCreature),
+                Prevent(Some(Param(0)), None),
+                Repeatedly,
             ),
         ),
     ],

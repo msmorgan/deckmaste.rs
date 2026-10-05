@@ -8,11 +8,6 @@ KeywordAbility(
     // "Changeling" means "This object is every creature type." [CR#702.73a] A
     // characteristic-defining ability, so it is static [CR#604.3].
     body: [
-        Static(
-            spec: CharacteristicChange(
-                subject: AsType(type: Creature, subject: This, subtype: None),
-                edits: [EveryTypeOf(op: Adds, space: Creature)],
-            ),
-        ),
+        static(characteristicChange(thisCreature, [EveryTypeOf(Adds, Creature)])),
     ],
 )

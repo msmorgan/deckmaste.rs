@@ -8,11 +8,6 @@ KeywordAbility(
     // "Devoid" means "This object is colorless." [CR#702.114a] A
     // characteristic-defining ability, so it is static [CR#604.3].
     body: [
-        Static(
-            spec: CharacteristicChange(
-                subject: This,
-                edits: [Colors(op: Sets, colors: r#Some([]))],
-            ),
-        ),
+        static(characteristicChange(this, [Colors(Sets, Some([]))])),
     ],
 )

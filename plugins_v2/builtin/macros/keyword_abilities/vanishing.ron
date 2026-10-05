@@ -10,58 +10,12 @@ KeywordAbility(
     // time counter from it," and "When the last time counter is removed from this
     // permanent, sacrifice it." [CR#702.63a]
     body: [
-        Static(
-            spec: EntryRider(
-                subject: AsMarker(marker: Permanent, subject: This),
-                rider: WithCounters(
-                    amount: Param(0),
-                    kind: Printed(Named("Time")),
-                    mark: Fresh,
-                ),
-            ),
+        static(entersWithCounters(thisPermanent, Param(0), timeCounter)),
+        triggeredIf(
+            beginningOfYour(Upkeep),
+            matches(thisPermanent, hasCounters(timeCounter)),
+            removeCounters(exactly(1), timeCounter, thisPermanent),
         ),
-        Triggered(
-            event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(You)),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: Matches(
-                subject: AsMarker(marker: Permanent, subject: This),
-                predicate: HasCounters(Named("Time")),
-            ),
-            instruction: RemoveCounters(
-                quantity: Range(low: 1, high: 1),
-                kind: Printed(Named("Time")),
-                from: AsMarker(marker: Permanent, subject: This),
-            ),
-        ),
-        Triggered(
-            event: CounterEvent(
-                r#move: Removed,
-                kind: Named("Time"),
-                subject: AsMarker(marker: Permanent, subject: This),
-                batch: Emptying,
-                by: None,
-                by_effect: false,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: Enact(
-                verb: Action("Sacrifice"),
-                instruction: Move(
-                    subject: AsMarker(marker: Permanent, subject: This),
-                    from: Zone(zone: Battlefield, scope: Bare),
-                    to: Zone(zone: Graveyard, scope: Bare),
-                    riders: [],
-                ),
-                agent: You,
-            ),
-        ),
+        triggered(lastCounterRemoved(timeCounter, thisPermanent), sacrifice(thisPermanent, you)),
     ],
 )

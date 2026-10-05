@@ -8,32 +8,9 @@ KeywordAbility(
     // "Ingest" means "Whenever this creature deals combat damage to a player, that
     // player exiles the top card of their library." [CR#702.115a]
     body: [
-        Triggered(
-            event: Damage(
-                kind: CombatOnly,
-                source: AsType(type: Creature, subject: This, subtype: None),
-                patient: Described(determiner: A(Unmarked), predicate: AnyPlayer),
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: Enact(
-                verb: Action("Exile"),
-                instruction: Move(
-                    subject: LibrarySlice(
-                        end: Top,
-                        amount: 1,
-                        whose: Pro(reach: Word(Player), plurality: One, window: Whole),
-                    ),
-                    from: Wherever,
-                    to: Zone(zone: Exile, scope: Bare),
-                    riders: [],
-                ),
-                agent: Pro(reach: Word(Player), plurality: One, window: Whole),
-            ),
+        triggered(
+            dealsCombatDamage(thisCreature, a(anyPlayer)),
+            exileBy(they, librarySlice(Top, 1, they)),
         ),
     ],
 )

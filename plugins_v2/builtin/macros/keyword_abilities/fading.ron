@@ -9,42 +9,12 @@ KeywordAbility(
     // beginning of your upkeep, remove a fade counter from this permanent. If you
     // can't, sacrifice the permanent." [CR#702.32a]
     body: [
-        Static(
-            spec: EntryRider(
-                subject: AsMarker(marker: Permanent, subject: This),
-                rider: WithCounters(
-                    amount: Param(0),
-                    kind: Printed(Named("Fade")),
-                    mark: Fresh,
-                ),
-            ),
-        ),
-        Triggered(
-            event: BeginningOf(quantifier: The, part: Upkeep, whose: ByPlayer(You)),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: WithContinuation(
-                policy: Required,
-                body: RemoveCounters(
-                    quantity: Range(low: 1, high: 1),
-                    kind: Printed(Named("Fade")),
-                    from: AsMarker(marker: Permanent, subject: This),
-                ),
-                if_did: None,
-                if_not: Enact(
-                    verb: Action("Sacrifice"),
-                    instruction: Move(
-                        subject: AsMarker(marker: Permanent, subject: This),
-                        from: Zone(zone: Battlefield, scope: Bare),
-                        to: Zone(zone: Graveyard, scope: Bare),
-                        riders: [],
-                    ),
-                    agent: You,
-                ),
+        static(entersWithCounters(thisPermanent, Param(0), fadeCounter)),
+        triggered(
+            beginningOfYour(Upkeep),
+            doIfDone(
+                body: removeCounters(exactly(1), fadeCounter, thisPermanent),
+                if_not: sacrifice(thisPermanent, you),
             ),
         ),
     ],

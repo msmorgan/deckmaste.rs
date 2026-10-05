@@ -9,38 +9,9 @@ KeywordAbility(
     // battlefield, create N 1/1 white and black Spirit creature tokens with
     // flying." [CR#702.135a]
     body: [
-        Triggered(
-            event: ZoneChange(
-                subject: AsMarker(marker: Permanent, subject: This),
-                from: Zones([Zone(zone: Battlefield, scope: Bare)]),
-                to: Zone(zone: Graveyard, scope: Bare),
-                observation: Before,
-            ),
-            alternatives: [],
-            r#while: None,
-            joins: [],
-            timing: None,
-            limit: None,
-            intervening: None,
-            instruction: CreateObject(
-                count: Param(0),
-                spec: Token(
-                    spec: Written(
-                        characteristics: (
-                            characteristics: (
-                                colors: [White, Black],
-                                types: [Creature],
-                                subtypes: [Of(host: Creature, label: "Spirit")],
-                                text: [flying],
-                                power: 1,
-                                toughness: 1,
-                            ),
-                        ),
-                    ),
-                    riders: [],
-                ),
-                agent: You,
-            ),
+        triggered(
+            dies(thisPermanent),
+            createToken(you, creatureToken(1, 1, [White, Black], [spirit], [flying]), Param(0)),
         ),
     ],
 )

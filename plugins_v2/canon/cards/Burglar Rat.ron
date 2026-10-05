@@ -11,7 +11,7 @@ SingleFaced(face: (
             triggered(
                 event: enters(asType(type: Creature, subject: this, subtype: None)),
                 instruction: sequentially([
-                    choose(each(opponent), a(and([isCard, inZone(hand)]))),
+                    choose(each(opponent), a(cardIn(hand))),
                     discard(them),
                 ]),
             ),

@@ -9,17 +9,6 @@ KeywordAbility(
     // abilities." [CR#702.18a] The permanent half is the printed one; the player
     // half is what a grant to a player reads.
     body: [
-        Static(
-            spec: DeonticRule(
-                subject: AsMarker(marker: Permanent, subject: This),
-                compulsion: Forbid,
-                deeds: [Core(Target)],
-                role: Patient,
-                bound: None,
-                patient: NoPatient,
-                as_though: None,
-                rider: NoRider,
-            ),
-        ),
+        static(objectCant(Target, thisPermanent)),
     ],
 )

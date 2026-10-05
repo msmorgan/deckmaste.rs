@@ -12,28 +12,6 @@ KeywordAbility(
     // "Affinity for [text]" means "This spell costs {1} less to cast for each
     // [text] you control." [CR#702.41a]
     body: [
-        Static(
-            spec: CostShift(
-                subject: AsMarker(marker: Spell, subject: This),
-                shift: Less(
-                    amount: Arith(
-                        op: Times,
-                        left: 1,
-                        right: CountOf(
-                            group: Described(
-                                determiner: Bare,
-                                predicate: And(
-                                    conjuncts: [
-                                        Param(0),
-                                        HasPossessor(axis: Controller, possessor: You),
-                                    ],
-                                ),
-                            ),
-                        ),
-                    ),
-                    floor: None,
-                ),
-            ),
-        ),
+        static(costShift(thisSpell, Less(forEach(1, and([Param(0), youControl])), None))),
     ],
 )
