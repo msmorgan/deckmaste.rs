@@ -53,7 +53,8 @@ fn lexical(
 fn clause(verb: &str) -> Reading {
     Reading::FiniteClause {
         form: 0,
-        subject: Box::new(Reading::NominativePhrase {
+        subject: Box::new(Reading::CasePhrase {
+            category: Category::NominativePhrase,
             form: 0,
             head: Box::new(Reading::BarePlural {
                 form: 0,
@@ -72,7 +73,8 @@ fn clause(verb: &str) -> Reading {
                 }),
             }),
         }),
-        predicate: Box::new(Reading::FiniteIntransitive {
+        predicate: Box::new(Reading::IntransitivePredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: lexical(
                 verb,
@@ -106,7 +108,8 @@ fn independent_either_finite_clauses_keep_each_selected_finite_constituent() {
     let right = clause("core-verb:Block");
     assert!(readings("creatures attack", Category::FiniteClause).contains(&left));
     assert!(readings("creatures block", Category::FiniteClause).contains(&right));
-    let expected = Reading::EitherCoordinatedFiniteClause {
+    let expected = Reading::EitherCoordination {
+        category: Category::CoordinatedFiniteClause,
         form: 0,
         marker: marker("vocab:Determinative/Either"),
         left: Box::new(left.clone()),
@@ -140,11 +143,13 @@ fn independent_either_finite_clauses_keep_each_selected_finite_constituent() {
         )
         .contains(&pp)
     );
-    let serial = Reading::SerialEitherCoordinatedFiniteClause {
+    let serial = Reading::EitherSerialCoordination {
+        category: Category::CoordinatedFiniteClause,
         form: 0,
         marker: marker("vocab:Determinative/Either"),
         left: Box::new(left),
-        rest: Box::new(Reading::CorrelativeFiniteClauseSeriesEnd {
+        rest: Box::new(Reading::CorrelativeSeriesEnd {
+            category: Category::CorrelativeFiniteClauseSeries,
             form: 0,
             left: Box::new(right),
             coordinator: marker("vocab:Coordinator/Or"),

@@ -60,6 +60,7 @@ pub(crate) struct TableExport {
 }
 
 pub(crate) struct Constructor {
+    pub shared: bool,
     pub cost: u64,
     pub name: Ident,
     pub category: usize,
@@ -68,6 +69,9 @@ pub(crate) struct Constructor {
 }
 
 pub(crate) struct Form {
+    pub index: usize,
+    pub category: usize,
+    pub fields: Vec<(Ident, FieldType)>,
     pub pieces: Vec<Piece>,
     pub rule: usize,
 }
@@ -271,8 +275,31 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     let category_index = |name: &str| categories.iter().position(|n| n == name);
     let mut constructors = vec![];
     names.clear();
+    let mut shared_categories = BTreeSet::new();
     for construction in &declaration.constructions {
-        reserve(&mut names, &construction.name)?;
+        if construction.shared {
+            if declaration
+                .constructions
+                .iter()
+                .any(|other| other.name == construction.name && !other.shared)
+            {
+                return Err(error(
+                    &construction.name,
+                    "schema conflicts with plain construction",
+                ));
+            }
+            if !shared_categories.insert((
+                construction.name.to_string(),
+                construction.category.to_string(),
+            )) {
+                return Err(error(
+                    &construction.name,
+                    "schema requires unique result category per instance",
+                ));
+            }
+        } else {
+            reserve(&mut names, &construction.name)?;
+        }
         let category = category_index(&construction.category.to_string())
             .ok_or_else(|| error(&construction.name, "unknown result Category"))?;
         let Some(first) = construction.forms.first() else {
@@ -311,6 +338,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             }
         }
         constructors.push(Constructor {
+            shared: construction.shared,
             cost: construction.cost.unwrap_or(1),
             name: construction.name.clone(),
             category,
@@ -333,6 +361,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     validate_tables(&mut ir, declaration.tables)?;
     normalize(&mut ir, &declaration.constructions, &interfaces)?;
     check_recursion(&ir)?;
+    merge_schemas(&mut ir)?;
     Ok(ir)
 }
 
@@ -474,7 +503,15 @@ fn normalize(
                 },
             });
             if canonical.is_none() {
-                ir.constructors[index].forms.push(Form { pieces, rule });
+                let category = ir.constructors[index].category;
+                let fields = ir.constructors[index].fields.clone();
+                ir.constructors[index].forms.push(Form {
+                    pieces,
+                    rule,
+                    index: form_index,
+                    category,
+                    fields,
+                });
             }
         }
     }
@@ -897,4 +934,45 @@ fn is_nullable(symbol: &Symbol, nullable: &[bool]) -> bool {
         Symbol::Lexical(_) => false,
         Symbol::Nonterminal(category) => nullable[*category],
     }
+}
+
+fn merge_schemas(ir: &mut Ir) -> syn::Result<()> {
+    let mut merged: Vec<Constructor> = Vec::new();
+    let mut remap = Vec::new();
+    for constructor in std::mem::take(&mut ir.constructors) {
+        if constructor.shared {
+            if let Some(index) = merged
+                .iter()
+                .position(|existing| existing.shared && existing.name == constructor.name)
+            {
+                let existing = &mut merged[index];
+                if existing.fields.len() != constructor.fields.len()
+                    || existing
+                        .fields
+                        .iter()
+                        .zip(&constructor.fields)
+                        .any(|((a, ta), (b, tb))| {
+                            a != b || std::mem::discriminant(ta) != std::mem::discriminant(tb)
+                        })
+                {
+                    return Err(error(
+                        &constructor.name,
+                        "schema instance fields differ in shape",
+                    ));
+                }
+                existing.forms.extend(constructor.forms);
+                remap.push(index);
+                continue;
+            }
+        }
+        remap.push(merged.len());
+        merged.push(constructor);
+    }
+    for rule in &mut ir.rules {
+        if let Build::Construction { constructor, .. } = &mut rule.build {
+            *constructor = remap[*constructor];
+        }
+    }
+    ir.constructors = merged;
+    Ok(())
 }

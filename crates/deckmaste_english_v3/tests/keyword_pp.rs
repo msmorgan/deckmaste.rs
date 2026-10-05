@@ -118,7 +118,8 @@ fn selected_keyword_pp_bases_roundtrip_before_coordination() {
 
 #[test]
 fn keyword_pp_coordinates_only_after_its_primitive_is_licensed() {
-    let complement = Reading::KeywordPhraseCoordination {
+    let complement = Reading::Coordination {
+        category: Category::KeywordPhrase,
         form: 0,
         left: Box::new(keyword("lexeme:keyword_ability/flying")),
         coordinator: word("vocab:Coordinator/And", WordForm::Invariant, None),

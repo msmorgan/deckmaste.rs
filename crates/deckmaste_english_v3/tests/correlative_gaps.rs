@@ -99,7 +99,8 @@ fn independently_constructed_correlative_gaps_preserve_selected_transitive_frame
         None,
         None,
     );
-    let bare = Reading::BothBareObjectGapCoordination {
+    let bare = Reading::BothCoordination {
+        category: Category::BareObjectGap,
         form: 0,
         marker: both.clone(),
         left: Box::new(bare_gap("core-verb:Own")),
@@ -108,7 +109,8 @@ fn independently_constructed_correlative_gaps_preserve_selected_transitive_frame
     };
     assert_eq!(bare.realize(&LEXICON).unwrap(), "both own and control");
     assert!(readings("both own and control", Category::BareObjectGap).contains(&bare));
-    let finite = Reading::BothFiniteObjectGapCoordination {
+    let finite = Reading::BothCoordination {
+        category: Category::FiniteObjectGap,
         form: 0,
         marker: both.clone(),
         left: Box::new(finite_gap("core-verb:Own")),
@@ -124,7 +126,8 @@ fn independently_constructed_correlative_gaps_preserve_selected_transitive_frame
         variant: 0,
         capitalization: SurfaceCase::Declared,
     });
-    let neither = Reading::NeitherBareObjectGapCoordination {
+    let neither = Reading::NeitherCoordination {
+        category: Category::BareObjectGap,
         form: 0,
         marker: both,
         left: Box::new(bare_gap("core-verb:Own")),

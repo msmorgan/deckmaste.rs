@@ -167,7 +167,8 @@ fn independent_orientation_pps_and_coordination_preserve_whole_lexical_words() {
             assert_eq!(LEXICON.realize(&leaves[0].value).unwrap(), spelling);
         }
     }
-    let expected = Reading::PrepositionPhraseCoordination {
+    let expected = Reading::Coordination {
+        category: Category::PrepositionPhrase,
         form: 0,
         left: Box::new(orientation(
             "vocab:Preposition/FaceUp",
@@ -197,7 +198,8 @@ fn independent_orientation_pps_and_coordination_preserve_whole_lexical_words() {
 
 #[test]
 fn orientation_predication_uses_the_existing_selected_locative_frame() {
-    let predicate = Reading::FiniteLocative {
+    let predicate = Reading::LocativePredicate {
+        category: Category::FinitePredicate,
         form: 0,
         head: Word {
             value: LexicalReading::Word(LexicalValue {
@@ -228,7 +230,8 @@ fn orientation_predication_uses_the_existing_selected_locative_frame() {
     assert!(readings("is face down", Category::FinitePredicate).contains(&predicate));
     let clause = Reading::FiniteClause {
         form: 0,
-        subject: Box::new(Reading::NominativePhrase {
+        subject: Box::new(Reading::CasePhrase {
+            category: Category::NominativePhrase,
             form: 0,
             head: Box::new(Reading::NominativePronoun {
                 form: 0,

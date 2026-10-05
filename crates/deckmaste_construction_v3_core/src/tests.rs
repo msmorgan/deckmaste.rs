@@ -175,3 +175,205 @@ fn rejects_duplicate_and_invalid_construction_costs() {
         );
     }
 }
+
+#[test]
+fn schemas_reject_ambiguous_instances_and_invalid_field_bindings() {
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node, " and ", right: node]; }
+            instance Pair: A { bind left = A; bind right = A; }
+            instance Pair: A { bind left = A; bind right = A; }
+        } },
+        "unique result category",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair: A { }
+        } },
+        "exactly one category binding",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair: A { bind left = A; bind left = A; }
+        } },
+        "exactly one category binding",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair: A { bind left = A; bind unknown = A; }
+        } },
+        "generic node field",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair: A { bind left = A; form [left: A]; }
+        } },
+        "owned by schema",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            construction Pair: A { form [head: lexical(Noun)]; }
+            instance Pair: A { bind left = A; }
+        } },
+        "conflicts with plain construction",
+    );
+}
+
+#[test]
+fn policies_remain_checked_feature_equations() {
+    rejects(
+        quote! { mod bad {
+            category A();
+            construction Leaf: A { form [head: lexical(Noun)]; use Missing; }
+        } },
+        "unknown policy",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Bad { form [head: lexical(Noun)]; }
+            construction Leaf: A { form [head: lexical(Noun)]; }
+        } },
+        "only feature equations",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            policy Wrong { require head.number = Singular; }
+            schema Leaf { form [head: node]; use Wrong; }
+            instance Leaf: A { bind head = A; }
+        } },
+        "cannot reach head.number",
+    );
+}
+
+#[test]
+fn category_rows_require_unambiguous_checked_substitution() {
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member>: [(A)] { bind left = Member; }
+        } },
+        "arity must match",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Result>: [(A,A)] { bind left = Result; }
+        } },
+        "duplicate category parameter",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member>: [(A,A),(A,A)] { bind left = Member; }
+        } },
+        "unique result category",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member>: [] { bind left = Member; }
+        } },
+        "at least one row",
+    );
+}
+
+#[test]
+fn policy_row_columns_have_disjoint_checked_roles() {
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member>: [(A,A)] { bind left = Member; use Member; }
+        } },
+        "exactly one category or policy role",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member, Rule>: [(A,A,Missing)] { bind left = Member; use Rule; }
+        } },
+        "unknown policy",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member, Unused>: [(A,A,A)] { bind left = Member; }
+        } },
+        "exactly one category or policy role",
+    );
+}
+
+#[test]
+fn self_rows_alias_only_a_concrete_result_in_category_columns() {
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member>: [(Self,A)] { bind left = Member; }
+        } },
+        "result category cannot be Self",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member, Rule>: [(A,Self,Self)] { bind left = Member; use Rule; }
+        } },
+        "requires a category column",
+    );
+}
+
+#[test]
+fn explicit_row_defaults_keep_typed_checked_prefixes() {
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member=Self, Other>: [(A,A,A)] { bind left = Member; use Other; }
+        } },
+        "only trailing",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member=Self, Rule=Missing>: [(A)] { bind left = Member; use Rule; }
+        } },
+        "unknown policy",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member=Self, Rule=Self>: [(A)] { bind left = Member; use Rule; }
+        } },
+        "requires a category column",
+    );
+    rejects(
+        quote! { mod bad {
+            category A();
+            schema Pair { form [left: node]; }
+            instance Pair<Result, Member=Missing>: [(A,A)] { bind left = Member; }
+        } },
+        "default row category must be declared",
+    );
+}

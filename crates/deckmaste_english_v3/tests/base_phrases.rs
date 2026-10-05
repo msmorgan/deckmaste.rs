@@ -105,7 +105,8 @@ fn independent_uncoordinated_phrase_primitives_roundtrip() {
     let pp = Reading::PrepositionPhrase {
         form: 0,
         head: word("vocab:Preposition/Among", WordForm::Invariant, None),
-        complement: Box::new(Reading::AccusativePhrase {
+        complement: Box::new(Reading::CasePhrase {
+            category: Category::AccusativePhrase,
             form: 0,
             head: Box::new(np.clone()),
         }),
@@ -170,7 +171,8 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant, None),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,
-            head: Box::new(Reading::SecondaryIntransitive {
+            head: Box::new(Reading::IntransitivePredicate {
+                category: Category::SecondaryVerbPhrase,
                 form: 0,
                 head: attack,
             }),
@@ -183,7 +185,8 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
     );
     let mut choose = word("core-verb:Choose", WordForm::Plain, None);
     choose.frame = Some(2);
-    let predicate = Reading::SecondaryInfinitive {
+    let predicate = Reading::InfinitivePredicate {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: choose.clone(),
         complement: Box::new(infinitive.clone()),
@@ -191,7 +194,8 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
     assert_laws(predicate, "choose to attack", Category::SecondaryVerbPhrase);
     choose.frame = Some(0);
     assert!(
-        Reading::SecondaryInfinitive {
+        Reading::InfinitivePredicate {
+            category: Category::SecondaryVerbPhrase,
             form: 0,
             head: choose,
             complement: Box::new(infinitive)

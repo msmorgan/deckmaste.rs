@@ -434,11 +434,13 @@ fn cheapest_frequency_sample_preserves_all_readings_in_census() {
     assert_eq!(face.exact_readings, Some(2));
     let serialized = serde_json::to_value(face).unwrap();
     assert_eq!(serialized["samples"].as_array().unwrap().len(), 1);
+    let tree = serialized["samples"][0]["tree"].as_str().unwrap();
+    let frequency = tree.split_once("FrequencyPredicate {").unwrap().1;
     assert!(
-        serialized["samples"][0]["tree"]
-            .as_str()
-            .unwrap()
-            .contains("FiniteFrequency")
+        frequency
+            .lines()
+            .take(4)
+            .any(|line| line.trim() == "category: FinitePredicate,")
     );
     assert_eq!(serialized["samples"][0]["total_cost"], 20);
 }

@@ -76,14 +76,16 @@ fn and() -> Word {
 }
 
 fn object_head(owner: &str) -> Reading {
-    Reading::SecondarySelectedObjectHead {
+    Reading::SelectedVerbHead {
+        category: Category::SecondarySelectedHead,
         form: 0,
         head: verb(owner, 0, WordForm::Plain),
     }
 }
 
 fn coordinate(left: Reading, right: Reading) -> Reading {
-    Reading::SecondarySelectedHeadCoordination {
+    Reading::Coordination {
+        category: Category::SecondarySelectedHead,
         form: 0,
         left: Box::new(left),
         coordinator: and(),
@@ -101,7 +103,8 @@ fn cards() -> Reading {
         },
     );
     head.countability = Some(true);
-    Reading::AccusativePhrase {
+    Reading::CasePhrase {
+        category: Category::AccusativePhrase,
         form: 0,
         head: Box::new(Reading::BarePlural {
             form: 0,
@@ -156,10 +159,12 @@ fn independent_selected_head_coordination_preserves_flat_arity_and_layered_scope
     let draw = object_head("core-verb:Draw");
     let discard = object_head("lexeme:keyword_action/discard");
     let exile = object_head("lexeme:keyword_action/exile");
-    let serial = Reading::SerialSecondarySelectedHead {
+    let serial = Reading::SerialCoordination {
+        category: Category::SecondarySelectedHead,
         form: 0,
         left: Box::new(draw.clone()),
-        rest: Box::new(Reading::SecondarySelectedHeadSeriesEnd {
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::SecondarySelectedHeadSeries,
             form: 0,
             left: Box::new(discard.clone()),
             coordinator: and(),
@@ -207,7 +212,8 @@ fn independent_shared_objects_and_predicatives_keep_selected_functions() {
         object_head("core-verb:Draw"),
         object_head("lexeme:keyword_action/discard"),
     );
-    let expected = Reading::SecondarySharedObjectComplement {
+    let expected = Reading::SharedObjectComplement {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(head),
         object: Box::new(cards()),
@@ -217,14 +223,17 @@ fn independent_shared_objects_and_predicatives_keep_selected_functions() {
         "draw and discard cards",
         Category::SecondaryVerbPhrase,
     );
-    let expected = Reading::SecondarySharedPredicativeComplement {
+    let expected = Reading::SharedPredicativeComplement {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(coordinate(
-            Reading::SecondarySelectedPredicativeHead {
+            Reading::SelectedVerbHead {
+                category: Category::SecondarySelectedHead,
                 form: 0,
                 head: verb("core-verb:Be", 0, WordForm::Plain),
             },
-            Reading::SecondarySelectedPredicativeHead {
+            Reading::SelectedVerbHead {
+                category: Category::SecondarySelectedHead,
                 form: 0,
                 head: verb("core-verb:Become", 0, WordForm::Plain),
             },
@@ -236,7 +245,8 @@ fn independent_shared_objects_and_predicatives_keep_selected_functions() {
         "be and become legendary",
         Category::SecondaryVerbPhrase,
     );
-    let invalid = Reading::SecondarySharedObjectComplement {
+    let invalid = Reading::SharedObjectComplement {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(object_head("core-verb:Draw")),
         object: Box::new(cards()),
@@ -247,7 +257,8 @@ fn independent_shared_objects_and_predicatives_keep_selected_functions() {
     );
     let mixed = coordinate(
         object_head("core-verb:Draw"),
-        Reading::SecondarySelectedPredicativeHead {
+        Reading::SelectedVerbHead {
+            category: Category::SecondarySelectedHead,
             form: 0,
             head: verb("core-verb:Become", 0, WordForm::Plain),
         },
@@ -263,27 +274,33 @@ fn independent_shared_objects_and_predicatives_keep_selected_functions() {
 fn independent_auxiliary_sharing_preserves_complement_form_and_voice() {
     let predicate = Reading::BarePredicate {
         form: 0,
-        head: Box::new(Reading::SecondaryTransitive {
+        head: Box::new(Reading::TransitivePredicate {
+            category: Category::SecondaryVerbPhrase,
             form: 0,
             head: verb("core-verb:Draw", 0, WordForm::Plain),
             object: Box::new(cards()),
         }),
     };
-    let expected = Reading::FiniteSharedAuxiliaryBareComplement {
+    let expected = Reading::SharedAuxiliaryBareComplement {
+        category: Category::FinitePredicate,
         form: 0,
-        head: Box::new(Reading::FiniteSelectedHeadCoordination {
+        head: Box::new(Reading::Coordination {
+            category: Category::FiniteSelectedHead,
             form: 0,
-            left: Box::new(Reading::FiniteSelectedAuxiliaryBareHead {
+            left: Box::new(Reading::SelectedVerbHead {
+                category: Category::FiniteSelectedHead,
                 form: 0,
                 head: verb("core-verb:May", 0, WordForm::Present),
             }),
             coordinator: and(),
-            right: Box::new(Reading::FiniteSelectedAuxiliaryBareHead {
+            right: Box::new(Reading::SelectedVerbHead {
+                category: Category::FiniteSelectedHead,
                 form: 0,
                 head: verb("core-verb:Can", 0, WordForm::Present),
             }),
         }),
-        complement: Box::new(Reading::OvertBareComplement {
+        complement: Box::new(Reading::OvertComplement {
+            category: Category::BareComplement,
             form: 0,
             predicate: Box::new(predicate),
         }),
@@ -300,14 +317,17 @@ fn independent_auxiliary_sharing_preserves_complement_form_and_voice() {
             head: verb("core-verb:Draw", 0, WordForm::PastParticiple),
         }),
     };
-    let head = Reading::SecondarySelectedAuxiliaryParticipleHead {
+    let head = Reading::SelectedVerbHead {
+        category: Category::SecondarySelectedHead,
         form: 0,
         head: verb("core-verb:Be", 1, WordForm::Plain),
     };
-    let expected = Reading::SecondarySharedAuxiliaryParticipleComplement {
+    let expected = Reading::SharedAuxiliaryParticipleComplement {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(coordinate(head.clone(), head)),
-        complement: Box::new(Reading::OvertParticipialComplement {
+        complement: Box::new(Reading::OvertComplement {
+            category: Category::ParticipialComplement,
             form: 0,
             predicate: Box::new(passive),
         }),
@@ -325,7 +345,8 @@ fn independent_auxiliary_sharing_preserves_complement_form_and_voice() {
 
 #[test]
 fn selected_heads_reject_crossed_agreement_and_secondary_forms() {
-    let left = Reading::FiniteSelectedObjectHead {
+    let left = Reading::SelectedVerbHead {
+        category: Category::FiniteSelectedHead,
         form: 0,
         head: verb("core-verb:Draw", 0, WordForm::Present),
     };
@@ -333,11 +354,13 @@ fn selected_heads_reject_crossed_agreement_and_secondary_forms() {
     if let LexicalReading::Word(value) = &mut right.value {
         value.features.number = Some(Number::Plural);
     }
-    let invalid = Reading::FiniteSelectedHeadCoordination {
+    let invalid = Reading::Coordination {
+        category: Category::FiniteSelectedHead,
         form: 0,
         left: Box::new(left),
         coordinator: and(),
-        right: Box::new(Reading::FiniteSelectedObjectHead {
+        right: Box::new(Reading::SelectedVerbHead {
+            category: Category::FiniteSelectedHead,
             form: 0,
             head: right,
         }),
@@ -345,7 +368,8 @@ fn selected_heads_reject_crossed_agreement_and_secondary_forms() {
     assert!(invalid.admit(&LEXICON).is_err());
     let invalid = coordinate(
         object_head("core-verb:Draw"),
-        Reading::SecondarySelectedObjectHead {
+        Reading::SelectedVerbHead {
+            category: Category::SecondarySelectedHead,
             form: 0,
             head: verb("core-verb:Draw", 0, WordForm::GerundParticiple),
         },
@@ -368,9 +392,17 @@ fn intransitive(owner: &str, finite: bool) -> Reading {
         if finite { WordForm::Present } else { WordForm::Plain },
     );
     if finite {
-        Reading::FiniteIntransitive { form: 0, head }
+        Reading::IntransitivePredicate {
+            category: Category::FinitePredicate,
+            form: 0,
+            head,
+        }
     } else {
-        Reading::SecondaryIntransitive { form: 0, head }
+        Reading::IntransitivePredicate {
+            category: Category::SecondaryVerbPhrase,
+            form: 0,
+            head,
+        }
     }
 }
 
@@ -386,10 +418,12 @@ fn imperative(owner: &str) -> Reading {
 
 #[test]
 fn independently_constructed_ordinary_serial_values_require_oxford_comma() {
-    let expected = Reading::SerialFinitePredicate {
+    let expected = Reading::SerialCoordination {
+        category: Category::FinitePredicate,
         form: 0,
         left: Box::new(intransitive("core-verb:Attack", true)),
-        rest: Box::new(Reading::FinitePredicateSeriesEnd {
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::FinitePredicateSeries,
             form: 0,
             left: Box::new(intransitive("core-verb:Block", true)),
             coordinator: and(),
@@ -401,10 +435,12 @@ fn independently_constructed_ordinary_serial_values_require_oxford_comma() {
         "attacks, blocks, and enters",
         Category::FinitePredicate,
     );
-    let expected = Reading::SerialSecondaryPredicate {
+    let expected = Reading::SerialCoordination {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         left: Box::new(intransitive("core-verb:Attack", false)),
-        rest: Box::new(Reading::SecondaryPredicateSeriesEnd {
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::SecondaryPredicateSeries,
             form: 0,
             left: Box::new(intransitive("core-verb:Block", false)),
             coordinator: and(),
@@ -416,10 +452,12 @@ fn independently_constructed_ordinary_serial_values_require_oxford_comma() {
         "attack, block, and enter",
         Category::SecondaryVerbPhrase,
     );
-    let expected = Reading::SerialClause {
+    let expected = Reading::SerialCoordination {
+        category: Category::Clause,
         form: 0,
         left: Box::new(imperative("core-verb:Attack")),
-        rest: Box::new(Reading::ClauseSeriesEnd {
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::ClauseSeries,
             form: 0,
             left: Box::new(imperative("core-verb:Block")),
             coordinator: and(),
@@ -427,11 +465,21 @@ fn independently_constructed_ordinary_serial_values_require_oxford_comma() {
         }),
     };
     roundtrip(&expected, "attack, block, and enter", Category::Clause);
-    let Reading::AccusativePhrase { head, .. } = cards() else { unreachable!() };
-    let expected = Reading::SerialNounPhrase {
+    let Reading::CasePhrase {
+        category: Category::AccusativePhrase,
+        form: 0,
+        head,
+        ..
+    } = cards()
+    else {
+        unreachable!()
+    };
+    let expected = Reading::SerialCoordination {
+        category: Category::NounPhrase,
         form: 0,
         left: head.clone(),
-        rest: Box::new(Reading::NounPhraseSeriesEnd {
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::NounPhraseSeries,
             form: 0,
             left: head.clone(),
             coordinator: and(),
@@ -458,11 +506,13 @@ fn selected_complement_head(owner: &str, category: &str) -> Word {
 
 #[test]
 fn independent_shared_cardinal_and_infinitive_complements_preserve_selected_categories() {
-    let head = Reading::SecondarySelectedCardinalHead {
+    let head = Reading::SelectedVerbHead {
+        category: Category::SecondarySelectedHead,
         form: 0,
         head: selected_complement_head("core-verb:Choose", "Cardinal"),
     };
-    let expected = Reading::SecondarySharedCardinalComplement {
+    let expected = Reading::SharedCardinalComplement {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(coordinate(head.clone(), head)),
         complement: Box::new(Reading::Cardinal {
@@ -483,11 +533,13 @@ fn independent_shared_cardinal_and_infinitive_complements_preserve_selected_cate
         "choose and choose one",
         Category::SecondaryVerbPhrase,
     );
-    let head = Reading::SecondarySelectedInfinitiveHead {
+    let head = Reading::SelectedVerbHead {
+        category: Category::SecondarySelectedHead,
         form: 0,
         head: selected_complement_head("core-verb:Choose", "InfinitiveComplement"),
     };
-    let expected = Reading::SecondarySharedInfinitiveComplement {
+    let expected = Reading::SharedInfinitiveComplement {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(coordinate(head.clone(), head)),
         complement: Box::new(Reading::ToInfinitive {
@@ -508,9 +560,11 @@ fn independent_shared_cardinal_and_infinitive_complements_preserve_selected_cate
         "choose and choose to attack",
         Category::SecondaryVerbPhrase,
     );
-    let invalid = Reading::SecondarySharedCardinalComplement {
+    let invalid = Reading::SharedCardinalComplement {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
-        head: Box::new(Reading::SecondarySelectedInfinitiveHead {
+        head: Box::new(Reading::SelectedVerbHead {
+            category: Category::SecondarySelectedHead,
             form: 0,
             head: selected_complement_head("core-verb:Choose", "InfinitiveComplement"),
         }),

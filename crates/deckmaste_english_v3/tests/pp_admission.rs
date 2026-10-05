@@ -74,7 +74,8 @@ fn nominal_complement_pp_cannot_become_a_free_clause_or_verb_adjunct() {
     let pp = Reading::PrepositionPhrase {
         form: 0,
         head: word("vocab:Preposition/Of", WordForm::Invariant, None),
-        complement: Box::new(Reading::AccusativePhrase {
+        complement: Box::new(Reading::CasePhrase {
+            category: Category::AccusativePhrase,
             form: 0,
             head: Box::new(Reading::BarePlural {
                 form: 0,
@@ -110,12 +111,14 @@ fn nominal_complement_pp_cannot_become_a_free_clause_or_verb_adjunct() {
             clause: Box::new(clause),
             dependent: Box::new(pp.clone()),
         },
-        Reading::FinitePreposition {
+        Reading::PrepositionPredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: Box::new(finite),
             modifier: Box::new(pp.clone()),
         },
-        Reading::SecondaryPreposition {
+        Reading::PrepositionPredicate {
+            category: Category::SecondaryVerbPhrase,
             form: 0,
             head: Box::new(secondary),
             modifier: Box::new(pp.clone()),
@@ -167,8 +170,18 @@ fn distribution_preserves_nominal_ambiguity_without_detached_of_adjuncts() {
                     let pp = match node {
                         Reading::InitialPreposition { dependent, .. }
                         | Reading::ClausalPreposition { dependent, .. } => Some(dependent),
-                        Reading::FinitePreposition { modifier, .. }
-                        | Reading::SecondaryPreposition { modifier, .. } => Some(modifier),
+                        Reading::PrepositionPredicate {
+                            category: Category::FinitePredicate,
+                            form: 0,
+                            modifier,
+                            ..
+                        }
+                        | Reading::PrepositionPredicate {
+                            category: Category::SecondaryVerbPhrase,
+                            form: 0,
+                            modifier,
+                            ..
+                        } => Some(modifier),
                         _ => None,
                     };
                     if let Some(pp) = pp {

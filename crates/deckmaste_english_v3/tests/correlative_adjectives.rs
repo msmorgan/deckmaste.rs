@@ -84,7 +84,8 @@ fn color(id: &str) -> Reading {
 
 #[test]
 fn independently_constructed_correlative_adjectives_have_explicit_hosts() {
-    let both = Reading::BothAdjectives {
+    let both = Reading::BothCoordination {
+        category: Category::CorrelativeAdjectivePhrase,
         form: 0,
         marker: word("vocab:FloatedQuantifier/Both", WordForm::Invariant, None),
         left: Box::new(color("Red")),
@@ -145,13 +146,15 @@ fn independently_constructed_correlative_adjectives_have_explicit_hosts() {
 
 #[test]
 fn correlative_adjectival_serials_preserve_marker_and_oxford_comma() {
-    let end = Reading::CorrelativeAdjectiveSeriesEnd {
+    let end = Reading::CorrelativeSeriesEnd {
+        category: Category::CorrelativeAdjectiveSeries,
         form: 0,
         left: Box::new(color("Green")),
         coordinator: word("vocab:Coordinator/Or", WordForm::Invariant, None),
         right: Box::new(color("Blue")),
     };
-    let serial = Reading::SerialEitherAdjectives {
+    let serial = Reading::EitherSerialCoordination {
+        category: Category::CorrelativeAdjectivePhrase,
         form: 0,
         marker: word("vocab:Determinative/Either", WordForm::Invariant, None),
         left: Box::new(color("Red")),

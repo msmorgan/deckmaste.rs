@@ -80,10 +80,12 @@ fn passive(owner: &str, frame: usize) -> Reading {
 }
 
 fn be_passive(form: WordForm, predicate: Reading) -> Reading {
-    Reading::SecondaryParticipialAuxiliary {
+    Reading::ParticipialAuxiliaryPredicate {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: verb("core-verb:Be", 1, form),
-        complement: Box::new(Reading::OvertParticipialComplement {
+        complement: Box::new(Reading::OvertComplement {
+            category: Category::ParticipialComplement,
             form: 0,
             predicate: Box::new(Reading::PassiveComplement {
                 form: 0,
@@ -118,7 +120,8 @@ fn independent_authentic_perfect_passives_preserve_both_auxiliary_layers() {
         ("core-verb:Choose", "have been chosen"),
         ("lexeme:keyword_action/exile", "have been exiled"),
     ] {
-        let value = Reading::FinitePerfectAuxiliary {
+        let value = Reading::PerfectAuxiliaryPredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: word(
                 "core-verb:Have",
@@ -132,7 +135,8 @@ fn independent_authentic_perfect_passives_preserve_both_auxiliary_layers() {
                 },
                 Some(4),
             ),
-            complement: Box::new(Reading::OvertPerfectComplement {
+            complement: Box::new(Reading::OvertComplement {
+                category: Category::PerfectComplement,
                 form: 0,
                 predicate: Box::new(Reading::PerfectComplement {
                     form: 0,
@@ -147,9 +151,11 @@ fn independent_authentic_perfect_passives_preserve_both_auxiliary_layers() {
 #[test]
 fn authentic_mixed_coordination_retains_ordinary_and_passive_predicates() {
     // Sneaky Homunculus: "This creature can't block or be blocked by creatures with power 2 or greater."
-    let value = Reading::SecondaryVerbPhraseCoordination {
+    let value = Reading::Coordination {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
-        left: Box::new(Reading::SecondaryIntransitive {
+        left: Box::new(Reading::IntransitivePredicate {
+            category: Category::SecondaryVerbPhrase,
             form: 0,
             head: verb("core-verb:Block", 0, WordForm::Plain),
         }),

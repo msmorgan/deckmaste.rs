@@ -104,7 +104,8 @@ fn independent_object_gaps_keep_frames_and_concord_before_coordination() {
         readings("controls", Category::FiniteObjectGap),
         BTreeSet::from([finite])
     );
-    let binary = Reading::BareObjectGapCoordination {
+    let binary = Reading::Coordination {
+        category: Category::BareObjectGap,
         form: 0,
         left: Box::new(bare),
         coordinator: coordinator(),
@@ -112,10 +113,12 @@ fn independent_object_gaps_keep_frames_and_concord_before_coordination() {
     };
     assert_eq!(binary.realize(&LEXICON).unwrap(), "control and own");
     assert!(readings("control and own", Category::BareObjectGap).contains(&binary));
-    let serial = Reading::SerialFiniteObjectGap {
+    let serial = Reading::SerialCoordination {
+        category: Category::FiniteObjectGap,
         form: 0,
         left: Box::new(finite_gap("core-verb:Control")),
-        rest: Box::new(Reading::FiniteObjectGapSeriesEnd {
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::FiniteObjectGapSeries,
             form: 0,
             left: Box::new(finite_gap("core-verb:Own")),
             coordinator: coordinator(),
@@ -201,7 +204,8 @@ fn unlike_predicative_categories_share_a_function_without_erasing_their_categori
     };
     let nominal = Reading::NominalComplement {
         form: 0,
-        phrase: Box::new(Reading::AccusativePhrase {
+        phrase: Box::new(Reading::CasePhrase {
+            category: Category::AccusativePhrase,
             form: 0,
             head: Box::new(Reading::IndefiniteNounPhrase {
                 form: 0,
@@ -233,7 +237,8 @@ fn unlike_predicative_categories_share_a_function_without_erasing_their_categori
     };
     assert!(readings("red", Category::PredicativeComplement).contains(&adjective));
     assert!(readings("a creature", Category::PredicativeComplement).contains(&nominal));
-    let expected = Reading::UnlikePredicativeCoordination {
+    let expected = Reading::Coordination {
+        category: Category::PredicativeComplement,
         form: 0,
         left: Box::new(adjective),
         coordinator: coordinator(),

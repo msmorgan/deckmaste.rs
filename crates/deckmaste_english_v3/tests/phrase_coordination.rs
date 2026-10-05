@@ -87,10 +87,11 @@ fn assert_laws(value: Reading, text: &str, category: Category) {
 }
 
 macro_rules! check_family {
-    ($binary:ident, $end:ident, $serial:ident, $base:expr, $text:expr, $category:expr) => {{
+    ($binary:ident, $end:ident, $serial:ident, $series:ident, $base:expr, $text:expr, $category:expr) => {{
         let base = $base;
         let coordinator = word("vocab:Coordinator/And", WordForm::Invariant, None);
         let binary = Reading::$binary {
+            category: $category,
             form: 0,
             left: Box::new(base.clone()),
             coordinator: coordinator.clone(),
@@ -98,12 +99,14 @@ macro_rules! check_family {
         };
         assert_laws(binary, &format!("{} and {}", $text, $text), $category);
         let end = Reading::$end {
+            category: Category::$series,
             form: 0,
             left: Box::new(base.clone()),
             coordinator,
             right: Box::new(base.clone()),
         };
         let serial = Reading::$serial {
+            category: $category,
             form: 0,
             left: Box::new(base),
             rest: Box::new(end),
@@ -132,7 +135,8 @@ fn independent_phrase_coordinations_preserve_structure_and_oxford_commas() {
     let pp = Reading::PrepositionPhrase {
         form: 0,
         head: word("vocab:Preposition/Among", WordForm::Invariant, None),
-        complement: Box::new(Reading::AccusativePhrase {
+        complement: Box::new(Reading::CasePhrase {
+            category: Category::AccusativePhrase,
             form: 0,
             head: Box::new(Reading::BarePlural {
                 form: 0,
@@ -155,7 +159,8 @@ fn independent_phrase_coordinations_preserve_structure_and_oxford_commas() {
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant, None),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,
-            head: Box::new(Reading::SecondaryIntransitive {
+            head: Box::new(Reading::IntransitivePredicate {
+                category: Category::SecondaryVerbPhrase,
                 form: 0,
                 head: attack,
             }),
@@ -176,49 +181,55 @@ fn independent_phrase_coordinations_preserve_structure_and_oxford_commas() {
         head: time,
     };
     check_family!(
-        NominalCoordination,
-        NominalSeriesEnd,
-        SerialNominal,
+        Coordination,
+        CoordinationSeriesEnd,
+        SerialCoordination,
+        NominalSeries,
         nominal,
         "creatures",
         Category::Nominal
     );
     check_family!(
-        AdjectivePhraseCoordination,
-        AdjectivePhraseSeriesEnd,
-        SerialAdjectivePhrase,
+        Coordination,
+        CoordinationSeriesEnd,
+        SerialCoordination,
+        AdjectivePhraseSeries,
         ap,
         "green",
         Category::AdjectivePhrase
     );
     check_family!(
-        PrepositionPhraseCoordination,
-        PrepositionPhraseSeriesEnd,
-        SerialPrepositionPhrase,
+        Coordination,
+        CoordinationSeriesEnd,
+        SerialCoordination,
+        PrepositionPhraseSeries,
         pp,
         "among creatures",
         Category::PrepositionPhrase
     );
     check_family!(
-        AdverbPhraseCoordination,
-        AdverbPhraseSeriesEnd,
-        SerialAdverbPhrase,
+        Coordination,
+        CoordinationSeriesEnd,
+        SerialCoordination,
+        AdverbPhraseSeries,
         adv,
         "again",
         Category::AdverbPhrase
     );
     check_family!(
-        InfinitiveComplementCoordination,
-        InfinitiveComplementSeriesEnd,
-        SerialInfinitiveComplement,
+        Coordination,
+        CoordinationSeriesEnd,
+        SerialCoordination,
+        InfinitiveComplementSeries,
         infinitive,
         "to attack",
         Category::InfinitiveComplement
     );
     check_family!(
-        FrequencyPhraseCoordination,
-        FrequencyPhraseSeriesEnd,
-        SerialFrequencyPhrase,
+        Coordination,
+        CoordinationSeriesEnd,
+        SerialCoordination,
+        FrequencyPhraseSeries,
         frequency,
         "three times",
         Category::FrequencyPhrase

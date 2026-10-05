@@ -250,7 +250,8 @@ fn coordinator(owner: &str) -> Word {
 #[test]
 fn authentic_coordinated_noun_modifiers_share_the_head_with_oxford_serials() {
     // Ogre Battlecaster: "... you may cast target instant or sorcery card from your graveyard ..."
-    let binary = Reading::NounPremodifierCoordination {
+    let binary = Reading::Coordination {
+        category: Category::NounPremodifier,
         form: 0,
         left: Box::new(modifier("lexeme:type/instant")),
         coordinator: coordinator("vocab:Coordinator/Or"),
@@ -267,7 +268,8 @@ fn authentic_coordinated_noun_modifiers_share_the_head_with_oxford_serials() {
         head: Box::new(noun("lexeme:CommonNoun/Card", Number::Singular)),
     };
     assert_eq!(shared.realize(&LEXICON).unwrap(), "instant or sorcery card");
-    let ordinary = Reading::NominalCoordination {
+    let ordinary = Reading::Coordination {
+        category: Category::Nominal,
         form: 0,
         left: Box::new(noun("lexeme:type/instant", Number::Singular)),
         coordinator: coordinator("vocab:Coordinator/Or"),
@@ -281,10 +283,12 @@ fn authentic_coordinated_noun_modifiers_share_the_head_with_oxford_serials() {
         BTreeSet::from([shared, ordinary])
     );
     // Custodi Squire: "... each player votes for an artifact, creature, or enchantment card in your graveyard."
-    let serial = Reading::SerialNounPremodifier {
+    let serial = Reading::SerialCoordination {
+        category: Category::NounPremodifier,
         form: 0,
         left: Box::new(modifier("lexeme:type/artifact")),
-        rest: Box::new(Reading::NounPremodifierSeriesEnd {
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::NounPremodifierSeries,
             form: 0,
             left: Box::new(modifier("lexeme:type/creature")),
             coordinator: coordinator("vocab:Coordinator/Or"),

@@ -49,7 +49,8 @@ fn cards() -> Reading {
         },
     );
     head.countability = Some(true);
-    Reading::AccusativePhrase {
+    Reading::CasePhrase {
+        category: Category::AccusativePhrase,
         form: 0,
         head: Box::new(Reading::BarePlural {
             form: 0,
@@ -98,7 +99,8 @@ fn roundtrip(value: &Reading, category: Category) {
 
 #[test]
 fn authentic_mutate_preposition_heads_share_np_complement() {
-    let head = Reading::SelectedPrepositionHeadCoordination {
+    let head = Reading::Coordination {
+        category: Category::SelectedPrepositionHead,
         form: 0,
         left: Box::new(prep("vocab:Preposition/Over")),
         coordinator: coordinator("vocab:Coordinator/Or"),
@@ -117,20 +119,23 @@ fn authentic_mutate_preposition_heads_share_np_complement() {
 
 #[test]
 fn shared_preposition_heads_require_oxford_and_intersect_permissions() {
-    let tail = Reading::SelectedPrepositionHeadSeriesEnd {
+    let tail = Reading::CoordinationSeriesEnd {
+        category: Category::SelectedPrepositionHeadSeries,
         form: 0,
         left: Box::new(prep("vocab:Preposition/Over")),
         coordinator: coordinator("vocab:Coordinator/Or"),
         right: Box::new(prep("vocab:Preposition/Under")),
     };
-    let serial = Reading::SerialSelectedPrepositionHead {
+    let serial = Reading::SerialCoordination {
+        category: Category::SelectedPrepositionHead,
         form: 0,
         left: Box::new(prep("vocab:Preposition/On")),
         rest: Box::new(tail),
     };
     roundtrip(&serial, Category::SelectedPrepositionHead);
     roundtrip(&shared(serial), Category::PrepositionPhrase);
-    let mixed = shared(Reading::SelectedPrepositionHeadCoordination {
+    let mixed = shared(Reading::Coordination {
+        category: Category::SelectedPrepositionHead,
         form: 0,
         left: Box::new(prep("vocab:Preposition/Over")),
         coordinator: coordinator("vocab:Coordinator/And"),

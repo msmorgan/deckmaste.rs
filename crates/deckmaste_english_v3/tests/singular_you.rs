@@ -86,7 +86,8 @@ fn verb(owner: &str, frame: usize, number: Number) -> Word {
 fn clause(subject: Reading, predicate: Reading) -> Reading {
     Reading::FiniteClause {
         form: 0,
-        subject: Box::new(Reading::NominativePhrase {
+        subject: Box::new(Reading::CasePhrase {
+            category: Category::NominativePhrase,
             form: 0,
             head: Box::new(subject),
         }),
@@ -130,7 +131,8 @@ fn authentic_you_and_draw_clause_have_only_singular_second_person_values() {
             },
         ]),
     );
-    let card = Reading::AccusativePhrase {
+    let card = Reading::CasePhrase {
+        category: Category::AccusativePhrase,
         form: 0,
         head: Box::new(Reading::IndefiniteNounPhrase {
             form: 0,
@@ -150,7 +152,8 @@ fn authentic_you_and_draw_clause_have_only_singular_second_person_values() {
         Category::FiniteClause,
         BTreeSet::from([clause(
             you(),
-            Reading::FiniteTransitive {
+            Reading::TransitivePredicate {
+                category: Category::FinitePredicate,
                 form: 0,
                 head: verb("core-verb:Draw", 0, Number::Singular),
                 object: Box::new(card),
@@ -173,7 +176,8 @@ fn authentic_coordinated_subject_retains_singular_you_leaf() {
         ),
         head: Box::new(noun("lexeme:CommonNoun/Opponent")),
     };
-    let subject = Reading::AdditiveNounPhrase {
+    let subject = Reading::Coordination {
+        category: Category::NounPhrase,
         form: 0,
         left: Box::new(you()),
         coordinator: word(
@@ -186,7 +190,8 @@ fn authentic_coordinated_subject_retains_singular_you_leaf() {
     exact(
         "you and target opponent",
         Category::NominativePhrase,
-        BTreeSet::from([Reading::NominativePhrase {
+        BTreeSet::from([Reading::CasePhrase {
+            category: Category::NominativePhrase,
             form: 0,
             head: Box::new(subject),
         }]),
@@ -196,7 +201,8 @@ fn authentic_coordinated_subject_retains_singular_you_leaf() {
 #[test]
 fn authentic_discard_clause_has_no_plural_second_person_leaves() {
     // Apocalypse: "Exile all permanents. You discard your hand."
-    let object = Reading::AccusativePhrase {
+    let object = Reading::CasePhrase {
+        category: Category::AccusativePhrase,
         form: 0,
         head: Box::new(Reading::PossessiveNounPhrase {
             form: 0,
@@ -206,7 +212,8 @@ fn authentic_discard_clause_has_no_plural_second_person_leaves() {
     };
     let expected = clause(
         you(),
-        Reading::FiniteTransitive {
+        Reading::TransitivePredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: verb("lexeme:keyword_action/discard", 0, Number::Singular),
             object: Box::new(object),

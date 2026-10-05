@@ -139,7 +139,8 @@ fn independent_noncoordinated_units_survive() {
 
 #[test]
 fn independently_constructed_binary_and_oxford_series_retain_every_child() {
-    let binary = Reading::ManaPhraseCoordination {
+    let binary = Reading::Coordination {
+        category: Category::ManaPhrase,
         form: 0,
         left: Box::new(mana("vocab:FixedCostSymbol/White")),
         coordinator: word("vocab:Coordinator/Or"),
@@ -147,10 +148,12 @@ fn independently_constructed_binary_and_oxford_series_retain_every_child() {
     };
     assert_eq!(binary.realize(&LEXICON).unwrap(), "{W} or {U}");
     assert!(readings("{W} or {U}", Category::ManaPhrase).contains(&binary));
-    let series = Reading::SerialManaPhrase {
+    let series = Reading::SerialCoordination {
+        category: Category::ManaPhrase,
         form: 0,
         left: Box::new(mana("vocab:FixedCostSymbol/White")),
-        rest: Box::new(Reading::ManaPhraseSeriesEnd {
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::ManaPhraseSeries,
             form: 0,
             left: Box::new(mana("vocab:FixedCostSymbol/Blue")),
             coordinator: word("vocab:Coordinator/Or"),
@@ -159,14 +162,16 @@ fn independently_constructed_binary_and_oxford_series_retain_every_child() {
     };
     assert_eq!(series.realize(&LEXICON).unwrap(), "{W}, {U}, or {B}");
     assert!(readings("{W}, {U}, or {B}", Category::ManaPhrase).contains(&series));
-    let counted = Reading::CardinalCoordination {
+    let counted = Reading::Coordination {
+        category: Category::Cardinal,
         form: 0,
         left: Box::new(cardinal(1)),
         coordinator: word("vocab:Coordinator/Or"),
         right: Box::new(cardinal(2)),
     };
     assert!(readings("one or two", Category::Cardinal).contains(&counted));
-    let grant = Reading::KeywordPhraseCoordination {
+    let grant = Reading::Coordination {
+        category: Category::KeywordPhrase,
         form: 0,
         left: Box::new(keyword("lexeme:keyword_ability/flying")),
         coordinator: word("vocab:Coordinator/And"),

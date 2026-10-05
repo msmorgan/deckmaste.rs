@@ -4,6 +4,7 @@ use syn::Token;
 use syn::Visibility;
 use syn::braced;
 use syn::bracketed;
+use syn::ext::IdentExt;
 use syn::parenthesized;
 use syn::parse::Parse;
 use syn::parse::ParseStream;
@@ -36,7 +37,14 @@ pub(crate) struct FeatureTable {
     pub rows: Vec<(Vec<Ident>, Ident)>,
 }
 
+#[derive(Clone)]
 pub(crate) struct Construction {
+    pub parameters: Vec<Ident>,
+    pub defaults: Vec<Option<Ident>>,
+    pub rows: Vec<Vec<Ident>>,
+    pub shared: bool,
+    pub bindings: Vec<(Ident, Ident)>,
+    pub uses: Vec<Ident>,
     pub cost: Option<u64>,
     pub name: Ident,
     pub category: Ident,
@@ -60,11 +68,13 @@ pub(crate) enum Part {
     Field(Ident, FieldType),
 }
 
+#[derive(Clone)]
 pub(crate) struct Reference {
     pub field: Ident,
     pub feature: Ident,
 }
 
+#[derive(Clone)]
 pub(crate) enum Equation {
     Export(Ident, Reference),
     ExportConstant(Ident, Ident),
@@ -105,6 +115,8 @@ impl Parse for Declaration {
             constructions: vec![],
             capitalization: None,
         };
+        let mut schemas = Vec::new();
+        let mut policies = Vec::new();
         while !body.is_empty() {
             let keyword: Ident = body.parse()?;
             let name: Ident = body.parse()?;
@@ -168,27 +180,357 @@ impl Parse for Declaration {
                         rows: values,
                     });
                 }
+                "policy" => {
+                    policies.push(parse_construction(&body, name, true)?);
+                }
+                "schema" => {
+                    schemas.push(parse_construction(&body, name, true)?);
+                }
+                "instance" => {
+                    let mut instance = parse_construction(&body, name, false)?;
+                    instance.shared = true;
+                    result.constructions.push(instance);
+                }
                 "construction" => {
-                    result.constructions.push(parse_construction(&body, name)?);
+                    result
+                        .constructions
+                        .push(parse_construction(&body, name, false)?);
                 }
                 _ => {
                     return Err(syn::Error::new(
                         keyword.span(),
-                        "expected capitalization, category, feature, frame, table or construction",
+                        "expected capitalization, category, feature, frame, table, construction, schema, instance or policy",
                     ));
                 }
+            }
+        }
+        let mut expanded = Vec::new();
+        for construction in std::mem::take(&mut result.constructions) {
+            if construction.parameters.is_empty() {
+                expanded.push(construction);
+                continue;
+            }
+            if !construction.shared || construction.rows.is_empty() {
+                return Err(syn::Error::new(
+                    construction.name.span(),
+                    "category rows require a schema instance and at least one row",
+                ));
+            }
+            let unique: std::collections::BTreeSet<_> = construction
+                .parameters
+                .iter()
+                .map(ToString::to_string)
+                .collect();
+            if unique.len() != construction.parameters.len() {
+                return Err(syn::Error::new(
+                    construction.name.span(),
+                    "duplicate category parameter",
+                ));
+            }
+            let mut category_roles = Vec::new();
+            for (index, parameter) in construction.parameters.iter().enumerate() {
+                let category_role = index == 0
+                    || construction
+                        .bindings
+                        .iter()
+                        .any(|(_, value)| value == parameter);
+                let policy_role = construction.uses.iter().any(|value| value == parameter);
+                category_roles.push(category_role);
+                if category_role == policy_role {
+                    return Err(syn::Error::new(
+                        parameter.span(),
+                        "row parameter must have exactly one category or policy role",
+                    ));
+                }
+            }
+            for (index, default) in construction.defaults.iter().enumerate() {
+                let Some(default) = default else {
+                    continue;
+                };
+                if default == "Self" {
+                    if index == 0 {
+                        return Err(syn::Error::new(
+                            default.span(),
+                            "result category cannot be Self",
+                        ));
+                    }
+                    if !category_roles[index] {
+                        return Err(syn::Error::new(
+                            default.span(),
+                            "Self row alias requires a category column",
+                        ));
+                    }
+                } else if category_roles[index] {
+                    if !result
+                        .categories
+                        .iter()
+                        .any(|category| category.name == *default)
+                    {
+                        return Err(syn::Error::new(
+                            default.span(),
+                            "default row category must be declared",
+                        ));
+                    }
+                } else if !policies.iter().any(|policy| policy.name == *default) {
+                    return Err(syn::Error::new(default.span(), "unknown policy default"));
+                }
+            }
+            for row in &construction.rows {
+                let required = construction
+                    .defaults
+                    .iter()
+                    .position(Option::is_some)
+                    .unwrap_or(construction.parameters.len());
+                if row.len() < required || row.len() > construction.parameters.len() {
+                    return Err(syn::Error::new(
+                        construction.name.span(),
+                        "category row arity must match parameters",
+                    ));
+                }
+                let mut row = row.clone();
+                for index in row.len()..construction.parameters.len() {
+                    row.push(
+                        construction.defaults[index]
+                            .clone()
+                            .expect("validated trailing default"),
+                    );
+                }
+                if row[0] == "Self" {
+                    return Err(syn::Error::new(
+                        row[0].span(),
+                        "result category cannot be Self",
+                    ));
+                }
+                for index in 1..row.len() {
+                    if row[index] == "Self" {
+                        if !category_roles[index] {
+                            return Err(syn::Error::new(
+                                row[index].span(),
+                                "Self row alias requires a category column",
+                            ));
+                        }
+                        row[index] = row[0].clone();
+                    }
+                }
+                let mut instance = construction.clone();
+                instance.category = row[0].clone();
+                for (_, category) in &mut instance.bindings {
+                    if let Some(index) = construction
+                        .parameters
+                        .iter()
+                        .position(|parameter| parameter == category)
+                    {
+                        *category = row[index].clone();
+                    }
+                }
+                for policy in &mut instance.uses {
+                    if let Some(index) = construction
+                        .parameters
+                        .iter()
+                        .position(|parameter| parameter == policy)
+                    {
+                        *policy = row[index].clone();
+                    }
+                }
+                instance.parameters.clear();
+                instance.defaults.clear();
+                instance.rows.clear();
+                expanded.push(instance);
+            }
+        }
+        result.constructions = expanded;
+        let mut policy_names = std::collections::BTreeSet::new();
+        for policy in &policies {
+            if !policy_names.insert(policy.name.to_string()) {
+                return Err(syn::Error::new(policy.name.span(), "duplicate policy"));
+            }
+            if !policy.forms.is_empty()
+                || !policy.bindings.is_empty()
+                || !policy.uses.is_empty()
+                || policy.cost.is_some()
+                || policy.boundary.is_some()
+                || policy.onset.is_some()
+            {
+                return Err(syn::Error::new(
+                    policy.name.span(),
+                    "policy admits only feature equations",
+                ));
+            }
+        }
+        for owner in schemas.iter_mut().chain(result.constructions.iter_mut()) {
+            for name in &owner.uses {
+                let policy = policies
+                    .iter()
+                    .find(|policy| policy.name == *name)
+                    .ok_or_else(|| syn::Error::new(name.span(), "unknown policy"))?;
+                owner.equations.extend(policy.equations.clone());
+            }
+        }
+        let mut schema_names = std::collections::BTreeSet::new();
+        for schema in &schemas {
+            if !schema_names.insert(schema.name.to_string()) {
+                return Err(syn::Error::new(schema.name.span(), "duplicate schema"));
+            }
+            if schema
+                .forms
+                .iter()
+                .flatten()
+                .any(|part| matches!(part, Part::Field(name, _) if name == "category"))
+            {
+                return Err(syn::Error::new(
+                    schema.name.span(),
+                    "schema field category is reserved for result identity",
+                ));
+            }
+            if !schema.bindings.is_empty() {
+                return Err(syn::Error::new(
+                    schema.name.span(),
+                    "schema bindings belong to instances",
+                ));
+            }
+        }
+        for instance in &mut result.constructions {
+            if !instance.shared {
+                if !instance.bindings.is_empty() {
+                    return Err(syn::Error::new(
+                        instance.name.span(),
+                        "bindings belong to schema instances",
+                    ));
+                }
+                continue;
+            }
+            let schema = schemas
+                .iter()
+                .find(|schema| schema.name == instance.name)
+                .ok_or_else(|| syn::Error::new(instance.name.span(), "unknown schema"))?;
+            if !instance.forms.is_empty()
+                || instance.cost.is_some()
+                || instance.boundary.is_some()
+                || instance.onset.is_some()
+            {
+                return Err(syn::Error::new(
+                    instance.name.span(),
+                    "instance surface and cost are owned by schema",
+                ));
+            }
+            let mut equations = schema.equations.clone();
+            equations.append(&mut instance.equations);
+            instance.equations = equations;
+            instance.forms = schema.forms.clone();
+            instance.cost = schema.cost;
+            instance.boundary = schema.boundary.clone();
+            instance.onset = schema.onset.clone();
+            let mut used = std::collections::BTreeSet::new();
+            for form in &mut instance.forms {
+                for part in form {
+                    let Part::Field(name, ty) = part else {
+                        continue;
+                    };
+                    let category = match ty {
+                        FieldType::One(category)
+                        | FieldType::Optional(category)
+                        | FieldType::Repeated(category, _) => category,
+                        FieldType::Lexical(_) => continue,
+                    };
+                    if category != "node" {
+                        continue;
+                    }
+                    let matches: Vec<_> = instance
+                        .bindings
+                        .iter()
+                        .filter(|(field, _)| field == name)
+                        .collect();
+                    if matches.len() != 1 {
+                        return Err(syn::Error::new(
+                            name.span(),
+                            "generic field needs exactly one category binding",
+                        ));
+                    }
+                    *category = matches[0].1.to_string();
+                    used.insert(name.to_string());
+                }
+            }
+            if instance
+                .bindings
+                .iter()
+                .any(|(field, _)| !used.contains(&field.to_string()))
+            {
+                return Err(syn::Error::new(
+                    instance.name.span(),
+                    "binding must name a generic node field",
+                ));
             }
         }
         Ok(result)
     }
 }
 
-fn parse_construction(body: ParseStream<'_>, name: Ident) -> syn::Result<Construction> {
-    body.parse::<Token![:]>()?;
-    let category = body.parse()?;
+fn parse_construction(
+    body: ParseStream<'_>,
+    name: Ident,
+    schema: bool,
+) -> syn::Result<Construction> {
+    let mut parameters = Vec::new();
+    let mut defaults = Vec::new();
+    let mut rows = Vec::new();
+    let category = if schema {
+        name.clone()
+    } else {
+        if body.peek(Token![<]) {
+            body.parse::<Token![<]>()?;
+            loop {
+                parameters.push(body.parse::<Ident>()?);
+                let default = if body.peek(Token![=]) {
+                    body.parse::<Token![=]>()?;
+                    Some(body.call(Ident::parse_any)?)
+                } else {
+                    None
+                };
+                if default.is_none() && defaults.iter().any(Option::is_some) {
+                    return Err(syn::Error::new(
+                        name.span(),
+                        "only trailing row parameters may have defaults",
+                    ));
+                }
+                defaults.push(default);
+                if body.peek(Token![>]) {
+                    break;
+                }
+                body.parse::<Token![,]>()?;
+            }
+            body.parse::<Token![>]>()?;
+        }
+        body.parse::<Token![:]>()?;
+        if parameters.is_empty() {
+            body.parse()?
+        } else {
+            let row_list;
+            bracketed!(row_list in body);
+            while !row_list.is_empty() {
+                let row;
+                parenthesized!(row in row_list);
+                rows.push(
+                    row.parse_terminated(Ident::parse_any, Token![,])?
+                        .into_iter()
+                        .collect(),
+                );
+                if row_list.is_empty() {
+                    break;
+                }
+                row_list.parse::<Token![,]>()?;
+            }
+            parameters[0].clone()
+        }
+    };
     let contents;
     braced!(contents in body);
     let mut construction = Construction {
+        parameters,
+        defaults,
+        rows,
+        shared: false,
+        bindings: vec![],
+        uses: vec![],
         cost: None,
         name,
         category,
@@ -198,8 +540,23 @@ fn parse_construction(body: ParseStream<'_>, name: Ident) -> syn::Result<Constru
         onset: None,
     };
     while !contents.is_empty() {
-        let directive: Ident = contents.parse()?;
+        let directive: Ident = contents.call(Ident::parse_any)?;
         match directive.to_string().as_str() {
+            "use" => {
+                construction.uses.push(contents.parse()?);
+            }
+            "bind" => {
+                let mut fields = vec![contents.parse::<Ident>()?];
+                while contents.peek(Token![,]) {
+                    contents.parse::<Token![,]>()?;
+                    fields.push(contents.parse()?);
+                }
+                contents.parse::<Token![=]>()?;
+                let category: Ident = contents.parse()?;
+                construction
+                    .bindings
+                    .extend(fields.into_iter().map(|field| (field, category.clone())));
+            }
             "cost" => {
                 let value: syn::LitInt = contents.parse()?;
                 let value = value.base10_parse::<u64>()?;

@@ -88,8 +88,12 @@ fn oracle_constituents_use_declared_verb_frames() {
         else {
             panic!("expected a finite clause");
         };
-        let Reading::FiniteLocative {
-            head, complement, ..
+        let Reading::LocativePredicate {
+            category: Category::FinitePredicate,
+            form: 0,
+            head,
+            complement,
+            ..
         } = *predicate
         else {
             panic!("expected the declared locative frame");
@@ -127,7 +131,8 @@ fn independent_intransitive_values_retain_frame_and_lexical_identity() {
             countability: None,
             frame: Some(0),
         };
-        let value = Reading::FiniteIntransitive {
+        let value = Reading::IntransitivePredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: head.clone(),
         };
@@ -148,7 +153,8 @@ fn independent_intransitive_values_retain_frame_and_lexical_identity() {
         let mut transitive = head;
         transitive.frame = Some(1);
         assert!(
-            Reading::FiniteIntransitive {
+            Reading::IntransitivePredicate {
+                category: Category::FinitePredicate,
                 form: 0,
                 head: transitive
             }

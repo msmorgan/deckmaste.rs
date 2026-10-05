@@ -5,6 +5,7 @@ use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
 use deckmaste_english_v3::parse;
+use deckmaste_lexical::Countability;
 use deckmaste_lexical::FeatureBundle;
 use deckmaste_lexical::Finiteness;
 use deckmaste_lexical::Frame;
@@ -116,7 +117,17 @@ fn lexicon() -> Lexicon {
         },
     );
     head.properties.frames = signatures();
-    Lexicon::new([head]).unwrap()
+    let card = Lexeme::noun(
+        "fixture:card",
+        "card",
+        vec![Countability::Count],
+        Source {
+            kind: SourceKind::Core,
+            path: "independent object fixture".into(),
+            owner: "fixture:card".into(),
+        },
+    );
+    Lexicon::new([head, card]).unwrap()
 }
 
 fn word(frame: usize, finite: bool) -> Word {
@@ -144,42 +155,42 @@ fn word(frame: usize, finite: bool) -> Word {
 }
 
 fn primitive(frame: usize, finite: bool) -> Reading {
-    let head = word(frame, finite);
-    match (frame, finite) {
-        (0, true) => Reading::FiniteSelectedObjectHead { form: 0, head },
-        (0, false) => Reading::SecondarySelectedObjectHead { form: 0, head },
-        (1, true) => Reading::FiniteSelectedPredicativeHead { form: 0, head },
-        (1, false) => Reading::SecondarySelectedPredicativeHead { form: 0, head },
-        (2, true) => Reading::FiniteSelectedLocativeHead { form: 0, head },
-        (2, false) => Reading::SecondarySelectedLocativeHead { form: 0, head },
-        (3, true) => Reading::FiniteSelectedManaHead { form: 0, head },
-        (3, false) => Reading::SecondarySelectedManaHead { form: 0, head },
-        (4, true) => Reading::FiniteSelectedAmountHead { form: 0, head },
-        (4, false) => Reading::SecondarySelectedAmountHead { form: 0, head },
-        (5, true) => Reading::FiniteSelectedMeasureHead { form: 0, head },
-        (5, false) => Reading::SecondarySelectedMeasureHead { form: 0, head },
-        (6, true) => Reading::FiniteSelectedSlashMeasureHead { form: 0, head },
-        (6, false) => Reading::SecondarySelectedSlashMeasureHead { form: 0, head },
-        (7, true) => Reading::FiniteSelectedKeywordHead { form: 0, head },
-        (7, false) => Reading::SecondarySelectedKeywordHead { form: 0, head },
-        (8, true) => Reading::FiniteSelectedQuotedHead { form: 0, head },
-        (8, false) => Reading::SecondarySelectedQuotedHead { form: 0, head },
-        (9, true) => Reading::FiniteSelectedAuxiliaryBareHead { form: 0, head },
-        (9, false) => Reading::SecondarySelectedAuxiliaryBareHead { form: 0, head },
-        (10, true) => Reading::FiniteSelectedAuxiliaryParticipleHead { form: 0, head },
-        (10, false) => Reading::SecondarySelectedAuxiliaryParticipleHead { form: 0, head },
-        (11, true) => Reading::FiniteSelectedAuxiliaryPerfectHead { form: 0, head },
-        (11, false) => Reading::SecondarySelectedAuxiliaryPerfectHead { form: 0, head },
-        (12, true) => Reading::FiniteSelectedObjectNameHead { form: 0, head },
-        (12, false) => Reading::SecondarySelectedObjectNameHead { form: 0, head },
-        (13, true) => Reading::FiniteSelectedObjectEqualityHead { form: 0, head },
-        (13, false) => Reading::SecondarySelectedObjectEqualityHead { form: 0, head },
+    assert!(frame < 16, "unknown fixture signature");
+    Reading::SelectedVerbHead {
+        category: if finite {
+            Category::FiniteSelectedHead
+        } else {
+            Category::SecondarySelectedHead
+        },
+        form: 0,
+        head: word(frame, finite),
+    }
+}
 
-        (14, true) => Reading::FiniteSelectedCardinalHead { form: 0, head },
-        (14, false) => Reading::SecondarySelectedCardinalHead { form: 0, head },
-        (15, true) => Reading::FiniteSelectedInfinitiveHead { form: 0, head },
-        (15, false) => Reading::SecondarySelectedInfinitiveHead { form: 0, head },
-        _ => panic!("unknown fixture signature"),
+fn cards() -> Reading {
+    Reading::CasePhrase {
+        category: Category::AccusativePhrase,
+        form: 0,
+        head: Box::new(Reading::BarePlural {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: "fixture:card".into(),
+                        form: WordForm::Plural,
+                        features: FeatureBundle {
+                            number: Some(Number::Plural),
+                            ..Default::default()
+                        },
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: Some(true),
+                },
+            }),
+        }),
     }
 }
 
@@ -208,22 +219,39 @@ fn independent_atomic_heads_preserve_every_exact_selected_signature() {
 #[test]
 fn independent_atomic_heads_reject_wrong_signature_index_and_morphology() {
     let lexicon = lexicon();
-    let invalid = Reading::SecondarySelectedObjectHead {
+    // Selection now belongs to the consuming host, rather than a head variant name.
+    // Preserve the exact predicative-frame witness against an object-selecting host.
+    let wrong_head = primitive(1, false);
+    assert_eq!(
+        wrong_head,
+        Reading::SelectedVerbHead {
+            category: Category::SecondarySelectedHead,
+            form: 0,
+            head: word(1, false),
+        }
+    );
+    assert!(wrong_head.admit(&lexicon).is_ok());
+    let invalid = Reading::TransitivePredicate {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: word(1, false),
+        object: Box::new(cards()),
     };
     assert!(invalid.admit(&lexicon).is_err());
-    let invalid = Reading::FiniteSelectedObjectHead {
+    let invalid = Reading::SelectedVerbHead {
+        category: Category::FiniteSelectedHead,
         form: 0,
         head: word(0, false),
     };
     assert!(invalid.admit(&lexicon).is_err());
-    let invalid = Reading::SecondarySelectedObjectHead {
+    let invalid = Reading::SelectedVerbHead {
+        category: Category::SecondarySelectedHead,
         form: 0,
         head: word(0, true),
     };
     assert!(invalid.admit(&lexicon).is_err());
-    let invalid = Reading::FiniteSelectedObjectHead {
+    let invalid = Reading::SelectedVerbHead {
+        category: Category::FiniteSelectedHead,
         form: 0,
         head: word(16, true),
     };

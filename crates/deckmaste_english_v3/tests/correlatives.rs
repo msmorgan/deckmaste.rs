@@ -94,12 +94,14 @@ fn np() -> Reading {
 
 fn predicate(finite: bool, owner: &str) -> Reading {
     if finite {
-        Reading::FiniteIntransitive {
+        Reading::IntransitivePredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: verb(owner, true),
         }
     } else {
-        Reading::SecondaryIntransitive {
+        Reading::IntransitivePredicate {
+            category: Category::SecondaryVerbPhrase,
             form: 0,
             head: verb(owner, false),
         }
@@ -175,7 +177,8 @@ fn fixtures() -> Vec<(Category, &'static str, Reading, &'static str, Reading)> {
             Reading::PrepositionPhrase {
                 form: 0,
                 head: word("vocab:Preposition/Among"),
-                complement: Box::new(Reading::AccusativePhrase {
+                complement: Box::new(Reading::CasePhrase {
+                    category: Category::AccusativePhrase,
                     form: 0,
                     head: Box::new(np()),
                 }),
@@ -184,7 +187,8 @@ fn fixtures() -> Vec<(Category, &'static str, Reading, &'static str, Reading)> {
             Reading::PrepositionPhrase {
                 form: 0,
                 head: word("vocab:Preposition/Among"),
-                complement: Box::new(Reading::AccusativePhrase {
+                complement: Box::new(Reading::CasePhrase {
+                    category: Category::AccusativePhrase,
                     form: 0,
                     head: Box::new(np()),
                 }),
@@ -213,12 +217,14 @@ fn fixtures() -> Vec<(Category, &'static str, Reading, &'static str, Reading)> {
         (
             Category::FiniteSelectedHead,
             "owns",
-            Reading::FiniteSelectedObjectHead {
+            Reading::SelectedVerbHead {
+                category: Category::FiniteSelectedHead,
                 form: 0,
                 head: verb("core-verb:Own", true),
             },
             "controls",
-            Reading::FiniteSelectedObjectHead {
+            Reading::SelectedVerbHead {
+                category: Category::FiniteSelectedHead,
                 form: 0,
                 head: verb("core-verb:Control", true),
             },
@@ -226,12 +232,14 @@ fn fixtures() -> Vec<(Category, &'static str, Reading, &'static str, Reading)> {
         (
             Category::SecondarySelectedHead,
             "own",
-            Reading::SecondarySelectedObjectHead {
+            Reading::SelectedVerbHead {
+                category: Category::SecondarySelectedHead,
                 form: 0,
                 head: verb("core-verb:Own", false),
             },
             "control",
-            Reading::SecondarySelectedObjectHead {
+            Reading::SelectedVerbHead {
+                category: Category::SecondarySelectedHead,
                 form: 0,
                 head: verb("core-verb:Control", false),
             },
@@ -344,6 +352,7 @@ fn binary(category: Category, kind: &str, left: Reading, right: Reading) -> Read
     macro_rules! pair {
         ($variant:ident) => {
             Reading::$variant {
+                category,
                 form: 0,
                 marker,
                 left,
@@ -352,66 +361,10 @@ fn binary(category: Category, kind: &str, left: Reading, right: Reading) -> Read
             }
         };
     }
-    match (category, kind) {
-        (Category::Clause, "Either") => pair!(EitherClauseCoordination),
-        (Category::FinitePredicate, "Both") => pair!(BothFinitePredicateCoordination),
-        (Category::FinitePredicate, "Either") => pair!(EitherFinitePredicateCoordination),
-        (Category::FinitePredicate, "Neither") => pair!(NeitherFinitePredicateCoordination),
-        (Category::SecondaryVerbPhrase, "Both") => pair!(BothSecondaryVerbPhraseCoordination),
-        (Category::SecondaryVerbPhrase, "Either") => {
-            pair!(EitherSecondaryVerbPhraseCoordination)
-        }
-        (Category::SecondaryVerbPhrase, "Neither") => {
-            pair!(NeitherSecondaryVerbPhraseCoordination)
-        }
-        (Category::NounPhrase, "Both") => pair!(BothNounPhraseCoordination),
-        (Category::NounPhrase, "Either") => pair!(EitherNounPhraseCoordination),
-        (Category::NounPhrase, "Neither") => pair!(NeitherNounPhraseCoordination),
-        (Category::PrepositionPhrase, "Both") => pair!(BothPrepositionPhraseCoordination),
-        (Category::PrepositionPhrase, "Either") => pair!(EitherPrepositionPhraseCoordination),
-        (Category::PrepositionPhrase, "Neither") => pair!(NeitherPrepositionPhraseCoordination),
-        (Category::AdverbPhrase, "Both") => pair!(BothAdverbPhraseCoordination),
-        (Category::AdverbPhrase, "Either") => pair!(EitherAdverbPhraseCoordination),
-        (Category::AdverbPhrase, "Neither") => pair!(NeitherAdverbPhraseCoordination),
-        (Category::ManaPhrase, "Both") => pair!(BothManaPhraseCoordination),
-        (Category::ManaPhrase, "Either") => pair!(EitherManaPhraseCoordination),
-        (Category::ManaPhrase, "Neither") => pair!(NeitherManaPhraseCoordination),
-        (Category::Cardinal, "Both") => pair!(BothCardinalCoordination),
-        (Category::Cardinal, "Either") => pair!(EitherCardinalCoordination),
-        (Category::Cardinal, "Neither") => pair!(NeitherCardinalCoordination),
-        (Category::Amount, "Both") => pair!(BothAmountCoordination),
-        (Category::Amount, "Either") => pair!(EitherAmountCoordination),
-        (Category::Amount, "Neither") => pair!(NeitherAmountCoordination),
-        (Category::MeasurePhrase, "Both") => pair!(BothMeasurePhraseCoordination),
-        (Category::MeasurePhrase, "Either") => pair!(EitherMeasurePhraseCoordination),
-        (Category::MeasurePhrase, "Neither") => pair!(NeitherMeasurePhraseCoordination),
-        (Category::KeywordPhrase, "Both") => pair!(BothKeywordPhraseCoordination),
-        (Category::KeywordPhrase, "Either") => pair!(EitherKeywordPhraseCoordination),
-        (Category::KeywordPhrase, "Neither") => pair!(NeitherKeywordPhraseCoordination),
-        (Category::QuotedText, "Both") => pair!(BothQuotedTextCoordination),
-        (Category::QuotedText, "Either") => pair!(EitherQuotedTextCoordination),
-        (Category::QuotedText, "Neither") => pair!(NeitherQuotedTextCoordination),
-        (Category::InfinitiveComplement, "Both") => pair!(BothInfinitiveComplementCoordination),
-        (Category::InfinitiveComplement, "Either") => {
-            pair!(EitherInfinitiveComplementCoordination)
-        }
-        (Category::InfinitiveComplement, "Neither") => {
-            pair!(NeitherInfinitiveComplementCoordination)
-        }
-        (Category::FiniteSelectedHead, "Both") => pair!(BothFiniteSelectedHeadCoordination),
-        (Category::FiniteSelectedHead, "Either") => pair!(EitherFiniteSelectedHeadCoordination),
-        (Category::FiniteSelectedHead, "Neither") => {
-            pair!(NeitherFiniteSelectedHeadCoordination)
-        }
-        (Category::SecondarySelectedHead, "Both") => {
-            pair!(BothSecondarySelectedHeadCoordination)
-        }
-        (Category::SecondarySelectedHead, "Either") => {
-            pair!(EitherSecondarySelectedHeadCoordination)
-        }
-        (Category::SecondarySelectedHead, "Neither") => {
-            pair!(NeitherSecondarySelectedHeadCoordination)
-        }
+    match kind {
+        "Both" => pair!(BothCoordination),
+        "Either" => pair!(EitherCoordination),
+        "Neither" => pair!(NeitherCoordination),
         _ => unreachable!("unsupported correlative placement"),
     }
 }
@@ -427,38 +380,36 @@ fn serial(
     let coordinator = coordinator(kind);
     let left = Box::new(second);
     let right = Box::new(third);
-    macro_rules! tail {
-        ($variant:ident) => {
-            Reading::$variant {
-                form: 0,
-                left,
-                coordinator,
-                right,
-            }
-        };
-    }
-    let rest = Box::new(match category {
-        Category::Clause => tail!(CorrelativeClauseSeriesEnd),
-        Category::FinitePredicate => tail!(CorrelativeFinitePredicateSeriesEnd),
-        Category::SecondaryVerbPhrase => tail!(CorrelativeSecondaryVerbPhraseSeriesEnd),
-        Category::NounPhrase => tail!(CorrelativeNounPhraseSeriesEnd),
-        Category::PrepositionPhrase => tail!(CorrelativePrepositionPhraseSeriesEnd),
-        Category::AdverbPhrase => tail!(CorrelativeAdverbPhraseSeriesEnd),
-        Category::ManaPhrase => tail!(CorrelativeManaPhraseSeriesEnd),
-        Category::Cardinal => tail!(CorrelativeCardinalSeriesEnd),
-        Category::Amount => tail!(CorrelativeAmountSeriesEnd),
-        Category::MeasurePhrase => tail!(CorrelativeMeasurePhraseSeriesEnd),
-        Category::KeywordPhrase => tail!(CorrelativeKeywordPhraseSeriesEnd),
-        Category::QuotedText => tail!(CorrelativeQuotedTextSeriesEnd),
-        Category::InfinitiveComplement => tail!(CorrelativeInfinitiveComplementSeriesEnd),
-        Category::FiniteSelectedHead => tail!(CorrelativeFiniteSelectedHeadSeriesEnd),
-        Category::SecondarySelectedHead => tail!(CorrelativeSecondarySelectedHeadSeriesEnd),
+    let series = match category {
+        Category::Clause => Category::CorrelativeClauseSeries,
+        Category::FinitePredicate => Category::CorrelativeFinitePredicateSeries,
+        Category::SecondaryVerbPhrase => Category::CorrelativeSecondaryVerbPhraseSeries,
+        Category::NounPhrase => Category::CorrelativeNounPhraseSeries,
+        Category::PrepositionPhrase => Category::CorrelativePrepositionPhraseSeries,
+        Category::AdverbPhrase => Category::CorrelativeAdverbPhraseSeries,
+        Category::ManaPhrase => Category::CorrelativeManaPhraseSeries,
+        Category::Cardinal => Category::CorrelativeCardinalSeries,
+        Category::Amount => Category::CorrelativeAmountSeries,
+        Category::MeasurePhrase => Category::CorrelativeMeasurePhraseSeries,
+        Category::KeywordPhrase => Category::CorrelativeKeywordPhraseSeries,
+        Category::QuotedText => Category::CorrelativeQuotedTextSeries,
+        Category::InfinitiveComplement => Category::CorrelativeInfinitiveComplementSeries,
+        Category::FiniteSelectedHead => Category::CorrelativeFiniteSelectedHeadSeries,
+        Category::SecondarySelectedHead => Category::CorrelativeSecondarySelectedHeadSeries,
         _ => unreachable!(),
+    };
+    let rest = Box::new(Reading::CorrelativeSeriesEnd {
+        category: series,
+        form: 0,
+        left,
+        coordinator,
+        right,
     });
     let left = Box::new(first);
     macro_rules! value {
         ($variant:ident) => {
             Reading::$variant {
+                category,
                 form: 0,
                 marker,
                 left,
@@ -466,58 +417,9 @@ fn serial(
             }
         };
     }
-    match (category, kind) {
-        (Category::Clause, "Either") => value!(SerialEitherClauseCoordination),
-        (Category::FinitePredicate, "Either") => value!(SerialEitherFinitePredicateCoordination),
-        (Category::FinitePredicate, "Neither") => {
-            value!(SerialNeitherFinitePredicateCoordination)
-        }
-        (Category::SecondaryVerbPhrase, "Either") => {
-            value!(SerialEitherSecondaryVerbPhraseCoordination)
-        }
-        (Category::SecondaryVerbPhrase, "Neither") => {
-            value!(SerialNeitherSecondaryVerbPhraseCoordination)
-        }
-        (Category::NounPhrase, "Either") => value!(SerialEitherNounPhraseCoordination),
-        (Category::NounPhrase, "Neither") => value!(SerialNeitherNounPhraseCoordination),
-        (Category::PrepositionPhrase, "Either") => {
-            value!(SerialEitherPrepositionPhraseCoordination)
-        }
-        (Category::PrepositionPhrase, "Neither") => {
-            value!(SerialNeitherPrepositionPhraseCoordination)
-        }
-        (Category::AdverbPhrase, "Either") => value!(SerialEitherAdverbPhraseCoordination),
-        (Category::AdverbPhrase, "Neither") => value!(SerialNeitherAdverbPhraseCoordination),
-        (Category::ManaPhrase, "Either") => value!(SerialEitherManaPhraseCoordination),
-        (Category::ManaPhrase, "Neither") => value!(SerialNeitherManaPhraseCoordination),
-        (Category::Cardinal, "Either") => value!(SerialEitherCardinalCoordination),
-        (Category::Cardinal, "Neither") => value!(SerialNeitherCardinalCoordination),
-        (Category::Amount, "Either") => value!(SerialEitherAmountCoordination),
-        (Category::Amount, "Neither") => value!(SerialNeitherAmountCoordination),
-        (Category::MeasurePhrase, "Either") => value!(SerialEitherMeasurePhraseCoordination),
-        (Category::MeasurePhrase, "Neither") => value!(SerialNeitherMeasurePhraseCoordination),
-        (Category::KeywordPhrase, "Either") => value!(SerialEitherKeywordPhraseCoordination),
-        (Category::KeywordPhrase, "Neither") => value!(SerialNeitherKeywordPhraseCoordination),
-        (Category::QuotedText, "Either") => value!(SerialEitherQuotedTextCoordination),
-        (Category::QuotedText, "Neither") => value!(SerialNeitherQuotedTextCoordination),
-        (Category::InfinitiveComplement, "Either") => {
-            value!(SerialEitherInfinitiveComplementCoordination)
-        }
-        (Category::InfinitiveComplement, "Neither") => {
-            value!(SerialNeitherInfinitiveComplementCoordination)
-        }
-        (Category::FiniteSelectedHead, "Either") => {
-            value!(SerialEitherFiniteSelectedHeadCoordination)
-        }
-        (Category::FiniteSelectedHead, "Neither") => {
-            value!(SerialNeitherFiniteSelectedHeadCoordination)
-        }
-        (Category::SecondarySelectedHead, "Either") => {
-            value!(SerialEitherSecondarySelectedHeadCoordination)
-        }
-        (Category::SecondarySelectedHead, "Neither") => {
-            value!(SerialNeitherSecondarySelectedHeadCoordination)
-        }
+    match kind {
+        "Either" => value!(EitherSerialCoordination),
+        "Neither" => value!(NeitherSerialCoordination),
         _ => unreachable!(),
     }
 }
@@ -584,7 +486,8 @@ fn independent_either_and_neither_serials_require_final_comma_and_pair_discharge
 
 #[test]
 fn malformed_pairs_bare_nor_and_disallowed_main_clause_prefixes_are_rejected() {
-    let invalid = Reading::BothNounPhraseCoordination {
+    let invalid = Reading::BothCoordination {
+        category: Category::NounPhrase,
         form: 0,
         marker: marker("Both"),
         left: Box::new(np()),
@@ -592,7 +495,8 @@ fn malformed_pairs_bare_nor_and_disallowed_main_clause_prefixes_are_rejected() {
         right: Box::new(np()),
     };
     assert!(invalid.admit(&LEXICON).is_err());
-    let invalid = Reading::NeitherNounPhraseCoordination {
+    let invalid = Reading::NeitherCoordination {
+        category: Category::NounPhrase,
         form: 0,
         marker: marker("Either"),
         left: Box::new(np()),
@@ -600,7 +504,8 @@ fn malformed_pairs_bare_nor_and_disallowed_main_clause_prefixes_are_rejected() {
         right: Box::new(np()),
     };
     assert!(invalid.admit(&LEXICON).is_err());
-    let invalid = Reading::SerialEitherNounPhraseCoordination {
+    let invalid = Reading::EitherSerialCoordination {
+        category: Category::NounPhrase,
         form: 0,
         marker: marker("Either"),
         left: Box::new(np()),
@@ -622,15 +527,18 @@ fn malformed_pairs_bare_nor_and_disallowed_main_clause_prefixes_are_rejected() {
 
 #[test]
 fn correlative_selected_heads_reuse_shared_object_hosts_without_duplicate_atomic_host() {
-    let own = Reading::SecondarySelectedObjectHead {
+    let own = Reading::SelectedVerbHead {
+        category: Category::SecondarySelectedHead,
         form: 0,
         head: verb("core-verb:Own", false),
     };
-    let control = Reading::SecondarySelectedObjectHead {
+    let control = Reading::SelectedVerbHead {
+        category: Category::SecondarySelectedHead,
         form: 0,
         head: verb("core-verb:Control", false),
     };
-    let value = Reading::SecondarySharedObjectComplement {
+    let value = Reading::SharedObjectComplement {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(binary(
             Category::SecondarySelectedHead,
@@ -638,7 +546,8 @@ fn correlative_selected_heads_reuse_shared_object_hosts_without_duplicate_atomic
             own,
             control,
         )),
-        object: Box::new(Reading::AccusativePhrase {
+        object: Box::new(Reading::CasePhrase {
+            category: Category::AccusativePhrase,
             form: 0,
             head: Box::new(np()),
         }),

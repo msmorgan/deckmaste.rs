@@ -120,7 +120,8 @@ fn independent_mana_values_preserve_symbol_sequence() {
 #[test]
 fn independent_finite_and_secondary_complements_use_declared_frame() {
     for name in ["Add", "Pay"] {
-        let expected = Reading::FiniteManaComplement {
+        let expected = Reading::ManaComplementPredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: finite_head(name),
             complement: Box::new(mana("Green", &[])),
@@ -137,7 +138,8 @@ fn independent_finite_and_secondary_complements_use_declared_frame() {
             },
         );
         head.frame = Some(1);
-        let expected = Reading::SecondaryManaComplement {
+        let expected = Reading::ManaComplementPredicate {
+            category: Category::SecondaryVerbPhrase,
             form: 0,
             head,
             complement: Box::new(mana("Green", &[])),
@@ -149,7 +151,8 @@ fn independent_finite_and_secondary_complements_use_declared_frame() {
     let mut wrong = finite_head("Add");
     wrong.frame = Some(0);
     assert!(
-        Reading::FiniteManaComplement {
+        Reading::ManaComplementPredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: wrong,
             complement: Box::new(mana("Green", &[]))
@@ -177,7 +180,14 @@ fn authentic_basic_mana_abilities_have_structured_complements() {
             let mut found = false;
             reading
                 .visit(&mut |node| {
-                    found |= matches!(node, Reading::SecondaryManaComplement { .. });
+                    found |= matches!(
+                        node,
+                        Reading::ManaComplementPredicate {
+                            category: Category::SecondaryVerbPhrase,
+                            form: 0,
+                            ..
+                        }
+                    );
                 })
                 .unwrap();
             found

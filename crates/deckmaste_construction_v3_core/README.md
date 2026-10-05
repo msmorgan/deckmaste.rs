@@ -32,6 +32,82 @@ lower-level `forest.readings(&grammar)` also exposes materialization metrics;
 its generated intermediate `Value` wrapper has a `Reading` variant at every
 public Category root. There is no scanner callback or preferred Reading.
 
+## Shared construction schemas
+
+A schema owns one AST construction, its fields, surface forms, cost and common
+feature equations. Category instances bind generic `node` fields and add their
+own checked equations:
+
+```rust
+schema Coordination {
+    form [left: node, " and ", right: node];
+}
+policy SameNumber {
+    agree left.number = right.number;
+    export number = left.number;
+}
+instance Coordination: Nominal {
+    bind left, right = Nominal;
+    use SameNumber;
+}
+```
+
+Instances can share a checked body through category and policy rows:
+
+```rust
+instance Coordination<Result, Member, Agreement>: [
+    (Nominal, Self, SameNumber),
+    (CountNominal, Self, SameNumber),
+] {
+    bind left, right = Member;
+    use Agreement;
+}
+```
+
+The first parameter selects the result Category. Other parameters have exactly
+one declared role: a Category in bindings or a policy in `use`. Each row supplies
+those explicit Categories and policies; unused or mixed-role parameters are
+errors. `Self` in a Category column aliases the row's concrete result Category;
+it cannot replace the result itself or a policy. Additional Category parameters
+can distinguish a serial
+member Category from its intermediate-series Category. Each row must have the
+same arity as the unique parameter list. Rows expand into independently checked
+category contracts, preserving one shared Reading variant.
+
+Trailing parameters may declare explicit defaults, for example
+`<Result, Member = Self, Agreement = SameNumber>`. A row `(Nominal)` then supplies
+those authored defaults; longer prefix rows override the defaulted columns.
+Required parameters must precede defaulted parameters. Completed rows undergo
+the same Category, policy and role validation as fully written rows; defaults
+do not infer feature equations.
+
+Each schema permits one instance per result Category. Its generated Reading
+variant stores `category: Category` alongside `form` and the shared fields.
+Category is part of structural identity; admission checks the selected
+instance's child Categories and feature equations. Materialization retains
+that Category, while realization, lexical traversal and construction cost use
+the schema once. Ordinary `construction` declarations keep their existing AST
+representation.
+
+Generic fields can also be `optional(node)` or `repeat(node, "separator")`.
+Every generic field needs exactly one binding; grouped bindings name fields
+sharing a Category. Bindings cannot change cardinality or lexical fields.
+Schema surface forms and costs cannot be overridden by instances. Schema
+feature equations are inherited and validated with the instance's equations;
+conflicting requirements or duplicate feature exports remain errors.
+
+`policy Name { ... }` declares reusable feature equations. Multiple `use Name;`
+directives are allowed in schemas, instances and ordinary constructions.
+Policies cannot declare forms, bindings, surface obligations, costs or nested
+policy uses. Reuse supplies equations, never a new AST construction.
+
+The chart still instantiates concrete category-sensitive Productions. Count
+shared AST constructions separately from category instances and chart
+Productions (`Grammar::productions()` through the runtime trait). Generic
+repetition retains the ordinary sequence contract: it does not automatically
+fold member features or enforce Oxford-list cardinality. Such constraints must
+be expressed by category-sensitive grammar rules and summaries.
+
 ## One validated representation
 
 The syntax tree is validated into an IR before any projection is emitted:

@@ -227,14 +227,38 @@ fn ast(ir: &Ir) -> TokenStream {
             FieldType::Optional(_) => quote!(Option<Box<Reading>>),
             FieldType::Repeated(_, _) => quote!(Vec<Reading>),
         });
-        variants.push(quote!(#name { form: usize, #(#field_names: #types),* }));
-        categories.push(quote!(Self::#name { .. } => Category::#category));
+        let category_field = if constructor.shared {
+            quote!(category: Category,)
+        } else {
+            TokenStream::new()
+        };
+        variants.push(quote!(#name { form: usize, #category_field #(#field_names: #types),* }));
+        categories.push(if constructor.shared {
+            quote!(Self::#name { category, .. } => *category)
+        } else {
+            quote!(Self::#name { .. } => Category::#category)
+        });
         constructions.push(quote!(Self::#name { .. } => #owner));
+        let category_bind = if constructor.shared { quote!(category,) } else { TokenStream::new() };
+        let pattern = quote!(Self::#name { #category_bind form, #(#field_names: #bindings),* });
+        let bind = if ir.constructors.len() == 1 {
+            quote!(let #pattern = self;)
+        } else {
+            quote!(let #pattern = self else { return Err(Error::Internal); };)
+        };
         let mut admit_forms = vec![];
         let mut write_forms = vec![];
         let mut visit_forms = vec![];
         let mut word_forms = vec![];
-        for (index, form) in constructor.forms.iter().enumerate() {
+        let mut surface_forms = std::collections::BTreeSet::new();
+        for form in &constructor.forms {
+            let index = form.index;
+            let category_name = &ir.categories[form.category];
+            let admit_key = if constructor.shared {
+                quote!((Category::#category_name, #index))
+            } else {
+                quote!(#index)
+            };
             let mut summaries = vec![];
             let mut write = vec![];
             let mut visit = vec![];
@@ -247,7 +271,7 @@ fn ast(ir: &Ir) -> TokenStream {
                     }
                     Piece::Field(field) => {
                         let binding = &bindings[*field];
-                        let ty = &constructor.fields[*field].1;
+                        let ty = &form.fields[*field].1;
                         let category_name = match ty {
                             FieldType::Lexical(c)
                             | FieldType::One(c)
@@ -287,7 +311,7 @@ fn ast(ir: &Ir) -> TokenStream {
                 }
             }
             let rule = form.rule;
-            admit_forms.push(quote!(#index => {
+            let admission = quote! {
                 let summaries: Vec<Option<Summary>> = vec![#(#summaries),*];
                 let rule = &grammar.rules[#rule];
                 let mut state = State::new(rule.initial.clone());
@@ -295,23 +319,38 @@ fn ast(ir: &Ir) -> TokenStream {
                     state = rule.advance(dot, &state, summary.as_ref()).ok_or(Error::Invalid(#owner, "feature admission"))?;
                 }
                 rule.complete(&state).ok_or(Error::Invalid(#owner, "feature export"))
-            }));
-            write_forms.push(quote!(#index => { #(#write)* Ok(()) }));
-            visit_forms.push(quote!(#index => { #(#visit)* Ok(()) }));
-            word_forms.push(quote!(#index => { #(#word)* Ok(()) }));
+            };
+            if constructor.shared {
+                let method = format_ident!(
+                    "__schema_admit_{}_{}_{}",
+                    constructor_index,
+                    form.category,
+                    index
+                );
+                node_methods.push(quote! {
+                    #[inline(never)]
+                    fn #method(&self, grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon) -> Result<Summary, Error> {
+                        #bind
+                        #admission
+                    }
+                });
+                admit_forms.push(quote!(#admit_key => self.#method(grammar, lexicon)));
+            } else {
+                admit_forms.push(quote!(#admit_key => { #admission }));
+            }
+            if surface_forms.insert(index) {
+                write_forms.push(quote!(#index => { #(#write)* Ok(()) }));
+                visit_forms.push(quote!(#index => { #(#visit)* Ok(()) }));
+                word_forms.push(quote!(#index => { #(#word)* Ok(()) }));
+            }
         }
-        let pattern = quote!(Self::#name { form, #(#field_names: #bindings),* });
-        let bind = if ir.constructors.len() == 1 {
-            quote!(let #pattern = self;)
-        } else {
-            quote!(let #pattern = self else { return Err(Error::Internal); };)
-        };
         let ([admit, write, visit, word], methods) = emit_node_methods(
             constructor_index,
             name,
             &bind,
             &owner,
             [admit_forms, write_forms, visit_forms, word_forms],
+            constructor.shared,
         );
         admits.push(admit);
         writes.push(write);
@@ -402,7 +441,14 @@ fn emit_structural_traits(ir: &Ir) -> TokenStream {
     let mut methods = vec![];
     for (index, constructor) in ir.constructors.iter().enumerate() {
         let name = &constructor.name;
-        let fields: Vec<_> = constructor.fields.iter().map(|(name, _)| name).collect();
+        let mut fields: Vec<_> = constructor
+            .fields
+            .iter()
+            .map(|(name, _)| name.clone())
+            .collect();
+        if constructor.shared {
+            fields.insert(0, format_ident!("category"));
+        }
         let left: Vec<_> = (0..fields.len())
             .map(|i| format_ident!("__left{i}"))
             .collect();
@@ -470,6 +516,7 @@ fn emit_node_methods(
     bind: &TokenStream,
     owner: &str,
     forms: [Vec<TokenStream>; 4],
+    shared: bool,
 ) -> ([TokenStream; 4], Vec<TokenStream>) {
     let operations = [
         (
@@ -506,11 +553,13 @@ fn emit_node_methods(
         dispatch[index] = quote!(Self::#name { .. } => self.#method(#arguments));
         // Keep recursive frames proportional to the selected construction,
         // rather than reserving debug-build temporaries for the entire grammar.
+        let selector =
+            if shared && index == 0 { quote!((*category, *form)) } else { quote!(*form) };
         methods.push(quote! {
             #[inline(never)]
             fn #method(&self, #parameters) -> Result<#result, Error> {
                 #bind
-                match form { #(#forms,)* _ => Err(Error::Invalid(#owner, "surface alternative")) }
+                match #selector { #(#forms,)* _ => Err(Error::Invalid(#owner, "surface alternative")) }
             }
         });
     }
@@ -525,6 +574,8 @@ fn materializer(ir: &Ir) -> TokenStream {
             Build::Construction { constructor, form, slots } => {
                 let constructor = &ir.constructors[*constructor];
                 let name = &constructor.name;
+                let result_category = &ir.categories[rule.category];
+                let category_value = if constructor.shared { quote!(category: Category::#result_category,) } else { TokenStream::new() };
                 let fields: Vec<_> = constructor.fields.iter().map(|(name, _)| name).collect();
                 let values: Vec<_> = (0..fields.len()).map(|i| format_ident!("__field{i}")).collect();
                 let consume = rule.symbols.iter().enumerate().map(|(dot, _)| {
@@ -539,7 +590,7 @@ fn materializer(ir: &Ir) -> TokenStream {
                         quote!(let value = children.next().ok_or(Error::Internal)?; let #binding = #conversion;)
                     } else { quote!(if !matches!(children.next(), Some(Value::Literal)) { return Err(Error::Internal); }) }
                 });
-                quote!(#(#consume)* Ok(Value::Reading(Reading::#name { form: #form, #(#fields: #values),* })))
+                quote!(#(#consume)* Ok(Value::Reading(Reading::#name { #category_value form: #form, #(#fields: #values),* })))
             }
             Build::Absent => quote!(Ok(Value::Optional(None))),
             Build::Present => quote!(Ok(Value::Optional(Some(children.next().ok_or(Error::Internal)?.node()?)))),

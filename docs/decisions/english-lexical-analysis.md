@@ -33,6 +33,22 @@ are reuse candidates. The archived verb-frame/breadth Rust stack is unfinished;
 extract useful declarations and tests individually, rather than transplanting
 it or counting its grammar families as current production.
 
+## Construction economy
+
+Amendment (2026-10-04): the completed grammar covering all supported cards has an
+ultimate ceiling of 250 Constructions and 2,800 well-formatted declaration lines;
+fewer is preferred. These are final breadth ceilings, not budgets to consume at
+the current coverage level. Grammar work should normally fix or refine existing
+Constructions; a new Construction requires a clear grammatical distinction.
+
+Share bidirectional construction schemas across Categories and reuse constraint
+policies where appropriate. Schema instances may specialize selected Categories
+and feature equations without becoming separate named Reading variants. Count
+shared schemas, ordinary Constructions, category instances and compiled
+Productions separately; hiding hundreds of variants behind an authoring macro
+does not satisfy the economy requirement. Keep grammatical distinctions,
+category/feature correlation, authentic witnesses and both roundtrip laws.
+
 ## Lexical analysis
 
 Analyze input independently of construction-directed scanning. Each alternative

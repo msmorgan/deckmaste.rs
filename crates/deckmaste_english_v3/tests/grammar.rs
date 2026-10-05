@@ -407,7 +407,8 @@ fn independently_constructed_auxiliary_ellipsis_roundtrips_without_discourse_con
     auxiliary.frame = Some(1);
     let value = Reading::FiniteClause {
         form: 0,
-        subject: Box::new(Reading::NominativePhrase {
+        subject: Box::new(Reading::CasePhrase {
+            category: Category::NominativePhrase,
             form: 0,
             head: Box::new(Reading::NominativePronoun {
                 form: 0,
@@ -423,7 +424,8 @@ fn independently_constructed_auxiliary_ellipsis_roundtrips_without_discourse_con
                 ),
             }),
         }),
-        predicate: Box::new(Reading::FiniteBareAuxiliary {
+        predicate: Box::new(Reading::BareAuxiliaryPredicate {
+            category: Category::FinitePredicate,
             form: 0,
             head: auxiliary,
             complement: Box::new(Reading::BareEllipsis {
@@ -724,7 +726,8 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
         },
     );
     get.frame = Some(0);
-    let value = Reading::SecondarySlashMeasure {
+    let value = Reading::SlashMeasurePredicate {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: get.clone(),
         measure: Box::new(Reading::SlashPair {
@@ -968,7 +971,11 @@ fn nested_document_admission_uses_a_normal_worker_stack() {
                     form: 0,
                     predicate: Box::new(Reading::BarePredicate {
                         form: 0,
-                        head: Box::new(Reading::SecondaryIntransitive { form: 0, head }),
+                        head: Box::new(Reading::IntransitivePredicate {
+                            category: Category::SecondaryVerbPhrase,
+                            form: 0,
+                            head,
+                        }),
                     }),
                 }),
             }),
@@ -1168,7 +1175,15 @@ fn copular_location_has_a_selected_complement_reading() {
                 .visit(&mut |node| {
                     if matches!(
                         node,
-                        Reading::FiniteLocative { .. } | Reading::SecondaryLocative { .. }
+                        Reading::LocativePredicate {
+                            category: Category::FinitePredicate,
+                            form: 0,
+                            ..
+                        } | Reading::LocativePredicate {
+                            category: Category::SecondaryVerbPhrase,
+                            form: 0,
+                            ..
+                        }
                     ) {
                         selected.push(node.clone());
                     }
@@ -1180,8 +1195,18 @@ fn copular_location_has_a_selected_complement_reading() {
             "missing selected location for {text:?}"
         );
         for mut value in selected {
-            let (Reading::FiniteLocative { head, .. } | Reading::SecondaryLocative { head, .. }) =
-                &mut value
+            let (Reading::LocativePredicate {
+                category: Category::FinitePredicate,
+                form: 0,
+                head,
+                ..
+            }
+            | Reading::LocativePredicate {
+                category: Category::SecondaryVerbPhrase,
+                form: 0,
+                head,
+                ..
+            }) = &mut value
             else {
                 unreachable!()
             };
@@ -1204,7 +1229,14 @@ fn copular_location_has_a_selected_complement_reading() {
     assert!(
         readings("is because you draw cards", Category::FinitePredicate)
             .iter()
-            .all(|r| !matches!(r, Reading::FiniteLocative { .. }))
+            .all(|r| !matches!(
+                r,
+                Reading::LocativePredicate {
+                    category: Category::FinitePredicate,
+                    form: 0,
+                    ..
+                }
+            ))
     );
 }
 
@@ -1308,13 +1340,16 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
         form: 0,
         head: Box::new(head),
     };
-    let phrases = Reading::SerialNounPhrase {
+    let phrases = Reading::SerialCoordination {
+        category: Category::NounPhrase,
         form: 0,
         left: Box::new(bare(cards.clone())),
-        rest: Box::new(Reading::NounPhraseSeriesContinuation {
+        rest: Box::new(Reading::CoordinationSeriesContinuation {
+            category: Category::NounPhraseSeries,
             form: 0,
             left: Box::new(bare(creatures.clone())),
-            rest: Box::new(Reading::NounPhraseSeriesEnd {
+            rest: Box::new(Reading::CoordinationSeriesEnd {
+                category: Category::NounPhraseSeries,
                 form: 0,
                 left: Box::new(bare(artifacts.clone())),
                 coordinator: and.clone(),
@@ -1322,13 +1357,16 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
             }),
         }),
     };
-    let nominal = bare(Reading::SerialNominal {
+    let nominal = bare(Reading::SerialCoordination {
+        category: Category::Nominal,
         form: 0,
         left: Box::new(cards),
-        rest: Box::new(Reading::NominalSeriesContinuation {
+        rest: Box::new(Reading::CoordinationSeriesContinuation {
+            category: Category::NominalSeries,
             form: 0,
             left: Box::new(creatures),
-            rest: Box::new(Reading::NominalSeriesEnd {
+            rest: Box::new(Reading::CoordinationSeriesEnd {
+                category: Category::NominalSeries,
                 form: 0,
                 left: Box::new(artifacts),
                 coordinator: and,

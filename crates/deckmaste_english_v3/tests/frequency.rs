@@ -135,19 +135,27 @@ fn independent_frequency_attachment_preserves_the_intransitive_frame() {
         },
     );
     head.frame = Some(0);
-    let expected = Reading::FiniteFrequency {
+    let expected = Reading::FrequencyPredicate {
+        category: Category::FinitePredicate,
         form: 0,
-        head: Box::new(Reading::FiniteIntransitive { form: 0, head }),
+        head: Box::new(Reading::IntransitivePredicate {
+            category: Category::FinitePredicate,
+            form: 0,
+            head,
+        }),
         modifier: Box::new(frequency(variable(), Number::Plural)),
     };
     assert_eq!(expected.realize(&LEXICON).unwrap(), "explores X times");
     let values = readings("explores X times", Category::FinitePredicate);
     assert!(values.contains(&expected));
-    assert!(
-        values
-            .iter()
-            .any(|value| matches!(value, Reading::FiniteTransitive { .. }))
-    );
+    assert!(values.iter().any(|value| matches!(
+        value,
+        Reading::TransitivePredicate {
+            category: Category::FinitePredicate,
+            form: 0,
+            ..
+        }
+    )));
 }
 
 #[test]
@@ -159,8 +167,8 @@ fn authentic_explore_frequency_and_transitive_frame_are_preserved() {
     assert!(spelunker.iter().any(|reading| {
         let mut found = false;
         reading.visit(&mut |node| {
-            if let Reading::FiniteFrequency { head, .. } = node {
-                if let Reading::FiniteIntransitive { head, .. } = head.as_ref() {
+            if let Reading::FrequencyPredicate { category: Category::FinitePredicate, form: 0,head, .. } = node {
+                if let Reading::IntransitivePredicate { category: Category::FinitePredicate, form: 0,head, .. } = head.as_ref() {
                     found |= matches!(&head.value, LexicalReading::Word(value) if value.lexeme == "lexeme:keyword_action/explore") && head.frame == Some(0);
                 }
             }
@@ -171,11 +179,11 @@ fn authentic_explore_frequency_and_transitive_frame_are_preserved() {
     // card" establish the transitive use. Their compound nominals are an
     // existing grammar gap; this reduced diagnostic isolates that frame.
     let values = readings("explores a card", Category::FinitePredicate);
-    assert!(values.iter().any(|value| matches!(value, Reading::FiniteTransitive { head, .. }
+    assert!(values.iter().any(|value| matches!(value, Reading::TransitivePredicate { category: Category::FinitePredicate, form: 0,head, .. }
         if head.frame == Some(1) && matches!(&head.value, LexicalReading::Word(value) if value.lexeme == "lexeme:keyword_action/explore"))));
     let values = readings("draws cards two times", Category::FinitePredicate);
     assert!(values.iter().any(
-        |value| matches!(value, Reading::FiniteFrequency { head, .. }
-        if matches!(head.as_ref(), Reading::FiniteTransitive { .. }))
+        |value| matches!(value, Reading::FrequencyPredicate { category: Category::FinitePredicate, form: 0,head, .. }
+        if matches!(head.as_ref(), Reading::TransitivePredicate { category: Category::FinitePredicate, form: 0,.. }))
     ));
 }

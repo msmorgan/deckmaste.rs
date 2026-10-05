@@ -85,7 +85,8 @@ fn independently_constructed_amount_and_imperative_roundtrip() {
         BTreeSet::from([amount.clone()])
     );
     let head = scry(SurfaceCase::Initial);
-    let predicate = Reading::SecondaryAmount {
+    let predicate = Reading::AmountPredicate {
+        category: Category::SecondaryVerbPhrase,
         form: 0,
         head: head.clone(),
         amount: Box::new(amount.clone()),
@@ -138,7 +139,8 @@ fn independently_constructed_amount_and_imperative_roundtrip() {
         finiteness: Some(Finiteness::Finite),
         ..FeatureBundle::default()
     };
-    let finite = Reading::FiniteAmount {
+    let finite = Reading::AmountPredicate {
+        category: Category::FinitePredicate,
         form: 0,
         head: finite,
         amount: Box::new(amount.clone()),
@@ -152,7 +154,8 @@ fn independently_constructed_amount_and_imperative_roundtrip() {
     let mut wrong_frame = head;
     wrong_frame.frame = Some(0);
     assert!(
-        Reading::SecondaryAmount {
+        Reading::AmountPredicate {
+            category: Category::SecondaryVerbPhrase,
             form: 0,
             head: wrong_frame,
             amount: Box::new(amount)
