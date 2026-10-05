@@ -13,10 +13,7 @@ SingleFaced(face: (
                 timing: None,
                 instruction: sequentially([
                     act(described( determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer, ), draw(1)),
-                    changeLife(
-                        delta: down(1),
-                        agent: they,
-                    ),
+                    act(they, loseLife(1)),
                 ]),
             ),
         ],
