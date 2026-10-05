@@ -114,3 +114,39 @@ every affected migrated function; `slice.rs` is byte-identical to the claim
 tree. One new support-module attribute lacked an explicit reason; that was
 fixed. Strict Clippy passes for all new support code and its tests with
 `cargo clippy -p deckmaste_english_v3 --test reading_support --no-deps -- -D warnings`.
+
+### Addendum (2026-10-05): occurrence matching and three attachments
+
+Follow-up change `lnrvzkvl`. Constituent assertions now match actual parser-leaf
+source positions. Unqualified repeated surfaces panic;
+`assert_constituent_occurrences` selects zero-based occurrences. Three Gravedigger
+tests cover both occurrences of `creature`, ambiguity rejection, and rejection
+of an occurrence with the wrong Category.
+
+The user's three-Reading ruling (2026-10-05) licenses Seedborn Muse's temporal
+PP at `Untap …`, at `control` inside the Object Relative Clause, and at the
+Nominal `permanents you control` (CGEL Ch. 5 §14.2, p. 446; §15, p. 454).
+The active test distinguishes the first and third; nominal attachment requires
+the full Nominal and exactly `you control` as the relative clause. Incompatible
+Noun Phrase spans still reject combining different Readings. The missing second
+attachment is owned by
+[english-v3-relative-clause-adjuncts](../planned/english-v3-relative-clause-adjuncts.md);
+its separate test is ignored with `blocked on english-v3-relative-clause-adjuncts`
+and will merge back when that ticket lands. The Preference ticket records the
+nominal attachment as last-ranked while retaining its Admission.
+
+Counts: restored 0, re-spelled 0, added 4 (three occurrence tests and one blocked
+attachment test), newly ignored 1 with the blocker above, removed 0. All 6
+original helper test subjects remain, with the Seedborn test corrected and
+tightened. The helper suite has 9 passing tests and 1 ignored; the English
+integration suite has 175 tests (174 passing, 1 ignored). Grammar, lexicon,
+compiler, coverage lock and other existing test files are unchanged; no admitted
+Reading identities change.
+
+`cargo xtask gate --changed --run --clippy` passed in full before and after
+refresh. The refreshed derived test command was
+`cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`;
+the same package scope passed strict Clippy with `--all-targets -- -D warnings`.
+The gate also retains its one pre-existing ignored xtask test. Nightly rustfmt
+and `kata kanban check` pass. Citation checks report 0 non-compliant strings
+and 0 stale citations; the piped diff audit has no CR citation sites to audit.

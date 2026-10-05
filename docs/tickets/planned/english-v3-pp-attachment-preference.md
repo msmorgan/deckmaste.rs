@@ -90,3 +90,9 @@ This ticket retains attachment heuristic scoring and non-destructive Preference.
 [english-v3-packed-preferred-readings](english-v3-packed-preferred-readings.md)
 owns the efficient packed-forest access path; coordinate the score/tie interface
 without treating runtime improvements or preference as grammatical pruning.
+
+Add **Seedborn Muse**, "Untap all permanents you control during each other
+player's untap step.", as a Preference witness. Of its three grammatical
+attachments (to `Untap …`, to `control` inside the relative clause, and to the
+Nominal `permanents you control`), the nominal attachment should rank last.
+It remains admitted under the user's three-Reading ruling (2026-10-05).
