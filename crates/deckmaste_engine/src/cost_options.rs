@@ -203,7 +203,7 @@ mod tests {
         )
         .expect("white half is legal");
         assert_eq!(mana, parse_cost("{W}"));
-        assert!(verbs.is_empty());
+        assert_eq!(verbs, [] as [deckmaste_core::CostComponent; 0]);
 
         // Pick the generic half -> {2}.
         let (mana, verbs) = concretize(
@@ -214,7 +214,7 @@ mod tests {
         )
         .expect("generic half is legal");
         assert_eq!(mana, parse_cost("{2}"));
-        assert!(verbs.is_empty());
+        assert_eq!(verbs, [] as [deckmaste_core::CostComponent; 0]);
     }
 
     /// Two-color hybrid `{W/U}`: picking the blue half -> {U}.
@@ -228,7 +228,7 @@ mod tests {
         )
         .expect("blue half is legal");
         assert_eq!(mana, parse_cost("{U}"));
-        assert!(verbs.is_empty());
+        assert_eq!(verbs, [] as [deckmaste_core::CostComponent; 0]);
     }
 
     /// `{W/P}` is choosable as `[Mana(W), Life]`; Life -> empty mana + lose-2;
@@ -271,7 +271,7 @@ mod tests {
         )
         .expect("color is legal");
         assert_eq!(mana, parse_cost("{W}"));
-        assert!(verbs.is_empty());
+        assert_eq!(verbs, [] as [deckmaste_core::CostComponent; 0]);
     }
 
     /// Hybrid-Phyrexian `{W/U/P}` offers either color or life.
@@ -317,7 +317,7 @@ mod tests {
         let (mana, verbs) =
             concretize(&cost, &CostOptionChoices { picks: vec![] }).expect("no picks needed");
         assert_eq!(mana, cost);
-        assert!(verbs.is_empty());
+        assert_eq!(verbs, [] as [deckmaste_core::CostComponent; 0]);
     }
 
     /// An illegal reading (a color the symbol doesn't offer) is rejected.
@@ -392,7 +392,7 @@ mod tests {
         )
         .expect("U + {2} are legal picks");
         assert_eq!(mana, parse_cost("{U}{2}"));
-        assert!(verbs.is_empty());
+        assert_eq!(verbs, [] as [deckmaste_core::CostComponent; 0]);
 
         // Swap: pick W for {W/U} and R for {2/R}: concrete cost is {W}{R}.
         // This differs from the above, confirming each pick maps to its own
@@ -405,7 +405,7 @@ mod tests {
         )
         .expect("W + R are legal picks");
         assert_eq!(mana, parse_cost("{W}{R}"));
-        assert!(verbs.is_empty());
+        assert_eq!(verbs, [] as [deckmaste_core::CostComponent; 0]);
     }
 
     /// `{W/P}{U/P}`: picking `Life` for the first Phyrexian and a color for

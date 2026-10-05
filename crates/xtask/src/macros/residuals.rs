@@ -1651,7 +1651,7 @@ mod tests {
             lexicon.macros(),
         )
         .expect("the draft's own frame text must compile at its own declared kind");
-        assert!(compiled.holes.is_empty());
+        assert_eq!(compiled.holes, [] as [deckmaste_spelling::Hole; 0]);
     }
 
     /// A self-reference hole needs no lookup into the card's own tree at
@@ -1730,7 +1730,7 @@ mod tests {
             "X",
         );
         assert_eq!(text, "Sacrifice a creature.");
-        assert!(params.is_empty());
+        assert_eq!(params, [] as [std::string::String; 0]);
     }
 
     /// A hole whose covering entry has no legal `params:` type — the entry
@@ -1758,7 +1758,7 @@ mod tests {
             "X",
         );
         assert_eq!(text, "Sacrifice any target.");
-        assert!(params.is_empty());
+        assert_eq!(params, [] as [std::string::String; 0]);
     }
 
     /// A card's own self-reference is baked into legacy-rendered text as its

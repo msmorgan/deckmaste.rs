@@ -84,12 +84,30 @@ fn numeral_number_is_correlated_with_cardinal_magnitude_and_inapplicable_to_ordi
         assert_eq!(!readings(text, Category::Singular).is_empty(), singular);
         assert_eq!(!readings(text, Category::Plural).is_empty(), !singular);
     }
-    assert!(!readings("second", Category::Ordinal).is_empty());
-    assert!(readings("second", Category::Cardinal).is_empty());
-    assert!(readings("first", Category::NumberedOrdinal).is_empty());
-    assert!(readings("second", Category::NumberedOrdinal).is_empty());
-    assert!(readings("I", Category::NumberedRoman).is_empty());
-    assert!(readings("II", Category::NumberedRoman).is_empty());
+    assert_ne!(
+        readings("second", Category::Ordinal),
+        [] as [grammar::Reading; 0]
+    );
+    assert_eq!(
+        readings("second", Category::Cardinal),
+        [] as [grammar::Reading; 0]
+    );
+    assert_eq!(
+        readings("first", Category::NumberedOrdinal),
+        [] as [grammar::Reading; 0]
+    );
+    assert_eq!(
+        readings("second", Category::NumberedOrdinal),
+        [] as [grammar::Reading; 0]
+    );
+    assert_eq!(
+        readings("I", Category::NumberedRoman),
+        [] as [grammar::Reading; 0]
+    );
+    assert_eq!(
+        readings("II", Category::NumberedRoman),
+        [] as [grammar::Reading; 0]
+    );
 }
 
 #[test]
@@ -109,8 +127,14 @@ fn numeral_style_constraints_preserve_visible_grouping_and_normalize_small_digit
             }
         ));
     }
-    assert!(readings("2", Category::Grouped).is_empty());
-    assert!(readings("-999", Category::Grouped).is_empty());
+    assert_eq!(
+        readings("2", Category::Grouped),
+        [] as [grammar::Reading; 0]
+    );
+    assert_eq!(
+        readings("-999", Category::Grouped),
+        [] as [grammar::Reading; 0]
+    );
     for (text, value) in [("2", 2), ("-999", -999), ("1000", 1000)] {
         assert_eq!(
             readings(text, Category::Ungrouped),
@@ -128,9 +152,18 @@ fn numeral_style_constraints_preserve_visible_grouping_and_normalize_small_digit
             }]
         );
     }
-    assert!(readings("1000", Category::Grouped).is_empty());
-    assert!(readings("999", Category::Large).is_empty());
-    assert!(!readings("1,000", Category::Large).is_empty());
+    assert_eq!(
+        readings("1000", Category::Grouped),
+        [] as [grammar::Reading; 0]
+    );
+    assert_eq!(
+        readings("999", Category::Large),
+        [] as [grammar::Reading; 0]
+    );
+    assert_ne!(
+        readings("1,000", Category::Large),
+        [] as [grammar::Reading; 0]
+    );
 }
 
 #[test]
@@ -139,7 +172,10 @@ fn numeral_sign_constrains_parsing_and_independent_construction() {
         assert_eq!(readings(text, grammar::Category::Nonnegative).len(), 1);
     }
     for text in ["-1", "-999", "-2147483648"] {
-        assert!(readings(text, grammar::Category::Nonnegative).is_empty());
+        assert_eq!(
+            readings(text, grammar::Category::Nonnegative),
+            [] as [grammar::Reading; 0]
+        );
     }
     let mut values = readings("1", grammar::Category::Nonnegative);
     let grammar::Reading::Nonnegative { word, .. } = &mut values[0] else {

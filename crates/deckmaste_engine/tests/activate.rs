@@ -574,7 +574,7 @@ fn artifact_pays_mana_ignores_sickness() {
         hand_before + 1,
         "the resolution drew a card"
     );
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 }
 
 #[test]
@@ -1189,7 +1189,7 @@ fn pinger_fizzles_when_target_dies() {
         2,
         "P1's graveyard holds the reminted bear and P1's spent instant"
     );
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
     assert!(
         state.objects.obj(pinger).tapped,
         "the tap cost stays paid on a fizzle"
@@ -1745,7 +1745,7 @@ fn mana_ability_stays_stackless() {
     else {
         panic!("expected to return straight to priority, got {stop:?}");
     };
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
     assert_eq!(
         state.player(PlayerId(0)).mana_pool.amount(red()),
         1,

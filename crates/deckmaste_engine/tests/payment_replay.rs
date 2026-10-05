@@ -1157,7 +1157,10 @@ fn unreplayable_dependency_rejects_without_repair_or_mutation() {
         FulfillmentWitness::Objects(vec![graveyard_resource]),
     );
     fulfill(&mut state, second_move, FulfillmentWitness::Bound);
-    assert!(state.zones.graveyards[payer.index()].is_empty());
+    assert_eq!(
+        state.zones.graveyards[payer.index()],
+        [] as [deckmaste_engine::ObjectId; 0]
+    );
     assert_eq!(state.zones.exile.len(), 1);
 
     let before_exile = state.zones.exile.clone();
@@ -3111,7 +3114,7 @@ fn submitted_mana_child_stays_isolated_until_its_effect_and_record_finish() {
         2,
         "the submitted child remains the active isolated image until stackless resolution ends"
     );
-    assert!(state.payment_records().unwrap().is_empty());
+    assert_eq!(state.payment_records().unwrap(), []);
 
     run_to_payment(&mut state);
     assert_eq!(state.payment_depth(), 1);

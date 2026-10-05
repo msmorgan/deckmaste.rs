@@ -133,7 +133,10 @@ fn builtin_cards_are_valid() {
         eprintln!("{}: lint: {msg}", path.display());
     }
     assert!(validation.failures.is_empty());
-    assert!(validation.lint_failures.is_empty());
+    assert_eq!(
+        validation.lint_failures,
+        [] as [(std::path::PathBuf, std::string::String); 0]
+    );
     // The handwritten builtin cards: 5 basics + 3 tokens at the time of
     // writing. Floor, not exact, so adding cards or tokens doesn't break
     // the test.

@@ -520,7 +520,7 @@ mod tests {
             "Destroy another target creature.",
             "Destroy another target creature you control.",
         );
-        assert!(clean.missing_adjuncts.is_empty());
+        assert_eq!(clean.missing_adjuncts, [] as [&str; 0]);
     }
 
     /// The gate verdicts: unwaivered diffs fail, waived diffs pass, stale

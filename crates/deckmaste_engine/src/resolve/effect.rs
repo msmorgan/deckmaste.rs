@@ -3356,7 +3356,7 @@ mod tests {
             matches!(&ce.scope, crate::layer::ScopeResolved::Locked(ids) if ids.is_empty()),
             "self-filtered → empty lock"
         );
-        assert!(ce.changes.is_empty());
+        assert_eq!(ce.changes, [] as [deckmaste_core::Modification; 0]);
         assert!(matches!(&ce.rows[..], [StaticSpec::CostModifier { .. }]));
     }
 
@@ -3385,7 +3385,7 @@ mod tests {
         });
         state.run_effect(effect, &frame);
         let ce = &state.continuous[0];
-        assert!(ce.changes.is_empty());
+        assert_eq!(ce.changes, [] as [deckmaste_core::Modification; 0]);
         assert!(matches!(&ce.rows[..], [StaticSpec::CantHappen(_)]));
     }
 
@@ -6322,7 +6322,7 @@ mod tests {
         else {
             panic!("expected ChooseObjects, got {:?}", state.pending);
         };
-        assert!(candidates.is_empty());
+        assert_eq!(candidates, [] as [crate::object::ObjectId; 0]);
         assert_eq!((min, max), (0, 0), "an empty zone can't force a find");
 
         state

@@ -3229,7 +3229,7 @@ fn param_type_parses_a_binder_contract() {
     assert!(types[0].default.is_none());
     // A plain param carries an empty contract by default.
     assert_eq!(types[1].name, "Count");
-    assert!(types[1].binds.is_empty());
+    assert_eq!(types[1].binds, [] as [dpsi::Ident; 0]);
 
     // A contract with several granted anaphora, and a defaulted param that
     // still carries one.
@@ -3402,7 +3402,7 @@ fn a_bare_meta_owned_param_resolves_eagerly() {
 fn registered_kinds_carry_their_signatures() {
     let kinds = kinds();
     let filter = kinds.get("Filter").expect("registered fixture kind");
-    assert!(!filter.signatures().is_empty());
+    assert_ne!(filter.signatures(), []);
 }
 
 mod support_runtime {

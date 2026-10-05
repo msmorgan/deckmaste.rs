@@ -1307,7 +1307,10 @@ fn declining_optional_payment_keeps_its_mana_child_separately_reversible() {
         panic!("the nested action belongs to one enclosing transaction: {records:?}");
     };
     let outer_record_id = outer_record.id;
-    assert!(!outer_record.reversal_barriers.is_empty());
+    assert_ne!(
+        outer_record.reversal_barriers,
+        [] as [deckmaste_engine::ReversalBarrier; 0]
+    );
     let nested_action = outer_record
         .children
         .iter()
@@ -1496,7 +1499,7 @@ fn standalone_mana_activation_uses_root_payment_and_resolves_stacklessly() {
             .amount(deckmaste_core::ColorOrColorless::Color(Color::Green)),
         1
     );
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 }
 
 #[test]
@@ -1656,7 +1659,7 @@ fn mixed_modal_mana_profile_rechecks_blanket_lockout_after_modes() {
     }
 
     assert!(state.objects.obj(source).tapped);
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
     assert!(state.zones.battlefield.contains(&lockout));
     assert_eq!(
         state
@@ -1772,7 +1775,7 @@ fn modal_mana_profile_routes_a_qualifying_mode_stacklessly() {
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
     }
 
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
     assert_eq!(
         state
             .player(payer)
@@ -1848,7 +1851,10 @@ fn tapped_for_mana_trigger_resolves_before_parent_payment_resumes() {
         2,
         "the triggered mana ability must finish before parent control resumes"
     );
-    assert!(state.pending_triggers.is_empty());
+    assert_eq!(
+        state.pending_triggers,
+        [] as [deckmaste_engine::NotedTrigger; 0]
+    );
 }
 
 #[test]
@@ -1942,7 +1948,7 @@ fn triggered_mana_resolution_cast_owns_a_nested_announcement_frame() {
     assert_eq!(resumed.stage, PaymentStage::PrePayment);
     assert_eq!(state.payment_depth(), 1);
     assert!(state.zones.hands[payer.index()].contains(&spell));
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
     assert_eq!(state.player(payer).life, 25);
     assert_eq!(
         state
@@ -2381,7 +2387,10 @@ fn bare_nonmana_ability_mana_added_trigger_resolves_immediately() {
         1,
         "a triggered mana ability caused by a bare ManaAdded fact resolves before priority"
     );
-    assert!(state.pending_triggers.is_empty());
+    assert_eq!(
+        state.pending_triggers,
+        [] as [deckmaste_engine::NotedTrigger; 0]
+    );
 }
 
 // ---- cost-block and pinned-magnitude mana cases ----

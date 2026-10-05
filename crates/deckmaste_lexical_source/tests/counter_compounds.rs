@@ -56,7 +56,10 @@ fn counter_class_exports_owned_complete_noun_paradigms() {
                 .starts_with("plugins_v2/builtin/macros/counter_kinds/")
         );
         assert_ne!(compound.surface_structure, SurfaceStructure::Opaque);
-        assert!(compound.properties.frames.is_empty());
+        assert_eq!(
+            compound.properties.frames,
+            [] as [deckmaste_lexical::Frame; 0]
+        );
         assert_eq!(compound.properties.features["SlashPremodifierUse"], "No");
         assert!(!compound.properties.features.contains_key("NounPremodifier"));
     }
@@ -169,7 +172,7 @@ fn native_counter_notation_inventory_has_exact_independent_singular_and_plural_v
         .lexemes()
         .keys()
         .filter(|owner| owner.starts_with("lexeme:counter_kind_numeric/"))
-        .map(|owner| owner.to_string())
+        .map(std::string::ToString::to_string)
         .collect();
     assert_eq!(
         actual_owners,

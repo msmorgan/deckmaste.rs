@@ -1840,7 +1840,7 @@ mod tests {
         let recovered = unify(&target, &fixture().lexicon, FramePosition::Main);
         let (entry, args) = invocation(&recovered);
         assert_eq!(entry, "Flying");
-        assert!(args.is_empty());
+        assert_eq!(args, []);
     }
 
     // -- the guard primitive ------------------------------------------------

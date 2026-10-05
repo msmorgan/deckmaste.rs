@@ -612,10 +612,9 @@ mod tests {
                 .eval_reference(&Reference::Reg(deckmaste_core::RefId(6)), &frame)
                 .is_null()
         );
-        assert!(
-            state
-                .eval_reference_set(&Reference::Reg(deckmaste_core::RefId(6)), &frame)
-                .is_empty()
+        assert_eq!(
+            state.eval_reference_set(&Reference::Reg(deckmaste_core::RefId(6)), &frame),
+            [] as [crate::object::ObjectId; 0]
         );
     }
 
@@ -1180,13 +1179,12 @@ mod tests {
                 .eval_reference(&Reference::Reg(deckmaste_core::RefId(6)), &frame)
                 .is_null()
         );
-        assert!(
-            state
-                .eval_selection_set(
-                    &deckmaste_core::Selection::Reg(deckmaste_core::RefId(6)),
-                    &frame
-                )
-                .is_empty()
+        assert_eq!(
+            state.eval_selection_set(
+                &deckmaste_core::Selection::Reg(deckmaste_core::RefId(6)),
+                &frame
+            ),
+            [] as [crate::object::ObjectId; 0]
         );
         // A register far past any declared parameter — the shape a stale
         // instruction product would take.
@@ -1195,13 +1193,12 @@ mod tests {
                 .eval_reference(&Reference::Reg(deckmaste_core::RefId(20)), &frame)
                 .is_null()
         );
-        assert!(
-            state
-                .eval_selection_set(
-                    &deckmaste_core::Selection::Reg(deckmaste_core::RefId(20)),
-                    &frame
-                )
-                .is_empty()
+        assert_eq!(
+            state.eval_selection_set(
+                &deckmaste_core::Selection::Reg(deckmaste_core::RefId(20)),
+                &frame
+            ),
+            [] as [crate::object::ObjectId; 0]
         );
         // Event roles read outside any trigger — were `.expect()` panics.
         for role in [2_u32, 4, 5] {

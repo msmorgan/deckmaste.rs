@@ -4339,7 +4339,10 @@ mod tests {
             let _ = state.step();
         }
         assert!(state.objects.get(card).is_none(), "old graveyard id gone");
-        assert!(state.zones.graveyards[0].is_empty());
+        assert_eq!(
+            state.zones.graveyards[0],
+            [] as [crate::object::ObjectId; 0]
+        );
         assert_eq!(state.zones.exile.len(), 2);
     }
 
@@ -4393,7 +4396,10 @@ mod tests {
             let _ = state.step();
         }
         assert!(state.objects.get(card).is_none(), "old graveyard id gone");
-        assert!(state.zones.graveyards[0].is_empty());
+        assert_eq!(
+            state.zones.graveyards[0],
+            [] as [crate::object::ObjectId; 0]
+        );
         assert_eq!(state.zones.hands[0].len(), gy_hand_before + 1);
     }
 

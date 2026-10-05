@@ -401,8 +401,8 @@ fn bounded_surface_offsets(text: &str, surface: &str) -> Vec<usize> {
         .filter_map(|(offset, _)| {
             let before = text[..offset].chars().next_back();
             let after = text[offset + surface.len()..].chars().next();
-            (!(before.is_some_and(&continues)
-                || after.is_some_and(&continues)
+            (!(before.is_some_and(continues)
+                || after.is_some_and(continues)
                 || is_digit_surface
                     && is_within_grouped_arabic_numeral(text, offset, surface.len())))
             .then_some(offset)
@@ -2172,7 +2172,7 @@ mod tests {
         let dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins/builtin/frames");
         let catalog = macro_ron::frames::load_constructor_frames(&dir).unwrap();
-        assert!(!catalog.is_empty());
+        assert_ne!(catalog, [] as [macro_ron::frames::ConstructorFrames; 0]);
         let macros = reader();
         for entry in &catalog {
             for spec in &entry.frames {

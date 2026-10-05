@@ -488,13 +488,22 @@ mod tests {
             extract_bracket_rules("[CR#100.1] then [CR#200.2]"),
             vec!["100.1", "200.2"]
         );
-        assert!(extract_bracket_rules("no citations here").is_empty());
+        assert_eq!(
+            extract_bracket_rules("no citations here"),
+            [] as [std::string::String; 0]
+        );
     }
 
     #[test]
     fn brackets_ellipsis_placeholder_is_ignored() {
-        assert!(extract_bracket_rules("cite as [CR#...] in prose").is_empty());
-        assert!(extract_bracket_rules("cite as [CR#…] in prose").is_empty());
+        assert_eq!(
+            extract_bracket_rules("cite as [CR#...] in prose"),
+            [] as [std::string::String; 0]
+        );
+        assert_eq!(
+            extract_bracket_rules("cite as [CR#…] in prose"),
+            [] as [std::string::String; 0]
+        );
         // Narrow on purpose: typo shapes still yield their (bogus) token.
         assert_eq!(extract_bracket_rules("[CR#rule]"), vec!["rule"]);
         assert_eq!(
@@ -510,7 +519,10 @@ mod tests {
             vec!["704.5f", "704.7"]
         );
         assert_eq!(extract_attr_rules(r#"#[cr( "305.2" )]"#), vec!["305.2"]);
-        assert!(extract_attr_rules("#[test]").is_empty());
+        assert_eq!(
+            extract_attr_rules("#[test]"),
+            [] as [std::string::String; 0]
+        );
     }
 
     #[test]
@@ -598,7 +610,7 @@ mod tests {
             tested: vec!["100.1".into(), "400.4".into()],
             strong: vec!["100.1".into(), "200.2".into(), "400.4".into()],
         };
-        assert!(check_ratchet(&cur, &base).is_empty());
+        assert_eq!(check_ratchet(&cur, &base), [] as [std::string::String; 0]);
     }
 
     #[test]

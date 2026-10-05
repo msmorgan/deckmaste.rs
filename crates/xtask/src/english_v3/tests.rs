@@ -417,7 +417,7 @@ fn unknown_word_offsets_and_roundtrips_use_the_stripped_source() {
         &face.analyzed_source[unknown[0].start..unknown[0].end],
         "éphantom"
     );
-    assert!(face.issues.is_empty());
+    assert_eq!(face.issues, [] as [crate::english_v3::validation::Issue; 0]);
 }
 
 #[test]

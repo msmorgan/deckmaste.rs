@@ -42,7 +42,10 @@ fn canon_cards_are_valid() {
         eprintln!("{}: lint: {msg}", path.display());
     }
     assert!(validation.failures.is_empty());
-    assert!(validation.lint_failures.is_empty());
+    assert_eq!(
+        validation.lint_failures,
+        [] as [(std::path::PathBuf, std::string::String); 0]
+    );
     // The canon slice: 25 cards at the time of writing, growing per
     // docs/card-data.md.
     assert!(

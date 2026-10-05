@@ -311,7 +311,7 @@ fn renders_a_synthesized_token() {
     assert_eq!(r.mana_cost, "");
     assert_eq!(r.type_line, "Creature — Goblin");
     assert_eq!(r.pt, Some("1/1".to_string()));
-    assert!(r.rules.is_empty());
+    assert_eq!(r.rules, [] as [std::string::String; 0]);
 }
 
 /// A derived live object: base stats replaced by layer-applied values, a

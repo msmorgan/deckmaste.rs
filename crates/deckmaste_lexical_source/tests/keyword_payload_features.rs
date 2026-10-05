@@ -141,7 +141,7 @@ fn keyword_suffixes_keep_their_binding_and_supplement_identity() {
         .iter()
         .filter(|entry| entry.id.ends_with("/bound-suffix"))
         .collect();
-    assert!(!suffixes.is_empty());
+    assert_ne!(suffixes, [] as [&deckmaste_lexical::Lexeme; 0]);
     for suffix in suffixes {
         assert_eq!(suffix.binding, deckmaste_lexical::Binding::Suffix);
         assert_eq!(suffix.category, Category::Keyword);

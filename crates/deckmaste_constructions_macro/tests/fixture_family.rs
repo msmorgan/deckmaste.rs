@@ -1120,7 +1120,7 @@ fn assert_element_declaration_data(data: &deckmaste_construction_compiler::runti
     );
     assert_eq!(data.element_data[2].name, "bound_variant");
     assert_eq!(data.element_data[2].bind_path, Some("BoundVariant"));
-    assert!(data.element_data[2].fields.is_empty());
+    assert_eq!(data.element_data[2].fields, []);
     assert_eq!(
         data.element_data[2]
             .variants
@@ -1146,8 +1146,8 @@ fn assert_element_declaration_data(data: &deckmaste_construction_compiler::runti
     );
     assert_eq!(data.element_data[3].name, "empty_payload");
     assert_eq!(data.element_data[3].bind_path, Some("BoundPayload"));
-    assert!(data.element_data[3].fields.is_empty());
-    assert!(data.element_data[3].variants.is_empty());
+    assert_eq!(data.element_data[3].fields, []);
+    assert_eq!(data.element_data[3].variants, []);
 }
 
 fn assert_construction_declaration_data(
@@ -1790,7 +1790,7 @@ fn bind_construction_uses_handwritten_bound_element_type() {
 fn empty_bound_element_sequence_is_checked_at_runtime() {
     let value = build_empty_bound_sequence(Vec::new()).expect("the proved-empty sequence builds");
     let payloads = parts_empty_bound_sequence(&value);
-    assert!(payloads.is_empty());
+    assert_eq!(payloads.as_slice(), []);
     let violation = build_empty_bound_sequence(vec![BoundPayload::Present])
         .expect_err("a non-empty opaque sequence violates its direct requirement");
     assert_eq!(violation.requirement, "payloads.len() == 0");

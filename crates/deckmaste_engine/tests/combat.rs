@@ -487,7 +487,7 @@ fn declare_attackers_with_no_legal_attacker_accepts_empty() {
             .is_err_and(|err| err.to_string().contains("legal"))
     );
     state.submit_decision(Decision::Attackers(vec![])).unwrap();
-    assert!(state.combat.attackers().is_empty());
+    assert_eq!(state.combat.attackers(), []);
 }
 
 /// Drives to the Declare Attackers decision, declares exactly `attackers`, and

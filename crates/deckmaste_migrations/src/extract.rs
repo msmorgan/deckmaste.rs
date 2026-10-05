@@ -491,7 +491,7 @@ mod tests {
         else {
             panic!("expected Normal");
         };
-        assert!(face.abilities.is_empty());
+        assert_eq!(face.abilities, [] as [TodoAbility; 0]);
         // The rendered card omits the abilities field entirely.
         let rendered = render(&TodoCard::Normal(face)).unwrap();
         assert!(!rendered.contains("abilities"));

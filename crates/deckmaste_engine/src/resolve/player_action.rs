@@ -1569,7 +1569,7 @@ mod tests {
             }
             let _ = state.step();
         }
-        assert!(state.zones.hands[0].is_empty());
+        assert_eq!(state.zones.hands[0], [] as [crate::object::ObjectId; 0]);
         assert_eq!(state.zones.graveyards[0].len(), hand_before);
     }
 

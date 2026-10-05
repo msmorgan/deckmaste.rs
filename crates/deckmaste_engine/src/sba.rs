@@ -2087,7 +2087,13 @@ mod tests {
         legendary_creature(&mut state, "Bob", PlayerId(1)); // different controller
         nonlegendary_creature(&mut state, "Mox", PlayerId(0));
         nonlegendary_creature(&mut state, "Mox", PlayerId(0)); // not legendary
-        assert!(sba::legend_rule_groups(&state).is_empty());
+        assert_eq!(
+            sba::legend_rule_groups(&state),
+            [] as [(
+                crate::player::PlayerId,
+                std::vec::Vec<crate::object::ObjectId>
+            ); 0]
+        );
     }
 
     /// Build a `This`-anchored frame for `id`, mirroring the literal used in

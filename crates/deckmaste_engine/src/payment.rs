@@ -2647,12 +2647,12 @@ mod tests {
 
         collect_mana_reversal_candidates(std::slice::from_ref(&record), &mut candidates);
 
-        assert!(candidates.is_empty());
+        assert_eq!(candidates, [] as [crate::player::ManaActionId; 0]);
 
         let mut disclosure = record;
         disclosure.observation_barriers = vec![ObservationBarrier::HiddenZoneDisclosure];
         collect_mana_reversal_candidates(&[disclosure], &mut candidates);
-        assert!(candidates.is_empty());
+        assert_eq!(candidates, [] as [crate::player::ManaActionId; 0]);
     }
 
     #[test]
@@ -2788,7 +2788,7 @@ mod tests {
             },
         )
         .unwrap();
-        assert!(verbs.is_empty());
+        assert_eq!(verbs, [] as [deckmaste_core::CostComponent; 0]);
         let locked = lock_components("", vec![CostComponent::Mana(mana)]);
 
         assert!(matches!(
@@ -2892,7 +2892,7 @@ mod tests {
 
         assert_eq!(state.payment_depth(), 0);
         assert!(state.player(payer).mana_pool.get(green).is_some());
-        assert!(state.incidents().is_empty());
+        assert_eq!(state.incidents(), []);
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
         assert_eq!(state.player(payer).life, before_life + 1);
@@ -2942,7 +2942,7 @@ mod tests {
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
         assert!(matches!(state.step(), StepOutcome::Progress(_)));
         assert_eq!(state.player(payer).life, before_life + 8);
-        assert!(state.incidents().is_empty());
+        assert_eq!(state.incidents(), []);
     }
 
     #[test]
@@ -3112,7 +3112,7 @@ mod tests {
         assert_eq!(state.payment_depth(), 0);
         assert!(state.zones.battlefield.contains(&subject));
         assert_eq!(state.player(payer).life, life_before + 1);
-        assert!(state.incidents().is_empty());
+        assert_eq!(state.incidents(), []);
     }
 
     #[test]

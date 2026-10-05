@@ -882,7 +882,7 @@ fn plural_library_search_cost_is_deferred_and_requires_the_complete_set() {
         },
     );
     assert_eq!(state.zones.libraries[payer.index()].len(), 2);
-    assert!(state.zones.exile.is_empty());
+    assert_eq!(state.zones.exile, [] as [deckmaste_engine::ObjectId; 0]);
     assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
 }
 
@@ -1382,7 +1382,10 @@ fn declining_an_omitted_random_cost_preserves_consumed_entropy() {
 
     assert_eq!(state.payment_depth(), 0);
     assert_eq!(state.zones.hands[payer.index()].len(), 4);
-    assert!(state.zones.graveyards[payer.index()].is_empty());
+    assert_eq!(
+        state.zones.graveyards[payer.index()],
+        [] as [deckmaste_engine::ObjectId; 0]
+    );
     assert_eq!(
         (state.rng.get_stream(), state.rng.get_word_pos()),
         post_sample_rng,
@@ -1443,7 +1446,10 @@ fn discard_set_validates_before_any_card_moves() {
             witness: FulfillmentWitness::Bound,
         },
     );
-    assert!(state.zones.hands[payer.index()].is_empty());
+    assert_eq!(
+        state.zones.hands[payer.index()],
+        [] as [deckmaste_engine::ObjectId; 0]
+    );
     assert_eq!(state.zones.graveyards[payer.index()].len(), 2);
     assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
 }
@@ -1511,7 +1517,7 @@ fn producer_cost_runs_the_producer_then_binds_its_moved_product() {
         },
     );
 
-    assert!(state.zones.exile.is_empty());
+    assert_eq!(state.zones.exile, [] as [deckmaste_engine::ObjectId; 0]);
     assert_eq!(state.zones.graveyards[payer.index()].len(), 1);
     assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
 }
@@ -1594,7 +1600,10 @@ fn random_cost_waits_for_the_deferred_tier_and_samples_without_a_choice() {
         },
     );
 
-    assert!(state.zones.hands[payer.index()].is_empty());
+    assert_eq!(
+        state.zones.hands[payer.index()],
+        [] as [deckmaste_engine::ObjectId; 0]
+    );
     assert_eq!(state.zones.graveyards[payer.index()].len(), 2);
     assert_eq!(payment_prompt(&state).stage, PaymentStage::Ready);
     let record = state

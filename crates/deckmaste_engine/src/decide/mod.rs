@@ -1238,7 +1238,7 @@ mod tests {
         let DecisionError::Illegal { reason } = result.as_ref().unwrap_err() else {
             panic!("expected illegal action rejection, got {result:?}");
         };
-        assert!(!reason.is_empty());
+        assert_ne!(reason, "");
         assert_eq!(
             state.pending, before,
             "the decision stays pending after rejection"

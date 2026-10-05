@@ -109,10 +109,16 @@ fn opening_state() {
     for p in 0..2 {
         assert_eq!(state.zones.hands[p].len(), 7);
         assert_eq!(state.zones.libraries[p].len(), 13);
-        assert!(state.zones.graveyards[p].is_empty());
+        assert_eq!(
+            state.zones.graveyards[p],
+            [] as [deckmaste_engine::ObjectId; 0]
+        );
         assert_eq!(state.players[p].life, 20);
     }
-    assert!(state.zones.battlefield.is_empty());
+    assert_eq!(
+        state.zones.battlefield,
+        [] as [deckmaste_engine::ObjectId; 0]
+    );
     assert_eq!(state.cards.len(), 40);
     assert_eq!(state.turn.turn_number, 0);
     assert!(state.pending.is_none());
@@ -910,7 +916,7 @@ fn spell_leaves_the_stack_for_its_owners_graveyard() {
             cause: None,
         }),
     );
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
     assert!(
         state.objects.get(spell).is_none(),
         "old stack id must be gone after reminting"
@@ -1287,7 +1293,7 @@ fn casting_a_spell_schedules_the_announce_block_and_begin_cast_stages_it() {
     assert_eq!(pending.origin, Zone::Hand);
     assert!(pending.targets.is_empty(), "targets not yet announced");
     // The spell is staged, not yet on the stack (SpellCast hasn't run).
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 }
 
 /// The collapsed land path reaches both new stages: a tapland played from hand

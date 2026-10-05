@@ -468,12 +468,12 @@ mod tests {
     /// owns its paths and a change confined to it gates nothing.
     #[test]
     fn an_excluded_crate_path_produces_no_gate() {
-        assert!(
+        assert_eq!(
             closure(&[
                 "crates/removed_parser/src/environment.rs",
                 "crates/removed_parser/src/core_verbs.ron",
-            ])
-            .is_empty()
+            ]),
+            [] as [std::string::String; 0]
         );
     }
 
@@ -512,15 +512,15 @@ mod tests {
 
     #[test]
     fn docs_only_paths_produce_no_gate() {
-        assert!(
+        assert_eq!(
             closure(&[
                 "docs/tickets/wip/example.md",
                 "docs/decisions/english-v2-rewrite.md",
                 "CLAUDE.md",
                 "Cargo.lock",
                 ".github/workflows/ci.yml",
-            ])
-            .is_empty()
+            ]),
+            [] as [std::string::String; 0]
         );
     }
 

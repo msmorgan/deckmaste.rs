@@ -742,7 +742,10 @@ fn bloodtithe_collector_discards_only_after_an_opponent_lost_life() {
         quiet_hand,
         "no opponent lost life this turn, so the trigger did nothing"
     );
-    assert!(quiet.zones.graveyards[1].is_empty());
+    assert_eq!(
+        quiet.zones.graveyards[1],
+        [] as [deckmaste_engine::ObjectId; 0]
+    );
 
     // Leg two: the same trigger, after a drain has put a `LifeLost` fact for an
     // opponent into this turn's history.

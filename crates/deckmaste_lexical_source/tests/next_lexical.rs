@@ -125,7 +125,7 @@ fn assign_and_change_have_complete_regular_paradigms_and_declared_frames() {
     };
     assert_eq!(
         LEXICON.lexemes()["core-verb:Assign"].properties.frames,
-        [transitive.clone()]
+        std::slice::from_ref(&transitive)
     );
     assert_eq!(
         LEXICON.lexemes()["core-verb:Change"].properties.frames,
@@ -162,8 +162,14 @@ fn single_and_extra_are_invariant_adjectives_with_declared_default_license() {
                 ),
             ])
         );
-        assert!(lexeme.properties.frames.is_empty());
-        assert!(lexeme.properties.countability.is_empty());
+        assert_eq!(
+            lexeme.properties.frames,
+            [] as [deckmaste_lexical::Frame; 0]
+        );
+        assert_eq!(
+            lexeme.properties.countability,
+            [] as [deckmaste_lexical::Countability; 0]
+        );
         assert_eq!(
             paradigm(owner),
             BTreeSet::from([(

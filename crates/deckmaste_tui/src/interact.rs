@@ -914,7 +914,7 @@ mod tests {
         it.toggle(b0);
         it.pair_with(atk0);
         it.toggle(b0); // a paired blocker is no longer a candidate, so re-toggle is a no-op
-        assert!(it.candidates().is_empty());
+        assert_eq!(it.candidates(), [] as [deckmaste_engine::ObjectId; 0]);
         it.unpair_last(); // remove (b0, atk0)
         assert_eq!(it.confirm(), Some(Decision::Blocks(vec![])));
         assert_eq!(it.candidates(), vec![b0]); // available again

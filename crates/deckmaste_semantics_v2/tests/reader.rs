@@ -144,10 +144,16 @@ fn a_vanilla_card_leaves_its_absent_characteristics_absent() {
             label: "Bear".to_string(),
         }]
     );
-    assert!(characteristics.text.is_empty());
+    assert_eq!(
+        characteristics.text,
+        [] as [deckmaste_semantics_v2::abilities::Ability; 0]
+    );
     assert_eq!(characteristics.loyalty, None);
     assert_eq!(characteristics.defense, None);
-    assert!(face.choices.is_empty());
+    assert_eq!(
+        face.choices,
+        [] as [deckmaste_semantics_v2::words::QualitySort; 0]
+    );
 }
 
 /// A catalog entry is the name an effect creates the token by [CR#111.10] and
@@ -164,7 +170,10 @@ fn a_token_reads_as_a_named_catalog_entry() {
     assert_eq!(token.characteristics.colors, vec![Color::White]);
     assert_eq!(token.characteristics.types, vec![CardType::Creature]);
     assert_eq!(token.characteristics.power, Some(Amount::Lit { value: 1 }));
-    assert!(token.qualities.is_empty());
+    assert_eq!(
+        token.qualities,
+        [] as [deckmaste_semantics_v2::abilities::TokenQuality; 0]
+    );
 }
 
 /// All three rules tables load, one row each.

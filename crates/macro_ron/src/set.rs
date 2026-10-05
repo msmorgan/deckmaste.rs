@@ -742,7 +742,7 @@ impl MacroSet {
                 reason,
             };
             let mut keys = Vec::new();
-            crate::expand::collect_param_keys(default, &self.options, &mut keys).map_err(&bad)?;
+            crate::expand::collect_param_keys(default, &self.options, &mut keys).map_err(bad)?;
             for key in keys {
                 let crate::expand::ParamKey::Name(referenced) = key else {
                     return Err(bad(format!(

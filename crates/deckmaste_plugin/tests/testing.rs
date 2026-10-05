@@ -28,7 +28,10 @@ fn testing_mocks_are_valid() {
         eprintln!("{}: lint: {msg}", path.display());
     }
     assert!(validation.failures.is_empty());
-    assert!(validation.lint_failures.is_empty());
+    assert_eq!(
+        validation.lint_failures,
+        [] as [(std::path::PathBuf, std::string::String); 0]
+    );
     assert!(
         validation.valid >= 3,
         "only {} items checked",

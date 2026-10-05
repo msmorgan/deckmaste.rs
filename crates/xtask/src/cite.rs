@@ -1726,14 +1726,23 @@ Contents\r\n\
 
     #[test]
     fn noncompliant_scan_blanks_brackets_and_rejects_loose_forms() {
-        assert!(noncompliant_matches("// [CR#100.1,200.1]").is_empty());
-        assert!(noncompliant_matches("document --per-rule 200 here").is_empty());
+        assert_eq!(
+            noncompliant_matches("// [CR#100.1,200.1]"),
+            [] as [std::string::String; 0]
+        );
+        assert_eq!(
+            noncompliant_matches("document --per-rule 200 here"),
+            [] as [std::string::String; 0]
+        );
         assert_eq!(
             noncompliant_matches("CR 100.1 and rule 200.1"),
             ["CR 100.1", "100.1", "rule 200.1", "200.1"]
         );
         // A malformed bracket is owned by `check`, not by this wide-net scan.
-        assert!(noncompliant_matches("[CR#rule 100.1]").is_empty());
+        assert_eq!(
+            noncompliant_matches("[CR#rule 100.1]"),
+            [] as [std::string::String; 0]
+        );
     }
 
     #[test]
@@ -1776,10 +1785,10 @@ const CR_FIXTURE: &str = \"rule 200.1\";
                 .collect::<Vec<_>>(),
             ["CR 100.1", "100.1", "rule 400.1", "400.1"]
         );
-        assert!(
+        assert_eq!(
             noncompliant_source_hits("crates/deckmaste_catalogs/src/lib.rs", scope_source,)
-                .unwrap()
-                .is_empty()
+                .unwrap(),
+            [] as [crate::cite::NoncompliantHit; 0]
         );
     }
 
@@ -2236,7 +2245,10 @@ const CR_FIXTURE: &str = "rule 100.1";
             .map(|(relative, _)| relative)
             .collect();
         assert_eq!(files, ["SCANNED.md"]);
-        assert!(repo.noncompliant_hits().unwrap().is_empty());
+        assert_eq!(
+            repo.noncompliant_hits().unwrap(),
+            [] as [crate::cite::NoncompliantHit; 0]
+        );
         assert_eq!(
             repo.citation_sites().unwrap().len(),
             1,

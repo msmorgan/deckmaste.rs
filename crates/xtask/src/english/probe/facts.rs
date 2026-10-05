@@ -186,7 +186,7 @@ mod tests {
         let facts = facts_for("Draw a card.", &catalogs());
         assert_eq!(facts.abilities.len(), 1);
         assert_eq!(facts.abilities[0].text, "Draw a card.");
-        assert!(!facts.abilities[0].fingerprint.is_empty());
+        assert_ne!(facts.abilities[0].fingerprint, "");
         assert_eq!(facts.text, "Draw a card.");
         assert!(facts.source_tokens > 0);
     }

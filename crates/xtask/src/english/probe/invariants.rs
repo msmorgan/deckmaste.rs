@@ -115,7 +115,10 @@ mod tests {
 
     #[test]
     fn a_parse_without_ties_is_clean() {
-        assert!(no_tie(&ParseFacts::default()).is_empty());
+        assert_eq!(
+            no_tie(&ParseFacts::default()),
+            [] as [crate::english::probe::invariants::Finding; 0]
+        );
     }
 
     /// Not named `..._is_a_violation`, unlike its `forest_growth` neighbors
@@ -194,7 +197,10 @@ mod tests {
             max_alternatives: 8,
             constituent_nodes: 500,
         };
-        assert!(forest_growth(&facts, &limits).is_empty());
+        assert_eq!(
+            forest_growth(&facts, &limits),
+            [] as [crate::english::probe::invariants::Finding; 0]
+        );
     }
 
     #[test]

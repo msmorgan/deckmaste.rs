@@ -537,7 +537,7 @@ mod tests {
     fn bare_string_sugar_is_an_unguarded_frame() {
         let spec: FrameSpec = opts().from_str(r#""draw <Param(1)> cards""#).unwrap();
         assert_eq!(spec.text, "draw <Param(1)> cards");
-        assert!(spec.when.is_empty());
+        assert_eq!(spec.when, [] as [(usize, std::string::String); 0]);
         assert_eq!(spec.position, None);
     }
 

@@ -1,3 +1,8 @@
+#![allow(
+    clippy::assert_is_empty,
+    reason = "retired crate: existing emptiness assertions stay as written rather than being rewritten for a lint that postdates it"
+)]
+
 use std::fmt;
 use std::ops::Deref;
 

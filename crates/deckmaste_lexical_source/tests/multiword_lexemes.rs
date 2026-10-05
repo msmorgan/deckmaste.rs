@@ -175,7 +175,10 @@ fn lexicalized_orientation_prepositions_own_exact_invariant_multiword_forms() {
         let entry = &LEXICON.lexemes()[owner];
         assert_eq!(entry.category, Category::Preposition);
         assert_eq!(entry.surface_structure, SurfaceStructure::Multiword);
-        assert!(entry.properties.countability.is_empty());
+        assert_eq!(
+            entry.properties.countability,
+            [] as [deckmaste_lexical::Countability; 0]
+        );
         assert_eq!(entry.properties.features["PrepositionComplement"], "None");
         let mut expected_values = BTreeSet::new();
         for casing in [SurfaceCase::Declared, SurfaceCase::Initial] {

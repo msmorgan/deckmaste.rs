@@ -19,6 +19,11 @@
 //! itself. It does not retain the input string; byte [`Span`] values exist only
 //! in diagnostics and optional parse provenance.
 
+#![allow(
+    clippy::assert_is_empty,
+    reason = "retired crate: existing emptiness assertions stay as written rather than being rewritten for a lint that postdates it"
+)]
+
 pub mod ability;
 pub mod adjective;
 pub mod catalog;

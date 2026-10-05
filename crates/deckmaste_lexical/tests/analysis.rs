@@ -228,7 +228,7 @@ fn one_or_two_targets_retains_each_word_and_numeral_reading() {
             nominal(Number::Plural)
         ),])
     );
-    assert!(text.unknown_words().is_empty());
+    assert_eq!(text.unknown_words(), [] as [std::ops::Range<usize>; 0]);
     assert!(!text.matches.iter().any(|m| m.start == 0 && m.end > 3));
 }
 
@@ -508,7 +508,7 @@ fn multiword_and_bound_forms_keep_overlapping_analyses() {
             BTreeSet::from([word(id, WordForm::Invariant, FeatureBundle::default()),])
         );
     }
-    assert!(bound.unknown_words().is_empty());
+    assert_eq!(bound.unknown_words(), [] as [std::ops::Range<usize>; 0]);
     assert!(complete(&lexicon, "mana  value").is_empty());
     assert!(!lexicon.analyze("Swampwalker").matches.iter().any(|m| {
         m.reading == word("bound:walk", WordForm::Invariant, FeatureBundle::default())
@@ -698,7 +698,7 @@ fn combining_marks_do_not_create_false_free_word_boundaries() {
     assert_eq!(text.words(), vec![0..2]);
     assert_eq!(text.unknown_words(), vec![0..2]);
     assert_eq!(text.byte_range(0, 2), Some(0..3));
-    assert!(text.matches.is_empty());
+    assert_eq!(text.matches, [] as [deckmaste_lexical::LexicalMatch; 0]);
     assert_eq!(
         complete(&lexicon, "e"),
         BTreeSet::from([word("n:e", WordForm::Invariant, FeatureBundle::default()),])
@@ -749,7 +749,7 @@ fn crossing_bound_matches_do_not_hide_unsegmentable_words() {
             FeatureBundle::default()
         ),])
     );
-    assert!(text.unknown_words().is_empty());
+    assert_eq!(text.unknown_words(), [] as [std::ops::Range<usize>; 0]);
 }
 
 /// The ability words are a listed inventory [CR#207.2c]; flavor words are
@@ -906,7 +906,10 @@ fn bound_forms_expose_adjacent_hosts_without_guessing_unknown_hosts() {
     for text in ["unknownland", "landunknown", "nonunknown", "unknownwalk"] {
         assert!(!lexicon.analyze(text).unknown_words().is_empty(), "{text}");
     }
-    assert!(lexicon.analyze("outlandish").matches.is_empty());
+    assert_eq!(
+        lexicon.analyze("outlandish").matches,
+        [] as [deckmaste_lexical::LexicalMatch; 0]
+    );
 }
 
 #[test]
@@ -1083,7 +1086,10 @@ fn lexical_ids_are_interned_across_declarations_values_and_wire_formats() {
     let absent = "lexical-id-lookup-never-interned";
     assert!(LexemeId::get(absent).is_none());
     assert!(!lexicon.lexemes().contains_key(absent));
-    assert!(lexicon.analyze(absent).matches.is_empty());
+    assert_eq!(
+        lexicon.analyze(absent).matches,
+        [] as [deckmaste_lexical::LexicalMatch; 0]
+    );
     assert!(LexemeId::get(absent).is_none());
     assert!(matches!(
         Lexicon::new([declared.clone(), declared]),

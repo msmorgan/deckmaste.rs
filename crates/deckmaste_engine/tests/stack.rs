@@ -604,7 +604,7 @@ fn bolt_kills_grizzly_bears() {
         !state.zones.graveyards[0].contains(&bolt),
         "the graveyard object carries a fresh id, not the old stack id"
     );
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 }
 
 /// A `plugins/testing` mock card (macro-aware, builtin prelude) — the home of
@@ -1350,7 +1350,7 @@ fn grizzly_bears_resolves_to_a_two_two_on_the_battlefield() {
     assert_eq!(state.objects.obj(entered).controller, PlayerId(0));
     assert_eq!(state.objects.obj(entered).zone, Some(Zone::Battlefield));
     assert_eq!(printed_pt(&state, entered), Some((2, 2)), "a printed 2/2");
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 }
 
 #[test]
@@ -1787,7 +1787,7 @@ fn second_bolt_fizzles_when_its_target_is_already_dead() {
         2,
         "both reminted instants end in P0's graveyard"
     );
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 }
 
 #[test]
@@ -3654,7 +3654,7 @@ fn cloudshift_returns_the_exiled_creature_under_the_casters_control() {
         Some((2, 2)),
         "still Grizzly Bears"
     );
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 }
 
 /// Blink end-to-end ([CR#400.7j]): cast through the full stack, exile the
@@ -3740,7 +3740,7 @@ fn blink_exiles_and_returns_the_target_in_one_resolution() {
         Some((2, 2)),
         "still Grizzly Bears"
     );
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 }
 
 /// P0 holds Lightning Bolt + Mountains (the spell to copy); P1's deck is the
@@ -4427,7 +4427,10 @@ fn resolved_permanent_copy_vanishes_without_entering_battlefield() {
         state.zones.graveyards[0].is_empty(),
         "no graveyard entry for the copy — it left no card behind"
     );
-    assert!(state.zones.graveyards[1].is_empty());
+    assert_eq!(
+        state.zones.graveyards[1],
+        [] as [deckmaste_engine::ObjectId; 0]
+    );
 }
 
 // --- Retarget (Task 5, [CR#707.10c,115.7d])
@@ -5142,7 +5145,7 @@ fn ability_copy_same_source_resolves_and_vanishes() {
         "the ping resolved twice — the original and its copy, trace: {trace:?}"
     );
     assert_eq!(state.players[1].life, 18, "20 - 1 - 1: pinged twice over");
-    assert!(state.stack.is_empty());
+    assert_eq!(state.stack, [] as [deckmaste_engine::StackEntry; 0]);
 
     // [CR#608.2n]: neither ability owned a card, so both simply vanish — no
     // zone move, no lingering object.

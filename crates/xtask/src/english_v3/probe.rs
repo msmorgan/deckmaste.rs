@@ -299,7 +299,10 @@ mod tests {
             let report: serde_json::Value = serde_json::from_slice(&output).unwrap();
             assert!(report["admitted_root_count"].as_u64().unwrap() > 0);
             assert!(report["reading_count"].as_u64().unwrap() > 0);
-            assert!(report["issues"].as_array().unwrap().is_empty());
+            assert_eq!(
+                report["issues"].as_array().unwrap().as_slice(),
+                [] as [serde_json::Value; 0]
+            );
             for reading in report["readings"].as_array().unwrap() {
                 assert_eq!(reading["realized"], text);
                 assert_eq!(reading["byte_exact"], true);

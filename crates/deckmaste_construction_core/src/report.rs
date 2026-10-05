@@ -575,7 +575,7 @@ mod tests {
         .into_semantic();
         let report = super::escape_hatch_report(&semantic).expect("guarded report seals");
 
-        assert!(report.stored_form_tags().is_empty());
+        assert_eq!(report.stored_form_tags(), [] as [&str; 0]);
     }
 
     #[test]
@@ -611,10 +611,10 @@ mod tests {
         assert_eq!(report.abstract_sums(), ["Choice"]);
         assert_eq!(report.optional_roles(), ["Holder.maybe"]);
         assert_eq!(report.sequence_roles(), ["Holder.items"]);
-        assert!(report.uniform_separators().is_empty());
+        assert_eq!(report.uniform_separators(), [] as [&str; 0]);
         assert_eq!(report.positional_separator_tables(), ["Holder.items"]);
         assert_eq!(report.terminators(), ["Holder.items"]);
-        assert!(report.stored_separator_fields().is_empty());
+        assert_eq!(report.stored_separator_fields(), [] as [&str; 0]);
     }
 
     #[test]
@@ -646,8 +646,8 @@ mod tests {
             report.sequence_feature_roles(),
             ["Coordinated.members.concord_class"]
         );
-        assert!(report.stored_separator_fields().is_empty());
-        assert!(report.stored_form_tags().is_empty());
+        assert_eq!(report.stored_separator_fields(), [] as [&str; 0]);
+        assert_eq!(report.stored_form_tags(), [] as [&str; 0]);
     }
 
     #[test]
@@ -684,8 +684,8 @@ mod tests {
                 "braced.braced[0].suffix=}",
             ],
         );
-        assert!(report.stored_form_boundary_fields().is_empty());
-        assert!(report.stored_separator_fields().is_empty());
+        assert_eq!(report.stored_form_boundary_fields(), [] as [&str; 0]);
+        assert_eq!(report.stored_separator_fields(), [] as [&str; 0]);
         assert_eq!(report.sequence_roles(), ["Braced.values"]);
     }
 
@@ -734,7 +734,7 @@ mod tests {
             report.generated_form_boundaries(),
             ["item.item[1].sentence_initial=: "],
         );
-        assert!(report.stored_form_boundary_fields().is_empty());
+        assert_eq!(report.stored_form_boundary_fields(), [] as [&str; 0]);
     }
 
     #[test]
@@ -757,7 +757,7 @@ mod tests {
             report.generated_form_boundaries(),
             ["item.item[0].structural= "],
         );
-        assert!(report.stored_form_boundary_fields().is_empty());
+        assert_eq!(report.stored_form_boundary_fields(), [] as [&str; 0]);
     }
 
     #[test]
@@ -765,9 +765,9 @@ mod tests {
         let expansion = synthetic_projection_expansion();
         let report = expansion.escape_hatches();
 
-        assert!(report.mapping_layers().is_empty());
+        assert_eq!(report.mapping_layers(), [] as [&str; 0]);
         assert_eq!(report.handwritten_codecs(), ["Resource", "Marker", "Pair"]);
-        assert!(report.stored_form_tags().is_empty());
+        assert_eq!(report.stored_form_tags(), [] as [&str; 0]);
         assert_eq!(report.stored_spelling_codecs(), ["Handle"]);
         assert_eq!(
             report
@@ -821,7 +821,10 @@ mod tests {
             expansion.escape_hatches().stored_spelling_codecs(),
             ["SelfReferenceSpelling"]
         );
-        assert!(expansion.escape_hatches().terminal_bindings().is_empty());
+        assert_eq!(
+            expansion.escape_hatches().terminal_bindings(),
+            [] as [TerminalBindingDeclaration; 0]
+        );
     }
 
     #[test]
@@ -847,8 +850,11 @@ mod tests {
         .expect("generated declaration-verb report fixture validates");
         let report = expansion.escape_hatches();
 
-        assert!(report.handwritten_codecs().is_empty());
-        assert!(report.terminal_bindings().is_empty());
+        assert_eq!(report.handwritten_codecs(), [] as [&str; 0]);
+        assert_eq!(
+            report.terminal_bindings(),
+            [] as [TerminalBindingDeclaration; 0]
+        );
     }
 
     #[test]
