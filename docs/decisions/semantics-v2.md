@@ -370,7 +370,7 @@ constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
 Lean's reserved words, so the declaration keeps the plain name (ruling,
 2026-10-04).
 
-Fourteen helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), and `exileFrom`, `selectRandom`, `theirHand` and the six exchange helpers `exchangeControl`, `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues` and `exchangeTextBoxes` (no Lean macro; the bench writes the constructor alias `Primitives.Instruction.exchange` with the `Exchanged` arm, and each helper expands to that same term), and `getsBoth` (no Lean macro; "<subject> gets +X/+X", the one delta written for both stats of `StaticSpec.ptModification`, §7).
+Nineteen helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), `mayCastFrom` (Lean `Actor.mayCastFrom`, the namespace dropped; RON adds a `paying` parameter defaulting to Lean's `ItsOwnCost` and an `exclusive` one defaulting to Lean's `false`), and `exileFrom`, `selectRandom`, `theirHand` and the six exchange helpers `exchangeControl`, `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues` and `exchangeTextBoxes` (no Lean macro; the bench writes the constructor alias `Primitives.Instruction.exchange` with the `Exchanged` arm, and each helper expands to that same term), and `getsBoth` (no Lean macro; "<subject> gets +X/+X", the one delta written for both stats of `StaticSpec.ptModification`, §7), and `artifactCreatureToken`, `createTokenCopy`, `discards` and `mayOrElse` (no Lean macro; each expands to the term the bench writes in its place: the creature token bundle with `artifact` beside `creature`, `create` of a `copyOf` token, `verbedEvent` with the `Discard` deed, and `withContinuation (.optional actor)` with only its "if they don't" branch).
 
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
@@ -565,7 +565,9 @@ until the 2026-10-05 ruling, §7).
 The other 108 stay Lean-only, in eight buckets. (Counts recounted
 2026-10-05 at `semantics-v2-actor-handoff`, and again at
 `plugins-v2-implicit-actor-spelling`, where `revealTheirHand` left the
-declarations: every line of `Macros.lean`
+declarations, and at `plugins-v2-keyword-helper-additions`, where
+`returnToBattlefieldWithCounters` left them and `mayCastFrom` joined them:
+every line of `Macros.lean`
 beginning `semantic_macro`, an `Actor` namespace prefix kept; a macro is a
 declaration when a file of the same name, a trailing `_` dropped, exists under
 one of the twelve families above or `macros/conditions/`, or when §11 names
@@ -620,23 +622,27 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
   `partyRoles`, `stat`.
 - **It is defined by pattern matching on an argument (3).** `agentPlur`,
   `itOrThem`, `sameWindow`.
-- **It is a performer helper in the `Actor` namespace (10).** These fill an
+- **It is a performer helper in the `Actor` namespace (9).** These fill an
   agent slot with `actor` (§7, ruling 2026-10-05). Since
   `plugins-v2-implicit-actor-spelling` six of them have a RON declaration of
   the unprefixed name that writes the same term (`choose`, `draw`,
   `gainLife`, `loseLife`, and the keyword actions `discard` and
   `sacrifice`); the method keeps the `Actor` prefix, so they stay counted
   here while the Lean bench's explicit-agent macros of those names remain.
-  The other four have none: `amass` writes the literal reminder text rather
+  The other three have none: `amass` writes the literal reminder text rather
   than `itPrior`, `create` takes a `TokenSpec` where Lean takes the bundle
-  (`createToken` takes the bundle, count last), `army` is a subtype and no
-  predicate is added (owner, 2026-10-05), and `mayCastFrom` waits for
-  `plugins-v2-keyword-helper-additions`: `Actor.amass`,
-  `Actor.army`, `Actor.choose`, `Actor.create`, `Actor.discard`,
-  `Actor.draw`, `Actor.gainLife`, `Actor.loseLife`, `Actor.mayCastFrom`,
-  `Actor.sacrifice`.
-- **Its RON helper was retired for a handoff (1).** `revealTheirHand`: a card
-  writes `act(player, revealHand)` (§7, ruling 2026-10-05).
+  (`createToken` takes the bundle, count last), and `army` is a subtype and
+  no predicate is added (owner, 2026-10-05): `Actor.amass`, `Actor.army`,
+  `Actor.choose`, `Actor.create`, `Actor.discard`, `Actor.draw`,
+  `Actor.gainLife`, `Actor.loseLife`, `Actor.sacrifice`. `Actor.mayCastFrom`
+  left this bucket at `plugins-v2-keyword-helper-additions`: Lean has no
+  explicit-agent macro of that name, so RON's `mayCastFrom` is its helper,
+  named apart in §11 as `revealHand` is.
+- **Its RON helper was retired (2).** `revealTheirHand`, for a handoff: a
+  card writes `act(player, revealHand)` (§7, ruling 2026-10-05).
+  `returnToBattlefieldWithCounters`, for having no caller: persist and
+  undying write `returnToBattlefield` with a `WithCounters` rider; the bench
+  still calls the Lean macro.
 
 A binder Lean declares `Option T` with a `:= none` default takes the param
 type `Any`, not `T`: a param type validates the DEFAULT as well as the
