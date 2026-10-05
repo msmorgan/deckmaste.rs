@@ -46,8 +46,6 @@ use serde::de::DeserializeOwned;
 /// `<family>/<stem>`. Strike a file when it is re-spelled; never add one.
 const ALLOWED_RAW: &[&str] = &[
     "keyword_abilities/demonstrate",
-    "keyword_abilities/transfigure",
-    "keyword_abilities/transmute",
     "keyword_actions/meld",
     "keyword_actions/search",
     "keyword_actions/shuffle",
