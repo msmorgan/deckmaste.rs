@@ -770,15 +770,20 @@ mod adjective_class_tests {
         expected.onsets = BTreeMap::from([("nonlegendary".into(), Onset::Consonant)]);
         assert_eq!(entries[1], expected);
 
-        let mut multiword = original;
-        multiword.surface_structure = SurfaceStructure::Multiword;
-        let mut entries = vec![multiword];
-        add_adjective_classes(&mut entries, vec![class(&["class/member"])]).unwrap();
-        assert!(
-            entries
-                .iter()
-                .all(|entry| entry.surface_structure == SurfaceStructure::Multiword)
+        // Time Lord Regeneration attests this multiword noun. Prefixation
+        // preserves its noun paradigm and internal spaces.
+        let mut multiword = Lexeme::noun(
+            "class/multiword",
+            "Time Lord",
+            vec![Countability::Count],
+            source(),
         );
+        multiword.surface_structure = SurfaceStructure::Multiword;
+        let actual = negative_lexeme(&multiword, NegativePrefixJoin::Hyphenated);
+        let mut expected = multiword;
+        expected.id = "class/multiword/non".into();
+        expected.lemma = "non-Time Lord".into();
+        assert_eq!(actual, expected);
     }
 
     #[test]
