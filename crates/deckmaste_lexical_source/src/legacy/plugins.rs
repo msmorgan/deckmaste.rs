@@ -170,6 +170,18 @@ fn export_metadata(
         }
     };
     export_distribution(&mut lexeme, normalized, authored.noun_class);
+    if let Some(type_word) = normalized.type_word() {
+        if type_word.noun_modifier {
+            lexeme
+                .properties
+                .features
+                .insert("NounPremodifier".into(), "Yes".into());
+        }
+        output.lexemes.push(crate::native::negative_lexeme(
+            &lexeme,
+            type_word.negative_prefix_join,
+        ));
+    }
     // Parameterized spelling remains a grammar recipe, not guessed ordinary
     // words.
     if normalized

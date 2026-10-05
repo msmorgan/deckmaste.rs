@@ -108,7 +108,7 @@ fn normalization_freezes_bounded_and_authored_onsets_per_realized_form() {
     ];
     for (name, surface, expected) in cases {
         let source = format!(
-            "Type(name:\"{name}\",spelling:\"{surface}\",grammar:FixedTerm(surface:\"{surface}\"))"
+            "CounterKind(name:\"{name}\",spelling:\"{surface}\",grammar:FixedTerm(surface:\"{surface}\"))"
         );
         let normalized = read_str(source_path(&format!("{name}.ron")), &source).unwrap();
         let [realized] = normalized.grammar().unwrap().surfaces() else {
@@ -120,7 +120,7 @@ fn normalization_freezes_bounded_and_authored_onsets_per_realized_form() {
 
     let overridden = read_str(
         source_path("Aether.ron"),
-        r#"Type(
+        r#"CounterKind(
             name:"Aether",
             spelling:"Æther",
             grammar:FixedTerm(surface:"Æther",onset:Vowel),
@@ -135,7 +135,7 @@ fn normalization_freezes_bounded_and_authored_onsets_per_realized_form() {
 
     assert!(matches!(
         validation(
-            r#"Type(name:"Aether",spelling:"Æther",grammar:FixedTerm(surface:"Æther"))"#
+            r#"CounterKind(name:"Aether",spelling:"Æther",grammar:FixedTerm(surface:"Æther"))"#
         ),
         ValidationError::UnknownOnset { surface } if surface == "Æther"
     ));
@@ -1059,7 +1059,7 @@ fn normalization_keeps_category_safe_identities_and_surface_ambiguity() {
     let rows = read_sources(vec![
         DeclarationSource::new(
             source_path("a.ron"),
-            r#"Type(name:"ChargeType",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+            r#"Type(name:"ChargeType",spelling:"charge",grammar:Noun(singular:"charge",plural:Unavailable))"#,
         ),
         DeclarationSource::new(
             source_path("b.ron"),
@@ -1231,7 +1231,7 @@ KeywordAction(
     write_builtin(
         &left_root,
         "types/ChargeType.ron",
-        r#"Type(name:"ChargeType",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+        r#"Type(name:"ChargeType",spelling:"charge",grammar:Noun(singular:"charge",plural:Unavailable))"#,
     );
     write_builtin(
         &left_root,
@@ -1262,7 +1262,7 @@ KeywordAction(
     write_builtin(
         &right_root,
         "types/ChargeType.ron",
-        r#"Type(name:"ChargeType",spelling:"charge",grammar:FixedTerm(surface:"charge"))"#,
+        r#"Type(name:"ChargeType",spelling:"charge",grammar:Noun(singular:"charge",plural:Unavailable))"#,
     );
 
     let left = normalized_projection(&left_root, read_builtin_v2(&left_root).unwrap());

@@ -21,6 +21,7 @@
             category: Spell,
             spelling: Param(spelling),
             grammar: Param(grammar),
+            type_word: (noun_modifier: true, negative_prefix_join: Hyphenated),
             noun_class: (
                 locative_temporal_license: ObjectAttachmentLicensed,
                 relationality: QualifiedRelational,

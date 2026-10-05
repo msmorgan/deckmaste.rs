@@ -63,6 +63,17 @@ The decision to use one default does not yet prescribe literal suffix append
 versus an algorithm with ordinary orthographic cases. Record the chosen
 algorithm and its overrides; do not silently introduce guessed paradigm classes.
 
+Amendment (2026-10-04): type and subtype declaration macros supply noun
+Premodifier eligibility and negative-prefix joining once per source class.
+Noun premodification is a function of the existing noun, not a duplicate
+Adjective Lexeme. Negative noun Lexemes retain their source noun's declared
+inflectional paradigm, including overrides and unavailable plurals; their
+Provenance names that source declaration. The class declares joined forms for
+types (*nonartifact*) and hyphenated forms for subtypes (*non-Vampire*).
+Supertypes have a declared adjective-class recipe with joined negatives
+(*nonlegendary*); its members retain their existing positive lexical owners.
+These are lexical formation declarations, not spelling-based admission guards.
+
 ## Source and roundtripping
 
 Prefer a lossless token sequence with positions derived from occurrences and

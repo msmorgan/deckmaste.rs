@@ -1,6 +1,15 @@
 // V3 lexical declarations. Forms and frames are prospective linguistic data;
 // corpus occurrence counts do not license or withhold an entry.
 (
+    // Ordinary supertype adjectives share joined negative formation. Legendary
+    // keeps its existing adjective owner; the unused Catalog entry is retained.
+    adjective_classes: [(
+        negative_prefix_join: Joined,
+        members: [
+            "vocab:Supertype/Basic", "vocab:PredicativeAdjective/Legendary",
+            "vocab:Supertype/Snow", "vocab:Supertype/World",
+        ],
+    )],
     feature_additions: {
         "catalog:card-types.txt/Artifact": {"TypeLineRole": "CardType"},
         "catalog:card-types.txt/Battle": {"TypeLineRole": "CardType"},

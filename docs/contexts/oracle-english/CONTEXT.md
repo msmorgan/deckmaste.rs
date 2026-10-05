@@ -39,6 +39,12 @@ changing grammatical admission or erasing alternative Readings.
 An abstract lexical item underlying its inflected Word Forms. A lexical item
 may consist of several orthographic words, as in *mana value* and *mana cost*.
 
+**Type Word** (project term):
+A Lexeme sourced from a declared card-type, subtype or supertype inventory for
+ordinary noun or adjective use in Oracle text. It is distinct from an exact
+Catalog atom used in a Type Line. Noun uses retain their Part of Speech when
+functioning as Premodifiers.
+
 **Lemma**:
 The conventional citation form used to identify a Lexeme.
 
@@ -364,7 +370,11 @@ end of turn*.
 A dependent that attributes or restricts the interpretation of its head.
 
 **Premodifier**:
-A Modifier that precedes its head in the linear order.
+A Modifier that precedes its head in the linear order. A noun used as a
+Premodifier remains a noun: *creature* in *creature card* does not acquire an
+Adjective lexical identity (CGEL, pp. 444, 537–538). Type and subtype declarations
+license their singular noun forms for this function; the head determines the
+Nominal's Number and Countability.
 
 **Postmodifier**:
 A Modifier that follows its head in the linear order.

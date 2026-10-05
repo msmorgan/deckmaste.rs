@@ -15,6 +15,7 @@
         metadata: (
             spelling: Param(spelling),
             grammar: Param(grammar),
+            type_word: (noun_modifier: true, negative_prefix_join: Joined),
             noun_class: (
                 locative_temporal_license: ObjectAttachmentLicensed,
                 relationality: QualifiedRelational,

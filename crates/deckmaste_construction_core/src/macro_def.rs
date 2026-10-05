@@ -102,10 +102,27 @@ pub struct Metadata {
     /// class and inherited by every declaration in that class.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub noun_class: Option<NounClassSemantics>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub type_word: Option<TypeWordGrammar>,
     /// Only subtype declarations carry a category; it forms part of their
     /// category-safe identity after normalization.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<SubtypeCategory>,
+}
+
+/// Lexical uses declared by a type-word authoring class.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct TypeWordGrammar {
+    pub noun_modifier: bool,
+    pub negative_prefix_join: NegativePrefixJoin,
+}
+
+/// Orthographic joining declared for a negative type-word prefix.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+pub enum NegativePrefixJoin {
+    Joined,
+    Hyphenated,
 }
 
 /// The noun-attachment facts shared by one declaration class.
@@ -671,6 +688,7 @@ pub struct NormalizedDeclaration {
     spelling: Vec<SpellingPart>,
     grammar: Option<GrammarRow>,
     noun_class: Option<NounClassSemantics>,
+    type_word: Option<TypeWordGrammar>,
     body: Option<Box<RawValue>>,
     provenance: SourceProvenance,
 }
@@ -705,6 +723,11 @@ impl NormalizedDeclaration {
     #[must_use]
     pub fn noun_class(&self) -> Option<NounClassSemantics> {
         self.noun_class
+    }
+
+    #[must_use]
+    pub fn type_word(&self) -> Option<TypeWordGrammar> {
+        self.type_word
     }
 
     #[must_use]
@@ -1314,6 +1337,8 @@ pub enum ValidationError {
     MissingNounClassSemantics { kind: DeclarationKind },
     #[error("declaration class {kind} cannot carry noun semantics")]
     UnexpectedNounClassSemantics { kind: DeclarationKind },
+    #[error("a type-word lexical recipe requires Noun grammar when grammar is declared")]
+    TypeWordGrammarMismatch,
     #[error("v2 semantic declarations require positional parameter signatures")]
     NamedParameters,
     #[error("v2 semantic declaration parameters must be plain type names")]
@@ -1866,8 +1891,20 @@ fn normalize(
         spelling,
         grammar,
         noun_class,
+        type_word,
         category: _,
     } = definition.metadata.clone();
+    if type_word.is_some()
+        && grammar
+            .as_ref()
+            .is_some_and(|grammar| !matches!(grammar, Grammar::Noun { .. }))
+    {
+        return Err(validation_error_at(
+            &path,
+            source_map.declaration,
+            ValidationError::TypeWordGrammarMismatch,
+        ));
+    }
     let noun_bearing = matches!(
         kind,
         DeclarationKind::Subtype(_)
@@ -1986,6 +2023,7 @@ fn normalize(
         spelling: spelling_parts,
         grammar,
         noun_class,
+        type_word,
         body,
         provenance: SourceProvenance { path },
     })

@@ -100,6 +100,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     native::replace_forms(&mut output.lexemes, native.form_replacements)?;
     native::add_frames(&mut output.lexemes, native.frame_additions)?;
     native::add_features(&mut output.lexemes, native.feature_additions)?;
+    native::add_adjective_classes(&mut output.lexemes, native.adjective_classes)?;
     native::reconcile_frames(&mut output.lexemes, &native.frame_markers)?;
     for lexeme in &mut output.lexemes {
         if lexeme.source.kind == SourceKind::Catalog || lexeme.category == Category::Keyword {

@@ -36,6 +36,7 @@ constructions! {
         feature IdentityUse { Name }
         feature AttributiveForm { GerundParticiple }
         feature NominalComplementMarker { Of }
+        feature NounPremodifier { Yes }
 
         category Document();
         category Ability();
@@ -57,6 +58,8 @@ constructions! {
         category ParticipialComplement(Voice);
         category PerfectComplement(Voice);
         category Nominal(number, countability, Targeting);
+        category NounPremodifier();
+        category NounPremodifierSeries();
         category NounPhrase(number, person, CaseUse);
         category NominativePhrase(number, person, CaseUse);
         category AccusativePhrase(number, person, CaseUse);
@@ -588,6 +591,39 @@ constructions! {
             form [head: lexical(Adjective)];
             require head.frame = Intransitive;
             export AdjectiveStructure = Simple;
+        }
+
+        construction NounPremodifier: NounPremodifier {
+            form [head: lexical(Noun)];
+            require head.NounPremodifier = Yes;
+            require head.form = Singular;
+            require head.framing = Unframed;
+        }
+
+        construction NounPremodifierCoordination: NounPremodifier {
+            form [left: NounPremodifier, " ", coordinator: lexical(Coordinator), " ", right: NounPremodifier];
+            require coordinator.NoncorrelativeCoordination = Yes;
+        }
+
+        construction NounPremodifierSeriesEnd: NounPremodifierSeries {
+            form [left: NounPremodifier, ", ", coordinator: lexical(Coordinator), " ", right: NounPremodifier];
+            require coordinator.NoncorrelativeCoordination = Yes;
+        }
+
+        construction NounPremodifierSeriesContinuation: NounPremodifierSeries {
+            form [left: NounPremodifier, ", ", rest: NounPremodifierSeries];
+        }
+
+        construction SerialNounPremodifier: NounPremodifier {
+            form [left: NounPremodifier, ", ", rest: NounPremodifierSeries];
+        }
+
+        construction NounPremodifiedNominal: Nominal {
+            form [modifier: NounPremodifier, " ", head: Nominal];
+            require head.Targeting = No;
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = head.Targeting;
         }
 
         construction PremodifiedNominal: Nominal {

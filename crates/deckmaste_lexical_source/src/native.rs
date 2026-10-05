@@ -12,12 +12,105 @@ use serde::Deserialize;
 #[serde(deny_unknown_fields)]
 pub(crate) struct Inventory {
     pub lexemes: Vec<Lexeme>,
+    #[serde(default)]
+    pub adjective_classes: Vec<AdjectiveClass>,
     pub core_verb_paradigms: BTreeMap<String, Paradigm>,
     pub frame_markers: BTreeMap<String, (String, String)>,
     pub frame_additions: BTreeMap<String, Vec<Frame>>,
     pub form_replacements: BTreeMap<String, Vec<FormDeclaration>>,
     #[serde(default)]
     pub feature_additions: BTreeMap<String, BTreeMap<String, String>>,
+}
+
+/// A declared adjective class and the negative joining shared by its members.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct AdjectiveClass {
+    pub members: Vec<String>,
+    pub negative_prefix_join: deckmaste_construction_core::macro_def::NegativePrefixJoin,
+}
+
+pub(crate) fn add_adjective_classes(
+    lexemes: &mut Vec<Lexeme>,
+    classes: Vec<AdjectiveClass>,
+) -> Result<(), LoadError> {
+    for class in classes {
+        if class.members.is_empty() {
+            return Err(LoadError::InvalidAdjectiveClassMember {
+                owner: String::new(),
+                reason: "empty adjective class",
+            });
+        }
+        for owner in class.members {
+            let lexeme = lexemes
+                .iter_mut()
+                .find(|lexeme| lexeme.id == owner)
+                .ok_or_else(|| LoadError::UnknownOwner {
+                    property: "adjective class",
+                    owner: owner.clone(),
+                })?;
+            if !matches!(
+                lexeme.category,
+                deckmaste_lexical::Category::Catalog | deckmaste_lexical::Category::Adjective
+            ) || lexeme.forms.is_empty()
+                || lexeme
+                    .forms
+                    .iter()
+                    .any(|slot| slot.form != deckmaste_lexical::WordForm::Invariant)
+            {
+                return Err(LoadError::InvalidAdjectiveClassMember {
+                    owner,
+                    reason: "expected Catalog or Adjective with invariant forms",
+                });
+            }
+            lexeme.category = deckmaste_lexical::Category::Adjective;
+            if lexeme.surface_structure == deckmaste_lexical::SurfaceStructure::Opaque {
+                lexeme.surface_structure = if lexeme.lemma.contains(' ') {
+                    deckmaste_lexical::SurfaceStructure::Multiword
+                } else {
+                    deckmaste_lexical::SurfaceStructure::Word
+                };
+            }
+            let negative = negative_lexeme(lexeme, class.negative_prefix_join);
+            lexemes.push(negative);
+        }
+    }
+    Ok(())
+}
+
+/// Prefix a declared paradigm without changing its lexical ownership or slots.
+pub(crate) fn negative_lexeme(
+    parent: &Lexeme,
+    join: deckmaste_construction_core::macro_def::NegativePrefixJoin,
+) -> Lexeme {
+    let prefix = match join {
+        deckmaste_construction_core::macro_def::NegativePrefixJoin::Joined => "non",
+        deckmaste_construction_core::macro_def::NegativePrefixJoin::Hyphenated => "non-",
+    };
+    let mut negative = parent.clone();
+    negative.id = format!("{}/non", parent.id);
+    negative.lemma = format!("{prefix}{}", negative.lemma);
+    for slot in &mut negative.forms {
+        if let Some(surfaces) = &mut slot.surfaces {
+            for surface in surfaces {
+                *surface = format!("{prefix}{surface}");
+            }
+        }
+    }
+    negative.onsets = negative
+        .onsets
+        .keys()
+        .map(|surface| {
+            (
+                format!("{prefix}{surface}"),
+                deckmaste_lexical::Onset::Consonant,
+            )
+        })
+        .collect();
+    for name in ["SingularOnset", "PluralOnset"] {
+        negative.properties.features.remove(name);
+    }
+    negative
 }
 
 #[derive(Deserialize)]
@@ -634,5 +727,89 @@ mod tests {
                     .any(|found| found.start == 0 && found.end == analyzed.tokens.len())
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod adjective_class_tests {
+    use super::*;
+    use deckmaste_construction_core::macro_def::NegativePrefixJoin;
+    use deckmaste_lexical::{Category, Countability, Onset, Source, SourceKind, SurfaceStructure};
+
+    fn source() -> Source {
+        Source {
+            kind: SourceKind::Core,
+            path: PATH.into(),
+            owner: "class/member".into(),
+        }
+    }
+    fn class(members: &[&str]) -> AdjectiveClass {
+        AdjectiveClass {
+            members: members.iter().map(|member| (*member).into()).collect(),
+            negative_prefix_join: NegativePrefixJoin::Joined,
+        }
+    }
+
+    #[test]
+    fn classes_preserve_declared_forms_structure_and_provenance() {
+        // Cast Down attests the adjective and its negative form.
+        let mut adjective =
+            Lexeme::invariant("class/member", "legendary", Category::Adjective, source());
+        adjective.forms[0].surfaces = Some(vec!["legendary".into()]);
+        adjective
+            .onsets
+            .insert("legendary".into(), Onset::Consonant);
+        let original = adjective.clone();
+        let mut entries = vec![adjective];
+        add_adjective_classes(&mut entries, vec![class(&["class/member"])]).unwrap();
+        assert_eq!(entries[0], original);
+        let mut expected = original.clone();
+        expected.id = "class/member/non".into();
+        expected.lemma = "nonlegendary".into();
+        expected.forms[0].surfaces = Some(vec!["nonlegendary".into()]);
+        expected.onsets = BTreeMap::from([("nonlegendary".into(), Onset::Consonant)]);
+        assert_eq!(entries[1], expected);
+
+        let mut multiword = original;
+        multiword.surface_structure = SurfaceStructure::Multiword;
+        let mut entries = vec![multiword];
+        add_adjective_classes(&mut entries, vec![class(&["class/member"])]).unwrap();
+        assert!(
+            entries
+                .iter()
+                .all(|entry| entry.surface_structure == SurfaceStructure::Multiword)
+        );
+    }
+
+    #[test]
+    fn classes_reject_wrong_category_noninvariant_and_empty_members() {
+        let noun = Lexeme::noun(
+            "class/member",
+            "creature",
+            vec![Countability::Count],
+            source(),
+        );
+        let mut wrong_form =
+            Lexeme::invariant("class/member", "legendary", Category::Adjective, source());
+        wrong_form.forms[0].form = deckmaste_lexical::WordForm::Plural;
+        for entry in [noun, wrong_form] {
+            assert!(matches!(
+                add_adjective_classes(&mut vec![entry], vec![class(&["class/member"])]),
+                Err(LoadError::InvalidAdjectiveClassMember { .. })
+            ));
+        }
+        assert!(matches!(
+            add_adjective_classes(&mut vec![], vec![class(&[])]),
+            Err(LoadError::InvalidAdjectiveClassMember { .. })
+        ));
+        let mut entries = vec![Lexeme::invariant(
+            "class/member",
+            "basic",
+            Category::Catalog,
+            source(),
+        )];
+        add_adjective_classes(&mut entries, vec![class(&["class/member"])]).unwrap();
+        assert_eq!(entries[0].category, Category::Adjective);
+        assert_eq!(entries[0].surface_structure, SurfaceStructure::Word);
     }
 }

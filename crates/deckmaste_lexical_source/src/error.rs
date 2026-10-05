@@ -40,6 +40,8 @@ pub enum LoadError {
         property: &'static str,
         owner: String,
     },
+    #[error("invalid adjective class member {owner:?}: {reason}")]
+    InvalidAdjectiveClassMember { owner: String, reason: &'static str },
     #[error("duplicate added frame for {owner}")]
     DuplicateFrame { owner: String },
     #[error("{owner}: empty frame kind")]
