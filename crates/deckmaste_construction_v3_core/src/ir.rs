@@ -216,10 +216,10 @@ fn reserve(names: &mut BTreeSet<String>, name: &Ident) -> syn::Result<()> {
     Ok(())
 }
 
-pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
+fn validate_features(declared: &[crate::parse::Feature]) -> syn::Result<Vec<Domain>> {
     let mut features = builtin_domains();
     let mut feature_names: BTreeSet<_> = features.iter().map(|f| f.name.clone()).collect();
-    for feature in &declaration.features {
+    for feature in declared {
         reserve(&mut feature_names, &feature.name)?;
         if feature.values.is_empty() {
             return Err(error(
@@ -250,9 +250,13 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             kind: DomainKind::Custom { default },
         });
     }
+    Ok(features)
+}
+
+fn validate_frames(declared: &[(Ident, Frame)]) -> syn::Result<Vec<(Ident, Frame)>> {
     let mut frames = vec![];
     let mut frame_names = BTreeSet::new();
-    for (name, frame) in &declaration.frames {
+    for (name, frame) in declared {
         reserve(&mut frame_names, name)?;
         if frames.iter().any(|(_, previous)| previous == frame) {
             return Err(error(
@@ -262,6 +266,12 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         }
         frames.push((name.clone(), frame.clone()));
     }
+    Ok(frames)
+}
+
+pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
+    let mut features = validate_features(&declaration.features)?;
+    let frames = validate_frames(&declaration.frames)?;
     features[7].values = frames.iter().map(|(name, _)| name.to_string()).collect();
     let mut names = BTreeSet::new();
     let mut categories = vec![];
@@ -685,15 +695,10 @@ fn same_domain(ir: &Ir, left: usize, right: usize) -> bool {
         )
 }
 
-fn equations(
-    ir: &Ir,
-    constructor: usize,
-    interfaces: &[BTreeSet<usize>],
+fn equation_references(
     equations: &[Equation],
-) -> syn::Result<EquationPlan> {
-    let construction = &ir.constructors[constructor];
-    let resolve =
-        |reference: &Reference| resolve_reference(ir, construction, interfaces, reference);
+    resolve: impl Fn(&Reference) -> syn::Result<(usize, usize)>,
+) -> syn::Result<Vec<(usize, usize)>> {
     let mut refs = BTreeSet::new();
     for equation in equations {
         match equation {
@@ -712,13 +717,16 @@ fn equations(
             }
         }
     }
-    let refs: Vec<_> = refs.into_iter().collect();
-    let position = |r: &Reference| -> syn::Result<usize> {
-        let resolved = resolve(r)?;
-        refs.iter()
-            .position(|v| *v == resolved)
-            .ok_or_else(|| error(&construction.name, "unresolved admission reference"))
-    };
+    Ok(refs.into_iter().collect())
+}
+
+fn agreement_groups(
+    ir: &Ir,
+    construction: &Ident,
+    refs: &[(usize, usize)],
+    equations: &[Equation],
+    position: impl Fn(&Reference) -> syn::Result<usize>,
+) -> syn::Result<Vec<usize>> {
     let mut groups: Vec<_> = (0..refs.len()).collect();
     for equation in equations {
         if let Equation::Agree(l, r) = equation {
@@ -726,7 +734,7 @@ fn equations(
             let right = position(r)?;
             if !same_domain(ir, refs[left].1, refs[right].1) {
                 return Err(error(
-                    &construction.name,
+                    construction,
                     "agreement requires the same feature domain",
                 ));
             }
@@ -739,6 +747,26 @@ fn equations(
             }
         }
     }
+    Ok(groups)
+}
+
+fn equations(
+    ir: &Ir,
+    constructor: usize,
+    interfaces: &[BTreeSet<usize>],
+    equations: &[Equation],
+) -> syn::Result<EquationPlan> {
+    let construction = &ir.constructors[constructor];
+    let resolve =
+        |reference: &Reference| resolve_reference(ir, construction, interfaces, reference);
+    let refs = equation_references(equations, resolve)?;
+    let position = |r: &Reference| -> syn::Result<usize> {
+        let resolved = resolve(r)?;
+        refs.iter()
+            .position(|v| *v == resolved)
+            .ok_or_else(|| error(&construction.name, "unresolved admission reference"))
+    };
+    let groups = agreement_groups(ir, &construction.name, &refs, equations, position)?;
     let mut plan = EquationPlan {
         references: refs.iter().copied().zip(groups.iter().copied()).collect(),
         initial: vec![None; refs.len()],
@@ -981,30 +1009,29 @@ fn merge_schemas(ir: &mut Ir) -> syn::Result<()> {
     let mut merged: Vec<Constructor> = Vec::new();
     let mut remap = Vec::new();
     for constructor in std::mem::take(&mut ir.constructors) {
-        if constructor.shared {
-            if let Some(index) = merged
+        if constructor.shared
+            && let Some(index) = merged
                 .iter()
                 .position(|existing| existing.shared && existing.name == constructor.name)
+        {
+            let existing = &mut merged[index];
+            if existing.fields.len() != constructor.fields.len()
+                || existing
+                    .fields
+                    .iter()
+                    .zip(&constructor.fields)
+                    .any(|((a, ta), (b, tb))| {
+                        a != b || std::mem::discriminant(ta) != std::mem::discriminant(tb)
+                    })
             {
-                let existing = &mut merged[index];
-                if existing.fields.len() != constructor.fields.len()
-                    || existing
-                        .fields
-                        .iter()
-                        .zip(&constructor.fields)
-                        .any(|((a, ta), (b, tb))| {
-                            a != b || std::mem::discriminant(ta) != std::mem::discriminant(tb)
-                        })
-                {
-                    return Err(error(
-                        &constructor.name,
-                        "schema instance fields differ in shape",
-                    ));
-                }
-                existing.forms.extend(constructor.forms);
-                remap.push(index);
-                continue;
+                return Err(error(
+                    &constructor.name,
+                    "schema instance fields differ in shape",
+                ));
             }
+            existing.forms.extend(constructor.forms);
+            remap.push(index);
+            continue;
         }
         remap.push(merged.len());
         merged.push(constructor);

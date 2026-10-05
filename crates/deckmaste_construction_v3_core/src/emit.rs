@@ -4,9 +4,11 @@ use deckmaste_lexical_model::FrameSlot;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
+use syn::Ident;
 
 use crate::ir::Build;
 use crate::ir::DomainKind;
+use crate::ir::Form;
 use crate::ir::Ir;
 use crate::ir::Piece;
 use crate::ir::Symbol;
@@ -237,6 +239,61 @@ fn frame_item(item: &FrameItem) -> TokenStream {
     }
 }
 
+fn form_pieces(form: &Form, bindings: &[Ident], owner: &str) -> [Vec<TokenStream>; 4] {
+    let mut summaries = vec![];
+    let mut write = vec![];
+    let mut visit = vec![];
+    let mut word = vec![];
+    for piece in &form.pieces {
+        match piece {
+            Piece::Literal(text) => {
+                summaries.push(quote!(None));
+                write.push(quote!(output.push_str(#text);));
+            }
+            Piece::Field(field) => {
+                let binding = &bindings[*field];
+                let ty = &form.fields[*field].1;
+                let category_name = match ty {
+                    FieldType::Lexical(c)
+                    | FieldType::One(c)
+                    | FieldType::Optional(c)
+                    | FieldType::Repeated(c, _) => format_ident!("{c}"),
+                };
+                let check_category = quote!(if child.category() != Category::#category_name { return Err(Error::Invalid(#owner, "constituent Category")); });
+                match ty {
+                    FieldType::Lexical(_) => {
+                        summaries.push(quote!(Some(#binding.admit(lexicon, ::deckmaste_lexical::Category::#category_name)?)));
+                        write.push(quote!(output.word(#binding, lexicon)?;));
+                        word.push(quote!(visitor(#binding);));
+                    }
+                    FieldType::One(_) => {
+                        summaries.push(quote!(Some({ let child = #binding; #check_category child.admit_with(grammar, lexicon)? })));
+                        write.push(quote!(#binding.write(lexicon, output)?;));
+                        visit.push(quote!(#binding.visit(visitor)?;));
+                        word.push(quote!(#binding.visit_words(visitor)?;));
+                    }
+                    FieldType::Optional(_) => {
+                        summaries.push(quote!(Some({ if let Some(child) = #binding { #check_category child.admit_with(grammar, lexicon)? } else { Summary::default() } })));
+                        write.push(quote!(if let Some(child) = #binding { child.write(lexicon, output)?; }));
+                        visit
+                            .push(quote!(if let Some(child) = #binding { child.visit(visitor)?; }));
+                        word.push(
+                            quote!(if let Some(child) = #binding { child.visit_words(visitor)?; }),
+                        );
+                    }
+                    FieldType::Repeated(_, separator) => {
+                        summaries.push(quote!(Some({ let mut result = Summary::default(); for child in #binding { #check_category let summary = child.admit_with(grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result })));
+                        write.push(quote!(for (index, child) in #binding.iter().enumerate() { if index != 0 { output.push_str(#separator); } child.write(lexicon, output)?; }));
+                        visit.push(quote!(for child in #binding { child.visit(visitor)?; }));
+                        word.push(quote!(for child in #binding { child.visit_words(visitor)?; }));
+                    }
+                }
+            }
+        }
+    }
+    [summaries, write, visit, word]
+}
+
 fn ast(ir: &Ir) -> TokenStream {
     let mut variants = vec![];
     let mut categories = vec![];
@@ -292,57 +349,7 @@ fn ast(ir: &Ir) -> TokenStream {
             } else {
                 quote!(#index)
             };
-            let mut summaries = vec![];
-            let mut write = vec![];
-            let mut visit = vec![];
-            let mut word = vec![];
-            for piece in &form.pieces {
-                match piece {
-                    Piece::Literal(text) => {
-                        summaries.push(quote!(None));
-                        write.push(quote!(output.push_str(#text);));
-                    }
-                    Piece::Field(field) => {
-                        let binding = &bindings[*field];
-                        let ty = &form.fields[*field].1;
-                        let category_name = match ty {
-                            FieldType::Lexical(c)
-                            | FieldType::One(c)
-                            | FieldType::Optional(c)
-                            | FieldType::Repeated(c, _) => format_ident!("{c}"),
-                        };
-                        let check_category = quote!(if child.category() != Category::#category_name { return Err(Error::Invalid(#owner, "constituent Category")); });
-                        match ty {
-                            FieldType::Lexical(_) => {
-                                summaries.push(quote!(Some(#binding.admit(lexicon, ::deckmaste_lexical::Category::#category_name)?)));
-                                write.push(quote!(output.word(#binding, lexicon)?;));
-                                word.push(quote!(visitor(#binding);));
-                            }
-                            FieldType::One(_) => {
-                                summaries.push(quote!(Some({ let child = #binding; #check_category child.admit_with(grammar, lexicon)? })));
-                                write.push(quote!(#binding.write(lexicon, output)?;));
-                                visit.push(quote!(#binding.visit(visitor)?;));
-                                word.push(quote!(#binding.visit_words(visitor)?;));
-                            }
-                            FieldType::Optional(_) => {
-                                summaries.push(quote!(Some({ if let Some(child) = #binding { #check_category child.admit_with(grammar, lexicon)? } else { Summary::default() } })));
-                                write.push(quote!(if let Some(child) = #binding { child.write(lexicon, output)?; }));
-                                visit.push(quote!(if let Some(child) = #binding { child.visit(visitor)?; }));
-                                word.push(quote!(if let Some(child) = #binding { child.visit_words(visitor)?; }));
-                            }
-                            FieldType::Repeated(_, separator) => {
-                                summaries.push(quote!(Some({ let mut result = Summary::default(); for child in #binding { #check_category let summary = child.admit_with(grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result })));
-                                write.push(quote!(for (index, child) in #binding.iter().enumerate() { if index != 0 { output.push_str(#separator); } child.write(lexicon, output)?; }));
-                                visit
-                                    .push(quote!(for child in #binding { child.visit(visitor)?; }));
-                                word.push(
-                                    quote!(for child in #binding { child.visit_words(visitor)?; }),
-                                );
-                            }
-                        }
-                    }
-                }
-            }
+            let [summaries, write, visit, word] = form_pieces(form, &bindings, &owner);
             let rule = form.rule;
             let admission = quote! {
                 let summaries: Vec<Option<Summary>> = vec![#(#summaries),*];
