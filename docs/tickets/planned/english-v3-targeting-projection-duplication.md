@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [english-v3-number-transparent-concord]
 ---
 # Audit and remove redundant bare-target projection routes
 
@@ -29,3 +29,17 @@ classify each removed route as redundant versus invalid versus retained-distinct
 Report actual corpus Reading-count changes and identity-level coverage losses,
 not a presumed global twofold reduction. Optional scratch: /tmp/english-v3-np-probes.
 Standard constraints apply.
+
+## Sequencing
+
+The `needs:` edge is sequencing, not a technical dependency: these grammar
+tickets touch overlapping structures and are worked one at a time. Write the
+pinned witnesses as tests before implementing.
+The landing compares corpus Reading identities before and after on its own tree.
+
+## Prior attempt
+
+The bookmark `archive-english-v3-compact-grammar` contains an unfinished attempt
+at this ticket, made in one change together with six others and never verified
+against the corpus. It adds a `targeting_projection.rs` test file. Read it for ideas if useful. Do not rebase onto
+it, and treat every claim in its ticket notes as unverified.

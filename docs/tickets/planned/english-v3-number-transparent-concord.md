@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [english-v3-scalar-cardinals]
 ---
 # Propagate agreement through number-transparent quantificational nouns
 
@@ -33,3 +33,18 @@ contrasting attested ordinary-number uses; verify obligatory plural concord in t
 quantificational use and both roundtrip laws. Report exact Reading sets, lexical
 ownership, identity-level corpus changes and remaining causes. Scratch reports in
 /tmp/english-v3-np-probes are optional. Standard constraints apply.
+
+## Sequencing
+
+The `needs:` edge is sequencing, not a technical dependency: these grammar
+tickets touch overlapping structures and are worked one at a time. Write the
+pinned witnesses as tests before implementing.
+The landing compares corpus Reading identities before and after on its own tree.
+
+## Prior attempt
+
+The bookmark `archive-english-v3-compact-grammar` contains an unfinished attempt
+at this ticket, made in one change together with six others and never verified
+against the corpus. It drafted glossary entries for Number Transparency and Oblique, which
+this ticket owns and should write afresh from CGEL. Read it for ideas if useful. Do not rebase onto
+it, and treat every claim in its ticket notes as unverified.

@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [english-v3-reading-test-helper]
 ---
 # Consume ordered lexical Verb Frames compositionally
 
@@ -42,3 +42,21 @@ inventory and report remaining owners, identity-level corpus changes, all retain
 Readings, internal failures and construction/declaration economy. Old scratch
 reports in /tmp/english-v3-frame-probes are optional; regenerate evidence from the
 implementation tree. Standard constraints apply.
+
+## Sequencing
+
+This is the one queued ticket that changes how existing Readings are
+represented, so it goes first among the grammar tickets and after the shared
+test helper: write the pinned witnesses with the constituent assertion before
+implementing, and use it for any existing test that has to be re-spelled.
+The landing compares corpus Reading identities before and after on its own tree.
+
+## Prior attempt
+
+The bookmark `archive-english-v3-compact-grammar` contains an unfinished attempt
+at this ticket, made in one change together with six others and never verified
+against the corpus. It replaced thirteen ordinary predicate shape schemas with a single
+`SelectedPredicate` schema, re-spelled the existing structural tests against it,
+and reported 12 unsupported shapes / 13 assignments remaining; it ran no
+full-corpus identity comparison and no gate. Read it for ideas if useful. Do not rebase onto
+it, and treat every claim in its ticket notes as unverified.

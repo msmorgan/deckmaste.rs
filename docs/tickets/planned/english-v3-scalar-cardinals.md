@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [english-v3-generic-frame-consumption]
 ---
 # Compose maximum quantities with existing cardinal phrases
 
@@ -25,3 +25,19 @@ lexical ownership, targeting and both roundtrip laws. Reuse existing schemas whe
 possible. Report complete corpus identity-level gains/losses and remaining causes;
 recognition alone does not establish the intended quantity analysis. Scratch
 /tmp/english-v3-np-probes is optional diagnostic evidence. Standard constraints apply.
+
+## Sequencing
+
+The `needs:` edge is sequencing, not a technical dependency: these grammar
+tickets touch overlapping structures and are worked one at a time. Write the
+pinned witnesses as tests before implementing.
+The landing compares corpus Reading identities before and after on its own tree.
+
+## Prior attempt
+
+The bookmark `archive-english-v3-compact-grammar` contains an unfinished attempt
+at this ticket, made in one change together with six others and never verified
+against the corpus. It analysed quantitative *up to* as a modified Preposition Phrase in the
+counted Noun Phrase's determiner function rather than as a Cardinal head, citing
+CGEL Ch. 5, pp. 355 and 357; check that authority before adopting the analysis. Read it for ideas if useful. Do not rebase onto
+it, and treat every claim in its ticket notes as unverified.
