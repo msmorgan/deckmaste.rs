@@ -1,0 +1,8 @@
+// "a P/T <colors> <subtypes> artifact creature token [with <abilities>]":
+// `creatureToken` with the artifact card type beside creature.
+(
+    name: "artifactCreatureToken",
+    kinds: [CharacteristicBundle],
+    params: {"power": Nat, "toughness": Nat, "colors": Colors, "subtypes": Subtypes, "abilities": Default(Abilities, [])},
+    body: (characteristics: (colors: Param(colors), types: [Artifact, Creature], subtypes: Param(subtypes), power: Lit(Param(power)), toughness: Lit(Param(toughness)), text: Param(abilities))),
+)

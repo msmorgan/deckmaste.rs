@@ -13,18 +13,7 @@ KeywordAbility(
             enters(thisPermanent),
             may(
                 body: putCounters(Param(0), p1p1Counter, thisPermanent),
-                if_not: createToken(
-                    (
-                        characteristics: (
-                            colors: [],
-                            power: 1,
-                            subtypes: [servo],
-                            toughness: 1,
-                            types: [Artifact, Creature],
-                        ),
-                    ),
-                    Param(0),
-                ),
+                if_not: createToken(artifactCreatureToken(1, 1, [], [servo]), Param(0)),
             ),
         ),
     ],
