@@ -241,8 +241,8 @@ mimicked.
   The annihilation of +1/+1 and -1/-1 counters [CR#704.5q] is not derived
   from the kind and stays with `semantics-v2-counter-annihilation-sba`.
   (Ruling, 2026-10-05, owner, `semantics-v2-counter-kind-is-a-name`; the
-  type's shape is the orchestrator's call, and the helper names `boost` and
-  `grants` are proposed to the owner.)
+  type's shape is the orchestrator's call; the helper names `boost` and
+  `grants` were accepted by the owner the same day.)
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.
