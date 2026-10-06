@@ -86,6 +86,18 @@ opt-level = 2
 [profile.dev.package.deckmaste_english]
 opt-level = 2
 
+# Complete v3 censuses execute admission and structural comparison for every
+# Reading. Optimize the runtime and census orchestration in the ordinary xtask
+# profile, just as for the legacy parser and corpus readers.
+[profile.dev.package.deckmaste_english_v3]
+opt-level = 2
+
+[profile.dev.package.deckmaste_lexical]
+opt-level = 2
+
+[profile.dev.package.xtask]
+opt-level = 2
+
 [profile.dev.package.serde_json]
 opt-level = 2
 

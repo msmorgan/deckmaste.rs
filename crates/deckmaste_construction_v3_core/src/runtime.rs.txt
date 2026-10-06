@@ -329,6 +329,8 @@ pub struct Grammar {
     canonical_frames: Vec<::deckmaste_lexical::Frame>,
     marker_classes: Vec<(String, ::deckmaste_lexical::Category)>,
     expansions: Vec<FrameExpansion>,
+    frame_programs: Vec<Option<usize>>,
+    expansion_index: ::std::collections::BTreeMap<(usize, usize), Vec<usize>>,
     unsupported: Vec<UnsupportedFrame>,
     static_count: usize,
     compiled: bool,
@@ -458,6 +460,89 @@ impl Grammar {
     }
 }
 
+// Admission is a pure function of the complete grammatical value and this
+// context's immutable grammar/lexicon. Cache full values, never just summaries,
+// categories, rendered text or independently unioned feature alternatives.
+#[derive(Default)]
+struct AdmissionCache {
+    summaries: ::std::collections::BTreeMap<Reading, Summary>,
+    words: ::std::collections::BTreeMap<
+        ::deckmaste_lexical::Category,
+        ::std::collections::BTreeMap<Word, Summary>,
+    >,
+}
+impl AdmissionCache {
+    fn word(
+        &mut self,
+        word: &Word,
+        grammar: &Grammar,
+        lexicon: &::deckmaste_lexical::Lexicon,
+        category: ::deckmaste_lexical::Category,
+    ) -> Result<Summary, Error> {
+        let words = self.words.entry(category).or_default();
+        if let Some(summary) = words.get(word) {
+            return Ok(summary.clone());
+        }
+        let summary = word.admit(grammar, lexicon, category)?;
+        words.insert(word.clone(), summary.clone());
+        Ok(summary)
+    }
+
+    fn admit(
+        &mut self,
+        reading: &Reading,
+        grammar: &Grammar,
+        lexicon: &::deckmaste_lexical::Lexicon,
+    ) -> Result<Summary, Error> {
+        if let Some(summary) = self.summaries.get(reading) {
+            return Ok(summary.clone());
+        }
+        let summary = reading.admit_with_cache(grammar, lexicon, self)?;
+        self.summaries.insert(reading.clone(), summary.clone());
+        Ok(summary)
+    }
+}
+
+/// Reuse independent lexical analysis only when a realization has exactly the
+/// same text. The lexical environment and analysis remain paired and private.
+pub struct RealizationContext<'a> {
+    grammar: &'a Grammar,
+    lexicon: &'a ::deckmaste_lexical::Lexicon,
+    cache: ::std::cell::RefCell<AdmissionCache>,
+    analyzed: ::deckmaste_lexical::AnalyzedText,
+}
+
+impl<'a> RealizationContext<'a> {
+    pub fn new(
+        grammar: &'a Grammar,
+        lexicon: &'a ::deckmaste_lexical::Lexicon,
+        text: &str,
+    ) -> Self {
+        Self {
+            grammar,
+            lexicon,
+            cache: ::std::cell::RefCell::new(AdmissionCache::default()),
+            analyzed: lexicon.analyze(text),
+        }
+    }
+
+    /// Perform declaration admission, realization and contextual lexical checks.
+    /// A different rendered text receives its own independent lexical analysis.
+    pub fn realize(&self, reading: &Reading) -> Result<String, Error> {
+        let output = self.grammar.realization_with_cache(
+            reading,
+            self.lexicon,
+            &mut self.cache.borrow_mut(),
+        )?;
+        if output.text == self.analyzed.text() {
+            output.check_analyzed(&self.analyzed)?;
+        } else {
+            output.check_context(self.lexicon)?;
+        }
+        Ok(output.finish())
+    }
+}
+
 struct Realization {
     text: String,
     words: Vec<::deckmaste_lexical::LexicalMatch>,
@@ -494,6 +579,9 @@ impl Realization {
         // Contextual binding belongs to independent lexical analysis. This is
         // neither grammar recognition nor a construction-directed scanner.
         let analyzed = lexicon.analyze(&self.text);
+        self.check_analyzed(&analyzed)
+    }
+    fn check_analyzed(&self, analyzed: &::deckmaste_lexical::AnalyzedText) -> Result<(), Error> {
         if self
             .words
             .iter()

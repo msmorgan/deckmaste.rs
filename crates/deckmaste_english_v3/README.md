@@ -53,7 +53,27 @@ Enumeration is complete by default. `--reading-limit N` caps requests without
 claiming uniqueness or an exact total before exhaustion. `--samples-per-face N`
 limits stored trees without limiting validation. Each counted Reading passes
 admission, exact realization and both traversal checks against materialization
-traces. The JSON report includes provenance, lexical gaps, census, samples,
+traces. Construction traversal compares complete structural values directly;
+SHA-256 fingerprints are diagnostic sample identities, not the traversal gate.
+Pure materializations share immutable values for an identical production,
+ordered child tuple. Generated materialization consumes no Summary or State;
+the lexical leaf key retains the complete Word, including frame and countability
+choices. The per-face `materializations` counters
+separate requests from unique leaves/builds; the ordinary `readings.builds`
+counter still counts all build requests. Every enumerated Reading is checked,
+including roots combining shared children. This does not count forest paths in
+place of enumerating them.
+
+`RealizationContext` pairs an immutable lexical environment with independent
+analysis of one text. It memoizes declaration-admission summaries by the full
+grammatical value with the immutable grammar and lexical environment fixed. The renderer
+checks each complete Reading and every contextual lexical boundary; it reuses
+lexical analysis only when the rendered bytes match. Selected-frame validation
+uses ordered declaration/frame indexes rather than scanning unrelated expansions.
+A different rendering receives a fresh analysis. Independently authored
+values use the same checks, without relying on a previous parse.
+
+The JSON report includes provenance, lexical gaps, census, samples,
 parser metrics, selection provenance, snapshot hashes and timings, and is written before validation errors fail the
 command. Linguistic correctness and independently constructed-value roundtrips
 require separate evidence.

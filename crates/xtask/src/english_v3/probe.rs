@@ -146,7 +146,7 @@ fn inspect(
         forest.write_packed(&mut dump)?;
         report.packed = Some(String::from_utf8(dump)?);
     }
-    let mut readings = forest.readings(Tracing(grammar));
+    let mut readings = forest.readings(Tracing::new(grammar));
     for _ in 0..args.readings {
         let Some(value) = readings.next() else {
             report.enumeration_complete = true;
@@ -157,7 +157,7 @@ fn inspect(
                 .issues
                 .push(Issue::Materialization(error.to_string())),
             Ok(value) => {
-                let realized = match &value.value {
+                let realized = match &*value.value {
                     deckmaste_english_v3::grammar::Value::Reading(reading) => {
                         reading.realize(lexicon).ok()
                     }

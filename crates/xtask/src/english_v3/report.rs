@@ -15,6 +15,7 @@ use crate::english_v3::EnglishV3Args;
 use crate::english_v3::SourceField;
 use crate::english_v3::sum_metrics;
 use crate::english_v3::validation::Issue;
+use crate::english_v3::validation::MaterializationMetrics;
 use crate::english_v3::validation::NodeIdentity;
 use crate::english_v3::validation::TracedValue;
 use crate::raw_corpus::SUPPORT_FILTER;
@@ -90,9 +91,19 @@ impl Sample {
             .collect();
         Self {
             total_cost,
-            id: traced.nodes[0].sha256.clone(),
+            id: NodeIdentity::new(reading).sha256,
             tree: format!("{reading:#?}"),
-            nodes: traced.nodes.clone(),
+            nodes: traced
+                .nodes
+                .iter()
+                .filter_map(|value| {
+                    if let deckmaste_english_v3::grammar::Value::Reading(node) = &**value {
+                        Some(NodeIdentity::new(node))
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
             words,
         }
     }
@@ -121,6 +132,7 @@ pub(super) struct FaceReport {
     pub exact_readings: Option<usize>,
     pub chart: BTreeMap<&'static str, usize>,
     pub readings: BTreeMap<&'static str, usize>,
+    pub materializations: MaterializationMetrics,
     pub constructions: BTreeMap<&'static str, usize>,
     pub issues: Vec<Issue>,
     pub samples: Vec<Sample>,
@@ -160,6 +172,7 @@ impl FaceReport {
             exact_readings: None,
             chart: chart_metrics(Metrics::default()),
             readings: reading_metrics(ReadingMetrics::default()),
+            materializations: MaterializationMetrics::default(),
             constructions: BTreeMap::new(),
             issues: Vec::new(),
             samples: Vec::new(),
@@ -331,7 +344,7 @@ impl Report {
             .and_then(|out| String::from_utf8(out.stdout).ok())
             .map(|text| text.trim().to_owned());
         Self {
-            schema_version: 4,
+            schema_version: 5,
             field: args.field,
             input: args.data.clone(),
             input_sha256: corpus.snapshot_sha256.clone(),
@@ -409,6 +422,12 @@ pub(super) fn thread_cpu_ns() -> Option<u128> {
     // SAFETY: successful clock_gettime initialized both fields.
     let time = unsafe { time.assume_init() };
     Some(u128::try_from(time.tv_sec).ok()? * 1_000_000_000 + u128::try_from(time.tv_nsec).ok()?)
+}
+
+/// Skip fingerprints when even the candidate's cost cannot enter the sample.
+pub(super) fn sample_cost_would_be_retained(samples: &[Sample], cost: u64, limit: usize) -> bool {
+    limit != 0
+        && (samples.len() < limit || samples.last().is_some_and(|last| cost <= last.total_cost))
 }
 
 /// Decide before building a diagnostic payload; this never limits Reading validation.

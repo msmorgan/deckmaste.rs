@@ -109,6 +109,12 @@ impl<'a, C, S, T, M: Materializer<S, T>> Readings<'a, C, S, T, M> {
         self.metrics
     }
 
+    /// Inspect materialization telemetry without requesting another Reading.
+    #[must_use]
+    pub const fn materializer(&self) -> &M {
+        &self.materializer
+    }
+
     fn sibling(&mut self, work: &Work<M::Reading>, task: Task) {
         let mut next = work.clone();
         next.tasks.push(task);

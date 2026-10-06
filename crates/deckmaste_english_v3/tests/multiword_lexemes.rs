@@ -239,3 +239,46 @@ fn orientation_predication_uses_the_existing_selected_locative_frame() {
     assert_eq!(clause.realize(&LEXICON).unwrap(), "it is face down");
     assert!(readings("it is face down", Category::FiniteClause).contains(&clause));
 }
+
+#[test]
+fn reusable_realization_context_checks_independent_values_and_changed_text() {
+    use deckmaste_english_v3::grammar::{Grammar, RealizationContext};
+
+    let grammar = Grammar::with_lexicon(&LEXICON);
+    // Mana-value constituents occur throughout Oracle text. Independently
+    // authored values retain the same single multiword lexical owner.
+    let context = RealizationContext::new(&grammar, &LEXICON, "mana value");
+    for (number, text) in [
+        (Number::Singular, "mana value"),
+        (Number::Plural, "mana values"),
+    ] {
+        let expected = Reading::Noun {
+            form: 0,
+            head: noun_word("lexeme:CommonNoun/ManaValue", number, SurfaceCase::Declared),
+        };
+        assert_eq!(
+            context
+                .realize(&expected)
+                .map_err(|error| error.to_string()),
+            grammar
+                .realize(&expected, &LEXICON)
+                .map_err(|error| error.to_string())
+        );
+        assert_eq!(context.realize(&expected).unwrap(), text);
+        assert!(readings(text, Category::Nominal).contains(&expected));
+    }
+    let mut head = noun_word(
+        "lexeme:CommonNoun/ManaValue",
+        Number::Plural,
+        SurfaceCase::Declared,
+    );
+    let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
+    value.features.number = Some(Number::Singular);
+    let invalid = Reading::Noun { form: 0, head };
+    let reference = grammar.realize(&invalid, &LEXICON);
+    assert!(reference.is_err());
+    assert_eq!(
+        context.realize(&invalid).map_err(|error| error.to_string()),
+        reference.map_err(|error| error.to_string())
+    );
+}

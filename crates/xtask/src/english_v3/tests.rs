@@ -276,7 +276,11 @@ fn validation_compares_exact_surface_and_both_traversal_identities() {
     let grammar = Grammar::with_lexicon(lexicon());
     let input = lexicon().analyze("Draw a card.");
     let forest = parse(&grammar, lexicon(), &input, &Category::Document).unwrap();
-    let traced = forest.readings(Tracing(&grammar)).next().unwrap().unwrap();
+    let traced = forest
+        .readings(Tracing::new(&grammar))
+        .next()
+        .unwrap()
+        .unwrap();
     assert!(
         validate(
             &traced,
@@ -300,7 +304,7 @@ fn validation_compares_exact_surface_and_both_traversal_identities() {
         })
     );
     let mut wrong_nodes = traced.clone();
-    wrong_nodes.nodes.swap(0, 1);
+    std::sync::Arc::make_mut(&mut wrong_nodes.nodes).swap(0, 1);
     assert_eq!(
         validate(
             &wrong_nodes,
@@ -312,7 +316,7 @@ fn validation_compares_exact_surface_and_both_traversal_identities() {
         Err(Issue::ConstructionTraversal)
     );
     let mut wrong_words = traced.clone();
-    wrong_words.words.swap(0, 1);
+    std::sync::Arc::make_mut(&mut wrong_words.words).swap(0, 1);
     assert_eq!(
         validate(
             &wrong_words,
@@ -428,7 +432,11 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
     assert_eq!(saved["totals"]["supported_faces_without_source"], 1);
     let input = lexicon().analyze("Instant");
     let forest = parse(&grammar, lexicon(), &input, &Category::TypeLine).unwrap();
-    let traced = forest.readings(Tracing(&grammar)).next().unwrap().unwrap();
+    let traced = forest
+        .readings(Tracing::new(&grammar))
+        .next()
+        .unwrap()
+        .unwrap();
     assert!(
         validate(
             &traced,
@@ -510,4 +518,111 @@ fn cheapest_frequency_sample_preserves_all_readings_in_census() {
             .any(|line| line.trim() == "category: FinitePredicate,")
     );
     assert_eq!(serialized["samples"][0]["total_cost"], 20);
+}
+
+#[test]
+fn cached_materializations_preserve_complete_values_and_independent_traces() {
+    use std::collections::BTreeSet;
+    use std::sync::Arc;
+
+    use crate::english_v3::validation::validate_in_context;
+    use deckmaste_english_v3::grammar::RealizationContext;
+
+    let grammar = Grammar::with_lexicon(lexicon());
+    for text in [
+        // Seedborn Muse: three distinct PP attachments must stay correlated.
+        "Untap all permanents you control during each other player's untap step.",
+        // Deep Sight: predicate versus clause coordination.
+        "You draw a card and gain 1 life.",
+        // Revitalize: shared lexical values in separate sentence positions.
+        "You gain 3 life.\nDraw a card.",
+    ] {
+        let input = lexicon().analyze(text);
+        let forest = parse(&grammar, lexicon(), &input, &Category::Document).unwrap();
+        let expected: BTreeSet<_> = forest.readings(&grammar).map(Result::unwrap).collect();
+        let context = RealizationContext::new(&grammar, lexicon(), text);
+        let mut values = forest.readings(Tracing::new(&grammar));
+        let mut actual = BTreeSet::new();
+        for value in values.by_ref() {
+            let value = value.unwrap();
+            assert_eq!(
+                validate_in_context(&value, text, Category::Document, &context),
+                validate(&value, text, lexicon(), Category::Document, &grammar),
+            );
+            assert!(actual.insert(Arc::clone(&value.value)));
+        }
+        assert_eq!(
+            actual.iter().map(|value| &**value).collect::<Vec<_>>(),
+            expected.iter().collect::<Vec<_>>()
+        );
+        assert_eq!(values.metrics().internal_failures, 0);
+        let metrics = values.materializer().metrics();
+        assert!(metrics.unique_builds <= metrics.build_requests);
+        if expected.len() > 1 {
+            assert!(metrics.unique_builds < metrics.build_requests);
+        }
+    }
+}
+
+#[test]
+fn cached_validation_rejects_same_construction_with_different_lexical_identity() {
+    use crate::english_v3::validation::validate_in_context;
+    use deckmaste_english_v3::grammar::{RealizationContext, Value};
+    use std::sync::Arc;
+
+    let grammar = Grammar::with_lexicon(lexicon());
+    // Reach Through Mists supplies the sentence; changing just a lexical leaf
+    // in its independent materialization trace is a validator fault probe.
+    let text = "Draw a card.";
+    let input = lexicon().analyze(text);
+    let forest = parse(&grammar, lexicon(), &input, &Category::Document).unwrap();
+    let mut traced = forest
+        .readings(Tracing::new(&grammar))
+        .next()
+        .unwrap()
+        .unwrap();
+    let expected = Arc::make_mut(&mut traced.nodes).last_mut().unwrap();
+    let Value::Reading(mut node) = (**expected).clone() else { unreachable!() };
+    assert_eq!(node.construction(), "Noun");
+    let deckmaste_english_v3::grammar::Reading::Noun { head, .. } = &mut node else {
+        unreachable!()
+    };
+    head.countability = Some(false);
+    *expected = Arc::new(Value::Reading(node));
+    let context = RealizationContext::new(&grammar, lexicon(), text);
+    assert_eq!(
+        validate_in_context(&traced, text, Category::Document, &context),
+        Err(Issue::ConstructionTraversal)
+    );
+}
+
+#[test]
+fn a_fingerprint_collision_keeps_distinct_complete_values() {
+    use std::collections::BTreeSet;
+    use std::sync::Arc;
+
+    let grammar = Grammar::with_lexicon(lexicon());
+    let mut values = Vec::new();
+    // Reach Through Mists and Divination supply authentic distinct values.
+    for text in ["Draw a card.", "Draw two cards."] {
+        let input = lexicon().analyze(text);
+        let forest = parse(&grammar, lexicon(), &input, &Category::Document).unwrap();
+        values.push(
+            forest
+                .readings(Tracing::new(&grammar))
+                .next()
+                .unwrap()
+                .unwrap(),
+        );
+    }
+    let first = values.remove(0);
+    let second = values.remove(0);
+    let mut collision = first.clone();
+    // Preserve the cached digest while injecting a different full value. This
+    // simulates a collision; production materializations remain immutable.
+    let _ = collision.identity();
+    collision.value = Arc::clone(&second.value);
+    assert_eq!(first.identity(), collision.identity());
+    assert_ne!(first, collision);
+    assert_eq!(BTreeSet::from([first, collision]).len(), 2);
 }

@@ -162,7 +162,7 @@ fn grammar(ir: &Ir) -> TokenStream {
         const SELECTED_FRAME_TEMPLATES: &[(usize, &str)] = &[#(#templates),*];
         const REQUIRES_ENVIRONMENT: bool = #required;
         impl Default for Grammar {
-            fn default() -> Self { Self { rules: vec![#(#rules),*], productions: vec![#(#productions),*], programs: vec![], canonical_frames: vec![#(#canonical_frames),*], marker_classes: vec![], expansions: vec![], unsupported: vec![], static_count: #static_count, compiled: false } }
+            fn default() -> Self { Self { rules: vec![#(#rules),*], productions: vec![#(#productions),*], programs: vec![], canonical_frames: vec![#(#canonical_frames),*], marker_classes: vec![], expansions: vec![], frame_programs: vec![], expansion_index: ::std::collections::BTreeMap::new(), unsupported: vec![], static_count: #static_count, compiled: false } }
         }
         impl Grammar {
             fn frame_category(name: &str) -> Option<Category> { match name { #(#categories,)* _ => None } }
@@ -331,19 +331,19 @@ fn form_pieces(
                 match ty {
                     FieldType::SelectedFrame(_, _) => unreachable!(),
                     FieldType::Lexical(_) => {
-                        summaries.push(quote!(Some(#binding.admit(grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?)));
+                        summaries.push(quote!(Some(cache.word(#binding, grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?)));
                         write.push(quote!(output.word(#binding, lexicon)?;));
                         word.push(quote!(visitor(#binding);));
                     }
                     FieldType::One(_) => {
-                        summaries.push(quote!(Some({ let child = #binding; #check_category child.admit_with(grammar, lexicon)? })));
-                        write.push(quote!(#binding.write(grammar, lexicon, output)?;));
+                        summaries.push(quote!(Some({ let child = #binding; #check_category cache.admit(child, grammar, lexicon)? })));
+                        write.push(quote!(#binding.write(grammar, lexicon, output, cache)?;));
                         visit.push(quote!(#binding.visit(visitor)?;));
                         word.push(quote!(#binding.visit_words(visitor)?;));
                     }
                     FieldType::Optional(_) => {
-                        summaries.push(quote!(Some({ if let Some(child) = #binding { #check_category child.admit_with(grammar, lexicon)? } else { Summary::default() } })));
-                        write.push(quote!(if let Some(child) = #binding { child.write(grammar, lexicon, output)?; }));
+                        summaries.push(quote!(Some({ if let Some(child) = #binding { #check_category cache.admit(child, grammar, lexicon)? } else { Summary::default() } })));
+                        write.push(quote!(if let Some(child) = #binding { child.write(grammar, lexicon, output, cache)?; }));
                         visit
                             .push(quote!(if let Some(child) = #binding { child.visit(visitor)?; }));
                         word.push(
@@ -351,8 +351,8 @@ fn form_pieces(
                         );
                     }
                     FieldType::Repeated(_, separator) => {
-                        summaries.push(quote!(Some({ let mut result = Summary::default(); for child in #binding { #check_category let summary = child.admit_with(grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result })));
-                        write.push(quote!(for (index, child) in #binding.iter().enumerate() { if index != 0 { output.push_str(#separator); } child.write(grammar, lexicon, output)?; }));
+                        summaries.push(quote!(Some({ let mut result = Summary::default(); for child in #binding { #check_category let summary = cache.admit(child, grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result })));
+                        write.push(quote!(for (index, child) in #binding.iter().enumerate() { if index != 0 { output.push_str(#separator); } child.write(grammar, lexicon, output, cache)?; }));
                         visit.push(quote!(for child in #binding { child.visit(visitor)?; }));
                         word.push(quote!(for child in #binding { child.visit_words(visitor)?; }));
                     }
@@ -383,8 +383,9 @@ fn form_admission(
             FieldType::One(_) => quote!(FrameHead::Constituent(#binding_head)),
             _ => unreachable!(),
         };
-        *write = vec![quote!(grammar.write_selected(#rule, #head, #binding, lexicon, output)?;)];
-        quote!(grammar.admit_selected(#rule, #head, #binding, lexicon))
+        *write =
+            vec![quote!(grammar.write_selected(#rule, #head, #binding, lexicon, output, cache)?;)];
+        quote!(grammar.admit_selected(#rule, #head, #binding, lexicon, cache))
     } else {
         quote! {
             let summaries: Vec<Option<Summary>> = vec![#(#summaries),*];
@@ -465,12 +466,12 @@ fn ast(ir: &Ir) -> TokenStream {
                 );
                 node_methods.push(quote! {
                     #[inline(never)]
-                    fn #method(&self, grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon) -> Result<Summary, Error> {
+                    fn #method(&self, grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon, cache: &mut AdmissionCache) -> Result<Summary, Error> {
                         #bind
                         #admission
                     }
                 });
-                admit_forms.push(quote!(#admit_key => self.#method(grammar, lexicon)));
+                admit_forms.push(quote!(#admit_key => self.#method(grammar, lexicon, cache)));
             } else {
                 admit_forms.push(quote!(#admit_key => { #admission }));
             }
@@ -515,11 +516,14 @@ fn ast(ir: &Ir) -> TokenStream {
                 let grammar = Grammar::for_admission();
                 let summary = self.admit_with(grammar, lexicon)?;
                 let mut output = Realization::new();
-                self.write(grammar, lexicon, &mut output)?;
+                self.write(grammar, lexicon, &mut output, &mut AdmissionCache::default())?;
                 output.check_context(lexicon)?;
                 Ok(summary)
             }
             pub fn admit_with(&self, grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon) -> Result<Summary, Error> {
+                self.admit_with_cache(grammar, lexicon, &mut AdmissionCache::default())
+            }
+            fn admit_with_cache(&self, grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon, cache: &mut AdmissionCache) -> Result<Summary, Error> {
                 if REQUIRES_ENVIRONMENT && !grammar.compiled { return Err(Error::EnvironmentRequired); }
                 match self { #(#admits),* }
             }
@@ -535,11 +539,11 @@ fn ast(ir: &Ir) -> TokenStream {
                 let grammar = Grammar::for_admission();
                 self.admit_with(grammar, lexicon)?;
                 let mut output = Realization::new();
-                self.write(grammar, lexicon, &mut output)?;
+                self.write(grammar, lexicon, &mut output, &mut AdmissionCache::default())?;
                 output.check_context(lexicon)?;
                 Ok(output.finish())
             }
-            fn write(&self, grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon, output: &mut Realization) -> Result<(), Error> { match self { #(#writes),* } }
+            fn write(&self, grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon, output: &mut Realization, cache: &mut AdmissionCache) -> Result<(), Error> { match self { #(#writes),* } }
             /// Visit constructions in preorder, with children in declared surface order.
             /// # Errors
             /// Reports an invalid surface alternative.
@@ -641,6 +645,7 @@ fn emit_structural_traits(ir: &Ir) -> TokenStream {
         }
         impl ::core::cmp::Ord for Reading {
             fn cmp(&self, other: &Self) -> ::core::cmp::Ordering {
+                if ::core::ptr::eq(self, other) { return ::core::cmp::Ordering::Equal; }
                 let ordering = self.__variant_rank().cmp(&other.__variant_rank());
                 if ordering != ::core::cmp::Ordering::Equal { return ordering; }
                 match self { #(#comparisons),* }
@@ -667,14 +672,14 @@ fn emit_node_methods(
     let operations = [
         (
             "admit",
-            quote!(grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon),
-            quote!(grammar, lexicon),
+            quote!(grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon, cache: &mut AdmissionCache),
+            quote!(grammar, lexicon, cache),
             quote!(Summary),
         ),
         (
             "write",
-            quote!(grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon, output: &mut Realization),
-            quote!(grammar, lexicon, output),
+            quote!(grammar: &Grammar, lexicon: &::deckmaste_lexical::Lexicon, output: &mut Realization, cache: &mut AdmissionCache),
+            quote!(grammar, lexicon, output, cache),
             quote!(()),
         ),
         (
@@ -787,7 +792,11 @@ fn materializer(ir: &Ir) -> TokenStream {
         fn build_selected(&self, template: usize, head: Value, values: Vec<FrameValue>) -> Result<Value, Error> {
             match template { #(#selected_builds,)* _ => Err(Error::Internal) }
         }
-        fn materialize(&self, production: usize, children: Vec<Value>) -> Result<Value, Error> {
+        /// Construct a declaration's value from its already-admitted children.
+        /// Chart summaries and states are not materialization inputs.
+        /// # Errors
+        /// Reports an unknown production or a malformed ordered child tuple.
+        pub fn materialize(&self, production: usize, children: Vec<Value>) -> Result<Value, Error> {
             match production { #(#cases,)* _ => self.materialize_selected(production, children) }
         }
         #(#methods)*

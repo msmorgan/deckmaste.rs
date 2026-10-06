@@ -193,7 +193,6 @@ fn corresponding_frame(
 
 struct FrameExpansion {
     template: usize,
-    program: usize,
     layout: Vec<FrameLayout>,
 }
 
@@ -242,7 +241,12 @@ impl<'a> GrammarEnvironment<'a> {
             return Err(Error::Invalid("frame segments", "undischarged sharing"));
         }
         let mut output = Realization::new();
-        reading.write(&self.grammar, self.lexicon, &mut output)?;
+        reading.write(
+            &self.grammar,
+            self.lexicon,
+            &mut output,
+            &mut AdmissionCache::default(),
+        )?;
         output.check_context(self.lexicon)?;
         Ok(summary)
     }
@@ -252,7 +256,12 @@ impl<'a> GrammarEnvironment<'a> {
             return Err(Error::Invalid("frame segments", "undischarged sharing"));
         }
         let mut output = Realization::new();
-        reading.write(&self.grammar, self.lexicon, &mut output)?;
+        reading.write(
+            &self.grammar,
+            self.lexicon,
+            &mut output,
+            &mut AdmissionCache::default(),
+        )?;
         output.check_context(self.lexicon)?;
         Ok(output.finish())
     }
@@ -295,7 +304,7 @@ impl Grammar {
             return Err(Error::Invalid("frame segments", "undischarged sharing"));
         }
         let mut output = Realization::new();
-        reading.write(self, lexicon, &mut output)?;
+        reading.write(self, lexicon, &mut output, &mut AdmissionCache::default())?;
         output.check_context(lexicon)?;
         Ok(summary)
     }
@@ -305,17 +314,33 @@ impl Grammar {
         reading: &Reading,
         lexicon: &::deckmaste_lexical::Lexicon,
     ) -> Result<String, Error> {
+        let output = self.realization(reading, lexicon)?;
+        output.check_context(lexicon)?;
+        Ok(output.finish())
+    }
+    fn realization(
+        &self,
+        reading: &Reading,
+        lexicon: &::deckmaste_lexical::Lexicon,
+    ) -> Result<Realization, Error> {
+        self.realization_with_cache(reading, lexicon, &mut AdmissionCache::default())
+    }
+    fn realization_with_cache(
+        &self,
+        reading: &Reading,
+        lexicon: &::deckmaste_lexical::Lexicon,
+        cache: &mut AdmissionCache,
+    ) -> Result<Realization, Error> {
         if REQUIRES_ENVIRONMENT && !self.compiled {
             return Err(Error::EnvironmentRequired);
         }
-        let summary = reading.admit_with(self, lexicon)?;
+        let summary = reading.admit_with_cache(self, lexicon, cache)?;
         if !summary.segments.is_empty() {
             return Err(Error::Invalid("frame segments", "undischarged sharing"));
         }
         let mut output = Realization::new();
-        reading.write(self, lexicon, &mut output)?;
-        output.check_context(lexicon)?;
-        Ok(output.finish())
+        reading.write(self, lexicon, &mut output, cache)?;
+        Ok(output)
     }
     fn project(&self, features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
         let properties = match &features {
@@ -590,14 +615,22 @@ impl Grammar {
                         symbols,
                     });
                     self.rules.push(rule);
+                    self.expansion_index
+                        .entry((template, program))
+                        .or_default()
+                        .push(self.expansions.len());
                     self.expansions.push(FrameExpansion {
                         template,
-                        program,
                         layout: layout.clone(),
                     });
                 }
             }
         }
+        self.frame_programs = self
+            .canonical_frames
+            .iter()
+            .map(|frame| self.programs.iter().position(|program| program == frame))
+            .collect();
     }
 
     fn selected_expansion(
@@ -606,46 +639,46 @@ impl Grammar {
         head: FrameHead<'_>,
         values: &[FrameValue],
         lexicon: &::deckmaste_lexical::Lexicon,
+        cache: &mut AdmissionCache,
     ) -> Result<(usize, Vec<Option<Summary>>), Error> {
         if !self.compiled {
             return Err(Error::EnvironmentRequired);
         }
         let summary = match (head, &self.productions[template].symbols[0]) {
             (FrameHead::Lexical(word), ::deckmaste_english_v3::Symbol::Lexical(pos)) => {
-                word.admit(self, lexicon, *pos)?
+                cache.word(word, self, lexicon, *pos)?
             }
             (
                 FrameHead::Constituent(reading),
                 ::deckmaste_english_v3::Symbol::Nonterminal(category),
-            ) if reading.category() == *category => reading.admit_with(self, lexicon)?,
+            ) if reading.category() == *category => cache.admit(reading, self, lexicon)?,
             _ => return Err(Error::Invalid("selected_frame", "selecting head category")),
         };
-        let canonical = match summary.values.get(7).and_then(Option::as_ref) {
-            Some(FeatureValue::Frame(index)) => self.canonical_frames.get(*index),
+        let program = match summary.values.get(7).and_then(Option::as_ref) {
+            Some(FeatureValue::Frame(index)) => self.frame_programs.get(*index).copied().flatten(),
             _ => None,
-        };
-        let program = canonical
-            .and_then(|frame| {
-                self.programs
-                    .iter()
-                    .position(|candidate| candidate == frame)
-            })
-            .ok_or(Error::Invalid(
-                "selected_frame",
-                "unsupported or absent declared frame",
-            ))?;
-        for (offset, expansion) in self.expansions.iter().enumerate() {
-            if expansion.template != template
-                || expansion.program != program
-                || expansion.layout.len() != values.len()
-            {
+        }
+        .ok_or(Error::Invalid(
+            "selected_frame",
+            "unsupported or absent declared frame",
+        ))?;
+        // Preserve the original expansion order and check every candidate for
+        // this declaration/frame pair, without scanning unrelated productions.
+        for &offset in self
+            .expansion_index
+            .get(&(template, program))
+            .into_iter()
+            .flatten()
+        {
+            let expansion = &self.expansions[offset];
+            if expansion.layout.len() != values.len() {
                 continue;
             }
             let mut summaries = vec![Some(summary.clone())];
             let mut valid = true;
             for (layout, value) in expansion.layout.iter().zip(values) {
                 if layout
-                    .summaries(value, self, lexicon, &mut summaries)
+                    .summaries(value, self, lexicon, &mut summaries, cache)
                     .is_err()
                 {
                     valid = false;
@@ -668,8 +701,10 @@ impl Grammar {
         head: FrameHead<'_>,
         values: &[FrameValue],
         lexicon: &::deckmaste_lexical::Lexicon,
+        cache: &mut AdmissionCache,
     ) -> Result<Summary, Error> {
-        let (production, summaries) = self.selected_expansion(template, head, values, lexicon)?;
+        let (production, summaries) =
+            self.selected_expansion(template, head, values, lexicon, cache)?;
         let rule = &self.rules[production];
         let mut state = State::new(rule.initial.clone());
         for (dot, summary) in summaries.iter().enumerate() {
@@ -688,15 +723,16 @@ impl Grammar {
         values: &[FrameValue],
         lexicon: &::deckmaste_lexical::Lexicon,
         output: &mut Realization,
+        cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
-        let (production, _) = self.selected_expansion(template, head, values, lexicon)?;
+        let (production, _) = self.selected_expansion(template, head, values, lexicon, cache)?;
         let expansion = &self.expansions[production - self.static_count];
         match head {
             FrameHead::Lexical(word) => output.word(word, lexicon)?,
-            FrameHead::Constituent(reading) => reading.write(self, lexicon, output)?,
+            FrameHead::Constituent(reading) => reading.write(self, lexicon, output, cache)?,
         }
         for (layout, value) in expansion.layout.iter().zip(values) {
-            layout.write(value, self, lexicon, output)?;
+            layout.write(value, self, lexicon, output, cache)?;
         }
         Ok(())
     }
@@ -776,17 +812,18 @@ impl FrameLayout {
         grammar: &Grammar,
         lexicon: &::deckmaste_lexical::Lexicon,
         output: &mut Vec<Option<Summary>>,
+        cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
         match (self, value) {
             (Self::Argument(category), FrameValue::Argument(reading))
                 if reading.category() == *category =>
             {
                 output.push(None);
-                output.push(Some(reading.admit_with(grammar, lexicon)?));
+                output.push(Some(cache.admit(reading, grammar, lexicon)?));
                 Ok(())
             }
             (Self::Marker(class, pos), FrameValue::Marker(word)) => {
-                let summary = word.admit(grammar, lexicon, *pos)?;
+                let summary = cache.word(word, grammar, lexicon, *pos)?;
                 if summary.marker_class != Some(*class) {
                     return Err(Error::Invalid("selected_frame", "declared marker class"));
                 }
@@ -795,22 +832,25 @@ impl FrameLayout {
                 Ok(())
             }
             (Self::Marked(class, pos, category), FrameValue::Marked { marker, argument }) => {
-                Self::Marker(*class, *pos).summaries(
-                    &FrameValue::Marker(marker.clone()),
-                    grammar,
-                    lexicon,
-                    output,
-                )?;
-                Self::Argument(*category).summaries(
-                    &FrameValue::Argument(argument.clone()),
-                    grammar,
-                    lexicon,
-                    output,
-                )
+                let summary = cache.word(marker, grammar, lexicon, *pos)?;
+                if summary.marker_class != Some(*class) {
+                    return Err(Error::Invalid("selected_frame", "declared marker class"));
+                }
+                output.push(None);
+                output.push(Some(summary));
+                if argument.category() != *category {
+                    return Err(Error::Invalid(
+                        "selected_frame",
+                        "slot category or optional realization",
+                    ));
+                }
+                output.push(None);
+                output.push(Some(cache.admit(argument, grammar, lexicon)?));
+                Ok(())
             }
             (Self::Optional(None), FrameValue::Optional(None)) => Ok(()),
             (Self::Optional(Some(item)), FrameValue::Optional(Some(value))) => {
-                item.summaries(value, grammar, lexicon, output)
+                item.summaries(value, grammar, lexicon, output, cache)
             }
             _ => Err(Error::Invalid(
                 "selected_frame",
@@ -824,11 +864,12 @@ impl FrameLayout {
         grammar: &Grammar,
         lexicon: &::deckmaste_lexical::Lexicon,
         output: &mut Realization,
+        cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
         match (self, value) {
             (Self::Argument(_), FrameValue::Argument(reading)) => {
                 output.push_str(" ");
-                reading.write(grammar, lexicon, output)
+                reading.write(grammar, lexicon, output, cache)
             }
             (Self::Marker(_, _), FrameValue::Marker(word)) => {
                 output.push_str(" ");
@@ -838,11 +879,11 @@ impl FrameLayout {
                 output.push_str(" ");
                 output.word(marker, lexicon)?;
                 output.push_str(" ");
-                argument.write(grammar, lexicon, output)
+                argument.write(grammar, lexicon, output, cache)
             }
             (Self::Optional(None), FrameValue::Optional(None)) => Ok(()),
             (Self::Optional(Some(item)), FrameValue::Optional(Some(value))) => {
-                item.write(value, grammar, lexicon, output)
+                item.write(value, grammar, lexicon, output, cache)
             }
             _ => Err(Error::Internal),
         }

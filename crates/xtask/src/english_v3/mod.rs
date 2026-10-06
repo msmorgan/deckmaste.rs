@@ -37,7 +37,7 @@ use crate::english_v3::report::Sample;
 use crate::english_v3::report::UnknownWord;
 use crate::english_v3::validation::Issue;
 use crate::english_v3::validation::Tracing;
-use crate::english_v3::validation::validate;
+use crate::english_v3::validation::validate_in_context;
 use crate::raw_corpus::CorpusSelectionArgs;
 use crate::raw_corpus::SelectedFace;
 use crate::raw_corpus::digest;
@@ -216,8 +216,9 @@ fn analyze_face(
             result.chart_wall_ns = started.elapsed().as_nanos();
             result.chart = report::chart_metrics(forest.metrics());
             let started = Instant::now();
-            let mut values = forest.readings(Tracing(grammar));
+            let mut values = forest.readings(Tracing::new(grammar));
             let mut checked = BTreeSet::new();
+            let context = std::cell::OnceCell::new();
             let mut requested = 0;
             loop {
                 if args
@@ -241,28 +242,46 @@ fn analyze_face(
                         continue;
                     }
                 };
-                match validate(
+                match validate_in_context(
                     &value,
                     &result.analyzed_source,
-                    lexicon,
                     args.field.category(),
-                    grammar,
+                    context.get_or_init(|| {
+                        deckmaste_english_v3::grammar::RealizationContext::new(
+                            grammar,
+                            lexicon,
+                            &result.analyzed_source,
+                        )
+                    }),
                 ) {
                     Ok(reading) => {
-                        if !checked.insert(reading.clone()) {
+                        if !checked.insert((
+                            value.identity().to_owned(),
+                            std::sync::Arc::clone(&value.value),
+                        )) {
                             result.issues.push(Issue::DuplicateReading);
                             continue;
                         }
-                        for node in &value.nodes {
-                            *result.constructions.entry(node.construction).or_default() += 1;
+                        for node in value.nodes.iter() {
+                            if let deckmaste_english_v3::grammar::Value::Reading(node) = &**node {
+                                *result.constructions.entry(node.construction()).or_default() += 1;
+                            }
                         }
                         if args.samples_per_face != 0 {
                             let total_cost =
                                 reading.total_cost().context("validated reading cost")?;
+                            if !report::sample_cost_would_be_retained(
+                                &result.samples,
+                                total_cost,
+                                args.samples_per_face,
+                            ) {
+                                continue;
+                            }
+                            let id = value.identity();
                             if report::sample_would_be_retained(
                                 &result.samples,
                                 total_cost,
-                                &value.nodes[0].sha256,
+                                id,
                                 args.samples_per_face,
                             ) {
                                 report::retain_sample(
@@ -277,6 +296,7 @@ fn analyze_face(
                 }
             }
             result.readings = report::reading_metrics(values.metrics());
+            result.materializations = values.materializer().metrics();
             result.checked_readings = checked.len();
             result.validation_wall_ns = started.elapsed().as_nanos();
         }
