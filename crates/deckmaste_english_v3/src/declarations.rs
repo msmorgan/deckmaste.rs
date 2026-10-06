@@ -24,6 +24,10 @@ constructions! {
         feature AdverbialUse { Yes, No }
         feature FrequencyUnit { Yes }
         feature FiniteClauseComplement { Yes }
+        feature GerundClauseComplement { Yes }
+        feature InternalisedComplementMarker { No, Yes } default No;
+        feature InternalisedComplementPresent { No, Yes } default No;
+        feature ExtentMarker { Yes }
         feature LocativeUse { No, Yes }
         feature AdjectiveStructure { Simple, Complemented }
         feature RelativeSubordinator { Yes }
@@ -31,7 +35,6 @@ constructions! {
         feature AuxiliaryComplementRealization { Overt, Elided }
         feature ScalarVariable { Yes }
         feature MeasureOperator { Yes }
-        feature MeasurePreposition { Yes }
         feature MeasurePosition { Before, After }
         feature MeasureKind { Scalar, Pair }
         feature ComparisonMarker { Equality, Ordering }
@@ -84,9 +87,9 @@ constructions! {
         category Clause();
         category FiniteClause();
         category FinitePredicate(number, person);
-        category SecondaryVerbPhrase(form, ParticipialUse);
+        category SecondaryVerbPhrase(form, ParticipialUse, InternalisedComplementPresent);
         category FiniteDepictiveHost(number, person);
-        category SecondaryDepictiveHost(form, ParticipialUse);
+        category SecondaryDepictiveHost(form, ParticipialUse, InternalisedComplementPresent);
         category BarePredicate();
         category ParticipialPredicate();
         category PastParticiplePredicate();
@@ -109,7 +112,8 @@ constructions! {
         category AdjectivePhrase(AdjectiveStructure);
         category Name();
         category NamePredicate();
-        category PrepositionPhrase(LocativeUse, AdverbialUse, ObliqueNumber);
+        category PrepositionPhrase(LocativeUse, AdverbialUse, ObliqueNumber,
+            InternalisedComplementMarker);
         category LocativeComplement();
         category FrequencyPhrase();
         category NominalAdjunctPhrase();
@@ -126,6 +130,8 @@ constructions! {
         category Amount();
         category MeasurePhrase(MeasureKind);
         category ScalarMeasurePhrase();
+        category ScalarExtentComplement();
+        category ScalarExtentMeasure();
         category UnsignedScalar();
         category ScalarComponent();
         category SlashPair();
@@ -159,7 +165,7 @@ constructions! {
         category SubtypeContinuation();
         category ClauseSeries();
         category FinitePredicateSeries(number, person);
-        category SecondaryPredicateSeries(form, ParticipialUse);
+        category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent);
         category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct);
         category InfinitiveComplement();
@@ -178,7 +184,8 @@ constructions! {
             NumberTransparency, ObliqueNumber, CoordinationKind
         );
         category AdjectivePhraseSeries(AdjectiveStructure);
-        category PrepositionPhraseSeries(LocativeUse, AdverbialUse, ObliqueNumber, CoordinationKind);
+        category PrepositionPhraseSeries(LocativeUse, AdverbialUse, ObliqueNumber, CoordinationKind,
+            InternalisedComplementMarker);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
@@ -189,11 +196,12 @@ constructions! {
         category PredicativeComplementSeries(PredicativeKind);
         category CorrelativeClauseSeries(CorrelativeCoordinator);
         category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator);
-        category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator);
+        category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
+            InternalisedComplementPresent);
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind);
         category CorrelativePrepositionPhraseSeries(LocativeUse, AdverbialUse, ObliqueNumber, CoordinationKind,
-            CorrelativeCoordinator);
+            CorrelativeCoordinator, InternalisedComplementMarker);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
             CorrelativeCoordinator);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
@@ -210,8 +218,9 @@ constructions! {
         category CorrelativeAdjectiveSeries(CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(number, person, CorrelativeCoordinator);
         category CorrelativeBareObjectGapSeries(CorrelativeCoordinator);
-        category SelectedPrepositionHead(LocativeUse, AdverbialUse, HeadCoordination);
-        category SelectedPrepositionHeadSeries(LocativeUse, AdverbialUse);
+        category SelectedPrepositionHead(LocativeUse, AdverbialUse, HeadCoordination,
+            InternalisedComplementMarker);
+        category SelectedPrepositionHeadSeries(LocativeUse, AdverbialUse, InternalisedComplementMarker);
         category CorrelativeFiniteClauseSeries(CorrelativeCoordinator);
 
         frame_category NounPhrase = AccusativePhrase;
@@ -266,6 +275,7 @@ constructions! {
         frame ObjectForObject = Predicate(Object(NounPhrase), Preposition(For), Object(NounPhrase));
         frame AtObject = Predicate(Preposition(At), Object(NounPhrase));
         frame Ditransitive = Predicate(Object(NounPhrase), Object(NounPhrase));
+        frame ObjectExtent = Predicate(Object(NounPhrase), Complement(ScalarExtentComplement));
 
         // Plain form is shared by finite imperatives and nonfinite infinitivals.
         table secondary_form(form) -> form {
@@ -327,6 +337,14 @@ constructions! {
         }
 
         // Local complement selection, not the voice of an auxiliary chain.
+        table complement_marker_concord(InternalisedComplementMarker,
+            InternalisedComplementMarker) -> InternalisedComplementMarker {
+            (Yes, Yes) => Yes, (No, Yes) => No, (Yes, No) => No, (No, No) => No,
+        }
+        table complement_presence(InternalisedComplementPresent,
+            InternalisedComplementPresent) -> InternalisedComplementPresent {
+            (Yes, Yes) => Yes, (No, Yes) => Yes, (Yes, No) => Yes, (No, No) => No,
+        }
         table coordinated_participial_use(ParticipialUse, ParticipialUse) -> ParticipialUse {
             (Ordinary, Ordinary) => Ordinary,
             (BarePassive, BarePassive) => BarePassive,
@@ -492,11 +510,13 @@ constructions! {
         }
 
         policy SecondaryProjection {
+            export InternalisedComplementPresent = head.InternalisedComplementPresent;
             export ParticipialUse = head.ParticipialUse;
             export form = secondary_form(head.form);
         }
 
         policy SecondaryAdjunctProjection {
+            export InternalisedComplementPresent = head.InternalisedComplementPresent;
             export ParticipialUse = head.ParticipialUse;
             export form = head.form;
         }
@@ -504,11 +524,13 @@ constructions! {
         policy OrdinarySecondaryHead {
             export form = secondary_form(head.form);
             export ParticipialUse = Ordinary;
+            export InternalisedComplementPresent = No;
         }
 
         policy OrdinarySelectedPredicate {
             export form = head.form;
             export ParticipialUse = Ordinary;
+            export InternalisedComplementPresent = No;
         }
 
         policy NounPhraseHeadAgreement {
@@ -534,6 +556,7 @@ constructions! {
         }
 
         policy PrepositionHeadPermissions {
+            export InternalisedComplementMarker = head.InternalisedComplementMarker;
             export AdverbialUse = head.AdverbialUse;
             export LocativeUse = head.LocativeUse;
         }
@@ -629,6 +652,8 @@ constructions! {
         }
 
         policy ObliquePrepositionConcord<Right, Source> {
+            export InternalisedComplementMarker = complement_marker_concord(
+                left.InternalisedComplementMarker, Right.InternalisedComplementMarker);
             export AdverbialUse = coordinated_adverbial_use(left.AdverbialUse, Right.AdverbialUse);
             export LocativeUse = coordinated_locative_use(left.LocativeUse, Right.LocativeUse);
             export ObliqueNumber = coordinated_oblique(Source.CoordinationKind,
@@ -636,6 +661,8 @@ constructions! {
         }
 
         policy PrepositionPermissions<Right, Source> {
+            export InternalisedComplementMarker = complement_marker_concord(
+                left.InternalisedComplementMarker, Right.InternalisedComplementMarker);
             export AdverbialUse = coordinated_adverbial_use(left.AdverbialUse, Right.AdverbialUse);
             export LocativeUse = coordinated_locative_use(left.LocativeUse, Right.LocativeUse);
         }
@@ -648,6 +675,8 @@ constructions! {
         policy SecondaryConjunctProperties<Right, Source> {
             agree left.form = Right.form;
             export form = left.form;
+            export InternalisedComplementPresent = complement_presence(
+                left.InternalisedComplementPresent, Right.InternalisedComplementPresent);
             export ParticipialUse = coordinated_participial_use(left.ParticipialUse,
                 Right.ParticipialUse);
         }
@@ -701,6 +730,7 @@ constructions! {
         policy AuxiliarySelectedPredicate {
             export form = head.form;
             export ParticipialUse = Ordinary;
+            export InternalisedComplementPresent = No;
             require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
                 = Yes;
         }
@@ -737,6 +767,17 @@ constructions! {
         schema PrepositionPredicate {
             form [head: node, " ", modifier: node];
             require modifier.AdverbialUse = Yes;
+        }
+
+        // CGEL Ch. 16 §10.1.1: this function belongs to the embedded Bare Passive.
+        construction InternalisedComplementPredicate: SecondaryVerbPhrase {
+            form [head: SecondaryVerbPhrase, " ", modifier: PrepositionPhrase];
+            require head.ParticipialUse = BarePassive;
+            require head.InternalisedComplementPresent = No;
+            require modifier.InternalisedComplementMarker = Yes;
+            export form = head.form;
+            export ParticipialUse = head.ParticipialUse;
+            export InternalisedComplementPresent = Yes;
         }
 
         schema OvertComplement {
@@ -1621,7 +1662,18 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: FiniteClause];
             require head.FiniteClauseComplement = Yes;
             export LocativeUse = No;
+            export InternalisedComplementMarker = No;
             export AdverbialUse = Yes;
+        }
+
+        // CGEL Ch. 8 §2.2: gerund-participials occur under means By independently
+        // of passive voice; the same complementation shape also occurs under To.
+        construction GerundComplementPreposition: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: SecondaryVerbPhrase];
+            require head.GerundClauseComplement = Yes;
+            require complement.form = GerundParticiple;
+            export ObliqueNumber = None;
+            use PrepositionHeadPermissions;
         }
 
         construction LocativeComplement: LocativeComplement {
@@ -1717,6 +1769,7 @@ constructions! {
             require head.form = PastParticiple;
             export form = PastParticiple;
             export ParticipialUse = BarePassive;
+            export InternalisedComplementPresent = No;
         }
         instance SelectedGapPrepositionPredicate<Result, Properties>: [
             (FiniteObjectGap, FiniteHeadAgreement),
@@ -1724,6 +1777,11 @@ constructions! {
             (SecondaryVerbPhrase, BarePassiveHead),
         ] {
             use Properties;
+        }
+        construction SelectedExtentPassive: SecondaryVerbPhrase {
+            form [head: lexical(Verb), " ", complement: ScalarExtentComplement];
+            require head.frame = ObjectExtent;
+            use BarePassiveHead;
         }
         construction RetainedObjectPassive: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", object: AccusativePhrase];
@@ -1876,6 +1934,7 @@ constructions! {
             require head.frame = Transitive;
             export form = PastParticiple;
             export ParticipialUse = BarePassive;
+            export InternalisedComplementPresent = No;
         }
 
         construction SubjectRelativeClause: SubjectRelativeClause {
@@ -2122,13 +2181,16 @@ constructions! {
             export MeasureKind = Scalar;
         }
 
-        construction MeasuredPreposition: PrepositionPhrase {
-            export ObliqueNumber = None;
-            form [head: lexical(Preposition), " ", complement: MeasurePhrase];
-            require head.MeasurePreposition = Yes;
-            require complement.MeasureKind = Scalar;
-            export LocativeUse = No;
-            export AdverbialUse = Yes;
+        construction ScalarExtentMeasure: ScalarExtentMeasure {
+            form [value: ScalarMeasurePhrase];
+        }
+        construction CardinalExtentMeasure: ScalarExtentMeasure {
+            form [value: Cardinal];
+        }
+        // CGEL Ch. 8 §§5.2–5.3: scalar extent is selected by its lexical host.
+        construction ScalarExtentComplement: ScalarExtentComplement {
+            form [marker: lexical(Preposition), " ", complement: ScalarExtentMeasure];
+            require marker.ExtentMarker = Yes;
         }
 
         construction MeasuredNounPhrase: NounPhrase {
@@ -2388,6 +2450,7 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: CoordinatedFiniteClause];
             require head.FiniteClauseComplement = Yes;
             export LocativeUse = No;
+            export InternalisedComplementMarker = No;
             export AdverbialUse = Yes;
         }
 

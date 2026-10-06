@@ -450,13 +450,40 @@ fn counts_and_measures_interact_with_nominals_frames_and_prepositions() {
         "Surveil X.",
         "Surveil 2 plus 2.",
         "Creatures with power 3 attack.",
-        "Creatures attack by 2 plus 2.",
+        "Your maximum hand size is increased by two.",
+        "You gain X plus 3 life.",
     ] {
         assert!(
             !readings(text, Category::Document).is_empty(),
             "no Reading for {text:?}"
         );
     }
+    for reading in readings(
+        "Your maximum hand size is increased by two.",
+        Category::Document,
+    ) {
+        let mut extents = vec![];
+        reading
+            .visit(&mut |node| {
+                if let Reading::SelectedExtentPassive { complement, .. } = node {
+                    extents.push((
+                        node.realize(lexicon()).unwrap(),
+                        complement.category(),
+                        complement.realize(lexicon()).unwrap(),
+                    ));
+                }
+            })
+            .unwrap();
+        assert_eq!(
+            extents,
+            vec![(
+                "increased by two".into(),
+                Category::ScalarExtentComplement,
+                "by two".into()
+            )]
+        );
+    }
+    assert!(readings("Creatures attack by 2 plus 2.", Category::Document).is_empty());
     for text in [
         "Draw two card.",
         "Draw 2 cards.",

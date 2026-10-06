@@ -113,7 +113,11 @@ fn pp_adjuncts_and_selected_locatives_keep_their_readings() {
     for (text, category) in [
         ("Draw cards from them.", Category::Document),
         ("Until you draw cards, draw cards.", Category::Document),
-        ("Creatures attack by 2 plus 2.", Category::Document),
+        (
+            "Your maximum hand size is increased by two.",
+            Category::Document,
+        ),
+        ("You gain X plus 3 life.", Category::Document),
         (
             "this creature remains on the battlefield",
             Category::FiniteClause,
@@ -125,6 +129,32 @@ fn pp_adjuncts_and_selected_locatives_keep_their_readings() {
             "no Reading for {text:?}"
         );
     }
+    for reading in readings(
+        "Your maximum hand size is increased by two.",
+        Category::Document,
+    ) {
+        let mut extents = vec![];
+        reading
+            .visit(&mut |node| {
+                if let Reading::SelectedExtentPassive { complement, .. } = node {
+                    extents.push((
+                        node.realize(lexicon()).unwrap(),
+                        complement.category(),
+                        complement.realize(lexicon()).unwrap(),
+                    ));
+                }
+            })
+            .unwrap();
+        assert_eq!(
+            extents,
+            vec![(
+                "increased by two".into(),
+                Category::ScalarExtentComplement,
+                "by two".into()
+            )]
+        );
+    }
+    assert!(readings("Creatures attack by 2 plus 2.", Category::Document).is_empty());
 }
 
 #[test]

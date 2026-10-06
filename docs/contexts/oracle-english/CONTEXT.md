@@ -229,6 +229,14 @@ A nonfinite passive Clause without an expanding catenative verb such as *be* or
 *get*. It may include an overt Subject or an internalised *by*-Complement
 (CGEL, Ch. 16 §10.1.1, p. 1430).
 
+**Internalised Complement**:
+The Complement within a passive Verb Phrase that corresponds to the Subject
+of its active counterpart, normally marked by *by*. It bears that Subject's
+semantic role, which need not be agent (CGEL, Ch. 16 §10.1.1, p. 1428;
+Ch. 8 §2.2, pp. 674–675). This function is distinct from a Means Adjunct and
+from a Scalar Change Extent Complement selected by a lexical head.
+_Avoid_: Agent for this syntactic function
+
 **Participial Use** (project term):
 The distinction, in participial Complement selection, between a Bare Passive
 and an ordinary lexical or auxiliary predicate. An expanded passive has
@@ -388,9 +396,20 @@ A dependent selected by its head.
 A Complement that supplies a quantity or extent licensed by its head.
 _Avoid_: Numerative
 
+**Scalar Change Extent Complement**:
+A Complement expressing how far a value changes along a scale, licensed by
+an appropriate lexical head; overall extent can be marked by *by* (CGEL,
+Ch. 8 §§5.2–5.3, pp. 691–693).
+
 **Adjunct**:
 An optional dependent that modifies a phrase without being selected as its
 Complement.
+
+**Means Adjunct**:
+An Adjunct expressing how a situation is brought about, commonly a *by*
+Preposition Phrase with a nominal or gerund-participial Complement. It can
+occur in active and passive Clauses independently of an Internalised
+Complement (CGEL, Ch. 8 §2.2, pp. 673–675).
 
 **Frequency Adjunct**:
 An Adjunct that quantifies occurrences of a situation, such as *X times* or
