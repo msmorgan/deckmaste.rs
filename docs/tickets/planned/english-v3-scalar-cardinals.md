@@ -33,11 +33,20 @@ tickets touch overlapping structures and are worked one at a time. Write the
 pinned witnesses as tests before implementing.
 The landing compares corpus Reading identities before and after on its own tree.
 
+## Pinned analysis
+
+Quantitative *up to two* is a Preposition Phrase in determiner function, not a
+Cardinal head. CGEL Ch. 5, p. 357, example [6] lists *up to twenty minutes*
+beside *around ten thousand copies* and *under ten new drugs* as PPs in that
+position, and the glossary's Quantity entry already counts *up to two* among
+Determiners. The counted Noun Phrase therefore keeps its noun head and takes
+either a Cardinal or this PP as its determiner; no second Noun Phrase family is
+introduced.
+
 ## Prior attempt
 
 The bookmark `archive-english-v3-compact-grammar` contains an unfinished attempt
 at this ticket, made in one change together with six others and never verified
-against the corpus. It analysed quantitative *up to* as a modified Preposition Phrase in the
-counted Noun Phrase's determiner function rather than as a Cardinal head, citing
-CGEL Ch. 5, pp. 355 and 357; check that authority before adopting the analysis. Read it for ideas if useful. Do not rebase onto
-it, and treat every claim in its ticket notes as unverified.
+against the corpus. It reached the analysis pinned above. Read it for ideas if
+useful. Do not rebase onto it, and treat every claim in its ticket notes as
+unverified.

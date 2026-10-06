@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-systemic-residuals, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord]
+needs: [english-v3-systemic-residuals, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord, english-v3-by-complement-functions, english-v3-census-tractability, english-v3-cutover-comparison]
 ---
 # Cut production English consumers over to v3
 
@@ -29,5 +29,16 @@ consumer may use v2 to conceal them. Every unit that v2 parsed correctly and v3
 does not must appear in an explicit accepted-regression list owned by the
 long-tail ticket. Retiring a v2 Reading as wrong requires a grammatical witness
 showing why it was invalid. Cutover also adopts the corpus-runtime and forest
-growth ceiling justified by the systemic report, rather than leaving measured
-performance without an operational bound. Standard constraints apply.
+growth ceiling established by `english-v3-census-tractability`, rather than
+ratifying whatever the run happens to cost. Standard constraints apply.
+
+## Prerequisites added 2026-10-05
+
+- `english-v3-by-complement-functions`: the systemic-residuals records name the
+  Avacyn complement-function defect a cutover blocker.
+- `english-v3-census-tractability`: the complete run must be affordable enough
+  to be the acceptance evidence.
+- `english-v3-cutover-comparison`: supplies the legacy-versus-v3 identity list
+  and the consumer inventory this ticket's acceptance and migration depend on.
+  Until it lands, this ticket has no list of consumers to migrate and no method
+  for the accepted-regression list.

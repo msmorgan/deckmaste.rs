@@ -43,6 +43,16 @@ Readings, internal failures and construction/declaration economy. Old scratch
 reports in /tmp/english-v3-frame-probes are optional; regenerate evidence from the
 implementation tree. Standard constraints apply.
 
+## Scope bound
+
+Three deliverables: the shared ordered-slot consumer, the Amass witness with the
+contrasting selected-With constituent, and a report of every frame shape still
+unmatched afterwards with the ticket that owns it. "Reconcile the unmatched
+inventory" above means that report. Typed reconciliation of the legacy
+`FrameComplement` and `ReplacementMarker` payloads is routed to an owner, not
+done here; a shape that depends on them stays an explicit unsupported
+diagnostic.
+
 ## Sequencing
 
 This is the one queued ticket that changes how existing Readings are

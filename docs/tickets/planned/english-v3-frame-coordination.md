@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-keyword-labels]
+needs: [english-v3-keyword-labels, english-v3-generic-frame-consumption]
 ---
 # Recover shared frame-complement coordination and bound invalid derivations
 
@@ -9,6 +9,29 @@ Use Lexeme-owned Frame Slots, selected markers and explicit sharing/discharge
 relationships; the historical `VerbPhraseAndFrameComplementPairCoordination`
 name identifies an obligation, not a required new Rust identifier. Preserve
 separate versus shared surface material and every grammatical scope alternative.
+
+## Re-baseline first (2026-10-05)
+
+The baseline below is historical. A recipient-cluster host has landed since it
+was written: one selected-tail host checks the complete governing verb frame and
+requires coordination (record: "Selected complement coordination and PP
+licensing" in [English v3 residual batch records](../../english-v3-residual-batch-records.md)),
+and `crates/deckmaste_english_v3/tests/selected_complement_clusters.rs` asserts
+the full structure for Arc Trail, Char and Fireslinger. Probed on the default
+line at change `lnrvzkvl`, Fireslinger's ability and Forge Devil's ability each
+have exactly one Reading, not 128 and 184.
+
+So the first step of this ticket is measurement, not implementation: re-probe
+all nine witnesses in the table and the destination-sharing constituents of
+Cavalier of Thorns, Animal Magnetism and Genesis Ultimatum, and report which
+already have the intended structure. What remains after that is this ticket's
+scope. Do not rebuild the landed host or add a second route to the same
+structure. If nothing remains but reconciling the 85 inherited identities, say
+so and do only that.
+
+The `english-v3-generic-frame-consumption` need is real, not sequencing: the
+pinned shape validates segments against selected Frame Slots, which that ticket
+redefines.
 
 The activation tree `kkmxslkn` had 85 inherited frame-coordination obligations:
 76 no-Reading faces and the following nine multiple-Reading faces, none with
