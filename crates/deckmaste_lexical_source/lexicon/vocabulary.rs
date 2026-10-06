@@ -110,7 +110,6 @@ constructions! {
         Next = "next",
         Other = "other",
         Postcombat = "postcombat",
-        Precombat = "precombat",
         Same = "same",
         Second = "second",
         SixSided = "six-sided",
@@ -149,17 +148,12 @@ constructions! {
         Your = "your",
     }
     vocab PossessiveAbsolutePronoun {
-        Hers = "hers",
         His = "his",
-        Theirs = "theirs",
         Yours = "yours",
     }
     vocab ReflexivePronoun {
-        Herself = "herself",
         Himself = "himself",
         Itself = "itself",
-        Themself = "themself",
-        Themselves = "themselves",
         Yourself = "yourself",
     }
     vocab Variable { X = "X", Y = "Y", }
@@ -194,26 +188,11 @@ constructions! {
         HybridRedWhite = "R/W",
         HybridGreenWhite = "G/W",
         HybridGreenBlue = "G/U",
-        ColorlessHybridWhite = "C/W",
-        ColorlessHybridBlue = "C/U",
-        ColorlessHybridBlack = "C/B",
-        ColorlessHybridRed = "C/R",
-        ColorlessHybridGreen = "C/G",
         PhyrexianWhite = "W/P",
         PhyrexianBlue = "U/P",
         PhyrexianBlack = "B/P",
         PhyrexianRed = "R/P",
         PhyrexianGreen = "G/P",
-        HybridPhyrexianWhiteBlue = "W/U/P",
-        HybridPhyrexianWhiteBlack = "W/B/P",
-        HybridPhyrexianBlueBlack = "U/B/P",
-        HybridPhyrexianBlueRed = "U/R/P",
-        HybridPhyrexianBlackRed = "B/R/P",
-        HybridPhyrexianBlackGreen = "B/G/P",
-        HybridPhyrexianRedGreen = "R/G/P",
-        HybridPhyrexianRedWhite = "R/W/P",
-        HybridPhyrexianGreenWhite = "G/W/P",
-        HybridPhyrexianGreenBlue = "G/U/P",
         Tap = "T",
         Untap = "Q",
         Pawprint = "P",
@@ -238,9 +217,7 @@ constructions! {
     vocab Supertype {
         Basic = "basic",
         Legendary = "legendary",
-        Ongoing = "ongoing",
         Snow = "snow",
-        World = "world",
     }
     morphology EnglishVerb {
         feature = ConcordClass;

@@ -6,7 +6,7 @@ use deckmaste_lexical::{
 };
 
 #[test]
-fn supertype_adjectives_have_owned_positive_and_negative_values_without_duplicate_legendary() {
+fn supertype_adjectives_have_owned_attested_values_without_duplicate_legendary() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let lexicon = Lexicon::new(
         deckmaste_lexical_source::load_workspace(&root)
@@ -15,17 +15,18 @@ fn supertype_adjectives_have_owned_positive_and_negative_values_without_duplicat
     )
     .unwrap();
     // Attested modifiers: Cast Down (nonlegendary creature), Blood Moon
-    // (Nonbasic lands), Into the North (snow land card). The declared class also includes world.
-    for (owner, spelling) in [
-        ("vocab:PredicativeAdjective/Legendary", "legendary"),
-        ("vocab:Supertype/Basic", "basic"),
-        ("vocab:Supertype/Snow", "snow"),
-        ("vocab:Supertype/World", "world"),
+    // (Nonbasic lands), Into the North (snow land card). World stays positive.
+    for (owner, spelling, negative) in [
+        ("vocab:PredicativeAdjective/Legendary", "legendary", true),
+        ("vocab:Supertype/Basic", "basic", true),
+        ("vocab:Supertype/Snow", "snow", true),
+        ("vocab:Supertype/World", "world", false),
     ] {
-        for (id, surface) in [
-            (owner.to_owned(), spelling.to_owned()),
-            (format!("{owner}/non"), format!("non{spelling}")),
-        ] {
+        let mut forms = vec![(owner.to_owned(), spelling.to_owned())];
+        if negative {
+            forms.push((format!("{owner}/non"), format!("non{spelling}")));
+        }
+        for (id, surface) in forms {
             let entry = &lexicon.lexemes()[id.as_str()];
             assert_eq!(entry.category, Category::Adjective);
             assert_eq!(entry.source.owner, owner);

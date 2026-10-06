@@ -24,7 +24,7 @@ fn authored_vocabulary_composes_across_the_grammar() {
         "Draw cards.",
         "You draw cards.",
         "Each creature attacks.",
-        "These creatures attack.",
+        "Those creatures attack.",
         "Draw cards from them.",
         "If you draw cards, draw cards.",
         "Draw cards. If you do, draw cards.",
@@ -51,7 +51,7 @@ fn authored_vocabulary_composes_across_the_grammar() {
 fn agreement_case_frames_and_local_ellipsis_are_admission_constraints() {
     for text in [
         "Each creatures attack.",
-        "These creature attacks.",
+        "Those creature attacks.",
         "Creatures attacks.",
         "You draws cards.",
         "Them draw cards.",
@@ -1244,7 +1244,7 @@ fn copular_location_has_a_selected_complement_reading() {
         }
     }
     assert!(
-        readings("is because you draw cards", Category::FinitePredicate)
+        readings("is whenever you draw a card", Category::FinitePredicate)
             .iter()
             .all(|r| !matches!(
                 r,
@@ -1265,7 +1265,8 @@ fn clause_taking_prepositions_keep_their_category_and_complement_selection() {
         "until you draw cards",
         "before you draw cards",
         "after you draw cards",
-        "because you draw cards",
+        // Psychosis Crawler supplies the clause-taking PP.
+        "whenever you draw a card",
         "if you draw cards",
         "when you draw cards",
     ] {

@@ -158,7 +158,6 @@ fn native_counter_notation_inventory_has_exact_independent_singular_and_plural_v
     let expected_members = [
         ("P1P0", "+1/+0"),
         ("P2P2", "+2/+2"),
-        ("P2P0", "+2/+0"),
         ("M0M1", "-0/-1"),
         ("P0P1", "+0/+1"),
         ("M0M2", "-0/-2"),

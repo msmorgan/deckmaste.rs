@@ -37,7 +37,7 @@ fn oracle_constituents_use_declared_verb_frames() {
     }
     for text in [
         "this ability resolve",
-        "these abilities resolves",
+        "those abilities resolves",
         "that ability trigger",
         "this creature remain on the battlefield",
         "this creature remains",

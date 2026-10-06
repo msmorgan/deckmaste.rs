@@ -1,13 +1,14 @@
-// V3 lexical declarations. Forms and frames are prospective linguistic data;
-// corpus occurrence counts do not license or withhold an entry.
+// V3 lexical declarations. Lexemes follow the supported-corpus pruning rule;
+// surviving forms and frames remain declared linguistic data.
 (
-    // Ordinary supertype adjectives share joined negative formation. Legendary
-    // keeps its existing adjective owner; the unused Catalog entry is retained.
+    // Attested negative supertype adjectives share joined negative formation.
+    // World has an ordinary adjective declaration without a negative Lexeme.
+    // Legendary keeps its existing adjective owner and Catalog entry.
     adjective_classes: [(
         negative_prefix_join: Joined,
         members: [
             "vocab:Supertype/Basic", "vocab:PredicativeAdjective/Legendary",
-            "vocab:Supertype/Snow", "vocab:Supertype/World",
+            "vocab:Supertype/Snow",
         ],
     )],
     participial_adjective_classes: [(
@@ -25,7 +26,6 @@
         members: [
             (owner: "lexeme:counter_kind_numeric/P1P0", stem: "+1/+0"),
             (owner: "lexeme:counter_kind_numeric/P2P2", stem: "+2/+2"),
-            (owner: "lexeme:counter_kind_numeric/P2P0", stem: "+2/+0"),
             (owner: "lexeme:counter_kind_numeric/M0M1", stem: "-0/-1"),
             (owner: "lexeme:counter_kind_numeric/P0P1", stem: "+0/+1"),
             (owner: "lexeme:counter_kind_numeric/M0M2", stem: "-0/-2"),
@@ -97,19 +97,13 @@
         "vocab:Determinative/Another": {"DeterminerUse": "SingularCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Any": {"QuantificationalDeterminer": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Either": {"CorrelativeKind": "Either", "DeterminerUse": "SingularCount", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/Enough": {"DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/Few": {"DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/Little": {"DeterminerUse": "Mass", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Many": {"DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Most": {"DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Much": {"DeterminerUse": "Mass", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Neither": {"CorrelativeKind": "Neither", "DeterminerUse": "SingularCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/No": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/Several": {"DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Some": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/These": {"DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Those": {"DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/What": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Which": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/All": {"DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/Both": {"CorrelativeKind": "Both", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
@@ -126,12 +120,10 @@
         "vocab:Preposition/While": {"PrepositionFunctionLicence": "Adjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/Until": {"PrepositionFunctionLicence": "Adjunct|Modifier", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Since": {"PrepositionFunctionLicence": "Adjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase"},
-        "vocab:Preposition/Because": {"PrepositionFunctionLicence": "Adjunct|Compound", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:TriggerMarker/When": {"PrepositionFunctionLicence": "Adjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:TriggerMarker/Whenever": {"PrepositionFunctionLicence": "Adjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Subordinator/That": {"RelativeSubordinator": "Yes"},
         "vocab:Preposition/After": {"PrepositionFunctionLicence": "Adjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "FiniteClauseComplement": "Yes", "NominalBareClass": "Boundary"},
-        "vocab:Preposition/Against": {"PrepositionFunctionLicence": "Adjunct|VerbComplement|Modifier", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
         "vocab:Preposition/Among": {"PrepositionFunctionLicence": "VerbComplement|Modifier|Compound|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/At": {"PrepositionFunctionLicence": "Adjunct|VerbComplement|Compound|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "NominalBareClass": "Boundary", "KeywordMarker": "At"},
         "vocab:Preposition/Before": {"PrepositionFunctionLicence": "Adjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "FiniteClauseComplement": "Yes", "NominalBareClass": "Boundary"},
@@ -149,14 +141,19 @@
         "vocab:Preposition/Onto": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Onto"},
         "vocab:Preposition/Outside": {"PrepositionFunctionLicence": "Adjunct|Modifier|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Over": {"PrepositionFunctionLicence": "Adjunct|Modifier|VerbComplement|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
-        "vocab:Preposition/Through": {"PrepositionFunctionLicence": "Adjunct|VerbComplement|Modifier", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
         "vocab:Preposition/To": {"PrepositionFunctionLicence": "VerbComplement|AdjectiveComplement|NounComplement|Compound|Modifier", "GerundClauseComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "ComparisonMarker": "Equality", "KeywordMarker": "To", "QuantitativeComplement": "Cardinal"},
         "vocab:Preposition/Under": {"PrepositionFunctionLicence": "VerbComplement|Adjunct|Modifier|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "Under"},
         "vocab:Preposition/With": {"PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
-        "vocab:Preposition/Within": {"PrepositionFunctionLicence": "Adjunct|Modifier|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Without": {"PrepositionFunctionLicence": "Adjunct|Modifier", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
+        (
+            id: "vocab:Supertype/World", lemma: "world", category: Adjective,
+            properties: (countability: [], features: {}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Supertype/World"),
+            capitalization: Initial, binding: Free,
+        ),
         (
             id: "vocab:Preposition/Instead", lemma: "instead", category: Preposition,
             properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct|Compound", "CompoundComplementMarker": "Of", "LocativeUse": "No"}, frames: []),
@@ -517,13 +514,6 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Preposition/Because", lemma: "because", category: Preposition,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Because"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
             id: "vocab:InfinitivalMarker/To", lemma: "to", category: Subordinator,
             properties: (countability: [], features: {"Finiteness": "Nonfinite", "InfinitivalMarker": "Yes"}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -587,20 +577,6 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Preposition/Through", lemma: "through", category: Preposition,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Through"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Preposition/Within", lemma: "within", category: Preposition,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Within"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
             id: "vocab:Preposition/Between", lemma: "between", category: Preposition,
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -612,13 +588,6 @@
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Beyond"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Preposition/Against", lemma: "against", category: Preposition,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Against"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
@@ -671,13 +640,6 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Determinative/Enough", lemma: "enough", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Enough"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
             id: "vocab:Determinative/Many", lemma: "many", category: Determinative,
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -699,34 +661,6 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Determinative/These", lemma: "these", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/These"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Determinative/Several", lemma: "several", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Several"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Determinative/Such", lemma: "such", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Such"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Determinative/What", lemma: "what", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/What"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
             id: "vocab:Determinative/Which", lemma: "which", category: Determinative,
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -745,20 +679,6 @@
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Less"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Determinative/Few", lemma: "few", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Few"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Determinative/Little", lemma: "little", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Little"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
@@ -854,13 +774,6 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Adverb/Together", lemma: "together", category: Adverb,
-            properties: (countability: [], features: {"VPFinalAdjunct": "Yes", "ClauseInitialAdjunct": "No"}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Together"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
             id: "vocab:Adverb/Out", lemma: "out", category: Adverb,
             properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -879,20 +792,6 @@
             properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Back"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Adverb/Away", lemma: "away", category: Adverb,
-            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Away"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Adverb/Here", lemma: "here", category: Adverb,
-            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Here"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
@@ -991,27 +890,6 @@
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:RelativePronoun/Whose"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:IndefinitePronoun/Anything", lemma: "anything", category: Pronoun,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:IndefinitePronoun/Anything"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:IndefinitePronoun/Nothing", lemma: "nothing", category: Pronoun,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:IndefinitePronoun/Nothing"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:IndefinitePronoun/Something", lemma: "something", category: Pronoun,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:IndefinitePronoun/Something"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
@@ -1140,20 +1018,6 @@
             capitalization: Initial, binding: Suffix, surface_structure: Word,
         ),
         (
-            id: "core-verb:WouldContracted", lemma: "'d", category: Verb,
-            properties: (countability: [], features: {"Contraction": "Yes"}, frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])]),
-            forms: [
-                (form: Preterite, features: (number: Some(Singular), person: Some(First), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["'d", "’d"])),
-                (form: Preterite, features: (number: Some(Singular), person: Some(Second), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["'d", "’d"])),
-                (form: Preterite, features: (number: Some(Singular), person: Some(Third), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["'d", "’d"])),
-                (form: Preterite, features: (number: Some(Plural), person: Some(First), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["'d", "’d"])),
-                (form: Preterite, features: (number: Some(Plural), person: Some(Second), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["'d", "’d"])),
-                (form: Preterite, features: (number: Some(Plural), person: Some(Third), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["'d", "’d"]))
-            ],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "core-verb:WouldContracted"),
-            capitalization: Initial, binding: Suffix, surface_structure: Word,
-        ),
-        (
             id: "vocab:Genitive/Default", lemma: "'s", category: Clitic,
             properties: (countability: [], features: {"Function": "Genitive", "HostEnding": "Default"}, frames: []),
             forms: [(form: Invariant, features: (), surfaces: Some(["'s", "’s"]))],
@@ -1181,27 +1045,6 @@
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:SubjectPronoun/I"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
-        (
-            id: "vocab:SubjectPronoun/We", lemma: "we", category: Pronoun,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: (person: Some(First), number: Some(Plural), case: Some(Nominative)))],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:SubjectPronoun/We"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:ObjectPronoun/Me", lemma: "me", category: Pronoun,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: (person: Some(First), number: Some(Singular), case: Some(Accusative)))],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:ObjectPronoun/Me"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:ObjectPronoun/Us", lemma: "us", category: Pronoun,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: (person: Some(First), number: Some(Plural), case: Some(Accusative)))],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:ObjectPronoun/Us"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
     ],
     form_replacements: {
         "vocab:SubjectPronoun/He": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Nominative)))],
@@ -1219,15 +1062,10 @@
         "vocab:PossessiveDeterminerPronoun/Its": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive)))],
         "vocab:PossessiveDeterminerPronoun/Their": [(form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)))],
         "vocab:PossessiveDeterminerPronoun/Your": [(form: Invariant, features: (person: Some(Second), number: Some(Singular), case: Some(Genitive)))],
-        "vocab:PossessiveAbsolutePronoun/Hers": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive)))],
         "vocab:PossessiveAbsolutePronoun/His": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive)))],
-        "vocab:PossessiveAbsolutePronoun/Theirs": [(form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)))],
         "vocab:PossessiveAbsolutePronoun/Yours": [(form: Invariant, features: (person: Some(Second), number: Some(Singular), case: Some(Genitive)))],
-        "vocab:ReflexivePronoun/Herself": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
         "vocab:ReflexivePronoun/Himself": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
         "vocab:ReflexivePronoun/Itself": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
-        "vocab:ReflexivePronoun/Themself": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
-        "vocab:ReflexivePronoun/Themselves": [(form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Accusative)))],
         "vocab:ReflexivePronoun/Yourself": [(form: Invariant, features: (person: Some(Second), number: Some(Singular), case: Some(Accusative)))],
         "vocab:RelativePronoun/Who": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Nominative))), (form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Nominative)))],
         "vocab:RelativePronoun/Whom": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative))), (form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Accusative)))],

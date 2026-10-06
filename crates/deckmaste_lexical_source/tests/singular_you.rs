@@ -120,18 +120,34 @@ fn yourselves_has_no_declared_lexeme_or_licensed_independent_value() {
 }
 
 #[test]
-fn unrelated_third_person_plural_pronouns_retain_their_existing_values() {
-    for (owner, case) in [
-        ("vocab:SubjectPronoun/They", Case::Nominative),
-        ("vocab:ObjectPronoun/Them", Case::Accusative),
-        ("vocab:PossessiveDeterminerPronoun/Their", Case::Genitive),
-        ("vocab:PossessiveAbsolutePronoun/Theirs", Case::Genitive),
-        ("vocab:ReflexivePronoun/Themselves", Case::Accusative),
+fn unrelated_third_person_pronouns_retain_their_existing_values() {
+    for (owner, case, number) in [
+        (
+            "vocab:SubjectPronoun/They",
+            Case::Nominative,
+            Number::Plural,
+        ),
+        ("vocab:ObjectPronoun/Them", Case::Accusative, Number::Plural),
+        (
+            "vocab:PossessiveDeterminerPronoun/Their",
+            Case::Genitive,
+            Number::Plural,
+        ),
+        (
+            "vocab:PossessiveAbsolutePronoun/His",
+            Case::Genitive,
+            Number::Singular,
+        ),
+        (
+            "vocab:ReflexivePronoun/Himself",
+            Case::Accusative,
+            Number::Singular,
+        ),
     ] {
         let expected: BTreeSet<_> = [SurfaceCase::Declared, SurfaceCase::Initial]
             .into_iter()
             .map(|casing| {
-                let mut value = value(owner, case, Number::Plural, casing);
+                let mut value = value(owner, case, number, casing);
                 value.features.person = Some(Person::Third);
                 value
             })
