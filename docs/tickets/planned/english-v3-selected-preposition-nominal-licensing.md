@@ -49,8 +49,9 @@ Additional acceptance:
   two attachments plus a negative for the nominal attachment.
 - Rename the feature `AdverbialUse` to follow the glossary term.
 - Full-corpus before/after identity comparison naming every removed Reading as
-  a retired wrong analysis with its witness, and every lost face (expected:
-  none).
+  a retired wrong analysis with its witness, and every lost face (the only
+  permitted losses are Comeuppance and Vazi, Keen Negotiator, as the licence
+  table below allows; any other lost face is a STOP).
 - Route the "At the beginning of combat on your turn" question (319 cards) to
   the user before implementation touches *on*.
 
