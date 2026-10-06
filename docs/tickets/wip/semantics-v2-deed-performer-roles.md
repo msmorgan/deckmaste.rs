@@ -430,3 +430,18 @@ run.
 **Routed.** `semantics-v2-drop-agent-fields`: dated line added (when the
 wrapper's slot goes, `enactAgentOk`/`enactAgentKind` read the actor in
 context).
+
+**After refresh.** `kata refresh` rebased the series onto eleven commits
+from the default line: `rmxmzussxpsy`, `ykrqsqyrmpps`, `nsxxppupzlul`,
+`pozlwvrnxwtz` (english-v3 generic frame consumption), `qsqtlvqoptml`,
+`mulnrmyqkwsr` (tickets), `ntxupumnypun`, `pnluytkvtzxs`, `ppvustktzntt`,
+`sktrltlmrzrz` (english-v3 scalar cardinals) and `yvwxwoxuopvz` (claim
+english-v3-number-transparent-concord); among them only `exile.ron`'s
+grammar touches `plugins_v2`, and no Lean file. No conflicts. On the
+refreshed tree: `lean/scripts/build` completed (82 jobs); `lean-check` canon
+127/127, testing 6/6; `facts check` up to date; the derived command is now
+`cargo test -p deckmaste_construction_core -p deckmaste_lexical_source -p
+deckmaste_semantics_v2 -p deckmaste_construction_v3 -p deckmaste_english_v3
+-p xtask`, run with `--no-fail-fast`: 91 binaries, 1193 passed, 0 failed, 2
+ignored; `cite check --list-noncompliant` 0, `cite check` 0 stale (16070);
+`kanban check` OK.
