@@ -178,6 +178,16 @@ is right and this list needs fixing.
   coordinated Objects with same-name comparisons and an outer duration Adjunct
   (Deputy of Detention, Banishment); no selected Until frame is implied.
   Re-application owner: `english-v3-selected-preposition-nominal-licensing`.
+- Re-application of the seven deferred Preposition Function Licence exclusions
+  (with-A, from-M, from-A, to-M, in-A, for-M, until-M) is owned here: when a
+  prerequisite frame or composition lands, re-run the attribution check from the
+  done licensing ticket and apply the exclusion only if it loses zero faces.
+- Comparative *same ... as*: retiring as-M left "with the same name as that
+  permanent" (Deputy of Detention, Banishment) with no NP-internal analysis; the
+  remaining Readings misparse *as* as taking a clause. *As* needs a licensed
+  comparative Complement of *same*/*such* (CGEL treats *as* here as the complement
+  marker of a comparative construction; cite Ch. 13 when the owner consults it). A
+  gap, not a regression: no correct Reading existed before.
 - Cavalier of Thorns / Genesis Ultimatum destination composition, measured by
   `english-v3-selected-preposition-nominal-licensing`: `among them` has one PP
   Reading but `from among them` and both source-bearing Object NP fragments

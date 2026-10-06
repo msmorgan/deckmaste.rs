@@ -268,9 +268,10 @@ of-A is also listed explicitly because it was already forbidden in baseline.
 This is attribution, not a linguistic licence inferred from attestation.
 
 Full named counterfactual evidence is in
-`.superpowers/english-v3-selected-preposition-nominal-licensing/nominal-licensing-attribution-table.json`
-and `nominal-licensing-attribution.jsonl`; deferred lost-face sentences and their
-lexical verbs are in `deferred-exclusion-witnesses.md` in the same directory.
+`nominal-licensing-attribution-table.json` and `nominal-licensing-attribution.jsonl`;
+deferred lost-face sentences and their lexical verbs are in
+`deferred-exclusion-witnesses.md`. Per the independent review, these files are flat
+under `.superpowers/` (gitignored), not in a per-ticket subdirectory.
 Simultaneous application of the original exclusions loses 1158 baseline
 faces; single-exclusion face-loss counts overlap and do not sum to that total.
 After the seven independently required deferrals, the union of retained
@@ -439,7 +440,9 @@ selected frames from composition gaps. A face's inventory of lexical verbs
 is provenance and does not establish that every verb selects that PP.
 `english-v3-systemic-residuals` owns the prerequisites; this ticket re-applies
 each exclusion after the replacement analyses exist and the same attribution
-check passes. No prerequisite frame is added in this landing.
+check passes. No prerequisite frame is added in this landing. Because this
+ticket is done, ownership of the re-application now rests with
+`english-v3-systemic-residuals` (recorded 2026-10-06).
 
 - **with-A** (147 faces; 32,450 Readings): consume Enter's declared
   `Preposition(With), Object, Preposition(On), Complement` frame, reconciling
@@ -456,8 +459,8 @@ check passes. No prerequisite frame is added in this landing.
   Disposal Mummy (Exile), Game Trail (Reveal) and Gix's Caress (Discard) are
   causal witnesses. Return's existing optional source/controller frame was
   corrected before narrowing and is consumable; it does not repair those
-  other verbs. Comeuppance/Vazi remain covered because the whole function is
-  deferred. Re-apply from-M here after the source-frame prerequisites land.
+  other verbs. Comeuppance and Vazi had zero Readings at baseline and after;
+  neither is affected, because from-M was deferred. Re-apply from-M here after the source-frame prerequisites land.
 - **from-A** (17 faces; 11,772 Readings): declare and consume Enter's From
   source (Phyrexian Dragon Engine, Dredging Claw, Triarch Praetorian) and
   Cast's source after a pronominal object (Furnace Dragon, Wakening Sun's
@@ -598,7 +601,8 @@ exclusion or a new verb frame here.
 Baseline and final tree: `luxpqklz`; baseline covered count 13,622, final
 covered count 13,716, all 32,828 supported faces enumerated. The lexical
 snapshot and support filter are unchanged. No face is lost: Comeuppance and
-Vazi, Keen Negotiator remain covered under the deferred From-M function.
+Vazi, Keen Negotiator had zero Readings at baseline and after; neither is
+affected, because from-M was deferred.
 The independent per-exclusion table above reproduces all 176,171 baseline
 identities and measures every exclusion, including Of-A/Of-VC. Its complete
 named lost-face lists, Reading hashes and sentences remain in ignored evidence;
@@ -893,3 +897,10 @@ Verification on final `luxpqklz`, covered 13,716:
 - Complete corpus enumerations and exhaustive before/after identities are
   checked as recorded above; full compiler/source reverse dependencies are
   included rather than only the focused witness tests.
+
+## Review note (2026-10-06)
+
+Independent review found no defect. 150,324 Readings after (from 176,171), 0 faces
+lost, 94 gained, 714 tests. The "on your turn" question was closed by the
+orchestrator's table rather than routed to the user: *on* keeps A, M and VC, so no
+Reading changed, but the routing instruction was not followed. User review pending.
