@@ -47,7 +47,7 @@ it, and treat every claim in its ticket notes as unverified.
 
 ## Landing record
 
-Completed 2026-10-05. Standard constraints apply. Baseline claim tree
+Completed 2026-10-06. Standard constraints apply. Baseline claim tree
 `wnmnkpsq`, covered 13,596; implementation `rqprnwty`, covered
 13,596. Both census headers name `rqprnwty`, the working change reused
 across the experiment: the before executable was built before the admission
@@ -89,20 +89,20 @@ stripped inputs. Covered-face losses: 0. Newly covered faces: 0. Reading
 identities decrease from 157,575 to 157,307: exactly 268 redundant routes on
 40 faces, with no newly admitted Reading. Every removed identity is named in
 `/tmp/targeting-delta.json` and paired with its exact retained identity.
-The exhaustive identity comparison for all 40 changed faces hashes complete
-generated Reading Debug without normalization. For each removal, replacing
+The exhaustive comparison of all 157,575 baseline Reading identities hashes
+complete generated Reading Debug without normalization. All 157,307 after
+identities already occur in the baseline; the remaining 268 are the removed
+routes on the 40 changed faces. For each removal, replacing
 only the plural direct targeting node gives a hash actually enumerated on
 the after tree. An outer Modifier is never moved across targeting by this
 comparison. Some roots contain more than one replaced occurrence.
 
-The unchanged faces have equal complete Reading counts. Since the only
-production change adds a requirement, and terminals, variants, lexical
-analyses and feature exports are unchanged, after Reading sets are subsets
-of before sets; equal finite counts establish identity-set equality on those
-faces. This includes Avacyn, Guardian Angel's 33,856 unchanged Readings.
-The supplementary whole identity streams remain scratch diagnostics; the
-exhaustive changed-face manifests and complete censuses are the evidence
-used for this landing.
+The unchanged faces have identical complete Reading identity sets, including
+Avacyn, Guardian Angel's 33,856 Readings. The full before/after identity streams
+are complete and independently checked against every face's census count.
+The smaller changed-face manifests record the same exhaustive comparison on
+the 40 affected faces. All diagnostic streams and comparison code remain in
+scratch paths.
 
 Classification: all 268 removals are redundant routes with retained
 counterparts, excluded by the direct projection's singular licence. There
@@ -260,10 +260,36 @@ Nightly formatting checks pass on all three changed Rust files. Citation
 checks report 0 noncompliant strings and 0 stale citations; the piped diff
 audit finds 0 new citation sites, so no blessing is required.
 
+
+Final refresh incorporated semantics-v2-deed-performer-roles, including its
+shared declaration-reader, keyword data and Lean workbench changes. English
+V3 declarations, compiler and runtime code remained unchanged. The refreshed
+subset tree `vyzkyyrr` (2 selected faces covered; the preserved full census is
+13,596) has the same lexical inventory digest and exact Eerie/Sway counts,
+54 and 4, with 0 issues. Complete corpus results are preserved because both
+grammatical declarations and lexical inputs are unchanged.
+
+Affected checks were rerun after refresh:
+
+```text
+cargo test -p deckmaste_construction_core -p deckmaste_lexical_source -p deckmaste_semantics_v2
+cargo test -p xtask --test plugins_v2_declarations --test lean_check
+cargo clippy -p deckmaste_construction_core -p deckmaste_lexical_source -p deckmaste_semantics_v2 -p xtask --all-targets -- -D warnings
+cargo xtask english-v3 --card-name 'Sway of Illusion' --card-name 'Eerie Interlude' --workers 2 --samples-per-face 0 --output /tmp/targeting-refreshed-subset.json
+```
+
+Reader/semantics checks: 596 passed, 0 failed, 0 ignored across 30 suites.
+Declaration and real Lean gate integration checks: 10 passed, 0 failed,
+0 ignored across 2 suites. Refreshed strict clippy passes. The full before/after
+identity comparison also completed: every surviving root identity agrees,
+and every removed identity has its retained counterpart.
+
 Scratch provenance: /tmp/targeting-before.json, /tmp/targeting-after.json,
 /tmp/targeting-subset.json, /tmp/targeting-before-declarations.rs,
 /tmp/targeting-before-changed-identities.jsonl,
-/tmp/targeting-after-changed-identities.jsonl, /tmp/targeting-delta.json,
+/tmp/targeting-after-changed-identities.jsonl,
+/tmp/targeting-before-identities.jsonl, /tmp/targeting-after-identities.jsonl,
+/tmp/targeting-full-accounting.log, /tmp/targeting-delta.json,
 /tmp/targeting-before-inventory.json, /tmp/targeting-final-inventory.json,
 red/green logs and gate/citation/format logs. All diagnostic exporter code and
 identity streams remain in /tmp; no process artifact entered a crate.
