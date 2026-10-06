@@ -290,3 +290,30 @@ feature `AdverbialUse` is the adjunct-capable licence under a confusing name;
 implementation renames it (the identifier follows the glossary's **Preposition
 Function Licence**, never the reverse). Implementation is owned by
 [english-v3-selected-preposition-nominal-licensing](../tickets/planned/english-v3-selected-preposition-nominal-licensing.md).
+
+### Pruning rule for licensed functions and attachments
+
+A licensed preposition function, attachment site or lexeme is excluded only
+when the supported corpus (the Vintage-legal faces `cargo xtask english-v3
+--all` reads) shows zero attested uses and applying the exclusion loses zero
+faces in the full-corpus run. Both conditions are measured, not argued.
+
+- An attested but undecidable attachment stays licensed. Seedborn Muse's
+  *during each other player's untap step* attaches at two positions; ambiguity
+  the corpus does not resolve is preserved as multiple Readings, never pruned
+  to one.
+- A rare but attested use keeps its function licensed, however few faces use
+  it. Frequency never justifies exclusion; only absence does.
+- An exclusion whose replacement analysis does not exist yet is deferred: the
+  function stays licensed until the prerequisite lands, and that landing
+  re-applies the exclusion. The 2026-10-06 licensing landing recorded seven
+  such deferrals; their owners are listed in
+  [english-v3-systemic-residuals](../tickets/planned/english-v3-systemic-residuals.md).
+- The same rule governs lexemes: one with zero tokens in the supported corpus
+  is deleted
+  ([english-v3-dead-lexeme-audit](../tickets/planned/english-v3-dead-lexeme-audit.md)),
+  one with any token stays.
+
+Rationale: overgeneration is tolerable and the grammar prunes toward what
+Oracle text attests, but a wrong exclusion is a silent coverage loss, which the
+landing contract treats as a defect.
