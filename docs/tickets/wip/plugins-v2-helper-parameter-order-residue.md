@@ -100,3 +100,8 @@ under the new order, and passes unchanged; it was left as written.
 word-naming checkers (no English crate changed in code or data), CR
 citations added (none), glossary gaps (none), performance advisory (no
 compiler change).
+
+**Post-refresh.** `kata refresh` was a no-op: the claim already sat on the
+current default line, so the tree is the one measured above (gate 96
+binaries, 1220 passed, 0 failed, 1 ignored; byte-identity, lean-check 127/127
+and 6/6, facts and cite checks as stated). No conflicts on `trunk()..@`.
