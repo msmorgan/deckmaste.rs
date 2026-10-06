@@ -100,11 +100,19 @@ fn grammar(ir: &Ir) -> TokenStream {
         };
         let boundary = rule.boundary.as_ref().map_or_else(|| quote!(None), |name| quote!(Some(Boundary::#name)));
         let onset = rule.onset.as_ref().map_or_else(|| quote!(None), |name| quote!(Some(::deckmaste_lexical::Onset::#name)));
+        let literals = rule.symbols.iter().map(|symbol| {
+            if let Symbol::Literal(text) = symbol {
+                quote!(Some(#text))
+            } else {
+                quote!(None)
+            }
+        });
         let size = rule.symbols.len();
         quote!(Rule {
             guards: vec![FrameGuard::Any; #size],
             segments: #segments,
             boundary: #boundary,
+            literals: vec![#(#literals),*],
             onset: #onset,
             checks: vec![#(#checks),*],
             initial: vec![#(#initial),*],
@@ -378,7 +386,7 @@ fn form_pieces(
                         );
                     }
                     FieldType::Repeated(_, separator) => {
-                        summaries.push(quote!(Some({ let mut result = Summary::default(); for child in #binding { #check_category let summary = cache.admit(child, grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result })));
+                        summaries.push(quote!(Some({ let mut result = Summary::default(); for (index, child) in #binding.iter().enumerate() { #check_category if index != 0 { result.surface.literal(#separator); } let summary = cache.admit(child, grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result.values[14] = Some(FeatureValue::TerminalPunctuation(result.surface.terminal)); result })));
                         write.push(quote!(for (index, child) in #binding.iter().enumerate() { if index != 0 { output.push_str(#separator); } child.write(grammar, lexicon, output, cache)?; }));
                         visit.push(quote!(for child in #binding { child.visit(visitor)?; }));
                         word.push(quote!(for child in #binding { child.visit_words(visitor)?; }));

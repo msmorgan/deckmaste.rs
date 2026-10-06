@@ -544,6 +544,20 @@ gerund-participial Clauses (*creature attacking you*, *player being attacked*)
 and Bare Passives can postmodify nouns without being Relative Clauses
 (CGEL, Ch. 14 §9, pp. 1264–1266).
 
+**Quotation**:
+Cited wording set off by paired quotation marks; its internal form can be an
+independent utterance or a fragment (CGEL, Ch. 20 §6, pp. 1753–1755).
+
+**Terminal Punctuation**:
+Punctuation marking the end of a sentence. When a quotation ends a matrix
+sentence and both would have a full stop, the matrix full stop is suppressed
+(CGEL, Ch. 20 §6, p. 1755).
+
+**Granted Ability Complement** (project term):
+A selected Complement expressing cited ability wording or a Keyword Phrase.
+Its Conjuncts can have different Categories while sharing Complement function
+(CGEL, Ch. 11 §9.2, pp. 1026–1028; Ch. 15 §3.2, pp. 1326–1328).
+
 **Coordination**:
 A construction joining two or more coordinate units. Conjuncts can have
 different Categories when their grammatical function permits it, including

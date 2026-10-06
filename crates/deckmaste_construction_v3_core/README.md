@@ -215,6 +215,14 @@ and close that constituent's casing scope. A sentence and a quoted fragment can
 thus declare different boundaries even when both end with a period. These checks
 preserve the lexical variant, including exact names and bound forms.
 
+Every Category also exposes `terminal_punctuation` (`None`, `FullStop`,
+`QuotedFullStop`), derived from the right edge of the declared surface. Lexical
+constituents reset it, whitespace preserves it, and closing quotation marks
+retain a preceding full stop as `QuotedFullStop`. Optional and repeated fields
+compose the same feature in recognition and independently checked values. A
+sentence declaration can suppress its matrix full stop only when its Clause
+already ends in a quoted full stop (CGEL, Ch. 20 §6, p. 1755).
+
 Prefix states and complete summaries carry finite onset and casing capabilities
 alongside the feature registers. Composition retains the first constituent's
 initial capability and requires subsequent constituents to permit interior use.

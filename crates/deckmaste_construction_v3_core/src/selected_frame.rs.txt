@@ -537,6 +537,7 @@ impl Grammar {
                     let mut shape = vec![];
                     let mut rule = self.rules[index].clone();
                     rule.guards.clear();
+                    rule.literals.clear();
                     rule.checks.clear();
                     rule.release.clear();
                     for item in layout {
@@ -546,6 +547,7 @@ impl Grammar {
                     if !shape.is_empty() {
                         shape.remove(0);
                         rule.guards.remove(0);
+                        rule.literals.remove(0);
                     }
                     let matches = shape.len() == self.productions[index].symbols.len()
                         && shape.iter().zip(&self.productions[index].symbols).all(
@@ -599,6 +601,7 @@ impl Grammar {
                     let original = &self.rules[template];
                     let mut rule = original.clone();
                     rule.checks.truncate(1);
+                    rule.literals.truncate(1);
                     rule.release.truncate(1);
                     let canonical = self
                         .canonical_frames
@@ -779,10 +782,12 @@ impl FrameLayout {
         ) {
             symbols.push(::deckmaste_english_v3::Symbol::Literal(" ".into()));
             rule.guards.push(FrameGuard::Any);
+            rule.literals.push(Some(" "));
             rule.checks.push(vec![]);
             rule.release.push(vec![]);
             symbols.push(symbol);
             rule.guards.push(guard);
+            rule.literals.push(None);
             rule.checks.push(vec![]);
             rule.release.push(vec![]);
         }

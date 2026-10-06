@@ -44,6 +44,7 @@ pub(crate) enum DomainKind {
     NumeralSign,
     Framing,
     Onset,
+    TerminalPunctuation,
     Custom { default: Option<usize> },
     Set,
 }
@@ -208,6 +209,11 @@ fn builtin_domains() -> Vec<Domain> {
             name: "article_onset".into(),
             values: vec!["Consonant".into(), "Vowel".into()],
             kind: DomainKind::Onset,
+        },
+        Domain {
+            name: "terminal_punctuation".into(),
+            values: vec!["None".into(), "FullStop".into(), "QuotedFullStop".into()],
+            kind: DomainKind::TerminalPunctuation,
         },
     ])
     .collect()
@@ -817,6 +823,9 @@ fn value(ir: &Ir, feature: usize, name: &Ident) -> syn::Result<TokenStream> {
             let value = format_ident!("{}", domain.values[index]);
             quote!(FeatureValue::Onset(::deckmaste_lexical::Onset::#value))
         }
+        DomainKind::TerminalPunctuation => {
+            quote!(FeatureValue::TerminalPunctuation(TerminalPunctuation::#name))
+        }
         DomainKind::Set => {
             let mask = 1usize << index;
             quote!(FeatureValue::Set(#feature, #mask))
@@ -858,7 +867,12 @@ fn resolve_reference(
                 .iter()
                 .position(|name| name == category)
                 .unwrap();
-            if !interfaces[category].contains(&feature) && ir.features[feature].name != "onset" {
+            if !interfaces[category].contains(&feature)
+                && !matches!(
+                    ir.features[feature].name.as_str(),
+                    "onset" | "terminal_punctuation"
+                )
+            {
                 return Err(error(
                     &construction.name,
                     &format!(

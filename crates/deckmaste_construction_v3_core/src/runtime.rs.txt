@@ -13,6 +13,7 @@ pub enum FeatureValue {
     NumeralSign(bool),
     Framing(bool),
     Onset(::deckmaste_lexical::Onset),
+    TerminalPunctuation(TerminalPunctuation),
     Custom(usize, usize),
     Set(usize, usize),
 }
@@ -43,11 +44,20 @@ impl Default for Summary {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TerminalPunctuation {
+    None,
+    FullStop,
+    QuotedFullStop,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct SurfaceSummary {
     empty: bool,
     onset: Option<::deckmaste_lexical::Onset>,
     initial: bool,
     interior: bool,
+    terminal: TerminalPunctuation,
+    terminal_nonempty: bool,
 }
 
 impl Default for SurfaceSummary {
@@ -57,23 +67,46 @@ impl Default for SurfaceSummary {
             onset: None,
             initial: true,
             interior: true,
+            terminal: TerminalPunctuation::None,
+            terminal_nonempty: false,
         }
     }
 }
 
 impl SurfaceSummary {
     fn append(self, next: Self) -> Self {
-        if self.empty {
-            return next;
-        }
-        if next.empty {
-            return self;
-        }
-        Self {
-            empty: false,
-            onset: self.onset,
-            initial: self.initial && next.interior,
-            interior: self.interior && next.interior,
+        let terminal = if next.terminal_nonempty { next.terminal } else { self.terminal };
+        let terminal_nonempty = self.terminal_nonempty || next.terminal_nonempty;
+        let mut result = if self.empty {
+            next
+        } else if next.empty {
+            self
+        } else {
+            Self {
+                empty: false,
+                onset: self.onset,
+                initial: self.initial && next.interior,
+                interior: self.interior && next.interior,
+                terminal,
+                terminal_nonempty,
+            }
+        };
+        result.terminal = terminal;
+        result.terminal_nonempty = terminal_nonempty;
+        result
+    }
+
+    fn literal(&mut self, text: &str) {
+        for ch in text.chars().filter(|ch| !ch.is_whitespace()) {
+            self.terminal_nonempty = true;
+            self.terminal = match ch {
+                '.' => TerminalPunctuation::FullStop,
+                '"' | '”'
+                    if matches!(self.terminal,
+                        TerminalPunctuation::FullStop | TerminalPunctuation::QuotedFullStop) =>
+                    TerminalPunctuation::QuotedFullStop,
+                _ => TerminalPunctuation::None,
+            };
         }
     }
 }
@@ -86,9 +119,12 @@ impl Summary {
             onset: surface.onset,
             initial: surface.initial,
             interior: surface.interior,
+            terminal: TerminalPunctuation::None,
+            terminal_nonempty: true,
         };
         result.values[12] = surface.onset.map(FeatureValue::Onset);
         result.values[13] = surface.article_onset.map(FeatureValue::Onset);
+        result.values[14] = Some(FeatureValue::TerminalPunctuation(result.surface.terminal));
         result
     }
 }
@@ -281,6 +317,7 @@ struct Rule {
     guards: Vec<FrameGuard>,
     segments: SegmentRule,
     boundary: Option<Boundary>,
+    literals: Vec<Option<&'static str>>,
     onset: Option<::deckmaste_lexical::Onset>,
     checks: Vec<Vec<(usize, usize)>>,
     initial: Vec<Option<FeatureValue>>,
@@ -312,6 +349,8 @@ impl Rule {
         self.segments.advance(dot, &mut next, child)?;
         if let Some(child) = child {
             next.surface = next.surface.append(child.surface);
+        } else if let Some(text) = self.literals.get(dot)? {
+            next.surface.literal(text);
         }
         for &(feature, register) in checks {
             let value = child?.values.get(feature)?.as_ref()?;
@@ -349,6 +388,7 @@ impl Rule {
             summary.surface.onset = Some(onset);
         }
         summary.values[12] = summary.surface.onset.map(FeatureValue::Onset);
+        summary.values[14] = Some(FeatureValue::TerminalPunctuation(summary.surface.terminal));
         for requirement in &self.table_requirements {
             if table_value(
                 &requirement.registers,

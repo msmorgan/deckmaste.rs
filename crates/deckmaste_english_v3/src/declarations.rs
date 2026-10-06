@@ -88,7 +88,7 @@ constructions! {
         feature ClauseInitialAdjunct { Yes, No }
         feature InfinitivalMarker { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
-            Keyword, Quoted, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
+            Keyword, Quoted, GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
             ObjectEquality, Cardinal, Infinitive }
         feature HeadCoordination { No, Yes }
         feature NoncorrelativeCoordination { Yes, No }
@@ -98,6 +98,9 @@ constructions! {
         feature DepictiveKind { Adjectival, Participial, Mixed }
         feature NominalLicense { AnyNominal }
         feature KeywordComplement { Yes }
+        feature QuotedComplement { Yes }
+        feature QuotationStructure { Simple, Coordinated }
+        feature GrantedAbilityKind { Keyword, Quoted }
 
         category Document();
         category Ability(LabelKind);
@@ -176,7 +179,9 @@ constructions! {
         category ManaPhrase();
         category ManaSymbol();
         category Parenthetical();
-        category QuotedText();
+        category QuotedText(QuotationStructure);
+        category GrantedAbility(GrantedAbilityKind);
+        category GrantedAbilitySeries(GrantedAbilityKind);
         category Mode();
         category Modes();
         category ModeContinuation();
@@ -285,6 +290,7 @@ constructions! {
         frame ObjectEquality = Predicate(Object(NounPhrase), Complement(ScalarEquality));
         frame KeywordObject = Predicate(Object(KeywordPhrase));
         frame QuotedObject = Predicate(Object(QuotedText));
+        frame GrantedAbilityComplement = Predicate(Complement(GrantedAbility));
         frame AmountComplement = Predicate(Complement(Amount));
         frame CardinalComplement = Predicate(Complement(Cardinal));
         frame InfinitiveSelection = Predicate(Complement(InfinitiveComplement));
@@ -480,6 +486,7 @@ constructions! {
             (SlashMeasure) => SlashMeasure,
             (KeywordObject) => Keyword,
             (QuotedObject) => Quoted,
+            (GrantedAbilityComplement) => GrantedAbility,
             (BareAuxiliary) => AuxiliaryBare,
             (ParticipialAuxiliary) => AuxiliaryParticiple,
             (PerfectAuxiliary) => AuxiliaryPerfect,
@@ -986,6 +993,12 @@ constructions! {
             require head.FrameUse = Quoted;
         }
 
+        schema SharedGrantedAbilityComplement {
+            form [head: node, " ", complement: node];
+            require head.HeadCoordination = Yes;
+            require head.FrameUse = GrantedAbility;
+        }
+
         schema SharedAuxiliaryBareComplement {
             form [head: node, complement: node];
             require head.HeadCoordination = Yes;
@@ -1143,22 +1156,57 @@ constructions! {
         }
 
         construction QuotedText: QuotedText {
+            export QuotationStructure = Simple;
             form ["\"", text: Document, "\""];
             form ["“", text: Document, "”"];
         }
 
         construction QuotedClause: QuotedText {
+            export QuotationStructure = Simple;
             boundary Interior;
             form ["\"", clause: Clause, "\""];
             form ["“", clause: Clause, "”"];
         }
 
         construction QuotedKeyword: QuotedText {
+            export QuotationStructure = Simple;
             boundary Interior;
             form ["\"", keyword: KeywordPhrase, "\""];
             form ["\"", keyword: KeywordPhrase, ".\""];
             form ["“", keyword: KeywordPhrase, "”"];
             form ["“", keyword: KeywordPhrase, ".”"];
+        }
+
+        construction KeywordGrantedAbility: GrantedAbility {
+            form [keyword: KeywordPhrase];
+            export GrantedAbilityKind = Keyword;
+        }
+
+        construction QuotedGrantedAbility: GrantedAbility {
+            form [quotation: QuotedText];
+            require quotation.QuotationStructure = Simple;
+            export GrantedAbilityKind = Quoted;
+        }
+
+        table combined_ability_kind(GrantedAbilityKind, GrantedAbilityKind) -> GrantedAbilityKind {
+            (Keyword, Keyword) => Keyword,
+            (Keyword, Quoted) => Quoted, (Quoted, Keyword) => Quoted, (Quoted, Quoted) => Quoted,
+        }
+        table quoted_ability_combination(GrantedAbilityKind, GrantedAbilityKind) -> Selection {
+            (Keyword, Quoted) => Yes, (Quoted, Keyword) => Yes, (Quoted, Quoted) => Yes,
+        }
+        policy GrantedAbilityConcord<Right, Source> {
+            export GrantedAbilityKind = combined_ability_kind(left.GrantedAbilityKind,
+                Right.GrantedAbilityKind);
+        }
+        policy GrantedAbilityCoordination<Right, Source> {
+            export GrantedAbilityKind = combined_ability_kind(left.GrantedAbilityKind,
+                Right.GrantedAbilityKind);
+            require quoted_ability_combination(left.GrantedAbilityKind,
+                Right.GrantedAbilityKind) = Yes;
+        }
+        policy CoordinatedQuotation<Right, Source> {
+            export QuotationStructure = Coordinated;
         }
 
         construction ActivatedAbility: Ability {
@@ -1408,7 +1456,10 @@ constructions! {
 
         construction Sentence: Sentence {
             boundary Initial;
-            form [clause: Clause, "."];
+            form [clause: Clause, "."]
+                require clause.terminal_punctuation = None;
+            form [clause: Clause]
+                require clause.terminal_punctuation = QuotedFullStop;
         }
 
         construction Declarative: Clause {
@@ -1461,6 +1512,7 @@ constructions! {
             (MeasurePhraseSeries, MeasurePhrase, CoordinatedMeasureKind),
             (KeywordPhraseSeries, KeywordPhrase),
             (QuotedTextSeries, QuotedText),
+            (GrantedAbilitySeries, GrantedAbility, GrantedAbilityConcord),
             (FiniteSelectedHeadSeries, FiniteSelectedHead, FiniteConcord, SelectedFrameConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
                 SelectedFrameConcord),
@@ -1499,6 +1551,7 @@ constructions! {
             (MeasurePhraseSeries, MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhraseSeries, KeywordPhrase, Self),
             (QuotedTextSeries, QuotedText, Self),
+            (GrantedAbilitySeries, GrantedAbility, Self, GrantedAbilityConcord),
             (FiniteSelectedHeadSeries, FiniteSelectedHead, Self, FiniteConcord,
                 SelectedFrameConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
@@ -1535,7 +1588,8 @@ constructions! {
             (Amount, Self, AmountSeries),
             (MeasurePhrase, Self, MeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, KeywordPhraseSeries),
-            (QuotedText, Self, QuotedTextSeries),
+            (QuotedText, Self, QuotedTextSeries, NoConcord, CoordinatedQuotation),
+            (GrantedAbility, Self, GrantedAbilitySeries, GrantedAbilityCoordination),
             (FiniteSelectedHead, Self, FiniteSelectedHeadSeries, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
@@ -1622,7 +1676,8 @@ constructions! {
             (Amount, Self),
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
-            (QuotedText, Self),
+            (QuotedText, Self, NoConcord, CoordinatedQuotation),
+            (GrantedAbility, Self, GrantedAbilityCoordination),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
             (Nominal, Self, NominalConcord),
@@ -2688,6 +2743,13 @@ constructions! {
         ] {
             use Properties;
         }
+        instance SharedGrantedAbilityComplement<
+            Result, Head: head, Complement: complement, Properties>: [
+            (FinitePredicate, FiniteSelectedHead, GrantedAbility, PredicateHostAgreement),
+            (SecondaryVerbPhrase, SecondarySelectedHead, GrantedAbility, OrdinarySelectedPredicate),
+        ] {
+            use Properties;
+        }
         instance SharedAuxiliaryBareComplement<
             Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, BareComplement, PredicateHostAgreement),
@@ -2831,7 +2893,7 @@ constructions! {
             (Amount, Self),
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
-            (QuotedText, Self),
+            (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
@@ -2921,7 +2983,7 @@ constructions! {
             (Amount, Self, CorrelativeAmountSeries),
             (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
-            (QuotedText, Self, CorrelativeQuotedTextSeries),
+            (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
             (FiniteSelectedHead, Self, CorrelativeFiniteSelectedHeadSeries, FiniteConcord,
                 SharedFrameConcord),
@@ -2946,7 +3008,7 @@ constructions! {
             (Amount, Self),
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
-            (QuotedText, Self),
+            (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
@@ -2971,7 +3033,7 @@ constructions! {
             (Amount, Self),
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
-            (QuotedText, Self),
+            (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
@@ -2997,7 +3059,7 @@ constructions! {
             (Amount, Self, CorrelativeAmountSeries),
             (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
-            (QuotedText, Self, CorrelativeQuotedTextSeries),
+            (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
             (FiniteSelectedHead, Self, CorrelativeFiniteSelectedHeadSeries, FiniteConcord,
                 SharedFrameConcord),
@@ -3037,6 +3099,16 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: KeywordPhrase];
             require head.KeywordComplement = Yes;
             use PrepositionHeadPermissions;
+        }
+        construction QuotedComplementPreposition: PrepositionPhrase {
+            export ObliqueNumber = None;
+            form [head: lexical(Preposition), " ", complement: GrantedAbility];
+            require head.QuotedComplement = Yes;
+            require complement.GrantedAbilityKind = Quoted;
+            require licence_modifier(head.PrepositionFunctionLicence) = Yes;
+            export PrepositionFunctionLicence = Modifier;
+            export InternalisedComplementMarker = head.InternalisedComplementMarker;
+            export LocativeUse = head.LocativeUse;
         }
         instance SharedCardinalComplement<Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, Cardinal, PredicateHostAgreement),

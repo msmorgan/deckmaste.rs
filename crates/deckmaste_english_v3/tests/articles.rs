@@ -271,7 +271,7 @@ fn articles_and_case_reach_real_grammatical_hosts() {
         ("\"this creature can't be blocked\"", Category::QuotedText),
         ("\"Draw a card.\"", Category::QuotedText),
         ("\"flying.\"", Category::QuotedText),
-        ("Creatures have \"flying.\".", Category::Document),
+        ("Creatures have \"flying.\"", Category::Document),
     ] {
         if parse_all(&lexicon, text, root).is_empty() {
             failures.push(format!("{text:?} at {root:?}"));

@@ -171,7 +171,7 @@
         "vocab:Preposition/Over": {"PrepositionFunctionLicence": "Adjunct|Modifier|VerbComplement|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/To": {"PrepositionFunctionLicence": "VerbComplement|AdjectiveComplement|NounComplement|Compound|Modifier", "GerundClauseComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "ComparisonMarker": "Equality", "KeywordMarker": "To", "QuantitativeComplement": "Cardinal"},
         "vocab:Preposition/Under": {"PrepositionFunctionLicence": "VerbComplement|Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "Under"},
-        "vocab:Preposition/With": {"PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
+        "vocab:Preposition/With": {"PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PreposedAdjunct", "KeywordComplement": "Yes", "QuotedComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
         "vocab:Preposition/Without": {"PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
@@ -1145,12 +1145,6 @@
         "core-verb:Do": [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])],
         "core-verb:Have": [
             (kind: "Auxiliary", items: [Argument((relation: Complement, category: "PastParticiplePredicate"))]),
-            (kind: "Predicate", items: [Argument((relation: Object, category: "KeywordPhrase"))]),
-            (kind: "Predicate", items: [Argument((relation: Object, category: "QuotedText"))]),
-        ],
-        "core-verb:Gain": [
-            (kind: "Predicate", items: [Argument((relation: Object, category: "KeywordPhrase"))]),
-            (kind: "Predicate", items: [Argument((relation: Object, category: "QuotedText"))]),
         ],
         "core-verb:Choose": [(kind: "Predicate", items: [Argument((relation: Complement, category: "Cardinal"))])],
         "core-verb:BeNegative": [(kind: "Predicate", items: [Argument((relation: Complement, category: "LocativeComplement"))]), (kind: "Auxiliary", items: [Argument((relation: Complement, category: "ParticipialPredicate"))])],
