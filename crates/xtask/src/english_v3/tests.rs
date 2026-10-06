@@ -1,10 +1,13 @@
+use std::collections::BTreeSet;
 use std::io::Write as _;
 use std::num::NonZeroUsize;
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::OnceLock;
 
 use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Grammar;
+use deckmaste_english_v3::grammar::RealizationContext;
 use deckmaste_english_v3::parse;
 use deckmaste_lexical::Lexicon;
 use serde_json::json;
@@ -17,8 +20,10 @@ use crate::english_v3::report::Enumeration;
 use crate::english_v3::report::Measurements;
 use crate::english_v3::report::Report;
 use crate::english_v3::validation::Issue;
+use crate::english_v3::validation::TracedValue;
 use crate::english_v3::validation::Tracing;
 use crate::english_v3::validation::validate;
+use crate::english_v3::validation::validate_in_context;
 use crate::english_v3::write_report;
 use crate::raw_corpus::CorpusSelectionArgs;
 use crate::raw_corpus::SelectedCorpus;
@@ -518,6 +523,145 @@ fn cheapest_frequency_sample_preserves_all_readings_in_census() {
             .any(|line| line.trim() == "category: FinitePredicate,")
     );
     assert_eq!(serialized["samples"][0]["total_cost"], 20);
+}
+
+fn trace_card_draw(grammar: &Grammar) -> TracedValue {
+    let input = lexicon().analyze("Draw a card.");
+    let forest = parse(grammar, lexicon(), &input, &Category::Document).unwrap();
+    let mut values = forest.readings(Tracing::new(grammar));
+    values.next().unwrap().unwrap()
+}
+
+#[test]
+fn census_validation_reports_a_one_byte_surface_mismatch() {
+    let grammar = Grammar::with_lexicon(lexicon());
+    let traced = trace_card_draw(&grammar);
+    let source = "draw a card.";
+    let context = RealizationContext::new(&grammar, lexicon(), source);
+    assert_eq!(source.len(), "Draw a card.".len());
+    assert_eq!(
+        source
+            .bytes()
+            .zip("Draw a card.".bytes())
+            .filter(|(actual, expected)| actual != expected)
+            .count(),
+        1
+    );
+    let result = validate_in_context(&traced, source, Category::Document, &context);
+    assert_eq!(
+        result,
+        Err(Issue::Roundtrip {
+            realized: "Draw a card.".into()
+        })
+    );
+    assert_eq!(
+        result,
+        validate(&traced, source, lexicon(), Category::Document, &grammar)
+    );
+}
+
+#[test]
+fn census_validation_reports_a_wrong_lexical_identity_at_one_leaf() {
+    let grammar = Grammar::with_lexicon(lexicon());
+    let traced = trace_card_draw(&grammar);
+    let source = "Draw a card.";
+    let context = RealizationContext::new(&grammar, lexicon(), source);
+    let expected = validate(&traced, source, lexicon(), Category::Document, &grammar).unwrap();
+    assert_eq!(
+        validate_in_context(&traced, source, Category::Document, &context),
+        Ok(expected)
+    );
+
+    let mut wrong_words = traced.clone();
+    // Change one independent lexical trace leaf, preserving the Reading and
+    // construction trace so the fault reaches the word-traversal check.
+    let wrong_leaf = Arc::make_mut(&mut wrong_words.words).last_mut().unwrap();
+    wrong_leaf.countability = Some(false);
+    assert_eq!(wrong_words.value, traced.value);
+    assert_eq!(wrong_words.nodes, traced.nodes);
+    assert_ne!(wrong_words.words.last(), traced.words.last());
+    let unchanged_leaves = traced.words.len() - 1;
+    assert_eq!(
+        wrong_words.words[..unchanged_leaves],
+        traced.words[..unchanged_leaves]
+    );
+    let result = validate_in_context(&wrong_words, source, Category::Document, &context);
+    assert_eq!(result, Err(Issue::LexicalTraversal));
+    assert_eq!(
+        result,
+        validate(
+            &wrong_words,
+            source,
+            lexicon(),
+            Category::Document,
+            &grammar
+        )
+    );
+}
+
+#[test]
+fn census_validation_reports_a_duplicate_reading() {
+    let grammar = Grammar::with_lexicon(lexicon());
+    let traced = trace_card_draw(&grammar);
+    let source = "Draw a card.";
+    let context = RealizationContext::new(&grammar, lexicon(), source);
+    let mut checked = BTreeSet::new();
+    // Duplicate reporting belongs to the census caller, after validation.
+    // Use analyze_face's exact fingerprint/full-value counting key.
+    let mut count = |value: &TracedValue| -> Result<(), Issue> {
+        validate_in_context(value, source, Category::Document, &context)?;
+        if !checked.insert((value.identity().to_owned(), Arc::clone(&value.value))) {
+            return Err(Issue::DuplicateReading);
+        }
+        Ok(())
+    };
+    assert_eq!(count(&traced), Ok(()));
+    assert_eq!(count(&traced.clone()), Err(Issue::DuplicateReading));
+    assert_eq!(checked.len(), 1);
+
+    let reading = validate(&traced, source, lexicon(), Category::Document, &grammar)
+        .unwrap()
+        .clone();
+    let mut old_checked = BTreeSet::new();
+    assert!(old_checked.insert(reading.clone()));
+    assert!(!old_checked.insert(reading));
+    assert_eq!(checked.len(), old_checked.len());
+}
+
+#[test]
+fn census_validation_rejects_cached_reading_for_different_source_text() {
+    let grammar = Grammar::with_lexicon(lexicon());
+    let traced = trace_card_draw(&grammar);
+    let source = "Draw a card.";
+    let context = RealizationContext::new(&grammar, lexicon(), source);
+    let expected = validate(&traced, source, lexicon(), Category::Document, &grammar).unwrap();
+    assert_eq!(
+        validate_in_context(&traced, source, Category::Document, &context),
+        Ok(expected)
+    );
+
+    let cached = traced.clone();
+    assert!(Arc::ptr_eq(&cached.value, &traced.value));
+    let different_source = "Draw two cards.";
+    // Keep the warmed context: a fresh context would not exercise cached
+    // declaration admission from the first successful validation.
+    let result = validate_in_context(&cached, different_source, Category::Document, &context);
+    assert_eq!(
+        result,
+        Err(Issue::Roundtrip {
+            realized: source.into()
+        })
+    );
+    assert_eq!(
+        result,
+        validate(
+            &cached,
+            different_source,
+            lexicon(),
+            Category::Document,
+            &grammar
+        )
+    );
 }
 
 #[test]

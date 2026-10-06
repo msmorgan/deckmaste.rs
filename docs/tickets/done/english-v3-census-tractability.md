@@ -292,3 +292,24 @@ zero failures and the same 1 pre-existing ignore; all seven refreshed Lean gate
 integration tests pass. `cargo clippy -p xtask --all-targets -- -D warnings`
 exits zero. This final amendment is stamped `qtozkusu` / covered 13,622.
 Final citation checks report zero non-compliant strings; checked 16059 citations against cr.txt (eff. 2026-09-25); 0 stale.
+
+### Addendum: census validation fault tests (2026-10-06)
+
+Added four tests using the existing card-draw trace through `validate_in_context`:
+`census_validation_reports_a_one_byte_surface_mismatch` (`Roundtrip`),
+`census_validation_reports_a_wrong_lexical_identity_at_one_leaf` (`LexicalTraversal`),
+`census_validation_reports_a_duplicate_reading` (`DuplicateReading`, using the
+census caller's counting key), and
+`census_validation_rejects_cached_reading_for_different_source_text` (`Roundtrip`
+after warming the same admission context). The tests compare the issues and
+counting behavior with the old validation path; no production code or fixtures
+are added or changed. Assurance: added 4 / restored 0 / re-spelled 0 / removed 0 /
+ignored 0.
+
+Validation: `cargo test -p xtask english_v3` and
+`cargo xtask gate --changed --run --clippy` pass. The gate runs
+`cargo test -p xtask` and `cargo clippy -p xtask --all-targets -- -D warnings`.
+Formatting, Kanban and both citation checks pass.
+
+The opt-level-2 dev-profile change's share of the reported 8.4× speedup was not
+measured separately.
