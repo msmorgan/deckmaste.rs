@@ -275,3 +275,37 @@ fn selected_resultatives_remain_distinct_from_copular_predication() {
         );
     }
 }
+
+#[test]
+fn color_negative_hosts_use_joined_formation_and_preserve_base_provenance() {
+    // Doom Blade, Redcap Melee, Crovax, Ascendant Hero, Battle Frenzy, Inundate.
+    for (name, text) in [
+        ("Black", "black"),
+        ("Red", "red"),
+        ("White", "white"),
+        ("Green", "green"),
+        ("Blue", "blue"),
+    ] {
+        let owner = format!("vocab:ColorWord/{name}");
+        let negative_owner = format!("{owner}/non");
+        let base = &LEXICON.lexemes()[owner.as_str()];
+        let negative = &LEXICON.lexemes()[negative_owner.as_str()];
+        assert_eq!(base.category, Category::Adjective);
+        assert_eq!(negative.category, Category::Adjective);
+        assert_eq!(negative.source, base.source);
+        assert_eq!(negative.forms, base.forms);
+        assert_eq!(negative.properties, base.properties);
+        assert_eq!(
+            paradigm(&owner),
+            BTreeSet::from([(text.into(), WordForm::Invariant, FeatureBundle::default())])
+        );
+        assert_eq!(
+            paradigm(&negative_owner),
+            BTreeSet::from([(
+                format!("non{text}"),
+                WordForm::Invariant,
+                FeatureBundle::default()
+            )])
+        );
+    }
+}

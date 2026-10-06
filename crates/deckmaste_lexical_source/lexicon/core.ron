@@ -1,7 +1,7 @@
 // V3 lexical declarations. Lexemes follow the supported-corpus pruning rule;
 // surviving forms and frames remain declared linguistic data.
 (
-    // Attested negative supertype adjectives share joined negative formation.
+    // Attested adjective hosts share joined negative-prefix formation.
     // World has an ordinary adjective declaration without a negative Lexeme.
     // Legendary keeps its existing adjective owner and Catalog entry.
     adjective_classes: [(
@@ -9,6 +9,8 @@
         members: [
             "vocab:Supertype/Basic", "vocab:PredicativeAdjective/Legendary",
             "vocab:Supertype/Snow",
+            "vocab:ColorWord/Black", "vocab:ColorWord/Red", "vocab:ColorWord/White",
+            "vocab:ColorWord/Green", "vocab:ColorWord/Blue",
         ],
     )],
     participial_adjective_classes: [(
