@@ -4,7 +4,7 @@ Designation(
     params: [],
     spelling: "suspected",
     grammar: FixedTerm(surface: "suspected"),
-    body: [
-        Designation(label: Named(name: "suspected"), scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
-    ],
+    scope: HeldBy(Object),
+    effectful: true,
+    zone: Battlefield,
 )

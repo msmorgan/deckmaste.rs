@@ -4,7 +4,7 @@ Designation(
     params: [],
     spelling: "saddled",
     grammar: FixedTerm(surface: "saddled"),
-    body: [
-        Designation(label: Named(name: "saddled"), scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
-    ],
+    scope: HeldBy(Object),
+    effectful: true,
+    zone: Battlefield,
 )

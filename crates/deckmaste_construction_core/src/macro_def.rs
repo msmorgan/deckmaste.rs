@@ -1210,7 +1210,7 @@ enum DiagnosticInvocation<'a> {
     Type(#[serde(borrow)] DiagnosticFields<'a>),
     TurnPart(#[serde(borrow)] DiagnosticFields<'a>),
     CounterKind(#[serde(borrow)] DiagnosticCounterKind<'a>),
-    Designation(#[serde(borrow)] DiagnosticFields<'a>),
+    Designation(#[serde(borrow)] DiagnosticDesignation<'a>),
 }
 
 #[derive(Deserialize)]
@@ -1324,13 +1324,44 @@ struct DiagnosticCounterKind<'a> {
     _confers: Option<&'a RawValue>,
 }
 
+/// The designation meta's signature: the common fields, the definition's
+/// columns and the `members` list, and NO `body` — the meta derives the
+/// `Designation` definition from the columns and from the declaration's own
+/// name, which is the designation (`semantics-v2-designation-is-a-name`), so a
+/// designation declaration writing a body by hand is an unknown field here.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiagnosticDesignation<'a> {
+    #[serde(borrow)]
+    name: &'a RawValue,
+    #[serde(default, borrow)]
+    params: Option<&'a RawValue>,
+    #[serde(borrow)]
+    spelling: &'a RawValue,
+    #[serde(default, borrow)]
+    grammar: Option<DiagnosticGrammar<'a>>,
+    #[serde(rename = "scope", default, borrow)]
+    _scope: Option<&'a RawValue>,
+    #[serde(rename = "effectful", default, borrow)]
+    _effectful: Option<&'a RawValue>,
+    #[serde(rename = "zone", default, borrow)]
+    _zone: Option<&'a RawValue>,
+    #[serde(rename = "type", default, borrow)]
+    _type: Option<&'a RawValue>,
+    #[serde(rename = "half", default, borrow)]
+    _half: Option<&'a RawValue>,
+    #[serde(rename = "members", default, borrow)]
+    _members: Option<&'a RawValue>,
+}
+
 struct DiagnosticFieldValues<'a> {
     name: &'a RawValue,
     params: Option<&'a RawValue>,
     spelling: &'a RawValue,
     grammar: Option<DiagnosticGrammar<'a>>,
     /// The authored body, for a family whose meta takes one; `None` for the
-    /// subtype and counter families, whose meta derives it instead.
+    /// subtype, counter and designation families, whose meta derives it
+    /// instead.
     body: Option<&'a RawValue>,
     /// Whether the meta derives a body when the file writes none.
     derived_body: bool,
@@ -1600,8 +1631,7 @@ impl ValidationSourceMap {
             ),
             DiagnosticInvocation::AbilityWord(fields)
             | DiagnosticInvocation::Type(fields)
-            | DiagnosticInvocation::TurnPart(fields)
-            | DiagnosticInvocation::Designation(fields) => Self::from_fields(
+            | DiagnosticInvocation::TurnPart(fields) => Self::from_fields(
                 path,
                 source,
                 declaration,
@@ -1612,6 +1642,19 @@ impl ValidationSourceMap {
                     grammar: fields.grammar,
                     body: fields.body,
                     derived_body: false,
+                },
+            ),
+            DiagnosticInvocation::Designation(designation) => Self::from_fields(
+                path,
+                source,
+                declaration,
+                DiagnosticFieldValues {
+                    name: designation.name,
+                    params: designation.params,
+                    spelling: designation.spelling,
+                    grammar: designation.grammar,
+                    body: None,
+                    derived_body: true,
                 },
             ),
             DiagnosticInvocation::CounterKind(counter) => Self::from_fields(

@@ -1,3 +1,22 @@
+// A designation declaration [CR#701.15b]. The file writes the designation's
+// columns — who holds it (`scope`), whether an instruction may confer it
+// (`effectful`), and, for an object-held one, the `zone`, card `type` and
+// Room `half` that narrow its holder — and the meta-macro builds the
+// `Designation` definition from them and from the declaration's own NAME,
+// which is the designation (`goaded`), so the author never writes it. The
+// phrase a card prints is the `spelling` ("the monarch"), not the name.
+//
+// A declaration whose spelling covers several designations lists them as
+// `members` (`dayNight` lists `day` and `night` [CR#731.1]): each member is a
+// designation of its own, named by the member and sharing the declaration's
+// columns, and reads bare where a designation is written. The body here is
+// the record of the members and the built definition, and
+// `deckmaste_semantics_v2::designations` turns it into the declaration's
+// definition (or, with members, one per member) and registers the members.
+//
+// `kinds` names the family first and `DesignationLabel` second, so the name
+// reads where a designation is written and denotes the label its definition
+// names.
 (
     name: "Designation",
     kinds: [Macro],
@@ -6,16 +25,24 @@
         "params": Elidable(Any),
         "spelling": String,
         "grammar": Elidable(Any),
-        "body": Default(Any, ()),
+        "scope": Any,
+        "effectful": Any,
+        "zone": Default(Any, None),
+        "type": Default(Any, None),
+        "half": Default(Any, None),
+        "members": Default(Any, []),
     },
     body: (
         name: Param(name),
-        kinds: [Designation],
+        kinds: [Designation, DesignationLabel],
         params: Param(params),
         metadata: (
             spelling: Param(spelling),
             grammar: Param(grammar),
         ),
-        body: Param(body),
+        body: (
+            members: Param(members),
+            definition: Designation(label: Named(name: Param(name)), scope: Param(scope), effectful: Param(effectful), zone: Param(zone), type: Param(type), half: Param(half)),
+        ),
     ),
 )

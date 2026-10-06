@@ -4,7 +4,6 @@ Designation(
     params: [],
     spelling: "an enduring story",
     grammar: FixedTerm(surface: "an enduring story"),
-    body: [
-        Designation(label: Named(name: "enduringStory"), scope: HeldBy(Player), effectful: true, zone: None, type: None, half: None),
-    ],
+    scope: HeldBy(Player),
+    effectful: true,
 )

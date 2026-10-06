@@ -4,7 +4,8 @@ Designation(
     params: [],
     spelling: "right half unlocked",
     grammar: FixedTerm(surface: "right half unlocked"),
-    body: [
-        Designation(label: Named(name: "rightHalfUnlocked"), scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: Right),
-    ],
+    scope: HeldBy(Object),
+    effectful: true,
+    zone: Battlefield,
+    half: Right,
 )

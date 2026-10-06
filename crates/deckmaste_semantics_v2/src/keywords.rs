@@ -77,8 +77,10 @@ fn capitalized(word: &str) -> String {
 
 /// The definition a declaration of family `family` registers, given the body
 /// its meta-macro produced: `Some` for the two keyword families, whose
-/// declaration builds the wrapper, and `None` for every other family, whose
-/// body is the definition as written.
+/// declaration builds the wrapper, and for the designation family, whose
+/// meta hands over its definition beside its members
+/// ([`crate::designations`]); `None` for every other family, whose body is
+/// the definition as written.
 ///
 /// # Errors
 /// If the produced body is not the record its meta-macro writes, or a keyword
@@ -93,6 +95,9 @@ pub fn definition_body(
     match family {
         KEYWORD_ABILITY => keyword_ability_body(name, params, body).map(Some),
         KEYWORD_ACTION => keyword_action_body(name, body).map(Some),
+        crate::designations::DESIGNATION => {
+            crate::designations::designation_body(name, body).map(Some)
+        }
         _ => Ok(None),
     }
 }
@@ -176,10 +181,10 @@ fn forwarded_keyword_params(name: &str, params: &Params) -> Result<String, Strin
 
 /// A meta-macro's record: its fields' raw texts, by name. A field is absent
 /// when the meta's elidable parameter was omitted.
-struct Record(BTreeMap<String, String>);
+pub(crate) struct Record(BTreeMap<String, String>);
 
 impl Record {
-    fn read(body: &str, fields: &'static [&'static str]) -> Result<Self, String> {
+    pub(crate) fn read(body: &str, fields: &'static [&'static str]) -> Result<Self, String> {
         let options = crate::ron::raw_options();
         let mut deserializer = ::ron::Deserializer::from_str_with_options(body, &options)
             .map_err(|error| error.to_string())?;
@@ -194,7 +199,7 @@ impl Record {
         self.0.get(field).map(String::as_str)
     }
 
-    fn required(&self, field: &str) -> Result<&str, String> {
+    pub(crate) fn required(&self, field: &str) -> Result<&str, String> {
         self.get(field)
             .ok_or_else(|| format!("the declaration record has no `{field}`"))
     }

@@ -25,6 +25,7 @@
 
 pub mod abilities;
 pub mod card;
+pub mod designations;
 pub mod events;
 pub mod facts;
 pub mod keywords;

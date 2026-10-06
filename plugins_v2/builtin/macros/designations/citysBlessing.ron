@@ -4,7 +4,6 @@ Designation(
     params: [],
     spelling: "the city's blessing",
     grammar: FixedTerm(surface: "the city's blessing"),
-    body: [
-        Designation(label: Named(name: "citysBlessing"), scope: HeldBy(Player), effectful: true, zone: None, type: None, half: None),
-    ],
+    scope: HeldBy(Player),
+    effectful: true,
 )

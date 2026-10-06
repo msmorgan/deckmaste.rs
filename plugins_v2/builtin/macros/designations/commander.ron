@@ -9,7 +9,6 @@ Designation(
     params: [],
     spelling: "commander",
     grammar: FixedTerm(surface: "commander"),
-    body: [
-        Designation(label: Named(name: "commander"), scope: HeldByCard, effectful: false, zone: None, type: None, half: None),
-    ],
+    scope: HeldByCard,
+    effectful: false,
 )

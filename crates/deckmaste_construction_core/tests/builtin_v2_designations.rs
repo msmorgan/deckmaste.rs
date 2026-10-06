@@ -115,21 +115,22 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .contains("scope: HeldBy(Player)")
     );
 
-    // An enum-shaped designation declares one row per member [CR#731.1].
+    // A declaration covering several designations lists its members, one
+    // designation per member [CR#731.1], with the declaration's columns.
     let day_night = &designations[2];
     assert!(
         day_night
             .body()
             .unwrap()
             .get_ron()
-            .contains(r#"label: Named(name: "day"), scope: HeldByGame"#)
+            .contains("members: [day, night]")
     );
     assert!(
         day_night
             .body()
             .unwrap()
             .get_ron()
-            .contains(r#"label: Named(name: "night"), scope: HeldByGame"#)
+            .contains("scope: HeldByGame")
     );
 
     // An object-held designation is read on the battlefield.
@@ -160,7 +161,12 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
 }
 
 #[test]
-fn same_plugin_game_designation_can_retain_a_conferred_body() {
+fn same_plugin_game_designation_declares_its_columns() {
+    // Re-spelled from `same_plugin_game_designation_can_retain_a_conferred_body`:
+    // a designation declaration no longer writes a body (the meta builds the
+    // definition from its columns and name), and a designation confers
+    // nothing [CR#701.15b], so the same-plugin game designation declares its
+    // columns and the derived body carries them under its own name.
     let declaration = read_str(
         "same-plugin/FeaturedGame.ron",
         r#"Designation(
@@ -168,26 +174,24 @@ fn same_plugin_game_designation_can_retain_a_conferred_body() {
             params: [],
             spelling: "the featured game",
             grammar: FixedTerm(surface: "the featured game"),
-            body: DesignationDecl(
-                name: "FeaturedGame",
-                definition: Stored(
-                    scope: Game,
-                    shape: Flag,
-                    uniqueness: PerGame,
-                    persistence: Permanently,
-                ),
-                confers: [Continuous(This, Marker(Featured))],
-            ),
+            scope: HeldByGame,
+            effectful: true,
         )"#,
     )
-    .expect("a same-plugin game designation can retain a conferred body");
+    .expect("a same-plugin game designation declares its columns");
     assert_eq!(declaration.identity().kind(), DeclarationKind::Designation);
     assert!(
         declaration
             .body()
             .unwrap()
             .get_ron()
-            .contains("scope: Game")
+            .contains("scope: HeldByGame")
     );
-    assert!(declaration.body().unwrap().get_ron().contains("confers:"));
+    assert!(
+        declaration
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains(r#"label: Named(name: "FeaturedGame")"#)
+    );
 }

@@ -220,6 +220,7 @@ fn read_macros(
                     // file wrote; the declaration builds the wrapper around it
                     // (`crate::keywords`).
                     let family = definition.kinds.first().map_or("", |kind| kind.as_str());
+                    let produced = definition.body().to_owned();
                     let definition = match crate::keywords::definition_body(
                         family,
                         definition.name.as_str(),
@@ -230,6 +231,26 @@ fn read_macros(
                         Ok(None) => definition,
                         Err(reason) => return Err(LoadError::Definition { path, reason }),
                     };
+                    // A designation declaration that lists members registers
+                    // each member's name as well, so `day` reads bare where a
+                    // designation is written (`crate::designations`). The
+                    // members are names, not declarations of their own, and
+                    // the declaration that lists them is no designation, so
+                    // its own name does not read there.
+                    let mut definition = definition;
+                    let members = if family == crate::designations::DESIGNATION {
+                        match crate::designations::member_macros(&definition, &produced) {
+                            Ok(members) => members,
+                            Err(reason) => return Err(LoadError::Definition { path, reason }),
+                        }
+                    } else {
+                        Vec::new()
+                    };
+                    if !members.is_empty() {
+                        definition
+                            .kinds
+                            .retain(|kind| kind.as_str() != crate::designations::DESIGNATION_LABEL);
+                    }
                     // Two ways a same-named collision is harmless, so this
                     // check only refuses the third:
                     //  - IDENTITY: the body's own outermost identifier is the
@@ -287,6 +308,14 @@ fn read_macros(
                             path: path.clone(),
                             source,
                         })?;
+                    for member in &members {
+                        macros
+                            .replace(member)
+                            .map_err(|source| LoadError::Register {
+                                path: path.clone(),
+                                source,
+                            })?;
+                    }
                 }
                 Err(error) => failures.push((path, source, error)),
             }

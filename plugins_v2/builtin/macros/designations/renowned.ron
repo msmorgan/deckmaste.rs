@@ -4,7 +4,7 @@ Designation(
     params: [],
     spelling: "renowned",
     grammar: FixedTerm(surface: "renowned"),
-    body: [
-        Designation(label: Named(name: "renowned"), scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
-    ],
+    scope: HeldBy(Object),
+    effectful: true,
+    zone: Battlefield,
 )

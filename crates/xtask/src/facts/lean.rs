@@ -32,6 +32,7 @@ use deckmaste_construction_core::macro_def::SubtypeCategory;
 use deckmaste_construction_core::macro_def::{self};
 use deckmaste_semantics_v2::abilities::Ability;
 use deckmaste_semantics_v2::abilities::StaticSpec;
+use deckmaste_semantics_v2::designations;
 use deckmaste_semantics_v2::keywords;
 use deckmaste_semantics_v2::phrase::NounPhrase;
 use deckmaste_semantics_v2::reader::Plugin;
@@ -518,10 +519,18 @@ fn counter_rows(
     Ok(result)
 }
 
-/// Every label the designation declarations declare, in declaration order.
-pub(super) fn designation_declared_labels(
+/// Every designation the designation declarations define, in declaration
+/// order, beside the declaration that defines it.
+///
+/// A declaration's meta-macro builds its definition from its name and columns
+/// and hands it over beside its `members`; one definition per member where it
+/// lists them (`dayNight` lists `day` and `night`), else the one, labelled
+/// with the declaration's own name ([`designations::designation_definitions`],
+/// the reader's own expansion). Each must be labelled with the name it is
+/// defined under, which is the name `designationTable` is looked up by.
+fn designation_definitions(
     declarations: &[NormalizedDeclaration],
-) -> anyhow::Result<Vec<String>> {
+) -> anyhow::Result<Vec<(String, Definition)>> {
     let dialect = macro_set();
     let mut result = Vec::new();
     for row in declarations
@@ -532,68 +541,74 @@ pub(super) fn designation_declared_labels(
         let body = row
             .body()
             .with_context(|| format!("{name}: designation has no declaration body"))?;
-        let rows: Vec<Definition> = dialect
-            .read_str(body.get_ron())
-            .with_context(|| format!("reading designation {name}"))?;
-        for definition in rows {
-            let Definition::Designation { label, .. } = definition else {
+        let defined = designations::designation_definitions(name, body.get_ron())
+            .map_err(|reason| anyhow::anyhow!("reading designation {name}: {reason}"))?;
+        anyhow::ensure!(
+            !defined.is_empty(),
+            "{name}: designation declares no fact row"
+        );
+        for (label, text) in defined {
+            let definition: Definition = dialect
+                .read_str(&text)
+                .with_context(|| format!("reading designation {name}"))?;
+            let Definition::Designation { label: read, .. } = &definition else {
                 anyhow::bail!("{name}: a designation declaration defines designations");
             };
-            result.push(label.name().to_owned());
+            anyhow::ensure!(
+                read.name() == label,
+                "{name}: a designation's label is the name it is declared under (`{label}`), \
+                 not `{}`",
+                read.name()
+            );
+            result.push((name.to_owned(), definition));
         }
     }
     Ok(result)
 }
 
+/// Every designation name the designation declarations declare, in
+/// declaration order: a declaration's own name, or its members'.
+pub(super) fn designation_declared_labels(
+    declarations: &[NormalizedDeclaration],
+) -> anyhow::Result<Vec<String>> {
+    designation_definitions(declarations)?
+        .into_iter()
+        .map(|(name, definition)| match definition {
+            Definition::Designation { label, .. } => Ok(label.name().to_owned()),
+            _ => anyhow::bail!("{name}: a designation declaration defines designations"),
+        })
+        .collect()
+}
+
 fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
-    let dialect = macro_set();
     let mut result = Vec::new();
-    for row in declarations
-        .iter()
-        .filter(|row| row.identity().kind() == DeclarationKind::Designation)
-    {
-        let name = row.identity().name();
-        let body = row
-            .body()
-            .with_context(|| format!("{name}: designation has no declaration body"))?;
-        let rows: Vec<Definition> = dialect
-            .read_str(body.get_ron())
-            .with_context(|| format!("reading designation {name}"))?;
-        anyhow::ensure!(!rows.is_empty(), "{name}: designation declares no fact row");
-        let single = rows.len() == 1;
-        for definition in rows {
-            let Definition::Designation {
-                label,
-                scope,
-                effectful,
-                zone: in_zone,
-                r#type,
-                half,
-            } = definition
-            else {
-                anyhow::bail!("{name}: a designation declaration defines designations");
-            };
-            // `designationTable` is the table `Check/Words.lean` looks every
-            // designation up in, by name, and a designation is its
-            // declaration's name.
-            anyhow::ensure!(
-                !single || label.name() == name,
-                "{name}: a designation declaration's label is its own name, not `{}`",
-                label.name()
-            );
-            let scope = match &scope {
-                DesignationScope::HeldBy { holder } => format!(".heldBy {}", kind_of(holder)?),
-                DesignationScope::HeldByCard => ".heldByCard".to_owned(),
-                DesignationScope::HeldByGame => ".heldByGame".to_owned(),
-            };
-            result.push(format!(
-                "{{ label := {}, scope := {scope}, effectful := {effectful}, zone := {}, type := {}, half := {} }}",
-                quoted(label.name()),
-                optional(in_zone.map(zone)),
-                optional(r#type.map(card_type)),
-                optional(half.map(room_half)),
-            ));
-        }
+    for (name, definition) in designation_definitions(declarations)? {
+        // `designationTable` is the table `Check/Words.lean` looks every
+        // designation up in, by name, so every designation is one row
+        // labelled with its name.
+        let Definition::Designation {
+            label,
+            scope,
+            effectful,
+            zone: in_zone,
+            r#type,
+            half,
+        } = definition
+        else {
+            anyhow::bail!("{name}: a designation declaration defines designations");
+        };
+        let scope = match &scope {
+            DesignationScope::HeldBy { holder } => format!(".heldBy {}", kind_of(holder)?),
+            DesignationScope::HeldByCard => ".heldByCard".to_owned(),
+            DesignationScope::HeldByGame => ".heldByGame".to_owned(),
+        };
+        result.push(format!(
+            "{{ label := {}, scope := {scope}, effectful := {effectful}, zone := {}, type := {}, half := {} }}",
+            quoted(label.name()),
+            optional(in_zone.map(zone)),
+            optional(r#type.map(card_type)),
+            optional(half.map(room_half)),
+        ));
     }
     Ok(result)
 }
@@ -945,8 +960,7 @@ mod tests {
             &path,
             source
                 .replace("effectful: true", "effectful: false")
-                .replace("zone: Battlefield", "zone: Graveyard")
-                .replace("half: None", "half: Left"),
+                .replace("zone: Battlefield,", "zone: Graveyard,\n    half: Left,"),
         )
         .unwrap();
         let generated = render(temp.path()).unwrap();
@@ -962,25 +976,31 @@ mod tests {
         );
     }
 
-    /// A designation whose body declares no row is a designation the checker
-    /// would never find, so the generator refuses it.
+    /// A designation whose declaration names no designation the checker can
+    /// look up is refused. Re-spelled from
+    /// `a_designation_declaring_no_row_is_refused`: a declaration no longer
+    /// writes its rows (the meta builds one from its name, or one per
+    /// member), so the way left to declare no findable row is a member that
+    /// is not a name — a quoted label, as every declaration wrote before.
     #[test]
-    fn a_designation_declaring_no_row_is_refused() {
+    fn a_designation_member_that_is_no_name_is_refused() {
         let temp = fixture();
         let path = temp
             .path()
             .join("plugins_v2/builtin/macros/designations/goaded.ron");
         let source = fs::read_to_string(&path).unwrap();
-        let start = source.find("body: [").unwrap();
-        let end = source.rfind("],").unwrap();
         fs::write(
             &path,
-            format!("{}body: [{}", &source[..start], &source[end..]),
+            source.replace(
+                "zone: Battlefield,",
+                "zone: Battlefield,\n    members: [\"goaded\"],",
+            ),
         )
         .unwrap();
-        let error = render(temp.path()).unwrap_err().to_string();
+        let error = format!("{:#}", render(temp.path()).unwrap_err());
         assert!(
-            error.contains("goaded: designation declares no fact row"),
+            error.contains("designations/goaded.ron")
+                && error.contains("a designation member is a bare name"),
             "{error}"
         );
     }

@@ -189,7 +189,7 @@ fn nursery_and_graduated_sources_use_the_ordinary_macro_reader() {
         r#"Subtype(category:Creature,name:"Merfolk",spelling:"Merfolk",grammar:Noun(singular:"Merfolk",plural:"Merfolk"))"#,
         r#"Type(name:"Creature",spelling:"creature",grammar:Noun(singular:"creature"))"#,
         r#"CounterKind(name:"Stun",spelling:"stun",grammar:FixedTerm(surface:"stun"))"#,
-        r#"Designation(name:"Monarch",spelling:"the monarch",grammar:FixedTerm(surface:"the monarch"))"#,
+        r#"Designation(name:"Monarch",spelling:"the monarch",grammar:FixedTerm(surface:"the monarch"),scope:HeldBy(Player),effectful:true)"#,
         r#"KeywordAction(name:"Ping",params:[],spelling:"ping",body:Ping)"#,
         SCRY,
     ] {
@@ -1144,7 +1144,7 @@ fn builtin_reader_authenticates_every_final_path_family() {
         ),
         (
             "designations/Monarch.ron",
-            r#"Designation(name:"Monarch",spelling:"the monarch",grammar:FixedTerm(surface:"the monarch"))"#,
+            r#"Designation(name:"Monarch",spelling:"the monarch",grammar:FixedTerm(surface:"the monarch"),scope:HeldBy(Player),effectful:true)"#,
             DeclarationKind::Designation,
             "Monarch",
         ),

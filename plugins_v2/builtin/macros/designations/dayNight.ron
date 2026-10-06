@@ -4,8 +4,7 @@ Designation(
     params: [],
     spelling: "day or night",
     grammar: FixedTerm(surface: "day or night"),
-    body: [
-        Designation(label: Named(name: "day"), scope: HeldByGame, effectful: true, zone: None, type: None, half: None),
-        Designation(label: Named(name: "night"), scope: HeldByGame, effectful: true, zone: None, type: None, half: None),
-    ],
+    scope: HeldByGame,
+    effectful: true,
+    members: [day, night],
 )
