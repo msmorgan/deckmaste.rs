@@ -667,3 +667,17 @@ Scratch provenance: `/tmp/scalar-cardinals-before.json`,
 `/tmp/scalar-cardinals-before-identities.jsonl`,
 `/tmp/scalar-cardinals-after-identities.jsonl`, `/tmp/scalar-cardinals-delta.json`,
 `/tmp/scalar-cardinals-inventory.json` and the final sampled gains report.
+
+Refresh verification on `pnluytkv`, covered 13,594: all 70 checked runtime and
+declaration files retain their measured digests. A targeted corpus run has zero
+issues and lexical inventory digest
+`efdb16a23340706a4967063224c01f298231e173f8f9a2a2dfa088a067d025a9`,
+matching the full census exactly. Palinchron retains its one Reading; the two
+pinned whole-card residuals remain as disclosed above. The full-corpus and
+compiler evidence therefore remains applicable after refresh.
+
+The two inherited ignores are `seedborn_muse_retains_relative_clause_attachment`
+(blocked on `english-v3-relative-clause-adjuncts`) and
+`macros::templates::tests::macro_schema_census_count_matches_21`
+(the live-corpus census cross-check, explicitly marked to run on demand).
+Neither ignore was introduced or changed by this ticket.
