@@ -157,6 +157,21 @@ is right and this list needs fixing.
   but is owed an independent whole expected-set test.
 - Rooting Moloch's intended keyword-name modification.
 - Return's legacy optional source/controller frame.
+- The 19 verb frame shapes / 20 assignments the generic frame consumer
+  (`english-v3-generic-frame-consumption`, done) still reports as unsupported; see
+  the `### Unsupported inventory and owners` table in
+  [that ticket](../done/english-v3-generic-frame-consumption.md). The unreconciled
+  slot categories are legacy `Object` role labels, `FrameComplement`,
+  `ReplacementMarker`, `MassNoun`, `DistributionPhrase`, `GrantedAbility`,
+  `VerbPhrase`, `ManaAmount`/`ComparisonDirection`/`ControlledCostAction`, and
+  `ResultativeComplement`; each needs typed reconciliation before a consumer can
+  admit it.
+- The exile resultative frame (`[ObjectNounPhrase, Role("ResultativeComplement")]`
+  in `plugins_v2/builtin/macros/keyword_actions/exile.ron`) is declared but has no
+  consumer, so attested "exile ... face down" sentences (Duplicity, The Foretold
+  Soldier, Moonring Mirror, Lobelia, Defender of Bag End) cannot get the
+  resultative analysis until one exists. CGEL Ch. 4 §5.3 treats a verb-licensed
+  resultative as a Complement, which is why the frame was kept.
 - The wider depictive hosts left open by the participial-composition batch.
 - Label/body, ordered-destination, only-if/only-during, comparison, Type Line
   ordering and document cases keep their existing owners.

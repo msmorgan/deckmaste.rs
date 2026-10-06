@@ -195,7 +195,7 @@ On `ykrqsqyr`, covered 13,277, the lexical Verb inventory contains 120 owners,
 192 Frame assignments and 51 distinct shapes. Of 177 Predicate assignments /
 47 shapes, the generic consumer supports 157 assignments / 28 shapes. The
 remaining 20 assignments / 19 shapes produce explicit diagnostics. Each row
-is routed to live `english-v3-systemic-residuals` for its cause audit and
+is routed to live `english-v3-systemic-residuals` (recorded there on 2026-10-05) for its cause audit and
 bounded-owner routing; coordination sharing stays with
 `english-v3-frame-coordination`. No legacy payload is silently treated as NP.
 
