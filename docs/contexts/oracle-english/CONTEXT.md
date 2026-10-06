@@ -242,6 +242,17 @@ The grammatical distinction between positive and negative expressions.
 The distinction between count and mass uses of a noun. A Lexeme may license
 both uses; Number and choice of Determiner constrain which use is available.
 
+**Number Transparency**:
+The property of a quantificational noun use in which the Number of its Oblique
+controls the whole Noun Phrase's Agreement, obligatorily overriding the head
+noun's Number (CGEL, Ch. 5 §3.3, pp. 349–352; §18.2, pp. 501–504).
+
+**Oblique**:
+The Noun Phrase Complement of *of* in a quantificational noun Construction;
+the quantificational noun remains the syntactic head and *of* forms a
+Constituent with the Oblique (CGEL, Ch. 5 §3.3, pp. 349–352).
+_Avoid_: Head for the Oblique
+
 **Genitive**:
 A grammatical form expressing possession or a related dependency, including
 possessive determinatives and phrases marked with an apostrophe ending.

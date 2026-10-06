@@ -12,6 +12,10 @@ constructions! {
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
+        feature NumberTransparency { No, Yes } default No;
+        feature QuantificationalDeterminer { No, Yes } default No;
+        feature ObliqueMarker { No, Yes } default No;
+        feature ObliqueNumber { None, Singular, Plural } default None;
         feature CaseUse { Common, Nominative, Accusative }
         feature Targeting { No, Yes }
         feature CoordinationKind { Additive, Alternative, Adversative }
@@ -93,7 +97,8 @@ constructions! {
         category BareComplement(AuxiliaryComplementRealization);
         category ParticipialComplement(AuxiliaryComplementRealization);
         category PerfectComplement(AuxiliaryComplementRealization);
-        category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse);
+        category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
+            NumberTransparency, ObliqueNumber);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
         category NounPremodifier();
@@ -104,7 +109,7 @@ constructions! {
         category AdjectivePhrase(AdjectiveStructure);
         category Name();
         category NamePredicate();
-        category PrepositionPhrase(LocativeUse, AdverbialUse);
+        category PrepositionPhrase(LocativeUse, AdverbialUse, ObliqueNumber);
         category LocativeComplement();
         category FrequencyPhrase();
         category NominalAdjunctPhrase();
@@ -169,10 +174,11 @@ constructions! {
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
-            number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse
+            number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
+            NumberTransparency, ObliqueNumber, CoordinationKind
         );
         category AdjectivePhraseSeries(AdjectiveStructure);
-        category PrepositionPhraseSeries(LocativeUse, AdverbialUse);
+        category PrepositionPhraseSeries(LocativeUse, AdverbialUse, ObliqueNumber, CoordinationKind);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
@@ -186,7 +192,7 @@ constructions! {
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator);
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind);
-        category CorrelativePrepositionPhraseSeries(LocativeUse, AdverbialUse,
+        category CorrelativePrepositionPhraseSeries(LocativeUse, AdverbialUse, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
             CorrelativeCoordinator);
@@ -333,17 +339,92 @@ constructions! {
             (Mixed, Mixed) => Mixed,
         }
 
-        table determined_number(DeterminerUse, number, countability) -> number {
-            (SingularCount, Singular, Count) => Singular,
-            (Unrestricted, Singular, Count) => Singular,
-            (Unrestricted, Plural, Count) => Plural,
-            (Unrestricted, Singular, Mass) => Singular,
-            (PluralOrMass, Plural, Count) => Plural,
-            (PluralOrMass, Singular, Mass) => Singular,
-            (PluralCount, Plural, Count) => Plural,
-            (Mass, Singular, Mass) => Singular,
-            (Singular, Singular, Count) => Singular,
-            (Singular, Singular, Mass) => Singular,
+        table determiner_license(DeterminerUse, number, countability) -> Selection {
+            (SingularCount, Singular, Count) => Yes,
+            (Unrestricted, Singular, Count) => Yes,
+            (Unrestricted, Plural, Count) => Yes,
+            (Unrestricted, Singular, Mass) => Yes,
+            (PluralOrMass, Plural, Count) => Yes,
+            (PluralOrMass, Singular, Mass) => Yes,
+            (PluralCount, Plural, Count) => Yes,
+            (Mass, Singular, Mass) => Yes,
+            (Singular, Singular, Count) => Yes,
+            (Singular, Singular, Mass) => Yes,
+        }
+
+        // CGEL Ch. 5 §§3.3, 18.2: the oblique controls concord only in the
+        // declared quantificational use; the syntactic head keeps its Number.
+        table quantificational_number(QuantificationalDeterminer, NumberTransparency,
+            ObliqueNumber, number) -> number {
+            (No, No, None, Singular) => Singular,
+            (No, No, None, Plural) => Plural,
+            (No, No, Singular, Singular) => Singular,
+            (No, No, Singular, Plural) => Plural,
+            (No, No, Plural, Singular) => Singular,
+            (No, No, Plural, Plural) => Plural,
+            (No, Yes, None, Singular) => Singular,
+            (No, Yes, None, Plural) => Plural,
+            (No, Yes, Singular, Singular) => Singular,
+            (No, Yes, Singular, Plural) => Plural,
+            (No, Yes, Plural, Singular) => Singular,
+            (No, Yes, Plural, Plural) => Plural,
+            (Yes, No, None, Singular) => Singular,
+            (Yes, No, None, Plural) => Plural,
+            (Yes, No, Singular, Singular) => Singular,
+            (Yes, No, Singular, Plural) => Plural,
+            (Yes, No, Plural, Singular) => Singular,
+            (Yes, No, Plural, Plural) => Plural,
+            (Yes, Yes, None, Singular) => Singular,
+            (Yes, Yes, None, Plural) => Plural,
+            (Yes, Yes, Plural, Singular) => Plural,
+            (Yes, Yes, Plural, Plural) => Plural,
+        }
+
+        table oblique_number(ObliqueMarker, number) -> ObliqueNumber {
+            (No, Singular) => None, (No, Plural) => None,
+            (Yes, Singular) => Singular, (Yes, Plural) => Plural,
+        }
+        // The first of-Complement supplies the oblique. Later PP modifiers
+        // preserve that dependency instead of replacing its concord source.
+        table nominal_oblique(ObliqueNumber, ObliqueNumber) -> ObliqueNumber {
+            (None, None) => None, (Singular, None) => Singular, (Plural, None) => Plural,
+            (None, Singular) => Singular, (Singular, Singular) => Singular,
+            (Plural, Singular) => Plural,
+            (None, Plural) => Plural, (Singular, Plural) => Singular, (Plural, Plural) => Plural,
+        }
+        table coordinated_transparency(NumberTransparency, NumberTransparency)
+            -> NumberTransparency {
+            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+        }
+        table coordinated_oblique(CoordinationKind, ObliqueNumber, ObliqueNumber)
+            -> ObliqueNumber {
+            (Additive, None, None) => None,
+            (Additive, None, Singular) => None,
+            (Additive, None, Plural) => None,
+            (Additive, Singular, None) => None,
+            (Additive, Singular, Singular) => Plural,
+            (Additive, Singular, Plural) => Plural,
+            (Additive, Plural, None) => None,
+            (Additive, Plural, Singular) => Plural,
+            (Additive, Plural, Plural) => Plural,
+            (Alternative, None, None) => None,
+            (Alternative, None, Singular) => None,
+            (Alternative, None, Plural) => None,
+            (Alternative, Singular, None) => None,
+            (Alternative, Singular, Singular) => Singular,
+            (Alternative, Singular, Plural) => Plural,
+            (Alternative, Plural, None) => None,
+            (Alternative, Plural, Singular) => Singular,
+            (Alternative, Plural, Plural) => Plural,
+            (Adversative, None, None) => None,
+            (Adversative, None, Singular) => None,
+            (Adversative, None, Plural) => None,
+            (Adversative, Singular, None) => None,
+            (Adversative, Singular, Singular) => Singular,
+            (Adversative, Singular, Plural) => Plural,
+            (Adversative, Plural, None) => None,
+            (Adversative, Plural, Singular) => Singular,
+            (Adversative, Plural, Plural) => Plural,
         }
 
         table selected_frame_use(frame) -> FrameUse {
@@ -381,6 +462,17 @@ constructions! {
             export Targeting = head.Targeting;
             export NominalAdjunctClass = head.NominalAdjunctClass;
             export SlashPremodifierUse = head.SlashPremodifierUse;
+            export NumberTransparency = head.NumberTransparency;
+            export ObliqueNumber = head.ObliqueNumber;
+        }
+
+        policy NominalHeadCore {
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = head.Targeting;
+            export NominalAdjunctClass = head.NominalAdjunctClass;
+            export SlashPremodifierUse = head.SlashPremodifierUse;
+            export NumberTransparency = head.NumberTransparency;
         }
 
         policy PredicateHeadAgreement {
@@ -437,6 +529,8 @@ constructions! {
             export Targeting = No;
             export NominalAdjunctClass = head.NominalAdjunctClass;
             export SlashPremodifierUse = head.SlashPremodifierUse;
+            export NumberTransparency = head.NumberTransparency;
+            export ObliqueNumber = None;
         }
 
         policy PrepositionHeadPermissions {
@@ -488,6 +582,10 @@ constructions! {
         }
 
         policy NominalConcord<Right, Source> {
+            export NumberTransparency = coordinated_transparency(left.NumberTransparency,
+                Right.NumberTransparency);
+            export ObliqueNumber = coordinated_oblique(Source.CoordinationKind,
+                left.ObliqueNumber, Right.ObliqueNumber);
             agree left.Targeting = Right.Targeting;
             agree left.countability = Right.countability;
             agree left.number = Right.number;
@@ -528,6 +626,13 @@ constructions! {
         policy UnlikePredicatives<Right, Source> {
             export PredicativeKind = unlike_predicative_kind(left.PredicativeKind,
                 Right.PredicativeKind);
+        }
+
+        policy ObliquePrepositionConcord<Right, Source> {
+            export AdverbialUse = coordinated_adverbial_use(left.AdverbialUse, Right.AdverbialUse);
+            export LocativeUse = coordinated_locative_use(left.LocativeUse, Right.LocativeUse);
+            export ObliqueNumber = coordinated_oblique(Source.CoordinationKind,
+                left.ObliqueNumber, Right.ObliqueNumber);
         }
 
         policy PrepositionPermissions<Right, Source> {
@@ -1190,9 +1295,9 @@ constructions! {
             (FiniteSelectedHeadSeries, FiniteSelectedHead, FiniteConcord, SelectedFrameConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
                 SelectedFrameConcord),
-            (NominalSeries, Nominal, NominalConcord),
+            (NominalSeries, Nominal, NominalConcord, CoordinatorKindSummary),
             (AdjectivePhraseSeries, AdjectivePhrase, AdjectiveStructureMerge),
-            (PrepositionPhraseSeries, PrepositionPhrase, PrepositionPermissions),
+            (PrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
@@ -1229,9 +1334,9 @@ constructions! {
                 SelectedFrameConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
                 SelectedFrameConcord),
-            (NominalSeries, Nominal, Self, NominalConcord),
+            (NominalSeries, Nominal, Self, NominalConcord, CoordinatorKindSummary),
             (AdjectivePhraseSeries, AdjectivePhrase, Self, AdjectiveStructureMerge),
-            (PrepositionPhraseSeries, PrepositionPhrase, Self, PrepositionPermissions),
+            (PrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
@@ -1267,7 +1372,7 @@ constructions! {
                 SharedFrameConcord),
             (Nominal, Self, NominalSeries, NominalConcord),
             (AdjectivePhrase, Self, AdjectivePhraseSeries, AdjectiveStructureMerge),
-            (PrepositionPhrase, Self, PrepositionPhraseSeries, PrepositionPermissions),
+            (PrepositionPhrase, Self, PrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
@@ -1340,7 +1445,7 @@ constructions! {
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
             (Nominal, Self, NominalConcord),
             (AdjectivePhrase, Self, AdjectiveStructureMerge),
-            (PrepositionPhrase, Self, PrepositionPermissions),
+            (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
@@ -1420,19 +1525,24 @@ constructions! {
             export Targeting = Yes;
             export NominalAdjunctClass = None;
             export SlashPremodifierUse = head.SlashPremodifierUse;
+            export NumberTransparency = head.NumberTransparency;
+            export ObliqueNumber = head.ObliqueNumber;
         }
 
         construction PostmodifiedNominal: Nominal {
             form [head: Nominal, " ", modifier: PrepositionPhrase];
-            use NominalHeadProperties;
+            use NominalHeadCore;
+            export ObliqueNumber = nominal_oblique(head.ObliqueNumber, modifier.ObliqueNumber);
         }
 
         construction DeterminedNounPhrase: NounPhrase {
             export Targeting = head.Targeting;
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require determiner.DeterminerKind = Ordinary;
-            export number = determined_number(determiner.DeterminerUse, head.number,
-                head.countability);
+            require determiner_license(determiner.DeterminerUse, head.number,
+                head.countability) = Yes;
+            export number = quantificational_number(determiner.QuantificationalDeterminer,
+                head.NumberTransparency, head.ObliqueNumber, head.number);
             use ThirdPersonCommonCase;
         }
 
@@ -1494,16 +1604,19 @@ constructions! {
         construction PrepositionPhrase: PrepositionPhrase {
             form [head: lexical(Preposition), " ", complement: AccusativePhrase];
             require head.PrepositionComplement = NounPhrase;
+            export ObliqueNumber = oblique_number(head.ObliqueMarker, complement.number);
             use PrepositionHeadPermissions;
         }
 
         construction IntransitivePreposition: PrepositionPhrase {
+            export ObliqueNumber = None;
             form [head: lexical(Preposition)];
             require head.PrepositionComplement = None;
             use PrepositionHeadPermissions;
         }
 
         construction ClauseComplementPreposition: PrepositionPhrase {
+            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: FiniteClause];
             require head.FiniteClauseComplement = Yes;
             export LocativeUse = No;
@@ -1680,6 +1793,7 @@ constructions! {
             export NominalBareClass = Boundary;
         }
         construction BareTemporalPreposition: PrepositionPhrase {
+            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: BareTemporalNominal];
             agree head.NominalBareClass = complement.NominalBareClass;
             use PrepositionHeadPermissions;
@@ -2006,6 +2120,7 @@ constructions! {
         }
 
         construction MeasuredPreposition: PrepositionPhrase {
+            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: MeasurePhrase];
             require head.MeasurePreposition = Yes;
             require complement.MeasureKind = Scalar;
@@ -2266,6 +2381,7 @@ constructions! {
         }
 
         construction CoordinatedClauseComplementPreposition: PrepositionPhrase {
+            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: CoordinatedFiniteClause];
             require head.FiniteClauseComplement = Yes;
             export LocativeUse = No;
@@ -2322,7 +2438,7 @@ constructions! {
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
-            (PrepositionPhrase, Self, PrepositionPermissions),
+            (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
@@ -2351,7 +2467,7 @@ constructions! {
                 SecondaryConjunctProperties),
             (CorrelativeNounPhraseSeries, NounPhrase, NounCoordinationAgreement,
                 CoordinatorKindSummary),
-            (CorrelativePrepositionPhraseSeries, PrepositionPhrase, PrepositionPermissions),
+            (CorrelativePrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
             (CorrelativeAdverbPhraseSeries, AdverbPhrase, AdverbPermissions),
             (CorrelativeManaPhraseSeries, ManaPhrase),
             (CorrelativeCardinalSeries, Cardinal, CardinalListEnd),
@@ -2383,7 +2499,7 @@ constructions! {
                 SecondaryConjunctProperties),
             (CorrelativeNounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement,
                 CoordinatorKindSummary),
-            (CorrelativePrepositionPhraseSeries, PrepositionPhrase, Self, PrepositionPermissions),
+            (CorrelativePrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
             (CorrelativeAdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions),
             (CorrelativeManaPhraseSeries, ManaPhrase, Self),
             (CorrelativeCardinalSeries, Cardinal, Self, CardinalListEnd),
@@ -2412,7 +2528,7 @@ constructions! {
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries,
                 SecondaryConjunctProperties),
             (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
-            (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, PrepositionPermissions),
+            (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
@@ -2437,7 +2553,7 @@ constructions! {
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
-            (PrepositionPhrase, Self, PrepositionPermissions),
+            (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
@@ -2462,7 +2578,7 @@ constructions! {
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
-            (PrepositionPhrase, Self, PrepositionPermissions),
+            (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
@@ -2488,7 +2604,7 @@ constructions! {
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries,
                 SecondaryConjunctProperties),
             (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
-            (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, PrepositionPermissions),
+            (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
@@ -2527,6 +2643,7 @@ constructions! {
         }
 
         construction KeywordComplementPreposition: PrepositionPhrase {
+            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: KeywordPhrase];
             require head.KeywordComplement = Yes;
             use PrepositionHeadPermissions;
@@ -2565,6 +2682,7 @@ constructions! {
         }
 
         construction SharedPrepositionComplement: PrepositionPhrase {
+            export ObliqueNumber = None;
             form [head: SelectedPrepositionHead, " ", complement: AccusativePhrase];
             require head.HeadCoordination = Yes;
             use PrepositionHeadPermissions;
