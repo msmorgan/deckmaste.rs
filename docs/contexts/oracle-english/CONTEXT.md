@@ -344,6 +344,18 @@ A phrase headed by a Determinative, including cardinal determinatives.
 The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
 
+**Quantitative Determiner**:
+A Determiner that expresses a count, realized by a Cardinal Numeral or a
+quantitative Preposition Phrase. In *up to two target creature cards*, the
+Preposition Phrase *up to two* fills this function and the Nominal retains its
+noun head (CGEL, Ch. 5 §4, pp. 357–358).
+
+**Quantitative Preposition Phrase**:
+A Preposition Phrase expressing a quantity. In determiner function its
+Complement is normally a Cardinal Numeral (CGEL, Ch. 5 §4, p. 357).
+The sequence *up to* retains nested Preposition Phrase structure: *up* takes
+the Complement *to …* (CGEL, Ch. 7 §3.2, pp. 624–625).
+
 **Quantity**:
 The Game Model count constraint a Determiner states over a Selection, such as
 *one*, *up to two*, *one or more*, or *any number*. Determiners are this

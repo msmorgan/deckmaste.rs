@@ -144,13 +144,20 @@
         "vocab:Preposition/Outside": {"AdverbialUse": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Over": {"AdverbialUse": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Through": {"AdverbialUse": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
-        "vocab:Preposition/To": {"AdverbialUse": "No", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "ComparisonMarker": "Equality", "KeywordMarker": "To"},
+        "vocab:Preposition/To": {"AdverbialUse": "No", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "ComparisonMarker": "Equality", "KeywordMarker": "To", "QuantitativeComplement": "Cardinal"},
         "vocab:Preposition/Under": {"AdverbialUse": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "Under"},
         "vocab:Preposition/With": {"KeywordComplement": "Yes", "AdverbialUse": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
         "vocab:Preposition/Within": {"AdverbialUse": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Without": {"KeywordComplement": "Yes", "AdverbialUse": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
+        (
+            id: "vocab:Preposition/Up", lemma: "up", category: Preposition,
+            properties: (countability: [], features: {"QuantitativeComplement": "CardinalPrepositionPhrase"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Up"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
         (
             id: "vocab:Preposition/FaceDown", lemma: "face down", category: Preposition,
             properties: (countability: [], features: {"PrepositionComplement": "None", "LocativeUse": "Yes", "AdverbialUse": "Yes"}, frames: []),

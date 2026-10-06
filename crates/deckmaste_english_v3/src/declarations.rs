@@ -16,6 +16,7 @@ constructions! {
         feature Targeting { No, Yes }
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase, None }
+        feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature AdverbialUse { Yes, No }
         feature FrequencyUnit { Yes }
         feature FiniteClauseComplement { Yes }
@@ -114,6 +115,9 @@ constructions! {
         category FiniteObjectGap(number, person);
         category BareObjectGap();
         category Cardinal(number);
+        category QuantitativeDeterminer(number);
+        category CardinalPrepositionPhrase(number);
+        category QuantitativePrepositionPhrase(number);
         category Amount();
         category MeasurePhrase(MeasureKind);
         category ScalarMeasurePhrase();
@@ -1871,8 +1875,41 @@ constructions! {
             export number = Plural;
         }
 
+        schema QuantitativePrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: node];
+            export number = complement.number;
+        }
+
+        policy CardinalPrepositionComplement {
+            require head.QuantitativeComplement = Cardinal;
+        }
+
+        policy QuantitativePrepositionComplement {
+            require head.QuantitativeComplement = CardinalPrepositionPhrase;
+        }
+
+        instance QuantitativePrepositionPhrase<Result, Complement: complement, Properties>: [
+            (CardinalPrepositionPhrase, Cardinal, CardinalPrepositionComplement),
+            (QuantitativePrepositionPhrase, CardinalPrepositionPhrase,
+                QuantitativePrepositionComplement),
+        ] {
+            use Properties;
+        }
+
+        construction CardinalDeterminer: QuantitativeDeterminer {
+            cost 0;
+            form [value: Cardinal];
+            export number = value.number;
+        }
+
+        construction PrepositionDeterminer: QuantitativeDeterminer {
+            cost 0;
+            form [value: QuantitativePrepositionPhrase];
+            export number = value.number;
+        }
+
         construction CountedNounPhrase: NounPhrase {
-            form [quantity: Cardinal, " ", head: Nominal];
+            form [quantity: QuantitativeDeterminer, " ", head: Nominal];
             require head.countability = Count;
             agree quantity.number = head.number;
             use NounPhraseHeadAgreement;

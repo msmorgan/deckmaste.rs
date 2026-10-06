@@ -667,9 +667,12 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
     tokens.countability = Some(true);
     let value = Reading::CountedNounPhrase {
         form: 0,
-        quantity: Box::new(Reading::VariableCount {
+        quantity: Box::new(Reading::CardinalDeterminer {
             form: 0,
-            head: x.clone(),
+            value: Box::new(Reading::VariableCount {
+                form: 0,
+                head: x.clone(),
+            }),
         }),
         head: Box::new(Reading::SlashModifiedNominal {
             form: 0,
