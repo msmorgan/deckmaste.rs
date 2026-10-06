@@ -46,9 +46,11 @@ The retired v2 parser's per-identity coverage lock is recoverable with `jj --no-
 
 ## Legacy consumers to migrate
 
-The regenerable reference listing above records every direct import and
-qualified use, including tests and documentation-only references. Paths below
-are relative to `crates/`. No migration is made by the comparison ticket.
+This inventory was compiled on 2026-10-06 by grepping for `deckmaste_english`
+imports and types outside that crate (`rg -l 'deckmaste_english::' crates
+--glob '!crates/deckmaste_english/**'` and `rg -n 'deckmaste_english\b'
+crates/*/Cargo.toml`). Paths below are relative to `crates/`. No migration
+has been made yet.
 
 | File | Legacy contract consumed | V3 replacement or remaining gap |
 |---|---|---|
