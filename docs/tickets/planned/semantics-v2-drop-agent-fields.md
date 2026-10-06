@@ -51,6 +51,10 @@ accepts a permanent as well as a player ("target creature explores" is
 performer, and this landing deletes the wrapper's performer slot as planned
 once that ticket has landed.
 
+2026-10-05, `semantics-v2-group-handoff-publishes-no-outcome` landed: extort
+writes `act(each(opponent), loseLife(1))`, no caller in `plugins_v2/` passes
+`changeLife` a performer, and its `agent` parameter can now go.
+
 ## Left by plugins-v2-implicit-actor-spelling (2026-10-05)
 
 After that landing, these are the only places in `plugins_v2/` that still

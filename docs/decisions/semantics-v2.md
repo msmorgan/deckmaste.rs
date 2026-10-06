@@ -661,9 +661,10 @@ with a required agent depart from Lean's: nine take no agent and write
 stands for `SkipPart(part, count, agent: Actor)` while the Lean-generated
 alias still takes the agent — `addMana`, `conclude`, `copy`, `createObject`,
 `expose`, `pay`, `rerollStored`, `separateIntoPiles`, `skipPart`. The tenth,
-`changeLife`, keeps its agent, because extort's loss is written with each
-opponent as its agent (handed to them, "the total life lost this way" is
-refused, Lean `quantOutcomeInScope`). Seven helpers keep an agent parameter
+`changeLife`, keeps its agent parameter, though since 2026-10-05 no caller
+passes it a performer: extort hands its loss to each opponent
+(`semantics-v2-group-handoff-publishes-no-outcome`), and the parameter goes
+with the agent fields (`semantics-v2-drop-agent-fields`). Seven helpers keep an agent parameter
 in all: `changeLife`, and six whose agent is optional and `None` where no
 performer is recorded, as in Lean's `Option NounPhrase := none` (`enact`,
 `insertPart`, `returnTo`, `returnToBattlefield`, `meldInto`,

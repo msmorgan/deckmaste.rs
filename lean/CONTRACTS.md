@@ -203,11 +203,22 @@ singular, so `enact`, `offer` and choice agents take their one-player paths;
 distribution belongs to the handoff. `sameKnownZone` does not equate two
 `actor` zones, since nested handoffs can name different players.
 
+What a handoff publishes depends on its performer's number. A singular
+performer publishes the body's own profile without the handoff frame, so a
+targeted player stays bound below the body's mentions. A group performer
+(`each opponent`) publishes what each member's body introduced as a group,
+pluralized as `doForEach` publishes it, with one exception: a singular
+amount outcome the body introduced stays one total and is the handoff's
+deed, as the explicit plural agent leaves it, so "each opponent loses 1 life
+and you gain life equal to the total life lost this way" [CR#702.101a] reads
+it through `thatMuch`. `doForEach` keeps every outcome plural.
+
 A handoff does not record the possessor of the hand or battlefield its body
 draws on: object bindings carry no possessor, so a discard by a player other
 than the hand's owner is not refused. `Proofs/Actor.lean` pins the handoff
 cards, the bindings each kind of performer leaves, nested handoffs, nested
-abilities, captured `actor`, and every explicit-agent cost against its twin.
+abilities, captured `actor`, every explicit-agent cost against its twin, and
+the group handoff's totals against the explicit plural agent.
 These are checker guarantees, not an execution proof.
 
 ## Scheduling fields
