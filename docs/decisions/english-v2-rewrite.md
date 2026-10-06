@@ -1341,7 +1341,9 @@ the 2026-09-02..04 window arriving as a coverage *gain* that passed
 **DISCLOSE** (obligations of the record; absence is a review finding):
 
 - Every newly covered identity with its selected analysis. A wrong analysis that
-  starts parsing is a STOP, never a coverage gain.
+  starts parsing is a defect, never a coverage gain. Fix it within the ticket
+  first; STOP and report only if the fix fails, reaches outside the ticket, or
+  needs a ruling (amended 2026-10-05; it was an unconditional STOP).
 - The selection census before and after, with the construction pair named if the
   specificity-resolved share rose.
 - The permitted licensing-checker count.
