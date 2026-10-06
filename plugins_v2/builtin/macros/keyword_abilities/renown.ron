@@ -11,10 +11,10 @@ KeywordAbility(
     body: [
         triggeredIf(
             dealsCombatDamage(thisCreature, a(anyPlayer)),
-            not(matches(thisCreature, hasDesignation(Named(name: "renowned")))),
+            not(matches(thisCreature, hasDesignation(renowned))),
             sequentially([
                 putCounters(Param(0), p1p1Counter, thisCreature),
-                gainDesignation(thisCreature, Named(name: "renowned")),
+                gainDesignation(thisCreature, renowned),
             ]),
         ),
     ],

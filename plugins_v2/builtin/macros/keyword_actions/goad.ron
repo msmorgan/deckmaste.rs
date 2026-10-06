@@ -12,5 +12,5 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    body: gainDesignation(Param(0), Named(name: "goaded"), until(StartOf(Turn, controllerOf(this)))),
+    body: gainDesignation(Param(0), goaded, until(StartOf(Turn, controllerOf(this)))),
 )

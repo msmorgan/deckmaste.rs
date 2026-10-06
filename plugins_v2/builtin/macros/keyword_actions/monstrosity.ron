@@ -15,10 +15,10 @@ KeywordAction(
         frame_set: MeasureComplement,
     ),
     body: doIf(
-        not(matches(thisPermanent, hasDesignation(Named(name: "monstrous")))),
+        not(matches(thisPermanent, hasDesignation(monstrous))),
         sequentially([
             putCounters(Param(0), p1p1Counter, thisPermanent),
-            gainDesignation(thisPermanent, Named(name: "monstrous")),
+            gainDesignation(thisPermanent, monstrous),
         ]),
     ),
 )

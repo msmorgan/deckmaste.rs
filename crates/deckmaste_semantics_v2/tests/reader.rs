@@ -28,6 +28,7 @@ use deckmaste_semantics_v2::words::CardType;
 use deckmaste_semantics_v2::words::Color;
 use deckmaste_semantics_v2::words::ColorOrColorless;
 use deckmaste_semantics_v2::words::CounterKind;
+use deckmaste_semantics_v2::words::DesignationLabel;
 use deckmaste_semantics_v2::words::ManaSymbol;
 use deckmaste_semantics_v2::words::ProjAxis;
 use deckmaste_semantics_v2::words::Reach;
@@ -740,6 +741,76 @@ fn a_counter_macro_denotes_the_kind_its_definition_names_and_reads_bare_as_print
     assert!(
         error.to_string().contains("Counter"),
         "the refusal must name the constructor: {error}"
+    );
+}
+
+/// A designation declaration's name denotes the designation its definition
+/// names (Lean `Semantics.Definition.designationTerm`, ruling 2026-10-05).
+///
+/// The declaration's macro expands to its `Definition::Designation` node, so
+/// at a `DesignationLabel` position the position takes the label, which is the
+/// declaration's own name, not the phrase it prints ("the monarch"). A
+/// declaration that lists members (`dayNight`) registers each member's name
+/// [CR#731.1], and its own name, which names no single designation, does not
+/// read there.
+#[test]
+fn a_designation_macro_denotes_the_designation_its_definition_names() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    for name in [
+        "goaded",
+        "monarch",
+        "ringBearer",
+        "leftHalfUnlocked",
+        "commander",
+        "day",
+        "night",
+    ] {
+        let read: DesignationLabel =
+            builtin
+                .macros
+                .read_str_restricted(name)
+                .unwrap_or_else(|error| {
+                    panic!("{name} reads at a `DesignationLabel` position: {error}")
+                });
+        assert_eq!(
+            read,
+            DesignationLabel::Named {
+                name: name.to_owned()
+            },
+            "{name}"
+        );
+    }
+    assert!(
+        builtin
+            .macros
+            .read_str_restricted::<DesignationLabel>("dayNight")
+            .is_err(),
+        "a declaration that lists members is no designation of its own"
+    );
+    // The definition node is not author vocabulary: a card writing it raw at
+    // a designation position is refused by name (§11.1).
+    let error = builtin
+        .macros
+        .read_str_restricted::<DesignationLabel>(
+            r#"Designation(label: Named(name: "goaded"), scope: HeldByGame, effectful: true, zone: None, type: None, half: None)"#,
+        )
+        .expect_err("a designation definition is not author vocabulary");
+    assert!(
+        error.to_string().contains("Designation"),
+        "the refusal must name the constructor: {error}"
+    );
+    // The constructor is how a macro BODY could write it; it is one value.
+    let written: DesignationLabel = builtin
+        .macros
+        .read_str(r#"Named(name: "goaded")"#)
+        .expect("the constructor reads");
+    assert_eq!(
+        written,
+        DesignationLabel::Named {
+            name: "goaded".to_owned()
+        }
     );
 }
 

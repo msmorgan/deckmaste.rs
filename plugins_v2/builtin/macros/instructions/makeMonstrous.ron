@@ -4,5 +4,5 @@
     name: "makeMonstrous",
     kinds: [Instruction],
     params: {"amount": Amount},
-    body: DoIf(Not(Matches(thisPermanent, HasDesignation(Named(name: "monstrous"), None))), Sequentially([PutCounters(Param(amount), p1p1Counter, thisPermanent), GainDesignation(thisPermanent, Named(name: "monstrous"), None)]), None),
+    body: DoIf(Not(Matches(thisPermanent, HasDesignation(monstrous, None))), Sequentially([PutCounters(Param(amount), p1p1Counter, thisPermanent), GainDesignation(thisPermanent, monstrous, None)]), None),
 )
