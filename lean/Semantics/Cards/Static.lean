@@ -23,7 +23,7 @@ def forkedBolt : Instruction :=
   dealDivided Primitives.NounPhrase.this (.lit 2) (Primitives.NounPhrase.described (Primitives.DetPhrase.target (oneThrough 2)) anyTarget)
 theorem okForkedBolt : Instruction.check [] forkedBolt = [] := by decide
 def thoughtReflection : Ability :=
-  Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.draws Primitives.NounPhrase.you) [] none (Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)) .repeatedly none)
+  Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.draws Primitives.NounPhrase.you) [] none (Primitives.Instruction.draw (.lit 2)) .repeatedly none)
 theorem okThoughtReflection : Ability.check [] thoughtReflection = [] := by decide
 def jorKadeen : Ability :=
   Primitives.Ability.static (onlyWhile (getsPt (allOf creatureYouControl) (Primitives.Delta.up (.lit 3)) (Primitives.Delta.up (.lit 0)))
@@ -63,12 +63,12 @@ def lichsMasteryGate : Ability := Primitives.Ability.static (playerCant (.core .
 theorem okLichsMasteryGate : Ability.check [] lichsMasteryGate = [] := by decide
 def theGoldenThrone : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.losesGame Primitives.NounPhrase.you) [] none
-    (Primitives.Instruction.sequentially [exile thisArtifact, setLife (.lit 1) (agent := Primitives.NounPhrase.you)]) .repeatedly none)
+    (Primitives.Instruction.sequentially [exile thisArtifact, setLife (.lit 1)]) .repeatedly none)
 theorem okTheGoldenThrone : Ability.check [] theGoldenThrone = [] := by decide
 def stunningReversal : Ability :=
   Primitives.Ability.spell none (Primitives.Instruction.establish
     (Primitives.StaticSpec.replacement (Primitives.GameEvent.losesGame Primitives.NounPhrase.you) [] none
-      (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 7) (agent := Primitives.NounPhrase.you), setLife (.lit 1) (agent := Primitives.NounPhrase.you)]) .nextTimeOnly
+      (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 7), setLife (.lit 1)]) .nextTimeOnly
           none)
     (some Primitives.Duration.thisTurn))
 theorem okStunningReversal : Ability.check [] stunningReversal = [] := by decide
@@ -169,7 +169,7 @@ def rainOfGore : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement
             (Primitives.GameEvent.causes (Primitives.Causing.source (a (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack])))
               (Primitives.GameEvent.lifeChanges (controllerOf it) .up))
-            [] none (act (that .player) (loseLife Primitives.Amount.thatMuch (agent := actor))) .repeatedly none) ] } }
+            [] none (act (that .player) (loseLife Primitives.Amount.thatMuch)) .repeatedly none) ] } }
 
 /-- Master Chef -/
 def masterChefGrantedAbility : Ability :=
@@ -181,7 +181,7 @@ def anointedProcession : Spelled := spelled <| .singleFaced
     { name := "Anointed Procession", cost := some [generic 3, pip .white], types := [.enchantment],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement (tokensCreatedByEffectUnder (counted (atLeast 1) Primitives.Predicate.isToken) Primitives.NounPhrase.you)
-            [] none (Primitives.Instruction.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose [] (agent := Primitives.NounPhrase.you)) .repeatedly
+            [] none (Primitives.Instruction.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) .repeatedly
                 none) ] } }
 
 def naturalAffinity : Spelled := spelled <| .singleFaced
@@ -243,7 +243,7 @@ def shadowOfDoubt : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish (playerCant (.action "Search") (Primitives.NounPhrase.playerGroup .allPlayers))
                 (some Primitives.Duration.thisTurn),
-              Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you) ]) ] } }
+              Primitives.Instruction.draw (.lit 1) ]) ] } }
 
 def omenMachineDraw : Ability := Primitives.Ability.static (playerCant (.core .draw) (Primitives.NounPhrase.playerGroup .allPlayers))
 theorem okOmenMachineDraw : Ability.check [] omenMachineDraw = [] := by decide
@@ -508,7 +508,7 @@ def energybending : Spelled := spelled <| .singleFaced
                 (Primitives.StaticSpec.qualityChange (allOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .adds
                   (Primitives.QualityPayload.everyTypeOf .basicLand))
                 (some untilEndOfTurn),
-              Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you) ]) ] } }
+              Primitives.Instruction.draw (.lit 1) ]) ] } }
 
 /-- Seedborn Muse -/
 def seedbornMuse : Spelled := spelled <| .singleFaced
@@ -579,8 +579,7 @@ def crash : Spelled := spelled <| .singleFaced
     { name := "Crash", cost := some [generic 2, pip .red], types := [.instant],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
-            (some (Primitives.Cost.perform (sacrifice (a (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Mountain")])) (agent
-                := Primitives.NounPhrase.you))))),
+            (some (Primitives.Cost.perform (sacrifice (a (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Mountain")])))))),
           Primitives.Ability.spell none (destroy (target artifact)) ] } }
 
 def moggSalvage : Spelled := spelled <| .singleFaced
@@ -612,7 +611,7 @@ def gush : Spelled := spelled <| .singleFaced
               (counted (exactly 2)
                 (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Island"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
               hand)))),
-          Primitives.Ability.spell none (Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)) ] } }
+          Primitives.Ability.spell none (Primitives.Instruction.draw (.lit 2)) ] } }
 
 def sunscour : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -620,8 +619,7 @@ def sunscour : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
             (some (Primitives.Cost.perform (exile
-              (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.colorIs .white, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) (agent := some
-                  Primitives.NounPhrase.you))))),
+              (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.colorIs .white, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))))),
           Primitives.Ability.spell none (destroy (allOf creature)) ] } }
 
 def massacre : Spelled := spelled <| .singleFaced
@@ -641,7 +639,7 @@ def rouse : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rouse", cost := some [generic 1, pip .black], types := [.instant],
       text :=
-        [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (payLife Primitives.NounPhrase.you 2)))
+        [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (payLife 2)))
             (exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Swamp"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
           Primitives.Ability.spell none (get (target creature) (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn)) ]
               } }
@@ -728,7 +726,7 @@ def invigorate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Invigorate", cost := some [generic 2, pip .green], types := [.instant],
       text :=
-        [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (Primitives.Cost.perform (act anOpponent (gainLife (.lit 3) (agent := actor))))))
+        [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (Primitives.Cost.perform (act anOpponent (gainLife (.lit 3))))))
             (exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Forest"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
           Primitives.Ability.spell none (get (target creature) (Primitives.Delta.up (.lit 4)) (Primitives.Delta.up (.lit 4)) (some untilEndOfTurn)) ]
               } }
@@ -759,7 +757,7 @@ def rooftopStorm : Spelled := spelled <| .singleFaced
 
 /-- Voltage Surge's declaration -/
 def voltageSurgeAddedCost : Ability :=
-  Primitives.Ability.static (Primitives.StaticSpec.addedCost (Primitives.Cost.perform (sacrifice (a artifact) (agent := Primitives.NounPhrase.you))) true)
+  Primitives.Ability.static (Primitives.StaticSpec.addedCost (Primitives.Cost.perform (sacrifice (a artifact))) true)
 theorem okVoltageSurgeAddedCost : Ability.check [] voltageSurgeAddedCost = [] := by decide
 /-- Tarmogoyf -/
 def tarmogoyfDefinition : Ability :=
@@ -931,7 +929,7 @@ def eerieUltimatum : Spelled := spelled <| .singleFaced
 /-- Gray Merchant of Asphodel -/
 def grayMerchantDrain : Instruction :=
   Primitives.Instruction.sequentially
-    [act (each Primitives.Predicate.opponent) (loseLife (Primitives.Amount.letter .x) (agent := actor)), Primitives.Instruction.define .x (Primitives.Amount.devotion Primitives.NounPhrase.you (Primitives.ColorTerm.lit .black)
+    [act (each Primitives.Predicate.opponent) (loseLife (Primitives.Amount.letter .x)), Primitives.Instruction.define .x (Primitives.Amount.devotion Primitives.NounPhrase.you (Primitives.ColorTerm.lit .black)
         none)]
 theorem okGrayMerchantDrain : Instruction.check [] grayMerchantDrain = [] := by decide
 

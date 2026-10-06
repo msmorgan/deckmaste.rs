@@ -503,7 +503,7 @@ mod tests {
                     name: "Draw",
                     kinds: [Instruction],
                     params: [],
-                    body: Shuffle(agent: You),
+                    body: Shuffle,
                 )"#,
             )],
         );
@@ -533,7 +533,7 @@ mod tests {
                     name: "Draw",
                     kinds: [Instruction],
                     params: [],
-                    body: Draw(amount: Lit(value: 1), agent: You),
+                    body: Draw(amount: Lit(value: 1)),
                 )"#,
             )],
         );
@@ -555,7 +555,7 @@ mod tests {
                     name: "draw",
                     kinds: [Instruction],
                     params: [Amount],
-                    body: Draw(Param(0), You),
+                    body: Draw(Param(0)),
                 )"#,
             )],
         );
@@ -566,7 +566,7 @@ mod tests {
             .expect("`draw` reads as the macro");
         let native = plugin
             .macros
-            .read_str::<crate::abilities::Instruction>("Draw(amount: Lit(value: 1), agent: You)")
+            .read_str::<crate::abilities::Instruction>("Draw(amount: Lit(value: 1))")
             .expect("`Draw` reads as the constructor");
         assert_eq!(through_macro, native);
     }

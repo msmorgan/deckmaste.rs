@@ -47,15 +47,15 @@ theorem okPrintedNegativePower :
 /-- "You gain X life": you can't gain negative life, so a calculation below zero reads as
 zero [CR#107.1b]. -/
 theorem okGainsLifeClamped :
-    (gainLife (.letter .x) (agent := .you)).numberSlots = [(.letter .x, .clamped)] := by rfl
+    (gainLife (.letter .x)).numberSlots = [(.letter .x, .clamped)] := by rfl
 
 /-- "You lose X life" [CR#107.1b]. -/
 theorem okLosesLifeClamped :
-    (loseLife (.letter .x) (agent := .you)).numberSlots = [(.letter .x, .clamped)] := by rfl
+    (loseLife (.letter .x)).numberSlots = [(.letter .x, .clamped)] := by rfl
 
 /-- "Draw X cards": a count of cards [CR#107.1b]. -/
 theorem okDrawClamped :
-    (draw (.letter .x) (agent := .you)).numberSlots = [(.letter .x, .clamped)] := by rfl
+    (draw (.letter .x)).numberSlots = [(.letter .x, .clamped)] := by rfl
 
 /-- "This spell deals X damage to target creature": you can't deal negative damage
 [CR#107.1b]. -/
@@ -103,8 +103,7 @@ theorem okModifySetSigned :
 /-- "Your life total becomes twice your life total": doubling a life total is written as a
 set, and a set of a life total is the other half of the [CR#107.1b] exception. -/
 theorem okLifeTotalBecomesSigned :
-    (Instruction.changeLife (.set (.arith .times (lifeTotalOf .you) (.lit 2))) (agent :=
-        .you)).numberSlots
+    (Instruction.changeLife (.set (.arith .times (lifeTotalOf .you) (.lit 2)))).numberSlots
       = [(.arith .times (lifeTotalOf .you) (.lit 2), .signed)] := by rfl
 
 /-- "Exchange life totals" and the other numerical exchanges [CR#701.12g] set each side to the

@@ -400,28 +400,26 @@ semantic_macro grants (ability : Ability) : Conferral := .property (.abilityGran
 
 semantic_macro move (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
   .move subject .wherever destination []
-semantic_macro destroy (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Destroy") (.move subject (.zone .battlefield .bare) graveyard []) (agent := agent)
-semantic_macro exile (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Exile") (.move subject .wherever exileZone []) (agent := agent)
+semantic_macro destroy (subject : NounPhrase) : Instruction :=
+  .enact (.action "Destroy") (.move subject (.zone .battlefield .bare) graveyard [])
+semantic_macro exile (subject : NounPhrase) : Instruction :=
+  .enact (.action "Exile") (.move subject .wherever exileZone [])
 /-- "exile <subject> with N <kind> counters on it" -/
-semantic_macro exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind)
-    (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Exile") (.move subject .wherever exileZone [.withCounters amount (.printed kind) .fresh])
-      (agent := agent)
-semantic_macro sacrifice (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Sacrifice") (.move subject (.zone .battlefield .bare) graveyard []) (agent := some agent)
-/-- "<agent> sacrifices it": the permanent slot's occupant. -/
-semantic_macro sacrificeIt (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  sacrifice (.pro (.atSlot .permanent) .one .whole) (agent := agent)
-/-- "<agent> puts <subject> <destination>" -/
-semantic_macro put (subject : NounPhrase) (destination : ZoneExpr) (agent : NounPhrase := Primitives.NounPhrase.you) :
+semantic_macro exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     Instruction :=
-  .enact (.core .put) (.move subject .wherever destination []) (agent := some agent)
+  .enact (.action "Exile") (.move subject .wherever exileZone [.withCounters amount (.printed kind) .fresh])
+semantic_macro sacrifice (subject : NounPhrase) : Instruction :=
+  .enact (.action "Sacrifice") (.move subject (.zone .battlefield .bare) graveyard [])
+/-- "sacrifice it": the permanent slot's occupant. -/
+semantic_macro sacrificeIt : Instruction :=
+  sacrifice (.pro (.atSlot .permanent) .one .whole)
+/-- "put <subject> <destination>" -/
+semantic_macro put (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
+  .enact (.core .put) (.move subject .wherever destination [])
 /-- "return <subject> to <zone>" -/
-semantic_macro returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider)
-    (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.core .return_) (.move subject .wherever destination riders) (agent := agent)
+semantic_macro returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider) :
+    Instruction :=
+  .enact (.core .return_) (.move subject .wherever destination riders)
 /-- "return <subject> to the battlefield" -/
 semantic_macro returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject battlefield []
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
@@ -432,33 +430,31 @@ semantic_macro returnToBattlefieldWithCounters (subject who : NounPhrase) (amoun
     (kind : CounterKind) : Instruction :=
   .move subject .wherever battlefield [.under who, .withCounters amount (.printed kind) .fresh]
 /-- "transform <subject>" -/
-semantic_macro transform (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Transform") (.turnOver subject) (agent := agent)
+semantic_macro transform (subject : NounPhrase) : Instruction :=
+  .enact (.action "Transform") (.turnOver subject)
 /-- "meld <subject> into <name>" -/
-semantic_macro meldInto (subject : NounPhrase) (into : String) (agent : Option NounPhrase := none) :
-    Instruction :=
-  .enact (.action "Meld") (.move subject .wherever battlefield [.entersMelded into]) (agent := agent)
+semantic_macro meldInto (subject : NounPhrase) (into : String) : Instruction :=
+  .enact (.action "Meld") (.move subject .wherever battlefield [.entersMelded into])
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a].
 This retains the existing fragment; face-down characteristics and the turn-up special
 action are not represented here. -/
 semantic_macro manifestPlacement (subject : NounPhrase) : Instruction :=
-  .enact (.action "Manifest") (.move subject .wherever battlefield []) (agent := none)
-semantic_macro tap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Tap") (.setStatus .tapped subject) (agent := agent)
-/-- "discard <subject>": a move from its owner's hand [CR#701.9a]; no agent. An indefinite
-subject implies its own selection, by default the affected player's [CR#701.9b]. -/
+  .enact (.action "Manifest") (.move subject .wherever battlefield [])
+semantic_macro tap (subject : NounPhrase) : Instruction :=
+  .enact (.action "Tap") (.setStatus .tapped subject)
+/-- "discard <subject>": a move from its owner's hand [CR#701.9a]. An indefinite subject implies
+its own selection, by default the affected player's [CR#701.9b]. -/
 semantic_macro discard (subject : NounPhrase) : Instruction :=
-  .enact (.action "Discard") (.move subject (.zone .hand .bare) graveyard []) (agent := none)
-semantic_macro shuffle (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .shuffle (agent := agent)
-semantic_macro untap (subject : NounPhrase) (agent : Option NounPhrase := none) : Instruction :=
-  .enact (.action "Untap") (.setStatus .untapped subject) (agent := agent)
+  .enact (.action "Discard") (.move subject (.zone .hand .bare) graveyard [])
+semantic_macro shuffle : Instruction := .shuffle
+semantic_macro untap (subject : NounPhrase) : Instruction :=
+  .enact (.action "Untap") (.setStatus .untapped subject)
 /-- "Exile <subject> until <event>." -/
 semantic_macro exileUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
   .holdUntil (exile subject) event
-/-- "<agent> mills <amount> cards" from <whose> library. -/
-semantic_macro mill (amount : Amount) (whose : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Mill") (.move (.librarySlice .top amount whose) (.zone .library .bare) graveyard []) (agent := some
-      agent)
+/-- "mill <amount> cards" from <whose> library. -/
+semantic_macro mill (amount : Amount) (whose : NounPhrase) : Instruction :=
+  .enact (.action "Mill") (.move (.librarySlice .top amount whose) (.zone .library .bare) graveyard [])
 semantic_macro putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject .wherever battlefield []
 semantic_macro putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
   .move subject .wherever battlefield [.entersAs .tapped]
@@ -469,22 +465,19 @@ semantic_macro putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instr
 semantic_macro putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
   .move subject .wherever battlefield [.entersAs .tapped, .entersAttacking none]
 /-- "Search your library for <quantity> <p>" -/
-semantic_macro searchLibraryFor (quantity : Quantity) (p : Predicate) (agent : NounPhrase := Primitives.NounPhrase.you) :
-    Instruction :=
-  .search (.oneZone yourLibrary) quantity p (agent := agent)
+semantic_macro searchLibraryFor (quantity : Quantity) (p : Predicate) : Instruction :=
+  .search (.oneZone yourLibrary) quantity p
 /-- "search <whose>'s graveyard, hand, and library for <q> <p>" -/
-semantic_macro searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate)
-    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .search (.someZones (some whose) [.graveyard, .hand, .library]) quantity p (agent := agent)
+semantic_macro searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate) : Instruction :=
+  .search (.someZones (some whose) [.graveyard, .hand, .library]) quantity p
 /-- "search your library and/or graveyard for a <p>" -/
-semantic_macro searchLibraryOrGraveyard (p : Predicate) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .search (.someZones (some .you) [.library, .graveyard]) (exactly 1) p (agent := agent)
-/-- "<who> searches their library for a <p>" -/
-semantic_macro searchTheirLibraryFor (p : Predicate) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .search (.oneZone (libraryOf they)) (exactly 1) p (agent := agent)
-/-- "<who> reveals their hand" -/
-semantic_macro revealTheirHand (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .reveal (.zone (handOf
-    they)) (agent := agent)
+semantic_macro searchLibraryOrGraveyard (p : Predicate) : Instruction :=
+  .search (.someZones (some .you) [.library, .graveyard]) (exactly 1) p
+/-- "search their library for a <p>" -/
+semantic_macro searchTheirLibraryFor (p : Predicate) : Instruction :=
+  .search (.oneZone (libraryOf they)) (exactly 1) p
+/-- "reveal their hand" -/
+semantic_macro revealTheirHand : Instruction := .expose .reveal (.zone (handOf they))
 /-- Fight captures each selected creature once and guards the whole simultaneous event
 [CR#701.14a..701.14c]. -/
 semantic_macro fight (left right : capture NounPhrase) : Instruction :=
@@ -500,8 +493,7 @@ semantic_macro regenerationApplication (subject : capture NounPhrase) : Instruct
   .enact (.action "Regenerate") <|
     .sequentially [
       .clearDamage subject,
-      .act (.possessorOf .controller subject)
-        (.enact (.action "Tap") (.setStatus .tapped subject) (some .actor)),
+      .act (.possessorOf .controller subject) (.enact (.action "Tap") (.setStatus .tapped subject)),
       .doIf (.or [.matches subject (.inCombat .attackerOf none),
                   .matches subject (.inCombat .blockerOf none)])
         (.combat subject (.participation .outsideCombat)) none]
@@ -518,30 +510,26 @@ amount references in the order the sentence introduces them. -/
 semantic_macro loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
     (agent : capture NounPhrase := Primitives.NounPhrase.you) : Instruction :=
   .removeCounters (amount.map Quantity.exactlyOf) kind agent
-semantic_macro loseLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .changeLife (.down amount) (agent := agent)
-semantic_macro gainLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .changeLife (.up amount) (agent := agent)
+semantic_macro loseLife (amount : Amount) : Instruction :=
+  .changeLife (.down amount)
+semantic_macro gainLife (amount : Amount) : Instruction :=
+  .changeLife (.up amount)
 /-- "<player>'s life total becomes <amount>" -/
-semantic_macro setLife (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .changeLife (.set amount) (agent := agent)
-semantic_macro draw (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .draw amount (agent :=
-    agent)
+semantic_macro setLife (amount : Amount) : Instruction :=
+  .changeLife (.set amount)
+semantic_macro draw (amount : Amount) : Instruction := .draw amount
 
-semantic_macro lookAt (cards : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .lookAt
-    (.cards cards) (agent := agent)
+semantic_macro lookAt (cards : NounPhrase) : Instruction := .expose .lookAt (.cards cards)
 /-- "look at <player>'s hand" -/
-semantic_macro lookAtHandOf (player : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .lookAt
-    (.zone (handOf player)) (agent := agent)
-semantic_macro revealCards (cards : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := .expose .reveal
-    (.cards cards) (agent := agent)
+semantic_macro lookAtHandOf (player : NounPhrase) : Instruction :=
+  .expose .lookAt (.zone (handOf player))
+semantic_macro revealCards (cards : NounPhrase) : Instruction := .expose .reveal (.cards cards)
 /-- "the card found by a search" -/
 semantic_macro foundCard : NounPhrase := itVerbed (.action "Search")
 /-- "reveal it": the card a search found. -/
 semantic_macro revealIt : Instruction := revealCards foundCard
-semantic_macro shuffleInto (subject : NounPhrase) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Shuffle") (.move subject .wherever ((.library .shuffled none none .bare)) []) (agent := some
-      agent)
+semantic_macro shuffleInto (subject : NounPhrase) : Instruction :=
+  .enact (.action "Shuffle") (.move subject .wherever ((.library .shuffled none none .bare)) [])
 semantic_macro doIf (condition : Condition) (instruction : Instruction) : Instruction :=
   .doIf condition instruction none
 /-- "choose <subject>" -/
@@ -551,33 +539,31 @@ semantic_macro choose (subject : NounPhrase) (disclosure : Disclosure := .openly
 /-- "choose <subject> as you <event>" -/
 semantic_macro chooseWhile (subject : NounPhrase) (while_ : Concurrent) : Instruction :=
   .choose none subject .openly (some while_) (agent := none)
-semantic_macro rollDice (count : Nat) (sides : Nat) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .rollDice (.lit count) (.sides sides) (agent := agent)
+semantic_macro rollDice (count : Nat) (sides : Nat) : Instruction :=
+  .rollDice (.lit count) (.sides sides)
 /-- One row of a results table: "<results> — <instruction>". -/
 semantic_macro rollRow (results : Quantity) (instruction : Instruction) : RollRow := ⟨results, instruction⟩
-semantic_macro flipCoins (count : Nat) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .flipCoins (.count (.lit count)) (agent := agent)
+semantic_macro flipCoins (count : Nat) : Instruction :=
+  .flipCoins (.count (.lit count))
 /-- "<player> flips a coin" as an event -/
 semantic_macro flipsCoin (player : NounPhrase) : GameEvent := .flipsCoin player none
-/-- "<decider> may <body>" -/
-semantic_macro offer (body : Instruction) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction := Primitives.Instruction.offer body none none
-    (agent := agent)
-/-- "<decider> may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
-semantic_macro offerWhen (body : Instruction) (trigger : Instruction) (agent : NounPhrase := Primitives.NounPhrase.you) :
-    Instruction :=
-  .triggerReflexively (Primitives.Instruction.offer body none none (agent := agent)) trigger
+/-- "may <body>" -/
+semantic_macro offer (body : Instruction) : Instruction := Primitives.Instruction.offer body none none
+/-- "may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
+semantic_macro offerWhen (body : Instruction) (trigger : Instruction) : Instruction :=
+  .triggerReflexively (Primitives.Instruction.offer body none none) trigger
 /-- "the chosen number" -/
 semantic_macro chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
 semantic_macro chooseSpree (modes : List (Option Cost × Instruction)) : Instruction := .chooseModes (atLeast 1)
     modes
-/-- "<voters> vote for <ballot>" -/
-semantic_macro vote (disclosure : Disclosure) (ballot : Ballot) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .vote none disclosure ballot (agent := agent)
-/-- "Starting with <first>, <voters> vote for <ballot>" -/
-semantic_macro voteStartingWith (first : NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
-    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .vote (some first) disclosure ballot (agent := agent)
+/-- "vote for <ballot>" -/
+semantic_macro vote (disclosure : Disclosure) (ballot : Ballot) : Instruction :=
+  .vote none disclosure ballot
+/-- "Starting with <first>, vote for <ballot>" -/
+semantic_macro voteStartingWith (first : NounPhrase) (disclosure : Disclosure) (ballot : Ballot) :
+    Instruction :=
+  .vote (some first) disclosure ballot
 /-- "Choose N — <modes>", no mode costing anything. -/
 semantic_macro chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
   .chooseModes quantity (modes.map (none, ·))
@@ -598,13 +584,11 @@ semantic_macro creatureToken (power toughness : Nat) (colors : List Color) (subt
     CharacteristicBundle :=
   creatureTokenOf (.lit power) (.lit toughness) colors subtypes
 /-- "create N <token>" -/
-semantic_macro create (count : Amount) (token : CharacteristicBundle) (agent : NounPhrase := Primitives.NounPhrase.you) :
-    Instruction :=
-  Primitives.Instruction.create count (.written token) [] (agent := agent)
+semantic_macro create (count : Amount) (token : CharacteristicBundle) : Instruction :=
+  Primitives.Instruction.create count (.written token) []
 /-- "create N <token> tapped and attacking" -/
-semantic_macro createTappedAttacking (count : Amount) (token : CharacteristicBundle)
-    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  Primitives.Instruction.create count (.written token) [.entersAs .tapped, .entersAttacking none] (agent := agent)
+semantic_macro createTappedAttacking (count : Amount) (token : CharacteristicBundle) : Instruction :=
+  Primitives.Instruction.create count (.written token) [.entersAs .tapped, .entersAttacking none]
 
 /-- "for each color of mana spent to cast <n>" -/
 semantic_macro colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
@@ -745,9 +729,9 @@ semantic_macro agentRef (agent : NounPhrase) : NounPhrase :=
   | [] => agent
   | ds => .pro (.word .player) (agentPlur agent) (.introduced (ds.map Binding.kind))
 
-/-- "<player> may pay <cost>. If they don't, <instruction>." -/
-semantic_macro doUnless (instruction : Instruction) (cost : Cost) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  Primitives.Instruction.offer (.pay cost .once (agent := (agentRef agent))) none (some instruction) (agent := agent)
+/-- "may pay <cost>. If they don't, <instruction>." -/
+semantic_macro doUnless (instruction : Instruction) (cost : Cost) : Instruction :=
+  Primitives.Instruction.offer (.pay cost .once) none (some instruction)
 
 /-- "it" or "them", by number. -/
 semantic_macro itOrThem : Plurality → NounPhrase
@@ -786,39 +770,36 @@ semantic_macro controllerSacrifices (subject : NounPhrase) : Instruction :=
       .pro .bare subject.plur (.introduced [.player, subject.kindOr .object])
     else if (selfSubjIntro [] subject).isEmpty then subject
     else ownSubject controller
-  .act controller (sacrifice patient (agent := .actor))
+  .act controller (sacrifice patient)
 
 /-- "them" (or "it"): the cards a look at a library slice just announced, seen alone. -/
 semantic_macro lookedCards (slice : NounPhrase) : NounPhrase :=
   .pro .bare slice.plur (.introduced ((NounPhrase.introduced [] slice).map Binding.kind))
-/-- "<looker> looks at the top N cards of <whose> library, puts any number of them on the bottom
-in any order and the rest on top in any order" -/
-semantic_macro lookAndSort (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
+/-- "look at the top N cards of <whose> library, put any number of them on the bottom in any order
+and the rest on top in any order" -/
+semantic_macro lookAndSort (whose : NounPhrase) (amount : Amount) : Instruction :=
   let slice : NounPhrase := .librarySlice .top amount whose
   .sequentially
-    [ .expose .lookAt (.cards slice) (agent := agent),
+    [ .expose .lookAt (.cards slice),
       move (someOf anyNumber (lookedCards slice)) (onBottomIn .anyOrder),
       move (theRest .object) (onTopIn .anyOrder) ]
 /-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
-semantic_macro lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr)
-    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
+semantic_macro lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr) :
+    Instruction :=
   let slice : NounPhrase := .librarySlice .top amount whose
   .sequentially
-    [ .expose .lookAt (.cards slice) (agent := agent),
+    [ .expose .lookAt (.cards slice),
       move (someOf anyNumber (lookedCards slice)) spill,
       move (theRest .object) (onTopIn .anyOrder) ]
-/-- "<agent> scries N" [CR#701.22a] -/
-semantic_macro scry (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Scry") (lookAndSort (agentRef agent) amount (agent := (agentRef agent))) (agent
-      := some agent)
-/-- "<agent> fateseals N" [CR#701.29a] -/
-semantic_macro fateseal (whose : NounPhrase) (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Fateseal") (lookAndSort whose amount (agent := (agentRef agent))) (agent := some
-      agent)
-/-- "<agent> surveils N" [CR#701.25a] -/
-semantic_macro surveil (amount : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .enact (.action "Surveil") (lookAndSortInto (agentRef agent) amount graveyard (agent := (agentRef
-      agent))) (agent := some agent)
+/-- "scry N" [CR#701.22a]: the performer's own library. -/
+semantic_macro scry (amount : Amount) : Instruction :=
+  .enact (.action "Scry") (lookAndSort .actor amount)
+/-- "fateseal N" [CR#701.29a] -/
+semantic_macro fateseal (whose : NounPhrase) (amount : Amount) : Instruction :=
+  .enact (.action "Fateseal") (lookAndSort whose amount)
+/-- "surveil N" [CR#701.25a]: the performer's own library. -/
+semantic_macro surveil (amount : Amount) : Instruction :=
+  .enact (.action "Surveil") (lookAndSortInto .actor amount graveyard)
 /-- "Proliferate" with its reminder text [CR#701.34a]: "Choose any number of permanents and/or
 players, then give each another counter of each kind already there." -/
 semantic_macro proliferate : Instruction :=
@@ -827,7 +808,7 @@ semantic_macro proliferate : Instruction :=
             (.or [ .and [permanent, .hasCounters none],
                    .compare [.anyCounter .player] .atLeast (.lit 1) ])) .openly none (agent :=
                        none),
-        .putCounters (.lit 1) .own (.eachOf (those .join)) ]) (agent := none)
+        .putCounters (.lit 1) .own (.eachOf (those .join)) ])
 /-- "amass <subtype> N" with its reminder text [CR#701.47a]: "If you don't control an Army,
 create a 0/0 black <subtype> Army creature token. Choose an Army you control. Put N +1/+1
 counters on it. It's a <subtype> in addition to its other types." -/
@@ -962,8 +943,10 @@ semantic_macro cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p
 /-! ## The performer and the handoff
 
 An instruction's performer is not written: it is `actor`, the controller [CR#109.5] unless an
-enclosing `act` hands the instruction to another player. The `Actor` helpers below fill an
-existing agent slot with `actor`; the explicit-agent macros above are unchanged. -/
+enclosing `act` hands the instruction to another player or a permanent. No instruction carries a
+performer field but `choose` and `insertPart`, whose optional slots stay. The `Actor` helpers
+below are the spellings the plain macros lack: the performer's own hand (`revealHand`,
+`discard`), a choice that records its chooser (`choose`), a permission, an Army and amass. -/
 
 /-- "whoever performs this instruction" -/
 semantic_macro actor : NounPhrase := .actor
@@ -976,28 +959,15 @@ semantic_macro actorControls : Predicate := .hasPossessor .controller .actor
 namespace Actor
 
 /-- "<performer> reveals their hand" -/
-semantic_macro revealHand : Instruction := .expose .reveal (.zone (handOf .actor)) (agent := .actor)
-/-- "<performer> draws N cards" -/
-semantic_macro draw (amount : Amount) : Instruction := .draw amount (agent := .actor)
-/-- "<performer> loses N life" -/
-semantic_macro loseLife (amount : Amount) : Instruction := .changeLife (.down amount) (agent := .actor)
-/-- "<performer> gains N life" -/
-semantic_macro gainLife (amount : Amount) : Instruction := .changeLife (.up amount) (agent := .actor)
-/-- "<performer> chooses <subject>" -/
+semantic_macro revealHand : Instruction := .expose .reveal (.zone (handOf .actor))
+/-- "<performer> chooses <subject>": a choice that records its chooser, the performer (a
+`choose` keeps its optional chooser slot). -/
 semantic_macro choose (subject : NounPhrase) : Instruction :=
   .choose none subject .openly none (agent := some .actor)
-/-- "<performer> creates N <token>" -/
-semantic_macro create (count : Amount) (token : CharacteristicBundle) : Instruction :=
-  Primitives.Instruction.create count (.written token) [] (agent := .actor)
 /-- "<performer> discards <subject>": a move from the performer's hand to the graveyard
-[CR#701.9a], recorded with its performer. -/
+[CR#701.9a]. -/
 semantic_macro discard (subject : NounPhrase) : Instruction :=
   .enact (.action "Discard") (.move subject (.zone .hand (.possessedBy .actor)) graveyard [])
-    (agent := some .actor)
-/-- "<performer> sacrifices <subject>" [CR#701.21a] -/
-semantic_macro sacrifice (subject : NounPhrase) : Instruction :=
-  .enact (.action "Sacrifice") (.move subject (.zone .battlefield .bare) graveyard [])
-    (agent := some .actor)
 /-- "<performer> may cast <what> from <zone>", paying its own cost. -/
 semantic_macro mayCastFrom (what : NounPhrase) (zone : ZoneExpr) : StaticSpec :=
   mayPlayDeed (.action "Cast") .actor what none (.play (some zone) none none false .itsOwnCost)
@@ -1107,8 +1077,8 @@ semantic_macro flavorWord (word : FlavorWordLabel) (ability : Ability) : Ability
 semantic_macro companion (condition : DeckCondition) : Ability :=
   .keyword "Companion" [.deckCondition condition] []
 /-- "Pay N life" as a cost. -/
-semantic_macro payLife (player : NounPhrase) (amount : Nat) : Cost :=
-  .perform (.changeLife (.down (.lit amount)) (agent := player))
+semantic_macro payLife (amount : Nat) : Cost :=
+  .perform (.changeLife (.down (.lit amount)))
 /-- "<keyword> <cost>" -/
 semantic_macro keywordCosting (label : KeywordLabel) (cost : Cost) : Ability :=
   .keyword label [.cost cost] []
@@ -1218,8 +1188,8 @@ semantic_macro stormExpansion : Ability :=
   when (.casts .you (some thisSpell) none)
     (.sequentially
       [ .copy .fromStack thisSpell (eventCount (.casts (relative .player) (some (a (.and [spell,
-        .otherThan thisSpell]))) none) (a .anyPlayer) .earlierThisTurn) [] (agent := .you),
-        offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) (agent := .you) ])
+        .otherThan thisSpell]))) none) (a .anyPlayer) .earlierThisTurn) [],
+        offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
 /-- "Storm" with its reminder text. -/
 semantic_macro storm : Ability := .keyword "Storm" [] [stormExpansion]
 /-- "Renown N" with its reminder text. -/
@@ -1233,9 +1203,8 @@ semantic_macro cumulativeUpkeepExpansion (cost : Cost) : Ability :=
     (.matches thisPermanent (.inZone battlefield))
     (.sequentially
       [ .putCounters (.lit 1) (.printed (.named "ageCounter")) thisPermanent,
-        Primitives.Instruction.offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "ageCounter") thisPermanent))) .once
-            (agent := .you)) none (some (sacrifice thisPermanent (agent := .you))) (agent := .you)
-            ])
+        Primitives.Instruction.offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "ageCounter") thisPermanent))) .once)
+          none (some (sacrifice thisPermanent)) ])
 /-- "Cumulative upkeep [cost]" with its reminder text. -/
 semantic_macro cumulativeUpkeep (cost : Cost) : Ability :=
   .keyword "CumulativeUpkeep" [.cost cost] [cumulativeUpkeepExpansion cost]
@@ -1263,7 +1232,7 @@ semantic_macro modularExpansion (count : Nat) : List Ability :=
   [ .static (entersWithCounters thisPermanent (.lit count) p1p1Counter),
     when (Primitives.GameEvent.dies thisPermanent)
       (offer (.putCounters (countersOn p1p1Counter thisPermanent) (.printed p1p1Counter)
-        (target (.and [artifact, creature]))) (agent := .you)) ]
+        (target (.and [artifact, creature])))) ]
 /-- "Modular N" with its definition. -/
 semantic_macro modular (count : Nat) : Ability :=
   .keyword "Modular" [.number (.lit count)] (modularExpansion count)

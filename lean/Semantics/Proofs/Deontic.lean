@@ -124,17 +124,16 @@ theorem badMixedCharacteristicDisjunct :
   decide
 
 /-- "You pay 2 life." -/
-theorem okPayLifeCost : Instruction.check [] (.pay (payLife .you 2) .once (agent := .you)) = [] :=
+theorem okPayLifeCost : Instruction.check [] (.pay (payLife 2) .once) = [] :=
     by decide
 
 /-- "You pay {T}." -/
 theorem badPayTapSymbol :
-    Instruction.check [] (.pay .tapSymbol .once (agent := .you)) = [.payable] := by decide
+    Instruction.check [] (.pay .tapSymbol .once) = [.payable] := by decide
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okDeedAsCost :
-    Ability.check [] (act (.perform (sacrifice (a creature) (agent := .you))) (draw (.lit 1) (agent
-        := .you))) = [] := by
+    Ability.check [] (act (.perform (sacrifice (a creature))) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Creatures you control get +1/+1 until end of turn:" -/
@@ -143,60 +142,55 @@ theorem badContinuousAsCost :
       (act
         (.perform
           (get (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)))
-        (draw (.lit 1) (agent := .you))) = [.costAction] := by
+        (draw (.lit 1))) = [.costAction] := by
   decide
 
 /-- a replacement written as a cost -/
 theorem badInsteadAsCost :
     Ability.check []
       (act (.perform (.replace (destroy (target creature)) (exile (target creature))))
-        (draw (.lit 1) (agent := .you))) = [.costAction] := by
+        (draw (.lit 1))) = [.costAction] := by
   decide
 
 /-- a delayed trigger written as a cost -/
 theorem badDelayedAsCost :
     Ability.check []
-      (act (.perform (delay (.beginningOf .the .endStep .noPossessor) (draw (.lit 1) (agent :=
-          .you))))
-        (draw (.lit 1) (agent := .you))) = [.costAction] := by
+      (act (.perform (delay (.beginningOf .the .endStep .noPossessor) (draw (.lit 1))))
+        (draw (.lit 1))) = [.costAction] := by
   decide
 
 /-- an "until" rider written as a cost -/
 theorem badHeldUntilAsCost :
     Ability.check []
       (act (.perform (.holdUntil (exile (target creature)) (Primitives.GameEvent.dies (a creature))))
-        (draw (.lit 1) (agent := .you))) = [.costAction] := by
+        (draw (.lit 1))) = [.costAction] := by
   decide
 
 /-- a reflexive trigger written as a cost. The Idris pin refutes the cost; the reflexive
 trigger's enclosure law fails on the same term. -/
 theorem badReflexiveAsCost :
     Ability.check []
-      (act (.perform (.triggerReflexively (gainLife (.lit 2) (agent := .you)) (draw (.lit 1) (agent
-          := .you))))
-        (draw (.lit 1) (agent := .you))) = [.reflexEnclosure, .costAction] := by
+      (act (.perform (.triggerReflexively (gainLife (.lit 2)) (draw (.lit 1))))
+        (draw (.lit 1))) = [.reflexEnclosure, .costAction] := by
   decide
 
 /-- "You skip your next turn:" -/
 theorem badSkipAsCost :
-    Ability.check [] (act (.perform (.skipPart .turn (.lit 1) (agent := .you))) (draw (.lit 1)
-        (agent := .you)))
+    Ability.check [] (act (.perform (.skipPart .turn (.lit 1))) (draw (.lit 1)))
       = [.costAction] := by
   decide
 
 /-- "You pay 2 life:" -/
 theorem badPayAsCost :
-    Ability.check [] (act (.perform (.pay (payLife .you 2) .once (agent := .you))) (draw (.lit 1)
-        (agent := .you)))
+    Ability.check [] (act (.perform (.pay (payLife 2) .once)) (draw (.lit 1)))
       = [.costAction] := by
   decide
 
 /-- "Discard a card, then sacrifice a creature:" -/
 theorem badSequentialCost :
     Ability.check []
-      (act (.perform (.sequentially [discard (a (.and [.isCard, .inZone yourHand])), sacrifice (a creature)
-          (agent := .you)]))
-        (draw (.lit 1) (agent := .you))) = [.costAction] := by
+      (act (.perform (.sequentially [discard (a (.and [.isCard, .inZone yourHand])), sacrifice (a creature)]))
+        (draw (.lit 1))) = [.costAction] := by
   decide
 
 /-- "Discard a card and sacrifice a creature simultaneously:" -/
@@ -204,13 +198,13 @@ theorem badSimultaneousCost :
     Ability.check []
       (act
         (.perform (.simultaneously [discard (a (.and [.isCard, .inZone yourHand])), sacrifice (a
-            creature) (agent := .you)]))
-        (draw (.lit 1) (agent := .you))) = [.costAction] := by
+            creature)]))
+        (draw (.lit 1))) = [.costAction] := by
   decide
 
 /-- "Repeat this process:" -/
 theorem badRepeatAsCost :
-    Ability.check [] (act (.perform (.repeat_ .again)) (draw (.lit 1) (agent := .you))) =
+    Ability.check [] (act (.perform (.repeat_ .again)) (draw (.lit 1))) =
         [.costAction] := by
   decide
 
@@ -219,14 +213,13 @@ theorem okCompoundCost :
     Ability.check []
       (act
         (.compound
-          [.perform (discard (a (.and [.isCard, .inZone yourHand]))), .perform (sacrifice (a creature)
-              (agent := .you))])
-        (draw (.lit 1) (agent := .you))) = [] := by
+          [.perform (discard (a (.and [.isCard, .inZone yourHand]))), .perform (sacrifice (a creature))])
+        (draw (.lit 1))) = [] := by
   decide
 
 /-- a compound cost of no components -/
 theorem badEmptyCompound :
-    Ability.check [] (act (.compound []) (draw (.lit 1) (agent := .you))) = [.nonEmpty] := by decide
+    Ability.check [] (act (.compound []) (draw (.lit 1))) = [.nonEmpty] := by decide
 
 /-- "Creatures can't attack." -/
 theorem okStaticUntargeting :
@@ -326,7 +319,7 @@ theorem badUnlessOnPositive :
 and again for the event it is read as. -/
 theorem badUnflipEvent :
     Ability.check []
-      (whenever (.statusEvent (a permanent) .unflipped) (draw (.lit 1) (agent := .you)))
+      (whenever (.statusEvent (a permanent) .unflipped) (draw (.lit 1)))
       = [.statusMarkable, .statusMarkable] := by
   decide
 
@@ -425,7 +418,7 @@ theorem okTheDamageAfterDealing :
 theorem badTheDamageAfterLifeGain :
     Instruction.check []
       (.sequentially
-        [ .changeLife (.up (.lit 3)) (agent := .you),
+        [ .changeLife (.up (.lit 3)),
           .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ])
       = [.damageDealtInScope] := by
   decide
@@ -510,7 +503,7 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
     Instruction.check []
-      (.doAndForbid (Macros.act (each .opponent) (sacrifice (a creature) (agent := actor))) (.action "Regenerate")
+      (.doAndForbid (Macros.act (each .opponent) (sacrifice (a creature))) (.action "Regenerate")
         (theVerbed (.action "Sacrifice") .permanent .attributive .many)) = [] := by
   decide
 
@@ -518,7 +511,7 @@ theorem distributedDeedRiderReadsBackPlural :
 theorem enchantedPlayerDamageReadsBackAsThey :
     Ability.check []
       (whenever (Primitives.GameEvent.isDealtDamage .any (.attachHost .enchanted .player))
-        (Macros.act they (loseLife (.half .up (lifeTotalOf they)) (agent := actor)))) = [] := by
+        (Macros.act they (loseLife (.half .up (lifeTotalOf they))))) = [] := by
   decide
 
 /-- "Target creature attacks a player other than you during its controller's next turn if

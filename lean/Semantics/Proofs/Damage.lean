@@ -86,7 +86,7 @@ theorem badInnerAmbig :
       (.sequentially
         [ fight (target (.and [creature, .hasPossessor .controller anOpponent]))
             (target (.and [creature, .hasPossessor .controller anOpponent])),
-          act (that .player) (loseLife (.lit 1) (agent := actor)) ]) = [.anaphor (.word .player) .one 2] := by
+          act (that .player) (loseLife (.lit 1)) ]) = [.anaphor (.word .player) .one 2] := by
   decide
 
 /-- "A creature doesn't untap during your untap step." -/
@@ -151,8 +151,8 @@ theorem okThatMuchBound :
     Instruction.check []
       (.sequentially
         [ act (target .opponent) (loseLife
-            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])) (agent := actor)),
-          gainLife .thatMuch (agent := .you) ]) = [] := by
+            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you]))),
+          gainLife .thatMuch ]) = [] := by
   decide
 
 /-- "This deals that much damage to any target." -/
@@ -165,8 +165,8 @@ theorem badThatMuchAmbig :
     Instruction.check []
       (.sequentially
         [ .dealDamage .this (.lit 3) (target anyTarget),
-          loseLife (.lit 2) (agent := .you),
-          gainLife .thatMuch (agent := .you) ]) = [.quantOutcomeInScope 2] := by
+          loseLife (.lit 2),
+          gainLife .thatMuch ]) = [.quantOutcomeInScope 2] := by
   decide
 
 /-- "This deals 3 damage to target creature. Destroy it." -/
@@ -240,14 +240,13 @@ the unresolved `it` has no zone either. -/
 theorem badConditionAntecedent :
     Instruction.check []
       (.sequentially
-        [ .doOnlyIf (gainLife (.lit 2) (agent := .you)) (exists_ creatureYouControl) none,
+        [ .doOnlyIf (gainLife (.lit 2)) (exists_ creatureYouControl) none,
           .setStatus .tapped it ]) = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
   decide
 
 /-- "You may sacrifice a creature. If you don't, exile it." -/
 theorem badIfNotReadsMayBody :
-    Instruction.check [] (Primitives.Instruction.offer (sacrifice (a creature) (agent := .you)) none (some (exile it))
-        (agent := .you))
+    Instruction.check [] (Primitives.Instruction.offer (sacrifice (a creature)) none (some (exile it)))
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -406,8 +405,7 @@ theorem badRedirectToPlural :
 def preventedFromSourceAnnounced : StaticSpec :=
   .damageRule .any .unattributed (.toRecipient .you)
     (.prevent .all
-      (some (doIf (.preventedFromSource (.and [source, .colorIs .red])) (gainLife (.lit 3) (agent :=
-          .you)))))
+      (some (doIf (.preventedFromSource (.and [source, .colorIs .red])) (gainLife (.lit 3)))))
     .repeatedly
 
 theorem okPreventedFromSourceAnnounced :
@@ -422,15 +420,14 @@ theorem okPreventedFromSourceInAClause :
 /-- "If damage from a red source is prevented this way, you gain 3 life." -/
 theorem badPreventedFromSourceUnannounced :
     Instruction.check []
-      (doIf (.preventedFromSource (.and [source, .colorIs .red])) (gainLife (.lit 3) (agent :=
-          .you)))
+      (doIf (.preventedFromSource (.and [source, .colorIs .red])) (gainLife (.lit 3)))
       = [.outcomeInScope .damagePrevented 0] := by
   decide
 
 /-- "… You gain life equal to the damage prevented this way." -/
 def preventedThisWayAnnounced : StaticSpec :=
   .damageRule .any .unattributed (.toRecipient .you)
-    (.prevent .all (some (gainLife preventedThisWay (agent := .you)))) .repeatedly
+    (.prevent .all (some (gainLife preventedThisWay))) .repeatedly
 
 theorem okPreventedThisWayAnnounced : StaticSpec.check [] preventedThisWayAnnounced = [] := by
   decide
@@ -445,13 +442,13 @@ theorem badPreventedThisWayAfterDamage :
     Instruction.check []
       (.sequentially
         [ .dealDamage .this (.lit 3) (target creature),
-          .changeLife (.up preventedThisWay) (agent := .you) ]) = [.outcomeInScope .damagePrevented
+          .changeLife (.up preventedThisWay) ]) = [.outcomeInScope .damagePrevented
               0] := by
   decide
 
 /-- "You gain life equal to the damage prevented this way." -/
 theorem badPreventedThisWayUnannounced :
-    Instruction.check [] (.changeLife (.up preventedThisWay) (agent := .you))
+    Instruction.check [] (.changeLife (.up preventedThisWay))
       = [.outcomeInScope .damagePrevented 0] := by
   decide
 
@@ -459,13 +456,13 @@ theorem badPreventedThisWayUnannounced :
 theorem okShortOfCeilingAnnounced :
     Instruction.check []
       (.sequentially
-        [ act (each .anyPlayer) (offer (act they (draw (.upTo (.lit 2)) (agent := actor))) (agent := actor)),
-          act they (gainLife (times (.lit 2) shortOfCeiling) (agent := actor)) ]) = [] := by
+        [ act (each .anyPlayer) (offer (act they (draw (.upTo (.lit 2))))),
+          act they (gainLife (times (.lit 2) shortOfCeiling)) ]) = [] := by
   decide
 
 /-- "You gain 2 life for each card less than two you draw this way." -/
 theorem badShortOfCeilingUnannounced :
-    Instruction.check [] (gainLife (times (.lit 2) shortOfCeiling) (agent := .you))
+    Instruction.check [] (gainLife (times (.lit 2) shortOfCeiling))
       = [.outcomeInScope .ceilingShortfall 0] := by
   decide
 
@@ -521,8 +518,7 @@ theorem badRedirectToGroup :
 /-- "Target opponent loses 1 life. You gain that much life." -/
 theorem okThatMuchAfterLifeLoss :
     Instruction.check []
-      (.sequentially [act (target .opponent) (loseLife (.lit 1) (agent := actor)), gainLife .thatMuch (agent :=
-          .you)]) = [] := by
+      (.sequentially [act (target .opponent) (loseLife (.lit 1)), gainLife .thatMuch]) = [] := by
   decide
 
 /-- "If a source would deal damage to a player or permanent, it deals double that damage
@@ -581,7 +577,7 @@ theorem okThatCreatureAfterTargetedDamage :
       (when (Primitives.GameEvent.dies thisCreature)
         (.sequentially
           [ .dealDamage thisCreature (.lit 1) (target creature),
-            act (controllerOf (that (.type .creature))) (loseLife (.lit 1) (agent := actor)) ])) = [] := by
+            act (controllerOf (that (.type .creature))) (loseLife (.lit 1)) ])) = [] := by
   decide
 
 theorem badThatCreatureIsDamagedSelf :
@@ -658,8 +654,7 @@ theorem badAggregateWrongSort :
 /-- "1-20 | Draw a card." -/
 theorem okLiteralRollRow :
     Instruction.check []
-      (.sequentially [rollDice 1 20 (agent := .you), .applyResultsTable [⟨fromTo 1 20, draw (.lit 1)
-          (agent := .you)⟩]])
+      (.sequentially [rollDice 1 20, .applyResultsTable [⟨fromTo 1 20, draw (.lit 1)⟩]])
       = [] := by
   decide
 
@@ -667,8 +662,7 @@ theorem okLiteralRollRow :
 theorem badAmountRollRow :
     Instruction.check []
       (.sequentially
-        [rollDice 1 20 (agent := .you), .applyResultsTable [⟨.upToOf (.letter .x), draw (.lit 1)
-            (agent := .you)⟩]])
+        [rollDice 1 20, .applyResultsTable [⟨.upToOf (.letter .x), draw (.lit 1)⟩]])
       = [.quantLiteral] := by
   decide
 

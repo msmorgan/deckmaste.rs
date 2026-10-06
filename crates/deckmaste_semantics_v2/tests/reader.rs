@@ -299,7 +299,7 @@ fn a_prelude_carries_its_macros_into_the_plugin_loaded_over_it() {
 fn an_undeclared_field_on_a_constructor_is_refused() {
     let macros = deckmaste_semantics_v2::ron::macro_set();
     let error = macros
-        .read_str::<Instruction>("RerollStored(amount: Lit(value: 1), whose: You, agent: You)")
+        .read_str::<Instruction>("RerollStored(amount: Lit(value: 1), whose: You)")
         .expect_err("a field the constructor does not declare is refused");
     let message = error.to_string();
     assert!(
@@ -333,7 +333,7 @@ fn an_undeclared_field_on_a_struct_is_refused() {
 fn a_declared_field_still_reads() {
     let macros = deckmaste_semantics_v2::ron::macro_set();
     macros
-        .read_str::<Instruction>("RerollStored(quantity: Range(low: 1), whose: You, agent: You)")
+        .read_str::<Instruction>("RerollStored(quantity: Range(low: 1), whose: You)")
         .expect("the declared spelling reads");
 }
 
@@ -962,7 +962,6 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                                 ))),
                                 riders: [],
                             ),
-                            agent: Actor,
                         ),
                         otherwise: None,
                     ),
@@ -1001,7 +1000,7 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                         ),
                         otherwise: None,
                     ),
-                ]), agent: Some(Actor))
+                ]))
             "#,
         )
         .expect("the constructor-spelled body reads");
@@ -1036,7 +1035,6 @@ fn the_create_token_and_add_subtype_helpers_expand_to_their_basis_terms() {
                     ))),
                     riders: [],
                 ),
-                agent: Actor,
             )"#,
         )
         .expect("the basis term reads");

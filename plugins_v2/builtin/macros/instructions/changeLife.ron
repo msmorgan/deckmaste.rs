@@ -1,12 +1,10 @@
 // `Instruction.ChangeLife` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1). Unlike the other aliases it still
-// takes an agent, though no caller passes one a performer any more: extort
-// writes `act(each(opponent), loseLife(1))`. The parameter goes with the
-// agent fields (`semantics-v2-drop-agent-fields`).
+// basis has a constructor (ADR 12.1). The performer is the actor: the alias
+// takes no performer (ADR 7, ruling 2026-10-05).
 (
     name: "changeLife",
     kinds: [Instruction],
-    params: {"delta": Delta, "agent": Subject},
-    body: ChangeLife(delta: Param(delta), agent: Param(agent)),
+    params: {"delta": Delta},
+    body: ChangeLife(delta: Param(delta)),
 )

@@ -105,7 +105,7 @@ pub const SAMPLES: &[&str] = &[
     "MayBeginOnBattlefield",
     "Keyword(keyword: \"Sample\", params: [], body: [])",
     // Instruction.
-    "Shuffle(agent: You)",
+    "Shuffle",
     "DrawGame",
     "RestartGame",
     // Condition.
@@ -907,7 +907,6 @@ mod tests {
                             ))),
                             riders: [],
                         ),
-                        agent: Actor,
                     ),
                     otherwise: None,
                 ),
@@ -946,7 +945,7 @@ mod tests {
                     ),
                     otherwise: None,
                 ),
-            ]), agent: Some(Actor))"#
+            ]))"#
             )
         };
         let body = |text: &str| {

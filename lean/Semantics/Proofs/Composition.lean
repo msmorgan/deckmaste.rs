@@ -47,11 +47,11 @@ theorem okCostAlternativeKeepsSymbolProperties :
     Cost.selfTapUses (.or [.tapSymbol, .untapSymbol, .mana [generic 1]]) = 1 := by decide
 
 theorem okOptionalSuccessReadsBody :
-    Instruction.check [] (.withContinuation (.optional .you) (exile (a creatureYouControl))
+    Instruction.check [] (.withContinuation .optional (exile (a creatureYouControl))
       (some (move it battlefield)) none) = [] := by decide
 
 theorem badOptionalFailureReadsBody :
-    Instruction.check [] (.withContinuation (.optional .you) (exile (a creatureYouControl))
+    Instruction.check [] (.withContinuation .optional (exile (a creatureYouControl))
       none (some (exile it))) = [.anaphor .bare .one 0] := by decide
 
 theorem okRequiredSuccessReadsBody :

@@ -3,5 +3,5 @@
     name: "searchLibraryOrGraveyard",
     kinds: [Instruction],
     params: {"p": Predicate},
-    body: Search(scope: SomeZones(You, [Library, Graveyard]), quantity: exactly(n: 1), predicate: Param(p), agent: actor),
+    body: Search(scope: SomeZones(You, [Library, Graveyard]), quantity: exactly(n: 1), predicate: Param(p)),
 )

@@ -3,5 +3,5 @@
     name: "draw",
     kinds: [Instruction],
     params: {"amount": Amount},
-    body: Draw(Param(amount), actor),
+    body: Draw(Param(amount)),
 )

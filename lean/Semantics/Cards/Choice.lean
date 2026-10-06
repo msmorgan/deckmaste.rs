@@ -16,7 +16,7 @@ open Semantics Semantics.Macros
 namespace Semantics.Cards
 
 def carefulStudy : Instruction :=
-  Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you), discard (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand]))]
+  Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 2), discard (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand]))]
 theorem okCarefulStudy : Instruction.check [] carefulStudy = [] := by decide
 
 def zombieInfestation : Ability :=
@@ -54,12 +54,12 @@ theorem okPhantomBlade : Ability.check [] phantomBlade = [] := by decide
 
 /-- Braids's Frightful Return -/
 def braidsFrightfulReturn : Instruction :=
-  Primitives.Instruction.offer (sacrifice (a creature) (agent := Primitives.NounPhrase.you)) (some (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them])) none (agent := Primitives.NounPhrase.you)
+  Primitives.Instruction.offer (sacrifice (a creature)) (some (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them])) none
 theorem okBraidsFrightfulReturn : Instruction.check [] braidsFrightfulReturn = [] := by decide
 /-- Daretti, Ingenious Iconoclast -/
 def darettisMinusOne : Instruction :=
-  Primitives.Instruction.offer (sacrifice (a artifact) (agent := Primitives.NounPhrase.you)) (some (destroy (target (Primitives.Predicate.or [artifact,
-      creature])))) none (agent := Primitives.NounPhrase.you)
+  Primitives.Instruction.offer (sacrifice (a artifact)) (some (destroy (target (Primitives.Predicate.or [artifact,
+      creature])))) none
 theorem okDarettisMinusOne : Instruction.check [] darettisMinusOne = [] := by decide
 
 def cheeringFanatic : Spelled := spelled <| .singleFaced
@@ -83,22 +83,20 @@ theorem okRainOfThorns : Instruction.check [] rainOfThorns = [] := by decide
 def rankleMasterOfPranks : Instruction :=
   chooseModes anyNumber
     [ Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them],
-      Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (loseLife (.lit 1) (agent := actor)), act (those .player) (Primitives.Instruction.draw (.lit 1) (agent := actor))],
-      act (each Primitives.Predicate.anyPlayer) (sacrifice (aTheirChoice creature) (agent := actor)) ]
+      Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (loseLife (.lit 1)), act (those .player) (Primitives.Instruction.draw (.lit 1))],
+      act (each Primitives.Predicate.anyPlayer) (sacrifice (aTheirChoice creature)) ]
 theorem okRankleMasterOfPranks : Instruction.check [] rankleMasterOfPranks = [] := by decide
 
 def myrkulsEdict : Instruction :=
-  Primitives.Instruction.sequentially [choose (a Primitives.Predicate.opponent), act (that .player) (sacrifice (aTheirChoice creature) (agent := actor))]
+  Primitives.Instruction.sequentially [choose (a Primitives.Predicate.opponent), act (that .player) (sacrifice (aTheirChoice creature))]
 theorem okMyrkulsEdict : Instruction.check [] myrkulsEdict = [] := by decide
-def moltingHarpy : Instruction := doUnless (sacrifice thisCreature (agent := Primitives.NounPhrase.you)) (Primitives.Cost.mana [generic
-    2]) (agent := Primitives.NounPhrase.you)
+def moltingHarpy : Instruction := doUnless (sacrifice thisCreature) (Primitives.Cost.mana [generic
+    2])
 theorem okMoltingHarpy : Instruction.check [] moltingHarpy = [] := by decide
-def carnophage : Instruction := doUnless (Primitives.Instruction.setStatus .tapped thisCreature) (payLife Primitives.NounPhrase.you 1) (agent
-    := Primitives.NounPhrase.you)
+def carnophage : Instruction := doUnless (Primitives.Instruction.setStatus .tapped thisCreature) (payLife 1)
 theorem okCarnophage : Instruction.check [] carnophage = [] := by decide
 def solitaryConfinement : Instruction :=
-  Primitives.Instruction.offer (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand]))) none (some (sacrifice thisEnchantment (agent
-      := Primitives.NounPhrase.you))) (agent := Primitives.NounPhrase.you)
+  Primitives.Instruction.offer (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand]))) none (some (sacrifice thisEnchantment))
 theorem okSolitaryConfinement : Instruction.check [] solitaryConfinement = [] := by decide
 
 def yasminKhan : Ability :=
@@ -122,20 +120,19 @@ theorem okBrazenCannonadePermission : Instruction.check [] brazenCannonadePermis
 
 def thousandMoonsCrackshot : Ability :=
   whenever (attacks thisCreature)
-    (offerWhen (Primitives.Instruction.pay (Primitives.Cost.mana [generic 2, pip .white]) .once (agent := Primitives.NounPhrase.you))
-      (Primitives.Instruction.setStatus .tapped (target creature)) (agent := Primitives.NounPhrase.you))
+    (offerWhen (Primitives.Instruction.pay (Primitives.Cost.mana [generic 2, pip .white]) .once)
+      (Primitives.Instruction.setStatus .tapped (target creature)))
 theorem okThousandMoonsCrackshot : Ability.check [] thousandMoonsCrackshot = [] := by decide
 
 def zimoneQuandrixProdigy : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 1], Primitives.Cost.tapSymbol])
-    (offer (putOntoBattlefieldTapped (a (Primitives.Predicate.and [land, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))) (agent := Primitives.NounPhrase.you))
+    (offer (putOntoBattlefieldTapped (a (Primitives.Predicate.and [land, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))))
 theorem okZimoneQuandrixProdigy : Ability.check [] zimoneQuandrixProdigy = [] := by decide
 
 def preeminentCaptain : Ability :=
   whenever (attacks thisCreature)
     (offer (putOntoBattlefieldTappedAttacking
-      (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Soldier"), creature, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))) (agent :=
-          Primitives.NounPhrase.you))
+      (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Soldier"), creature, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))))
 theorem okPreeminentCaptain : Ability.check [] preeminentCaptain = [] := by decide
 
 def skaabRuinator : Ability :=
@@ -166,7 +163,7 @@ def scourgeOfNelToth : Spelled := spelled <| .singleFaced
             (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) none none false
               (Primitives.PlayPayment.payingInstead (Primitives.Cost.compound
                 [ Primitives.Cost.mana [pip .black, pip .black],
-                  Primitives.Cost.perform (sacrifice (counted (exactly 2) creature) (agent := Primitives.NounPhrase.you)) ])))) ],
+                  Primitives.Cost.perform (sacrifice (counted (exactly 2) creature)) ])))) ],
       power := stat 6, toughness := stat 6 } }
 
 def escapeToTheWilds : Instruction :=
@@ -215,7 +212,7 @@ def phyrexianIngester : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "imprint"
             (when (Primitives.GameEvent.enters thisCreature none)
-              (offer (exile (target (Primitives.Predicate.and [creature, nontoken]))) (agent := Primitives.NounPhrase.you))),
+              (offer (exile (target (Primitives.Predicate.and [creature, nontoken]))))),
           phyrexianIngesterPump ],
       power := stat 3, toughness := stat 3 } }
 
@@ -228,7 +225,7 @@ def misterFantastic : Spelled := spelled <| .singleFaced
         [ keyword "Reach",
           whenever
             (Primitives.GameEvent.enters (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isToken, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) none)
-            (offer (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you)) ],
+            (offer (Primitives.Instruction.draw (.lit 1))) ],
       power := stat 2, toughness := stat 4 } }
 
 def murmursFromBeyond : Spelled := spelled <| .singleFaced
@@ -257,7 +254,7 @@ def eagerConstruct : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Eager Construct", cost := some [generic 2], types := [.artifact, .creature],
       subtypes := [creatureType "Construct"],
-      text := [when (Primitives.GameEvent.enters thisCreature none) (act (each Primitives.Predicate.anyPlayer) (offer (act they (scry (.lit 1) (agent := actor))) (agent := actor)))],
+      text := [when (Primitives.GameEvent.enters thisCreature none) (act (each Primitives.Predicate.anyPlayer) (offer (act they (scry (.lit 1)))))],
       power := stat 2, toughness := stat 2 } }
 
 /-- Rune Snag -/
@@ -270,7 +267,7 @@ def runeSnag : Spelled := spelled <| .singleFaced
               [ Primitives.Cost.mana [generic 2],
                 scaledMana .generic
                   (times (.lit 2)
-                    (countOf (Primitives.Predicate.and [Primitives.Predicate.named (Primitives.NameSource.printed "Rune Snag"), Primitives.Predicate.inZone graveyard]))) ]) (agent := actor))) ] } }
+                    (countOf (Primitives.Predicate.and [Primitives.Predicate.named (Primitives.NameSource.printed "Rune Snag"), Primitives.Predicate.inZone graveyard]))) ]))) ] } }
 
 /-- Tahngarth, First Mate -/
 def tahngarthChoosesDefender : Instruction :=
@@ -314,8 +311,7 @@ def distantMelody : Spelled := spelled <| .singleFaced
             [ choose (a (quality (.subtype .creature))),
               Primitives.Instruction.draw
                 (forEach 1
-                  (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, ofChosen (.subtype .creature)]))
-                      (agent := Primitives.NounPhrase.you) ]) ] } }
+                  (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, ofChosen (.subtype .creature)])) ]) ] } }
 
 def cripplingFear : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -329,7 +325,7 @@ def cripplingFear : Spelled := spelled <| .singleFaced
 
 /-- Koh, the Face Stealer -/
 def kohChooser : Ability :=
-  activated (payLife Primitives.NounPhrase.you 1) (choose (a (Primitives.Predicate.and [creature, Primitives.Predicate.exiledWith Primitives.NounPhrase.this])))
+  activated (payLife 1) (choose (a (Primitives.Predicate.and [creature, Primitives.Predicate.exiledWith Primitives.NounPhrase.this])))
 theorem okKohChooser : Ability.check [] kohChooser = [] := by decide
 /-- Forgotten Lore -/
 def forgottenLoreChoice : Instruction :=
@@ -481,7 +477,7 @@ def silverquillSilencer : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (entersChoosingFrom thisCreature .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not land))),
           whenever (Primitives.GameEvent.casts anOpponent (some (a (Primitives.Predicate.and [spell,
             Primitives.Predicate.named Primitives.NameSource.chosen]))) none)
-            (Primitives.Instruction.sequentially [act they (loseLife (.lit 3) (agent := actor)), Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)]) ],
+            (Primitives.Instruction.sequentially [act they (loseLife (.lit 3)), Primitives.Instruction.draw (.lit 1)]) ],
       power := stat 3, toughness := stat 2 } }
 
 def meddlingMage : Spelled := spelled <| .singleFaced
@@ -537,7 +533,7 @@ def conjurersBan : Spelled := spelled <| .singleFaced
                   [ objectCant (.action "Cast") (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.named Primitives.NameSource.chosen])),
                     objectCant (.action "Play") (allOf (Primitives.Predicate.and [land, Primitives.Predicate.named Primitives.NameSource.chosen])) ])
                 (some untilYourNextTurn) ]),
-          Primitives.Ability.spell none (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ] } }
+          Primitives.Ability.spell none (Primitives.Instruction.draw (.lit 1)) ] } }
 
 def foundingOfOmashu : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -546,8 +542,7 @@ def foundingOfOmashu : Spelled := spelled <| .singleFaced
       text :=
         [ when (Primitives.GameEvent.chapterMark [1]) (create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Ally"])),
           when (Primitives.GameEvent.chapterMark [2])
-            (Primitives.Instruction.offer (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand]))) (some (Primitives.Instruction.draw (.lit 1) (agent :=
-                Primitives.NounPhrase.you))) none (agent := Primitives.NounPhrase.you)),
+            (Primitives.Instruction.offer (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand]))) (some (Primitives.Instruction.draw (.lit 1))) none),
           when (Primitives.GameEvent.chapterMark [3])
             (get (allOf creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn)) ] }
                 }
@@ -599,7 +594,7 @@ def borneUponAWind : Spelled := spelled <| .singleFaced
             (mayPlayDeed (.action "Cast") Primitives.NounPhrase.you (allOf spell) asThoughFlash
               (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
             (some Primitives.Duration.thisTurn)),
-          Primitives.Ability.spell none (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ] } }
+          Primitives.Ability.spell none (Primitives.Instruction.draw (.lit 1)) ] } }
 
 def gisaAndGeralf : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -607,7 +602,7 @@ def gisaAndGeralf : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
-        [ when (Primitives.GameEvent.enters thisCreature none) (mill (.lit 4) Primitives.NounPhrase.you (agent := Primitives.NounPhrase.you)),
+        [ when (Primitives.GameEvent.enters thisCreature none) (mill (.lit 4) Primitives.NounPhrase.you),
           Primitives.Ability.static (mayPlayDeed (.action "Cast") Primitives.NounPhrase.you
             (a (Primitives.Predicate.and [spell, creature, Primitives.Predicate.hasSubtype (creatureType "Zombie")])) none
             (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) (some .onceEachYourTurn) none false Primitives.PlayPayment.itsOwnCost)) ],
@@ -641,7 +636,7 @@ def courserOfKruphix : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static playLandsFromTop,
           whenever (Primitives.GameEvent.enters (a (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) none)
-            (gainLife (.lit 1) (agent := Primitives.NounPhrase.you)) ],
+            (gainLife (.lit 1)) ],
       power := stat 2, toughness := stat 4 } }
 
 def korlessaScaleSinger : Spelled := spelled <| .singleFaced
@@ -669,7 +664,7 @@ def mysticForge : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .lookAt Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none [castFromTop (Primitives.Predicate.and [spell, artifact]), castFromTop (Primitives.Predicate.and
               [spell, colorless])]),
-          activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, payLife Primitives.NounPhrase.you 1]) (exile (Primitives.NounPhrase.librarySlice .top (.lit 1) Primitives.NounPhrase.you)) ] } }
+          activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, payLife 1]) (exile (Primitives.NounPhrase.librarySlice .top (.lit 1) Primitives.NounPhrase.you)) ] } }
 
 def exploration : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -705,7 +700,7 @@ def explore : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)) (some Primitives.Duration.thisTurn),
-              Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you) ]) ] } }
+              Primitives.Instruction.draw (.lit 1) ]) ] } }
 
 def urbanEvolution : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -713,7 +708,7 @@ def urbanEvolution : Spelled := spelled <| .singleFaced
       types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.draw (.lit 3) (agent := Primitives.NounPhrase.you),
+            [ Primitives.Instruction.draw (.lit 3),
               Primitives.Instruction.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)) (some Primitives.Duration.thisTurn) ]) ] } }
 
 def dryadOfTheIlysianGrove : Spelled := spelled <| .singleFaced
@@ -742,11 +737,11 @@ def hellkiteCharger : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying", keyword "Haste",
           whenever (attacks thisCreature)
-            (Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [generic 5, pip .red, pip .red]) .once (agent := Primitives.NounPhrase.you))
+            (Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [generic 5, pip .red, pip .red]) .once)
               (some (Primitives.Instruction.sequentially
                 [ Primitives.Instruction.setStatus .untapped (allOf (Primitives.Predicate.and [creature, attacking])),
                   addPart .combat none (.lit 1) ]))
-              none (agent := Primitives.NounPhrase.you)) ],
+              none) ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Foriysian Brigade -/
@@ -782,8 +777,8 @@ def watcherInTheWeb : Spelled := spelled <| .singleFaced
 def forgottenLoreRepeat : Instruction :=
   Primitives.Instruction.sequentially
     [ act (target Primitives.Predicate.opponent) (Primitives.Instruction.choose none (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) .openly none (agent := some actor)),
-      Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [pip .green]) .once (agent := Primitives.NounPhrase.you)) (some (Primitives.Instruction.repeat_
-          Primitives.Repetition.againExcludingChosen)) none (agent := Primitives.NounPhrase.you) ]
+      Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [pip .green]) .once) (some (Primitives.Instruction.repeat_
+          Primitives.Repetition.againExcludingChosen)) none ]
 theorem okForgottenLoreRepeat : Instruction.check [] forgottenLoreRepeat = [] := by decide
 
 /-- Leyline of the Meek -/
@@ -803,8 +798,7 @@ def leylineOfVitality : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.mayBeginOnBattlefield,
           Primitives.Ability.static (getsPt (allOf creatureYouControl) (Primitives.Delta.up (.lit 0)) (Primitives.Delta.up (.lit 1))),
-          whenever (Primitives.GameEvent.enters (a creatureYouControl) none) (offer (gainLife (.lit 1) (agent := Primitives.NounPhrase.you))
-              (agent := Primitives.NounPhrase.you)) ] } }
+          whenever (Primitives.GameEvent.enters (a creatureYouControl) none) (offer (gainLife (.lit 1))) ] } }
 
 def phyrexianRevoker : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -846,8 +840,8 @@ def rhysticStudy : Spelled := spelled <| .singleFaced
     { name := "Rhystic Study", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
         [ whenever (Primitives.GameEvent.casts anOpponent (some (a spell)) none)
-            (act (that .player) (doUnless (offer (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you)) (Primitives.Cost.mana [generic 1])
-                (agent := actor))) ] } }
+            (act (that .player) (doUnless (act Primitives.NounPhrase.you (offer (Primitives.Instruction.draw (.lit 1))))
+              (Primitives.Cost.mana [generic 1]))) ] } }
 
 def gandalfWhiteRider : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -859,8 +853,8 @@ def gandalfWhiteRider : Spelled := spelled <| .singleFaced
           whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a spell)) none)
             (Primitives.Instruction.sequentially
               [ get (each creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn),
-                scry (.lit 1) (agent := Primitives.NounPhrase.you) ]),
-          when (Primitives.GameEvent.dies thisCreature) (offer (move it (nthFromTop (.nth 5))) (agent := Primitives.NounPhrase.you)) ],
+                scry (.lit 1) ]),
+          when (Primitives.GameEvent.dies thisCreature) (offer (move it (nthFromTop (.nth 5)))) ],
       power := stat 3, toughness := stat 3 } }
 
 def helmOfPossession : Spelled := spelled <| .singleFaced
@@ -868,8 +862,7 @@ def helmOfPossession : Spelled := spelled <| .singleFaced
     { name := "Helm of Possession", cost := some [generic 4], types := [.artifact],
       text :=
         [ Primitives.Ability.static (mayDeclineUntap thisArtifact (some Primitives.NounPhrase.you)),
-          activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice (a creature)
-              (agent := Primitives.NounPhrase.you))])
+          activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice (a creature))])
             (gainControl (target creature)
               (some (Primitives.Duration.forAsLongAs
                 (Primitives.Condition.and [ Primitives.Condition.matches thisArtifact (Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you),
@@ -880,15 +873,14 @@ def override : Spelled := spelled <| .singleFaced
     { name := "Override", cost := some [generic 2, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it)
-            (scaledMana .generic (forEach 1 (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
-                (agent := actor))) ] } }
+            (scaledMana .generic (forEach 1 (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))))) ] } }
 
 def rakshasasDisdain : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rakshasa's Disdain", cost := some [generic 2, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it)
-            (scaledMana .generic (forEach 1 (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))) (agent := actor))) ] } }
+            (scaledMana .generic (forEach 1 (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))))) ] } }
 
 def megatherium : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -897,18 +889,17 @@ def megatherium : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Trample",
           when (Primitives.GameEvent.enters thisCreature none)
-            (doUnless (sacrifice thisCreature (agent := Primitives.NounPhrase.you))
-              (scaledMana .generic (forEach 1 (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))) (agent := Primitives.NounPhrase.you)) ],
+            (doUnless (sacrifice thisCreature)
+              (scaledMana .generic (forEach 1 (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))) ],
       power := stat 4, toughness := stat 4 } }
 
 def killingWave : Instruction :=
   Primitives.Instruction.doForEach (each creature)
-    (act (controllerOf it) (doUnless (act they (sacrifice it (agent := actor))) (Primitives.Cost.perform (act they (loseLife (Primitives.Amount.letter .x) (agent := actor))))
-        (agent := actor)))
+    (act (controllerOf it) (doUnless (act they (sacrifice it)) (Primitives.Cost.perform (act they (loseLife (Primitives.Amount.letter .x))))))
 theorem okKillingWave : Instruction.check [] killingWave = [] := by decide
 def fadeAway : Instruction :=
   Primitives.Instruction.doForEach (each creature)
-    (act (controllerOf it) (doUnless (act they (sacrifice (a permanent) (agent := actor))) (Primitives.Cost.mana [generic 1]) (agent := actor)))
+    (act (controllerOf it) (doUnless (act they (sacrifice (a permanent))) (Primitives.Cost.mana [generic 1])))
 theorem okFadeAway : Instruction.check [] fadeAway = [] := by decide
 
 def tidalFlats : Spelled := spelled <| .singleFaced
@@ -917,11 +908,11 @@ def tidalFlats : Spelled := spelled <| .singleFaced
       text :=
         [ activated (Primitives.Cost.mana [pip .blue, pip .blue])
             (Primitives.Instruction.doForEach (each (Primitives.Predicate.and [creature, attacking, Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the "Flying"))]))
-              (act (controllerOf it) (Primitives.Instruction.offer (act they (Primitives.Instruction.pay (Primitives.Cost.mana [generic 1]) .once (agent := actor))) none
+              (act (controllerOf it) (Primitives.Instruction.offer (act they (Primitives.Instruction.pay (Primitives.Cost.mana [generic 1]) .once)) none
                 (some (gain
                   (allOf (Primitives.Predicate.and [ creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
                                  Primitives.Predicate.inCombat .blockerOf (some (that (.type .creature))) ]))
-                  (keyword "FirstStrike") (some untilEndOfTurn))) (agent := actor)))) ] }
+                  (keyword "FirstStrike") (some untilEndOfTurn)))))) ] }
                       }
 
 def primalSurge : Spelled := spelled <| .singleFaced
@@ -931,7 +922,7 @@ def primalSurge : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ exile (topSlice (.lit 1)),
               Primitives.Instruction.doIf (itsA permanentCard)
-                (Primitives.Instruction.offer (putOntoBattlefield it) (some (Primitives.Instruction.repeat_ Primitives.Repetition.again)) none (agent := Primitives.NounPhrase.you)) none
+                (Primitives.Instruction.offer (putOntoBattlefield it) (some (Primitives.Instruction.repeat_ Primitives.Repetition.again)) none) none
                     ]) ] } }
 
 def cultivatorColossus : Spelled := spelled <| .singleFaced
@@ -944,15 +935,13 @@ def cultivatorColossus : Spelled := spelled <| .singleFaced
             (countOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.offer (putOntoBattlefieldTapped (a (Primitives.Predicate.and [land, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))
-              (some (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you), Primitives.Instruction.repeat_ Primitives.Repetition.again])) none (agent :=
-                  Primitives.NounPhrase.you)) ] } }
+              (some (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 1), Primitives.Instruction.repeat_ Primitives.Repetition.again])) none) ] } }
 
 def zimoneAndDina : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice (a (otherCreature thisCreature)) (agent :=
-      Primitives.NounPhrase.you))])
+  activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice (a (otherCreature thisCreature)))])
     (Primitives.Instruction.sequentially
-      [ Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you),
-        offer (putOntoBattlefieldTapped (a (Primitives.Predicate.and [land, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))) (agent := Primitives.NounPhrase.you),
+      [ Primitives.Instruction.draw (.lit 1),
+        offer (putOntoBattlefieldTapped (a (Primitives.Predicate.and [land, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))),
         Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .atLeast (.lit
             8))
           (Primitives.Instruction.repeat_ (Primitives.Repetition.moreTimes (.lit 1))) none ])
@@ -966,9 +955,9 @@ def cryptLurker : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.offer
               (chooseModes (exactly 1)
-                [ sacrifice (a creature) (agent := Primitives.NounPhrase.you),
+                [ sacrifice (a creature),
                   discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone yourHand])) ])
-              (some (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))) none (agent := Primitives.NounPhrase.you)) ],
+              (some (Primitives.Instruction.draw (.lit 1))) none) ],
       power := stat 3, toughness := stat 4 } }
 
 /-- Memoricide -/
@@ -976,20 +965,20 @@ def memoricideSearch : Instruction :=
   Primitives.Instruction.sequentially
     [ choose (a (qualityFrom .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not land)))),
       searchZonesOf (target Primitives.Predicate.anyPlayer) (exactly 1) (Primitives.Predicate.named Primitives.NameSource.chosen),
-      act (that .player) (Primitives.Instruction.shuffle (agent := actor)) ]
+      act (that .player) (Primitives.Instruction.shuffle) ]
 theorem okMemoricideSearch : Instruction.check [] memoricideSearch = [] := by decide
 /-- Lost Hours -/
 def lostHoursPlacement : Instruction :=
   Primitives.Instruction.sequentially
-    [ act (target Primitives.Predicate.anyPlayer) (revealTheirHand (agent := actor)),
+    [ act (target Primitives.Predicate.anyPlayer) (revealTheirHand),
       choose (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone (handOf they)])),
-      act (that .player) (put it (nthFromTop (.nth 3)) (agent := actor)) ]
+      act (that .player) (put it (nthFromTop (.nth 3))) ]
 theorem okLostHoursPlacement : Instruction.check [] lostHoursPlacement = [] := by decide
 /-- Aether Gust -/
 def aetherGustPlacement : Instruction :=
   Primitives.Instruction.sequentially
     [ choose (target (Primitives.Predicate.and [permanent, Primitives.Predicate.colorIs .red])),
-      act (ownerOf it) (put it (choiceOfTopOrBottom they) (agent := actor)) ]
+      act (ownerOf it) (put it (choiceOfTopOrBottom they)) ]
 theorem okAetherGustPlacement : Instruction.check [] aetherGustPlacement = [] := by decide
 /-- Fastbond -/
 def fastbondLands : Ability := Primitives.Ability.static (mayPlayAdditionalLands Primitives.NounPhrase.you anyNumber)
@@ -1009,7 +998,7 @@ def shahOfNaarIsle : Spelled := spelled <| .singleFaced
         [ keyword "Trample",
           keywordCosting "Echo" (Primitives.Cost.mana [generic 0]),
           when (Primitives.GameEvent.paysCost none .paid thisCreature "Echo")
-            (act (each Primitives.Predicate.opponent) (offer (act they (Primitives.Instruction.draw (Primitives.Amount.upTo (.lit 3)) (agent := actor))) (agent := actor))) ],
+            (act (each Primitives.Predicate.opponent) (offer (act they (Primitives.Instruction.draw (Primitives.Amount.upTo (.lit 3)))))) ],
       power := stat 6, toughness := stat 6 } }
 
 /-- Memory Plunder -/
@@ -1035,8 +1024,7 @@ def omniscience : Spelled := spelled <| .singleFaced
             (Primitives.DeonticRider.play (some (handOf Primitives.NounPhrase.you)) none none false Primitives.PlayPayment.withoutPaying)) ] } }
 
 /-- Tranquil Frillback -/
-def tranquilFrillbackOffer : Instruction := offer (Primitives.Instruction.pay (Primitives.Cost.mana [pip .green]) (.upTo 3) (agent :=
-    Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you)
+def tranquilFrillbackOffer : Instruction := offer (Primitives.Instruction.pay (Primitives.Cost.mana [pip .green]) (.upTo 3))
 theorem okTranquilFrillbackOffer : Instruction.check [] tranquilFrillbackOffer = [] := by decide
 
 /-- Caller of the Hunt -/
@@ -1078,7 +1066,7 @@ def sandstoneOracle : Spelled := spelled <| .singleFaced
               [ choose anOpponent,
                 Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])) .greater
                         (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))
-                  (Primitives.Instruction.draw Primitives.Amount.theDifference (agent := Primitives.NounPhrase.you)) none ]) ],
+                  (Primitives.Instruction.draw Primitives.Amount.theDifference) none ]) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Slithermuse -/
@@ -1088,7 +1076,7 @@ def slithermuseTrigger : Ability :=
       [ choose anOpponent,
         Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])) .greater
                 (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))
-          (Primitives.Instruction.draw Primitives.Amount.theDifference (agent := Primitives.NounPhrase.you)) none ])
+          (Primitives.Instruction.draw Primitives.Amount.theDifference) none ])
 theorem okSlithermuseTrigger : Ability.check [] slithermuseTrigger = [] := by decide
 
 /-- Celestial Judgment -/
@@ -1105,7 +1093,7 @@ def celestialJudgment : Spelled := spelled <| .singleFaced
 /-- World Queller -/
 def worldQuellerChoice : Instruction :=
   Primitives.Instruction.offer (choose (a (quality .cardType)))
-    (some (act (each Primitives.Predicate.anyPlayer) (sacrifice (aTheirChoice (Primitives.Predicate.and [permanent, ofChosen .cardType])) (agent := actor)))) none (agent := Primitives.NounPhrase.you)
+    (some (act (each Primitives.Predicate.anyPlayer) (sacrifice (aTheirChoice (Primitives.Predicate.and [permanent, ofChosen .cardType]))))) none
 theorem okWorldQuellerChoice : Instruction.check [] worldQuellerChoice = [] := by decide
 
 /-- Moonlit Meditation -/
@@ -1118,20 +1106,18 @@ def moonlitMeditation : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.tokensCreated (counted (atLeast 1) Primitives.Predicate.isToken) false (some Primitives.NounPhrase.you)
               none)
             [] none
-            (offer (Primitives.Instruction.create Primitives.Amount.groupSize (Primitives.TokenSpec.copyOf (Primitives.NounPhrase.attachHost .enchanted .permanent) []) [] (agent :=
-                Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you))
+            (offer (Primitives.Instruction.create Primitives.Amount.groupSize (Primitives.TokenSpec.copyOf (Primitives.NounPhrase.attachHost .enchanted .permanent) []) []))
             .repeatedly (some Primitives.UsageLimit.oncePerTurn)) ] } }
 
 def discardUpToTwoThenDrawThatMany : Instruction :=
-  Primitives.Instruction.sequentially [discard (counted (upTo 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])), Primitives.Instruction.draw Primitives.Amount.groupSize (agent :=
-      Primitives.NounPhrase.you)]
+  Primitives.Instruction.sequentially [discard (counted (upTo 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])), Primitives.Instruction.draw Primitives.Amount.groupSize]
 theorem okDiscardUpToTwoThenDrawThatMany :
     Instruction.check [] discardUpToTwoThenDrawThatMany = [] := by decide
 /-- Truce and Temporary Truce -/
 def drawUpToTwoThenGainPerShortfall : Instruction :=
   Primitives.Instruction.sequentially
-    [ act (each Primitives.Predicate.anyPlayer) (offer (act they (Primitives.Instruction.draw (Primitives.Amount.upTo (.lit 2)) (agent := actor))) (agent := actor)),
-      act they (gainLife (times (.lit 2) shortOfCeiling) (agent := actor)) ]
+    [ act (each Primitives.Predicate.anyPlayer) (offer (act they (Primitives.Instruction.draw (Primitives.Amount.upTo (.lit 2))))),
+      act they (gainLife (times (.lit 2) shortOfCeiling)) ]
 theorem okDrawUpToTwoThenGainPerShortfall :
     Instruction.check [] drawUpToTwoThenGainPerShortfall = [] := by decide
 
@@ -1142,15 +1128,13 @@ def communeWithTheGods : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ revealCards (topSlice (.lit 5)),
-              offer (move (fromAmong (exactly 1) (Primitives.Predicate.or [creature, enchantment]) them) hand) (agent :=
-                  Primitives.NounPhrase.you),
+              offer (move (fromAmong (exactly 1) (Primitives.Predicate.or [creature, enchantment]) them) hand),
               move (theRest .object) graveyard ]) ] } }
 
 /-- Nautiloid Ship -/
 def nautiloidShipTrigger : Ability :=
   whenever (dealsCombatDamage thisVehicle (a Primitives.Predicate.anyPlayer))
-    (offer (putOntoBattlefieldUnderYourControl (a (Primitives.Predicate.and [creature, Primitives.Predicate.exiledWith thisVehicle])))
-        (agent := Primitives.NounPhrase.you))
+    (offer (putOntoBattlefieldUnderYourControl (a (Primitives.Predicate.and [creature, Primitives.Predicate.exiledWith thisVehicle]))))
 theorem okNautiloidShipTrigger : Ability.check [] nautiloidShipTrigger = [] := by decide
 
 /-- Summon: Esper Valigarmanda's II/III/IV body, in part -/
@@ -1181,7 +1165,7 @@ def soulRansom : Spelled := spelled <| .singleFaced
           activatedBy
             (Primitives.Cost.perform (Primitives.Instruction.repeatTimes (.lit 2)
               (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])), discard (that .card)])))
-            (Primitives.Instruction.sequentially [act (controllerOf thisAura) (sacrificeIt (agent := actor)), act they (Primitives.Instruction.draw (.lit 2) (agent := actor))])
+            (Primitives.Instruction.sequentially [act (controllerOf thisAura) (sacrificeIt), act they (Primitives.Instruction.draw (.lit 2))])
             (Primitives.NounPhrase.playerGroup .yourOpponents) ] } }
 
 /-- Vraska's Scorn -/
@@ -1190,11 +1174,11 @@ def vraskasScorn : Spelled := spelled <| .singleFaced
     { name := "Vraska's Scorn", cost := some [generic 2, pip .black, pip .black], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ act (target Primitives.Predicate.opponent) (loseLife (.lit 4) (agent := actor)),
+            [ act (target Primitives.Predicate.opponent) (loseLife (.lit 4)),
               offer
                 (Primitives.Instruction.sequentially
                   [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Vraska, Scheming Gorgon")),
-                    revealCards it, move it hand ]) (agent := Primitives.NounPhrase.you),
+                    revealCards it, move it hand ]),
               Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
                 (relative .player)) (.action "Search") none none (some yourLibrary))
                 Primitives.NounPhrase.you .thisWay) shuffle
@@ -1209,9 +1193,9 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters thisCreature none)
             (act (each Primitives.Predicate.opponent) (offer
               (Primitives.Instruction.sequentially
-                [ act they (searchTheirLibraryFor (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic]) (agent := actor)),
+                [ act they (searchTheirLibraryFor (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic])),
                   putOntoBattlefieldTapped foundCard,
-                  act they (Primitives.Instruction.shuffle (agent := actor)) ]) (agent := actor))) ],
+                  act they (Primitives.Instruction.shuffle) ]))) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Verity Circle -/
@@ -1222,7 +1206,7 @@ def verityCircle : Spelled := spelled <| .singleFaced
         [ triggeredIf
             (Primitives.GameEvent.statusEvent (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent])) .tapped)
             (Primitives.Condition.matches it (Primitives.Predicate.not (Primitives.Predicate.inCombat .declaredAttacker none)))
-            (offer (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you)),
+            (offer (Primitives.Instruction.draw (.lit 1))),
           activated (Primitives.Cost.mana [generic 4, pip .blue])
             (tap (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the "Flying"))]))) ] } }
 
@@ -1263,7 +1247,7 @@ def haakonStromgaldScourge : Spelled := spelled <| .singleFaced
               (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.hasSubtype (creatureType "Knight")])) none
               (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) none none false Primitives.PlayPayment.itsOwnCost))
             (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.inZone battlefield)) .asLongAs),
-          when (Primitives.GameEvent.dies thisCreature) (loseLife (.lit 2) (agent := Primitives.NounPhrase.you)) ],
+          when (Primitives.GameEvent.dies thisCreature) (loseLife (.lit 2)) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Apex of Power -/
@@ -1280,7 +1264,7 @@ def blightHerderCast : Instruction :=
   offer
     (move (counted (exactly 2)
             (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (Primitives.NounPhrase.playerGroup .yourOpponents), Primitives.Predicate.inZone exileZone]))
-      graveyard) (agent := Primitives.NounPhrase.you)
+      graveyard)
 theorem okBlightHerderCast : Instruction.check [] blightHerderCast = [] := by decide
 
 /-- True-Name Nemesis -/
@@ -1299,7 +1283,7 @@ def akiriUnattachOffer : Ability :=
     (Primitives.Instruction.offer
       (Primitives.Instruction.unattach (a (Primitives.Predicate.and [ Primitives.Predicate.hasSubtype (artifactType "Equipment"),
                             Primitives.Predicate.attachedTo (a creatureYouControl) ])))
-      (some (Primitives.Instruction.setStatus .tapped (that (.type .creature)))) none (agent := Primitives.NounPhrase.you))
+      (some (Primitives.Instruction.setStatus .tapped (that (.type .creature)))) none)
 theorem okAkiriUnattachOffer : Ability.check [] akiriUnattachOffer = [] := by decide
 /-- Summoning Materia -/
 def summoningMateriaTopCast : Ability :=
@@ -1337,7 +1321,7 @@ def ballotBroker : Spelled := spelled <| .singleFaced
 
 /-- Emissary of Grudges -/
 def emissaryOfGrudgesReveal : Ability :=
-  activatedOnlyOnce (Primitives.Cost.perform (Primitives.Instruction.expose .reveal (Primitives.Exposed.choice .player) (agent := Primitives.NounPhrase.you)))
+  activatedOnlyOnce (Primitives.Cost.perform (Primitives.Instruction.expose .reveal (Primitives.Exposed.choice .player)))
     (Primitives.Instruction.doOnlyIf (Primitives.Instruction.chooseNewTargets (target (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack])))
       (Primitives.Condition.and
         [ Primitives.Condition.matches it (Primitives.Predicate.hasPossessor .controller (the chosenPlayer)),
@@ -1351,14 +1335,13 @@ theorem okEmissaryOfGrudgesReveal :
 def prosperity : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Prosperity", cost := some [.variable, pip .blue], types := [.sorcery],
-      text := [Primitives.Ability.spell none (act (each Primitives.Predicate.anyPlayer) (Primitives.Instruction.draw (Primitives.Amount.letter .x) (agent := actor)))] } }
+      text := [Primitives.Ability.spell none (act (each Primitives.Predicate.anyPlayer) (Primitives.Instruction.draw (Primitives.Amount.letter .x)))] } }
 
-def collectiveUnconscious : Instruction := Primitives.Instruction.draw (forEach 1 creatureYouControl) (agent := Primitives.NounPhrase.you)
+def collectiveUnconscious : Instruction := Primitives.Instruction.draw (forEach 1 creatureYouControl)
 theorem okCollectiveUnconscious : Instruction.check [] collectiveUnconscious = [] := by decide
 def killiansConfidence : Instruction :=
   Primitives.Instruction.sequentially
-    [get (target creature) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn), Primitives.Instruction.draw (.lit 1)
-        (agent := Primitives.NounPhrase.you)]
+    [get (target creature) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn), Primitives.Instruction.draw (.lit 1)]
 theorem okKilliansConfidence : Instruction.check [] killiansConfidence = [] := by decide
 
 def scatheZombies : Spelled := spelled <| .singleFaced
@@ -1449,7 +1432,7 @@ def consumingTide : Spelled := spelled <| .singleFaced
               Primitives.Instruction.doForEach
                 (each (Primitives.Predicate.compareOver Primitives.Predicate.opponent (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)])) .greater
                   (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))))
-                (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ]) ] } }
+                (Primitives.Instruction.draw (.lit 1)) ]) ] } }
 
 /-- Stick Together: a chosen party is four up-to-one choices, not the group the game computes
 [CR#700.8d]. -/
@@ -1471,7 +1454,7 @@ def stickTogether : Instruction :=
         (counted (upTo 1)
           (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Wizard"), Primitives.Predicate.hasPossessor .controller they]))
               (agent := some actor)),
-      act (each Primitives.Predicate.anyPlayer) (sacrifice (theRest .object) (agent := actor)) ]
+      act (each Primitives.Predicate.anyPlayer) (sacrifice (theRest .object)) ]
 theorem okStickTogether : Instruction.check [] stickTogether = [] := by decide
 
 /-- Disciple of Caelus Nin: "starting with you" fixes the order the players choose in

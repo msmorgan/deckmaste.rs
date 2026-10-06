@@ -2,5 +2,5 @@
     name: "gainLife",
     kinds: [Instruction],
     params: {"amount": Amount},
-    body: ChangeLife(delta: Up(amount: Param(amount)), agent: actor),
+    body: ChangeLife(delta: Up(amount: Param(amount))),
 )

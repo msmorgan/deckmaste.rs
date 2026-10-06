@@ -17,5 +17,5 @@ KeywordAction(
         ),
     ),
     deed: None,
-    body: Vote(None, Param(0), Param(1), actor),
+    body: Vote(None, Param(0), Param(1)),
 )

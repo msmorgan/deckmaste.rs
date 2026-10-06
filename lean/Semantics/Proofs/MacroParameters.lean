@@ -4,9 +4,8 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.MacroParameters
 
-private semantic_macro drawTwice (amount : Amount)
-    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
-  .sequentially [draw amount agent, draw amount agent]
+private semantic_macro drawTwice (amount : Amount) : Instruction :=
+  .sequentially [draw amount, draw amount]
 
 private def explicitExpansion : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -270,7 +269,7 @@ theorem capturesStayInsideTheirRepetition :
 private semantic_macro capturedCount (subject : capture NounPhrase) : Amount := .countOf subject
 
 private semantic_macro capturedPayment (payer : capture NounPhrase) : Cost :=
-  .perform (.act payer (.changeLife (.down (.lit 1)) .actor))
+  .perform (.act payer (.changeLife (.down (.lit 1))))
 
 theorem capturedGroupsRemainCountable :
     (capturedCount (.described (.target (exactly 2)) creature)).check [] = [] := by decide
@@ -335,7 +334,7 @@ example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
         (onChosen (target creature) (fun _ => moveSubject outside))] } }
 
 private semantic_macro capturedLifePayment (payer : capture NounPhrase) : Instruction :=
-  .act payer (.changeLife (.down (.lit 1)) .actor)
+  .act payer (.changeLife (.down (.lit 1)))
 
 theorem instructionScopesDoNotHideAnIncorrectPayer :
     (Cost.perform (capturedLifePayment anOpponent)).paidByYou = false := by decide
@@ -374,7 +373,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Macro expansion witness", types := [.sorcery],
-      text := [Primitives.Ability.spell none (expand (drawTwice (.lit 1) .you))] } }
+      text := [Primitives.Ability.spell none (expand (act .you (drawTwice (.lit 1))))] } }
 
 private semantic_macro scopedMove (subject : capture NounPhrase) : Instruction :=
   .move subject .wherever graveyard []
@@ -389,14 +388,14 @@ theorem capturedBareThisRetainsEnactedZoneExemption :
 
 theorem scopedLookRetainsOpponentRequirement :
     (Instruction.enact (.action "Fateseal")
-      (.withBindings 5 [] (lookAndSort .you (.lit 2))) (some .you)).check [] =
+      (.withBindings 5 [] (lookAndSort .you (.lit 2)))).check [] =
         [.opponentsLibrary] := by decide
 
 private semantic_macro capturedLook (whose : capture NounPhrase) : Instruction :=
   lookAndSort whose (.lit 2)
 
 theorem capturedLibraryOwnerRetainsOpponentClassification :
-    (Instruction.enact (.action "Fateseal") (capturedLook anOpponent) (some .you)).check [] =
+    (Instruction.enact (.action "Fateseal") (capturedLook anOpponent)).check [] =
       [] := by decide
 
 theorem nestedReplacementCannotHideInScope :
@@ -499,7 +498,7 @@ theorem independentValueSubjectsRemainIndependent :
 
 theorem scopedLibrarySliceRetainsItsOwner :
     enactLibraryOwnerOk (.action "Fateseal")
-      (.expose .lookAt (.cards (.withBindings 5 [] (.librarySlice .top (.lit 2) .you))) .you) =
+      (.expose .lookAt (.cards (.withBindings 5 [] (.librarySlice .top (.lit 2) .you)))) =
         false := by decide
 
 theorem callerCounterpartCannotConcealSelfReference :

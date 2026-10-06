@@ -3,5 +3,5 @@
     name: "createTappedAttacking",
     kinds: [Instruction],
     params: {"count": Amount, "token": CharacteristicBundle},
-    body: CreateObject(Param(count), Token(spec: Written(characteristics: Param(token)), riders: [EntersAs(Tapped), EntersAttacking(None)]), actor),
+    body: CreateObject(Param(count), Token(spec: Written(characteristics: Param(token)), riders: [EntersAs(Tapped), EntersAttacking(None)])),
 )

@@ -3,5 +3,5 @@
     name: "searchZonesOf",
     kinds: [Instruction],
     params: {"whose": NounPhrase, "quantity": Quantity, "p": Predicate},
-    body: Search(scope: SomeZones(Param(whose), [Graveyard, Hand, Library]), quantity: Param(quantity), predicate: Param(p), agent: actor),
+    body: Search(scope: SomeZones(Param(whose), [Graveyard, Hand, Library]), quantity: Param(quantity), predicate: Param(p)),
 )

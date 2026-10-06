@@ -3,5 +3,5 @@
     name: "revealHand",
     kinds: [Instruction],
     params: [],
-    body: Expose(verb: Reveal, exposed: Zone(handOf(player: Actor)), agent: Actor),
+    body: Expose(verb: Reveal, exposed: Zone(handOf(player: Actor))),
 )

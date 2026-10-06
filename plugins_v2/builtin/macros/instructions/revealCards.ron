@@ -2,5 +2,5 @@
     name: "revealCards",
     kinds: [Instruction],
     params: {"cards": NounPhrase},
-    body: Expose(verb: Reveal, exposed: Cards(Param(cards)), agent: actor),
+    body: Expose(verb: Reveal, exposed: Cards(Param(cards))),
 )

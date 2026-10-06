@@ -169,14 +169,13 @@ theorem exactPrefixDoesNotInspectOuter (localBindings outer : Bindings)
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Scope witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (act (.pro (.word .player) .one (.top 1)) (draw (.lit 1) (agent := actor)))] } }
+      text := [Primitives.Ability.spell none (act (.pro (.word .player) .one (.top 1)) (draw (.lit 1)))] } }
 
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.NounPhrase.pro] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Scope witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (act (.pro (.word .player) .one (.introduced [.player])) (draw (.lit 1)
-        (agent := actor)))] } }
+      text := [Primitives.Ability.spell none (act (.pro (.word .player) .one (.introduced [.player])) (draw (.lit 1)))] } }
 
 end Semantics.Proofs.ReferenceScopes

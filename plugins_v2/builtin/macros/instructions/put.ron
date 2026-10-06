@@ -3,5 +3,5 @@
     name: "put",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "destination": ZoneExpr},
-    body: Enact(verb: Core(Put), instruction: Move(Param(subject), wherever, Param(destination), []), agent: actor),
+    body: Enact(verb: Core(Put), instruction: Move(Param(subject), wherever, Param(destination), [])),
 )

@@ -1,10 +1,10 @@
 // `Instruction.Pay` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1). The agent is the actor: the alias
+// basis has a constructor (ADR 12.1). The performer is the actor: the alias
 // takes no performer (ADR 7, ruling 2026-10-05).
 (
     name: "pay",
     kinds: [Instruction],
     params: {"cost": Cost, "times": Any},
-    body: Pay(cost: Param(cost), times: Param(times), agent: actor),
+    body: Pay(cost: Param(cost), times: Param(times)),
 )

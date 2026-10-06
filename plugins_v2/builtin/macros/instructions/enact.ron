@@ -4,6 +4,6 @@
 (
     name: "enact",
     kinds: [Instruction],
-    params: {"verb": Deed, "instruction": Instruction, "agent": Default(Any, None)},
-    body: Enact(verb: Param(verb), instruction: Param(instruction), agent: Param(agent)),
+    params: {"verb": Deed, "instruction": Instruction},
+    body: Enact(verb: Param(verb), instruction: Param(instruction)),
 )

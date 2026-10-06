@@ -1,8 +1,8 @@
 // "Harness [this permanent]" [CR#701.64a] = "If this permanent isn't harnessed,
 // it becomes harnessed." Harnessed is a marker designation with no rules
 // meaning of its own [CR#701.64b].
-// A permanent performs it, so the wrapper's recorded actor is the permanent a
-// handoff names, or, with none, the source permanent (Lean `enactAgentOk`).
+// A permanent performs it, so its performer is the permanent a handoff names, or,
+// with none, the source permanent (Lean `enactAgentOk`).
 KeywordAction(
     name: "harness",
     params: [Subject],

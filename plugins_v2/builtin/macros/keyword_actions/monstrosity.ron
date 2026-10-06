@@ -2,8 +2,8 @@
 // +1/+1 counters on it and it becomes monstrous." Monstrous is a marker
 // designation [CR#701.37b]. Lean `makeMonstrous`, with the deed tag its own
 // bench spelling leaves off.
-// A permanent performs it, so the wrapper's recorded actor is the permanent a
-// handoff names, or, with none, the source permanent (Lean `enactAgentOk`).
+// A permanent performs it, so its performer is the permanent a handoff names, or,
+// with none, the source permanent (Lean `enactAgentOk`).
 KeywordAction(
     name: "monstrosity",
     params: [Amount],

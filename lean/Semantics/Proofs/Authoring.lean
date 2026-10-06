@@ -45,14 +45,14 @@ example : Spelled := spelled <| rawKeywordCard
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (draw (.lit 1) (agent := .you))] } }
+      text := [Primitives.Ability.spell none (act .you (draw (.lit 1)))] } }
 
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.enact] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (.enact (.action "Destroy") (.draw (.lit 1) (agent := .you)))] } }
+      text := [Primitives.Ability.spell none (.enact (.action "Destroy") (.draw (.lit 1)))] } }
 
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.enact] -/
 #guard_msgs in

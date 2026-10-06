@@ -45,7 +45,7 @@ def blindblastWhole : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (target creature), forbidBlock (that (.type .creature)) (some
         Primitives.Duration.thisTurn),
-      Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you) ]
+      Primitives.Instruction.draw (.lit 1) ]
 theorem okBlindblastWhole : Instruction.check [] blindblastWhole = [] := by decide
 
 def sparkmagesGambit : Instruction :=
@@ -365,13 +365,12 @@ theorem okAcademicProbationNameMode : Instruction.check [] academicProbationName
 def fatigue : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fatigue", cost := some [generic 1, pip .blue], types := [.sorcery],
-      text := [Primitives.Ability.spell none (act (target Primitives.Predicate.anyPlayer) (Primitives.Instruction.skipPart .drawStep (.lit 1) (agent := actor)))] } }
+      text := [Primitives.Ability.spell none (act (target Primitives.Predicate.anyPlayer) (Primitives.Instruction.skipPart .drawStep (.lit 1)))] } }
 
 def meditate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Meditate", cost := some [generic 2, pip .blue], types := [.instant],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 4) (agent := Primitives.NounPhrase.you), Primitives.Instruction.skipPart .turn (.lit 1)
-          (agent := Primitives.NounPhrase.you)])] } }
+      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 4), Primitives.Instruction.skipPart .turn (.lit 1)])] } }
 
 /-- Blinding Angel {3}{W}{W} — Creature — Angel 2/4. "Flying. Whenever Blinding Angel deals
 combat damage to a player, that player skips their next combat phase." -/
@@ -383,7 +382,7 @@ def blindingAngel : Spelled := spelled <| .singleFaced
         [ keyword "Flying",
           whenever
             (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
-            (act (that .player) (Primitives.Instruction.skipPart .combat (.lit 1) (agent := actor))) ],
+            (act (that .player) (Primitives.Instruction.skipPart .combat (.lit 1))) ],
       power := stat 2, toughness := stat 4 } }
 
 def eonHub : Spelled := spelled <| .singleFaced
@@ -397,8 +396,7 @@ def stasis : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.partSkip (Primitives.NounPhrase.playerGroup .allPlayers) .untapStep),
           at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-            (doUnless (sacrifice thisEnchantment (agent := Primitives.NounPhrase.you)) (Primitives.Cost.mana [pip .blue]) (agent :=
-                Primitives.NounPhrase.you)) ] } }
+            (doUnless (sacrifice thisEnchantment) (Primitives.Cost.mana [pip .blue])) ] } }
 
 def yawgmothsBargain : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -406,7 +404,7 @@ def yawgmothsBargain : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.partSkip Primitives.NounPhrase.you .drawStep),
-          activated (payLife Primitives.NounPhrase.you 1) (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ] } }
+          activated (payLife 1) (Primitives.Instruction.draw (.lit 1)) ] } }
 
 def sandsOfTimeSkip : StaticSpec := Primitives.StaticSpec.partSkip (each Primitives.Predicate.anyPlayer) .untapStep
 theorem okSandsOfTimeSkip : StaticSpec.check [] sandsOfTimeSkip = [] := by decide
@@ -421,11 +419,11 @@ def wormfangManta : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Nightmare", creatureType "Fish", creatureType "Beast"],
       text :=
         [ keyword "Flying",
-          when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.skipPart .turn (.lit 1) (agent := Primitives.NounPhrase.you)),
+          when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.skipPart .turn (.lit 1)),
           when (leavesBattlefield thisCreature) (Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you)) ],
       power := stat 6, toughness := stat 1 } }
 
-def eaterOfDaysSkip : Instruction := Primitives.Instruction.skipPart .turn (.lit 2) (agent := Primitives.NounPhrase.you)
+def eaterOfDaysSkip : Instruction := Primitives.Instruction.skipPart .turn (.lit 2)
 theorem okEaterOfDaysSkip : Instruction.check [] eaterOfDaysSkip = [] := by decide
 
 /-- Empty City Ruse -/
@@ -498,7 +496,7 @@ def snuffOut : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Snuff Out", cost := some [generic 3, pip .black], types := [.instant],
       text :=
-        [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (payLife Primitives.NounPhrase.you 4)))
+        [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (payLife 4)))
             (exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Swamp"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
           Primitives.Ability.spell none (Primitives.Instruction.doAndForbid
             (destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])))
@@ -521,8 +519,8 @@ def glacialChasm : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Glacial Chasm", types := [.land],
       text :=
-        [ cumulativeUpkeep (payLife Primitives.NounPhrase.you 2),
-          when (Primitives.GameEvent.enters thisLand none) (sacrifice (a land) (agent := Primitives.NounPhrase.you)),
+        [ cumulativeUpkeep (payLife 2),
+          when (Primitives.GameEvent.enters thisLand none) (sacrifice (a land)),
           Primitives.Ability.static (deontic (allOf creatureYouControl) Primitives.Compulsion.forbid [.core .attack] .agent Primitives.DeonticPatient.noPatient),
           Primitives.Ability.static (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you) (Primitives.DamageOp.prevent Primitives.PreventCut.all none)
             .repeatedly) ] } }
@@ -556,8 +554,7 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
                            Primitives.Predicate.hasKeyword (.the "Hexproof") ]))
             (allOf (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
             (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the "Hexproof")))),
-          activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (sacrifice thisArtifact (agent :=
-              Primitives.NounPhrase.you))])
+          activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (sacrifice thisArtifact)])
             (Primitives.Instruction.sequentially
               [ gain (allOf creatureYouControl) (keyword "Hexproof") (some untilEndOfTurn),
                 Primitives.Instruction.establish
@@ -701,7 +698,7 @@ def heatWave : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (deontic (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .blue)]))
             (Primitives.Compulsion.gatedBy (Primitives.Cost.perform (act they (loseLife
               (times (.lit 1)
-                (countOf (Primitives.Predicate.and [creature, blocking, Primitives.Predicate.hasPossessor .controller they]))) (agent := actor)))))
+                (countOf (Primitives.Predicate.and [creature, blocking, Primitives.Predicate.hasPossessor .controller they])))))))
             [.core .block] .agent (Primitives.DeonticPatient.counterpart (allOf creatureYouControl))) ] } }
 
 /-- Awesome Presence -/

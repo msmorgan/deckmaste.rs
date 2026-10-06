@@ -3,5 +3,5 @@
     name: "searchTheirLibraryFor",
     kinds: [Instruction],
     params: {"p": Predicate},
-    body: Search(scope: OneZone(libraryOf(player: they)), quantity: exactly(n: 1), predicate: Param(p), agent: actor),
+    body: Search(scope: OneZone(libraryOf(player: they)), quantity: exactly(n: 1), predicate: Param(p)),
 )

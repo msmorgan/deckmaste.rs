@@ -17,7 +17,6 @@ KeywordAbility(
                         Tapped,
                         a(and([creature, otherThan(thisPermanent), untapped, youControl])),
                     ),
-                    you,
                 ),
             ),
             putCounters(

@@ -303,11 +303,11 @@ pub enum SpentMode {
     TriggersThen,
 }
 
-/// Optional payment is decided by its player; required payment tests whether it started
-/// [CR#118.12].
+/// Optional payment is decided by its performer, the actor in context; required payment tests
+/// whether it started [CR#118.12].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ContinuationPolicy {
-    Optional { agent: NounPhrase },
+    Optional,
     Required,
 }
 
@@ -848,7 +848,6 @@ pub enum Instruction {
     },
     Conclude {
         verb: OutcomeVerb,
-        agent: NounPhrase,
     },
     DrawGame,
     RestartGame,
@@ -856,7 +855,6 @@ pub enum Instruction {
         group: NounPhrase,
         piles: u32,
         faces: Vec<PileFace>,
-        agent: NounPhrase,
     },
     /// The `when` rider is the printed "as you activate this ability": the announcement's
     /// timing, not a condition on what may be chosen.
@@ -874,7 +872,6 @@ pub enum Instruction {
         first: Option<NounPhrase>,
         disclosure: Disclosure,
         ballot: Ballot,
-        agent: NounPhrase,
     },
     Move {
         subject: NounPhrase,
@@ -887,7 +884,6 @@ pub enum Instruction {
         subject: NounPhrase,
         times: Amount,
         exceptions: Vec<CopyExcept>,
-        agent: NounPhrase,
     },
     ChooseNewTargets {
         subject: NounPhrase,
@@ -898,7 +894,6 @@ pub enum Instruction {
     },
     ChangeLife {
         delta: Delta<Amount>,
-        agent: NounPhrase,
     },
     Exchange {
         exchanged: Exchanged,
@@ -907,34 +902,26 @@ pub enum Instruction {
         amount: Amount,
         produced: ProducedMana,
         riders: Vec<ManaRider>,
-        agent: NounPhrase,
     },
     Draw {
         amount: Amount,
-        agent: NounPhrase,
     },
     Expose {
         verb: ExposeVerb,
         exposed: Exposed,
-        agent: NounPhrase,
     },
     Search {
         scope: SearchScope,
         quantity: Quantity,
         predicate: Predicate,
-        agent: NounPhrase,
     },
-    Shuffle {
-        agent: NounPhrase,
-    },
+    Shuffle,
     FlipCoins {
         count: FlipScope,
-        agent: NounPhrase,
     },
     RollDice {
         count: Amount,
         sides: DieSides,
-        agent: NounPhrase,
     },
     ApplyResultsTable {
         rows: Vec<RollRow>,
@@ -952,7 +939,6 @@ pub enum Instruction {
     RerollStored {
         quantity: Quantity,
         whose: NounPhrase,
-        agent: NounPhrase,
     },
     Establish {
         spec: Box<StaticSpec>,
@@ -961,7 +947,6 @@ pub enum Instruction {
     CreateObject {
         count: Amount,
         spec: Box<CreationSpec>,
-        agent: NounPhrase,
     },
     PutCounters {
         amount: Amount,
@@ -987,17 +972,16 @@ pub enum Instruction {
     DoubleCounters {
         on: NounPhrase,
     },
-    /// A named deed done: the deed's own facts row gates the agent, the patient and the zones
-    /// the sentence may name, whichever of the three sources defines it.
+    /// A named deed done by the performer in context: the deed's own facts row gates that
+    /// performer, the patient and the zones the sentence may name, whichever of the three
+    /// sources defines it.
     Enact {
         verb: Deed,
         instruction: Box<Instruction>,
-        agent: Option<NounPhrase>,
     },
     Pay {
         cost: Box<Cost>,
         times: PayTimes,
-        agent: NounPhrase,
     },
     /// The handoff: `performer`, a player or a permanent, performs `body`
     /// ("target player discards a card", "target creature explores"
@@ -1078,7 +1062,6 @@ pub enum Instruction {
     SkipPart {
         part: TurnPart,
         count: Amount,
-        agent: NounPhrase,
     },
     InsertPart {
         part: TurnPart,

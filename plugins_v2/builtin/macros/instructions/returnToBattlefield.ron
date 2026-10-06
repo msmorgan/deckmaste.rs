@@ -5,8 +5,7 @@
     params: {
         "subject": NounPhrase,
         "riders": Default(TokenRiders, []),
-        "agent": Default(Any, None),
         "from": Default(ZoneExpr, Wherever),
     },
-    body: Enact(Return, Move(Param(subject), Param(from), battlefield, Param(riders)), Param(agent)),
+    body: Enact(Return, Move(Param(subject), Param(from), battlefield, Param(riders))),
 )

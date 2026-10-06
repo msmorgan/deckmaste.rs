@@ -47,31 +47,29 @@ theorem badDiscardedCreatureWord :
 /-- "{1}, {T}, {T}: Draw a card." written with the second {T} a nesting level down. -/
 theorem nestedCompoundCost :
     Ability.check []
-      (act (.compound [.compound [.mana [generic 1], .tapSymbol], .tapSymbol]) (draw (.lit 1) (agent
-          := .you)))
+      (act (.compound [.compound [.mana [generic 1], .tapSymbol], .tapSymbol]) (draw (.lit 1)))
       = [.costTapOnce] := by
   decide
 
 /-- "{1}, {T}: Draw a card." -/
 theorem okSingleTapCost :
-    Ability.check [] (act (.compound [.mana [generic 1], .tapSymbol]) (draw (.lit 1) (agent :=
-        .you)))
+    Ability.check [] (act (.compound [.mana [generic 1], .tapSymbol]) (draw (.lit 1)))
       = [] := by
   decide
 
 /-- "{T}, {T}: Draw a card." -/
 theorem badDoubleTapCost :
-    Ability.check [] (act (.compound [.tapSymbol, .tapSymbol]) (draw (.lit 1) (agent := .you)))
+    Ability.check [] (act (.compound [.tapSymbol, .tapSymbol]) (draw (.lit 1)))
       = [.costTapOnce] := by
   decide
 
 /-- "{1}: Draw a card." -/
 theorem okNonEmptyManaCost :
-    Ability.check [] (act (.mana [generic 1]) (draw (.lit 1) (agent := .you))) = [] := by decide
+    Ability.check [] (act (.mana [generic 1]) (draw (.lit 1))) = [] := by decide
 
 /-- ": Draw a card." -/
 theorem badEmptyManaCost :
-    Ability.check [] (act (.mana []) (draw (.lit 1) (agent := .you))) = [.manaRun] := by decide
+    Ability.check [] (act (.mana []) (draw (.lit 1))) = [.manaRun] := by decide
 
 /-- "{W/U/P}" -/
 theorem okDistinctPhyrexian : ManaSymbol.check (.phyrexian .white (some .blue)) = [] := by decide
@@ -95,27 +93,27 @@ theorem okIfDoneReadsDoneBody :
 
 /-- "Sacrifice a creature. If you don't, exile it." -/
 theorem badIfNotReadsMandatoryBody :
-    Instruction.check [] (Primitives.Instruction.doIfDone (sacrifice (a creature) (agent := .you)) none (some (exile it)))
+    Instruction.check [] (Primitives.Instruction.doIfDone (sacrifice (a creature)) none (some (exile it)))
       = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Counter target spell unless its controller pays {3}." -/
 theorem okUnlessManaCost :
     Instruction.check []
-      (Macros.act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) (.mana [generic 3]) (agent := actor))) =
+      (Macros.act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) (.mana [generic 3]))) =
           [] := by
   decide
 
 /-- "Counter target spell unless its controller taps." -/
 theorem badUnlessTapSymbol :
-    Instruction.check [] (Macros.act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) .tapSymbol (agent := actor)))
+    Instruction.check [] (Macros.act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) .tapSymbol))
       = [.payable] := by
   decide
 
 /-- "Activate only before the combat damage step." -/
 theorem okBeforeCombatDamage :
     Ability.check []
-      (act (.mana [generic 2]) (draw (.lit 1) (agent := .you)) (some (.beforePart .combatDamage
+      (act (.mana [generic 2]) (draw (.lit 1)) (some (.beforePart .combatDamage
           none)))
       = [] := by
   decide
@@ -124,7 +122,7 @@ theorem okBeforeCombatDamage :
 the turn one is already taking is not a window inside it; a step or phase is
 (`okBeforeCombatDamage`). -/
 theorem badBeforeTheTurn :
-    Ability.check [] (act (.mana [generic 2]) (draw (.lit 1) (agent := .you)) (some (.beforePart
+    Ability.check [] (act (.mana [generic 2]) (draw (.lit 1)) (some (.beforePart
         .turn none)))
       = [.windowOk] := by
   decide
@@ -132,7 +130,7 @@ theorem badBeforeTheTurn :
 /-- "Activate only before each player's attackers are declared." -/
 theorem okDistributiveAttackWindow :
     Ability.check []
-      (act (.mana [generic 2]) (draw (.lit 1) (agent := .you))
+      (act (.mana [generic 2]) (draw (.lit 1))
         (some (.beforePart .declareAttackers (some (each .anyPlayer))))) = [] := by
   decide
 
@@ -140,14 +138,13 @@ theorem okDistributiveAttackWindow :
 player [CR#102.1]. -/
 theorem badPluralAttackWindow :
     Ability.check []
-      (act (.mana [generic 2]) (draw (.lit 1) (agent := .you))
+      (act (.mana [generic 2]) (draw (.lit 1))
         (some (.beforePart .declareAttackers (some (allOf .anyPlayer))))) = [.pointWindowOk] := by
   decide
 
 /-- "Cast this spell only before the combat damage step." -/
 theorem okCastBeforeCombatDamage :
-    Ability.check [] (.spell (some (.beforePart .combatDamage none)) (draw (.lit 1) (agent :=
-        .you)))
+    Ability.check [] (.spell (some (.beforePart .combatDamage none)) (draw (.lit 1)))
       = [] := by
   decide
 
@@ -155,7 +152,7 @@ theorem okCastBeforeCombatDamage :
 before the turn the spell would be cast in is not a window inside it
 (`okCastBeforeCombatDamage`). -/
 theorem badCastBeforeTheTurn :
-    Ability.check [] (.spell (some (.beforePart .turn none)) (draw (.lit 1) (agent := .you)))
+    Ability.check [] (.spell (some (.beforePart .turn none)) (draw (.lit 1)))
       = [.windowOk] := by
   decide
 
@@ -185,30 +182,30 @@ theorem badUnknownKeywordLabel :
 
 /-- "Add {R}." -/
 theorem okSingleProduction :
-    Instruction.check [] (.addMana (.lit 1) (.runs [[.of .red]]) [] (agent := .you)) = [] := by
+    Instruction.check [] (.addMana (.lit 1) (.runs [[.of .red]]) []) = [] := by
         decide
 
 /-- "Add." -/
 theorem badEmptyProduction :
-    Instruction.check [] (.addMana (.lit 1) (.runs []) [] (agent := .you)) = [.producedRuns] := by
+    Instruction.check [] (.addMana (.lit 1) (.runs []) []) = [.producedRuns] := by
         decide
 
 /-- "Add {R} or ." -/
 theorem badEmptyAlternative :
-    Instruction.check [] (.addMana (.lit 1) (.runs [[.of .red], []]) [] (agent := .you))
+    Instruction.check [] (.addMana (.lit 1) (.runs [[.of .red], []]) [])
       = [.producedRuns] := by
   decide
 
 /-- "Add {C}. Spend this mana only to activate abilities." -/
 theorem okSpendPurpose :
     Instruction.check []
-      (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly [.toActivate none]] (agent := .you)) =
+      (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly [.toActivate none]]) =
           [] := by
   decide
 
 /-- "Add {C}. Spend this mana only." -/
 theorem badPurposelessSpend :
-    Instruction.check [] (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly []] (agent := .you))
+    Instruction.check [] (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly []])
       = [.nonEmpty] := by
   decide
 
@@ -252,7 +249,7 @@ theorem badPlayPaymentTapSymbol :
 
 /-- "As an additional cost to cast this spell, sacrifice an artifact." -/
 theorem okAddedCostSacrifice :
-    StaticSpec.check [] (.addedCost (.perform (sacrifice (a artifact) (agent := .you))) false) = []
+    StaticSpec.check [] (.addedCost (.perform (sacrifice (a artifact))) false) = []
         := by
   decide
 
@@ -277,8 +274,7 @@ theorem badAltCostClause :
     Instruction.check []
       (.establish
         (.altCost .this
-          (some (.perform (sacrifice (a (.and [land, .hasSubtype (landType "Mountain")])) (agent :=
-              .you)))))
+          (some (.perform (sacrifice (a (.and [land, .hasSubtype (landType "Mountain")]))))))
         none) = [.clauseStatic] := by
   decide
 
@@ -287,8 +283,7 @@ def landWith (text : List Ability) : Card :=
   .singleFaced { characteristics := { name := "", types := [.land], text } }
 
 /-- "{T}: Add one mana of the chosen color." -/
-def tapForChosenColor : Ability := act .tapSymbol (.addMana (.lit 1) (.ofChosenColor none) [] (agent
-    := .you))
+def tapForChosenColor : Ability := act .tapSymbol (.addMana (.lit 1) (.ofChosenColor none) [])
 
 /-- "…choose a color. {T}: Add one mana of the chosen color." -/
 theorem okChosenColorAfterChooser :
@@ -351,30 +346,28 @@ def permanentsYouControl : NounPhrase := allOf (.and [permanent, .hasPossessor .
 theorem okChosenColorPerColor :
     Instruction.check []
       (.doForEachKind .color (some permanentsYouControl) .color
-        (.addMana (.lit 1) (.ofChosenColor none) [] (agent := .you))) = [] := by
+        (.addMana (.lit 1) (.ofChosenColor none) [])) = [] := by
   decide
 
 /-- "For each color among permanents you control, add one mana of that color" -/
 theorem badRepeatedCarriesNoColor :
     Instruction.check []
       (Primitives.Instruction.repeatTimes (.distinctCount .color permanentsYouControl)
-        (.addMana (.lit 1) (.ofChosenColor none) [] (agent := .you)))
+        (.addMana (.lit 1) (.ofChosenColor none) []))
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
 
 /-- "For each color among permanents you control, … of that creature type." -/
 theorem badAxisValueCrossing :
     Instruction.check []
-      (.doForEachKind .color (some permanentsYouControl) (.subtype .creature) (draw (.lit 1) (agent
-          := .you)))
+      (.doForEachKind .color (some permanentsYouControl) (.subtype .creature) (draw (.lit 1)))
       = [.kindAxisSort] := by
   decide
 
 /-- "For each creature type, …" -/
 theorem badDomainlessOpenAxis :
     Instruction.check []
-      (.doForEachKind (.subtype .creature .any) none (.subtype .creature) (draw (.lit 1) (agent :=
-          .you)))
+      (.doForEachKind (.subtype .creature .any) none (.subtype .creature) (draw (.lit 1)))
       = [.kindDomainOk] := by
   decide
 
@@ -386,7 +379,7 @@ theorem okManaCumulativeUpkeep :
 /-- "Cumulative upkeep — an opponent loses 1 life." -/
 theorem badOpponentPaysYourCost :
     Ability.check []
-      (keywordCosting "CumulativeUpkeep" (.perform (Macros.act anOpponent (loseLife (.lit 1) (agent := actor)))))
+      (keywordCosting "CumulativeUpkeep" (.perform (Macros.act anOpponent (loseLife (.lit 1)))))
       = [.keywordCostPaidByYou "CumulativeUpkeep"] := by
   decide
 
@@ -409,7 +402,7 @@ def artifactWith (text : List Ability) : Card :=
 def drawOnTapForChosenColor : Ability :=
   whenever
     (.tappedForMana none (a (.and [land, .hasSupertype .basic])) (some (.ofColor thatColor)))
-    (draw (.lit 1) (agent := .you))
+    (draw (.lit 1))
 
 /-- "As this artifact enters, choose a color. Whenever a basic land is tapped for mana of the
 chosen color, draw a card." -/
@@ -454,7 +447,7 @@ theorem badProducedByEventWithoutEvent :
   decide
 
 def afterManaAdded : Bindings :=
-  Instruction.intro [] (.addMana (.lit 1) (.runs [[.colorless]]) [] (agent := .you))
+  Instruction.intro [] (.addMana (.lit 1) (.runs [[.colorless]]) [])
 
 /-- "You don't lose this mana as steps and phases end." -/
 theorem okThisManaAfterAdd :
@@ -468,7 +461,7 @@ theorem badThisManaWithoutAdd :
 
 /-- "Target player sacrifices a creature of their choice." -/
 theorem okBoundTheirChoice :
-    Instruction.check [] (Macros.act (target .anyPlayer) (sacrifice (aTheirChoice creature) (agent := actor))) = [] :=
+    Instruction.check [] (Macros.act (target .anyPlayer) (sacrifice (aTheirChoice creature))) = [] :=
         by decide
 
 /-- "Destroy a creature of their choice." -/

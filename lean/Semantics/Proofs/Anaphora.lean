@@ -15,8 +15,7 @@ namespace Semantics.Proofs.Anaphora
 
 /-- "Choose two — Draw a card; draw a card." [CR#700.2d] -/
 theorem identicalModesAllowed :
-    Instruction.check [] (chooseModes (exactly 2) [draw (.lit 1) (agent := .you), draw (.lit 1)
-        (agent := .you)])
+    Instruction.check [] (chooseModes (exactly 2) [draw (.lit 1), draw (.lit 1)])
       = [] := by
   decide
 
@@ -43,10 +42,9 @@ theorem badConditionalArmAntecedent :
 theorem badBothArmsAntecedent :
     Instruction.check []
       (.sequentially
-        [ Primitives.Instruction.offer (gainLife (.lit 1) (agent := .you))
+        [ Primitives.Instruction.offer (gainLife (.lit 1))
             (some (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])))
-            (some (create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Soldier"]))) (agent :=
-                .you),
+            (some (create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Soldier"]))),
           .putCounters (.lit 1) (.printed p1p1Counter) it ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -88,7 +86,7 @@ theorem okLookbackObjectDied :
     Ability.check []
       (.triggered (Primitives.GameEvent.enters thisCreature none) [] none [] none none
         (some (.happened (a creature) (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object)))
-          .thisTurn))) (draw (.lit 1) (agent := .you)))
+          .thisTurn))) (draw (.lit 1)))
             = [] := by
   decide
 
@@ -97,7 +95,7 @@ theorem badLookbackPlayerDied :
     Ability.check []
       (.triggered (Primitives.GameEvent.enters thisCreature none) [] none [] none none
         (some (.happened .you (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object))) .thisTurn))) (draw
-          (.lit 1) (agent := .you)))
+          (.lit 1)))
       = [.lookbackSubject] := by
   decide
 
@@ -105,8 +103,7 @@ theorem badLookbackObjectCast :
     Ability.check []
       (.triggered (Primitives.GameEvent.enters thisCreature none) [] none [] none none
         (some (.happened (a creature) (.mk (.casts (.gap .player) none none) .thisTurn))) (draw
-          (.lit 1) (agent :=
-            .you)))
+          (.lit 1)))
       = [.lookbackSubject] := by
   decide
 
@@ -366,12 +363,12 @@ theorem badEntryOriginBattlefield :
 
 /-- "For each opponent, you draw a card." -/
 theorem okPluralForEach :
-    Instruction.check [] (.doForEach (each .opponent) (draw (.lit 1) (agent := .you))) = [] := by
+    Instruction.check [] (.doForEach (each .opponent) (draw (.lit 1))) = [] := by
         decide
 
 /-- "For each of target creature, its controller draws a card." -/
 theorem badSingletonForEach :
-    Instruction.check [] (.doForEach (target creature) (draw (.lit 1) (agent := .you)))
+    Instruction.check [] (.doForEach (target creature) (draw (.lit 1)))
       = [.plural] := by decide
 
 /-- "For each player, choose target permanent that player controls. Those players draw a
@@ -381,7 +378,7 @@ theorem okLoopGroupSurvives :
       (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
-          act (those .player) (draw (.lit 1) (agent := actor)) ]) = [] := by
+          act (those .player) (draw (.lit 1)) ]) = [] := by
   decide
 
 /-- "For each player, choose target permanent that player controls. That player draws a
@@ -392,7 +389,7 @@ theorem badLoopElementRead :
       (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
-          act (that .player) (draw (.lit 1) (agent := actor)) ]) = [.anaphor (.word .player) .one 0] := by
+          act (that .player) (draw (.lit 1)) ]) = [.anaphor (.word .player) .one 0] := by
   decide
 
 /-- "if you activated an activated ability this turn" -/
@@ -446,16 +443,16 @@ copies. -/
 theorem okPluralSpellReadAfterCopy :
     Instruction.check []
       (.sequentially
-        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 2) [] (agent := .you),
-          offer (.chooseNewTargets (those .spell)) (agent := .you) ]) = [] := by
+        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 2) [],
+          offer (.chooseNewTargets (those .spell)) ]) = [] := by
   decide
 
 /-- "Copy target instant or sorcery spell. You may choose new targets for the copy." -/
 theorem okCopyReadAfterCopy :
     Instruction.check []
       (.sequentially
-        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [] (agent := .you),
-          offer (.chooseNewTargets (that .copy)) (agent := .you) ]) = [] := by
+        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
+          offer (.chooseNewTargets (that .copy)) ]) = [] := by
   decide
 
 /-- "Copy target instant or sorcery spell. You may choose new targets for that spell."
@@ -464,8 +461,8 @@ original and the copy alike. `that .copy` spells the copy (`okCopyReadAfterCopy`
 theorem badSingularSpellReadAfterCopy :
     Instruction.check []
       (.sequentially
-        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [] (agent := .you),
-          offer (.chooseNewTargets (that .spell)) (agent := .you) ]) = [.anaphor (.word .spell) .one
+        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
+          offer (.chooseNewTargets (that .spell)) ]) = [.anaphor (.word .spell) .one
               2] := by
   decide
 
@@ -475,8 +472,8 @@ copies. -/
 theorem okPluralAbilityReadAfterCopy :
     Instruction.check []
       (.sequentially
-        [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 2) [] (agent := .you),
-          offer (.chooseNewTargets (those .ability)) (agent := .you) ]) = [] := by
+        [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 2) [],
+          offer (.chooseNewTargets (those .ability)) ]) = [] := by
   decide
 
 /-- "Copy target activated ability. You may choose new targets for that ability." Refused:
@@ -485,8 +482,8 @@ and the copy alike. `that (.copied .ability)` spells the copy (`okAbilityCopyRea
 theorem badSingularAbilityReadAfterCopy :
     Instruction.check []
       (.sequentially
-        [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [] (agent := .you),
-          offer (.chooseNewTargets (that .ability)) (agent := .you) ]) = [.anaphor (.word .ability)
+        [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [],
+          offer (.chooseNewTargets (that .ability)) ]) = [.anaphor (.word .ability)
               .one 2] := by
   decide
 
@@ -494,8 +491,8 @@ theorem badSingularAbilityReadAfterCopy :
 theorem okAbilityCopyReadAfterCopy :
     Instruction.check []
       (.sequentially
-        [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [] (agent := .you),
-          offer (.chooseNewTargets (that (.copied .ability))) (agent := .you) ]) = [] := by
+        [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [],
+          offer (.chooseNewTargets (that (.copied .ability))) ]) = [] := by
   decide
 
 /-- An ability goes on the stack with no card associated with it [CR#405.1]. -/
@@ -518,15 +515,14 @@ theorem okDealtThisWayAfterDamage :
     Instruction.check []
       (.sequentially
         [ .dealDamage .this (.lit 3) (target anyTarget),
-          .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1) (agent := .you)) none ]) = [] := by
+          .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1)) none ]) = [] := by
   decide
 
 /-- "You draw a card. If a player is dealt damage this way, you draw a card." -/
 theorem badDealtThisWayNoDamage :
     Instruction.check []
       (.sequentially
-        [ draw (.lit 1) (agent := .you), .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1) (agent :=
-            .you)) none ])
+        [ draw (.lit 1), .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1)) none ])
       = [.damageDealtInScope] := by
   decide
 
@@ -537,7 +533,7 @@ theorem badDealtThisWayAbility :
     Instruction.check []
       (.sequentially
         [ .dealDamage .this (.lit 2) (target anyTarget),
-          .doIf (.dealtThisWay .isManaAbility) (draw (.lit 1) (agent := .you)) none ])
+          .doIf (.dealtThisWay .isManaAbility) (draw (.lit 1)) none ])
       = [.zoneIs .stack] := by
   decide
 
@@ -584,7 +580,7 @@ theorem youRolledADieThisTurn :
 
 /-- "Roll two d20. Ignore the lowest roll." -/
 theorem okIgnoreAfterRoll :
-    Instruction.check [] (.sequentially [rollDice 2 20 (agent := .you), .ignoreOutcomes (.extreme
+    Instruction.check [] (.sequentially [rollDice 2 20, .ignoreOutcomes (.extreme
         .lowest)])
       = [] := by
   decide
@@ -593,7 +589,7 @@ theorem okIgnoreAfterRoll :
 theorem badIgnoreWithoutRoll :
     Instruction.check [] (.ignoreOutcomes (.extreme .lowest)) = [.ignorableFor] := by decide
 
-def afterATwoDieRoll : Bindings := Instruction.intro [] (rollDice 2 6 (agent := .you))
+def afterATwoDieRoll : Bindings := Instruction.intro [] (rollDice 2 6)
 
 /-- "if you rolled doubles" -/
 theorem okRolledDoublesAfterRoll : Condition.check afterATwoDieRoll .rolledDoubles = [] := by decide
@@ -602,7 +598,7 @@ theorem okRolledDoublesAfterRoll : Condition.check afterATwoDieRoll .rolledDoubl
 theorem badRolledDoublesWithoutRoll :
     Condition.check [] .rolledDoubles = [.outcomeInScope .rollResult 0] := by decide
 
-def afterACoinFlip : Bindings := Instruction.intro [] (flipCoins 1 (agent := .you))
+def afterACoinFlip : Bindings := Instruction.intro [] (flipCoins 1)
 
 /-- "a player whose coin comes up tails" -/
 theorem okCoinCameUpOnPlayer :
@@ -840,7 +836,7 @@ theorem ownSurvivesSecondSingular :
 /-- "Exile target creature. Draw cards equal to its power." -/
 theorem okItReadsTheOnlyBareSingular :
     Instruction.check []
-      (.sequentially [exile (target creature), draw (.statOf (.stat .power) it) (agent := .you)]) = []
+      (.sequentially [exile (target creature), draw (.statOf (.stat .power) it)]) = []
           := by
   decide
 
@@ -857,7 +853,7 @@ theorem badSingularReadOfBarePlural :
     Instruction.check []
       (.sequentially
         [ get (bare creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
-          draw (.statOf (.stat .power) it) (agent := .you) ]) = [.anaphor .bare .one 0] := by
+          draw (.statOf (.stat .power) it) ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Destroy target creature. If this enchantment isn't a creature, it becomes an Angel
@@ -967,7 +963,7 @@ theorem badNoHolderOnObject :
 
 /-- "Roll five d6. Store those results on this creature." -/
 theorem okStoreResultsAfterRoll :
-    Instruction.check [] (.sequentially [rollDice 5 6 (agent := .you), .storeResults thisCreature]) = []
+    Instruction.check [] (.sequentially [rollDice 5 6, .storeResults thisCreature]) = []
         := by
   decide
 
@@ -979,12 +975,12 @@ theorem badStoreResultsWithoutRoll :
 theorem okThoseDiceAfterRollEvent :
     Instruction.check []
       (replaceEvent (.rollsDice .you .many (some 6) .anyResult)
-        (.rollDice .thatMuch .thoseDice (agent := .you)) none) = [] := by
+        (.rollDice .thatMuch .thoseDice) none) = [] := by
   decide
 
 /-- "Roll that many dice." -/
 theorem badAnaphoricSidesWithoutRoll :
-    Instruction.check [] (.rollDice (.lit 1) .thoseDice (agent := .you))
+    Instruction.check [] (.rollDice (.lit 1) .thoseDice)
       = [.outcomeInScope .diceRolled 0] := by
   decide
 

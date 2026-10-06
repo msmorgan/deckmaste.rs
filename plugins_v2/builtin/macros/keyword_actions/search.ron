@@ -19,5 +19,5 @@ KeywordAction(
         ),
     ),
     deed: None,
-    body: Search(Param(0), Param(1), Param(2), actor),
+    body: Search(Param(0), Param(1), Param(2)),
 )

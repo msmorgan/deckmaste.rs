@@ -13,9 +13,9 @@ namespace Semantics.Macros.Primitives.Instruction
 semantic_macro define (letter : Letter) (amount : Amount) : Semantics.Instruction :=
   .establish (.letterDefinition letter amount) none
 
-semantic_macro offer (body : Semantics.Instruction) (ifDid ifNot : Option Semantics.Instruction)
-    (agent : NounPhrase := Semantics.Macros.Primitives.NounPhrase.you) : Semantics.Instruction :=
-  .withContinuation (.optional agent) body ifDid ifNot
+semantic_macro offer (body : Semantics.Instruction) (ifDid ifNot : Option Semantics.Instruction) :
+    Semantics.Instruction :=
+  .withContinuation .optional body ifDid ifNot
 
 semantic_macro doIfDone (body : Semantics.Instruction) (ifDid ifNot : Option Semantics.Instruction) :
     Semantics.Instruction := .withContinuation .required body ifDid ifNot
@@ -113,13 +113,12 @@ end Semantics.Macros.Primitives.Instruction
 
 namespace Semantics.Macros.Primitives.Instruction
 
-semantic_macro create (count : Amount) (token : TokenSpec) (riders : List TokenRider)
-    (agent : NounPhrase := Semantics.Macros.Primitives.NounPhrase.you) : Semantics.Instruction :=
-  .createObject count (.token token riders) agent
+semantic_macro create (count : Amount) (token : TokenSpec) (riders : List TokenRider) :
+    Semantics.Instruction :=
+  .createObject count (.token token riders)
 
-semantic_macro getEmblem (abilities : List Ability)
-    (agent : NounPhrase := Semantics.Macros.Primitives.NounPhrase.you) : Semantics.Instruction :=
-  .createObject (.lit 1) (.emblem abilities) agent
+semantic_macro getEmblem (abilities : List Ability) : Semantics.Instruction :=
+  .createObject (.lit 1) (.emblem abilities)
 
 end Semantics.Macros.Primitives.Instruction
 

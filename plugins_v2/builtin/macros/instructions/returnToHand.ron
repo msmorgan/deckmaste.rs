@@ -3,5 +3,5 @@
     name: "returnToHand",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "from": Default(ZoneExpr, Wherever)},
-    body: Enact(Return, Move(Param(subject), Param(from), hand, []), actor),
+    body: Enact(Return, Move(Param(subject), Param(from), hand, [])),
 )

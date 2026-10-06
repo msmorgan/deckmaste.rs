@@ -3,5 +3,5 @@
     name: "voteStartingWith",
     kinds: [Instruction],
     params: {"first": NounPhrase, "disclosure": Disclosure, "ballot": Ballot},
-    body: Vote(first: Param(first), disclosure: Param(disclosure), ballot: Param(ballot), agent: actor),
+    body: Vote(first: Param(first), disclosure: Param(disclosure), ballot: Param(ballot)),
 )

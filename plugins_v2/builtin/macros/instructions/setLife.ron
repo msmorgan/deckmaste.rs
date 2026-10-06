@@ -3,5 +3,5 @@
     name: "setLife",
     kinds: [Instruction],
     params: {"amount": Amount},
-    body: ChangeLife(delta: Set(Param(amount)), agent: actor),
+    body: ChangeLife(delta: Set(Param(amount))),
 )

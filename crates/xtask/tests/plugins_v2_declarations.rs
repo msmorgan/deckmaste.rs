@@ -172,7 +172,7 @@ fn a_keyword_action_invocation_expands_at_an_instruction_position() {
                 params: [Amount],
                 spelling: "draw for <Param(0)>",
                 deed: None,
-                body: Draw(amount: Param(0), agent: You),
+                body: Draw(amount: Param(0)),
             )"#,
         ),
         (
@@ -216,7 +216,7 @@ fn a_keyword_action_invocation_expands_at_an_instruction_position() {
                     name: "Drawing Spell",
                     cost: [Simple(symbol: Specific(color: Of(color: Blue)))],
                     types: [Instant],
-                    text: [spell(timing: None, instruction: Draw(amount: Lit(value: 2), agent: You))],
+                    text: [spell(timing: None, instruction: Draw(amount: Lit(value: 2)))],
                 ),
             ))"#,
         )
@@ -254,19 +254,17 @@ fn a_keyword_declaration_builds_its_wrapper() {
     // The default deed is the action the name spells, done by the actor.
     assert_eq!(
         body("KeywordAction", "destroy"),
-        "Enact(verb: Action(\"Destroy\"), instruction: move(Param(0), battlefield, graveyard), \
-         agent: Some(Actor))"
+        "Enact(verb: Action(\"Destroy\"), instruction: move(Param(0), battlefield, graveyard))"
     );
-    // Every wrapped action records the actor, heal included.
+    // Every wrapped action is performed by the actor in context, heal included.
     assert_eq!(
         body("KeywordAction", "heal"),
-        "Enact(verb: Action(\"Heal\"), instruction: clearDamage(Param(0)), agent: \
-         Some(Actor))"
+        "Enact(verb: Action(\"Heal\"), instruction: clearDamage(Param(0)))"
     );
     // A bodyless action stays bodyless.
     assert_eq!(body("KeywordAction", "scry"), "()");
     // `deed: None` leaves the instruction unwrapped.
-    assert_eq!(body("KeywordAction", "shuffle"), "Shuffle(actor)");
+    assert_eq!(body("KeywordAction", "shuffle"), "Shuffle");
 }
 
 /// A turn-part declaration whose body is the constructor of the same name

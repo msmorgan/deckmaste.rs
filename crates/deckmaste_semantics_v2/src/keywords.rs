@@ -4,7 +4,8 @@
 //! [CR#702.1] — `Keyword(keyword: <label>, params: <arguments>, body:
 //! <abilities>)` — and a keyword action's is the deed it names done by the
 //! actor [CR#701.1,109.5] — `Enact(verb: Action(<label>), instruction:
-//! <instruction>, agent: Some(Actor))`. Every part of both wrappers but the
+//! <instruction>)`, the performer being the actor in context. Every part of
+//! both wrappers but the
 //! abilities and the instruction follows from the declaration's name and
 //! parameter signature, so the file writes only those, and this module builds
 //! the rest. A declaration names no performer: whoever performs the action is
@@ -12,7 +13,8 @@
 //! (`act(performer, …)`, ADR 7, rulings 2026-10-05). The actor is a player,
 //! or, under a handoff to a permanent, that permanent ("target creature
 //! explores" [CR#701.44a]); an action a permanent performs written with no
-//! such handoff is performed by the source permanent (Lean `enactAgentOk`).
+//! such handoff is performed by the source permanent (Lean `enactPerformer`,
+//! `enactAgentOk`).
 //! The meta-macros (`macros/meta/KeywordAbility.ron`,
 //! `KeywordAction.ron`) hand over what the file wrote as a record in the
 //! body position:
@@ -138,9 +140,7 @@ pub fn keyword_action_body(name: &str, body: &str) -> Result<String, String> {
         Some(deed) => deed.to_owned(),
         None => format!("Action(\"{}\")", keyword_action_label(name)),
     };
-    Ok(format!(
-        "Enact(verb: {deed}, instruction: {instruction}, agent: Some(Actor))"
-    ))
+    Ok(format!("Enact(verb: {deed}, instruction: {instruction})"))
 }
 
 /// The keyword arguments a keyword ability's signature forwards, one per
@@ -303,36 +303,28 @@ mod tests {
     #[test]
     fn a_keyword_action_enacts_its_deed() {
         assert_eq!(
-            keyword_action_body("timeTravel", "(instruction: Shuffle(agent: Actor))").unwrap(),
-            "Enact(verb: Action(\"Time Travel\"), instruction: Shuffle(agent: Actor), agent: \
-             Some(Actor))"
+            keyword_action_body("timeTravel", "(instruction: Shuffle)").unwrap(),
+            "Enact(verb: Action(\"Time Travel\"), instruction: Shuffle)"
         );
         assert_eq!(
-            keyword_action_body(
-                "shuffle",
-                "(deed: None, instruction: Shuffle(agent: Actor))"
-            )
-            .unwrap(),
-            "Shuffle(agent: Actor)"
+            keyword_action_body("shuffle", "(deed: None, instruction: Shuffle)").unwrap(),
+            "Shuffle"
         );
         assert_eq!(
             keyword_action_body("scry", "(instruction: ())").unwrap(),
             "()"
         );
-        // `adapt` is performed by a permanent, and records the actor all the
-        // same: the actor is that permanent under a handoff to it, and the
-        // source permanent by default.
+        // `adapt` is performed by a permanent, and its wrapper names no
+        // performer all the same: the actor is that permanent under a handoff
+        // to it, and the source permanent by default.
         assert_eq!(
-            keyword_action_body("adapt", "(instruction: Shuffle(agent: Actor))").unwrap(),
-            "Enact(verb: Action(\"Adapt\"), instruction: Shuffle(agent: Actor), agent: \
-             Some(Actor))"
+            keyword_action_body("adapt", "(instruction: Shuffle)").unwrap(),
+            "Enact(verb: Action(\"Adapt\"), instruction: Shuffle)"
         );
         for agent in ["None", "You"] {
-            let error = keyword_action_body(
-                "adapt",
-                &format!("(agent: {agent}, instruction: Shuffle(agent: Actor))"),
-            )
-            .unwrap_err();
+            let error =
+                keyword_action_body("adapt", &format!("(agent: {agent}, instruction: Shuffle)"))
+                    .unwrap_err();
             assert!(error.contains("agent"), "{error}");
         }
     }

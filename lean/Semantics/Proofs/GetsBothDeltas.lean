@@ -128,8 +128,8 @@ theorem badGetsInsideCoordinationTwoHalves :
 
 /-- `Anaphora.badSingularReadOfBarePlural`: the same refusals in both spellings. -/
 theorem badSingularReadOfBarePluralTwin :
-    Instruction.check [] (.sequentially [ get (bare creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn), draw (.statOf (.stat .power) it) (agent := .you) ]) =
-      Instruction.check [] (.sequentially [ getTwoHalves (bare creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn), draw (.statOf (.stat .power) it) (agent := .you) ]) := by
+    Instruction.check [] (.sequentially [ get (bare creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn), draw (.statOf (.stat .power) it) ]) =
+      Instruction.check [] (.sequentially [ getTwoHalves (bare creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn), draw (.statOf (.stat .power) it) ]) := by
   decide
 
 /-- `Choice.okGetsBattlefield`: the same refusals in both spellings. -/
@@ -183,8 +183,8 @@ theorem badGetsSourceTwoHalves :
 
 /-- `Deontic.badContinuousAsCost`: the same refusals in both spellings. -/
 theorem badContinuousAsCostTwin :
-    Ability.check [] (activatedAbility (.perform (get (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))) (draw (.lit 1) (agent := .you))) =
-      Ability.check [] (activatedAbility (.perform (getTwoHalves (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))) (draw (.lit 1) (agent := .you))) := by
+    Ability.check [] (activatedAbility (.perform (get (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))) (draw (.lit 1))) =
+      Ability.check [] (activatedAbility (.perform (getTwoHalves (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))) (draw (.lit 1))) := by
   decide
 
 /-- `Faces.badStaticOnSorcery`: the same refusals in both spellings. -/
@@ -652,12 +652,12 @@ theorem eachCreaturePumpTwin :
       (whenever (.casts .you (some (a spell)) none)
         (.sequentially
           [ get (each creatureYouControl) (.up (.lit 1)) (.up (.lit 0)) (some untilEndOfTurn),
-            scry (.lit 1) (agent := .you) ])) =
+            scry (.lit 1) ])) =
       Ability.check []
         (whenever (.casts .you (some (a spell)) none)
           (.sequentially
             [ getTwoHalves (each creatureYouControl) (.up (.lit 1)) (.up (.lit 0)) (some untilEndOfTurn),
-              scry (.lit 1) (agent := .you) ])) := by
+              scry (.lit 1) ])) := by
   decide
 
 /-- Awaken the Bear, which the bench writes in the retired spelling by hand: "Target creature

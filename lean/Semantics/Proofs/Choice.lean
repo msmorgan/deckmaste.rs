@@ -33,8 +33,7 @@ theorem badChosenNumberRead :
 
 /-- "Choose target creature. You gain life equal to its power." -/
 theorem okSinglePower :
-    Instruction.check [] (.sequentially [choose (target creature), gainLife (powerOf it) (agent :=
-        .you)])
+    Instruction.check [] (.sequentially [choose (target creature), gainLife (powerOf it)])
       = [] := by
   decide
 
@@ -42,22 +41,21 @@ theorem okSinglePower :
 theorem badGroupPower :
     Instruction.check []
       (.sequentially
-        [choose (.described (.target (exactly 2)) creature), gainLife (powerOf them) (agent :=
-            .you)])
+        [choose (.described (.target (exactly 2)) creature), gainLife (powerOf them)])
       = [.singular] := by
   decide
 
 /-- "Choose target creature. Its owner loses 1 life." -/
 theorem okSingleOwner :
     Instruction.check []
-      (.sequentially [choose (target creature), act (ownerOf it) (loseLife (.lit 1) (agent := actor))]) = [] := by
+      (.sequentially [choose (target creature), act (ownerOf it) (loseLife (.lit 1))]) = [] := by
   decide
 
 /-- "Choose two target creatures. Their owners each lose 1 life." -/
 theorem okGroupOwners :
     Instruction.check []
       (.sequentially
-        [choose (.described (.target (exactly 2)) creature), act (ownerOf them) (loseLife (.lit 1) (agent := actor))])
+        [choose (.described (.target (exactly 2)) creature), act (ownerOf them) (loseLife (.lit 1))])
       = [] := by
   decide
 
@@ -143,15 +141,13 @@ theorem badReadsAfterModal :
 /-- "you pay 1 life" -/
 theorem okMatchedPayer :
     Instruction.check []
-      (Primitives.Instruction.offer (.pay (payLife .you 1) .once (agent := .you)) none (some (draw (.lit 1) (agent :=
-          .you))) (agent := .you)) = [] := by
+      (Primitives.Instruction.offer (.pay (payLife 1) .once) none (some (draw (.lit 1)))) = [] := by
   decide
 
 /-- "you pay" -/
 theorem badMismatchedPayer :
     Instruction.check []
-      (Primitives.Instruction.offer (.pay (payLife anOpponent 1) .once (agent := .you)) none (some (draw (.lit 1) (agent
-          := .you))) (agent := .you))
+      (Primitives.Instruction.offer (.pay (.perform (act anOpponent (loseLife (.lit 1)))) .once) none (some (draw (.lit 1))))
       = [.payAgrees] := by
   decide
 
@@ -300,7 +296,7 @@ def upToOneTheyControl : NounPhrase :=
 def distributedRestOfOwnChoice : Instruction :=
   .sequentially
     [ act (each .anyPlayer) (choose upToOneTheyControl (agent := some actor)),
-      act (each .anyPlayer) (sacrifice (theRest .object) (agent := actor)) ]
+      act (each .anyPlayer) (sacrifice (theRest .object)) ]
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." The
 per-agent rest closes only the partitives the same distributive chooser published [CR#700.8d],
@@ -340,7 +336,7 @@ theorem okDistributedLoopParts :
       (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
-          act (those .player) (sacrifice (those .permanent) (agent := actor)) ]) = [] := by
+          act (those .player) (sacrifice (those .permanent)) ]) = [] := by
   decide
 
 /-- "Tap all creatures. Each player chooses up to one creature they control, then sacrifices
@@ -352,7 +348,7 @@ theorem badDistributedRestOfSharedGroup :
       (.sequentially
         [ tap (allOf creature),
           act (each .anyPlayer) (choose upToOneTheyControl (agent := some actor)),
-          act (each .anyPlayer) (sacrifice (theRest .object) (agent := actor)) ]) = [.enactKeepsOuter] := by
+          act (each .anyPlayer) (sacrifice (theRest .object)) ]) = [.enactKeepsOuter] := by
   decide
 
 /-- "Choose up to one creature. Each player sacrifices the rest.": one chooser leaves one
@@ -361,7 +357,7 @@ they don't control [CR#701.21a]. -/
 theorem badDistributedRestOfSingularChoice :
     Instruction.check []
       (.sequentially
-        [choose (counted (upTo 1) creature), act (each .anyPlayer) (sacrifice (theRest .object) (agent := actor))])
+        [choose (counted (upTo 1) creature), act (each .anyPlayer) (sacrifice (theRest .object))])
       = [.enactKeepsOuter] := by
   decide
 
@@ -466,15 +462,14 @@ theorem badOrderedSingularChooser :
 theorem okChoseThisWayAfterChoice :
     Instruction.check []
       (.sequentially
-        [choose (a creature) (agent := some .you), doIf (.choseThisWay .you creature) (draw (.lit 1)
-            (agent := .you))])
+        [choose (a creature) (agent := some .you), doIf (.choseThisWay .you creature) (draw (.lit 1))])
       = [] := by
   decide
 
 /-- "If you chose a creature this way, draw a card.": nothing was chosen, so "this way" reads
 back no choice (`okChoseThisWayAfterChoice` is the same read with one standing). -/
 theorem badChoseThisWayWithoutAChoice :
-    Instruction.check [] (doIf (.choseThisWay .you creature) (draw (.lit 1) (agent := .you)))
+    Instruction.check [] (doIf (.choseThisWay .you creature) (draw (.lit 1)))
       = [.choiceInScope .object] := by
   decide
 
@@ -498,7 +493,7 @@ theorem badDistributedChoiceReadSingular :
 printed card on the bench. -/
 theorem lookAtTopThenBin :
     Instruction.check []
-      (.sequentially [lookAt (topSlice (.lit 1)), offer (move (that .card) graveyard) (agent := .you)])
+      (.sequentially [lookAt (topSlice (.lit 1)), offer (move (that .card) graveyard)])
       = [] := by
   decide
 
@@ -525,10 +520,10 @@ your hand." No printed card on the bench. -/
 theorem millThenPutFromAmongMilled :
     Instruction.check []
       (.sequentially
-        [ mill (.lit 3) .you (agent := .you),
+        [ mill (.lit 3) .you,
           offer
             (move (fromAmong (exactly 1) artifact (theVerbed (.action "Mill") .card .thisWay .many))
-              hand) (agent := .you) ]) = [] := by
+              hand) ]) = [] := by
   decide
 
 /-- "Each player may shuffle their hand and graveyard into their library." No printed card on
@@ -537,7 +532,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
     Instruction.check []
       (act (each .anyPlayer) (offer
         (act they (shuffleInto
-          (Primitives.NounPhrase.both (allOf (.and [.isCard, .inZone (handOf they)])) (allOf (.and [.isCard, .inZone (graveyardOf they)]))) (agent := actor))) (agent := actor)))
+          (Primitives.NounPhrase.both (allOf (.and [.isCard, .inZone (handOf they)])) (allOf (.and [.isCard, .inZone (graveyardOf they)])))))))
       = [] := by
   decide
 
@@ -545,7 +540,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Instruction.check []
       (act (each .anyPlayer) (offer
-        (.sequentially [discard (allOf (.and [.isCard, .inZone (handOf they)])), act they (draw (.lit 7) (agent := actor))]) (agent := actor)))
+        (.sequentially [discard (allOf (.and [.isCard, .inZone (handOf they)])), act they (draw (.lit 7))])))
       = [] := by
   decide
 
@@ -584,12 +579,12 @@ theorem okChoseExtremeAfterNumbers :
       (.sequentially
         [ act (each .anyPlayer) (choose (disclosure := .secretly) (a (quality .number)) (agent := some actor)),
           .revealChoices .numbers,
-          act (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife .thatMuch (agent := actor)) ]) = [] := by
+          act (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife .thatMuch) ]) = [] := by
   decide
 
 /-- The same read with no number chosen anywhere in the text. -/
 theorem badChoseExtremeWithoutChoice :
-    Instruction.check [] (act (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife (.lit 1) (agent := actor)))
+    Instruction.check [] (act (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife (.lit 1)))
       = [.numberChoiceInScope] := by
   decide
 

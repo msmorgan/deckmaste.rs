@@ -7,13 +7,14 @@
 // (`act(performer, …)`) names another player or a permanent (ADR 7, rulings
 // 2026-10-05). The body here is the record of what the file wrote, and
 // `deckmaste_semantics_v2::keywords` builds the action's definition from it:
-// `Enact(verb: <deed>, instruction: <body>, agent: Some(Actor))`, where the
-// deed is `Action(<label>)`, the label the words the name spells, unless the
-// file writes `deed`. `deed: None` leaves the instruction unwrapped, and a
-// declaration with no body stays bodyless. An action a permanent performs
-// (explore, endure, adapt, harness, monstrosity) records the actor as well:
-// under a handoff to a permanent the actor is that permanent, and with none
-// the source permanent performs it (Lean `enactAgentOk`).
+// `Enact(verb: <deed>, instruction: <body>)`, performed by the actor in
+// context, where the deed is `Action(<label>)`, the label the words the name
+// spells, unless the file writes `deed`. `deed: None` leaves the instruction
+// unwrapped, and a declaration with no body stays bodyless. An action a
+// permanent performs (explore, endure, adapt, harness, monstrosity) is
+// performed by the actor as well: under a handoff to a permanent the actor is
+// that permanent, and with none the source permanent performs it (Lean
+// `enactPerformer`, `enactAgentOk`).
 (
     name: "KeywordAction",
     kinds: [Macro],

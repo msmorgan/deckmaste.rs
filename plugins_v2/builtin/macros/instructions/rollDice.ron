@@ -3,5 +3,5 @@
     name: "rollDice",
     kinds: [Instruction],
     params: {"count": Nat, "sides": Nat},
-    body: RollDice(Lit(Param(count)), Sides(Param(sides)), actor),
+    body: RollDice(Lit(Param(count)), Sides(Param(sides))),
 )

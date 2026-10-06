@@ -33,8 +33,8 @@ def repeatedReverberation : Spelled := spelled <| .singleFaced
               Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead .loyalty)) ]
             (some Primitives.Duration.thisTurn)
             (Primitives.Instruction.sequentially
-              [ Primitives.Instruction.copy .fromStack (that .stack) (.lit 2) [] (agent := Primitives.NounPhrase.you),
-                offer (Primitives.Instruction.chooseNewTargets (those .copy)) (agent := Primitives.NounPhrase.you) ])) ] } }
+              [ Primitives.Instruction.copy .fromStack (that .stack) (.lit 2) [],
+                offer (Primitives.Instruction.chooseNewTargets (those .copy)) ])) ] } }
 
 /-- Frontline Heroism -/
 def frontlineHeroismCopy : Ability :=
@@ -50,7 +50,7 @@ def frontlineHeroismCopy : Ability :=
           { characteristics :=
             { colors := [.red], types := [.creature], subtypes := [creatureType "Soldier"],
               text := [keyword "Haste"], power := stat 1, toughness := stat 1 } },
-        Primitives.Instruction.copy .fromStack (that .spell) (.lit 1) [] (agent := Primitives.NounPhrase.you),
+        Primitives.Instruction.copy .fromStack (that .spell) (.lit 1) [],
         Primitives.Instruction.copyTargets (that .copy) (that .token) ])
 theorem okFrontlineHeroismCopy : Ability.check [] frontlineHeroismCopy = [] := by decide
 
@@ -58,7 +58,7 @@ theorem okFrontlineHeroismCopy : Ability.check [] frontlineHeroismCopy = [] := b
 def flawlessForgeryLine : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (target (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.inZone (graveyardOf (a Primitives.Predicate.opponent))])),
-      Primitives.Instruction.copy .fromCardZone (that .card) (.lit 1) [] (agent := Primitives.NounPhrase.you),
+      Primitives.Instruction.copy .fromCardZone (that .card) (.lit 1) [],
       Primitives.Instruction.establish
         (mayPlayDeed (.action "Cast") Primitives.NounPhrase.you (that .copy) none
           (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.withoutPaying))
@@ -71,9 +71,8 @@ def twincast : Spelled := spelled <| .singleFaced
     { name := "Twincast", cost := some [pip .blue, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.copy .fromStack (target (Primitives.Predicate.and [instantOrSorcery, spell])) (.lit 1) [] (agent :=
-                Primitives.NounPhrase.you),
-              offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := Primitives.NounPhrase.you) ]) ] } }
+            [ Primitives.Instruction.copy .fromStack (target (Primitives.Predicate.and [instantOrSorcery, spell])) (.lit 1) [],
+              offer (Primitives.Instruction.chooseNewTargets (that .copy)) ]) ] } }
 
 /-- Fork -/
 def fork : Spelled := spelled <| .singleFaced
@@ -82,8 +81,8 @@ def fork : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.copy .fromStack (target (Primitives.Predicate.and [instantOrSorcery, spell])) (.lit 1)
-                [Primitives.CopyExcept.color .red] (agent := Primitives.NounPhrase.you),
-              offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := Primitives.NounPhrase.you) ]) ] } }
+                [Primitives.CopyExcept.color .red],
+              offer (Primitives.Instruction.chooseNewTargets (that .copy)) ]) ] } }
 
 /-- Meletis Charlatan -/
 def meletisCharlatan : Spelled := spelled <| .singleFaced
@@ -93,16 +92,16 @@ def meletisCharlatan : Spelled := spelled <| .singleFaced
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2, pip .blue], Primitives.Cost.tapSymbol])
             (Primitives.Instruction.sequentially
-              [ act (controllerOf (target (Primitives.Predicate.and [instantOrSorcery, spell]))) (Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := actor)),
-                act (that .player) (offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := actor)) ]) ],
+              [ act (controllerOf (target (Primitives.Predicate.and [instantOrSorcery, spell]))) (Primitives.Instruction.copy .fromStack it (.lit 1) []),
+                act (that .player) (offer (Primitives.Instruction.chooseNewTargets (that .copy))) ]) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Echo Mage, level 4+ -/
 def echoMagesFourthLevel : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue, pip .blue], Primitives.Cost.tapSymbol])
     (Primitives.Instruction.sequentially
-      [ Primitives.Instruction.copy .fromStack (target (Primitives.Predicate.and [instantOrSorcery, spell])) (.lit 2) [] (agent := Primitives.NounPhrase.you),
-        offer (Primitives.Instruction.chooseNewTargets (those .copy)) (agent := Primitives.NounPhrase.you) ])
+      [ Primitives.Instruction.copy .fromStack (target (Primitives.Predicate.and [instantOrSorcery, spell])) (.lit 2) [],
+        offer (Primitives.Instruction.chooseNewTargets (those .copy)) ])
 theorem okEchoMagesFourthLevel : Ability.check [] echoMagesFourthLevel = [] := by decide
 
 /-- Strionic Resonator -/
@@ -114,8 +113,8 @@ def strionicResonator : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.copy .fromStack
                   (target (Primitives.Predicate.and [Primitives.Predicate.abilityHead .anyTriggered, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
-                  (.lit 1) [] (agent := Primitives.NounPhrase.you),
-                offer (Primitives.Instruction.chooseNewTargets (that (.copied .ability))) (agent := Primitives.NounPhrase.you) ]) ] } }
+                  (.lit 1) [],
+                offer (Primitives.Instruction.chooseNewTargets (that (.copied .ability))) ]) ] } }
 
 /-- Mister Fantastic -/
 def misterFantasticCopy : Ability :=
@@ -123,8 +122,8 @@ def misterFantasticCopy : Ability :=
     (Primitives.Instruction.sequentially
       [ Primitives.Instruction.copy .fromStack
           (target (Primitives.Predicate.and [Primitives.Predicate.abilityHead .anyTriggered, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
-          (.lit 2) [] (agent := Primitives.NounPhrase.you),
-        offer (Primitives.Instruction.chooseNewTargets (those (.copied .ability))) (agent := Primitives.NounPhrase.you) ])
+          (.lit 2) [],
+        offer (Primitives.Instruction.chooseNewTargets (those (.copied .ability))) ])
 theorem okMisterFantasticCopy : Ability.check [] misterFantasticCopy = [] := by decide
 
 /-- Rowan's Talent -/
@@ -134,8 +133,8 @@ def rowansTalentCopy : Ability :=
       (a (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .loyalty,
                  Primitives.Predicate.abilityOf (Primitives.NounPhrase.attachHost .enchanted (.type .planeswalker)) ])))
     (Primitives.Instruction.sequentially
-      [ Primitives.Instruction.copy .fromStack (that .ability) (.lit 1) [] (agent := Primitives.NounPhrase.you),
-        offer (Primitives.Instruction.chooseNewTargets (that (.copied .ability))) (agent := Primitives.NounPhrase.you) ])
+      [ Primitives.Instruction.copy .fromStack (that .ability) (.lit 1) [],
+        offer (Primitives.Instruction.chooseNewTargets (that (.copied .ability))) ])
 theorem okRowansTalentCopy : Ability.check [] rowansTalentCopy = [] := by decide
 
 /-- Rings of Brighthearth -/
@@ -145,11 +144,11 @@ def ringsOfBrighthearth : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredIf (Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead .anyActivated)))
             (itIsntAnAbility Primitives.Predicate.isManaAbility)
-            (Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [generic 2]) .once (agent := Primitives.NounPhrase.you))
+            (Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [generic 2]) .once)
               (some (Primitives.Instruction.sequentially
-                [ Primitives.Instruction.copy .fromStack (that .ability) (.lit 1) [] (agent := Primitives.NounPhrase.you),
-                  offer (Primitives.Instruction.chooseNewTargets (that (.copied .ability))) (agent := Primitives.NounPhrase.you) ]))
-              none (agent := Primitives.NounPhrase.you)) ] } }
+                [ Primitives.Instruction.copy .fromStack (that .ability) (.lit 1) [],
+                  offer (Primitives.Instruction.chooseNewTargets (that (.copied .ability))) ]))
+              none) ] } }
 
 /-- Iron Man, Bleeding Edge -/
 def ironManBleedingEdge : Spelled := spelled <| .singleFaced
@@ -162,7 +161,7 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
           triggeredOnlyOnce (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
             (Primitives.Predicate.and [artifact, spell]))) none)
             Primitives.UsageLimit.actionOncePerTurn
-            (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.nonlegendary] (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you))
+            (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.nonlegendary]))
                 ],
       power := stat 3, toughness := stat 5 } }
 
@@ -184,7 +183,7 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
               (Primitives.Instruction.copy .fromStack it (.lit 1)
                 (copyCharacteristics {
                            subtypes := [creatureType "Spirit"], power := stat 1,
-                           toughness := stat 1 } true) (agent := Primitives.NounPhrase.you)) (agent := Primitives.NounPhrase.you)) ],
+                           toughness := stat 1 } true))) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Tawnos, the Toymaker -/
@@ -201,8 +200,7 @@ def tawnosTheToymaker : Spelled := spelled <| .singleFaced
                                Primitives.Predicate.hasSubtype (creatureType "Bird") ],
                          creature, spell ])))
               none)
-            (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.types [.artifact] []] (agent := Primitives.NounPhrase.you)) (agent :=
-                Primitives.NounPhrase.you)) ],
+            (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.types [.artifact] []])) ],
       power := stat 3, toughness := stat 5 } }
 
 /-- Bonus Round -/
@@ -215,8 +213,8 @@ def bonusRound : Spelled := spelled <| .singleFaced
               (Primitives.Predicate.and [instantOrSorcery, spell]))) none)
             [] (some untilEndOfTurn)
             (Primitives.Instruction.sequentially
-              [ act (that .player) (Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := actor)),
-                act (that .player) (offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := actor)) ])) ] } }
+              [ act (that .player) (Primitives.Instruction.copy .fromStack it (.lit 1) []),
+                act (that .player) (offer (Primitives.Instruction.chooseNewTargets (that .copy))) ])) ] } }
 
 /-- Melek, Izzet Paragon -/
 def melekIzzetParagon : Spelled := spelled <| .singleFaced
@@ -233,8 +231,8 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
             (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a (Primitives.Predicate.and
               [instantOrSorcery, spell]))) (some (Primitives.EventSource.zones [yourLibrary])))
             (Primitives.Instruction.sequentially
-              [ Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := Primitives.NounPhrase.you),
-                offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := Primitives.NounPhrase.you) ]) ],
+              [ Primitives.Instruction.copy .fromStack it (.lit 1) [],
+                offer (Primitives.Instruction.chooseNewTargets (that .copy)) ]) ],
       power := stat 2, toughness := stat 4 } }
 
 /-- Pyromancer's Goggles -/
@@ -244,8 +242,8 @@ def pyromancersGogglesMana : Ability :=
       [ Primitives.ManaRider.onSpent .triggersThen false
           (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .red, instantOrSorcery, spell]))
           (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.copy .fromStack (that .spell) (.lit 1) [] (agent := Primitives.NounPhrase.you),
-              offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := Primitives.NounPhrase.you) ]) ] (agent := Primitives.NounPhrase.you))
+            [ Primitives.Instruction.copy .fromStack (that .spell) (.lit 1) [],
+              offer (Primitives.Instruction.chooseNewTargets (that .copy)) ]) ])
 theorem okPyromancersGogglesMana : Ability.check [] pyromancersGogglesMana = [] := by decide
 
 end Semantics.Cards

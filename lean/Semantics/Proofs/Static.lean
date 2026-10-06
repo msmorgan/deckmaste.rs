@@ -187,7 +187,7 @@ theorem badContradictoryOutsideSelection :
 
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okDrawReplacement :
-    StaticSpec.check [] (.replacement (.draws .you) [] none (draw (.lit 2) (agent := .you))
+    StaticSpec.check [] (.replacement (.draws .you) [] none (draw (.lit 2))
         .repeatedly none)
       = [] := by
   decide
@@ -195,7 +195,7 @@ theorem okDrawReplacement :
 /-- "If I — would happen, draw a card instead." -/
 theorem badChapterReplacement :
     StaticSpec.check []
-      (.replacement (.chapterMark [1]) [] none (draw (.lit 1) (agent := .you)) .repeatedly none)
+      (.replacement (.chapterMark [1]) [] none (draw (.lit 1)) .repeatedly none)
       = [.interceptable] := by
   decide
 

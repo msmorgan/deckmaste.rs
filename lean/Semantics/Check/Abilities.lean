@@ -300,7 +300,7 @@ def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
   | .withBindings scope inputs body => body.lookedLibraryOwner.map (.withBindings scope inputs)
   | .inCaller scope body => body.lookedLibraryOwner.map (.inCaller scope)
   | .sequentially (first :: _) => first.lookedLibraryOwner
-  | .expose .lookAt (.cards subject) _ => subject.libraryOwner
+  | .expose .lookAt (.cards subject) => subject.libraryOwner
   | _ => none
 
 /-- A deed the table marks as opening an opponent's library looks at one [CR#701.29a]. -/
@@ -407,20 +407,37 @@ def actorCtx (bs : Bindings) (who : NounPhrase) : Bindings :=
 does, and an offer, whose performer decides. A handoff to a group hands such an instruction to
 each member, as its performer. -/
 def Instruction.performed : Instruction → Bool
-  | .conclude _ _ | .separateIntoPiles _ _ _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
-  | .copy _ _ _ _ _ | .changeLife _ _ | .addMana _ _ _ _ | .draw _ _ | .expose _ _ _
-  | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _ | .rerollStored _ _ _
-  | .createObject _ _ _ | .enact _ _ _ | .pay _ _ _ | .skipPart _ _ _ | .insertPart _ _ _ _ _
-  | .withContinuation (.optional _) _ _ _ => true
+  | .conclude _ | .separateIntoPiles _ _ _ | .choose _ _ _ _ _ | .vote _ _ _
+  | .copy _ _ _ _ | .changeLife _ | .addMana _ _ _ | .draw _ | .expose _ _
+  | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _ | .rerollStored _ _
+  | .createObject _ _ | .enact _ _ | .pay _ _ | .skipPart _ _ | .insertPart _ _ _ _ _
+  | .withContinuation .optional _ _ _ => true
   | _ => false
 
-/-- The decider a group handoff hands an offer, in place of its own. -/
-def ContinuationPolicy.performedBy (policy : ContinuationPolicy) : Option NounPhrase → ContinuationPolicy
-  | some who =>
-    match policy with
-    | .optional _ => .optional who
-    | .required => .required
-  | none => policy
+/-- The performer of an instruction: the group a handoff hands it to (`Instruction.checkWith`),
+otherwise the actor in context, the controller unless an enclosing handoff names another
+[CR#109.5]. -/
+def performerOf (perf : Option NounPhrase) : NounPhrase := perf.getD .actor
+
+/-- What a handoff to one performer hands the instruction it wraps: the actor, so that a deed
+whose facts row names no performer ("fight" [CR#701.14a]) refuses being handed to anyone; every
+other rule reads the actor in context either way. -/
+def handedOne (body : Instruction) : Option NounPhrase :=
+  match body with
+  | .enact _ _ => some .actor
+  | _ => none
+
+/-- Whether a deed's facts row names a performer of some kind. -/
+def deedNamesPerformer (v : Deed) : Bool := (deedRoleOf v .agent).sort.isSome
+
+/-- The performer an enacted deed records: the one a handoff hands it, otherwise the actor in
+context where the deed's row names a performer; a deed the rules give no performer, written
+with no handoff, records none. -/
+def enactPerformer (v : Deed) (perf : Option NounPhrase) : Option NounPhrase :=
+  match perf with
+  | some p => some p
+  | none => if deedNamesPerformer v then some .actor else none
+
 
 /-- The handoff frame alone, with what it puts in view: the context a group handoff checks the
 one instruction it hands each member in, the instruction introducing the group itself. -/
@@ -436,22 +453,23 @@ def leaveHandoff (n : Nat) : Bindings → Bindings
 /-- The source permanent, the performer an object-performed deed defaults to. -/
 def sourcePermanent : NounPhrase := .asMarker .permanent .this
 
-/-- An object-performed deed recorded with the controller as its performer, that is written with
+/-- An object-performed deed whose performer in context is the controller, that is written with
 no handoff to a permanent (printed "Adapt N" on a permanent's own ability [CR#701.46a]), is
 performed by the source permanent, as a player-performed deed with no handoff is performed by the
 controller [CR#109.5]. -/
 def enactDefaultsToThis (bs : Bindings) (v : Deed) (s : NounPhrase) : Bool :=
   s.isYouIn bs && !deedKindOk v .agent .player && deedKindOk v .agent .object
 
-/-- An enacted act's recorded performer is of a kind its deed's row admits: a player
+/-- An enacted act's performer (`enactPerformer`) is of a kind its deed's row admits: a player
 for a deed a player performs, a permanent for one a permanent performs, with the source permanent
 standing in for the controller (`enactDefaultsToThis`). The kind is read in the handoff, so
-`actor` inside a handoff to a permanent is that permanent. -/
+`actor` inside a handoff to a permanent is that permanent. A deed the rules give no performer
+records none, and refuses one a handoff names. -/
 def enactAgentOk (bs : Bindings) : Option NounPhrase → Deed → Bool
   | none, _ => true
   | some s, v => enactDefaultsToThis bs v s || deedKindOk v .agent ((s.actorView bs).kindOr .player)
 
-/-- The kind an enacted act's recorded performer is checked as: the deed's `deedAgentKind`, or a
+/-- The kind an enacted act's performer is checked as: the deed's `deedAgentKind`, or a
 player where the performer is the controller defaulted to the source permanent. -/
 def enactAgentKind (bs : Bindings) (v : Deed) : Option NounPhrase → Kind
   | some s => if enactDefaultsToThis bs v s then .player else deedAgentKind v
@@ -470,9 +488,15 @@ def ownPerformerCtx (bs : Bindings) : Bindings :=
   if bs.any Binding.isActorFrame then ⟨.the, .one, .actor (NounPhrase.performerShape [] .you)⟩ :: bs
   else bs
 
-def ContinuationPolicy.context (bs : Bindings) : ContinuationPolicy → Bindings
-  | .optional agent => mayCtx bs agent
+/-- The context an offer's body is checked in: its decider's, the performer `perf` a handoff hands
+the offer or the actor in context. -/
+def ContinuationPolicy.contextBy (perf : Option NounPhrase) (bs : Bindings) :
+    ContinuationPolicy → Bindings
+  | .optional => mayCtx bs (performerOf perf)
   | .required => bs
+
+def ContinuationPolicy.context (bs : Bindings) (policy : ContinuationPolicy) : Bindings :=
+  policy.contextBy none bs
 
 /-! ## Deck conditions -/
 
@@ -918,8 +942,8 @@ A life payment targets its payer; granting life may target anyone [CR#119.4]. A 
 the performer of its body, so a payment inside it is judged as that player's. -/
 def Instruction.paidByYouAs (performerIsYou : Bool) : Instruction → Bool
   | .withBindings _ _ body | .inCaller _ body => body.paidByYouAs performerIsYou
-  | .changeLife (.down _) who => if who.isActor then performerIsYou else who.isYou
-  | .enact _ _ (some subj) => if subj.isActor then performerIsYou else subj.isYou
+  | .changeLife (.down _) => performerIsYou
+  | .enact v _ => !deedNamesPerformer v || performerIsYou
   | .act who body => body.paidByYouAs (if who.isActor then performerIsYou else who.isYou)
   | _ => true
 
@@ -994,7 +1018,7 @@ def Instruction.heldUntilOk : Instruction → Bool
   | .withBindings _ _ body | .inCaller _ body => body.heldUntilOk
   | .setStatus .phasedOut _ => true
   | .move _ _ _ _ => true
-  | .enact _ (.move _ _ _ _) none => true
+  | .enact _ (.move _ _ _ _) => true
   | _ => false
 
 inductive EncloseUse where
@@ -1014,17 +1038,17 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
 
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .withBindings _ _ body | .inCaller _ body => body.reflexEncloseUse
-  | .skipPart _ _ _ => .notYetTaken
+  | .skipPart _ _ => .notYetTaken
   | .insertPart _ _ _ _ (some _) => .notYetTaken
   | .establish spec _ =>
     match spec.scopeBody with
     | .controlGrant _ _ => .reflexive
     | _ => .agentless
-  | .pay _ _ _ | .enact _ _ _ | .separateIntoPiles _ _ _ _ | .chooseNewTargets _ | .createObject _ _ _
+  | .pay _ _ | .enact _ _ | .separateIntoPiles _ _ _ | .chooseNewTargets _ | .createObject _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
-  | .move _ _ _ _ | .expose _ _ _ | .addMana _ _ _ _ | .draw _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
-  | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _
-  | .rerollStored _ _ _ => .reflexive
+  | .move _ _ _ _ | .expose _ _ | .addMana _ _ _ | .draw _ | .choose _ _ _ _ _ | .vote _ _ _
+  | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _
+  | .rerollStored _ _ => .reflexive
   | .applyResultsTable _ => .notOneAction
   | .withContinuation _ body none _ => body.reflexEncloseUse
   | .withContinuation _ _ _ _ => .notOneAction
@@ -1033,10 +1057,10 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .doIf _ _ _ | .doForEach _ _ | .doForEachKind _ _ _ _ => .notOneAction
   | .repeat_ (.fixed _ body) =>
     match body.scopeBody with
-    | .pay _ _ _ => .reflexive
-    | .withContinuation (.optional _) payment none _ =>
+    | .pay _ _ => .reflexive
+    | .withContinuation .optional payment none _ =>
       match payment.scopeBody with
-      | .pay _ _ _ => .reflexive
+      | .pay _ _ => .reflexive
       | _ => .notOneAction
     | _ => .notOneAction
   | .repeat_ _ => .notOneAction
@@ -1078,30 +1102,23 @@ mutual
     | .gainDesignation n _ _ => n.costNounOk
     | .unlock .thisDoor => true
     | .unlock (.doorOf _ room) => room.costNounOk
-    | .setGameDesignation _ | .conclude _ _ | .drawGame | .changeLife _ _ | .draw
-        _ _
-    | .createObject _ (.emblem _) _ => true
+    | .setGameDesignation _ | .conclude _ | .drawGame | .changeLife _ | .draw _ => true
+    | .createObject _ (.emblem _) => true
     | .establish spec none => spec.definitionCostOk
-    | .separateIntoPiles grp _ _ _ => grp.costNounOk
-    | .copy _ what _ _ _ => what.costNounOk
+    | .separateIntoPiles grp _ _ => grp.costNounOk
+    | .copy _ what _ _ => what.costNounOk
     | .chooseNewTargets what => what.costNounOk
     | .copyTargets cp _ => cp.costNounOk
     | .choose _ n _ _ _ => n.costNounOk
     | .move what _ _ _ => what.costNounOk
     | .exchange what => what.costOk
-    | .addMana _ _ _ who => who.costNounOk
-    | .expose _ _ who => who.costNounOk
-    | .search _ _ _ who => who.costNounOk
-    | .shuffle whose => whose.costNounOk
-    | .flipCoins _ who => who.costNounOk
-    | .rollDice _ _ who => who.costNounOk
-    | .rerollStored _ _ who => who.costNounOk
-    | .createObject _ _ agent => agent.costNounOk
+    | .addMana _ _ _ | .expose _ _ | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _
+    | .rerollStored _ _ | .createObject _ _ => NounPhrase.actor.costNounOk
     | .putCounters _ _ on => on.costNounOk
     | .removeCounters _ _ from_ => from_.costNounOk
     | .moveCounters _ _ src dst => src.costNounOk && dst.costNounOk
     | .doubleCounters on => on.costNounOk
-    | .enact _ e _ => e.costActionOk
+    | .enact _ e => e.costActionOk
     | .act who body => who.costNounOk && body.costActionOk
     | .withContinuation _ body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid &&
         Instruction.costActionOkOpt ifNot
@@ -1212,7 +1229,7 @@ mutual
     | .turnOver n => sameIntro (nomIntro bs n) []
     | .setStatus _ n => sameIntro (nomIntro bs n) []
     | .skipUntap n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
-    | .skipPart _ count w0 => let w := perf.getD w0; sameIntro (Amount.intro (nomIntro bs w) count) []
+    | .skipPart _ count => let w := performerOf perf; sameIntro (Amount.intro (nomIntro bs w) count) []
     | .insertPart part _ count _ who0 => let who := perf.orElse (fun _ => who0);
       let afterCount := Amount.intro (optAgentIntro bs who) count
       if part == .turn then ⟨afterCount, turnRefB :: afterCount, none, []⟩
@@ -1229,14 +1246,14 @@ mutual
     | .gainDesignation n _ _ => sameIntro (nomIntro bs n) []
     | .unlock door => sameIntro (door.intro bs) []
     | .setGameDesignation _ => sameIntro bs []
-    | .conclude _ who0 => let who := perf.getD who0; sameIntro (nomIntro bs who) []
+    | .conclude _ => let who := performerOf perf; sameIntro (nomIntro bs who) []
     | .drawGame => sameIntro bs []
     | .restartGame => sameIntro bs []
-    | .separateIntoPiles grp piles faces who0 => let who := perf.getD who0;
+    | .separateIntoPiles grp piles faces => let who := performerOf perf;
       let bs' := nomIntro bs who
       ⟨nomIntro bs' grp, partsClosed (nomIntro bs' grp), none,
        [⟨.the, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
-    | .copy src what times _ agent0 => let agent := perf.getD agent0;
+    | .copy src what times _ => let agent := performerOf perf;
       let bs' := nomIntro bs agent
       let k := what.kindOr .object
       sameIntro (Amount.intro (nomIntro bs' what) times)
@@ -1246,35 +1263,35 @@ mutual
     | .copyTargets cp whom => sameIntro (nomIntro (nomIntro bs cp) whom) []
     | .choose _ n _ _ by0 => let by_ := perf.orElse (fun _ => by0); sameIntro (chooseIntro bs by_ n) []
     | .revealChoices _ => sameIntro bs []
-    | .vote _ _ _ _ => sameIntro bs [outcomeB .voteHeld]
+    | .vote _ _ _ => sameIntro bs [outcomeB .voteHeld]
     | .move what _ to _ =>
       ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what to.sort), none, []⟩
     | .exchange what => sameIntro (what.intro bs) what.deed
     /- "Gains"/"loses" name the event outright [CR#119.3]; a set total leaves the gain or loss
     to follow from the new total [CR#119.5]. -/
-    | .changeLife (.up a) who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeGained]
-    | .changeLife (.down a) who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeLost]
-    | .changeLife (.set a) who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) a) []
-    | .addMana amt _ _ who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) amt) [outcomeB .manaAdded]
-    | .draw amt who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) amt) []
-    | .expose _ what who0 => let who := perf.getD who0; sameIntro (what.intro (nomIntro bs who)) []
-    | .search sc q p who0 => let who := perf.getD who0;
+    | .changeLife (.up a) => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeGained]
+    | .changeLife (.down a) => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeLost]
+    | .changeLife (.set a) => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) a) []
+    | .addMana amt _ _ => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) amt) [outcomeB .manaAdded]
+    | .draw amt => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) amt) []
+    | .expose _ what => let who := performerOf perf; sameIntro (what.intro (nomIntro bs who)) []
+    | .search sc q p => let who := performerOf perf;
       let bs' := nomIntro bs who
       sameIntro (Quantity.introduced bs' q ++ Predicate.introduced bs' p ++ sc.introduced bs' ++ bs')
         [⟨.a, q.plur,
           .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
             none⟩]
-    | .shuffle whose0 => let whose := perf.getD whose0; ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
-    | .flipCoins count who0 => let who := perf.getD who0; sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
-    | .rollDice count _ who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB
+    | .shuffle => let whose := performerOf perf; ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
+    | .flipCoins count => let who := performerOf perf; sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
+    | .rollDice count _ => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB
         .rollResult]
     | .applyResultsTable _ => sameIntro bs []
     | .ignoreOutcomes which => sameIntro (which.intro bs) []
     | .shiftResult _ amt => sameIntro (Amount.intro bs amt) []
     | .storeResults on => sameIntro (nomIntro bs on) []
-    | .rerollStored _ whose who0 => let who := perf.getD who0; sameIntro (nomIntro (nomIntro bs who) whose) []
+    | .rerollStored _ whose => let who := performerOf perf; sameIntro (nomIntro (nomIntro bs who) whose) []
     | .establish se _ => sameIntro (StaticSpec.intro bs se) []
-    | .createObject count spec agent0 => let agent := perf.getD agent0;
+    | .createObject count spec => let agent := performerOf perf;
       let bs' := Amount.intro (nomIntro bs agent) count
       let (mentions, types, zone, origin) := match spec with
         | .token token _ => (token.introduced bs', token.headTy bs', Zone.battlefield, some Origin.token)
@@ -1285,8 +1302,8 @@ mutual
     | .removeCounters q _ from_ => sameIntro (nomIntro (optQuantIntro bs q) from_) [outcomeB .countersRemoved]
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []
     | .doubleCounters on => sameIntro (nomIntro bs on) []
-    | .enact v e subj0 =>
-      match perf.orElse (fun _ => subj0), e with
+    | .enact v e =>
+      match enactPerformer v perf, e with
       | none, .move what _ to _ =>
         ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what to.sort),
          some (stampIntro bs (some v) what), []⟩
@@ -1298,7 +1315,7 @@ mutual
         let ep := Instruction.profileWith (enactCtx bs v (some s)) none e
         doesProfile bs s.plur s v e ⟨leave ep.pre, leave ep.announced, ep.rider.map leave, ep.deed⟩
       else doesProfile bs s.plur s v e (Instruction.profileWith (agentIntro bs s) none e)
-    | .pay c .once who0 => let who := perf.getD who0; ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
+    | .pay c .once => let who := performerOf perf; ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
     /- One performer: the body's own profile outside the handoff frame, so the player the
     handoff introduced stays published. Distributive performers follow `doForEach`: what each
     member's body introduced is published as a group, except its amount outcomes, which stay
@@ -1310,7 +1327,7 @@ mutual
         ⟨leaveHandoff 0 p.pre, leaveHandoff 0 p.announced, p.rider.map (leaveHandoff 0), p.deed⟩
       else
       let inner := actorCtx bs who
-      let bodyP := Instruction.profileWith inner none body
+      let bodyP := Instruction.profileWith inner (handedOne body) body
       let leave := leaveHandoff (who.performerInView bs).length
       match who.plur with
       | .one => ⟨leave bodyP.pre, leave bodyP.announced, bodyP.rider.map leave, bodyP.deed⟩
@@ -1319,11 +1336,10 @@ mutual
         ⟨bs, pluralizeIntroduced (fresh.filter (!·.isAmountTotal)) ++
           pluralizeIntroduced (NounPhrase.introduced bs who) ++ bs, none,
          fresh.filter Binding.isAmountTotal⟩
-    | .pay c _ who0 => let who := perf.getD who0; ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
+    | .pay c _ => let who := performerOf perf; ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
         .repeatCount]⟩
-    | .withContinuation policy0 body did notd =>
-      let policy := policy0.performedBy perf
-      let bodyP := Instruction.profileWith (policy.context bs) none body
+    | .withContinuation policy body did notd =>
+      let bodyP := Instruction.profileWith (policy.contextBy perf bs) none body
       mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
     | .doOnlyIf e c other =>
       let primary := Instruction.profileWith bs none e
@@ -1685,32 +1701,32 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .dealDamage _ amount _ => [(amount, .clamped)]
   | .setStatus _ _ | .turnOver _ | .combat _ _ => []
   | .attachment _ _ _ | .clearDamage _ | .doAndForbid _ _ _ => []
-  | .gainDesignation _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ _ => []
-  | .drawGame | .restartGame | .separateIntoPiles _ _ _ _ => []
-  | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ _ => []
+  | .gainDesignation _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ => []
+  | .drawGame | .restartGame | .separateIntoPiles _ _ _ => []
+  | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ => []
   | .move _ _ _ riders => TokenRider.ridersSlots riders
   -- How many copies to make: a count [CR#107.1b].
-  | .copy _ _ times _ _ => [(times, .clamped)]
+  | .copy _ _ times _ => [(times, .clamped)]
   | .chooseNewTargets _ | .copyTargets _ _ => []
   -- Gaining and losing life are clamped; "your life total becomes …" is the set the rule
   -- excepts, and doubling a life total is written as that set [CR#107.1b].
-  | .changeLife delta _ => delta.numberSlots
+  | .changeLife delta => delta.numberSlots
   | .exchange exchanged => exchanged.numberSlots
-  | .addMana amount _ _ _ => [(amount, .clamped)]
-  | .draw amount _ => [(amount, .clamped)]
-  | .expose _ _ _ | .search _ _ _ _ | .shuffle _ => []
-  | .flipCoins count _ => count.numberSlots
-  | .rollDice count _ _ => [(count, .clamped)]
+  | .addMana amount _ _ => [(amount, .clamped)]
+  | .draw amount => [(amount, .clamped)]
+  | .expose _ _ | .search _ _ _ | .shuffle => []
+  | .flipCoins count => count.numberSlots
+  | .rollDice count _ => [(count, .clamped)]
   | .applyResultsTable _ => []
   | .ignoreOutcomes which => which.numberSlots
   -- The sign is the direction; the amount added to a result is a magnitude [CR#107.1b].
   | .shiftResult _ amount => [(amount, .clamped)]
-  | .storeResults _ | .rerollStored _ _ _ => []
+  | .storeResults _ | .rerollStored _ _ => []
   | .establish spec none => match spec.scopeBody with
     | .letterDefinition _ amount => [(amount, .clamped)]
     | _ => []
   | .establish _ _ => []
-  | .createObject count spec _ => (count, .clamped) ::
+  | .createObject count spec => (count, .clamped) ::
       (match spec with
        | .token _ riders => TokenRider.ridersSlots riders
        | .emblem _ => [])
@@ -1719,7 +1735,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .removeCounters _ _ _ => []
   | .moveCounters amount _ _ _ => [(amount, .clamped)]
   | .doubleCounters _ => []
-  | .enact _ _ _ | .pay _ _ _ | .act _ _ => []
+  | .enact _ _ | .pay _ _ | .act _ _ => []
   | .withContinuation _ _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ => []
   | .doForEach _ _ | .doForEachKind _ _ _ _ => []
   | .repeat_ repetition => repetition.numberSlots
@@ -1727,7 +1743,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .delay _ _ _ _ | .replace _ _ | .holdUntil _ _ => []
   | .triggerReflexively _ _ | .triggerThisWay _ _ _ => []
   | .skipUntap _ steps => [(steps, .clamped)]
-  | .skipPart _ count _ => [(count, .clamped)]
+  | .skipPart _ count => [(count, .clamped)]
   | .insertPart _ _ count _ _ => [(count, .clamped)]
 
 end Semantics

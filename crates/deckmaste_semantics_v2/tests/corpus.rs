@@ -175,7 +175,7 @@ fn every_ported_alias_expands() {
         ManaSymbol: "generic(amount: 2)",
         Instruction: "move(subject: You, from: wherever, to: graveyard)",
         Instruction: "draw(amount: Lit(value: 1))",
-        Instruction: "doIf(condition: Exists(subject: You), instruction: Shuffle(agent: You))",
+        Instruction: "doIf(condition: Exists(subject: You), instruction: Shuffle)",
         Instruction: "choose(subject: You)",
         Instruction: "rollDice(count: 1, sides: 20)",
         Instruction: "flipCoins(count: 1)",
@@ -183,7 +183,7 @@ fn every_ported_alias_expands() {
         Condition: "happened(event: FlipsCoin(player: You, call: None), who: You, lookback: ThisTurn)",
         Predicate: "happenedTo(event: FlipsCoin(player: You, call: None), lookback: ThisTurn)",
         Instruction: "shiftResult(amount: Lit(value: 1))",
-        Instruction: "delay(event: FlipsCoin(player: You, call: None), instruction: Shuffle(agent: You))",
+        Instruction: "delay(event: FlipsCoin(player: You, call: None), instruction: Shuffle)",
         Instruction: "removeCounters(quantity: Range(low: 1, high: 1), kind: Printed(kind: Named(name: \"chargeCounter\")), from: You)",
         GameEvent: "counterEvent(move: Put, kind: Named(name: \"chargeCounter\"), batch: One, subject: You)",
         GameEvent: "tokensCreated(tokens: You)",
@@ -192,8 +192,8 @@ fn every_ported_alias_expands() {
         Instruction: "putCounters(amount: 1, kind: p1p1Counter, on: You)",
         StaticSpec: "addSubtype(subject: You, subtype: army)",
         Ability: "keyword(label: \"Flying\")",
-        Ability: "triggered(event: FlipsCoin(player: You, call: None), instruction: Shuffle(agent: You))",
-        Ability: "activated(cost: TapSymbol, instruction: Shuffle(agent: You))",
+        Ability: "triggered(event: FlipsCoin(player: You, call: None), instruction: Shuffle)",
+        Ability: "activated(cost: TapSymbol, instruction: Shuffle)",
     }
 }
 

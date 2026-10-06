@@ -35,14 +35,14 @@ theorem badExtraTurnWithoutPlayer :
 def emblemAbilities : List Ability := [.static (.abilityGrant (allOf creatureYouControl) (keyword "Haste"))]
 
 theorem okCreateSeveralEmblems :
-    Instruction.check [] (.createObject (.lit 2) (.emblem emblemAbilities) .you) = [] := by decide
+    Instruction.check [] (.createObject (.lit 2) (.emblem emblemAbilities)) = [] := by decide
 
 theorem okEmblemPublication :
-    Instruction.introducedDeeds [] (.createObject (.lit 1) (.emblem emblemAbilities) .you) =
+    Instruction.introducedDeeds [] (.createObject (.lit 1) (.emblem emblemAbilities)) =
       [⟨.a, .one, .object [] (some .command) none none none⟩] := by rfl
 
 theorem badEmblemWithSpellAbility :
-    Instruction.check [] (.createObject (.lit 1) (.emblem [.spell none (draw (.lit 1))]) .you) =
+    Instruction.check [] (.createObject (.lit 1) (.emblem [.spell none (draw (.lit 1))])) =
       [.emblemAbilities] := by decide
 
 
@@ -123,7 +123,7 @@ theorem clearDamagePublishesItsSubject :
 
 theorem exiledAbilityCannotBeCopiedOnStack :
     Instruction.check exiledAbility
-      (.copy .fromStack (that .ability) (.lit 1) [] .you) = [.copySourceOk] := by decide
+      (.copy .fromStack (that .ability) (.lit 1) []) = [.copySourceOk] := by decide
 
 theorem clearDamageDoesNotPublishDamageDealt :
     Instruction.introducedDeeds [] (.clearDamage (target creature)) = [] := by rfl
@@ -254,7 +254,7 @@ theorem aliasesAcrossNestedFramesRemainOneObjectAfterShuffle :
 
 theorem conditionalForgettingKeepsTheOperandScope :
     Instruction.check [] (.withBindings 0 [.subject (a (.and [.isCard, .inZone yourLibrary]))] (.sequentially [
-      .doIf (.matches .you .anyPlayer) (.shuffle .you) none,
+      .doIf (.matches .you .anyPlayer) (.shuffle) none,
       .move (operand 0) .wherever graveyard []])) = [] := by decide
 
 theorem capturePreservesTheResolvedPermanentView :

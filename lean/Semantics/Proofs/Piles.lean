@@ -48,7 +48,7 @@ theorem badTransformedArrivalOffField :
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles." -/
 def revealAndSplit : List Instruction :=
-  [revealCards (topSlice (.lit 5)), act anOpponent (.separateIntoPiles them 2 [] (agent := actor))]
+  [revealCards (topSlice (.lit 5)), act anOpponent (.separateIntoPiles them 2 [])]
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles. Put those piles into your hand." -/
@@ -115,7 +115,7 @@ theorem okStatusOnPermanentAfterPartition :
     Card.check
       (instantSaying
         (.sequentially
-          [ act anOpponent (.separateIntoPiles (allOf creature) 2 [] (agent := actor)),
+          [ act anOpponent (.separateIntoPiles (allOf creature) 2 []),
             .setStatus .faceDown (allOf (.and [creature, .inPile (pileOfChoice .you)])) ]))
       = [] := by
   decide
@@ -125,7 +125,7 @@ theorem badPileFaceAsAStatus :
     Card.check
       (instantSaying
         (.sequentially
-          [ act anOpponent (.separateIntoPiles (allOf creature) 2 [] (agent := actor)),
+          [ act anOpponent (.separateIntoPiles (allOf creature) 2 []),
             .setStatus .faceDown (those .pile) ])) = [.statusHolder] := by
   decide
 
@@ -144,7 +144,7 @@ theorem nestedTurnPartWindows :
 
 theorem voteStartingWithSpecifiedPlayer :
     Instruction.check []
-      (act (each .anyPlayer) (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]) (agent := actor))) =
+      (act (each .anyPlayer) (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]))) =
           [] := by
   decide
 
@@ -153,7 +153,7 @@ no order for the vote to proceed in [CR#701.38a] (`voteStartingWithSpecifiedPlay
 same order over every player). -/
 theorem badOrderedSingularVoter :
     Instruction.check []
-      (act (target .anyPlayer) (.vote (some .you) .openly (.byLabel ["alpha", "beta"]) (agent := actor)))
+      (act (target .anyPlayer) (.vote (some .you) .openly (.byLabel ["alpha", "beta"])))
       = [.choiceOrder] := by
   decide
 
@@ -162,8 +162,8 @@ votes or the vote is tied, exile each permanent with the most votes." -/
 theorem okVoteReadsAfterVote :
     Instruction.check []
       (.sequentially
-        [ act (each .anyPlayer) (vote .openly (.byLabel ["alpha", "beta"]) (agent := actor)),
-          draw (.votesFor "alpha") (agent := .you),
+        [ act (each .anyPlayer) (vote .openly (.byLabel ["alpha", "beta"])),
+          draw (.votesFor "alpha"),
           doIf (.voteLead "beta" true) (exile (allOf (.and [permanent, .withMostVotes]))) ])
       = [] := by
   decide
@@ -172,14 +172,14 @@ theorem okVoteReadsAfterVote :
 so there are no votes to count [CR#701.38a] (`okVoteReadsAfterVote` is the same read after a
 vote). -/
 theorem badVotesForWithoutVote :
-    Instruction.check [] (draw (.votesFor "alpha") (agent := .you)) = [.outcomeInScope .voteHeld 0]
+    Instruction.check [] (draw (.votesFor "alpha")) = [.outcomeInScope .voteHeld 0]
         := by
   decide
 
 /-- "If beta gets more votes, draw a card.": the same missing vote [CR#701.38a]
 (`okVoteReadsAfterVote` is the same condition after a vote). -/
 theorem badVoteLeadWithoutVote :
-    Instruction.check [] (doIf (.voteLead "beta" true) (draw (.lit 1) (agent := .you)))
+    Instruction.check [] (doIf (.voteLead "beta" true) (draw (.lit 1)))
       = [.outcomeInScope .voteHeld 0] := by
   decide
 
@@ -191,7 +191,7 @@ theorem badWithMostVotesWithoutVote :
   decide
 
 theorem oneWayResultShift :
-    Instruction.check [] (.sequentially [rollDice 1 6 (agent := .you), .shiftResult (some .up) (.lit
+    Instruction.check [] (.sequentially [rollDice 1 6, .shiftResult (some .up) (.lit
         1)])
       = [] := by
   decide
@@ -210,7 +210,7 @@ theorem namedAdditionalPartAnchor :
 
 /-- "When you unlock this door, draw N cards." -/
 def unlockDraw (amount : Nat) : Ability :=
-  when (.unlocksDoor .you .thisDoor) (draw (.lit amount) (agent := .you))
+  when (.unlocksDoor .you .thisDoor) (draw (.lit amount))
 
 /-- "When you unlock this door, draw a card.": a door header belongs to a Room's shared line. -/
 theorem okDoorHeaderOnSharedLine :
@@ -223,7 +223,7 @@ theorem okDoorHeaderOnSharedLine :
   decide
 
 theorem badDelayedDoorDeixis :
-    Card.check (instantSaying (delay (.unlocksDoor .you .thisDoor) (draw (.lit 1) (agent := .you))))
+    Card.check (instantSaying (delay (.unlocksDoor .you .thisDoor) (draw (.lit 1))))
       = [.doorFrame] := by
   decide
 

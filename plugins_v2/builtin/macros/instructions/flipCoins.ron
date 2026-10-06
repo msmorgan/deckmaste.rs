@@ -3,5 +3,5 @@
     name: "flipCoins",
     kinds: [Instruction],
     params: {"count": Nat},
-    body: FlipCoins(Count(Lit(Param(count))), actor),
+    body: FlipCoins(Count(Lit(Param(count)))),
 )

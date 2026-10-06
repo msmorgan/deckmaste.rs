@@ -1,10 +1,10 @@
 // `Instruction.AddMana` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1). The agent is the actor: the alias
+// basis has a constructor (ADR 12.1). The performer is the actor: the alias
 // takes no performer (ADR 7, ruling 2026-10-05).
 (
     name: "addMana",
     kinds: [Instruction],
     params: {"amount": Amount, "produced": Any, "riders": Default(Any, [])},
-    body: AddMana(amount: Param(amount), produced: Param(produced), riders: Param(riders), agent: actor),
+    body: AddMana(amount: Param(amount), produced: Param(produced), riders: Param(riders)),
 )

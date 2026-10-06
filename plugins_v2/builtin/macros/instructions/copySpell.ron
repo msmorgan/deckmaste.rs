@@ -3,5 +3,5 @@
     name: "copySpell",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "times": Default(Amount, 1)},
-    body: Copy(FromStack, Param(subject), Param(times), [], actor),
+    body: Copy(FromStack, Param(subject), Param(times), []),
 )

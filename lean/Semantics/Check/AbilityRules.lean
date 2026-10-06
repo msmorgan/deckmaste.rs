@@ -206,9 +206,9 @@ mutual
     | .unlock door => Door.check bs door ++ refuse door.namesHost .doorNamesHost
     | .setGameDesignation d =>
       refuse d.gameWide (.designationScope d) ++ refuse d.checked (.designationChecked d)
-    | .conclude _ who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who
+    | .conclude _ => NounPhrase.check (some .player) bs (performerOf perf)
     | .drawGame | .restartGame | .revealChoices _ => []
-    | .separateIntoPiles grp piles faces who0 => let who := perf.getD who0;
+    | .separateIntoPiles grp piles faces => let who := performerOf perf;
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' grp ++
         refuse (facesFit faces piles) .facesFit ++ refuse (grp.plur == .many) .plural
@@ -216,7 +216,7 @@ mutual
       OptNoun.check (some .player) bs first ++ OptNoun.check (some .player) bs by_ ++
         NounPhrase.check none (agentCtx bs by_) n ++ refuse (choiceOrderOk first by_) .choiceOrder ++
         refuse (choiceClauseOk by_ n) .choiceClause ++ OptConcurrent.check bs when
-    | .vote first _ ballot voters0 => let voters := perf.getD voters0;
+    | .vote first _ ballot => let voters := performerOf perf;
       let bs' := optAgentIntro bs first
       OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs' voters ++
         Ballot.check (nomIntro bs' voters) ballot ++
@@ -229,7 +229,7 @@ mutual
         refuse (orderOk what.plur to) .arrangementOk ++
         refuse (to.sort.all (destTypeOk (NounPhrase.ty bs what))) .placeable ++
         refuse (to.sort.all (ridersFitZone riders)) .ridersFit
-    | .copy src what times exc agent0 => let agent := perf.getD agent0;
+    | .copy src what times exc => let agent := performerOf perf;
       let bs' := nomIntro bs agent
       let bs'' := nomIntro bs' what
       let k := what.kindOr .object
@@ -241,26 +241,26 @@ mutual
       let kt := whom.kindOr .object
       NounPhrase.check none bs cp ++ NounPhrase.check none (nomIntro bs cp) whom ++
         refuse (cp.copiable bs) .stackActOn ++ refuse kt.targetable (.targetable kt)
-    | .changeLife d who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who)
+    | .changeLife d => let who := performerOf perf; NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who)
         d.amount
     | .exchange what => what.check bs
-    | .addMana amt prod riders who0 => let who := perf.getD who0;
+    | .addMana amt prod riders => let who := performerOf perf;
       let bs' := nomIntro bs who
       let bs'' := Amount.intro bs' amt
       NounPhrase.check (some .player) bs who ++ Amount.check bs' amt ++ prod.check bs'' ++
         ManaRider.checkAll bs'' riders
-    | .draw amt who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) amt
-    | .expose _ what who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who ++ Exposed.check (nomIntro bs
+    | .draw amt => let who := performerOf perf; NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) amt
+    | .expose _ what => let who := performerOf perf; NounPhrase.check (some .player) bs who ++ Exposed.check (nomIntro bs
         who) what
-    | .search sc q p who0 => let who := perf.getD who0;
+    | .search sc q p => let who := performerOf perf;
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ sc.check bs' ++ Quantity.check bs' q ++
         Predicate.check .object bs' p ++ refuse q.nonZero .nonZeroQ ++
         refuse q.wellFormed .wellFormedQ ++ refuse p.seedZone.isNone .zoneCoherent
-    | .shuffle whose0 => let whose := perf.getD whose0; NounPhrase.check (some .player) bs whose
-    | .flipCoins count who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who ++ count.check (nomIntro bs
+    | .shuffle => let whose := performerOf perf; NounPhrase.check (some .player) bs whose
+    | .flipCoins count => let who := performerOf perf; NounPhrase.check (some .player) bs who ++ count.check (nomIntro bs
         who)
-    | .rollDice count sides who0 => let who := perf.getD who0;
+    | .rollDice count sides => let who := performerOf perf;
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ Amount.check bs' count ++
         sides.check (Amount.intro bs' count)
@@ -276,7 +276,7 @@ mutual
       let n := countOutcomes .rollResult bs
       NounPhrase.check (some .object) bs on ++ refuse on.plur.isOne .singular ++
         refuse (n == 1) (.outcomeInScope .rollResult n)
-    | .rerollStored q whose who0 => let who := perf.getD who0;
+    | .rerollStored q whose => let who := performerOf perf;
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ Quantity.check bs' q ++ NounPhrase.check (some .object) bs' whose ++
         refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++
@@ -284,7 +284,7 @@ mutual
     | .establish se span =>
       StaticSpec.check bs se ++ OptDuration.check (StaticSpec.intro bs se) span ++
         refuse (durationOk span) .durationOk ++ refuse se.clauseOk .clauseStatic
-    | .createObject count spec agent0 => let agent := perf.getD agent0;
+    | .createObject count spec => let agent := performerOf perf;
       let bs' := nomIntro bs agent
       let bs'' := Amount.intro bs' count
       NounPhrase.check (some .player) bs agent ++ Amount.check bs' count ++
@@ -328,14 +328,14 @@ mutual
       let k := on.kindOr .object
       NounPhrase.check none bs on ++ refuse (counterHolderKind k) .counterHolderKind ++
         refuse on.perMemberOk .perMember
-    | .enact v e subj0 => let subj := perf.orElse (fun _ => subj0);
+    | .enact v e => let subj := enactPerformer v perf;
       let inner := enactCtx bs v subj
       OptNoun.check (some (enactAgentKind bs v subj)) bs subj ++ Instruction.checkWith inner none e ++
         refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk bs subj v) .enactAgentOk ++
         refuse (enactPatientZoneOk inner v e) .zoneFits ++
         refuse (enactLibraryOwnerOkIn inner v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
-    | .pay c _ who0 => let who := perf.getD who0;
+    | .pay c _ => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c ++
         refuse c.payable .payable ++ refuse (payAgreesOkIn bs who c) .payAgrees
     | .act who body =>
@@ -345,18 +345,17 @@ mutual
           Instruction.checkWith (performerFrame bs who) (some who) body
       else
         NounPhrase.check none bs who ++ refuse (who.handoffPerformerOk bs) .handoffPerformer ++
-          Instruction.checkWith inner none body ++
+          Instruction.checkWith inner (handedOne body) body ++
           refuse (who.plur == .one || keepsOuter inner body) .keepsOuter
-    | .withContinuation policy0 body ifDid ifNot =>
-      let policy := policy0.performedBy perf
-      let bs' := policy.context bs
+    | .withContinuation policy body ifDid ifNot =>
+      let bs' := policy.contextBy perf bs
       (match policy with
-       | .optional agent => NounPhrase.check (some .player) bs agent
+       | .optional => NounPhrase.check (some .player) bs (performerOf perf)
        | .required => []) ++
         Instruction.checkWith bs' none body ++ Instruction.checkOpt (body.intro bs') ifDid ++
         Instruction.checkOpt bs' ifNot ++
         (match policy with
-         | .optional _ => []
+         | .optional => []
          | .required => refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure ++
              refuse (ifDoneArmed ifDid ifNot) .ifDoneArmed)
     | .doOnlyIf e c otherwise =>
@@ -403,7 +402,7 @@ mutual
     | .skipUntap n steps =>
       NounPhrase.check (some .object) bs n ++ Amount.check (nomIntro bs n) steps ++
         zoneIsCheck (NounPhrase.zone bs n) .battlefield
-    | .skipPart _ count who0 => let who := perf.getD who0;
+    | .skipPart _ count => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
     | .insertPart part anchor count followedBy who0 => let who := perf.orElse (fun _ => who0);
       OptNoun.check (some .player) bs who ++ Amount.check (optAgentIntro bs who) count ++

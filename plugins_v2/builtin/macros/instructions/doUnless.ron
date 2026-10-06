@@ -3,5 +3,5 @@
     name: "doUnless",
     kinds: [Instruction],
     params: {"instruction": Instruction, "cost": Cost},
-    body: WithContinuation(Optional(actor), Pay(Param(cost), Once, actor), None, Param(instruction)),
+    body: WithContinuation(Optional, Pay(Param(cost), Once), None, Param(instruction)),
 )

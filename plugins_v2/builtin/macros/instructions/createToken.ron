@@ -8,6 +8,5 @@
     body: CreateObject(
         count: Param(count),
         spec: Token(spec: Written(characteristics: Param(characteristics)), riders: []),
-        agent: actor,
     ),
 )

@@ -3,5 +3,5 @@
     name: "may",
     kinds: [Instruction],
     params: {"body": Instruction, "if_did": Default(Any, None), "if_not": Default(Any, None)},
-    body: WithContinuation(Optional(actor), Param(body), Param(if_did), Param(if_not)),
+    body: WithContinuation(Optional, Param(body), Param(if_did), Param(if_not)),
 )

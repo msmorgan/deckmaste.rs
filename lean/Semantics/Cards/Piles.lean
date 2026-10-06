@@ -25,11 +25,11 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
                   (Primitives.Instruction.sequentially
                     [ revealCards
                         (fromAmong (exactly 1) (Primitives.Predicate.or [Primitives.Predicate.colorIs .blue, artifact]) them),
-                      move (that .card) hand ]) (agent := Primitives.NounPhrase.you),
+                      move (that .card) hand ]),
                 move (theRest .object) (onBottomIn .randomOrder) ]),
           activated
             (Primitives.Cost.compound [Primitives.Cost.mana [generic 5, pip .blue], Primitives.Cost.tapSymbol,
-                        Primitives.Cost.perform (sacrifice thisArtifact (agent := Primitives.NounPhrase.you))])
+                        Primitives.Cost.perform (sacrifice thisArtifact)])
             (forbidBeingBlocked (allOf creatureYouControl) (some Primitives.Duration.thisTurn)) ] } }
 
 /-- "two cards at random" from a hand. -/
@@ -49,10 +49,10 @@ def tyrantsChoice : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "will of the council"
             (Primitives.Ability.spell none (Primitives.Instruction.sequentially
-              [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly (Primitives.Ballot.byLabel ["death", "torture"]) (agent := actor)),
+              [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly (Primitives.Ballot.byLabel ["death", "torture"])),
                 doIf (Primitives.Condition.voteLead "death" false)
-                  (act (each Primitives.Predicate.opponent) (sacrifice (aTheirChoice creature) (agent := actor))),
-                doIf (Primitives.Condition.voteLead "torture" true) (act (each Primitives.Predicate.opponent) (loseLife (.lit 4) (agent := actor))) ]))
+                  (act (each Primitives.Predicate.opponent) (sacrifice (aTheirChoice creature))),
+                doIf (Primitives.Condition.voteLead "torture" true) (act (each Primitives.Predicate.opponent) (loseLife (.lit 4))) ]))
                     ] } }
 
 /-- Council's Judgment -/
@@ -65,7 +65,7 @@ def councilsJudgment : Spelled := spelled <| .singleFaced
             (Primitives.Ability.spell none (Primitives.Instruction.sequentially
               [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly
                   (Primitives.Ballot.byCandidate (a (Primitives.Predicate.and [ permanent, Primitives.Predicate.not land,
-                                           Primitives.Predicate.not (Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you) ]))) (agent := actor)),
+                                           Primitives.Predicate.not (Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you) ])))),
                 exile (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.withMostVotes])) ])) ] } }
 
 /-- Orchard Elemental -/
@@ -78,10 +78,10 @@ def orchardElemental : Spelled := spelled <| .singleFaced
             (when (Primitives.GameEvent.enters thisCreature none)
               (Primitives.Instruction.sequentially
                 [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly
-                    (Primitives.Ballot.byLabel ["sprout", "harvest"]) (agent := actor)),
+                    (Primitives.Ballot.byLabel ["sprout", "harvest"])),
                   Primitives.Instruction.putCounters (times (.lit 2) (Primitives.Amount.votesFor "sprout")) (Primitives.CounterKindSource.printed p1p1Counter)
                     thisCreature,
-                  gainLife (times (.lit 3) (Primitives.Amount.votesFor "harvest")) (agent := Primitives.NounPhrase.you) ])) ],
+                  gainLife (times (.lit 3) (Primitives.Amount.votesFor "harvest")) ])) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Plea for Power -/
@@ -91,9 +91,9 @@ def pleaForPower : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "will of the council"
             (Primitives.Ability.spell none (Primitives.Instruction.sequentially
-              [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly (Primitives.Ballot.byLabel ["time", "knowledge"]) (agent := actor)),
+              [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly (Primitives.Ballot.byLabel ["time", "knowledge"])),
                 doIf (Primitives.Condition.voteLead "time" false) (Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you)),
-                doIf (Primitives.Condition.voteLead "knowledge" true) (Primitives.Instruction.draw (.lit 3) (agent := Primitives.NounPhrase.you)) ])) ] } }
+                doIf (Primitives.Condition.voteLead "knowledge" true) (Primitives.Instruction.draw (.lit 3)) ])) ] } }
 
 /-- Coercive Portal -/
 def coercivePortal : Spelled := spelled <| .singleFaced
@@ -104,12 +104,12 @@ def coercivePortal : Spelled := spelled <| .singleFaced
             (at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
               (Primitives.Instruction.sequentially
                 [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly
-                    (Primitives.Ballot.byLabel ["carnage", "homage"]) (agent := actor)),
+                    (Primitives.Ballot.byLabel ["carnage", "homage"])),
                   doIf (Primitives.Condition.voteLead "carnage" false)
                     (Primitives.Instruction.sequentially
-                      [ sacrifice thisArtifact (agent := Primitives.NounPhrase.you),
+                      [ sacrifice thisArtifact,
                         destroy (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land])) ]),
-                  doIf (Primitives.Condition.voteLead "homage" true) (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ])) ] } }
+                  doIf (Primitives.Condition.voteLead "homage" true) (Primitives.Instruction.draw (.lit 1)) ])) ] } }
 
 /-- Custodi Squire -/
 def custodiSquire : Spelled := spelled <| .singleFaced
@@ -124,7 +124,7 @@ def custodiSquire : Spelled := spelled <| .singleFaced
                 [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly
                     (Primitives.Ballot.byCandidate
                       (a (Primitives.Predicate.and [ Primitives.Predicate.or [artifact, creature, enchantment],
-                                 Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you) ]))) (agent := actor)),
+                                 Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you) ])))),
                   returnTo (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.withMostVotes])) hand [] ])) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -138,7 +138,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
             (when (Primitives.GameEvent.enters thisCreature none)
               (Primitives.Instruction.sequentially
                 [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly
-                    (Primitives.Ballot.byLabel ["strength", "numbers"]) (agent := actor)),
+                    (Primitives.Ballot.byLabel ["strength", "numbers"])),
                   Primitives.Instruction.putCounters (Primitives.Amount.votesFor "strength") (Primitives.CounterKindSource.printed p1p1Counter) thisCreature,
                   create (Primitives.Amount.votesFor "numbers")
                     (creatureToken 1 1 [.white] [creatureType "Soldier"]) ])) ],
@@ -148,8 +148,8 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
 def truthOrConsequencesVote : Ability :=
   abilityWord "secret council"
     (Primitives.Ability.spell none (Primitives.Instruction.sequentially
-      [ act (each Primitives.Predicate.anyPlayer) (vote .secretly (Primitives.Ballot.byLabel ["truth", "consequences"]) (agent := actor)),
-        Primitives.Instruction.draw (Primitives.Amount.votesFor "truth") (agent := Primitives.NounPhrase.you),
+      [ act (each Primitives.Predicate.anyPlayer) (vote .secretly (Primitives.Ballot.byLabel ["truth", "consequences"])),
+        Primitives.Instruction.draw (Primitives.Amount.votesFor "truth"),
         choose (aAtRandom Primitives.Predicate.opponent),
         Primitives.Instruction.dealDamage Primitives.NounPhrase.this (times (.lit 3) (Primitives.Amount.votesFor "consequences")) (that .player) ]))
 theorem okTruthOrConsequencesVote : Ability.check [] truthOrConsequencesVote = [] := by decide
@@ -161,7 +161,7 @@ def deathOrGlory : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.separateIntoPiles
-                (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) 2 [] (agent := Primitives.NounPhrase.you),
+                (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) 2 [],
               exile (pileOfChoice anOpponent),
               move (theOther .pile) battlefield ]) ] } }
 
@@ -172,7 +172,7 @@ def steamAugury : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ revealCards (topSlice (.lit 5)),
-              Primitives.Instruction.separateIntoPiles them 2 [] (agent := Primitives.NounPhrase.you),
+              Primitives.Instruction.separateIntoPiles them 2 [],
               act anOpponent (choose onePile (agent := some actor)),
               move (that .pile) hand,
               move (theOther .pile) graveyard ]) ] } }
@@ -184,8 +184,7 @@ def doOrDie : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.separateIntoPiles
-                (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (target Primitives.Predicate.anyPlayer)])) 2 [] (agent
-                    := Primitives.NounPhrase.you),
+                (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (target Primitives.Predicate.anyPlayer)])) 2 [],
               Primitives.Instruction.doAndForbid
                 (destroy (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.inPile (pileOfChoice they)])))
                 (.action "Regenerate") (themVerbed (.action "Destroy")) ]) ] } }
@@ -198,13 +197,12 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
       subtypes := [planeswalkerType "Liliana"],
       text :=
         [ activated (Primitives.Cost.loyaltySymbol (.up 1)) (Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them]),
-          activated (Primitives.Cost.loyaltySymbol (.down 2)) (act (target Primitives.Predicate.anyPlayer) (sacrifice (a creature) (agent := actor))),
+          activated (Primitives.Cost.loyaltySymbol (.down 2)) (act (target Primitives.Predicate.anyPlayer) (sacrifice (a creature))),
           activated (Primitives.Cost.loyaltySymbol (.down 6))
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.separateIntoPiles
-                  (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller (target Primitives.Predicate.anyPlayer)])) 2 []
-                      (agent := Primitives.NounPhrase.you),
-                act they (sacrifice (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.inPile (pileOfChoice they)])) (agent := actor)) ])
+                  (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller (target Primitives.Predicate.anyPlayer)])) 2 [],
+                act they (sacrifice (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.inPile (pileOfChoice they)]))) ])
                     ],
       loyalty := stat 3 } }
 

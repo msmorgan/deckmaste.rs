@@ -156,10 +156,10 @@ inductive SpentMode where
   | affectsIt | triggersThen
   deriving DecidableEq, Repr
 
-/-- Optional payment is decided by its player; required payment tests whether it started
-[CR#118.12]. -/
+/-- Optional payment is decided by its performer, the actor in context; required payment tests
+whether it started [CR#118.12]. -/
 inductive ContinuationPolicy where
-  | optional (agent : NounPhrase)
+  | optional
   | required
   deriving Repr, BEq
 
@@ -381,41 +381,36 @@ mutual
         (duration : Option Duration)
     | unlock (door : Door)
     | setGameDesignation (designation : DesignationLabel)
-    | conclude (verb : OutcomeVerb) (agent : NounPhrase := .you)
+    | conclude (verb : OutcomeVerb)
     | drawGame
     | restartGame
     | separateIntoPiles (group : NounPhrase) (piles : Nat) (faces : List PileFace)
-        (agent : NounPhrase := .you)
     /-- The `when` rider is the printed "as you activate this ability": the announcement's
     timing, not a condition on what may be chosen. -/
     | choose (first : Option NounPhrase) (chosen : NounPhrase) (disclosure : Disclosure)
         (when : Option Concurrent) (agent : Option NounPhrase := none)
     | revealChoices (sort : HiddenSort)
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
-        (agent : NounPhrase := .you)
     | move (subject : NounPhrase) (from_ : ZoneExpr) (to : ZoneExpr) (riders : List TokenRider)
     | copy (sort : CopySort) (subject : NounPhrase) (times : Amount) (exceptions : List CopyExcept)
-        (agent : NounPhrase := .you)
     | chooseNewTargets (subject : NounPhrase)
     | copyTargets (copy : NounPhrase) (original : NounPhrase)
-    | changeLife (delta : Delta Amount) (agent : NounPhrase := .you)
+    | changeLife (delta : Delta Amount)
     | exchange (exchanged : Exchanged)
     | addMana (amount : Amount) (produced : ProducedMana) (riders : List ManaRider)
-        (agent : NounPhrase := .you)
-    | draw (amount : Amount) (agent : NounPhrase := .you)
-    | expose (verb : ExposeVerb) (exposed : Exposed) (agent : NounPhrase := .you)
+    | draw (amount : Amount)
+    | expose (verb : ExposeVerb) (exposed : Exposed)
     | search (scope : SearchScope) (quantity : Quantity) (predicate : Predicate)
-        (agent : NounPhrase := .you)
-    | shuffle (agent : NounPhrase := .you)
-    | flipCoins (count : FlipScope) (agent : NounPhrase := .you)
-    | rollDice (count : Amount) (sides : DieSides) (agent : NounPhrase := .you)
+    | shuffle
+    | flipCoins (count : FlipScope)
+    | rollDice (count : Amount) (sides : DieSides)
     | applyResultsTable (rows : List RollRow)
     | ignoreOutcomes (which : IgnoredOutcomes)
     | shiftResult (direction : Option ShiftDir) (amount : Amount)
     | storeResults (on : NounPhrase)
-    | rerollStored (quantity : Quantity) (whose : NounPhrase) (agent : NounPhrase := .you)
+    | rerollStored (quantity : Quantity) (whose : NounPhrase)
     | establish (spec : StaticSpec) (duration : Option Duration)
-    | createObject (count : Amount) (spec : CreationSpec) (agent : NounPhrase := .you)
+    | createObject (count : Amount) (spec : CreationSpec)
     | putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
     | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
@@ -423,10 +418,11 @@ mutual
     | moveCounters (amount : Amount) (kind : Option CounterKindSource) (source : NounPhrase)
         (destination : NounPhrase)
     | doubleCounters (on : NounPhrase)
-    /-- A named deed done: the deed's own facts row gates the agent, the patient and the zones
-    the sentence may name, whichever of the three sources defines it. -/
-    | enact (verb : Deed) (instruction : Instruction) (agent : Option NounPhrase := none)
-    | pay (cost : Cost) (times : PayTimes) (agent : NounPhrase := .you)
+    /-- A named deed done by the performer in context: the deed's own facts row gates that
+    performer, the patient and the zones the sentence may name, whichever of the three sources
+    defines it. -/
+    | enact (verb : Deed) (instruction : Instruction)
+    | pay (cost : Cost) (times : PayTimes)
     /-- The handoff: `performer`, a player or a permanent, performs `body` ("target player
     discards a card", "target creature explores" [CR#701.44a]). Inside the body,
     `NounPhrase.actor` is that performer; with a distributive performer ("each opponent") each
@@ -451,7 +447,7 @@ mutual
     | triggerReflexively (body : Instruction) (trigger : Instruction)
     | triggerThisWay (body : Instruction) (event : GameEvent) (trigger : Instruction)
     | skipUntap (subject : NounPhrase) (steps : Amount)
-    | skipPart (part : TurnPart) (count : Amount) (agent : NounPhrase := .you)
+    | skipPart (part : TurnPart) (count : Amount)
     | insertPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
         (followedBy : Option TurnPart) (agent : Option NounPhrase := none)
 
