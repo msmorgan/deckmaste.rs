@@ -56,13 +56,13 @@ for example, "permanent", "colorless", "historic", "spell", "attacking", and
 Instructions and their macros use dictionary forms (`exile`, `mill`, `gainLife`);
 static-spec constructors use nouns (`modification`, `abilityGrant`, `replacement`).
 Event constructors retain their predication forms. Instruction composition uses `sequentially` and `simultaneously`; fixed repetition
-lives in `Repetition.fixed`. An explicit instruction agent
-is a trailing named argument. `exile thisPermanent` omits the agent;
-`exile thisPermanent (agent := NounPhrase.you)` supplies one. Omission preserves
-`none` for optional agent slots; required player slots default to `.you`. The `Actor`
-helpers fill the agent slot with `actor`, whoever performs the instruction: the
-controller unless an enclosing `act player body` hands it to another player.
-`choose` also accepts `(disclosure := .secretly)`.
+lives in `Repetition.fixed`. No instruction writes its performer: it is
+`actor`, the controller unless an enclosing `act performer body` hands it to
+another player or a permanent; "target player draws a card" is
+`act (target .anyPlayer) (draw (.lit 1))`. Only `choose` and the added-part
+macros keep an optional agent, a trailing named argument
+(`choose x (agent := some .you)`). `choose` also accepts
+`(disclosure := .secretly)`.
 
 Combat predicates and events carry a `CombatRelation`; `statOf` takes a
 `ProjAxis`; arithmetic takes an `ArithOp`; `Predicate.or` joins alternatives

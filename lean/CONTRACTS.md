@@ -197,6 +197,20 @@ kind, so inside a handoff to a permanent `actor` is the permanent, and
 `controllerOf(actor)` is a player. Outside every handoff, and inside
 `act you`, `actor` reads exactly as `you` in every rule.
 
+No instruction writes its performer: the agent fields are gone
+(`semantics-v2-drop-agent-fields`) but `choose`'s optional chooser and
+`insertPart`'s optional taker. Each rule that read one reads the performer in
+context, `performerOf perf` (`Check/Abilities.lean`): the actor, or the group a
+handoff hands this very instruction. A handoff to a group (`each opponent`)
+whose body is one instruction that has a performer of its own
+(`Instruction.performed`: a deed, a life change, a draw, a choice, a vote, an
+offer, …) hands it to each member as that instruction's performer:
+`Instruction.checkWith`/`profileWith` check and profile the body with the group
+as `perf`, under the handoff frame alone (`performerFrame`), exactly as the
+deleted explicit plural agent was judged (`enactKeepsOuter`, `doesProfile`,
+`chosenIntroBy`, one `voteHeld`). A group handoff over any other body, and every
+handoff to one performer, keeps the frame-and-pluralize reading below.
+
 A handoff to `this` ("this creature explores") puts the permanent in view for
 its body (`performerInView`), since `this` introduces no binding: "that
 permanent" in an inner `act(controllerOf(actor), …)` reads it. A handed-to
@@ -204,10 +218,14 @@ target is already in view through its own introduction. Leaving the handoff
 drops that binding with the frame (`leaveHandoff`), so a handoff to `this`
 publishes what a handoff to `you` does: only the body's mentions.
 
-An enacted deed's recorded performer is checked against its row's agent kind
-(`enactAgentOk`, `deedAgentKind`): explore, endure, adapt, harness and
+An enacted deed's performer (`enactPerformer`: the group a handoff hands it,
+else the actor where its row names a performer) is checked against its row's
+agent kind (`enactAgentOk`, `deedAgentKind`). A deed whose row names no
+performer ("fight" [CR#701.14a]) records none written with no handoff, and is
+refused `enactAgentOk` as the one instruction a handoff hands (`handedOne`), to
+"you" included: explore, endure, adapt, harness and
 monstrosity are performed by a permanent [CR#701.44a,701.63a], the other
-wrapped keyword actions by a player. A permanent-performed deed whose recorded
+wrapped keyword actions by a player. A permanent-performed deed whose
 performer is the controller, written with no handoff to a permanent (printed
 "Adapt N" [CR#701.46a]), is performed by the source permanent
 (`enactDefaultsToThis`): its body is checked in a handoff to it, so `actor`
@@ -219,10 +237,10 @@ Rules that ask whether a phrase is the controller read `actor` in its handoff:
 `actorView` and `isYouIn` for the payer, self-exchange and opponent's-library
 checks; `Cost.paidByYouAs` for cost payers, where a handoff inside
 `Cost.perform` makes its body that player's payment. A cost may hand its
-instruction to another player (`costActionOk`), and its handoff twin gives the
-same refusals as the explicit-agent spelling. An agent slot holding `actor` is
-singular, so `enact`, `offer` and choice agents take their one-player paths;
-distribution belongs to the handoff. `sameKnownZone` does not equate two
+instruction to another player (`costActionOk`), and its handoff twin gave the
+same refusals as the explicit-agent spelling while that existed. The actor is
+singular, so an `enact`, an `offer` or a choice with no group handed to it takes
+its one-player path; distribution belongs to the handoff. `sameKnownZone` does not equate two
 `actor` zones, since nested handoffs can name different players.
 
 What a handoff publishes depends on its performer's number. A singular
@@ -239,15 +257,17 @@ A handoff does not record the possessor of the hand or battlefield its body
 draws on: object bindings carry no possessor, so a discard by a player other
 than the hand's owner is not refused. `Proofs/Actor.lean` pins the handoff
 cards, the bindings each kind of performer leaves, nested handoffs, nested
-abilities, captured `actor`, every explicit-agent cost against its twin, the
-group handoff's totals against the explicit plural agent, and the handoff to a
-permanent with the default to the source permanent.
+abilities, captured `actor`, every cost the bench hands to another player, the
+group handoff's totals, and the handoff to a permanent with the default to the
+source permanent. The bench's group handoffs over one instruction (votes,
+distributed choices and sacrifices, drains) pin the group-performer reading.
 These are checker guarantees, not an execution proof.
 
 ## Scheduling fields
 
 For `skipUntap`, `skipPart`, `addTurn`, and `addPart`, let `bs`
-be the input context. The subject is checked in `bs`. Its amount is checked in
+be the input context. The subject (for `skipPart`, the performer in context)
+is checked in `bs`. Its amount is checked in
 `nomIntro bs subject`; an absent optional subject leaves `bs` unchanged through
 `optAgentIntro`. Part, anchor, and following-part fields carry no references.
 No scheduling field introduces an enclosed scope. The output is
@@ -302,8 +322,8 @@ be inferred from a failed pronoun:
 | `withContinuation` (`offer` / `doIfDone` macros) | The success arm sees the body output; the failure arm starts before the body. |
 | `doIf`, `doOnlyIf` | Each branch checks before either branch's effects. Postposed conditions see the primary instruction's pre-state. Branch-local mentions and outcomes do not escape; facts about prior mentions are joined across branches. |
 | `doForEach`, `doForEachKind`, `repeat_ (.fixed …)` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
-| `enact` | The subject establishes `agentCtx`; distributive execution checks `enactKeepsOuter`. Tag/body trust is established at the macro authoring boundary above. |
-| `act` (handoff) | The body is checked in `actorCtx`: the player's `agentIntro` under a handoff frame that `actor` reads. A singular performer exports the body's profile outside the frame, so a targeted performer stays published; a distributive performer follows `doForEach` (preserve outer bindings, pluralize exported local mentions). |
+| `enact` | The performer in context (`enactPerformer`) establishes `enactCtx`; a group a handoff hands the deed checks `enactKeepsOuter`. Tag/body trust is established at the macro authoring boundary above. |
+| `act` (handoff) | The body is checked in `actorCtx`: the player's `agentIntro` under a handoff frame that `actor` reads. A singular performer exports the body's profile outside the frame, so a targeted performer stays published; a distributive performer follows `doForEach` (preserve outer bindings, pluralize exported local mentions), unless the body is one instruction with a performer of its own, which takes the group as that performer (`performerFrame`). |
 | Delayed, reflexive and `triggerThisWay` clauses | Use `delayedCtx`, `reflexCtx` or `thisWayCtx`. The enclosed body's private mentions do not escape as ordinary sequential mentions. |
 | Replacement and held clauses | Use `replacedCtx` or the held body's announcements. Do not export the event as already completed. |
 | Event alternatives and joined headers | Check arms from the common input; `sharedCtx`/`joinedCtx` compute what the combined header can expose. |

@@ -458,9 +458,10 @@ with no Handoff to a Permanent is performed by the source Permanent. An
 ability that an Instruction grants or creates has its own controller as Actor
 ([CR#109.5]).
 _Avoid_: agent for the performer — that sense survives only as the name of
-model fields holding the Actor until they are deleted, and "agent" otherwise
-means the external party a Decision Point waits on; "you" for the Actor inside
-a Handoff, where "you" still means the controller
+the two optional model fields left (a choice's chooser, an added turn part's
+taker), and "agent" otherwise means the external party a Decision Point waits
+on; "you" for the Actor inside a Handoff, where "you" still means the
+controller
 
 **Handoff** (project term):
 An Instruction that makes a named Player or Permanent the Actor of the

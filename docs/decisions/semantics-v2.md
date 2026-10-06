@@ -169,8 +169,8 @@ mimicked.
   innermost handoff wins, a distributive player ("each opponent") performs
   the whole body member by member, and a nested ability (granted, token,
   emblem) starts again with its own controller [CR#109.5]. The agent fields
-  the constructors still carry are filled with `actor` by helpers until
-  `semantics-v2-drop-agent-fields` deletes them (ruling, 2026-10-05,
+  the constructors carried were filled with `actor` by helpers until
+  `semantics-v2-drop-agent-fields` deleted them (ruling, 2026-10-05,
   `semantics-v2-actor-handoff`, superseding "Agents are explicit" and "The
   imperative's unpronounced subject is supplied by the frame as an explicit
   `You` in the term."). The owner: "Perhaps instructions have an implicit
@@ -180,8 +180,9 @@ mimicked.
   model node, and the expander gains no ambient or inherited value. Nor does
   it contradict
   [card-authoring-binds-no-implicits](card-authoring-binds-no-implicits.md):
-  constructors still take every field, and a helper writes `actor` into an
-  agent field as an ordinary argument rather than leaving a slot defaulted.
+  constructors still take every field, and a helper wrote `actor` into an
+  agent field as an ordinary argument rather than leaving a slot defaulted;
+  with the fields deleted there is no slot to fill.
   Amendment (2026-10-05, owner, `semantics-v2-deed-performer-roles`): a
   permanent may be handed an instruction too, since the rules instruct the
   permanent itself ("instruct a permanent to explore" [CR#701.44a,701.63a]);
@@ -195,6 +196,19 @@ mimicked.
   a permanent performs (explore, endure, adapt, harness, monstrosity) written
   with no handoff to a permanent is performed by the source permanent, as an
   action with no handoff is performed by the controller.
+  Amendment (2026-10-06, `semantics-v2-drop-agent-fields`): the agent fields
+  are deleted. No instruction constructor carries a performer, except
+  `choose`'s optional chooser and `insertPart`'s optional taker of an added
+  turn or phase, which stay while their removal waits on the owner: each
+  would change whether a bench sentence checks (a choice whose chooser is not
+  recorded may not be of "one of them"; an added turn must have a taker).
+  Every rule that read a field reads the performer in context instead: the
+  actor, or, for the one instruction a handoff to a group hands each member,
+  that group, so "each player votes" and "each opponent sacrifices a
+  creature" are judged as the deleted plural agent judged them. A deed whose
+  facts row names no performer ("fight" [CR#701.14a]) records none, and is
+  refused when a handoff names one. Core constructors still take every field
+  required: a field was removed, no default was added.
 - Agentive verbs — those the CR gives a player actor — put that performer
   in clause position, the factored form of the real macros' agent
   parameter: a dependent context cannot re-use the subject term at each
@@ -350,8 +364,8 @@ declaration's file writes only the part of its definition that does not follow
 from its name and signature — a keyword ability's list of abilities (omitted
 when empty), a keyword action's instruction, never who performs it — and
 semantics_v2 builds the `Keyword(...)` or `Enact(verb: Action(...), ...)`
-wrapper around it (`deckmaste_semantics_v2::keywords`), recording the actor as
-the deed's performer (§7, ruling 2026-10-05; under a handoff to a permanent
+wrapper around it (`deckmaste_semantics_v2::keywords`), the deed performed by
+the actor in context (§7, ruling 2026-10-05; under a handoff to a permanent
 the actor is that permanent, amendment of the same date); a file writes
 `keyword_params` or `deed: None` where its definition does not take the
 derived arguments or the deed.
@@ -465,7 +479,7 @@ per-type convenience, and each off by default in `macro_ron` — v2's
   lookahead decides which form is written and calls `visit_map` or
   `visit_seq` — both of which serde's derived struct visitor implements, so
   the binder names and every forwarded `#[serde(...)]` still govern. The two
-  forms are NEVER mixed: `C(a, b: c)` is refused, so `exile x (agent := .you)`
+  forms are NEVER mixed: `C(a, b: c)` is refused, so `choose x (disclosure := .secretly)`
   has no RON spelling and a binder that must be skipped takes the wholly named
   form.
 
@@ -570,7 +584,7 @@ sequence mapped by declaration order; mixed calls remain invalid.
 
 ### 12.1 The helper macro layer
 
-`lean/Semantics/Macros.lean`'s 426 `semantic_macro`s are the phrasings a card
+`lean/Semantics/Macros.lean`'s 421 `semantic_macro`s are the phrasings a card
 writes over the constructor basis. 316 of them are declarations under
 `plugins_v2/builtin/macros/<family>/` — the families are the Lean file's own
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
@@ -598,10 +612,10 @@ are unblocked by §11's case rule and 27 of them ported here: Lean's `.draw` /
 `draw` distinction is now RON's `Draw` / `draw`, so an alias macro is an
 ordinary declaration. The other two of the 29, `shuffle` and `vote`, are the
 next bucket — their keyword-action declarations already own the name, with a
-body that is the constructor with the actor in its agent slot (an identity body
-until the 2026-10-05 ruling, §7).
+body that is the constructor itself, which names no performer (§7, amendment
+2026-10-06).
 
-The other 108 stay Lean-only, in eight buckets. (Counts recounted
+The other 103 stay Lean-only, in eight buckets. (Counts recounted
 2026-10-05 at `semantics-v2-actor-handoff`, and again at
 `plugins-v2-implicit-actor-spelling`, where `revealTheirHand` left the
 declarations, and at `plugins-v2-keyword-helper-additions`, where
@@ -615,7 +629,9 @@ its helper apart. 426 = 316 declarations + the two `counters` macros + 108;
 `boost` and `grants`, both declared, and the recount after the merge with
 `plugins-v2-keyword-helper-additions` found 316 declarations. Six macros the earlier count left here had ported since and are gone from
 their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
-`doUnless`, `forEach`, `leavesZone`.)
+`doUnless`, `forEach`, `leavesZone`. Recounted 2026-10-06 at
+`semantics-v2-drop-agent-fields`, which retired five `Actor` helpers: 421 =
+316 declarations + the two `counters` macros + 103.)
 
 - **A spelled declaration already owns the identity (17).** The keyword
   families keep their own declarations: `companion`, `destroy`, `discard`,
@@ -662,19 +678,19 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
   `partyRoles`, `stat`.
 - **It is defined by pattern matching on an argument (3).** `agentPlur`,
   `itOrThem`, `sameWindow`.
-- **It is a performer helper in the `Actor` namespace (9).** These fill an
-  agent slot with `actor` (§7, ruling 2026-10-05). Since
-  `plugins-v2-implicit-actor-spelling` six of them have a RON declaration of
-  the unprefixed name that writes the same term (`choose`, `draw`,
-  `gainLife`, `loseLife`, and the keyword actions `discard` and
-  `sacrifice`); the method keeps the `Actor` prefix, so they stay counted
-  here while the Lean bench's explicit-agent macros of those names remain.
-  The other three have none: `amass` writes the literal reminder text rather
-  than `itPrior`, `create` takes a `TokenSpec` where Lean takes the bundle
-  (`createToken` takes the bundle, count last), and `army` is a subtype and
-  no predicate is added (owner, 2026-10-05): `Actor.amass`, `Actor.army`,
-  `Actor.choose`, `Actor.create`, `Actor.discard`, `Actor.draw`,
-  `Actor.gainLife`, `Actor.loseLife`, `Actor.sacrifice`. `Actor.mayCastFrom`
+- **It is a performer helper in the `Actor` namespace (4).** These spell what
+  the unprefixed macros do not (§7, ruling 2026-10-05). Two have a RON
+  declaration of the unprefixed name that writes the same term (`choose`,
+  which records its chooser, and the keyword action `discard`, from the
+  performer's own hand); the method keeps the `Actor` prefix, so they stay
+  counted here while the Lean bench's unprefixed macros of those names
+  differ. The other two have none: `amass` writes the literal reminder text
+  rather than `itPrior`, and `army` is a subtype and no predicate is added
+  (owner, 2026-10-05): `Actor.amass`, `Actor.army`, `Actor.choose`,
+  `Actor.discard`. `Actor.create`, `Actor.draw`, `Actor.gainLife`,
+  `Actor.loseLife` and `Actor.sacrifice` were retired at
+  `semantics-v2-drop-agent-fields` (2026-10-06): with the agent fields gone
+  each wrote the term of the unprefixed macro. `Actor.mayCastFrom`
   left this bucket at `plugins-v2-keyword-helper-additions`: Lean has no
   explicit-agent macro of that name, so RON's `mayCastFrom` is its helper,
   named apart in §11 as `revealHand` is.
@@ -694,20 +710,15 @@ Beside the ported phrasings is the ALIAS layer: one identity macro per
 constructor of a `semantic_expression` type, `clearDamage(subject: …)` for
 `ClearDamage`, which is what `declare_semantic_primitives` generates in Lean
 and what makes §11.1's macro-only rule satisfiable — a card that may write
-only macros needs a macro for every constructor. The aliases of constructors
-with a required agent depart from Lean's: nine take no agent and write
-`actor` there (§7, ruling 2026-10-05), so `skipPart(part: …, count: …)`
-stands for `SkipPart(part, count, agent: Actor)` while the Lean-generated
-alias still takes the agent — `addMana`, `conclude`, `copy`, `createObject`,
-`expose`, `pay`, `rerollStored`, `separateIntoPiles`, `skipPart`. The tenth,
-`changeLife`, keeps its agent parameter, though since 2026-10-05 no caller
-passes it a performer: extort hands its loss to each opponent
-(`semantics-v2-group-handoff-publishes-no-outcome`), and the parameter goes
-with the agent fields (`semantics-v2-drop-agent-fields`). Seven helpers keep an agent parameter
-in all: `changeLife`, and six whose agent is optional and `None` where no
-performer is recorded, as in Lean's `Option NounPhrase := none` (`enact`,
-`insertPart`, `returnTo`, `returnToBattlefield`, `meldInto`,
-`exileWithCounters`). Of the aliases, 244 are declarations; the rest of
+only macros needs a macro for every constructor. Since
+`semantics-v2-drop-agent-fields` (2026-10-06) no constructor but `choose` and
+`insertPart` has an agent field (§7), so the aliases take Lean's signatures:
+`skipPart(part: …, count: …)` is `SkipPart(part, count)`, and `changeLife`,
+`enact`, `returnTo`, `returnToBattlefield`, `meldInto` and
+`exileWithCounters` take no performer. One helper keeps an agent parameter,
+`insertPart`, whose agent is optional and `None` where no player takes the
+added part, as in Lean's `Option NounPhrase := none`; `choose` takes none
+and records the actor as its chooser. Of the aliases, 244 are declarations; the rest of
 the basis is already covered by a phrasing macro of the same name (the 27
 above among them, whose narrower signature is the one a card writes, and
 `exists`, whose `Predicate` signature is Lean's `exists_` phrasing — the
