@@ -224,3 +224,209 @@ form stays. Owner: "my that's awkward, but i guess it's right...".
 
 - Note: a `doUnless` shape taking the payer and the doer as two parts may be
   revisited.
+
+## Landing record
+
+The series, oldest first: `kzrywwvmyyxz` (claim), `ywowoyklkwzv` (Lean
+deed table, enacted-performer rule, handoff to a permanent, default to the
+source permanent, Rust mirror rename), `mlrsprtlnumv` (13 Lean pins),
+`utkplvrxmpms` (loader, meta, the twelve declarations, cards, probe, two
+re-spelled tests), `vrmoounmlroo` (ADR amendment, `lean/CONTRACTS.md`,
+glossary, the `semantics-v2-drop-agent-fields` note), and this record. The
+first two stages were one prototype, cut at the pins file: the stage-A tree
+differs from the built stage-B tree only by `Proofs/Actor.lean`, so its Lean
+build is the stage-B build; its Rust gate and `lean-check` were run on it.
+
+**The rules** (all in `lean/Semantics/Check/`).
+- Deed table (`Words.lean:218`, `actFacts`): `permanentAgent := ⟨some
+  ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩` on Adapt, Endure,
+  Explore, Harness, Monstrosity; `playerAgent` on Bolster, Counter (was
+  `⟨none, true, some .stack⟩`), Detain, Heal, Meld, Populate, Time Travel.
+- `deedAgentKind v` (`Events.lean:76`): an object where the row admits only
+  objects, else a player. An event's performer is checked in that kind
+  (`PhraseRules.lean`, `.verbedEvent`), so "whenever a creature you control
+  explores" checks and "whenever a player explores" is refused.
+- The handoff (`Abilities.lean:380`ff, `AbilityRules.lean` `.act`): `act
+  performer body` checks the performer with no fixed kind and refuses
+  (`Refusal.handoffPerformer`, new) anything but a player or an object whose
+  zone is the battlefield [CR#110.1]. The frame's `NounShape.kind` is the
+  performer's (`performerShape`); `actor` is checked as that kind
+  (`PhraseRules.lean`, `.actor` arm) and `controllerOf`/`ownerOf` read their
+  subject's kind through `actorView`. A handoff to `this` (`namesThis`:
+  `this`, "this creature", "this permanent") puts one definite object
+  binding in view under the frame (`performerInView`); `leaveHandoff` drops
+  it with the frame, so it is not published.
+- The enacted performer (`Abilities.lean:410`ff): `enactDefaultsToThis bs v
+  s := s.isYouIn bs && !deedKindOk v .agent .player && deedKindOk v .agent
+  .object`; `enactAgentOk bs subj v` accepts that default or a recorded
+  performer whose kind (`actorView`) the row admits; `enactAgentKind` is the
+  kind the subject is checked as; `enactCtx` checks the body under
+  `actorCtx bs sourcePermanent` for the default, else `agentIntro` as
+  before. `Instruction.profile`'s `.enact … (some s)` arm uses the same
+  context and leaves it with `leaveHandoff`.
+
+**What `act` accepts and what `actor` denotes.** A player (actor is that
+player, as before), a group of players (each member), a permanent named by
+any object phrase whose zone is the battlefield (`target(creature)`,
+`thisCreature`, `thisPermanent`, `each(creature)`: actor is that permanent,
+or each member), and nothing else (`handoffPerformer`). Inside `act(p, …)`
+for a permanent `p`, `controllerOf(actor)` is a player, and inside an inner
+`act(controllerOf(actor), …)` `actor` is that controller while "that
+permanent" / "that creature" reaches `p`. Outside every handoff and inside
+`act(you, …)` `actor` is the controller exactly as before.
+
+**The two orchestrator readings.** Both held, and the checker was built
+their way. (1) Inside a handoff to a permanent, `actor` is the permanent and
+the body hands the player's steps on (`okExploreHandedToTargetCreature`,
+`okExploreHandedToThisCreature`, `okExploreReadsThatCreature`,
+`actorInPermanentHandoffIsThePermanent`). (2) A permanent-performed deed with
+no handoff to a permanent defaults to the source permanent
+(`okBareAdaptDefaultsToThis`, `okBareExploreAndEndureDefaultToThis`; canon
+Aeromunculus, Gluttonous Cyclops). The default applies only where the actor
+is the controller: inside a handoff to another player the actor is that
+player and the deed is refused (`badAdaptHandedToOpponent`), where the
+reading's letter ("no enclosing handoff to an object") would have defaulted
+it too.
+
+**Proof.**
+- `cd lean && ./scripts/build` (`--wfail`): Build completed successfully
+  (82 jobs), on `mlrsprtlnumv` and on the prototype before the pins. No
+  existing pin was edited; every one keeps its asserted outcome, the
+  `Proofs/Deontic.lean` pins reading Counter's row among them.
+  `Proofs/Actor.lean`: 51 → 64 theorems.
+- `cargo xtask lean-check`: on `ywowoyklkwzv`, canon 127/127, testing 5/5
+  (2 min 4 s); on `utkplvrxmpms`, canon 127/127, testing 6/6 (2 min 26 s). The ten
+  cards the actor once failed now prove with it recorded: Aeromunculus,
+  Cached Defenses, Counterspell, Deadeye Tracker, Gluttonous Cyclops, Graf
+  Rats, Ice Out, Inaction Injunction, Rimeshield Frost Giant, Wake the
+  Reflections; and Endure Handoff Probe and Explore Handoff Probe.
+- Gate: `cargo xtask gate --changed` derived `cargo test -p
+  deckmaste_construction_core -p deckmaste_construction_v3_core -p
+  deckmaste_lexical_source -p deckmaste_semantics_v2 -p
+  deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`; run with
+  `--no-fail-fast` on `ywowoyklkwzv` and on `utkplvrxmpms`: 90 binaries,
+  1201 passed, 0 failed, 2 ignored (both pre-existing, each naming its
+  blocker). `lean_drift` 4/4.
+- `cargo xtask facts check`: up to date, every stage (`agentRole` is
+  hand-kept; nothing is generated from it). `cargo xtask cite check
+  --list-noncompliant`: 0; `cargo xtask cite check`: 0 stale (16040);
+  `cite audit --diff` read for every stage. rustfmt clean on the changed
+  Rust lines.
+
+**Term change, classified** (`cargo xtask expansions` and the scratch card
+dumper, before on `kzrywwvmyyxz`, after on `utkplvrxmpms`; 1463
+declarations both sides, 0 failed).
+- (b) wrapper `agent: None` → `Some(Actor)`: declarations adapt, bolster,
+  counter, detain, harness, heal, meld, monstrosity, populate, timeTravel,
+  and ward through counter; card terms Aeromunculus, Cached Defenses,
+  Counterspell, Gluttonous Cyclops, Graf Rats, Ice Out, Inaction
+  Injunction, Rimeshield Frost Giant, Wake the Reflections.
+- Signature and body: `explore` (no parameter; body in full below) and
+  `endure` (`[Amount]`); card terms Deadeye Tracker and Endure Handoff Probe
+  (re-spelled over `act`).
+- (r) the `Act` field rename `player` → `performer`, in the Rust debug form
+  only (the Lean emission is positional and unchanged): declarations act,
+  afflict, annihilator, demonstrate, evoke, extort, ingest, madness, ward;
+  card terms Arrogant Wurm, Burglar Rat, Cirdan the Shipwright, Culling
+  Drone, Damocles Base, Eldrazi Conscription, Hymn to Tourach, Incarnation
+  Technique, Ingot Chewer, Khenra Eternal, Moment of Silence, Ominous
+  Harvest, Syndic of Tithes, Thoughtseize, Amass Handoff Probe.
+- New: Explore Handoff Probe. Unexplained: 0. Every other declaration and
+  card is identical.
+
+**The declarations.** All twelve lose `agent: None` and its comment; the
+loader and meta take no `agent` field, so every one is `Enact(verb:
+Action(<label>), instruction: <body>, agent: Some(Actor))`. Bolster,
+populate, time travel, meld, counter, detain, heal: bodies unchanged.
+Adapt, monstrosity, harness: bodies unchanged (`thisPermanent`, and
+harness's `Param(0)`), since with the default the actor is the source
+permanent they name; a comment says who performs them. Explore, in full:
+
+```ron
+params: [],
+body: act(
+    controllerOf(actor),
+    sequentially([
+        reveal(librarySlice(Top, 1, actor)),
+        doIf(
+            matches(that(Card), land),
+            move(that(Card), wherever, hand),
+            sequentially([
+                putCounters(1, p1p1Counter, that(Permanent)),
+                may(move(that(Card), wherever, graveyard)),
+            ]),
+        ),
+    ]),
+),
+```
+
+Endure, in full:
+
+```ron
+params: [Amount],
+body: act(
+    controllerOf(actor),
+    chooseOne(
+        putCounters(Param(0), p1p1Counter, that(Permanent)),
+        createToken(creatureTokenOf(Param(0), Param(0), [White], [spirit])),
+    ),
+),
+```
+
+**Pins added** (`Proofs/Actor.lean`, "A permanent can be handed an
+instruction"), each closed by `decide`: `okExploreHandedToTargetCreature`
+(`[]`), `okExploreHandedToThisCreature` (`[]`), `okExploreReadsThatCreature`
+(`that(Creature)` under both, `[]`), `okEndureHandedToThisCreature` (`[]`),
+`okExploreHandedToEachCreature` (`[]`), `actorInPermanentHandoffIsThePermanent`
+("target creature draws a card" = `[.kindMismatch .player .object]`; handed on
+to `controllerOf actor`, `[]`), `badExploreHandedToOpponent`
+(`[.kindMismatch .object .player, .possessorKind .controller .player, .anaphor
+(.word .permanent) .one 0, .enactAgentOk]`), `badHandoffToCardInGraveyard`
+(`[.handoffPerformer]`), `okBareAdaptDefaultsToThis` (`[]`),
+`okBareExploreAndEndureDefaultToThis` (`[]`, `[]`), `badAdaptHandedToOpponent`
+(`[.kindMismatch .object .player, .enactAgentOk]`),
+`exploreEventTakesAPermanent` (a creature `[]`, a player `[.kindMismatch
+.object .player]`, a player bolsters `[]`), `handedToThisPublishesOnlyTheBody`
+(publishes `[(player, one, the)]`).
+
+**Pins changed.** None.
+
+**Tests.** Restored: 0. Re-spelled: 2, each keeping its value comparison:
+`deckmaste_semantics_v2::keywords` `a_keyword_action_enacts_its_deed` (adapt
+now `agent: Some(Actor)`; an `agent` field, `None` or `You`, is refused) and
+`xtask/tests/plugins_v2_declarations.rs`
+`a_keyword_declaration_builds_its_wrapper` (heal now `Some(Actor)`). Ignored:
+0 new. Added: 13 Lean pins, one testing card. Removed: 0.
+
+**Deviations and additions.**
+1. The `Act` field is renamed `player` → `performer` in Lean, the Rust mirror
+   and `act.ron` (its parameter too): it now holds a permanent, and the
+   glossary rule is to rename the identifier. This is the (r) diff class.
+2. The bodies read the permanent as `that(Permanent)`, the rules' own "that
+   permanent" [CR#701.44a,701.63a], where the ticket wrote `that(Creature)` /
+   `it`: `it` is ambiguous there (the revealed card is in view), and "that
+   creature" does not reach the default source permanent, whose type is not
+   known. `that(Creature)` under a handoff is pinned
+   (`okExploreReadsThatCreature`).
+3. Endure's whole choice is handed to the controller, not only the token,
+   since "unless they put" is the controller's [CR#701.63a].
+4. Beyond the ticket's letter: event performers take the row's kind
+   (`deedAgentKind`), which also lets an object-only row such as block's or
+   crew's be written with an object subject in a `verbedEvent`; the
+   `handoffPerformer` refusal; `performerInView`/`leaveHandoff`; the scratch
+   carddump copy under the session scratchpad.
+5. No adapt probe was added: Aeromunculus is a canon bare "Adapt 1".
+
+**STOPs.** None.
+
+**Glossary.** **Actor** and **Handoff** extended to a Permanent, same form
+and `_Avoid_` lines. No gap found.
+
+**Not applicable.** Coverage lock, selection census, licensing-checker
+totals, homograph and form-literal inventories and the performance advisory:
+no English grammar, lexicon or corpus input changed, so `coverage` was not
+run.
+
+**Routed.** `semantics-v2-drop-agent-fields`: dated line added (when the
+wrapper's slot goes, `enactAgentOk`/`enactAgentKind` read the actor in
+context).
