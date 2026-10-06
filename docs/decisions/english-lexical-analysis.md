@@ -237,3 +237,56 @@ compiler tickets measure those costs before whole-grammar activation. Their
 results may change the representation or evaluation strategy, including making
 lexical lookup lazy behind the same independent interface; they do not return
 morphology to construction-directed scanning or restore eager AST admission.
+
+## Amendment: Preposition Phrase functions are licensed per preposition (2026-10-06)
+
+Ruling (user, 2026-10-06). In Oracle English a Preposition Phrase's grammatical
+function is licensed per preposition, as a declared lexical property the
+grammar reads, never as a guard naming the word. *during* functions only as a
+clause or VP Adjunct, never as a Noun Phrase postmodifier. *of* functions only
+NP-internally (Modifier or Complement of a noun, including discontinuous and
+predicative uses), never as a clause Adjunct and never as a verb-selected
+Complement.
+
+This is a register restriction of Oracle English, deliberately narrower than
+CGEL's general-English licensing: CGEL admits a *during* postmodifier, as in
+"his behaviour during the turn" (CGEL, Ch. 5 §14.2, p. 446, [14iii]). The
+functions a PP can take (adjunct, complement, modifier, predicative) are those
+of CGEL, Ch. 7 §2.1, pp. 604–606; "adverbial" and "adjectival" PP are
+category–function confusions (CGEL, Ch. 7 §2.2, p. 617, n. 3), so the licence
+is a set of functions, not a kind of PP.
+
+Corpus evidence, measured 2026-10-06 over 32,875 supported faces with reminder
+text stripped (evidence, not a gate):
+
+- *during*: 909 tokens, none a noun postmodifier ("each combat during",
+  "turn during", "mana during": 0 each). About 150 verb-object + *during*
+  tokens all attach to the VP ("cast a spell during an opponent's turn" 47,
+  "untap this creature during your untap step" 26); the 3 "for the first time
+  during …" tokens scope the clause.
+- *of*: 17,681 tokens, none verb-selected (*consist*/*rid*/*think*/*die of*: 0)
+  and none a clause Adjunct. NP-internal shapes that must keep parsing:
+  predicative "creatures that aren't of the chosen type" (6); discontinuous
+  modifiers "Spells you cast of the chosen type" and "one of them of their
+  choice" (about 12, plus about 90 "of your/their choice" after a verb
+  Object); fixed "instead of" (about 100).
+
+Supersession. This ruling supersedes the 2026-10-05 three-attachment ruling
+for Seedborn Muse ("Untap all permanents you control during each other
+player's untap step."). Its attachments are now two: to *Untap*, and to
+*control* inside the relative clause. The nominal attachment to *permanents
+you control* is a wrong Reading to be retired.
+
+Open question, not ruled: "At the beginning of combat on your turn" (319
+cards). *on* after a noun is plausibly either a restrictor or clause scope and
+needs its own decision before implementation changes *on*.
+
+Implementation principle: each preposition declares one licence feature
+listing its permitted functions (Adjunct, NP Modifier, noun Complement,
+verb-selected Complement, predicative Complement). The free-adjunct and
+postmodifier rules and selected frames read that feature. The 2026-09-02
+"adjunct-capable / selected-only" split is a special case of it. The existing
+feature `AdverbialUse` is the adjunct-capable licence under a confusing name;
+implementation renames it (the identifier follows the glossary's **Preposition
+Function Licence**, never the reverse). Implementation is owned by
+[english-v3-selected-preposition-nominal-licensing](../tickets/planned/english-v3-selected-preposition-nominal-licensing.md).

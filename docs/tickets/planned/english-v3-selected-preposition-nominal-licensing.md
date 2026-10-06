@@ -23,6 +23,37 @@ postmodification: `card from your graveyard` (Raise Dead) and
 grammatical structures. Both currently have one nominal Reading; probes are in
 `/tmp/frame-coordination-adjunct-{card,creature}-nominal.json`.
 
+Widened scope (2026-10-06): implement the
+[Preposition Phrase function amendment](../../decisions/english-lexical-analysis.md#amendment-preposition-phrase-functions-are-licensed-per-preposition-2026-10-06).
+Every preposition declares its **Preposition Function Licence** (permitted
+functions: Adjunct, NP Modifier, noun Complement, verb-selected Complement,
+predicative Complement), read by the free-adjunct and postmodifier rules and by
+selected frames. The 2026-09-02 "adjunct-capable / selected-only" split above
+is the special case. *during* is Adjunct-only; *of* is NP-internal only.
+
+Additional pinned witnesses:
+
+- **Seedborn Muse**, "Untap all permanents you control during each other
+  player's untap step.": the expected attachment set is exactly two (to
+  *Untap*, and to *control* inside the relative clause). The nominal
+  attachment to *permanents you control* is a negative witness.
+- *of* shapes that must keep parsing: **Kindred Judgment** (predicative
+  "aren't of the chosen type"), **Stenn, Paranoid Partisan** (discontinuous
+  "Spells you cast of the chosen type"), **Incriminate** ("one of them of
+  their choice"), and **Lantern of Undersight** (fixed "instead of").
+
+Additional acceptance:
+
+- Re-spell the Seedborn Muse test in
+  `crates/deckmaste_english_v3/tests/reading_support.rs` to assert exactly the
+  two attachments plus a negative for the nominal attachment.
+- Rename the feature `AdverbialUse` to follow the glossary term.
+- Full-corpus before/after identity comparison naming every removed Reading as
+  a retired wrong analysis with its witness, and every lost face (expected:
+  none).
+- Route the "At the beginning of combat on your turn" question (319 cards) to
+  the user before implementation touches *on*.
+
 Also discriminate the unreadable destination constituents of Cavalier of
 Thorns and Genesis Ultimatum: `from among them` and their source-bearing Object
 NPs. These are owned causes to diagnose, not assumed noun-licensing failures;

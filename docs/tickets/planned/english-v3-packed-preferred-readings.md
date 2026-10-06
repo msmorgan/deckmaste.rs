@@ -62,6 +62,10 @@ player's untap step.", as a Preference witness. Of its three grammatical
 attachments (to `Untap …`, to `control` inside the relative clause, and to the
 Nominal `permanents you control`), the nominal attachment should rank last.
 It remains admitted under the user's three-Reading ruling (2026-10-05).
+That nominal attachment is superseded by the 2026-10-06 Preposition Phrase
+function ruling and will be retired by
+`english-v3-selected-preposition-nominal-licensing`, so it is no longer a
+Preference witness.
 
 Seedborn Muse's sentence actually has 8 Readings, not 3: each attachment site
 appears twice, because the lexicon reads "untap step" both as a compound lexeme
@@ -81,6 +85,9 @@ admitted):
   (CGEL Ch. 5 §14.2, p. 446, [14iii]); the oddness is semantic.
 - **Alien Symbiosis**: the same means-phrase-as-nominal-postmodifier pattern
   accounts for 52 of its 95 Readings.
+
+Whether *by* may postmodify a noun will be decided by its Preposition Function
+Licence under the same 2026-10-06 scheme; these two witnesses stand until then.
 
 Whether production cutover needs a preferred representative at all is undecided.
 If no consumer needs one, this ticket is not a cutover prerequisite; it is not

@@ -483,3 +483,9 @@ stale citations. No Comprehensive Rules citation was changed.
 Both busy-host runs exceed the inherited 16.26s quiet-host ceiling; this is
 a performance advisory, not a gate. Corpus comparison tools, reports and
 identity exports remain under `/tmp/relative-adjunct-*`, outside tracked code.
+
+Note (2026-10-06): the three-attachment ruling this ticket implemented is
+superseded by the Preposition Phrase function ruling of 2026-10-06; Seedborn
+Muse now has two attachments (to *Untap* and to *control*). This landing
+stands. Retiring the nominal attachment is owned by
+`english-v3-selected-preposition-nominal-licensing`.
