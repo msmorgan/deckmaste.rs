@@ -185,7 +185,7 @@ fn plural_bare_genitives_preserve_possessor_number_and_the_apostrophe() {
     let Reading::PossessiveNounPhrase { head, .. } = &mut **possessor else {
         unreachable!()
     };
-    *head = Box::new(Reading::PostmodifiedNominal {
+    **head = Reading::PostmodifiedNominal {
         form: 0,
         head: head.clone(),
         modifier: Box::new(Reading::PrepositionPhrase {
@@ -216,7 +216,8 @@ fn plural_bare_genitives_preserve_possessor_number_and_the_apostrophe() {
                 }),
             }),
         }),
-    });
+    };
+    possessor.admit(lexicon()).unwrap();
     // The final noun's eligibility cannot be inherited from an earlier head.
     // The text can separately read with the genitive inside the of phrase.
     assert!(wrong.admit(lexicon()).is_err());
