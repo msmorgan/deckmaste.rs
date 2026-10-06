@@ -45,11 +45,11 @@ Routed here by the 2026-10-05 decision on
 written `act(each(opponent), loseLife(1))`, the `changeLife` alias loses its
 `agent` parameter in this landing.
 
-Open, from the 2026-10-05 decision on `semantics-v2-deed-performer-roles`:
-explore, endure, adapt, harness and monstrosity record the PERMANENT as their
-performer on the `Enact` wrapper, and the `act` handoff takes a player. Deleting
-`enact`'s agent must leave a place for that performer; settle it with that
-ticket before deleting the field.
+Decided 2026-10-05 on `semantics-v2-deed-performer-roles`: the `act` handoff
+accepts a permanent as well as a player ("target creature explores" is
+`act(target(creature), explore)`), so the handoff carries an object
+performer, and this landing deletes the wrapper's performer slot as planned
+once that ticket has landed.
 
 ## Left by plugins-v2-implicit-actor-spelling (2026-10-05)
 

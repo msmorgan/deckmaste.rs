@@ -113,11 +113,7 @@ The twelve record a performer, split by who the rule says performs the deed:
   action.
 - **The permanent itself** on explore, endure, adapt, harness and
   monstrosity, since "whenever a creature you control explores" is about the
-  creature. The performer is the permanent the body acts on: `Param(0)` for
-  explore, endure and harness, `thisPermanent` for adapt and monstrosity
-  (which take no subject parameter). Where the rule has the permanent's
-  controller do the steps [CR#701.44a,701.63a], the body's existing
-  `act(controllerOf(Param(0)), …)` handoff stays.
+  creature.
 
 Owner: "sure".
 
@@ -139,16 +135,50 @@ Read on this ticket's tree before writing the work below:
   (`OptNoun.check (some .player) bs subj`) and builds the body's context with
   `agentCtx`.
 
+## Decided (owner, 2026-10-05): a permanent can be handed an instruction
+
+The rules instruct the permanent itself: [CR#701.44a] "Certain spells and
+abilities instruct a permanent to explore. To do so, that permanent’s
+controller reveals the top card of their library." [CR#701.63a] "Certain
+abilities instruct a permanent to endure N. To do so, that permanent’s
+controller creates an N/N white Spirit creature token unless they put N
++1/+1 counters on that permanent." Owner: "CR literally says the permanent is
+instructed to explore right? I guess we're doing that. whole hog it is".
+
+- **The handoff accepts a permanent as well as a player.** "Target creature
+  explores" is `act(target(creature), explore)`; "this creature endures 1" is
+  `act(thisPermanent, endure(1))`. The deed wrapper records that permanent as
+  the performer.
+- **Inside a handoff to a permanent** (orchestrator's reading, to be
+  confirmed by the Lean prototype of this landing; the landing record must
+  say which way the checker was built): `actor` is the permanent's
+  controller, the player who does the steps ("that permanent’s controller
+  reveals …" [CR#701.44a]), and the permanent itself is in view for `it` /
+  `that(Creature)`, as a handoff to a player leaves that player in view. So
+  explore's body takes no parameter: `act(controllerOf(Param(0)), …)` goes
+  away and the body reads `reveal(librarySlice(Top, 1, actor))`,
+  `putCounters(1, p1p1Counter, it)` and so on.
+- **With no enclosing handoff to an object** (orchestrator's reading, flagged
+  the same way): printed "Adapt N" and "Monstrosity N" on a card's own
+  ability, and any object-performed deed written with no enclosing handoff to
+  an object, default their performer to the source permanent (`this`), the
+  way player-performed deeds default to the controller.
+
 ## The work
 
-1. **Lean, the object role (first).** The smallest addition, nothing beyond
-   it: (i) give the explore, endure, adapt, harness and monstrosity rows of
-   `actFacts` an object agent role (bare, on the battlefield, as the rows
-   above write it; a named constant beside `playerAgent` if it reads better);
-   (ii) make `enactAgentOk` test the recorded subject's own kind against the
-   row (`deedKindOk v .agent <the subject's kind>`) instead of a fixed
-   `.player`, and have the `.enact` arm check the subject with that kind.
-2. **Lean, the player rows.** Give the bolster, populate, time travel, meld,
+1. **Lean, the object role (first).** Give the explore, endure, adapt,
+   harness and monstrosity rows of `actFacts` an object agent role (bare, on
+   the battlefield, as the rows above write it; a named constant beside
+   `playerAgent` if it reads better), and make `enactAgentOk` test the
+   recorded performer's own kind against the row (`deedKindOk v .agent <the
+   performer's kind>`) instead of a fixed `.player`.
+2. **Lean, the handoff.** The `act` constructor's player field becomes a noun
+   phrase of either kind, with the checker rule stating which kinds it
+   accepts (today `.act who body` checks `who` as a player,
+   `Check/AbilityRules.lean`). Build the two readings above (`actor` and the
+   permanent in view inside an object handoff; the source permanent as the
+   default object performer) and pin each.
+3. **Lean, the player rows.** Give the bolster, populate, time travel, meld,
    counter, detain and heal rows `playerAgent`. Counter's row is
    `⟨none, true, some .stack⟩` today. The rows are also read for event and
    deontic clauses (`deedFits`, `Events.lean:126`; "can't be countered" pins
@@ -156,13 +186,20 @@ Read on this ticket's tree before writing the work below:
    those pins at their outcomes, and the five object rows must accept the
    permanent subject a card writes ("whenever a creature you control
    explores").
-3. **Declarations and loader.** The seven take the ordinary `Some(Actor)`
-   wrapper; the five record the permanent named above. Remove `agent: None`
+4. **Declarations.** `explore` loses its parameter and `endure` its first
+   one; their bodies read `actor` and `it` as above. The seven player deeds
+   take the ordinary `Some(Actor)` wrapper; the five record the permanent the
+   handoff names (or the source permanent by default). Remove `agent: None`
    from the twelve declarations, from `macros/meta/KeywordAction.ron` and from
-   `keyword_action_body`, so the loader takes no `agent: None` any more;
-   re-spell the `keywords.rs` and `plugins_v2_declarations.rs` assertions that
-   pin `agent: None` (adapt, heal) against the new shape.
-4. Re-run `cargo xtask lean-check`.
+   `keyword_action_body`; re-spell the `keywords.rs` and
+   `plugins_v2_declarations.rs` assertions that pin `agent: None` (adapt,
+   heal) against the new shape.
+5. **Cards.** Re-spell Deadeye Tracker and the probe cards over the handoff
+   (Endure Handoff Probe is the only probe on this tree that calls `explore`
+   or `endure`).
+6. Re-run `cargo xtask lean-check`. `semantics-v2-drop-agent-fields` then
+   deletes the wrapper's performer slot as planned, once the handoff carries
+   the permanent.
 
 ## Proof
 
@@ -182,11 +219,3 @@ form stays. Owner: "my that's awkward, but i guess it's right...".
 
 - Note: a `doUnless` shape taking the payer and the doer as two parts may be
   revisited.
-
-## Open point
-
-`semantics-v2-drop-agent-fields` deletes `enact`'s optional agent and has the
-loader write `Enact(Action(label), body)`, and the `act` handoff checks its
-performer as a player. Once the five object performers are recorded, that
-deletion has no place left to record them; the two tickets must agree on
-where a permanent performer lives before that one lands.
