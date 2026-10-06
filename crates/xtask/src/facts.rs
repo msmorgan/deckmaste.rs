@@ -9,6 +9,8 @@
 
 mod lean;
 
+pub(crate) use lean::registry_definitions;
+
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;

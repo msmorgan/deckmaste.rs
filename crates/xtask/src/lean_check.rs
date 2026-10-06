@@ -40,7 +40,7 @@ const GENERATED_DIR: &str = "Generated";
 /// Where `lake` puts the generated library's build output, relative to
 /// `lean/`. A run clears both, because a stale `.olean` left by an earlier
 /// successful run is exactly the false evidence [`attribute`] must not accept.
-const BUILD_DIRS: &[&str] = &[".lake/build/lib/lean", ".lake/build/ir"];
+pub(crate) const BUILD_DIRS: &[&str] = &[".lake/build/lib/lean", ".lake/build/ir"];
 /// The `lake` target the generated library builds under. It is deliberately
 /// absent from `lakefile.toml`'s `defaultTargets`, so `lean/scripts/build`
 /// remains the hand workbench's gate and succeeds with no `Generated/`
@@ -91,17 +91,17 @@ pub enum Verdict {
 
 /// One plugin's run: where it lives and what each of its cards proved.
 #[derive(Debug, Clone)]
-struct PluginReport {
-    dir: PathBuf,
+pub(crate) struct PluginReport {
+    pub(crate) dir: PathBuf,
     /// The Lean module the plugin's cards were emitted into.
-    module: String,
-    verdicts: BTreeMap<String, Verdict>,
+    pub(crate) module: String,
+    pub(crate) verdicts: BTreeMap<String, Verdict>,
     /// Every Lean diagnostic attributed to a card, whole: the `error:`,
     /// `warning:` or `info:` header line and each continuation line of its
     /// message, in the order Lean printed them. The console gets all of it;
     /// a failing verdict's own `reason` is one line chosen from it (see
     /// [`reason_for`]).
-    diagnostics: BTreeMap<String, Vec<String>>,
+    pub(crate) diagnostics: BTreeMap<String, Vec<String>>,
 }
 
 /// How seriously Lean meant a diagnostic.
@@ -145,7 +145,7 @@ pub fn run(args: &LeanCheckArgs) -> anyhow::Result<()> {
     );
 
     let modules = emit(&lean_dir, &plugin_dirs)?;
-    let (output, lake_succeeded) = build(&lean_dir, &args.lake)?;
+    let (output, lake_succeeded) = build(&lean_dir, &args.lake, GENERATED_TARGET)?;
     let mut reports = attribute(&modules, &output, lake_succeeded)?;
     reports.sort_by(|a, b| a.dir.cmp(&b.dir));
 
@@ -172,15 +172,15 @@ pub fn run(args: &LeanCheckArgs) -> anyhow::Result<()> {
 // ---------------------------------------------------------------------------
 
 /// One emitted module: which plugin it came from and where each card sits.
-struct EmittedModule {
-    dir: PathBuf,
-    module: String,
-    path: String,
+pub(crate) struct EmittedModule {
+    pub(crate) dir: PathBuf,
+    pub(crate) module: String,
+    pub(crate) path: String,
     /// The `.olean` `lake` writes when the module elaborates cleanly; its
     /// existence is the positive evidence a plugin's cards need to report
     /// `Pass` when Lean said nothing about them.
-    artifact: PathBuf,
-    cards: Vec<lean_emit::GeneratedCard>,
+    pub(crate) artifact: PathBuf,
+    pub(crate) cards: Vec<lean_emit::GeneratedCard>,
 }
 
 /// Writes one Lean module per plugin plus the root that imports them, having
@@ -293,16 +293,16 @@ fn module_component(dir: &Path) -> anyhow::Result<String> {
 // The Lean build
 // ---------------------------------------------------------------------------
 
-/// Builds the generated library, returning its output and whether `lake`
-/// succeeded.
+/// Builds the generated library `target`, returning its output and whether
+/// `lake` succeeded.
 ///
 /// A nonzero exit is expected whenever a card fails, so the status alone is
 /// not the verdict — but it is load-bearing evidence, and dropping it is how a
 /// build that failed for a reason naming no card would leave every card at its
 /// seeded `Pass` ([`attribute`]).
-fn build(lean_dir: &Path, lake: &str) -> anyhow::Result<(String, bool)> {
+pub(crate) fn build(lean_dir: &Path, lake: &str, target: &str) -> anyhow::Result<(String, bool)> {
     let output = Command::new(lake)
-        .args(["build", "--wfail", GENERATED_TARGET])
+        .args(["build", "--wfail", target])
         .current_dir(lean_dir)
         .output()
         .with_context(|| format!("running {lake} (is it on PATH?)"))?;
@@ -426,7 +426,7 @@ fn reason_for(diagnostics: &[&Diagnostic]) -> String {
 /// of the emitted modules, or sits above its module's first card. Each of
 /// those is a defect in the gate or the workbench, never a verdict about a
 /// card.
-fn attribute(
+pub(crate) fn attribute(
     modules: &[EmittedModule],
     output: &str,
     lake_succeeded: bool,
@@ -558,7 +558,7 @@ fn print_report(report: &PluginReport) {
 
 /// How many of a plugin's cards did not prove `Card.check = []`. The gate
 /// fails iff this is nonzero for any plugin.
-fn failing_count(report: &PluginReport) -> usize {
+pub(crate) fn failing_count(report: &PluginReport) -> usize {
     report
         .verdicts
         .values()
@@ -570,7 +570,7 @@ fn failing_count(report: &PluginReport) -> usize {
 // Paths
 // ---------------------------------------------------------------------------
 
-fn workspace_root() -> anyhow::Result<PathBuf> {
+pub(crate) fn workspace_root() -> anyhow::Result<PathBuf> {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(2)
@@ -586,7 +586,7 @@ fn workspace_root() -> anyhow::Result<PathBuf> {
 
 /// The workspace's `lean/` directory: `lake` runs from here so it reads
 /// `lakefile.toml`.
-fn lean_root() -> anyhow::Result<PathBuf> {
+pub(crate) fn lean_root() -> anyhow::Result<PathBuf> {
     let dir = workspace_root()?.join("lean");
     anyhow::ensure!(dir.is_dir(), "expected a lean/ dir at {}", dir.display());
     Ok(dir)

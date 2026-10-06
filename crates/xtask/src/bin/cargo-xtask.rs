@@ -9,6 +9,7 @@ use xtask::authoring::ScaffoldIdentityArgs;
 use xtask::card::CardArgs;
 use xtask::catalogs::CatalogArgs;
 use xtask::cite::CiteArgs;
+use xtask::definition_check::DefinitionCheckArgs;
 use xtask::derive_cards::DeriveCardsArgs;
 use xtask::english::EnglishArgs;
 use xtask::english_v3::EnglishV3Args;
@@ -91,6 +92,12 @@ enum Cmd {
     /// No plugin named = every plugin under `plugins_v2/` that has cards.
     #[command(name = "lean-check")]
     LeanCheck(LeanCheckArgs),
+    /// The registry definition gate: re-emit every `plugins_v2` Registry
+    /// Definition (counters, subtypes, designations) as a Lean term and prove
+    /// `Definition.check` empty by `decide`, naming every refused one.
+    /// Defaults to `plugins_v2/builtin`.
+    #[command(name = "definition-check")]
+    DefinitionCheck(DefinitionCheckArgs),
     /// On-demand "bearings" dumps of current code shape (`enums`/`idris`).
     Map(MapArgs),
     /// Generate and check the Idris workbench's keyword facts table against
@@ -129,6 +136,7 @@ fn main() -> anyhow::Result<()> {
         Cmd::Macro(args) => xtask::macros::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
         Cmd::LeanCheck(args) => xtask::lean_check::run(&args),
+        Cmd::DefinitionCheck(args) => xtask::definition_check::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
         Cmd::Facts(args) => xtask::facts::run(&args),
         Cmd::ScaffoldIdentity(args) => xtask::authoring::run(&args),

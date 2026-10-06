@@ -1,15 +1,18 @@
-//! `cargo xtask lean-check` end to end: the gate really invokes `lake`, so
-//! these tests prove the whole path — read a plugin, emit its cards, build the
-//! generated Lean, attribute the diagnostics, and fail the run on any card
-//! that did not prove.
+//! `cargo xtask lean-check` and `cargo xtask definition-check` end to end: the
+//! gates really invoke `lake`, so these tests prove the whole path — read a
+//! plugin, emit its cards (or its registry definitions), build the generated
+//! Lean, attribute the diagnostics, and fail the run on any item that did not
+//! prove.
 //!
-//! Both tests write `lean/Generated/` and run one `lake` build, so they hold a
-//! lock rather than racing each other over the shared workbench directory.
+//! Every test writes generated Lean under `lean/` and runs one `lake` build
+//! over the shared workbench, so they hold a lock rather than racing each
+//! other.
 
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use xtask::definition_check::DefinitionCheckArgs;
 use xtask::lean_check::LeanCheckArgs;
 
 /// The workbench directory is shared state; one gate run at a time.
@@ -50,6 +53,21 @@ fn copy_tree(from: &Path, to: &Path) {
             std::fs::copy(entry.path(), &target).expect("the file copies");
         }
     }
+}
+
+/// A `lake` that fails without naming anything: an unknown target, a broken
+/// `Semantics/`, a toolchain that never reached the compiler.
+fn failing_lake_stub(temp: &tempfile::TempDir) -> PathBuf {
+    let stub = temp.path().join("lake");
+    std::fs::write(&stub, "#!/bin/sh\necho 'error: unknown target'\nexit 1\n")
+        .expect("the stub writes");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755))
+            .expect("the stub is executable");
+    }
+    stub
 }
 
 /// The fixture plugin the whole workspace is checked against by default.
@@ -140,4 +158,68 @@ fn a_real_run_recovers_after_a_stubbed_lake_failure() {
     let plugin = workspace_root().join("plugins_v2/testing");
     xtask::lean_check::run(&LeanCheckArgs::new(vec![plugin]))
         .expect("the real gate still runs after a stubbed failure");
+}
+
+/// Every Registry Definition `plugins_v2/builtin` declares — counters,
+/// subtypes and designations — proves `Definition.check = []`.
+#[test]
+fn every_builtin_registry_definition_proves() {
+    if skip("every_builtin_registry_definition_proves") {
+        return;
+    }
+    let _guard = GATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    xtask::definition_check::run(&DefinitionCheckArgs::new(None))
+        .expect("every registry definition in plugins_v2/builtin proves `Definition.check = []`");
+}
+
+/// A counter that confers a spell ability breaks the conferral law
+/// (`Conferral.check`'s `.grantable`: a spell ability is followed while a spell
+/// resolves [CR#113.3a], so nothing can confer one). The gate must single that
+/// definition out of a copy of the whole registry and fail outright.
+#[test]
+fn a_definition_that_breaks_a_definition_law_is_singled_out_and_the_gate_fails() {
+    if skip("a_definition_that_breaks_a_definition_law_is_singled_out_and_the_gate_fails") {
+        return;
+    }
+    let _guard = GATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let temp = tempfile::tempdir().expect("a scratch directory");
+    let plugin = temp.path().join("builtin");
+    copy_tree(&workspace_root().join("plugins_v2/builtin"), &plugin);
+    std::fs::write(
+        plugin.join("macros/counter_kinds/lawlessCounter.ron"),
+        "CounterKind(\n    name: \"lawlessCounter\",\n    params: [],\n    spelling: \"lawless\",\n    \
+         grammar: FixedTerm(surface: \"lawless\"),\n    holder: Object,\n    \
+         confers: [Ability(confer: Spell(timing: None, instruction: Shuffle))],\n)\n",
+    )
+    .expect("the lawless counter writes");
+
+    let error = xtask::definition_check::run(&DefinitionCheckArgs::new(Some(plugin)))
+        .expect_err("a definition that breaks a Lean law fails the gate");
+    let error = format!("{error:#}");
+    // One definition of the copied registry fails; a registry-wide failure
+    // would read hundreds.
+    assert!(error.contains("1 definition(s) did not prove"), "{error}");
+}
+
+/// The definition gate shares `lean-check`'s attribution, so a `lake` failure
+/// that names no definition stops it as a gate defect rather than reporting
+/// every definition sound.
+#[test]
+fn a_lake_that_fails_without_naming_a_definition_stops_the_definition_gate() {
+    let _guard = GATE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let temp = tempfile::tempdir().expect("a scratch directory");
+    let stub = failing_lake_stub(&temp);
+    let error = xtask::definition_check::run(
+        &DefinitionCheckArgs::new(None).with_lake(stub.to_string_lossy()),
+    )
+    .expect_err("a lake failure that names no definition must stop the gate");
+    let error = format!("{error:#}");
+    assert!(error.contains("gate defect"), "{error}");
+    assert!(error.contains("unknown target"), "{error}");
 }

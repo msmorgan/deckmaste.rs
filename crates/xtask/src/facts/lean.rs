@@ -339,6 +339,75 @@ fn counter_definitions(
     Ok(result)
 }
 
+/// Every registry definition `plugin_dir` declares, by family: each counter
+/// declaration's node under its name, each subtype declaration's node under
+/// `<category>/<name>`, and each designation under its label (a declaration
+/// listing members defines one per member). `cargo xtask definition-check`
+/// proves `Definition.check` empty for every one.
+///
+/// Every declaration of the three registry kinds is read, and one whose body
+/// does not read as its family's `Definition` constructor fails the read: the
+/// gate has no skip list.
+pub(crate) fn registry_definitions(plugin_dir: &Path) -> anyhow::Result<RegistryDefinitions> {
+    let declarations = macro_def::read_builtin_v2(plugin_dir)
+        .with_context(|| format!("reading the declarations of {}", plugin_dir.display()))?;
+    let counters = counter_definitions(&declarations, plugin_dir)?;
+    for (name, definition) in &counters {
+        anyhow::ensure!(
+            matches!(definition, Definition::Counter { .. }),
+            "{name}: a counter declaration defines a counter"
+        );
+    }
+    let plugin =
+        Plugin::load(plugin_dir).with_context(|| format!("loading {}", plugin_dir.display()))?;
+    let mut subtypes = Vec::new();
+    for row in &declarations {
+        let DeclarationKind::Subtype(category) = row.identity().kind() else {
+            continue;
+        };
+        let name = row.identity().name();
+        let body = row
+            .body()
+            .with_context(|| format!("{name}: subtype has no declaration body"))?;
+        let definition: Definition = plugin
+            .macros
+            .read_str(body.get_ron())
+            .with_context(|| format!("reading subtype {name}"))?;
+        anyhow::ensure!(
+            matches!(definition, Definition::Subtype { .. }),
+            "{name}: a subtype declaration defines a subtype"
+        );
+        subtypes.push((format!("{category}/{name}"), definition));
+    }
+    let designations = designation_definitions(&declarations)?
+        .into_iter()
+        .map(|(declared, definition)| {
+            let label = match &definition {
+                Definition::Designation { label, .. } => label.name().to_owned(),
+                _ => anyhow::bail!("{declared}: a designation declaration defines designations"),
+            };
+            Ok(if label == declared {
+                (label, definition)
+            } else {
+                (format!("{declared}/{label}"), definition)
+            })
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    Ok(RegistryDefinitions {
+        counters,
+        subtypes,
+        designations,
+    })
+}
+
+/// The registry definitions of one plugin, by family, each beside the name
+/// the gate reports it under.
+pub(crate) struct RegistryDefinitions {
+    pub(crate) counters: Vec<(String, Definition)>,
+    pub(crate) subtypes: Vec<(String, Definition)>,
+    pub(crate) designations: Vec<(String, Definition)>,
+}
+
 /// The keywords a counter declaration makes a counter of [CR#122.1b]. The
 /// registry declares one counter per keyword the rule names, so eligibility is
 /// read off the counter family rather than restated on the keyword row: a

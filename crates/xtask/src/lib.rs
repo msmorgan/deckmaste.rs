@@ -14,6 +14,7 @@ pub mod card;
 pub mod catalogs;
 pub mod cite;
 pub mod coverage;
+pub mod definition_check;
 pub mod derive_cards;
 pub mod english;
 pub mod english_v3;
