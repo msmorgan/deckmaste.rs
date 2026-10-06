@@ -264,7 +264,8 @@ mutual
         NounPhrase.checkIn gap ctx (enterCaller scope bs) body
     | .gap k => ⟨ctxCheck ctx (some k) ++ refuse (gap == some k) .lookbackSubject, true⟩
     | .this | .theGrantor _ => ctxCheck ctx (some .object)
-    | .you | .actor | .combatPlayer _ | .playerGroup _ => ctxCheck ctx (some .player)
+    | .you | .combatPlayer _ | .playerGroup _ => ctxCheck ctx (some .player)
+    | .actor => ctxCheck ctx (some ((actorShape? bs).elim .player (·.kind)))
     | .asType t n sub =>
       ctxCheck ctx (some .object) ++ NounPhrase.checkIn gap (some .object) bs n ++
         refuse n.ascribable .ascribable ++ refuse (ascriptionOk t sub) .ascriptionOk
@@ -310,7 +311,7 @@ mutual
       ctxCheck ctx (some r.kind) ++ refuse (n == 1) (.anaphor r pl n)
     | .attachHost w h => ctxCheck ctx (some h.kind) ++ refuse (attachHeadOk w h) .attachHeadOk
     | .possessorOf ax n =>
-      let kn := n.kindOr .object
+      let kn := (n.actorView bs).kindOr .object
       ctxCheck ctx (some .player) ++ NounPhrase.checkIn gap none bs n ++
         refuse (possessorKind ax kn) (.possessorKind ax kn)
     | .designated d whose =>
@@ -716,7 +717,8 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
     | .lifeChanges who _ => NounPhrase.checkIn gap (some .player) bs who
     | .verbedEvent who v what becomes locus =>
       let bs' := optAgentIntro bs who
-      OptNoun.checkIn gap (some .player) bs who ++ OptNoun.checkIn gap (some .object) bs' what ++
+      OptNoun.checkIn gap (some (deedAgentKind v)) bs who ++
+        OptNoun.checkIn gap (some .object) bs' what ++
         OptPredicate.checkIn gap .object bs' becomes ++ refuse (knownAct v) (.knownAct v) ++
         refuse (verbPatientOk v what) .verbPatientOk ++
         refuse (zoneFits (patientZone bs' what) (actZoneOf v)) .zoneFits ++

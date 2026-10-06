@@ -1031,9 +1031,10 @@ def NounPhrase.isYou : NounPhrase → Bool
   | .you | .actor => true
   | _ => false
 
-/-- `actor` as the player it denotes at this point, for the context-free structural readers
-(`isYou`, `opponentOnly`): "you" outside every handoff and in `act you`, otherwise a parameter
-view carrying the facts the innermost handoff recorded. Other phrases are unchanged. The view
+/-- `actor` as the player or permanent it denotes at this point, for the context-free structural
+readers (`isYou`, `opponentOnly`, `kind?`): "you" outside every handoff and in `act you`,
+otherwise a parameter view carrying the facts the innermost handoff recorded, its kind among
+them. Other phrases are unchanged. The view
 is for those readers only; it is never checked or resolved against the context. -/
 def NounPhrase.actorView (bs : Bindings) : NounPhrase → NounPhrase
   | .withBindings scope inputs body => .withBindings scope inputs (body.actorView bs)

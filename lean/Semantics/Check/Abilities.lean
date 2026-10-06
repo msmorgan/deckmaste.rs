@@ -345,11 +345,6 @@ def Amount.forEach : Amount → Bool
   | .arith .times _ _ => true
   | _ => false
 
-/-- An enacted act names a subject only where the act's facts row gives its agent role a
-player, the way `verbedVoiceOk` gates a verbed event. -/
-def enactAgentOk : Option NounPhrase → Deed → Bool
-  | none, _ => true
-  | some _, v => deedKindOk v .agent .player
 
 def keepsOuterOf (outer out : Bindings) : Bool :=
   out == out.take (out.length - outer.length) ++ outer
@@ -367,18 +362,82 @@ def distributedDelta (bs : Bindings) (s : NounPhrase) (out : Bindings) : List Bi
 
 def mayCtx (bs : Bindings) (d : NounPhrase) : Bindings := agentIntro bs d
 
-/-- What a handoff records about the player it hands the body to, with the same structural
-facts a captured macro subject keeps. Handing off to `actor` keeps the performer it re-reads. -/
+/-- What a handoff records about the player or permanent it hands the body to, its kind among
+them, with the same structural facts a captured macro subject keeps. Handing off to `actor` keeps
+the performer it re-reads. -/
 def NounPhrase.performerShape (bs : Bindings) (who : NounPhrase) : NounShape :=
   let who := who.actorView bs
-  ⟨.player, false, who.isYou, who.selfDefinedOk, who.ascribable, twoPartiesOk who,
+  ⟨who.kindOr .player, false, who.isYou, who.selfDefinedOk, who.ascribable, twoPartiesOk who,
     who.opponentOnly, false⟩
 
-/-- The body context of `act who`: the player's own introduction, as an `enact` agent's or an
-`offer` decider's (`agentIntro`, so "each opponent" is read one member at a time), under the
-handoff frame that `actor` reads. -/
+/-- A phrase naming the object its own text is on: `this`, as written or as "this creature" /
+"this permanent". -/
+def NounPhrase.namesThis : NounPhrase → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.namesThis
+  | .asType _ n _ | .asMarker _ n => n.namesThis
+  | n => n.bareThis
+
+/-- A handoff takes a player or a permanent [CR#110.1]: the rules instruct a permanent itself
+to explore or endure [CR#701.44a,701.63a]. Any other object, a card in a graveyard or a spell,
+is never handed an instruction. -/
+def NounPhrase.handoffPerformerOk (bs : Bindings) (who : NounPhrase) : Bool :=
+  match (who.actorView bs).kindOr .player with
+  | .player => true
+  | .object => NounPhrase.zone bs who == some .battlefield
+  | _ => false
+
+/-- What a handoff to `this` puts in view for its body: the permanent itself, as a definite
+mention, as a handed-to target is in view through its own introduction. `this` introduces
+nothing, and a self mention (`selfSubjIntroduced`) is no antecedent for "that permanent", so
+without it the body's "that permanent" would have none. A player or any other performer adds
+nothing. -/
+def NounPhrase.performerInView (bs : Bindings) (who : NounPhrase) : List Binding :=
+  if who.namesThis then
+    [⟨.the, .one, .object (NounPhrase.ty bs who) (some .battlefield) none none none⟩]
+  else []
+
+/-- The body context of `act who`: the performer's own introduction, as an `enact` agent's or an
+`offer` decider's (`agentIntro`, so "each opponent" is read one member at a time), and a
+permanent the performer phrase does not itself introduce (`performerInView`), under the handoff
+frame that `actor` reads. -/
 def actorCtx (bs : Bindings) (who : NounPhrase) : Bindings :=
-  ⟨.the, .one, .actor (who.performerShape bs)⟩ :: agentIntro bs who
+  ⟨.the, .one, .actor (who.performerShape bs)⟩ :: (who.performerInView bs ++ agentIntro bs who)
+
+/-- Leave a handoff: remove its frame and the `n` bindings the handoff put in view under it, and
+nothing else. -/
+def leaveHandoff (n : Nat) : Bindings → Bindings
+  | [] => []
+  | b :: bs => if b.isActorFrame then bs.drop n else b :: leaveHandoff n bs
+
+/-- The source permanent, the performer an object-performed deed defaults to. -/
+def sourcePermanent : NounPhrase := .asMarker .permanent .this
+
+/-- An object-performed deed recorded with the controller as its performer, that is written with
+no handoff to a permanent (printed "Adapt N" on a permanent's own ability [CR#701.46a]), is
+performed by the source permanent, as a player-performed deed with no handoff is performed by the
+controller [CR#109.5]. -/
+def enactDefaultsToThis (bs : Bindings) (v : Deed) (s : NounPhrase) : Bool :=
+  s.isYouIn bs && !deedKindOk v .agent .player && deedKindOk v .agent .object
+
+/-- An enacted act's recorded performer is of a kind its deed's row admits: a player
+for a deed a player performs, a permanent for one a permanent performs, with the source permanent
+standing in for the controller (`enactDefaultsToThis`). The kind is read in the handoff, so
+`actor` inside a handoff to a permanent is that permanent. -/
+def enactAgentOk (bs : Bindings) : Option NounPhrase → Deed → Bool
+  | none, _ => true
+  | some s, v => enactDefaultsToThis bs v s || deedKindOk v .agent ((s.actorView bs).kindOr .player)
+
+/-- The kind an enacted act's recorded performer is checked as: the deed's `deedAgentKind`, or a
+player where the performer is the controller defaulted to the source permanent. -/
+def enactAgentKind (bs : Bindings) (v : Deed) : Option NounPhrase → Kind
+  | some s => if enactDefaultsToThis bs v s then .player else deedAgentKind v
+  | none => .player
+
+/-- The body context of an enacted act: its performer's own introduction, or, defaulted to the
+source permanent, a handoff to it, so `actor` in the body is that permanent. -/
+def enactCtx (bs : Bindings) (v : Deed) : Option NounPhrase → Bindings
+  | none => bs
+  | some s => if enactDefaultsToThis bs v s then actorCtx bs sourcePermanent else agentIntro bs s
 
 /-- A nested ability's text is performed by that ability's own controller [CR#109.5], not by
 the player an enclosing handoff named: inside a handoff, its context starts with a handoff
@@ -1205,7 +1264,12 @@ mutual
        some (stampIntro bs (some v) what), []⟩
     | .enact v (.setStatus _ n) none => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
     | .enact _ e none => Instruction.profile bs e
-    | .enact v e (some s) => doesProfile bs s.plur s v e (Instruction.profile (agentIntro bs s) e)
+    | .enact v e (some s) =>
+      if enactDefaultsToThis bs v s then
+        let leave := leaveHandoff (sourcePermanent.performerInView bs).length
+        let ep := Instruction.profile (enactCtx bs v (some s)) e
+        doesProfile bs s.plur s v e ⟨leave ep.pre, leave ep.announced, ep.rider.map leave, ep.deed⟩
+      else doesProfile bs s.plur s v e (Instruction.profile (agentIntro bs s) e)
     | .pay c .once who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
     /- One performer: the body's own profile outside the handoff frame, so the player the
     handoff introduced stays published. Distributive performers follow `doForEach`: what each
@@ -1215,10 +1279,9 @@ mutual
     | .act who body =>
       let inner := actorCtx bs who
       let bodyP := Instruction.profile inner body
+      let leave := leaveHandoff (who.performerInView bs).length
       match who.plur with
-      | .one =>
-        ⟨dropActorFrame bodyP.pre, dropActorFrame bodyP.announced,
-         bodyP.rider.map dropActorFrame, bodyP.deed⟩
+      | .one => ⟨leave bodyP.pre, leave bodyP.announced, bodyP.rider.map leave, bodyP.deed⟩
       | .many =>
         let fresh := bodyP.intro.take (bodyP.intro.length - inner.length)
         ⟨bs, pluralizeIntroduced (fresh.filter (!·.isAmountTotal)) ++

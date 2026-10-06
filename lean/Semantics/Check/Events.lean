@@ -72,6 +72,11 @@ def deedRoleOf (v : Deed) : Role → DeedRole
 def deedKindOk (v : Deed) (r : Role) (k : Kind) : Bool :=
   (deedRoleOf v r).sort.elim false (·.domain.admits k)
 
+/-- The kind a deed's performer is written as: an object where the deed's row admits only
+objects ("whenever a creature you control explores" [CR#701.44a]), otherwise a player. -/
+def deedAgentKind (v : Deed) : Kind :=
+  if !deedKindOk v .agent .player && deedKindOk v .agent .object then .object else .player
+
 /-- An effect can make a permanent of any type a creature that is still its other types
 [CR#205.1b], and an effect written on a noncreature permanent is created even while it isn't
 one [CR#208.3a]. So the agent slot of a deed a creature performs fits any permanent head type;

@@ -172,7 +172,8 @@ mutual
     | theGrantor (marker : MarkerWord)
     | you
     /-- Whoever performs the instruction this phrase is part of: the controller [CR#109.5],
-    unless an enclosing `Instruction.act` hands the instruction to another player. -/
+    unless an enclosing `Instruction.act` hands the instruction to another player or to a
+    permanent, which it then is. -/
     | actor
     | combatPlayer (role : CombatRole)
     | playerGroup (group : PlayerGroupWord)

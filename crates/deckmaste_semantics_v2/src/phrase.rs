@@ -418,7 +418,7 @@ pub enum NounPhrase {
     You,
     /// Whoever performs the instruction this phrase is part of: the controller
     /// [CR#109.5], unless an enclosing `Instruction.act` hands the
-    /// instruction to another player.
+    /// instruction to another player or to a permanent, which it then is.
     Actor,
     CombatPlayer {
         role: CombatRole,

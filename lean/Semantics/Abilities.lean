@@ -427,10 +427,11 @@ mutual
     the sentence may name, whichever of the three sources defines it. -/
     | enact (verb : Deed) (instruction : Instruction) (agent : Option NounPhrase := none)
     | pay (cost : Cost) (times : PayTimes) (agent : NounPhrase := .you)
-    /-- The handoff: `player` performs `body` ("target player discards a card"). Inside the
-    body, `NounPhrase.actor` is that player; with a distributive player ("each opponent")
-    each member performs the whole body. -/
-    | act (player : NounPhrase) (body : Instruction)
+    /-- The handoff: `performer`, a player or a permanent, performs `body` ("target player
+    discards a card", "target creature explores" [CR#701.44a]). Inside the body,
+    `NounPhrase.actor` is that performer; with a distributive performer ("each opponent") each
+    member performs the whole body. -/
+    | act (performer : NounPhrase) (body : Instruction)
     /-- Branch on the decision or start of payment, independently of resulting events. -/
     | withContinuation (policy : ContinuationPolicy) (body : Instruction)
         (ifDid : Option Instruction) (ifNot : Option Instruction)

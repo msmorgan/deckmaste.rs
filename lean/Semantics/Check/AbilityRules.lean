@@ -326,18 +326,19 @@ mutual
       NounPhrase.check none bs on ++ refuse (counterHolderKind k) .counterHolderKind ++
         refuse on.perMemberOk .perMember
     | .enact v e subj =>
-      OptNoun.check (some .player) bs subj ++ Instruction.check (agentCtx bs subj) e ++
-        refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk subj v) .enactAgentOk ++
-        refuse (enactPatientZoneOk (agentCtx bs subj) v e) .zoneFits ++
-        refuse (enactLibraryOwnerOkIn (agentCtx bs subj) v e) .opponentsLibrary ++
+      let inner := enactCtx bs v subj
+      OptNoun.check (some (enactAgentKind bs v subj)) bs subj ++ Instruction.check inner e ++
+        refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk bs subj v) .enactAgentOk ++
+        refuse (enactPatientZoneOk inner v e) .zoneFits ++
+        refuse (enactLibraryOwnerOkIn inner v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
     | .pay c _ who =>
       NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c ++
         refuse c.payable .payable ++ refuse (payAgreesOkIn bs who c) .payAgrees
     | .act who body =>
       let inner := actorCtx bs who
-      NounPhrase.check (some .player) bs who ++ Instruction.check inner body ++
-        refuse (who.plur == .one || keepsOuter inner body) .keepsOuter
+      NounPhrase.check none bs who ++ refuse (who.handoffPerformerOk bs) .handoffPerformer ++
+        Instruction.check inner body ++ refuse (who.plur == .one || keepsOuter inner body) .keepsOuter
     | .withContinuation policy body ifDid ifNot =>
       let bs' := policy.context bs
       (match policy with

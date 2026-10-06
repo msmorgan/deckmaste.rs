@@ -208,10 +208,15 @@ structure ActFacts where
   opponentsLibrary : Bool := false
   deriving Repr, BEq
 
-def playerAgent : DeedRole := ⟨some ⟨.player, [], []⟩, true, none⟩
-def fieldObject : DeedRole := ⟨some ⟨.object, [], []⟩, false, some .battlefield⟩
 def permanentTypes : List CardType :=
   [.creature, .artifact, .land, .enchantment, .planeswalker, .battle]
+def playerAgent : DeedRole := ⟨some ⟨.player, [], []⟩, true, none⟩
+/-- A permanent performs the deed: the rules instruct the permanent itself ("instruct a permanent
+to explore" [CR#701.44a]), or the deed is written on a permanent's own ability and done to it
+("Adapt N" [CR#701.46a]). Bare, on the battlefield, of any permanent type, as block's and
+crew's agents are written below for a creature. -/
+def permanentAgent : DeedRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩
+def fieldObject : DeedRole := ⟨some ⟨.object, [], []⟩, false, some .battlefield⟩
 def spellTypes : List CardType :=
   [.creature, .artifact, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
 def allTypes : List CardType :=
@@ -283,14 +288,14 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
   [ ("Activate",
       { agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩, bounded := true }),
-    ("Adapt", {}),
+    ("Adapt", { agentRole := permanentAgent }),
     ("Airbend", { dest := some .exile, agentRole := playerAgent }),
     ("Amass", { agentRole := playerAgent }),
     ("Assemble", {}),
     ("Attach", { agentRole := playerAgent }),
     ("Behold", { agentRole := playerAgent }),
     ("Blight", { agentRole := playerAgent }),
-    ("Bolster", {}),
+    ("Bolster", { agentRole := playerAgent }),
     ("Cast",
       { agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], spellTypes⟩, true, some .stack⟩,
@@ -301,48 +306,50 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("Connive", {}),
     ("Convert", { intransitive := true, agentRole := playerAgent, patientRole := fieldObject }),
     ("Counter",
-      { agentRole := ⟨none, true, some .stack⟩,
+      { agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩,
         rides := true }),
     ("Create", { dest := some .battlefield, agentRole := playerAgent }),
     ("Destroy",
       { participle := some "destroyed", dest := some .graveyard, agentRole := playerAgent,
         patientRole := fieldObject }),
-    ("Detain", {}),
+    ("Detain", { agentRole := playerAgent }),
     ("Discard",
       { participle := some "discarded", dest := some .graveyard, agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], []⟩, false, some .hand⟩ }),
     ("Discover", { agentRole := playerAgent }),
     ("Double", {}),
     ("Earthbend", { agentRole := playerAgent }),
-    ("Endure", {}),
+    ("Endure", { agentRole := permanentAgent }),
     ("Exchange", { agentRole := playerAgent }),
     ("Exert", { agentRole := playerAgent }),
     ("Exile",
       { participle := some "exiled", dest := some .exile, agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
-    ("Explore", {}),
+    ("Explore", { agentRole := permanentAgent }),
     ("Face A Villainous Choice", { agentRole := playerAgent }),
     ("Fateseal", { stepwise := true, agentRole := playerAgent, opponentsLibrary := true }),
     ("Fight", {}),
     ("Forage", { agentRole := playerAgent }),
     ("Goad", { agentRole := playerAgent }),
-    ("Harness", {}),
-    ("Heal", {}),
+    ("Harness", { agentRole := permanentAgent }),
+    ("Heal", { agentRole := playerAgent }),
     ("Incubate", { dest := some .battlefield, agentRole := playerAgent }),
     ("Investigate", { dest := some .battlefield, agentRole := playerAgent }),
     ("Learn", {}),
     ("Manifest", { dest := some .battlefield, agentRole := playerAgent }),
     ("Manifest Dread", { agentRole := playerAgent }),
-    ("Meld", { dest := some .battlefield, patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
+    ("Meld",
+      { dest := some .battlefield, agentRole := playerAgent,
+        patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
     ("Mill",
       { participle := some "milled", dest := some .graveyard, agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], []⟩, false, some .library⟩ }),
-    ("Monstrosity", {}),
+    ("Monstrosity", { agentRole := permanentAgent }),
     ("Play",
       { agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], allTypes⟩, true, none⟩,
         counterfactual := some .object, rides := true, plays := true, bounded := true }),
-    ("Populate", {}),
+    ("Populate", { agentRole := playerAgent }),
     ("Proliferate", { agentRole := playerAgent }),
     ("Recruit", { agentRole := playerAgent }),
     ("Regenerate",
@@ -366,7 +373,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
       { participle := some "tapped", agentRole := playerAgent, patientRole := fieldObject,
         feature := some .tapping }),
     ("The Ring Tempts You", {}),
-    ("Time Travel", {}),
+    ("Time Travel", { agentRole := playerAgent }),
     ("Transform", { intransitive := true, agentRole := playerAgent, patientRole := fieldObject }),
     ("Triple", {}),
     ("Untap",
@@ -460,8 +467,8 @@ inductive Payload where
   /-- Checker-private lexical frame. Addresses are relative to the tail below the frame. -/
   | parameterFrame (scope callerWidth : Nat)
       (slots : List (Option (List Nat) × Determiner × Plurality × Payload))
-  /-- Checker-private handoff frame: the facts of the player performing the enclosing
-  `Instruction.act` body. It is never a discourse referent. -/
+  /-- Checker-private handoff frame: the facts of the player or permanent performing the
+  enclosing `Instruction.act` body, its kind among them. It is never a discourse referent. -/
   | actor (shape : NounShape)
   /-- A forgotten ordinary mention retained solely for an active lexical capture. -/
   | hidden (value : Payload)

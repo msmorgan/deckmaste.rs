@@ -167,6 +167,8 @@ inductive Refusal where
   | verbedVoiceOk
   | verbBecomesOk
   | enactAgentOk
+  /-- A handoff names neither a player nor a permanent [CR#110.1]. -/
+  | handoffPerformer
   /-- A noun in a deed's agent or patient role does not fit what that deed takes there. -/
   | deedNounOk (d : Deed)
   | nontarget

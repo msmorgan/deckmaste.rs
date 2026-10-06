@@ -967,9 +967,9 @@ existing agent slot with `actor`; the explicit-agent macros above are unchanged.
 
 /-- "whoever performs this instruction" -/
 semantic_macro actor : NounPhrase := .actor
-/-- "<player> <body>": the handoff. "Target player discards a card" is
-`act (target .anyPlayer) (Actor.discard (a .isCard))`. -/
-semantic_macro act (player : NounPhrase) (body : Instruction) : Instruction := .act player body
+/-- "<performer> <body>": the handoff, to a player or a permanent. "Target player discards a
+card" is `act (target .anyPlayer) (Actor.discard (a .isCard))`. -/
+semantic_macro act (performer : NounPhrase) (body : Instruction) : Instruction := .act performer body
 /-- "… <performer> controls" -/
 semantic_macro actorControls : Predicate := .hasPossessor .controller .actor
 
