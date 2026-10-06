@@ -450,20 +450,25 @@ of those things ([CR#609.1] — text itself is never an Effect).
 _Avoid_: Effect for executable syntax; One-Shot Effect as its name
 
 **Actor** (project term):
-The Player who performs an Instruction. Outside every Handoff the Actor is the
-controller of the spell or ability whose text the Instruction is ([CR#109.5]);
-inside one it is the Player the innermost Handoff names. An ability that an
-Instruction grants or creates has its own controller as Actor ([CR#109.5]).
+The Player or Permanent who performs an Instruction. Outside every Handoff the
+Actor is the controller of the spell or ability whose text the Instruction is
+([CR#109.5]); inside one it is the Player or Permanent the innermost Handoff
+names. A keyword action a Permanent performs ([CR#701.44a,701.63a]) written
+with no Handoff to a Permanent is performed by the source Permanent. An
+ability that an Instruction grants or creates has its own controller as Actor
+([CR#109.5]).
 _Avoid_: agent for the performer — that sense survives only as the name of
 model fields holding the Actor until they are deleted, and "agent" otherwise
 means the external party a Decision Point waits on; "you" for the Actor inside
 a Handoff, where "you" still means the controller
 
 **Handoff** (project term):
-An Instruction that makes a named Player the Actor of the Instruction it
-contains ("target player discards a card"). Handed to a group of Players, the
-contained Instruction is performed in full by each member. A Handoff is the
-only place an Instruction's performer is written.
+An Instruction that makes a named Player or Permanent the Actor of the
+Instruction it contains ("target player discards a card", "target creature
+explores" [CR#701.44a]). Handed to a group, the contained Instruction is
+performed in full by each member. The steps the rules give a Permanent's
+controller are handed on to that controller inside it. A Handoff is the only
+place an Instruction's performer is written.
 _Avoid_: rebinding "you" — "you" keeps referring to the controller inside a
 Handoff ([CR#109.5])
 

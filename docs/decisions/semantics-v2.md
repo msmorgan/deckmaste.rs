@@ -182,6 +182,19 @@ mimicked.
   [card-authoring-binds-no-implicits](card-authoring-binds-no-implicits.md):
   constructors still take every field, and a helper writes `actor` into an
   agent field as an ordinary argument rather than leaving a slot defaulted.
+  Amendment (2026-10-05, owner, `semantics-v2-deed-performer-roles`): a
+  permanent may be handed an instruction too, since the rules instruct the
+  permanent itself ("instruct a permanent to explore" [CR#701.44a,701.63a]);
+  owner: "CR literally says the permanent is instructed to explore right? I
+  guess we're doing that. whole hog it is". The handoff's performer is a
+  player or a permanent (`act(performer, instruction)`; a card in another
+  zone or a spell is refused), and inside a handoff to a permanent `actor` is
+  that permanent: the steps the rule gives "that permanent's controller" are
+  handed on, `act(controllerOf(actor), …)`, inside which `actor` is the
+  controller and the permanent stays in view ("that permanent"). An action
+  a permanent performs (explore, endure, adapt, harness, monstrosity) written
+  with no handoff to a permanent is performed by the source permanent, as an
+  action with no handoff is performed by the controller.
 - Agentive verbs — those the CR gives a player actor — put that performer
   in clause position, the factored form of the real macros' agent
   parameter: a dependent context cannot re-use the subject term at each
@@ -317,10 +330,10 @@ from its name and signature — a keyword ability's list of abilities (omitted
 when empty), a keyword action's instruction, never who performs it — and
 semantics_v2 builds the `Keyword(...)` or `Enact(verb: Action(...), ...)`
 wrapper around it (`deckmaste_semantics_v2::keywords`), recording the actor as
-the deed's performer (§7, ruling 2026-10-05); a file writes `keyword_params`,
-`deed: None` or `agent: None` where its definition does not take the derived
-arguments, the deed, or a player performer (the checker gives twelve deeds
-none: Lean `actFacts`, `enactAgentOk`).
+the deed's performer (§7, ruling 2026-10-05; under a handoff to a permanent
+the actor is that permanent, amendment of the same date); a file writes
+`keyword_params` or `deed: None` where its definition does not take the
+derived arguments or the deed.
 The file is
 the shared contract; neither crate depends on the other for it, and an xtask
 drift test loads every declaration both ways. Today's bodyless declarations

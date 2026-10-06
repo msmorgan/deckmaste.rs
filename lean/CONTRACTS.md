@@ -188,10 +188,32 @@ execution proof.
 
 `NounPhrase.actor` is whoever performs the instruction it is part of: the
 controller [CR#109.5] unless an enclosing `Instruction.act` names another
-player. `act player body` checks `player` as a player and its body in
-`actorCtx`. A handoff frame records the performer's structural facts (the
-captured-subject `NounShape`); the innermost frame decides. Outside every
-handoff, and inside `act you`, `actor` reads exactly as `you` in every rule.
+player or a permanent. `act performer body` takes a player, or an object whose
+zone is the battlefield, a permanent [CR#110.1]; any other object is refused
+`handoffPerformer`. Its body is checked in `actorCtx`. A handoff frame records
+the performer's structural facts (the captured-subject `NounShape`, its kind
+among them); the innermost frame decides, and `actor` is checked as that
+kind, so inside a handoff to a permanent `actor` is the permanent, and
+`controllerOf(actor)` is a player. Outside every handoff, and inside
+`act you`, `actor` reads exactly as `you` in every rule.
+
+A handoff to `this` ("this creature explores") puts the permanent in view for
+its body (`performerInView`), since `this` introduces no binding: "that
+permanent" in an inner `act(controllerOf(actor), …)` reads it. A handed-to
+target is already in view through its own introduction. Leaving the handoff
+drops that binding with the frame (`leaveHandoff`), so a handoff to `this`
+publishes what a handoff to `you` does: only the body's mentions.
+
+An enacted deed's recorded performer is checked against its row's agent kind
+(`enactAgentOk`, `deedAgentKind`): explore, endure, adapt, harness and
+monstrosity are performed by a permanent [CR#701.44a,701.63a], the other
+wrapped keyword actions by a player. A permanent-performed deed whose recorded
+performer is the controller, written with no handoff to a permanent (printed
+"Adapt N" [CR#701.46a]), is performed by the source permanent
+(`enactDefaultsToThis`): its body is checked in a handoff to it, so `actor`
+there is "this permanent". Inside a handoff to another player there is no such
+default, and the deed is refused. An event's performer is written in the same
+kind (`deedAgentKind`): "whenever a creature you control explores".
 
 Rules that ask whether a phrase is the controller read `actor` in its handoff:
 `actorView` and `isYouIn` for the payer, self-exchange and opponent's-library
@@ -217,8 +239,9 @@ A handoff does not record the possessor of the hand or battlefield its body
 draws on: object bindings carry no possessor, so a discard by a player other
 than the hand's owner is not refused. `Proofs/Actor.lean` pins the handoff
 cards, the bindings each kind of performer leaves, nested handoffs, nested
-abilities, captured `actor`, every explicit-agent cost against its twin, and
-the group handoff's totals against the explicit plural agent.
+abilities, captured `actor`, every explicit-agent cost against its twin, the
+group handoff's totals against the explicit plural agent, and the handoff to a
+permanent with the default to the source permanent.
 These are checker guarantees, not an execution proof.
 
 ## Scheduling fields
