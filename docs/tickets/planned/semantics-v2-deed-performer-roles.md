@@ -149,15 +149,20 @@ instructed to explore right? I guess we're doing that. whole hog it is".
   explores" is `act(target(creature), explore)`; "this creature endures 1" is
   `act(thisPermanent, endure(1))`. The deed wrapper records that permanent as
   the performer.
-- **Inside a handoff to a permanent** (orchestrator's reading, to be
-  confirmed by the Lean prototype of this landing; the landing record must
-  say which way the checker was built): `actor` is the permanent's
-  controller, the player who does the steps ("that permanent’s controller
-  reveals …" [CR#701.44a]), and the permanent itself is in view for `it` /
-  `that(Creature)`, as a handoff to a player leaves that player in view. So
-  explore's body takes no parameter: `act(controllerOf(Param(0)), …)` goes
-  away and the body reads `reveal(librarySlice(Top, 1, actor))`,
-  `putCounters(1, p1p1Counter, it)` and so on.
+- **Inside a handoff to a permanent** (owner, 2026-10-05, correcting the
+  orchestrator's first reading: "wouldn't it be act(controllerOf(actor),
+  reveal(...)) or something?"): `actor` is whatever the instruction was
+  handed to, here the permanent itself. The steps the rule gives to "that
+  permanent’s controller" [CR#701.44a] are handed on in the body:
+  `act(controllerOf(actor), sequentially([reveal(librarySlice(Top, 1,
+  actor)), …]))`, where inside that inner handoff `actor` is the controller
+  and the permanent stays in view for `that(Creature)` / `it`, as any handoff
+  leaves its performer in view. So explore's body takes no parameter:
+  `act(controllerOf(Param(0)), …)` becomes `act(controllerOf(actor), …)`
+  and `Param(0)` becomes a reference to the permanent. The Lean prototype of
+  this landing confirms that `actor` may denote an object and that the
+  nested handoff resolves this way; the landing record says which way the
+  checker was built.
 - **With no enclosing handoff to an object** (orchestrator's reading, flagged
   the same way): printed "Adapt N" and "Monstrosity N" on a card's own
   ability, and any object-performed deed written with no enclosing handoff to
