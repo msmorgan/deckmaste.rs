@@ -328,17 +328,22 @@ no English grammar, lexicon or corpus input changed.
   owner.
 - `semantics-v2-designation-storage-columns` still owns the storage columns.
 
-**After `kata refresh`.** The refresh rebased the series onto
+**After `kata refresh`.** The first refresh rebased the series onto
 `semantics-v2-deed-performer-roles` (the deed table's performers; explore and
 endure handed to the permanent; a new testing card, Explore Handoff Probe),
 `english-v3-targeting-projection-duplication`,
-`english-v3-relative-clause-adjuncts` and the `english-v3-by-complement-functions`
-claim, with no conflict. None of them writes a designation (no string label
-in `plugins_v2` or `lean/Semantics` after the refresh). On the refreshed
-tree: `lean/scripts/build` completed (82 jobs); `cargo xtask facts check` up
-to date; `cargo xtask lean-check` canon 127/127, testing 6/6 (the new probe)
-in 96.5s; the derived gate command, unchanged, with `--no-fail-fast`: 94
-binaries, 1213 passed, 0 failed, 1 ignored (the census cross-check, ignored
-on demand; the relative-clause pin it used to ignore now runs); the lexicon
-export still byte-identical to the before tree; `cargo xtask cite check` 0
-stale.
+`english-v3-relative-clause-adjuncts` and the
+`english-v3-by-complement-functions` claim, with no conflict. A second
+refresh brought in `english-v3-by-complement-functions`' landing
+(`rkkokprp`, `swlrnxpo`: `deckmaste_english_v3` declarations and tests,
+`lexicon/core.ron`, the oracle-english glossary), again with no conflict.
+None of them writes a designation (no string label in `plugins_v2` or
+`lean/Semantics` after either refresh). On the twice-refreshed tree:
+`lean/scripts/build` completed (82 jobs); `cargo xtask facts check` up to
+date; `cargo xtask lean-check` canon 127/127, testing 6/6; the derived gate
+command, unchanged, with `--no-fail-fast`: 95 binaries, 1217 passed, 0
+failed, 1 ignored (the census cross-check, ignored on demand; the
+relative-clause pin it used to ignore now runs); `cargo xtask cite check` 0
+stale, `--list-noncompliant` 0; `kata kanban check` OK. The lexicon moved
+with `core.ron`, so the export was re-measured against the refreshed base
+(`oxyxrpkn`, without this series): byte-identical to this series' export.
