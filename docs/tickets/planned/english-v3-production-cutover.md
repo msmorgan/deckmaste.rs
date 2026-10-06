@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-systemic-residuals, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord, english-v3-by-complement-functions, english-v3-census-tractability, english-v3-cutover-comparison]
+needs: [english-v3-systemic-residuals, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord, english-v3-by-complement-functions, english-v3-census-tractability, english-v3-cutover-comparison, english-v3-selected-preposition-nominal-licensing]
 ---
 # Cut production English consumers over to v3
 
@@ -42,3 +42,5 @@ ratifying whatever the run happens to cost. Standard constraints apply.
   and the consumer inventory this ticket's acceptance and migration depend on.
   Until it lands, this ticket has no list of consumers to migrate and no method
   for the accepted-regression list.
+
+- `english-v3-selected-preposition-nominal-licensing`: pre-existing invalid destination NP/PP groupings parse; selected noun-PP licensing is a correctness prerequisite.

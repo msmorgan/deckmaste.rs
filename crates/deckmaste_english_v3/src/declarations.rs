@@ -141,8 +141,8 @@ constructions! {
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
         category KeywordQualityPrepositionSeries(KeywordMarker, KeywordQualityNumber);
-        category SelectedComplementTail(KeywordMarker, HeadCoordination);
-        category SelectedComplementTailSeries(KeywordMarker, HeadCoordination);
+        category SelectedComplementTail(HeadCoordination);
+        category SelectedComplementTailSeries(HeadCoordination);
         category KeywordSeparator(KeywordSeparator);
         category KeywordContinuation();
         category Cost();
@@ -1142,8 +1142,7 @@ constructions! {
         }
         policy SelectedTailConcord<Right, Source> {
             require left.HeadCoordination = No;
-            agree left.KeywordMarker = Right.KeywordMarker;
-            export KeywordMarker = left.KeywordMarker;
+            share_segments left, Right;
             export HeadCoordination = Yes;
         }
         policy PrimitiveRightTail<Right, Source> {
@@ -1732,13 +1731,13 @@ constructions! {
             form [object: AccusativePhrase, " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
             require marker.PrepositionComplement = NounPhrase;
-            export KeywordMarker = marker.KeywordMarker;
+            segment Predicate;
             export HeadCoordination = No;
         }
         schema SelectedComplementClustersPredicate {
             form [head: lexical(Verb), " ", tail: SelectedComplementTail];
             require tail.HeadCoordination = Yes;
-            require selected_object_marker(head.frame, tail.KeywordMarker) = Yes;
+            discharge_segments head, tail;
         }
         instance SelectedComplementClustersPredicate<Result, Properties>: [
             (FinitePredicate, FiniteHeadAgreement),

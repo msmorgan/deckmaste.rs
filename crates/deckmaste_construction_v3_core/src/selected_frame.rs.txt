@@ -33,6 +33,164 @@ enum FrameLayout {
     Optional(Option<Box<FrameLayout>>),
 }
 
+// Open frame dependencies contain candidates for each segment, never AST products.
+// The first segment pins the overt head's frame choice; other segments may use
+// corresponding slots in a different frame declared by that same lexical owner.
+#[derive(Clone)]
+enum SegmentRule {
+    None,
+    Build {
+        kind: String,
+        candidates: Vec<(usize, Vec<(usize, usize)>)>,
+    },
+    Share(usize, usize),
+    Discharge(usize, usize),
+}
+
+impl SegmentRule {
+    fn advance(&self, dot: usize, state: &mut State, child: Option<&Summary>) -> Option<()> {
+        let open = child.is_some_and(|summary| !summary.segments.is_empty());
+        match self {
+            Self::None => {
+                if open {
+                    return None;
+                }
+            }
+            Self::Build { candidates, .. } => {
+                if open {
+                    return None;
+                }
+                if dot == 0 {
+                    state.segment_candidates = (0..candidates.len()).collect();
+                }
+                state.segment_candidates.retain(|&index| {
+                    candidates[index].1.iter().all(|&(slot, class)| {
+                        slot != dot
+                            || child.is_some_and(|summary| summary.marker_class == Some(class))
+                    })
+                });
+                if state.segment_candidates.is_empty() {
+                    return None;
+                }
+            }
+            Self::Share(left, right) => {
+                if dot == *left || dot == *right {
+                    let child = child?;
+                    if child.segments.is_empty() {
+                        return None;
+                    }
+                    state.segments.extend(child.segments.iter().cloned());
+                } else if open {
+                    return None;
+                }
+            }
+            Self::Discharge(head, tail) => {
+                if dot == *head {
+                    let child = child?;
+                    let Some(FeatureValue::Frame(selected)) = child.values.get(7)?.as_ref() else {
+                        return None;
+                    };
+                    state.segment_license = Some((*selected, child.licensed_segments.clone()));
+                } else if dot == *tail {
+                    let child = child?;
+                    let (selected, licensed) = state.segment_license.as_ref()?;
+                    if !child.segments.first()?.contains(selected)
+                        || child.segments.iter().any(|candidates| {
+                            !candidates
+                                .iter()
+                                .any(|candidate| licensed.contains(candidate))
+                        })
+                    {
+                        return None;
+                    }
+                    state.segment_license = None;
+                } else if open {
+                    return None;
+                }
+            }
+        }
+        Some(())
+    }
+
+    fn complete(&self, state: &State) -> Option<Vec<Vec<usize>>> {
+        match self {
+            Self::Build { candidates, .. } => {
+                let mut frames: Vec<_> = state
+                    .segment_candidates
+                    .iter()
+                    .map(|&index| candidates[index].0)
+                    .collect();
+                frames.sort_unstable();
+                frames.dedup();
+                if frames.is_empty() { None } else { Some(vec![frames]) }
+            }
+            Self::Share(_, _) => {
+                if state.segments.len() < 2 {
+                    return None;
+                }
+                // Repetition after the first imposes the same licensing obligation.
+                // Keep the first distinct for the selected head's frame identity.
+                let mut result = vec![state.segments[0].clone()];
+                for segment in &state.segments[1..] {
+                    if !result[1..].contains(segment) {
+                        result.push(segment.clone());
+                    }
+                }
+                result[1..].sort();
+                Some(result)
+            }
+            Self::Discharge(_, _) if state.segment_license.is_some() => None,
+            _ => Some(vec![]),
+        }
+    }
+}
+
+fn corresponding_frame(
+    left: &::deckmaste_lexical::Frame,
+    right: &::deckmaste_lexical::Frame,
+) -> bool {
+    fn corresponding_item(
+        left: &::deckmaste_lexical::FrameItem,
+        right: &::deckmaste_lexical::FrameItem,
+    ) -> bool {
+        use ::deckmaste_lexical::FrameItem;
+        match (left, right) {
+            (FrameItem::Argument(left), FrameItem::Argument(right)) => left == right,
+            (
+                FrameItem::Marker {
+                    vocabulary: left, ..
+                },
+                FrameItem::Marker {
+                    vocabulary: right, ..
+                },
+            ) => left == right,
+            (
+                FrameItem::Marked {
+                    vocabulary: left,
+                    slot: left_slot,
+                    ..
+                },
+                FrameItem::Marked {
+                    vocabulary: right,
+                    slot: right_slot,
+                    ..
+                },
+            ) => left == right && left_slot == right_slot,
+            (FrameItem::Optional(left), FrameItem::Optional(right)) => {
+                corresponding_item(left, right)
+            }
+            _ => false,
+        }
+    }
+    left.kind == right.kind
+        && left.items.len() == right.items.len()
+        && left
+            .items
+            .iter()
+            .zip(&right.items)
+            .all(|(left, right)| corresponding_item(left, right))
+}
+
 struct FrameExpansion {
     template: usize,
     program: usize,
@@ -80,13 +238,19 @@ impl<'a> GrammarEnvironment<'a> {
     }
     pub fn admit(&self, reading: &Reading) -> Result<Summary, Error> {
         let summary = reading.admit_with(&self.grammar, self.lexicon)?;
+        if !summary.segments.is_empty() {
+            return Err(Error::Invalid("frame segments", "undischarged sharing"));
+        }
         let mut output = Realization::new();
         reading.write(&self.grammar, self.lexicon, &mut output)?;
         output.check_context(self.lexicon)?;
         Ok(summary)
     }
     pub fn realize(&self, reading: &Reading) -> Result<String, Error> {
-        reading.admit_with(&self.grammar, self.lexicon)?;
+        let summary = reading.admit_with(&self.grammar, self.lexicon)?;
+        if !summary.segments.is_empty() {
+            return Err(Error::Invalid("frame segments", "undischarged sharing"));
+        }
         let mut output = Realization::new();
         reading.write(&self.grammar, self.lexicon, &mut output)?;
         output.check_context(self.lexicon)?;
@@ -127,6 +291,9 @@ impl Grammar {
             return Err(Error::EnvironmentRequired);
         }
         let summary = reading.admit_with(self, lexicon)?;
+        if !summary.segments.is_empty() {
+            return Err(Error::Invalid("frame segments", "undischarged sharing"));
+        }
         let mut output = Realization::new();
         reading.write(self, lexicon, &mut output)?;
         output.check_context(lexicon)?;
@@ -141,7 +308,10 @@ impl Grammar {
         if REQUIRES_ENVIRONMENT && !self.compiled {
             return Err(Error::EnvironmentRequired);
         }
-        reading.admit_with(self, lexicon)?;
+        let summary = reading.admit_with(self, lexicon)?;
+        if !summary.segments.is_empty() {
+            return Err(Error::Invalid("frame segments", "undischarged sharing"));
+        }
         let mut output = Realization::new();
         reading.write(self, lexicon, &mut output)?;
         output.check_context(lexicon)?;
@@ -171,6 +341,20 @@ impl Grammar {
                             .position(|candidate| candidate == frame)
                     })
                     .map(FeatureValue::Frame);
+                summary.licensed_segments = frame
+                    .map(|selected| {
+                        properties
+                            .frames
+                            .iter()
+                            .filter(|candidate| corresponding_frame(selected, candidate))
+                            .filter_map(|candidate| {
+                                self.canonical_frames
+                                    .iter()
+                                    .position(|frame| frame == candidate)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
             }
         }
         summaries
@@ -244,7 +428,12 @@ impl Grammar {
     fn compile_frames(&mut self, lexicon: &::deckmaste_lexical::Lexicon) {
         self.compiled = true;
         self.static_count = self.productions.len();
-        if SELECTED_FRAME_TEMPLATES.is_empty() {
+        if SELECTED_FRAME_TEMPLATES.is_empty()
+            && !self
+                .rules
+                .iter()
+                .any(|rule| matches!(rule.segments, SegmentRule::Build { .. }))
+        {
             return;
         }
         self.marker_classes = lexicon
@@ -280,7 +469,7 @@ impl Grammar {
         for frame in frames {
             if !SELECTED_FRAME_TEMPLATES
                 .iter()
-                .any(|(_, kind)| *kind == frame.kind)
+                .any(|(_, kind)| *kind == frame.kind) && !self.rules.iter().any(|rule| matches!(&rule.segments, SegmentRule::Build { kind, .. } if *kind == frame.kind))
             {
                 continue;
             }
@@ -312,6 +501,71 @@ impl Grammar {
             }
             let program = self.programs.len();
             self.programs.push(frame);
+            for index in 0..self.static_count {
+                let SegmentRule::Build { kind, .. } = &self.rules[index].segments else {
+                    continue;
+                };
+                if *kind != self.programs[program].kind {
+                    continue;
+                }
+                for layout in &variants {
+                    let mut shape = vec![];
+                    let mut rule = self.rules[index].clone();
+                    rule.guards.clear();
+                    rule.checks.clear();
+                    rule.release.clear();
+                    for item in layout {
+                        item.symbols(&mut shape, &mut rule);
+                    }
+                    // A segment omits the selecting head and its preceding separator.
+                    if !shape.is_empty() {
+                        shape.remove(0);
+                        rule.guards.remove(0);
+                    }
+                    let matches = shape.len() == self.productions[index].symbols.len()
+                        && shape.iter().zip(&self.productions[index].symbols).all(
+                            |(left, right)| {
+                                use ::deckmaste_english_v3::Symbol;
+                                match (left, right) {
+                                    (Symbol::Literal(left), Symbol::Literal(right)) => {
+                                        left == right
+                                    }
+                                    (Symbol::Lexical(left), Symbol::Lexical(right)) => {
+                                        left == right
+                                    }
+                                    (Symbol::Nonterminal(left), Symbol::Nonterminal(right)) => {
+                                        left == right
+                                    }
+                                    _ => false,
+                                }
+                            },
+                        );
+                    if matches {
+                        let canonical = self
+                            .canonical_frames
+                            .iter()
+                            .position(|frame| frame == &self.programs[program])
+                            .unwrap();
+                        let markers = rule
+                            .guards
+                            .iter()
+                            .enumerate()
+                            .filter_map(|(slot, guard)| {
+                                if let FrameGuard::Marker(class) = guard {
+                                    Some((slot, *class))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        let SegmentRule::Build { candidates, .. } = &mut self.rules[index].segments
+                        else {
+                            unreachable!()
+                        };
+                        candidates.push((canonical, markers));
+                    }
+                }
+            }
             for &(template, kind) in SELECTED_FRAME_TEMPLATES {
                 if self.programs[program].kind != kind {
                     continue;

@@ -58,6 +58,23 @@ pub(crate) struct Construction {
     pub equations: Vec<Equation>,
     pub boundary: Option<Ident>,
     pub onset: Option<Ident>,
+    pub segments: Option<Segments>,
+}
+
+#[derive(Clone)]
+pub(crate) enum Segments {
+    Build(Ident),
+    Share(Ident, Ident),
+    Discharge(Ident, Ident),
+}
+
+impl Segments {
+    fn fields_mut(&mut self) -> Vec<&mut Ident> {
+        match self {
+            Self::Build(_) => vec![],
+            Self::Share(left, right) | Self::Discharge(left, right) => vec![left, right],
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -514,6 +531,29 @@ fn apply_policies(
                     }
                 }
             }
+            if let Some(mut segments) = policy.segments.clone() {
+                for field in segments.fields_mut() {
+                    if let Some(index) = policy
+                        .parameters
+                        .iter()
+                        .position(|parameter| parameter == field)
+                    {
+                        *field = application.arguments[index].clone();
+                    }
+                    if !fields.contains(&field.to_string()) {
+                        return Err(syn::Error::new(
+                            field.span(),
+                            "segment relation must name a caller field",
+                        ));
+                    }
+                }
+                if owner.segments.replace(segments).is_some() {
+                    return Err(syn::Error::new(
+                        owner.name.span(),
+                        "duplicate segment relation",
+                    ));
+                }
+            }
             owner.equations.extend(equations);
         }
     }
@@ -582,6 +622,14 @@ fn instantiate_schemas(
         instance.cost = schema.cost;
         instance.boundary = schema.boundary.clone();
         instance.onset = schema.onset.clone();
+        if let Some(segments) = &schema.segments
+            && instance.segments.replace(segments.clone()).is_some()
+        {
+            return Err(syn::Error::new(
+                instance.name.span(),
+                "duplicate segment relation",
+            ));
+        }
         let mut used = std::collections::BTreeSet::new();
         for form in &mut instance.forms {
             for part in form {
@@ -827,6 +875,7 @@ fn parse_construction(
         equations: vec![],
         boundary: None,
         onset: None,
+        segments: None,
     };
     while !contents.is_empty() {
         let directive: Ident = contents.call(Ident::parse_any)?;
@@ -842,6 +891,26 @@ fn parse_directive(
     construction: &mut Construction,
 ) -> syn::Result<()> {
     match directive.to_string().as_str() {
+        "segment" | "share_segments" | "discharge_segments" => {
+            let left = contents.parse()?;
+            let relation = if directive == "segment" {
+                Segments::Build(left)
+            } else {
+                contents.parse::<Token![,]>()?;
+                let right = contents.parse()?;
+                if directive == "share_segments" {
+                    Segments::Share(left, right)
+                } else {
+                    Segments::Discharge(left, right)
+                }
+            };
+            if construction.segments.replace(relation).is_some() {
+                return Err(syn::Error::new(
+                    directive.span(),
+                    "duplicate segment relation",
+                ));
+            }
+        }
         "use" => {
             let name = contents.parse()?;
             let arguments = if contents.peek(syn::token::Paren) {

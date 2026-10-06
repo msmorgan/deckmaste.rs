@@ -793,3 +793,46 @@ fn header_category_bindings_reject_invalid_targets_and_policy_roles() {
         "unknown constituent Category",
     );
 }
+
+#[test]
+fn frame_segment_relations_validate_fields_order_and_schema_policies() {
+    compile(quote! {
+        mod valid {
+            category Segment();
+            category Predicate();
+            policy Sharing<Right> { share_segments left, Right; }
+            construction Segment: Segment {
+                form [object: Predicate, " ", marker: lexical(Preposition), " ", complement: Predicate];
+                segment Predicate;
+            }
+            construction Pair: Segment {
+                form [left: Segment, " and ", right: Segment];
+                use Sharing(right);
+            }
+            construction Host: Predicate {
+                form [head: lexical(Verb), " ", tail: Segment];
+                discharge_segments head, tail;
+            }
+        }
+    }).unwrap();
+    for (relation, expected) in [
+        (quote!(share_segments right, left;), "distinct and ordered"),
+        (quote!(share_segments left, left;), "distinct and ordered"),
+        (quote!(share_segments left, absent;), "must name a field"),
+        (quote!(discharge_segments left, right;), "lexical Verb head"),
+        (
+            quote!(share_segments left, right; share_segments left, right;),
+            "duplicate segment relation",
+        ),
+    ] {
+        rejects(
+            quote! {
+                mod invalid {
+                    category Node();
+                    construction Node: Node { form [left: Node, " ", right: Node]; #relation }
+                }
+            },
+            expected,
+        );
+    }
+}

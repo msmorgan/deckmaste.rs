@@ -99,9 +99,16 @@ pub(crate) struct Rule {
     pub table_exports: Vec<TableExport>,
     pub table_requirements: Vec<TableRequirement>,
     pub release: Vec<Vec<usize>>,
+    pub segments: Option<Segments>,
     pub build: Build,
     pub boundary: Option<Ident>,
     pub onset: Option<Ident>,
+}
+
+pub(crate) enum Segments {
+    Build(String),
+    Share(usize, usize),
+    Discharge(usize, usize),
 }
 
 pub(crate) enum Symbol {
@@ -559,6 +566,7 @@ fn normalize(
                     release[last].push(register);
                 }
             }
+            let segments = segment_relation(construction, &ir.constructors[index], &slots)?;
             let rule = ir.rules.len();
             ir.rules.push(Rule {
                 category: ir.constructors[index].category,
@@ -571,6 +579,7 @@ fn normalize(
                 table_exports: plan.table_exports.clone(),
                 table_requirements: plan.table_requirements.clone(),
                 release,
+                segments,
                 build: Build::Construction {
                     constructor: index,
                     form: form_index,
@@ -591,6 +600,64 @@ fn normalize(
         }
     }
     Ok(())
+}
+
+fn segment_relation(
+    construction: &crate::parse::Construction,
+    constructor: &Constructor,
+    slots: &[usize],
+) -> syn::Result<Option<Segments>> {
+    let segment_field = |name: &Ident, lexical: bool| -> syn::Result<usize> {
+        let field = constructor
+            .fields
+            .iter()
+            .position(|(candidate, _)| candidate == name)
+            .ok_or_else(|| error(name, "segment relation must name a field"))?;
+        let valid = if lexical {
+            matches!(&constructor.fields[field].1, FieldType::Lexical(category) if category == "Verb")
+        } else {
+            matches!(&constructor.fields[field].1, FieldType::One(_))
+        };
+        if !valid {
+            return Err(error(
+                name,
+                "segment relation requires a lexical Verb head and single constituent fields",
+            ));
+        }
+        Ok(slots[field])
+    };
+    let segments = match &construction.segments {
+        Some(crate::parse::Segments::Build(kind)) => {
+            if constructor
+                .fields
+                .iter()
+                .any(|(_, ty)| !matches!(ty, FieldType::One(_) | FieldType::Lexical(_)))
+            {
+                return Err(error(
+                    kind,
+                    "segment fields must be single arguments or lexical markers",
+                ));
+            }
+            Some(Segments::Build(kind.to_string()))
+        }
+        Some(crate::parse::Segments::Share(left, right)) => Some(Segments::Share(
+            segment_field(left, false)?,
+            segment_field(right, false)?,
+        )),
+        Some(crate::parse::Segments::Discharge(head, tail)) => Some(Segments::Discharge(
+            segment_field(head, true)?,
+            segment_field(tail, false)?,
+        )),
+        None => None,
+    };
+    if matches!(segments, Some(Segments::Share(left, right) | Segments::Discharge(left, right)) if left >= right)
+    {
+        return Err(error(
+            &construction.name,
+            "segment fields must be distinct and ordered",
+        ));
+    }
+    Ok(segments)
 }
 
 fn collect_fields(parts: &[Part], owner: &Ident) -> syn::Result<Vec<(Ident, FieldType)>> {
@@ -935,6 +1002,7 @@ fn helper(ir: &mut Ir, category: usize, symbols: Vec<Symbol>, build: Build) {
         table_exports: vec![],
         table_requirements: vec![],
         release: vec![vec![]; size],
+        segments: None,
         build,
     });
 }

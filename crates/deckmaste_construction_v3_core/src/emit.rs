@@ -90,11 +90,18 @@ fn grammar(ir: &Ir) -> TokenStream {
             });
             quote!(TableRequirement { registers: vec![#(#registers),*], rows: vec![#(#rows),*], expected: #expected })
         });
+        let segments = match &rule.segments {
+            Some(crate::ir::Segments::Build(kind)) => quote!(SegmentRule::Build { kind: #kind.into(), candidates: vec![] }),
+            Some(crate::ir::Segments::Share(left, right)) => quote!(SegmentRule::Share(#left, #right)),
+            Some(crate::ir::Segments::Discharge(head, tail)) => quote!(SegmentRule::Discharge(#head, #tail)),
+            None => quote!(SegmentRule::None),
+        };
         let boundary = rule.boundary.as_ref().map_or_else(|| quote!(None), |name| quote!(Some(Boundary::#name)));
         let onset = rule.onset.as_ref().map_or_else(|| quote!(None), |name| quote!(Some(::deckmaste_lexical::Onset::#name)));
         let size = rule.symbols.len();
         quote!(Rule {
             guards: vec![FrameGuard::Any; #size],
+            segments: #segments,
             boundary: #boundary,
             onset: #onset,
             checks: vec![#(#checks),*],
@@ -127,7 +134,7 @@ fn grammar(ir: &Ir) -> TokenStream {
         })
         .collect();
     let canonical_frames = ir.frames.iter().map(|(_, frame)| frame_tokens(frame));
-    let required = !templates.is_empty();
+    let required = !templates.is_empty() || ir.rules.iter().any(|rule| rule.segments.is_some());
     let static_count = ir.rules.len();
     let categories = ir
         .frame_categories

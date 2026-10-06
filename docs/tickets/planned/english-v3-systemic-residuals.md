@@ -176,6 +176,23 @@ is right and this list needs fixing.
 - Label/body, ordered-destination, only-if/only-during, comparison, Type Line
   ordering and document cases keep their existing owners.
 
+- Frame-coordination reconciliation (2026-10-06): 42 inherited no-Reading faces
+  remain owned here for exact structural cause discrimination: Commune with
+  Evil; Strategic Planning; Sunflare Shaman; Drakuseth, Maw of Flames; Beast
+  Hunt; Vigean Intuition; Mulch; Assembled Alphas; Discerning Taste; Tracker's
+  Instincts; Murmurs from Beyond; Maestros Charm; Confounding Riddle; Chandra,
+  Flame's Fury; The Brothers' War; Winding Way; Sultai Soothsayer; Forbidden
+  Alchemy; Taigam, Sidisi's Hand; Resentful Revelation; Neonate's Rush;
+  Scattered Thoughts; Tamiyo, Collector of Tales; Pieces of the Puzzle; Firja,
+  Judge of Valor; Trick Shot; Ancestral Memories; Self-Destruct; Tropical Storm;
+  Ransack the Lab; Organ Hoarder; Judgment Bolt; Sparksmith; Burn the Accursed;
+  Borborygmos Enraged; Shadow Guildmage; Testament Bearer; Rakshasa's Bargain;
+  Psionic Sliver; Bitter Revelation; Kruphix's Insight; Glimpse the Future.
+  Durable identities, exact source and measurements:
+  `/tmp/frame-coordination-inherited-reconciliation.json`; exhaustive final
+  Reading evidence: `/tmp/frame-coordination-inherited-final.json`. Whole-face
+  failure alone does not establish a frame-coordination cause.
+
 The records also name two cutover blockers that now have their own owners: the
 cost of the complete corpus run (english-v3-census-tractability) and the Avacyn
 complement-function defect (english-v3-by-complement-functions).
