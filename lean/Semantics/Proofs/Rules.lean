@@ -301,7 +301,7 @@ def blood : PredefinedToken :=
             text :=
               [ activated
                   (.compound
-                    [ .mana [generic 1], .tapSymbol, .perform (discard (a (.inZone yourHand))),
+                    [ .mana [generic 1], .tapSymbol, .perform (discard (a (.and [.isCard, .inZone yourHand]))),
                       .perform (sacrifice .this) ])
                   (draw (.lit 1)) ] } } }
 theorem okBlood : PredefinedToken.check blood = [] := by decide

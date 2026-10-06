@@ -257,7 +257,7 @@ def contrabandLivestock : Instruction :=
 theorem okContrabandLivestock : Instruction.check [] contrabandLivestock = [] := by decide
 
 /-- Hypnotic Specter -/
-def hypnoticSpecterDiscard : Instruction := discard (aAtRandom (Primitives.Predicate.inZone (handOf they)))
+def hypnoticSpecterDiscard : Instruction := discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)]))
 theorem okHypnoticSpecterDiscard :
     Instruction.check [⟨.the, .one, .player false⟩] hypnoticSpecterDiscard = [] := by decide
 
@@ -358,7 +358,7 @@ theorem okBioplasmCardTest : Condition.check bioplasmAfterExile bioplasmCardTest
 
 /-- Blessed Respite -/
 def blessedRespiteShuffle : Instruction :=
-  shuffleInto (allOf (Primitives.Predicate.inZone (graveyardOf they))) (agent := (target Primitives.Predicate.anyPlayer))
+  shuffleInto (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)])) (agent := (target Primitives.Predicate.anyPlayer))
 theorem okBlessedRespiteShuffle : Instruction.check [] blessedRespiteShuffle = [] := by decide
 
 /-- Nekrataal -/
@@ -484,7 +484,7 @@ theorem okGreatestCardsAnOpponentDrew : Amount.check [] greatestCardsAnOpponentD
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   Primitives.Amount.aggregateOver .max Primitives.Predicate.anyPlayer
     (eventCount (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "Discard")
-      (some (allOf (Primitives.Predicate.inZone hand))) none none) they .thisWay)
+      (some (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))) none none) they .thisWay)
 theorem okGreatestCardsAPlayerDiscardedThisWay :
     Amount.check [] greatestCardsAPlayerDiscardedThisWay = [] := by decide
 
@@ -579,7 +579,7 @@ theorem theOtherRefusesTheUniversalSlice :
 
 def eachPlayerShufflesTheirHandAndGraveyard : Instruction :=
   shuffleInto
-    (Primitives.NounPhrase.both (allOf (Primitives.Predicate.inZone (handOf they))) (allOf (Primitives.Predicate.inZone (graveyardOf they)))) (agent := (each
+    (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)]))) (agent := (each
         Primitives.Predicate.anyPlayer))
 theorem okEachPlayerShufflesTheirHandAndGraveyard :
     Instruction.check [] eachPlayerShufflesTheirHandAndGraveyard = [] := by decide

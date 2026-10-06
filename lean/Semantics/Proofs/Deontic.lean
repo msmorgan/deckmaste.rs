@@ -194,7 +194,7 @@ theorem badPayAsCost :
 /-- "Discard a card, then sacrifice a creature:" -/
 theorem badSequentialCost :
     Ability.check []
-      (act (.perform (.sequentially [discard (a (.inZone yourHand)), sacrifice (a creature)
+      (act (.perform (.sequentially [discard (a (.and [.isCard, .inZone yourHand])), sacrifice (a creature)
           (agent := .you)]))
         (draw (.lit 1) (agent := .you))) = [.costAction] := by
   decide
@@ -203,7 +203,7 @@ theorem badSequentialCost :
 theorem badSimultaneousCost :
     Ability.check []
       (act
-        (.perform (.simultaneously [discard (a (.inZone yourHand)), sacrifice (a
+        (.perform (.simultaneously [discard (a (.and [.isCard, .inZone yourHand])), sacrifice (a
             creature) (agent := .you)]))
         (draw (.lit 1) (agent := .you))) = [.costAction] := by
   decide
@@ -219,7 +219,7 @@ theorem okCompoundCost :
     Ability.check []
       (act
         (.compound
-          [.perform (discard (a (.inZone yourHand))), .perform (sacrifice (a creature)
+          [.perform (discard (a (.and [.isCard, .inZone yourHand]))), .perform (sacrifice (a creature)
               (agent := .you))])
         (draw (.lit 1) (agent := .you))) = [] := by
   decide
@@ -245,7 +245,7 @@ theorem okPlayFromGraveyard :
     Instruction.check []
       (.establish
         (.deonticRule .you .permit [.action "Play"] .agent none
-          (.counterpart (a (.inZone graveyard))) none playRider) (some .thisTurn)) = [] := by
+          (.counterpart (a (.and [.isCard, .inZone graveyard]))) none playRider) (some .thisTurn)) = [] := by
   decide
 
 /-- "You may play a creature this turn." -/
@@ -502,7 +502,7 @@ theorem badCantCounterCreatures :
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Instruction.check []
-      (.doOnlyIf (.sequentially [choose (a (.inZone hand)) (agent := some (each .opponent)), discard them]) (.matches (those .card)
+      (.doOnlyIf (.sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them]) (.matches (those .card)
           creature)
         none) = [] := by
   decide

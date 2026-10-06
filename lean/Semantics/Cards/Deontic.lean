@@ -213,7 +213,7 @@ def ensnaringBridge : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (deontic
             (allOf (Primitives.Predicate.and [ creature,
-                           Primitives.Predicate.compare [.stat .power] .greater (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) ]))
+                           Primitives.Predicate.compare [.stat .power] .greater (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) ]))
             Primitives.Compulsion.forbid [.core .attack] .agent Primitives.DeonticPatient.noPatient) ] } }
 
 def undercoverButler : Spelled := spelled <| .singleFaced

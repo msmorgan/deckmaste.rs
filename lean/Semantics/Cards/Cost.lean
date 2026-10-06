@@ -456,7 +456,7 @@ def candlesOfLeng : Spelled := spelled <| .singleFaced
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 4], Primitives.Cost.tapSymbol])
             (Primitives.Instruction.sequentially
               [ revealCards (topSlice (.lit 1)),
-                Primitives.Instruction.doIf (Primitives.Condition.matches it (Primitives.Predicate.named (Primitives.NameSource.sameAs (a (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you))))))
+                Primitives.Instruction.doIf (Primitives.Condition.matches it (Primitives.Predicate.named (Primitives.NameSource.sameAs (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))))
                   (move it graveyard) (some (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))) ]) ] } }
 
 def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
@@ -763,7 +763,7 @@ theorem okTymorasInvoker : Ability.check [] tymorasInvoker = [] := by decide
 /-- Skyblade's Boon -/
 def skybladesBoonReturn : Ability :=
   activatedOnlyIf (Primitives.Cost.mana [generic 2, pip .white]) (move Primitives.NounPhrase.this hand)
-    (Primitives.Condition.or [Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.inZone battlefield), Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you))])
+    (Primitives.Condition.or [Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.inZone battlefield), Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])])
 theorem okSkybladesBoonReturn : Ability.check [] skybladesBoonReturn = [] := by decide
 /-- Bamboozling Beeble -/
 def bamboozlingBeebleIgnore : Ability :=
@@ -785,7 +785,7 @@ def generalTazriPump : Ability :=
 theorem okGeneralTazriPump : Ability.check [] generalTazriPump = [] := by decide
 /-- Diplomatic Escort -/
 def diplomaticEscortLine : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone yourHand)))])
+  activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])))])
     (Primitives.Instruction.counterSpell
       (target (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.targets (a creature) .someTarget])))
 theorem okDiplomaticEscortLine : Ability.check [] diplomaticEscortLine = [] := by decide

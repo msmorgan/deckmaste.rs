@@ -54,7 +54,7 @@ theorem okSecretPlans : Ability.check [] secretPlans = [] := by decide
 
 /-- Teferi's Imp -/
 def teferisImpPhasesOut : Ability :=
-  whenever (Primitives.GameEvent.statusEvent thisCreature .phasedOut) (discard (a (Primitives.Predicate.inZone yourHand)))
+  whenever (Primitives.GameEvent.statusEvent thisCreature .phasedOut) (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])))
 theorem okTeferisImpPhasesOut : Ability.check [] teferisImpPhasesOut = [] := by decide
 /-- Teferi's Imp -/
 def teferisImpPhasesIn : Ability :=
@@ -152,7 +152,7 @@ theorem okElderscaleWurm : Ability.check [] elderscaleWurm = [] := by decide
 /-- Krang, Master Mind -/
 def krang : Ability :=
   triggeredIf (Primitives.GameEvent.enters thisCreature none)
-    (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) .less (.lit 4)) (Primitives.Instruction.draw Primitives.Amount.theDifference (agent :=
+    (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) .less (.lit 4)) (Primitives.Instruction.draw Primitives.Amount.theDifference (agent :=
         Primitives.NounPhrase.you))
 theorem okKrang : Ability.check [] krang = [] := by decide
 
@@ -534,7 +534,7 @@ theorem okPoliticalTriumphHeader : GameEvent.check [] politicalTriumphHeader = [
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=
   when (Primitives.GameEvent.paysCost (some (a Primitives.Predicate.anyPlayer)) .unpaid thisEnchantment "CumulativeUpkeep")
-    (exile (each (Primitives.Predicate.inZone (libraryOf they))) (agent := some (that .player)))
+    (exile (each (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (libraryOf they)])) (agent := some (that .player)))
 theorem okThoughtLashTrigger : Ability.check [] thoughtLashTrigger = [] := by decide
 /-- Heart of Bogardan -/
 def heartOfBogardanHeader : GameEvent :=
@@ -553,7 +553,7 @@ theorem okStormscapeBattlemageFirstKicker :
 /-- All-Seeing Arbiter -/
 def allSeeingArbiterHeader : GameEvent :=
   Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action "Discard") (some (a
-    (Primitives.Predicate.inZone hand))) none none
+    (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))) none none
 theorem okAllSeeingArbiterHeader : GameEvent.check [] allSeeingArbiterHeader = [] := by decide
 
 /-- Liliana's Caress -/
@@ -562,7 +562,7 @@ def lilianasCaress : Spelled := spelled <| .singleFaced
     { name := "Liliana's Caress", cost := some [generic 1, pip .black], types := [.enchantment],
       text :=
         [ whenever (Primitives.GameEvent.verbedEvent (some anOpponent) (.action "Discard") (some (a
-          (Primitives.Predicate.inZone hand))) none none)
+          (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))) none none)
             (loseLife (.lit 2) (agent := they)) ] } }
 
 /-- Scheming Aspirant -/
@@ -672,7 +672,7 @@ def loamingShaman : Spelled := spelled <| .singleFaced
       text :=
         [ when (Primitives.GameEvent.enters thisCreature none)
             (shuffleInto
-              (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) (Primitives.Predicate.inZone (graveyardOf they))) (agent := (target
+              (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)])) (agent := (target
                   Primitives.Predicate.anyPlayer))) ],
       power := stat 3, toughness := stat 2 } }
 
@@ -692,7 +692,7 @@ theorem okWurmwallSweeperTrigger : Ability.check [] wurmwallSweeperTrigger = [] 
 /-- Case of the Crimson Pulse -/
 def caseOfTheCrimsonPulseTrigger : Ability :=
   when (Primitives.GameEvent.enters thisCase none)
-    (Primitives.Instruction.sequentially [discard (a (Primitives.Predicate.inZone yourHand)), Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)])
+    (Primitives.Instruction.sequentially [discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])), Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)])
 theorem okCaseOfTheCrimsonPulseTrigger : Ability.check [] caseOfTheCrimsonPulseTrigger = [] := by
   decide
 

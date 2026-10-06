@@ -23,7 +23,7 @@ def boshIronGolem : Ability :=
       (target anyTarget))
 theorem okBoshIronGolem : Ability.check [] boshIronGolem = [] := by decide
 def pyromancy : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (discard (aAtRandom (Primitives.Predicate.inZone yourHand)))])
+  activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])))])
     (Primitives.Instruction.dealDamage thisEnchantment
       (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
       (target anyTarget))
@@ -378,7 +378,7 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ choose (target anyTarget),
               Primitives.Instruction.draw (.lit 3) (agent := Primitives.NounPhrase.you),
-              discard (a (Primitives.Predicate.inZone yourHand)),
+              discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])),
               Primitives.Instruction.dealDamage Primitives.NounPhrase.this
                 (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
                 thatJoin ]) ] } }

@@ -68,13 +68,13 @@ theorem historyRetainsNamedParticipant :
 theorem castCanCarryExcludedOrigins :
     LookbackClause.check .player []
       (.mk
-        (.casts (.gap .player) (some (.described (.a .unmarked) (.inZone (.zone .stack .bare))))
+        (.casts (.gap .player) (some (.described (.a .unmarked) (.and [.isCard, .inZone (.zone .stack .bare)])))
           (some (.anywhereBut [.zone .hand (.possessedBy .you)]))) .thisTurn) = [] := by decide
 
 theorem castRejectsEmptyOriginExclusion :
     LookbackClause.check .player []
       (.mk
-        (.casts (.gap .player) (some (.described (.a .unmarked) (.inZone (.zone .stack .bare))))
+        (.casts (.gap .player) (some (.described (.a .unmarked) (.and [.isCard, .inZone (.zone .stack .bare)])))
           (some (.anywhereBut []))) .thisTurn) = [.playableFrom] := by decide
 
 theorem namedActionCanCarryItsLocus :

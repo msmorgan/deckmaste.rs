@@ -566,8 +566,8 @@ theorem nyxathidTwin :
           text :=
             [ .static (entersChoosingPlayer thisCreature (some (.players .opponent))),
               .static (getsPt thisCreature
-                (.down (countOf (.inZone (handOf (the chosenPlayer)))))
-                (.down (countOf (.inZone (handOf (the chosenPlayer)))))) ],
+                (.down (countOf (.and [.isCard, .inZone (handOf (the chosenPlayer))])))
+                (.down (countOf (.and [.isCard, .inZone (handOf (the chosenPlayer))])))) ],
           power := stat 7, toughness := stat 7 }) =
       Card.check
         (oneFaced
@@ -576,8 +576,8 @@ theorem nyxathidTwin :
             text :=
               [ .static (entersChoosingPlayer thisCreature (some (.players .opponent))),
                 .static (getsPtTwoHalves thisCreature
-                  (.down (countOf (.inZone (handOf (the chosenPlayer)))))
-                  (.down (countOf (.inZone (handOf (the chosenPlayer)))))) ],
+                  (.down (countOf (.and [.isCard, .inZone (handOf (the chosenPlayer))])))
+                  (.down (countOf (.and [.isCard, .inZone (handOf (the chosenPlayer))])))) ],
             power := stat 7, toughness := stat 7 }) := by
   decide
 
@@ -602,12 +602,12 @@ theorem nightmarishEndTwin :
     Instruction.check []
       (.sequentially
         [ get (target creature) (.down (.letter .x)) (.down (.letter .x)) (some untilEndOfTurn),
-          Primitives.Instruction.define .x (countOf (.inZone (handOf .you))) ]) =
+          Primitives.Instruction.define .x (countOf (.and [.isCard, .inZone (handOf .you)])) ]) =
       Instruction.check []
         (.sequentially
           [ getTwoHalves (target creature) (.down (.letter .x)) (.down (.letter .x))
               (some untilEndOfTurn),
-            Primitives.Instruction.define .x (countOf (.inZone (handOf .you))) ]) := by
+            Primitives.Instruction.define .x (countOf (.and [.isCard, .inZone (handOf .you)])) ]) := by
   decide
 
 /-- Distortion Strike: "Target creature gets +1/+0 until end of turn and can't be blocked this

@@ -307,7 +307,7 @@ def rakshasaVizier : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Demon"],
       text :=
         [ whenever
-            (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you))) exileZone
+            (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) exileZone
               (Primitives.EventSource.zones [graveyardOf Primitives.NounPhrase.you]))
             (Primitives.Instruction.putCounters Primitives.Amount.groupSize (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
       power := stat 4, toughness := stat 4 } }
@@ -724,7 +724,7 @@ def oonasBlackguard : Spelled := spelled <| .singleFaced
             (dealsCombatDamage
               (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.hasCounters (some p1p1Counter)]))
               (a Primitives.Predicate.anyPlayer))
-            (discard (a (Primitives.Predicate.inZone (handOf (that .player))))) ],
+            (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))]))) ],
       power := stat 1, toughness := stat 1 } }
 
 def crumblingAshes : Spelled := spelled <| .singleFaced
@@ -787,7 +787,7 @@ def urborgScavengers : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredOr (Primitives.GameEvent.enters thisCreature none) [attacks thisCreature]
             (Primitives.Instruction.sequentially
-              [ exile (target (Primitives.Predicate.inZone graveyard)),
+              [ exile (target (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone graveyard])),
                 Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature ]),
           Primitives.Ability.alsoForKeywords
             (Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.abilityGrant thisCreature (keyword "Flying"))
@@ -900,7 +900,7 @@ def korvoldCombatTrigger : Ability :=
     (Primitives.Instruction.sequentially
       [ Primitives.Instruction.putCounters (Primitives.Amount.letter .x) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature,
         Primitives.Instruction.draw (Primitives.Amount.letter .x) (agent := Primitives.NounPhrase.you),
-        Primitives.Instruction.define .x (Primitives.Amount.distinctCount .permanentType (allOf (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)))) ])
+        Primitives.Instruction.define .x (Primitives.Amount.distinctCount .permanentType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))) ])
 theorem okKorvoldCombatTrigger : Ability.check [] korvoldCombatTrigger = [] := by decide
 /-- Mirelurk Queen -/
 def mirelurkQueenTrigger : Ability :=
@@ -1220,7 +1220,7 @@ def neurokTransmuter : Instruction :=
 theorem okNeurokTransmuter : Instruction.check [] neurokTransmuter = [] := by decide
 def syphonMind : Instruction :=
   Primitives.Instruction.sequentially
-    [ Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.inZone hand)) (agent := some (each otherPlayer)), discard them],
+    [ Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some (each otherPlayer)), discard them],
       Primitives.Instruction.doForEach (theVerbed (.action "Discard") .card .thisWay .many) (Primitives.Instruction.draw (.lit 1) (agent :=
           Primitives.NounPhrase.you)) ]
 theorem okSyphonMind : Instruction.check [] syphonMind = [] := by decide

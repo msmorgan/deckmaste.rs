@@ -28,7 +28,7 @@ theorem badOwnedBattlefield :
 target." -/
 theorem okDiscardedCardWord :
     Ability.check []
-      (act (.perform (discard (aAtRandom (.inZone yourHand))))
+      (act (.perform (discard (aAtRandom (.and [.isCard, .inZone yourHand]))))
         (.dealDamage .this
           (.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
           (target anyTarget))) = [] := by
@@ -398,7 +398,7 @@ theorem okTappedForMana :
 /-- "Whenever a card in a graveyard is tapped for mana, …": only a permanent is tapped for mana
 [CR#106.12]. -/
 theorem badTappedForManaOffField :
-    GameEvent.check [] (.tappedForMana (some .you) (a (.inZone graveyard)) none)
+    GameEvent.check [] (.tappedForMana (some .you) (a (.and [.isCard, .inZone graveyard])) none)
       = [.zoneFits] := by
   decide
 

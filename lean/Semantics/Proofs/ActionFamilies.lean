@@ -215,7 +215,7 @@ theorem ownPowerCanReadAnExistingReference :
 
 /-- Forgetting a library mention cannot redirect a captured operand to its neighbour. -/
 theorem capturedOperandSurvivesOrdinaryShuffleForgetting :
-    let bound := captureOperands [] [a (.inZone yourLibrary), target creature]
+    let bound := captureOperands [] [a (.and [.isCard, .inZone yourLibrary]), target creature]
     let shuffled := afterShuffle bound
     let moved := moveIntro shuffled none (operand 0) (some .exile)
     ((operand 0).zone moved, (operand 1).zone moved,
@@ -241,19 +241,19 @@ theorem alternativeDoesNotObserveThePrimaryBranchesMove :
 
 
 theorem aliasesRemainOneObjectAfterShuffle :
-    let bound := captureOperands [] [a (.inZone yourLibrary), it]
+    let bound := captureOperands [] [a (.and [.isCard, .inZone yourLibrary]), it]
     let moved := moveIntro (afterShuffle bound) none (operand 0) (some .graveyard)
     ((operand 0).zone moved, (operand 1).zone moved) =
       (some .graveyard, some .graveyard) := by decide
 
 theorem aliasesAcrossNestedFramesRemainOneObjectAfterShuffle :
-    let outer := captureOperands [] [a (.inZone yourLibrary)]
+    let outer := captureOperands [] [a (.and [.isCard, .inZone yourLibrary])]
     let inner := captureOperands outer [operand 0]
     let moved := moveIntro (afterShuffle inner) none (operand 0) (some .graveyard)
     (operand 0).zone (closeOperands moved) = some .graveyard := by decide
 
 theorem conditionalForgettingKeepsTheOperandScope :
-    Instruction.check [] (.withBindings 0 [.subject (a (.inZone yourLibrary))] (.sequentially [
+    Instruction.check [] (.withBindings 0 [.subject (a (.and [.isCard, .inZone yourLibrary]))] (.sequentially [
       .doIf (.matches .you .anyPlayer) (.shuffle .you) none,
       .move (operand 0) .wherever graveyard []])) = [] := by decide
 

@@ -215,7 +215,7 @@ theorem badDestroyGraveyard :
   decide
 
 /-- "You discard a card." -/
-theorem okDiscardHand : Instruction.check [] (discard (a (.inZone yourHand))) = [] := by
+theorem okDiscardHand : Instruction.check [] (discard (a (.and [.isCard, .inZone yourHand]))) = [] := by
     decide
 
 /-- "You discard a creature." -/
@@ -244,7 +244,7 @@ theorem badUnknownKeywordAction :
 /-- "You exile a card from your hand." -/
 theorem okAgentedKnownAct :
     Instruction.check []
-      (.enact (.action "Exile") (.move (a (.inZone hand)) .wherever exileZone []) (agent := (some .you)))
+      (.enact (.action "Exile") (.move (a (.and [.isCard, .inZone hand])) .wherever exileZone []) (agent := (some .you)))
       = [] := by
   decide
 
@@ -302,7 +302,7 @@ theorem badAttackingInHand :
 
 /-- "Discard a card." -/
 theorem okDiscardACardFromHand :
-    Instruction.check [] (discard (a (.inZone yourHand))) = [] := by decide
+    Instruction.check [] (discard (a (.and [.isCard, .inZone yourHand]))) = [] := by decide
 
 /-- "Discard this creature." -/
 theorem badDiscardThisCreature :
@@ -325,7 +325,7 @@ theorem badDoubleOther :
 /-- "You discard a card." -/
 theorem okDiscardHandCard :
     Instruction.check [⟨.a, .one, .object [] none none none none⟩]
-      (discard (a (.inZone yourHand))) = [] := by
+      (discard (a (.and [.isCard, .inZone yourHand]))) = [] := by
   decide
 
 /-- "You discard it." -/
@@ -382,7 +382,7 @@ theorem badTrailingPostStateZone :
 
 /-- "Choose a card in your hand. You discard that card." -/
 theorem okChosenCardRemention :
-    Instruction.check [] (.sequentially [choose (a (.inZone yourHand)), discard (that .card)])
+    Instruction.check [] (.sequentially [choose (a (.and [.isCard, .inZone yourHand])), discard (that .card)])
       = [] := by
   decide
 
@@ -660,7 +660,7 @@ theorem badExileCheckOnSortedSelf :
 /-- "Draw cards equal to the difference." under a comparison -/
 theorem okDifferenceAfterComparison :
     Instruction.check []
-      (.doIf (.compareAmt (countOf (.inZone (handOf .you))) .less (.lit 7))
+      (.doIf (.compareAmt (countOf (.and [.isCard, .inZone (handOf .you)])) .less (.lit 7))
         (draw .theDifference (agent := .you)) none) = [] := by
   decide
 
@@ -799,14 +799,14 @@ theorem badRegeneratedInGraveyard :
 /-- "Each opponent discards a card. Simultaneously, exile those cards." -/
 theorem distributedDeedReadsBackPluralUnderAnnouncement :
     Instruction.check []
-      (.simultaneously [.sequentially [choose (a (.inZone hand)) (agent := some (each .opponent)), discard them], exile (those
+      (.simultaneously [.sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them], exile (those
           .card)])
         = [] := by
   decide
 
 /-- "Discard a card. Simultaneously, exile that card." -/
 theorem okThatAfterSingularDiscard :
-    Instruction.check [] (.simultaneously [discard (a (.inZone yourHand)), exile
+    Instruction.check [] (.simultaneously [discard (a (.and [.isCard, .inZone yourHand])), exile
         (that .card)])
       = [] := by
   decide
@@ -814,7 +814,7 @@ theorem okThatAfterSingularDiscard :
 /-- "Each opponent discards a card. Simultaneously, exile that card." -/
 theorem badDistributedAnnouncedDiscardSingular :
     Instruction.check []
-      (.simultaneously [.sequentially [choose (a (.inZone hand)) (agent := some (each .opponent)), discard them], exile (that
+      (.simultaneously [.sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them], exile (that
           .card)])
       = [.anaphor (.word .card) .one 0] := by
   decide
@@ -917,7 +917,7 @@ theorem okExchangeCardsAcrossZones :
 /-- "Exchange a card in your hand with a card in your hand." Cards are exchanged with cards in
 a DIFFERENT zone [CR#701.12d]. -/
 theorem badExchangeCardsSameZone :
-    Instruction.check [] (.exchange (.cardsAcross (a (.inZone hand)) (a (.inZone hand))))
+    Instruction.check [] (.exchange (.cardsAcross (a (.and [.isCard, .inZone hand])) (a (.and [.isCard, .inZone hand]))))
       = [.cardSwapZones] := by
   decide
 

@@ -155,7 +155,7 @@ def nightmarishEnd : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ get (target creature) (Primitives.Delta.down (Primitives.Amount.letter .x)) (Primitives.Delta.down (Primitives.Amount.letter .x))
                 (some untilEndOfTurn),
-              Primitives.Instruction.define .x (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) ]) ] } }
+              Primitives.Instruction.define .x (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) ]) ] } }
 
 /-- Topple {2}{W} — Sorcery. "Exile target creature with the greatest power among creatures
 on the battlefield." -/
@@ -289,8 +289,8 @@ theorem okLoyaltyAbilityOfEnchanted :
 
 /-- Balance of Power -/
 def balanceOfPower : Instruction :=
-  Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.inZone (handOf (target Primitives.Predicate.opponent)))) .greater
-          (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))))
+  Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (target Primitives.Predicate.opponent))])) .greater
+          (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))
     (Primitives.Instruction.draw Primitives.Amount.theDifference (agent := Primitives.NounPhrase.you)) none
 theorem okBalanceOfPower : Instruction.check [] balanceOfPower = [] := by decide
 
@@ -355,7 +355,7 @@ def lucidDreams : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.draw (Primitives.Amount.letter .x) (agent := Primitives.NounPhrase.you),
-              Primitives.Instruction.define .x (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)))) ]) ] } }
+              Primitives.Instruction.define .x (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))) ]) ] } }
 
 /-- Rogues' Gallery -/
 def roguesGallery : Spelled := spelled <| .singleFaced
@@ -390,7 +390,7 @@ theorem deepglowSkateRecipientRefused : deepglowSkateRecipient.perMemberOk = fal
 /-- Weftwalking -/
 def weftwalkingShuffle : Instruction :=
   Primitives.Instruction.sequentially
-    [ shuffleInto (Primitives.NounPhrase.both (allOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) (allOf (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you))))
+    [ shuffleInto (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))
         (agent := Primitives.NounPhrase.you),
       Primitives.Instruction.draw (.lit 7) (agent := Primitives.NounPhrase.you) ]
 theorem okWeftwalkingShuffle : Instruction.check [] weftwalkingShuffle = [] := by decide

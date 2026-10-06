@@ -107,12 +107,12 @@ theorem staticSpecsAcceptTypedCaptures :
     (capturedBoost (target creature) .thatMuch).check [outcomeB .damageDealt] = [] := by decide
 
 theorem callerExitDoesNotResurrectForgottenMentions :
-    let before := captureBindings [] 0 [.subject (target (.inZone yourLibrary))]
+    let before := captureBindings [] 0 [.subject (target (.and [.isCard, .inZone yourLibrary]))]
     let restored := leaveCaller before (afterShuffle (enterCaller 0 before))
     countReach .bare .one restored = 0 := by decide
 
 theorem callerExitPreservesThePrivateAlias :
-    let before := captureBindings [] 0 [.subject (target (.inZone yourLibrary))]
+    let before := captureBindings [] 0 [.subject (target (.and [.isCard, .inZone yourLibrary]))]
     let restored := leaveCaller before (afterShuffle (enterCaller 0 before))
     (NounPhrase.pro .bare .one (.parameter 0 0)).zone restored = some .library := by decide
 

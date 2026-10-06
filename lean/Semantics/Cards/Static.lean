@@ -92,14 +92,14 @@ def spontaneousMutation : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.conjunction none
     [ Primitives.StaticSpec.modification (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) .power (Primitives.Delta.down (Primitives.Amount.letter .x)),
       Primitives.StaticSpec.modification (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) .toughness (Primitives.Delta.down (.lit 0)),
-      Primitives.StaticSpec.letterDefinition .x (countOf (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you))) ])
+      Primitives.StaticSpec.letterDefinition .x (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) ])
 theorem okSpontaneousMutation : Ability.check [] spontaneousMutation = [] := by decide
 
 def maro : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Maro", cost := some [generic 2, pip .green, pip .green], types := [.creature],
       subtypes := [creatureType "Elemental"],
-      text := [Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .bothEach (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))))] } }
+      text := [Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .bothEach (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))] } }
 
 def peopleOfTheWoods : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -700,7 +700,7 @@ theorem okNahiriCompleatedEntry : Ability.check [] nahiriCompleatedEntry = [] :=
 def nimbleMongoose : Ability :=
   abilityWord "threshold"
     (Primitives.Ability.static (onlyWhile (getsPt thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2)))
-      (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you))) .atLeast (.lit 7))))
+      (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) .atLeast (.lit 7))))
 theorem okNimbleMongoose : Ability.check [] nimbleMongoose = [] := by decide
 /-- Anax, Hardened in the Forge -/
 def anaxPowerDefinition : Ability :=
@@ -766,21 +766,21 @@ theorem okVoltageSurgeAddedCost : Ability.check [] voltageSurgeAddedCost = [] :=
 def tarmogoyfDefinition : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.conjunction none
     [ Primitives.StaticSpec.ptDefinition thisCreature .powerAlone
-        (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers))))),
+        (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers))]))),
       Primitives.StaticSpec.ptDefinition thisCreature .toughnessAlone (plus Primitives.Amount.thatMuch (.lit 1)) ])
 theorem okTarmogoyfDefinition : Ability.check [] tarmogoyfDefinition = [] := by decide
 /-- Consuming Blob's definition -/
 def consumingBlobDefinition : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.conjunction none
     [ Primitives.StaticSpec.ptDefinition thisCreature .powerAlone
-        (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)))),
+        (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))),
       Primitives.StaticSpec.ptDefinition thisCreature .toughnessAlone (plus Primitives.Amount.thatMuch (.lit 1)) ])
 theorem okConsumingBlobDefinition : Ability.check [] consumingBlobDefinition = [] := by decide
 /-- Nighthawk Scavenger's definition -/
 def nighthawkScavengerDefinition : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .powerAlone
     (plus (.lit 1)
-      (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .yourOpponents)))))))
+      (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .yourOpponents))])))))
 theorem okNighthawkScavengerDefinition : Ability.check [] nighthawkScavengerDefinition = [] := by
   decide
 /-- Faeburrow Elder's pump -/

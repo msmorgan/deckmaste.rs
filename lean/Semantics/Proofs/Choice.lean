@@ -543,7 +543,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
     Instruction.check []
       (offer
         (shuffleInto
-          (Primitives.NounPhrase.both (allOf (.inZone (handOf they))) (allOf (.inZone (graveyardOf they)))) (agent :=
+          (Primitives.NounPhrase.both (allOf (.and [.isCard, .inZone (handOf they)])) (allOf (.and [.isCard, .inZone (graveyardOf they)]))) (agent :=
               they)) (agent := (each .anyPlayer)))
       = [] := by
   decide
@@ -552,7 +552,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Instruction.check []
       (offer
-        (.sequentially [discard (allOf (.inZone (handOf they))), draw (.lit 7) (agent :=
+        (.sequentially [discard (allOf (.and [.isCard, .inZone (handOf they)])), draw (.lit 7) (agent :=
             they)]) (agent := (each .anyPlayer)))
       = [] := by
   decide

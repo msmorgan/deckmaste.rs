@@ -94,7 +94,7 @@ def apathy : Spelled := spelled <| .singleFaced
             (some (controllerOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature))))),
           at_ (beginningOfPossessed .the .upkeep
                 (controllerOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature))))
-            (Primitives.Instruction.offer (discard (aAtRandom (Primitives.Predicate.inZone (handOf (that .player)))))
+            (Primitives.Instruction.offer (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])))
               (some (untap (that (.type .creature)))) none (agent := (that .player))) ] } }
 
 def felidarSovereign : Spelled := spelled <| .singleFaced
@@ -122,7 +122,7 @@ def gloriousEnforcer : Spelled := spelled <| .singleFaced
 /-- Damia, Sage of Stone -/
 def damia : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-    (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) .less (.lit 7))
+    (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) .less (.lit 7))
     (Primitives.Instruction.draw Primitives.Amount.theDifference (agent := Primitives.NounPhrase.you))
 theorem okDamia : Ability.check [] damia = [] := by decide
 
@@ -133,7 +133,7 @@ def ivoryTower : Spelled := spelled <| .singleFaced
         [ at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
             (Primitives.Instruction.sequentially
               [ gainLife (Primitives.Amount.letter .x) (agent := Primitives.NounPhrase.you),
-                Primitives.Instruction.define .x (minus (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) (.lit 4)) ]) ] } }
+                Primitives.Instruction.define .x (minus (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) (.lit 4)) ]) ] } }
 
 /-- Ajani, Adversary of Tyrants -/
 def ajanisEmblem : Instruction :=
@@ -358,7 +358,7 @@ def shriekingAffliction : Spelled := spelled <| .singleFaced
     { name := "Shrieking Affliction", cost := some [pip .black], types := [.enchantment],
       text :=
         [ triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.opponent)))
-            (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.inZone (handOf (that .player)))) .atMost (.lit 1))
+            (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])) .atMost (.lit 1))
             (loseLife (.lit 3) (agent := they)) ] } }
 
 def centaurOfAttention : Spelled := spelled <| .singleFaced

@@ -36,7 +36,7 @@ def jushiApprentice : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2, pip .blue], Primitives.Cost.tapSymbol])
     (Primitives.Instruction.sequentially
       [ Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you),
-        Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) .atLeast (.lit 9))
+        Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) .atLeast (.lit 9))
           (Primitives.Instruction.setStatus .flipped thisCreature) none ])
 theorem okJushiApprentice : Ability.check [] jushiApprentice = [] := by decide
 

@@ -864,7 +864,7 @@ def vexingSphinx : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Sphinx"],
       text :=
         [ keyword "Flying",
-          cumulativeUpkeep (Primitives.Cost.perform (discard (a (Primitives.Predicate.inZone yourHand)))),
+          cumulativeUpkeep (Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])))),
           when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.draw (countersOn (.named "ageCounter") it) (agent := Primitives.NounPhrase.you)) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -1141,7 +1141,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
         [ keywordCosting "Spectacle" (Primitives.Cost.mana [generic 3, pip .black, pip .red]),
           triggeredIf (Primitives.GameEvent.enters thisCreature none)
             (costWasPaid (.byKeyword "Spectacle") none thisCreature)
-            (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.inZone hand)) (agent := some (each Primitives.Predicate.opponent)), discard them]) ],
+            (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some (each Primitives.Predicate.opponent)), discard them]) ],
       power := stat 4, toughness := stat 2 } }
 
 /-- Tourach, Dread Cantor -/
@@ -1200,7 +1200,7 @@ def tourachDreadCantor : Spelled := spelled <| .singleFaced
           keywordQuality "Protection" (Primitives.Predicate.colorIs .white),
           tourachDiscardTrigger,
           triggeredIf (Primitives.GameEvent.enters thisCreature none) (costWasPaid (.byKeyword "Kicker") none thisCreature)
-            (discard (countedAtRandom (exactly 2) (Primitives.Predicate.inZone (handOf (target Primitives.Predicate.opponent))))) ],
+            (discard (countedAtRandom (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (target Primitives.Predicate.opponent))]))) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Talrand's Invocation -/
@@ -1293,7 +1293,7 @@ def containmentPriest : Spelled := spelled <| .singleFaced
 /-- Veiling Oddity -/
 def veilingOddityLine : Ability :=
   triggeredWhile (lastCounterRemoved (.named "timeCounter") Primitives.NounPhrase.this)
-    (Primitives.Concurrent.whileTrue (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.inZone exileZone)))
+    (Primitives.Concurrent.whileTrue (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone exileZone])))
     (Primitives.Instruction.establish (deontic (allOf creature) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
       (some Primitives.Duration.thisTurn))
 theorem okVeilingOddityLine : Ability.check [] veilingOddityLine = [] := by decide
@@ -1350,7 +1350,7 @@ def iymrithDesertDoom : Spelled := spelled <| .singleFaced
           whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you),
-                Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you))) .less (.lit 3))
+                Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) .less (.lit 3))
                   (Primitives.Instruction.draw Primitives.Amount.theDifference (agent := Primitives.NounPhrase.you)) none ]) ],
       power := stat 5, toughness := stat 5 } }
 

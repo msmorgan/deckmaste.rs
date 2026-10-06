@@ -33,9 +33,9 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
             (forbidBeingBlocked (allOf creatureYouControl) (some Primitives.Duration.thisTurn)) ] } }
 
 /-- "two cards at random" from a hand. -/
-def twoCardsAtRandom : NounPhrase := countedAtRandom (exactly 2) (Primitives.Predicate.inZone hand)
+def twoCardsAtRandom : NounPhrase := countedAtRandom (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])
 /-- "two cards" from a hand, chosen. -/
-def twoCardsChosen : NounPhrase := counted (exactly 2) (Primitives.Predicate.inZone hand)
+def twoCardsChosen : NounPhrase := counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])
 
 /-- The at-random mode changes nothing a later pronoun can read. -/
 theorem atRandomModeIsAnnouncementNeutral :
@@ -200,7 +200,7 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker],
       subtypes := [planeswalkerType "Liliana"],
       text :=
-        [ activated (Primitives.Cost.loyaltySymbol (.up 1)) (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.inZone hand)) (agent := some (each Primitives.Predicate.anyPlayer)), discard them]),
+        [ activated (Primitives.Cost.loyaltySymbol (.up 1)) (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some (each Primitives.Predicate.anyPlayer)), discard them]),
           activated (Primitives.Cost.loyaltySymbol (.down 2)) (sacrifice (a creature) (agent := (target
               Primitives.Predicate.anyPlayer))),
           activated (Primitives.Cost.loyaltySymbol (.down 6))

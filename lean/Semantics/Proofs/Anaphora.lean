@@ -697,7 +697,7 @@ theorem okPatientlessScry :
 
 /-- "Whenever you scry a card, …" -/
 theorem badScryPatient :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "Scry") (some (a (.inZone library))) none
+    GameEvent.check [] (.verbedEvent (some .you) (.action "Scry") (some (a (.and [.isCard, .inZone library]))) none
       none)
       = [.verbPatientOk] := by
   decide
@@ -723,20 +723,20 @@ theorem okIntransitiveBecomes :
 /-- "Whenever a card is milled into a Phyrexian, …" -/
 theorem badBecomesWithoutIntransitive :
     GameEvent.check []
-      (.verbedEvent none (.action "Mill") (some (a (.inZone library)))
+      (.verbedEvent none (.action "Mill") (some (a (.and [.isCard, .inZone library])))
         (some (.hasSubtype (creatureType "Phyrexian"))) none) = [.verbBecomesOk] := by
   decide
 
 /-- "Whenever you discard a card, …" -/
 theorem okDiscardFromHand :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "Discard") (some (a (.inZone hand))) none
+    GameEvent.check [] (.verbedEvent (some .you) (.action "Discard") (some (a (.and [.isCard, .inZone hand]))) none
       none)
       = [] := by
   decide
 
 /-- "Whenever a card in a graveyard is destroyed, …" -/
 theorem badDestroyInGraveyard :
-    GameEvent.check [] (.verbedEvent none (.action "Destroy") (some (a (.inZone graveyard))) none
+    GameEvent.check [] (.verbedEvent none (.action "Destroy") (some (a (.and [.isCard, .inZone graveyard]))) none
       none)
       = [.zoneFits] := by
   decide
@@ -927,7 +927,7 @@ theorem badOwnTwoInDelta :
 theorem distributedDeedReadsBackPlural :
     Instruction.check []
       (.sequentially
-        [ .sequentially [choose (a (.inZone hand)) (agent := some (each .opponent)), discard them],
+        [ .sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .many) ]) = [] := by
   decide
 
@@ -935,7 +935,7 @@ theorem distributedDeedReadsBackPlural :
 theorem okTheVerbedAfterSingularDiscard :
     Instruction.check []
       (.sequentially
-        [ discard (a (.inZone yourHand)),
+        [ discard (a (.and [.isCard, .inZone yourHand])),
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [] := by
   decide
@@ -944,7 +944,7 @@ theorem okTheVerbedAfterSingularDiscard :
 theorem badDistributedDiscardSingular :
     Instruction.check []
       (.sequentially
-        [ .sequentially [choose (a (.inZone hand)) (agent := some (each .opponent)), discard them],
+        [ .sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [.anaphor (.verbed (.action "Discard") .card .attributive) .one 0] := by
   decide
