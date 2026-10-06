@@ -14,7 +14,7 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: doIf(
-        not(matches(Param(0), hasDesignation("harnessed"))),
-        gainDesignation(Param(0), "harnessed"),
+        not(matches(Param(0), hasDesignation(Named(name: "harnessed")))),
+        gainDesignation(Param(0), Named(name: "harnessed")),
     ),
 )

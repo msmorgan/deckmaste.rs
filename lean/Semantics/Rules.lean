@@ -109,7 +109,9 @@ inductive Definition where
   that are inert vocabulary. -/
   | subtype (subtype : Subtype) (rules : List Conferral)
   /-- A designation [CR#701.15b]: a named marker rules and effects identify, which is not an
-  ability and confers nothing, so the node carries columns rather than conferrals. `effectful`
+  ability and confers nothing, so the node carries columns rather than conferrals. The label is
+  the declaration's own name, or a member's where the declaration lists several (`day` and
+  `night` [CR#731.1]); the declaration meta-macro writes it, never the author. `effectful`
   is whether an instruction may confer it directly; `zone`, `type` and `half` narrow the object
   that holds it. -/
   | designation (label : DesignationLabel) (scope : DesignationScope) (effectful : Bool)
@@ -124,9 +126,9 @@ declared TERM is wanted — a card's subtype list, a counter reference, a design
 position takes the term the definition names, not the node that defines it. Each flavor names
 one term: `.subtype` names its `subtype`, `.counter` its `kind`, `.designation` its `label`.
 
-The subtype and counter projections are defined, because those are the registries whose names
-a card writes (`plugins-v2-subtypes-macro-only`; the counter half by ruling 2026-10-03); the
-designation projection follows when its registry becomes macro-only. -/
+Each projection is defined: a card writes a subtype, a counter kind and a designation by its
+declaration's bare name (`plugins-v2-subtypes-macro-only`; the counter half by ruling
+2026-10-03, the designation half by ruling 2026-10-05). -/
 def Definition.subtypeTerm : Definition → Option Subtype
   | .subtype term _rules => some term
   | .counter .. | .designation .. => none
@@ -137,6 +139,14 @@ that same name. -/
 def Definition.counterTerm : Definition → Option CounterKind
   | .counter kind _holder _confers => some kind
   | .subtype .. | .designation .. => none
+
+/-- The designation half of `Definition.subtypeTerm`: a designation definition names its `label`,
+so a designation declaration's name read at a `DesignationLabel` position is the designation it
+defines, which is that same name (or, for a member of a declaration that lists several, the
+member's). -/
+def Definition.designationTerm : Definition → Option DesignationLabel
+  | .designation label .. => some label
+  | .subtype .. | .counter .. => none
 
 /-- The three tables a plugin's `rules/` directory defines, concatenated across its files. The
 predefined-token catalog is a separate list, because its entries are named and a plugin writes

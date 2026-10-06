@@ -100,7 +100,7 @@ def witchsMist : Ability :=
 theorem okWitchsMist : Ability.check [] witchsMist = [] := by decide
 def goadTargetCreature : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.tapSymbol])
-    (Primitives.Instruction.gainDesignation (target creature) "goaded" none)
+    (Primitives.Instruction.gainDesignation (target creature) (.named "goaded") none)
 theorem okGoadTargetCreature : Ability.check [] goadTargetCreature = [] := by decide
 /-- Krenko, Mob Boss -/
 def krenko : Ability :=
@@ -231,7 +231,7 @@ def chillerpillar : Spelled := spelled <| .singleFaced
       text :=
         [ activated (Primitives.Cost.mana [generic 4, .snow, .snow]) (makeMonstrous (.lit 2)),
           Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.abilityGrant thisCreature (keyword "Flying"))
-            (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation "monstrous" none))) ],
+            (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "monstrous") none))) ],
       power := stat 3, toughness := stat 3 } }
 
 def nullhideFerox : Ability :=

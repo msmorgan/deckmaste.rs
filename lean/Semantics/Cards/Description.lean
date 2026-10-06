@@ -411,7 +411,7 @@ def twoOrMorePlayersHaveLost : Condition :=
 theorem okTwoOrMorePlayersHaveLost : Condition.check [] twoOrMorePlayersHaveLost = [] := by decide
 
 def commanderCreaturesYouOwn : Predicate :=
-  Primitives.Predicate.and [creature, Primitives.Predicate.hasDesignation "commander" none, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you]
+  Primitives.Predicate.and [creature, Primitives.Predicate.hasDesignation (.named "commander") none, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you]
 theorem okCommanderCreaturesYouOwn : Predicate.check .object [] commanderCreaturesYouOwn = [] := by
   decide
 

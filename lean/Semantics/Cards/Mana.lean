@@ -101,7 +101,7 @@ def deadeyeBrawler : Spelled := spelled <| .singleFaced
         [ keyword "Deathtouch",
           keyword "Ascend",
           triggeredIf (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
-            (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation "the city's blessing" none))
+            (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation (.named "citysBlessing") none))
             (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you)) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -704,7 +704,7 @@ def causticBroncoLoss : Instruction :=
     [ revealCards (topSlice (.lit 1)),
       move (that .card) hand,
       Primitives.Instruction.doOnlyIf (loseLife (Primitives.Amount.statOf (.stat .manaValue) it) (agent := Primitives.NounPhrase.you))
-        (Primitives.Condition.not (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation "saddled" none)))
+        (Primitives.Condition.not (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "saddled") none)))
         (some (loseLife Primitives.Amount.thatMuch (agent := (each Primitives.Predicate.opponent)))) ]
 theorem okCausticBroncoLoss : Instruction.check [] causticBroncoLoss = [] := by decide
 

@@ -292,7 +292,7 @@ semantic_macro thisSaga : NounPhrase := .asType .enchantment .this (some (enchan
 semantic_macro thisCase : NounPhrase := .asType .enchantment .this (some (enchantmentType "Case"))
 semantic_macro thisClass : NounPhrase := .asType .enchantment .this (some (enchantmentType "Class"))
 /-- "your commander" -/
-semantic_macro yourCommander : NounPhrase := .designated "commander" .you
+semantic_macro yourCommander : NounPhrase := .designated (.named "commander") .you
 /-- "a card exiled with this artifact" -/
 semantic_macro exiledWithThisArtifact : Predicate := .exiledWith thisArtifact
 /-- "the rest of them" -/
@@ -848,10 +848,10 @@ semantic_macro amass (subtype : String) (count : Nat) : Instruction :=
 /-- "monstrosity N" with its reminder text [CR#701.37a]: "If this permanent isn't monstrous,
 put N +1/+1 counters on it and it becomes monstrous." -/
 semantic_macro makeMonstrous (amount : Amount) : Instruction :=
-  .doIf (.not (.matches thisPermanent (.hasDesignation "monstrous" none)))
+  .doIf (.not (.matches thisPermanent (.hasDesignation (.named "monstrous") none)))
     (.sequentially
       [ .putCounters amount (.printed p1p1Counter) thisPermanent,
-        .gainDesignation thisPermanent "monstrous" none ])
+        .gainDesignation thisPermanent (.named "monstrous") none ])
     none
 semantic_macro get (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
     Instruction :=
@@ -1208,10 +1208,10 @@ semantic_macro after (event : GameEvent) (instruction : Instruction) : Ability :
 renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 semantic_macro renownExpansion (count : Nat) : Ability :=
   triggeredIf (dealsCombatDamage thisCreature (a .anyPlayer))
-    (.not (.matches thisCreature (.hasDesignation "renowned" none)))
+    (.not (.matches thisCreature (.hasDesignation (.named "renowned") none)))
     (.sequentially
       [ .putCounters (.lit count) (.printed p1p1Counter) thisCreature,
-        .gainDesignation thisCreature "renowned" none ])
+        .gainDesignation thisCreature (.named "renowned") none ])
 /-- Storm's reminder text: "When you cast this spell, copy it for each other spell that was cast
 before it this turn. You may choose new targets for the copies." [CR#702.40a] -/
 semantic_macro stormExpansion : Ability :=

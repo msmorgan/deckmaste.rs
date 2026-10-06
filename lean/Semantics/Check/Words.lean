@@ -1493,20 +1493,26 @@ def OptOrdinal.ok : Option Ordinal → Bool
 
 /-! ## Designations
 
-The grammar names a designation by its label (`DesignationLabel`); what the checker knows
-about one lives here. The table is the open part: a keyword's expansion (Ascend's, Monstrosity's)
-brings its designation with it, and the CR adds new ones without touching the grammar. -/
+The grammar names a designation by its declaration's name (`DesignationLabel`); what the
+checker knows about one lives here. The table is the open part: a keyword's expansion (Ascend's,
+Monstrosity's) brings its designation with it, and the CR adds new ones without touching the
+grammar. -/
 
-def findDesignation (label : DesignationLabel) : List DesignationFacts → Option DesignationFacts
+/-- The designation's name, which is the label of its facts row. -/
+def DesignationLabel.name : DesignationLabel → String
+  | .named n => n
+
+def findDesignation (name : String) : List DesignationFacts → Option DesignationFacts
   | [] => none
-  | f :: fs => if f.label == label then some f else findDesignation label fs
+  | f :: fs => if f.label == name then some f else findDesignation name fs
 
 def distinctDesignationLabels : List DesignationFacts → Bool
   | [] => true
   | f :: fs => !(fs.map (·.label)).elem f.label && distinctDesignationLabels fs
 
+/-- The registry's row for the designation, looked up by its name. -/
 def DesignationLabel.facts (label : DesignationLabel) : Option DesignationFacts :=
-  findDesignation label designationTable
+  findDesignation label.name designationTable
 
 def DesignationLabel.known (label : DesignationLabel) : Bool := label.facts.isSome
 
@@ -1544,10 +1550,10 @@ def designationHolderOk (label : DesignationLabel) (z : Option Zone) : Bool :=
   | some (.heldBy .object) => zoneIsB z .battlefield
   | _ => false
 
-/-- The table's own label for a Room half, where a guard needs the label itself rather than the
-half; the empty label where the table names none. -/
+/-- The designation the table marks with a Room half, where a guard needs the designation
+itself rather than the half; the empty name where the table names none. -/
 def RoomHalf.designation (h : RoomHalf) : DesignationLabel :=
-  ((designationTable.find? (·.half == some h)).map (·.label)).getD ""
+  .named (((designationTable.find? (·.half == some h)).map (·.label)).getD "")
 
 def DesignationLabel.half (label : DesignationLabel) : Option RoomHalf := label.facts >>= (·.half)
 

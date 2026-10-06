@@ -98,11 +98,11 @@ theorem unspecifiedSpellDoesNotIntroduceAReference :
     GameEvent.mentioned [] (.casts (.gap .player) none none) = [] := rfl
 
 theorem designatedSpellRetainsItsReference :
-    NounPhrase.introduced [] (.asMarker .spell (.designated "commander" .you)) = [] := rfl
+    NounPhrase.introduced [] (.asMarker .spell (.designated (.named "commander") .you)) = [] := rfl
 
 theorem designatedSpellCanBeMatched :
     LookbackClause.check .player []
-      (.mk (.casts (.gap .player) (some (.asMarker .spell (.designated "commander" .you))) none)
+      (.mk (.casts (.gap .player) (some (.asMarker .spell (.designated (.named "commander") .you))) none)
         .thisGame) = [] := by decide
 
 theorem eventModifiersPreserveFacts (event : GameEvent) (ordinal : Ordinal)

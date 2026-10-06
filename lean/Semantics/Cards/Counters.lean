@@ -149,7 +149,7 @@ def paladinOfAtonement : Ability :=
 theorem okPaladinOfAtonement : Ability.check [] paladinOfAtonement = [] := by decide
 def throneWarden : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-    (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation "the monarch" none))
+    (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation (.named "monarch") none))
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature)
 theorem okThroneWarden : Ability.check [] throneWarden = [] := by decide
 def bloodTyrant : Ability :=
@@ -232,9 +232,9 @@ def passagewaySeer : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Tiefling", creatureType "Warlock"],
       text :=
         [ keyword "Lifelink",
-          when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you "the initiative" none),
+          when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you (.named "initiative") none),
           triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
-            (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation "the initiative" none))
+            (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation (.named "initiative") none))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
       power := stat 2, toughness := stat 2 } }
 

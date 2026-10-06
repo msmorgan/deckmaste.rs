@@ -108,31 +108,31 @@ theorem badPtDefinitionClause :
 
 /-- "You become the monarch." -/
 theorem okBecomesMonarch :
-    Instruction.check [] (.gainDesignation .you "the monarch" none) = [] := by decide
+    Instruction.check [] (.gainDesignation .you (.named "monarch") none) = [] := by decide
 
 /-- "You become goaded." The Idris pin refutes the scope; a player is not a holder of it
 either. -/
 theorem badGoadedPlayer :
-    Instruction.check [] (.gainDesignation .you "goaded" none)
-      = [.designationScope "goaded", .designationHolder "goaded" .player] := by
+    Instruction.check [] (.gainDesignation .you (.named "goaded") none)
+      = [.designationScope (.named "goaded"), .designationHolder (.named "goaded") .player] := by
   decide
 
 /-- "… it becomes monstrous," the grant the Monstrosity keyword action's expansion writes. -/
 theorem okBecomesMonstrous :
-    Instruction.check [] (.gainDesignation thisCreature "monstrous" none) = [] := by
+    Instruction.check [] (.gainDesignation thisCreature (.named "monstrous") none) = [] := by
   decide
 
 /-- A designation a rule confers is not one an instruction may grant. The commander is held by
 a card, so the scope and holder refusals land too; the last is the law itself. -/
 theorem badGainsCommander :
-    Instruction.check [] (.gainDesignation thisCreature "commander" none)
-      = [.designationScope "commander", .designationHolder "commander" .object,
-         .designationChecked "commander"] := by
+    Instruction.check [] (.gainDesignation thisCreature (.named "commander") none)
+      = [.designationScope (.named "commander"), .designationHolder (.named "commander") .object,
+         .designationChecked (.named "commander")] := by
   decide
 
 /-- "You get an enduring story," the grant the storied keyword ability's expansion writes. -/
 theorem okGetsAnEnduringStory :
-    Instruction.check [] (.gainDesignation .you "an enduring story" none) = [] := by
+    Instruction.check [] (.gainDesignation .you (.named "enduringStory") none) = [] := by
   decide
 
 /-- "Each land you control becomes a 2/2 creature. It's still a land." -/

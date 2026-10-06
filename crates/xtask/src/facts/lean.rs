@@ -539,7 +539,7 @@ pub(super) fn designation_declared_labels(
             let Definition::Designation { label, .. } = definition else {
                 anyhow::bail!("{name}: a designation declaration defines designations");
             };
-            result.push(label);
+            result.push(label.name().to_owned());
         }
     }
     Ok(result)
@@ -560,6 +560,7 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
             .read_str(body.get_ron())
             .with_context(|| format!("reading designation {name}"))?;
         anyhow::ensure!(!rows.is_empty(), "{name}: designation declares no fact row");
+        let single = rows.len() == 1;
         for definition in rows {
             let Definition::Designation {
                 label,
@@ -572,6 +573,14 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
             else {
                 anyhow::bail!("{name}: a designation declaration defines designations");
             };
+            // `designationTable` is the table `Check/Words.lean` looks every
+            // designation up in, by name, and a designation is its
+            // declaration's name.
+            anyhow::ensure!(
+                !single || label.name() == name,
+                "{name}: a designation declaration's label is its own name, not `{}`",
+                label.name()
+            );
             let scope = match &scope {
                 DesignationScope::HeldBy { holder } => format!(".heldBy {}", kind_of(holder)?),
                 DesignationScope::HeldByCard => ".heldByCard".to_owned(),
@@ -579,7 +588,7 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
             };
             result.push(format!(
                 "{{ label := {}, scope := {scope}, effectful := {effectful}, zone := {}, type := {}, half := {} }}",
-                quoted(&label),
+                quoted(label.name()),
                 optional(in_zone.map(zone)),
                 optional(r#type.map(card_type)),
                 optional(half.map(room_half)),
@@ -1017,7 +1026,7 @@ mod tests {
 
         let by_name = render(named.path()).unwrap();
         assert!(
-            by_name.contains("label := \"the city\'s blessing\", scope := .heldBy .player"),
+            by_name.contains("label := \"citysBlessing\", scope := .heldBy .player"),
             "the designation row moved"
         );
         assert!(

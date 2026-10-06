@@ -24,7 +24,6 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::words::CardType;
-use crate::words::DesignationLabel;
 use crate::words::DesignationScope;
 use crate::words::KeywordLabel;
 use crate::words::Kind;
@@ -49,10 +48,12 @@ pub struct SubtypeFacts {
     pub frame: FrameFeature,
 }
 
-/// One designation label's columns.
+/// One designation's columns.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct DesignationFacts {
-    pub label: DesignationLabel,
+    /// The designation's name ([`crate::words::DesignationLabel::name`]): its
+    /// declaration's name, or a member's.
+    pub label: String,
     pub scope: DesignationScope,
     /// Whether an instruction may confer it directly ("becomes the monarch");
     /// a designation that only a rule confers (the commander) is not conferred

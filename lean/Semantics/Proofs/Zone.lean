@@ -686,14 +686,14 @@ theorem badNonComparisonDifference :
 
 /-- "Goad target creature." -/
 theorem okGoadOnBattlefield :
-    Instruction.check [] (.gainDesignation (target creature) "goaded" none) = [] := by
+    Instruction.check [] (.gainDesignation (target creature) (.named "goaded") none) = [] := by
   decide
 
 /-- "goad target creature card in your graveyard" -/
 theorem badGoadInGraveyard :
     Instruction.check []
-      (.gainDesignation (target (.and [creature, .inZone (graveyardOf .you)])) "goaded"
-        none) = [.designationHolder "goaded" .object] := by
+      (.gainDesignation (target (.and [creature, .inZone (graveyardOf .you)])) (.named "goaded")
+        none) = [.designationHolder (.named "goaded") .object] := by
   decide
 
 /-- "Whenever a creature attacks a planeswalker, …" -/

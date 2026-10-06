@@ -219,25 +219,25 @@ theorem badSubtypeConfersASpellAbility :
 
 /-- [CR#725.1] "The monarch is a designation a player can have. There is no monarch in a game
 until an effect instructs a player to become the monarch" — so the designation is effectful. -/
-def monarch : Definition := .designation "the monarch" (.heldBy .player) true none none none
+def monarch : Definition := .designation (.named "monarch") (.heldBy .player) true none none none
 theorem okMonarch : Definition.check monarch = [] := by decide
 
 /-- [CR#709.5c] "'Left half unlocked' and 'right half unlocked' are designations that a
 permanent on the battlefield can have." The room half narrows the object that holds it. -/
 def leftHalfUnlocked : Definition :=
-  .designation "left half unlocked" (.heldBy .object) true (some .battlefield) none (some .left)
+  .designation (.named "leftHalfUnlocked") (.heldBy .object) true (some .battlefield) none (some .left)
 theorem okLeftHalfUnlocked : Definition.check leftHalfUnlocked = [] := by decide
 
 /-- The zone, card type and room half describe the object holding the designation, so a
 designation the game holds [CR#731.1] narrows nothing. -/
 theorem badNarrowedGameDesignation :
-    Definition.check (.designation "day" .heldByGame true (some .battlefield) none none)
-      = [.definitionScoped "day"] := by
+    Definition.check (.designation (.named "day") .heldByGame true (some .battlefield) none none)
+      = [.definitionScoped (.named "day")] := by
   decide
 
 /-- A designation is identified by name [CR#701.15b], so a nameless one is unreachable. -/
 theorem badNamelessDesignation :
-    Definition.check (.designation "" (.heldBy .player) true none none none)
+    Definition.check (.designation (.named "") (.heldBy .player) true none none none)
       = [.definitionNamed] := by
   decide
 

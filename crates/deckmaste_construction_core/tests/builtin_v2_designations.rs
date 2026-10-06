@@ -105,7 +105,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .body()
             .unwrap()
             .get_ron()
-            .contains(r#"label: "the city's blessing""#)
+            .contains(r#"label: Named(name: "citysBlessing")"#)
     );
     assert!(
         citys_blessing
@@ -122,14 +122,14 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .body()
             .unwrap()
             .get_ron()
-            .contains(r#"label: "day", scope: HeldByGame"#)
+            .contains(r#"label: Named(name: "day"), scope: HeldByGame"#)
     );
     assert!(
         day_night
             .body()
             .unwrap()
             .get_ron()
-            .contains(r#"label: "night", scope: HeldByGame"#)
+            .contains(r#"label: Named(name: "night"), scope: HeldByGame"#)
     );
 
     // An object-held designation is read on the battlefield.
@@ -155,7 +155,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
             .body()
             .unwrap()
             .get_ron()
-            .contains(r#"label: "level""#)
+            .contains(r#"label: Named(name: "level")"#)
     );
 }
 

@@ -3,5 +3,5 @@
     name: "yourCommander",
     kinds: [NounPhrase],
     params: [],
-    body: Designated("commander", You),
+    body: Designated(Named(name: "commander"), You),
 )

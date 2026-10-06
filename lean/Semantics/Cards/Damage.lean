@@ -173,7 +173,7 @@ def sizzlingBarrage : Instruction :=
     (Primitives.NounPhrase.asMarker .permanent (relative .object)) none) .thisTurn]))
 theorem okSizzlingBarrage : Instruction.check [] sizzlingBarrage = [] := by decide
 def goadedAttackTrigger : Ability :=
-  whenever (attacks (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasDesignation "goaded" none])))
+  whenever (attacks (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasDesignation (.named "goaded") none])))
     (Primitives.Instruction.dealDamage it (.lit 1) (controllerOf it))
 theorem okGoadedAttackTrigger : Ability.check [] goadedAttackTrigger = [] := by decide
 

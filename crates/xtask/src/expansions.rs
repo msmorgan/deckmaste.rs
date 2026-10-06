@@ -499,6 +499,7 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "ColorOrColorless" => render::<words::ColorOrColorless>,
         "Color" => render::<words::Color>,
         "CounterKind" => render::<words::CounterKind>,
+        "DesignationLabel" => render::<words::DesignationLabel>,
         "NounWord" => render::<words::NounWord>,
         "CardType" => render::<words::CardType>,
         "Deed" => render::<words::Deed>,

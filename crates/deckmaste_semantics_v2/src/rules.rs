@@ -149,10 +149,11 @@ impl Definition {
     /// card's subtype list, a counter reference, a designation — the position
     /// takes the term the definition names. Each flavor names one term: a
     /// subtype definition its `subtype`, a counter definition its `kind`, a
-    /// designation definition its `label`. The subtype and counter
-    /// projections exist, because those are the registries whose names a
-    /// card writes (`plugins-v2-subtypes-macro-only`, and the counter half by
-    /// ruling 2026-10-03: "p1p1Counter should read bare").
+    /// designation definition its `label`. Each projection exists, because a
+    /// card writes all three by the declaration's bare name
+    /// (`plugins-v2-subtypes-macro-only`; the counter half by ruling
+    /// 2026-10-03: "p1p1Counter should read bare"; the designation half by
+    /// ruling 2026-10-05).
     #[must_use]
     pub fn subtype_term(&self) -> Option<&Subtype> {
         match self {
@@ -169,6 +170,17 @@ impl Definition {
         match self {
             Self::Counter { kind, .. } => Some(kind),
             Self::Subtype { .. } | Self::Designation { .. } => None,
+        }
+    }
+
+    /// The designation half of the same rule — Lean
+    /// `Semantics.Definition.designationTerm`: a designation definition names
+    /// its `label`.
+    #[must_use]
+    pub fn designation_term(&self) -> Option<&DesignationLabel> {
+        match self {
+            Self::Designation { label, .. } => Some(label),
+            Self::Subtype { .. } | Self::Counter { .. } => None,
         }
     }
 }

@@ -5,6 +5,6 @@ Designation(
     spelling: "renowned",
     grammar: FixedTerm(surface: "renowned"),
     body: [
-        Designation(label: "renowned", scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
+        Designation(label: Named(name: "renowned"), scope: HeldBy(Object), effectful: true, zone: Battlefield, type: None, half: None),
     ],
 )

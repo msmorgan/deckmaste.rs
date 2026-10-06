@@ -11,5 +11,5 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    body: gainDesignation(Param(0), "suspected"),
+    body: gainDesignation(Param(0), Named(name: "suspected")),
 )

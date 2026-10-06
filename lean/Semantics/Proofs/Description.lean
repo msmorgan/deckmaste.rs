@@ -290,12 +290,12 @@ theorem badAscribeForeignSubtype :
 
 /-- "target creature that's goaded" -/
 theorem okObjectDesignation :
-    Predicate.check .object [] (.hasDesignation "goaded" none) = [] := by decide
+    Predicate.check .object [] (.hasDesignation (.named "goaded") none) = [] := by decide
 
 /-- "target creature that is the monarch" -/
 theorem badObjectMonarch :
-    Predicate.check .object [] (.hasDesignation "the monarch" none)
-      = [.designationHolder "the monarch" .object] := by
+    Predicate.check .object [] (.hasDesignation (.named "monarch") none)
+      = [.designationHolder (.named "monarch") .object] := by
   decide
 
 /-- "one of the top two cards of your library" -/

@@ -163,10 +163,15 @@ inductive Ordinal where
   | nth (n : Nat)
   deriving DecidableEq, Repr
 
-/-- A designation's name [CR#701.15b,725.1,731.1]. Which designations exist, and what each
-holds and does, is the designation facts table, generated like the keyword table; the grammar
-carries only the mechanism. -/
-abbrev DesignationLabel := String
+/-- A designation [CR#701.15b,725.1,731.1]: the NAME of the designation declaration that defines
+it, verbatim (`goaded`, `monarch`, `ringBearer`), or, where a declaration lists several members,
+the member's own name (`dayNight` lists `day` and `night`). The name is not English: the phrase
+a card prints ("the monarch", "Ring-bearer") is the declaration's spelling. Which designations
+exist, and what each holds and does, is the designation facts table generated from the
+declarations' definitions (`Definition.designation`); the grammar carries only the mechanism. -/
+inductive DesignationLabel where
+  | named (name : String)
+  deriving DecidableEq, Repr
 
 /-- Who holds a designation [CR#701.15b,725.1,731.1]: an Entity of the named kind, the card
 itself (a commander is designated on its card, and the designation follows the card between

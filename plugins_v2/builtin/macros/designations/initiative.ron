@@ -6,6 +6,6 @@ Designation(
     spelling: "the initiative",
     grammar: FixedTerm(surface: "the initiative"),
     body: [
-        Designation(label: "the initiative", scope: HeldBy(Player), effectful: true, zone: None, type: None, half: None),
+        Designation(label: Named(name: "initiative"), scope: HeldBy(Player), effectful: true, zone: None, type: None, half: None),
     ],
 )

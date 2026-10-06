@@ -959,11 +959,11 @@ theorem badTapLibraryTop :
       = [.zoneIs .battlefield] := by decide
 
 /-- "if there is no monarch" -/
-theorem okNoHolderOnPlayer : Condition.check [] (.noHolder "the monarch") = [] := by decide
+theorem okNoHolderOnPlayer : Condition.check [] (.noHolder (.named "monarch")) = [] := by decide
 
 /-- "if there is no monstrous creature" -/
 theorem badNoHolderOnObject :
-    Condition.check [] (.noHolder "monstrous") = [.designationScope "monstrous"] := by decide
+    Condition.check [] (.noHolder (.named "monstrous")) = [.designationScope (.named "monstrous")] := by decide
 
 /-- "Roll five d6. Store those results on this creature." -/
 theorem okStoreResultsAfterRoll :

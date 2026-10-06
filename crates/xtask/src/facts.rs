@@ -1562,19 +1562,15 @@ const SECTOR_OUT_OF_SCOPE: &str = "a sector designation [CR#702.158b]; space scu
                                    is an Unfinity card, outside the repo's scope, so no \
                                    declaration declares it";
 
-/// The designations whose declared label is not their Idris constructor
+/// The designations whose declared name is not their Idris constructor
 /// name: `Words.Designation` spells the commander designation `CommanderD`
-/// because `Commander` is taken there, and drops the article from three
-/// labels it keeps on `TheInitiative`. This is a mapping into IDRIS, not into
-/// the declarations, and it retires with the Idris reference generator
-/// (`semantics-v1-cutover`); every other constructor is the declared label
-/// with its spaces and punctuation dropped, which `normalize` already does.
-const DESIGNATION_IDRIS_ALIASES: &[(&str, &str)] = &[
-    ("commander", "CommanderD"),
-    ("the city's blessing", "CitysBlessing"),
-    ("an enduring story", "EnduringStory"),
-    ("the monarch", "Monarch"),
-];
+/// because `Commander` is taken there, and keeps the article on
+/// `TheInitiative`, which the declaration's name drops. This is a mapping
+/// into IDRIS, not into the declarations, and it retires with the Idris
+/// reference generator (`semantics-v1-cutover`); every other constructor is
+/// the declared name up to case, which `normalize` already does.
+const DESIGNATION_IDRIS_ALIASES: &[(&str, &str)] =
+    &[("commander", "CommanderD"), ("initiative", "TheInitiative")];
 
 /// A label reduced to its comparable core: the workbench spells a multi-word
 /// label with spaces ("The Ring Tempts You") where the stub file names it in

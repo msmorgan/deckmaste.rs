@@ -131,7 +131,7 @@ theorem okHipparion : Ability.check [] hipparion = [] := by decide
 
 def frodoBaggins : Ability :=
   Primitives.Ability.static (onlyWhile (deontic thisCreature Primitives.Compulsion.require [.core .block] .patient Primitives.DeonticPatient.noPatient)
-    (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation "Ring-bearer" (some Primitives.NounPhrase.you))))
+    (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "ringBearer") (some Primitives.NounPhrase.you))))
 theorem okFrodoBaggins : Ability.check [] frodoBaggins = [] := by decide
 
 def bloodshedFever : Spelled := spelled <| .singleFaced

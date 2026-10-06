@@ -97,7 +97,7 @@ def Definition.check : Definition → List Refusal
   | .subtype sub rules =>
       refuse (!sub.label.isEmpty) .definitionNamed ++ rules.flatMap Conferral.check
   | .designation label scope _ zone type half =>
-      refuse (!label.isEmpty) .definitionNamed ++
+      refuse (!label.name.isEmpty) .definitionNamed ++
         refuse (scope.narrowable || (zone.isNone && type.isNone && half.isNone))
           (.definitionScoped label)
 

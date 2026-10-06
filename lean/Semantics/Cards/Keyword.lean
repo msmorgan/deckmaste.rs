@@ -250,7 +250,7 @@ def consulsLieutenant : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "FirstStrike",
           renown 1,
-          triggeredIf (attacks thisCreature) (Primitives.Condition.matches it (Primitives.Predicate.hasDesignation "renowned" none))
+          triggeredIf (attacks thisCreature) (Primitives.Condition.matches it (Primitives.Predicate.hasDesignation (.named "renowned") none))
             (get (allOf (Primitives.Predicate.and [creature, attacking, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.otherThan
                 thisCreature]))
               (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn)) ],
@@ -263,7 +263,7 @@ def secretsOfTheGoldenCity : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Ascend",
           Primitives.Ability.spell none (Primitives.Instruction.replace (Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you))
-            (Primitives.Instruction.doIf (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation "the city's blessing" none)) (Primitives.Instruction.draw (.lit 3)
+            (Primitives.Instruction.doIf (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation (.named "citysBlessing") none)) (Primitives.Instruction.draw (.lit 3)
                 (agent := Primitives.NounPhrase.you))
               none)) ] } }
 
@@ -275,7 +275,7 @@ def bombur : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Storied",
           Primitives.Ability.static (onlyUnless (doesntUntap thisCreature (some Primitives.NounPhrase.you))
-            (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation "an enduring story" none))) ],
+            (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation (.named "enduringStory") none))) ],
       power := stat 5, toughness := stat 3 } }
 
 def drachNyen : Spelled := spelled <| .singleFaced
@@ -1460,7 +1460,7 @@ def steelclawLance : Spelled := spelled <| .singleFaced
 
 /-- Commander's Plate's equip lines -/
 def commandersPlateEquip : List Ability :=
-  [ keywordQualityCosting "Equip" (Primitives.Predicate.hasDesignation "commander" none) (Primitives.Cost.mana [generic 3]),
+  [ keywordQualityCosting "Equip" (Primitives.Predicate.hasDesignation (.named "commander") none) (Primitives.Cost.mana [generic 3]),
     keywordCosting "Equip" (Primitives.Cost.mana [generic 5]) ]
 theorem okCommandersPlateEquip : Ability.checkText [] commandersPlateEquip = [] := by decide
 /-- Luxior, Giada's Gift's equip lines -/
@@ -1721,7 +1721,7 @@ def arcanumWingsAuraSwap : Ability :=
           hand])))) (agent := Primitives.NounPhrase.you))
 theorem okArcanumWingsAuraSwap : Ability.check [] arcanumWingsAuraSwap = [] := by decide
 /-- Tovolar, Dire Overlord -/
-def tovolarNightfall : Instruction := Primitives.Instruction.setGameDesignation "night"
+def tovolarNightfall : Instruction := Primitives.Instruction.setGameDesignation (.named "night")
 theorem okTovolarNightfall : Instruction.check [] tovolarNightfall = [] := by decide
 /-- Spin into Myth -/
 def spinIntoMyth : Instruction :=

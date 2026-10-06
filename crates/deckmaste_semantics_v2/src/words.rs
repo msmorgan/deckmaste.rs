@@ -259,10 +259,36 @@ pub enum Ordinal {
     Nth { n: u32 },
 }
 
-/// A designation's name [CR#701.15b,725.1,731.1]. Which designations exist, and what each
-/// holds and does, is the designation facts table, generated like the keyword table; the grammar
-/// carries only the mechanism.
-pub type DesignationLabel = String;
+/// A designation [CR#701.15b,725.1,731.1]: the NAME of the designation
+/// declaration that defines it, verbatim (`goaded`, `monarch`, `ringBearer`),
+/// or, where a declaration lists several members, the member's own name
+/// (`dayNight` lists `day` and `night`). The name is not English: the phrase a
+/// card prints ("the monarch") is the declaration's spelling. Which
+/// designations exist, and what each holds and does, is the designation facts
+/// table generated from the declarations' definitions.
+///
+/// A type of its own rather than a `String`, so a designation's name reads
+/// here bare (Lean `Semantics.Definition.designationTerm`): `goaded` expands
+/// to its `Definition::Designation` node, and the `denoted_by` marker reads
+/// that node at this position as its `label`, which is
+/// `Named(name: "goaded")`. `Designation` is not one of this type's
+/// constructors, so a card writing the node raw is refused by name (§11.1).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[macro_ron(denoted_by(Designation, term = crate::rules::Definition::designation_term))]
+pub enum DesignationLabel {
+    Named { name: String },
+}
+
+impl DesignationLabel {
+    /// The declaration or member name the designation is — Lean
+    /// `Semantics.DesignationLabel.name`.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Named { name } => name,
+        }
+    }
+}
 
 /// Who holds a designation [CR#701.15b,725.1,731.1]: an Entity of the named
 /// kind, the card itself (a commander is designated on its card, and the

@@ -583,12 +583,12 @@ theorem badRenownWithStormExpansion :
 
 /-- "your commander" -/
 theorem okPossessedCommander :
-    NounPhrase.check (some .object) [] (.designated "commander" .you) = [] := by decide
+    NounPhrase.check (some .object) [] (.designated (.named "commander") .you) = [] := by decide
 
 /-- "your monarch" -/
 theorem badPossessedMonarch :
-    NounPhrase.check (some .object) [] (.designated "the monarch" .you)
-      = [.designationScope "the monarch"] := by
+    NounPhrase.check (some .object) [] (.designated (.named "monarch") .you)
+      = [.designationScope (.named "monarch")] := by
   decide
 
 /-- "Unearth {B}" -/

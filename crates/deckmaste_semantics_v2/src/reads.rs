@@ -58,10 +58,10 @@ use crate::words::Zone;
 /// what a label denotes. `plugins_v2/builtin`'s declarations are the source
 /// (§15); this crate reads whatever the caller supplies.
 pub trait Facts {
-    /// The kind that holds `designation`, if the declaration says an object or
-    /// a player holds it; `None` for a game-wide designation or an
-    /// undeclared label. Lean `DesignationLabel.holder`.
-    fn designation_holder(&self, designation: &str) -> Option<Kind>;
+    /// The kind that holds the designation named `name`, if the declaration
+    /// says an object or a player holds it; `None` for a game-wide
+    /// designation or an undeclared name. Lean `DesignationLabel.holder`.
+    fn designation_holder(&self, name: &str) -> Option<Kind>;
 
     /// The kind a counter of the kind named `name` sits on. Lean
     /// `CounterFacts.holder`, whose fallback for an undeclared name is
@@ -234,7 +234,9 @@ pub fn kind_of_predicate(predicate: &Predicate, facts: &impl Facts) -> Option<Ki
         Predicate::CounterKindOn { .. } => Some(Kind::Quality {
             sort: QualitySort::CounterKind,
         }),
-        Predicate::HasDesignation { designation, .. } => facts.designation_holder(designation),
+        Predicate::HasDesignation { designation, .. } => {
+            facts.designation_holder(designation.name())
+        }
         Predicate::Compare { axes, .. } => axes.first().map(|axis| scope_of_proj_axis(axis, facts)),
         Predicate::Superlative { domain: inner, .. }
         | Predicate::CompareOver { domain: inner, .. }
@@ -851,6 +853,7 @@ pub fn leave_caller(before: &[Binding], after: &[Binding]) -> Bindings {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::words::DesignationLabel;
     use crate::words::PossessorAxis;
 
     fn object() -> Binding {
@@ -992,12 +995,14 @@ mod tests {
     fn a_designation_takes_its_holder_kind_from_the_facts() {
         struct Monarch;
         impl Facts for Monarch {
-            fn designation_holder(&self, designation: &str) -> Option<Kind> {
-                (designation == "Monarch").then_some(Kind::Player)
+            fn designation_holder(&self, name: &str) -> Option<Kind> {
+                (name == "monarch").then_some(Kind::Player)
             }
         }
         let predicate = Predicate::HasDesignation {
-            designation: "Monarch".to_string(),
+            designation: DesignationLabel::Named {
+                name: "monarch".to_owned(),
+            },
             holder: None,
         };
         assert_eq!(kind_of_predicate(&predicate, &Monarch), Some(Kind::Player));

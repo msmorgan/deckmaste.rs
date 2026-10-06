@@ -348,25 +348,25 @@ theorem okMustAttackLand :
 /-- "your Ring-bearer": a creature holds the Ring-bearer designation for a player, so the
 possessive is written [CR#701.54e]. -/
 theorem okRingBearerHolder :
-    Predicate.check .object [] (.hasDesignation "Ring-bearer" (some .you)) = [] := by decide
+    Predicate.check .object [] (.hasDesignation (.named "ringBearer") (some .you)) = [] := by decide
 
 /-- "your monarch": the monarch IS a player, so the designation has no possessor, refused at
 the holder slot, not at the designation [CR#725.1]. -/
 theorem badMonarchHolder :
-    Predicate.check .player [] (.hasDesignation "the monarch" (some .you))
-      = [.designationPossessorFits "the monarch"] := by
+    Predicate.check .player [] (.hasDesignation (.named "monarch") (some .you))
+      = [.designationPossessorFits (.named "monarch")] := by
   decide
 
 /-- "target creature you control that is your Ring-bearer" -/
 theorem okRingBearerOnBattlefield :
     Predicate.check .object []
-      (.and [creature, .hasDesignation "Ring-bearer" (some .you), .inZone battlefield]) = [] := by
+      (.and [creature, .hasDesignation (.named "ringBearer") (some .you), .inZone battlefield]) = [] := by
   decide
 
 /-- "target creature card in your graveyard that is your Ring-bearer" -/
 theorem badRingBearerInGraveyard :
     Predicate.check .object []
-      (.and [creature, .hasDesignation "Ring-bearer" (some .you), .inZone (graveyardOf .you)])
+      (.and [creature, .hasDesignation (.named "ringBearer") (some .you), .inZone (graveyardOf .you)])
       = [.zoneCoherent] := by
   decide
 

@@ -95,6 +95,11 @@ pub fn kinds() -> KindSet {
     // kind shares the name).
     kinds.add(crate::abilities::CounterKindSource::kind());
     kinds.add(crate::words::CounterKind::kind());
+    // A designation declaration's name reads bare where a designation is
+    // written: the declaration names this kind second, after its family
+    // (`macros/meta/Designation.ron`), and the type's `denoted_by` marker
+    // reads the node it expands to as the label it defines.
+    kinds.add(crate::words::DesignationLabel::kind());
     // The pronoun-word injection (§11.1): `NounWord::Type` embeds a
     // `CardType`, so "that creature" is `that(Creature)`.
     kinds.add(crate::words::NounWord::kind());
@@ -325,7 +330,7 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::words::Delta<crate::phrase::Amount>>("Delta");
     types.add_typed::<crate::abilities::DeonticPatient>("DeonticPatient");
     types.add_typed::<crate::abilities::DeonticRider>("DeonticRider");
-    types.add_typed::<String>("DesignationLabel");
+    types.add_typed::<crate::words::DesignationLabel>("DesignationLabel");
     types.add_typed::<String>("FlavorWordLabel");
     types.add_typed::<Vec<crate::phrase::GameEvent>>("GameEvents");
     types.add_typed::<Vec<crate::triggers::JoinedHeader>>("JoinedHeaders");

@@ -42,23 +42,23 @@ theorem designationLabelsDistinct : distinctDesignationLabels designationTable =
 
 theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by decide
 
-/-- The enum-valued designation reaches the table under every one of its members, and each is
-effectful, so an instruction may confer it. -/
+/-- The declaration that lists two members reaches the table under each member's name, and each
+is effectful, so an instruction may confer it. -/
 theorem everyDayNightLabelIsAnEffectfulDesignation :
-    ["day", "night"].all DesignationLabel.checked = true := by decide
+    [.named "day", .named "night"].all DesignationLabel.checked = true := by decide
 
 /-- The two door designations are exactly the rows the table marks with a room half. -/
 theorem bothDoorLabelsAreDeclaredHalves :
     (designationTable.filter (·.half.isSome)).map (·.label)
-      = ["left half unlocked", "right half unlocked"] := by decide
+      = ["leftHalfUnlocked", "rightHalfUnlocked"] := by decide
 
 /-- The one designation the table marks non-effectful: a rule confers it, so no instruction
 may. -/
-theorem aRuleOnlyDesignationIsNotEffectful : DesignationLabel.checked "commander" = false := by
-  decide
+theorem aRuleOnlyDesignationIsNotEffectful :
+    DesignationLabel.checked (.named "commander") = false := by decide
 
-/-- A label outside the declared enum is no designation at all, so nothing may confer it. -/
+/-- A name outside the declared members is no designation at all, so nothing may confer it. -/
 theorem anUndeclaredDayNightLabelIsNotADesignation :
-    DesignationLabel.checked "dusk" = false := by decide
+    DesignationLabel.checked (.named "dusk") = false := by decide
 
 end Semantics.Proofs.Tables

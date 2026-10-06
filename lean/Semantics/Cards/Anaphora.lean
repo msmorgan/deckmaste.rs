@@ -116,7 +116,7 @@ theorem okTakeIntoCustody : Instruction.check [] takeIntoCustody = [] := by deci
 def frenziedGorespawnGoad : Instruction :=
   Primitives.Instruction.doForEach (each Primitives.Predicate.opponent)
     (Primitives.Instruction.gainDesignation
-      (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (that .player)])) "goaded"
+      (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (that .player)])) (.named "goaded")
       none)
 theorem okFrenziedGorespawnGoad : Instruction.check [] frenziedGorespawnGoad = [] := by decide
 

@@ -127,9 +127,9 @@ def cradleToGrave : Instruction :=
 theorem okCradleToGrave : Instruction.check [] cradleToGrave = [] := by decide
 
 def aragornKingOfGondor : Ability :=
-  when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you "the monarch" none)
+  when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you (.named "monarch") none)
 theorem okAragornKingOfGondor : Ability.check [] aragornKingOfGondor = [] := by decide
-def firmamentSage : Ability := whenever (Primitives.GameEvent.gameBecomes "night") (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))
+def firmamentSage : Ability := whenever (Primitives.GameEvent.gameBecomes (.named "night")) (Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you))
 theorem okFirmamentSage : Ability.check [] firmamentSage = [] := by decide
 def deeprootWarrior : Ability :=
   whenever (becomesBlocked thisCreature none)
@@ -187,8 +187,8 @@ def youngPyromancer : Spelled := spelled <| .singleFaced
       power := stat 2, toughness := stat 1 } }
 
 def archivistOfGondor : Ability :=
-  triggeredIf (dealsCombatDamage yourCommander (a Primitives.Predicate.anyPlayer)) (thereIsNo "the monarch")
-    (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you "the monarch" none)
+  triggeredIf (dealsCombatDamage yourCommander (a Primitives.Predicate.anyPlayer)) (thereIsNo (.named "monarch"))
+    (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you (.named "monarch") none)
 theorem okArchivistOfGondor : Ability.check [] archivistOfGondor = [] := by decide
 
 def hissingMiasma : Spelled := spelled <| .singleFaced
@@ -809,7 +809,7 @@ def brazenBlademaster : Spelled := spelled <| .singleFaced
 def autarchMammothLine : Ability :=
   triggeredJoined (Primitives.GameEvent.enters thisCreature none)
     [ joinedHeadWhile (attacks thisCreature)
-        (Primitives.Concurrent.whileTrue (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation "saddled" none))) ]
+        (Primitives.Concurrent.whileTrue (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "saddled") none))) ]
     (create (.lit 1) (creatureToken 3 3 [.green] [creatureType "Elephant"]))
 theorem okAutarchMammothLine : Ability.check [] autarchMammothLine = [] := by decide
 /-- Altar of the Brood -/

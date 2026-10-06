@@ -737,7 +737,7 @@ def invigorate : Spelled := spelled <| .singleFaced
 /-- Deflecting Swat -/
 def deflectingSwatCommanderAltCost : Ability :=
   Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this none)
-    (exists_ (Primitives.Predicate.and [Primitives.Predicate.hasDesignation "commander" none, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
+    (exists_ (Primitives.Predicate.and [Primitives.Predicate.hasDesignation (.named "commander") none, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
 theorem okDeflectingSwatCommanderAltCost :
     Ability.check [] deflectingSwatCommanderAltCost = [] := by decide
 
@@ -838,7 +838,7 @@ theorem okTurbulentFen : Ability.check [] turbulentFen = [] := by decide
 /-- Bastion Protector -/
 def bastionProtectorPump : Ability :=
   Primitives.Ability.static (getsPt
-    (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasDesignation "commander" none, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
+    (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasDesignation (.named "commander") none, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
     (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2)))
 theorem okBastionProtectorPump : Ability.check [] bastionProtectorPump = [] := by decide
 /-- Luxior, Giada's Gift -/
