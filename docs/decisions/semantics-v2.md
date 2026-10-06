@@ -256,6 +256,27 @@ mimicked.
   (Ruling, 2026-10-05, owner, `semantics-v2-counter-kind-is-a-name`; the
   type's shape is the orchestrator's call; the helper names `boost` and
   `grants` were accepted by the owner the same day.)
+- **A designation is a name.** `DesignationLabel` has one constructor,
+  `named name` (mirror `DesignationLabel::Named { name }`), whose name is the
+  designation declaration's name verbatim (`goaded`, `monarch`, `ringBearer`,
+  `leftHalfUnlocked`), never the phrase a card prints: "the monarch" and
+  "Ring-bearer" stay the declaration's `spelling`. It is a type of its own
+  rather than a `String` alias, so `denoted_by` (§12) reads a bare
+  declaration name at a designation position (`gainDesignation(this,
+  goaded)`, `hasDesignation(monarch)`). The declaration does not write its
+  label: the `Designation` meta-macro builds the `Designation` definition from
+  the declaration's `name` and its columns (`scope`, `effectful`, and `zone`,
+  `type` and `half`, each `None` unless written). A declaration whose spelling
+  covers several designations lists them as `members`, each its own name with
+  the declaration's columns: `dayNight` ("day or night") lists `day` and
+  `night` [CR#731.1], each of which reads bare, while `dayNight` itself names
+  no designation and does not. The loader registers the members
+  (`deckmaste_semantics_v2::designations`), and the facts generator writes
+  one `DesignationFacts` row per designation, labelled with its name; the
+  checker looks a designation up by that name. (Ruling, 2026-10-05, owner,
+  `semantics-v2-designation-is-a-name`: "I'd prefer to avoid stringly typed
+  so yes", and, on each label being its own bare name, "yes."; the type's
+  shape is the orchestrator's call.)
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.
@@ -344,7 +365,8 @@ body is the DEFINITION of what it declares — `Semantics.Definition`, one
 DERIVES `lean/Semantics/Check/Facts.lean` from it: every counter definition is
 a `CounterFacts` row labelled with its kind, its declaration's name (§7,
 ruling 2026-10-05), a subtype definition a `SubtypeFacts`
-row, a designation definition a `DesignationFacts` row, and a keyword
+row, a designation definition a `DesignationFacts` row labelled with its
+name, the declaration's or each listed member's (§7, ruling 2026-10-05), and a keyword
 ability's own `Ability.keyword` term supplies its word and the categories its
 definition is written in. Rust owns no mapping into the RON files (ruling,
 2026-09-07, `semantics-v2-definition-bodies`, superseding
@@ -483,7 +505,8 @@ per-type convenience, and each off by default in `macro_ron` — v2's
   (`Amount::Lit`, `SimpleManaSymbol::Generic`) stay written-out-able, which is
   what `semantic_literal` buys in Lean. A hand-built kind carries no dispatch
   set to read variants off, so `HeaderPossessor`, the one left, names its
-  variants in `ron.rs`; `Subtype` and `CounterKind` derive theirs.
+  variants in `ron.rs`; `Subtype`, `CounterKind` and `DesignationLabel`
+  derive theirs.
 - **A numeral reads at its leaf.** Lean marks `Amount.lit` and
   `SimpleManaSymbol.generic` `semantic_literal`; the mirror marks the same
   two `#[macro_ron(literal)]`, the marker v1 already uses for `StatValue`'s
@@ -529,11 +552,14 @@ Registry Definition's spelling also reads at the type's position and denotes
 the term `path` finds in it — a definition's name denotes its term, so
 `p1p1Counter`, whose body is its `Definition::Counter` node, reads at a
 `CounterKind` position as that node's `kind`, which is the name itself
-(`Named(name: "p1p1Counter")`, §7), and a subtype declaration reads
-at a `Subtype` position as its `subtype`. The spelling is not one of the
-type's variants, so a card writing the node raw is refused by name; the
-projection is the mirror's (`Definition::counter_term`,
-`Definition::subtype_term`), and `macro_ron` knows nothing of it (ruling,
+(`Named(name: "p1p1Counter")`, §7), a subtype declaration reads
+at a `Subtype` position as its `subtype`, and a designation declaration
+(`goaded`), or a member a declaration lists (`day`), reads at a
+`DesignationLabel` position as its `label`, which is that name (§7, ruling
+2026-10-05). The spelling is not one of the type's variants, so a card writing
+the node raw is refused by name; the projection is the mirror's
+(`Definition::counter_term`, `Definition::subtype_term`,
+`Definition::designation_term`), and `macro_ron` knows nothing of it (ruling,
 2026-10-03; the derive marker, 2026-10-04). What a macro's own
 BODY may write is what a card may write, because a body is read at the
 position it expands to and goes through the same reader. A macro's declared

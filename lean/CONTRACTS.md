@@ -748,6 +748,19 @@ context and computes no multiplicity, so nothing in the checker depends on it
 the +1/+1 and -1/-1 definitions `.zoneIs .battlefield`, which no gate runs
 (routed by `semantics-v2-counter-kind-is-a-name`'s landing record).
 
+A designation is a name too: `DesignationLabel.named` carries the designation
+declaration's name verbatim (`goaded`, `monarch`, `leftHalfUnlocked`), or, for
+a declaration that lists members, a member's (`day`, `night` [CR#731.1]); the
+phrase a card prints ("the monarch") is the declaration's spelling and never
+reaches the checker. `DesignationLabel.facts` is one registry lookup by name
+(`findDesignation`), and every column (`checked`, `scope`, `holder`, the
+zone, type and Room half) is read from that row; the generator writes one row
+per designation, labelled with its name. `RoomHalf.designation` returns the
+designation the table marks with that half, by name. A designation
+definition (`Definition.designation`) names its label
+(`Definition.designationTerm`), so a declaration's bare name reads at a
+designation position.
+
 The two lethal-damage state-based actions [CR#704.5g,704.5h] have no row: the
 grammar projects no marked damage and has no "since state-based actions were
 last checked" lookback. `Stat` likewise has no `defense` axis, so a battle's

@@ -529,14 +529,18 @@ namespace's members, so a Registry Definition names what it defines, where a
 Rules Table row names nothing and is scoped by a Predicate instead. The
 declared name DENOTES what is defined: where a position wants the defined term
 — a Subtype in a card's subtype list, a Counter's kind — the name stands for
-that term rather than for the Registry Definition that gives it.
+that term rather than for the Registry Definition that gives it; a
+Designation's name is the Designation.
 _Avoid_: Rules Table for a Registry Definition.
 
 **Designation** (project term):
 A named marker an Object, a Player, or the game can have, which rules and
 Effects identify without it being an Ability or a copiable value. The CR names
 each Designation on its own — goaded ([CR#701.15b]), the city's blessing
-([CR#702.131c]) — rather than defining the class.
+([CR#702.131c]) — rather than defining the class. A Designation is identified
+by its name, the name the registry declares it under (`monarch`), not by the
+phrase a card prints ("the monarch"); one declaration may declare several,
+as day and night are two Designations [CR#731.1].
 
 **Primitive Keyword Ability** (project term):
 A Keyword Ability whose semantics are represented directly rather than
