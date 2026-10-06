@@ -111,8 +111,9 @@ optional slots, marker homographs and the repaired relative clause.
 Forbidden word/card/lexeme-named admission guards: zero. Head and marker guards
 read declared Frame and `FrameMarker` features. Source reconciliation derives
 marker eligibility from declaration references, never grammatical word spelling.
-Lexical environment loading succeeds with zero load errors; the former
-`environment.rs` authority is now `deckmaste_lexical_source::load_workspace`.
+Lexical environment loading succeeds with zero load errors. The active stack
+has no `environment.rs`; its authority is
+`deckmaste_lexical_source::load_workspace`.
 
 ### Census and newly covered identities
 
@@ -438,3 +439,14 @@ report's late tree stamp is superseded by its measured parent `rmxmzuss`.
 Scratch provenance: `/tmp/generic-frame-before.json`,
 `/tmp/generic-frame-landing.json`, `/tmp/generic-frame-verified-identities.json`
 and `/tmp/generic-frame-verified-identity-delta.json`.
+
+Refresh verification: the incoming semantics Group changes modify Lean checks,
+semantic bodies for extort/changeLife, documentation and instructions; their
+lexical declarations are unchanged. The refreshed lexical inventory digest is
+`6fe63c1bdd385dc2b04885ca7a507b52562ebbffe9a59941fdb75f707d26c81e`,
+exactly matching the full corpus measurement on `ykrqsqyr`, covered 13,277.
+An explicit Urza face-selector run on the refreshed tree reports two exact
+Readings and zero issues. The declaration, lexical-source and generic grammar
+regressions pass again, and `cargo test -p deckmaste_semantics_v2` passes against
+the incoming bodies. Prior full-corpus and compiler results remain applicable
+to the unchanged English grammar, lexical inventory and parser.
