@@ -502,7 +502,7 @@ theorem badCantCounterCreatures :
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Instruction.check []
-      (.doOnlyIf (.sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them]) (.matches (those .card)
+      (.doOnlyIf (.sequentially [Macros.act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them]) (.matches (those .card)
           creature)
         none) = [] := by
   decide
@@ -510,7 +510,7 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
     Instruction.check []
-      (.doAndForbid (sacrifice (a creature) (agent := (each .opponent))) (.action "Regenerate")
+      (.doAndForbid (Macros.act (each .opponent) (sacrifice (a creature) (agent := actor))) (.action "Regenerate")
         (theVerbed (.action "Sacrifice") .permanent .attributive .many)) = [] := by
   decide
 
@@ -518,7 +518,7 @@ theorem distributedDeedRiderReadsBackPlural :
 theorem enchantedPlayerDamageReadsBackAsThey :
     Ability.check []
       (whenever (Primitives.GameEvent.isDealtDamage .any (.attachHost .enchanted .player))
-        (loseLife (.half .up (lifeTotalOf they)) (agent := they))) = [] := by
+        (Macros.act they (loseLife (.half .up (lifeTotalOf they)) (agent := actor)))) = [] := by
   decide
 
 /-- "Target creature attacks a player other than you during its controller's next turn if

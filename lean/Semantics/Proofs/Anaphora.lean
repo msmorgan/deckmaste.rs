@@ -381,7 +381,7 @@ theorem okLoopGroupSurvives :
       (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
-          draw (.lit 1) (agent := (those .player)) ]) = [] := by
+          act (those .player) (draw (.lit 1) (agent := actor)) ]) = [] := by
   decide
 
 /-- "For each player, choose target permanent that player controls. That player draws a
@@ -392,7 +392,7 @@ theorem badLoopElementRead :
       (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
-          draw (.lit 1) (agent := (that .player)) ]) = [.anaphor (.word .player) .one 0] := by
+          act (that .player) (draw (.lit 1) (agent := actor)) ]) = [.anaphor (.word .player) .one 0] := by
   decide
 
 /-- "if you activated an activated ability this turn" -/
@@ -927,7 +927,7 @@ theorem badOwnTwoInDelta :
 theorem distributedDeedReadsBackPlural :
     Instruction.check []
       (.sequentially
-        [ .sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them],
+        [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .many) ]) = [] := by
   decide
 
@@ -944,7 +944,7 @@ theorem okTheVerbedAfterSingularDiscard :
 theorem badDistributedDiscardSingular :
     Instruction.check []
       (.sequentially
-        [ .sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them],
+        [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [.anaphor (.verbed (.action "Discard") .card .attributive) .one 0] := by
   decide

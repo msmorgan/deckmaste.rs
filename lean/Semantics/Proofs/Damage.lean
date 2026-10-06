@@ -86,7 +86,7 @@ theorem badInnerAmbig :
       (.sequentially
         [ fight (target (.and [creature, .hasPossessor .controller anOpponent]))
             (target (.and [creature, .hasPossessor .controller anOpponent])),
-          loseLife (.lit 1) (agent := (that .player)) ]) = [.anaphor (.word .player) .one 2] := by
+          act (that .player) (loseLife (.lit 1) (agent := actor)) ]) = [.anaphor (.word .player) .one 2] := by
   decide
 
 /-- "A creature doesn't untap during your untap step." -/
@@ -150,9 +150,8 @@ theorem badDamageArtifact :
 theorem okThatMuchBound :
     Instruction.check []
       (.sequentially
-        [ loseLife
-            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])) (agent :=
-                (target .opponent)),
+        [ act (target .opponent) (loseLife
+            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])) (agent := actor)),
           gainLife .thatMuch (agent := .you) ]) = [] := by
   decide
 
@@ -460,8 +459,8 @@ theorem badPreventedThisWayUnannounced :
 theorem okShortOfCeilingAnnounced :
     Instruction.check []
       (.sequentially
-        [ offer (draw (.upTo (.lit 2)) (agent := they)) (agent := (each .anyPlayer)),
-          gainLife (times (.lit 2) shortOfCeiling) (agent := they) ]) = [] := by
+        [ act (each .anyPlayer) (offer (act they (draw (.upTo (.lit 2)) (agent := actor))) (agent := actor)),
+          act they (gainLife (times (.lit 2) shortOfCeiling) (agent := actor)) ]) = [] := by
   decide
 
 /-- "You gain 2 life for each card less than two you draw this way." -/
@@ -522,7 +521,7 @@ theorem badRedirectToGroup :
 /-- "Target opponent loses 1 life. You gain that much life." -/
 theorem okThatMuchAfterLifeLoss :
     Instruction.check []
-      (.sequentially [loseLife (.lit 1) (agent := (target .opponent)), gainLife .thatMuch (agent :=
+      (.sequentially [act (target .opponent) (loseLife (.lit 1) (agent := actor)), gainLife .thatMuch (agent :=
           .you)]) = [] := by
   decide
 
@@ -582,7 +581,7 @@ theorem okThatCreatureAfterTargetedDamage :
       (when (Primitives.GameEvent.dies thisCreature)
         (.sequentially
           [ .dealDamage thisCreature (.lit 1) (target creature),
-            loseLife (.lit 1) (agent := (controllerOf (that (.type .creature)))) ])) = [] := by
+            act (controllerOf (that (.type .creature))) (loseLife (.lit 1) (agent := actor)) ])) = [] := by
   decide
 
 theorem badThatCreatureIsDamagedSelf :

@@ -93,9 +93,8 @@ def meletisCharlatan : Spelled := spelled <| .singleFaced
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2, pip .blue], Primitives.Cost.tapSymbol])
             (Primitives.Instruction.sequentially
-              [ Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := (controllerOf (target (Primitives.Predicate.and
-                  [instantOrSorcery, spell])))),
-                offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := (that .player)) ]) ],
+              [ act (controllerOf (target (Primitives.Predicate.and [instantOrSorcery, spell]))) (Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := actor)),
+                act (that .player) (offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := actor)) ]) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Echo Mage, level 4+ -/
@@ -216,8 +215,8 @@ def bonusRound : Spelled := spelled <| .singleFaced
               (Primitives.Predicate.and [instantOrSorcery, spell]))) none)
             [] (some untilEndOfTurn)
             (Primitives.Instruction.sequentially
-              [ Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := (that .player)),
-                offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := (that .player)) ])) ] } }
+              [ act (that .player) (Primitives.Instruction.copy .fromStack it (.lit 1) [] (agent := actor)),
+                act (that .player) (offer (Primitives.Instruction.chooseNewTargets (that .copy)) (agent := actor)) ])) ] } }
 
 /-- Melek, Izzet Paragon -/
 def melekIzzetParagon : Spelled := spelled <| .singleFaced

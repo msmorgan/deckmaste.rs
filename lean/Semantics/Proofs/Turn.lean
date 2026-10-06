@@ -538,19 +538,19 @@ theorem badTokenDuplicateSupertype :
 
 theorem okExtraTurnAmountReadsSubject :
     Instruction.check [qualityB .color]
-      (Primitives.Instruction.addTurn (lifeTotalOf they) (agent := (target .opponent))) = [] := by decide
+      (Macros.act (target .opponent) (Primitives.Instruction.addTurn (lifeTotalOf they) (agent := actor))) = [] := by decide
 
 theorem badExtraTurnAmountReadsSubject :
     Instruction.check [qualityB .color]
       (Primitives.Instruction.addTurn (lifeTotalOf they) (agent := .you)) = [.anaphor (.word .player) .one 0] := by decide
 
 theorem badExtraTurnForwardSubject :
-    Instruction.check [] (Primitives.Instruction.addTurn (lifeTotalOf (target .opponent)) (agent := they))
+    Instruction.check [] (Macros.act they (Primitives.Instruction.addTurn (lifeTotalOf (target .opponent)) (agent := actor)))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okExtraTurnAmountIntroducesPlayer :
     Instruction.check [] (.sequentially
-      [Primitives.Instruction.addTurn (lifeTotalOf (target .opponent)) (agent := .you), .draw (.lit 1) (agent := they)]) =
+      [Primitives.Instruction.addTurn (lifeTotalOf (target .opponent)) (agent := .you), Macros.act they (.draw (.lit 1) (agent := actor))]) =
           [] := by decide
 
 theorem okExtraTurnNestedAmountIntroducesLetterOnce :
@@ -559,7 +559,7 @@ theorem okExtraTurnNestedAmountIntroducesLetterOnce :
 
 theorem okSkipNextAmountReadsSubject :
     Instruction.check [qualityB .color]
-      (.skipPart .drawStep (lifeTotalOf they) (agent := (target .opponent))) = [] := by decide
+      (Macros.act (target .opponent) (.skipPart .drawStep (lifeTotalOf they) (agent := actor))) = [] := by decide
 
 theorem badSkipNextAmountReadsSubject :
     Instruction.check [qualityB .color]
@@ -568,13 +568,12 @@ theorem badSkipNextAmountReadsSubject :
   decide
 
 theorem badSkipNextForwardSubject :
-    Instruction.check [] (.skipPart .drawStep (lifeTotalOf (target .opponent)) (agent := they))
+    Instruction.check [] (Macros.act they (.skipPart .drawStep (lifeTotalOf (target .opponent)) (agent := actor)))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okSkipNextAmountIntroducesPlayer :
     Instruction.check [] (.sequentially
-      [.skipPart .drawStep (lifeTotalOf (target .opponent)) (agent := .you), .draw (.lit 1) (agent
-          := they)])
+      [.skipPart .drawStep (lifeTotalOf (target .opponent)) (agent := .you), Macros.act they (.draw (.lit 1) (agent := actor))])
       = [] := by
   decide
 
@@ -584,7 +583,7 @@ theorem okSkipNextNestedAmountIntroducesLetterOnce :
 
 theorem okAdditionalPartAmountReadsSubject :
     Instruction.check [qualityB .color]
-      (Primitives.Instruction.addPart .upkeep none (lifeTotalOf they) none (agent := (some (target .opponent))))
+      (Macros.act (target .opponent) (Primitives.Instruction.addPart .upkeep none (lifeTotalOf they) none (agent := some actor)))
       = [] := by
   decide
 
@@ -595,14 +594,13 @@ theorem badAdditionalPartAmountReadsSubject :
   decide
 
 theorem badAdditionalPartForwardSubject :
-    Instruction.check [] (Primitives.Instruction.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent :=
-        (some they)))
+    Instruction.check [] (Macros.act they (Primitives.Instruction.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent := some actor)))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okAdditionalPartAmountIntroducesPlayer :
     Instruction.check [] (.sequentially
-      [Primitives.Instruction.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent := (some .you)), .draw
-          (.lit 1) (agent := they)])
+      [Primitives.Instruction.addPart .upkeep none (lifeTotalOf (target .opponent)) none (agent := (some .you)), Macros.act they (.draw
+          (.lit 1) (agent := actor))])
       = [] := by
   decide
 
@@ -626,8 +624,7 @@ theorem okUntapNestedAmountIntroducesLetterOnce :
 
 theorem okUntapAmountIntroducesPlayer :
     Instruction.check [] (.sequentially
-      [.skipUntap (target creature) (lifeTotalOf (target .opponent)), .draw (.lit 1) (agent :=
-          they)])
+      [.skipUntap (target creature) (lifeTotalOf (target .opponent)), Macros.act they (.draw (.lit 1) (agent := actor))])
       = [] := by decide
 
 theorem okAdditionalPartWithoutSubjectReadsOuterContext :

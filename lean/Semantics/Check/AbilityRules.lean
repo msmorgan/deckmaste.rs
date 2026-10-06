@@ -147,12 +147,15 @@ def statsCheck (bs : Bindings) : List (Option Amount) → List Refusal
   | some a :: rest => Amount.check bs a ++ statsCheck (Amount.intro bs a) rest
 
 mutual
-  def Instruction.check (bs : Bindings) : Instruction → List Refusal
+  /-- `Instruction.check` with `perf`, the performer a handoff to a group hands this very
+  instruction (`act (each opponent) (draw 1)`), read in place of the actor; `none` everywhere
+  else. -/
+  def Instruction.checkWith (bs : Bindings) (perf : Option NounPhrase) : Instruction → List Refusal
     | .withBindings scope inputs body =>
-      (CaptureInput.checkAllIn none bs inputs).refusals ++ Instruction.check (captureBindings bs scope inputs) body
+      (CaptureInput.checkAllIn none bs inputs).refusals ++ Instruction.checkWith (captureBindings bs scope inputs) none body
     | .inCaller scope body =>
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
-        Instruction.check (enterCaller scope bs) body
+        Instruction.checkWith (enterCaller scope bs) none body
     | .dealDamage src amt to =>
       let bs' := selfSubjIntro bs src
       let bs'' := Amount.introduced bs' amt ++ nomIntro bs src
@@ -190,7 +193,7 @@ mutual
     | .doAndForbid e deed what =>
       let bs' := e.riderIntro bs
       let k := what.kindOr .object
-      Instruction.check bs e ++ NounPhrase.check none bs' what ++ refuse (knownAct deed) (.knownAct deed) ++
+      Instruction.checkWith bs none e ++ NounPhrase.check none bs' what ++ refuse (knownAct deed) (.knownAct deed) ++
         refuse (deedRidesOk deed) .deedRides ++
         refuse (deedFits [deed] .patient k what.isAbility (NounPhrase.headTys bs' what) (NounPhrase.zone bs' what))
           .deedFits
@@ -203,17 +206,17 @@ mutual
     | .unlock door => Door.check bs door ++ refuse door.namesHost .doorNamesHost
     | .setGameDesignation d =>
       refuse d.gameWide (.designationScope d) ++ refuse d.checked (.designationChecked d)
-    | .conclude _ who => NounPhrase.check (some .player) bs who
+    | .conclude _ who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who
     | .drawGame | .restartGame | .revealChoices _ => []
-    | .separateIntoPiles grp piles faces who =>
+    | .separateIntoPiles grp piles faces who0 => let who := perf.getD who0;
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' grp ++
         refuse (facesFit faces piles) .facesFit ++ refuse (grp.plur == .many) .plural
-    | .choose first n _ when by_ =>
+    | .choose first n _ when by0 => let by_ := perf.orElse (fun _ => by0);
       OptNoun.check (some .player) bs first ++ OptNoun.check (some .player) bs by_ ++
         NounPhrase.check none (agentCtx bs by_) n ++ refuse (choiceOrderOk first by_) .choiceOrder ++
         refuse (choiceClauseOk by_ n) .choiceClause ++ OptConcurrent.check bs when
-    | .vote first _ ballot voters =>
+    | .vote first _ ballot voters0 => let voters := perf.getD voters0;
       let bs' := optAgentIntro bs first
       OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs' voters ++
         Ballot.check (nomIntro bs' voters) ballot ++
@@ -226,7 +229,7 @@ mutual
         refuse (orderOk what.plur to) .arrangementOk ++
         refuse (to.sort.all (destTypeOk (NounPhrase.ty bs what))) .placeable ++
         refuse (to.sort.all (ridersFitZone riders)) .ridersFit
-    | .copy src what times exc agent =>
+    | .copy src what times exc agent0 => let agent := perf.getD agent0;
       let bs' := nomIntro bs agent
       let bs'' := nomIntro bs' what
       let k := what.kindOr .object
@@ -238,26 +241,26 @@ mutual
       let kt := whom.kindOr .object
       NounPhrase.check none bs cp ++ NounPhrase.check none (nomIntro bs cp) whom ++
         refuse (cp.copiable bs) .stackActOn ++ refuse kt.targetable (.targetable kt)
-    | .changeLife d who => NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who)
+    | .changeLife d who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who)
         d.amount
     | .exchange what => what.check bs
-    | .addMana amt prod riders who =>
+    | .addMana amt prod riders who0 => let who := perf.getD who0;
       let bs' := nomIntro bs who
       let bs'' := Amount.intro bs' amt
       NounPhrase.check (some .player) bs who ++ Amount.check bs' amt ++ prod.check bs'' ++
         ManaRider.checkAll bs'' riders
-    | .draw amt who => NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) amt
-    | .expose _ what who => NounPhrase.check (some .player) bs who ++ Exposed.check (nomIntro bs
+    | .draw amt who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) amt
+    | .expose _ what who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who ++ Exposed.check (nomIntro bs
         who) what
-    | .search sc q p who =>
+    | .search sc q p who0 => let who := perf.getD who0;
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ sc.check bs' ++ Quantity.check bs' q ++
         Predicate.check .object bs' p ++ refuse q.nonZero .nonZeroQ ++
         refuse q.wellFormed .wellFormedQ ++ refuse p.seedZone.isNone .zoneCoherent
-    | .shuffle whose => NounPhrase.check (some .player) bs whose
-    | .flipCoins count who => NounPhrase.check (some .player) bs who ++ count.check (nomIntro bs
+    | .shuffle whose0 => let whose := perf.getD whose0; NounPhrase.check (some .player) bs whose
+    | .flipCoins count who0 => let who := perf.getD who0; NounPhrase.check (some .player) bs who ++ count.check (nomIntro bs
         who)
-    | .rollDice count sides who =>
+    | .rollDice count sides who0 => let who := perf.getD who0;
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ Amount.check bs' count ++
         sides.check (Amount.intro bs' count)
@@ -273,7 +276,7 @@ mutual
       let n := countOutcomes .rollResult bs
       NounPhrase.check (some .object) bs on ++ refuse on.plur.isOne .singular ++
         refuse (n == 1) (.outcomeInScope .rollResult n)
-    | .rerollStored q whose who =>
+    | .rerollStored q whose who0 => let who := perf.getD who0;
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ Quantity.check bs' q ++ NounPhrase.check (some .object) bs' whose ++
         refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++
@@ -281,7 +284,7 @@ mutual
     | .establish se span =>
       StaticSpec.check bs se ++ OptDuration.check (StaticSpec.intro bs se) span ++
         refuse (durationOk span) .durationOk ++ refuse se.clauseOk .clauseStatic
-    | .createObject count spec agent =>
+    | .createObject count spec agent0 => let agent := perf.getD agent0;
       let bs' := nomIntro bs agent
       let bs'' := Amount.intro bs' count
       NounPhrase.check (some .player) bs agent ++ Amount.check bs' count ++
@@ -325,26 +328,32 @@ mutual
       let k := on.kindOr .object
       NounPhrase.check none bs on ++ refuse (counterHolderKind k) .counterHolderKind ++
         refuse on.perMemberOk .perMember
-    | .enact v e subj =>
+    | .enact v e subj0 => let subj := perf.orElse (fun _ => subj0);
       let inner := enactCtx bs v subj
-      OptNoun.check (some (enactAgentKind bs v subj)) bs subj ++ Instruction.check inner e ++
+      OptNoun.check (some (enactAgentKind bs v subj)) bs subj ++ Instruction.checkWith inner none e ++
         refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk bs subj v) .enactAgentOk ++
         refuse (enactPatientZoneOk inner v e) .zoneFits ++
         refuse (enactLibraryOwnerOkIn inner v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
-    | .pay c _ who =>
+    | .pay c _ who0 => let who := perf.getD who0;
       NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c ++
         refuse c.payable .payable ++ refuse (payAgreesOkIn bs who c) .payAgrees
     | .act who body =>
       let inner := actorCtx bs who
-      NounPhrase.check none bs who ++ refuse (who.handoffPerformerOk bs) .handoffPerformer ++
-        Instruction.check inner body ++ refuse (who.plur == .one || keepsOuter inner body) .keepsOuter
-    | .withContinuation policy body ifDid ifNot =>
+      if who.plur == .many && body.performed then
+        refuse (who.handoffPerformerOk bs) .handoffPerformer ++
+          Instruction.checkWith (performerFrame bs who) (some who) body
+      else
+        NounPhrase.check none bs who ++ refuse (who.handoffPerformerOk bs) .handoffPerformer ++
+          Instruction.checkWith inner none body ++
+          refuse (who.plur == .one || keepsOuter inner body) .keepsOuter
+    | .withContinuation policy0 body ifDid ifNot =>
+      let policy := policy0.performedBy perf
       let bs' := policy.context bs
       (match policy with
        | .optional agent => NounPhrase.check (some .player) bs agent
        | .required => []) ++
-        Instruction.check bs' body ++ Instruction.checkOpt (body.intro bs') ifDid ++
+        Instruction.checkWith bs' none body ++ Instruction.checkOpt (body.intro bs') ifDid ++
         Instruction.checkOpt bs' ifNot ++
         (match policy with
          | .optional _ => []
@@ -352,20 +361,20 @@ mutual
              refuse (ifDoneArmed ifDid ifNot) .ifDoneArmed)
     | .doOnlyIf e c otherwise =>
       let bs' := e.preIntro bs
-      Instruction.check bs e ++ Condition.check bs' c ++
+      Instruction.checkWith bs none e ++ Condition.check bs' c ++
         Instruction.checkOpt (Condition.introduced bs' c ++ e.otherwiseCtx bs) otherwise
     | .doIf c e otherwise =>
-      Condition.check bs c ++ Instruction.check (c.intro bs) e ++
+      Condition.check bs c ++ Instruction.checkWith (c.intro bs) none e ++
         Instruction.checkOpt (e.otherwiseCtx (c.intro bs)) otherwise
     | .doForEach grp body =>
       let k := grp.kindOr .object
       let bs' := elemIntro bs k grp
-      NounPhrase.check none bs grp ++ refuse k.phrasal (.phrasal k) ++ Instruction.check bs' body ++
+      NounPhrase.check none bs grp ++ refuse k.phrasal (.phrasal k) ++ Instruction.checkWith bs' none body ++
         refuse (grp.plur == .many) .plural ++ refuse (keepsOuter bs' body) .keepsOuter
     | .doForEachKind ax dom q body =>
       let bs' := kindValueIntro bs q dom
       OptNoun.check (some .object) bs dom ++ refuse (ax.ok && ax.sort == some q) .kindAxisSort ++
-        refuse (kindDomainOk ax dom) .kindDomainOk ++ Instruction.check bs' body ++
+        refuse (kindDomainOk ax dom) .kindDomainOk ++ Instruction.checkWith bs' none body ++
         refuse (keepsOuter bs' body) .keepsOuter
     | .repeat_ rep => rep.check bs
     | .sequentially es => refuse (!es.isEmpty) .nonEmpty ++ Instruction.checkSeq bs es
@@ -377,26 +386,26 @@ mutual
         refuse (modesCostedUniformly modes) .modesCosted ++ Instruction.checkModes bs modes
     | .delay ev alts span body =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptDuration.check bs span ++
-        Instruction.check (delayedCtx bs alts ev) body ++ refuse (durationOk span) .durationOk
+        Instruction.checkWith (delayedCtx bs alts ev) none body ++ refuse (durationOk span) .durationOk
     | .replace replaced repl =>
-      Instruction.check bs replaced ++ Instruction.check (replaced.replacedCtx bs) repl ++
+      Instruction.checkWith bs none replaced ++ Instruction.checkWith (replaced.replacedCtx bs) none repl ++
         refuse (!replaced.isInstead) .notInstead ++ refuse (!repl.isInstead) .notInstead
     | .holdUntil e ev =>
-      Instruction.check bs e ++ GameEvent.check (e.annIntro bs) ev ++
+      Instruction.checkWith bs none e ++ GameEvent.check (e.annIntro bs) ev ++
         refuse e.heldUntilOk .heldClause
     | .triggerReflexively body trig =>
-      Instruction.check bs body ++ Instruction.check (reflexCtx bs body) trig ++
+      Instruction.checkWith bs none body ++ Instruction.checkWith (reflexCtx bs body) none trig ++
         refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure
     | .triggerThisWay body ev trig =>
-      Instruction.check bs body ++ GameEvent.check (body.intro bs) ev ++
-        Instruction.check (thisWayCtx bs body ev) trig ++
+      Instruction.checkWith bs none body ++ GameEvent.check (body.intro bs) ev ++
+        Instruction.checkWith (thisWayCtx bs body ev) none trig ++
         refuse body.thisWayOutcomeOk .thisWayOutcome
     | .skipUntap n steps =>
       NounPhrase.check (some .object) bs n ++ Amount.check (nomIntro bs n) steps ++
         zoneIsCheck (NounPhrase.zone bs n) .battlefield
-    | .skipPart _ count who =>
+    | .skipPart _ count who0 => let who := perf.getD who0;
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
-    | .insertPart part anchor count followedBy who =>
+    | .insertPart part anchor count followedBy who0 => let who := perf.orElse (fun _ => who0);
       OptNoun.check (some .player) bs who ++ Amount.check (optAgentIntro bs who) count ++
         refuse (part.proper || (part == .turn && who.isSome && anchor.isNone && followedBy.isNone))
           .windowOk ++ refuse (anchor.elim true TurnPart.proper) .windowOk ++
@@ -406,7 +415,7 @@ mutual
   def Repetition.check (bs : Bindings) : Repetition → List Refusal
     | .fixed n body =>
       let bs' := Amount.intro bs n
-      Amount.check bs n ++ Instruction.check bs' body ++ refuse (keepsOuter bs' body) .keepsOuter
+      Amount.check bs n ++ Instruction.checkWith bs' none body ++ refuse (keepsOuter bs' body) .keepsOuter
     | .moreTimes n => Amount.check bs n
     | .untilCond c => Condition.check bs c
     | _ => []
@@ -414,17 +423,17 @@ mutual
 
   def Instruction.checkOpt (bs : Bindings) : Option Instruction → List Refusal
     | none => []
-    | some e => Instruction.check bs e
+    | some e => Instruction.checkWith bs none e
   termination_by structural e => e
 
   def Instruction.checkSeq (bs : Bindings) : List Instruction → List Refusal
     | [] => []
-    | e :: es => Instruction.check bs e ++ Instruction.checkSeq (e.intro bs) es
+    | e :: es => Instruction.checkWith bs none e ++ Instruction.checkSeq (e.intro bs) es
   termination_by structural es => es
 
   def Instruction.checkSim (bs : Bindings) : List Instruction → List Refusal
     | [] => []
-    | e :: es => Instruction.check bs e ++ Instruction.checkSim (e.annIntro bs) es
+    | e :: es => Instruction.checkWith bs none e ++ Instruction.checkSim (e.annIntro bs) es
   termination_by structural es => es
 
   def Instruction.checkModes (bs : Bindings) : List (Option Cost × Instruction) → List Refusal
@@ -432,7 +441,7 @@ mutual
     | (c, e) :: es =>
       (match c with
        | none => []
-       | some c => Cost.check bs c) ++ Instruction.check bs e ++ Instruction.checkModes bs es
+       | some c => Cost.check bs c) ++ Instruction.checkWith bs none e ++ Instruction.checkModes bs es
   termination_by structural es => es
 
   def Instruction.checkRows (bs : Bindings) : List RollRow → List Refusal
@@ -440,7 +449,7 @@ mutual
     | ⟨results, instruction⟩ :: rs =>
       Quantity.check bs results ++ refuse results.nonZero .nonZeroQ ++
         refuse results.wellFormed .wellFormedQ ++ refuse results.literal .quantLiteral ++
-        Instruction.check bs instruction ++ Instruction.checkRows bs rs
+        Instruction.checkWith bs none instruction ++ Instruction.checkRows bs rs
   termination_by structural rs => rs
 
   def Cost.check (bs : Bindings) : Cost → List Refusal
@@ -452,7 +461,7 @@ mutual
     | .mana c => refuse (manaRun c) .manaRun ++ ManaCost.check c
     | .scaled c amt => Cost.check bs c ++ Amount.check bs amt ++ refuse amt.forEach .forEachAmount
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ | .itsManaCost => []
-    | .perform e => Instruction.check bs e ++ refuse e.costActionOk .costAction
+    | .perform e => Instruction.checkWith bs none e ++ refuse e.costActionOk .costAction
     | .compound cs => refuse (!cs.isEmpty) .nonEmpty ++ Cost.checkSeq bs cs
     | .or cs =>
       refuse (atLeastTwo cs.length) .atLeastTwo ++ Cost.checkAlternatives bs cs ++
@@ -606,7 +615,7 @@ mutual
     | .spendOnly ps => refuse (!ps.isEmpty) .nonEmpty ++ ps.flatMap (SpendPurpose.check bs)
     | .spendNotOn ps => refuse (!ps.isEmpty) .nonEmpty ++ ps.flatMap (SpendPurpose.check bs)
     | .onSpent _ _ what says =>
-      NounPhrase.check (some .object) bs what ++ Instruction.check (nomIntro bs what) says ++
+      NounPhrase.check (some .object) bs what ++ Instruction.checkWith (nomIntro bs what) none says ++
         zoneIsCheck (NounPhrase.zone bs what) .stack
   termination_by structural r => r
 
@@ -689,7 +698,7 @@ mutual
         zoneIsCheck (NounPhrase.zone bs' what) .battlefield
     | .replacement ev alts window repl _ limit =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptTiming.check bs window ++
-        Instruction.check (interceptCtx bs alts ev) repl ++
+        Instruction.checkWith (interceptCtx bs alts ev) none repl ++
         refuse (untriggeredLimitOk limit) .untriggeredLimit ++
         refuse (interceptOk ev) .interceptable ++ refuse (interceptArmsOk alts) .interceptable
     | .damageRule _ src scope op use =>
@@ -762,7 +771,7 @@ mutual
     | .activated cost instr window limit guard activator =>
       let bs := ownPerformerCtx bs
       let bsc := dropLetter .x bs
-      Cost.check bsc cost ++ Instruction.check (publicOnly (cost.intro bsc)) instr ++
+      Cost.check bsc cost ++ Instruction.checkWith (publicOnly (cost.intro bsc)) none instr ++
         refuse cost.tapOnce .costTapOnce ++ refuse cost.paidByYou .costPaidByYou ++
         OptTiming.check bs window ++ refuse (untriggeredLimitOk limit) .untriggeredLimit ++
         OptCondition.check bs guard ++ OptNoun.check (some .player) bs activator
@@ -773,14 +782,14 @@ mutual
       headerEventCheck bs ev ++ alts.flatMap (headerEventCheck bs) ++
         OptConcurrent.check hctx while_ ++ joins.flatMap (JoinedHeader.check bs) ++
         OptTiming.check bs window ++ OptCondition.check jctx intervening ++
-        Instruction.check (interveningIntro jctx intervening) instr ++
+        Instruction.checkWith (interveningIntro jctx intervening) none instr ++
         refuse (chapterDefaultsOk ev alts while_ joins window limit intervening) .chapterDefaults
     | .static se =>
       let bs := ownPerformerCtx bs
       StaticSpec.check bs se ++ refuse (!anyTargetedAt (StaticSpec.intro bs se)) .nontarget
     | .spell window instr =>
       let bs := ownPerformerCtx bs
-      OptTiming.check bs window ++ Instruction.check bs instr
+      OptTiming.check bs window ++ Instruction.checkWith bs none instr
     | .mayBeginOnBattlefield => []
     | .alsoForKeywords ab ks =>
       Ability.check bs ab ++ refuse ab.keywordExtendable .keywordExtendable ++
@@ -801,5 +810,8 @@ end
 def Ability.checkText (bs : Bindings) : List Ability → List Refusal
   | [] => []
   | ab :: rest => Ability.check bs ab ++ Ability.checkText (ab.intro bs) rest
+
+/-- The refusals of an instruction in `bs`. -/
+def Instruction.check (bs : Bindings) (e : Instruction) : List Refusal := Instruction.checkWith bs none e
 
 end Semantics

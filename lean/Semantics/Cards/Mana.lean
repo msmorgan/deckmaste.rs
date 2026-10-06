@@ -705,7 +705,7 @@ def causticBroncoLoss : Instruction :=
       move (that .card) hand,
       Primitives.Instruction.doOnlyIf (loseLife (Primitives.Amount.statOf (.stat .manaValue) it) (agent := Primitives.NounPhrase.you))
         (Primitives.Condition.not (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "saddled") none)))
-        (some (loseLife Primitives.Amount.thatMuch (agent := (each Primitives.Predicate.opponent)))) ]
+        (some (act (each Primitives.Predicate.opponent) (loseLife Primitives.Amount.thatMuch (agent := actor)))) ]
 theorem okCausticBroncoLoss : Instruction.check [] causticBroncoLoss = [] := by decide
 
 /-- Dark Fortress -/
@@ -981,11 +981,11 @@ def shelteredValley : Spelled := spelled <| .singleFaced
 
 /-- Soul Shatter -/
 def soulShatter : Instruction :=
-  sacrifice
+  act (each Primitives.Predicate.opponent) (sacrifice
     (a (Primitives.Predicate.and [Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker],
               Primitives.Predicate.superlative .max (.stat .manaValue)
                 (Primitives.Predicate.and [Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker], Primitives.Predicate.hasPossessor .controller they])]))
-                    (agent := (each Primitives.Predicate.opponent))
+                    (agent := actor))
 theorem okSoulShatter : Instruction.check [] soulShatter = [] := by decide
 
 /-- Padeem, Consul of Innovation -/
@@ -1013,7 +1013,7 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
                         Primitives.Predicate.compare [.stat .manaValue, .stat .power, .stat
                           .toughness] .eq chosenNumber])))
               none)
-            (Primitives.Instruction.sequentially [loseLife (.lit 2) (agent := (that .player)), Primitives.Instruction.draw (.lit 1) (agent :=
+            (Primitives.Instruction.sequentially [act (that .player) (loseLife (.lit 2) (agent := actor)), Primitives.Instruction.draw (.lit 1) (agent :=
                 Primitives.NounPhrase.you)]) ],
       power := stat 3, toughness := stat 4 } }
 
@@ -1101,7 +1101,7 @@ def manaFlare : Spelled := spelled <| .singleFaced
     { name := "Mana Flare", cost := some [generic 2, pip .red], types := [.enchantment],
       text :=
         [ whenever (Primitives.GameEvent.tappedForMana (some (a Primitives.Predicate.anyPlayer)) (a land) none)
-            (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.producedByEvent (that (.type .land))) [] (agent := (that .player)))
+            (act (that .player) (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.producedByEvent (that (.type .land))) [] (agent := actor)))
                 ] } }
 
 /-- Shimmerwilds Growth -/
@@ -1115,8 +1115,7 @@ def shimmerwildsGrowth : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.attachHost .enchanted (.type .land)) .sets
             (Primitives.QualityPayload.chosenQuality (ofChosen .color))),
           whenever (Primitives.GameEvent.tappedForMana none (Primitives.NounPhrase.attachHost .enchanted (.type .land)) none)
-            (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.ofChosenColor none) [] (agent := (controllerOf (that (.type
-                .land))))) ] } }
+            (act (controllerOf (that (.type .land))) (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.ofChosenColor none) [] (agent := actor))) ] } }
 
 /-- Gauntlet of Power -/
 def gauntletOfPower : Spelled := spelled <| .singleFaced
@@ -1128,8 +1127,7 @@ def gauntletOfPower : Spelled := spelled <| .singleFaced
           whenever
             (Primitives.GameEvent.tappedForMana none (a (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic]))
               (some (Primitives.ManaTypeTerm.ofColor thatColor)))
-            (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.ofChosenColor none) [] (agent := (controllerOf (that (.type
-                .land))))) ] } }
+            (act (controllerOf (that (.type .land))) (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.ofChosenColor none) [] (agent := actor))) ] } }
 
 /-- Chrome Mox -/
 def chromeMoxMana : Ability :=
@@ -1189,8 +1187,8 @@ theorem okPsychicVortexUpkeep : Ability.check [] psychicVortexUpkeep = [] := by 
 /-- Varchild's War-Riders -/
 def varchildsWarRidersUpkeep : Ability :=
   cumulativeUpkeep
-    (Primitives.Cost.perform (Primitives.Instruction.create (.lit 1)
-      (Primitives.TokenSpec.written (creatureToken 1 1 [.red] [creatureType "Survivor"])) [] (agent := anOpponent)))
+    (Primitives.Cost.perform (act anOpponent (Primitives.Instruction.create (.lit 1)
+      (Primitives.TokenSpec.written (creatureToken 1 1 [.red] [creatureType "Survivor"])) [] (agent := actor))))
 theorem okVarchildsWarRidersUpkeep : Ability.check [] varchildsWarRidersUpkeep = [] := by decide
 
 end Semantics.Cards

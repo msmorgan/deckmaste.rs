@@ -270,7 +270,7 @@ theorem capturesStayInsideTheirRepetition :
 private semantic_macro capturedCount (subject : capture NounPhrase) : Amount := .countOf subject
 
 private semantic_macro capturedPayment (payer : capture NounPhrase) : Cost :=
-  .perform (.changeLife (.down (.lit 1)) payer)
+  .perform (.act payer (.changeLife (.down (.lit 1)) .actor))
 
 theorem capturedGroupsRemainCountable :
     (capturedCount (.described (.target (exactly 2)) creature)).check [] = [] := by decide
@@ -335,7 +335,7 @@ example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
         (onChosen (target creature) (fun _ => moveSubject outside))] } }
 
 private semantic_macro capturedLifePayment (payer : capture NounPhrase) : Instruction :=
-  .changeLife (.down (.lit 1)) payer
+  .act payer (.changeLife (.down (.lit 1)) .actor)
 
 theorem instructionScopesDoNotHideAnIncorrectPayer :
     (Cost.perform (capturedLifePayment anOpponent)).paidByYou = false := by decide

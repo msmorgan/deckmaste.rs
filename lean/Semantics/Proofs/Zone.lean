@@ -124,8 +124,7 @@ a plural. -/
 theorem okDistributedMovesItsOwn :
     Instruction.check []
       (.sequentially
-        [ exile (a (.and [creature, .hasPossessor .controller (that .player)])) (agent := some (each
-            .opponent)),
+        [ act (each .opponent) (exile (a (.and [creature, .hasPossessor .controller (that .player)])) (agent := some actor)),
           putOntoBattlefield them ]) = [] := by
   decide
 
@@ -136,7 +135,7 @@ distribution obligation; the singular spelling of the same sentence is refused o
 later, at `untap`'s battlefield gate ([CR#400.7,701.26b], `badUnloopedZoneMoveRead`). -/
 theorem badDistributedZoneMoveRead :
     Instruction.check []
-      (.sequentially [tap (target creature), exile it (agent := some (each .opponent)), untap it])
+      (.sequentially [tap (target creature), act (each .opponent) (exile it (agent := some actor)), untap it])
       = [.enactKeepsOuter] := by
   decide
 
@@ -174,7 +173,7 @@ theorem okPositiveAntecedent :
     Instruction.check []
       (.sequentially
         [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
-          loseLife (.lit 1) (agent := (that .player)) ]) = [] := by
+          act (that .player) (loseLife (.lit 1) (agent := actor)) ]) = [] := by
   decide
 
 /-- "Tap target creature an opponent doesn't control. That player loses 1 life." -/
@@ -183,7 +182,7 @@ theorem badNegatedAntecedent :
       (.sequentially
         [ .setStatus .tapped
             (target (.and [creature, .not (.hasPossessor .controller anOpponent)])),
-          loseLife (.lit 1) (agent := (that .player)) ]) = [.anaphor (.word .player) .one 0] := by
+          act (that .player) (loseLife (.lit 1) (agent := actor)) ]) = [.anaphor (.word .player) .one 0] := by
   decide
 
 /-- "Destroy target creature on the battlefield." -/
@@ -484,7 +483,7 @@ theorem badSearchZonedDescription :
 /-- "Each player mills a card. Exile it." -/
 theorem badDistributedMillSingular :
     Instruction.check []
-      (.sequentially [mill (.lit 1) (each .anyPlayer) (agent := (each .anyPlayer)), exile it])
+      (.sequentially [act (each .anyPlayer) (mill (.lit 1) (each .anyPlayer) (agent := actor)), exile it])
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -712,7 +711,7 @@ theorem okAgentChoosesSomeOf :
     Instruction.check []
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
-          .choose none (someOf (exactly 1) them) .openly none (agent := (some (a .opponent))) ]) =
+          act (a .opponent) (.choose none (someOf (exactly 1) them) .openly none (agent := some actor)) ]) =
               [] := by
   decide
 
@@ -720,7 +719,7 @@ theorem badAgentChooseTheRest :
     Instruction.check []
       (.sequentially
         [ lookAt (topSlice (.lit 4)), .move (someOf (exactly 1) them) .wherever hand [],
-          .choose none (theRest .object) .openly none (agent := (some (a .opponent))) ])
+          act (a .opponent) (.choose none (theRest .object) .openly none (agent := some actor)) ])
             = [.choiceClause] := by
   decide
 
@@ -799,7 +798,7 @@ theorem badRegeneratedInGraveyard :
 /-- "Each opponent discards a card. Simultaneously, exile those cards." -/
 theorem distributedDeedReadsBackPluralUnderAnnouncement :
     Instruction.check []
-      (.simultaneously [.sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them], exile (those
+      (.simultaneously [.sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them], exile (those
           .card)])
         = [] := by
   decide
@@ -814,7 +813,7 @@ theorem okThatAfterSingularDiscard :
 /-- "Each opponent discards a card. Simultaneously, exile that card." -/
 theorem badDistributedAnnouncedDiscardSingular :
     Instruction.check []
-      (.simultaneously [.sequentially [choose (a (.and [.isCard, .inZone hand])) (agent := some (each .opponent)), discard them], exile (that
+      (.simultaneously [.sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them], exile (that
           .card)])
       = [.anaphor (.word .card) .one 0] := by
   decide

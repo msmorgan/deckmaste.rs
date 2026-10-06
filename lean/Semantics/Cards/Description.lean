@@ -64,7 +64,7 @@ def unholyAnnex : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.draw (.lit 1) (agent := Primitives.NounPhrase.you),
       Primitives.Instruction.doIf (exists_ (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Demon"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
-        (Primitives.Instruction.sequentially [loseLife (.lit 2) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 2) (agent :=
+        (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (loseLife (.lit 2) (agent := actor)), gainLife (.lit 2) (agent :=
             Primitives.NounPhrase.you)])
         (some (loseLife (.lit 2) (agent := Primitives.NounPhrase.you))) ]
 theorem okUnholyAnnex : Instruction.check [] unholyAnnex = [] := by decide
@@ -333,8 +333,7 @@ theorem okTargetOpponentOrPlaneswalker :
 
 /-- Baleful Mastery's paid read -/
 def balefulMasteryPaidRead : Ability :=
-  Primitives.Ability.spell none (Primitives.Instruction.doIf (costWasPaid .theAlternative none Primitives.NounPhrase.this) (Primitives.Instruction.draw (.lit 1) (agent := (a
-      Primitives.Predicate.opponent))) none)
+  Primitives.Ability.spell none (Primitives.Instruction.doIf (costWasPaid .theAlternative none Primitives.NounPhrase.this) (act (a Primitives.Predicate.opponent) (Primitives.Instruction.draw (.lit 1) (agent := actor))) none)
 theorem okBalefulMasteryPaidRead : Ability.check [] balefulMasteryPaidRead = [] := by decide
 
 /-- Karai, Future of the Foot -/
@@ -490,9 +489,9 @@ def icyManipulator : Instruction := Primitives.Instruction.setStatus .tapped (ta
 theorem okIcyManipulator : Instruction.check [] icyManipulator = [] := by decide
 def divination : Instruction := Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you)
 theorem okDivination : Instruction.check [] divination = [] := by decide
-def ancestralRecall : Instruction := Primitives.Instruction.draw (.lit 3) (agent := (target Primitives.Predicate.anyPlayer))
+def ancestralRecall : Instruction := act (target Primitives.Predicate.anyPlayer) (Primitives.Instruction.draw (.lit 3) (agent := actor))
 theorem okAncestralRecall : Instruction.check [] ancestralRecall = [] := by decide
-def lifeTotalBecomesOne : Instruction := setLife (.lit 1) (agent := (target Primitives.Predicate.anyPlayer))
+def lifeTotalBecomesOne : Instruction := act (target Primitives.Predicate.anyPlayer) (setLife (.lit 1) (agent := actor))
 theorem okLifeTotalBecomesOne : Instruction.check [] lifeTotalBecomesOne = [] := by decide
 
 /-- Berserker's Frenzy's roll -/

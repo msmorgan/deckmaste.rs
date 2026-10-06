@@ -365,7 +365,7 @@ theorem badForeignPayerCost :
 
 /-- "An opponent sacrifices a creature: Draw a card." -/
 theorem badForeignSacrificeCost :
-    Ability.check [] (act (.perform (sacrifice (a creature) (agent := anOpponent))) (draw (.lit 1)
+    Ability.check [] (act (.perform (Macros.act anOpponent (sacrifice (a creature) (agent := actor)))) (draw (.lit 1)
         (agent := .you)))
       = [.costPaidByYou] := by
   decide
@@ -432,7 +432,7 @@ theorem badCompanionSharedCounterKind :
 /-- "Each player scries 1.": one scry clause over a distributed player reference
 [CR#701.22a,701.22c]. -/
 theorem okEachPlayerScriesOne :
-    Instruction.check [] (scry (.lit 1) (agent := (each .anyPlayer))) = [] := by decide
+    Instruction.check [] (Macros.act (each .anyPlayer) (scry (.lit 1) (agent := actor))) = [] := by decide
 
 /-- "Fateseal 2.": the sorted library is an opponent's [CR#701.29a]. -/
 theorem okFatesealAnOpponent :

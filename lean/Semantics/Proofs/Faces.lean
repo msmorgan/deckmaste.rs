@@ -636,9 +636,8 @@ theorem badFlashbackOnPermanentCard :
 theorem okThatMuchAfterQuantity :
     Instruction.check []
       (.sequentially
-        [ loseLife
-            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])) (agent :=
-                (target .opponent)),
+        [ Macros.act (target .opponent) (loseLife
+            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you])) (agent := actor)),
           gainLife .thatMuch (agent := .you) ]) = [] := by
   decide
 
@@ -848,8 +847,8 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Instruction.check []
       (.sequentially
-        [ .enact (.action "Shuffle") (.shuffle (agent := they)) (agent := (some (each .opponent))),
-          .changeLife (.down (.lit 1)) (agent := (those .player)) ]) = [] := by
+        [ Macros.act (each .opponent) (.enact (.action "Shuffle") (Macros.act they (.shuffle (agent := actor))) (agent := some actor)),
+          Macros.act (those .player) (.changeLife (.down (.lit 1)) (agent := actor)) ]) = [] := by
   decide
 
 theorem secondChooserDevotionRead :

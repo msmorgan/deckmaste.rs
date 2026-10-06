@@ -75,12 +75,12 @@ def lightningBlow : Instruction :=
   gain (target creature) (keyword "FirstStrike") (some untilEndOfTurn)
 theorem okLightningBlow : Instruction.check [] lightningBlow = [] := by decide
 def deathByDragons : Instruction :=
-  Primitives.Instruction.create (.lit 1)
+  act (each (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.otherThan (target Primitives.Predicate.anyPlayer)])) (Primitives.Instruction.create (.lit 1)
     (Primitives.TokenSpec.written
       { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [creatureType "Dragon"],
           text := [keyword "Flying"], power := stat 5, toughness := stat 5 } })
-    [] (agent := (each (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.otherThan (target Primitives.Predicate.anyPlayer)])))
+    [] (agent := actor))
 theorem okDeathByDragons : Instruction.check [] deathByDragons = [] := by decide
 
 /-- Concordant Crossroads -/
@@ -973,12 +973,12 @@ def descentOfTheDragons : Instruction :=
   Primitives.Instruction.sequentially
     [ destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) creature),
       Primitives.Instruction.doForEach (theVerbed (.action "Destroy") (.type .creature) .thisWay .many)
-        (Primitives.Instruction.create (.lit 1)
+        (act (controllerOf it) (Primitives.Instruction.create (.lit 1)
           (Primitives.TokenSpec.written
             { characteristics :=
               { colors := [.red], types := [.creature], subtypes := [creatureType "Dragon"],
                 text := [keyword "Flying"], power := stat 4, toughness := stat 4 } })
-          [] (agent := (controllerOf it))) ]
+          [] (agent := actor))) ]
 theorem okDescentOfTheDragons : Instruction.check [] descentOfTheDragons = [] := by decide
 /-- Brimaz, King of Oreskos -/
 def brimazAttackToken : Ability :=
@@ -1141,7 +1141,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
         [ keywordCosting "Spectacle" (Primitives.Cost.mana [generic 3, pip .black, pip .red]),
           triggeredIf (Primitives.GameEvent.enters thisCreature none)
             (costWasPaid (.byKeyword "Spectacle") none thisCreature)
-            (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some (each Primitives.Predicate.opponent)), discard them]) ],
+            (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them]) ],
       power := stat 4, toughness := stat 2 } }
 
 /-- Tourach, Dread Cantor -/
@@ -1181,12 +1181,12 @@ def soulOfEmancipation : Ability :=
     (Primitives.Instruction.sequentially
       [ destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 3)) (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.otherThan Primitives.NounPhrase.this])),
         Primitives.Instruction.doForEach (those .permanent)
-          (Primitives.Instruction.create (.lit 1)
+          (act (controllerOf (that .permanent)) (Primitives.Instruction.create (.lit 1)
             (Primitives.TokenSpec.written
               { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [creatureType "Angel"],
                   text := [keyword "Flying"], power := stat 3, toughness := stat 3 } })
-            [] (agent := (controllerOf (that .permanent)))) ])
+            [] (agent := actor))) ])
 theorem okSoulOfEmancipation : Ability.check [] soulOfEmancipation = [] := by decide
 
 /-- Tourach, Dread Cantor -/
@@ -1393,7 +1393,7 @@ def debrisBeetle : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Trample",
           when (Primitives.GameEvent.enters thisVehicle none)
-            (Primitives.Instruction.sequentially [loseLife (.lit 3) (agent := (each Primitives.Predicate.opponent)), gainLife (.lit 3) (agent :=
+            (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (loseLife (.lit 3) (agent := actor)), gainLife (.lit 3) (agent :=
                 Primitives.NounPhrase.you)]),
           keywordNumber "Crew" (.lit 2) ],
       power := stat 6, toughness := stat 6 } }
@@ -1560,7 +1560,7 @@ def wallOfShards : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Wall"],
       text :=
         [ keyword "Defender", keyword "Flying",
-          cumulativeUpkeep (Primitives.Cost.perform (gainLife (.lit 1) (agent := anOpponent))) ],
+          cumulativeUpkeep (Primitives.Cost.perform (act anOpponent (gainLife (.lit 1) (agent := actor)))) ],
       power := stat 1, toughness := stat 8 } }
 
 /-- Earthen Goo -/
@@ -1619,7 +1619,7 @@ def sphinxOfUthuun : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ revealCards (topSlice (.lit 5)),
-                Primitives.Instruction.separateIntoPiles them 2 [] (agent := anOpponent),
+                act anOpponent (Primitives.Instruction.separateIntoPiles them 2 [] (agent := actor)),
                 move onePile hand,
                 move (theOther .pile) graveyard ]) ],
       power := stat 5, toughness := stat 6 } }
@@ -1794,7 +1794,7 @@ def deadpoolTradingCard : Spelled := spelled <| .singleFaced
           at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you)) (loseLife (.lit 3) (agent := Primitives.NounPhrase.you)),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (sacrifice thisCreature (agent :=
               Primitives.NounPhrase.you))])
-            (Primitives.Instruction.draw (.lit 1) (agent := (each otherPlayer))) ],
+            (act (each otherPlayer) (Primitives.Instruction.draw (.lit 1) (agent := actor))) ],
       power := stat 5, toughness := stat 3 } }
 
 end Semantics.Cards

@@ -246,7 +246,7 @@ def causticTar : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject "Enchant" land,
           Primitives.Ability.static (Primitives.StaticSpec.abilityGrant (Primitives.NounPhrase.attachHost .enchanted (.type .land))
-            (activated Primitives.Cost.tapSymbol (loseLife (.lit 3) (agent := (target Primitives.Predicate.anyPlayer))))) ] } }
+            (activated Primitives.Cost.tapSymbol (act (target Primitives.Predicate.anyPlayer) (loseLife (.lit 3) (agent := actor))))) ] } }
 
 /-- Saheeli, Filigree Master -/
 def saheelisEmblem : Instruction :=
@@ -262,9 +262,9 @@ def jaceBeleren : Spelled := spelled <| .singleFaced
     { name := "Jace Beleren", cost := some [generic 1, pip .blue, pip .blue],
       supertypes := [.legendary], types := [.planeswalker], subtypes := [planeswalkerType "Jace"],
       text :=
-        [ activated (Primitives.Cost.loyaltySymbol (.up 2)) (Primitives.Instruction.draw (.lit 1) (agent := (each Primitives.Predicate.anyPlayer))),
-          activated (Primitives.Cost.loyaltySymbol (.down 1)) (Primitives.Instruction.draw (.lit 1) (agent := (target Primitives.Predicate.anyPlayer))),
-          activated (Primitives.Cost.loyaltySymbol (.down 10)) (mill (.lit 20) they (agent := (target Primitives.Predicate.anyPlayer)))
+        [ activated (Primitives.Cost.loyaltySymbol (.up 2)) (act (each Primitives.Predicate.anyPlayer) (Primitives.Instruction.draw (.lit 1) (agent := actor))),
+          activated (Primitives.Cost.loyaltySymbol (.down 1)) (act (target Primitives.Predicate.anyPlayer) (Primitives.Instruction.draw (.lit 1) (agent := actor))),
+          activated (Primitives.Cost.loyaltySymbol (.down 10)) (act (target Primitives.Predicate.anyPlayer) (mill (.lit 20) they (agent := actor)))
               ],
       loyalty := stat 3 } }
 
@@ -677,10 +677,8 @@ def wickedAkuba : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Spirit"],
       text :=
         [ activated (Primitives.Cost.mana [pip .black])
-            (loseLife
-              (.lit 1) (agent := (target (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
-                happenedTo (Primitives.GameEvent.dealsDamage .any thisCreature (some (relative
-                .player))) .thisTurn])))) ],
+            (act (target (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, happenedTo (Primitives.GameEvent.dealsDamage .any thisCreature (some (relative .player))) .thisTurn])) (loseLife
+              (.lit 1) (agent := actor))) ],
       power := stat 2, toughness := stat 2 } }
 
 def idolOfOblivion : Spelled := spelled <| .singleFaced
@@ -770,7 +768,7 @@ def bamboozlingBeebleIgnore : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 1], Primitives.Cost.tapSymbol])
     (replaceNextEvent (Primitives.GameEvent.rollsDice (target Primitives.Predicate.anyPlayer) .many none Primitives.RollWatch.anyResult)
       (Primitives.Instruction.sequentially
-        [ Primitives.Instruction.rollDice (plus Primitives.Amount.thatMuch (.lit 1)) .thoseDice (agent := they),
+        [ act they (Primitives.Instruction.rollDice (plus Primitives.Amount.thatMuch (.lit 1)) .thoseDice (agent := actor)),
           Primitives.Instruction.ignoreOutcomes (Primitives.IgnoredOutcomes.chosen (some Primitives.NounPhrase.you) (.lit 1)) ])
       (some Primitives.Duration.thisTurn))
 theorem okBamboozlingBeebleIgnore : Ability.check [] bamboozlingBeebleIgnore = [] := by decide
@@ -1071,7 +1069,7 @@ def uneshCriosphinxSovereign : Spelled := spelled <| .singleFaced
               none)
             (Primitives.Instruction.sequentially
               [ revealCards (topSlice (.lit 4)),
-                Primitives.Instruction.separateIntoPiles them 2 [] (agent := anOpponent),
+                act anOpponent (Primitives.Instruction.separateIntoPiles them 2 [] (agent := actor)),
                 move onePile hand,
                 move (theOther .pile) graveyard ]) ],
       power := stat 4, toughness := stat 4 } }
@@ -1097,8 +1095,7 @@ def consider : Spelled := spelled <| .singleFaced
 def wordsOfWisdom : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Words of Wisdom", cost := some [generic 1, pip .blue], types := [.instant],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you), Primitives.Instruction.draw (.lit 1) (agent :=
-          (each otherPlayer))])] } }
+      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 2) (agent := Primitives.NounPhrase.you), act (each otherPlayer) (Primitives.Instruction.draw (.lit 1) (agent := actor))])] } }
 
 def deathWard : Spelled := spelled <| .singleFaced
   { characteristics :=

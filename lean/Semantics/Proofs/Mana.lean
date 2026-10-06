@@ -102,14 +102,13 @@ theorem badIfNotReadsMandatoryBody :
 /-- "Counter target spell unless its controller pays {3}." -/
 theorem okUnlessManaCost :
     Instruction.check []
-      (doUnless (Primitives.Instruction.counterSpell it) (.mana [generic 3]) (agent := (controllerOf (target spell)))) =
+      (Macros.act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) (.mana [generic 3]) (agent := actor))) =
           [] := by
   decide
 
 /-- "Counter target spell unless its controller taps." -/
 theorem badUnlessTapSymbol :
-    Instruction.check [] (doUnless (Primitives.Instruction.counterSpell it) .tapSymbol (agent := (controllerOf (target
-        spell))))
+    Instruction.check [] (Macros.act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) .tapSymbol (agent := actor)))
       = [.payable] := by
   decide
 
@@ -387,7 +386,7 @@ theorem okManaCumulativeUpkeep :
 /-- "Cumulative upkeep — an opponent loses 1 life." -/
 theorem badOpponentPaysYourCost :
     Ability.check []
-      (keywordCosting "CumulativeUpkeep" (.perform (loseLife (.lit 1) (agent := anOpponent))))
+      (keywordCosting "CumulativeUpkeep" (.perform (Macros.act anOpponent (loseLife (.lit 1) (agent := actor)))))
       = [.keywordCostPaidByYou "CumulativeUpkeep"] := by
   decide
 
@@ -469,7 +468,7 @@ theorem badThisManaWithoutAdd :
 
 /-- "Target player sacrifices a creature of their choice." -/
 theorem okBoundTheirChoice :
-    Instruction.check [] (sacrifice (aTheirChoice creature) (agent := (target .anyPlayer))) = [] :=
+    Instruction.check [] (Macros.act (target .anyPlayer) (sacrifice (aTheirChoice creature) (agent := actor))) = [] :=
         by decide
 
 /-- "Destroy a creature of their choice." -/

@@ -365,7 +365,7 @@ theorem okAcademicProbationNameMode : Instruction.check [] academicProbationName
 def fatigue : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fatigue", cost := some [generic 1, pip .blue], types := [.sorcery],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.skipPart .drawStep (.lit 1) (agent := (target Primitives.Predicate.anyPlayer)))] } }
+      text := [Primitives.Ability.spell none (act (target Primitives.Predicate.anyPlayer) (Primitives.Instruction.skipPart .drawStep (.lit 1) (agent := actor)))] } }
 
 def meditate : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -383,7 +383,7 @@ def blindingAngel : Spelled := spelled <| .singleFaced
         [ keyword "Flying",
           whenever
             (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
-            (Primitives.Instruction.skipPart .combat (.lit 1) (agent := (that .player))) ],
+            (act (that .player) (Primitives.Instruction.skipPart .combat (.lit 1) (agent := actor))) ],
       power := stat 2, toughness := stat 4 } }
 
 def eonHub : Spelled := spelled <| .singleFaced
@@ -699,10 +699,9 @@ def heatWave : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (deontic (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.colorIs .blue])) Primitives.Compulsion.forbid [.core .block] .agent
             (Primitives.DeonticPatient.counterpart (allOf creatureYouControl))),
           Primitives.Ability.static (deontic (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .blue)]))
-            (Primitives.Compulsion.gatedBy (Primitives.Cost.perform (loseLife
+            (Primitives.Compulsion.gatedBy (Primitives.Cost.perform (act they (loseLife
               (times (.lit 1)
-                (countOf (Primitives.Predicate.and [creature, blocking, Primitives.Predicate.hasPossessor .controller they]))) (agent :=
-                    they))))
+                (countOf (Primitives.Predicate.and [creature, blocking, Primitives.Predicate.hasPossessor .controller they]))) (agent := actor)))))
             [.core .block] .agent (Primitives.DeonticPatient.counterpart (allOf creatureYouControl))) ] } }
 
 /-- Awesome Presence -/

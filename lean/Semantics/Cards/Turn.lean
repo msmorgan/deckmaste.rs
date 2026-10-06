@@ -94,8 +94,8 @@ def apathy : Spelled := spelled <| .singleFaced
             (some (controllerOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature))))),
           at_ (beginningOfPossessed .the .upkeep
                 (controllerOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature))))
-            (Primitives.Instruction.offer (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])))
-              (some (untap (that (.type .creature)))) none (agent := (that .player))) ] } }
+            (act (that .player) (Primitives.Instruction.offer (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])))
+              (some (untap (that (.type .creature)))) none (agent := actor))) ] } }
 
 def felidarSovereign : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -165,7 +165,7 @@ def timeWalk : Spelled := spelled <| .singleFaced
 def timeStretch : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Time Stretch", cost := some [generic 8, pip .blue, pip .blue], types := [.sorcery],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.addTurn (.lit 2) (agent := (target Primitives.Predicate.anyPlayer)))] } }
+      text := [Primitives.Ability.spell none (act (target Primitives.Predicate.anyPlayer) (Primitives.Instruction.addTurn (.lit 2) (agent := actor)))] } }
 
 def timeSieve : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -275,7 +275,7 @@ def paradoxHaze : Spelled := spelled <| .singleFaced
         [ keywordSubject "Enchant" Primitives.Predicate.anyPlayer,
           at_ (Primitives.GameEvent.nthOccurrence (.nth 1) (some .turn)
                 (beginningOfPossessed .the .upkeep (Primitives.NounPhrase.attachHost .enchanted .player)))
-            (getAdditionalPart .upkeep (.lit 1) (agent := (that .player))) ] } }
+            (act (that .player) (getAdditionalPart .upkeep (.lit 1) (agent := actor))) ] } }
 
 def ninthDoctorAdditionalUpkeep : Instruction := getAdditionalPart .upkeep (.lit 1) (agent := Primitives.NounPhrase.you)
 theorem okNinthDoctorAdditionalUpkeep :
@@ -288,7 +288,7 @@ def ritesOfFlourishing : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ at_ (Primitives.GameEvent.beginningOf .the .drawStep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
-            (Primitives.Instruction.draw (.lit 1) (agent := (that .player))),
+            (act (that .player) (Primitives.Instruction.draw (.lit 1) (agent := actor))),
           Primitives.Ability.static (mayPlayAdditionalLands (each Primitives.Predicate.anyPlayer) (exactly 1)) ] } }
 
 def odricLunarchMarshal : Spelled := spelled <| .singleFaced
@@ -351,7 +351,7 @@ def curseOfTheBloodyTome : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject "Enchant" Primitives.Predicate.anyPlayer,
           at_ (beginningOfPossessed .the .upkeep (Primitives.NounPhrase.attachHost .enchanted .player))
-            (mill (.lit 2) they (agent := (that .player))) ] } }
+            (act (that .player) (mill (.lit 2) they (agent := actor))) ] } }
 
 def shriekingAffliction : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -359,7 +359,7 @@ def shriekingAffliction : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.opponent)))
             (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])) .atMost (.lit 1))
-            (loseLife (.lit 3) (agent := they)) ] } }
+            (act they (loseLife (.lit 3) (agent := actor))) ] } }
 
 def centaurOfAttention : Spelled := spelled <| .singleFaced
   { characteristics :=

@@ -19,9 +19,9 @@ private def afterSacrifice : Bindings := Instruction.intro [] instruction
 
 /-- The target occurs only in the relational subject. The body is a scoped re-read. -/
 theorem expansionIntroducesTheTargetOnce :
-    instruction = .enact (.action "Sacrifice")
+    instruction = act (controllerOf subject) (.enact (.action "Sacrifice")
       (.move (.pro .bare .one (.introduced [.player, .object])) (.zone .battlefield .bare) graveyard [])
-      (agent := some (controllerOf subject)) := by rfl
+      (agent := some actor)) := by rfl
 
 /-- Full profile, including the general deed machinery's explicit rider context. -/
 theorem exactProfileForEveryOuterContext (bs : Bindings) :
@@ -34,7 +34,7 @@ theorem targetMultiplicity :
     ((Instruction.profile [] instruction).pre.countP (fun b => b.det == .target)) = 1 := by decide
 
 theorem duplicatingThePatientWouldIntroduceTwoTargets :
-    ((Instruction.profile [] (sacrifice subject (agent := controllerOf subject))).pre.countP
+    ((Instruction.profile [] (act (controllerOf subject) (sacrifice subject (agent := actor)))).pre.countP
       (fun b => b.det == .target)) = 2 := by decide
 
 theorem instructionIsAdmitted : Instruction.check [] instruction = [] := by decide
@@ -85,7 +85,7 @@ theorem outerArtifactDoesNotStealThePatient :
       instruction = [] := by decide
 
 theorem thatPlayerCanTakeTheFollowingAction :
-    Instruction.check [] (.sequentially [instruction, draw (.lit 1) (agent := that .player)]) = [] := by decide
+    Instruction.check [] (.sequentially [instruction, act (that .player) (draw (.lit 1) (agent := actor))]) = [] := by decide
 
 private def nestedSubject : NounPhrase := target (.and [creature,
   .hasPossessor .controller (controllerOf (target artifact))])
@@ -103,7 +103,7 @@ theorem nestedDescriptionIsAdmitted :
 
 theorem wholeOwnedScopeWouldBeAmbiguous :
     Instruction.check []
-      (sacrifice (ownSubject (controllerOf nestedSubject)) (agent := controllerOf nestedSubject)) =
+      (act (controllerOf nestedSubject) (sacrifice (ownSubject (controllerOf nestedSubject)) (agent := actor))) =
       [.anaphor .bare .one 2] := by decide
 
 theorem nestedDescriptionMovesOnlyItsOwnReferent (bs : Bindings) :

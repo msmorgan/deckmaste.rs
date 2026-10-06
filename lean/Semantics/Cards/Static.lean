@@ -169,7 +169,7 @@ def rainOfGore : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement
             (Primitives.GameEvent.causes (Primitives.Causing.source (a (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack])))
               (Primitives.GameEvent.lifeChanges (controllerOf it) .up))
-            [] none (loseLife Primitives.Amount.thatMuch (agent := (that .player))) .repeatedly none) ] } }
+            [] none (act (that .player) (loseLife Primitives.Amount.thatMuch (agent := actor))) .repeatedly none) ] } }
 
 /-- Master Chef -/
 def masterChefGrantedAbility : Ability :=
@@ -728,8 +728,7 @@ def invigorate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Invigorate", cost := some [generic 2, pip .green], types := [.instant],
       text :=
-        [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (Primitives.Cost.perform (gainLife (.lit 3) (agent :=
-            anOpponent)))))
+        [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (Primitives.Cost.perform (act anOpponent (gainLife (.lit 3) (agent := actor))))))
             (exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Forest"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
           Primitives.Ability.spell none (get (target creature) (Primitives.Delta.up (.lit 4)) (Primitives.Delta.up (.lit 4)) (some untilEndOfTurn)) ]
               } }
@@ -932,7 +931,7 @@ def eerieUltimatum : Spelled := spelled <| .singleFaced
 /-- Gray Merchant of Asphodel -/
 def grayMerchantDrain : Instruction :=
   Primitives.Instruction.sequentially
-    [loseLife (Primitives.Amount.letter .x) (agent := (each Primitives.Predicate.opponent)), Primitives.Instruction.define .x (Primitives.Amount.devotion Primitives.NounPhrase.you (Primitives.ColorTerm.lit .black)
+    [act (each Primitives.Predicate.opponent) (loseLife (Primitives.Amount.letter .x) (agent := actor)), Primitives.Instruction.define .x (Primitives.Amount.devotion Primitives.NounPhrase.you (Primitives.ColorTerm.lit .black)
         none)]
 theorem okGrayMerchantDrain : Instruction.check [] grayMerchantDrain = [] := by decide
 

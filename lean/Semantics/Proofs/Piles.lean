@@ -48,7 +48,7 @@ theorem badTransformedArrivalOffField :
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles." -/
 def revealAndSplit : List Instruction :=
-  [revealCards (topSlice (.lit 5)), .separateIntoPiles them 2 [] (agent := anOpponent)]
+  [revealCards (topSlice (.lit 5)), act anOpponent (.separateIntoPiles them 2 [] (agent := actor))]
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles. Put those piles into your hand." -/
@@ -115,7 +115,7 @@ theorem okStatusOnPermanentAfterPartition :
     Card.check
       (instantSaying
         (.sequentially
-          [ .separateIntoPiles (allOf creature) 2 [] (agent := anOpponent),
+          [ act anOpponent (.separateIntoPiles (allOf creature) 2 [] (agent := actor)),
             .setStatus .faceDown (allOf (.and [creature, .inPile (pileOfChoice .you)])) ]))
       = [] := by
   decide
@@ -125,7 +125,7 @@ theorem badPileFaceAsAStatus :
     Card.check
       (instantSaying
         (.sequentially
-          [ .separateIntoPiles (allOf creature) 2 [] (agent := anOpponent),
+          [ act anOpponent (.separateIntoPiles (allOf creature) 2 [] (agent := actor)),
             .setStatus .faceDown (those .pile) ])) = [.statusHolder] := by
   decide
 
@@ -144,7 +144,7 @@ theorem nestedTurnPartWindows :
 
 theorem voteStartingWithSpecifiedPlayer :
     Instruction.check []
-      (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]) (agent := (each .anyPlayer))) =
+      (act (each .anyPlayer) (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]) (agent := actor))) =
           [] := by
   decide
 
@@ -153,7 +153,7 @@ no order for the vote to proceed in [CR#701.38a] (`voteStartingWithSpecifiedPlay
 same order over every player). -/
 theorem badOrderedSingularVoter :
     Instruction.check []
-      (.vote (some .you) .openly (.byLabel ["alpha", "beta"]) (agent := (target .anyPlayer)))
+      (act (target .anyPlayer) (.vote (some .you) .openly (.byLabel ["alpha", "beta"]) (agent := actor)))
       = [.choiceOrder] := by
   decide
 
@@ -162,7 +162,7 @@ votes or the vote is tied, exile each permanent with the most votes." -/
 theorem okVoteReadsAfterVote :
     Instruction.check []
       (.sequentially
-        [ vote .openly (.byLabel ["alpha", "beta"]) (agent := (each .anyPlayer)),
+        [ act (each .anyPlayer) (vote .openly (.byLabel ["alpha", "beta"]) (agent := actor)),
           draw (.votesFor "alpha") (agent := .you),
           doIf (.voteLead "beta" true) (exile (allOf (.and [permanent, .withMostVotes]))) ])
       = [] := by

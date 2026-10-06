@@ -142,7 +142,7 @@ theorem badTokenDuplicateColor :
 /-- "Target opponent loses 2 life. You gain that much life." -/
 theorem okThatMuchAfterOutcome :
     Instruction.check []
-      (.sequentially [loseLife (.lit 2) (agent := (target .opponent)), gainLife .thatMuch (agent :=
+      (.sequentially [act (target .opponent) (loseLife (.lit 2) (agent := actor)), gainLife .thatMuch (agent :=
           .you)]) = [] := by
   decide
 
@@ -186,8 +186,7 @@ theorem badBatchTwoOutcomesThenThatMuch :
     Instruction.check []
       (.sequentially
         [ .simultaneously
-            [.dealDamage .this (.lit 2) (target creature), loseLife (.lit 3) (agent := (target
-                .opponent))],
+            [.dealDamage .this (.lit 2) (target creature), act (target .opponent) (loseLife (.lit 3) (agent := actor))],
           gainLife .thatMuch (agent := .you) ]) = [.quantOutcomeInScope 2] := by
   decide
 
@@ -203,9 +202,8 @@ theorem okCreatedThenCountered :
 theorem badDistributedCreationIt :
     Instruction.check []
       (.sequentially
-        [ Primitives.Instruction.create (.lit 1)
-            (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent := (each
-                .anyPlayer)),
+        [ act (each .anyPlayer) (Primitives.Instruction.create (.lit 1)
+            (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent := actor)),
           .putCounters (.lit 1) p11 it ]) = [.anaphor .bare .one 0] := by
   decide
 

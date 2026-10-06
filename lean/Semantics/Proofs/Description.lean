@@ -51,7 +51,7 @@ theorem okThatPlayer :
     Instruction.check []
       (.sequentially
         [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
-          loseLife (.lit 1) (agent := (that .player)) ]) = [] := by
+          act (that .player) (loseLife (.lit 1) (agent := actor)) ]) = [] := by
   decide
 
 /-- "Tap target creature an opponent controls or land you control. That player loses 1 life." -/
@@ -60,7 +60,7 @@ theorem badDisjunctAntecedent :
       (.sequentially
         [ .setStatus .tapped (target (.or [.and [creature, .hasPossessor .controller anOpponent],
                                            .and [land, .hasPossessor .controller .you]])),
-          loseLife (.lit 1) (agent := (that .player)) ])
+          act (that .player) (loseLife (.lit 1) (agent := actor)) ])
       = [.anaphor (.word .player) .one 0] := by
   decide
 
@@ -313,8 +313,7 @@ theorem badPartitiveOfCountedGroup :
 /-- "Destroy target creature. Its controller loses life equal to its power." -/
 theorem okItAfterAntecedent :
     Instruction.check []
-      (.sequentially [destroy (target creature), loseLife (.statOf (.stat .power) it) (agent :=
-          (controllerOf it))])
+      (.sequentially [destroy (target creature), act (controllerOf it) (loseLife (.statOf (.stat .power) it) (agent := actor))])
       = [] := by
   decide
 
@@ -332,7 +331,7 @@ theorem badLeadingConditionAntecedent :
         [ .doIf (.compareAmt (lifeTotalOf .you) .less
                      (lifeTotalOf anOpponent))
             (gainLife (.lit 6) (agent := .you)) none,
-          loseLife (.lit 1) (agent := (that .player)) ])
+          act (that .player) (loseLife (.lit 1) (agent := actor)) ])
       = [.anaphor (.word .player) .one 0] := by
   decide
 

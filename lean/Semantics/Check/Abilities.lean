@@ -403,6 +403,30 @@ frame that `actor` reads. -/
 def actorCtx (bs : Bindings) (who : NounPhrase) : Bindings :=
   ⟨.the, .one, .actor (who.performerShape bs)⟩ :: (who.performerInView bs ++ agentIntro bs who)
 
+/-- An instruction that has a performer of its own: one of the deeds a player (or a permanent)
+does, and an offer, whose performer decides. A handoff to a group hands such an instruction to
+each member, as its performer. -/
+def Instruction.performed : Instruction → Bool
+  | .conclude _ _ | .separateIntoPiles _ _ _ _ | .choose _ _ _ _ _ | .vote _ _ _ _
+  | .copy _ _ _ _ _ | .changeLife _ _ | .addMana _ _ _ _ | .draw _ _ | .expose _ _ _
+  | .search _ _ _ _ | .shuffle _ | .flipCoins _ _ | .rollDice _ _ _ | .rerollStored _ _ _
+  | .createObject _ _ _ | .enact _ _ _ | .pay _ _ _ | .skipPart _ _ _ | .insertPart _ _ _ _ _
+  | .withContinuation (.optional _) _ _ _ => true
+  | _ => false
+
+/-- The decider a group handoff hands an offer, in place of its own. -/
+def ContinuationPolicy.performedBy (policy : ContinuationPolicy) : Option NounPhrase → ContinuationPolicy
+  | some who =>
+    match policy with
+    | .optional _ => .optional who
+    | .required => .required
+  | none => policy
+
+/-- The handoff frame alone, with what it puts in view: the context a group handoff checks the
+one instruction it hands each member in, the instruction introducing the group itself. -/
+def performerFrame (bs : Bindings) (who : NounPhrase) : Bindings :=
+  ⟨.the, .one, .actor (who.performerShape bs)⟩ :: (who.performerInView bs ++ bs)
+
 /-- Leave a handoff: remove its frame and the `n` bindings the handoff put in view under it, and
 nothing else. -/
 def leaveHandoff (n : Nat) : Bindings → Bindings
@@ -1168,12 +1192,14 @@ def branchContext (base left right : Bindings) : Bindings :=
   (unionBindings l r).getD []
 
 mutual
-  def Instruction.profile (bs : Bindings) : Instruction → InstrProfile
+  /-- `Instruction.profile` with `perf`, the performer a handoff to a group hands this very
+  instruction, read in place of the actor; `none` everywhere else. -/
+  def Instruction.profileWith (bs : Bindings) (perf : Option NounPhrase) : Instruction → InstrProfile
     | .withBindings scope inputs body =>
-      let p := Instruction.profile (captureBindings bs scope inputs) body
+      let p := Instruction.profileWith (captureBindings bs scope inputs) none body
       ⟨closeOperands p.pre, closeOperands p.announced, p.rider.map closeOperands, p.deed⟩
     | .inCaller scope body =>
-      let p := Instruction.profile (enterCaller scope bs) body
+      let p := Instruction.profileWith (enterCaller scope bs) none body
       ⟨leaveCaller bs p.pre, leaveCaller bs p.announced, p.rider.map (leaveCaller bs), p.deed⟩
     | .dealDamage src amt to =>
       sameIntro (nomIntro (Amount.introduced (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
@@ -1186,8 +1212,8 @@ mutual
     | .turnOver n => sameIntro (nomIntro bs n) []
     | .setStatus _ n => sameIntro (nomIntro bs n) []
     | .skipUntap n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
-    | .skipPart _ count w => sameIntro (Amount.intro (nomIntro bs w) count) []
-    | .insertPart part _ count _ who =>
+    | .skipPart _ count w0 => let w := perf.getD w0; sameIntro (Amount.intro (nomIntro bs w) count) []
+    | .insertPart part _ count _ who0 => let who := perf.orElse (fun _ => who0);
       let afterCount := Amount.intro (optAgentIntro bs who) count
       if part == .turn then ⟨afterCount, turnRefB :: afterCount, none, []⟩
       else sameIntro afterCount []
@@ -1199,18 +1225,18 @@ mutual
       | _ => sameIntro bs' []
     | .attachment _ what host => sameIntro (optAgentIntro (nomIntro bs what) host) []
     | .clearDamage n => sameIntro (nomIntro bs n) []
-    | .doAndForbid e _ _ => Instruction.profile bs e
+    | .doAndForbid e _ _ => Instruction.profileWith bs none e
     | .gainDesignation n _ _ => sameIntro (nomIntro bs n) []
     | .unlock door => sameIntro (door.intro bs) []
     | .setGameDesignation _ => sameIntro bs []
-    | .conclude _ who => sameIntro (nomIntro bs who) []
+    | .conclude _ who0 => let who := perf.getD who0; sameIntro (nomIntro bs who) []
     | .drawGame => sameIntro bs []
     | .restartGame => sameIntro bs []
-    | .separateIntoPiles grp piles faces who =>
+    | .separateIntoPiles grp piles faces who0 => let who := perf.getD who0;
       let bs' := nomIntro bs who
       ⟨nomIntro bs' grp, partsClosed (nomIntro bs' grp), none,
        [⟨.the, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
-    | .copy src what times _ agent =>
+    | .copy src what times _ agent0 => let agent := perf.getD agent0;
       let bs' := nomIntro bs agent
       let k := what.kindOr .object
       sameIntro (Amount.intro (nomIntro bs' what) times)
@@ -1218,7 +1244,7 @@ mutual
           copyPayloadIn k what.isAbility (NounPhrase.ty bs' what) (src.landsIn (NounPhrase.zone bs' what))⟩]
     | .chooseNewTargets what => sameIntro (nomIntro bs what) []
     | .copyTargets cp whom => sameIntro (nomIntro (nomIntro bs cp) whom) []
-    | .choose _ n _ _ by_ => sameIntro (chooseIntro bs by_ n) []
+    | .choose _ n _ _ by0 => let by_ := perf.orElse (fun _ => by0); sameIntro (chooseIntro bs by_ n) []
     | .revealChoices _ => sameIntro bs []
     | .vote _ _ _ _ => sameIntro bs [outcomeB .voteHeld]
     | .move what _ to _ =>
@@ -1226,29 +1252,29 @@ mutual
     | .exchange what => sameIntro (what.intro bs) what.deed
     /- "Gains"/"loses" name the event outright [CR#119.3]; a set total leaves the gain or loss
     to follow from the new total [CR#119.5]. -/
-    | .changeLife (.up a) who => sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeGained]
-    | .changeLife (.down a) who => sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeLost]
-    | .changeLife (.set a) who => sameIntro (Amount.intro (nomIntro bs who) a) []
-    | .addMana amt _ _ who => sameIntro (Amount.intro (nomIntro bs who) amt) [outcomeB .manaAdded]
-    | .draw amt who => sameIntro (Amount.intro (nomIntro bs who) amt) []
-    | .expose _ what who => sameIntro (what.intro (nomIntro bs who)) []
-    | .search sc q p who =>
+    | .changeLife (.up a) who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeGained]
+    | .changeLife (.down a) who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) a) [outcomeB .lifeLost]
+    | .changeLife (.set a) who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) a) []
+    | .addMana amt _ _ who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) amt) [outcomeB .manaAdded]
+    | .draw amt who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) amt) []
+    | .expose _ what who0 => let who := perf.getD who0; sameIntro (what.intro (nomIntro bs who)) []
+    | .search sc q p who0 => let who := perf.getD who0;
       let bs' := nomIntro bs who
       sameIntro (Quantity.introduced bs' q ++ Predicate.introduced bs' p ++ sc.introduced bs' ++ bs')
         [⟨.a, q.plur,
           .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
             none⟩]
-    | .shuffle whose => ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
-    | .flipCoins count who => sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
-    | .rollDice count _ who => sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB
+    | .shuffle whose0 => let whose := perf.getD whose0; ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
+    | .flipCoins count who0 => let who := perf.getD who0; sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
+    | .rollDice count _ who0 => let who := perf.getD who0; sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB
         .rollResult]
     | .applyResultsTable _ => sameIntro bs []
     | .ignoreOutcomes which => sameIntro (which.intro bs) []
     | .shiftResult _ amt => sameIntro (Amount.intro bs amt) []
     | .storeResults on => sameIntro (nomIntro bs on) []
-    | .rerollStored _ whose who => sameIntro (nomIntro (nomIntro bs who) whose) []
+    | .rerollStored _ whose who0 => let who := perf.getD who0; sameIntro (nomIntro (nomIntro bs who) whose) []
     | .establish se _ => sameIntro (StaticSpec.intro bs se) []
-    | .createObject count spec agent =>
+    | .createObject count spec agent0 => let agent := perf.getD agent0;
       let bs' := Amount.intro (nomIntro bs agent) count
       let (mentions, types, zone, origin) := match spec with
         | .token token _ => (token.introduced bs', token.headTy bs', Zone.battlefield, some Origin.token)
@@ -1259,26 +1285,32 @@ mutual
     | .removeCounters q _ from_ => sameIntro (nomIntro (optQuantIntro bs q) from_) [outcomeB .countersRemoved]
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []
     | .doubleCounters on => sameIntro (nomIntro bs on) []
-    | .enact v (.move what _ to _) none =>
-      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what to.sort),
-       some (stampIntro bs (some v) what), []⟩
-    | .enact v (.setStatus _ n) none => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
-    | .enact _ e none => Instruction.profile bs e
-    | .enact v e (some s) =>
+    | .enact v e subj0 =>
+      match perf.orElse (fun _ => subj0), e with
+      | none, .move what _ to _ =>
+        ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what to.sort),
+         some (stampIntro bs (some v) what), []⟩
+      | none, .setStatus _ n => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
+      | none, _ => Instruction.profileWith bs none e
+      | some s, _ =>
       if enactDefaultsToThis bs v s then
         let leave := leaveHandoff (sourcePermanent.performerInView bs).length
-        let ep := Instruction.profile (enactCtx bs v (some s)) e
+        let ep := Instruction.profileWith (enactCtx bs v (some s)) none e
         doesProfile bs s.plur s v e ⟨leave ep.pre, leave ep.announced, ep.rider.map leave, ep.deed⟩
-      else doesProfile bs s.plur s v e (Instruction.profile (agentIntro bs s) e)
-    | .pay c .once who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
+      else doesProfile bs s.plur s v e (Instruction.profileWith (agentIntro bs s) none e)
+    | .pay c .once who0 => let who := perf.getD who0; ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
     /- One performer: the body's own profile outside the handoff frame, so the player the
     handoff introduced stays published. Distributive performers follow `doForEach`: what each
     member's body introduced is published as a group, except its amount outcomes, which stay
     one total each as the deed, as `doesProfile` keeps a plural agent's deed ("each opponent
     loses 1 life and you gain life equal to the total life lost this way" [CR#702.101a]). -/
     | .act who body =>
+      if who.plur == .many && body.performed then
+        let p := Instruction.profileWith (performerFrame bs who) (some who) body
+        ⟨leaveHandoff 0 p.pre, leaveHandoff 0 p.announced, p.rider.map (leaveHandoff 0), p.deed⟩
+      else
       let inner := actorCtx bs who
-      let bodyP := Instruction.profile inner body
+      let bodyP := Instruction.profileWith inner none body
       let leave := leaveHandoff (who.performerInView bs).length
       match who.plur with
       | .one => ⟨leave bodyP.pre, leave bodyP.announced, bodyP.rider.map leave, bodyP.deed⟩
@@ -1287,34 +1319,35 @@ mutual
         ⟨bs, pluralizeIntroduced (fresh.filter (!·.isAmountTotal)) ++
           pluralizeIntroduced (NounPhrase.introduced bs who) ++ bs, none,
          fresh.filter Binding.isAmountTotal⟩
-    | .pay c _ who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
+    | .pay c _ who0 => let who := perf.getD who0; ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
         .repeatCount]⟩
-    | .withContinuation policy body did notd =>
-      let bodyP := Instruction.profile (policy.context bs) body
+    | .withContinuation policy0 body did notd =>
+      let policy := policy0.performedBy perf
+      let bodyP := Instruction.profileWith (policy.context bs) none body
       mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
     | .doOnlyIf e c other =>
-      let primary := Instruction.profile bs e
+      let primary := Instruction.profileWith bs none e
       let alt := (Instruction.profileOpt (statedNumbers primary.deed ++ c.intro primary.pre) other).map InstrProfile.intro
       ⟨primary.pre, branchContext primary.pre primary.intro (alt.getD primary.pre), none, []⟩
     | .doIf c e other =>
       let input := c.intro bs
-      let primary := Instruction.profile input e
+      let primary := Instruction.profileWith input none e
       let alt := (Instruction.profileOpt (statedNumbers primary.deed ++ primary.pre) other).map InstrProfile.intro
       ⟨bs, branchContext bs primary.intro (alt.getD bs), none, []⟩
     | .doForEach grp body =>
       let k := grp.kindOr .object
       let bs' := elemIntro bs k grp
-      let bodyP := Instruction.profile bs' body
+      let bodyP := Instruction.profileWith bs' none body
       ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
         pluralizeIntroduced (NounPhrase.introduced bs grp) ++ bs, none, []⟩
     | .doForEachKind _ dom q body =>
       let bs' := kindValueIntro bs q dom
-      let bodyP := Instruction.profile bs' body
+      let bodyP := Instruction.profileWith bs' none body
       ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++
         pluralizeIntroduced (dom.elim [] (NounPhrase.introduced bs)) ++ bs, none, []⟩
     | .repeat_ (.fixed n body) =>
       let bs' := Amount.intro bs n
-      let bodyP := Instruction.profile bs' body
+      let bodyP := Instruction.profileWith bs' none body
       ⟨bs', pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - bs'.length)) ++ bs', none,
        [outcomeB .repeatCount]⟩
     | .repeat_ _ => sameIntro bs []
@@ -1322,28 +1355,28 @@ mutual
     | .simultaneously es => Instruction.simProfile bs es
     | .chooseModes q _ => sameIntro (Quantity.introduced bs q ++ bs) []
     | .delay _ _ _ _ => sameIntro bs []
-    | .triggerReflexively body _ => Instruction.profile bs body
-    | .triggerThisWay body _ _ => Instruction.profile bs body
-    | .replace replaced _ => sameIntro (Instruction.profile bs replaced).announced []
-    | .holdUntil e _ => sameIntro (Instruction.profile bs e).announced []
+    | .triggerReflexively body _ => Instruction.profileWith bs none body
+    | .triggerThisWay body _ _ => Instruction.profileWith bs none body
+    | .replace replaced _ => sameIntro (Instruction.profileWith bs none replaced).announced []
+    | .holdUntil e _ => sameIntro (Instruction.profileWith bs none e).announced []
   termination_by structural e => e
 
   def Instruction.profileOpt (bs : Bindings) : Option Instruction → Option InstrProfile
     | none => none
-    | some e => some (Instruction.profile bs e)
+    | some e => some (Instruction.profileWith bs none e)
   termination_by structural e => e
 
   def Instruction.seqProfile (bs : Bindings) : List Instruction → InstrProfile
     | [] => ⟨bs, bs, none, []⟩
-    | [e] => (Instruction.profile bs e).last
-    | e :: es => Instruction.seqProfile (Instruction.profile bs e).intro es
+    | [e] => (Instruction.profileWith bs none e).last
+    | e :: es => Instruction.seqProfile (Instruction.profileWith bs none e).intro es
   termination_by structural es => es
 
   def Instruction.simProfile (bs : Bindings) : List Instruction → InstrProfile
     | [] => ⟨bs, bs, none, []⟩
-    | [e] => (Instruction.profile bs e).simLast
+    | [e] => (Instruction.profileWith bs none e).simLast
     | e :: es =>
-      let ep := Instruction.profile bs e
+      let ep := Instruction.profileWith bs none e
       (Instruction.simProfile ep.announced es).simCons ep.deed
   termination_by structural es => es
 
@@ -1353,7 +1386,7 @@ mutual
     | .mana c => if manaHasX c then letterB .x :: bs else bs
     | .scaled c _ => Cost.intro bs c
     | .loyaltySymbol .downX => letterB .x :: bs
-    | .perform e => (Instruction.profile bs e).intro
+    | .perform e => (Instruction.profileWith bs none e).intro
     | .compound cs => Cost.costsIntro bs cs
     | _ => bs
   termination_by structural c => c
@@ -1402,6 +1435,10 @@ mutual
     | se :: rest => StaticSpec.partsIntro (StaticSpec.intro bs se) rest
   termination_by structural parts => parts
 end
+
+/-- The bindings an instruction leaves in `bs`. -/
+def Instruction.profile (bs : Bindings) (e : Instruction) : InstrProfile :=
+  Instruction.profileWith bs none e
 
 def Instruction.intro (bs : Bindings) (e : Instruction) : Bindings := (e.profile bs).intro
 def Instruction.preIntro (bs : Bindings) (e : Instruction) : Bindings := (e.profile bs).pre

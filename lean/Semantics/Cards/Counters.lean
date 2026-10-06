@@ -204,8 +204,7 @@ def celestialConvergence : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "omenCounter"))) thisEnchantment,
                 Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countersOn (.named "omenCounter") thisEnchantment) .atMost (.lit 0))
-                  (Primitives.Instruction.conclude .winGame (agent := (the (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.superlative .max
-                      (.playerStat .lifeTotal) Primitives.Predicate.anyPlayer]))))
+                  (act (the (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.superlative .max (.playerStat .lifeTotal) Primitives.Predicate.anyPlayer])) (Primitives.Instruction.conclude .winGame (agent := actor)))
                   none,
                 Primitives.Instruction.doIf (Primitives.Condition.compareAmt
                         (countOf (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.superlative .max (.playerStat .lifeTotal) Primitives.Predicate.anyPlayer]))
@@ -1137,10 +1136,9 @@ def menacingOgre : Spelled := spelled <| .singleFaced
         [ keyword "Trample", keyword "Haste",
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
-              [ choose (disclosure := .secretly) (a (quality .number)) (agent := some (each
-                  Primitives.Predicate.anyPlayer)),
+              [ act (each Primitives.Predicate.anyPlayer) (choose (disclosure := .secretly) (a (quality .number)) (agent := some actor)),
                 Primitives.Instruction.revealChoices .numbers,
-                loseLife Primitives.Amount.thatMuch (agent := (each (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.choseExtreme .max]))),
+                act (each (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.choseExtreme .max])) (loseLife Primitives.Amount.thatMuch (agent := actor)),
                 doIf (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.choseExtreme .max))
                   (Primitives.Instruction.putCounters (.lit 2) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ]) ],
       power := stat 3, toughness := stat 3 } }
@@ -1220,7 +1218,7 @@ def neurokTransmuter : Instruction :=
 theorem okNeurokTransmuter : Instruction.check [] neurokTransmuter = [] := by decide
 def syphonMind : Instruction :=
   Primitives.Instruction.sequentially
-    [ Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some (each otherPlayer)), discard them],
+    [ Primitives.Instruction.sequentially [act (each otherPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them],
       Primitives.Instruction.doForEach (theVerbed (.action "Discard") .card .thisWay .many) (Primitives.Instruction.draw (.lit 1) (agent :=
           Primitives.NounPhrase.you)) ]
 theorem okSyphonMind : Instruction.check [] syphonMind = [] := by decide
@@ -1228,7 +1226,7 @@ def peek : Instruction := Primitives.Instruction.sequentially [lookAtHandOf (tar
     Primitives.NounPhrase.you)]
 theorem okPeek : Instruction.check [] peek = [] := by decide
 /-- Bumi, King of Three Trials -/
-def bumiScryMode : Instruction := scry (.lit 3) (agent := (target Primitives.Predicate.anyPlayer))
+def bumiScryMode : Instruction := act (target Primitives.Predicate.anyPlayer) (scry (.lit 3) (agent := actor))
 theorem okBumiScryMode : Instruction.check [] bumiScryMode = [] := by decide
 /-- Final Act -/
 def finalActCounterMode : Instruction := loseAllCounters none (agent := (each Primitives.Predicate.opponent))

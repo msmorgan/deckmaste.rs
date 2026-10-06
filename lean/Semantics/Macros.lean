@@ -500,8 +500,8 @@ semantic_macro regenerationApplication (subject : capture NounPhrase) : Instruct
   .enact (.action "Regenerate") <|
     .sequentially [
       .clearDamage subject,
-      .enact (.action "Tap") (.setStatus .tapped subject)
-        (some (.possessorOf .controller subject)),
+      .act (.possessorOf .controller subject)
+        (.enact (.action "Tap") (.setStatus .tapped subject) (some .actor)),
       .doIf (.or [.matches subject (.inCombat .attackerOf none),
                   .matches subject (.inCombat .blockerOf none)])
         (.combat subject (.participation .outsideCombat)) none]
@@ -786,7 +786,7 @@ semantic_macro controllerSacrifices (subject : NounPhrase) : Instruction :=
       .pro .bare subject.plur (.introduced [.player, subject.kindOr .object])
     else if (selfSubjIntro [] subject).isEmpty then subject
     else ownSubject controller
-  sacrifice patient (agent := controller)
+  .act controller (sacrifice patient (agent := .actor))
 
 /-- "them" (or "it"): the cards a look at a library slice just announced, seen alone. -/
 semantic_macro lookedCards (slice : NounPhrase) : NounPhrase :=

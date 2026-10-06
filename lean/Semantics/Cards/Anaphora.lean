@@ -23,13 +23,13 @@ def cloudshift : Instruction :=
 theorem okCloudshift : Instruction.check [] cloudshift = [] := by decide
 
 def bitterDownfall : Instruction :=
-  Primitives.Instruction.sequentially [destroy (target creature), loseLife (.lit 2) (agent := (controllerOf it))]
+  Primitives.Instruction.sequentially [destroy (target creature), act (controllerOf it) (loseLife (.lit 2) (agent := actor))]
 theorem okBitterDownfall : Instruction.check [] bitterDownfall = [] := by decide
 
 def suspendedSentence : Instruction :=
   Primitives.Instruction.sequentially
     [ destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent])),
-      loseLife (.lit 3) (agent := (that .player)) ]
+      act (that .player) (loseLife (.lit 3) (agent := actor)) ]
 theorem okSuspendedSentence : Instruction.check [] suspendedSentence = [] := by decide
 
 def flickeringSpirit : Instruction :=
@@ -50,16 +50,14 @@ theorem okVraskasStoneglare : Instruction.check [] vraskasStoneglare = [] := by 
 def phthisis : Instruction :=
   Primitives.Instruction.sequentially
     [ destroy (target creature),
-      loseLife
-        (plus (Primitives.Amount.statOf (.stat .power) it) (Primitives.Amount.statOf (.stat .toughness) it)) (agent := (controllerOf
-            it)) ]
+      act (controllerOf it) (loseLife
+        (plus (Primitives.Amount.statOf (.stat .power) it) (Primitives.Amount.statOf (.stat .toughness) it)) (agent := actor)) ]
 theorem okPhthisis : Instruction.check [] phthisis = [] := by decide
 
 def foulTongueShriek : Instruction :=
   Primitives.Instruction.sequentially
-    [ loseLife
-        (forEach 1 (Primitives.Predicate.and [attacking, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) (agent := (target
-            Primitives.Predicate.opponent)),
+    [ act (target Primitives.Predicate.opponent) (loseLife
+        (forEach 1 (Primitives.Predicate.and [attacking, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) (agent := actor)),
       gainLife Primitives.Amount.thatMuch (agent := Primitives.NounPhrase.you) ]
 theorem okFoulTongueShriek : Instruction.check [] foulTongueShriek = [] := by decide
 
@@ -101,7 +99,7 @@ def searchToBattlefield : Instruction :=
   Primitives.Instruction.sequentially [searchLibraryFor (exactly 1) creature, move it battlefield, shuffle]
 theorem okSearchToBattlefield : Instruction.check [] searchToBattlefield = [] := by decide
 
-def glimpseTheUnthinkable : Instruction := mill (.lit 10) they (agent := (target Primitives.Predicate.anyPlayer))
+def glimpseTheUnthinkable : Instruction := act (target Primitives.Predicate.anyPlayer) (mill (.lit 10) they (agent := actor))
 theorem okGlimpseTheUnthinkable : Instruction.check [] glimpseTheUnthinkable = [] := by decide
 
 def millThenReadGroup : Instruction :=
@@ -124,16 +122,15 @@ def spaceTimeAnomaly : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Space-Time Anomaly", cost := some [generic 2, pip .white, pip .blue],
       types := [.sorcery],
-      text := [ Primitives.Ability.spell none (mill (lifeTotalOf Primitives.NounPhrase.you) they (agent := (target Primitives.Predicate.anyPlayer))) ] } }
+      text := [ Primitives.Ability.spell none (act (target Primitives.Predicate.anyPlayer) (mill (lifeTotalOf Primitives.NounPhrase.you) they (agent := actor))) ] } }
 
 /-- Consecrate // Consume -/
 def consume : Ability :=
   Primitives.Ability.spell none (Primitives.Instruction.sequentially
-    [ sacrifice
+    [ act (target Primitives.Predicate.anyPlayer) (sacrifice
         (a (Primitives.Predicate.and [ creature,
                    Primitives.Predicate.superlative .max (.stat .power)
-                     (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller they]) ])) (agent := (target
-                         Primitives.Predicate.anyPlayer)),
+                     (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller they]) ])) (agent := actor)),
       gainLife (Primitives.Amount.statOf (.stat .power) it) (agent := Primitives.NounPhrase.you) ])
 theorem okConsume : Ability.check [] consume = [] := by decide
 
@@ -152,9 +149,9 @@ def manaLeak : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mana Leak", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (doUnless
+        [ Primitives.Ability.spell none (act (controllerOf (target spell)) (doUnless
             (Primitives.Instruction.counterSpell it)
-            (Primitives.Cost.mana [generic 3]) (agent := (controllerOf (target spell)))) ] } }
+            (Primitives.Cost.mana [generic 3]) (agent := actor))) ] } }
 
 /-- Oust {W} — Sorcery. "Put target creature into its owner's library second from the top.
 Its controller gains 3 life." -/
@@ -164,7 +161,7 @@ def oust : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ move (target creature) (nthFromTop (.nth 2)),
-              gainLife (.lit 3) (agent := (controllerOf it)) ]) ] } }
+              act (controllerOf it) (gainLife (.lit 3) (agent := actor)) ]) ] } }
 
 def riseFromTheGrave : Instruction :=
   Primitives.Instruction.sequentially
@@ -186,7 +183,7 @@ def martyrsCry : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.colorIs .white])),
       Primitives.Instruction.doForEach (theVerbed (.action "Exile") (.type .creature) .thisWay .many)
-        (Primitives.Instruction.draw (.lit 1) (agent := (controllerOf it))) ]
+        (act (controllerOf it) (Primitives.Instruction.draw (.lit 1) (agent := actor))) ]
 theorem okMartyrsCry : Instruction.check [] martyrsCry = [] := by decide
 
 def anotherRound : Instruction :=
@@ -202,12 +199,12 @@ def eradicateSearch : Instruction :=
     [ exile (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])),
       searchZonesOf (controllerOf (that .card)) anyNumber (Primitives.Predicate.named (Primitives.NameSource.sameAs (that .card))),
       exile (themVerbed (.action "Search")),
-      Primitives.Instruction.shuffle (agent := (that .player)) ]
+      act (that .player) (Primitives.Instruction.shuffle (agent := actor)) ]
 theorem okEradicateSearch : Instruction.check [] eradicateSearch = [] := by decide
 
 /-- Deem Inferior -/
 def deemInferior : Instruction :=
-  put it (nthFromTopOrBottom (.nth 2)) (agent := (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))))
+  act (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))) (put it (nthFromTopOrBottom (.nth 2)) (agent := actor))
 theorem okDeemInferior : Instruction.check [] deemInferior = [] := by decide
 
 /-- Write into Being -/
@@ -243,17 +240,14 @@ def contrabandLivestock : Instruction :=
       rollDice 1 20 (agent := Primitives.NounPhrase.you),
       Primitives.Instruction.applyResultsTable
         [ rollRow (fromTo 1 9)
-            (Primitives.Instruction.create (.lit 1)
-              (Primitives.TokenSpec.written (creatureToken 4 4 [.green] [creatureType "Ox"])) [] (agent := (controllerOf
-                  it))),
+            (act (controllerOf it) (Primitives.Instruction.create (.lit 1)
+              (Primitives.TokenSpec.written (creatureToken 4 4 [.green] [creatureType "Ox"])) [] (agent := actor))),
           rollRow (fromTo 10 19)
-            (Primitives.Instruction.create (.lit 1)
-              (Primitives.TokenSpec.written (creatureToken 2 2 [.green] [creatureType "Boar"])) [] (agent :=
-                  (controllerOf it))),
+            (act (controllerOf it) (Primitives.Instruction.create (.lit 1)
+              (Primitives.TokenSpec.written (creatureToken 2 2 [.green] [creatureType "Boar"])) [] (agent := actor))),
           rollRow (exactly 20)
-            (Primitives.Instruction.create (.lit 1)
-              (Primitives.TokenSpec.written (creatureToken 0 1 [.white] [creatureType "Goat"])) [] (agent :=
-                  (controllerOf it))) ] ]
+            (act (controllerOf it) (Primitives.Instruction.create (.lit 1)
+              (Primitives.TokenSpec.written (creatureToken 0 1 [.white] [creatureType "Goat"])) [] (agent := actor))) ] ]
 theorem okContrabandLivestock : Instruction.check [] contrabandLivestock = [] := by decide
 
 /-- Hypnotic Specter -/
@@ -358,7 +352,7 @@ theorem okBioplasmCardTest : Condition.check bioplasmAfterExile bioplasmCardTest
 
 /-- Blessed Respite -/
 def blessedRespiteShuffle : Instruction :=
-  shuffleInto (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)])) (agent := (target Primitives.Predicate.anyPlayer))
+  act (target Primitives.Predicate.anyPlayer) (shuffleInto (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)])) (agent := actor))
 theorem okBlessedRespiteShuffle : Instruction.check [] blessedRespiteShuffle = [] := by decide
 
 /-- Nekrataal -/
@@ -495,7 +489,7 @@ theorem eachPlayerBindsAGroup : countManys .player (nomIntro [] eachPlayerBase) 
 
 /-- Soul Ransom -/
 def soulRansomRansom : Instruction :=
-  Primitives.Instruction.sequentially [sacrificeIt (agent := (controllerOf thisAura)), Primitives.Instruction.draw (.lit 2) (agent := they)]
+  Primitives.Instruction.sequentially [act (controllerOf thisAura) (sacrificeIt (agent := actor)), act they (Primitives.Instruction.draw (.lit 2) (agent := actor))]
 theorem okSoulRansomRansom : Instruction.check [] soulRansomRansom = [] := by decide
 def thisAurasController : NounPhrase := controllerOf thisAura
 theorem okThisAurasController : NounPhrase.check (some .player) [] thisAurasController = [] := by
@@ -578,9 +572,8 @@ theorem theOtherRefusesTheUniversalSlice :
   decide
 
 def eachPlayerShufflesTheirHandAndGraveyard : Instruction :=
-  shuffleInto
-    (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)]))) (agent := (each
-        Primitives.Predicate.anyPlayer))
+  act (each Primitives.Predicate.anyPlayer) (shuffleInto
+    (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)]))) (agent := actor))
 theorem okEachPlayerShufflesTheirHandAndGraveyard :
     Instruction.check [] eachPlayerShufflesTheirHandAndGraveyard = [] := by decide
 
@@ -591,15 +584,15 @@ def factOrFiction : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ revealCards (topSlice (.lit 5)),
-              Primitives.Instruction.separateIntoPiles them 2 [] (agent := anOpponent),
+              act anOpponent (Primitives.Instruction.separateIntoPiles them 2 [] (agent := actor)),
               move onePile hand,
               move (theOther .pile) graveyard ]) ] } }
 
 def unsummon : Instruction := move (target creature) hand
 theorem okUnsummon : Instruction.check [] unsummon = [] := by decide
 def grismold : Instruction :=
-  Primitives.Instruction.create (.lit 1)
-    (Primitives.TokenSpec.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent := (each Primitives.Predicate.anyPlayer))
+  act (each Primitives.Predicate.anyPlayer) (Primitives.Instruction.create (.lit 1)
+    (Primitives.TokenSpec.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [] (agent := actor))
 theorem okGrismold : Instruction.check [] grismold = [] := by decide
 /-- Grenzo, Dungeon Warden -/
 def grenzoBottomCard : Instruction := move bottomCard graveyard
@@ -642,7 +635,7 @@ def secretRendezvous : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Secret Rendezvous", cost := some [generic 1, pip .white, pip .white],
       types := [.sorcery],
-      text := [ Primitives.Ability.spell none (Primitives.Instruction.draw (.lit 3) (agent := (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.both Primitives.NounPhrase.you (target Primitives.Predicate.opponent))))) ]
+      text := [ Primitives.Ability.spell none (act (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.both Primitives.NounPhrase.you (target Primitives.Predicate.opponent))) (Primitives.Instruction.draw (.lit 3) (agent := actor))) ]
           } }
 
 /-- Aggressive Instinct -/
@@ -671,7 +664,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.doForEach (each Primitives.Predicate.anyPlayer)
                   (choose (target (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller they]))),
-                sacrifice (those .permanent) (agent := (those .player)),
+                act (those .player) (sacrifice (those .permanent) (agent := actor)),
                 Primitives.Instruction.doForEach
                   (each (Primitives.Predicate.and [ Primitives.Predicate.anyPlayer,
                                 Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
@@ -679,7 +672,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                                   (.action "Sacrifice") (some (a permanent)) none none) .thisWay)
                                   ]))
                   (Primitives.Instruction.sequentially
-                    [ Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.librarySlice .top (.lit 1) they)) (agent := they),
+                    [ act they (Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.librarySlice .top (.lit 1) they)) (agent := actor)),
                       Primitives.Instruction.doIf (itsACard permanentCard) (move itCard battlefield)
                         none ]) ]) ],
       power := stat 6, toughness := stat 6 } }
