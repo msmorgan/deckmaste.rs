@@ -45,6 +45,21 @@ is unchanged and succeeds whether or not `Generated/` is present. The emitted
 term is post-expansion, so `Macros.lean` plays no part and `spelled` — which
 refuses raw constructors by design — is the hand bench's law, not the gate's.
 
+## The registry definition gate
+
+`cargo xtask definition-check` is `lean-check`'s twin over the Registry
+Definitions (`Definition`, `Semantics/Rules.lean`) that `plugins_v2/builtin`
+declares: every counter, subtype and designation is read with the readers
+`cargo xtask facts` uses, emitted as `GeneratedDefinitions/{Counters,Subtypes,
+Designations}.lean` under a `GeneratedDefinitions.lean` root, and proved
+`Definition.check = []` by `decide` with the same guarded `#eval` and the same
+attribution, so a refused definition is named with its refusal list and a
+`lake` failure that names none is a gate defect. It reports a count per family
+and fails if any definition does not prove. Its tree is untracked, its
+`GeneratedDefinitions` library sits outside `defaultTargets` like `Generated`,
+and each run clears its own sources and build outputs first. Both gates run in
+`crates/xtask/tests/lean_check.rs`.
+
 ## Syntax and macros
 
 The seven syntax layers are `Words`, `Events`, `Phrase`, `Triggers`,

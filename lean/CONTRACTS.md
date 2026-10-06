@@ -764,9 +764,28 @@ model applies it once per counter held: the +1/+1 counter's conferral is
 (`grants`). No conferral reads the count of its own kind. That reading is the
 model's: `Definition.check` checks each conferral once in the empty binding
 context and computes no multiplicity, so nothing in the checker depends on it
-(`Proofs/Rules.lean`, `p1p1CounterCountMultipliedTwin`). The checker refuses
-the +1/+1 and -1/-1 definitions `.zoneIs .battlefield`, which no gate runs
-(routed by `semantics-v2-counter-kind-is-a-name`'s landing record).
+(`Proofs/Rules.lean`, `p1p1CounterCountMultipliedTwin`).
+
+A definition's conferral is about its bearer wherever the bearer is
+(`Conferral.checkProperty`, `Check/Rules.lean`): a stat change on the bearer,
+`ptModification this`, is checked as a card's stat change is, less the demand
+that its subject be on the battlefield. A +X/+Y counter counts on a creature
+card in any zone [CR#122.1a], counters sit on exiled cards [CR#702.62b] and on
+players [CR#122.1], and the battlefield matters where counters are PUT
+[CR#122.6], which is the instruction's check. Nothing else is narrowed: a
+card's own "gets +1/+1" keeps the demand (`cardStatChangeOffBattlefieldZone`),
+and so does a definition's single-stat `modification` and a stat change on any
+other subject (`p1p1CounterCountMultipliedTwin` keeps its two refusals). The
++1/+1 and -1/-1 definitions check clean (`p1p1CounterDefinitionZone`,
+`m1m1CounterDefinitionZone`).
+
+Every Registry Definition is gated: `cargo xtask definition-check` re-emits
+each counter, subtype and designation definition `plugins_v2/builtin` declares
+and proves `Definition.check = []` by `decide`, as `lean-check` does for cards
+(`lean/README.md`). `Definition.check` has a rule for every constructor, an
+exhaustive match, so there is no definition the gate reads and the checker
+ignores; a declaration of a registry kind whose body does not read as its
+family's `Definition` fails the read rather than being skipped.
 
 A designation is a name too: `DesignationLabel.named` carries the designation
 declaration's name verbatim (`goaded`, `monarch`, `leftHalfUnlocked`), or, for
