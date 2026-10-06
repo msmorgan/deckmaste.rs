@@ -215,6 +215,13 @@ A phrase headed by an Adjective.
 A lexical Category whose members head phrases expressing relations and
 characteristically select Complements.
 
+**Compound Preposition**:
+A Preposition whose components have coalesced into a single Lexeme, as with
+*instead* and *because*. Its following Complement remains a separate phrase;
+*instead of …* retains the selected marker and its Complement structure
+(CGEL, Ch. 7 §3.1, pp. 622–623).
+_Avoid_: treating every adjacent sequence of Prepositions as one Lexeme
+
 **Preposition Phrase**:
 A phrase headed by a Preposition, with any selected Complements. Lexicalized
 *face down* and *face up* have no overt Complement and function as adjuncts or
@@ -372,6 +379,12 @@ A phrase headed by a Determinative, including cardinal determinatives.
 The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
 
+**Partitive Noun Phrase**:
+A fused-head Noun Phrase containing an *of* phrase and denoting a subset of
+the set denoted by that phrase's Complement, as in *one of them*.
+The Complement of *of* is the partitive oblique (CGEL, Ch. 5, p. 333).
+_Avoid_: an omitted noun as an invented lexical head
+
 **Quantitative Determiner**:
 A Determiner that expresses a count, realized by a Cardinal Numeral or a
 quantitative Preposition Phrase. In *up to two target creature cards*, the
@@ -448,7 +461,10 @@ Adjective lexical identity (CGEL, pp. 444, 537–538). Type and subtype declarat
 license their singular noun forms for this function; the head determines the
 Nominal's Number and Countability. A verbal gerund-participle can also be a
 Premodifier, as in *attacking creature*, without becoming an Adjective
-(CGEL, Ch. 6 §2.4.3, pp. 541–542).
+(CGEL, Ch. 6 §2.4.3, pp. 541–542). A past-participial verb phrase can likewise
+premodify a noun, as in *the chosen type* (CGEL, Ch. 5 §14.2, p. 444).
+The lexical declaration records this distribution; a transitive frame alone
+does not supply declared past-participial Premodifier availability.
 
 **Resultative Complement**:
 A predicative Complement denoting the state of its predicand at the end of a
@@ -460,6 +476,9 @@ Adjuncts (CGEL, Ch. 4 §§5, 5.3, pp. 251–252, 261–263).
 An optional predicative Adjunct describing a participant during the situation,
 as in *enters tapped and attacking*; it may be an Adjective Phrase or a
 gerund-participial Clause (CGEL, Ch. 4 §5.3, pp. 262–263; Ch. 14 §9, p. 1265).
+
+A past-participial verb phrase can likewise premodify a noun, as in
+*the chosen type* (CGEL, Ch. 5 §14.2, p. 444).
 
 **Postmodifier**:
 A Modifier that follows its head in the linear order. Subjectless

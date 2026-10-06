@@ -160,11 +160,11 @@
     ]),
     (identity: Return, bare: "return", third_person: "returns", preterite: Some("returned"), frames: [
         Predicate([
-            Role("Object"),
-            OptionalLex("Preposition", "From"),
+            ObjectNounPhrase,
+            OptionalMarkedRole("Preposition", "From", "NounPhrase"),
             Lex("Preposition", "To"),
-            Role("FrameComplement"),
-            OptionalMarkedRole("Preposition", "Under", "Object"),
+            ObjectNounPhrase,
+            OptionalMarkedRole("Preposition", "Under", "NounPhrase"),
         ]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]),
     ]),

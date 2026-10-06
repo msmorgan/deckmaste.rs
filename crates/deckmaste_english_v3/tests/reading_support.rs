@@ -19,10 +19,9 @@ fn several_constituents_witness_low_of_attachment() {
 }
 
 #[test]
-fn seedborn_muse_retains_all_three_adjunct_attachments() {
-    // Seedborn Muse permits three attachments of "during...": to "Untap...",
-    // to "control" inside the Object Relative Clause, and to the Nominal
-    // "permanents you control". Each call requires one complete Reading.
+fn seedborn_muse_retains_exactly_two_adjunct_attachments() {
+    // Seedborn Muse permits VP attachment to Untap and attachment inside the
+    // Object Relative Clause to control. Nominal attachment is unlicensed.
     let text = "Untap all permanents you control during each other player's untap step.";
     assert_constituents(
         text,
@@ -42,21 +41,38 @@ fn seedborn_muse_retains_all_three_adjunct_attachments() {
     assert_constituents(
         text,
         Category::Document,
-        &[
-            (
-                Category::Nominal,
-                "permanents you control during each other player's untap step",
-            ),
-            (Category::ObjectRelativeClause, "you control"),
-        ],
-    );
-    assert_constituents(
-        text,
-        Category::Document,
         &[(
             Category::ObjectRelativeClause,
             "you control during each other player's untap step",
         )],
+    );
+    let mut attachments = std::collections::BTreeSet::new();
+    for reading in common::readings(text, Category::Document) {
+        reading
+            .visit(&mut |node| {
+                if let deckmaste_english_v3::grammar::Reading::PostmodifiedNominal {
+                    modifier,
+                    ..
+                } = node
+                {
+                    assert_ne!(
+                        modifier.realize(common::lexicon()).unwrap(),
+                        "during each other player's untap step",
+                        "During must not function as a nominal Modifier",
+                    );
+                }
+                if node.category() == Category::ObjectRelativeClause {
+                    attachments.insert(node.realize(common::lexicon()).unwrap());
+                }
+            })
+            .unwrap();
+    }
+    assert_eq!(
+        attachments,
+        std::collections::BTreeSet::from([
+            "you control".into(),
+            "you control during each other player's untap step".into(),
+        ])
     );
 }
 
@@ -87,9 +103,8 @@ fn a_substring_crossing_constituent_boundaries_is_rejected() {
 #[test]
 #[should_panic(expected = "no single Reading")]
 fn constituents_from_different_readings_do_not_jointly_witness_an_analysis() {
-    // The shorter Noun Phrase witnesses attachment outside the Nominal; the
-    // longer one witnesses nominal attachment. They cannot coexist in a
-    // Reading.
+    // The shorter Object Noun Phrase excludes the relative-clause Adjunct;
+    // the longer one includes it. They occur in different Readings.
     let text = "Untap all permanents you control during each other player's untap step.";
     assert_constituents(
         text,

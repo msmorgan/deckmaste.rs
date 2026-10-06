@@ -14,6 +14,7 @@ pub enum FeatureValue {
     Framing(bool),
     Onset(::deckmaste_lexical::Onset),
     Custom(usize, usize),
+    Set(usize, usize),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -205,6 +206,7 @@ impl ::std::error::Error for Error {}
 
 #[derive(Clone)]
 struct TableExport {
+    operation: Option<TableOperation>,
     feature: usize,
     registers: Vec<usize>,
     rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
@@ -212,16 +214,51 @@ struct TableExport {
 
 #[derive(Clone)]
 struct TableRequirement {
+    operation: Option<TableOperation>,
     registers: Vec<usize>,
     rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
     expected: FeatureValue,
 }
 
-fn table_value<'a>(
+#[derive(Clone)]
+enum TableOperation {
+    Contains(usize, usize, FeatureValue),
+    Intersection(usize),
+}
+impl TableOperation {
+    fn apply(&self, inputs: &[FeatureValue]) -> Option<FeatureValue> {
+        match (self, inputs) {
+            (Self::Contains(feature, member, result), [FeatureValue::Set(domain, mask)])
+                if feature == domain && mask & member == *member =>
+            {
+                Some(result.clone())
+            }
+            (
+                Self::Intersection(feature),
+                [
+                    FeatureValue::Set(left_domain, left),
+                    FeatureValue::Set(right_domain, right),
+                ],
+            ) if feature == left_domain && feature == right_domain => {
+                Some(FeatureValue::Set(*feature, left & right))
+            }
+            _ => None,
+        }
+    }
+}
+fn table_value(
     registers: &[usize],
-    rows: &'a [(Vec<FeatureValue>, FeatureValue)],
+    rows: &[(Vec<FeatureValue>, FeatureValue)],
+    operation: &Option<TableOperation>,
     state: &State,
-) -> Option<&'a FeatureValue> {
+) -> Option<FeatureValue> {
+    if let Some(operation) = operation {
+        let inputs: Option<Vec<_>> = registers
+            .iter()
+            .map(|&register| state.registers.get(register)?.clone())
+            .collect();
+        return operation.apply(&inputs?);
+    }
     rows.iter().find_map(|(inputs, output)| {
         registers
             .iter()
@@ -229,7 +266,7 @@ fn table_value<'a>(
             .all(|(&register, value)| {
                 state.registers.get(register).and_then(Option::as_ref) == Some(value)
             })
-            .then_some(output)
+            .then(|| output.clone())
     })
 }
 
@@ -260,7 +297,15 @@ impl Rule {
             FrameGuard::Any => {}
             FrameGuard::Head(frame)
                 if child?.values.get(7)?.as_ref() == Some(&FeatureValue::Frame(*frame)) => {}
-            FrameGuard::Marker(class) if child?.marker_class == Some(*class) => {}
+            FrameGuard::Marker(class, licence) if child?.marker_class == Some(*class) => {
+                if let Some((feature, operation, expected)) = licence {
+                    if operation.apply(&[child?.values.get(*feature)?.as_ref()?.clone()])?
+                        != *expected
+                    {
+                        return None;
+                    }
+                }
+            }
             _ => return None,
         }
         let mut next = state.clone();
@@ -305,8 +350,12 @@ impl Rule {
         }
         summary.values[12] = summary.surface.onset.map(FeatureValue::Onset);
         for requirement in &self.table_requirements {
-            if table_value(&requirement.registers, &requirement.rows, state)?
-                != &requirement.expected
+            if table_value(
+                &requirement.registers,
+                &requirement.rows,
+                &requirement.operation,
+                state,
+            )? != requirement.expected
             {
                 return None;
             }
@@ -315,7 +364,7 @@ impl Rule {
             summary.values[feature] = Some(state.registers.get(register)?.as_ref()?.clone());
         }
         for export in &self.table_exports {
-            let output = table_value(&export.registers, &export.rows, state)?;
+            let output = table_value(&export.registers, &export.rows, &export.operation, state)?;
             summary.values[export.feature] = Some(output.clone());
         }
         Some(summary)

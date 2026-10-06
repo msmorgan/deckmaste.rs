@@ -836,3 +836,71 @@ fn frame_segment_relations_validate_fields_order_and_schema_policies() {
         );
     }
 }
+
+#[test]
+fn set_features_validate_members_operations_and_frame_marker_licences() {
+    compile(quote! {
+        mod valid {
+            feature Licence { Adjunct, Modifier, Complement } set;
+            feature Selection { Yes }
+            category Phrase(Licence);
+            table licence(Licence) -> Selection contains Complement => Yes;
+            table concord(Licence, Licence) -> Licence intersection;
+            frame_marker_licence Predicate(Preposition) = licence;
+            construction Phrase: Phrase {
+                form [head: lexical(Preposition)];
+                export Licence = head.Licence;
+            }
+        }
+    })
+    .unwrap();
+    rejects(
+        quote! {mod bad {
+            category Atom();
+            construction Atom: Atom { form [head: lexical(Noun)]; }
+            feature Licence { Adjunct } set;
+            feature Selection { Yes }
+            table licence(Licence) -> Selection contains Unknown => Yes;
+        }},
+        "unknown set member",
+    );
+    rejects(
+        quote! {mod bad {
+            category Atom();
+            construction Atom: Atom { form [head: lexical(Noun)]; }
+            feature Licence { Adjunct }
+            feature Selection { Yes }
+            table licence(Licence) -> Selection contains Adjunct => Yes;
+        }},
+        "set operation requires a set feature",
+    );
+    rejects(
+        quote! {mod bad {
+            category Atom();
+            construction Atom: Atom { form [head: lexical(Noun)]; }
+            feature Licence { Adjunct } set;
+            feature Selection { Yes }
+            table concord(Licence) -> Selection intersection;
+        }},
+        "invalid set table operation or signature",
+    );
+    rejects(
+        quote! {mod bad {
+            category Atom();
+            construction Atom: Atom { form [head: lexical(Noun)]; }
+            feature Licence { Adjunct } set;
+            frame_marker_licence Predicate(Preposition) = unknown;
+        }},
+        "unknown frame marker licence table",
+    );
+    rejects(
+        quote! {mod bad {
+            category Atom();
+            construction Atom: Atom { form [head: lexical(Noun)]; }
+            feature Licence { Adjunct } set;
+            feature Selection { Yes }
+            table licence() -> Selection contains Adjunct => Yes;
+        }},
+        "a feature table requires inputs and rows",
+    );
+}

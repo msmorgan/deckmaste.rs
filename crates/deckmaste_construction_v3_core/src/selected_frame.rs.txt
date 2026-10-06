@@ -22,7 +22,7 @@ enum FrameHead<'a> {
 enum FrameGuard {
     Any,
     Head(usize),
-    Marker(usize),
+    Marker(usize, Option<(usize, TableOperation, FeatureValue)>),
 }
 
 #[derive(Clone)]
@@ -540,7 +540,7 @@ impl Grammar {
                     rule.checks.clear();
                     rule.release.clear();
                     for item in layout {
-                        item.symbols(&mut shape, &mut rule);
+                        item.symbols(&mut shape, &mut rule, &self.programs[program].kind);
                     }
                     // A segment omits the selecting head and its preceding separator.
                     if !shape.is_empty() {
@@ -576,7 +576,7 @@ impl Grammar {
                             .iter()
                             .enumerate()
                             .filter_map(|(slot, guard)| {
-                                if let FrameGuard::Marker(class) = guard {
+                                if let FrameGuard::Marker(class, _) = guard {
                                     Some((slot, *class))
                                 } else {
                                     None
@@ -608,7 +608,7 @@ impl Grammar {
                     rule.guards = vec![FrameGuard::Head(canonical)];
                     let mut symbols = vec![self.productions[template].symbols[0].clone()];
                     for item in layout {
-                        item.symbols(&mut symbols, &mut rule);
+                        item.symbols(&mut symbols, &mut rule, &self.programs[program].kind);
                     }
                     self.productions.push(::deckmaste_english_v3::Production {
                         category: self.productions[template].category,
@@ -769,6 +769,7 @@ impl FrameLayout {
         &self,
         symbols: &mut Vec<::deckmaste_english_v3::Symbol<Category>>,
         rule: &mut Rule,
+        kind: &str,
     ) {
         fn append(
             symbols: &mut Vec<::deckmaste_english_v3::Symbol<Category>>,
@@ -796,13 +797,13 @@ impl FrameLayout {
                 symbols,
                 rule,
                 ::deckmaste_english_v3::Symbol::Lexical(*pos),
-                FrameGuard::Marker(*class),
+                FrameGuard::Marker(*class, frame_marker_licence(kind, *pos)),
             ),
             Self::Marked(class, pos, category) => {
-                Self::Marker(*class, *pos).symbols(symbols, rule);
-                Self::Argument(*category).symbols(symbols, rule);
+                Self::Marker(*class, *pos).symbols(symbols, rule, kind);
+                Self::Argument(*category).symbols(symbols, rule, kind);
             }
-            Self::Optional(Some(item)) => item.symbols(symbols, rule),
+            Self::Optional(Some(item)) => item.symbols(symbols, rule, kind),
             Self::Optional(None) => {}
         }
     }

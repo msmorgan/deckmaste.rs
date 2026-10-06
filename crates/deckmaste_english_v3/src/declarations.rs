@@ -21,7 +21,19 @@ constructions! {
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase, None }
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
-        feature AdverbialUse { Yes, No }
+        feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
+            AdjectiveComplement, PredicativeComplement, Compound, ComparativeComplement } set;
+        feature CompoundComplementMarker { Of }
+        table licence_adjunct(PrepositionFunctionLicence) -> Selection contains Adjunct => Yes;
+        table licence_modifier(PrepositionFunctionLicence) -> Selection contains Modifier => Yes;
+        table licence_noun_complement(PrepositionFunctionLicence) -> Selection contains NounComplement => Yes;
+        table licence_verb_complement(PrepositionFunctionLicence) -> Selection contains VerbComplement => Yes;
+        table licence_adjective_complement(PrepositionFunctionLicence) -> Selection contains AdjectiveComplement => Yes;
+        table licence_predicative_complement(PrepositionFunctionLicence) -> Selection contains PredicativeComplement => Yes;
+        table licence_compound(PrepositionFunctionLicence) -> Selection contains Compound => Yes;
+        table coordinated_preposition_licence(PrepositionFunctionLicence, PrepositionFunctionLicence)
+            -> PrepositionFunctionLicence intersection;
+        frame_marker_licence Predicate(Preposition) = licence_verb_complement;
         feature FrequencyUnit { Yes }
         feature FiniteClauseComplement { Yes }
         feature GerundClauseComplement { Yes }
@@ -32,6 +44,7 @@ constructions! {
         feature AdjectiveStructure { Simple, Complemented }
         feature RelativeSubordinator { Yes }
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
+        feature PastParticipialPremodifier { No, Yes } default No;
         feature AuxiliaryComplementRealization { Overt, Elided }
         feature ScalarVariable { Yes }
         feature MeasureOperator { Yes }
@@ -72,7 +85,7 @@ constructions! {
         feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
-        feature PredicativeKind { Adjectival, Nominal, Mixed }
+        feature PredicativeKind { Adjectival, Nominal, Prepositional, Mixed }
         feature DepictiveKind { Adjectival, Participial, Mixed }
         feature NominalLicense { AnyNominal }
         feature KeywordComplement { Yes }
@@ -106,13 +119,14 @@ constructions! {
         category VerbalPremodifierSeries();
         category NounPremodifier();
         category NounPremodifierSeries();
+        category PartitiveModifier();
         category NounPhrase(number, person, CaseUse, Targeting);
         category NominativePhrase(number, person, CaseUse);
         category AccusativePhrase(number, person, CaseUse);
         category AdjectivePhrase(AdjectiveStructure);
         category Name();
         category NamePredicate();
-        category PrepositionPhrase(LocativeUse, AdverbialUse, ObliqueNumber,
+        category PrepositionPhrase(LocativeUse, PrepositionFunctionLicence, ObliqueNumber,
             InternalisedComplementMarker);
         category LocativeComplement();
         category FrequencyPhrase();
@@ -184,7 +198,7 @@ constructions! {
             NumberTransparency, ObliqueNumber, CoordinationKind
         );
         category AdjectivePhraseSeries(AdjectiveStructure);
-        category PrepositionPhraseSeries(LocativeUse, AdverbialUse, ObliqueNumber, CoordinationKind,
+        category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct);
         category InfinitiveComplementSeries();
@@ -200,7 +214,7 @@ constructions! {
             InternalisedComplementPresent);
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind);
-        category CorrelativePrepositionPhraseSeries(LocativeUse, AdverbialUse, ObliqueNumber, CoordinationKind,
+        category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
             CorrelativeCoordinator);
@@ -218,9 +232,9 @@ constructions! {
         category CorrelativeAdjectiveSeries(CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(number, person, CorrelativeCoordinator);
         category CorrelativeBareObjectGapSeries(CorrelativeCoordinator);
-        category SelectedPrepositionHead(LocativeUse, AdverbialUse, HeadCoordination,
+        category SelectedPrepositionHead(LocativeUse, PrepositionFunctionLicence, HeadCoordination,
             InternalisedComplementMarker);
-        category SelectedPrepositionHeadSeries(LocativeUse, AdverbialUse, InternalisedComplementMarker);
+        category SelectedPrepositionHeadSeries(LocativeUse, PrepositionFunctionLicence, InternalisedComplementMarker);
         category CorrelativeFiniteClauseSeries(CorrelativeCoordinator);
 
         frame_category NounPhrase = AccusativePhrase;
@@ -557,7 +571,7 @@ constructions! {
 
         policy PrepositionHeadPermissions {
             export InternalisedComplementMarker = head.InternalisedComplementMarker;
-            export AdverbialUse = head.AdverbialUse;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
             export LocativeUse = head.LocativeUse;
         }
 
@@ -654,7 +668,7 @@ constructions! {
         policy ObliquePrepositionConcord<Right, Source> {
             export InternalisedComplementMarker = complement_marker_concord(
                 left.InternalisedComplementMarker, Right.InternalisedComplementMarker);
-            export AdverbialUse = coordinated_adverbial_use(left.AdverbialUse, Right.AdverbialUse);
+            export PrepositionFunctionLicence = coordinated_preposition_licence(left.PrepositionFunctionLicence, Right.PrepositionFunctionLicence);
             export LocativeUse = coordinated_locative_use(left.LocativeUse, Right.LocativeUse);
             export ObliqueNumber = coordinated_oblique(Source.CoordinationKind,
                 left.ObliqueNumber, Right.ObliqueNumber);
@@ -663,7 +677,7 @@ constructions! {
         policy PrepositionPermissions<Right, Source> {
             export InternalisedComplementMarker = complement_marker_concord(
                 left.InternalisedComplementMarker, Right.InternalisedComplementMarker);
-            export AdverbialUse = coordinated_adverbial_use(left.AdverbialUse, Right.AdverbialUse);
+            export PrepositionFunctionLicence = coordinated_preposition_licence(left.PrepositionFunctionLicence, Right.PrepositionFunctionLicence);
             export LocativeUse = coordinated_locative_use(left.LocativeUse, Right.LocativeUse);
         }
 
@@ -766,7 +780,7 @@ constructions! {
 
         schema PrepositionPredicate {
             form [head: node, " ", modifier: node];
-            require modifier.AdverbialUse = Yes;
+            require licence_adjunct(modifier.PrepositionFunctionLicence) = Yes;
         }
 
         // CGEL Ch. 16 §10.1.1: this function belongs to the embedded Bare Passive.
@@ -1302,12 +1316,12 @@ constructions! {
 
         construction InitialPreposition: Clause {
             form [dependent: PrepositionPhrase, ", ", clause: Clause];
-            require dependent.AdverbialUse = Yes;
+            require licence_adjunct(dependent.PrepositionFunctionLicence) = Yes;
         }
 
         construction ClausalPreposition: Clause {
             form [clause: Clause, " ", dependent: PrepositionPhrase];
-            require dependent.AdverbialUse = Yes;
+            require licence_adjunct(dependent.PrepositionFunctionLicence) = Yes;
         }
 
         construction ClauseCoordination: Clause {
@@ -1445,6 +1459,7 @@ constructions! {
                 complement: CostSymbols];
             require head.frame = NominalSymbols;
             require marker.NominalComplementMarker = Of;
+            require licence_noun_complement(marker.PrepositionFunctionLicence) = Yes;
             use UnmodifiedNominalProperties;
         }
 
@@ -1519,10 +1534,15 @@ constructions! {
             require modifier.AdjectiveStructure = Complemented;
         }
 
+        // CGEL Ch. 5 §14.2, p. 444: participial VPs can premodify a noun.
+        table verbal_premodifier(form, frame, PastParticipialPremodifier) -> Selection {
+            (GerundParticiple, Intransitive, No) => Yes,
+            (GerundParticiple, Intransitive, Yes) => Yes,
+            (PastParticiple, Transitive, Yes) => Yes,
+        }
         construction VerbalPremodifier: VerbalPremodifier {
             form [head: lexical(Verb)];
-            require head.form = GerundParticiple;
-            require head.frame = Intransitive;
+            require verbal_premodifier(head.form, head.frame, head.PastParticipialPremodifier) = Yes;
         }
 
         construction ParticipialPremodifier: Nominal {
@@ -1571,8 +1591,26 @@ constructions! {
 
         construction PostmodifiedNominal: Nominal {
             form [head: Nominal, " ", modifier: PrepositionPhrase];
+            require licence_modifier(modifier.PrepositionFunctionLicence) = Yes;
             use NominalHeadCore;
             export ObliqueNumber = nominal_oblique(head.ObliqueNumber, modifier.ObliqueNumber);
+        }
+
+        table partitive_oblique(ObliqueNumber) -> Selection {
+            (Singular) => Yes, (Plural) => Yes,
+        }
+        construction PartitiveModifier: PartitiveModifier {
+            form [" ", phrase: PrepositionPhrase];
+            require licence_modifier(phrase.PrepositionFunctionLicence) = Yes;
+        }
+        construction PartitiveNounPhrase: NounPhrase {
+            form [quantity: Cardinal, " ", complement: PrepositionPhrase,
+                modifiers: repeat(PartitiveModifier, "")];
+            require partitive_oblique(complement.ObliqueNumber) = Yes;
+            require licence_noun_complement(complement.PrepositionFunctionLicence) = Yes;
+            export number = quantity.number;
+            export Targeting = No;
+            use ThirdPersonCommonCase;
         }
 
         construction DeterminedNounPhrase: NounPhrase {
@@ -1662,7 +1700,7 @@ constructions! {
             require head.FiniteClauseComplement = Yes;
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
-            export AdverbialUse = Yes;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         // CGEL Ch. 8 §2.2: gerund-participials occur under means By independently
@@ -1675,9 +1713,25 @@ constructions! {
             use PrepositionHeadPermissions;
         }
 
+        construction PredicativePreposition: PredicativeComplement {
+            form [phrase: PrepositionPhrase];
+            require licence_predicative_complement(phrase.PrepositionFunctionLicence) = Yes;
+            require phrase.LocativeUse = No;
+            export PredicativeKind = Prepositional;
+        }
+        construction CompoundPrepositionPhrase: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", marker: lexical(Preposition), " ", complement: PrepositionPhrase];
+            agree head.CompoundComplementMarker = marker.CompoundComplementMarker;
+            require licence_compound(head.PrepositionFunctionLicence) = Yes;
+            export ObliqueNumber = None;
+            use PrepositionHeadPermissions;
+        }
+
+
         construction LocativeComplement: LocativeComplement {
             form [phrase: PrepositionPhrase];
             require phrase.LocativeUse = Yes;
+            require licence_predicative_complement(phrase.PrepositionFunctionLicence) = Yes;
         }
 
         construction AdjectivalComplement: PredicativeComplement {
@@ -1731,6 +1785,7 @@ constructions! {
             form [object: AccusativePhrase, " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
             require marker.PrepositionComplement = NounPhrase;
+            require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
             segment Predicate;
             export HeadCoordination = No;
         }
@@ -1749,6 +1804,7 @@ constructions! {
             form [head: lexical(Verb), " ", object: AccusativePhrase, " ",
                 marker: lexical(Preposition), " ", complement: AccusativePhrase];
             require selected_object_marker(head.frame, marker.KeywordMarker) = Yes;
+            require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
         }
         instance SelectedObjectPrepositionPredicate<Result, Properties>: [
             (FiniteDepictiveHost, FiniteHeadAgreement),
@@ -1760,6 +1816,7 @@ constructions! {
             form [head: lexical(Verb), " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
             require selected_object_marker(head.frame, marker.KeywordMarker) = Yes;
+            require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
         }
         policy PlainGapHead {
             require head.form = Plain;
@@ -1848,6 +1905,7 @@ constructions! {
             require head.NominalBareClass = Boundary;
             require head.number = Singular;
             require marker.NominalComplementMarker = Of;
+            require licence_noun_complement(marker.PrepositionFunctionLicence) = Yes;
             export NominalBareClass = Boundary;
         }
         construction BareTemporalPreposition: PrepositionPhrase {
@@ -2218,6 +2276,7 @@ constructions! {
                 measure: MeasurePhrase];
             require head.frame = Equality;
             require marker.ComparisonMarker = Equality;
+            require licence_adjective_complement(marker.PrepositionFunctionLicence) = Yes;
             require measure.MeasureKind = Scalar;
         }
 
@@ -2414,12 +2473,6 @@ constructions! {
             (No, No) => No,
         }
 
-        table coordinated_adverbial_use(AdverbialUse, AdverbialUse) -> AdverbialUse {
-            (Yes, Yes) => Yes,
-            (Yes, No) => No,
-            (No, Yes) => No,
-            (No, No) => No,
-        }
 
         table coordinated_final_adjunct(VPFinalAdjunct, VPFinalAdjunct) -> VPFinalAdjunct {
             (Yes, Yes) => Yes,
@@ -2450,7 +2503,7 @@ constructions! {
             require head.FiniteClauseComplement = Yes;
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
-            export AdverbialUse = Yes;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         table combined_predicative_kind(PredicativeKind, PredicativeKind) -> PredicativeKind {
@@ -2463,6 +2516,10 @@ constructions! {
             (Adjectival, Mixed) => Mixed,
             (Nominal, Mixed) => Mixed,
             (Mixed, Mixed) => Mixed,
+            (Prepositional, Prepositional) => Prepositional,
+            (Prepositional, Adjectival) => Mixed, (Adjectival, Prepositional) => Mixed,
+            (Prepositional, Nominal) => Mixed, (Nominal, Prepositional) => Mixed,
+            (Prepositional, Mixed) => Mixed, (Mixed, Prepositional) => Mixed,
         }
         table unlike_predicative_kind(PredicativeKind, PredicativeKind) -> PredicativeKind {
             (Adjectival, Nominal) => Mixed,

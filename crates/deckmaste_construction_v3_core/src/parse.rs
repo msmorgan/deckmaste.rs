@@ -21,6 +21,7 @@ pub(crate) struct Declaration {
     pub frames: Vec<(Ident, Frame)>,
     pub frame_categories: Vec<(Ident, Ident)>,
     pub tables: Vec<FeatureTable>,
+    pub frame_marker_licences: Vec<(Ident, Ident, Ident)>,
     pub constructions: Vec<Construction>,
     pub capitalization: Option<Ident>,
 }
@@ -34,6 +35,7 @@ pub(crate) struct Feature {
     pub name: Ident,
     pub values: Vec<Ident>,
     pub default: Option<Ident>,
+    pub set: bool,
 }
 
 pub(crate) struct FeatureTable {
@@ -41,6 +43,7 @@ pub(crate) struct FeatureTable {
     pub inputs: Vec<Ident>,
     pub output: Ident,
     pub rows: Vec<(Vec<Ident>, Ident)>,
+    pub operation: Option<(Ident, Option<(Ident, Ident)>)>,
 }
 
 #[derive(Clone)]
@@ -144,6 +147,7 @@ impl Parse for Declaration {
             frames: vec![],
             frame_categories: vec![],
             tables: vec![],
+            frame_marker_licences: vec![],
             constructions: vec![],
             capitalization: None,
         };
@@ -176,6 +180,11 @@ impl Parse for Declaration {
                     let values;
                     braced!(values in body);
                     let values = names(&values)?;
+                    let set = body.peek(Ident) && body.fork().parse::<Ident>()? == "set";
+                    if set {
+                        body.parse::<Ident>()?;
+                        body.parse::<Token![;]>()?;
+                    }
                     let default = if body.peek(Ident) && body.fork().parse::<Ident>()? == "default"
                     {
                         body.parse::<Ident>()?;
@@ -189,7 +198,18 @@ impl Parse for Declaration {
                         name,
                         values,
                         default,
+                        set,
                     });
+                }
+                "frame_marker_licence" => {
+                    let pos;
+                    parenthesized!(pos in body);
+                    let pos = pos.parse()?;
+                    body.parse::<Token![=]>()?;
+                    result
+                        .frame_marker_licences
+                        .push((name, pos, body.parse()?));
+                    body.parse::<Token![;]>()?;
                 }
                 "frame_category" => {
                     body.parse::<Token![=]>()?;
@@ -246,6 +266,24 @@ fn parse_table(input: ParseStream<'_>, name: Ident) -> syn::Result<FeatureTable>
     let inputs = names(&inputs)?;
     input.parse::<Token![->]>()?;
     let output = input.parse()?;
+    if input.peek(Ident) {
+        let operation: Ident = input.parse()?;
+        let parameters = if operation == "contains" {
+            let member = input.parse()?;
+            input.parse::<Token![=>]>()?;
+            Some((member, input.parse()?))
+        } else {
+            None
+        };
+        input.parse::<Token![;]>()?;
+        return Ok(FeatureTable {
+            name,
+            inputs,
+            output,
+            rows: vec![],
+            operation: Some((operation, parameters)),
+        });
+    }
     let rows;
     braced!(rows in input);
     let mut values = vec![];
@@ -265,6 +303,7 @@ fn parse_table(input: ParseStream<'_>, name: Ident) -> syn::Result<FeatureTable>
         inputs,
         output,
         rows: values,
+        operation: None,
     })
 }
 

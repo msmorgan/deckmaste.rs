@@ -142,6 +142,48 @@ They are provenance, not specification. This list of what they leave open was
 extracted from them on 2026-10-05; where it and a record disagree, the record
 is right and this list needs fixing.
 
+- Selected-preposition licensing deferrals (2026-10-06): prerequisites below
+  are owned here; `english-v3-selected-preposition-nominal-licensing` re-applies
+  each exclusion after the replacement analysis lands and attribution passes.
+- **with-A deferred**: consume Enter's declared
+  `Preposition(With), Object, Preposition(On), Complement` frame by reconciling
+  `Object`/`FrameComplement`; consume Exile's declared resultative frame and
+  declare/consume Return/Put resultative slots where selected. Preserve genuine
+  circumstantial With Adjuncts. Gravetiller Wurm, Flycatcher Giraffid and
+  Marketback Walker are witnesses. Re-application owner:
+  `english-v3-selected-preposition-nominal-licensing`.
+- **from-M deferred**: consume Put's legacy source-bearing frames and declare
+  consumable From source slots for Exile, Discard, Reveal, Choose and Cast.
+  Disposal Mummy, Game Trail and Gix's Caress witness missing source frames;
+  Return's optional source/controller frame is now consumable. Re-application
+  owner: `english-v3-selected-preposition-nominal-licensing`.
+- **from-A deferred**: declare/consume Enter's From source (Phyrexian Dragon
+  Engine, Dredging Claw, Triarch Praetorian) and Cast's pronominal-object source
+  (Furnace Dragon, Wakening Sun's Avatar); consume adjective Different's From
+  valence (Jason Bright, Glowing Prophet). Preserve genuine source Adjuncts.
+  Re-application owner: `english-v3-selected-preposition-nominal-licensing`.
+- **to-M deferred**: consume Addition's To Complement and fixed `in addition
+  to` composition (Don Andres, Neurok Transmuter, Blanket of Night); consume
+  Attach's existing Object-To-Object frame in reduced passives and Deal's
+  recipient gap under perfect auxiliaries (The Fallen). Re-application owner:
+  `english-v3-selected-preposition-nominal-licensing`.
+- **in-A deferred**: compose fixed `in addition to` with outer Adjunct scope
+  (Indigo Faerie); no selected In frame for Become is implied. Re-application
+  owner: `english-v3-selected-preposition-nominal-licensing`.
+- **for-M deferred**: compose Block's existing Object NP frame with the
+  distributive For-each Adjunct and reduced passive Attach-To (Kemba's Legion),
+  without inventing a selected For frame for Block. Re-application owner:
+  `english-v3-selected-preposition-nominal-licensing`.
+- **until-M deferred**: compose Exile's existing Object NP frame through
+  coordinated Objects with same-name comparisons and an outer duration Adjunct
+  (Deputy of Detention, Banishment); no selected Until frame is implied.
+  Re-application owner: `english-v3-selected-preposition-nominal-licensing`.
+- Cavalier of Thorns / Genesis Ultimatum destination composition, measured by
+  `english-v3-selected-preposition-nominal-licensing`: `among them` has one PP
+  Reading but `from among them` and both source-bearing Object NP fragments
+  have none. Consume a declared PP argument for From; the current
+  PrepositionComplement inventory has only None/NounPhrase. This is the
+  inherited PP-complement gap, not a lost face or a verb-frame licence failure.
 - Reduced if-able hosts.
 - Bound landwalk stems: the suffix keeps its lexical metadata but needs a
   declared compatible stem class before a generic bound-quality consumer can
@@ -156,7 +198,9 @@ is right and this list needs fixing.
   Reading; the auxiliary Object Gap witness (Absorbing Man and Titania) parses
   but is owed an independent whole expected-set test.
 - Rooting Moloch's intended keyword-name modification.
-- Return's legacy optional source/controller frame.
+- Return's legacy optional source/controller frame was corrected and made
+  consumable by `english-v3-selected-preposition-nominal-licensing`; Put's
+  legacy source-bearing forms remain open under the deferrals above.
 - The 19 verb frame shapes / 20 assignments the generic frame consumer
   (`english-v3-generic-frame-consumption`, done) still reports as unsupported; see
   the `### Unsupported inventory and owners` table in
@@ -177,8 +221,8 @@ is right and this list needs fixing.
   neither number on 2026-10-06 (the *becomes* version does). CGEL Ch. 8 §5.4,
   pp. 693-694 treats *be* + NP as scalar location; a copula gap, not a concord one.
 - Compound/split lexical ambiguity: "untap step" is read both as one compound
-  lexeme and as *untap* + *step*, doubling every Reading of Seedborn Muse (8
-  instead of 3 attachments). Decide whether declared game-term compounds should
+  lexeme and as *untap* + *step*, doubling every Reading of Seedborn Muse (the selected-preposition
+  landing re-spells its attachment set to two and retires the nominal third). Decide whether declared game-term compounds should
   suppress the split analysis; CGEL Ch. 5 §14.4 (compound nouns) is the authority
   to consult.
 - Tooling: `cargo xtask english-v3 probe` does not print Noun Phrase Agreement

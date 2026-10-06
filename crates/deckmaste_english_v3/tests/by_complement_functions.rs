@@ -491,8 +491,8 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
     };
     let text = "cast artifact spells from your graveyard by paying 3 life in addition to paying their other costs";
     laws(&intended, text);
-    laws(&contrast, text);
-    assert_ne!(intended, contrast);
+    assert!(contrast.admit(lexicon()).is_err());
+    assert!(!readings(text, Category::SecondaryVerbPhrase).contains(&contrast));
 
     assert_constituents(
         NOCTIS,

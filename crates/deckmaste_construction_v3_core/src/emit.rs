@@ -80,7 +80,8 @@ fn grammar(ir: &Ir) -> TokenStream {
             let rows = ir.tables[export.table].rows.iter().map(|(inputs, output)| {
                 quote!((vec![#(#inputs),*], #output))
             });
-            quote!(TableExport { feature: #feature, registers: vec![#(#registers),*], rows: vec![#(#rows),*] })
+            let operation = ir.tables[export.table].operation.as_ref().map_or_else(|| quote!(None), |op|quote!(Some(#op)));
+            quote!(TableExport { operation: #operation, feature: #feature, registers: vec![#(#registers),*], rows: vec![#(#rows),*] })
         });
         let table_requirements = rule.table_requirements.iter().map(|requirement| {
             let registers = &requirement.registers;
@@ -88,7 +89,8 @@ fn grammar(ir: &Ir) -> TokenStream {
             let rows = ir.tables[requirement.table].rows.iter().map(|(inputs, output)| {
                 quote!((vec![#(#inputs),*], #output))
             });
-            quote!(TableRequirement { registers: vec![#(#registers),*], rows: vec![#(#rows),*], expected: #expected })
+            let operation = ir.tables[requirement.table].operation.as_ref().map_or_else(|| quote!(None), |op|quote!(Some(#op)));
+            quote!(TableRequirement { operation: #operation, registers: vec![#(#registers),*], rows: vec![#(#rows),*], expected: #expected })
         });
         let segments = match &rule.segments {
             Some(crate::ir::Segments::Build(kind)) => quote!(SegmentRule::Build { kind: #kind.into(), candidates: vec![] }),
@@ -158,7 +160,14 @@ fn grammar(ir: &Ir) -> TokenStream {
                     quote!(#text => Some(Category::#name))
                 }),
         );
+    let marker_licences = ir.frame_marker_licences.iter().map(|(kind, pos, feature, operation, expected)|{
+        let pos = format_ident!("{pos}");
+        quote!((#kind, ::deckmaste_lexical::Category::#pos) => Some((#feature, #operation, #expected)))
+    });
     quote! {
+        fn frame_marker_licence(kind: &str, pos: ::deckmaste_lexical::Category) -> Option<(usize, TableOperation, FeatureValue)> {
+            match (kind, pos) { #(#marker_licences,)* _ => None }
+        }
         const SELECTED_FRAME_TEMPLATES: &[(usize, &str)] = &[#(#templates),*];
         const REQUIRES_ENVIRONMENT: bool = #required;
         impl Default for Grammar {
@@ -184,6 +193,24 @@ fn projection(ir: &Ir) -> TokenStream {
                 let field = format_ident!("{}", domain.name);
                 let ty = format_ident!("{ty}");
                 Some(quote!(base.values[#index] = features.#field.map(FeatureValue::#ty);))
+            }
+            DomainKind::Set => {
+                let name = &domain.name;
+                let values = domain.values.iter().enumerate().map(|(bit, name)| {
+                    let mask = 1usize << bit;
+                    quote!(#name => Some(#mask))
+                });
+                Some(
+                    quote!(base.values[#index] = properties.features.get(#name).and_then(|value| {
+                    let mut mask = 0usize;
+                    if value != "None" {
+                        for member in value.split('|') {
+                            mask |= match member { #(#values,)* _ => None }?;
+                        }
+                    }
+                    Some(FeatureValue::Set(#index, mask))
+                });),
+                )
             }
             DomainKind::Custom { default } => {
                 let name = &domain.name;

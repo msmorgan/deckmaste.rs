@@ -22,6 +22,7 @@ pub(crate) struct Ir {
     pub frames: Vec<(Ident, Frame)>,
     pub frame_categories: Vec<(Ident, usize)>,
     pub tables: Vec<FeatureTable>,
+    pub frame_marker_licences: Vec<(String, String, usize, TokenStream, TokenStream)>,
     pub categories: Vec<Ident>,
     pub public_categories: usize,
     pub constructors: Vec<Constructor>,
@@ -44,6 +45,7 @@ pub(crate) enum DomainKind {
     Framing,
     Onset,
     Custom { default: Option<usize> },
+    Set,
 }
 
 pub(crate) struct FeatureTable {
@@ -51,6 +53,7 @@ pub(crate) struct FeatureTable {
     pub inputs: Vec<usize>,
     pub output: usize,
     pub rows: Vec<(Vec<TokenStream>, TokenStream)>,
+    pub operation: Option<TokenStream>,
 }
 
 #[derive(Clone)]
@@ -255,7 +258,17 @@ fn validate_features(declared: &[crate::parse::Feature]) -> syn::Result<Vec<Doma
         features.push(Domain {
             name: feature.name.to_string(),
             values: feature.values.iter().map(ToString::to_string).collect(),
-            kind: DomainKind::Custom { default },
+            kind: if feature.set {
+                if feature.values.len() > usize::BITS as usize || default.is_some() {
+                    return Err(error(
+                        &feature.name,
+                        "set features require at most usize::BITS members and no scalar default",
+                    ));
+                }
+                DomainKind::Set
+            } else {
+                DomainKind::Custom { default }
+            },
         });
     }
     Ok(features)
@@ -402,23 +415,53 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         frames,
         frame_categories,
         tables: vec![],
+        frame_marker_licences: vec![],
         categories,
         public_categories,
         constructors,
         rules: vec![],
     };
     validate_tables(&mut ir, declaration.tables)?;
+    validate_marker_licences(&mut ir, declaration.frame_marker_licences)?;
     normalize(&mut ir, &declaration.constructions, &interfaces)?;
     check_recursion(&ir)?;
     merge_schemas(&mut ir)?;
     Ok(ir)
 }
 
+fn validate_marker_licences(ir: &mut Ir, licences: Vec<(Ident, Ident, Ident)>) -> syn::Result<()> {
+    for (kind, pos, table_name) in licences {
+        let table = ir
+            .tables
+            .iter()
+            .find(|table| table.name == table_name)
+            .ok_or_else(|| error(&table_name, "unknown frame marker licence table"))?;
+        if table.inputs.len() != 1 {
+            return Err(error(&table_name, "frame marker licence must be unary"));
+        }
+        let operation = table.operation.clone().ok_or_else(|| {
+            error(
+                &table_name,
+                "frame marker licence requires a set containment table",
+            )
+        })?;
+        let expected = value(ir, table.output, &Ident::new("Yes", table_name.span()))?;
+        ir.frame_marker_licences.push((
+            kind.to_string(),
+            pos.to_string(),
+            table.inputs[0],
+            operation,
+            expected,
+        ));
+    }
+    Ok(())
+}
+
 fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn::Result<()> {
     let mut table_names = BTreeSet::new();
     for table in tables {
         reserve(&mut table_names, &table.name)?;
-        if table.inputs.is_empty() || table.rows.is_empty() {
+        if table.inputs.is_empty() || (table.rows.is_empty() && table.operation.is_none()) {
             return Err(error(
                 &table.name,
                 "a feature table requires inputs and rows",
@@ -430,6 +473,34 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
             .map(|name| feature_index(&ir.features, name))
             .collect::<syn::Result<_>>()?;
         let output = feature_index(&ir.features, &table.output)?;
+        let operation = if let Some((name, parameters)) = table.operation {
+            let feature = *inputs
+                .first()
+                .ok_or_else(|| error(&name, "set operation requires an input feature"))?;
+            if !matches!(ir.features[feature].kind, DomainKind::Set) {
+                return Err(error(&name, "set operation requires a set feature"));
+            }
+            match (name.to_string().as_str(), parameters) {
+                ("contains", Some((member, result))) if inputs.len() == 1 => {
+                    let index = ir.features[feature]
+                        .values
+                        .iter()
+                        .position(|value| value == &member.to_string())
+                        .ok_or_else(|| error(&member, "unknown set member"))?;
+                    let mask = 1usize << index;
+                    let result = value(ir, output, &result)?;
+                    Some(quote!(TableOperation::Contains(#feature, #mask, #result)))
+                }
+                ("intersection", None)
+                    if inputs.len() == 2 && inputs[1] == feature && output == feature =>
+                {
+                    Some(quote!(TableOperation::Intersection(#feature)))
+                }
+                _ => return Err(error(&name, "invalid set table operation or signature")),
+            }
+        } else {
+            None
+        };
         let mut seen = BTreeSet::new();
         let mut rows = vec![];
         for (arguments, result) in table.rows {
@@ -456,6 +527,7 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
             inputs,
             output,
             rows,
+            operation,
         });
     }
     Ok(())
@@ -737,6 +809,10 @@ fn value(ir: &Ir, feature: usize, name: &Ident) -> syn::Result<TokenStream> {
         DomainKind::Onset => {
             let value = format_ident!("{}", domain.values[index]);
             quote!(FeatureValue::Onset(::deckmaste_lexical::Onset::#value))
+        }
+        DomainKind::Set => {
+            let mask = 1usize << index;
+            quote!(FeatureValue::Set(#feature, #mask))
         }
         DomainKind::Custom { .. } => quote!(FeatureValue::Custom(#feature, #index)),
     })
