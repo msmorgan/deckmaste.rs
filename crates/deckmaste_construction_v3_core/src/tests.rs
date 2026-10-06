@@ -9,6 +9,45 @@ fn rejects(input: proc_macro2::TokenStream, expected: &str) {
 }
 
 #[test]
+fn surface_requirements_reject_exports_and_invalid_features() {
+    rejects(
+        quote! { mod bad {
+            category Atom();
+            construction Atom: Atom {
+                form [word: lexical(Noun)] export number = word.number;
+            }
+        } },
+        "a surface form may add only feature requirements",
+    );
+    rejects(
+        quote! { mod bad {
+            category Atom();
+            construction Atom: Atom {
+                form [word: lexical(Noun)] require word.number = First;
+            }
+        } },
+        "not a value of feature number",
+    );
+}
+
+#[test]
+fn surface_requirements_distinguish_forms_without_defeating_normalization() {
+    let declaration = quote! { mod valid {
+        category Atom();
+        construction Atom: Atom {
+            form [word: lexical(Noun)] require word.number = Singular;
+            form ["", word: lexical(Noun)] require word.number = Singular;
+            form [word: lexical(Noun)] require word.number = Plural;
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    assert_eq!(ir.constructors[0].forms.len(), 2);
+    assert_eq!(ir.constructors[0].forms[0].index, 0);
+    assert_eq!(ir.constructors[0].forms[1].index, 1);
+    compile(declaration).unwrap();
+}
+
+#[test]
 fn custom_feature_defaults_are_explicit_typed_and_cannot_replace_builtins() {
     compile(quote! {
         mod valid {

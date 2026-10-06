@@ -94,7 +94,20 @@ A bound morpheme that combines with a word or stem, as the prefix *non-* does.
 **Clitic**:
 A grammatical element that attaches to an adjacent host while taking its
 syntactic position independently of that host's word structure. The English
-genitive ending attaches at the edge of a phrase.
+genitive ending attaches at the edge of a phrase. Clitic auxiliaries are
+unstressed versions of tensed auxiliary forms; auxiliary stranding requires a
+strong form (CGEL, Ch. 18 §§6.1–6.2, pp. 1614–1616).
+
+**Clitic Host**:
+The adjacent expression to which a Clitic attaches. Present auxiliary clitics
+other than the third-person singular require a pronoun that is itself the
+Subject; third-person singular and preterite clitics also permit phrase hosts
+(CGEL, Ch. 18 §6.2, pp. 1615–1616).
+
+**Subject Structure** (project term):
+The distinction between a pronoun that is itself the Subject and a larger
+Subject containing a pronoun or other constituents; a coordinated Subject is
+of the latter kind (CGEL, Ch. 18 §6.2, p. 1615).
 
 **Capitalization**:
 The use of uppercase and lowercase letters in a written expression.
@@ -387,6 +400,12 @@ higher auxiliary and clause structure is added.
 An ordered lexical schema describing the complements and fixed markers a verb
 licenses.
 _Avoid_: Verb Phrase for the schema; Verb Frame for an instantiated phrase
+
+**Predicate Frame Use** (project term):
+The lexical licence for a Verb Frame in Predicate function, distinct from an
+auxiliary's selection of a secondary Verb Phrase. Clitic perfect *have* retains
+the auxiliary use; American English stative and dynamic *have* are lexical
+uses without clitic forms (CGEL, Ch. 3 §§2.1.5, 2.5.6, pp. 102, 111–113).
 
 **Frame Slot** (project term):
 One position in a Verb Frame: the grammatical relation the position bears —

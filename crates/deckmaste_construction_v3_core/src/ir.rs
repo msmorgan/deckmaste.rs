@@ -539,7 +539,6 @@ fn normalize(
     interfaces: &[BTreeSet<usize>],
 ) -> syn::Result<()> {
     for (index, construction) in constructions.iter().enumerate() {
-        let plan = equations(ir, index, interfaces, &construction.equations)?;
         if let Some(boundary) = &construction.boundary
             && boundary != "Initial"
             && boundary != "Interior"
@@ -559,7 +558,15 @@ fn normalize(
         for (_, ty) in ir.constructors[index].fields.clone() {
             field_symbols.push(normalize_field(ir, &ty));
         }
-        for parts in &construction.forms {
+        let mut canonical_requirements = vec![];
+        for (parts, requirements) in construction
+            .forms
+            .iter()
+            .zip(&construction.form_requirements)
+        {
+            let mut obligations = construction.equations.clone();
+            obligations.extend(requirements.iter().cloned());
+            let plan = equations(ir, index, interfaces, &obligations)?;
             if parts.iter().any(|p| {
                 matches!(
                     p,
@@ -589,10 +596,9 @@ fn normalize(
                 }
             }
             let pieces = normalize_form(parts, &ir.constructors[index].fields);
-            let canonical = ir.constructors[index]
-                .forms
-                .iter()
-                .position(|f| f.pieces == pieces);
+            let canonical = ir.constructors[index].forms.iter().position(|f| {
+                f.pieces == pieces && canonical_requirements[f.index] == *requirements
+            });
             let form_index = canonical.unwrap_or(ir.constructors[index].forms.len());
             let mut symbols = vec![];
             let mut slots = vec![0; ir.constructors[index].fields.len()];
@@ -659,6 +665,7 @@ fn normalize(
                 },
             });
             if canonical.is_none() {
+                canonical_requirements.push(requirements.clone());
                 let category = ir.constructors[index].category;
                 let fields = ir.constructors[index].fields.clone();
                 ir.constructors[index].forms.push(Form {

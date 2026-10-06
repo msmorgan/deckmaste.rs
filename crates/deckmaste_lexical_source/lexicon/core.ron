@@ -1048,7 +1048,7 @@
         ),
         (
             id: "core-verb:BeContracted", lemma: "'s", category: Verb,
-            properties: (countability: [], features: {"Contraction": "Yes"}, frames: [(kind: "Predicate", items: [Argument((relation: Complement, category: "PredicativeComplement"))])]),
+            properties: (countability: [], features: {"Contraction": "Yes", "Clitic": "Yes"}, frames: [(kind: "Predicate", items: [Argument((relation: Complement, category: "PredicativeComplement"))])]),
             forms: [
                 (form: Present, features: (number: Some(Singular), person: Some(First), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["'m", "’m"])),
                 (form: Present, features: (number: Some(Singular), person: Some(Second), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["'re", "’re"])),
@@ -1062,7 +1062,9 @@
         ),
         (
             id: "core-verb:HaveContracted", lemma: "'ve", category: Verb,
-            properties: (countability: [], features: {"Contraction": "Yes"}, frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "PastParticiplePredicate"))])]),
+            // CGEL Ch. 3 §2.5.6, pp. 111–113: AmE stative and dynamic have
+            // are lexical; the clitic realizes the perfect auxiliary use.
+            properties: (countability: [], features: {"Contraction": "Yes", "Clitic": "Yes", "PredicateFrameUse": "No"}, frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "PastParticiplePredicate"))])]),
             forms: [
                 (form: Present, features: (number: Some(Singular), person: Some(First), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["'ve", "’ve"])),
                 (form: Present, features: (number: Some(Singular), person: Some(Second), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["'ve", "’ve"])),

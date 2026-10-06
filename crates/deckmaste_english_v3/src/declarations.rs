@@ -49,6 +49,10 @@ constructions! {
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
         feature PastParticipialPremodifier { No, Yes } default No;
         feature AuxiliaryComplementRealization { Overt, Elided }
+        feature Clitic { No, Yes } default No;
+        feature CliticHost { Free, Subject, PronounSubject }
+        feature SubjectStructure { Phrase, Pronoun }
+        feature PredicateFrameUse { No, Yes } default Yes;
         feature ScalarVariable { Yes }
         feature MeasureOperator { Yes }
         feature MeasurePosition { None, Before, After } default None;
@@ -104,9 +108,9 @@ constructions! {
         category Sentence();
         category Clause();
         category FiniteClause();
-        category FinitePredicate(number, person);
+        category FinitePredicate(number, person, CliticHost);
         category SecondaryVerbPhrase(form, ParticipialUse, InternalisedComplementPresent);
-        category FiniteDepictiveHost(number, person);
+        category FiniteDepictiveHost(number, person, CliticHost);
         category SecondaryDepictiveHost(form, ParticipialUse, InternalisedComplementPresent);
         category BarePredicate();
         category ParticipialPredicate();
@@ -125,8 +129,8 @@ constructions! {
         category NounPremodifier();
         category NounPremodifierSeries();
         category PartitiveModifier();
-        category NounPhrase(number, person, CaseUse, Targeting, BareGenitiveHost);
-        category NominativePhrase(number, person, CaseUse);
+        category NounPhrase(number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure);
+        category NominativePhrase(number, person, CaseUse, SubjectStructure);
         category AccusativePhrase(number, person, CaseUse);
         category AdjectivePhrase(AdjectiveStructure);
         category Name();
@@ -140,7 +144,7 @@ constructions! {
         category BoundaryComplement();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause();
-        category FiniteObjectGap(number, person);
+        category FiniteObjectGap(number, person, CliticHost);
         category BareObjectGap();
         category Cardinal(number);
         category QuantitativeDeterminer(number);
@@ -183,14 +187,14 @@ constructions! {
         category Subtypes();
         category SubtypeContinuation();
         category ClauseSeries();
-        category FinitePredicateSeries(number, person);
+        category FinitePredicateSeries(number, person, CliticHost);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent);
-        category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost);
+        category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct);
         category InfinitiveComplement();
-        category FiniteSelectedHead(number, person, FrameUse, HeadCoordination);
+        category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost);
         category SecondarySelectedHead(form, FrameUse, HeadCoordination);
-        category FiniteSelectedHeadSeries(number, person, FrameUse);
+        category FiniteSelectedHeadSeries(number, person, FrameUse, CliticHost);
         category SecondarySelectedHeadSeries(form, FrameUse);
         category ManaPhraseSeries();
         category CardinalSeries(number, CoordinationKind);
@@ -208,17 +212,17 @@ constructions! {
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
-        category FiniteObjectGapSeries(number, person);
+        category FiniteObjectGapSeries(number, person, CliticHost);
         category BareObjectGapSeries();
         category CoordinatedFiniteClause();
         category FiniteClauseSeries();
         category PredicativeComplementSeries(PredicativeKind);
         category CorrelativeClauseSeries(CorrelativeCoordinator);
-        category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator);
+        category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator, CliticHost);
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent);
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
-            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost);
+            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure);
         category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
@@ -231,11 +235,11 @@ constructions! {
         category CorrelativeQuotedTextSeries(CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(CorrelativeCoordinator);
         category CorrelativeFiniteSelectedHeadSeries(number, person, FrameUse,
-            CorrelativeCoordinator);
+            CorrelativeCoordinator, CliticHost);
         category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator);
         category CorrelativeAdjectivePhrase();
         category CorrelativeAdjectiveSeries(CorrelativeCoordinator);
-        category CorrelativeFiniteObjectGapSeries(number, person, CorrelativeCoordinator);
+        category CorrelativeFiniteObjectGapSeries(number, person, CorrelativeCoordinator, CliticHost);
         category CorrelativeBareObjectGapSeries(CorrelativeCoordinator);
         category SelectedPrepositionHead(LocativeUse, PrepositionFunctionLicence, HeadCoordination,
             InternalisedComplementMarker);
@@ -249,6 +253,7 @@ constructions! {
 
         schema SelectedPredicate {
             form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
+            require head.PredicateFrameUse = Yes;
         }
         instance SelectedPredicate<Result, Properties>: [
             (FinitePredicate, FiniteHeadAgreement),
@@ -484,7 +489,52 @@ constructions! {
             (InfinitiveSelection) => Infinitive,
         }
 
+        // CGEL Ch. 18 §6.2, pp. 1615–1616: the third-person singular present
+        // and preterite clitics admit phrase hosts; other present cells need a
+        // pronoun that is itself the Subject.
+        table clitic_host(Clitic, form, number, person) -> CliticHost {
+            (No, Present, Singular, First) => Free,
+            (No, Present, Singular, Second) => Free,
+            (No, Present, Singular, Third) => Free,
+            (No, Present, Plural, First) => Free,
+            (No, Present, Plural, Second) => Free,
+            (No, Present, Plural, Third) => Free,
+            (No, Preterite, Singular, First) => Free,
+            (No, Preterite, Singular, Second) => Free,
+            (No, Preterite, Singular, Third) => Free,
+            (No, Preterite, Plural, First) => Free,
+            (No, Preterite, Plural, Second) => Free,
+            (No, Preterite, Plural, Third) => Free,
+            (Yes, Present, Singular, First) => PronounSubject,
+            (Yes, Present, Singular, Second) => PronounSubject,
+            (Yes, Present, Singular, Third) => Subject,
+            (Yes, Present, Plural, First) => PronounSubject,
+            (Yes, Present, Plural, Second) => PronounSubject,
+            (Yes, Present, Plural, Third) => PronounSubject,
+            (Yes, Preterite, Singular, First) => Subject,
+            (Yes, Preterite, Singular, Second) => Subject,
+            (Yes, Preterite, Singular, Third) => Subject,
+            (Yes, Preterite, Plural, First) => Subject,
+            (Yes, Preterite, Plural, Second) => Subject,
+            (Yes, Preterite, Plural, Third) => Subject,
+        }
+        table clitic_subject(SubjectStructure, CliticHost) -> Selection {
+            (Phrase, Free) => Yes, (Pronoun, Free) => Yes,
+            (Phrase, Subject) => Yes, (Pronoun, Subject) => Yes,
+            (Pronoun, PronounSubject) => Yes,
+        }
+        table relative_clitic(CliticHost) -> Selection {
+            (Free) => Yes, (Subject) => Yes,
+        }
+        table joined_clitic(CliticHost) -> Selection {
+            (Subject) => Yes, (PronounSubject) => Yes,
+        }
+        table clitic_complement(Clitic, AuxiliaryComplementRealization) -> Selection {
+            (No, Overt) => Yes, (No, Elided) => Yes, (Yes, Overt) => Yes,
+        }
+
         policy FiniteHeadAgreement {
+            export CliticHost = clitic_host(head.Clitic, head.form, head.number, head.person);
             require head.finiteness = Finite;
             export number = head.number;
             export person = head.person;
@@ -519,6 +569,12 @@ constructions! {
             export NumberTransparency = head.NumberTransparency;
         }
 
+        policy PredicateHostAgreement {
+            export CliticHost = head.CliticHost;
+            export number = head.number;
+            export person = head.person;
+        }
+
         policy PredicateHeadAgreement {
             export number = head.number;
             export person = head.person;
@@ -528,6 +584,7 @@ constructions! {
         }
 
         policy NominativeCase {
+            export SubjectStructure = head.SubjectStructure;
             export CaseUse = nominative_case(head.CaseUse);
         }
 
@@ -560,6 +617,7 @@ constructions! {
         }
 
         policy NounPhraseHeadAgreement {
+            export SubjectStructure = Phrase;
             export BareGenitiveHost = head.BareGenitiveHost;
             export Targeting = head.Targeting;
             export number = head.number;
@@ -568,6 +626,7 @@ constructions! {
         }
 
         policy ThirdPersonCommonCase {
+            export SubjectStructure = Phrase;
             export person = Third;
             export CaseUse = Common;
         }
@@ -624,6 +683,8 @@ constructions! {
         }
 
         policy FiniteConcord<Right, Source> {
+            require Right.CliticHost = Free;
+            export CliticHost = left.CliticHost;
             agree left.number = Right.number;
             agree left.person = Right.person;
             export number = left.number;
@@ -676,6 +737,7 @@ constructions! {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
         policy NounCoordinationAgreement<Right, Source> {
+            export SubjectStructure = Phrase;
             export BareGenitiveHost = No;
             export Targeting = coordinated_targeting(left.Targeting, Right.Targeting);
             export number = coordinate_number(Source.CoordinationKind, left.number,
@@ -788,6 +850,9 @@ constructions! {
         }
 
         schema BareAuxiliaryPredicate {
+            // CGEL p. 1614: stranding requires a stressed auxiliary.
+            require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization)
+                = Yes;
             form [head: lexical(Verb), complement: node];
             require head.frame = BareAuxiliary;
             require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
@@ -795,6 +860,9 @@ constructions! {
         }
 
         schema ParticipialAuxiliaryPredicate {
+            // CGEL p. 1614: stranding requires a stressed auxiliary.
+            require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization)
+                = Yes;
             form [head: lexical(Verb), complement: node];
             require head.frame = ParticipialAuxiliary;
             require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
@@ -802,6 +870,9 @@ constructions! {
         }
 
         schema PerfectAuxiliaryPredicate {
+            // CGEL p. 1614: stranding requires a stressed auxiliary.
+            require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization)
+                = Yes;
             form [head: lexical(Verb), complement: node];
             require head.frame = PerfectAuxiliary;
             require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
@@ -853,6 +924,8 @@ constructions! {
         }
 
         schema SelectedVerbHead {
+            // An uncomplemented coordinate head requires the strong form.
+            require head.Clitic = No;
             form [head: lexical(Verb)];
             export FrameUse = selected_frame_use(head.frame);
             export HeadCoordination = No;
@@ -1347,9 +1420,13 @@ constructions! {
         }
 
         construction FiniteClause: FiniteClause {
-            form [subject: NominativePhrase, " ", predicate: FinitePredicate];
+            form [subject: NominativePhrase, " ", predicate: FinitePredicate]
+                require predicate.CliticHost = Free;
+            form [subject: NominativePhrase, predicate: FinitePredicate]
+                require joined_clitic(predicate.CliticHost) = Yes;
             agree subject.number = predicate.number;
             agree subject.person = predicate.person;
+            require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
         construction InitialPreposition: Clause {
@@ -1782,6 +1859,7 @@ constructions! {
         }
 
         construction NominativePronoun: NounPhrase {
+            export SubjectStructure = Pronoun;
             export BareGenitiveHost = No;
             export Targeting = No;
             form [head: lexical(Pronoun)];
@@ -1797,6 +1875,7 @@ constructions! {
         }
 
         construction AccusativePronoun: NounPhrase {
+            export SubjectStructure = Phrase;
             export BareGenitiveHost = No;
             export Targeting = No;
             form [head: lexical(Pronoun)];
@@ -2030,9 +2109,9 @@ constructions! {
                 head.NominalAdjunctClass) = Yes;
         }
         instance NominalAdjunctPredicate<Result, Head: head, Properties>: [
-            (FinitePredicate, Self, PredicateHeadAgreement),
+            (FinitePredicate, Self, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, SecondaryProjection),
-            (FiniteObjectGap, Self, PredicateHeadAgreement),
+            (FiniteObjectGap, Self, PredicateHostAgreement),
             (BareObjectGap, Self, NoFeatures),
         ] {
             use Properties;
@@ -2090,7 +2169,10 @@ constructions! {
         }
 
         construction PronounSubjectRelative: SubjectRelativeClause {
-            form [marker: lexical(Pronoun), " ", predicate: FinitePredicate];
+            form [marker: lexical(Pronoun), " ", predicate: FinitePredicate]
+                require predicate.CliticHost = Free;
+            form [marker: lexical(Pronoun), predicate: FinitePredicate]
+                require joined_clitic(predicate.CliticHost) = Yes;
             require marker.RelativeUse = Yes;
             require marker.case = Nominative;
             agree marker.person = predicate.person;
@@ -2105,16 +2187,16 @@ constructions! {
             agree quantity.number = head.number;
         }
         instance FrequencyPredicate<Result, Head: head, Modifier: modifier, Properties>: [
-            (FinitePredicate, Self, FrequencyPhrase, PredicateHeadAgreement),
+            (FinitePredicate, Self, FrequencyPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, FrequencyPhrase, SecondaryProjection),
         ] {
             use Properties;
         }
 
         instance PrepositionPredicate<Result, Head: head, Modifier: modifier, Properties>: [
-            (FinitePredicate, Self, PrepositionPhrase, PredicateHeadAgreement),
+            (FinitePredicate, Self, PrepositionPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, PrepositionPhrase, SecondaryProjection),
-            (FiniteObjectGap, Self, PrepositionPhrase, PredicateHeadAgreement),
+            (FiniteObjectGap, Self, PrepositionPhrase, PredicateHostAgreement),
             (BareObjectGap, Self, PrepositionPhrase, NoFeatures),
         ] {
             use Properties;
@@ -2159,8 +2241,12 @@ constructions! {
         }
 
         construction SubjectRelativeClause: SubjectRelativeClause {
-            form [marker: lexical(Subordinator), " ", predicate: FinitePredicate];
+            form [marker: lexical(Subordinator), " ", predicate: FinitePredicate]
+                require predicate.CliticHost = Free;
+            form [marker: lexical(Subordinator), predicate: FinitePredicate]
+                require joined_clitic(predicate.CliticHost) = Yes;
             require marker.RelativeSubordinator = Yes;
+            require relative_clitic(predicate.CliticHost) = Yes;
             require predicate.person = Third;
             export number = predicate.number;
         }
@@ -2173,6 +2259,7 @@ constructions! {
         }
 
         construction FiniteObjectGap: FiniteObjectGap {
+            require head.PredicateFrameUse = Yes;
             form [head: lexical(Verb)];
             use FiniteHeadAgreement;
             require head.frame = Transitive;
@@ -2192,16 +2279,23 @@ constructions! {
 
         construction ObjectRelativeClause: ObjectRelativeClause {
             form [marker: lexical(Subordinator), " ", subject: NominativePhrase, " ",
-                predicate: FiniteObjectGap];
+                predicate: FiniteObjectGap] require predicate.CliticHost = Free;
+            form [marker: lexical(Subordinator), " ", subject: NominativePhrase,
+                predicate: FiniteObjectGap] require joined_clitic(predicate.CliticHost) = Yes;
             require marker.RelativeSubordinator = Yes;
             agree subject.number = predicate.number;
             agree subject.person = predicate.person;
+            require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
         construction ZeroObjectRelativeClause: ObjectRelativeClause {
-            form [subject: NominativePhrase, " ", predicate: FiniteObjectGap];
+            form [subject: NominativePhrase, " ", predicate: FiniteObjectGap]
+                require predicate.CliticHost = Free;
+            form [subject: NominativePhrase, predicate: FiniteObjectGap]
+                require joined_clitic(predicate.CliticHost) = Yes;
             agree subject.number = predicate.number;
             agree subject.person = predicate.person;
+            require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
         construction ObjectRelativeNominal: Nominal {
@@ -2489,13 +2583,13 @@ constructions! {
             use Properties;
         }
         instance ComplementedDepictivePredicate<Result, Head: head, Properties>: [
-            (FinitePredicate, FiniteDepictiveHost, PredicateHeadAgreement),
+            (FinitePredicate, FiniteDepictiveHost, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondaryDepictiveHost, SecondaryAdjunctProjection),
         ] {
             use Properties;
         }
         instance AdverbPredicate<Result, Head: head, Modifier: modifier, Properties>: [
-            (FinitePredicate, Self, AdverbPhrase, PredicateHeadAgreement),
+            (FinitePredicate, Self, AdverbPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, AdverbPhrase, SecondaryAdjunctProjection),
         ] {
             use Properties;
@@ -2537,7 +2631,7 @@ constructions! {
         }
 
         instance SharedObjectComplement<Result, Head: head, Object: object, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, AccusativePhrase, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, AccusativePhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase,
                 OrdinarySelectedPredicate),
         ] {
@@ -2545,58 +2639,58 @@ constructions! {
         }
         instance SharedPredicativeComplement<
             Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, PredicativeComplement, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, PredicativeComplement, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, PredicativeComplement,
                 OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
         instance SharedLocativeComplement<Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, LocativeComplement, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, LocativeComplement, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, LocativeComplement,
                 OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
         instance SharedManaComplement<Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, ManaPhrase, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, ManaPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, ManaPhrase, OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
         instance SharedAmountComplement<Result, Head: head, Amount: amount, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, Amount, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, Amount, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, Amount, OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
         instance SharedMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, MeasurePhrase, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, MeasurePhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, MeasurePhrase, OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
         instance SharedSlashMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, SlashPair, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, SlashPair, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, SlashPair, OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
         instance SharedKeywordComplement<Result, Head: head, Object: object, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, KeywordPhrase, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, KeywordPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, KeywordPhrase, OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
         instance SharedQuotedComplement<Result, Head: head, Object: object, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, QuotedText, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, QuotedText, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, QuotedText, OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
         instance SharedAuxiliaryBareComplement<
             Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, BareComplement, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, BareComplement, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, BareComplement,
                 AuxiliarySelectedPredicate),
         ] {
@@ -2604,7 +2698,7 @@ constructions! {
         }
         instance SharedAuxiliaryParticipleComplement<
             Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, ParticipialComplement, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, ParticipialComplement, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, ParticipialComplement,
                 AuxiliarySelectedPredicate),
         ] {
@@ -2612,7 +2706,7 @@ constructions! {
         }
         instance SharedAuxiliaryPerfectComplement<
             Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, PerfectComplement, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, PerfectComplement, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, PerfectComplement,
                 AuxiliarySelectedPredicate),
         ] {
@@ -2620,7 +2714,7 @@ constructions! {
         }
         instance SharedObjectNameComplement<
             Result, Head: head, Object: object, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, AccusativePhrase, Name, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, AccusativePhrase, Name, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, Name,
                 OrdinarySelectedPredicate),
         ] {
@@ -2629,7 +2723,7 @@ constructions! {
         instance SharedObjectEqualityComplement<
             Result, Head: head, Object: object, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, AccusativePhrase, EqualityComplement,
-                PredicateHeadAgreement),
+                PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, EqualityComplement,
                 OrdinarySelectedPredicate),
         ] {
@@ -2945,7 +3039,7 @@ constructions! {
             use PrepositionHeadPermissions;
         }
         instance SharedCardinalComplement<Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, Cardinal, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, Cardinal, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, Cardinal, OrdinarySelectedPredicate),
         ] {
             use Properties;
@@ -2953,7 +3047,7 @@ constructions! {
 
         instance SharedInfinitiveComplement<
             Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, InfinitiveComplement, PredicateHeadAgreement),
+            (FinitePredicate, FiniteSelectedHead, InfinitiveComplement, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, InfinitiveComplement,
                 OrdinarySelectedPredicate),
         ] {

@@ -27,6 +27,7 @@ constructions! {
         category Atom(number, person);
         category Allowed();
         category Crossed();
+        category SurfaceAllowed();
         construction Atom: Atom {
             cost 2;
             form [word: lexical(Pronoun)];
@@ -51,6 +52,50 @@ constructions! {
             bind item = Atom;
             use Guard(item);
         }
+        schema SurfaceChecked {
+            form [item: node] require item.number = Singular;
+            form ["[", item: node, "]"] require selected(item.number, item.person) = Yes
+                require item.number = Plural;
+        }
+        instance SurfaceChecked: SurfaceAllowed {
+            bind item = Atom;
+        }
+    }
+}
+
+#[test]
+fn surface_requirements_select_the_same_independent_values_in_both_directions() {
+    let lexicon = lexicon();
+    let grammar = fixture::Grammar::default();
+    for (form, text, owner) in [(0, "x", "first"), (1, "[x]", "third")] {
+        let fixture::Reading::Checked { item, .. } =
+            independent(&lexicon, owner, 0, fixture::Category::Allowed)
+        else {
+            unreachable!()
+        };
+        let expected = fixture::Reading::SurfaceChecked {
+            category: fixture::Category::SurfaceAllowed,
+            form,
+            item,
+        };
+        let forest = parse(
+            &grammar,
+            &lexicon,
+            &lexicon.analyze(text),
+            &fixture::Category::SurfaceAllowed,
+        )
+        .unwrap();
+        let actual: BTreeSet<_> = grammar.readings(&forest).map(Result::unwrap).collect();
+        assert_eq!(actual, [expected.clone()].into());
+        expected.admit(&lexicon).unwrap();
+        assert_eq!(expected.realize(&lexicon).unwrap(), text);
+        let mut wrong_form = expected;
+        let fixture::Reading::SurfaceChecked { form: selected, .. } = &mut wrong_form else {
+            unreachable!()
+        };
+        *selected = 1 - form;
+        assert!(wrong_form.admit(&lexicon).is_err());
+        assert!(wrong_form.realize(&lexicon).is_err());
     }
 }
 

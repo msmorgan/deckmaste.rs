@@ -58,6 +58,7 @@ pub(crate) struct Construction {
     pub name: Ident,
     pub category: Ident,
     pub forms: Vec<Vec<Part>>,
+    pub form_requirements: Vec<Vec<Equation>>,
     pub equations: Vec<Equation>,
     pub boundary: Option<Ident>,
     pub onset: Option<Ident>,
@@ -101,13 +102,13 @@ pub(crate) enum Part {
     Field(Ident, FieldType),
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) struct Reference {
     pub field: Ident,
     pub feature: Ident,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub(crate) enum Equation {
     Export(Ident, Reference),
     ExportConstant(Ident, Ident),
@@ -658,6 +659,7 @@ fn instantiate_schemas(
         equations.append(&mut instance.equations);
         instance.equations = equations;
         instance.forms = schema.forms.clone();
+        instance.form_requirements = schema.form_requirements.clone();
         instance.cost = schema.cost;
         instance.boundary = schema.boundary.clone();
         instance.onset = schema.onset.clone();
@@ -911,6 +913,7 @@ fn parse_construction(
         name,
         category,
         forms: vec![],
+        form_requirements: vec![],
         equations: vec![],
         boundary: None,
         onset: None,
@@ -1001,7 +1004,20 @@ fn parse_directive(
             let form;
             bracketed!(form in contents);
             let parts = parse_form(&form)?;
+            let start = construction.equations.len();
+            while contents.peek(Ident) {
+                let requirement: Ident = contents.parse()?;
+                if requirement != "require" {
+                    return Err(syn::Error::new(
+                        requirement.span(),
+                        "a surface form may add only feature requirements",
+                    ));
+                }
+                parse_directive(contents, &requirement, construction)?;
+            }
+            let requirements = construction.equations.drain(start..).collect();
             construction.forms.push(parts);
+            construction.form_requirements.push(requirements);
         }
         "export" => {
             let feature = contents.parse()?;

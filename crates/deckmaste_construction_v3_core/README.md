@@ -165,8 +165,14 @@ The syntax tree is validated into an IR before any projection is emitted:
 - Each alternative form must contain the same named fields, types and
   cardinalities, each exactly once. Forms may change literals and field order.
   Adjacent literals are concatenated and empty literals disappear during
-  normalization. Identical normalized forms create duplicate Productions but
-  the same canonical Reading form identity.
+  normalization. Identical normalized forms with the same form requirements
+  create duplicate Productions but the same canonical Reading form identity.
+- A form may append feature requirements before its semicolon, for example
+  `form [subject: Subject, " ", predicate: Predicate]
+  require predicate.CliticHost = Free;`. Direct and table requirements apply
+  only to that form and combine with the Construction's common equations in
+  parsing and independent admission. Schema instances inherit these
+  requirements with their forms. Forms cannot add exports or agreements.
 - `require field.feature = Value` constrains a declared feature;
   `agree left.feature = right.feature` equates values of one domain;
   `export feature = field.feature` makes that value available to parents.
