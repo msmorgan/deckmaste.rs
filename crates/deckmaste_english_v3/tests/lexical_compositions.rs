@@ -114,3 +114,39 @@ fn plural_bare_genitives_preserve_possessor_number_and_the_apostrophe() {
         assert!(readings(text, Category::NounPhrase).is_empty(), "{text}");
     }
 }
+
+#[test]
+fn attested_hybrid_and_phyrexian_symbols_retain_cost_and_mana_identity() {
+    // Vexing Shusher and Immolating Souleater.
+    for text in [
+        "{R/G}: Target spell can't be countered.",
+        "{R/P}: This creature gets +1/+0 until end of turn.",
+    ] {
+        assert!(!readings(text, Category::Document).is_empty(), "{text}");
+    }
+    // Symbol constituents attested in supported rules text. Tazri, Beacon of
+    // Unity supplies all four monocolored hybrids in one activated cost.
+    for (name, text) in [
+        ("HybridWhiteBlue", "{W/U}"), ("HybridWhiteBlack", "{W/B}"),
+        ("HybridBlueBlack", "{U/B}"), ("HybridBlueRed", "{U/R}"),
+        ("HybridBlackRed", "{B/R}"), ("HybridBlackGreen", "{B/G}"),
+        ("HybridRedGreen", "{R/G}"), ("HybridRedWhite", "{R/W}"),
+        ("HybridGreenWhite", "{G/W}"), ("HybridGreenBlue", "{G/U}"),
+        ("PhyrexianWhite", "{W/P}"), ("PhyrexianBlue", "{U/P}"),
+        ("PhyrexianBlack", "{B/P}"), ("PhyrexianRed", "{R/P}"),
+        ("PhyrexianGreen", "{G/P}"),
+        ("MonocoloredHybridBlue", "{2/U}"), ("MonocoloredHybridBlack", "{2/B}"),
+        ("MonocoloredHybridRed", "{2/R}"), ("MonocoloredHybridGreen", "{2/G}"),
+    ] {
+        let symbol = word(&format!("vocab:FixedCostSymbol/{name}"), WordForm::Invariant, FeatureBundle::default(), None);
+        exact(text, Category::CostSymbols, Reading::CostSymbols {
+            form: 0, first: Box::new(Reading::NamedCostSymbol {form: 0, symbol: symbol.clone()}), rest: vec![],
+        });
+        exact(text, Category::ManaPhrase, Reading::ManaPhrase {
+            form: 0, first: Box::new(Reading::NamedManaSymbol {form: 0, symbol}), rest: vec![],
+        });
+    }
+    for text in ["{2/W}", "{W/U/P}", "{R/W} {R/P}", "{W//U}"] {
+        assert!(readings(text, Category::ManaPhrase).is_empty(), "{text}");
+    }
+}

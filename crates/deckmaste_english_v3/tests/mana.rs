@@ -82,7 +82,7 @@ fn independent_mana_values_preserve_symbol_sequence() {
         );
     }
     for text in [
-        "", "{T}", "{Q}", "{E}", "{H}", "{X}", "{S}", "{2}", "{W}{T}", "{W/U}", "{W} {U}",
+        "", "{T}", "{Q}", "{E}", "{H}", "{X}", "{S}", "{2}", "{W}{T}", "{W/U/P}", "{W} {U}",
     ] {
         assert_eq!(readings(text, Category::ManaPhrase).len(), 0, "{text}");
     }
