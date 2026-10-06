@@ -446,4 +446,95 @@ theorem handedToYouIsTransparent :
       Instruction.intro [] (Actor.discard (a .isCard))) = true := by
   decide
 
+/-! ## A group handoff publishes its amount outcomes as totals
+
+What each member's body introduced is published as a group, but an amount outcome stays one
+total, as the explicit plural agent leaves it: "each opponent loses 1 life and you gain life equal
+to the total life lost this way" [CR#702.101a]. -/
+
+/-- Syndic of Tithes, its extort body [CR#702.101a] written over `loss` for "each opponent loses
+1 life", followed by "you gain that much life". -/
+private def syndicOfTithes (loss : Instruction) : Card :=
+  .singleFaced
+    { characteristics :=
+      { name := "Syndic of Tithes", cost := some [generic 1, pip .white], types := [.creature],
+        subtypes := [creatureType "Human", creatureType "Cleric"],
+        text :=
+          [ .keyword "Extort" []
+              [ .triggered
+                  (.casts .you
+                    (some (.described (.a .unmarked)
+                      (.and [.inZone (.zone .stack .bare), .not (.abilityHead .anyOnStack)])))
+                    none)
+                  [] none [] none none none
+                  (.withContinuation (.optional actor)
+                    (.pay (.mana [hybridPip .white .black]) .once actor)
+                    (some (.sequentially [loss, Actor.gainLife .thatMuch])) none) ] ],
+        power := some (.lit 2), toughness := some (.lit 2) } }
+
+/-- Extort handed to each opponent: "that much" reads the one total. -/
+theorem okExtortHandedToEachOpponent :
+    Card.check (syndicOfTithes (act (each .opponent) (Actor.loseLife (.lit 1)))) = [] := by
+  decide
+
+/-- The handoff twin of the explicit plural agent `changeLife (down 1) (each opponent)`: the
+same refusals. -/
+theorem extortHandoffTwin :
+    Card.check (syndicOfTithes (.changeLife (.down (.lit 1)) (each .opponent))) = [] ∧
+      Card.check (syndicOfTithes (act (each .opponent) (Actor.loseLife (.lit 1)))) =
+        Card.check (syndicOfTithes (.changeLife (.down (.lit 1)) (each .opponent))) := by
+  decide
+
+/-- "Each opponent loses 1 life": the group and one `lifeLost` total, exactly what the explicit
+plural agent publishes. -/
+theorem handedGroupPublishesTotal :
+    shape (Instruction.intro [] (act (each .opponent) (Actor.loseLife (.lit 1)))) =
+        [(.outcome, .one, .the), (.player, .many, .each)] ∧
+      (Instruction.intro [] (act (each .opponent) (Actor.loseLife (.lit 1))) ==
+        Instruction.intro [] (.changeLife (.down (.lit 1)) (each .opponent))) = true := by
+  decide
+
+/-- "Each opponent discards a card. You gain that much life.": the body has no amount outcome,
+so the group handoff publishes none and "that much" has nothing to read. -/
+theorem badGroupHandoffNoOutcomeThatMuch :
+    Instruction.check []
+      (.sequentially [act (each .opponent) (Actor.discard (a .isCard)), Actor.gainLife .thatMuch])
+      = [.quantOutcomeInScope 0] := by
+  decide
+
+/-- "Loses 1 life and discards a card." -/
+private def lossAndDiscard : Instruction :=
+  .sequentially [Actor.loseLife (.lit 1), Actor.discard (a .isCard)]
+
+/-- "Each opponent loses 1 life and discards a card. You gain that much life.": "that much" reads
+the life total; the discarded cards stay a group. -/
+theorem okGroupHandoffSequenceReadsLifeTotal :
+    Instruction.check []
+        (.sequentially
+          [ act (each .opponent) lossAndDiscard,
+            Actor.gainLife .thatMuch ]) = [] ∧
+      Instruction.check []
+        (.sequentially
+          [ act (each .opponent) lossAndDiscard,
+            exile them ]) = [] := by
+  decide
+
+/-- "Each opponent loses 1 life, then loses 2 life. You gain that much life.": two totals, so
+"that much" has no one antecedent. -/
+theorem badGroupHandoffTwoTotalsThatMuch :
+    Instruction.check []
+      (.sequentially
+        [ act (each .opponent) (.sequentially [Actor.loseLife (.lit 1), Actor.loseLife (.lit 2)]),
+          Actor.gainLife .thatMuch ]) = [.quantOutcomeInScope 2] := by
+  decide
+
+/-- "For each opponent, that player loses 1 life. You gain that much life.": `doForEach` still
+publishes its body's outcomes as a group; only the handoff carries the total. -/
+theorem badForEachLossThatMuch :
+    Instruction.check []
+      (.sequentially
+        [ Primitives.Instruction.doForEach (each .opponent) (act they (Actor.loseLife (.lit 1))),
+          Actor.gainLife .thatMuch ]) = [.quantOutcomeInScope 0] := by
+  decide
+
 end Semantics.Proofs.Actor

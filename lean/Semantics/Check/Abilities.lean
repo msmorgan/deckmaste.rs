@@ -1095,6 +1095,12 @@ def statedNumbers (deeds : Bindings) : Bindings := deeds.filterMap fun b =>
   | .outcome sort => if sort.isAmount then some (outcomeB .namedNumber) else none
   | _ => none
 
+/-- One amount outcome, the total of the events that made it, as `countAmountOutcomes` reads
+it. -/
+def Binding.isAmountTotal : Binding → Bool
+  | ⟨_, .one, .outcome s⟩ => s.isAmount
+  | _ => false
+
 /-- Branch-local declarations do not escape. Facts about the incoming bindings escape
 only when both continuations support them. -/
 def branchContext (base left right : Bindings) : Bindings :=
@@ -1203,7 +1209,9 @@ mutual
     | .pay c .once who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
     /- One performer: the body's own profile outside the handoff frame, so the player the
     handoff introduced stays published. Distributive performers follow `doForEach`: what each
-    member's body introduced is published as a group. -/
+    member's body introduced is published as a group, except its amount outcomes, which stay
+    one total each as the deed, as `doesProfile` keeps a plural agent's deed ("each opponent
+    loses 1 life and you gain life equal to the total life lost this way" [CR#702.101a]). -/
     | .act who body =>
       let inner := actorCtx bs who
       let bodyP := Instruction.profile inner body
@@ -1212,8 +1220,10 @@ mutual
         ⟨dropActorFrame bodyP.pre, dropActorFrame bodyP.announced,
          bodyP.rider.map dropActorFrame, bodyP.deed⟩
       | .many =>
-        ⟨bs, pluralizeIntroduced (bodyP.intro.take (bodyP.intro.length - inner.length)) ++
-          pluralizeIntroduced (NounPhrase.introduced bs who) ++ bs, none, []⟩
+        let fresh := bodyP.intro.take (bodyP.intro.length - inner.length)
+        ⟨bs, pluralizeIntroduced (fresh.filter (!·.isAmountTotal)) ++
+          pluralizeIntroduced (NounPhrase.introduced bs who) ++ bs, none,
+         fresh.filter Binding.isAmountTotal⟩
     | .pay c _ who => ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
         .repeatCount]⟩
     | .withContinuation policy body did notd =>
