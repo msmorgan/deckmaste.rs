@@ -12,6 +12,7 @@ constructions! {
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
+        feature DeterminerRequirement { No, Yes } default No;
         feature NumberTransparency { No, Yes } default No;
         feature QuantificationalDeterminer { No, Yes } default No;
         feature ObliqueMarker { No, Yes } default No;
@@ -19,13 +20,14 @@ constructions! {
         feature CaseUse { Common, Nominative, Accusative }
         feature Targeting { No, Yes }
         feature CoordinationKind { Additive, Alternative, Adversative }
-        feature PrepositionComplement { NounPhrase, None }
+        feature PrepositionComplement { NounPhrase, PredicativeNounPhrase, None }
         feature AdjectiveComplementClass { Manner }
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
-            AdjectiveComplement, PredicativeComplement, Compound, ComparativeComplement } set;
+            AdjectiveComplement, PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct } set;
         feature CompoundComplementMarker { Of }
         table licence_adjunct(PrepositionFunctionLicence) -> Selection contains Adjunct => Yes;
+        table licence_preposed_adjunct(PrepositionFunctionLicence) -> Selection contains PreposedAdjunct => Yes;
         table licence_modifier(PrepositionFunctionLicence) -> Selection contains Modifier => Yes;
         table licence_noun_complement(PrepositionFunctionLicence) -> Selection contains NounComplement => Yes;
         table licence_verb_complement(PrepositionFunctionLicence) -> Selection contains VerbComplement => Yes;
@@ -49,7 +51,8 @@ constructions! {
         feature AuxiliaryComplementRealization { Overt, Elided }
         feature ScalarVariable { Yes }
         feature MeasureOperator { Yes }
-        feature MeasurePosition { Before, After }
+        feature MeasurePosition { None, Before, After } default None;
+        feature CardinalMeasurementUse { No, Yes } default No;
         feature MeasureKind { Scalar, Pair }
         feature ComparisonMarker { Equality, Ordering }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
@@ -116,7 +119,7 @@ constructions! {
         category ParticipialComplement(AuxiliaryComplementRealization);
         category PerfectComplement(AuxiliaryComplementRealization);
         category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
-            NumberTransparency, ObliqueNumber, BareGenitiveHost);
+            NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, CardinalMeasurementUse);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
         category NounPremodifier();
@@ -197,7 +200,7 @@ constructions! {
         category QuotedTextSeries();
         category NominalSeries(
             number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
-            NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost
+            NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, CardinalMeasurementUse
         );
         category AdjectivePhraseSeries(AdjectiveStructure);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
@@ -264,6 +267,7 @@ constructions! {
         frame ObjectName = Predicate(Object(NounPhrase), Complement(Name));
         frame BareNominal = Nominal();
         frame NominalSymbols = Nominal(Marked(Preposition, Of, Complement(CostSymbols)));
+        frame NominalInfinitive = Nominal(Complement(InfinitiveComplement));
         frame Predicative = Predicate(Complement(PredicativeComplement));
         frame Locative = Predicate(Complement(LocativeComplement));
         frame BareAuxiliary = Auxiliary(Complement(BarePredicate));
@@ -491,6 +495,9 @@ constructions! {
         }
 
         policy NominalHeadProperties {
+            export DeterminerRequirement = head.DeterminerRequirement;
+            export MeasurePosition = head.MeasurePosition;
+            export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
             export countability = head.countability;
             export Targeting = head.Targeting;
@@ -501,6 +508,9 @@ constructions! {
         }
 
         policy NominalHeadCore {
+            export DeterminerRequirement = head.DeterminerRequirement;
+            export MeasurePosition = head.MeasurePosition;
+            export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
             export countability = head.countability;
             export Targeting = head.Targeting;
@@ -563,6 +573,9 @@ constructions! {
         }
 
         policy UnmodifiedNominalProperties {
+            export DeterminerRequirement = No;
+            export MeasurePosition = head.MeasurePosition;
+            export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
             export countability = head.countability;
             export Targeting = No;
@@ -621,7 +634,27 @@ constructions! {
 
         }
 
+        table coordinated_determiner_requirement(DeterminerRequirement, DeterminerRequirement)
+            -> DeterminerRequirement {
+            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+        }
+        table coordinated_measure_position(MeasurePosition, MeasurePosition) -> MeasurePosition {
+            (Before, Before) => Before, (After, After) => After,
+            (None, None) => None, (None, Before) => None, (None, After) => None,
+            (Before, None) => None, (After, None) => None,
+            (Before, After) => None, (After, Before) => None,
+        }
+        table coordinated_cardinal_measurement(CardinalMeasurementUse, CardinalMeasurementUse)
+            -> CardinalMeasurementUse {
+            (Yes, Yes) => Yes, (No, No) => No, (No, Yes) => No, (Yes, No) => No,
+        }
         policy NominalConcord<Right, Source> {
+            export CardinalMeasurementUse = coordinated_cardinal_measurement(
+                left.CardinalMeasurementUse, Right.CardinalMeasurementUse);
+            export MeasurePosition = coordinated_measure_position(
+                left.MeasurePosition, Right.MeasurePosition);
+            export DeterminerRequirement = coordinated_determiner_requirement(
+                left.DeterminerRequirement, Right.DeterminerRequirement);
             export BareGenitiveHost = No;
             export NumberTransparency = coordinated_transparency(left.NumberTransparency,
                 Right.NumberTransparency);
@@ -1321,7 +1354,7 @@ constructions! {
 
         construction InitialPreposition: Clause {
             form [dependent: PrepositionPhrase, ", ", clause: Clause];
-            require licence_adjunct(dependent.PrepositionFunctionLicence) = Yes;
+            require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes;
         }
 
         construction ClausalPreposition: Clause {
@@ -1461,6 +1494,15 @@ constructions! {
             use UnmodifiedNominalProperties;
         }
 
+        // CGEL Ch. 14 §8.2, pp. 1259–1260: selected subjectless
+        // to-infinitivals are internal Complements of nouns.
+        construction InfinitiveComplementNominal: Nominal {
+            export BareGenitiveHost = No;
+            form [head: lexical(Noun), " ", complement: InfinitiveComplement];
+            require head.frame = NominalInfinitive;
+            use UnmodifiedNominalProperties;
+        }
+
         construction SymbolComplementNominal: Nominal {
             export BareGenitiveHost = No;
             form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
@@ -1538,6 +1580,62 @@ constructions! {
             require head.Targeting = No;
         }
 
+        // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
+        // an outer Determiner; without it the cardinal is the Determiner.
+        construction CardinalPremodifiedNominal: Nominal {
+            export MeasurePosition = head.MeasurePosition;
+            export CardinalMeasurementUse = head.CardinalMeasurementUse;
+            form [quantity: Cardinal, " ", head: Nominal];
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = head.Targeting;
+            export NominalAdjunctClass = head.NominalAdjunctClass;
+            export SlashPremodifierUse = head.SlashPremodifierUse;
+            export NumberTransparency = head.NumberTransparency;
+            require head.DeterminerRequirement = No;
+            require head.countability = Count;
+            agree quantity.number = head.number;
+            export DeterminerRequirement = Yes;
+            export ObliqueNumber = head.ObliqueNumber;
+            export BareGenitiveHost = head.BareGenitiveHost;
+        }
+
+        // Amounts remain singular measurements; the lexical mass noun does
+        // not acquire a bare count-plural use. CGEL Ch. 5 §3.4, p. 354
+        // distinguishes the singular conceptualization of a measured quantity.
+        construction CardinalMeasuredNominal: Nominal {
+            form [quantity: Cardinal, " ", head: Nominal];
+            require head.MeasurePosition = Before;
+            require head.CardinalMeasurementUse = Yes;
+            require head.number = Singular;
+            require head.countability = Mass;
+            require head.DeterminerRequirement = No;
+            export number = Singular;
+            export countability = Count;
+            export DeterminerRequirement = Yes;
+            export MeasurePosition = None;
+            export CardinalMeasurementUse = No;
+            export Targeting = head.Targeting;
+            export NominalAdjunctClass = None;
+            export SlashPremodifierUse = No;
+            export NumberTransparency = No;
+            export ObliqueNumber = head.ObliqueNumber;
+            export BareGenitiveHost = No;
+        }
+
+        construction CardinalMeasuredNounPhrase: NounPhrase {
+            form [quantity: Cardinal, " ", head: Nominal];
+            require head.MeasurePosition = Before;
+            require head.CardinalMeasurementUse = Yes;
+            require head.number = Singular;
+            require head.countability = Mass;
+            require head.DeterminerRequirement = No;
+            export number = Singular;
+            export BareGenitiveHost = No;
+            export Targeting = head.Targeting;
+            use ThirdPersonCommonCase;
+        }
+
         construction PostpositiveNominal: Nominal {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: AdjectivePhrase];
@@ -1591,6 +1689,9 @@ constructions! {
         }
 
         construction TargetedNominal: Nominal {
+            export DeterminerRequirement = head.DeterminerRequirement;
+            export MeasurePosition = head.MeasurePosition;
+            export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [marker: lexical(Determinative), " ", head: Nominal];
             require marker.Targeting = Yes;
@@ -1656,6 +1757,7 @@ constructions! {
             form [head: Nominal];
             require head.number = Plural;
             require head.countability = Count;
+            require head.DeterminerRequirement = No;
             use NounPhraseHeadAgreement;
         }
 
@@ -1663,6 +1765,7 @@ constructions! {
             form [head: Nominal];
             require head.number = Singular;
             require head.countability = Mass;
+            require head.DeterminerRequirement = No;
             use NounPhraseHeadAgreement;
         }
 
@@ -1672,6 +1775,7 @@ constructions! {
             require marker.Targeting = Yes;
             require head.Targeting = No;
             require head.number = Singular;
+            require head.DeterminerRequirement = No;
             export number = head.number;
             use ThirdPersonCommonCase;
             export Targeting = Yes;
@@ -1706,6 +1810,21 @@ constructions! {
             require head.PrepositionComplement = NounPhrase;
             export ObliqueNumber = oblique_number(head.ObliqueMarker, complement.number);
             use PrepositionHeadPermissions;
+        }
+
+        // CGEL Ch. 7 §5.1, pp. 636–637: a predicative NP Complement
+        // differs from an Object; adjunct use excludes adjective Complements.
+        // The supported predicative-NP licence is preposed; finite-clause
+        // Complement permissions remain independent.
+        construction PredicativeComplementPreposition: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: PredicativeComplement];
+            require head.PrepositionComplement = PredicativeNounPhrase;
+            require complement.PredicativeKind = Nominal;
+            require licence_preposed_adjunct(head.PrepositionFunctionLicence) = Yes;
+            export ObliqueNumber = None;
+            export InternalisedComplementMarker = head.InternalisedComplementMarker;
+            export PrepositionFunctionLicence = PreposedAdjunct;
+            export LocativeUse = head.LocativeUse;
         }
 
         construction IntransitivePreposition: PrepositionPhrase {
@@ -2191,6 +2310,7 @@ constructions! {
         construction CountedNounPhrase: NounPhrase {
             form [quantity: QuantitativeDeterminer, " ", head: Nominal];
             require head.countability = Count;
+            require head.DeterminerRequirement = No;
             agree quantity.number = head.number;
             use NounPhraseHeadAgreement;
         }

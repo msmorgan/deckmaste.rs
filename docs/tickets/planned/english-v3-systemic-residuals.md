@@ -134,6 +134,15 @@ its verification belong to the attached feature-economy ticket.
 
 ## Batch records and what they leave open
 
+- Orchestrator resolution (2026-10-06), fixed-cost phrases: *same … as* remains
+  with the existing comparative residual here. Its landing owns the non-scalar
+  equality comparative *as* Complement licensed by *same*, not an Adjunct
+  licence (CGEL, Ch. 13 §1.1, p. 1101).
+- Orchestrator resolution (2026-10-06), fixed-cost phrases: *Activate only as a
+  sorcery* remains with the existing only-restriction residual here. Its landing
+  widens the position licence for clause-final predicative *as*, measured; the
+  fixed-cost landing licenses only the preposed, comma-separated Adjunct.
+
 The landing records of the batches run under this ticket (restricted Oracle
 hosts, selected complement coordination and PP licensing, the verified coverage
 batch, the keyword-label handoff, participial uses and participial composition)

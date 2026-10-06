@@ -233,8 +233,19 @@ phrase may take in Oracle English: Adjunct, Modifier or Complement of a noun,
 verb-selected Complement, or predicative Complement (CGEL, Ch. 7 §2.1,
 pp. 604–606). The licence is a set of functions, not a kind of Preposition
 Phrase (CGEL, Ch. 7 §2.2, p. 617, n. 3), and may be narrower than in general
-English.
+English. An Adjunct licence may be position-restricted: a licence for a
+preposed, comma-separated Adjunct admits only that clause-initial position
+(CGEL, Ch. 7 §5.1, p. 637).
 _Avoid_: adverbial PP, adjectival PP, AdverbialUse
+
+**Predicative Complement of a Preposition**:
+A Complement that ascribes a property or role to a Predicand, as the Noun
+Phrase in *as treasurer* does; the containing Preposition Phrase may itself
+function as an Adjunct (CGEL, Ch. 7 §5.1, pp. 636–637).
+
+**Predicand**:
+The expression of which a property or role is predicated by a predicative
+Complement (CGEL, Ch. 7 §5.1, p. 637).
 
 **Voice**:
 The grammatical organization of a predication's participants, including the
@@ -317,6 +328,22 @@ A numeral expressing a count, such as *one* or *two*.
 A phrase expressing an extent or scalar value, including arithmetic
 combinations and comparisons with other values.
 
+**Measured Noun Phrase** (project term):
+A Noun Phrase expressing a scalar amount or attribute through a quantity and
+a head with a declared measure-position licence. The lexical head retains
+its countability; a quantified amount can be conceptualised as one entity
+(CGEL, Ch. 5 §3.4, p. 354).
+
+**Measured Nominal** (project term):
+A quantified amount in Nominal form under an outer Determiner. Its singular
+quantity conceptualization permits an indefinite Determiner without giving
+the lexical mass head a bare count-plural use (CGEL, Ch. 5 §3.4, p. 354).
+
+**Cardinal Measurement Use** (project term):
+A declared lexical licence for a mass Nominal to express units through
+cardinal quantification, including a variable count. It is distinct from
+scalar measurement and supplies no bare count-plural use.
+
 **Adverb**:
 A lexical Category whose members characteristically modify a phrase, Clause,
 or other expression without serving as a nominal argument.
@@ -383,6 +410,12 @@ A phrase headed by a Determinative, including cardinal determinatives.
 **Determiner**:
 The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
+
+**Determiner Requirement** (project term):
+A Nominal's unresolved need for an outer Determiner when a cardinal numeral
+functions as its internal Modifier, as in *that one mistake* (CGEL, Ch. 5
+§7.6, p. 386). Without the outer Determiner the numeral instead functions as
+the Determiner.
 
 **Partitive Noun Phrase**:
 A fused-head Noun Phrase containing an *of* phrase and denoting a subset of

@@ -1,8 +1,16 @@
 mod common;
 
-use common::{assert_constituents, lexicon, readings};
-use deckmaste_english_v3::grammar::{Category, FrameValue, Reading, Word};
-use deckmaste_lexical::{LexicalReading, Numeral, SurfaceCase, WordForm};
+use common::assert_constituents;
+use common::lexicon;
+use common::readings;
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::FrameValue;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::Numeral;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
 
 const AVACYN: &str = "Prevent all damage that would be dealt to another target creature this turn by sources of the color of your choice.";
 const SPIKESHELL: &str = "If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1.";
@@ -294,7 +302,8 @@ fn spikeshell_active_extent_is_selected_by_its_lexical_frame() {
         }),
     };
     assert!(contrast.admit(lexicon()).is_err());
-    // An otherwise valid frame may not take this extent slot or a different marker.
+    // An otherwise valid frame may not take this extent slot or a different
+    // marker.
     let mut wrong_frame = intended.clone();
     if let Reading::SelectedPredicate { head, .. } = &mut wrong_frame {
         head.frame = Some(0);
@@ -382,7 +391,15 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
                 form: 0,
                 head: invariant("vocab:AttributiveAdjective/Other"),
             }),
-            head: Box::new(noun("lexeme:CommonNoun/Cost", WordForm::Plural, true)),
+            head: Box::new(Reading::BareFramedNoun {
+                form: 0,
+                head: word(
+                    "lexeme:CommonNoun/Cost",
+                    WordForm::Plural,
+                    Some(0),
+                    Some(true),
+                ),
+            }),
         },
     );
     let paying_costs = Reading::SelectedPredicate {
