@@ -1835,6 +1835,8 @@ constructions! {
         instance PrepositionPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, PrepositionPhrase, PredicateHeadAgreement),
             (SecondaryVerbPhrase, Self, PrepositionPhrase, SecondaryProjection),
+            (FiniteObjectGap, Self, PrepositionPhrase, PredicateHeadAgreement),
+            (BareObjectGap, Self, PrepositionPhrase, NoFeatures),
         ] {
             use Properties;
         }

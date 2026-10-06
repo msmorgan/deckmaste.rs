@@ -19,11 +19,10 @@ fn several_constituents_witness_low_of_attachment() {
 }
 
 #[test]
-fn seedborn_muse_retains_verb_phrase_and_nominal_attachments() {
+fn seedborn_muse_retains_all_three_adjunct_attachments() {
     // Seedborn Muse permits three attachments of "during...": to "Untap...",
     // to "control" inside the Object Relative Clause, and to the Nominal
-    // "permanents you control". The grammar currently admits the first and
-    // third; the missing relative-clause attachment is tested separately below.
+    // "permanents you control". Each call requires one complete Reading.
     let text = "Untap all permanents you control during each other player's untap step.";
     assert_constituents(
         text,
@@ -51,15 +50,8 @@ fn seedborn_muse_retains_verb_phrase_and_nominal_attachments() {
             (Category::ObjectRelativeClause, "you control"),
         ],
     );
-}
-
-#[test]
-#[ignore = "blocked on english-v3-relative-clause-adjuncts"]
-fn seedborn_muse_retains_relative_clause_attachment() {
-    // Merge this assertion back into the test above when
-    // english-v3-relative-clause-adjuncts lands, so it witnesses all three.
     assert_constituents(
-        "Untap all permanents you control during each other player's untap step.",
+        text,
         Category::Document,
         &[(
             Category::ObjectRelativeClause,
