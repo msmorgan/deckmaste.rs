@@ -68,6 +68,7 @@ constructions! {
         feature Selection { Yes }
         feature Function { Genitive }
         feature HostEnding { Default, PluralS }
+        feature BareGenitiveHost { No, Yes } default No;
         feature LabelKind { None, AbilityWord, FlavorWord }
         feature SymbolUse { Cost }
         feature ManaSymbolUse { Yes }
@@ -114,13 +115,13 @@ constructions! {
         category ParticipialComplement(AuxiliaryComplementRealization);
         category PerfectComplement(AuxiliaryComplementRealization);
         category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
-            NumberTransparency, ObliqueNumber);
+            NumberTransparency, ObliqueNumber, BareGenitiveHost);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
         category NounPremodifier();
         category NounPremodifierSeries();
         category PartitiveModifier();
-        category NounPhrase(number, person, CaseUse, Targeting);
+        category NounPhrase(number, person, CaseUse, Targeting, BareGenitiveHost);
         category NominativePhrase(number, person, CaseUse);
         category AccusativePhrase(number, person, CaseUse);
         category AdjectivePhrase(AdjectiveStructure);
@@ -180,7 +181,7 @@ constructions! {
         category ClauseSeries();
         category FinitePredicateSeries(number, person);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent);
-        category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind);
+        category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct);
         category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination);
@@ -195,7 +196,7 @@ constructions! {
         category QuotedTextSeries();
         category NominalSeries(
             number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
-            NumberTransparency, ObliqueNumber, CoordinationKind
+            NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost
         );
         category AdjectivePhraseSeries(AdjectiveStructure);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
@@ -213,7 +214,7 @@ constructions! {
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent);
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
-            CorrelativeCoordinator, CoordinationKind);
+            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost);
         category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
@@ -548,6 +549,7 @@ constructions! {
         }
 
         policy NounPhraseHeadAgreement {
+            export BareGenitiveHost = head.BareGenitiveHost;
             export Targeting = head.Targeting;
             export number = head.number;
             export person = Third;
@@ -619,6 +621,7 @@ constructions! {
         }
 
         policy NominalConcord<Right, Source> {
+            export BareGenitiveHost = No;
             export NumberTransparency = coordinated_transparency(left.NumberTransparency,
                 Right.NumberTransparency);
             export ObliqueNumber = coordinated_oblique(Source.CoordinationKind,
@@ -639,6 +642,7 @@ constructions! {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
         policy NounCoordinationAgreement<Right, Source> {
+            export BareGenitiveHost = No;
             export Targeting = coordinated_targeting(left.Targeting, Right.Targeting);
             export number = coordinate_number(Source.CoordinationKind, left.number,
                 Right.number);
@@ -1443,18 +1447,21 @@ constructions! {
         }
 
         construction Noun: Nominal {
+            export BareGenitiveHost = head.BareGenitiveHost;
             form [head: lexical(Noun)];
             require head.framing = Unframed;
             use UnmodifiedNominalProperties;
         }
 
         construction BareFramedNoun: Nominal {
+            export BareGenitiveHost = head.BareGenitiveHost;
             form [head: lexical(Noun)];
             require head.frame = BareNominal;
             use UnmodifiedNominalProperties;
         }
 
         construction SymbolComplementNominal: Nominal {
+            export BareGenitiveHost = No;
             form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
                 complement: CostSymbols];
             require head.frame = NominalSymbols;
@@ -1516,12 +1523,14 @@ constructions! {
         }
 
         construction NounPremodifiedNominal: Nominal {
+            export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: NounPremodifier, " ", head: Nominal];
             use NominalHeadProperties;
             require head.Targeting = No;
         }
 
         construction PremodifiedNominal: Nominal {
+            export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: AdjectivePhrase, " ", head: Nominal];
             use NominalHeadProperties;
             require modifier.AdjectiveStructure = Simple;
@@ -1529,6 +1538,7 @@ constructions! {
         }
 
         construction PostpositiveNominal: Nominal {
+            export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: AdjectivePhrase];
             use NominalHeadProperties;
             require modifier.AdjectiveStructure = Complemented;
@@ -1546,6 +1556,7 @@ constructions! {
         }
 
         construction ParticipialPremodifier: Nominal {
+            export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: VerbalPremodifier, " ", head: Nominal];
             use NominalHeadProperties;
             require head.Targeting = No;
@@ -1559,6 +1570,7 @@ constructions! {
         // CGEL p. 516: a referential proper name has NP status. Oracle names
         // refer to one card even when the written title contains plural nouns.
         construction ProperNameNounPhrase: NounPhrase {
+            export BareGenitiveHost = No;
             export Targeting = No;
             form [head: Name];
             export number = Singular;
@@ -1572,11 +1584,13 @@ constructions! {
         }
 
         construction NamedNominal: Nominal {
+            export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: NamePredicate];
             use NominalHeadProperties;
         }
 
         construction TargetedNominal: Nominal {
+            export BareGenitiveHost = head.BareGenitiveHost;
             form [marker: lexical(Determinative), " ", head: Nominal];
             require marker.Targeting = Yes;
             require head.Targeting = No;
@@ -1590,6 +1604,7 @@ constructions! {
         }
 
         construction PostmodifiedNominal: Nominal {
+            export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: PrepositionPhrase];
             require licence_modifier(modifier.PrepositionFunctionLicence) = Yes;
             use NominalHeadCore;
@@ -1604,6 +1619,7 @@ constructions! {
             require licence_modifier(phrase.PrepositionFunctionLicence) = Yes;
         }
         construction PartitiveNounPhrase: NounPhrase {
+            export BareGenitiveHost = No;
             form [quantity: Cardinal, " ", complement: PrepositionPhrase,
                 modifiers: repeat(PartitiveModifier, "")];
             require partitive_oblique(complement.ObliqueNumber) = Yes;
@@ -1614,6 +1630,7 @@ constructions! {
         }
 
         construction DeterminedNounPhrase: NounPhrase {
+            export BareGenitiveHost = head.BareGenitiveHost;
             export Targeting = head.Targeting;
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require determiner.DeterminerKind = Ordinary;
@@ -1649,6 +1666,7 @@ constructions! {
         }
 
         construction TargetNounPhrase: NounPhrase {
+            export BareGenitiveHost = head.BareGenitiveHost;
             form [marker: lexical(Determinative), " ", head: Nominal];
             require marker.Targeting = Yes;
             require head.Targeting = No;
@@ -1659,6 +1677,7 @@ constructions! {
         }
 
         construction NominativePronoun: NounPhrase {
+            export BareGenitiveHost = No;
             export Targeting = No;
             form [head: lexical(Pronoun)];
             use PredicateHeadAgreement;
@@ -1673,6 +1692,7 @@ constructions! {
         }
 
         construction AccusativePronoun: NounPhrase {
+            export BareGenitiveHost = No;
             export Targeting = No;
             form [head: lexical(Pronoun)];
             use PredicateHeadAgreement;
@@ -1850,6 +1870,7 @@ constructions! {
             (PastParticiple, BarePassive) => Yes,
         }
         construction ParticipialPostmodifiedNominal: Nominal {
+            export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: SecondaryVerbPhrase];
             require participial_postmodifier(modifier.form, modifier.ParticipialUse) = Yes;
             use NominalHeadProperties;
@@ -2013,6 +2034,7 @@ constructions! {
         }
 
         construction SubjectRelativeNominal: Nominal {
+            export BareGenitiveHost = No;
             form [head: Nominal, " ", relative: SubjectRelativeClause];
             use NominalHeadProperties;
             agree head.number = relative.number;
@@ -2051,6 +2073,7 @@ constructions! {
         }
 
         construction ObjectRelativeNominal: Nominal {
+            export BareGenitiveHost = No;
             form [head: Nominal, " ", relative: ObjectRelativeClause];
             use NominalHeadProperties;
         }
@@ -2220,6 +2243,7 @@ constructions! {
         }
 
         construction SlashModifiedNominal: Nominal {
+            export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: SlashPair, " ", head: Nominal];
             require head.SlashPremodifierUse = Yes;
             use NominalHeadProperties;
@@ -2262,6 +2286,7 @@ constructions! {
         }
 
         construction MeasuredNounPhrase: NounPhrase {
+            export BareGenitiveHost = No;
             export Targeting = No;
             form [quantity: MeasurePhrase, " ", head: lexical(Noun)];
             require head.MeasurePosition = Before;
@@ -2273,6 +2298,7 @@ constructions! {
         }
 
         construction MeasuredAttribute: NounPhrase {
+            export BareGenitiveHost = No;
             export Targeting = No;
             form [head: lexical(Noun), " ", quantity: MeasurePhrase];
             require head.MeasurePosition = After;
@@ -2759,12 +2785,16 @@ constructions! {
         }
 
         // CGEL pp. 467–468: a genitive NP determines the following nominal.
-        construction SingularGenitiveNounPhrase: NounPhrase {
+        table genitive_marker(number, BareGenitiveHost, HostEnding) -> Selection {
+            (Singular, No, Default) => Yes, (Singular, Yes, Default) => Yes,
+            (Plural, Yes, PluralS) => Yes,
+        }
+        construction GenitiveNounPhrase: NounPhrase {
             form [possessor: NounPhrase, marker: lexical(Clitic), " ", head: Nominal];
             require possessor.CaseUse = Common;
-            require possessor.number = Singular;
             require marker.Function = Genitive;
-            require marker.HostEnding = Default;
+            require genitive_marker(possessor.number, possessor.BareGenitiveHost,
+                marker.HostEnding) = Yes;
             use NounPhraseHeadAgreement;
         }
 
@@ -2803,6 +2833,7 @@ constructions! {
         }
 
         construction CorrelativePostpositiveNominal: Nominal {
+            export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: CorrelativeAdjectivePhrase];
             use NominalHeadProperties;
         }

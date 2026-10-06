@@ -50,7 +50,7 @@ fn during_untap_step() -> Reading {
     Reading::PrepositionPhrase {
         form: 0,
         head: invariant("vocab:Preposition/During"),
-        complement: Box::new(accusative(Reading::SingularGenitiveNounPhrase {
+        complement: Box::new(accusative(Reading::GenitiveNounPhrase {
             form: 0,
             possessor: Box::new(Reading::DeterminedNounPhrase {
                 form: 0,

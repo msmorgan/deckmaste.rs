@@ -176,7 +176,7 @@ fn authentic_full_genitive_possessor_preserves_internal_structure() {
     // are both retained.
     let expected: BTreeSet<_> = [head, noun("lexeme:turn_part/untapStep")]
         .into_iter()
-        .map(|head| Reading::SingularGenitiveNounPhrase {
+        .map(|head| Reading::GenitiveNounPhrase {
             form: 0,
             possessor: Box::new(possessor.clone()),
             marker: invariant("vocab:Genitive/Default", SurfaceCase::Declared),

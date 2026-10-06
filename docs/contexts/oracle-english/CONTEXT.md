@@ -281,6 +281,11 @@ _Avoid_: Head for the Oblique
 A grammatical form expressing possession or a related dependency, including
 possessive determinatives and phrases marked with an apostrophe ending.
 
+**Bare Genitive**:
+A genitive marked in writing by an apostrophe without an added *s*, normally
+on a noun ending in *s*. It is obligatory for plural nouns with that ending,
+as in *owners’* (CGEL, Ch. 18 §4.2, p. 1595).
+
 **Relative Clause**:
 A dependent Clause that modifies a nominal expression or supplements another
 expression, with a relative element connected to a position in the Clause.

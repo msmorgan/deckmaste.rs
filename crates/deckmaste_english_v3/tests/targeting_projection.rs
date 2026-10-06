@@ -274,7 +274,7 @@ fn postmodifier_scopes_above_and_below_targeting_remain_distinct() {
 #[test]
 fn targeted_genitives_preserve_the_possessor_and_coordinated_head() {
     // Bojuka Bog and Dwarven Thaumaturgist.
-    let genitive = |possessor, head| Reading::SingularGenitiveNounPhrase {
+    let genitive = |possessor, head| Reading::GenitiveNounPhrase {
         form: 0,
         possessor: Box::new(possessor),
         marker: word("vocab:Genitive/Default"),

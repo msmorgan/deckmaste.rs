@@ -263,7 +263,7 @@ fn maximum_quantity_preserves_finite_agreement_and_targeted_genitives() {
         "up to one target player",
         Category::NounPhrase,
     );
-    let genitive = Reading::SingularGenitiveNounPhrase {
+    let genitive = Reading::GenitiveNounPhrase {
         form: 0,
         possessor: Box::new(Reading::TargetNounPhrase {
             form: 0,

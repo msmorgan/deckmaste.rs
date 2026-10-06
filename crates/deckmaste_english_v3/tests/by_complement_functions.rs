@@ -251,7 +251,7 @@ fn spikeshell_active_extent_is_selected_by_its_lexical_frame() {
         .unwrap()
         .strip_suffix('.')
         .unwrap();
-    let object = acc(Reading::SingularGenitiveNounPhrase {
+    let object = acc(Reading::GenitiveNounPhrase {
         form: 0,
         possessor: Box::new(determined(
             "vocab:SingularDemonstrative/That",
