@@ -110,3 +110,129 @@ Re-spell `extort.ron` to it.
 After this lands no caller in `plugins_v2/` passes `changeLife` an agent;
 dropping the alias's agent parameter is `semantics-v2-drop-agent-fields`'
 step, not this ticket's (that ticket already needs this one).
+
+## Landing record
+
+The series, oldest first: `xwruuvomlkqw` (claim), `qqkkrzwlwwks` (Lean
+checker and pins), `vkkvnouuvlpw` (extort re-spelled, `changeLife`
+comment), `orqpnpuumtwr` (`lean/CONTRACTS.md`, ADR §12.1 sentence, the
+`semantics-v2-drop-agent-fields` note), and this record. Each stage was
+gated on its own tree; the code tree is the same at `vkkvnouuvlpw`,
+`orqpnpuumtwr` and the record, which change only `docs/` and
+`lean/CONTRACTS.md`.
+
+**The change.** `Instruction.profile`, `.act who body`, `.many` arm
+(`lean/Semantics/Check/Abilities.lean:1222`): of what the body introduced
+(`fresh`), every singular amount outcome (`Binding.isAmountTotal`, `:1100`,
+the bindings `countAmountOutcomes` counts) is the handoff's deed and stays
+singular; the rest is pluralized as before.
+
+```lean
+let fresh := bodyP.intro.take (bodyP.intro.length - inner.length)
+⟨bs, pluralizeIntroduced (fresh.filter (!·.isAmountTotal)) ++
+  pluralizeIntroduced (NounPhrase.introduced bs who) ++ bs, none,
+ fresh.filter Binding.isAmountTotal⟩
+```
+
+Why the explicit agent already checked: its `.changeLife (.down a) who` arm
+publishes `outcomeB .lifeLost`, singular whatever `who`'s number, as the
+deed; the handoff took the same binding into `pluralizeIntroduced`, so
+`countAmountOutcomes` skipped it. The total is taken from the body's whole
+introduction, not only its deed, because a sequence body's `.last` moves
+its deed into what it announced. `doForEach` is unchanged.
+
+**Proof.**
+- `cd lean && ./scripts/build` (lake build, `--wfail`): Build completed
+  successfully (82 jobs), on `qqkkrzwlwwks`. The first full build after the
+  checker change rebuilt every proof module and the whole bench before any
+  pin was added, so every existing pin keeps its asserted outcome, the
+  three group pins (`handedGroupPublishesPlurals`,
+  `okDistributedDiscardReadsAsGroup`, `badDistributedDiscardReadSingular`),
+  `Proofs/Trigger.lean` `okLifePaymentThatMuch` and
+  `badKeywordCostPaymentThatMuch`, and the ten cost twins among them.
+  `Proofs/Actor.lean`: 44 → 51 theorems.
+- `cargo xtask lean-check`: on `qqkkrzwlwwks` (old extort spelling) canon
+  127/127, testing 5/5 (94.6s); on `vkkvnouuvlpw` canon 127/127, testing
+  5/5 (94.2s). Syndic of Tithes proves `Card.check = []` with the emitted
+  term `act (each opponent) (changeLife (down 1) actor)`, the same term as
+  the Lean pin `okExtortHandedToEachOpponent`.
+- Gate: on `qqkkrzwlwwks`, `cargo xtask gate --changed` reported "No
+  workspace crates are affected by the changed paths" (Lean only). On
+  `vkkvnouuvlpw` and after, it derived `cargo test -p
+  deckmaste_construction_core -p deckmaste_lexical_source -p
+  deckmaste_semantics_v2 -p deckmaste_construction_v3 -p
+  deckmaste_english_v3 -p xtask`; run with `--no-fail-fast`: 88 test
+  binaries, 1180 passed, 0 failed, 2 ignored (both pre-existing, each
+  naming its blocker: `seedborn_muse_retains_relative_clause_attachment`,
+  `macro_schema_census_count_matches_21`).
+- `cargo xtask facts check`: up to date, every stage. `cargo xtask cite
+  check --list-noncompliant`: 0; `cargo xtask cite check`: 0 stale (16012
+  citations on the record's tree); `cite audit --diff` read for every stage's new
+  `[CR#702.101a]` sites.
+- `cargo xtask expansions` before and after (session scratch): 1511
+  declarations, 0 failed. Changed declaration: `extort` only.
+
+**Term change, classified.** Handoff class: extort's loss
+`ChangeLife(delta: Down(1), agent: Described(each, opponent))` →
+`Act(player: Described(each, opponent), body: ChangeLife(delta: Down(1),
+agent: Actor))`. Changed card terms: Syndic of Tithes (through `extort`, its
+source unchanged). No other declaration or card term moved.
+
+**Pins added** (`lean/Semantics/Proofs/Actor.lean`, "A group handoff
+publishes its amount outcomes as totals"), each closed by `decide`:
+- `okExtortHandedToEachOpponent`: Syndic of Tithes with extort over
+  `act (each .opponent) (Actor.loseLife 1)` then `Actor.gainLife .thatMuch`:
+  `Card.check = []`.
+- `extortHandoffTwin`: the explicit-agent spelling `changeLife (down 1)
+  (each opponent)` checks `[]`, and the handoff spelling's refusals equal
+  it.
+- `handedGroupPublishesTotal`: `act (each .opponent) (Actor.loseLife 1)`
+  publishes `[(outcome, one, the), (player, many, each)]`, and its
+  bindings are equal (`==`) to the explicit plural agent's.
+- `badGroupHandoffNoOutcomeThatMuch`: "Each opponent discards a card. You
+  gain that much life." = `[.quantOutcomeInScope 0]`.
+- `okGroupHandoffSequenceReadsLifeTotal`: "Each opponent loses 1 life and
+  discards a card." then "that much" checks `[]` (it reads the life total),
+  and then "exile them" checks `[]` (the cards stay a group).
+- `badGroupHandoffTwoTotalsThatMuch`: a body that loses life twice leaves
+  two totals, `[.quantOutcomeInScope 2]`.
+- `badForEachLossThatMuch`: `doForEach (each opponent) (act they (loseLife
+  1))` then "that much" = `[.quantOutcomeInScope 0]`: the for-each is not
+  changed.
+
+**Pins changed.** None. No existing pin's statement or expected value
+moved.
+
+**Tests.** Restored: 0. Re-spelled: 0 (no Rust test names the extort term;
+the only `extort` hits under `crates/` are the facts table's `Extort` label
+and regime, unaffected). Ignored: 0 new. Added: 7 Lean pins. Removed: 0.
+
+**Deviations and additions.**
+1. `Binding.isAmountTotal`, a new one-line predicate beside
+   `statedNumbers`, names the bindings `countAmountOutcomes` counts.
+2. The ticket said the body's amount outcomes; they are taken from all the
+   body introduced, not only its deed, so a sequence body (`loseLife` then
+   `discard`) still publishes its total (`okGroupHandoffSequenceReadsLifeTotal`).
+   With the deed alone that case would stay refused.
+3. The totals leave the pluralized group rather than appearing twice
+   (singular in the deed, plural below); the published bindings then equal
+   the explicit plural agent's exactly (`handedGroupPublishesTotal`).
+4. Beyond the ticket's letter: `badGroupHandoffTwoTotalsThatMuch` and
+   `badForEachLossThatMuch`, which pin what the change makes observable.
+5. `changeLife.ron`'s comment no longer says extort needs the agent; the
+   parameter stays (routed).
+
+**STOPs.** None. Option A held all four conditions at once.
+
+**Glossary.** No gap found.
+
+**Not applicable.** Coverage lock, selection census, licensing-checker
+totals, homograph and form-literal inventories and the performance
+advisory: no English grammar, lexicon or corpus input changed, so
+`coverage` was not run.
+
+**Routed.**
+- `semantics-v2-drop-agent-fields`: `grep -rn "changeLife(" plugins_v2`
+  finds no caller outside the alias's own declaration, so nothing passes
+  `changeLife` a performer; its `agent` parameter can go there (dated line
+  added to that ticket).
