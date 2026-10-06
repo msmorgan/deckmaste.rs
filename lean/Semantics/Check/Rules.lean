@@ -62,14 +62,30 @@ def distinctPredefinedTokens : List PredefinedToken → Bool
 
 /-! ## Registry definitions -/
 
+/-- A definition's stat change on its bearer is about the bearer wherever the bearer is, so it is
+checked as a card's stat change is, less the demand that its subject be on the battlefield. A
++X/+Y counter counts "on a creature or on a creature card in a zone other than the battlefield"
+[CR#122.1a]; a counter sits on an exiled card [CR#702.62a,702.62b] and on a player [CR#122.1];
+and the zone matters where counters are PUT [CR#122.6], an instruction that cannot be carried out
+doing only what it can [CR#609.3], which is the instruction's check and not the definition's.
+
+Only the bearer (`this`) is narrowed, and only here: a card's own "gets +1/+1", and a
+definition's stat change on any other subject, keep `StaticSpec.check`'s demand. -/
+def Conferral.checkProperty : StaticSpec → List Refusal
+  | .ptModification .this p t =>
+      NounPhrase.check (some .object) [] .this ++ Amount.check (selfSubjIntro [] .this) p.amount ++
+        Amount.check (Delta.introduced (selfSubjIntro [] .this) p ++ selfSubjIntro [] .this) t.amount
+  | spec => StaticSpec.check [] spec
+
 /-- What a definition confers obeys the laws its syntax obeys inside a card, in the empty
 binding context: the definition supplies no binding, exactly as a rules table's scope supplies
 only `this`. A conferred ability must be one an effect could grant at all [CR#113.3a], and
 neither a state-based action [CR#704.1] nor a turn-based action [CR#703.1] uses the stack, so
-neither can target [CR#601.2c]. -/
+neither can target [CR#601.2c]. A stat change on the bearer is the one exception to "as inside a
+card" (`Conferral.checkProperty`). -/
 def Conferral.check : Conferral → List Refusal
   | .ability a => Ability.check [] a ++ refuse a.grantable .grantable
-  | .property spec => StaticSpec.check [] spec
+  | .property spec => Conferral.checkProperty spec
   | .stateBased when then_ =>
       Condition.check [] when ++ Instruction.check [] then_ ++
         refuse (!anyTargetedAt (Instruction.intro [] then_)) .nontarget
