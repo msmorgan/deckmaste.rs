@@ -71,32 +71,23 @@ fn determined(id: &str, head: Reading) -> Reading {
     }
 }
 
-fn targets(nominal_target: bool) -> Reading {
-    let head = Box::new(noun("lexeme:type/creature", Number::Plural));
-    if nominal_target {
-        Reading::BarePlural {
-            form: 0,
-            head: Box::new(Reading::TargetedNominal {
-                form: 0,
-                marker: word("vocab:TargetingMarker/Target"),
-                head,
-            }),
-        }
-    } else {
-        Reading::TargetNounPhrase {
+fn targets() -> Reading {
+    Reading::BarePlural {
+        form: 0,
+        head: Box::new(Reading::TargetedNominal {
             form: 0,
             marker: word("vocab:TargetingMarker/Target"),
-            head,
-        }
+            head: Box::new(noun("lexeme:type/creature", Number::Plural)),
+        }),
     }
 }
 
-fn subject(nominal_target: bool) -> Reading {
+fn subject() -> Reading {
     determined(
         "vocab:Determinative/Any",
         of(
             noun("lexeme:CommonNoun/Number", Number::Singular),
-            targets(nominal_target),
+            targets(),
         ),
     )
 }
@@ -179,7 +170,7 @@ fn assert_laws(value: &Reading, text: &str, category: Category) {
 
 #[test]
 fn sway_subject_preserves_exact_readings_and_nominal_head() {
-    let expected = BTreeSet::from([subject(false), subject(true)]);
+    let expected = BTreeSet::from([subject()]);
     assert_eq!(
         readings("any number of target creatures", Category::NounPhrase),
         expected
@@ -216,21 +207,14 @@ fn sway_subject_preserves_exact_readings_and_nominal_head() {
 fn independently_constructed_sway_clause_requires_plural_third_concord() {
     // Constituent of Sway of Illusion's first sentence, before its temporal PP.
     let text = "any number of target creatures become the color of your choice";
-    let expected = BTreeSet::from([
-        clause(subject(false), Number::Plural),
-        clause(subject(true), Number::Plural),
-    ]);
+    let expected = BTreeSet::from([clause(subject(), Number::Plural)]);
     assert_eq!(readings(text, Category::Clause), expected);
     for value in expected {
         assert_laws(&value, text, Category::Clause);
     }
-    for value in [
-        clause(subject(false), Number::Singular),
-        clause(subject(true), Number::Singular),
-    ] {
-        assert!(value.admit(lexicon()).is_err());
-        assert!(value.realize(lexicon()).is_err());
-    }
+    let singular = clause(subject(), Number::Singular);
+    assert!(singular.admit(lexicon()).is_err());
+    assert!(singular.realize(lexicon()).is_err());
     assert!(
         readings(
             "any number of target creatures becomes the color of your choice",
@@ -287,63 +271,42 @@ fn eerie_interlude_keeps_both_relative_clause_scopes_and_plural_concord() {
             }),
         }
     };
-    let mut expected = BTreeSet::new();
-    for nominal_target in [false, true] {
-        let Reading::DeterminedNounPhrase { head, .. } = subject(nominal_target) else {
-            unreachable!()
-        };
-        expected.insert(determined("vocab:Determinative/Any", relative(*head)));
-        let target = targets(nominal_target);
-        let controlled = match target {
-            Reading::TargetNounPhrase { form, marker, head } => Reading::TargetNounPhrase {
-                form,
-                marker,
-                head: Box::new(relative(*head)),
-            },
-            Reading::BarePlural { form, head } => {
-                expected.insert(determined(
-                    "vocab:Determinative/Any",
-                    of(
-                        noun("lexeme:CommonNoun/Number", Number::Singular),
-                        Reading::BarePlural {
-                            form,
-                            head: Box::new(relative(*head.clone())),
-                        },
-                    ),
-                ));
-                let Reading::TargetedNominal {
-                    form: target_form,
-                    marker,
-                    head,
-                } = *head
-                else {
-                    unreachable!()
-                };
-                Reading::BarePlural {
-                    form,
-                    head: Box::new(Reading::TargetedNominal {
-                        form: target_form,
-                        marker,
-                        head: Box::new(relative(*head)),
-                    }),
-                }
-            }
-            _ => unreachable!(),
-        };
-        expected.insert(determined(
+    let Reading::DeterminedNounPhrase { head, .. } = subject() else {
+        unreachable!()
+    };
+    let low = Reading::BarePlural {
+        form: 0,
+        head: Box::new(Reading::TargetedNominal {
+            form: 0,
+            marker: word("vocab:TargetingMarker/Target"),
+            head: Box::new(relative(noun("lexeme:type/creature", Number::Plural))),
+        }),
+    };
+    let high = Reading::BarePlural {
+        form: 0,
+        head: Box::new(relative(Reading::TargetedNominal {
+            form: 0,
+            marker: word("vocab:TargetingMarker/Target"),
+            head: Box::new(noun("lexeme:type/creature", Number::Plural)),
+        })),
+    };
+    let expected = BTreeSet::from([
+        determined("vocab:Determinative/Any", relative(*head)),
+        determined(
             "vocab:Determinative/Any",
-            of(
-                noun("lexeme:CommonNoun/Number", Number::Singular),
-                controlled,
-            ),
-        ));
-    }
+            of(noun("lexeme:CommonNoun/Number", Number::Singular), low),
+        ),
+        determined(
+            "vocab:Determinative/Any",
+            of(noun("lexeme:CommonNoun/Number", Number::Singular), high),
+        ),
+    ]);
     assert_eq!(readings(text, Category::NounPhrase), expected);
     for value in expected {
         assert_laws(&value, text, Category::NounPhrase);
         assert_eq!(
             value.admit(lexicon()).unwrap(),
-            subject(false).admit(lexicon()).unwrap()
+            subject().admit(lexicon()).unwrap()
         );
         assert!(clause(value, Number::Singular).admit(lexicon()).is_err());
     }
@@ -462,7 +425,7 @@ fn a_later_of_modifier_keeps_the_first_oblique_and_both_attachment_scopes() {
     );
     assert_eq!(
         high.admit(lexicon()).unwrap(),
-        subject(false).admit(lexicon()).unwrap()
+        subject().admit(lexicon()).unwrap()
     );
     assert_constituents(
         "any number of cards of that type",

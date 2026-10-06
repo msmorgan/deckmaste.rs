@@ -1574,6 +1574,7 @@ constructions! {
             form [marker: lexical(Determinative), " ", head: Nominal];
             require marker.Targeting = Yes;
             require head.Targeting = No;
+            require head.number = Singular;
             export number = head.number;
             use ThirdPersonCommonCase;
             export Targeting = Yes;
