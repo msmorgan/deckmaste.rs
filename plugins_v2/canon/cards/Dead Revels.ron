@@ -14,8 +14,7 @@ SingleFaced(face: (
                 Black,
             ])),
             spell(
-                timing: None,
-                instruction: enact(
+                enact(
                     verb: Core(Return),
                     instruction: move(subject: described( determiner: Target(range(low: 0, high: 2)), predicate: and( [ card, hasType(Creature), inZone( zone( zone: Graveyard, scope: PossessedBy(you), ), ), ], ), ), from: zone(zone: Graveyard, scope: PossessedBy(you)), to: zone(zone: Hand, scope: Bare)),
                 ),

@@ -10,8 +10,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                timing: None,
-                instruction: goad(described(
+                goad(described(
                     determiner: All,
                     predicate: and([
                         hasType(Creature),

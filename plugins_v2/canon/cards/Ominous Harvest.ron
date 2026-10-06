@@ -10,8 +10,7 @@ SingleFaced(face: (
         text: [
             gravestorm,
             spell(
-                timing: None,
-                instruction: sequentially([
+                sequentially([
                     act(described( determiner: Target(range(low: 1, high: 1)), predicate: anyPlayer, ), draw(1)),
                     act(they, loseLife(1)),
                 ]),

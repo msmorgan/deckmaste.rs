@@ -26,7 +26,7 @@ KeywordAction(
         delay(
             dies(that(Land)),
             returnToBattlefield(that(Land), [EntersAs(Tapped), Under(actor)]),
-            [zoneChange(that(Land), Zones([battlefield]), exileZone, Before)],
+            [zoneChange(that(Land), Before, Zones([battlefield]), exileZone)],
         ),
     ]),
 )

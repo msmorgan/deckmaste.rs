@@ -9,8 +9,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             spell(
-                timing: None,
-                instruction: sequentially([
+                sequentially([
                     proliferate,
                     draw(1),
                 ]),

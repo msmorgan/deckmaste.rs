@@ -12,8 +12,7 @@ Split(
             types: [Instant],
             text: [
                 spell(
-                    timing: None,
-                    instruction: destroy(described(
+                    destroy(described(
                         determiner: Target(range(low: 1, high: 1)),
                         predicate: and([
                             hasType(Creature),
@@ -38,8 +37,7 @@ Split(
             text: [
                 aftermath,
                 spell(
-                    timing: None,
-                    instruction: sequentially([
+                    sequentially([
                         draw(2),
                         discard(
                             described(

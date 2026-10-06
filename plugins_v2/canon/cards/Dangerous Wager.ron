@@ -10,8 +10,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             spell(
-                timing: None,
-                instruction: sequentially([
+                sequentially([
                     discard(
                         described(
                             determiner: All,

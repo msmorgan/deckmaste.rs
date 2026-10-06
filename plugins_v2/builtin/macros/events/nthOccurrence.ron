@@ -4,6 +4,6 @@
 (
     name: "nthOccurrence",
     kinds: [GameEvent],
-    params: {"ordinal": Ordinal, "per": Default(Any, None), "event": GameEvent},
+    params: {"ordinal": Ordinal, "event": GameEvent, "per": Default(Any, None)},
     body: NthOccurrence(ordinal: Param(ordinal), per: Param(per), event: Param(event)),
 )

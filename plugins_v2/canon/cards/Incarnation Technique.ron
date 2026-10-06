@@ -11,8 +11,7 @@ SingleFaced(face: (
         text: [
             demonstrate,
             spell(
-                timing: None,
-                instruction: sequentially([
+                sequentially([
                     mill(5),
                     enact(
                         verb: Core(Return),

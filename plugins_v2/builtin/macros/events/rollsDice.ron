@@ -4,6 +4,6 @@
 (
     name: "rollsDice",
     kinds: [GameEvent],
-    params: {"player": Subject, "batch": Any, "sides": Default(Any, None), "watch": Any},
+    params: {"player": Subject, "batch": Any, "watch": Any, "sides": Default(Any, None)},
     body: RollsDice(player: Param(player), batch: Param(batch), sides: Param(sides), watch: Param(watch)),
 )

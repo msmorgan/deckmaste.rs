@@ -6,8 +6,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             spell(
-                timing: None,
-                instruction: act(
+                act(
                     described(
                         determiner: Target(range(low: 1, high: 1)),
                         predicate: anyPlayer,

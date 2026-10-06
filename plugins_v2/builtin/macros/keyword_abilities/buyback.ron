@@ -13,7 +13,7 @@ KeywordAbility(
         static(
             onlyWhile(
                 insteadOf(
-                    zoneChange(thisSpell, Zones([stack]), graveyard, Before),
+                    zoneChange(thisSpell, Before, Zones([stack]), graveyard),
                     move(thisSpell, wherever, hand),
                 ),
                 keywordCostPaid("Buyback", thisSpell),

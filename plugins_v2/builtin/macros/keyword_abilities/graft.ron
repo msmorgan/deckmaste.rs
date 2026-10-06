@@ -14,7 +14,7 @@ KeywordAbility(
         triggeredIf(
             enters(a(otherCreature(thisPermanent))),
             matches(thisPermanent, hasCounters(p1p1Counter)),
-            may(moveCounters(1, p1p1Counter, thisPermanent, that(Creature))),
+            may(moveCounters(1, thisPermanent, that(Creature), p1p1Counter)),
         ),
     ],
 )

@@ -11,7 +11,7 @@ SingleFaced(face: (
         power: 1,
         toughness: 2,
         text: [
-            triggered(event: zoneChange( subject: asType(type: Creature, subject: this, subtype: None), from: None, to: zone(zone: Battlefield, scope: Bare), observation: After, ), instruction: investigate),
+            triggered(event: zoneChange(asType(type: Creature, subject: this, subtype: None), After, None, zone(zone: Battlefield, scope: Bare)), instruction: investigate),
         ],
     ),
 ))

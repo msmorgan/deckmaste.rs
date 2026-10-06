@@ -4,6 +4,6 @@
 (
     name: "replacement",
     kinds: [StaticSpec],
-    params: {"event": GameEvent, "alternatives": Default(Any, []), "timing": Default(Any, None), "replacement": Instruction, "use": Any, "limit": Default(Any, None)},
+    params: {"event": GameEvent, "replacement": Instruction, "use": Any, "alternatives": Default(Any, []), "timing": Default(Any, None), "limit": Default(Any, None)},
     body: Replacement(event: Param(event), alternatives: Param(alternatives), timing: Param(timing), replacement: Param(replacement), r#use: Param(use), limit: Param(limit)),
 )

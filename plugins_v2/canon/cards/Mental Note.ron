@@ -7,8 +7,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             spell(
-                timing: None,
-                instruction: sequentially([
+                sequentially([
                     mill(2),
                     draw(1),
                 ]),

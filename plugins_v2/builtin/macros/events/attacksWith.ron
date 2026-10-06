@@ -4,6 +4,6 @@
 (
     name: "attacksWith",
     kinds: [GameEvent],
-    params: {"player": Subject, "defender": Default(Any, None), "attackers": Subject},
+    params: {"player": Subject, "attackers": Subject, "defender": Default(Any, None)},
     body: AttacksWith(player: Param(player), defender: Param(defender), attackers: Param(attackers)),
 )

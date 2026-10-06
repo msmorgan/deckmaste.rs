@@ -13,7 +13,7 @@ KeywordAction(
         choose(
             counted(
                 anyNumber,
-                or([and([permanent, hasCounters]), compare([AnyCounter(Player)], AtLeast, 1)]),
+                or([and([permanent, hasCounters]), compare(AtLeast, 1, [AnyCounter(Player)])]),
             ),
         ),
         putCounters(1, Own, eachOf(those(Join))),

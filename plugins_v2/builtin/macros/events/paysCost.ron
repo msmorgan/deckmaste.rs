@@ -4,6 +4,6 @@
 (
     name: "paysCost",
     kinds: [GameEvent],
-    params: {"player": Default(Any, None), "outcome": Any, "whose": Subject, "keyword": Any},
+    params: {"outcome": Any, "whose": Subject, "keyword": Any, "player": Default(Any, None)},
     body: PaysCost(player: Param(player), outcome: Param(outcome), whose: Param(whose), keyword: Param(keyword)),
 )

@@ -9,7 +9,7 @@ SingleFaced(face: (
         ],
         types: [Instant],
         text: [
-            spell(timing: None, instruction: draw(1)),
+            spell(draw(1)),
             escape(compound([
                 mana([
                     2,

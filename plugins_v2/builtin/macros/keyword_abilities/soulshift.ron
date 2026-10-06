@@ -17,7 +17,7 @@ KeywordAbility(
                         and([
                             card,
                             hasSubtype(spirit),
-                            compare([Stat(ManaValue)], AtMost, Param(0)),
+                            compare(AtMost, Param(0), [Stat(ManaValue)]),
                             inZone(graveyardOf(you)),
                         ]),
                     ),

@@ -9,8 +9,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                timing: None,
-                instruction: createObject(
+                createObject(
                     count: 2,
                     spec: Token(
                         spec: written(

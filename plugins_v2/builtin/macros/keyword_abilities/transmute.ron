@@ -18,12 +18,12 @@ KeywordAbility(
                     and([
                         card,
                         compare(
-                            [Stat(ManaValue)],
                             Eq,
                             statOf(
                                 Stat(ManaValue),
                                 theVerbed(Action("Discard"), Card, Attributive, One),
                             ),
+                            [Stat(ManaValue)],
                         ),
                     ]),
                 ),

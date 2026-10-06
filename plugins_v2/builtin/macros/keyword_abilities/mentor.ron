@@ -15,7 +15,7 @@ KeywordAbility(
                 1,
                 p1p1Counter,
                 target(
-                    and([creature, attacking, compare([Stat(Power)], Less, powerOf(thisCreature))]),
+                    and([creature, attacking, compare(Less, powerOf(thisCreature), [Stat(Power)])]),
                 ),
             ),
         ),

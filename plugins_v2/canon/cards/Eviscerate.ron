@@ -10,8 +10,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                timing: None,
-                instruction: destroy(described(
+                destroy(described(
                     determiner: Target(range(low: 1, high: 1)),
                     predicate: hasType(Creature),
                 )),

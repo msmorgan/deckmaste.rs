@@ -4,6 +4,6 @@
 (
     name: "abilityGrantFrom",
     kinds: [StaticSpec],
-    params: {"subject": Subject, "classes": Default(Any, []), "source": Subject, "except": Default(Any, None)},
+    params: {"subject": Subject, "source": Subject, "classes": Default(Any, []), "except": Default(Any, None)},
     body: AbilityGrantFrom(subject: Param(subject), classes: Param(classes), source: Param(source), except: Param(except)),
 )

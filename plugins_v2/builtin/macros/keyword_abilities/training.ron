@@ -18,7 +18,7 @@ KeywordAbility(
                         and([
                             creature,
                             otherThan(thisCreature),
-                            compare([Stat(Power)], Greater, powerOf(thisCreature)),
+                            compare(Greater, powerOf(thisCreature), [Stat(Power)]),
                         ]),
                     ),
                 ]),

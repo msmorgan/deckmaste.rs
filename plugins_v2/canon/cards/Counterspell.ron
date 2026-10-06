@@ -11,8 +11,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             spell(
-                timing: None,
-                instruction: counter(described(
+                counter(described(
                     determiner: Target(range(low: 1, high: 1)),
                     predicate: and([
                         inZone(zone(zone: Stack, scope: Bare)),

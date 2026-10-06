@@ -9,8 +9,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                timing: None,
-                instruction: sequentially([
+                sequentially([
                     detain(described(
                         determiner: Target(range(low: 1, high: 1)),
                         predicate: and([

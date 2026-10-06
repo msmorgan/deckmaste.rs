@@ -11,8 +11,7 @@ SingleFaced(face: (
         text: [
             buyback(mana([3])),
             spell(
-                timing: None,
-                instruction: enact(
+                enact(
                     verb: Core(Return),
                     instruction: move(subject: described( determiner: Target(range(low: 1, high: 1)), predicate: inZone(zone(zone: Battlefield, scope: Bare)), ), from: wherever, to: zone(zone: Hand, scope: Bare)),
                 ),

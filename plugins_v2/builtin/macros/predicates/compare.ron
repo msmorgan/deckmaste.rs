@@ -4,6 +4,6 @@
 (
     name: "compare",
     kinds: [Predicate],
-    params: {"axes": Default(Any, []), "comparator": Comparator, "bound": Amount},
+    params: {"comparator": Comparator, "bound": Amount, "axes": Default(Any, [])},
     body: Compare(axes: Param(axes), comparator: Param(comparator), bound: Param(bound)),
 )

@@ -9,8 +9,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                timing: None,
-                instruction: amass(zombie, 3),
+                amass(zombie, 3),
             ),
         ],
     ),

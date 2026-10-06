@@ -4,6 +4,6 @@
 (
     name: "spell",
     kinds: [Ability],
-    params: {"timing": Default(Any, None), "instruction": Instruction},
+    params: {"instruction": Instruction, "timing": Default(Any, None)},
     body: Spell(timing: Param(timing), instruction: Param(instruction)),
 )

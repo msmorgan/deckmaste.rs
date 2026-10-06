@@ -8,8 +8,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                timing: None,
-                instruction: act(target(anyPlayer), discard(random(exactly(2), card))),
+                act(target(anyPlayer), discard(random(exactly(2), card))),
             ),
         ],
     ),

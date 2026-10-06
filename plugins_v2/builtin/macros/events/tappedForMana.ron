@@ -4,6 +4,6 @@
 (
     name: "tappedForMana",
     kinds: [GameEvent],
-    params: {"player": Default(Any, None), "source": Subject, "type": Default(Any, None)},
+    params: {"source": Subject, "player": Default(Any, None), "type": Default(Any, None)},
     body: TappedForMana(player: Param(player), source: Param(source), r#type: Param(type)),
 )

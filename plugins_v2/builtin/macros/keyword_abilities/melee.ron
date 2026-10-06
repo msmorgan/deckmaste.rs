@@ -16,7 +16,7 @@ KeywordAbility(
                     times(
                         1,
                         eventCount(
-                            attacksWith(you, gap(Player), a(creature)),
+                            attacksWith(you, a(creature), gap(Player)),
                             bare(opponent),
                             ThisCombat,
                         ),

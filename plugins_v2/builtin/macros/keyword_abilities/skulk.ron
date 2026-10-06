@@ -11,7 +11,7 @@ KeywordAbility(
         static(
             cantBeBlockedBy(
                 thisCreature,
-                and([creature, compare([Stat(Power)], Greater, powerOf(thisCreature))]),
+                and([creature, compare(Greater, powerOf(thisCreature), [Stat(Power)])]),
             ),
         ),
     ],

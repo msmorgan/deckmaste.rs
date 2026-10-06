@@ -4,6 +4,6 @@
 (
     name: "doForEachKind",
     kinds: [Instruction],
-    params: {"axis": Any, "domain": Default(Any, None), "sort": QualitySort, "body": Instruction},
+    params: {"axis": Any, "sort": QualitySort, "body": Instruction, "domain": Default(Any, None)},
     body: DoForEachKind(axis: Param(axis), domain: Param(domain), sort: Param(sort), body: Param(body)),
 )

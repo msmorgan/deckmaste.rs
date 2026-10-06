@@ -7,8 +7,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             spell(
-                timing: None,
-                instruction: sequentially([
+                sequentially([
                     exchangeZones(yourHand, graveyardOf(you)),
                     exile(thisSpell),
                 ]),

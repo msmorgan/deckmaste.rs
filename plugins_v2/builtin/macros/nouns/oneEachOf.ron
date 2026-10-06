@@ -4,6 +4,6 @@
 (
     name: "oneEachOf",
     kinds: [NounPhrase],
-    params: {"roles": Default(Any, []), "pool": Subject},
+    params: {"pool": Subject, "roles": Default(Any, [])},
     body: OneEachOf(roles: Param(roles), pool: Param(pool)),
 )

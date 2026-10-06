@@ -9,8 +9,7 @@ SingleFaced(face: (
         types: [Instant],
         text: [
             spell(
-                timing: None,
-                instruction: exile(described(
+                exile(described(
                     determiner: Target(range(low: 1, high: 1)),
                     predicate: hasType(Creature),
                 )),

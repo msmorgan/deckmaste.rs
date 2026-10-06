@@ -18,7 +18,7 @@ KeywordAbility(
                     and([
                         card,
                         creature,
-                        compare([Stat(ManaValue)], Eq, statOf(Stat(ManaValue), thisPermanent)),
+                        compare(Eq, statOf(Stat(ManaValue), thisPermanent), [Stat(ManaValue)]),
                     ]),
                 ),
                 putOntoBattlefield(foundCard),

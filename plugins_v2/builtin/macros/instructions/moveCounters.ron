@@ -4,6 +4,6 @@
 (
     name: "moveCounters",
     kinds: [Instruction],
-    params: {"amount": Amount, "kind": Default(Any, None), "source": Subject, "destination": Subject},
+    params: {"amount": Amount, "source": Subject, "destination": Subject, "kind": Default(Any, None)},
     body: MoveCounters(amount: Param(amount), kind: Param(kind), source: Param(source), destination: Param(destination)),
 )

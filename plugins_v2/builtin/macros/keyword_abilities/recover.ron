@@ -10,7 +10,7 @@ KeywordAbility(
     // to your hand. Otherwise, exile this card." [CR#702.59a]
     body: [
         triggered(
-            zoneChange(a(creature), Zones([battlefield]), graveyardOf(you), Before),
+            zoneChange(a(creature), Before, Zones([battlefield]), graveyardOf(you)),
             may(
                 pay(Param(0), Once),
                 returnToHand(this, graveyardOf(you)),

@@ -23,10 +23,10 @@ SingleFaced(face: (
         text: [
             keyword("Vigilance"),
             triggeredOr(event: zoneChange(
-                    subject: asType(type: Creature, subject: this, subtype: None),
-                    from: None,
-                    to: zone(zone: Battlefield, scope: Bare),
-                    observation: After,
+                    asType(type: Creature, subject: this, subtype: None),
+                    After,
+                    None,
+                    zone(zone: Battlefield, scope: Bare),
                 ), alternatives: [
                     combat(
                         relation: AttackerOf,

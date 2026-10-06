@@ -9,8 +9,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                timing: None,
-                instruction: sequentially([
+                sequentially([
                     act(target(anyPlayer), revealHand),
                     choose(a(and([not(land), cardIn(handOf(they))]))),
                     act(they, discard(that(Card))),

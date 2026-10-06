@@ -4,6 +4,6 @@
 (
     name: "zoneChange",
     kinds: [GameEvent],
-    params: {"subject": Subject, "from": Default(Any, None), "to": Default(Any, None), "observation": Any},
+    params: {"subject": Subject, "observation": Any, "from": Default(Any, None), "to": Default(Any, None)},
     body: ZoneChange(subject: Param(subject), r#from: Param(from), to: Param(to), observation: Param(observation)),
 )

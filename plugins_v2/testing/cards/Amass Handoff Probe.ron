@@ -9,8 +9,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                timing: None,
-                instruction: act(target(opponent), amass(orc, 2)),
+                act(target(opponent), amass(orc, 2)),
             ),
         ],
     ),
