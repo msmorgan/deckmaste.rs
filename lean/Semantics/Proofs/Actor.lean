@@ -6,7 +6,7 @@ import Semantics.Check.Card
 
 The performer of an instruction and the handoff that names another one. `actor` is whoever
 performs the instruction it is part of: the controller [CR#109.5] unless an enclosing `act`
-hands the instruction to another player. Each pin is closed by `decide`.
+hands the instruction to another player or to a permanent. Each pin is closed by `decide`.
 -/
 
 open Semantics Semantics.Macros
@@ -535,6 +535,134 @@ theorem badForEachLossThatMuch :
       (.sequentially
         [ Primitives.Instruction.doForEach (each .opponent) (act they (Actor.loseLife (.lit 1))),
           Actor.gainLife .thatMuch ]) = [.quantOutcomeInScope 0] := by
+  decide
+
+/-! ## A permanent can be handed an instruction
+
+The rules instruct a permanent itself to explore or endure [CR#701.44a,701.63a]; the handoff
+takes a permanent as well as a player. Inside it `actor` is the permanent, and the steps the rule
+gives "that permanent's controller" are handed on to `controllerOf actor`, inside which `actor`
+is the controller and the permanent stays in view as "that permanent". An object-performed deed
+written with no handoff to a permanent is performed by the source permanent. -/
+
+/-- The `explore` declaration's body [CR#701.44a]: the exploring permanent's controller reveals
+the top card of their library; a land goes to its owner's hand, otherwise "that permanent" gets
+a +1/+1 counter and the card may go to the graveyard. `perm` is how the body names the exploring
+permanent. -/
+private def exploreBody (perm : NounPhrase) : Instruction :=
+  act (controllerOf actor) (.sequentially
+    [ .expose .reveal (.cards (.librarySlice .top (.lit 1) actor)) .actor,
+      .doIf (.matches (that .card) land) (.move (that .card) .wherever (.zone .hand .bare) [])
+        (some (.sequentially
+          [ .putCounters (.lit 1) (.printed p1p1Counter) perm,
+            .withContinuation (.optional .actor)
+              (.move (that .card) .wherever (.zone .graveyard .bare) []) none none ])) ])
+
+/-- `explore` as the keyword-action loader wraps it: the deed, recorded with the actor. -/
+private def literalExplore (perm : NounPhrase := that .permanent) : Instruction :=
+  .enact (.action "Explore") (exploreBody perm) (some .actor)
+
+/-- `endure N` as declared [CR#701.63a]: the enduring permanent's controller chooses between
+the counters on "that permanent" and the Spirit token. -/
+private def literalEndure (n : Nat) : Instruction :=
+  .enact (.action "Endure")
+    (act (controllerOf actor)
+      (.chooseModes (.range (some 1) (some 1))
+        [ (none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent)),
+          (none, Actor.create (.lit 1) (creatureToken n n [.white] [creatureType "Spirit"])) ]))
+    (some .actor)
+
+/-- `adapt N` as declared [CR#701.46a]: unchanged, still reading "this permanent". -/
+private def literalAdapt (n : Nat) : Instruction :=
+  .enact (.action "Adapt")
+    (.doIf (.not (.matches thisPermanent (.hasCounters (some p1p1Counter))))
+      (.putCounters (.lit n) (.printed p1p1Counter) thisPermanent) none)
+    (some .actor)
+
+/-- "Target creature explores.": handed to the creature, whose controller does the steps. -/
+theorem okExploreHandedToTargetCreature :
+    Instruction.check [] (act (target creature) literalExplore) = [] := by
+  decide
+
+/-- Deadeye Tracker's "This creature explores.": `this` introduces nothing, so the handoff puts
+the permanent in view for "that permanent". -/
+theorem okExploreHandedToThisCreature :
+    Instruction.check [] (act thisCreature literalExplore) = [] := by
+  decide
+
+/-- The owner's spelling "that creature" reaches the permanent too, handed to a target creature
+or to "this creature". -/
+theorem okExploreReadsThatCreature :
+    Instruction.check [] (act (target creature) (literalExplore (that (.type .creature)))) = [] ∧
+      Instruction.check [] (act thisCreature (literalExplore (that (.type .creature)))) = [] := by
+  decide
+
+/-- "This creature endures 1." (the testing card Endure Handoff Probe) -/
+theorem okEndureHandedToThisCreature :
+    Instruction.check [] (act thisCreature (literalEndure 1)) = [] := by
+  decide
+
+/-- "Each creature you control explores.": a group of permanents, each exploring in turn. -/
+theorem okExploreHandedToEachCreature :
+    Instruction.check [] (act (each creature) literalExplore) = [] := by
+  decide
+
+/-- Inside a handoff to a permanent `actor` is that permanent: "target creature draws a card"
+records a creature as the drawing player. Handed on to its controller, the draw checks. -/
+theorem actorInPermanentHandoffIsThePermanent :
+    Instruction.check [] (act (target creature) (Actor.draw (.lit 1)))
+        = [.kindMismatch .player .object] ∧
+      Instruction.check [] (act (target creature) (act (controllerOf actor) (Actor.draw (.lit 1))))
+        = [] := by
+  decide
+
+/-- Explore handed to a player: the recorded performer is a player where the deed takes a
+permanent, and "that permanent" has no antecedent. -/
+theorem badExploreHandedToOpponent :
+    Instruction.check [] (act (target .opponent) literalExplore)
+      = [.kindMismatch .object .player, .possessorKind .controller .player,
+         .anaphor (.word .permanent) .one 0, .enactAgentOk] := by
+  decide
+
+/-- A card in a graveyard is not a permanent, and is never handed an instruction [CR#110.1]. -/
+theorem badHandoffToCardInGraveyard :
+    Instruction.check [] (act (target (.and [.isCard, .inZone graveyard]))
+        (act (controllerOf actor) (Actor.draw (.lit 1))))
+      = [.handoffPerformer] := by
+  decide
+
+/-- Printed "Adapt 2" on a permanent's own ability, with no handoff: the recorded actor is the
+controller, and the deed is performed by the source permanent [CR#701.46a]. -/
+theorem okBareAdaptDefaultsToThis : Instruction.check [] (literalAdapt 2) = [] := by decide
+
+/-- A bare "explore" and "endure 1" default to the source permanent the same way: `actor` in the
+body is "this permanent", and "that permanent" reads it. -/
+theorem okBareExploreAndEndureDefaultToThis :
+    Instruction.check [] literalExplore = [] ∧ Instruction.check [] (literalEndure 1) = [] := by
+  decide
+
+/-- "Target opponent adapts 2": handed to another player, the actor is that player, not the
+controller, so there is no default to the source permanent and the performer is refused. -/
+theorem badAdaptHandedToOpponent :
+    Instruction.check [] (act (target .opponent) (literalAdapt 2))
+      = [.kindMismatch .object .player, .enactAgentOk] := by
+  decide
+
+/-- "Whenever a creature explores": the event's performer is a permanent, as the deed's row
+says; "whenever a player explores" is refused, while a player still bolsters. -/
+theorem exploreEventTakesAPermanent :
+    GameEvent.check [] (.verbedEvent (some (a creature)) (.action "Explore") none none none) = [] ∧
+      GameEvent.check [] (.verbedEvent (some (a .anyPlayer)) (.action "Explore") none none none)
+        = [.kindMismatch .object .player] ∧
+      GameEvent.check [] (.verbedEvent (some (a .anyPlayer)) (.action "Bolster") none none none)
+        = [] := by
+  decide
+
+/-- A handoff to `this` publishes nothing, as a handoff to "you" publishes nothing: the
+permanent is in view only inside the body. -/
+theorem handedToThisPublishesOnlyTheBody :
+    shape (Instruction.intro [] (act thisCreature (act (controllerOf actor) (Actor.draw (.lit 1)))))
+      = [(.player, .one, .the)] := by
   decide
 
 end Semantics.Proofs.Actor
