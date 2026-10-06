@@ -250,3 +250,28 @@ fn noun_number_and_countability_do_not_erase_time_homographs() {
         Category::Keyword
     );
 }
+
+#[test]
+fn selected_resultatives_remain_distinct_from_copular_predication() {
+    assert_eq!(
+        LEXICON.lexemes()["lexeme:keyword_action/exile"]
+            .properties
+            .frames,
+        [
+            predicate(vec![argument(Relation::Object, "NounPhrase")]),
+            predicate(vec![
+                argument(Relation::Object, "NounPhrase"),
+                argument(Relation::Complement, "ResultativeComplement"),
+            ]),
+        ]
+    );
+    for owner in ["core-verb:BeNegative", "core-verb:BeContracted"] {
+        assert_eq!(
+            LEXICON.lexemes()[owner].properties.frames[0],
+            predicate(vec![argument(
+                Relation::Complement,
+                "PredicativeComplement"
+            )])
+        );
+    }
+}

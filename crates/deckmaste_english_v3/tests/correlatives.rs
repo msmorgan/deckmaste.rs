@@ -81,16 +81,18 @@ fn np() -> Reading {
 
 fn predicate(finite: bool, owner: &str) -> Reading {
     if finite {
-        Reading::IntransitivePredicate {
+        Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head: verb(owner, true),
+            complements: vec![],
         }
     } else {
-        Reading::IntransitivePredicate {
+        Reading::SelectedPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: verb(owner, false),
+            complements: vec![],
         }
     }
 }

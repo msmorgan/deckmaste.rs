@@ -367,7 +367,7 @@ fn exile_declares_its_object_resultative_frame() {
                     vec![CustomTailAtom::ObjectNounPhrase],
                     vec![
                         CustomTailAtom::ObjectNounPhrase,
-                        CustomTailAtom::PredicativeComplement,
+                        CustomTailAtom::Role("ResultativeComplement".into()),
                     ],
                 ],
             },

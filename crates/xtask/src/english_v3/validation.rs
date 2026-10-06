@@ -102,6 +102,7 @@ pub(super) fn validate<'a>(
     raw: &str,
     lexicon: &Lexicon,
     category: Category,
+    grammar: &Grammar,
 ) -> Result<&'a Reading, Issue> {
     let Value::Reading(reading) = &traced.value else {
         return Err(Issue::RootCategory);
@@ -109,8 +110,8 @@ pub(super) fn validate<'a>(
     if reading.category() != category {
         return Err(Issue::RootCategory);
     }
-    let realized = reading
-        .realize(lexicon)
+    let realized = grammar
+        .realize(reading, lexicon)
         .map_err(|error| Issue::Admission(error.to_string()))?;
     if realized != raw {
         return Err(Issue::Roundtrip { realized });

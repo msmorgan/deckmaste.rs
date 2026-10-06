@@ -1015,7 +1015,7 @@
         ),
         (
             id: "core-verb:BeNegative", lemma: "isn't", category: Verb,
-            properties: (countability: [], features: {"Polarity": "Negative", "Contraction": "Yes"}, frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "PredicativeComplement"))])]),
+            properties: (countability: [], features: {"Polarity": "Negative", "Contraction": "Yes"}, frames: [(kind: "Predicate", items: [Argument((relation: Complement, category: "PredicativeComplement"))])]),
             forms: [
                 (form: Preterite, features: (number: Some(Singular), person: Some(First), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["wasn't", "wasn’t"])),
                 (form: Present, features: (number: Some(Singular), person: Some(Second), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["aren't", "aren’t"])),
@@ -1034,7 +1034,7 @@
         ),
         (
             id: "core-verb:BeContracted", lemma: "'s", category: Verb,
-            properties: (countability: [], features: {"Contraction": "Yes"}, frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "PredicativeComplement"))])]),
+            properties: (countability: [], features: {"Contraction": "Yes"}, frames: [(kind: "Predicate", items: [Argument((relation: Complement, category: "PredicativeComplement"))])]),
             forms: [
                 (form: Present, features: (number: Some(Singular), person: Some(First), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["'m", "’m"])),
                 (form: Present, features: (number: Some(Singular), person: Some(Second), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["'re", "’re"])),

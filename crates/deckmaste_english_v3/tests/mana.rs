@@ -95,11 +95,13 @@ fn independent_mana_values_preserve_symbol_sequence() {
 #[test]
 fn independent_finite_and_secondary_complements_use_declared_frame() {
     for name in ["Add", "Pay"] {
-        let expected = Reading::ManaComplementPredicate {
+        let expected = Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head: finite_head(name),
-            complement: Box::new(mana("Green", &[])),
+            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                Box::new(mana("Green", &[])),
+            )],
         };
         let text = format!("{}s {{G}}", name.to_lowercase());
         assert_eq!(expected.realize(&LEXICON).unwrap(), text);
@@ -113,11 +115,13 @@ fn independent_finite_and_secondary_complements_use_declared_frame() {
             },
         );
         head.frame = Some(1);
-        let expected = Reading::ManaComplementPredicate {
+        let expected = Reading::SelectedPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head,
-            complement: Box::new(mana("Green", &[])),
+            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                Box::new(mana("Green", &[])),
+            )],
         };
         let text = format!("{} {{G}}", name.to_lowercase());
         assert_eq!(expected.realize(&LEXICON).unwrap(), text);
@@ -126,11 +130,13 @@ fn independent_finite_and_secondary_complements_use_declared_frame() {
     let mut wrong = finite_head("Add");
     wrong.frame = Some(0);
     assert!(
-        Reading::ManaComplementPredicate {
+        Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head: wrong,
-            complement: Box::new(mana("Green", &[]))
+            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                Box::new(mana("Green", &[]))
+            )]
         }
         .admit(&LEXICON)
         .is_err()
@@ -157,11 +163,11 @@ fn authentic_basic_mana_abilities_have_structured_complements() {
                 .visit(&mut |node| {
                     found |= matches!(
                         node,
-                        Reading::ManaComplementPredicate {
+                        Reading::SelectedPredicate {
                             category: Category::SecondaryVerbPhrase,
                             form: 0,
-                            ..
-                        }
+                            complements, ..
+                        } if matches!(complements.as_slice(), [deckmaste_english_v3::grammar::FrameValue::Argument(child)] if child.category() == Category::ManaPhrase)
                     );
                 })
                 .unwrap();

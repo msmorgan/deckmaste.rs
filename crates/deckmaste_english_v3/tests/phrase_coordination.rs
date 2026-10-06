@@ -140,10 +140,11 @@ fn independent_phrase_coordinations_preserve_structure_and_oxford_commas() {
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant, None),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,
-            head: Box::new(Reading::IntransitivePredicate {
+            head: Box::new(Reading::SelectedPredicate {
                 category: Category::SecondaryVerbPhrase,
                 form: 0,
                 head: attack,
+                complements: vec![],
             }),
         }),
     };

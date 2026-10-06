@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
 use deckmaste_english_v3::parse;
@@ -76,9 +75,10 @@ fn word(id: &str, form: WordForm, variant: usize, capitalization: SurfaceCase) -
 }
 
 fn parse_all(lexicon: &Lexicon, text: &str, root: Category) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(lexicon);
+    let grammar = environment.grammar();
     let input = lexicon.analyze(text);
-    let forest = parse(&grammar, lexicon, &input, &root).unwrap();
+    let forest = parse(grammar, lexicon, &input, &root).unwrap();
     grammar
         .readings(&forest)
         .map(|r| {

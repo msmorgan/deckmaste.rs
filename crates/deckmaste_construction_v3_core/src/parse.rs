@@ -19,6 +19,7 @@ pub(crate) struct Declaration {
     pub categories: Vec<Category>,
     pub features: Vec<Feature>,
     pub frames: Vec<(Ident, Frame)>,
+    pub frame_categories: Vec<(Ident, Ident)>,
     pub tables: Vec<FeatureTable>,
     pub constructions: Vec<Construction>,
     pub capitalization: Option<Ident>,
@@ -68,6 +69,7 @@ pub(crate) struct PolicyUse {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FieldType {
     Lexical(String),
+    SelectedFrame(String, String),
     One(String),
     Optional(String),
     Repeated(String, String),
@@ -123,6 +125,7 @@ impl Parse for Declaration {
             categories: vec![],
             features: vec![],
             frames: vec![],
+            frame_categories: vec![],
             tables: vec![],
             constructions: vec![],
             capitalization: None,
@@ -170,6 +173,11 @@ impl Parse for Declaration {
                         values,
                         default,
                     });
+                }
+                "frame_category" => {
+                    body.parse::<Token![=]>()?;
+                    result.frame_categories.push((name, body.parse()?));
+                    body.parse::<Token![;]>()?;
                 }
                 "frame" => {
                     body.parse::<Token![=]>()?;
@@ -584,7 +592,7 @@ fn instantiate_schemas(
                     FieldType::One(category)
                     | FieldType::Optional(category)
                     | FieldType::Repeated(category, _) => category,
-                    FieldType::Lexical(_) => continue,
+                    FieldType::Lexical(_) | FieldType::SelectedFrame(_, _) => continue,
                 };
                 if category != "node" {
                     continue;
@@ -953,6 +961,11 @@ fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {
                 let category: Ident = arguments.parse()?;
                 let ty = match ty.to_string().as_str() {
                     "lexical" => FieldType::Lexical(category.to_string()),
+                    "selected_frame" => {
+                        arguments.parse::<Token![,]>()?;
+                        let kind: Ident = arguments.parse()?;
+                        FieldType::SelectedFrame(category.to_string(), kind.to_string())
+                    }
                     "optional" => FieldType::Optional(category.to_string()),
                     "repeat" => {
                         arguments.parse::<Token![,]>()?;

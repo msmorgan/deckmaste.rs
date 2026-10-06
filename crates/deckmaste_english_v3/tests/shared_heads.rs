@@ -248,11 +248,13 @@ fn independent_shared_objects_and_predicatives_keep_selected_functions() {
 fn independent_auxiliary_sharing_preserves_complement_form_and_voice() {
     let predicate = Reading::BarePredicate {
         form: 0,
-        head: Box::new(Reading::TransitivePredicate {
+        head: Box::new(Reading::SelectedPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: verb("core-verb:Draw", 0, WordForm::Plain),
-            object: Box::new(cards()),
+            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                Box::new(cards()),
+            )],
         }),
     };
     let expected = Reading::SharedAuxiliaryBareComplement {
@@ -366,16 +368,18 @@ fn intransitive(owner: &str, finite: bool) -> Reading {
         if finite { WordForm::Present } else { WordForm::Plain },
     );
     if finite {
-        Reading::IntransitivePredicate {
+        Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head,
+            complements: vec![],
         }
     } else {
-        Reading::IntransitivePredicate {
+        Reading::SelectedPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head,
+            complements: vec![],
         }
     }
 }

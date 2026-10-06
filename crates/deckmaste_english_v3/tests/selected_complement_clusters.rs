@@ -319,13 +319,15 @@ fn selected_cluster_hosts_require_coordination_and_parallel_selected_markers() {
     assert!(invalid.admit(&LEXICON).is_err());
     assert!(invalid.realize(&LEXICON).is_err());
     // Lightning Bolt retains its ordinary, uncoordinated selected-frame AST.
-    let ordinary = Reading::SelectedObjectPrepositionPredicate {
+    let ordinary = Reading::SelectedPredicate {
         category: Category::FinitePredicate,
         form: 0,
         head: verb("core-verb:Deal", WordForm::Present, 5),
-        object: Box::new(damage(3)),
-        marker: invariant("vocab:Preposition/To"),
-        complement: Box::new(any_target(false)),
+        complements: vec![
+            deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(damage(3))),
+            deckmaste_english_v3::grammar::FrameValue::Marker(invariant("vocab:Preposition/To")),
+            deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(any_target(false))),
+        ],
     };
     assert_eq!(
         roundtrip(

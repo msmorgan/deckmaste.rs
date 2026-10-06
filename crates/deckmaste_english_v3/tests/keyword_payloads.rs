@@ -291,22 +291,24 @@ fn authentic_boast_payload_preserves_activated_ability_structure() {
                     form: 0,
                     predicate: Box::new(Reading::BarePredicate {
                         form: 0,
-                        head: Box::new(Reading::TransitivePredicate {
+                        head: Box::new(Reading::SelectedPredicate {
                             category: Category::SecondaryVerbPhrase,
                             form: 0,
                             head: action,
-                            object: Box::new(Reading::CasePhrase {
-                                category: Category::AccusativePhrase,
-                                form: 0,
-                                head: Box::new(Reading::TargetNounPhrase {
+                            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                                Box::new(Reading::CasePhrase {
+                                    category: Category::AccusativePhrase,
                                     form: 0,
-                                    marker: invariant(
-                                        "vocab:TargetingMarker/Target",
-                                        SurfaceCase::Declared,
-                                    ),
-                                    head: Box::new(noun("lexeme:type/creature")),
+                                    head: Box::new(Reading::TargetNounPhrase {
+                                        form: 0,
+                                        marker: invariant(
+                                            "vocab:TargetingMarker/Target",
+                                            SurfaceCase::Declared,
+                                        ),
+                                        head: Box::new(noun("lexeme:type/creature")),
+                                    }),
                                 }),
-                            }),
+                            )],
                         }),
                     }),
                 }),

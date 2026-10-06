@@ -59,11 +59,13 @@ fn independently_constructed_amount_and_imperative_roundtrip() {
         BTreeSet::from([amount.clone()])
     );
     let head = scry(SurfaceCase::Initial);
-    let predicate = Reading::AmountPredicate {
+    let predicate = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: head.clone(),
-        amount: Box::new(amount.clone()),
+        complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+            Box::new(amount.clone()),
+        )],
     };
     let bare = Reading::BarePredicate {
         form: 0,
@@ -113,11 +115,13 @@ fn independently_constructed_amount_and_imperative_roundtrip() {
         finiteness: Some(Finiteness::Finite),
         ..FeatureBundle::default()
     };
-    let finite = Reading::AmountPredicate {
+    let finite = Reading::SelectedPredicate {
         category: Category::FinitePredicate,
         form: 0,
         head: finite,
-        amount: Box::new(amount.clone()),
+        complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+            Box::new(amount.clone()),
+        )],
     };
     finite.admit(lexicon()).unwrap();
     assert_eq!(finite.realize(lexicon()).unwrap(), "scries 3");
@@ -128,11 +132,13 @@ fn independently_constructed_amount_and_imperative_roundtrip() {
     let mut wrong_frame = head;
     wrong_frame.frame = Some(0);
     assert!(
-        Reading::AmountPredicate {
+        Reading::SelectedPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: wrong_frame,
-            amount: Box::new(amount)
+            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                Box::new(amount)
+            )]
         }
         .admit(lexicon())
         .is_err()

@@ -105,20 +105,29 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
             ..Default::default()
         };
     }
-    let plain = Reading::SelectedObjectPrepositionPredicate {
+    let plain = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: verb("core-verb:Put", WordForm::Plain, 6),
-        object: Box::new(acc(Reading::AccusativePronoun { form: 0, head: it })),
-        marker: invariant("vocab:Preposition/Onto", SurfaceCase::Declared),
-        complement: Box::new(acc(Reading::DeterminedNounPhrase {
-            form: 0,
-            determiner: invariant("vocab:DefiniteMarker/The", SurfaceCase::Declared),
-            head: Box::new(noun("lexeme:CommonNoun/Battlefield")),
-        })),
+        complements: vec![
+            deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(acc(
+                Reading::AccusativePronoun { form: 0, head: it },
+            ))),
+            deckmaste_english_v3::grammar::FrameValue::Marker(invariant(
+                "vocab:Preposition/Onto",
+                SurfaceCase::Declared,
+            )),
+            deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(acc(
+                Reading::DeterminedNounPhrase {
+                    form: 0,
+                    determiner: invariant("vocab:DefiniteMarker/The", SurfaceCase::Declared),
+                    head: Box::new(noun("lexeme:CommonNoun/Battlefield")),
+                },
+            ))),
+        ],
     };
     let mut participial = plain.clone();
-    let Reading::SelectedObjectPrepositionPredicate { head, .. } = &mut participial else {
+    let Reading::SelectedPredicate { head, .. } = &mut participial else {
         unreachable!()
     };
     *head = verb("core-verb:Put", WordForm::PastParticiple, 6);
@@ -245,10 +254,11 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
     // passive.
     let invalid = Reading::PassiveComplement {
         form: 0,
-        head: Box::new(Reading::IntransitivePredicate {
+        head: Box::new(Reading::SelectedPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),
+            complements: vec![],
         }),
     };
     assert!(invalid.admit(&LEXICON).is_err());

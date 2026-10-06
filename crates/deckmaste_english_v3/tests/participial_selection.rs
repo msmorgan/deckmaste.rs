@@ -130,10 +130,11 @@ fn authentic_mixed_coordination_retains_ordinary_and_passive_predicates() {
     let value = Reading::Coordination {
         category: Category::SecondaryVerbPhrase,
         form: 0,
-        left: Box::new(Reading::IntransitivePredicate {
+        left: Box::new(Reading::SelectedPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: verb("core-verb:Block", 0, WordForm::Plain),
+            complements: vec![],
         }),
         coordinator: word(
             "vocab:Coordinator/Or",

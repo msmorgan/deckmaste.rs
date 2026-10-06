@@ -708,21 +708,23 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
         },
     );
     get.frame = Some(0);
-    let value = Reading::SlashMeasurePredicate {
+    let value = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: get.clone(),
-        measure: Box::new(Reading::SlashPair {
-            form: 0,
-            left: Box::new(Reading::PositiveScalar {
+        complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+            Box::new(Reading::SlashPair {
                 form: 0,
-                value: Box::new(unsigned_scalar(3)),
+                left: Box::new(Reading::PositiveScalar {
+                    form: 0,
+                    value: Box::new(unsigned_scalar(3)),
+                }),
+                right: Box::new(Reading::NegativeScalar {
+                    form: 0,
+                    value: Box::new(unsigned_scalar(2)),
+                }),
             }),
-            right: Box::new(Reading::NegativeScalar {
-                form: 0,
-                value: Box::new(unsigned_scalar(2)),
-            }),
-        }),
+        )],
     };
     assert_eq!(value.realize(lexicon()).unwrap(), "get +3/-2");
     assert_eq!(
@@ -953,10 +955,11 @@ fn nested_document_admission_uses_a_normal_worker_stack() {
                     form: 0,
                     predicate: Box::new(Reading::BarePredicate {
                         form: 0,
-                        head: Box::new(Reading::IntransitivePredicate {
+                        head: Box::new(Reading::SelectedPredicate {
                             category: Category::SecondaryVerbPhrase,
                             form: 0,
                             head,
+                            complements: vec![],
                         }),
                     }),
                 }),
@@ -1159,15 +1162,15 @@ fn copular_location_has_a_selected_complement_reading() {
                 .visit(&mut |node| {
                     if matches!(
                         node,
-                        Reading::LocativePredicate {
+                        Reading::SelectedPredicate {
                             category: Category::FinitePredicate,
                             form: 0,
-                            ..
-                        } | Reading::LocativePredicate {
+                            complements, ..
+                        } | Reading::SelectedPredicate {
                             category: Category::SecondaryVerbPhrase,
                             form: 0,
-                            ..
-                        }
+                            complements, ..
+                        } if matches!(complements.as_slice(), [deckmaste_english_v3::grammar::FrameValue::Argument(child)] if child.category() == Category::LocativeComplement)
                     ) {
                         selected.push(node.clone());
                     }
@@ -1179,13 +1182,13 @@ fn copular_location_has_a_selected_complement_reading() {
             "missing selected location for {text:?}"
         );
         for mut value in selected {
-            let (Reading::LocativePredicate {
+            let (Reading::SelectedPredicate {
                 category: Category::FinitePredicate,
                 form: 0,
                 head,
                 ..
             }
-            | Reading::LocativePredicate {
+            | Reading::SelectedPredicate {
                 category: Category::SecondaryVerbPhrase,
                 form: 0,
                 head,
@@ -1215,11 +1218,11 @@ fn copular_location_has_a_selected_complement_reading() {
             .iter()
             .all(|r| !matches!(
                 r,
-                Reading::LocativePredicate {
+                Reading::SelectedPredicate {
                     category: Category::FinitePredicate,
                     form: 0,
-                    ..
-                }
+                    complements, ..
+                } if matches!(complements.as_slice(), [deckmaste_english_v3::grammar::FrameValue::Argument(child)] if child.category() == Category::LocativeComplement)
             ))
     );
 }

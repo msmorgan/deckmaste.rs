@@ -4,7 +4,6 @@ use std::collections::BTreeSet;
 
 use common::LEXICON;
 use deckmaste_english_v3::grammar::Category;
-use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
 use deckmaste_english_v3::parse;
@@ -67,9 +66,10 @@ fn verb(owner: &str, form: WordForm, frame: usize) -> Word {
 fn exact(text: &str, category: Category, expected: &Reading) {
     expected.admit(&LEXICON).unwrap();
     assert_eq!(expected.realize(&LEXICON).unwrap(), text);
-    let grammar = Grammar::default();
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&LEXICON);
+    let grammar = environment.grammar();
     let analyzed = LEXICON.analyze(text);
-    let forest = parse(&grammar, &LEXICON, &analyzed, &category).unwrap();
+    let forest = parse(grammar, &LEXICON, &analyzed, &category).unwrap();
     let actual: BTreeSet<_> = grammar
         .readings(&forest)
         .map(|value| value.unwrap())
@@ -237,10 +237,11 @@ fn yore_tiller_nephilim_coordinates_adjectival_and_participial_depictives() {
             coordinator: word("vocab:Coordinator/And"),
             right: Box::new(Reading::ParticipialDepictive {
                 form: 0,
-                phrase: Box::new(Reading::IntransitivePredicate {
+                phrase: Box::new(Reading::SelectedPredicate {
                     form: 0,
                     category: Category::SecondaryVerbPhrase,
                     head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),
+                    complements: vec![],
                 }),
             }),
         },
@@ -249,9 +250,10 @@ fn yore_tiller_nephilim_coordinates_adjectival_and_participial_depictives() {
 
 #[test]
 fn copular_become_does_not_select_a_gerund_participial_predicate() {
-    let grammar = Grammar::default();
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&LEXICON);
+    let grammar = environment.grammar();
     let analyzed = LEXICON.analyze("becomes attacking");
-    let forest = parse(&grammar, &LEXICON, &analyzed, &Category::FinitePredicate).unwrap();
+    let forest = parse(grammar, &LEXICON, &analyzed, &Category::FinitePredicate).unwrap();
     assert_eq!(grammar.readings(&forest).count(), 0);
 }
 
@@ -277,10 +279,11 @@ fn hero_of_bladehold_auxiliary_frame_is_not_an_intransitive_depictive_host() {
         coordinator: word("vocab:Coordinator/And"),
         right: Box::new(Reading::ParticipialDepictive {
             form: 0,
-            phrase: Box::new(Reading::IntransitivePredicate {
+            phrase: Box::new(Reading::SelectedPredicate {
                 form: 0,
                 category: Category::SecondaryVerbPhrase,
                 head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),
+                complements: vec![],
             }),
         }),
     };
@@ -300,19 +303,21 @@ fn grafdiggers_cage_enter_the_battlefield_keeps_an_object_complement() {
     exact(
         "enter the battlefield",
         Category::SecondaryVerbPhrase,
-        &Reading::TransitivePredicate {
+        &Reading::SelectedPredicate {
             form: 0,
             category: Category::SecondaryVerbPhrase,
             head: verb("core-verb:Enter", WordForm::Plain, 1),
-            object: Box::new(Reading::CasePhrase {
-                form: 0,
-                category: Category::AccusativePhrase,
-                head: Box::new(Reading::DeterminedNounPhrase {
+            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                Box::new(Reading::CasePhrase {
                     form: 0,
-                    determiner: word("vocab:DefiniteMarker/The"),
-                    head: Box::new(noun("lexeme:CommonNoun/Battlefield")),
+                    category: Category::AccusativePhrase,
+                    head: Box::new(Reading::DeterminedNounPhrase {
+                        form: 0,
+                        determiner: word("vocab:DefiniteMarker/The"),
+                        head: Box::new(noun("lexeme:CommonNoun/Battlefield")),
+                    }),
                 }),
-            }),
+            )],
         },
     );
 }
@@ -344,10 +349,11 @@ fn this_creature() -> Reading {
     })
 }
 fn attacking() -> Reading {
-    Reading::IntransitivePredicate {
+    Reading::SelectedPredicate {
         form: 0,
         category: Category::SecondaryVerbPhrase,
         head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),
+        complements: vec![],
     }
 }
 fn depictive(mixed: bool) -> Reading {
@@ -381,18 +387,20 @@ fn authentic_complemented_participial_postmodifiers_preserve_their_objects_and_a
         &Reading::ParticipialPostmodifiedNominal {
             form: 0,
             head: Box::new(noun("lexeme:type/creature")),
-            modifier: Box::new(Reading::TransitivePredicate {
+            modifier: Box::new(Reading::SelectedPredicate {
                 form: 0,
                 category: Category::SecondaryVerbPhrase,
                 head: verb("core-verb:Attack", WordForm::GerundParticiple, 1),
-                object: Box::new(accusative(Reading::AccusativePronoun {
-                    form: 0,
-                    head: pronoun(
-                        "vocab:ObjectPronoun/You",
-                        deckmaste_lexical::Case::Accusative,
-                        Person::Second,
-                    ),
-                })),
+                complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                    Box::new(accusative(Reading::AccusativePronoun {
+                        form: 0,
+                        head: pronoun(
+                            "vocab:ObjectPronoun/You",
+                            deckmaste_lexical::Case::Accusative,
+                            Person::Second,
+                        ),
+                    })),
+                )],
             }),
         },
     );
@@ -406,11 +414,13 @@ fn authentic_complemented_participial_postmodifiers_preserve_their_objects_and_a
             head: Box::new(Reading::ParticipialPostmodifiedNominal {
                 form: 0,
                 head: Box::new(noun("lexeme:type/creature")),
-                modifier: Box::new(Reading::TransitivePredicate {
+                modifier: Box::new(Reading::SelectedPredicate {
                     form: 0,
                     category: Category::SecondaryVerbPhrase,
                     head: verb("core-verb:Block", WordForm::GerundParticiple, 1),
-                    object: Box::new(this_creature()),
+                    complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                        Box::new(this_creature()),
+                    )],
                 }),
             }),
         },
@@ -529,15 +539,10 @@ fn movement(
     }
 }
 fn exact_alternatives(text: &str, expected: &BTreeSet<Reading>) {
-    let grammar = Grammar::default();
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&LEXICON);
+    let grammar = environment.grammar();
     let analyzed = LEXICON.analyze(text);
-    let forest = parse(
-        &grammar,
-        &LEXICON,
-        &analyzed,
-        &Category::SecondaryVerbPhrase,
-    )
-    .unwrap();
+    let forest = parse(grammar, &LEXICON, &analyzed, &Category::SecondaryVerbPhrase).unwrap();
     let actual: BTreeSet<_> = grammar.readings(&forest).map(Result::unwrap).collect();
     assert_eq!(actual, *expected);
     for expected in expected {
@@ -595,21 +600,27 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
                     ..Default::default()
                 };
             }
-            let alternate = Reading::SelectedObjectPrepositionPredicate {
+            let alternate = Reading::SelectedPredicate {
                 form: 0,
                 category: Category::SecondaryVerbPhrase,
                 head,
-                object: Box::new(it.clone()),
-                marker: word("vocab:Preposition/Onto"),
-                complement: Box::new(accusative(Reading::DeterminedNounPhrase {
-                    form: 0,
-                    determiner: word("vocab:DefiniteMarker/The"),
-                    head: Box::new(Reading::ParticipialPostmodifiedNominal {
-                        form: 0,
-                        head: Box::new(noun("lexeme:CommonNoun/Battlefield")),
-                        modifier: Box::new(attacking()),
-                    }),
-                })),
+                complements: vec![
+                    deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(it.clone())),
+                    deckmaste_english_v3::grammar::FrameValue::Marker(word(
+                        "vocab:Preposition/Onto",
+                    )),
+                    deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(accusative(
+                        Reading::DeterminedNounPhrase {
+                            form: 0,
+                            determiner: word("vocab:DefiniteMarker/The"),
+                            head: Box::new(Reading::ParticipialPostmodifiedNominal {
+                                form: 0,
+                                head: Box::new(noun("lexeme:CommonNoun/Battlefield")),
+                                modifier: Box::new(attacking()),
+                            }),
+                        },
+                    ))),
+                ],
             };
             [intended, alternate]
         })
@@ -765,20 +776,22 @@ fn participial_postmodifiers_and_mixed_complements_reject_wrong_form_or_function
     let finite = Reading::ParticipialPostmodifiedNominal {
         form: 0,
         head: Box::new(noun("lexeme:type/creature")),
-        modifier: Box::new(Reading::IntransitivePredicate {
+        modifier: Box::new(Reading::SelectedPredicate {
             form: 0,
             category: Category::FinitePredicate,
             head: verb("core-verb:Attack", WordForm::Present, 0),
+            complements: vec![],
         }),
     };
     assert!(finite.admit(&LEXICON).is_err());
     let plain = Reading::ParticipialPostmodifiedNominal {
         form: 0,
         head: Box::new(noun("lexeme:type/creature")),
-        modifier: Box::new(Reading::IntransitivePredicate {
+        modifier: Box::new(Reading::SelectedPredicate {
             form: 0,
             category: Category::SecondaryVerbPhrase,
             head: verb("core-verb:Attack", WordForm::Plain, 0),
+            complements: vec![],
         }),
     };
     assert!(plain.admit(&LEXICON).is_err());

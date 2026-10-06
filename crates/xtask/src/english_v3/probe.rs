@@ -95,12 +95,13 @@ struct ProbeReport {
 }
 
 pub(super) fn run(args: &ProbeArgs, output: &mut dyn Write) -> Result<()> {
-    let grammar = Grammar::default();
-    let category = resolve_category(&grammar, &args.category)?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let sources = deckmaste_lexical_source::load_workspace(&root)?;
     let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;
-    inspect(args, &lexicon, &grammar, category, output)
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&lexicon);
+    let grammar = environment.grammar();
+    let category = resolve_category(grammar, &args.category)?;
+    inspect(args, &lexicon, grammar, category, output)
 }
 
 fn inspect(
@@ -162,7 +163,7 @@ fn inspect(
                     }
                     _ => None,
                 };
-                if let Err(issue) = validate(&value, &args.text, lexicon, category) {
+                if let Err(issue) = validate(&value, &args.text, lexicon, category, grammar) {
                     report.issues.push(issue);
                 }
                 report.readings.push(InspectedReading {
@@ -282,7 +283,7 @@ mod tests {
                 .lexemes,
         )
         .unwrap();
-        let grammar = Grammar::default();
+        let grammar = Grammar::with_lexicon(&lexicon);
         for (text, category) in [
             ("Draw a card.", Category::Sentence),
             ("target tapped creature", Category::NounPhrase),

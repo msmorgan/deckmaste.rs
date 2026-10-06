@@ -1,0 +1,644 @@
+/// Ordered values for a lexically declared complement frame. No program or
+/// production identity is stored here: the selected Word retains its local
+/// declared frame choice and lexical owner.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum FrameValue {
+    Argument(Box<Reading>),
+    Marker(Word),
+    Marked {
+        marker: Word,
+        argument: Box<Reading>,
+    },
+    Optional(Option<Box<FrameValue>>),
+}
+
+#[derive(Clone, Copy)]
+enum FrameHead<'a> {
+    Lexical(&'a Word),
+    Constituent(&'a Reading),
+}
+
+#[derive(Clone)]
+enum FrameGuard {
+    Any,
+    Head(usize),
+    Marker(usize),
+}
+
+#[derive(Clone)]
+enum FrameLayout {
+    Argument(Category),
+    Marker(usize, ::deckmaste_lexical::Category),
+    Marked(usize, ::deckmaste_lexical::Category, Category),
+    Optional(Option<Box<FrameLayout>>),
+}
+
+struct FrameExpansion {
+    template: usize,
+    program: usize,
+    layout: Vec<FrameLayout>,
+}
+
+/// A declared frame excluded from compilation because its slot vocabulary has
+/// not been reconciled with the grammar. It is never treated as an arbitrary NP.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnsupportedFrame {
+    pub frame: ::deckmaste_lexical::Frame,
+    pub reason: String,
+}
+
+/// One immutable lexicon/grammar pair, reused for recognition, checking,
+/// realization and traversal. Compiled program identities are local to it.
+pub struct GrammarEnvironment<'a> {
+    lexicon: &'a ::deckmaste_lexical::Lexicon,
+    grammar: Grammar,
+}
+
+impl<'a> GrammarEnvironment<'a> {
+    pub fn new(lexicon: &'a ::deckmaste_lexical::Lexicon) -> Self {
+        let grammar = Grammar::with_lexicon(lexicon);
+        Self { lexicon, grammar }
+    }
+    pub fn grammar(&self) -> &Grammar {
+        &self.grammar
+    }
+    pub fn unsupported_frames(&self) -> &[UnsupportedFrame] {
+        &self.grammar.unsupported
+    }
+    pub fn parse(
+        &self,
+        text: &str,
+        category: Category,
+    ) -> Result<::deckmaste_english_v3::GrammarForest<Grammar>, ::deckmaste_english_v3::ParseError>
+    {
+        ::deckmaste_english_v3::parse(
+            &self.grammar,
+            self.lexicon,
+            &self.lexicon.analyze(text),
+            &category,
+        )
+    }
+    pub fn admit(&self, reading: &Reading) -> Result<Summary, Error> {
+        let summary = reading.admit_with(&self.grammar, self.lexicon)?;
+        let mut output = Realization::new();
+        reading.write(&self.grammar, self.lexicon, &mut output)?;
+        output.check_context(self.lexicon)?;
+        Ok(summary)
+    }
+    pub fn realize(&self, reading: &Reading) -> Result<String, Error> {
+        reading.admit_with(&self.grammar, self.lexicon)?;
+        let mut output = Realization::new();
+        reading.write(&self.grammar, self.lexicon, &mut output)?;
+        output.check_context(self.lexicon)?;
+        Ok(output.finish())
+    }
+    pub fn visit(
+        &self,
+        reading: &Reading,
+        visitor: &mut impl FnMut(&Reading),
+    ) -> Result<(), Error> {
+        self.admit(reading)?;
+        reading.visit(visitor)
+    }
+    pub fn visit_words(
+        &self,
+        reading: &Reading,
+        visitor: &mut impl FnMut(&Word),
+    ) -> Result<(), Error> {
+        self.admit(reading)?;
+        reading.visit_words(visitor)
+    }
+}
+
+impl Grammar {
+    pub fn with_lexicon(lexicon: &::deckmaste_lexical::Lexicon) -> Self {
+        let mut grammar = Self::default();
+        grammar.compile_frames(lexicon);
+        grammar
+    }
+
+    /// Check a reading against this compiled grammar and its supplied lexicon.
+    pub fn admit(
+        &self,
+        reading: &Reading,
+        lexicon: &::deckmaste_lexical::Lexicon,
+    ) -> Result<Summary, Error> {
+        if REQUIRES_ENVIRONMENT && !self.compiled {
+            return Err(Error::EnvironmentRequired);
+        }
+        let summary = reading.admit_with(self, lexicon)?;
+        let mut output = Realization::new();
+        reading.write(self, lexicon, &mut output)?;
+        output.check_context(lexicon)?;
+        Ok(summary)
+    }
+    /// Realize using the same compiled programs that recognized the reading.
+    pub fn realize(
+        &self,
+        reading: &Reading,
+        lexicon: &::deckmaste_lexical::Lexicon,
+    ) -> Result<String, Error> {
+        if REQUIRES_ENVIRONMENT && !self.compiled {
+            return Err(Error::EnvironmentRequired);
+        }
+        reading.admit_with(self, lexicon)?;
+        let mut output = Realization::new();
+        reading.write(self, lexicon, &mut output)?;
+        output.check_context(lexicon)?;
+        Ok(output.finish())
+    }
+    fn project(&self, features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
+        let properties = match &features {
+            ::deckmaste_english_v3::LexicalFeatures::Word { properties, .. } => Some(*properties),
+            _ => None,
+        };
+        let mut summaries = project(features);
+        if let Some(properties) = properties {
+            let marker = properties.features.get("FrameMarker").and_then(|class| {
+                self.marker_classes
+                    .iter()
+                    .position(|(candidate, _)| candidate == class)
+            });
+            for summary in &mut summaries {
+                summary.marker_class = marker;
+                let frame = summary
+                    .frame_choice
+                    .and_then(|index| properties.frames.get(index));
+                summary.values[7] = frame
+                    .and_then(|frame| {
+                        self.canonical_frames
+                            .iter()
+                            .position(|candidate| candidate == frame)
+                    })
+                    .map(FeatureValue::Frame);
+            }
+        }
+        summaries
+    }
+
+    fn marker_class(
+        &self,
+        vocabulary: &str,
+        member: &str,
+    ) -> Result<(usize, ::deckmaste_lexical::Category), String> {
+        let name = format!("{vocabulary}/{member}");
+        let mut matches = self
+            .marker_classes
+            .iter()
+            .enumerate()
+            .filter(|(_, (candidate, _))| candidate == &name);
+        let (index, (_, category)) = matches
+            .next()
+            .ok_or_else(|| format!("missing declared marker class {name}"))?;
+        if matches.next().is_some() {
+            return Err(format!("ambiguous declared marker class {name}"));
+        }
+        Ok((index, *category))
+    }
+
+    fn item_layouts(
+        &mut self,
+        item: &::deckmaste_lexical::FrameItem,
+    ) -> Result<Vec<FrameLayout>, String> {
+        use ::deckmaste_lexical::FrameItem;
+        match item {
+            FrameItem::Argument(slot) => Self::frame_category(&slot.category)
+                .map(|category| vec![FrameLayout::Argument(category)])
+                .ok_or_else(|| {
+                    format!(
+                        "unsupported slot category {} ({:?})",
+                        slot.category, slot.relation
+                    )
+                }),
+            FrameItem::Marker { vocabulary, member } => {
+                let (class, pos) = self.marker_class(vocabulary, member)?;
+                Ok(vec![FrameLayout::Marker(class, pos)])
+            }
+            FrameItem::Marked {
+                vocabulary,
+                member,
+                slot,
+            } => {
+                let category = Self::frame_category(&slot.category).ok_or_else(|| {
+                    format!(
+                        "unsupported slot category {} ({:?})",
+                        slot.category, slot.relation
+                    )
+                })?;
+                let (class, pos) = self.marker_class(vocabulary, member)?;
+                Ok(vec![FrameLayout::Marked(class, pos, category)])
+            }
+            FrameItem::Optional(item) => {
+                let mut layouts = vec![FrameLayout::Optional(None)];
+                layouts.extend(
+                    self.item_layouts(item)?
+                        .into_iter()
+                        .map(|item| FrameLayout::Optional(Some(Box::new(item)))),
+                );
+                Ok(layouts)
+            }
+            FrameItem::Literal(text) => Err(format!("unreconciled legacy frame item {text}")),
+        }
+    }
+
+    fn compile_frames(&mut self, lexicon: &::deckmaste_lexical::Lexicon) {
+        self.compiled = true;
+        self.static_count = self.productions.len();
+        if SELECTED_FRAME_TEMPLATES.is_empty() {
+            return;
+        }
+        self.marker_classes = lexicon
+            .lexemes()
+            .values()
+            .filter_map(|lexeme| {
+                lexeme
+                    .properties
+                    .features
+                    .get("FrameMarker")
+                    .map(|class| (class.clone(), lexeme.category))
+            })
+            .collect();
+        self.marker_classes.sort();
+        self.marker_classes.dedup();
+        let mut frames = Vec::new();
+        for lexeme in lexicon
+            .lexemes()
+            .values()
+            .filter(|lexeme| lexeme.category == ::deckmaste_lexical::Category::Verb)
+        {
+            for frame in &lexeme.properties.frames {
+                if !frames.contains(frame) {
+                    frames.push(frame.clone());
+                }
+            }
+        }
+        for frame in &frames {
+            if !self.canonical_frames.contains(frame) {
+                self.canonical_frames.push(frame.clone());
+            }
+        }
+        for frame in frames {
+            if !SELECTED_FRAME_TEMPLATES
+                .iter()
+                .any(|(_, kind)| *kind == frame.kind)
+            {
+                continue;
+            }
+            let mut variants = vec![Vec::new()];
+            let mut unsupported = None;
+            for item in &frame.items {
+                match self.item_layouts(item) {
+                    Ok(options) => {
+                        variants = variants
+                            .into_iter()
+                            .flat_map(|prefix| {
+                                options.iter().map(move |option| {
+                                    let mut result = prefix.clone();
+                                    result.push(option.clone());
+                                    result
+                                })
+                            })
+                            .collect()
+                    }
+                    Err(reason) => {
+                        unsupported = Some(reason);
+                        break;
+                    }
+                }
+            }
+            if let Some(reason) = unsupported {
+                self.unsupported.push(UnsupportedFrame { frame, reason });
+                continue;
+            }
+            let program = self.programs.len();
+            self.programs.push(frame);
+            for &(template, kind) in SELECTED_FRAME_TEMPLATES {
+                if self.programs[program].kind != kind {
+                    continue;
+                }
+                for layout in &variants {
+                    let original = &self.rules[template];
+                    let mut rule = original.clone();
+                    rule.checks.truncate(1);
+                    rule.release.truncate(1);
+                    let canonical = self
+                        .canonical_frames
+                        .iter()
+                        .position(|frame| frame == &self.programs[program])
+                        .unwrap();
+                    rule.guards = vec![FrameGuard::Head(canonical)];
+                    let mut symbols = vec![self.productions[template].symbols[0].clone()];
+                    for item in layout {
+                        item.symbols(&mut symbols, &mut rule);
+                    }
+                    self.productions.push(::deckmaste_english_v3::Production {
+                        category: self.productions[template].category,
+                        symbols,
+                    });
+                    self.rules.push(rule);
+                    self.expansions.push(FrameExpansion {
+                        template,
+                        program,
+                        layout: layout.clone(),
+                    });
+                }
+            }
+        }
+    }
+
+    fn selected_expansion(
+        &self,
+        template: usize,
+        head: FrameHead<'_>,
+        values: &[FrameValue],
+        lexicon: &::deckmaste_lexical::Lexicon,
+    ) -> Result<(usize, Vec<Option<Summary>>), Error> {
+        if !self.compiled {
+            return Err(Error::EnvironmentRequired);
+        }
+        let summary = match (head, &self.productions[template].symbols[0]) {
+            (FrameHead::Lexical(word), ::deckmaste_english_v3::Symbol::Lexical(pos)) => {
+                word.admit(self, lexicon, *pos)?
+            }
+            (
+                FrameHead::Constituent(reading),
+                ::deckmaste_english_v3::Symbol::Nonterminal(category),
+            ) if reading.category() == *category => reading.admit_with(self, lexicon)?,
+            _ => return Err(Error::Invalid("selected_frame", "selecting head category")),
+        };
+        let canonical = match summary.values.get(7).and_then(Option::as_ref) {
+            Some(FeatureValue::Frame(index)) => self.canonical_frames.get(*index),
+            _ => None,
+        };
+        let program = canonical
+            .and_then(|frame| {
+                self.programs
+                    .iter()
+                    .position(|candidate| candidate == frame)
+            })
+            .ok_or(Error::Invalid(
+                "selected_frame",
+                "unsupported or absent declared frame",
+            ))?;
+        for (offset, expansion) in self.expansions.iter().enumerate() {
+            if expansion.template != template
+                || expansion.program != program
+                || expansion.layout.len() != values.len()
+            {
+                continue;
+            }
+            let mut summaries = vec![Some(summary.clone())];
+            let mut valid = true;
+            for (layout, value) in expansion.layout.iter().zip(values) {
+                if layout
+                    .summaries(value, self, lexicon, &mut summaries)
+                    .is_err()
+                {
+                    valid = false;
+                    break;
+                }
+            }
+            if valid {
+                return Ok((self.static_count + offset, summaries));
+            }
+        }
+        Err(Error::Invalid(
+            "selected_frame",
+            "ordered declared frame values",
+        ))
+    }
+
+    fn admit_selected(
+        &self,
+        template: usize,
+        head: FrameHead<'_>,
+        values: &[FrameValue],
+        lexicon: &::deckmaste_lexical::Lexicon,
+    ) -> Result<Summary, Error> {
+        let (production, summaries) = self.selected_expansion(template, head, values, lexicon)?;
+        let rule = &self.rules[production];
+        let mut state = State::new(rule.initial.clone());
+        for (dot, summary) in summaries.iter().enumerate() {
+            state = rule
+                .advance(dot, &state, summary.as_ref())
+                .ok_or(Error::Invalid("selected_frame", "feature admission"))?;
+        }
+        rule.complete(&state)
+            .ok_or(Error::Invalid("selected_frame", "feature export"))
+    }
+
+    fn write_selected(
+        &self,
+        template: usize,
+        head: FrameHead<'_>,
+        values: &[FrameValue],
+        lexicon: &::deckmaste_lexical::Lexicon,
+        output: &mut Realization,
+    ) -> Result<(), Error> {
+        let (production, _) = self.selected_expansion(template, head, values, lexicon)?;
+        let expansion = &self.expansions[production - self.static_count];
+        match head {
+            FrameHead::Lexical(word) => output.word(word, lexicon)?,
+            FrameHead::Constituent(reading) => reading.write(self, lexicon, output)?,
+        }
+        for (layout, value) in expansion.layout.iter().zip(values) {
+            layout.write(value, self, lexicon, output)?;
+        }
+        Ok(())
+    }
+
+    fn materialize_selected(
+        &self,
+        production: usize,
+        children: Vec<Value>,
+    ) -> Result<Value, Error> {
+        let expansion = self
+            .expansions
+            .get(
+                production
+                    .checked_sub(self.static_count)
+                    .ok_or(Error::Internal)?,
+            )
+            .ok_or(Error::Internal)?;
+        let mut children = children.into_iter();
+        let head = children.next().ok_or(Error::Internal)?;
+        let values = expansion
+            .layout
+            .iter()
+            .map(|item| item.materialize(&mut children))
+            .collect::<Result<Vec<_>, _>>()?;
+        if children.next().is_some() {
+            return Err(Error::Internal);
+        }
+        self.build_selected(expansion.template, head, values)
+    }
+}
+
+impl FrameLayout {
+    fn symbols(
+        &self,
+        symbols: &mut Vec<::deckmaste_english_v3::Symbol<Category>>,
+        rule: &mut Rule,
+    ) {
+        fn append(
+            symbols: &mut Vec<::deckmaste_english_v3::Symbol<Category>>,
+            rule: &mut Rule,
+            symbol: ::deckmaste_english_v3::Symbol<Category>,
+            guard: FrameGuard,
+        ) {
+            symbols.push(::deckmaste_english_v3::Symbol::Literal(" ".into()));
+            rule.guards.push(FrameGuard::Any);
+            rule.checks.push(vec![]);
+            rule.release.push(vec![]);
+            symbols.push(symbol);
+            rule.guards.push(guard);
+            rule.checks.push(vec![]);
+            rule.release.push(vec![]);
+        }
+        match self {
+            Self::Argument(category) => append(
+                symbols,
+                rule,
+                ::deckmaste_english_v3::Symbol::Nonterminal(*category),
+                FrameGuard::Any,
+            ),
+            Self::Marker(class, pos) => append(
+                symbols,
+                rule,
+                ::deckmaste_english_v3::Symbol::Lexical(*pos),
+                FrameGuard::Marker(*class),
+            ),
+            Self::Marked(class, pos, category) => {
+                Self::Marker(*class, *pos).symbols(symbols, rule);
+                Self::Argument(*category).symbols(symbols, rule);
+            }
+            Self::Optional(Some(item)) => item.symbols(symbols, rule),
+            Self::Optional(None) => {}
+        }
+    }
+    fn summaries(
+        &self,
+        value: &FrameValue,
+        grammar: &Grammar,
+        lexicon: &::deckmaste_lexical::Lexicon,
+        output: &mut Vec<Option<Summary>>,
+    ) -> Result<(), Error> {
+        match (self, value) {
+            (Self::Argument(category), FrameValue::Argument(reading))
+                if reading.category() == *category =>
+            {
+                output.push(None);
+                output.push(Some(reading.admit_with(grammar, lexicon)?));
+                Ok(())
+            }
+            (Self::Marker(class, pos), FrameValue::Marker(word)) => {
+                let summary = word.admit(grammar, lexicon, *pos)?;
+                if summary.marker_class != Some(*class) {
+                    return Err(Error::Invalid("selected_frame", "declared marker class"));
+                }
+                output.push(None);
+                output.push(Some(summary));
+                Ok(())
+            }
+            (Self::Marked(class, pos, category), FrameValue::Marked { marker, argument }) => {
+                Self::Marker(*class, *pos).summaries(
+                    &FrameValue::Marker(marker.clone()),
+                    grammar,
+                    lexicon,
+                    output,
+                )?;
+                Self::Argument(*category).summaries(
+                    &FrameValue::Argument(argument.clone()),
+                    grammar,
+                    lexicon,
+                    output,
+                )
+            }
+            (Self::Optional(None), FrameValue::Optional(None)) => Ok(()),
+            (Self::Optional(Some(item)), FrameValue::Optional(Some(value))) => {
+                item.summaries(value, grammar, lexicon, output)
+            }
+            _ => Err(Error::Invalid(
+                "selected_frame",
+                "slot category or optional realization",
+            )),
+        }
+    }
+    fn write(
+        &self,
+        value: &FrameValue,
+        grammar: &Grammar,
+        lexicon: &::deckmaste_lexical::Lexicon,
+        output: &mut Realization,
+    ) -> Result<(), Error> {
+        match (self, value) {
+            (Self::Argument(_), FrameValue::Argument(reading)) => {
+                output.push_str(" ");
+                reading.write(grammar, lexicon, output)
+            }
+            (Self::Marker(_, _), FrameValue::Marker(word)) => {
+                output.push_str(" ");
+                output.word(word, lexicon)
+            }
+            (Self::Marked(_, _, _), FrameValue::Marked { marker, argument }) => {
+                output.push_str(" ");
+                output.word(marker, lexicon)?;
+                output.push_str(" ");
+                argument.write(grammar, lexicon, output)
+            }
+            (Self::Optional(None), FrameValue::Optional(None)) => Ok(()),
+            (Self::Optional(Some(item)), FrameValue::Optional(Some(value))) => {
+                item.write(value, grammar, lexicon, output)
+            }
+            _ => Err(Error::Internal),
+        }
+    }
+    fn materialize(&self, children: &mut impl Iterator<Item = Value>) -> Result<FrameValue, Error> {
+        fn next(children: &mut impl Iterator<Item = Value>) -> Result<Value, Error> {
+            if !matches!(children.next(), Some(Value::Literal)) {
+                return Err(Error::Internal);
+            }
+            children.next().ok_or(Error::Internal)
+        }
+        match self {
+            Self::Argument(_) => Ok(FrameValue::Argument(Box::new(next(children)?.node()?))),
+            Self::Marker(_, _) => Ok(FrameValue::Marker(next(children)?.word()?)),
+            Self::Marked(_, _, _) => Ok(FrameValue::Marked {
+                marker: next(children)?.word()?,
+                argument: Box::new(next(children)?.node()?),
+            }),
+            Self::Optional(None) => Ok(FrameValue::Optional(None)),
+            Self::Optional(Some(item)) => Ok(FrameValue::Optional(Some(Box::new(
+                item.materialize(children)?,
+            )))),
+        }
+    }
+}
+
+impl FrameValue {
+    fn visit(&self, visitor: &mut impl FnMut(&Reading)) -> Result<(), Error> {
+        match self {
+            Self::Argument(reading)
+            | Self::Marked {
+                argument: reading, ..
+            } => reading.visit(visitor),
+            Self::Optional(Some(item)) => item.visit(visitor),
+            _ => Ok(()),
+        }
+    }
+    fn visit_words(&self, visitor: &mut impl FnMut(&Word)) -> Result<(), Error> {
+        match self {
+            Self::Argument(reading) => reading.visit_words(visitor),
+            Self::Marker(word) => {
+                visitor(word);
+                Ok(())
+            }
+            Self::Marked { marker, argument } => {
+                visitor(marker);
+                argument.visit_words(visitor)
+            }
+            Self::Optional(Some(item)) => item.visit_words(visitor),
+            Self::Optional(None) => Ok(()),
+        }
+    }
+}

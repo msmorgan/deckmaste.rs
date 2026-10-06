@@ -60,16 +60,22 @@ fn oracle_constituents_use_declared_verb_frames() {
         else {
             panic!("expected a finite clause");
         };
-        let Reading::LocativePredicate {
+        let Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head,
-            complement,
+            complements,
             ..
         } = *predicate
         else {
             panic!("expected the declared locative frame");
         };
+        let [deckmaste_english_v3::grammar::FrameValue::Argument(complement)] =
+            complements.as_slice()
+        else {
+            panic!("expected one selected locative Complement")
+        };
+        assert_eq!(complement.category(), Category::LocativeComplement);
         assert_eq!(head.frame, Some(1));
         let LexicalReading::Word(verb) = head.value else {
             panic!("expected a verb word");
@@ -103,10 +109,11 @@ fn independent_intransitive_values_retain_frame_and_lexical_identity() {
             countability: None,
             frame: Some(0),
         };
-        let value = Reading::IntransitivePredicate {
+        let value = Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head: head.clone(),
+            complements: vec![],
         };
         value.admit(lexicon()).unwrap();
         assert_eq!(value.realize(lexicon()).unwrap(), text);
@@ -125,10 +132,11 @@ fn independent_intransitive_values_retain_frame_and_lexical_identity() {
         let mut transitive = head;
         transitive.frame = Some(1);
         assert!(
-            Reading::IntransitivePredicate {
+            Reading::SelectedPredicate {
                 category: Category::FinitePredicate,
                 form: 0,
-                head: transitive
+                head: transitive,
+                complements: vec![]
             }
             .admit(lexicon())
             .is_err()

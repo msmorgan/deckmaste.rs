@@ -137,11 +137,13 @@ fn authentic_you_and_draw_clause_have_only_singular_second_person_values() {
         Category::FiniteClause,
         &BTreeSet::from([clause(
             you(),
-            Reading::TransitivePredicate {
+            Reading::SelectedPredicate {
                 category: Category::FinitePredicate,
                 form: 0,
                 head: verb("core-verb:Draw", 0, Number::Singular),
-                object: Box::new(card),
+                complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                    Box::new(card),
+                )],
             },
         )]),
     );
@@ -197,11 +199,13 @@ fn authentic_discard_clause_has_no_plural_second_person_leaves() {
     };
     let expected = clause(
         you(),
-        Reading::TransitivePredicate {
+        Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head: verb("lexeme:keyword_action/discard", 0, Number::Singular),
-            object: Box::new(object),
+            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                Box::new(object),
+            )],
         },
     );
     exact(

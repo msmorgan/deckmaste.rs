@@ -9,7 +9,7 @@ KeywordAction(
         bare: "exile",
         frame_set: Custom(frames: [
             [ObjectNounPhrase],
-            [ObjectNounPhrase, PredicativeComplement],
+            [ObjectNounPhrase, Role("ResultativeComplement")],
         ]),
     ),
     body: move(Param(0), wherever, exileZone),

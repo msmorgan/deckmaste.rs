@@ -152,10 +152,11 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant, None),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,
-            head: Box::new(Reading::IntransitivePredicate {
+            head: Box::new(Reading::SelectedPredicate {
                 category: Category::SecondaryVerbPhrase,
                 form: 0,
                 head: attack,
+                complements: vec![],
             }),
         }),
     };
@@ -166,11 +167,13 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
     );
     let mut choose = word("core-verb:Choose", WordForm::Plain, None);
     choose.frame = Some(2);
-    let predicate = Reading::InfinitivePredicate {
+    let predicate = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: choose.clone(),
-        complement: Box::new(infinitive.clone()),
+        complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+            Box::new(infinitive.clone()),
+        )],
     };
     assert_laws(
         &predicate,
@@ -179,11 +182,13 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
     );
     choose.frame = Some(0);
     assert!(
-        Reading::InfinitivePredicate {
+        Reading::SelectedPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: choose,
-            complement: Box::new(infinitive)
+            complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                Box::new(infinitive)
+            )]
         }
         .admit(lexicon())
         .is_err()

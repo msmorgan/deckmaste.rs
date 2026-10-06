@@ -399,6 +399,12 @@ Nominal's Number and Countability. A verbal gerund-participle can also be a
 Premodifier, as in *attacking creature*, without becoming an Adjective
 (CGEL, Ch. 6 §2.4.3, pp. 541–542).
 
+**Resultative Complement**:
+A predicative Complement denoting the state of its predicand at the end of a
+process, as in *painted the fence blue*. Resultatives require licensing by the
+verb; optional depictives describe a participant during the situation and are
+Adjuncts (CGEL, Ch. 4 §§5, 5.3, pp. 251–252, 261–263).
+
 **Depictive Adjunct**:
 An optional predicative Adjunct describing a participant during the situation,
 as in *enters tapped and attacking*; it may be an Adjective Phrase or a

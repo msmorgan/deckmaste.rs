@@ -116,6 +116,7 @@ constructions! {
         category Cardinal(number);
         category Amount();
         category MeasurePhrase(MeasureKind);
+        category ScalarMeasurePhrase();
         category UnsignedScalar();
         category ScalarComponent();
         category SlashPair();
@@ -203,6 +204,25 @@ constructions! {
         category SelectedPrepositionHeadSeries(LocativeUse, AdverbialUse);
         category CorrelativeFiniteClauseSeries(CorrelativeCoordinator);
 
+        frame_category NounPhrase = AccusativePhrase;
+        frame_category ScalarEquality = EqualityComplement;
+        frame_category PowerToughnessAdjustment = SlashPair;
+        frame_category MeasurePhrase = ScalarMeasurePhrase;
+
+        schema SelectedPredicate {
+            form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
+        }
+        instance SelectedPredicate<Result, Properties>: [
+            (FinitePredicate, FiniteHeadAgreement),
+            (SecondaryVerbPhrase, OrdinarySecondaryHead),
+        ] {
+            use Properties;
+        }
+        construction ScalarMeasurePhrase: ScalarMeasurePhrase {
+            form [head: MeasurePhrase];
+            require head.MeasureKind = Scalar;
+        }
+
         frame Intransitive = Predicate();
         frame Transitive = Predicate(Object(NounPhrase));
         frame ManaComplement = Predicate(Complement(ManaPhrase));
@@ -243,7 +263,6 @@ constructions! {
             (GerundParticiple) => GerundParticiple,
             (PastParticiple) => PastParticiple,
         }
-
 
         table coordinate_number(CoordinationKind, number, number) -> number {
             (Additive, Singular, Singular) => Plural,
@@ -562,31 +581,6 @@ constructions! {
             use PredicateHeadAgreement;
         }
 
-        schema IntransitivePredicate {
-            form [head: lexical(Verb)];
-            require head.frame = Intransitive;
-        }
-
-        schema TransitivePredicate {
-            form [head: lexical(Verb), " ", object: node];
-            require head.frame = Transitive;
-        }
-
-        schema ManaComplementPredicate {
-            form [head: lexical(Verb), " ", complement: node];
-            require head.frame = ManaComplement;
-        }
-
-        schema LocativePredicate {
-            form [head: lexical(Verb), " ", complement: node];
-            require head.frame = Locative;
-        }
-
-        schema PredicativePredicate {
-            form [head: lexical(Verb), " ", complement: node];
-            require head.frame = Predicative;
-        }
-
         // CGEL pp. 1522–1523: gerund-participial auxiliary stranding is outside Oracle English.
         table auxiliary_realization(form, AuxiliaryComplementRealization) -> Selection {
             (Plain, Overt) => Yes, (Plain, Elided) => Yes,
@@ -641,37 +635,6 @@ constructions! {
             export AuxiliaryComplementRealization = Overt;
         }
 
-        schema SlashMeasurePredicate {
-            form [head: lexical(Verb), " ", measure: node];
-            require head.frame = SlashMeasure;
-        }
-
-        schema MeasurePredicate {
-            form [head: lexical(Verb), " ", measure: node];
-            require head.frame = Measure;
-            require measure.MeasureKind = Scalar;
-        }
-
-        schema ObjectEqualityPredicate {
-            form [head: lexical(Verb), " ", object: node, " ", complement: node];
-            require head.frame = ObjectEquality;
-        }
-
-        schema KeywordObjectPredicate {
-            form [head: lexical(Verb), " ", object: node];
-            require head.frame = KeywordObject;
-        }
-
-        schema QuotedObjectPredicate {
-            form [head: lexical(Verb), " ", object: node];
-            require head.frame = QuotedObject;
-        }
-
-        schema AmountPredicate {
-            form [head: lexical(Verb), " ", amount: node];
-            require head.frame = AmountComplement;
-        }
-
         // Complete lexical hosts keep auxiliary ellipsis outside depictive attachment.
         schema DepictivePredicate {
             form [head: lexical(Verb), " ", modifier: DepictivePhrase];
@@ -685,11 +648,6 @@ constructions! {
         schema AdverbPredicate {
             form [head: node, " ", modifier: node];
             require modifier.VPFinalAdjunct = Yes;
-        }
-
-        schema InfinitivePredicate {
-            form [head: lexical(Verb), " ", complement: node];
-            require head.frame = InfinitiveSelection;
         }
 
         schema SelectedVerbHead {
@@ -1575,36 +1533,6 @@ constructions! {
             form [phrase: AccusativePhrase];
             export PredicativeKind = Nominal;
         }
-        instance IntransitivePredicate<Result, Properties>: [
-            (FinitePredicate, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
-        instance TransitivePredicate<Result, Object: object, Properties>: [
-            (FinitePredicate, AccusativePhrase, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, AccusativePhrase, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
-        instance ManaComplementPredicate<Result, Complement: complement, Properties>: [
-            (FinitePredicate, ManaPhrase, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, ManaPhrase, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
-        instance LocativePredicate<Result, Complement: complement, Properties>: [
-            (FinitePredicate, LocativeComplement, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, LocativeComplement, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
-        instance PredicativePredicate<Result, Complement: complement, Properties>: [
-            (FinitePredicate, PredicativeComplement, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, PredicativeComplement, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
         instance BareAuxiliaryPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, BareComplement, FiniteHeadAgreement),
             (SecondaryVerbPhrase, BareComplement, OrdinarySecondaryHead),
@@ -1654,8 +1582,6 @@ constructions! {
             require selected_object_marker(head.frame, marker.KeywordMarker) = Yes;
         }
         instance SelectedObjectPrepositionPredicate<Result, Properties>: [
-            (FinitePredicate, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, OrdinarySecondaryHead),
             (FiniteDepictiveHost, FiniteHeadAgreement),
             (SecondaryDepictiveHost, OrdinarySecondaryHead),
         ] {
@@ -1678,18 +1604,6 @@ constructions! {
             (FiniteObjectGap, FiniteHeadAgreement),
             (BareObjectGap, PlainGapHead),
             (SecondaryVerbPhrase, BarePassiveHead),
-        ] {
-            use Properties;
-        }
-        schema SelectedPrepositionPredicate {
-            form [head: lexical(Verb), " ", marker: lexical(Preposition), " ",
-                complement: AccusativePhrase];
-            require head.frame = AtObject;
-            require marker.KeywordMarker = At;
-        }
-        instance SelectedPrepositionPredicate<Result, Properties>: [
-            (FinitePredicate, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, OrdinarySecondaryHead),
         ] {
             use Properties;
         }
@@ -2031,12 +1945,6 @@ constructions! {
             require head.Targeting = No;
             require head.countability = Count;
         }
-        instance SlashMeasurePredicate<Result, Measure: measure, Properties>: [
-            (FinitePredicate, SlashPair, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, SlashPair, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
 
         construction UngroupedScalarNumeral: MeasurePhrase {
             form [head: lexical(Numeral)];
@@ -2114,40 +2022,7 @@ constructions! {
             form [complement: OrderingComplement];
             export AdjectiveStructure = Complemented;
         }
-        instance MeasurePredicate<Result, Measure: measure, Properties>: [
-            (FinitePredicate, MeasurePhrase, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, MeasurePhrase, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
-        instance ObjectEqualityPredicate<
-            Result, Object: object, Complement: complement, Properties>: [
-            (FinitePredicate, AccusativePhrase, EqualityComplement, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, AccusativePhrase, EqualityComplement, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
 
-        instance KeywordObjectPredicate<Result, Object: object, Properties>: [
-            (FinitePredicate, KeywordPhrase, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, KeywordPhrase, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
-
-        instance QuotedObjectPredicate<Result, Object: object, Properties>: [
-            (FinitePredicate, QuotedText, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, QuotedText, OrdinarySecondaryHead),
-        ] {
-            use Properties;
-        }
-
-        construction SecondaryCardinal: SecondaryVerbPhrase {
-            form [head: lexical(Verb), " ", count: Cardinal];
-            use SecondaryHeadForm;
-            require head.frame = CardinalComplement;
-            export ParticipialUse = Ordinary;
-        }
         construction CardinalAmount: Amount {
             form [head: lexical(Numeral)];
             require head.numeral_kind = Cardinal;
@@ -2155,12 +2030,6 @@ constructions! {
 
         construction ScalarAmount: Amount {
             form [value: UnsignedScalar];
-        }
-        instance AmountPredicate<Result, Amount: amount, Properties>: [
-            (FinitePredicate, Amount, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, Amount, OrdinarySecondaryHead),
-        ] {
-            use Properties;
         }
 
         construction Adverb: AdverbPhrase {
@@ -2196,12 +2065,6 @@ constructions! {
         construction ToInfinitive: InfinitiveComplement {
             form [marker: lexical(Subordinator), " ", predicate: BarePredicate];
             require marker.InfinitivalMarker = Yes;
-        }
-        instance InfinitivePredicate<Result, Complement: complement, Properties>: [
-            (FinitePredicate, InfinitiveComplement, FiniteHeadAgreement),
-            (SecondaryVerbPhrase, InfinitiveComplement, OrdinarySecondaryHead),
-        ] {
-            use Properties;
         }
 
         // Shared head primitives: exact selected signatures; no complement or coordination yet.

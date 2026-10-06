@@ -273,6 +273,22 @@ pub(crate) fn load(root: &Path) -> Result<Inventory, LoadError> {
     crate::error::decode(&path, &text)
 }
 
+fn collect_frame_markers(
+    item: &FrameItem,
+    references: &mut std::collections::BTreeSet<(String, String)>,
+) {
+    match item {
+        FrameItem::Marker { vocabulary, member }
+        | FrameItem::Marked {
+            vocabulary, member, ..
+        } => {
+            references.insert((vocabulary.clone(), member.clone()));
+        }
+        FrameItem::Optional(item) => collect_frame_markers(item, references),
+        _ => {}
+    }
+}
+
 pub(crate) fn reconcile_frames(
     lexemes: &mut [Lexeme],
     markers: &BTreeMap<String, (String, String)>,
@@ -292,7 +308,7 @@ pub(crate) fn reconcile_frames(
             });
         }
     }
-    for lexeme in lexemes {
+    for lexeme in lexemes.iter_mut() {
         for frame in &mut lexeme.properties.frames {
             if frame.kind.is_empty() {
                 return Err(LoadError::EmptyFrameKind {
@@ -306,6 +322,47 @@ pub(crate) fn reconcile_frames(
                 })?;
             }
         }
+    }
+    // Marker eligibility comes from the selected frame's declaration reference,
+    // not from a grammatical consumer inspecting a word's spelling or identity.
+    let mut references = std::collections::BTreeSet::new();
+    for item in lexemes
+        .iter()
+        .flat_map(|lexeme| &lexeme.properties.frames)
+        .flat_map(|frame| &frame.items)
+    {
+        collect_frame_markers(item, &mut references);
+    }
+    for (vocabulary, member) in references {
+        // reconcile_item already established that exactly one declared owner exists.
+        let candidates = [
+            format!("vocab:{vocabulary}/{member}"),
+            format!("lexeme:{vocabulary}/{member}"),
+        ];
+        let marker = lexemes
+            .iter_mut()
+            .find(|lexeme| {
+                candidates
+                    .iter()
+                    .any(|id| id.as_str() == lexeme.id.as_str())
+            })
+            .unwrap();
+        let reference = format!("{vocabulary}/{member}");
+        if marker
+            .properties
+            .features
+            .get("FrameMarker")
+            .is_some_and(|value| value != &reference)
+        {
+            return Err(LoadError::DuplicateFeature {
+                owner: marker.id.to_string(),
+                name: "FrameMarker".into(),
+            });
+        }
+        marker
+            .properties
+            .features
+            .insert("FrameMarker".into(), reference);
     }
     Ok(())
 }

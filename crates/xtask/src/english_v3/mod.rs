@@ -105,12 +105,13 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let sources = deckmaste_lexical_source::load_workspace(&root)?;
     let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;
-    let grammar = Grammar::default();
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&lexicon);
+    let grammar = environment.grammar();
     let setup_ns = started.elapsed().as_nanos();
     let inventory_sha256 = digest(&serde_json::to_vec(lexicon.lexemes())?);
     let load = report::host_load();
     let started = Instant::now();
-    let faces = analyze_cards(&corpus.faces, &lexicon, &grammar, args)?;
+    let faces = analyze_cards(&corpus.faces, &lexicon, grammar, args)?;
     let corpus_ns = started.elapsed().as_nanos();
     let report = Report::new(
         args,
@@ -245,6 +246,7 @@ fn analyze_face(
                     &result.analyzed_source,
                     lexicon,
                     args.field.category(),
+                    grammar,
                 ) {
                     Ok(reading) => {
                         if !checked.insert(reading.clone()) {

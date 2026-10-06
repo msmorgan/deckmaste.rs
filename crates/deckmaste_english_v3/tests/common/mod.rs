@@ -42,13 +42,14 @@ pub fn readings_with_lexicon(
     text: &str,
     category: Category,
 ) -> BTreeSet<Reading> {
-    let grammar = Grammar::default();
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(lexicon);
+    let grammar = environment.grammar();
     let input = lexicon.analyze(text);
-    let forest = parse(&grammar, lexicon, &input, &category).unwrap();
+    let forest = parse(grammar, lexicon, &input, &category).unwrap();
     let mut values = BTreeSet::new();
     for value in grammar.readings(&forest) {
         let value = value.unwrap();
-        assert_eq!(value.realize(lexicon).unwrap(), text);
+        assert_eq!(grammar.realize(&value, lexicon).unwrap(), text);
         assert!(values.insert(value), "duplicate Reading for {text:?}");
     }
     values
@@ -195,9 +196,10 @@ pub fn constituent_positions(
     text: &str,
     category: Category,
 ) -> Vec<BTreeSet<(Category, usize, usize)>> {
-    let grammar = Grammar::default();
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(lexicon());
+    let grammar = environment.grammar();
     let input = lexicon().analyze(text);
-    let forest = parse(&grammar, lexicon(), &input, &category).unwrap();
+    let forest = parse(grammar, lexicon(), &input, &category).unwrap();
     // The parser's coordinates count Unicode scalars; assertion spans count
     // bytes.
     let bytes: Vec<_> = text
@@ -206,13 +208,13 @@ pub fn constituent_positions(
         .chain(std::iter::once(text.len()))
         .collect();
     forest
-        .readings(PositionedMaterializer { grammar: &grammar })
+        .readings(PositionedMaterializer { grammar })
         .map(|value| {
             let value = value.unwrap();
             let Value::Reading(reading) = value.value else {
                 panic!("a root must materialize a Reading");
             };
-            assert_eq!(reading.realize(lexicon()).unwrap(), text);
+            assert_eq!(grammar.realize(&reading, lexicon()).unwrap(), text);
             value
                 .constituents
                 .into_iter()

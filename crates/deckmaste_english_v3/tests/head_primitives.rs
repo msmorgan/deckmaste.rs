@@ -226,11 +226,13 @@ fn independent_atomic_heads_reject_wrong_signature_index_and_morphology() {
         }
     );
     assert!(wrong_head.admit(&lexicon).is_ok());
-    let invalid = Reading::TransitivePredicate {
+    let invalid = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: word(1, false),
-        object: Box::new(cards()),
+        complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+            Box::new(cards()),
+        )],
     };
     assert!(invalid.admit(&lexicon).is_err());
     let invalid = Reading::SelectedVerbHead {

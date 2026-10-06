@@ -50,7 +50,7 @@ fn clause(verb: &str) -> Reading {
                 }),
             }),
         }),
-        predicate: Box::new(Reading::IntransitivePredicate {
+        predicate: Box::new(Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head: lexical(
@@ -66,6 +66,7 @@ fn clause(verb: &str) -> Reading {
                 Some(0),
                 None,
             ),
+            complements: vec![],
         }),
     }
 }

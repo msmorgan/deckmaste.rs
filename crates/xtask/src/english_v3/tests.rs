@@ -141,7 +141,13 @@ fn face_census_preserves_raw_text_and_strips_reminders_before_parsing() {
     }}))
     .unwrap();
     let corpus = selected_corpus(&bytes);
-    let faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &args(None)).unwrap();
+    let faces = analyze_cards(
+        &corpus.faces,
+        lexicon(),
+        &Grammar::with_lexicon(lexicon()),
+        &args(None),
+    )
+    .unwrap();
     assert_eq!(
         faces
             .iter()
@@ -201,7 +207,7 @@ fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
     }}))
     .unwrap();
     let corpus = selected_corpus(&bytes);
-    let grammar = Grammar::default();
+    let grammar = Grammar::with_lexicon(lexicon());
     let one = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(Some(1))).unwrap();
     for face in &one {
         assert_eq!(face.checked_readings, 1);
@@ -240,7 +246,7 @@ fn worker_count_does_not_change_chart_results() {
     }}))
     .unwrap();
     let corpus = selected_corpus(&bytes);
-    let grammar = Grammar::default();
+    let grammar = Grammar::with_lexicon(lexicon());
     let mut one_args = args(None);
     one_args.workers = NonZeroUsize::new(1).unwrap();
     let mut many_args = args(None);
@@ -267,13 +273,28 @@ fn worker_count_does_not_change_chart_results() {
 
 #[test]
 fn validation_compares_exact_surface_and_both_traversal_identities() {
-    let grammar = Grammar::default();
+    let grammar = Grammar::with_lexicon(lexicon());
     let input = lexicon().analyze("Draw a card.");
     let forest = parse(&grammar, lexicon(), &input, &Category::Document).unwrap();
     let traced = forest.readings(Tracing(&grammar)).next().unwrap().unwrap();
-    assert!(validate(&traced, "Draw a card.", lexicon(), Category::Document).is_ok());
+    assert!(
+        validate(
+            &traced,
+            "Draw a card.",
+            lexicon(),
+            Category::Document,
+            &Grammar::with_lexicon(lexicon())
+        )
+        .is_ok()
+    );
     assert_eq!(
-        validate(&traced, "draw a card.", lexicon(), Category::Document),
+        validate(
+            &traced,
+            "draw a card.",
+            lexicon(),
+            Category::Document,
+            &Grammar::with_lexicon(lexicon())
+        ),
         Err(Issue::Roundtrip {
             realized: "Draw a card.".into()
         })
@@ -281,13 +302,25 @@ fn validation_compares_exact_surface_and_both_traversal_identities() {
     let mut wrong_nodes = traced.clone();
     wrong_nodes.nodes.swap(0, 1);
     assert_eq!(
-        validate(&wrong_nodes, "Draw a card.", lexicon(), Category::Document),
+        validate(
+            &wrong_nodes,
+            "Draw a card.",
+            lexicon(),
+            Category::Document,
+            &Grammar::with_lexicon(lexicon())
+        ),
         Err(Issue::ConstructionTraversal)
     );
     let mut wrong_words = traced.clone();
     wrong_words.words.swap(0, 1);
     assert_eq!(
-        validate(&wrong_words, "Draw a card.", lexicon(), Category::Document),
+        validate(
+            &wrong_words,
+            "Draw a card.",
+            lexicon(),
+            Category::Document,
+            &Grammar::with_lexicon(lexicon())
+        ),
         Err(Issue::LexicalTraversal)
     );
 }
@@ -300,7 +333,13 @@ fn a_failed_validation_is_written_before_the_command_returns_an_error() {
     let mut args = args(None);
     let directory = tempfile::tempdir().unwrap();
     args.output = Some(directory.path().join("report.json"));
-    let mut faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &args).unwrap();
+    let mut faces = analyze_cards(
+        &corpus.faces,
+        lexicon(),
+        &Grammar::with_lexicon(lexicon()),
+        &args,
+    )
+    .unwrap();
     faces[0].issues.push(Issue::ConstructionTraversal);
     let report = Report::new(
         &args,
@@ -343,7 +382,7 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
     }}))
     .unwrap();
     let corpus = selected_corpus(&bytes);
-    let grammar = Grammar::default();
+    let grammar = Grammar::with_lexicon(lexicon());
     let mut args = args(None);
     let text = analyze_cards(&corpus.faces, lexicon(), &grammar, &args).unwrap();
     args.field = SourceField::TypeLine;
@@ -390,9 +429,24 @@ fn type_line_census_uses_its_own_source_and_root_without_relabeling_rules_text()
     let input = lexicon().analyze("Instant");
     let forest = parse(&grammar, lexicon(), &input, &Category::TypeLine).unwrap();
     let traced = forest.readings(Tracing(&grammar)).next().unwrap().unwrap();
-    assert!(validate(&traced, "Instant", lexicon(), Category::TypeLine).is_ok());
+    assert!(
+        validate(
+            &traced,
+            "Instant",
+            lexicon(),
+            Category::TypeLine,
+            &Grammar::with_lexicon(lexicon())
+        )
+        .is_ok()
+    );
     assert_eq!(
-        validate(&traced, "Instant", lexicon(), Category::Document),
+        validate(
+            &traced,
+            "Instant",
+            lexicon(),
+            Category::Document,
+            &Grammar::with_lexicon(lexicon())
+        ),
         Err(Issue::RootCategory)
     );
 }
@@ -404,7 +458,13 @@ fn unknown_word_offsets_and_roundtrips_use_the_stripped_source() {
     }}))
     .unwrap();
     let corpus = selected_corpus(&bytes);
-    let faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &args(None)).unwrap();
+    let faces = analyze_cards(
+        &corpus.faces,
+        lexicon(),
+        &Grammar::with_lexicon(lexicon()),
+        &args(None),
+    )
+    .unwrap();
     let face = &faces[0];
     assert_eq!(face.analyzed_source, " Draw a card. éphantom.");
     let unknown = &face.unknown_words;
@@ -428,7 +488,13 @@ fn cheapest_frequency_sample_preserves_all_readings_in_census() {
     let corpus = selected_corpus(&bytes);
     let mut options = args(None);
     options.samples_per_face = 1;
-    let faces = analyze_cards(&corpus.faces, lexicon(), &Grammar::default(), &options).unwrap();
+    let faces = analyze_cards(
+        &corpus.faces,
+        lexicon(),
+        &Grammar::with_lexicon(lexicon()),
+        &options,
+    )
+    .unwrap();
     let face = &faces[0];
     assert!(face.issues.is_empty(), "{:?}", face.issues);
     assert_eq!(face.census, Census::Multiple);

@@ -20,6 +20,7 @@ pub(crate) struct Ir {
     pub positional_capitalization: bool,
     pub features: Vec<Domain>,
     pub frames: Vec<(Ident, Frame)>,
+    pub frame_categories: Vec<(Ident, usize)>,
     pub tables: Vec<FeatureTable>,
     pub categories: Vec<Ident>,
     pub public_categories: usize,
@@ -300,6 +301,16 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             "at least one Construction is required",
         ));
     }
+    let mut frame_categories = Vec::new();
+    let mut source_categories = BTreeSet::new();
+    for (source, target) in &declaration.frame_categories {
+        reserve(&mut source_categories, source)?;
+        let target = categories
+            .iter()
+            .position(|name| name == target)
+            .ok_or_else(|| error(target, "unknown frame category projection"))?;
+        frame_categories.push((source.clone(), target));
+    }
     let public_categories = categories.len();
     let category_index = |name: &str| categories.iter().position(|n| n == name);
     let mut constructors = vec![];
@@ -353,6 +364,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         }
         for (name, ty) in &fields {
             match ty {
+                FieldType::SelectedFrame(_, _) => {}
                 FieldType::Lexical(category) => {
                     ron::from_str::<deckmaste_lexical_model::Category>(category)
                         .map_err(|_| error(name, "unknown lexical Category"))?;
@@ -381,6 +393,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         positional_capitalization: declaration.capitalization.is_some(),
         features,
         frames,
+        frame_categories,
         tables: vec![],
         categories,
         public_categories,
@@ -468,6 +481,34 @@ fn normalize(
             field_symbols.push(normalize_field(ir, &ty));
         }
         for parts in &construction.forms {
+            if parts.iter().any(|p| {
+                matches!(
+                    p,
+                    crate::parse::Part::Field(_, FieldType::SelectedFrame(_, _))
+                )
+            }) {
+                let valid = match parts.as_slice() {
+                    [
+                        Part::Field(head, selector),
+                        Part::Field(_, FieldType::SelectedFrame(selected, _)),
+                    ] if head == selected => match selector {
+                        FieldType::Lexical(category) => category == "Verb",
+                        FieldType::One(category) => ir
+                            .categories
+                            .iter()
+                            .position(|name| name == category)
+                            .is_some_and(|index| interfaces[index].contains(&7)),
+                        _ => false,
+                    },
+                    _ => false,
+                };
+                if !valid {
+                    return Err(error(
+                        &construction.name,
+                        "selected_frame requires exactly a lexical Verb or node exporting frame, followed by selected_frame(head)",
+                    ));
+                }
+            }
             let pieces = normalize_form(parts, &ir.constructors[index].fields);
             let canonical = ir.constructors[index]
                 .forms
@@ -899,12 +940,19 @@ fn helper(ir: &mut Ir, category: usize, symbols: Vec<Symbol>, build: Build) {
 }
 
 fn normalize_field(ir: &mut Ir, ty: &FieldType) -> Symbol {
+    if matches!(ty, FieldType::SelectedFrame(_, _)) {
+        let category = ir.categories.len();
+        ir.categories
+            .push(format_ident!("__SelectedFrame{category}"));
+        return Symbol::Nonterminal(category);
+    }
+
     if let FieldType::Lexical(category) = ty {
         return Symbol::Lexical(category.clone());
     }
     let name = match ty {
         FieldType::One(c) | FieldType::Optional(c) | FieldType::Repeated(c, _) => c,
-        FieldType::Lexical(_) => unreachable!(),
+        FieldType::Lexical(_) | FieldType::SelectedFrame(_, _) => unreachable!(),
     };
     let child = ir.categories.iter().position(|n| n == name).unwrap();
     if matches!(ty, FieldType::One(_)) {

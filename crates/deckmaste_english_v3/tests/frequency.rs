@@ -113,10 +113,11 @@ fn independent_frequency_attachment_preserves_the_intransitive_frame() {
     let expected = Reading::FrequencyPredicate {
         category: Category::FinitePredicate,
         form: 0,
-        head: Box::new(Reading::IntransitivePredicate {
+        head: Box::new(Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head,
+            complements: vec![],
         }),
         modifier: Box::new(frequency(variable(), Number::Plural)),
     };
@@ -125,11 +126,11 @@ fn independent_frequency_attachment_preserves_the_intransitive_frame() {
     assert!(values.contains(&expected));
     assert!(values.iter().any(|value| matches!(
         value,
-        Reading::TransitivePredicate {
+        Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
-            ..
-        }
+            complements, ..
+        } if matches!(complements.as_slice(), [deckmaste_english_v3::grammar::FrameValue::Argument(child)] if child.category() == Category::AccusativePhrase)
     )));
 }
 
@@ -143,7 +144,8 @@ fn authentic_explore_frequency_and_transitive_frame_are_preserved() {
         let mut found = false;
         reading.visit(&mut |node| {
             if let Reading::FrequencyPredicate { category: Category::FinitePredicate, form: 0,head, .. } = node
-                && let Reading::IntransitivePredicate { category: Category::FinitePredicate, form: 0,head, .. } = head.as_ref() {
+                && let Reading::SelectedPredicate { category: Category::FinitePredicate, form: 0,head, complements } = head.as_ref() {
+                    assert_eq!(complements.as_slice(), []);
                     found |= matches!(&head.value, LexicalReading::Word(value) if value.lexeme == "lexeme:keyword_action/explore") && head.frame == Some(0);
                 }
         }).unwrap();
@@ -153,11 +155,11 @@ fn authentic_explore_frequency_and_transitive_frame_are_preserved() {
     // card" establish the transitive use. Their compound nominals are an
     // existing grammar gap; this reduced diagnostic isolates that frame.
     let values = readings("explores a card", Category::FinitePredicate);
-    assert!(values.iter().any(|value| matches!(value, Reading::TransitivePredicate { category: Category::FinitePredicate, form: 0,head, .. }
-        if head.frame == Some(1) && matches!(&head.value, LexicalReading::Word(value) if value.lexeme == "lexeme:keyword_action/explore"))));
+    assert!(values.iter().any(|value| matches!(value, Reading::SelectedPredicate { category: Category::FinitePredicate, form: 0,head, complements }
+        if matches!(complements.as_slice(), [deckmaste_english_v3::grammar::FrameValue::Argument(child)] if child.category() == Category::AccusativePhrase) && head.frame == Some(1) && matches!(&head.value, LexicalReading::Word(value) if value.lexeme == "lexeme:keyword_action/explore"))));
     let values = readings("draws cards two times", Category::FinitePredicate);
     assert!(values.iter().any(
         |value| matches!(value, Reading::FrequencyPredicate { category: Category::FinitePredicate, form: 0,head, .. }
-        if matches!(head.as_ref(), Reading::TransitivePredicate { category: Category::FinitePredicate, form: 0,.. }))
+        if matches!(head.as_ref(), Reading::SelectedPredicate { category: Category::FinitePredicate, form: 0,complements, .. } if matches!(complements.as_slice(), [deckmaste_english_v3::grammar::FrameValue::Argument(child)] if child.category() == Category::AccusativePhrase)))
     ));
 }

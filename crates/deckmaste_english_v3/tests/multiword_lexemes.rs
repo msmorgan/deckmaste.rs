@@ -177,7 +177,7 @@ fn independent_orientation_pps_and_coordination_preserve_whole_lexical_words() {
 
 #[test]
 fn orientation_predication_uses_the_existing_selected_locative_frame() {
-    let predicate = Reading::LocativePredicate {
+    let predicate = Reading::SelectedPredicate {
         category: Category::FinitePredicate,
         form: 0,
         head: Word {
@@ -197,13 +197,15 @@ fn orientation_predication_uses_the_existing_selected_locative_frame() {
             frame: Some(2),
             countability: None,
         },
-        complement: Box::new(Reading::LocativeComplement {
-            form: 0,
-            phrase: Box::new(orientation(
-                "vocab:Preposition/FaceDown",
-                SurfaceCase::Declared,
-            )),
-        }),
+        complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+            Box::new(Reading::LocativeComplement {
+                form: 0,
+                phrase: Box::new(orientation(
+                    "vocab:Preposition/FaceDown",
+                    SurfaceCase::Declared,
+                )),
+            }),
+        )],
     };
     assert_eq!(predicate.realize(&LEXICON).unwrap(), "is face down");
     assert!(readings("is face down", Category::FinitePredicate).contains(&predicate));

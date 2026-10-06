@@ -143,10 +143,11 @@ fn authentic_preterite_host_preserves_temporal_adjunct_attachment() {
     let expected = Reading::NominalAdjunctPredicate {
         category: Category::FinitePredicate,
         form: 0,
-        head: Box::new(Reading::IntransitivePredicate {
+        head: Box::new(Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head,
+            complements: vec![],
         }),
         modifier: Box::new(Reading::NominalAdjunctPhrase {
             form: 0,
@@ -165,7 +166,7 @@ fn authentic_preterite_host_preserves_temporal_adjunct_attachment() {
             let Reading::NominalAdjunctPredicate { head, .. } = &mut value else {
                 unreachable!()
             };
-            let Reading::IntransitivePredicate { head, .. } = head.as_mut() else {
+            let Reading::SelectedPredicate { head, .. } = head.as_mut() else {
                 unreachable!()
             };
             let LexicalReading::Word(head) = &mut head.value else { unreachable!() };

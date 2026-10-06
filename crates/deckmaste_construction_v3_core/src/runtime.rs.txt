@@ -20,6 +20,7 @@ pub enum FeatureValue {
 pub struct Summary {
     values: Vec<Option<FeatureValue>>,
     frame_choice: Option<usize>,
+    marker_class: Option<usize>,
     count_use: Option<bool>,
     surface: SurfaceSummary,
 }
@@ -29,6 +30,7 @@ impl Default for Summary {
         Self {
             values: vec![None; FEATURE_COUNT],
             frame_choice: None,
+            marker_class: None,
             count_use: None,
             surface: SurfaceSummary::default(),
         }
@@ -111,6 +113,7 @@ pub struct Word {
 impl Word {
     fn admit(
         &self,
+        grammar: &Grammar,
         lexicon: &::deckmaste_lexical::Lexicon,
         category: ::deckmaste_lexical::Category,
     ) -> Result<Summary, Error> {
@@ -127,7 +130,7 @@ impl Word {
                 if lexeme.category != category {
                     return Err(Error::Invalid("lexical", "Category"));
                 }
-                project(::deckmaste_english_v3::LexicalFeatures::Word {
+                grammar.project(::deckmaste_english_v3::LexicalFeatures::Word {
                     category,
                     form: value.form,
                     features: &value.features,
@@ -139,7 +142,7 @@ impl Word {
                 if category != ::deckmaste_lexical::Category::FlavorWord {
                     return Err(Error::Invalid("lexical", "Category"));
                 }
-                project(::deckmaste_english_v3::LexicalFeatures::FlavorWord { surface })
+                grammar.project(::deckmaste_english_v3::LexicalFeatures::FlavorWord { surface })
             }
             ::deckmaste_lexical::LexicalReading::Numeral {
                 value, notation, ..
@@ -147,7 +150,7 @@ impl Word {
                 if category != ::deckmaste_lexical::Category::Numeral {
                     return Err(Error::Invalid("lexical", "Category"));
                 }
-                project(::deckmaste_english_v3::LexicalFeatures::Numeral {
+                grammar.project(::deckmaste_english_v3::LexicalFeatures::Numeral {
                     value: *value,
                     notation: *notation,
                     surface,
@@ -166,6 +169,7 @@ impl Word {
 
 #[derive(Debug)]
 pub enum Error {
+    EnvironmentRequired,
     CostOverflow,
     Invalid(&'static str, &'static str),
     Lexical(::deckmaste_lexical::LexicalError),
@@ -175,6 +179,7 @@ pub enum Error {
 impl ::std::fmt::Display for Error {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match self {
+            Self::EnvironmentRequired => f.write_str("selected-frame grammar requires a GrammarEnvironment"),
             Self::Invalid(name, obligation) => {
                 write!(f, "declaration {name}: invalid {obligation}")
             }
@@ -186,12 +191,14 @@ impl ::std::fmt::Display for Error {
 }
 impl ::std::error::Error for Error {}
 
+#[derive(Clone)]
 struct TableExport {
     feature: usize,
     registers: Vec<usize>,
     rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
 }
 
+#[derive(Clone)]
 struct TableRequirement {
     registers: Vec<usize>,
     rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
@@ -210,12 +217,15 @@ fn table_value<'a>(
     })
 }
 
+#[derive(Clone)]
 enum Boundary {
     Initial,
     Interior,
 }
 
+#[derive(Clone)]
 struct Rule {
+    guards: Vec<FrameGuard>,
     boundary: Option<Boundary>,
     onset: Option<::deckmaste_lexical::Onset>,
     checks: Vec<Vec<(usize, usize)>>,
@@ -229,6 +239,12 @@ struct Rule {
 impl Rule {
     fn advance(&self, dot: usize, state: &State, child: Option<&Summary>) -> Option<State> {
         let checks = self.checks.get(dot)?;
+        match self.guards.get(dot)? {
+            FrameGuard::Any => {},
+            FrameGuard::Head(frame) if child?.values.get(7)?.as_ref() == Some(&FeatureValue::Frame(*frame)) => {},
+            FrameGuard::Marker(class) if child?.marker_class == Some(*class) => {},
+            _ => return None,
+        }
         let mut next = state.clone();
         if let Some(child) = child {
             next.surface = next.surface.append(child.surface);
@@ -287,6 +303,13 @@ impl Rule {
 pub struct Grammar {
     rules: Vec<Rule>,
     productions: Vec<::deckmaste_english_v3::Production<Category>>,
+    programs: Vec<::deckmaste_lexical::Frame>,
+    canonical_frames: Vec<::deckmaste_lexical::Frame>,
+    marker_classes: Vec<(String, ::deckmaste_lexical::Category)>,
+    expansions: Vec<FrameExpansion>,
+    unsupported: Vec<UnsupportedFrame>,
+    static_count: usize,
+    compiled: bool,
 }
 
 impl ::deckmaste_english_v3::Grammar for Grammar {
@@ -298,9 +321,14 @@ impl ::deckmaste_english_v3::Grammar for Grammar {
         &self.productions
     }
     fn lexical(&self, features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
-        project(features)
+        self.project(features)
     }
     fn begin(&self, production: usize) -> Vec<Self::State> {
+        // Selected-frame templates supply checked policies to concrete
+        // productions; their placeholder tails are never predicted.
+        if SELECTED_FRAME_TEMPLATES.iter().any(|(template, _)| *template == production) {
+            return Vec::new();
+        }
         self.rules
             .get(production)
             .map(|rule| vec![State::new(rule.initial.clone())])
