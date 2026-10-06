@@ -63,6 +63,25 @@ attachments (to `Untap …`, to `control` inside the relative clause, and to the
 Nominal `permanents you control`), the nominal attachment should rank last.
 It remains admitted under the user's three-Reading ruling (2026-10-05).
 
+Seedborn Muse's sentence actually has 8 Readings, not 3: each attachment site
+appears twice, because the lexicon reads "untap step" both as a compound lexeme
+and as *untap* + *step*, and the "attach to Untap" site exists at both clause and
+VP level. Both multiplicities predate the three-Reading ruling; the lexical one
+is a question for the residual audit (see `english-v3-systemic-residuals`).
+
+Two more Preference witnesses of the same kind (semantically odd but
+syntactically licensed nominal attachments that should rank last and remain
+admitted):
+
+- **Noctis, Prince of Lucis**: "You may cast artifact spells from your graveyard
+  by paying 3 life in addition to paying their other costs." The means phrase "by
+  paying 3 life..." also attaches as a postmodifier of "graveyard" (45 of 104
+  Readings on 2026-10-06) and of "spells"; the intended reading is the means
+  Adjunct of "cast". It is licensed as a PP-with-clausal-complement postmodifier
+  (CGEL Ch. 5 §14.2, p. 446, [14iii]); the oddness is semantic.
+- **Alien Symbiosis**: the same means-phrase-as-nominal-postmodifier pattern
+  accounts for 52 of its 95 Readings.
+
 Whether production cutover needs a preferred representative at all is undecided.
 If no consumer needs one, this ticket is not a cutover prerequisite; it is not
 in that ticket's `needs:` today.

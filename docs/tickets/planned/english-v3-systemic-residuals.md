@@ -173,6 +173,18 @@ is right and this list needs fixing.
   resultative analysis until one exists. CGEL Ch. 4 §5.3 treats a verb-licensed
   resultative as a Complement, which is why the frame was kept.
 - The wider depictive hosts left open by the participial-composition batch.
+- Copular scalar location: "The number of cards in your hand is three." parses in
+  neither number on 2026-10-06 (the *becomes* version does). CGEL Ch. 8 §5.4,
+  pp. 693-694 treats *be* + NP as scalar location; a copula gap, not a concord one.
+- Compound/split lexical ambiguity: "untap step" is read both as one compound
+  lexeme and as *untap* + *step*, doubling every Reading of Seedborn Muse (8
+  instead of 3 attachments). Decide whether declared game-term compounds should
+  suppress the split analysis; CGEL Ch. 5 §14.4 (compound nouns) is the authority
+  to consult.
+- Tooling: `cargo xtask english-v3 probe` does not print Noun Phrase Agreement
+  features, so plural concord had to be confirmed behaviourally (plural verb
+  parses, singular does not) in the 2026-10-06 reviews. Not a grammar cause; noted
+  so an owner can add it.
 - Label/body, ordered-destination, only-if/only-during, comparison, Type Line
   ordering and document cases keep their existing owners.
 
