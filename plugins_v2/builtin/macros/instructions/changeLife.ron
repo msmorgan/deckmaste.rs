@@ -1,10 +1,9 @@
 // `Instruction.ChangeLife` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1). Unlike the other aliases it keeps its
-// agent: extort's "each opponent loses 1 life and you gain life equal to the
-// total life lost this way" is refused when the loss is handed to each
-// opponent (Lean `quantOutcomeInScope 0`), so it writes the group as the
-// agent here.
+// basis has a constructor (ADR 12.1). Unlike the other aliases it still
+// takes an agent, though no caller passes one a performer any more: extort
+// writes `act(each(opponent), loseLife(1))`. The parameter goes with the
+// agent fields (`semantics-v2-drop-agent-fields`).
 (
     name: "changeLife",
     kinds: [Instruction],
