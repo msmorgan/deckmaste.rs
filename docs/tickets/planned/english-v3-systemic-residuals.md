@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-frame-coordination]
+needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-scalar-comparisons, english-v3-as-long-as, english-v3-instead-replacement]
 ---
 # Reconcile systemic residuals before production cutover
 
@@ -220,6 +220,12 @@ is right and this list needs fixing.
   `VerbPhrase`, `ManaAmount`/`ComparisonDirection`/`ControlledCostAction`, and
   `ResultativeComplement`; each needs typed reconciliation before a consumer can
   admit it.
+  Owned since 2026-10-06: the Gain/Have `Complement(GrantedAbility)` row by
+  `english-v3-granted-ability-quotes`; the Look row and the two Put rows with
+  `Preposition(On), Complement(FrameComplement)` by `english-v3-library-position`;
+  Deal's two `ScalarEquality` rows by `english-v3-scalar-comparisons`; the
+  `ReplacementMarker` slot of Deal's first row by `english-v3-instead-replacement`
+  (its `MassNoun`/`DistributionPhrase` slots stay here).
 - The exile resultative frame (`[ObjectNounPhrase, Role("ResultativeComplement")]`
   in `plugins_v2/builtin/macros/keyword_actions/exile.ron`) is declared but has no
   consumer, so attested "exile ... face down" sentences (Duplicity, The Foretold
@@ -230,6 +236,7 @@ is right and this list needs fixing.
 - Copular scalar location: "The number of cards in your hand is three." parses in
   neither number on 2026-10-06 (the *becomes* version does). CGEL Ch. 8 §5.4,
   pp. 693-694 treats *be* + NP as scalar location; a copula gap, not a concord one.
+  Owned by `english-v3-scalar-comparisons`.
 - Compound/split lexical ambiguity: "untap step" is read both as one compound
   lexeme and as *untap* + *step*, doubling every Reading of Seedborn Muse (the selected-preposition
   landing re-spells its attachment set to two and retires the nominal third). Decide whether declared game-term compounds should
@@ -240,7 +247,9 @@ is right and this list needs fixing.
   parses, singular does not) in the 2026-10-06 reviews. Not a grammar cause; noted
   so an owner can add it.
 - Label/body, ordered-destination, only-if/only-during, comparison, Type Line
-  ordering and document cases keep their existing owners.
+  ordering and document cases keep their existing owners. Scalar comparison is
+  owned by `english-v3-scalar-comparisons` (2026-10-06); only-if/only-during has
+  no other live owner and stays here (`english-v3-fixed-cost-phrases` excludes it).
 
 - Frame-coordination reconciliation (2026-10-06): 42 inherited no-Reading faces
   remain owned here for exact structural cause discrimination: Commune with
@@ -258,6 +267,18 @@ is right and this list needs fixing.
   `/tmp/frame-coordination-inherited-reconciliation.json`; exhaustive final
   Reading evidence: `/tmp/frame-coordination-inherited-final.json`. Whole-face
   failure alone does not establish a frame-coordination cause.
+  Ownership split (2026-10-06, measured on `wlvwtnppyovn`): the 29 faces whose
+  first failing unit is a library position (every name above except the 13
+  below) are owned by `english-v3-library-position`. Burn the Accursed (only
+  failing unit an *instead* sentence) is owned by
+  `english-v3-instead-replacement`. Psionic Sliver's quote is owned by
+  `english-v3-granted-ability-quotes`, but its inner ability also needs Deal's
+  ordered amount/recipient segments, so the face stays here too. The other 11
+  stay here: Sunflare Shaman, Drakuseth, Assembled Alphas, Chandra, The
+  Brothers' War, Trick Shot, Self-Destruct, Tropical Storm, Judgment Bolt and
+  Sparksmith fail on Deal's ordered amount/recipient segments; Neonate's Rush
+  fails on cost reduction. None of the 42 fails on `, then`, so
+  `english-v3-then-sequencing` takes over none of them.
 
 The records also name two cutover blockers that now have their own owners: the
 cost of the complete corpus run (english-v3-census-tractability) and the Avacyn
