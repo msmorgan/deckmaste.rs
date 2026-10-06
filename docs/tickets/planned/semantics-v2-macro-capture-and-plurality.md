@@ -21,6 +21,18 @@ Then give Fight, Regenerate, Scry, Surveil, Fateseal, and Connive their
 bodies under the chosen device, with a canon card each proving through
 `lean-check`.
 
+Work items routed from `plugins-v2-scry-surveil-fight-bodies` (which stays in
+`done/`): give the `scry`, `surveil` and `fight` keyword action declarations
+their bodies here.
+
+## Also built here: keyword-body reference scope
+
+Decided 2026-10-05 (owner: "ok"): the reference scope of
+`semantics-v2-keyword-body-reference-scope` — every keyword action body read
+in its own scope, seeing only its parameters and what it introduces — is
+built inside this landing, not separately. That ticket holds its design and
+pins and names this one as its need; this landing does its work.
+
 ## Routed here by `plugins-v2-dialect` (2026-09-07)
 
 The helper macro port (`semantics-v2.md` §12.1) left 23 `semantic_macro`s in

@@ -44,12 +44,13 @@ therefore being unparseable".
 
 ## The work
 
-1. Retype `gift`'s parameter to an instruction and write its body; remove its
-   `spelling`. The `KeywordAbility` meta-macro requires `spelling` today
-   (`macros/meta/KeywordAbility.ron`): make it optional or give gift a
-   different declaration kind, whichever keeps the keyword and nominal
-   declarations the parser needs. If neither works without an expander
-   feature, STOP and report.
+1. **Let a keyword declaration omit `spelling`.** Decided 2026-10-05: the
+   keyword declaration format allows a missing `spelling` for a declaration
+   that is deliberately unparseable (the bare `gift`). Owner: "yes". Make
+   `spelling` optional in the `KeywordAbility` meta-macro
+   (`macros/meta/KeywordAbility.ron`) and the declaration schema, keeping the
+   keyword and nominal declarations the parser needs. Then retype `gift`'s
+   parameter to an instruction, write its body, and remove its `spelling`.
 2. Add the six variants. Each effect is written in the implicit-actor spelling
    (`plugins-v2-implicit-actor-spelling`); add any token or extra-turn helper
    the effects need and list it.

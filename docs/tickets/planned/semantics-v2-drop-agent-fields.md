@@ -40,6 +40,17 @@ deleted. `semantics-v2-deed-performer-roles`: until the twelve deeds the
 checker gives no player performer accept the actor, their declarations write
 `agent: None` and the loader keeps the `agent` field.
 
+Routed here by the 2026-10-05 decision on
+`semantics-v2-group-handoff-publishes-no-outcome` (option A): once extort is
+written `act(each(opponent), loseLife(1))`, the `changeLife` alias loses its
+`agent` parameter in this landing.
+
+Open, from the 2026-10-05 decision on `semantics-v2-deed-performer-roles`:
+explore, endure, adapt, harness and monstrosity record the PERMANENT as their
+performer on the `Enact` wrapper, and the `act` handoff takes a player. Deleting
+`enact`'s agent must leave a place for that performer; settle it with that
+ticket before deleting the field.
+
 ## Left by plugins-v2-implicit-actor-spelling (2026-10-05)
 
 After that landing, these are the only places in `plugins_v2/` that still

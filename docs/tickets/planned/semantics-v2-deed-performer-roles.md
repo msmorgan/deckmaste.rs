@@ -1,8 +1,9 @@
 ---
 needs: []
 ---
-**Twelve keyword actions cannot record their actor, because the Lean deed
-table gives them no player performer.** Found at
+**Twelve keyword actions cannot record their performer, because the Lean
+deed table gives them no player performer and the enacted check admits no
+other.** Found at
 `plugins-v2-implicit-actor-spelling` (2026-10-05). Standard constraints
 apply.
 
@@ -103,42 +104,89 @@ instructions in the order written."
   none; the passive names the healed permanent's controller, which is not a
   permanent performing the deed.
 
+## Decided (owner, 2026-10-05)
+
+The twelve record a performer, split by who the rule says performs the deed:
+
+- **The actor (a player)** on bolster, populate, time travel, meld, counter,
+  detain and heal: the wrapper records `Some(Actor)` like every other wrapped
+  action.
+- **The permanent itself** on explore, endure, adapt, harness and
+  monstrosity, since "whenever a creature you control explores" is about the
+  creature. The performer is the permanent the body acts on: `Param(0)` for
+  explore, endure and harness, `thisPermanent` for adapt and monstrosity
+  (which take no subject parameter). Where the rule has the permanent's
+  controller do the steps [CR#701.44a,701.63a], the body's existing
+  `act(controllerOf(Param(0)), …)` handoff stays.
+
+Owner: "sure".
+
+## Finding: an object performer has a role value but no enacted check (2026-10-05)
+
+Read on this ticket's tree before writing the work below:
+
+- A `DeedRole` whose sort is an object already exists as a value: block's
+  agent (`coreDeedFacts`, `Words.lean:231`), and Crew, Saddle and Phasing in
+  `abilityDeedFacts` (`Words.lean:263`) write `⟨some ⟨.object, [], …⟩, true,
+  some .battlefield⟩`; attack's is `.either`. There is no named constant for
+  it beside `playerAgent` (`Words.lean:211`); `fieldObject` is the
+  patient-shaped one (not bare).
+- What is missing is the enacted side. `enactAgentOk`
+  (`Check/Abilities.lean:350`) is `deedKindOk v .agent .player` for any
+  recorded subject, so a row that admits only objects refuses every recorded
+  agent, and the `.enact` arm of `Instruction.check`
+  (`Check/AbilityRules.lean:328`) checks the subject as a player
+  (`OptNoun.check (some .player) bs subj`) and builds the body's context with
+  `agentCtx`.
+
 ## The work
 
-1. Lean: give these deeds a player agent, either by giving their `actFacts`
-   rows a role that admits a player (`playerAgent`, or an `.either` sort as
-   `coreDeedFacts`' attack row has, `Words.lean:228`), or by making
-   `enactAgentOk` accept `actor` as the recorded agent. The rows are also
-   read for event and deontic clauses (`deedFits`, `Events.lean:126`;
-   "can't be countered" pins in `Proofs/Deontic.lean` read Counter's row), so
-   a row change must keep those pins at their outcomes and must not refuse a
-   permanent subject where a card has one ("whenever a creature you control
+1. **Lean, the object role (first).** The smallest addition, nothing beyond
+   it: (i) give the explore, endure, adapt, harness and monstrosity rows of
+   `actFacts` an object agent role (bare, on the battlefield, as the rows
+   above write it; a named constant beside `playerAgent` if it reads better);
+   (ii) make `enactAgentOk` test the recorded subject's own kind against the
+   row (`deedKindOk v .agent <the subject's kind>`) instead of a fixed
+   `.player`, and have the `.enact` arm check the subject with that kind.
+2. **Lean, the player rows.** Give the bolster, populate, time travel, meld,
+   counter, detain and heal rows `playerAgent`. Counter's row is
+   `⟨none, true, some .stack⟩` today. The rows are also read for event and
+   deontic clauses (`deedFits`, `Events.lean:126`; "can't be countered" pins
+   in `Proofs/Deontic.lean` read Counter's row), so a row change must keep
+   those pins at their outcomes, and the five object rows must accept the
+   permanent subject a card writes ("whenever a creature you control
    explores").
-2. Re-run `cargo xtask lean-check` with `Some(Actor)` on all twelve.
-3. Remove `agent: None` from the twelve declarations, from
-   `macros/meta/KeywordAction.ron` and from `keyword_action_body`, so the
-   loader accepts no `agent` field at all; re-spell the `keywords.rs` and
-   `plugins_v2_declarations.rs` assertions that pin `agent: None` (adapt,
-   heal) against the new shape.
+3. **Declarations and loader.** The seven take the ordinary `Some(Actor)`
+   wrapper; the five record the permanent named above. Remove `agent: None`
+   from the twelve declarations, from `macros/meta/KeywordAction.ron` and from
+   `keyword_action_body`, so the loader takes no `agent: None` any more;
+   re-spell the `keywords.rs` and `plugins_v2_declarations.rs` assertions that
+   pin `agent: None` (adapt, heal) against the new shape.
+4. Re-run `cargo xtask lean-check`.
 
 ## Proof
 
-- The ten cards above prove `Card.check = []` with the actor recorded, and
-  Endure Handoff Probe with it; the Lean pins keep their outcomes.
+- The ten cards above prove `Card.check = []` with the performer recorded,
+  and Endure Handoff Probe with it; the Lean pins keep their outcomes.
 - The term classifier's class (b), a keyword action wrapper's agent `None`
-  → `Some(Actor)`, then covers every wrapped action: no declaration's
+  → a recorded performer, then covers every wrapped action: no declaration's
   wrapper records `None`.
 
-## Open points (not decided)
+## Ward: the nested form stays
 
-- Whether a permanent-performed deed (explore, endure) should record the
-  permanent as well as the player. Today its body is handed to
-  `controllerOf(Param(0))` inside the wrapper, while the wrapper would
-  record the outer actor, which is a different player when the permanent is
-  another player's.
-- Ward was re-spelled in `plugins-v2-implicit-actor-spelling` (S7) as
-  `act(controllerOf(that(Stack)), doUnless(act(you, counter(that(Stack))),
-  Param(0)))` [CR#702.21a], so once counter records the actor, the recorded
-  counterer is the ward ability's controller. What remains: whether
-  `doUnless` should take the payer and the doer as two parts of one shape
-  rather than a handoff nested in a handoff.
+Ward was re-spelled in `plugins-v2-implicit-actor-spelling` (S7) as
+`act(controllerOf(that(Stack)), doUnless(act(you, counter(that(Stack))),
+Param(0)))` [CR#702.21a], so once counter records the actor, the recorded
+counterer is the ward ability's controller. Decided 2026-10-05: the nested
+form stays. Owner: "my that's awkward, but i guess it's right...".
+
+- Note: a `doUnless` shape taking the payer and the doer as two parts may be
+  revisited.
+
+## Open point
+
+`semantics-v2-drop-agent-fields` deletes `enact`'s optional agent and has the
+loader write `Enact(Action(label), body)`, and the `act` handoff checks its
+performer as a player. Once the five object performers are recorded, that
+deletion has no place left to record them; the two tickets must agree on
+where a permanent performer lives before that one lands.

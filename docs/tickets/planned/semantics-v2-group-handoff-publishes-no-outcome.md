@@ -70,19 +70,33 @@ until extort can be written `act(each(opponent), loseLife(1))`.
   `Proofs/Trigger.lean` `okLifePaymentThatMuch` and
   `badKeywordCostPaymentThatMuch`.
 
-## Options visible in the code (not a design)
+## Decided (owner, 2026-10-05): option A
 
-- The `.act` `.many` arm could carry the body's amount outcomes through as
-  singular totals, as `doesProfile`'s `.many, _` arm
-  (`Abilities.lean:1077`) keeps the body's deed for an `enact` with a plural
-  agent.
-- `pluralizeBinding` could leave outcome bindings singular, which would
-  change `doForEach` as well.
-- `countAmountOutcomes` could count a plural amount outcome as a total.
+The group handoff's `.many` arm carries the body's amount outcomes through as
+singular totals, the way `doesProfile`'s plural-agent arm (`.many, _`,
+`Abilities.lean:1077`) keeps the body's deed for an `enact` with a plural
+agent. Owner: "yeah that's a match for how it's written so i guess so".
+Extort's "you gain life equal to the total life lost this way"
+[CR#702.101a] is the reading.
 
-Which is right depends on whether "that much" after "each opponent loses 1
-life" is one total [CR#702.101a] in every such sentence, and on what
-`doForEach` should publish; neither is settled here.
+Not chosen: leaving every outcome binding singular in `pluralizeBinding`
+(which would change `doForEach` as well), and counting a plural amount
+outcome as a total in `countAmountOutcomes`.
+
+## The work
+
+An ordinary landing, under one rule: the smallest change to the `.act` arm
+that keeps every existing pin at its outcome and the three group pins
+(`handedGroupPublishesPlurals`, `okDistributedDiscardReadsAsGroup`,
+`badDistributedDiscardReadSingular`) at theirs.
+
+The goal spelling, proving on Syndic of Tithes:
+
+```ron
+sequentially([act(each(opponent), loseLife(1)), gainLife(thatMuch)])
+```
+
+Re-spell `extort.ron` to it.
 
 ## Proof
 
@@ -90,5 +104,9 @@ life" is one total [CR#702.101a] in every such sentence, and on what
   `gainLife(thatMuch)`; Syndic of Tithes proves `Card.check = []`.
 - A Lean pin for the handed-off form beside the explicit-agent one, both
   checking clean.
-- No caller in `plugins_v2/` passes `changeLife` an agent, so the alias can
-  drop the parameter here or in `semantics-v2-drop-agent-fields`.
+
+## Routed on
+
+After this lands no caller in `plugins_v2/` passes `changeLife` an agent;
+dropping the alias's agent parameter is `semantics-v2-drop-agent-fields`'
+step, not this ticket's (that ticket already needs this one).

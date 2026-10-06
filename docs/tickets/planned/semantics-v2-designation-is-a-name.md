@@ -18,7 +18,39 @@ constraints apply.
   `crates/deckmaste_semantics_v2/src/words.rs` ~L265), so the `denoted_by`
   marker attaches to it the way it does to `CounterKind` after
   `semantics-v2-counter-kind-is-a-name`.
-- The name is the declaration name, verbatim, as for counter kinds.
+- Owner, 2026-10-05 ("yes."): each label is its own bare name (`day`,
+  `night`, `monarch`). A declaration with one label names it by the
+  declaration name, verbatim, as for counter kinds; a declaration with
+  several labels lists its members, each its own name (`dayNight` declares
+  `day` and `night`). A phrase label such as "the monarch" stays as the
+  declaration's `spelling`, not its name.
+
+## Inventory the work covers (read 2026-10-05)
+
+The 18 declarations under `plugins_v2/builtin/macros/designations/` carry 19
+labels. One declaration has more than one label:
+
+| Declaration | Labels | Spelling |
+|---|---|---|
+| `dayNight` | "day", "night" | "day or night" |
+
+Seven have a label that is a phrase, not the declaration name; each label
+becomes the name and the phrase stays in `spelling` (already equal to the
+label in all seven):
+
+| Declaration | Label today | Spelling |
+|---|---|---|
+| `citysBlessing` | "the city's blessing" | "the city's blessing" |
+| `enduringStory` | "an enduring story" | "an enduring story" |
+| `initiative` | "the initiative" | "the initiative" |
+| `leftHalfUnlocked` | "left half unlocked" | "left half unlocked" |
+| `monarch` | "the monarch" | "the monarch" |
+| `rightHalfUnlocked` | "right half unlocked" | "right half unlocked" |
+| `ringBearer` | "Ring-bearer" | "Ring-bearer" |
+
+The other ten already label themselves with their own name and spelling:
+`commander`, `goaded`, `harnessed`, `level`, `monstrous`, `prepared`,
+`renowned`, `saddled`, `solved`, `suspected`.
 
 ## The work
 
@@ -58,6 +90,8 @@ each copyable:
   fields as parameters and writes `Counter(kind: Named(name: Param(name)), …)`
   itself; `meta/Designation.ron` would take `scope`, `effectful`, `zone`,
   `type`, `half` and write `Designation(label: Named(name: Param(name)), …)`.
+  A declaration with several members (`dayNight`) cannot take its labels from
+  its own name; how its meta lists the members is part of this work.
   `deckmaste_construction_core`'s declaration schema then needs a
   `DiagnosticDesignation` with a derived body (see `DiagnosticCounterKind`
   and `DiagnosticSubtype` in `macro_def.rs`).
@@ -70,9 +104,9 @@ each copyable:
   expansion/card-dump comparison is at the orchestrator's scratchpad
   (`counters/normalise.py`).
 
-One difference: designation labels are today the spelled phrase
-("the monarch", "left half unlocked"), not the declaration name, so every
-label changes text, and any check that reads the label as English (Room
+One difference: some designation labels are today the spelled phrase
+("the monarch", "left half unlocked"), not the declaration name, so those
+labels change text (the inventory above), and any check that reads the label as English (Room
 halves, `RoomHalf.designation`) must read the name instead.
 
 ## Proof

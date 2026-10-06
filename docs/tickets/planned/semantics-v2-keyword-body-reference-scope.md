@@ -1,5 +1,5 @@
 ---
-needs: []
+needs: [semantics-v2-macro-capture-and-plurality]
 ---
 **Every keyword action body is read in its own reference scope, seeing only
 its parameters and what it introduces itself.** Decided 2026-10-05: yes. The
@@ -72,6 +72,14 @@ creature."), so "that creature" there cannot mean anything the card said
 before. Still to settle in the work: where the scope is opened (the loader's
 `Enact` wrapper, the `act` handoff, or a body-level form), and whether the
 same holds for keyword ability bodies and helper macros.
+
+## Built inside the capture-and-plurality landing
+
+Decided 2026-10-05: this scope is built inside the
+`semantics-v2-macro-capture-and-plurality` landing, not separately. Owner:
+"ok". Its design substance stays recorded here; that landing builds it, and
+this ticket closes when that landing's pins (above, with the inferred
+`literalAmass`-after-destroy pin added) hold.
 
 Related: `semantics-v2-anaphor-resolution-heuristics` (how a pronoun with two
 candidates resolves in card text). This ticket is narrower: a body's pronouns
