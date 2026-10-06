@@ -1,5 +1,5 @@
 ---
-needs: [semantics-v2-actor-handoff, plugins-v2-implicit-actor-spelling]
+needs: [semantics-v2-actor-handoff, plugins-v2-implicit-actor-spelling, semantics-v2-keyword-definition-by-card-class, lean-keyword-definition-regimes, semantics-v2-linked-choice-readback]
 ---
 **Gift becomes one unspelled `gift(effect)` declaration plus six spelled
 variants.** Split from `plugins-v2-keyword-body-defects` on 2026-10-05.
@@ -40,9 +40,50 @@ therefore being unparseable".
   | `giftATreasure` | "Gift a Treasure" | creates a Treasure token |
   | `giftAnOctopus` | "Gift an Octopus" | creates an 8/8 blue Octopus creature token |
 
+- **A variant carries the "Gift" label** through a pass-through field, so its
+  body IS `gift(draw(1))` under that label with its own spelling. Owner,
+  2026-10-05: "yes to 2". (Without it the loader labels `giftACard` a keyword
+  of its own, "GiftACard", with no facts row — see F4.)
+- **Open, with the owner:** how gift's permanent and spell forms are
+  declared. Owned by `semantics-v2-keyword-definition-by-card-class`, which
+  records the options. The orchestrator recommends one gift definition
+  holding both halves, each guarded by the card's class with the existing
+  conditional forms (`doIf` on a card-class condition), not a new selector
+  device. The guards handle the branching. The real blockers are the two
+  checker laws: a spell ability [CR#113.3a] in a keyword definition, and the
+  regime law.
 - **Excluded:** "Gift a Rhystic Study" (Archival Whorl) is not Vintage-legal.
 
+## Stopped 2026-10-05
+
+The first attempt wrote the faithful body and ran the checker on probe cards;
+it committed nothing and the ticket returned to `planned/` (owner: "yes to
+3"). Findings:
+
+- **F1** — a keyword definition is one fixed list with no per-class part, and
+  gift's spell form is a spell ability, which `Ability.category`,
+  `AbilityCategory` and the facts generator all refuse [CR#702.174b,113.3a].
+  → `semantics-v2-keyword-definition-by-card-class`.
+- **F2** — the permanent form's enters trigger fails the keyword-regime law
+  (gift's row is `atCasting`; an enters event has no regime), the law already
+  blocking Offspring and Squad. → `lean-keyword-definition-regimes`.
+- **F3** — "the chosen player" cannot be read back: the opponent chosen as the
+  additional cost is out of the second ability's scope (`choiceRef theChoice
+  player 0`), and `PaidFacet` reads no player [CR#607.2d].
+  → `semantics-v2-linked-choice-readback`.
+- **F4** — a variant `giftACard` is labelled "GiftACard" by the loader
+  (`keyword_ability_label`, `crates/deckmaste_semantics_v2/src/keywords.rs`)
+  with no facts row; writing `body: [gift(draw(1))]` nests a keyword inside a
+  keyword, which has no category and is refused. Answered by the decided
+  pass-through label (step 2).
+- **F5** — `Shape::from_params` (`crates/xtask/src/facts.rs` ~L102) has no case
+  for an `Instruction` parameter, and `forwarded_keyword_params` rejects one
+  unless the file writes `keyword_params: []`. Work step 1.
+
 ## The work
+
+Blocked steps name their law ticket; the rest can start once the existing
+needs land.
 
 1. **Let a keyword declaration omit `spelling`.** Decided 2026-10-05: the
    keyword declaration format allows a missing `spelling` for a declaration
@@ -50,13 +91,25 @@ therefore being unparseable".
    `spelling` optional in the `KeywordAbility` meta-macro
    (`macros/meta/KeywordAbility.ron`) and the declaration schema, keeping the
    keyword and nominal declarations the parser needs. Then retype `gift`'s
-   parameter to an instruction, write its body, and remove its `spelling`.
-2. Add the six variants. Each effect is written in the implicit-actor spelling
+   parameter to an instruction and remove its `spelling`. F5 belongs here:
+   the generator maps gift's `Instruction` parameter to no keyword argument —
+   `gift.ron` writes `keyword_params: []` (or `forwarded_keyword_params`
+   learns to forward an `Instruction` as nothing, as it does `Ability`), and
+   `Shape::from_params` admits the signature as `Nothing`.
+2. **The pass-through label** (decided, F4): a variant declaration names the
+   keyword whose label it carries, so `giftACard`'s body is `gift(draw(1))`
+   labelled "Gift" and the facts row is gift's.
+3. **Write gift's body.** Blocked: the per-class second ability on
+   `semantics-v2-keyword-definition-by-card-class` (F1); the permanent form's
+   enters trigger on `lean-keyword-definition-regimes` (F2); the chosen
+   player as performer on `semantics-v2-linked-choice-readback` (F3).
+4. Add the six variants. Each effect is written in the implicit-actor spelling
    (`plugins-v2-implicit-actor-spelling`); add any token or extra-turn helper
-   the effects need and list it.
-3. Check the variants in Lean (a pin each, or `lean-check` over a canon card
+   the effects need and list it. Needs steps 2 and 3.
+5. Check the variants in Lean (a pin each, or `lean-check` over a canon card
    per variant if one is added) and that the English side still reads every
-   printed "Gift a …" line in the corpus.
+   printed "Gift a …" line in the corpus. Pins cover both classes for "Gift a
+   card" and "Gift a tapped Fish".
 
 ## Proof
 
