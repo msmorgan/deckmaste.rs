@@ -43,3 +43,23 @@ fn combat_damage_keeps_its_noun_premodifier_and_mass_head() {
     });
     assert!(readings("combats damage", Category::Nominal).is_empty());
 }
+
+#[test]
+fn defending_player_is_a_bare_np_with_a_verbal_premodifier() {
+    // Odious Witch; "the defending player" also occurs on Goblin Firebug.
+    assert!(!readings(
+        "Whenever this creature attacks, defending player loses 1 life and you gain 1 life.",
+        Category::Document,
+    ).is_empty());
+    let mut modifier = word("lexeme:Verb/Defend", WordForm::GerundParticiple,
+        FeatureBundle { finiteness: Some(deckmaste_lexical::Finiteness::Nonfinite), ..Default::default() }, None);
+    modifier.frame = Some(0);
+    exact("defending player", Category::NounPhrase, Reading::BareParticipialStatusNounPhrase {
+        form: 0, modifier,
+        head: Box::new(Reading::Noun { form: 0, head: word("lexeme:CommonNoun/Player", WordForm::Singular,
+            FeatureBundle { number: Some(Number::Singular), ..Default::default() }, Some(true)) }),
+    });
+    for text in ["defend player", "defended player", "attacking player"] {
+        assert!(readings(text, Category::NounPhrase).is_empty(), "{text}");
+    }
+}

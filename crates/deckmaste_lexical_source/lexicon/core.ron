@@ -46,6 +46,7 @@
     },
     feature_additions: {
         "lexeme:turn_part/combat": {"NounPremodifier": "Yes"},
+        "lexeme:Verb/Defend": {"BareSingularUse": "Yes"},
         "lexeme:CommonNoun/Number": {"NumberTransparency": "Yes"},
         "lexeme:CommonNoun/Counter": {"SlashPremodifierUse": "No"},
         "vocab:Determinative/Every": {"NominalAdjunctDeterminer": "Temporal", "DeterminerUse": "SingularCount", "DeterminerKind": "Ordinary"},

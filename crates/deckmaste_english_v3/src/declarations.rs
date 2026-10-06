@@ -57,7 +57,7 @@ constructions! {
         feature NominalAdjunctClass { None, Temporal, Manner } default None;
         feature SlashPremodifierUse { No, Yes } default Yes;
         feature NominalAdjunctDeterminer { None, Demonstrative, Temporal }
-        feature BareSingularUse { No, Yes }
+        feature BareSingularUse { No, Yes } default No;
         feature RelativeUse { Yes }
         feature KeywordMarker { None, For, From, Onto, To, Into, At, With, Of, On, Under }
         feature KeywordPayloadOrder { AfterHead, BeforeHead, BoundSuffix }
@@ -1918,6 +1918,17 @@ constructions! {
         // The declared modifier licenses this Oracle-register bare singular NP.
         construction BareStatusNounPhrase: NounPhrase {
             form [modifier: lexical(Adjective), " ", head: Nominal];
+            require modifier.BareSingularUse = Yes;
+            require head.number = Singular;
+            require head.countability = Count;
+            require head.Targeting = No;
+            use NounPhraseHeadAgreement;
+        }
+
+        construction BareParticipialStatusNounPhrase: NounPhrase {
+            form [modifier: lexical(Verb), " ", head: Nominal];
+            require verbal_premodifier(modifier.form, modifier.frame,
+                modifier.PastParticipialPremodifier) = Yes;
             require modifier.BareSingularUse = Yes;
             require head.number = Singular;
             require head.countability = Count;
