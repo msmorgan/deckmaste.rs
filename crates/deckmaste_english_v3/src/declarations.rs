@@ -20,6 +20,7 @@ constructions! {
         feature Targeting { No, Yes }
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase, None }
+        feature AdjectiveComplementClass { Manner }
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             AdjectiveComplement, PredicativeComplement, Compound, ComparativeComplement } set;
@@ -1712,6 +1713,18 @@ constructions! {
             form [head: lexical(Preposition)];
             require head.PrepositionComplement = None;
             use PrepositionHeadPermissions;
+        }
+
+        // CGEL Ch. 7 §3.2, p. 626: preposition + adjective idioms.
+        construction AdjectiveComplementPreposition: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: lexical(Adjective)];
+            require head.AdjectiveComplementClass = Manner;
+            agree head.AdjectiveComplementClass = complement.AdjectiveComplementClass;
+            require complement.framing = Unframed;
+            export ObliqueNumber = None;
+            export LocativeUse = No;
+            export InternalisedComplementMarker = No;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         construction ClauseComplementPreposition: PrepositionPhrase {

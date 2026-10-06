@@ -150,3 +150,19 @@ fn attested_hybrid_and_phyrexian_symbols_retain_cost_and_mana_identity() {
         assert!(readings(text, Category::ManaPhrase).is_empty(), "{text}");
     }
 }
+
+#[test]
+fn at_random_retains_a_preposition_with_an_adjective_complement() {
+    // Spellgorger Barbarian.
+    assert!(!readings("When this creature enters, discard a card at random.", Category::Document).is_empty());
+    exact("at random", Category::PrepositionPhrase, Reading::AdjectiveComplementPreposition {
+        form: 0,
+        head: word("vocab:Preposition/At", WordForm::Invariant, FeatureBundle::default(), None),
+        complement: word("vocab:Adjective/Random", WordForm::Invariant, FeatureBundle::default(), None),
+    });
+    for text in ["at black", "of random", "during random"] {
+        assert!(readings(text, Category::PrepositionPhrase).is_empty(), "{text}");
+    }
+    assert!(readings("a card at random", Category::NounPhrase).is_empty());
+    assert!(readings("at random", Category::LocativeComplement).is_empty());
+}
