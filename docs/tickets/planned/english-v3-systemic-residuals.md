@@ -134,6 +134,9 @@ its verification belong to the attached feature-economy ticket.
 
 ## Batch records and what they leave open
 
+- `mana of any color/type that <clause>` (for example, "Add one mana of any
+  color that land could produce") is not read: 31 faces, 0 covered. The relative
+  clause on *color*/*type* inside the add-mana Nominal is owed here.
 - Orchestrator resolution (2026-10-06), fixed-cost phrases: *same … as* remains
   with the existing comparative residual here. Its landing owns the non-scalar
   equality comparative *as* Complement licensed by *same*, not an Adjunct

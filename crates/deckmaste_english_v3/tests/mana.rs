@@ -50,6 +50,21 @@ fn mana(first: &str, rest: &[&str]) -> Reading {
     }
 }
 
+fn payment_symbol(name: &str) -> Reading {
+    Reading::CostSymbols {
+        form: 0,
+        first: Box::new(Reading::NamedCostSymbol {
+            form: 0,
+            symbol: word(
+                &format!("vocab:FixedCostSymbol/{name}"),
+                WordForm::Invariant,
+                FeatureBundle::default(),
+            ),
+        }),
+        rest: vec![],
+    }
+}
+
 fn finite_head(name: &str) -> Word {
     let mut head = word(
         &format!("core-verb:{name}"),
@@ -93,14 +108,29 @@ fn independent_mana_values_preserve_symbol_sequence() {
 }
 
 #[test]
+fn colored_payment_objects_have_one_reading() {
+    // Shrouded Lore's second sentence.
+    assert_eq!(readings("You may pay {B}.", Category::Document).len(), 1);
+    // Payment constituents from Shrouded Lore and Sunken City.
+    for text in ["pay {B}", "pay {U}{U}"] {
+        assert_eq!(
+            readings(text, Category::SecondaryVerbPhrase).len(),
+            1,
+            "{text}"
+        );
+    }
+}
+
+#[test]
 fn independent_finite_and_secondary_complements_use_declared_frame() {
     for name in ["Add", "Pay"] {
+        let object = if name == "Pay" { payment_symbol("Green") } else { mana("Green", &[]) };
         let expected = Reading::SelectedPredicate {
             category: Category::FinitePredicate,
             form: 0,
             head: finite_head(name),
             complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
-                Box::new(mana("Green", &[])),
+                Box::new(object.clone()),
             )],
         };
         let text = format!("{}s {{G}}", name.to_lowercase());
@@ -120,7 +150,7 @@ fn independent_finite_and_secondary_complements_use_declared_frame() {
             form: 0,
             head,
             complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
-                Box::new(mana("Green", &[])),
+                Box::new(object),
             )],
         };
         let text = format!("{} {{G}}", name.to_lowercase());
@@ -143,6 +173,16 @@ fn independent_finite_and_secondary_complements_use_declared_frame() {
     );
     assert_eq!(readings("draws {G}", Category::FinitePredicate).len(), 0);
     assert_eq!(readings("add {T}", Category::SecondaryVerbPhrase).len(), 0);
+    let obsolete = Reading::SelectedPredicate {
+        category: Category::FinitePredicate,
+        form: 0,
+        head: finite_head("Pay"),
+        complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+            Box::new(mana("Green", &[])),
+        )],
+    };
+    assert!(obsolete.admit(&LEXICON).is_err());
+    assert!(obsolete.realize(&LEXICON).is_err());
 }
 
 #[test]

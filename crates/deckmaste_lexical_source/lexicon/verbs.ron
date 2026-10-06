@@ -104,7 +104,6 @@
     ]),
     (identity: Pay, bare: "pay", third_person: "pays", preterite: Some("paid"), frames: [
         Predicate([ObjectNounPhrase]),
-        Predicate([Role("ManaPhrase")]),
         Predicate([Role("CostSymbols")]),
     ]),
     (identity: Prevent, bare: "prevent", third_person: "prevents", preterite: Some("prevented"), participle: Some("prevented"), frames: [

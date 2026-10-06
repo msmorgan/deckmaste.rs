@@ -233,9 +233,10 @@ phrase may take in Oracle English: Adjunct, Modifier or Complement of a noun,
 verb-selected Complement, or predicative Complement (CGEL, Ch. 7 §2.1,
 pp. 604–606). The licence is a set of functions, not a kind of Preposition
 Phrase (CGEL, Ch. 7 §2.2, p. 617, n. 3), and may be narrower than in general
-English. An Adjunct licence may be position-restricted: a licence for a
-preposed, comma-separated Adjunct admits only that clause-initial position
-(CGEL, Ch. 7 §5.1, p. 637).
+English. CGEL licenses predicative-*as* phrases in Adjunct function generally
+(Ch. 7 §5.1, p. 637). Their licence in Oracle English admits only the preposed,
+comma-separated, clause-initial position, under the
+[orchestrator resolution of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md).
 _Avoid_: adverbial PP, adjectival PP, AdverbialUse
 
 **Predicative Complement of a Preposition**:
