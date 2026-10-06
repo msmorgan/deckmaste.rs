@@ -248,12 +248,47 @@ Verification on `rpsrztuw` / covered 13,622:
 `cargo xtask gate --changed --run --clippy` exits zero. Its derived command is
 `cargo test -p deckmaste -p deckmaste_construction_core -p deckmaste_construction_v3_core -p deckmaste_lexical_source -p deckmaste_semantics_v2 -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`,
 followed by the same package closure's `cargo clippy --all-targets -- -D warnings`.
-All 1,245 tests pass, zero fail, and one pre-existing test remains ignored:
+All 1,246 tests pass, zero fail, and one pre-existing test remains ignored:
 `macros::templates::tests::macro_schema_census_count_matches_21`, whose attribute
 names its existing on-demand corpus cross-check. This includes the four new
 regressions and the four inherited Lean gate integration tests. The broad
-closure also includes coordinator changes not yet incorporated at measurement;
-it does not make them this ticket's modifications.
+closure also includes packages affected by coordinator changes not yet
+incorporated at measurement; it does not make them this ticket's modifications.
 `cargo fmt --all -- --check` passes. Citation validation reports zero
 non-compliant strings and zero stale citations across 16,057 sites; the diff
 adds zero Comprehensive Rules citation sites, so no bless is needed.
+
+
+After unconditional Kata refresh, `rpsrztuw` retains the same English sources;
+coordinator Semantics/helper-parameter changes are incorporated without conflict.
+Both the previous executable and the rebuilt declaration reader load the new
+plugin files with exactly the same lexical-inventory hash and residual-source
+list. The complete Seedborn Muse selector preserves Reading count, chart,
+construction and traversal results with zero issues. These checks justify
+preserving the complete corpus identities, validation and performance evidence
+above for the unchanged English behavior. The final verification amendment is
+stamped `qtozkusu` / covered 13,622; it changes this landing record only.
+
+The additional consumed-plugin check `cargo test -p deckmaste_lexical_source`
+passes all 55 tests, with zero failures or ignores (`qtozkusu` / covered 13,622).
+Formatting and both citation checks pass again after refresh.
+
+Final refreshed `cargo xtask gate --changed --run --clippy` exits zero
+(`qtozkusu` / covered 13,622). The derived command is
+`cargo test -p deckmaste -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`,
+followed by the same closure's `cargo clippy --all-targets -- -D warnings`:
+646 tests pass, zero fail, and the same 1 pre-existing on-demand test
+remains ignored. The four inherited Lean gate tests pass on the refreshed
+workbench. Citation checks report zero non-compliant strings and zero stale
+citations across 16,068 sites on this refreshed tree.
+
+The final refresh also incorporates
+`semantics-v2-declared-definitions-are-unchecked` (definition-check command,
+Semantics Lean emission and workbench checks). No English source or lexical
+metadata changes. The final rebuilt reader again preserves the exact lexical
+hash, residual list and selector results. Unaffected complete-English evidence
+is retained. For the affected code, `cargo test -p xtask` passes 380 tests,
+zero failures and the same 1 pre-existing ignore; all seven refreshed Lean gate
+integration tests pass. `cargo clippy -p xtask --all-targets -- -D warnings`
+exits zero. This final amendment is stamped `qtozkusu` / covered 13,622.
+Final citation checks report zero non-compliant strings; checked 16059 citations against cr.txt (eff. 2026-09-25); 0 stale.
