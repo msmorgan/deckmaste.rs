@@ -1,6 +1,7 @@
 // A probe for the actor handoff, quoting no real card: "{T}: This creature
-// endures 1." Endure's token is created by the enduring permanent's
-// controller [CR#701.63a], so its body hands that step to them.
+// endures 1." The rules instruct the permanent itself to endure, so the card
+// hands the action to it, and endure's body hands the choice and the token to
+// the enduring permanent's controller [CR#701.63a].
 SingleFaced(face: (
     characteristics: (
         name: "Endure Handoff Probe",
@@ -12,7 +13,7 @@ SingleFaced(face: (
         text: [
             activated(
                 cost: tapSymbol,
-                instruction: endure(asType(type: Creature, subject: this, subtype: None), 1),
+                instruction: act(asType(type: Creature, subject: this, subtype: None), endure(1)),
             ),
         ],
     ),

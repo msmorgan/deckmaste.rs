@@ -1,6 +1,8 @@
 // "Harness [this permanent]" [CR#701.64a] = "If this permanent isn't harnessed,
 // it becomes harnessed." Harnessed is a marker designation with no rules
 // meaning of its own [CR#701.64b].
+// A permanent performs it, so the wrapper's recorded actor is the permanent a
+// handoff names, or, with none, the source permanent (Lean `enactAgentOk`).
 KeywordAction(
     name: "harness",
     params: [Subject],
@@ -11,9 +13,6 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
     body: doIf(
         not(matches(Param(0), hasDesignation("harnessed"))),
         gainDesignation(Param(0), "harnessed"),

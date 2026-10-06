@@ -11,9 +11,6 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: Transitive,
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
     body: establishFor(
         [
             deontic(Param(0), Forbid, [Attack, Block], Agent, NoPatient),

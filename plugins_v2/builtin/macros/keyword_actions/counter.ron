@@ -9,8 +9,5 @@ KeywordAction(
         bare: "counter",
         frame_set: Transitive,
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
     body: move(Param(0), stack, graveyard),
 )

@@ -9,20 +9,20 @@
 //! parameter signature, so the file writes only those, and this module builds
 //! the rest. A declaration names no performer: whoever performs the action is
 //! the actor, and another player performs it only under a handoff
-//! (`act(player, …)`, ADR 7, ruling 2026-10-05). A declaration may write
-//! `agent: None` and nothing else there, for a deed the checker gives no
-//! player performer (Lean `actFacts`, `enactAgentOk`): the wrapper then
-//! records none. The meta-macros (`macros/meta/KeywordAbility.ron`,
+//! (`act(performer, …)`, ADR 7, rulings 2026-10-05). The actor is a player,
+//! or, under a handoff to a permanent, that permanent ("target creature
+//! explores" [CR#701.44a]); an action a permanent performs written with no
+//! such handoff is performed by the source permanent (Lean `enactAgentOk`).
+//! The meta-macros (`macros/meta/KeywordAbility.ron`,
 //! `KeywordAction.ron`) hand over what the file wrote as a record in the
 //! body position:
 //!
 //! - a keyword ability's `(keyword_params: …, abilities: …)`, where
 //!   `keyword_params` is present only when the file overrides the arguments the
 //!   signature would forward;
-//! - a keyword action's `(deed: …, agent: …, instruction: …)`, where `deed` is
-//!   present only when the file names one: `None` for an action whose
-//!   definition is not a single named deed, written unwrapped; and `agent` only
-//!   when the file writes `agent: None`.
+//! - a keyword action's `(deed: …, instruction: …)`, where `deed` is present
+//!   only when the file names one: `None` for an action whose definition is not
+//!   a single named deed, written unwrapped.
 //!
 //! The labels are the two boundaries at which a declaration's name is read as
 //! a label rather than as an identity: a keyword ability's is the name
@@ -123,7 +123,7 @@ pub fn keyword_ability_body(name: &str, params: &Params, body: &str) -> Result<S
 /// # Errors
 /// As [`definition_body`].
 pub fn keyword_action_body(name: &str, body: &str) -> Result<String, String> {
-    let record = Record::read(body, &["deed", "agent", "instruction"])?;
+    let record = Record::read(body, &["deed", "instruction"])?;
     let instruction = record.required("instruction")?;
     if instruction == "()" {
         return Ok(instruction.to_owned());
@@ -133,18 +133,8 @@ pub fn keyword_action_body(name: &str, body: &str) -> Result<String, String> {
         Some(deed) => deed.to_owned(),
         None => format!("Action(\"{}\")", keyword_action_label(name)),
     };
-    let agent = match record.get("agent") {
-        None => "Some(Actor)",
-        Some("None") => "None",
-        Some(other) => {
-            return Err(format!(
-                "keyword action `{name}` writes `agent: {other}`; an action's performer is the \
-                 actor, and a declaration may write only `agent: None`"
-            ));
-        }
-    };
     Ok(format!(
-        "Enact(verb: {deed}, instruction: {instruction}, agent: {agent})"
+        "Enact(verb: {deed}, instruction: {instruction}, agent: Some(Actor))"
     ))
 }
 
@@ -324,14 +314,21 @@ mod tests {
             keyword_action_body("scry", "(instruction: ())").unwrap(),
             "()"
         );
+        // `adapt` is performed by a permanent, and records the actor all the
+        // same: the actor is that permanent under a handoff to it, and the
+        // source permanent by default.
         assert_eq!(
-            keyword_action_body("adapt", "(agent: None, instruction: Shuffle(agent: Actor))")
-                .unwrap(),
-            "Enact(verb: Action(\"Adapt\"), instruction: Shuffle(agent: Actor), agent: None)"
+            keyword_action_body("adapt", "(instruction: Shuffle(agent: Actor))").unwrap(),
+            "Enact(verb: Action(\"Adapt\"), instruction: Shuffle(agent: Actor), agent: \
+             Some(Actor))"
         );
-        let error =
-            keyword_action_body("discard", "(agent: You, instruction: Shuffle(agent: You))")
-                .unwrap_err();
-        assert!(error.contains("agent: None"), "{error}");
+        for agent in ["None", "You"] {
+            let error = keyword_action_body(
+                "adapt",
+                &format!("(agent: {agent}, instruction: Shuffle(agent: Actor))"),
+            )
+            .unwrap_err();
+            assert!(error.contains("agent"), "{error}");
+        }
     }
 }

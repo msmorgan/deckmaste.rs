@@ -2,6 +2,8 @@
 // +1/+1 counters on it and it becomes monstrous." Monstrous is a marker
 // designation [CR#701.37b]. Lean `makeMonstrous`, with the deed tag its own
 // bench spelling leaves off.
+// A permanent performs it, so the wrapper's recorded actor is the permanent a
+// handoff names, or, with none, the source permanent (Lean `enactAgentOk`).
 KeywordAction(
     name: "monstrosity",
     params: [Amount],
@@ -12,9 +14,6 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: MeasureComplement,
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
     body: doIf(
         not(matches(thisPermanent, hasDesignation("monstrous"))),
         sequentially([

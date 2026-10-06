@@ -1257,8 +1257,8 @@ struct DiagnosticKeywordAbility<'a> {
 
 /// The keyword-action meta's signature: the common fields, plus the `deed`
 /// the action names. It names no performer: whoever performs the action is
-/// the actor (ADR 7, ruling 2026-10-05), and `agent` is present only as
-/// `agent: None`, for a deed whose performer is not a player.
+/// the actor (ADR 7, rulings 2026-10-05): a player, or the permanent a
+/// handoff names.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct DiagnosticKeywordAction<'a> {
@@ -1272,8 +1272,6 @@ struct DiagnosticKeywordAction<'a> {
     grammar: Option<DiagnosticGrammar<'a>>,
     #[serde(rename = "deed", default, borrow)]
     _deed: Option<&'a RawValue>,
-    #[serde(rename = "agent", default, borrow)]
-    _agent: Option<&'a RawValue>,
     #[serde(default, borrow)]
     body: Option<&'a RawValue>,
 }

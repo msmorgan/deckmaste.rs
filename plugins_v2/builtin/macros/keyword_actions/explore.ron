@@ -1,31 +1,32 @@
-// "[Permanent] explores" [CR#701.44a]: its controller reveals the top card of
-// their library; if a land card is revealed this way that player puts it into
-// their hand, otherwise they put a +1/+1 counter on the exploring permanent and
-// may put that card into their graveyard. The card is read back off the library
-// slice the reveal opened, as the printed reminder text reads it ("that card");
-// the hand it goes to is its own owner's, derived rather than written
-// [CR#400.3]. The controller does every step, so the body is handed to them
-// once.
+// "[Permanent] explores" [CR#701.44a]: the rules instruct the permanent
+// itself, so a card hands the action to it (`act(target(creature), explore)`)
+// and the wrapper records that permanent; written with no such handoff, the
+// source permanent explores. Inside the handoff `actor` is the permanent, and
+// "that permanent's controller" does every step, so the body hands them on to
+// `controllerOf(actor)`, inside which `actor` is that player: they reveal the
+// top card of their library; if it is a land card they put it into their hand,
+// otherwise they put a +1/+1 counter on "that permanent", the exploring one,
+// still in view, and may put the card into their graveyard. The card is read
+// back off the library slice the reveal opened, as the printed reminder text
+// reads it ("that card"); the hand it goes to is its own owner's, derived
+// rather than written [CR#400.3].
 KeywordAction(
     name: "explore",
-    params: [Subject],
+    params: [],
     spelling: "explore",
     grammar: Verb(
         bare: "explore",
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
     body: act(
-        controllerOf(Param(0)),
+        controllerOf(actor),
         sequentially([
-            reveal(librarySlice(Top, 1, controllerOf(Param(0)))),
+            reveal(librarySlice(Top, 1, actor)),
             doIf(
                 matches(that(Card), land),
                 move(that(Card), wherever, hand),
                 sequentially([
-                    putCounters(1, p1p1Counter, Param(0)),
+                    putCounters(1, p1p1Counter, that(Permanent)),
                     may(move(that(Card), wherever, graveyard)),
                 ]),
             ),

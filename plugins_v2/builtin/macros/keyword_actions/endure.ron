@@ -1,19 +1,24 @@
-// "[Permanent] endures N" [CR#701.63a]: its controller creates an N/N white
-// Spirit creature token unless they put N +1/+1 counters on that permanent. The
-// "unless" is the controller's own choice between the two.
+// "[Permanent] endures N" [CR#701.63a]: the rules instruct the permanent
+// itself, so a card hands the action to it (`act(thisCreature, endure(1))`)
+// and the wrapper records that permanent; written with no such handoff, the
+// source permanent endures. Inside the handoff `actor` is the permanent, and
+// "that permanent's controller" does the rest, so the body hands it on to
+// `controllerOf(actor)`: they create an N/N white Spirit creature token unless
+// they put N +1/+1 counters on "that permanent", the enduring one, still in
+// view. The "unless" is the controller's own choice between the two.
 KeywordAction(
     name: "endure",
-    params: [Subject, Amount],
+    params: [Amount],
     spelling: "endure",
     grammar: Verb(
         bare: "endure",
         frame_set: MeasureComplement,
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
-    body: chooseOne(
-        putCounters(Param(1), p1p1Counter, Param(0)),
-        act(controllerOf(Param(0)), createToken(creatureTokenOf(Param(1), Param(1), [White], [spirit]))),
+    body: act(
+        controllerOf(actor),
+        chooseOne(
+            putCounters(Param(0), p1p1Counter, that(Permanent)),
+            createToken(creatureTokenOf(Param(0), Param(0), [White], [spirit])),
+        ),
     ),
 )

@@ -1,7 +1,6 @@
 // "meld <subject> into <name>" [CR#701.42a]: combine two specific permanents
-// you control into a single melded permanent. Lean `meldInto`; its
-// `agent : Option NounPhrase := none` stays a fixed `agent: None` since no
-// caller in this family needs it written.
+// you control into a single melded permanent. Lean `meldInto`. A player melds
+// [CR#701.42c], so the wrapper records the actor.
 KeywordAction(
     name: "meld",
     params: [Subject, String],
@@ -10,8 +9,5 @@ KeywordAction(
         bare: "meld",
         frame_set: Transitive,
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
     body: Move(Param(0), wherever, battlefield, [EntersMelded(Param(1))]),
 )

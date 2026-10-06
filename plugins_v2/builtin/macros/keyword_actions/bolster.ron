@@ -13,9 +13,6 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: MeasureComplement,
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
     body: sequentially([
         choose(
             a(and([

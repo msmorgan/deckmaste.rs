@@ -1,0 +1,17 @@
+// A probe for a handoff to a permanent, quoting no real card: "Target creature
+// explores." The rules instruct the permanent itself to explore, so the
+// explore wrapper records the targeted creature as its performer, and its
+// controller does the steps [CR#701.44a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Explore Handoff Probe",
+        cost: [1, Green],
+        types: [Sorcery],
+        text: [
+            spell(
+                timing: None,
+                instruction: act(target(creature), explore),
+            ),
+        ],
+    ),
+))

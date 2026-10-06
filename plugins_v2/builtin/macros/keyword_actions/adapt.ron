@@ -1,6 +1,8 @@
 // "Adapt N" [CR#701.46a] = "If this permanent has no +1/+1 counters on it, put
 // N +1/+1 counters on it." The counter test is the whole condition: the rule
 // asks only whether any are there, not how many.
+// A permanent performs it, so the wrapper's recorded actor is the permanent a
+// handoff names, or, with none, the source permanent (Lean `enactAgentOk`).
 KeywordAction(
     name: "adapt",
     params: [Amount],
@@ -9,9 +11,6 @@ KeywordAction(
         bare: "adapt",
         frame_set: MeasureComplement,
     ),
-    // The deed's performer is not a player (Lean `actFacts`), so the wrapper
-    // records none.
-    agent: None,
     body: doIf(
         not(matches(thisPermanent, hasCounters(p1p1Counter))),
         putCounters(Param(0), p1p1Counter, thisPermanent),

@@ -257,11 +257,11 @@ fn a_keyword_declaration_builds_its_wrapper() {
         "Enact(verb: Action(\"Destroy\"), instruction: move(Param(0), battlefield, graveyard), \
          agent: Some(Actor))"
     );
-    // `agent: None` records no performer, for a deed whose performer is not
-    // a player.
+    // Every wrapped action records the actor, heal included.
     assert_eq!(
         body("KeywordAction", "heal"),
-        "Enact(verb: Action(\"Heal\"), instruction: clearDamage(Param(0)), agent: None)"
+        "Enact(verb: Action(\"Heal\"), instruction: clearDamage(Param(0)), agent: \
+         Some(Actor))"
     );
     // A bodyless action stays bodyless.
     assert_eq!(body("KeywordAction", "scry"), "()");
