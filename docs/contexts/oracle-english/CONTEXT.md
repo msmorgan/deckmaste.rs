@@ -400,6 +400,8 @@ predicative Complement and from an optional locative Adjunct.
 A dependent expressing manner that is selected by its head. Manner dependents
 can have NP or PP form, and their function as Complement is distinct from
 their syntactic Category (CGEL, Ch. 8 §2.1, p. 671).
+The project marker convention labels the NP inside selected *in* a Manner
+Complement; CGEL p. 671 [6] treats the whole PP as the manner phrase.
 
 **Lexical Verb Phrase**:
 An instantiated lexical verb together with the complements it selects, before
@@ -434,19 +436,22 @@ The declared availability of a singular count Noun Phrase without a Determiner
 as the internal Complement of a preposition. The noun retains its Countability;
 this use does not license a bare count Subject or Object. In the right-branching
 analysis of *on top of the library*, *top of the library* is the Noun Phrase
-Complement of *on* (CGEL, Ch. 7 §3.1, pp. 620–623).
+Complement of *on*. This is a [project ruling (2026-10-06)](../../tickets/done/english-v3-library-position.md#post-landing-fix-2026-10-06),
+grounded in *top of X* outside the idiom; CGEL, Ch. 7 §3.1, pp. 620–623 supplies
+the competing analyses and diagnostics, not a decision for *on top of*.
 
 **Bare Nominal Complement** (project term):
 A preposition's declared permission to take a singular count Noun Phrase with
 Bare Preposition Use. Both the preposition and the nominal must license this
 distribution; the noun's permission alone does not make it a Complement of
-every preposition (CGEL, Ch. 7 §3.1, pp. 620–623).
+every preposition ([project ruling, 2026-10-06](../../tickets/done/english-v3-library-position.md#post-landing-fix-2026-10-06)).
 
 **Nominal Complement Marker** (project term):
 A declared marker of a noun's selected Complement, such as *of* in *the bottom
 of the library*. A selected Complement and an optional Postmodifier have
-different functions even when both are Preposition Phrases (CGEL, Ch. 5 §14.2,
-p. 446; Ch. 7 §3.1, pp. 620–623).
+different functions even when both are Preposition Phrases (CGEL, Ch. 5 §14,
+p. 439, introduces the distinction; §14.2, p. 446 [14], illustrates PP
+Postmodifiers; Ch. 7 §3.1, pp. 620–623 discusses competing internal analyses).
 
 **Selected Preposition Use** (project term):
 The declared pairing of nominal and preposition permissions that restricts the

@@ -145,8 +145,10 @@ duplicates and limited/failed enumerations are zero. The independently authored
 Reading-set equality, with exact node and word traversal equality. Selected
 slot witnesses inspect every retained Reading, including the negative Look
 order-tail case. Bare position nouns cannot become bare count Subjects or
-Objects. All grammatical alternatives remain retained; the current ADR
-supersedes the old zero-tie/destructive-selection prescription.
+Objects. The current ADR requires retention of every grammatical alternative
+and supersedes the old zero-tie/destructive-selection prescription.
+Post-landing review found ten faces had lost their complement-cluster Reading;
+the follow-up below restores them.
 
 Forbidden word-, lexeme-, card- or construction-named admission guards added:
 **zero**. Guards use declared features and frames. Source/environment loading
@@ -467,8 +469,11 @@ Frame reconciliation: Look's unsupported At + Object row and duplicate active
 At + Object NP row become one At + Complement NP row (frame 0). Put's unsupported
 On + FrameComplement row becomes Object NP + Locative Complement (frame 1);
 its unsupported order row becomes Object NP + Locative Complement + In +
-Manner Complement (frame 4). The old active On + Object NP row is redundant and
-retired. Into remains frame 3; Onto is preserved at frame 5 after renumbering.
+Manner Complement (frame 4). The old active On + Object NP row was retired.
+Post-landing review found it was the only supplier for the On complement-cluster
+Reading, so calling it redundant was incorrect; the follow-up below restores
+that Reading through the Object + Locative Complement frame. Into remains
+frame 3; Onto is preserved at frame 5 after renumbering.
 Other unsupported source/To/Onto rows remain deferred, without pretending they
 are consumed. Reveal and Exile keep their existing Object frames.
 
@@ -482,8 +487,10 @@ are consumed. Reveal and Exile keep their existing Object frames.
   Of-complement nominal frames. Top alone receives Bare Preposition Use; bare Bottom has zero
   supported attestations and receives no such permission. Existing Top/Bottom
   adjectives remain. No compound On-top-of preposition is introduced: the
-  right-branching NP analysis follows CGEL Ch. 7 §3.1, pp. 620–623, corroborated
-  by ordinary From-the-top phrases in this corpus.
+  right-branching NP analysis is a project ruling, grounded in *top of X*
+  occurring outside the idiom ("the top or bottom of their library"). CGEL
+  Ch. 7 §3.1, pp. 620–623 supplies diagnostics; p. 622 [14] leaves the choice
+  to the evidence and does not decide *on top of*.
 - Feature propagation carries nominal complement ownership, paired bare-NP
   permissions, and selected manner use. In gains its attested Verb Complement
   licence for the selected tail. A broader corpus scan found seven free
@@ -567,3 +574,225 @@ under this workspace's ignored `target/english-v3/`, with no evidence under
 preserved under the coordinator workspace's ignored
 `target/english-v3/library-position/`. No session evidence or verifier enters
 tracked source; this landing record is the required ticket disclosure.
+
+### Post-landing fix (2026-10-06)
+
+PROVE: the deleted On row supplied the only On complement-cluster frame; it
+was not redundant. This follow-up restores parallel Object + Locative
+Complement tails through Put's existing ObjectLocative frame. The unreachable
+ObjectOnObject frame and its selected_object_marker row are deleted.
+The full census exercises ObjectLocativeTail 72 times in the 36 restored
+cluster Readings; its declaration is reachable. Stand Together has a regression
+test requiring the cluster Reading and both Object + Locative Complement
+coordinates, beyond successful recognition.
+
+DISCLOSE: the following comparison uses the original measured baseline,
+not the original pre-refresh and refreshed finals. The original frame change
+moved all 83 already-covered `look at X` faces from Object to
+Complement(NounPhrase), and all 1,058 already-covered `put … on X` faces from
+marker On + Object NP to a Locative Complement PP. These counts use the
+original baseline's covered faces and inflected surface matches, with all
+identities listed in `relation-change-identities.json`. Put's selected goal
+PP is supported by CGEL, Ch. 7 §2.1, p. 605 [6]. Reveal and Exile retain their
+Object relation.
+
+| Face | Original baseline | Original landed | Fix (before/after refresh) | Cause |
+|---|---:|---:|---:|---|
+| Brokers Ascendancy | 9 | 8 | 9 | Cluster regression restored |
+| Captain America, Team Leader | 144 | 120 | 144 | Cluster regression restored |
+| Claim the Kingdom | 16 | 14 | 16 | Cluster regression restored |
+| Evolutionary Escalation | 9 | 8 | 9 | Cluster regression restored |
+| Ich-Tekik, Salvage Splicer | 24 | 21 | 24 | Cluster regression restored |
+| Juniper Order Ranger | 7 | 6 | 7 | Cluster regression restored |
+| River Heralds' Boon | 6 | 5 | 6 | Cluster regression restored |
+| Serrated Biskelion | 6 | 5 | 6 | Cluster regression restored |
+| Stand Together | 6 | 5 | 6 | Cluster regression restored |
+| X-23, Deadly Weapon | 7 | 6 | 7 | Cluster regression restored |
+| Brawn, Amadeus Cho | 40 | 48 | 48 | Broader locative-frame attachment |
+| Kutzil's Flanker | 42 | 52 | 52 | Broader locative-frame attachment |
+| Shaile, Dean of Radiance | 6 | 8 | 8 | Broader locative-frame attachment |
+| Thought Gorger | 126 | 140 | 140 | Broader locative-frame attachment |
+
+The first ten faces lost their cluster Reading in the original landing and
+regain it here. The remaining four gained grammatical alternatives because
+Put's ObjectLocative frame accepts any licensed locative PP: a preceding PP
+can belong inside the Object while a later PP fills Put's destination slot.
+Thought Gorger and Brawn admit the final `in your hand` as Put's destination
+with `on … for each card` inside the Object; Kutzil's Flanker and Shaile admit
+`under your control` as that destination, with `on …` inside the Object (the
+relative clause remains inside it). These are grammatical attachment
+alternatives, independent of game interpretation; none is discarded.
+
+The follow-up restores exactly **36 Readings** across those ten faces, with
+**zero other per-face Reading-count changes**, zero new covered faces and zero
+lost faces. `delta.json` names every affected identity and its before/after
+cluster count; `original-count-changes.json` records all 14 original changes.
+The original before/final stamps are `xltvxkxkvsyknxnkrztqqkqpqsvzzvrp`,
+covered 15,792 / 15,997 respectively. The follow-up pre-refresh before/after stamps are
+`owyyynoyxstupwposuuzymvuqwpunnyl` (`owyyynoy`), covered **15,997**
+in both phases; `before.json` and `after.json` distinguish the measured trees.
+SelectedComplementClustersPredicate occurrences were 411 at original baseline
+(`xltvxkxk`, covered 15,792), 549 at original landing (`xltvxkxk`, covered
+15,997), and are 585 after the isolated fix (`owyyynoy`, covered 15,997). The original aggregate
+increase from newly covered Into/Onto faces concealed the 36 lost On-cluster
+Readings; the named comparison above accounts for their restoration.
+
+Refresh incorporated the completed english-v3-then-sequencing landing,
+`lklxwwprzolopyowyuputxtpvzttpnpm`, covered **16,977**. Its 980 face gains
+(15,997 → 16,977) and 101,103 Reading increase belong to that upstream landing.
+The table above is unchanged after refresh. The combined tree's full census
+is stamped `kttnulzsnmsokunlrnwqlsnnulyupvsp` (`kttnulzs`),
+covered **16,977**. Against the incorporated parent census, this fix still
+adds exactly **36 Readings on the same ten faces**, with **zero lost faces,
+zero new covered faces, and zero other Reading-count changes**. All identity
+and count changes are in `refreshed-delta.json`. The parent grammar and lexicon
+match the upstream landing's saved, verified candidate A byte-for-byte after
+removing only this fix; `then-parent-verification.json` records that comparison.
+This makes `then-base.json` a measured baseline for the refreshed feature.
+SelectedComplementClustersPredicate occurrences are 610 on that upstream tree
+(`lklxwwpr`, covered 16,977) and 646 in the combined census (`kttnulzs`,
+covered 16,977); ObjectLocativeTail still supplies exactly 72 occurrences.
+The recorded original comma-then residual counts below describe the earlier
+library-position landing. Comma-then is now landed by its existing owner;
+remaining From-among and nominal/locative/discourse gaps stay with
+english-v3-systemic-residuals.
+
+The historical 298 was a surface-bucket estimate on `wlvwtnppyovn`, covered
+13,716, not a gain forecast or a stable cohort. The measured original gain is
+205 (15,792 → 15,997). On original landed `xltvxkxk`, covered 15,997,
+566 unread faces contain `the top N cards of`; 293 contain `from among`,
+96 contain `, then`, and 368 contain at
+least one (21 contain both). These blockers coexist with library phrases, so
+repairing the latter cannot make the whole face read. Other sampled blockers
+are `in a face-down pile` (Abstract Performance), `the other` (Ashiok,
+Wicked Manipulator), and `where X is` (Florian, Voldaren Scion). From-among and
+these remaining nominal/locative/discourse gaps remain with
+english-v3-systemic-residuals. Comma-then was owned by
+english-v3-then-sequencing and has now landed, as the refreshed comparison
+above records. The historical identities and sources are in
+`top-cards-residuals.json`.
+
+Citation corrections and project rulings (review ruling, 2026-10-06):
+
+- Nominal Complement Marker's Complement/Postmodifier distinction cites
+  CGEL, Ch. 5 §14, p. 439; p. 446 [14] supplies PP-modifier examples.
+- Requiring both the noun's Bare Preposition Use and the preposition's Bare
+  Nominal Complement permission is a project licensing rule, not a claim
+  from CGEL pp. 620–623.
+- The Manner Complement entry states the project's marker convention: it
+  labels the NP inside selected `in`; CGEL p. 671 [6] calls the whole PP
+  the manner phrase.
+- The right-branching choice for `on top of` is a project ruling grounded in
+  `top of X` occurring outside the idiom, including `the top or bottom of
+  their library`. CGEL p. 622 [14] supplies distributional tests and leaves
+  the choice to evidence; it does not decide `on top of`.
+- In `their choice of the top or bottom of their library`, `of their library`
+  is a Postmodifier of the coordinated Nominal because NominalConcord
+  exports NominalComplementMarker = None. A single `top` or `bottom` takes
+  it as a Complement. Both analyses are NP-internal; the function is
+  inconsistent, disclosed here and retained without an out-of-scope repair.
+  The outer `of the top or bottom …` remains internal to `choice`.
+
+Pre-refresh validation on `owyyynoy`, covered 15,997: **245,378 complete
+Readings** all
+pass declaration admission, lexical ownership/context, byte-exact realization,
+and construction/leaf traversal identity. All 32,828 face enumerations are
+complete; validation issues, internal failures, duplicate/cyclic derivations,
+limited/failed enumerations and undetermined results are zero. The inherited
+independently authored position-PP and complement-cluster values keep the
+converse roundtrip and exact Reading/traversal comparisons.
+
+| Follow-up phase / stamp / covered | No Reading | Unique | Multiple | Readings |
+|---|---:|---:|---:|---:|
+| Before / `owyyynoy` / 15,997 | 16,831 | 6,986 | 9,011 | 245,342 |
+| Isolated fix / `owyyynoy` / 15,997 | 16,831 | 6,986 | 9,011 | 245,378 |
+| Upstream then / `lklxwwpr` / 16,977 | 15,851 | 7,025 | 9,952 | 346,445 |
+| Combined / `kttnulzs` / 16,977 | 15,851 | 7,025 | 9,952 | 346,481 |
+
+Every one of the **346,481 combined Readings** passes the same admission,
+lexical ownership, exact roundtrip and traversal checks. All 32,828 face
+enumerations are complete, with zero issues, internal failures, duplicates,
+cycles, failed/limited enumerations and undetermined results.
+
+Specificity-resolved selection remains zero: all grammatical Readings are
+retained, with no construction-pair arbitration. Forbidden word-/lexeme-/card-
+or construction-named admission guards added: **zero**. Lexical source and
+grammar-environment loading succeeds without errors. The active v3 command
+has no legacy `environment.rs` or emitted permitted-licensing-checker total;
+no obsolete counter is fabricated. `of` remains NP-internal; the repair adds
+no preposition licence or clause-attachment path.
+
+`cargo xtask gate --changed --from pqtmvqqo --clippy --run` derives
+`cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`
+and `cargo clippy -p deckmaste_construction_v3 -p deckmaste_english_v3 -p
+xtask --all-targets -- -D warnings`. Both pass on `owyyynoy`, covered 15,997:
+**682 tests passed, zero failed**, with one pre-existing ignored test,
+`macros::templates::tests::macro_schema_census_count_matches_21` (recorded
+reason: "cross-checks the live corpus against the census; run on demand").
+Clippy passes with warnings denied. Workspace-root formatting and cite checks
+pass: zero noncompliant sites, zero stale citations; the piped diff audit
+reports zero changed Comprehensive Rules sites.
+
+REPORT before refresh: covered **15,997**, with **194 ordinary Constructions +
+44 shared schemas = 238 constructor names**, on `owyyynoy` (covered 15,997).
+The unchanged legacy coverage lock supplies no v3 authority. Homographs remain
+122 (the named surface/owner inventory is the original
+`library-position-homograph-surfaces.tsv`); form-literal/vocabulary overlaps
+remain **none**. No lexical declaration changed; both census inventory digests
+are `3bc160c3406eb3ee82f923dfcdc0f8a803fa3932c0812d6623e331e8c527e779`.
+
+| Tree / covered | Corpus wall ns | Checked-text thread CPU | Workers | Host load (1 / 5 / 15 min) |
+|---|---:|---:|---:|---|
+| `owyyynoy before / 15,997` | 46,799,430,336 | 239,878 ns/B | 12 | 11.12 / 11.33 / 10.42 |
+| `owyyynoy isolated fix / 15,997` | 47,238,619,497 | 224,987 ns/B | 12 | 8.13 / 9.84 / 10.29 |
+| `kttnulzs combined / 16,977` | 176,519,001,975 | 422,331 ns/B | 12 | 18.64 / 15.54 / 12.75 |
+
+All wall times exceed the 16.26-second quiet-host advisory. These loaded-host
+complete-Reading measurements are provenance, not a quiet-host comparison or
+an admission gate.
+
+Refreshed REPORT (`kttnulzs`, covered 16,977): constructor names remain
+238 (194 ordinary + 44 schemas). The upstream Then owner adds the sole new
+Declared-case homograph surface `then`, bringing this record's inventory
+method to **123 surfaces**; every surface and owner is named in
+`homographs-refreshed.tsv`. This uses the same Declared-case/non-Catalog
+method as the earlier 122, independent of the upstream ticket's separate
+case-variant inventory. Form-literal/vocabulary overlaps remain **none**.
+The refreshed lexical inventory digest is
+`958e1ccfed83835a7cd480940ab23ae665b763d288e68ca25a7e278a9fc3fd4d`;
+the sole lexical change is the incorporated Then declaration.
+
+The refreshed gate was rerun with the same `--from pqtmvqqo` command,
+including the incorporated lexical data. It derives
+`cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p
+deckmaste_english_v3 -p xtask` and
+`cargo clippy -p deckmaste_lexical_source -p deckmaste_construction_v3 -p
+deckmaste_english_v3 -p xtask --all-targets -- -D warnings`.
+Both pass on the refreshed `owyyynoy` tree, covered **16,977**:
+**746 tests passed, zero failed**, with the same one pre-existing ignored
+test and no changed ignore. Clippy passes with warnings denied. Root formatting
+and citation checks also pass after refresh: 16,112 citations checked, zero
+stale, zero noncompliant sites; the piped audit selects zero changed CR sites.
+Refresh exited zero without conflicts and retained both features. The source
+digests and incorporated-parent comparison are saved in `refreshed-source.json`
+and `then-parent-verification.json`.
+
+Deviations and additions: one ObjectLocativeTail Construction supplies the
+newly selected frame to existing complement-cluster coordination. No lexical
+entry or frame is added. Two unreachable declaration entries (the
+ObjectOnObject frame and its marker-table row) are removed. Glossary changes
+correct attribution and explain the existing marker convention; no new term
+or Comprehensive Rules citation is introduced.
+
+Assurance: **0 restored tests, 0 re-spelled, 0 newly ignored, 1 added,
+0 removed**; ten faces have their grammatical cluster Reading restored.
+The added test is
+`stand_together_retains_coordinated_object_and_locative_complements`.
+Existing recipient-cluster and mixed Into/Onto-cluster exact-value tests
+remain unchanged and pass.
+
+Evidence lives only under the feature workspace's ignored
+`target/english-v3/library-followup/`, and is preserved at the same path in the
+coordinator before `kata drop`. No census, verifier or process artifact is
+tracked. STOPs: **none**; all findings were repaired or disclosed within this
+follow-up.

@@ -267,3 +267,64 @@ fn selected_destination_preserves_passive_and_object_gap_readings() {
         );
     }
 }
+
+#[test]
+fn stand_together_retains_coordinated_object_and_locative_complements() {
+    let text = "Put two +1/+1 counters on target creature and two +1/+1 counters on another target creature.";
+    let values = readings(text, Category::Document);
+    assert_eq!(values.len(), 6);
+    let mut clusters = Vec::new();
+    for value in &values {
+        value
+            .visit(&mut |node| {
+                if matches!(node, Reading::SelectedComplementClustersPredicate { .. }) {
+                    clusters.push(node.clone());
+                }
+            })
+            .unwrap();
+    }
+    assert_eq!(
+        clusters.len(),
+        1,
+        "Stand Together lost its complement-cluster Reading"
+    );
+    let Reading::SelectedComplementClustersPredicate { head, tail, .. } = &clusters[0] else {
+        unreachable!()
+    };
+    assert_eq!(head.frame, Some(1));
+    assert_eq!(tail.category(), Category::SelectedComplementTail);
+    let Reading::Coordination { left, right, .. } = tail.as_ref() else {
+        panic!("missing parallel complement clusters: {tail:?}");
+    };
+    for (coordinate, destination) in [
+        (left, "on target creature"),
+        (right, "on another target creature"),
+    ] {
+        let Reading::ObjectLocativeTail {
+            object, complement, ..
+        } = coordinate.as_ref()
+        else {
+            panic!("missing Object + Locative Complement coordinate: {coordinate:?}");
+        };
+        assert_eq!(object.category(), Category::AccusativePhrase);
+        assert_eq!(object.realize(lexicon()).unwrap(), "two +1/+1 counters");
+        assert_eq!(complement.category(), Category::LocativeComplement);
+        assert_eq!(complement.realize(lexicon()).unwrap(), destination);
+    }
+    assert_constituents(
+        text,
+        Category::Document,
+        &[
+            (
+                Category::SelectedComplementTail,
+                "two +1/+1 counters on target creature",
+            ),
+            (
+                Category::SelectedComplementTail,
+                "two +1/+1 counters on another target creature",
+            ),
+            (Category::LocativeComplement, "on target creature"),
+            (Category::LocativeComplement, "on another target creature"),
+        ],
+    );
+}

@@ -321,7 +321,6 @@ constructions! {
         frame ObjectIntoObject = Predicate(
             Object(NounPhrase), Preposition(Into), Object(NounPhrase)
         );
-        frame ObjectOnObject = Predicate(Object(NounPhrase), Preposition(On), Object(NounPhrase));
         frame ObjectOntoObject = Predicate(
             Object(NounPhrase), Preposition(Onto), Object(NounPhrase)
         );
@@ -2202,7 +2201,7 @@ constructions! {
 
         table selected_object_marker(frame, KeywordMarker) -> Selection {
             (ObjectToObject, To) => Yes, (ObjectIntoObject, Into) => Yes,
-            (ObjectOnObject, On) => Yes, (ObjectOntoObject, Onto) => Yes,
+            (ObjectOntoObject, Onto) => Yes,
             (ObjectForObject, For) => Yes,
         }
         // CGEL Ch15 §4.3 pp1341–1343: parallel NP+PP tails under one selected verb.
@@ -2211,6 +2210,11 @@ constructions! {
                 complement: AccusativePhrase];
             require marker.PrepositionComplement = NounPhrase;
             require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
+            segment Predicate;
+            export HeadCoordination = No;
+        }
+        construction ObjectLocativeTail: SelectedComplementTail {
+            form [object: AccusativePhrase, " ", complement: LocativeComplement];
             segment Predicate;
             export HeadCoordination = No;
         }
