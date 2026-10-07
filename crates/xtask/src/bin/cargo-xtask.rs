@@ -9,7 +9,6 @@ use xtask::authoring::ScaffoldIdentityArgs;
 use xtask::card::CardArgs;
 use xtask::catalogs::CatalogArgs;
 use xtask::cite::CiteArgs;
-use xtask::definition_check::DefinitionCheckArgs;
 use xtask::derive_cards::DeriveCardsArgs;
 use xtask::english::EnglishArgs;
 use xtask::english_v3::EnglishV3Args;
@@ -21,7 +20,7 @@ use xtask::gate::GateArgs;
 use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::idris_check::IdrisCheckArgs;
-use xtask::lean_check::LeanCheckArgs;
+use xtask::lean::LeanArgs;
 use xtask::lexical::LexicalArgs;
 use xtask::macros::MacroArgs;
 use xtask::map::MapArgs;
@@ -87,17 +86,9 @@ enum Cmd {
     /// Idris `Core.idr` expression and typecheck it with `idris2 --check`.
     /// One card name = single-card mode; omitted = batch-check the plugin.
     IdrisCheck(IdrisCheckArgs),
-    /// The card soundness gate: re-emit every `plugins_v2` card as a Lean
-    /// term and prove `Card.check` empty by `decide`, ratcheted per plugin.
-    /// No plugin named = every plugin under `plugins_v2/` that has cards.
-    #[command(name = "lean-check")]
-    LeanCheck(LeanCheckArgs),
-    /// The registry definition gate: re-emit every `plugins_v2` Registry
-    /// Definition (counters, subtypes, designations) as a Lean term and prove
-    /// `Definition.check` empty by `decide`, naming every refused one.
-    /// Defaults to `plugins_v2/builtin`.
-    #[command(name = "definition-check")]
-    DefinitionCheck(DefinitionCheckArgs),
+    /// The Lean workbench's gates: `lean check` proves every `plugins_v2`
+    /// card, `lean definitions` every Registry Definition.
+    Lean(LeanArgs),
     /// On-demand "bearings" dumps of current code shape (`enums`/`idris`).
     Map(MapArgs),
     /// Generate and check the Idris workbench's keyword facts table against
@@ -135,8 +126,7 @@ fn main() -> anyhow::Result<()> {
         }
         Cmd::Macro(args) => xtask::macros::run(args),
         Cmd::IdrisCheck(args) => xtask::idris_check::run(&args),
-        Cmd::LeanCheck(args) => xtask::lean_check::run(&args),
-        Cmd::DefinitionCheck(args) => xtask::definition_check::run(&args),
+        Cmd::Lean(args) => xtask::lean::run(&args),
         Cmd::Map(args) => xtask::map::run(&args),
         Cmd::Facts(args) => xtask::facts::run(&args),
         Cmd::ScaffoldIdentity(args) => xtask::authoring::run(&args),
@@ -154,6 +144,17 @@ mod tests {
             assert!(matches!(cli.command, Cmd::Catalogs(_)));
         }
         assert!(Cli::try_parse_from(["cargo xtask", "catalogs"]).is_err());
+    }
+
+    #[test]
+    fn lean_command_family_requires_a_subcommand() {
+        for command in ["check", "definitions"] {
+            let cli = Cli::try_parse_from(["cargo xtask", "lean", command]).unwrap();
+            assert!(matches!(cli.command, Cmd::Lean(_)));
+        }
+        assert!(Cli::try_parse_from(["cargo xtask", "lean"]).is_err());
+        assert!(Cli::try_parse_from(["cargo xtask", "lean-check"]).is_err());
+        assert!(Cli::try_parse_from(["cargo xtask", "definition-check"]).is_err());
     }
 
     #[test]

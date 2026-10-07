@@ -75,7 +75,7 @@ landing because both change the loader. Standard constraints apply.
 
 ## Proof
 
-`cargo xtask lean-check` and `cargo xtask definition-check` (or their
+`cargo xtask lean check` and `cargo xtask lean definitions` (or their
 regrouped names) pass; a card naming an undeclared deed or keyword is refused
 at load; `cargo xtask expansions` shows the re-spelled sites and no other
 change.

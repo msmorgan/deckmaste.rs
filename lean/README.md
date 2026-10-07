@@ -17,7 +17,7 @@ records the frozen Idris reference and migration history.
 
 ## The card soundness gate
 
-`cargo xtask lean-check` is the gate over real card data: it re-emits every
+`cargo xtask lean check` is the gate over real card data: it re-emits every
 card in each `plugins_v2/` plugin as a fully expanded Lean term, writes them as
 `Generated/<Plugin>.lean` with a `Generated.lean` root, builds them with
 `lake build --wfail Generated`, and reads the per-card verdict off the
@@ -47,7 +47,7 @@ refuses raw constructors by design — is the hand bench's law, not the gate's.
 
 ## The registry definition gate
 
-`cargo xtask definition-check` is `lean-check`'s twin over the Registry
+`cargo xtask lean definitions` is `lean check`'s twin over the Registry
 Definitions (`Definition`, `Semantics/Rules.lean`) that `plugins_v2/builtin`
 declares: every counter, subtype and designation is read with the readers
 `cargo xtask facts` uses, emitted as `GeneratedDefinitions/{Counters,Subtypes,

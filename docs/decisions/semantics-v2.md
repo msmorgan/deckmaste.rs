@@ -899,7 +899,7 @@ registered by hand the way `Delta` is.
 The `lean-card-soundness-gate` emitter writes each expanded card as
 untracked generated Lean and an xtask gate proves `Card.check` empty by
 `decide`; `Macros.lean` plays no part in the gate. `cargo xtask
-definition-check` proves `Definition.check` empty the same way for every
+lean definitions` proves `Definition.check` empty the same way for every
 Registry Definition `plugins_v2/builtin` declares. The Idris emitter, checker
 and baselines retire with Idris and v1 (§14). The hand-written `lean/Semantics/Cards/` bench
 is a stand-in: as each card lands in `plugins_v2/canon` the emitted term

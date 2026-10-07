@@ -23,7 +23,7 @@ roots = ["Semantics.Cards"]
 name = "SemanticsProofs"
 roots = ["Semantics.Proofs"]
 
-# The card soundness gate's emitted cards (`cargo xtask lean-check`): untracked,
+# The card soundness gate's emitted cards (`cargo xtask lean check`): untracked,
 # regenerated per run, and deliberately OUTSIDE `defaultTargets` so
 # `./scripts/build` stays the hand workbench's gate and succeeds with no
 # `Generated/` present.
@@ -32,7 +32,7 @@ name = "Generated"
 roots = ["Generated"]
 
 # The registry definition gate's emitted definitions (`cargo xtask
-# definition-check`): untracked and outside `defaultTargets` exactly as
+# lean definitions`): untracked and outside `defaultTargets` exactly as
 # `Generated` is, and a library of its own so neither gate clears the other's
 # tree.
 [[lean_lib]]

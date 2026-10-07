@@ -189,7 +189,7 @@ general rule or stays, with a sentence saying what else it encodes:
   Wretched resolves wrongly and is pinned as known-wrong.
 - The 11 known-wrong pins and the `it`-sample error (Grip of Phyresis) are
   the only wrong resolutions on the measured sites; any other is a defect.
-- `lean/scripts/build` and `cargo xtask lean-check` pass.
+- `lean/scripts/build` and `cargo xtask lean check` pass.
 
 ## Related
 

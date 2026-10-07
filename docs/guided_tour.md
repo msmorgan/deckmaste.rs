@@ -74,11 +74,11 @@ choice, while `badChooseYou` proves the single `choiceClause` refusal for
 Run `lean/scripts/build` to check the workbench and its card bench.
 
 The [Rust-to-Lean card gate](tickets/done/lean-card-soundness-gate.md) is
-`cargo xtask lean-check`: it re-emits every `plugins_v2/` card as an expanded
+`cargo xtask lean check`: it re-emits every `plugins_v2/` card as an expanded
 Lean term and proves `Card.check = []` by `decide`, ratcheted against a
 per-plugin baseline. `lean/scripts/build` proves the terms hand-supplied to
-Lean; `lean-check` certifies the loaded card data beside it, and
-`cargo xtask definition-check` does the same for every counter, subtype and
+Lean; `lean check` certifies the loaded card data beside it, and
+`cargo xtask lean definitions` does the same for every counter, subtype and
 designation definition `plugins_v2/builtin` declares. The v1
 `plugins/canon` corpus stays on `cargo xtask idris-check` until it has a v2
 counterpart. The [succession decision](decisions/lean-is-the-workbench.md)

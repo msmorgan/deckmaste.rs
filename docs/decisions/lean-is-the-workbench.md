@@ -45,7 +45,7 @@ workbench terms supplied to them.
 workbench choice and new modeling work. The executable card-validation boundary
 moved with
 [lean-card-soundness-gate](../tickets/done/lean-card-soundness-gate.md)
-(2026-09-06): `cargo xtask lean-check` emits each expanded `plugins_v2/` card as
+(2026-09-06): `cargo xtask lean check` emits each expanded `plugins_v2/` card as
 a Lean term and proves `Card.check = []` by `decide`, ratcheted per plugin. The
 Rust-to-Idris emitter remains the legacy check for the v1 `plugins/canon`
 corpus; it retires with Idris and v1 (`semantics-v1-cutover`). Validation examines the expanded semantic data on both sides.

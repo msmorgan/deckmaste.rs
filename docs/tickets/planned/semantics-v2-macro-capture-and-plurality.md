@@ -19,7 +19,7 @@ Fight as its fixture for a different mechanism; related, not overlapping.
 
 Then give Fight, Regenerate, Scry, Surveil, Fateseal, and Connive their
 bodies under the chosen device, with a canon card each proving through
-`lean-check`.
+`lean check`.
 
 Work items routed from `plugins-v2-scry-surveil-fight-bodies` (which stays in
 `done/`): give the `scry`, `surveil` and `fight` keyword action declarations

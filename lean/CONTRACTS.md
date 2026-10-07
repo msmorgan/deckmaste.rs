@@ -797,9 +797,9 @@ other subject (`p1p1CounterCountMultipliedTwin` keeps its two refusals). The
 +1/+1 and -1/-1 definitions check clean (`p1p1CounterDefinitionZone`,
 `m1m1CounterDefinitionZone`).
 
-Every Registry Definition is gated: `cargo xtask definition-check` re-emits
+Every Registry Definition is gated: `cargo xtask lean definitions` re-emits
 each counter, subtype and designation definition `plugins_v2/builtin` declares
-and proves `Definition.check = []` by `decide`, as `lean-check` does for cards
+and proves `Definition.check = []` by `decide`, as `lean check` does for cards
 (`lean/README.md`). `Definition.check` has a rule for every constructor, an
 exhaustive match, so there is no definition the gate reads and the checker
 ignores; a declaration of a registry kind whose body does not read as its

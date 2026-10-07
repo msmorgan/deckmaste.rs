@@ -342,7 +342,7 @@ fn counter_definitions(
 /// Every registry definition `plugin_dir` declares, by family: each counter
 /// declaration's node under its name, each subtype declaration's node under
 /// `<category>/<name>`, and each designation under its label (a declaration
-/// listing members defines one per member). `cargo xtask definition-check`
+/// listing members defines one per member). `cargo xtask lean definitions`
 /// proves `Definition.check` empty for every one.
 ///
 /// Every declaration of the three registry kinds is read, and one whose body

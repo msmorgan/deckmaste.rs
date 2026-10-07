@@ -50,8 +50,8 @@ under `lean/Semantics/Proofs/`.
 ## Proof
 
 - No reference-resolution or term-shape pin changes outcome.
-- `cargo xtask lean-check` over `plugins_v2/canon` and `plugins_v2/testing`
-  stays all-pass, and `cargo xtask definition-check` stays all-pass (or
+- `cargo xtask lean check` over `plugins_v2/canon` and `plugins_v2/testing`
+  stays all-pass, and `cargo xtask lean definitions` stays all-pass (or
   their regrouped names, `cargo xtask lean check` and `cargo xtask lean
   definitions`, once `semantics-v2-chooser-and-taker-fields` lands).
 - `lean/scripts/build` passes.

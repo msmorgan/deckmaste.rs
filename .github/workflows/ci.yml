@@ -171,7 +171,7 @@ jobs:
       # outright if any card does not prove. The generated Lean is untracked
       # and rebuilt here from the plugins as committed.
       - name: card soundness gate
-        run: cargo xtask lean-check
+        run: cargo xtask lean check
       # The gate's own tests are the only place its FAILURE paths run: a card
       # that breaks a Lean law, and a `lake` that fails without naming a card.
       # They need a Lean toolchain, so they belong here rather than in the

@@ -1,4 +1,4 @@
-//! `cargo xtask lean-check` — the card soundness gate: re-emit every
+//! `cargo xtask lean check` — the card soundness gate: re-emit every
 //! `plugins_v2` card as a fully expanded Lean term and ask the kernel to prove
 //! its refusal list empty.
 //!
@@ -155,7 +155,7 @@ pub fn run(args: &LeanCheckArgs) -> anyhow::Result<()> {
         failures += failing_count(report);
     }
     println!(
-        "\nlean-check: {} plugin(s), {} card(s), {:.1}s",
+        "\nlean check: {} plugin(s), {} card(s), {:.1}s",
         reports.len(),
         reports.iter().map(|r| r.verdicts.len()).sum::<usize>(),
         started.elapsed().as_secs_f64()

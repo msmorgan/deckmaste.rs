@@ -1,6 +1,6 @@
 //! The whole `plugins_v2` corpus through the reader, with no Lean involved.
 //!
-//! `cargo xtask lean-check` proves the cards; it is the only thing that read
+//! `cargo xtask lean check` proves the cards; it is the only thing that read
 //! the corpus, and the Rust gate did not. A dialect change that broke a card
 //! therefore surfaced only in an xtask run — twice, in the first landing of
 //! `plugins-v2-dialect`. This test is the Rust half: every declaration body

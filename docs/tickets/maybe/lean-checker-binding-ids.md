@@ -79,7 +79,7 @@ leave the ticket parked.
   gone from `lean/Semantics/Check/` and from `reads.rs`.
 - Every existing pin proves the statement it proves today, by `decide`.
   Re-spelled pins are counted; removed is zero.
-- `lean/scripts/build` and `cargo xtask lean-check` pass.
+- `lean/scripts/build` and `cargo xtask lean check` pass.
 
 ## Not a dependency
 

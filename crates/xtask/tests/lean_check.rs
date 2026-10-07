@@ -1,4 +1,4 @@
-//! `cargo xtask lean-check` and `cargo xtask definition-check` end to end: the
+//! `cargo xtask lean check` and `cargo xtask lean definitions` end to end: the
 //! gates really invoke `lake`, so these tests prove the whole path — read a
 //! plugin, emit its cards (or its registry definitions), build the generated
 //! Lean, attribute the diagnostics, and fail the run on any item that did not
@@ -205,7 +205,7 @@ fn a_definition_that_breaks_a_definition_law_is_singled_out_and_the_gate_fails()
     assert!(error.contains("1 definition(s) did not prove"), "{error}");
 }
 
-/// The definition gate shares `lean-check`'s attribution, so a `lake` failure
+/// The definition gate shares `lean check`'s attribution, so a `lake` failure
 /// that names no definition stops it as a gate defect rather than reporting
 /// every definition sound.
 #[test]

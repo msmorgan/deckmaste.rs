@@ -114,14 +114,14 @@ needs land.
 4. Add the six variants. Each effect is written in the implicit-actor spelling
    (`plugins-v2-implicit-actor-spelling`); add any token or extra-turn helper
    the effects need and list it. Needs steps 2 and 3.
-5. Check the variants in Lean (a pin each, or `lean-check` over a canon card
+5. Check the variants in Lean (a pin each, or `lean check` over a canon card
    per variant if one is added) and that the English side still reads every
    printed "Gift a …" line in the corpus. Pins cover both classes for "Gift a
    card" and "Gift a tapped Fish".
 
 ## Proof
 
-`cargo xtask lean-check` passes with a pin per variant; `cargo xtask
+`cargo xtask lean check` passes with a pin per variant; `cargo xtask
 expansions` shows `gift` and the six new declarations and nothing else.
 
 ## Out of scope

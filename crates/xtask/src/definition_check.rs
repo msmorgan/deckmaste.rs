@@ -1,18 +1,18 @@
-//! `cargo xtask definition-check` — the registry definition gate: re-emit
+//! `cargo xtask lean definitions` — the registry definition gate: re-emit
 //! every Registry Definition a `plugins_v2` plugin declares (counters,
 //! subtypes, designations) as a Lean term and ask the kernel to prove its
 //! refusal list empty.
 //!
-//! `lean-check` proves cards; a registry declaration's `Definition` node
+//! `lean check` proves cards; a registry declaration's `Definition` node
 //! appears in no card, so without this gate `Definition.check`
 //! (`lean/Semantics/Check/Rules.lean`) runs only over hand-written pins. This
-//! command is `lean-check`'s twin over the definitions: it reads every
+//! command is `lean check`'s twin over the definitions: it reads every
 //! declaration of the three registry kinds (`facts`' readers, so the gate and
 //! `Facts.lean` read the same nodes), writes one untracked Lean module per
 //! family under `lean/GeneratedDefinitions/`, builds them with `lake`,
 //! attributes each diagnostic back to the definition whose block it landed
 //! in, and fails the run if any definition did not prove. It shares
-//! `lean-check`'s build and attribution, so a `lake` failure that names no
+//! `lean check`'s build and attribution, so a `lake` failure that names no
 //! definition is a gate defect, never a pass.
 //!
 //! There is no skip list and no family without a rule: a declaration of a
@@ -43,7 +43,7 @@ use crate::lean_check::lean_root;
 use crate::lean_check::workspace_root;
 
 /// The generated library's root module and directory, relative to `lean/`,
-/// beside `lean-check`'s `Generated` so the two gates never clear each
+/// beside `lean check`'s `Generated` so the two gates never clear each
 /// other's tree. Untracked (`.gitignore`), and outside `lakefile.toml`'s
 /// `defaultTargets` for the same reason `Generated` is.
 const GENERATED_ROOT: &str = "GeneratedDefinitions.lean";
@@ -152,7 +152,7 @@ pub fn run(args: &DefinitionCheckArgs) -> anyhow::Result<()> {
         failures += failing_count(report);
     }
     println!(
-        "\ndefinition-check: {total} definition(s) ({}), {:.1}s",
+        "\nlean definitions: {total} definition(s) ({}), {:.1}s",
         families
             .iter()
             .map(|(family, items)| format!("{} {}", items.len(), family.plural()))

@@ -22,4 +22,4 @@ is to read "them" as what the body itself exiled (for example an exile that
 stamps, read back by its own deed), not to change the checker; "each exiled
 card's owner" may also need the group handoff to distribute per card.
 
-Proof: a card or probe that airbends proves under `cargo xtask lean-check`.
+Proof: a card or probe that airbends proves under `cargo xtask lean check`.

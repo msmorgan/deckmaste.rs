@@ -2,7 +2,7 @@
 //! declaration a `plugins_v2` plugin defines, one file per declaration, so
 //! two snapshots of the tree can be compared with `diff -r`.
 //!
-//! It is the declaration-side analogue of `card`. `lean-check` proves a
+//! It is the declaration-side analogue of `card`. `lean check` proves a
 //! re-spelling pure only for the declarations a canon card happens to use;
 //! this covers every declaration, because it expands each one by itself.
 //!
@@ -296,7 +296,7 @@ pub const WORD_SAMPLES: &[&str] = &[
 #[derive(Debug, Args)]
 pub struct ExpansionsArgs {
     /// The `plugins_v2` plugin whose declarations to print. A plugin other
-    /// than `plugins_v2/builtin` is loaded over builtin, as `lean-check` does.
+    /// than `plugins_v2/builtin` is loaded over builtin, as `lean check` does.
     #[arg(long, default_value_os_t = default_plugin_dir())]
     plugin: PathBuf,
     /// The directory to write into. It is replaced: it must be absent,

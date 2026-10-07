@@ -11,4 +11,4 @@ in `crates/xtask/src/facts/action_overlay.rs`, so `deedFits` refuses every
 noun phrase in the patient position. Declare each deed's patient role from
 the CR, regenerate, `facts check` clean, then give Indestructible,
 Protection's remaining rows, and Ripple their bodies with a canon card each
-proving through `lean-check`. Standard constraints apply.
+proving through `lean check`. Standard constraints apply.

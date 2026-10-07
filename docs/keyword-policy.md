@@ -319,7 +319,7 @@ visible generation gap; `cargo xtask facts check` detects stale generated data.
 
 `lean/scripts/build` checks the syntax, laws, card bench and exact-result proof
 pins. It is the active workbench gate. Card data is checked beside it by
-`cargo xtask lean-check`
+`cargo xtask lean check`
 ([lean-card-soundness-gate](tickets/done/lean-card-soundness-gate.md)), which
 re-emits every `plugins_v2/` card as a Lean term and proves `Card.check = []`;
 the workbench build itself still makes no claim about loaded card data. The v1
