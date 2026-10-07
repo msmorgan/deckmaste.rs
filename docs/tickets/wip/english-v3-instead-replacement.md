@@ -109,7 +109,7 @@ cite check). Deltas:
 
 ## Landing record
 
-### Post-refresh record — integration STOP
+### Post-refresh record
 
 Kata refresh incorporated the coordinator's completed
 [english-v3-then-sequencing](../done/english-v3-then-sequencing.md) and conflicted
@@ -139,17 +139,7 @@ retirements named in PROVE below, plus this one inherited decrease:
 |---|---:|---|
 | Cryptic Annelid / `32ebc862-3bf6-4754-b7b8-8bb73f1651cf#card` | 13 → 11 | Two InitialAdverb/Adverb-Then analyses on a ClauseSeries middle member, already retired by the then-sequencing orchestrator resolution of 2026-10-06. |
 
-That prior ruling classifies these as “wrong analyses to retire, not scope
-ambiguity to preserve.” They contain no stranded auxiliary. Therefore they
-cannot be attributed to this item's stranding exclusion. Under the current
-instruction that every such decrease is a STOP, **integration remains
-stopped**, even though this decrease has a separate, already-landed authority.
-`instead-refresh-comparison.json` names all 202 decreases and records this
-one-item STOP list; `instead-refresh-stop.json` retains the exact source and
-all three census counts. No permission to except the inherited retirement is
-assumed. The requested clarification is whether that already-approved
-coordinator retirement may be disclosed separately from this item's own
-retirements while retaining both sides of refresh.
+STOP resolution (orchestrator, 2026-10-07): Cryptic Annelid 13 → 11 is inherited from trunk changes `stwlrsrz`/`xxknlzyp`, not produced by this ticket, and the standing rule compares against the refreshed base or attributes inherited changes by change id without stopping, so this STOP is resolved.
 
 Current performance advisory, stamped `pmpwnupr` / 17,556 covered, 12 workers:
 53,149,616,479 ns corpus wall, **266,780 ns/B** checked-text thread CPU,
