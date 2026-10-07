@@ -394,31 +394,39 @@ Restored 0, re-spelled 0, added 4, removed 0, newly ignored 0; no test is weaken
 The *and then* diagnostic is the orchestrator-requested variant of the Stitcher
 constituent, not a new card claim or an invented game-semantic test contract.
 
-Before: change `ryowrwurpzkwkxkrrlloyutlzvymxtor`, covered 16,977, lexical inventory
-`958e1ccfed83835a7cd480940ab23ae665b763d288e68ca25a7e278a9fc3fd4d`.
+Before: change `zktwupyonwttzvqzrnynyzlkkqnzsszy`, covered 17,322, lexical inventory
+`50a975d9d292bd934306fe90df2485e942ae298fe8630f8d0884ec89b2399210`.
 
-After: change `mlxxkmttrzowqrpmrtwstzptxnrxqlsp`, covered 16,977, lexical inventory
-`ac0a096d51b0460069e5b528a7532660ba7208b2f16e55c93d2fb1c153306d5e`.
+After: change `xxknlzypsnwypnxryvxxrzpxopowkwot`, covered 17,322, lexical inventory
+`f9560b200b790eac4abbb172f57a64acfb141981c48ebbd04c3f79eb65744ab8`.
 
 Both measured trees use input SHA-256
 `49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb`. The old pre-refresh `lklxwwpr` figures above are
-historical; the refreshed comparison below is the follow-up authority. Its
-baseline is the full census retained by the integrated library follow-up
-(`owyyynoyxstupwposuuzymvuqwpunnyl`), whose integrated tree was verified to
-have zero file differences from the coordinator. The census provenance is
-retained in `then-followup-upstream-baseline-verification.json`. That follow-up
-restored 36 Readings without changing covered faces; they are included on both
-sides here, not credited to this fix. The earlier isolated comparison
-(`stwlrsrzkmymmwpnnwlpwruwqqkwyrmz`, covered 16,977 on both trees) remains
-retained evidence: 346,445 → 346,443, with exactly the same one-face delta.
+historical; the final refreshed comparison below is the follow-up authority.
+Its baseline is the complete census retained by the integrated as-long-as
+landing (`tlxoqswvyknquzyppmtnpswsttvyqpmv`), whose integrated tree had zero
+file differences from the coordinator. Its retained integration verification
+also proves that the measured grammar/core hashes match that integrated tree.
+The provenance is in `then-followup-as-long-as-baseline-provenance.json` and
+`then-followup-as-long-as-integration-verification.json`. As-long-as's 345
+covered-face gains and 20,766 Readings beyond the library-refreshed baseline
+are present on both sides here and credited to its own landing.
 
-Metric | Before: ryowrwur / covered 16,977 | After: mlxxkmtt / covered 16,977
+Earlier complete comparisons remain historical evidence: the isolated trees
+(`stwlrsrzkmymmwpnnwlpwruwqqkwyrmz`, covered 16,977 on both) had 346,445 →
+346,443 Readings; the library-refreshed trees (`ryowrwurpzkwkxkrrlloyutlzvymxtor`
+→ `mlxxkmttrzowqrpmrtwstzptxnrxqlsp`, covered 16,977 on both) had 346,481 →
+346,479. Both comparisons have exactly the same one-face delta as the final
+comparison below. The library follow-up's 36 restored Readings are included
+in both final trees and credited to that follow-up.
+
+Metric | Before: zktwupyo / covered 17,322 | After: xxknlzyp / covered 17,322
 --- | ---: | ---:
 Supported faces | 32,828 | 32,828
-No Reading | 15,851 | 15,851
-One Reading | 7,025 | 7,025
-Multiple Readings | 9,952 | 9,952
-Exact and checked Readings | 346,481 | 346,479
+No Reading | 15,506 | 15,506
+One Reading | 7,111 | 7,111
+Multiple Readings | 10,211 | 10,211
+Exact and checked Readings | 367,247 | 367,245
 Complete enumerations | 32,828 | 32,828
 Limited / undetermined / failed | 0 / 0 / 0 | 0 / 0 / 0
 Validation issues | 0 | 0
@@ -430,10 +438,12 @@ Identity | Face | Before | After | Classification
 --- | --- | ---: | ---: | ---
 `32ebc862-3bf6-4754-b7b8-8bb73f1651cf#card` | Cryptic Annelid | 13 | 11 | Two wrong Adverb-label analyses retired under the orchestrator resolution
 
-Every other face has the same exact count as before. Cryptic Annelid's
-complete retained tree set is the old set minus exactly the two reviewed
-InitialAdverb middle-member trees, with no replacement trees. The full-stop,
-*and then*, and Erode controls retain their complete tree sets, not just counts.
+Every other face has the same exact count as before. The isolated complete-probe
+comparison additionally proves that Cryptic Annelid's retained tree set is the
+old set minus exactly the two reviewed InitialAdverb middle-member trees,
+with no replacement trees, and that the full-stop, *and then*, and Erode
+controls retain equal complete tree sets. The final gate rechecks their exact
+Reading counts and lexical/structural assertions on the combined grammar.
 No sibling of the same shape changes in this supported corpus.
 
 All counted Readings pass declaration admission, lexical ownership/context,
@@ -447,36 +457,37 @@ Source and GrammarEnvironment loading report zero errors. Added forbidden
 word-/construction-/card-named checkers: 0. Legacy permitted-checker and coverage
 lock counters are not emitted by v3 and remain inapplicable.
 
-Named constructors remain 238 (194 ordinary constructions + 44 schemas), and
+Named constructors remain 240 (196 ordinary constructions + 44 schemas), and
 categories remain 138 on both stamped trees. Forms, frames, lexical owners
 and surface inventories are unchanged: the only lexical-data change is the
 existing Adverb owner's new declared permission. The named homograph inventory
-remains the 395 declared surfaces / 359 case-folded surfaces listed in the
-original retained `homographs.md` and `grammar-inventory.json`; added/retired
+is the 397 declared surfaces / 360 case-folded surfaces named in
+`then-followup-final-grammar-inventory-before.json`, including the as-long-as
+landing's added owners. This fix changes none of those surfaces or owners; added/retired
 homographs `[]`, form-literal/vocabulary overlaps `[]`. No new word literal is
 introduced by the fix.
 
 Runtime measurements exclude Cargo build time. Host load and worker count
 are stated for each stamped tree. The runtime wall totals exceed the
-16,260,000,000 ns quiet-host advisory ceiling; the after host was busy with
-concurrent compiler work. These measurements do not establish quiet-host
+16,260,000,000 ns quiet-host advisory ceiling; the after run overlapped
+the derived gate's test suites. These measurements do not establish quiet-host
 performance.
 
-Metric | Before: ryowrwur / covered 16,977 | After: mlxxkmtt / covered 16,977
+Metric | Before: zktwupyo / covered 17,322 | After: xxknlzyp / covered 17,322
 --- | ---: | ---:
 Workers | 12 | 12
-Host load (1 / 5 / 15 minutes) | 5.67724609375 / 9.458984375 / 13.05126953125 | 17.1181640625 / 11.6884765625 / 10.89501953125
-Setup wall | 6,220,103,686 ns | 6,522,995,880 ns
-Corpus wall | 50,154,307,958 ns | 71,535,626,223 ns
-Setup + corpus wall | 56,374,411,644 ns | 78,058,622,103 ns
-Thread CPU | 581,163,178,660 ns | 701,456,537,188 ns
-Checked-text CPU telemetry | 253,747 ns/B | 308,212 ns/B
+Host load (1 / 5 / 15 minutes) | 3.8974609375 / 5.98095703125 / 9.60693359375 | 8.54736328125 / 14.205078125 / 12.451171875
+Setup wall | 5,897,201,774 ns | 6,061,695,838 ns
+Corpus wall | 72,007,041,739 ns | 52,684,883,036 ns
+Setup + corpus wall | 77,904,243,513 ns | 58,746,578,874 ns
+Thread CPU | 659,490,359,675 ns | 622,553,544,575 ns
+Checked-text CPU telemetry | 285,372 ns/B | 269,153 ns/B
 
 Full census command on the refreshed after tree:
-`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/then-followup-refreshed-after.json`.
+`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/then-followup-final-after.json`.
 The before tree also used complete `--all` enumeration with 12 workers; its
-retained census is `then-followup-refreshed-before.json`. The current-trunk
-identity comparison is `then-followup-refreshed-delta.json`.
+retained census is `then-followup-final-before.json`. The current-trunk
+identity comparison is `then-followup-final-delta.json`.
 All evidence lives in ignored `target/english-v3/`; it is retained after
 workspace retirement under the default workspace's
 `target/english-v3/english-v3-then-followup/`.
@@ -486,24 +497,29 @@ a card type.* and Tamiyo's *Choose a nonland card name.* each admit 0 Readings,
 and both complete faces remain unread. Organ Hoarder's full face remains
 covered; its original 0 → 9 gain is credited above rather than re-counted here.
 
-The refreshed derived gate, run from the feature workspace root, exits 0:
-750 tests passed, 0 failed, 1 inherited ignored test. Its command is
-`cargo xtask gate --changed --from owyyynoyxstupwposuuzymvuqwpunnyl --run`, deriving
+The final derived gate, run from the feature workspace root, exits 0:
+756 tests passed, 0 failed, 1 inherited ignored test. Its command is
+`cargo xtask gate --changed --from tlxoqswvyknquzyppmtnpswsttvyqpmv --run`, deriving
 `cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`.
-All checks below use the refreshed tree stamped `mlxxkmttrzowqrpmrtwstzptxnrxqlsp`,
-covered 16,977. The isolated gate had 749 passing tests; the refreshed gate also
-includes the library follow-up’s added complement-cluster regression test. Strict clippy for the derived
-crate closure with `--all-targets -- -D warnings` exits 0;
-scoped nightly rustfmt exits 0. Root citation checks report 16,112 sites,
-0 stale and 0 noncompliant strings; the piped diff audit selects 0 changed CR
-sites. The inherited ignored test is
+These checks use the final tree stamped `xxknlzypsnwypnxryvxxrzpxopowkwot`,
+covered 17,322. Historical gate totals are 749 on the isolated tree and 750 on
+the library-refreshed tree; incoming tests remain present in the final gate.
+Strict clippy for the derived crate closure with `--all-targets -- -D warnings`
+exits 0; scoped nightly rustfmt exits 0. Root citation checks report 16,112
+sites, 0 stale and 0 noncompliant strings; the piped diff audit selects 0 changed
+CR sites. The inherited ignored test is
 `macros::templates::tests::macro_schema_census_count_matches_21`, the unchanged
 on-demand live-corpus cross-check. No new CR citation requires blessing.
 
 Deviations in this follow-up: the leading-position licence needs explicit
 feature exports on existing Clause producers and coordination projections,
-including constant permission for overt correlative prefixes. No constructor,
-form, lexical owner or frame is added or removed. The glossary gains Unmarked
+including constant permission for overt correlative prefixes. Final refresh
+incorporated as-long-as and conflicted on two Adverb category feature lists
+and the lexical export. The resolution preserves both DurationUse and
+Unmarked Conjunct Licence, and propagates the latter from EquativeAdverb's
+leading governor. The conflicting ancestor was repaired, no conflicts remain,
+and Kata refresh exits 0. The full census and derived gate are rerun on this
+combined tree. No constructor, form, lexical owner or frame is added or removed. The glossary gains Unmarked
 Conjunct Licence and explains the sentence-initial connective-Adjunct route.
 The record corrections reconcile the inherited residual inventory, the old
 estimate, the marker judgment, and the original bare-form/instance-parameter
