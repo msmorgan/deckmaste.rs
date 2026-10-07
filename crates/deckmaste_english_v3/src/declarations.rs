@@ -2892,8 +2892,12 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
-        // CGEL Ch. 13 §1.3, pp. 1103–1104 distinguishes the bare comparative
-        // Complement from the expanded Complement that includes its marker.
+        // CGEL Ch. 13 §1.3, pp. 1103–1104 distinguishes bare/expanded
+        // comparative Complements and lists governors in [15]; its constituency
+        // is [governor [P X]]. Our [governor marker][bare Complement] grouping
+        // is a project convention, following SelectedPrepositionHead and
+        // FiniteSelectedHead for shared delayed Complements. CGEL Ch. 15 §4.4,
+        // p. 1343 n. 66 supports coordinating governors each keeping its marker.
         table comparative_marker(frame, ComparisonMarker) -> Selection {
             (Equality, Equality) => Yes, (Ordering, Ordering) => Yes,
         }

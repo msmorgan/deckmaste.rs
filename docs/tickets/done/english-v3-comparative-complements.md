@@ -201,14 +201,23 @@ states that the live-corpus cross-check runs on demand.
 
 ### DISCLOSE — analysis and scope
 
-The bare Comparative Complement is the secondary term; the selected marker is
-retained with its governor. This follows CGEL Ch. 13 §1.3, pp. 1103–1105.
+CGEL Ch. 13 §1.3, pp. 1103–1104 distinguishes the bare Comparative Complement
+from the expanded Complement including its Preposition, and lists the governors
+and their selected markers in [15]. CGEL's own constituency is
+`[governor [P X]]`: the bare Complement is the Preposition's Complement.
+The implemented `[governor marker][bare Complement]` grouping is a project
+convention, with `SelectedPrepositionHead` and `FiniteSelectedHead` as precedents
+for shared delayed Complements. CGEL Ch. 15 §4.4, p. 1343 n. 66 supports only
+the coordination of governors each keeping its own marker, not this project
+grouping. Open representation question for the user: should the project retain
+this grouping or represent CGEL's nested Preposition Phrase constituency while
+supporting shared delayed Complements?
+
 Complemented AdjPs can be postpositive (Ch. 5 §14.2(b), p. 445); the nominal
 postmodifier reads *damage equal to its power*, *life equal to that card's
 power*, and *a spell other than your first spell*. The predicative host reads
-*its power is less than this creature's power*. CGEL Ch. 15 §4.4, p. 1343 n. 66
-supports retaining each marker when comparative governors share a delayed
-Complement. `ComparativeGovernorHead` is explicitly a project term for the
+*its power is less than this creature's power*.
+`ComparativeGovernorHead` is explicitly a project term for the
 partial governor-plus-marker interface, not a new claim about CGEL's category
 inventory. The glossary now defines Comparative Governor, Comparative Governor
 Head, Comparative Complement and Comparative Phrase; no unresolved term gap.
@@ -241,6 +250,18 @@ comparison inside the genitive possessor; its intended full *equal to that
 card's power* constituent is also present and asserted by the witness test.
 No costs or semantic admission filters were introduced.
 
+Reading growth includes two multiplier faces (tree `kowrwwym`, covered 18,646):
+Fblthp, Knows the Way has 15,372 Readings, or 42 × 183 × 2, with the 183
+already present in its search sentence; Darigaaz, the Igniter has 10,440
+Readings, with 348 in its comparative sentence. Cheapest Readings often attach
+the comparison inside a neighbouring NP: a quantificational head in
+*any [target equal to the number] of creatures*, a recipient in
+*the [player equal to the number …]*, or a genitive possessor in
+*[damage equal to that creature]'s power*. These grammatical attachment classes
+are retained under the user ruling of 2026-10-04 cited above. Intended Readings
+are also present: Massive Raid has 2 of its 23 Readings through the postposed
+Deal frame.
+
 Representative selected analyses, all stamped `kowrwwym`, covered 18,646:
 
 | Face | Selected comparative analysis | Complete face Readings |
@@ -272,6 +293,13 @@ DP *more than* pattern; no such DP is recategorized as an Adjective. Before is
 Among 613 supported faces containing both *equal to* and *the number of*,
 covered faces rise from 0 to 223. Existing number-of nominal composition is
 reused; it was not rebuilt.
+
+The ticket's estimate was 285 + 99 on `wlvwtnppyovn`, at 13,716 covered.
+The measured gain is 627 on the refreshed base of 18,019 covered because
+earlier landings removed co-causes. The gained-face classes are *equal to*
+581, *other than* 43 and *less/greater than* 13; these source-pattern classes
+overlap. Of the 613 faces with both *equal to* and *the number of*, 223 are now
+covered on `kowrwwym` (covered 18,646).
 
 Spikeshell Harrier's comparative sentence passes the witness test, but its
 whole face remains at zero Readings because the final *below 1* PP is outside
@@ -375,3 +403,43 @@ The final refreshed full and selected censuses report zero issues, duplicate
 Readings and internal failures. The final source digests are retained in
 `verified-refresh-source-digests.json`. No own face or Reading-count loss
 arises after incorporating the coordinator guard.
+
+### Post-landing record correction (2026-10-07)
+
+The post-landing review accepted the implementation on `kowrwwym` (covered
+18,646): 627 gained faces, zero
+lost faces, no count changes on previously covered faces, 24 clean probes and
+verified citations. This follow-up corrects attribution, residual ownership,
+the estimate reconciliation and Reading-growth disclosure above; its source
+edit is one comment block. No Construction, frame or test changes are added.
+Assurance for this follow-up: restored 0, re-spelled 0, ignored 0, added 0,
+removed 0.
+
+On `yryvqxsx` (covered 18,646),
+`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/english-v3-cc-followup/census-after.json`
+reproduces 18,646 covered faces and 475,194 Readings. Comparing every supported
+face against the accepted `kowrwwym` census (covered 18,646) finds identical
+Reading counts, construction inventories and analysis statuses: zero gains,
+losses or count changes. Both reports have the same input and lexical inventory
+digests. Roundtrip, lexical ownership and traversal checks report zero issues;
+duplicate Readings and internal failures are also zero.
+
+On `yryvqxsx` (covered 18,646),
+`cargo xtask gate --changed --from kypxyllk --run --clippy` exits 0. The derived
+commands are
+`cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask` and
+`cargo clippy -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings`.
+The gate reports 720 passing tests, zero failures and one inherited ignore,
+`macro_schema_census_count_matches_21`, with the same live-corpus blocker named
+above; strict Clippy passes. Nightly rustfmt checks the sole changed Rust file
+successfully. From the workspace root, `cargo xtask cite check --list-noncompliant`
+reports zero noncompliant strings and `cargo xtask cite check` checks 16,113
+sites with zero stale. The complete diff is piped to
+`cargo xtask cite audit --diff`: zero changed CR citation sites.
+
+Performance advisory for `yryvqxsx` (covered 18,646): corpus wall time is
+103,525,140,855 ns against the inherited quiet-host ceiling of 16,260,000,000 ns;
+checked-text thread CPU is 401,432 ns/B, with 12 workers and host load
+12.8271 / 10.3940 / 10.0200. This run overlapped gate compilation.
+Evidence is retained in the workspace's ignored
+`target/english-v3/english-v3-cc-followup/` directory.

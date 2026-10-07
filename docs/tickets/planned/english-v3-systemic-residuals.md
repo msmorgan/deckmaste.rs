@@ -275,8 +275,10 @@ is right and this list needs fixing.
   keyword/quotation Coordination); the Look row and the two Put rows with
   `Preposition(On), Complement(FrameComplement)` by
   `english-v3-library-position` (selected NP, Locative Complement and manner
-  tail, with passive/Object Gap support). Still owned:
-  Deal's two `ScalarEquality` rows by `english-v3-comparative-complements`; the
+  tail, with passive/Object Gap support). Discharged by
+  `english-v3-comparative-complements`: Deal's two `ScalarEquality` rows were
+  retired and replaced with nominal-internal comparison and the postposed
+  comparative frame. Still owned: the
   `ReplacementMarker` slot of Deal's first row by `english-v3-instead-replacement`
   (its `MassNoun`/`DistributionPhrase` slots stay here).
   Taken over 2026-10-07 by wave-2 owners: the Cost row
@@ -368,8 +370,9 @@ is right and this list needs fixing.
   *Choose a nonland card name.* unit respectively. Those bare choice units
   are owned here explicitly; the comma links are discharged. This supersedes
   the earlier remaining-failure annotation for these three faces. Discerning
-  Taste's comparison body belongs to `english-v3-comparative-complements`, with
-  residual superlative composition audited here. Library-position parsing
+  Taste is discharged by `english-v3-comparative-complements`: its comparison
+  and superlative composition now yield 72 whole-face Readings on `kowrwwym`
+  (covered 18,646). Library-position parsing
   does not discharge other sharing/scope obligations. Telling Time's retained
   NP-coordination Reading does not establish its intended Complement Cluster;
   that structural obligation remains here.
