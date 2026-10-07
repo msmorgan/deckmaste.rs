@@ -179,7 +179,7 @@ jobs:
       # They need a Lean toolchain, so they belong here rather than in the
       # Rust jobs, which have no elan.
       - name: card soundness gate tests
-        run: cargo test -p xtask --test lean_check
+        run: cargo test -p xtask --test main lean_check::
 
   idris:
     name: Idris mirror
