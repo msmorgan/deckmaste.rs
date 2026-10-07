@@ -365,6 +365,10 @@ or other expression without serving as a nominal argument.
 **Adverb Phrase**:
 A phrase headed by an Adverb.
 
+**Connective Adjunct**:
+An Adjunct relating its Clause to surrounding text or context. Connective
+elements can also link units smaller than a Clause (CGEL, Ch. 8 §19, p. 775).
+
 **Focus**:
 The constituent whose interpretation is made prominent or restricted relative
 to alternatives.
@@ -616,6 +620,10 @@ One of the units joined in a Coordination.
 
 **Coordinator**:
 The marker that links Conjuncts, such as *and* or *or*.
+
+**Coordinator Distribution** (project term):
+The licensed Conjunct roles and punctuation environments of a coordination
+marker in Oracle English.
 
 **Anchor** (project term):
 An ordered position at which a Coordination or a coordinated frame segment joins

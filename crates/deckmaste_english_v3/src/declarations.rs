@@ -106,6 +106,9 @@ constructions! {
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
             ObjectEquality, Cardinal, Infinitive }
         feature HeadCoordination { No, Yes }
+        feature BareCoordination { No, Yes } default Yes;
+        feature CommaCoordination { No, Yes } default No;
+        feature GeneralCoordination { No, Yes } default Yes;
         feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
@@ -858,6 +861,10 @@ constructions! {
             export HeadCoordination = Yes;
         }
 
+        policy GeneralCoordinatorDistribution<Right, Source> {
+            require Source.GeneralCoordination = Yes;
+        }
+
         schema CoordinationSeriesEnd {
             form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node];
             require coordinator.NoncorrelativeCoordination = Yes;
@@ -872,7 +879,10 @@ constructions! {
         }
 
         schema Coordination {
-            form [left: node, " ", coordinator: lexical(Coordinator), " ", right: node];
+            form [left: node, " ", coordinator: lexical(Coordinator), " ", right: node]
+                require coordinator.BareCoordination = Yes;
+            form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node]
+                require coordinator.CommaCoordination = Yes;
             require coordinator.NoncorrelativeCoordination = Yes;
         }
 
@@ -1525,17 +1535,18 @@ constructions! {
 
         construction ClauseCoordination: Clause {
             form [left: Clause, ", ", coordinator: lexical(Coordinator), " ", right: Clause];
-            form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause];
+            form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause]
+                require coordinator.BareCoordination = Yes;
             require coordinator.NoncorrelativeCoordination = Yes;
         }
         instance CoordinationSeriesEnd<Result, Member, Agreement = NoConcord,
-            Properties = NoConcord>: [
-            (ClauseSeries, Clause, NoConcord),
+            Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
+            (ClauseSeries, Clause, NoConcord, NoConcord, NoConcord),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
-            (FinitePredicateSeries, FinitePredicate, FiniteConcord),
-            (SecondaryPredicateSeries, SecondaryVerbPhrase, SecondaryConjunctProperties),
+            (FinitePredicateSeries, FinitePredicate, FiniteConcord, NoConcord, NoConcord),
+            (SecondaryPredicateSeries, SecondaryVerbPhrase, SecondaryConjunctProperties, NoConcord, NoConcord),
             (NounPhraseSeries, NounPhrase, NounCoordinationAgreement, CoordinatorKindSummary),
             (VerbalPremodifierSeries, VerbalPremodifier),
             (NounPremodifierSeries, NounPremodifier),
@@ -1546,18 +1557,18 @@ constructions! {
             (KeywordPhraseSeries, KeywordPhrase),
             (QuotedTextSeries, QuotedText),
             (GrantedAbilitySeries, GrantedAbility, GrantedAbilityConcord),
-            (FiniteSelectedHeadSeries, FiniteSelectedHead, FiniteConcord, SelectedFrameConcord),
+            (FiniteSelectedHeadSeries, FiniteSelectedHead, FiniteConcord, SelectedFrameConcord, NoConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
-                SelectedFrameConcord),
+                SelectedFrameConcord, NoConcord),
             (NominalSeries, Nominal, NominalConcord, CoordinatorKindSummary),
             (AdjectivePhraseSeries, AdjectivePhrase, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
-            (FiniteObjectGapSeries, FiniteObjectGap, FiniteConcord),
-            (BareObjectGapSeries, BareObjectGap),
-            (FiniteClauseSeries, FiniteClause),
+            (FiniteObjectGapSeries, FiniteObjectGap, FiniteConcord, NoConcord, NoConcord),
+            (BareObjectGapSeries, BareObjectGap, NoConcord, NoConcord, NoConcord),
+            (FiniteClauseSeries, FiniteClause, NoConcord, NoConcord, NoConcord),
             (DepictivePhraseSeries, DepictivePhrase, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, PredicativeListEnd),
             (SelectedPrepositionHeadSeries, SelectedPrepositionHead, PrepositionPermissions),
@@ -1565,6 +1576,7 @@ constructions! {
             bind left, right = Member;
             use Agreement(right, coordinator);
             use Properties(right, coordinator);
+            use Distribution(right, coordinator);
         }
         instance CoordinationSeriesContinuation<
             Result, Member: left, Tail: rest, Agreement = NoConcord,
@@ -1705,15 +1717,15 @@ constructions! {
             require head.form = Singular;
             require head.framing = Unframed;
         }
-        instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord>: [
+        instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
             (VerbalPremodifier, Self),
             (NounPremodifier, Self),
             (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (NounPhrase, Self, NounCoordinationAgreement),
-            (FinitePredicate, Self, FiniteConcord),
-            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
-            (FiniteObjectGap, Self, FiniteConcord),
+            (FinitePredicate, Self, FiniteConcord, NoConcord, NoConcord),
+            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoConcord),
+            (FiniteObjectGap, Self, FiniteConcord, NoConcord, NoConcord),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -1721,16 +1733,16 @@ constructions! {
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (GrantedAbility, Self, GrantedAbilityCoordination),
-            (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
-            (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
+            (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord, NoConcord),
+            (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord, NoConcord),
             (Nominal, Self, NominalConcord),
             (AdjectivePhrase, Self, AdjectiveStructureMerge),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
-            (BareObjectGap, Self),
-            (CoordinatedFiniteClause, FiniteClause),
+            (BareObjectGap, Self, NoConcord, NoConcord, NoConcord),
+            (CoordinatedFiniteClause, FiniteClause, NoConcord, NoConcord, NoConcord),
             (DepictivePhrase, Self, UnlikeDepictives),
             (PredicativeComplement, Self, UnlikePredicatives),
             (SelectedPrepositionHead, Self, PrepositionPermissions, SharedHeadStatus),
@@ -1738,6 +1750,7 @@ constructions! {
             bind left, right = Member;
             use Agreement(right, coordinator);
             use Properties(right, coordinator);
+            use Distribution(right, coordinator);
         }
 
         construction NounPremodifiedNominal: Nominal {

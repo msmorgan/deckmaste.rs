@@ -753,6 +753,13 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
+            id: "vocab:Coordinator/Then", lemma: "then", category: Coordinator,
+            properties: (countability: [], features: {"NoncorrelativeCoordination": "Yes", "CoordinationKind": "Additive", "BareCoordination": "No", "CommaCoordination": "Yes", "GeneralCoordination": "No"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Coordinator/Then"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
             id: "vocab:Adverb/Then", lemma: "then", category: Adverb,
             properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "Yes"}, frames: []),
             forms: [(form: Invariant, features: ())],
