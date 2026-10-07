@@ -81,13 +81,9 @@ fn with_property_values_postmodifies_the_target_nominal() {
 fn scalar_values_reuse_one_coordination_without_determiner_or_clause_overlap() {
     // Here Comes a New Hero!, Easy Prey and Retribution of the Meek.
     for text in ["X", "2", "2 or less", "X or less", "4 or greater"] {
-        assert_eq!(
-            readings(text, Category::ScalarPropertyValue).len(),
-            1,
-            "{text}"
-        );
+        assert_eq!(readings(text, Category::ScalarValue).len(), 1, "{text}");
     }
-    let quantity = readings("2 or less", Category::ScalarPropertyValue);
+    let quantity = readings("2 or less", Category::ScalarValue);
     let expected = readings("2 or less", Category::ComparativeQuantity);
     let Reading::ScalarPropertyCoordination { value, .. } = quantity.first().unwrap() else {
         panic!("reuse the prerequisite's coordination")
@@ -106,10 +102,7 @@ fn scalar_values_reuse_one_coordination_without_determiner_or_clause_overlap() {
         "more than one",
         "2/2",
     ] {
-        assert!(
-            readings(text, Category::ScalarPropertyValue).is_empty(),
-            "{text}"
-        );
+        assert!(readings(text, Category::ScalarValue).is_empty(), "{text}");
     }
     // The licence belongs to scalar property nouns, not all nouns.
     for text in ["creature 2", "mana 2", "mana values 2"] {
@@ -239,7 +232,7 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
             .split_once(if property == "ManaValue" { "mana value " } else { "power " })
             .unwrap()
             .1;
-        assert_laws(&quantity, value_surface, Category::ScalarPropertyValue);
+        assert_laws(&quantity, value_surface, Category::ScalarValue);
         let np = Reading::MeasuredAttribute {
             form: 0,
             head: word(&format!("lexeme:CommonNoun/{property}"), WordForm::Singular),

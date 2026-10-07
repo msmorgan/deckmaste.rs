@@ -388,9 +388,26 @@ A numeral expressing a count, such as *one* or *two*.
 A phrase expressing an extent or scalar value, including arithmetic
 combinations and comparisons with other values.
 
+**Scalar Location**:
+The expression of a position on a scale, commonly with *be* and an NP as
+predicative Complement (CGEL, Ch. 8 §5.4, p. 693).
+
+**Scalar Denotation** (project term):
+A noun use or measured amount's denotation of a quantity or scalar property.
+An ordinary headed phrase retains that denotation; a number-transparent
+quantificational use instead denotes its Oblique. Its licensing of a value Complement after
+*be* is the restriction of the
+[copular-scalar-location ticket](../../tickets/wip/english-v3-copular-scalar-location.md),
+not a restriction asserted by CGEL's scalar-location passage.
+
+**Scalar Value** (project term):
+A value expression realized by a scalar Measure Phrase, a Cardinal Numeral or
+a numeral Coordination, usable in a scalar property dependent or a scalar
+location predicative Complement.
+
 **Scalar Property Value** (project term):
-A value dependent selected by a scalar property noun, realized by a scalar
-Measure Phrase or a numeral Coordination; its treatment as a Complement in
+A Scalar Value selected as a dependent by a scalar property noun; its
+treatment as a Complement in
 *power 2* is a [project ruling (2026-10-07)](../../tickets/done/english-v3-scalar-property-values.md#project-ruling-scalar-property-values),
 not a claim made by CGEL's account of property-denoting NP Postmodifiers.
 

@@ -72,6 +72,7 @@ constructions! {
         feature PredicateFrameUse { No, Yes } default Yes;
         feature ScalarVariable { Yes }
         feature MeasureOperator { Yes }
+        feature ScalarDenotation { No, Yes } default No;
         feature MeasurePosition { None, Before, After } default None;
         feature CardinalMeasurementUse { No, Yes } default No;
         feature MeasureKind { Scalar, Pair }
@@ -149,6 +150,7 @@ constructions! {
         category Clause(UnmarkedConjunctLicence);
         category FiniteClause();
         category FinitePredicate(number, person, CliticHost);
+        category ScalarLocationPredicate(number, person, CliticHost);
         category SecondaryVerbPhrase(form, ParticipialUse, InternalisedComplementPresent);
         category FiniteDepictiveHost(number, person, CliticHost);
         category SecondaryDepictiveHost(form, ParticipialUse, InternalisedComplementPresent);
@@ -164,15 +166,15 @@ constructions! {
         category PerfectComplement();
         category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, CardinalMeasurementUse,
-            BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse);
+            BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
         category NounPremodifier();
         category NounPremodifierSeries();
         category PartitiveModifier();
         category NounPhrase(number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure,
-            BarePrepositionUse, SelectedPrepositionUse);
-        category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse);
+            BarePrepositionUse, SelectedPrepositionUse, ScalarDenotation);
+        category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, ScalarDenotation);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse);
         category AdjectivePhrase(AdjectiveStructure);
         category Name();
@@ -197,7 +199,7 @@ constructions! {
         category ComparativePrepositionPhrase(number);
         category QuantityConjunct(number);
         category ComparativeQuantity(number, ComparativeQuantityStructure);
-        category ScalarPropertyValue();
+        category ScalarValue();
         category Amount();
         category MeasurePhrase(MeasureKind);
         category ScalarMeasurePhrase();
@@ -240,7 +242,7 @@ constructions! {
         category ClauseSeries(UnmarkedConjunctLicence);
         category FinitePredicateSeries(number, person, CliticHost);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent);
-        category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse);
+        category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, ScalarDenotation);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
         category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence);
@@ -256,7 +258,7 @@ constructions! {
         category NominalSeries(
             number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, CardinalMeasurementUse,
-            BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse
+            BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation
         );
         category AdjectivePhraseSeries(AdjectiveStructure);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
@@ -274,7 +276,7 @@ constructions! {
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent);
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
-            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse);
+            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, ScalarDenotation);
         category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
@@ -473,6 +475,14 @@ constructions! {
             (Yes, Yes, Plural, Plural) => Plural,
         }
 
+        table quantificational_scalar_denotation(QuantificationalDeterminer,
+            NumberTransparency, ScalarDenotation) -> ScalarDenotation {
+            (No, No, No) => No, (No, No, Yes) => Yes,
+            (No, Yes, No) => No, (No, Yes, Yes) => Yes,
+            (Yes, No, No) => No, (Yes, No, Yes) => Yes,
+            (Yes, Yes, No) => No, (Yes, Yes, Yes) => No,
+        }
+
         table oblique_number(ObliqueMarker, number) -> ObliqueNumber {
             (No, Singular) => None, (No, Plural) => None,
             (Yes, Singular) => Singular, (Yes, Plural) => Plural,
@@ -597,6 +607,7 @@ constructions! {
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
+            export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
             export countability = head.countability;
@@ -613,6 +624,7 @@ constructions! {
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
+            export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
             export countability = head.countability;
@@ -637,6 +649,7 @@ constructions! {
         }
 
         policy NominativeCase {
+            export ScalarDenotation = head.ScalarDenotation;
             export SubjectStructure = head.SubjectStructure;
             export CaseUse = nominative_case(head.CaseUse);
         }
@@ -670,6 +683,7 @@ constructions! {
         }
 
         policy NounPhraseHeadAgreement {
+            export ScalarDenotation = head.ScalarDenotation;
             export SubjectStructure = Phrase;
             export BareGenitiveHost = head.BareGenitiveHost;
             export Targeting = head.Targeting;
@@ -690,6 +704,7 @@ constructions! {
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = No;
             export MeasurePosition = head.MeasurePosition;
+            export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
             export countability = head.countability;
@@ -769,6 +784,7 @@ constructions! {
             (Yes, Yes) => Yes, (No, No) => No, (No, Yes) => No, (Yes, No) => No,
         }
         policy NominalConcord<Right, Source> {
+            export ScalarDenotation = coordinated_scalar_denotation(left.ScalarDenotation, Right.ScalarDenotation);
             export SelectedPrepositionUse = selected_preposition_concord(left.SelectedPrepositionUse,
                 Right.SelectedPrepositionUse);
             export BarePrepositionUse = No;
@@ -796,10 +812,15 @@ constructions! {
             export number = left.number;
         }
 
+        table coordinated_scalar_denotation(ScalarDenotation, ScalarDenotation) -> ScalarDenotation {
+            (Yes, Yes) => Yes, (No, No) => No, (No, Yes) => No, (Yes, No) => No,
+        }
+
         table coordinated_targeting(Targeting, Targeting) -> Targeting {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
         policy NounCoordinationAgreement<Right, Source> {
+            export ScalarDenotation = coordinated_scalar_denotation(left.ScalarDenotation, Right.ScalarDenotation);
             export SelectedPrepositionUse = selected_preposition_concord(left.SelectedPrepositionUse,
                 Right.SelectedPrepositionUse);
             agree left.BarePrepositionUse = Right.BarePrepositionUse;
@@ -1566,6 +1587,25 @@ constructions! {
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
+        // CGEL Ch. 8 §5.4, p. 693: scalar location with be and an NP
+        // predicative Complement. The Subject restriction is this ticket's
+        // Oracle-English contract, not a restriction asserted by that passage.
+        construction ScalarLocation: FiniteClause {
+            form [subject: NominativePhrase, " ", predicate: ScalarLocationPredicate]
+                require predicate.CliticHost = Free;
+            form [subject: NominativePhrase, predicate: ScalarLocationPredicate]
+                require joined_clitic(predicate.CliticHost) = Yes;
+            require subject.ScalarDenotation = Yes;
+            agree subject.number = predicate.number;
+            agree subject.person = predicate.person;
+            require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
+        }
+
+        construction ScalarLocationPredicate: ScalarLocationPredicate {
+            form [head: lexical(Verb), complements: selected_frame(head, ScalarLocation)];
+            use FiniteHeadAgreement;
+        }
+
         construction InitialPreposition: Clause {
             form [dependent: PrepositionPhrase, ", ", clause: Clause];
             form [dependent: PrepositionPhrase, " ", clause: Clause]
@@ -1828,6 +1868,7 @@ constructions! {
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
             export MeasurePosition = head.MeasurePosition;
+            export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             form [quantity: Cardinal, " ", head: Nominal];
             export number = head.number;
@@ -1848,6 +1889,7 @@ constructions! {
         // not acquire a bare count-plural use. CGEL Ch. 5 §3.4, p. 354
         // distinguishes the singular conceptualization of a measured quantity.
         construction CardinalMeasuredNominal: Nominal {
+            export ScalarDenotation = Yes;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
@@ -1871,6 +1913,7 @@ constructions! {
         }
 
         construction CardinalMeasuredNounPhrase: NounPhrase {
+            export ScalarDenotation = Yes;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             form [quantity: Cardinal, " ", head: Nominal];
@@ -1920,6 +1963,7 @@ constructions! {
         // CGEL p. 516: a referential proper name has NP status. Oracle names
         // refer to one card even when the written title contains plural nouns.
         construction ProperNameNounPhrase: NounPhrase {
+            export ScalarDenotation = No;
             export SelectedPrepositionUse = No;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
@@ -1948,6 +1992,7 @@ constructions! {
             export NominalComplementMarker = None;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
+            export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [marker: lexical(Determinative), " ", head: Nominal];
@@ -1982,6 +2027,7 @@ constructions! {
             require phrase.SelectedPrepositionUse = No;
         }
         construction PartitiveNounPhrase: NounPhrase {
+            export ScalarDenotation = No;
             export SelectedPrepositionUse = No;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
@@ -1995,6 +2041,8 @@ constructions! {
         }
 
         construction DeterminedNounPhrase: NounPhrase {
+            export ScalarDenotation = quantificational_scalar_denotation(
+                determiner.QuantificationalDeterminer, head.NumberTransparency, head.ScalarDenotation);
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             export BareGenitiveHost = head.BareGenitiveHost;
@@ -2053,6 +2101,7 @@ constructions! {
         }
 
         construction TargetNounPhrase: NounPhrase {
+            export ScalarDenotation = head.ScalarDenotation;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             export BareGenitiveHost = head.BareGenitiveHost;
@@ -2067,6 +2116,7 @@ constructions! {
         }
 
         construction NominativePronoun: NounPhrase {
+            export ScalarDenotation = No;
             export SelectedPrepositionUse = No;
             export BarePrepositionUse = No;
             export SubjectStructure = Pronoun;
@@ -2087,6 +2137,7 @@ constructions! {
         }
 
         construction AccusativePronoun: NounPhrase {
+            export ScalarDenotation = No;
             export SelectedPrepositionUse = No;
             export BarePrepositionUse = No;
             export SubjectStructure = Phrase;
@@ -2843,6 +2894,7 @@ constructions! {
         }
 
         construction MeasuredNounPhrase: NounPhrase {
+            export ScalarDenotation = Yes;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
@@ -2856,13 +2908,18 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
-        construction ScalarPropertyMeasure: ScalarPropertyValue {
+        construction ScalarPropertyMeasure: ScalarValue {
             cost 0;
             form [value: MeasurePhrase];
             require value.MeasureKind = Scalar;
         }
 
-        construction ScalarPropertyCoordination: ScalarPropertyValue {
+        construction ScalarCardinalValue: ScalarValue {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Cardinal;
+        }
+
+        construction ScalarPropertyCoordination: ScalarValue {
             cost 0;
             form [value: ComparativeQuantity];
             require value.ComparativeQuantityStructure = Coordinated;
@@ -2870,7 +2927,7 @@ constructions! {
 
         // CGEL Ch. 5 §11(d), p. 432 n. 48 classifies greater as an
         // Adjective. Its permission in this value position is a project ruling.
-        construction AdjectivalScalarCoordination: ScalarPropertyValue {
+        construction AdjectivalScalarCoordination: ScalarValue {
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
                 right: lexical(Adjective)];
             require marker.CoordinationKind = Alternative;
@@ -2881,11 +2938,12 @@ constructions! {
         // Project ruling, scalar-property-values (2026-10-07): the following
         // value is a Complement of the property noun, not a Determiner.
         construction MeasuredAttribute: NounPhrase {
+            export ScalarDenotation = head.ScalarDenotation;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
             export Targeting = No;
-            form [head: lexical(Noun), " ", quantity: ScalarPropertyValue];
+            form [head: lexical(Noun), " ", quantity: ScalarValue];
             require head.MeasurePosition = After;
             require head.number = Singular;
             export number = Singular;
