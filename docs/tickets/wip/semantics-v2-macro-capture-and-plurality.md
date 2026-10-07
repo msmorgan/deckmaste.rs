@@ -221,3 +221,124 @@ rule, and the reciprocal gap is routed to
 **Burglar Rat.** Owner, 2026-10-06: "burglar rat should probably be
 cardIn(hand)", that is, its discard argument reads `cardIn(hand)` rather than
 `a(card)`. Settle it when that body is re-spelled.
+
+## Landing record
+
+Series, oldest first, on claim `mtxtksrrnyly` after `kata refresh` onto
+`xwonvpoklkno`: `kqrwyswtlyml` (Lean: Binding Identity, `firstMention` /
+`laterMention`), `lyltytwukxpt` (loader: first mention binds), `mmozwpluvuts`
+(scry, surveil, fateseal, connive bodies; plurality off the amount),
+`qotwpwwluqnq` (keyword action bodies in their own scope, the built-in
+`semantics-v2-keyword-body-reference-scope`), `uvtzsvvxnwsz` (helpers retired),
+`omrwnylqllyo` (fight, regenerate), `kumvmntnrooq` (ADR §12.2, CONTRACTS,
+routing), `tqvwprmkqvwm` (these records). The answer is
+recorded in `docs/decisions/semantics-v2.md` §12.2. B′ worked: the owner's
+2026-10-07 permission to fall back to `Capture(Subject)` was not taken, and the
+§7 ruling stands unamended.
+
+**PROVE.**
+- Lean, full build (`lean/scripts/build`, `--wfail`): 83 jobs, no errors or
+  warnings. Twin pins in `Proofs/BindingIdentity.lean` (28): two mentions
+  resolve to one binding (`laterMentionReadsTheFirstMention`,
+  `twoMentionsOneTarget` against `copiedArgumentTargetsTwice`); a
+  `target(creature)` argument is one targeting (`fightTargetsEachArgumentOnce`,
+  `regenerateTargetsOnce`); a group handoff still distributes
+  (`okGroupHandoffByIdentity`, `groupHandoffByIdentityPublishesPlurals`); the
+  identity is no stack position (`interveningBindingDoesNotShiftTheRead`,
+  `eachCallReadsItsOwnBinding`); scry 1 / scry 2 read one / many.
+- `cargo xtask lean check`: canon 134/134 (127 + Opt, Preordain, Consider,
+  Spin into Myth, Unstable Experiment, Prey Upon, Mending Touch), testing 7/7
+  (6 + Amass After Destroy Probe). `cargo xtask lean definitions`: 553/553.
+  `cargo xtask facts check`: up to date.
+- Expansions (`cargo xtask expansions`, `diff -r` against the claim's): after
+  the loader rewrite, exactly `instructions/regenerationApplication`,
+  `keyword_actions/detain` and `keyword_actions/harness` changed; the other
+  1462 of 1465 printed declarations, and both of `plugins_v2/testing`'s, were
+  byte-identical. Later stages, each diffed against the one before: the
+  bodies stage printed scry, surveil, fateseal and connive (skipped bodyless
+  before) and the two new helpers; the scope stage changed 72 (40 keyword
+  actions, the 30 keyword abilities and 2 helpers that call one), the
+  `OwnScope`/`inCaller` wrapper only; the retirement stage removed 9 and added
+  `byTurn`, `itPermanent`, `ownMember`, with `transmute`, `transfigure` and
+  `comparesOwnStat` byte-identical; fight and regenerate printed, connive
+  changed (`cardIn(hand)`).
+- Gate: `cargo xtask gate --changed --run` derived
+  `cargo test -p deckmaste_construction_core -p deckmaste_lexical_source
+  -p deckmaste_semantics_v2 -p deckmaste_construction_v3 -p deckmaste_english_v3
+  -p xtask`: exit 0, 114 suites, 1382 passed, 0 failed, 1 ignored (the
+  pre-existing xtask ignore), after the third `kata refresh` onto
+  `xwonvpoklkno` (each refresh brought English-side upstream changes only). The first run found two xtask tests still
+  expecting the unscoped wrapper and scry bodyless; both were re-spelled.
+- Clippy `-D warnings` on `deckmaste_semantics_v2` and `xtask`: clean.
+  `cargo xtask cite check --list-noncompliant`: 0; `cite check`: 0 stale after
+  blessing [CR#701.50a,701.50d], both read against their claims; the diff's
+  `cite audit` read.
+- No refusal asserting a game rule was added. The one new refusal,
+  `bindingIdentity`, is a reference refusal.
+
+**Counts (Assurance).** Restored 0. Re-spelled 46: 43 Lean theorems whose
+hand-built `Binding` literal gained its `idents` field (`, []`) or whose text
+used a retired helper (its general form, the same term), the Rust
+`amass_expands_to_the_term_its_constructor_body_spelled` and the xtask
+`a_helper_spelling_and_its_constructor_spelling_print_the_same` and
+`a_keyword_declaration_builds_its_wrapper` (the scope wrapper in the expected
+term; the bodyless example is now `exchange`, scry having a body); also 20 bench card definitions re-spelled to the
+general forms, and `keywords.rs`'s `a_keyword_action_enacts_its_deed`
+expectations. Ignored 0. Added 39: 35 Lean theorems (28 in
+`Proofs/BindingIdentity.lean`, 7 in `Proofs/Actor.lean`) and 4 Rust tests (3 in
+`mentions.rs`, `no_plugin_file_writes_a_mention_macro`). Removed 0.
+
+**Helpers retired** (none carried a `spelling`): `itsA`, `itsACard`,
+`itIsntA`, `itIsntAnAbility` → `matches(it|itCard|that(Ability), p)` and `not`;
+`thatTurns` → `byTurn(thatTurn)`; `revealIt` and `foundCard` →
+`revealCards(itVerbed(Action("Search")))` / `itVerbed(Action("Search"))`
+(`theVerbed` waits on `semantics-v2-deed-is-a-name`); `theirHand` →
+`handOf(they)`; `searchTheirLibraryFor` → `search(OneZone(libraryOf(they)),
+exactly(1), p)`; Lean `sacrificeIt` → `sacrifice(itPermanent)`, the slot
+selector; Lean `itOrThem` deleted. `comparesOwnStat` takes its pronoun as the
+argument `member`, defaulting to `ownMember`. Kept: none of the listed was
+spelled.
+
+**Deviations and additions.**
+- `Binding` gained `idents : List BindingId`; `Payload.actor` gained the width
+  of what a handoff put in view, and `Payload.scopeFrame` was added, both
+  checker-private. `enterCaller` with no frame open is now the phrase's own
+  view (it masked everything); `filterContext` keeps scope frames and judges a
+  masked binding by its visible payload. No pin changed outcome.
+- Fight is written without the battlefield guard of the bench macro: a guard's
+  condition may not introduce its subject (`testSubject`), and [CR#701.14b] is
+  the rules' to apply. The reciprocal wording [CR#701.14a] is routed to
+  `lean-drt-anaphora-refactor` (`semantics-v2-anaphor-resolution-heuristics`
+  closed without it).
+- Regenerate names no deed (`deed: None`): only the application is "Regenerate"
+  [CR#701.19c]; so its body has no own scope.
+- The `Connive` facts row names a permanent performer (`permanentAgent`), as
+  the rules instruct a permanent [CR#701.50a]; connive is written `connive(1)`,
+  since a positional keyword parameter takes no default.
+- `Quantity.exactlyOf` reads its amount's number; `partitiveBase` accepts a
+  later mention, as it does a positional own-read.
+- New helpers: RON `lookAndSortSlice`, `discardThenForEachNonland`; RON and
+  Lean `itPermanent`, `byTurn`, `ownMember`; Lean `oneZone`. The loader
+  registers `firstMention`, `laterMention` and `inCaller` with every v2 macro
+  set; `tests/corpus.rs` holds that no plugin file writes them.
+- Parameters of a type with no `InCaller` constructor (`TokenSpec`,
+  `SearchScope`, `Ballot`, `Disclosure`, `String`, `Subtype`) are not read in
+  the caller's view. `reads.rs` ports neither identities nor own scopes (no
+  lowering reader needs them yet).
+- Burglar Rat: no body this landing touched is Burglar Rat's; the owner's
+  `cardIn(hand)` was applied to connive's discard.
+- `keyword_bodies.rs`'s `ALLOWED_RAW`: nothing to strike; no listed file was
+  touched and the new bodies are card vocabulary.
+- The 21 macros left in §12.1's "It computes" bucket were not decided one by
+  one; routed to `lean-macros-from-ron` (its "Residue" section).
+
+**STOPs.** None.
+
+**Glossary.** No gap: Binding Identity, Reference Scope, Actor and Handoff
+cover the landing.
+
+**REPORT.** Lexicon export (`cargo xtask lexical --card-name "Black Lotus"
+--export`): byte-identical between the claim `mtxtksrrnyly` and the tip
+(35,643,299 bytes). No English grammar or lexicon source changed, so the
+coverage lock, selection census and performance advisory do not apply. All
+numbers measured on `tqvwprmkqvwm` after `kata refresh`.

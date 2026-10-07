@@ -99,3 +99,29 @@ should never have seen the card's candidates at all.
 Writing Azog, Moria's Ruin, and any card that hands a keyword action to a
 player after mentioning an object of the same kind as one the action's body
 reads back.
+
+## Landing record
+
+Built inside `semantics-v2-macro-capture-and-plurality` (its landing record has
+the series, gate and counts); change `qotwpwwluqnq`. A keyword action body is
+read in its own scope, opened at the loader's `Enact` wrapper: Lean
+`Instruction.ownScope` masks the calling text's mentions except the performer
+the innermost handoff names, and each parameter is read in the caller's view
+(`inCaller`). A keyword ability body was already checked from an empty context.
+Helper macros get no scope. `docs/decisions/semantics-v2.md` §12.2 and
+`lean/CONTRACTS.md` ("Binding identity and a keyword body's own scope") record
+it.
+
+Pins (`lean/Semantics/Proofs/Actor.lean`): `okLiteralAmassBare`,
+`okLiteralAmassHandedOff`, `badAmassBareItAfterDestroy` and
+`okAzogControllerAmasses` keep their outcomes. Added: the inferred
+`badLiteralAmassAfterDestroy` (the literal body with no scope, after "destroy
+target creature": the same two `.anaphor .bare .one 2`), and its scoped twin
+`okScopedAmassAfterDestroy` (checks); `okScopedAmass`,
+`okScopedAmassHandedOff`; `okAzogScopedAmassX` (the amount, a parameter, reads
+the destroyed creature in the caller's view); `scopedBodyCannotReadTheCaller`;
+`keywordAbilityBodyCannotReadItsCard`. The testing probe "Amass After Destroy
+Probe" ("Destroy target creature. Its controller amasses Goblins 2.") proves
+through `lean check`. Azog itself is not written: "that creature's power" of a
+destroyed creature needs last-known information the bench's `that` does not
+read. No STOP.
