@@ -301,3 +301,12 @@ sites and zero stale citations; no citation was added or changed.
 The derived reverse-dependency test command passes in full, including xtask's
 corpus and Lean integration tests. Strict clippy also passes. `gate.log`
 records both commands and their complete output.
+
+Final refresh imports trunk `sumqouus` (the docs-symlink ignore fix) and
+coordination metadata. It changes no English runtime source or consumed
+corpus data, so the refreshed base is runtime-identical to the measured
+before tree / covered 19,205. No face or Reading decrease arrives from
+refresh. The measured after tree / covered 19,414 and its gate remain valid.
+The final declaration file is byte-identical to the refreshed claim parent:
+3,227 non-blank lines → 3,227, net 0. Final review finds only this ticket's
+two lexical assignments, eight tests and landing record above the claim.
