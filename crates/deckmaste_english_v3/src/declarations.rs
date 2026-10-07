@@ -26,6 +26,8 @@ constructions! {
         feature DurationUse { No, Yes } default No;
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature ComparativeQuantityUse { No, Yes } default No;
+        feature ComparativeQuantityStructure { Coordinated, Headed }
+        feature ScalarComparativeUse { No, Yes } default No;
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct } set;
         feature CompoundComplementMarker { Of }
@@ -194,7 +196,8 @@ constructions! {
         category QuantitativePrepositionPhrase(number);
         category ComparativePrepositionPhrase(number);
         category QuantityConjunct(number);
-        category ComparativeQuantity(number);
+        category ComparativeQuantity(number, ComparativeQuantityStructure);
+        category ScalarPropertyValue();
         category Amount();
         category MeasurePhrase(MeasureKind);
         category ScalarMeasurePhrase();
@@ -2694,6 +2697,7 @@ constructions! {
             require marker.CoordinationKind = Alternative;
             require marker.NoncorrelativeCoordination = Yes;
             require right.ComparativeQuantityUse = Yes;
+            export ComparativeQuantityStructure = Coordinated;
             export number = Plural;
         }
 
@@ -2702,6 +2706,7 @@ constructions! {
         construction ComparativeDeterminativePhrase: ComparativeQuantity {
             form [head: lexical(Determinative), " ", complement: ComparativePrepositionPhrase];
             require head.ComparativeQuantityUse = Yes;
+            export ComparativeQuantityStructure = Headed;
             export number = complement.number;
         }
 
@@ -2851,14 +2856,37 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
+        construction ScalarPropertyMeasure: ScalarPropertyValue {
+            cost 0;
+            form [value: MeasurePhrase];
+            require value.MeasureKind = Scalar;
+        }
+
+        construction ScalarPropertyCoordination: ScalarPropertyValue {
+            cost 0;
+            form [value: ComparativeQuantity];
+            require value.ComparativeQuantityStructure = Coordinated;
+        }
+
+        // CGEL Ch. 5 §11(d), p. 432 n. 48 classifies greater as an
+        // Adjective. Its permission in this value position is a project ruling.
+        construction AdjectivalScalarCoordination: ScalarPropertyValue {
+            form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
+                right: lexical(Adjective)];
+            require marker.CoordinationKind = Alternative;
+            require marker.NoncorrelativeCoordination = Yes;
+            require right.ScalarComparativeUse = Yes;
+        }
+
+        // Project ruling, scalar-property-values (2026-10-07): the following
+        // value is a Complement of the property noun, not a Determiner.
         construction MeasuredAttribute: NounPhrase {
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
             export Targeting = No;
-            form [head: lexical(Noun), " ", quantity: MeasurePhrase];
+            form [head: lexical(Noun), " ", quantity: ScalarPropertyValue];
             require head.MeasurePosition = After;
-            require quantity.MeasureKind = Scalar;
             require head.number = Singular;
             export number = Singular;
             use ThirdPersonCommonCase;

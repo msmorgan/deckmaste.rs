@@ -388,6 +388,28 @@ A numeral expressing a count, such as *one* or *two*.
 A phrase expressing an extent or scalar value, including arithmetic
 combinations and comparisons with other values.
 
+**Scalar Property Value** (project term):
+A value dependent selected by a scalar property noun, realized by a scalar
+Measure Phrase or a numeral Coordination; its treatment as a Complement in
+*power 2* is a [project ruling (2026-10-07)](../../tickets/done/english-v3-scalar-property-values.md#project-ruling-scalar-property-values),
+not a claim made by CGEL's account of property-denoting NP Postmodifiers.
+
+**Measure Position** (project term):
+A noun's declared permission for a scalar value to precede it in measurement
+or follow it as a Scalar Property Value; the following value is a selected
+Complement under the project's scalar-property ruling.
+
+**Scalar Comparative Use** (project term):
+An Adjective's declared permission to be the comparative Conjunct in a
+Scalar Property Value, as in *4 or greater*; this permission supplies no
+Determiner function, and *greater* retains its Adjective Category (CGEL,
+Ch. 5 §11(d), p. 432, n. 48).
+
+**Comparative Quantity Structure** (project term):
+The distinction between a numeral Coordination and a headed comparative
+Determinative Phrase; only the former supplies the coordinated Scalar
+Property Value of this landing.
+
 **Measured Noun Phrase** (project term):
 A Noun Phrase expressing a scalar amount or attribute through a quantity and
 a head with a declared measure-position licence. The lexical head retains
