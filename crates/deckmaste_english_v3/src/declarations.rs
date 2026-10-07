@@ -22,6 +22,8 @@ constructions! {
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase, PredicativeNounPhrase, None }
         feature AdjectiveComplementClass { Manner }
+        feature AdverbComplementClass { Duration }
+        feature DurationUse { No, Yes } default No;
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             AdjectiveComplement, PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct } set;
@@ -59,6 +61,7 @@ constructions! {
         feature CardinalMeasurementUse { No, Yes } default No;
         feature MeasureKind { Scalar, Pair }
         feature ComparisonMarker { Equality, Ordering }
+        feature ExpandedComparisonMarker { Equality }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
             QualityCost, Ability, Condition, CostPowerToughness }
         feature NominalBareClass { None, Interval, Boundary }
@@ -216,7 +219,7 @@ constructions! {
         category FinitePredicateSeries(number, person, CliticHost);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent);
         category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse);
-        category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct);
+        category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse);
         category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost);
         category SecondarySelectedHead(form, FrameUse, HeadCoordination);
@@ -236,7 +239,7 @@ constructions! {
         category AdjectivePhraseSeries(AdjectiveStructure);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse);
-        category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct);
+        category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(number, person, CliticHost);
@@ -253,7 +256,7 @@ constructions! {
         category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
-            CorrelativeCoordinator);
+            DurationUse, CorrelativeCoordinator);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
         category CorrelativeCardinalSeries(number, CorrelativeCoordinator, CoordinationKind);
         category CorrelativeAmountSeries(CorrelativeCoordinator);
@@ -696,6 +699,7 @@ constructions! {
                 Right.VPFinalAdjunct);
             export ClauseInitialAdjunct = coordinated_initial_adjunct(left.ClauseInitialAdjunct,
                 Right.ClauseInitialAdjunct);
+            export DurationUse = coordinated_duration_use(left.DurationUse, Right.DurationUse);
         }
 
         policy CardinalAgreement<Right, Source> {
@@ -2121,6 +2125,21 @@ constructions! {
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
+        // CGEL Ch. 7 §5.1(d), p. 640: restricted AdvP Complements
+        // include duration use. The lexical licence and its application to
+        // the Oracle equative duration are declared project analyses.
+        construction AdverbComplementPreposition: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: AdverbPhrase];
+            require head.AdverbComplementClass = Duration;
+            require complement.DurationUse = Yes;
+            export SelectedPrepositionUse = No;
+            export NominalComplementMarker = None;
+            export ObliqueNumber = None;
+            export InternalisedComplementMarker = No;
+            export LocativeUse = No;
+            export PrepositionFunctionLicence = Adjunct;
+        }
+
         // CGEL Ch. 8 §2.2: gerund-participials occur under means By independently
         // of passive voice; the same complementation shape also occurs under To.
         construction GerundComplementPreposition: PrepositionPhrase {
@@ -2794,10 +2813,26 @@ constructions! {
             form [value: UnsignedScalar];
         }
 
+        // CGEL Ch. 13 §1.3, p. 1104 describes the scalar-equality governor
+        // and expanded Complement; Ch. 6 §5.2, p. 569 identifies duration
+        // use of the adverb. Applying that analysis to Oracle duration
+        // Complements is the project analysis tested in this ticket.
+        construction EquativeAdverb: AdverbPhrase {
+            form [governor: lexical(Adverb), " ", head: lexical(Adverb), " ",
+                marker: lexical(Preposition), " ", complement: FiniteClause];
+            require governor.ComparisonMarker = Equality;
+            require head.DurationUse = Yes;
+            require marker.ExpandedComparisonMarker = Equality;
+            export DurationUse = head.DurationUse;
+            export VPFinalAdjunct = head.VPFinalAdjunct;
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
+        }
+
         construction Adverb: AdverbPhrase {
             form [head: lexical(Adverb)];
             export VPFinalAdjunct = head.VPFinalAdjunct;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
+            export DurationUse = head.DurationUse;
         }
         instance DepictivePredicate<Result, Properties>: [
             (FinitePredicate, FiniteHeadAgreement),
@@ -2969,6 +3004,10 @@ constructions! {
             (Yes, No) => No,
             (No, Yes) => No,
             (No, No) => No,
+        }
+
+        table coordinated_duration_use(DurationUse, DurationUse) -> DurationUse {
+            (Yes, Yes) => Yes, (Yes, No) => No, (No, Yes) => No, (No, No) => No,
         }
 
         table coordinated_adjective_structure(AdjectiveStructure,

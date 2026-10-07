@@ -221,6 +221,23 @@ as predicative Complements. A participial spelling can also have a distinct
 Adjective analysis, as with *tapped*; sharing a spelling does not turn every
 Participle into an Adjective (CGEL, Ch. 6 §2.4.3, pp. 540–542).
 
+**Duration Adverb**:
+An Adverb expressing temporal extent, as with *long* in *It won't last long*
+(CGEL, Ch. 6 §5.2, p. 569). A duration Adverb Phrase can be a selected
+Complement of a Preposition, as in *for long* (CGEL, Ch. 7 §5.1(d), p. 640).
+_Avoid_: classifying temporal *long* as an Adjective solely from its spelling
+
+**Expanded Comparative Complement**:
+A comparative Complement introduced by its own marker, such as the second
+*as* in a scalar equality comparison (CGEL, Ch. 13 §1.3, p. 1104).
+_Avoid_: treating a marker selected by a different comparative construction as interchangeable
+
+**Scalar Equality**:
+A comparison in which *as* governs a phrase and an expanded Complement
+introduced by a second *as*, as in *as long as …* in the duration sense
+(CGEL, Ch. 13 §1.3, p. 1104; §4.5(d), p. 1134).
+_Avoid_: treating a reanalysed conditional Compound Preposition as a duration comparison
+
 **Adjective Phrase**:
 A phrase headed by an Adjective.
 
@@ -232,7 +249,9 @@ characteristically select Complements.
 A Preposition whose components have coalesced into a single Lexeme, as with
 *instead* and *because*. Its following Complement remains a separate phrase;
 *instead of …* retains the selected marker and its Complement structure
-(CGEL, Ch. 7 §3.1, pp. 622–623).
+(CGEL, Ch. 7 §3.1, pp. 622–623). Conditional *as long as* is a reanalysed
+Compound Preposition meaning “provided”, distinct from the duration
+comparison (CGEL, Ch. 13 §4.5(d), p. 1134).
 _Avoid_: treating every adjacent sequence of Prepositions as one Lexeme
 
 **Preposition Phrase**:
