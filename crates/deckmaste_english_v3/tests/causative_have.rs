@@ -1,12 +1,27 @@
 mod common;
 
-use common::{lexicon, readings};
-use deckmaste_english_v3::grammar::{Category, FrameValue, Reading, Word};
-use deckmaste_lexical::{
-    FeatureBundle, Finiteness, Frame, FrameItem, FrameSlot, LexicalReading, LexicalValue, Lexicon,
-    Number, Person, Relation, SurfaceCase, Tense, WordForm,
-};
 use std::collections::BTreeSet;
+
+use common::lexicon;
+use common::readings;
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::FrameValue;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::Finiteness;
+use deckmaste_lexical::Frame;
+use deckmaste_lexical::FrameItem;
+use deckmaste_lexical::FrameSlot;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Lexicon;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::Person;
+use deckmaste_lexical::Relation;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::Tense;
+use deckmaste_lexical::WordForm;
 
 fn causative(text: &str, category: Category, object: &str, predicates: &[&str]) {
     let values = readings(text, category);
@@ -52,7 +67,10 @@ fn causative(text: &str, category: Category, object: &str, predicates: &[&str]) 
             .unwrap();
         assert_eq!(found.len(), 1, "missing or duplicate causative in {text}");
     }
-    assert_eq!(observed, predicates.iter().map(ToString::to_string).collect());
+    assert_eq!(
+        observed,
+        predicates.iter().map(ToString::to_string).collect()
+    );
 }
 
 #[test]

@@ -30,7 +30,7 @@ before assigning an implementation owner. Concrete starting points are:
   [predicative-*as* orchestrator ruling of 2026-10-06](../done/english-v3-fixed-cost-phrases.md).
   The causative-have orchestrator ruling of 2026-10-07 defers this repair here.
   All 60 supported faces containing *enter/enters as a copy of* remain unread
-  on `ostqqnplnqrm` / covered 19,826 (surface witnesses, not a sole-cause claim):
+  on `xlowzpyyzvzw` / covered 19,826 (surface witnesses, not a sole-cause claim):
   Activated Sleeper, Altered Ego, Auton Soldier, Body Double, Chameleon, Master of
   Disguise, Clever Impersonator, Clone, Copy Artifact, Copy Enchantment, Copy Land,
   Copycrook, Dack's Duplicate, Deceptive Frostkite, Essence of the Wild, Estrid's
@@ -343,7 +343,8 @@ is right and this list needs fixing.
   by `english-v3-remove-from-complement` (discharged 2026-10-07 by that
   landing; see the Remove batch record above); the Have
   `Complement(Object), Complement(VerbPhrase)` row by
-  `english-v3-causative-have`. The other `FrameComplement`, `Object`-role and
+  `english-v3-causative-have` (discharged 2026-10-07: typed Object NP and
+  BarePredicate slots replace the legacy row). The other `FrameComplement`, `Object`-role and
   `ResultativeComplement` rows stay here.
 - The exile resultative frame (`[ObjectNounPhrase, Role("ResultativeComplement")]`
   in `plugins_v2/builtin/macros/keyword_actions/exile.ron`) is declared but has no
