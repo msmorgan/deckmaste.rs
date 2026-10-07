@@ -721,7 +721,12 @@ at a `Subtype` position as its `subtype`, and a designation declaration
 the node raw is refused by name; the projection is the mirror's
 (`Definition::counter_term`, `Definition::subtype_term`,
 `Definition::designation_term`), and `macro_ron` knows nothing of it (ruling,
-2026-10-03; the derive marker, 2026-10-04). What a macro's own
+2026-10-03; the derive marker, 2026-10-04). A keyword action's name reads at a
+`Deed` position the way a designation member's does: the loader registers,
+beside each keyword action declaration, an argument-free macro of the same
+name at `Deed` that denotes `Action(label: <name>)`, and `Deed::Action` is not
+author vocabulary at a restricted read, so `theVerbed(exile, Many)` reads and
+an undeclared name is refused when the card loads (§7, ruling 2026-10-06). What a macro's own
 BODY may write is what a card may write, because a body is read at the
 position it expands to and goes through the same reader. A macro's declared
 signature still determines its hole vocabulary: positional signatures resolve
@@ -788,7 +793,10 @@ pronoun-baking helpers to their general forms (`itsA`, `itsACard`, `itIsntA`,
 `itIsntAnAbility`, `thatTurns`, `revealIt`, `searchTheirLibraryFor`,
 `foundCard`) and the Lean-only `sacrificeIt` and `itOrThem`, and added the
 declared `itPermanent`, `byTurn` and `ownMember` and the Lean-only `oneZone`:
-414 = 314 declarations + the two `counters` macros + 98.)
+414 = 314 declarations + the two `counters` macros + 98. Recounted 2026-10-07
+at `semantics-v2-deed-is-a-name`, which retired the declared `itVerbed` and
+`themVerbed` into `theVerbed`'s optional word: 412 = 312 declarations + the two
+`counters` macros + 98.)
 
 - **A spelled declaration already owns the identity (17).** The keyword
   families keep their own declarations: `companion`, `destroy`, `discard`,

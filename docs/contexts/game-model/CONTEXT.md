@@ -209,7 +209,9 @@ grouped by the relevant observer.
 One of the specialized verbs whose meaning a game rule supplies rather than
 ordinary English ([CR#701.1]). A Keyword Action names something done; a Keyword
 Ability names a quality an Object has. The set is open: a set release adds one,
-so a Keyword Action is named by its declared label, never by a constructor.
+so a Keyword Action is named by its declaration's name (`exile`, `collectEvidence`),
+never by a constructor: a card writes that name bare wherever a Deed is wanted, and a name
+no declaration gives is refused when the card loads.
 
 **Deed**:
 Something a card's text says is done, from one of exactly three sources: the
