@@ -232,7 +232,8 @@ fn independently_constructed_maximum_determiners_preserve_number_and_lexical_own
         );
     }
     // Rampaging War Mammoth: "destroy up to X target artifacts".
-    let variable = Reading::VariableCount {
+    let variable = Reading::ScalarVariable {
+        category: Category::Cardinal,
         form: 0,
         head: word("vocab:Variable/X", WordForm::Invariant, None),
     };

@@ -534,6 +534,7 @@ fn independent_measure_values_preserve_operator_structure_and_notation() {
             FeatureBundle::default(),
         ),
         right: Box::new(Reading::ScalarVariable {
+            category: Category::MeasurePhrase,
             form: 0,
             head: word(
                 "vocab:Variable/X",
@@ -696,7 +697,8 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
         form: 0,
         quantity: Box::new(Reading::CardinalDeterminer {
             form: 0,
-            value: Box::new(Reading::VariableCount {
+            value: Box::new(Reading::ScalarVariable {
+                category: Category::Cardinal,
                 form: 0,
                 head: x.clone(),
             }),

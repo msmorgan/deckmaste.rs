@@ -65,7 +65,8 @@ fn cardinal(value: i32) -> Reading {
 }
 
 fn variable() -> Reading {
-    Reading::VariableCount {
+    Reading::ScalarVariable {
+        category: Category::Cardinal,
         form: 0,
         head: word(
             "vocab:Variable/X",

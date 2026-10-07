@@ -198,6 +198,12 @@ and from a frequency Adjunct.
 The highest ordinary syntactic unit of Oracle text, terminated by sentence
 punctuation and containing one or more Clauses.
 
+**Supplement**:
+Material set apart from an expression and related to it without integration
+into its headed syntax (CGEL, Ch. 15 §5.1, pp. 1350–1351). The variable-defining
+*where X is …* Preposition Phrase is supplementary under the
+[where-variable-clause project analysis](../../tickets/done/english-v3-where-variable-clause.md#project-analysis).
+
 **Parenthetical**:
 Supplementary material set off from the surrounding expression, commonly by
 parentheses. It can refer to preceding linguistic material without becoming a
@@ -297,7 +303,10 @@ predicative complements (CGEL, pp. 633, 1268).
 Project term. The declared set of grammatical functions a Preposition's
 phrase may take in Oracle English: Adjunct, Modifier or Complement of a noun,
 verb-selected Complement, or predicative Complement (CGEL, Ch. 7 §2.1,
-pp. 604–606). The licence is a set of functions, not a kind of Preposition
+pp. 604–606). Supplementary use is additionally licensed under the
+[where-variable-clause project analysis](../../tickets/done/english-v3-where-variable-clause.md#project-analysis);
+this is project policy, not a claim that CGEL treats a Supplement as a syntactic
+dependent. The licence is a set of functions, not a kind of Preposition
 Phrase (CGEL, Ch. 7 §2.2, p. 617, n. 3), and may be narrower than in general
 English. CGEL licenses predicative-*as* phrases in Adjunct function generally
 (Ch. 7 §5.1, p. 637). Their licence in Oracle English admits only the preposed,

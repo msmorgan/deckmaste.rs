@@ -171,6 +171,7 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
             Reading::ScalarPropertyMeasure {
                 form: 0,
                 value: Box::new(Reading::ScalarVariable {
+                    category: Category::MeasurePhrase,
                     form: 0,
                     head: word("vocab:Variable/X", WordForm::Invariant),
                 }),

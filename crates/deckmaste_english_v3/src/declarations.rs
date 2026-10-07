@@ -38,12 +38,13 @@ constructions! {
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
-            PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct } set;
+            PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct, Supplement } set;
         feature CompoundComplementMarker { Of }
         feature PrepositionPhraseComplement { Yes }
         table selected_compound_complement(CompoundComplementMarker, NominalComplementMarker)
             -> Selection { (Of, Of) => Yes, }
         table licence_adjunct(PrepositionFunctionLicence) -> Selection contains Adjunct => Yes;
+        table licence_supplement(PrepositionFunctionLicence) -> Selection contains Supplement => Yes;
         table licence_preposed_adjunct(PrepositionFunctionLicence) -> Selection contains PreposedAdjunct => Yes;
         table licence_modifier(PrepositionFunctionLicence) -> Selection contains Modifier => Yes;
         table licence_noun_complement(PrepositionFunctionLicence) -> Selection contains NounComplement => Yes;
@@ -1578,6 +1579,25 @@ constructions! {
                 require clause.terminal_punctuation = QuotedFullStop;
         }
 
+        // Project analysis: a variable-defining PP supplements the completed
+        // clause or keyword label once. CGEL Ch. 11 §4.8, p. 971 supports
+        // content-clause selection, not this variable-defining application.
+        schema Supplementation {
+            boundary Initial;
+            form [host: node, ", ", supplement: PrepositionPhrase, "."];
+            require licence_supplement(supplement.PrepositionFunctionLicence) = Yes;
+            require host.terminal_punctuation = None;
+        }
+        policy UnlabelledSupplementation {
+            export LabelKind = None;
+        }
+        instance Supplementation<Result, Host: host, Properties>: [
+            (Sentence, Clause, NoFeatures),
+            (Ability, KeywordPhrase, UnlabelledSupplementation),
+        ] {
+            use Properties;
+        }
+
         construction Declarative: Clause {
             form [clause: FiniteClause];
             export UnmarkedConjunctLicence = Yes;
@@ -2740,10 +2760,31 @@ constructions! {
             export number = value.number;
         }
 
-        construction VariableCount: Cardinal {
+        policy VariableCountProperties {
+            export number = Plural;
+        }
+        policy ScalarVariableProperties {
+            export MeasureKind = Scalar;
+        }
+        policy VariableSubjectProperties {
+            export number = Singular;
+            export person = Third;
+            export CaseUse = Nominative;
+            export SubjectStructure = Phrase;
+            export SelectedPrepositionUse = No;
+            export ScalarDenotation = No;
+        }
+        schema ScalarVariable {
             form [head: lexical(Numeral)];
             require head.ScalarVariable = Yes;
-            export number = Plural;
+        }
+        instance ScalarVariable<Result, Properties>: [
+            (Cardinal, VariableCountProperties),
+            (UnsignedScalar, NoFeatures),
+            (MeasurePhrase, ScalarVariableProperties),
+            (NominativePhrase, VariableSubjectProperties),
+        ] {
+            use Properties;
         }
 
         schema QuantitativePrepositionPhrase {
@@ -2860,11 +2901,6 @@ constructions! {
             require head.numeral_sign = Nonnegative;
         }
 
-        construction VariableScalar: UnsignedScalar {
-            form [head: lexical(Numeral)];
-            require head.ScalarVariable = Yes;
-        }
-
         construction UnsignedScalar: ScalarComponent {
             form [value: UnsignedScalar];
         }
@@ -2907,12 +2943,6 @@ constructions! {
             form [head: lexical(Numeral)];
             require head.numeral_kind = Arabic;
             require head.numeral_size = Small;
-            export MeasureKind = Scalar;
-        }
-
-        construction ScalarVariable: MeasurePhrase {
-            form [head: lexical(Numeral)];
-            require head.ScalarVariable = Yes;
             export MeasureKind = Scalar;
         }
 

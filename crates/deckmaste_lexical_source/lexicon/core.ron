@@ -86,6 +86,7 @@
         "vocab:RelativePronoun/Who": {"RelativeUse": "Yes"},
         "lexeme:CommonNoun/End": {"NominalBareClass": "Boundary"},
         "core-verb:Choose": {"PastParticipialPremodifier": "Yes"},
+        "lexeme:keyword_action/sacrifice": {"PastParticipialPremodifier": "Yes"},
         "lexeme:CommonNoun/Way": {"NominalAdjunctClass": "Manner"},
         "lexeme:CommonNoun/Step": {"NominalAdjunctClass": "Temporal"},
         "lexeme:CommonNoun/Turn": {"NominalBareClass": "Interval", "NominalAdjunctClass": "Temporal"},
@@ -819,10 +820,10 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Adverb/Where", lemma: "where", category: Adverb,
-            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
+            id: "vocab:Preposition/Where", lemma: "where", category: Preposition,
+            properties: (countability: [], features: {"PrepositionFunctionLicence": "Supplement", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "ClauseInitialAdjunct": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Where"),
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Where"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
