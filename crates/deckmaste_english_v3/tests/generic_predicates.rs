@@ -379,6 +379,14 @@ fn urzas_ruinous_blast_keeps_the_adjective_inside_the_relative_clause() {
 
 #[test]
 fn sun_droplet_remove_retains_object_and_marked_source_roundtrip() {
+    let frames = &LEXICON.lexemes()["core-verb:Remove"].properties.frames;
+    assert_eq!(frames.len(), 1);
+    assert!(
+        ENVIRONMENT
+            .unsupported_frames()
+            .iter()
+            .all(|entry| !frames.contains(&entry.frame))
+    );
     // Sun Droplet: "...you may remove a charge counter from this artifact."
     let object = accusative(Reading::IndefiniteNounPhrase {
         form: 0,

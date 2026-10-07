@@ -123,7 +123,7 @@
         Predicate([ObjectNounPhrase, Lex("Preposition", "Onto"), ObjectNounPhrase]),
     ]),
     (identity: Remove, bare: "remove", third_person: "removes", preterite: Some("removed"), frames: [
-        Predicate([ObjectNounPhrase, Lex("Preposition", "From"), Role("FrameComplement")]),
+        Predicate([ObjectNounPhrase, MarkedRole("Preposition", "From", "NounPhrase")]),
     ]),
     (identity: Assign, bare: "assign", third_person: "assigns", frames: [
         Predicate([ObjectNounPhrase]),
