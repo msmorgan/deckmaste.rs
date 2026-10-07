@@ -1,18 +1,8 @@
 use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
 
 use deckmaste_lexical::*;
 
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
+use crate::common::LEXICON;
 
 fn value(owner: &str, form: WordForm, number: Number, casing: SurfaceCase) -> LexicalReading {
     LexicalReading::Word(LexicalValue {
@@ -128,7 +118,8 @@ fn exact_internal_spaces_and_free_edges_do_not_guess_partial_multiword_entries()
 #[test]
 fn same_spelled_catalog_entry_does_not_replace_the_ordinary_noun_identity() {
     let noun = LEXICON.lexemes()["lexeme:CommonNoun/ManaValue"].clone();
-    // Deliberately synthetic catalog collision; no claim about a real card name.
+    // Deliberately synthetic catalog collision; no claim about a real card
+    // name.
     let catalog = Lexeme::invariant(
         "catalog:fixture/mana-value",
         "mana value",

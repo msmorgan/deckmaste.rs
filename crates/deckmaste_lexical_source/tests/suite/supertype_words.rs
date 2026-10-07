@@ -1,19 +1,15 @@
 use std::collections::BTreeSet;
-use std::path::Path;
 
-use deckmaste_lexical::{
-    Category, FeatureBundle, LexicalReading, LexicalValue, Lexicon, SurfaceCase, WordForm,
-};
+use deckmaste_lexical::Category;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
 
 #[test]
 fn supertype_adjectives_have_owned_attested_values_without_duplicate_legendary() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lexicon = Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap();
+    let lexicon = &crate::common::LEXICON;
     // Attested modifiers: Cast Down (nonlegendary creature), Blood Moon
     // (Nonbasic lands), Into the North (snow land card). World stays positive.
     for (owner, spelling, negative) in [

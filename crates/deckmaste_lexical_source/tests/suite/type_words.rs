@@ -1,22 +1,17 @@
 use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
 
-use deckmaste_lexical::{
-    Category, Countability, FeatureBundle, LexicalReading, LexicalValue, Lexicon, Number, Onset,
-    SourceKind, SurfaceCase, WordForm,
-};
+use deckmaste_lexical::Category;
+use deckmaste_lexical::Countability;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::Onset;
+use deckmaste_lexical::SourceKind;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
 
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."),
-        )
-        .unwrap()
-        .lexemes,
-    )
-    .unwrap()
-});
+use crate::common::LEXICON;
 
 fn value(owner: &str, number: Number, casing: SurfaceCase) -> LexicalValue {
     LexicalValue {

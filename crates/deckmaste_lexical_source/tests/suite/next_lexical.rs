@@ -1,6 +1,4 @@
 use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::FeatureBundle;
@@ -9,7 +7,6 @@ use deckmaste_lexical::Frame;
 use deckmaste_lexical::FrameItem;
 use deckmaste_lexical::FrameSlot;
 use deckmaste_lexical::LexicalReading;
-use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
 use deckmaste_lexical::Relation;
@@ -18,15 +15,7 @@ use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::Tense;
 use deckmaste_lexical::WordForm;
 
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
+use crate::common::LEXICON;
 
 type Paradigm = BTreeSet<(String, WordForm, FeatureBundle)>;
 

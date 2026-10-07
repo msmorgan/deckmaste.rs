@@ -1,7 +1,8 @@
 use std::error::Error;
 use std::path::Path;
 
-use deckmaste_lexical_source::{LoadError, load_workspace};
+use deckmaste_lexical_source::LoadError;
+use deckmaste_lexical_source::load_workspace;
 
 #[test]
 fn loader_preserves_filesystem_and_decoding_sources_with_paths() {

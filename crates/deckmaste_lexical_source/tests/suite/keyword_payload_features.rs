@@ -1,13 +1,7 @@
-use std::path::Path;
-use std::sync::LazyLock;
-
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
 
-static SOURCES: LazyLock<deckmaste_lexical_source::LexicalSources> = LazyLock::new(|| {
-    deckmaste_lexical_source::load_workspace(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
-        .unwrap()
-});
+use crate::common::SOURCES;
 
 fn entry(lemma: &str, category: Category) -> &'static Lexeme {
     let matches: Vec<_> = SOURCES

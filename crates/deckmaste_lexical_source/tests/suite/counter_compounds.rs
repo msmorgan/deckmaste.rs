@@ -1,18 +1,8 @@
 use std::collections::BTreeSet;
-use std::path::Path;
-use std::sync::LazyLock;
 
 use deckmaste_lexical::*;
 
-static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
-    )
-    .unwrap()
-});
+use crate::common::LEXICON;
 
 fn value(owner: &str, form: WordForm, number: Number) -> LexicalReading {
     LexicalReading::Word(LexicalValue {
