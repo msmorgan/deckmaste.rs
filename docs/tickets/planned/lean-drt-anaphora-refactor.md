@@ -203,3 +203,17 @@ the other creature" [CR#701.14a], is a reciprocal the model lacks. The
 `plugins_v2` fight body writes two damage events by Binding Identity instead;
 the reciprocal was routed to `semantics-v2-anaphor-resolution-heuristics`,
 which closed without it.
+
+## Also routed from `semantics-v2-macro-capture-and-plurality` (2026-10-07): the `reads.rs` mirror
+
+That landing added two checker reads Rust does not port. Lean records a
+Binding Identity on `Binding.idents` (`lean/Semantics/Check/Words.lean`,
+`structure Binding`) and reads it with `identityAddress`/`identityBinding`;
+`crates/deckmaste_semantics_v2/src/reads.rs:627` (`pub struct Binding`) has no
+such field and no identity read. Lean opens a keyword body's own scope
+(`enterOwnScope`, `leaveOwnScope`, the frameless and own-scope cases of
+`enterCaller`); `reads.rs` `enter_caller` (line 817) ports only the capture
+frame. No card behaves differently today: `reads.rs` refuses nothing and no
+lowering reader resolves a `LaterMention` or an `OwnScope` yet, so the gap is a
+mirror gap, not a divergence a card can observe. Item 6 above, which ports this
+refactor's reads to `reads.rs` in the same landing, ports these with them.

@@ -227,11 +227,13 @@ cardIn(hand)", that is, its discard argument reads `cardIn(hand)` rather than
 Series, oldest first, on claim `mtxtksrrnyly` after `kata refresh` onto
 `xwonvpoklkno`: `kqrwyswtlyml` (Lean: Binding Identity, `firstMention` /
 `laterMention`), `lyltytwukxpt` (loader: first mention binds), `mmozwpluvuts`
-(scry, surveil, fateseal, connive bodies; plurality off the amount),
+(scry, surveil, fateseal, connive bodies; plurality off the amount; passes
+the gate on its own: 114 suites, 1382 passed, 0 failed, 1 ignored),
 `qotwpwwluqnq` (keyword action bodies in their own scope, the built-in
 `semantics-v2-keyword-body-reference-scope`), `uvtzsvvxnwsz` (helpers retired),
 `omrwnylqllyo` (fight, regenerate), `kumvmntnrooq` (ADR §12.2, CONTRACTS,
-routing), `tqvwprmkqvwm` (these records). The answer is
+routing), `tqvwprmkqvwm` (these records), `uynukmyktslt` (Burglar Rat),
+`tprplwsksxts` (routing of the `reads.rs` gap). The answer is
 recorded in `docs/decisions/semantics-v2.md` §12.2. B′ worked: the owner's
 2026-10-07 permission to fall back to `Capture(Subject)` was not taken, and the
 §7 ruling stands unamended.
@@ -324,13 +326,17 @@ spelled.
 - Parameters of a type with no `InCaller` constructor (`TokenSpec`,
   `SearchScope`, `Ballot`, `Disclosure`, `String`, `Subtype`) are not read in
   the caller's view. `reads.rs` ports neither identities nor own scopes (no
-  lowering reader needs them yet).
-- Burglar Rat: no body this landing touched is Burglar Rat's; the owner's
-  `cardIn(hand)` was applied to connive's discard.
+  lowering reader needs them yet): routed to `lean-drt-anaphora-refactor`
+  (planned), whose item 6 ports the checker's reads to `reads.rs`.
+- Burglar Rat: the owner's `cardIn(hand)` is applied to its canon body
+  (`discard(a(cardIn(hand)))`, change `uynukmyktslt`) and to connive's
+  discard, so the two do not drift; `lean check` stays 134/134 and every
+  declaration expansion is byte-identical.
 - `keyword_bodies.rs`'s `ALLOWED_RAW`: nothing to strike; no listed file was
   touched and the new bodies are card vocabulary.
 - The 21 macros left in §12.1's "It computes" bucket were not decided one by
-  one; routed to `lean-macros-from-ron` (its "Residue" section).
+  one; routed to `lean-macros-from-ron` (planned, live; its "Residue"
+  section).
 
 **STOPs.** None.
 

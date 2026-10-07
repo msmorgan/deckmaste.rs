@@ -124,4 +124,6 @@ the destroyed creature in the caller's view); `scopedBodyCannotReadTheCaller`;
 Probe" ("Destroy target creature. Its controller amasses Goblins 2.") proves
 through `lean check`. Azog itself is not written: "that creature's power" of a
 destroyed creature needs last-known information the bench's `that` does not
-read. No STOP.
+read. Rust's `reads.rs` does not port the own
+scope; routed to `lean-drt-anaphora-refactor` (its `reads.rs` mirror section).
+No STOP.
