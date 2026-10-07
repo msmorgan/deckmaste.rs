@@ -415,7 +415,7 @@ edit is one comment block. No Construction, frame or test changes are added.
 Assurance for this follow-up: restored 0, re-spelled 0, ignored 0, added 0,
 removed 0.
 
-On `yryvqxsx` (covered 18,646),
+Before refresh, on `yryvqxsx` (covered 18,646),
 `cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/english-v3-cc-followup/census-after.json`
 reproduces 18,646 covered faces and 475,194 Readings. Comparing every supported
 face against the accepted `kowrwwym` census (covered 18,646) finds identical
@@ -424,7 +424,7 @@ losses or count changes. Both reports have the same input and lexical inventory
 digests. Roundtrip, lexical ownership and traversal checks report zero issues;
 duplicate Readings and internal failures are also zero.
 
-On `yryvqxsx` (covered 18,646),
+Before refresh, on `yryvqxsx` (covered 18,646),
 `cargo xtask gate --changed --from kypxyllk --run --clippy` exits 0. The derived
 commands are
 `cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask` and
@@ -437,9 +437,48 @@ reports zero noncompliant strings and `cargo xtask cite check` checks 16,113
 sites with zero stale. The complete diff is piped to
 `cargo xtask cite audit --diff`: zero changed CR citation sites.
 
-Performance advisory for `yryvqxsx` (covered 18,646): corpus wall time is
+Pre-refresh performance advisory for `yryvqxsx` (covered 18,646): corpus wall time is
 103,525,140,855 ns against the inherited quiet-host ceiling of 16,260,000,000 ns;
 checked-text thread CPU is 401,432 ns/B, with 12 workers and host load
 12.8271 / 10.3940 / 10.0200. This run overlapped gate compilation.
 Evidence is retained in the workspace's ignored
 `target/english-v3/english-v3-cc-followup/` directory.
+
+Refresh also imported `yqupppnwlkwk`, the scalar-property-values runtime
+landing. The first integration preceded verification of that refreshed
+runtime; the repeated verification below supersedes the pre-refresh gate.
+The unchanged 18,646-covered / 475,194-Reading census above describes the
+requested comment correction before that trunk landing.
+
+On `xrrvrpoz` (covered 19,170),
+`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/english-v3-cc-followup/census-refreshed.json`
+reports 19,170 covered faces and 542,359 Readings: 7,224 unique, 11,946
+multiple and 13,658 unread. Every face's Reading count, construction inventory
+and analysis status matches refreshed base `yqupppnwlkwk` (covered 19,170).
+This follow-up causes zero gains, losses or count changes; the complete census
+again reports zero issues, duplicate Readings and internal failures.
+
+Trunk-attributed Reading-count decreases: none; `yqupppnwlkwk` adds 524 covered
+faces and 67,165 Readings, with zero count changes on previously covered faces.
+Its 244 named Constructions (201 ordinary + 43 shared schemas) are retained;
+this follow-up adds none. All 1,832 runtime and declaration-dependency digests
+match that landing except the declaration file containing our comment edit.
+The source diff for this follow-up changes comments only.
+
+Refreshed performance advisory for `xrrvrpoz` (covered 19,170): corpus wall time
+is 80,109,163,413 ns against the inherited quiet-host ceiling of 16,260,000,000 ns;
+checked-text thread CPU is 333,060 ns/B, with 12 workers and host load
+7.8901 / 10.0020 / 9.8247. This run also overlapped gate compilation.
+
+On `xrrvrpoz` (covered 19,170),
+`cargo xtask gate --changed --from utqzrqkm --run --clippy` exits 0, deriving
+`cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`
+and
+`cargo clippy -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings`.
+All 780 tests pass, zero fail, and the same one inherited ignore remains;
+strict Clippy passes. The refreshed declaration file passes nightly rustfmt.
+Citation checks from the workspace root again report zero noncompliant strings
+and zero stale citations across 16,113 sites; the piped diff audit selects zero
+changed CR citation sites. `refreshed-runtime-digests.json` and
+`final-refresh-verification.json` retain the measured runtime and final refresh
+check alongside the complete per-face `refreshed-comparison.json`.
