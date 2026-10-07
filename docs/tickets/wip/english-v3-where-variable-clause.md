@@ -207,7 +207,9 @@ constituent probes and the refreshed sacrifice-containing probes have zero
 internal/validation errors and are named in `equated-np-residuals-final.json`.
 Magma Sliver is naturally covered through its existing nominal predicative
 NP (*the number of Slivers on the battlefield*), not a new scalar-denotation
-frame; `X is 2` remains rejected. Semantic variable binding is untouched.
+frame; `X is 2` remains rejected. Semantic variable binding is untouched. The named residual face/constituent
+ledger routes to the live [english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md)
+follow-up; this landing creates no lost-Reading obligation.
 
 At least twelve where gains were checked for the specified attachment and
 lexical owner: Magma Sliver, Ogre Battlecaster, Whiplash, Vengeful Engineer,
@@ -272,6 +274,7 @@ feature value, table, policy and construction is listed above.
 |---|---:|---:|---:|---:|
 | Claim parent `wlmqosnolmnx` / 20,280 | 7,431 | 12,849 | 12,548 | 621,244 |
 | Finished feature `toxwntsklvow` / 20,858 | 7,477 | 13,381 | 11,970 | 651,577 |
+| Refreshed final `wzuorztqvmnl` / 20,858 | 7,477 | 13,381 | 11,970 | 651,577 |
 
 Specificity-resolved selection is not a V3 census category; all Readings are
 retained. The 46 newly unique and 532 newly multiple faces account for the
@@ -287,8 +290,9 @@ in `lexical-owner-delta.json`. No duplicate lexical identity is introduced.
 |---|---:|---|---:|---:|
 | Claim runtime `toxwntsklvow` / 20,280 | 6 | 9.015/13.008/11.099 | 150,121,668,066 | 244,546 ns/B |
 | Finished feature `toxwntsklvow` / 20,858 | 6 | 6.090/7.062/11.304 | 121,275,881,407 | 269,914 ns/B |
+| Refreshed final `wzuorztqvmnl` / 20,858 | 6 | 3.109/6.278/9.081 | 120,059,944,397 | 269,779 ns/B |
 
-Both shared-host coverage runs exceed the 16,260,000,000 ns quiet-host advisory
+All three shared-host coverage runs exceed the 16,260,000,000 ns quiet-host advisory
 ceiling. The final run overlaps the gate; host load differs, so the lower wall
 time and higher per-byte thread CPU do not isolate the causal cost of the change.
 This is a performance advisory. Corpus provenance and exact load values are
@@ -301,8 +305,9 @@ change id; those are different snapshots, not contradictory measurements.
 Full census commands use `cargo xtask english-v3 --all --workers 6
 --samples-per-face 0 --output target/english-v3/english-v3-where-variable-clause/before.json`
 and the same command for `after.json`. Only selector subsets are used for
-iteration and samples. Two full runs have been used before refresh; the third
-is reserved for a changed refresh.
+iteration and samples. Exactly three full runs were used: claim-equivalent baseline, finished
+feature, and refreshed final. The final command uses the same flags with
+`--output target/english-v3/english-v3-where-variable-clause/after-refresh.json`.
 
 The reverse-dependency gate is `cargo xtask gate --changed --from wlmqosnolmnx
 --run`, deriving `cargo test -p deckmaste_lexical_source -p
@@ -315,8 +320,22 @@ selects 0 CR citation sites because no CR citation is changed.
 All census/evidence files are ignored under
 `target/english-v3/english-v3-where-variable-clause/`, including the full gain
 ledger, exact per-face comparisons, focused reports, inventories, NP probes,
-CGEL extracts and verification logs. Final census: `target/english-v3/english-v3-where-variable-clause/after.json`.
-Refresh and integration are pending gate completion.
+CGEL extracts and verification logs. Final census: **`target/english-v3/english-v3-where-variable-clause/after-refresh.json`**.
+
+`kata refresh` exited 0 without conflicts and incorporated sibling ticket
+moves only. The refreshed runtime stamp is
+`wzuorztqvmnlxpmrkqkzsvwtzosrktzv` / covered 20,858. The refreshed base
+declarations are byte-identical to the captured claim parent; both feature
+code patches and the final lexical inventory are unchanged. All 32,828
+per-face Reading counts match the finished-feature census exactly. Relative
+to the refreshed base, every previously covered face retains its count:
+zero Reading decreases, zero removed Readings, and zero trunk-attributed
+decreases. `refresh-proof.json` records the comparison. The successful gate,
+clippy and formatting checks remain applicable to this unchanged code.
+Citation checks on the completed record report 0 noncompliant and 0 stale.
+Evidence is preserved under the same ignored path in default before workspace
+retirement; lifecycle closure uses a final unconditional refresh, integrate,
+and drop from default.
 
 ### Newly covered identities and sampled grammatical analyses
 
