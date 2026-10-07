@@ -388,7 +388,7 @@ mutual
     /-- The `when` rider is the printed "as you activate this ability": the announcement's
     timing, not a condition on what may be chosen. -/
     | choose (first : Option NounPhrase) (chosen : NounPhrase) (disclosure : Disclosure)
-        (when : Option Concurrent) (agent : Option NounPhrase := none)
+        (when : Option Concurrent)
     | revealChoices (sort : HiddenSort)
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
     | move (subject : NounPhrase) (from_ : ZoneExpr) (to : ZoneExpr) (riders : List TokenRider)
@@ -449,7 +449,7 @@ mutual
     | skipUntap (subject : NounPhrase) (steps : Amount)
     | skipPart (part : TurnPart) (count : Amount)
     | insertPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
-        (followedBy : Option TurnPart) (agent : Option NounPhrase := none)
+        (followedBy : Option TurnPart)
 
   inductive KeywordParam where
     | cost (cost : Cost)

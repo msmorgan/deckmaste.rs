@@ -216,8 +216,12 @@ kind, so inside a handoff to a permanent `actor` is the permanent, and
 `act you`, `actor` reads exactly as `you` in every rule.
 
 No instruction writes its performer: the agent fields are gone
-(`semantics-v2-drop-agent-fields`) but `choose`'s optional chooser and
-`insertPart`'s optional taker. Each rule that read one reads the performer in
+(`semantics-v2-drop-agent-fields`), and with them `choose`'s chooser and an
+added turn's taker (`semantics-v2-chooser-and-taker-fields`). A choice is
+judged as the performer's: its chosen phrase must be `agentChoosable`, and
+"starting with you" needs a distributive performer. An added turn is taken by
+the performer [CR#500.7]; an added phase or step is added to the current turn
+[CR#500.8,500.9]. Each rule that read a field reads the performer in
 context, `performerOf perf` (`Check/Abilities.lean`): the actor, or the group a
 handoff hands this very instruction. A handoff to a group (`each opponent`)
 whose body is one instruction that has a performer of its own
@@ -283,13 +287,12 @@ These are checker guarantees, not an execution proof.
 
 ## Scheduling fields
 
-For `skipUntap`, `skipPart`, `addTurn`, and `addPart`, let `bs`
-be the input context. The subject (for `skipPart`, the performer in context)
-is checked in `bs`. Its amount is checked in
-`nomIntro bs subject`; an absent optional subject leaves `bs` unchanged through
-`optAgentIntro`. Part, anchor, and following-part fields carry no references.
+For `skipUntap`, `skipPart`, and `insertPart`, let `bs`
+be the input context. The subject (for `skipPart` and `insertPart`, the
+performer in context) is checked in `bs`. Its amount is checked in
+`nomIntro bs subject`. Part, anchor, and following-part fields carry no references.
 No scheduling field introduces an enclosed scope. The output is
-`Amount.intro afterSubject amount`; `addTurn` additionally puts `turnRefB`
+`Amount.intro afterSubject amount`; an added turn additionally puts `turnRefB`
 on the announced/output context, after checking the amount. Its pre-context
 has no turn reference. These inputs apply equally to checks and profiles.
 

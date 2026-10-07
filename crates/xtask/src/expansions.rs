@@ -922,7 +922,6 @@ mod tests {
                     ),
                     disclosure: Openly,
                     when: None,
-                    agent: Some(Actor),
                 ),
                 PutCounters(
                     amount: Lit(value: {amount}),

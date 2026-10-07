@@ -533,12 +533,11 @@ semantic_macro shuffleInto (subject : NounPhrase) : Instruction :=
 semantic_macro doIf (condition : Condition) (instruction : Instruction) : Instruction :=
   .doIf condition instruction none
 /-- "choose <subject>" -/
-semantic_macro choose (subject : NounPhrase) (disclosure : Disclosure := .openly)
-    (agent : Option NounPhrase := none) : Instruction :=
-  .choose none subject disclosure none (agent := agent)
+semantic_macro choose (subject : NounPhrase) (disclosure : Disclosure := .openly) : Instruction :=
+  .choose none subject disclosure none
 /-- "choose <subject> as you <event>" -/
 semantic_macro chooseWhile (subject : NounPhrase) (while_ : Concurrent) : Instruction :=
-  .choose none subject .openly (some while_) (agent := none)
+  .choose none subject .openly (some while_)
 semantic_macro rollDice (count : Nat) (sides : Nat) : Instruction :=
   .rollDice (.lit count) (.sides sides)
 /-- One row of a results table: "<results> — <instruction>". -/
@@ -671,15 +670,14 @@ semantic_macro attachToIt (what : NounPhrase) : Instruction :=
   Primitives.Instruction.attachTo what (.pro .bare .one (.outsideIntroduced ((NounPhrase.introduced [] what).map Binding.kind)))
 /-- "there is an additional <part> [after <anchor>]" -/
 semantic_macro addPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount) : Instruction :=
-  Primitives.Instruction.addPart part anchor count none (agent := none)
+  Primitives.Instruction.addPart part anchor count none
 /-- "there is an additional <part> after this phase, followed by an additional <next>" -/
 semantic_macro addPartThen (part : TurnPart) (anchor : Option TurnPart) (count : Amount) (next : TurnPart) :
     Instruction :=
-  Primitives.Instruction.addPart part anchor count (some next) (agent := none)
+  Primitives.Instruction.addPart part anchor count (some next)
 /-- "<player> gets an additional <part>" -/
-semantic_macro getAdditionalPart (part : TurnPart) (count : Amount) (agent : NounPhrase := Primitives.NounPhrase.you) :
-    Instruction :=
-  Primitives.Instruction.addPart part none count none (agent := some agent)
+semantic_macro getAdditionalPart (part : TurnPart) (count : Amount) : Instruction :=
+  Primitives.Instruction.addPart part none count none
 /-- "<subject> can't attack [this turn]" -/
 semantic_macro forbidAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .establish (.deonticRule subject .forbid [.core .attack] .agent none .noPatient none .noRider)
@@ -806,8 +804,7 @@ semantic_macro proliferate : Instruction :=
   .enact (.action "Proliferate") (.sequentially
       [ .choose none (counted anyNumber
             (.or [ .and [permanent, .hasCounters none],
-                   .compare [.anyCounter .player] .atLeast (.lit 1) ])) .openly none (agent :=
-                       none),
+                   .compare [.anyCounter .player] .atLeast (.lit 1) ])) .openly none,
         .putCounters (.lit 1) .own (.eachOf (those .join)) ])
 /-- "amass <subtype> N" with its reminder text [CR#701.47a]: "If you don't control an Army,
 create a 0/0 black <subtype> Army creature token. Choose an Army you control. Put N +1/+1
@@ -944,9 +941,9 @@ semantic_macro cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p
 
 An instruction's performer is not written: it is `actor`, the controller [CR#109.5] unless an
 enclosing `act` hands the instruction to another player or a permanent. No instruction carries a
-performer field but `choose` and `insertPart`, whose optional slots stay. The `Actor` helpers
-below are the spellings the plain macros lack: the performer's own hand (`revealHand`,
-`discard`), a choice that records its chooser (`choose`), a permission, an Army and amass. -/
+performer field: a choice's chooser and an added turn's taker are the actor too. The `Actor`
+helpers below are the spellings the plain macros lack: the performer's own hand (`revealHand`,
+`discard`), a permission, an Army and amass. -/
 
 /-- "whoever performs this instruction" -/
 semantic_macro actor : NounPhrase := .actor
@@ -960,10 +957,6 @@ namespace Actor
 
 /-- "<performer> reveals their hand" -/
 semantic_macro revealHand : Instruction := .expose .reveal (.zone (handOf .actor))
-/-- "<performer> chooses <subject>": a choice that records its chooser, the performer (a
-`choose` keeps its optional chooser slot). -/
-semantic_macro choose (subject : NounPhrase) : Instruction :=
-  .choose none subject .openly none (agent := some .actor)
 /-- "<performer> discards <subject>": a move from the performer's hand to the graveyard
 [CR#701.9a]. -/
 semantic_macro discard (subject : NounPhrase) : Instruction :=

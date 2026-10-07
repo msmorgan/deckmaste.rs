@@ -22,13 +22,13 @@ theorem identicalModesAllowed :
 /-- "Choose a player or planeswalker." -/
 theorem okChoosePlayerOrPlaneswalker :
     Instruction.check []
-      (.choose none (a (.or [.hasType .planeswalker, .anyPlayer])) .openly none (agent := none)) =
+      (.choose none (a (.or [.hasType .planeswalker, .anyPlayer])) .openly none) =
           [] := by
   decide
 
 /-- "Choose you." -/
 theorem badChooseYou :
-    Instruction.check [] (.choose none .you .openly none (agent := none)) = [.choiceClause] := by
+    Instruction.check [] (.choose none .you .openly none) = [.choiceClause] := by
         decide
 
 theorem badConditionalArmAntecedent :
@@ -61,16 +61,16 @@ theorem okAgentChoiceOfSome :
     Instruction.check []
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
-          .choose none (someOf (exactly 1) them) .openly none (agent := (some .you)) ]) = [] := by
+          .choose none (someOf (exactly 1) them) .openly none ]) = [] := by
   decide
 
-/-- "Look at the top four cards of your library. Choose one of them." -/
-theorem badChooseSomeOf :
+/-- "Look at the top four cards of your library. Choose one of them." The chooser is the actor
+in context, so the bare imperative is the same term as "You choose one of them." -/
+theorem okChooseSomeOf :
     Instruction.check []
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
-          .choose none (someOf (exactly 1) them) .openly none (agent := none) ]) = [.choiceClause]
-              := by
+          .choose none (someOf (exactly 1) them) .openly none ]) = [] := by
   decide
 
 /-- "Exile target creature." -/
@@ -130,7 +130,7 @@ theorem badHappenedToPlayerDied :
 
 /-- "Choose a creature you control." -/
 theorem okChooseIndefinite :
-    Instruction.check [] (.choose none (a creatureYouControl) .openly none (agent := none)) = [] :=
+    Instruction.check [] (.choose none (a creatureYouControl) .openly none) = [] :=
         by decide
 
 /-- "Choose the creature with the least toughness among creatures you control." -/
@@ -138,7 +138,7 @@ theorem badChooseDefinite :
     Instruction.check []
       (.choose none
         (the (.and [creature, .superlative .min (.stat .toughness) creatureYouControl]))
-        .openly none (agent := none)) = [.choiceClause] := by
+        .openly none) = [.choiceClause] := by
   decide
 
 /-- "This deals 1 damage to that permanent or player." -/
@@ -784,7 +784,7 @@ theorem badIndefiniteChosenPlayerRead :
 
 /-- "that turn" after exactly one extra turn is minted -/
 theorem okThatTurnAfterOneTurn :
-    NounPhrase.check (some .turnRef) (Instruction.intro [] (Primitives.Instruction.addTurn (.lit 1) (agent := .you)))
+    NounPhrase.check (some .turnRef) (Instruction.intro [] (Primitives.Instruction.addTurn (.lit 1)))
         thatTurn
       = [] := by
   decide
@@ -923,7 +923,7 @@ theorem badOwnTwoInDelta :
 theorem distributedDeedReadsBackPlural :
     Instruction.check []
       (.sequentially
-        [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them],
+        [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .many) ]) = [] := by
   decide
 
@@ -940,7 +940,7 @@ theorem okTheVerbedAfterSingularDiscard :
 theorem badDistributedDiscardSingular :
     Instruction.check []
       (.sequentially
-        [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them],
+        [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
       = [.anaphor (.verbed (.action "Discard") .card .attributive) .one 0] := by
   decide

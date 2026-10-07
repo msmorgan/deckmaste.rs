@@ -117,7 +117,7 @@ def thunderwave : Spelled := spelled <| .singleFaced
                 [ rollRow (fromTo 1 9) (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (each creature)),
                   rollRow (fromTo 10 19)
                     (Primitives.Instruction.sequentially
-                      [ offer (choose (a creature) (agent := some Primitives.NounPhrase.you)),
+                      [ offer (choose (a creature)),
                         Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (each (Primitives.Predicate.and [creature, Primitives.Predicate.notChosen])) ]),
                   rollRow (fromTo 20 20)
                     (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 6)
@@ -221,7 +221,7 @@ def purgingScythe : Ability :=
         Primitives.Instruction.doIf
           (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [creature, Primitives.Predicate.superlative .min (.stat .toughness) creature]))
             .atLeast (.lit 2))
-          (choose (someOf (exactly 1) them) (agent := some Primitives.NounPhrase.you)) none ])
+          (choose (someOf (exactly 1) them)) none ])
 theorem okPurgingScythe : Ability.check [] purgingScythe = [] := by decide
 
 def lionHeart : Spelled := spelled <| .singleFaced

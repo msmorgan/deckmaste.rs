@@ -212,10 +212,10 @@ mutual
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' grp ++
         refuse (facesFit faces piles) .facesFit ++ refuse (grp.plur == .many) .plural
-    | .choose first n _ when by0 => let by_ := perf.orElse (fun _ => by0);
-      OptNoun.check (some .player) bs first ++ OptNoun.check (some .player) bs by_ ++
-        NounPhrase.check none (agentCtx bs by_) n ++ refuse (choiceOrderOk first by_) .choiceOrder ++
-        refuse (choiceClauseOk by_ n) .choiceClause ++ OptConcurrent.check bs when
+    | .choose first n _ when => let by_ := performerOf perf;
+      OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs by_ ++
+        NounPhrase.check none (agentIntro bs by_) n ++ refuse (choiceOrderOk first (some by_)) .choiceOrder ++
+        refuse n.agentChoosable .choiceClause ++ OptConcurrent.check bs when
     | .vote first _ ballot => let voters := performerOf perf;
       let bs' := optAgentIntro bs first
       OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs' voters ++
@@ -404,9 +404,9 @@ mutual
         zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .skipPart _ count => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
-    | .insertPart part anchor count followedBy who0 => let who := perf.orElse (fun _ => who0);
-      OptNoun.check (some .player) bs who ++ Amount.check (optAgentIntro bs who) count ++
-        refuse (part.proper || (part == .turn && who.isSome && anchor.isNone && followedBy.isNone))
+    | .insertPart part anchor count followedBy => let who := performerOf perf;
+      NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count ++
+        refuse (part.proper || (part == .turn && anchor.isNone && followedBy.isNone))
           .windowOk ++ refuse (anchor.elim true TurnPart.proper) .windowOk ++
         refuse (followedBy.elim true TurnPart.proper) .windowOk
   termination_by structural e => e

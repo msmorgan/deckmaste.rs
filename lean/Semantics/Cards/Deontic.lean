@@ -420,7 +420,7 @@ def wormfangManta : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Flying",
           when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.skipPart .turn (.lit 1)),
-          when (leavesBattlefield thisCreature) (Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you)) ],
+          when (leavesBattlefield thisCreature) (Primitives.Instruction.addTurn (.lit 1)) ],
       power := stat 6, toughness := stat 1 } }
 
 def eaterOfDaysSkip : Instruction := Primitives.Instruction.skipPart .turn (.lit 2)

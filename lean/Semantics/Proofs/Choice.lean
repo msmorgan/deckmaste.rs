@@ -295,7 +295,7 @@ def upToOneTheyControl : NounPhrase :=
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 def distributedRestOfOwnChoice : Instruction :=
   .sequentially
-    [ act (each .anyPlayer) (choose upToOneTheyControl (agent := some actor)),
+    [ act (each .anyPlayer) (choose upToOneTheyControl),
       act (each .anyPlayer) (sacrifice (theRest .object)) ]
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." The
@@ -305,7 +305,7 @@ theorem okDistributedRestOfOwnChoice : Instruction.check [] distributedRestOfOwn
   decide
 
 def afterDistributedChoice : Bindings :=
-  Instruction.intro [] (act (each .anyPlayer) (choose upToOneTheyControl (agent := some actor)))
+  Instruction.intro [] (act (each .anyPlayer) (choose upToOneTheyControl))
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 theorem okDistributedRestStands :
@@ -324,7 +324,7 @@ theorem badDistributedRestDisposedTwice :
 /-- "Tap all creatures. Each player chooses up to one creature they control." -/
 theorem okSharedGroupWithoutARest :
     Instruction.check []
-      (.sequentially [tap (allOf creature), act (each .anyPlayer) (choose upToOneTheyControl (agent := some actor))])
+      (.sequentially [tap (allOf creature), act (each .anyPlayer) (choose upToOneTheyControl)])
       = [] := by
   decide
 
@@ -347,7 +347,7 @@ theorem badDistributedRestOfSharedGroup :
     Instruction.check []
       (.sequentially
         [ tap (allOf creature),
-          act (each .anyPlayer) (choose upToOneTheyControl (agent := some actor)),
+          act (each .anyPlayer) (choose upToOneTheyControl),
           act (each .anyPlayer) (sacrifice (theRest .object)) ]) = [.enactKeepsOuter] := by
   decide
 
@@ -396,7 +396,7 @@ theorem badGetsGraveyard :
 theorem okNotChosenAfterOneChoice :
     Instruction.check []
       (.sequentially
-        [ choose (a creature) (agent := some .you),
+        [ choose (a creature),
           .dealDamage .this (.lit 3) (each (.and [creature, .notChosen])) ]) = [] := by
   decide
 
@@ -413,8 +413,8 @@ way.": "this way" names the manner, so both standing choices are excluded togeth
 theorem okNotChosenAfterTwoChoices :
     Instruction.check []
       (.sequentially
-        [ choose (a creature) (agent := some .you),
-          choose (a creature) (agent := some .you),
+        [ choose (a creature),
+          choose (a creature),
           .dealDamage .this (.lit 3) (each (.and [creature, .notChosen])) ]) = [] := by
   decide
 
@@ -425,14 +425,14 @@ theorem okNotChosenAcrossChoosers :
     Instruction.check []
       (.sequentially
         [ choose (a creatureYouControl),
-          act (each .opponent) (choose (a (.and [creature, .hasPossessor .controller they])) (agent := some actor)),
+          act (each .opponent) (choose (a (.and [creature, .hasPossessor .controller they]))),
           destroy (each (.and [creature, .notChosen])) ]) = [] := by
   decide
 
 /-- "Each player chooses a creature they control." [CR#700.8d] -/
 theorem okAgentScopedChoice :
     Instruction.check []
-      (act (each .anyPlayer) (choose (a (.and [creature, .hasPossessor .controller they])) (agent := some actor))) = [] := by
+      (act (each .anyPlayer) (choose (a (.and [creature, .hasPossessor .controller they])))) = [] := by
   decide
 
 /-- "Choose a creature they control.": the chooserless spelling has no antecedent for "they"
@@ -446,7 +446,7 @@ theorem badUnchooseredTheyControl :
 theorem okChoiceStartingWithYou :
     Instruction.check []
       (act (each .anyPlayer) (.choose (some .you)
-        (a (.and [creature, .hasPossessor .controller they])) .openly none (agent := some actor))) = [] := by
+        (a (.and [creature, .hasPossessor .controller they])) .openly none)) = [] := by
   decide
 
 /-- "Starting with you, target player chooses a creature.": one player makes the choice, so
@@ -454,7 +454,7 @@ there is no order for "starting with" to fix [CR#101.4] (`okChoiceStartingWithYo
 same order over a distributive chooser). -/
 theorem badOrderedSingularChooser :
     Instruction.check []
-      (act (target .anyPlayer) (.choose (some .you) (a creature) .openly none (agent := some actor)))
+      (act (target .anyPlayer) (.choose (some .you) (a creature) .openly none))
       = [.choiceOrder] := by
   decide
 
@@ -462,7 +462,7 @@ theorem badOrderedSingularChooser :
 theorem okChoseThisWayAfterChoice :
     Instruction.check []
       (.sequentially
-        [choose (a creature) (agent := some .you), doIf (.choseThisWay .you creature) (draw (.lit 1))])
+        [choose (a creature), doIf (.choseThisWay .you creature) (draw (.lit 1))])
       = [] := by
   decide
 
@@ -475,7 +475,7 @@ theorem badChoseThisWayWithoutAChoice :
 
 /-- "Each player chooses a creature. Exile them." -/
 theorem okDistributedChoiceReadsAsGroup :
-    Instruction.check [] (.sequentially [act (each .anyPlayer) (choose (a creature) (agent := some actor)), exile
+    Instruction.check [] (.sequentially [act (each .anyPlayer) (choose (a creature)), exile
         them])
       = [] := by
   decide
@@ -484,7 +484,7 @@ theorem okDistributedChoiceReadsAsGroup :
 chooser, so the singular read has no antecedent (`okDistributedChoiceReadsAsGroup` is the
 plural read). -/
 theorem badDistributedChoiceReadSingular :
-    Instruction.check [] (.sequentially [act (each .anyPlayer) (choose (a creature) (agent := some actor)), exile
+    Instruction.check [] (.sequentially [act (each .anyPlayer) (choose (a creature)), exile
         it])
       = [.anaphor .bare .one 0] := by
   decide
@@ -577,7 +577,7 @@ gate is the plural choice. -/
 theorem okChoseExtremeAfterNumbers :
     Instruction.check []
       (.sequentially
-        [ act (each .anyPlayer) (choose (disclosure := .secretly) (a (quality .number)) (agent := some actor)),
+        [ act (each .anyPlayer) (choose (disclosure := .secretly) (a (quality .number))),
           .revealChoices .numbers,
           act (each (.and [.anyPlayer, .choseExtreme .max])) (loseLife .thatMuch) ]) = [] := by
   decide
@@ -609,14 +609,12 @@ theorem okColorRefinementWithColorDomain :
 
 theorem badCompleteColorChoiceWithPlayerDomain :
     Instruction.check [] (.choose none
-      (.described (.a .unmarked) (.qualityNoun .color (some (.players .opponent)))) .openly none
-          (agent := (some .you)))
+      (.described (.a .unmarked) (.qualityNoun .color (some (.players .opponent)))) .openly none)
       = [.kindAxisSort] := by decide
 
 theorem okCompleteColorChoiceWithColorDomain :
     Instruction.check [] (.choose none
-      (.described (.a .unmarked) (.qualityNoun .color (some (.colorOtherThan .red)))) .openly none
-          (agent := (some .you)))
+      (.described (.a .unmarked) (.qualityNoun .color (some (.colorOtherThan .red)))) .openly none)
       = [] := by decide
 
 theorem badEntersChoiceDomainSort :

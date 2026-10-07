@@ -708,7 +708,7 @@ theorem okAgentChoosesSomeOf :
     Instruction.check []
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
-          act (a .opponent) (.choose none (someOf (exactly 1) them) .openly none (agent := some actor)) ]) =
+          act (a .opponent) (.choose none (someOf (exactly 1) them) .openly none) ]) =
               [] := by
   decide
 
@@ -716,7 +716,7 @@ theorem badAgentChooseTheRest :
     Instruction.check []
       (.sequentially
         [ lookAt (topSlice (.lit 4)), .move (someOf (exactly 1) them) .wherever hand [],
-          act (a .opponent) (.choose none (theRest .object) .openly none (agent := some actor)) ])
+          act (a .opponent) (.choose none (theRest .object) .openly none) ])
             = [.choiceClause] := by
   decide
 
@@ -795,7 +795,7 @@ theorem badRegeneratedInGraveyard :
 /-- "Each opponent discards a card. Simultaneously, exile those cards." -/
 theorem distributedDeedReadsBackPluralUnderAnnouncement :
     Instruction.check []
-      (.simultaneously [.sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them], exile (those
+      (.simultaneously [.sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them], exile (those
           .card)])
         = [] := by
   decide
@@ -810,7 +810,7 @@ theorem okThatAfterSingularDiscard :
 /-- "Each opponent discards a card. Simultaneously, exile that card." -/
 theorem badDistributedAnnouncedDiscardSingular :
     Instruction.check []
-      (.simultaneously [.sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them], exile (that
+      (.simultaneously [.sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them], exile (that
           .card)])
       = [.anaphor (.word .card) .one 0] := by
   decide

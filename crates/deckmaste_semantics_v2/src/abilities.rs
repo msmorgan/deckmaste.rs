@@ -863,7 +863,6 @@ pub enum Instruction {
         chosen: NounPhrase,
         disclosure: Disclosure,
         when: Option<Concurrent>,
-        agent: Option<NounPhrase>,
     },
     RevealChoices {
         sort: HiddenSort,
@@ -1068,7 +1067,6 @@ pub enum Instruction {
         anchor: Option<TurnPart>,
         count: Amount,
         followed_by: Option<TurnPart>,
-        agent: Option<NounPhrase>,
     },
 }
 

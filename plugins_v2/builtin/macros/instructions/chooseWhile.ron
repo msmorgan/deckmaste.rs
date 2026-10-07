@@ -3,5 +3,5 @@
     name: "chooseWhile",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "while": Concurrent},
-    body: Choose(first: None, chosen: Param(subject), disclosure: Openly, when: Param(while), agent: None),
+    body: Choose(first: None, chosen: Param(subject), disclosure: Openly, when: Param(while)),
 )

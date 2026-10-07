@@ -407,10 +407,10 @@ def actorCtx (bs : Bindings) (who : NounPhrase) : Bindings :=
 does, and an offer, whose performer decides. A handoff to a group hands such an instruction to
 each member, as its performer. -/
 def Instruction.performed : Instruction → Bool
-  | .conclude _ | .separateIntoPiles _ _ _ | .choose _ _ _ _ _ | .vote _ _ _
+  | .conclude _ | .separateIntoPiles _ _ _ | .choose _ _ _ _ | .vote _ _ _
   | .copy _ _ _ _ | .changeLife _ | .addMana _ _ _ | .draw _ | .expose _ _
   | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _ | .rerollStored _ _
-  | .createObject _ _ | .enact _ _ | .pay _ _ | .skipPart _ _ | .insertPart _ _ _ _ _
+  | .createObject _ _ | .enact _ _ | .pay _ _ | .skipPart _ _ | .insertPart _ _ _ _
   | .withContinuation .optional _ _ _ => true
   | _ => false
 
@@ -1039,14 +1039,14 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .withBindings _ _ body | .inCaller _ body => body.reflexEncloseUse
   | .skipPart _ _ => .notYetTaken
-  | .insertPart _ _ _ _ (some _) => .notYetTaken
+  | .insertPart .turn _ _ _ => .notYetTaken
   | .establish spec _ =>
     match spec.scopeBody with
     | .controlGrant _ _ => .reflexive
     | _ => .agentless
   | .pay _ _ | .enact _ _ | .separateIntoPiles _ _ _ | .chooseNewTargets _ | .createObject _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
-  | .move _ _ _ _ | .expose _ _ | .addMana _ _ _ | .draw _ | .choose _ _ _ _ _ | .vote _ _ _
+  | .move _ _ _ _ | .expose _ _ | .addMana _ _ _ | .draw _ | .choose _ _ _ _ | .vote _ _ _
   | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _
   | .rerollStored _ _ => .reflexive
   | .applyResultsTable _ => .notOneAction
@@ -1090,8 +1090,7 @@ mutual
     | .inCaller _ body => body.costActionOk
     | .dealDamage src _ _ => src.costNounOk
     | .skipUntap n _ => n.costNounOk
-    | .insertPart _ _ _ _ none => true
-    | .insertPart _ _ _ _ (some who) => who.costNounOk
+    | .insertPart _ _ _ _ => true
     | .distribute _ _ among => among.costNounOk
     | .turnOver n => n.costNounOk
     | .setStatus _ n => n.costNounOk
@@ -1109,7 +1108,7 @@ mutual
     | .copy _ what _ _ => what.costNounOk
     | .chooseNewTargets what => what.costNounOk
     | .copyTargets cp _ => cp.costNounOk
-    | .choose _ n _ _ _ => n.costNounOk
+    | .choose _ n _ _ => n.costNounOk
     | .move what _ _ _ => what.costNounOk
     | .exchange what => what.costOk
     | .addMana _ _ _ | .expose _ _ | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _
@@ -1230,8 +1229,8 @@ mutual
     | .setStatus _ n => sameIntro (nomIntro bs n) []
     | .skipUntap n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
     | .skipPart _ count => let w := performerOf perf; sameIntro (Amount.intro (nomIntro bs w) count) []
-    | .insertPart part _ count _ who0 => let who := perf.orElse (fun _ => who0);
-      let afterCount := Amount.intro (optAgentIntro bs who) count
+    | .insertPart part _ count _ => let who := performerOf perf;
+      let afterCount := Amount.intro (nomIntro bs who) count
       if part == .turn then ⟨afterCount, turnRefB :: afterCount, none, []⟩
       else sameIntro afterCount []
     | .combat n update =>
@@ -1261,7 +1260,7 @@ mutual
           copyPayloadIn k what.isAbility (NounPhrase.ty bs' what) (src.landsIn (NounPhrase.zone bs' what))⟩]
     | .chooseNewTargets what => sameIntro (nomIntro bs what) []
     | .copyTargets cp whom => sameIntro (nomIntro (nomIntro bs cp) whom) []
-    | .choose _ n _ _ by0 => let by_ := perf.orElse (fun _ => by0); sameIntro (chooseIntro bs by_ n) []
+    | .choose _ n _ _ => let by_ := performerOf perf; sameIntro (chosenIntroBy bs by_.plur by_ n) []
     | .revealChoices _ => sameIntro bs []
     | .vote _ _ _ => sameIntro bs [outcomeB .voteHeld]
     | .move what _ to _ =>
@@ -1509,8 +1508,8 @@ def Ability.namesThisDoor : Ability → Bool
 mutual
   def Instruction.introducedChoices : Instruction → List Binding
     | .withBindings _ _ body | .inCaller _ body => body.introducedChoices
-    | .choose _ (.described (.a _) p) _ _ _ => introducedChoiceAt (p.kindOr .object)
-    | .choose _ _ _ _ _ => []
+    | .choose _ (.described (.a _) p) _ _ => introducedChoiceAt (p.kindOr .object)
+    | .choose _ _ _ _ => []
     | .sequentially es => Instruction.introducedChoicesAll es
     | .withContinuation _ body _ _ => body.introducedChoices
     | .act _ body => body.introducedChoices
@@ -1703,7 +1702,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .attachment _ _ _ | .clearDamage _ | .doAndForbid _ _ _ => []
   | .gainDesignation _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ => []
   | .drawGame | .restartGame | .separateIntoPiles _ _ _ => []
-  | .choose _ _ _ _ _ | .revealChoices _ | .vote _ _ _ => []
+  | .choose _ _ _ _ | .revealChoices _ | .vote _ _ _ => []
   | .move _ _ _ riders => TokenRider.ridersSlots riders
   -- How many copies to make: a count [CR#107.1b].
   | .copy _ _ times _ => [(times, .clamped)]
@@ -1744,6 +1743,6 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .triggerReflexively _ _ | .triggerThisWay _ _ _ => []
   | .skipUntap _ steps => [(steps, .clamped)]
   | .skipPart _ count => [(count, .clamped)]
-  | .insertPart _ _ count _ _ => [(count, .clamped)]
+  | .insertPart _ _ count _ => [(count, .clamped)]
 
 end Semantics

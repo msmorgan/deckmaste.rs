@@ -4,5 +4,5 @@
     name: "choose",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "disclosure": Default(Disclosure, Openly)},
-    body: Choose(None, Param(subject), Param(disclosure), None, actor),
+    body: Choose(None, Param(subject), Param(disclosure), None),
 )

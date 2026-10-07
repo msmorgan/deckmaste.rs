@@ -89,7 +89,7 @@ private def literalAmass : Instruction :=
     [ .doIf (.not (exists_ Actor.army))
         (create (.lit 1) (creatureToken 0 0 [.black] [creatureType "Orc", creatureType "Army"]))
         none,
-      Actor.choose (a Actor.army),
+      choose (a Actor.army),
       .putCounters (.lit 2) (.printed p1p1Counter) (that (.type .creature)),
       .doIf (itIsntA (.hasSubtype (creatureType "Orc")))
         (.establish (Primitives.StaticSpec.qualityChange it .adds
@@ -340,19 +340,19 @@ theorem okEachOpponentMayPayElseYouDrawUnless :
 (`Choice.okAgentScopedChoice` through the chooser slot). -/
 theorem okHandedScopedChoice :
     Instruction.check []
-      (act (each .anyPlayer) (Actor.choose (a (.and [creature, .hasPossessor .controller they]))))
+      (act (each .anyPlayer) (choose (a (.and [creature, .hasPossessor .controller they]))))
       = [] := by
   decide
 
 /-- "Choose a creature you control.", "you" being the performer. -/
-theorem okActorControlsChoice : Instruction.check [] (Actor.choose (a (.and [creature, actorControls]))) = [] := by
+theorem okActorControlsChoice : Instruction.check [] (choose (a (.and [creature, actorControls]))) = [] := by
   decide
 
 /-- "You choose a creature they control.": `act you` publishes nothing, so "they" has no
 antecedent (`Choice.badUnchooseredTheyControl`). -/
 theorem badHandedToYouTheyControl :
     Instruction.check []
-      (act .you (Actor.choose (a (.and [creature, .hasPossessor .controller they]))))
+      (act .you (choose (a (.and [creature, .hasPossessor .controller they]))))
       = [.anaphor (.word .player) .one 0] := by
   decide
 

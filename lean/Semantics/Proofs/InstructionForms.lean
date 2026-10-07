@@ -14,15 +14,15 @@ theorem exileNamedAgent :
         (Instruction.enact (.action "Exile") (.move thisPermanent .wherever exileZone [])) := by rfl
 
 theorem chooseOmittedAgent :
-    choose (a creature) = Instruction.choose none (a creature) .openly none none := by rfl
+    choose (a creature) = Instruction.choose none (a creature) .openly none := by rfl
 
 theorem chooseNamedAgent :
-    choose (a creature) (agent := NounPhrase.you) =
-      Instruction.choose none (a creature) .openly none (some .you) := by rfl
+    act .you (choose (a creature)) =
+      Instruction.act .you (Instruction.choose none (a creature) .openly none) := by rfl
 
 theorem chooseSecretlyNamedAgent :
-    choose (a creature) (disclosure := .secretly) (agent := NounPhrase.you) =
-      Instruction.choose none (a creature) .secretly none (some .you) := by rfl
+    act .you (choose (a creature) (disclosure := .secretly)) =
+      Instruction.act .you (Instruction.choose none (a creature) .secretly none) := by rfl
 
 theorem millNamedAgent :
     mill (.lit 3) .you =

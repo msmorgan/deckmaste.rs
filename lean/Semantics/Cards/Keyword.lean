@@ -1137,7 +1137,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
         [ keywordCosting "Spectacle" (Primitives.Cost.mana [generic 3, pip .black, pip .red]),
           triggeredIf (Primitives.GameEvent.enters thisCreature none)
             (costWasPaid (.byKeyword "Spectacle") none thisCreature)
-            (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them]) ],
+            (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))), discard them]) ],
       power := stat 4, toughness := stat 2 } }
 
 /-- Tourach, Dread Cantor -/

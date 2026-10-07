@@ -759,14 +759,13 @@ theorem badPluralDevotion :
 
 /-- "Flip a coin. Take an extra turn for each coin that comes up heads." -/
 theorem okCoinsShowingAfterFlip :
-    Instruction.check [] (.sequentially [flipCoins 1, Primitives.Instruction.addTurn (.coinsShowing .heads)
-        (agent := .you)])
+    Instruction.check [] (.sequentially [flipCoins 1, Primitives.Instruction.addTurn (.coinsShowing .heads)])
       = [] := by
   decide
 
 /-- "Take an extra turn for each coin that comes up heads." -/
 theorem badCoinsShowingWithoutFlip :
-    Instruction.check [] (Primitives.Instruction.addTurn (.coinsShowing .heads) (agent := .you)) = [.coinFlipInScope] :=
+    Instruction.check [] (Primitives.Instruction.addTurn (.coinsShowing .heads)) = [.coinFlipInScope] :=
         by
   decide
 

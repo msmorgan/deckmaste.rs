@@ -92,7 +92,7 @@ def pleaForPower : Spelled := spelled <| .singleFaced
         [ abilityWord "will of the council"
             (Primitives.Ability.spell none (Primitives.Instruction.sequentially
               [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly (Primitives.Ballot.byLabel ["time", "knowledge"])),
-                doIf (Primitives.Condition.voteLead "time" false) (Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you)),
+                doIf (Primitives.Condition.voteLead "time" false) (Primitives.Instruction.addTurn (.lit 1)),
                 doIf (Primitives.Condition.voteLead "knowledge" true) (Primitives.Instruction.draw (.lit 3)) ])) ] } }
 
 /-- Coercive Portal -/
@@ -173,7 +173,7 @@ def steamAugury : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ revealCards (topSlice (.lit 5)),
               Primitives.Instruction.separateIntoPiles them 2 [],
-              act anOpponent (choose onePile (agent := some actor)),
+              act anOpponent (choose onePile),
               move (that .pile) hand,
               move (theOther .pile) graveyard ]) ] } }
 
@@ -196,7 +196,7 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker],
       subtypes := [planeswalkerType "Liliana"],
       text :=
-        [ activated (Primitives.Cost.loyaltySymbol (.up 1)) (Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them]),
+        [ activated (Primitives.Cost.loyaltySymbol (.up 1)) (Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))), discard them]),
           activated (Primitives.Cost.loyaltySymbol (.down 2)) (act (target Primitives.Predicate.anyPlayer) (sacrifice (a creature))),
           activated (Primitives.Cost.loyaltySymbol (.down 6))
             (Primitives.Instruction.sequentially

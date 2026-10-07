@@ -495,7 +495,7 @@ theorem badCantCounterCreatures :
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Instruction.check []
-      (.doOnlyIf (.sequentially [Macros.act (each .opponent) (choose (a (.and [.isCard, .inZone hand])) (agent := some actor)), discard them]) (.matches (those .card)
+      (.doOnlyIf (.sequentially [Macros.act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them]) (.matches (those .card)
           creature)
         none) = [] := by
   decide

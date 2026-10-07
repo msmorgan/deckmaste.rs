@@ -977,7 +977,6 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                         ),
                         disclosure: Openly,
                         when: None,
-                        agent: Some(Actor),
                     ),
                     PutCounters(
                         amount: Lit(value: 2),

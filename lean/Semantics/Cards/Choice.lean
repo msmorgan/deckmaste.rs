@@ -54,7 +54,7 @@ theorem okPhantomBlade : Ability.check [] phantomBlade = [] := by decide
 
 /-- Braids's Frightful Return -/
 def braidsFrightfulReturn : Instruction :=
-  Primitives.Instruction.offer (sacrifice (a creature)) (some (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them])) none
+  Primitives.Instruction.offer (sacrifice (a creature)) (some (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))), discard them])) none
 theorem okBraidsFrightfulReturn : Instruction.check [] braidsFrightfulReturn = [] := by decide
 /-- Daretti, Ingenious Iconoclast -/
 def darettisMinusOne : Instruction :=
@@ -82,7 +82,7 @@ theorem okRainOfThorns : Instruction.check [] rainOfThorns = [] := by decide
 
 def rankleMasterOfPranks : Instruction :=
   chooseModes anyNumber
-    [ Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them],
+    [ Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))), discard them],
       Primitives.Instruction.sequentially [act (each Primitives.Predicate.anyPlayer) (loseLife (.lit 1)), act (those .player) (Primitives.Instruction.draw (.lit 1))],
       act (each Primitives.Predicate.anyPlayer) (sacrifice (aTheirChoice creature)) ]
 theorem okRankleMasterOfPranks : Instruction.check [] rankleMasterOfPranks = [] := by decide
@@ -235,7 +235,7 @@ def murmursFromBeyond : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ revealCards (topSlice (.lit 3)),
-              act (a Primitives.Predicate.opponent) (choose (someOf (exactly 1) them) (agent := some actor)),
+              act (a Primitives.Predicate.opponent) (choose (someOf (exactly 1) them)),
               move (that .card) graveyard,
               move (theRest .object) hand ]) ] } }
 
@@ -274,7 +274,7 @@ def tahngarthChoosesDefender : Instruction :=
   Primitives.Instruction.choose none
     (a (Primitives.Predicate.and [ Primitives.Predicate.or [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.anyPlayer],
                Primitives.Predicate.inCombat .attackedBy (some (that .player)) ]))
-    .openly none (agent := none)
+    .openly none
 theorem okTahngarthChoosesDefender :
     Instruction.check (GameEvent.intro [] tahngarthHeader) tahngarthChoosesDefender = [] := by
   decide
@@ -329,7 +329,7 @@ def kohChooser : Ability :=
 theorem okKohChooser : Ability.check [] kohChooser = [] := by decide
 /-- Forgotten Lore -/
 def forgottenLoreChoice : Instruction :=
-  act (target Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) (agent := some actor))
+  act (target Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))
 theorem okForgottenLoreChoice : Instruction.check [] forgottenLoreChoice = [] := by decide
 
 /-- Psychic Paper minus its three-way coordination -/
@@ -776,7 +776,7 @@ def watcherInTheWeb : Spelled := spelled <| .singleFaced
 /-- Forgotten Lore -/
 def forgottenLoreRepeat : Instruction :=
   Primitives.Instruction.sequentially
-    [ act (target Primitives.Predicate.opponent) (Primitives.Instruction.choose none (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) .openly none (agent := some actor)),
+    [ act (target Primitives.Predicate.opponent) (Primitives.Instruction.choose none (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) .openly none),
       Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [pip .green]) .once) (some (Primitives.Instruction.repeat_
           Primitives.Repetition.againExcludingChosen)) none ]
 theorem okForgottenLoreRepeat : Instruction.check [] forgottenLoreRepeat = [] := by decide
@@ -1427,7 +1427,7 @@ def consumingTide : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ act (each Primitives.Predicate.anyPlayer) (choose
-                (a (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller they])) (agent := some actor)),
+                (a (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller they]))),
               returnTo (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.notChosen])) hand [],
               Primitives.Instruction.doForEach
                 (each (Primitives.Predicate.compareOver Primitives.Predicate.opponent (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)])) .greater
@@ -1440,20 +1440,16 @@ def stickTogether : Instruction :=
   Primitives.Instruction.sequentially
     [ act (each Primitives.Predicate.anyPlayer) (choose
         (counted (upTo 1)
-          (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Cleric"), Primitives.Predicate.hasPossessor .controller they]))
-              (agent := some actor)),
+          (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Cleric"), Primitives.Predicate.hasPossessor .controller they]))),
       act (each Primitives.Predicate.anyPlayer) (choose
         (counted (upTo 1)
-          (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Rogue"), Primitives.Predicate.hasPossessor .controller they]))
-              (agent := some actor)),
+          (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Rogue"), Primitives.Predicate.hasPossessor .controller they]))),
       act (each Primitives.Predicate.anyPlayer) (choose
         (counted (upTo 1)
-          (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Warrior"), Primitives.Predicate.hasPossessor .controller they]))
-              (agent := some actor)),
+          (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Warrior"), Primitives.Predicate.hasPossessor .controller they]))),
       act (each Primitives.Predicate.anyPlayer) (choose
         (counted (upTo 1)
-          (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Wizard"), Primitives.Predicate.hasPossessor .controller they]))
-              (agent := some actor)),
+          (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Wizard"), Primitives.Predicate.hasPossessor .controller they]))),
       act (each Primitives.Predicate.anyPlayer) (sacrifice (theRest .object)) ]
 theorem okStickTogether : Instruction.check [] stickTogether = [] := by decide
 
@@ -1467,8 +1463,7 @@ def discipleOfCaelusNin : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ act (each Primitives.Predicate.anyPlayer) (Primitives.Instruction.choose (some Primitives.NounPhrase.you)
-                  (counted (upTo 5) (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller they])) .openly none
-                      (agent := some actor)),
+                  (counted (upTo 5) (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller they])) .openly none),
                 Primitives.Instruction.setStatus .phasedOut
                   (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.otherThan thisCreature, Primitives.Predicate.notChosen])) ]),
           Primitives.Ability.static (Primitives.StaticSpec.deonticRule (allOf permanent) Primitives.Compulsion.forbid [.ofAbility "Phasing"] .agent none
@@ -1487,7 +1482,7 @@ def sculptedSunburst : Spelled := spelled <| .singleFaced
             [ choose (a creatureYouControl),
               act (each Primitives.Predicate.opponent) (choose
                 (a (comparesOwnStat .power (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller they])
-                  .atMost (Primitives.Amount.statOf (.stat .power) it))) (agent := some actor)),
+                  .atMost (Primitives.Amount.statOf (.stat .power) it)))),
               Primitives.Instruction.doIf (Primitives.Condition.choseThisWay Primitives.NounPhrase.you creature) (exile (each (Primitives.Predicate.and [creature, Primitives.Predicate.notChosen]))) none
                   ]) ] } }
 

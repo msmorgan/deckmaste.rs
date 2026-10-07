@@ -27,10 +27,14 @@ theorem okDetachWithoutKnowingOldHost :
 
 theorem okExtraTurnPublishesTurnReference :
     NounPhrase.check none
-      (Instruction.intro [] (.insertPart .turn none (.lit 1) none (some .you))) thatTurn = [] := by decide
+      (Instruction.intro [] (.insertPart .turn none (.lit 1) none)) thatTurn = [] := by decide
 
+/-- "Target creature takes an extra turn after this one." An extra turn is taken by a player
+[CR#500.7]: the turn's taker is the player the instruction is handed to, and a permanent is
+not one. -/
 theorem badExtraTurnWithoutPlayer :
-    Instruction.check [] (.insertPart .turn none (.lit 1) none none) = [.windowOk] := by decide
+    Instruction.check [] (act (target creature) (.insertPart .turn none (.lit 1) none))
+      = [.kindMismatch .player .object] := by decide
 
 def emblemAbilities : List Ability := [.static (.abilityGrant (allOf creatureYouControl) (keyword "Haste"))]
 

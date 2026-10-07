@@ -1191,10 +1191,6 @@ def choiceOrderOk : Option NounPhrase → Option NounPhrase → Bool
   | some _, none => false
   | some _, some by_ => !by_.plur.isOne
 
-def choiceClauseOk : Option NounPhrase → NounPhrase → Bool
-  | none, n => n.choosable
-  | some _, n => n.agentChoosable
-
 /-- A plural possessor must distribute over players [CR#102.1]. -/
 def partPossessorOk : Option NounPhrase → Bool
   | none => true
@@ -1912,10 +1908,6 @@ def NounPhrase.agentIntroduced (bs : Bindings) : NounPhrase → List Binding
 
 def agentIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.agentIntroduced bs n ++ bs
 
-def agentCtx (bs : Bindings) : Option NounPhrase → Bindings
-  | none => bs
-  | some n => agentIntro bs n
-
 def kindValueIntro (bs : Bindings) (q : QualitySort) : Option NounPhrase → Bindings
   | some dom => qualityB q :: nomIntro bs dom
   | none => qualityB q :: bs
@@ -1947,10 +1939,6 @@ def chosenIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.chosen
 def chosenIntroBy (bs : Bindings) : Plurality → NounPhrase → NounPhrase → Bindings
   | .one, by_, n => NounPhrase.introduced bs by_ ++ (NounPhrase.chosenIntroduced (agentIntro bs by_) n ++ bs)
   | .many, by_, n => pluralizeIntroduced (NounPhrase.chosenIntroduced (agentIntro bs by_) n) ++ nomIntro bs by_
-
-def chooseIntro (bs : Bindings) : Option NounPhrase → NounPhrase → Bindings
-  | none, n => chosenIntro bs n
-  | some by_, n => chosenIntroBy bs by_.plur by_ n
 
 def optAmtIntro (bs : Bindings) : Option Amount → Bindings
   | none => bs

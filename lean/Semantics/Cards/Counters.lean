@@ -639,7 +639,7 @@ def magistratesScepter : Spelled := spelled <| .singleFaced
               [ Primitives.Cost.tapSymbol,
                 Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 3)) (some (Primitives.CounterKindSource.printed (.named "chargeCounter")))
                   thisArtifact) ])
-            (Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you)) ] } }
+            (Primitives.Instruction.addTurn (.lit 1)) ] } }
 
 def grumgully : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -1133,7 +1133,7 @@ def menacingOgre : Spelled := spelled <| .singleFaced
         [ keyword "Trample", keyword "Haste",
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
-              [ act (each Primitives.Predicate.anyPlayer) (choose (disclosure := .secretly) (a (quality .number)) (agent := some actor)),
+              [ act (each Primitives.Predicate.anyPlayer) (choose (disclosure := .secretly) (a (quality .number))),
                 Primitives.Instruction.revealChoices .numbers,
                 act (each (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.choseExtreme .max])) (loseLife Primitives.Amount.thatMuch),
                 doIf (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.choseExtreme .max))
@@ -1215,7 +1215,7 @@ def neurokTransmuter : Instruction :=
 theorem okNeurokTransmuter : Instruction.check [] neurokTransmuter = [] := by decide
 def syphonMind : Instruction :=
   Primitives.Instruction.sequentially
-    [ Primitives.Instruction.sequentially [act (each otherPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])) (agent := some actor)), discard them],
+    [ Primitives.Instruction.sequentially [act (each otherPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))), discard them],
       Primitives.Instruction.doForEach (theVerbed (.action "Discard") .card .thisWay .many) (Primitives.Instruction.draw (.lit 1)) ]
 theorem okSyphonMind : Instruction.check [] syphonMind = [] := by decide
 def peek : Instruction := Primitives.Instruction.sequentially [lookAtHandOf (target Primitives.Predicate.anyPlayer), Primitives.Instruction.draw (.lit 1)]

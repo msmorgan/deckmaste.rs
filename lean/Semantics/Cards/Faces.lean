@@ -127,7 +127,7 @@ theorem okKarplusanMinotaurWinFlip : Ability.check [] karplusanMinotaurWinFlip =
 
 /-- Ral Zarek's ultimate -/
 def ralZarekUltimate : Instruction :=
-  Primitives.Instruction.sequentially [flipCoins 5, Primitives.Instruction.addTurn (Primitives.Amount.coinsShowing .heads) (agent := Primitives.NounPhrase.you)]
+  Primitives.Instruction.sequentially [flipCoins 5, Primitives.Instruction.addTurn (Primitives.Amount.coinsShowing .heads)]
 theorem okRalZarekUltimate : Instruction.check [] ralZarekUltimate = [] := by decide
 
 /-- Krark's Thumb -/
@@ -507,7 +507,7 @@ def riddlesInTheDark : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ lookAt (topSlice (.lit 4)),
               Primitives.Instruction.separateIntoPiles them 2 [.faceDown, .faceUp],
-              act anOpponent (choose onePile (agent := some actor)),
+              act anOpponent (choose onePile),
               move (that .pile) hand,
               move (theOther .pile) graveyard ]) ] } }
 
@@ -534,7 +534,7 @@ def curatorOfDestinies : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ lookAt (topSlice (.lit 5)),
                 Primitives.Instruction.separateIntoPiles them 2 [.faceDown, .faceUp],
-                act anOpponent (choose onePile (agent := some actor)),
+                act anOpponent (choose onePile),
                 move (that .pile) hand,
                 move (theOther .pile) graveyard ]) ],
       power := stat 5, toughness := stat 5 } }

@@ -159,30 +159,30 @@ theorem okSaheelisCopy : Instruction.check [] saheelisCopy = [] := by decide
 def timeWalk : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Time Walk", cost := some [generic 1, pip .blue], types := [.sorcery],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you))] } }
+      text := [Primitives.Ability.spell none (Primitives.Instruction.addTurn (.lit 1))] } }
 
 def timeStretch : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Time Stretch", cost := some [generic 8, pip .blue, pip .blue], types := [.sorcery],
-      text := [Primitives.Ability.spell none (act (target Primitives.Predicate.anyPlayer) (Primitives.Instruction.addTurn (.lit 2) (agent := actor)))] } }
+      text := [Primitives.Ability.spell none (act (target Primitives.Predicate.anyPlayer) (Primitives.Instruction.addTurn (.lit 2)))] } }
 
 def timeSieve : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Time Sieve", cost := some [pip .blue, pip .black], types := [.artifact],
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice (counted (exactly 5) artifact))])
-            (Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you)) ] } }
+            (Primitives.Instruction.addTurn (.lit 1)) ] } }
 
 def finalFortune : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Final Fortune", cost := some [pip .red, pip .red], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you),
+            [ Primitives.Instruction.addTurn (.lit 1),
               delay (Primitives.GameEvent.beginningOf .the .endStep thatTurns) (Primitives.Instruction.conclude .loseGame) ])
                   ] } }
 
-def finalFortuneExtraTurn : Instruction := Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you)
+def finalFortuneExtraTurn : Instruction := Primitives.Instruction.addTurn (.lit 1)
 theorem okFinalFortuneExtraTurn : Instruction.check [] finalFortuneExtraTurn = [] := by decide
 def finalFortuneThatTurn : NounPhrase := thatTurn
 theorem okFinalFortuneThatTurn :
@@ -195,7 +195,7 @@ def lastChance : Spelled := spelled <| .singleFaced
     { name := "Last Chance", cost := some [pip .red, pip .red], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you),
+            [ Primitives.Instruction.addTurn (.lit 1),
               delay (Primitives.GameEvent.beginningOf .the .endStep thatTurns) (Primitives.Instruction.conclude .loseGame) ])
                   ] } }
 
@@ -209,7 +209,7 @@ def chanceForGlory : Spelled := spelled <| .singleFaced
                 (Primitives.StaticSpec.abilityGrant (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
                   (keyword "Indestructible"))
                 none,
-              Primitives.Instruction.addTurn (.lit 1) (agent := Primitives.NounPhrase.you),
+              Primitives.Instruction.addTurn (.lit 1),
               delay (Primitives.GameEvent.beginningOf .the .endStep thatTurns) (Primitives.Instruction.conclude .loseGame) ])
                   ] } }
 
@@ -261,7 +261,7 @@ def obekaSplitterOfSeconds : Spelled := spelled <| .singleFaced
       text :=
         [ keyword "Menace",
           whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
-            (getAdditionalPart .upkeep Primitives.Amount.thatMuch (agent := Primitives.NounPhrase.you)) ],
+            (getAdditionalPart .upkeep Primitives.Amount.thatMuch) ],
       power := stat 2, toughness := stat 5 } }
 
 /-- Paradox Haze -/
@@ -273,9 +273,9 @@ def paradoxHaze : Spelled := spelled <| .singleFaced
         [ keywordSubject "Enchant" Primitives.Predicate.anyPlayer,
           at_ (Primitives.GameEvent.nthOccurrence (.nth 1) (some .turn)
                 (beginningOfPossessed .the .upkeep (Primitives.NounPhrase.attachHost .enchanted .player)))
-            (act (that .player) (getAdditionalPart .upkeep (.lit 1) (agent := actor))) ] } }
+            (act (that .player) (getAdditionalPart .upkeep (.lit 1))) ] } }
 
-def ninthDoctorAdditionalUpkeep : Instruction := getAdditionalPart .upkeep (.lit 1) (agent := Primitives.NounPhrase.you)
+def ninthDoctorAdditionalUpkeep : Instruction := getAdditionalPart .upkeep (.lit 1)
 theorem okNinthDoctorAdditionalUpkeep :
     Instruction.check [] ninthDoctorAdditionalUpkeep = [] := by decide
 
