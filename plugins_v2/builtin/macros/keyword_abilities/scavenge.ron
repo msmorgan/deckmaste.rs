@@ -12,7 +12,7 @@ KeywordAbility(
         activated(
             compound([Param(0), perform(exileFrom(this, graveyardOf(you)))]),
             putCounters(
-                powerOf(theVerbed(Action("Exile"), Card, Attributive, One)),
+                powerOf(theVerbed(Action("Exile"), One, Card)),
                 p1p1Counter,
                 target(creature),
             ),

@@ -504,7 +504,7 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 theorem distributedDeedRiderReadsBackPlural :
     Instruction.check []
       (.doAndForbid (Macros.act (each .opponent) (sacrifice (a creature))) (.action "Regenerate")
-        (theVerbed (.action "Sacrifice") .permanent .attributive .many)) = [] := by
+        (theVerbed (.action "Sacrifice") .many (some .permanent))) = [] := by
   decide
 
 /-- "... dealt damage, they lose half their life, rounded up." -/

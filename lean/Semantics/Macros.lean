@@ -32,14 +32,10 @@ semantic_macro itPermanent : NounPhrase := .pro (.atSlot .permanent) .one .whole
 /-- "that token": the token just created. -/
 semantic_macro itAsToken : NounPhrase := .pro .tokenBorn .one .whole
 
-/-- "it", stamped by the verb that produced it: "the exiled card". -/
-semantic_macro itVerbed (verb : Deed) : NounPhrase := .pro (.verbed verb none .attributive) .one .whole
 /-- "it": the object the previous instruction introduced, read through a window over exactly
 what that instruction announced. -/
 semantic_macro itPrior (prev : Instruction) : NounPhrase :=
   .pro .bare .one (.introduced ((Instruction.intro [] prev).map Binding.kind))
-/-- "them", stamped by the verb that produced them: "the destroyed creatures". -/
-semantic_macro themVerbed (verb : Deed) : NounPhrase := .pro (.verbed verb none .attributive) .many .whole
 /-- "that turn" -/
 semantic_macro thatTurn : NounPhrase := .pro .thatTurn .one .whole
 /-- "it", read as the subject of the condition just stated. -/
@@ -66,10 +62,11 @@ semantic_macro splitOverPermanent : NounPhrase :=
   Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one .whole)
     (.possessorOf .controller (.pro (.unionHalf .permanent) .one .whole))
 
-/-- "the <verb>ed <word>", e.g. "the tapped creatures". -/
-semantic_macro theVerbed (verb : Deed) (word : NounWord) (marking : VerbedMarking)
-    (plurality : Plurality) : NounPhrase :=
-  .pro (.verbed verb (some word) marking) plurality .whole
+/-- "the <verb>ed <word>", e.g. "the tapped creatures"; with no word, the pronoun the deed
+stamped: "it" or "them", "the exiled card". -/
+semantic_macro theVerbed (verb : Deed) (plurality : Plurality) (word : Option NounWord := none)
+    (marking : VerbedMarking := .attributive) : NounPhrase :=
+  .pro (.verbed verb word marking) plurality .whole
 
 /-! ## Quantities -/
 

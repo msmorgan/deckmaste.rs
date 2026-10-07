@@ -490,7 +490,7 @@ def terror : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.doAndForbid
             (destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.not artifact, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])))
-            (.action "Regenerate") (itVerbed (.action "Destroy"))) ] } }
+            (.action "Regenerate") (theVerbed (.action "Destroy") .one)) ] } }
 
 def snuffOut : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -500,7 +500,7 @@ def snuffOut : Spelled := spelled <| .singleFaced
             (exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Swamp"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
           Primitives.Ability.spell none (Primitives.Instruction.doAndForbid
             (destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])))
-            (.action "Regenerate") (itVerbed (.action "Destroy"))) ] } }
+            (.action "Regenerate") (theVerbed (.action "Destroy") .one)) ] } }
 
 def wrathOfGod : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -584,7 +584,7 @@ theorem okBerserkersFrenzyLowRoll : Instruction.check [] berserkersFrenzyLowRoll
 /-- Damn -/
 def damnDestroyLine : Instruction :=
   Primitives.Instruction.doAndForbid (destroy (target creature)) (.action "Regenerate")
-    (theVerbed (.action "Destroy") (.type .creature) .thisWay .one)
+    (theVerbed (.action "Destroy") .one (some (.type .creature)) .thisWay)
 theorem okDamnDestroyLine : Instruction.check [] damnDestroyLine = [] := by decide
 
 def nekrataalWhole : Spelled := spelled <| .singleFaced

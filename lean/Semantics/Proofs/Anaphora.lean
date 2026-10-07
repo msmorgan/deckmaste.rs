@@ -924,7 +924,7 @@ theorem distributedDeedReadsBackPlural :
     Instruction.check []
       (.sequentially
         [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
-          exile (theVerbed (.action "Discard") .card .attributive .many) ]) = [] := by
+          exile (theVerbed (.action "Discard") .many (some .card)) ]) = [] := by
   decide
 
 /-- "Discard a card. Exile the discarded card." -/
@@ -932,7 +932,7 @@ theorem okTheVerbedAfterSingularDiscard :
     Instruction.check []
       (.sequentially
         [ discard (a (.and [.isCard, .inZone yourHand])),
-          exile (theVerbed (.action "Discard") .card .attributive .one) ])
+          exile (theVerbed (.action "Discard") .one (some .card)) ])
       = [] := by
   decide
 
@@ -941,7 +941,7 @@ theorem badDistributedDiscardSingular :
     Instruction.check []
       (.sequentially
         [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
-          exile (theVerbed (.action "Discard") .card .attributive .one) ])
+          exile (theVerbed (.action "Discard") .one (some .card)) ])
       = [.anaphor (.verbed (.action "Discard") (some .card) .attributive) .one 0] := by
   decide
 

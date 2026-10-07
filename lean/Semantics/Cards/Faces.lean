@@ -438,7 +438,7 @@ def meldThemInto : Instruction :=
         (allOf (Primitives.Predicate.and [ creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
                        Primitives.Predicate.or [ Primitives.Predicate.named (Primitives.NameSource.printed "Graf Rats"),
                              Primitives.Predicate.named (Primitives.NameSource.printed "Midnight Scavengers") ] ])),
-      meldInto (themVerbed (.action "Exile")) "Chittering Host" ]
+      meldInto (theVerbed (.action "Exile") .many) "Chittering Host" ]
 theorem okMeldThemInto : Instruction.check [] meldThemInto = [] := by decide
 
 /-- Profit // Loss -/
@@ -583,7 +583,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
           activated (Primitives.Cost.loyaltySymbol (.down 1))
             (Primitives.Instruction.doIfDone (sacrifice (a creature))
               (some (Primitives.Instruction.sequentially
-                [ searchLibraryFor (exactly 1) creature, revealCards (itVerbed (.action "Search")), move (itVerbed (.action "Search")) hand,
+                [ searchLibraryFor (exactly 1) creature, revealCards (theVerbed (.action "Search") .one), move (theVerbed (.action "Search") .one) hand,
                   shuffle ]))
               none),
           activated (Primitives.Cost.loyaltySymbol (.down 3))

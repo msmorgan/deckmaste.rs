@@ -92,14 +92,14 @@ theorem badDeadCreatureRead :
 theorem okVerbedDiscardedCard :
     Ability.check []
       (act (.perform (discard (a (.and [.isCard, .inZone yourHand]))))
-        (move (theVerbed (.action "Discard") .card .attributive .one) battlefield)) = [] := by
+        (move (theVerbed (.action "Discard") .one (some .card)) battlefield)) = [] := by
   decide
 
 /-- "Discard a card: Return the sacrificed card to the battlefield." -/
 theorem badVerbedWrongVerb :
     Ability.check []
       (act (.perform (discard (a (.and [.isCard, .inZone yourHand]))))
-        (move (theVerbed (.action "Sacrifice") .card .attributive .one) battlefield))
+        (move (theVerbed (.action "Sacrifice") .one (some .card)) battlefield))
       = [.anaphor (.verbed (.action "Sacrifice") (some .card) .attributive) .one 0] := by
   decide
 
@@ -107,7 +107,7 @@ theorem badVerbedWrongVerb :
 theorem badVerbedWrongNoun :
     Ability.check []
       (act (.perform (sacrifice (a artifact)))
-        (move (theVerbed (.action "Sacrifice") (.type .creature) .attributive .one) battlefield))
+        (move (theVerbed (.action "Sacrifice") .one (some (.type .creature))) battlefield))
       = [.anaphor (.verbed (.action "Sacrifice") (some (.type .creature)) .attributive) .one 0] := by
   decide
 
@@ -116,7 +116,7 @@ theorem badVerbedAmbig :
       (act
         (.compound [.perform (sacrifice (a creature)), .perform (sacrifice (a
             creature))])
-        (move (theVerbed (.action "Sacrifice") .card .attributive .one) battlefield))
+        (move (theVerbed (.action "Sacrifice") .one (some .card)) battlefield))
       = [.anaphor (.verbed (.action "Sacrifice") (some .card) .attributive) .one 2] := by
   decide
 

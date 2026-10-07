@@ -56,7 +56,7 @@ theorem laterCardReadIsAdmitted :
 
 theorem formerPermanentReadIsAdmitted :
     NounPhrase.check (some .object) afterSacrifice
-      (theVerbed (.action "Sacrifice") .permanent .thisWay .one) = [] := by decide
+      (theVerbed (.action "Sacrifice") .one (some .permanent) .thisWay) = [] := by decide
 
 theorem laterCardRetainsBothTypes :
     NounPhrase.ty afterSacrifice (that .card) = [.creature, .artifact] := by decide

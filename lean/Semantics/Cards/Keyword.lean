@@ -969,7 +969,7 @@ theorem okHateMirageTokens : Instruction.check [] hateMirageTokens = [] := by de
 def descentOfTheDragons : Instruction :=
   Primitives.Instruction.sequentially
     [ destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) creature),
-      Primitives.Instruction.doForEach (theVerbed (.action "Destroy") (.type .creature) .thisWay .many)
+      Primitives.Instruction.doForEach (theVerbed (.action "Destroy") .many (some (.type .creature)) .thisWay)
         (act (controllerOf it) (Primitives.Instruction.create (.lit 1)
           (Primitives.TokenSpec.written
             { characteristics :=
@@ -1228,7 +1228,7 @@ def towerWinder : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Command Tower")),
-                revealCards (itVerbed (.action "Search")), move (itVerbed (.action "Search")) hand,
+                revealCards (theVerbed (.action "Search") .one), move (theVerbed (.action "Search") .one) hand,
                 Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
                   (relative .player)) (.action "Search") none none (some yourLibrary))
                   Primitives.NounPhrase.you .thisWay) shuffle
@@ -1244,9 +1244,9 @@ def aimHigh : Spelled := spelled <| .singleFaced
             [ untap (target creature),
               Primitives.Instruction.establish
                 (Primitives.StaticSpec.conjunction none
-                  [ Primitives.StaticSpec.modification (itVerbed (.action "Untap")) .power (Primitives.Delta.up (.lit 2)),
-                    Primitives.StaticSpec.modification (itVerbed (.action "Untap")) .toughness (Primitives.Delta.up (.lit 2)),
-                    Primitives.StaticSpec.abilityGrant (itVerbed (.action "Untap")) (keyword "Reach") ])
+                  [ Primitives.StaticSpec.modification (theVerbed (.action "Untap") .one) .power (Primitives.Delta.up (.lit 2)),
+                    Primitives.StaticSpec.modification (theVerbed (.action "Untap") .one) .toughness (Primitives.Delta.up (.lit 2)),
+                    Primitives.StaticSpec.abilityGrant (theVerbed (.action "Untap") .one) (keyword "Reach") ])
                 (some untilEndOfTurn) ]) ] } }
 
 /-- Harried Dronesmith -/

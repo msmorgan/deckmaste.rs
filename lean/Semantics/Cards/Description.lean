@@ -28,7 +28,7 @@ theorem okRawNonattacking : Predicate.check .object [] rawNonattacking = [] := b
 def harmonyOfNature : Instruction :=
   Primitives.Instruction.sequentially
     [ tap (counted anyNumber (Primitives.Predicate.and [untapped, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])),
-      Primitives.Instruction.doForEach (theVerbed (.action "Tap") (.type .creature) .thisWay .many)
+      Primitives.Instruction.doForEach (theVerbed (.action "Tap") .many (some (.type .creature)) .thisWay)
         (gainLife (.lit 4)) ]
 theorem okHarmonyOfNature : Instruction.check [] harmonyOfNature = [] := by decide
 
@@ -241,7 +241,7 @@ def phyrexianRebirth : Spelled := spelled <| .singleFaced
                       subtypes := [creatureType "Phyrexian", creatureType "Horror"],
                       power := some (Primitives.Amount.letter .x), toughness := some (Primitives.Amount.letter .x) } })
                 [],
-              Primitives.Instruction.define .x (Primitives.Amount.countOf (theVerbed (.action "Destroy") (.type .creature) .thisWay .many)) ]) ] } }
+              Primitives.Instruction.define .x (Primitives.Amount.countOf (theVerbed (.action "Destroy") .many (some (.type .creature)) .thisWay)) ]) ] } }
 
 /-- Damning Verdict -/
 def damningVerdict : Spelled := spelled <| .singleFaced
@@ -370,7 +370,7 @@ def bioplasmExile : Instruction := exile (topSlice (.lit 1))
 theorem okBioplasmExile :
     Instruction.check (GameEvent.after [] bioplasmAttack) bioplasmExile = [] := by decide
 def bioplasmAfterExile : Bindings := Instruction.intro (GameEvent.after [] bioplasmAttack) bioplasmExile
-def bioplasmExiledCard : NounPhrase := theVerbed (.action "Exile") .card .attributive .one
+def bioplasmExiledCard : NounPhrase := theVerbed (.action "Exile") .one (some .card)
 theorem okBioplasmExiledCard :
     NounPhrase.check (some .object) bioplasmAfterExile bioplasmExiledCard = [] := by decide
 

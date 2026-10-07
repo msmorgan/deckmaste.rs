@@ -15,11 +15,11 @@ KeywordAction(
         establish(
             mayPlayDeed(
                 Action("Cast"),
-                ownerOf(themVerbed(Action("Airbend"))),
-                themVerbed(Action("Airbend")),
+                ownerOf(theVerbed(Action("Airbend"), Many)),
+                theVerbed(Action("Airbend"), Many),
                 Play(exileZone, None, None, false, PayingInstead(mana([2]))),
             ),
-            forAsLongAs(matches(themVerbed(Action("Airbend")), inZone(exileZone))),
+            forAsLongAs(matches(theVerbed(Action("Airbend"), Many), inZone(exileZone))),
         ),
     ]),
 )

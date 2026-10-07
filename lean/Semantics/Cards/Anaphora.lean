@@ -40,7 +40,7 @@ theorem okFlickeringSpirit : Instruction.check [] flickeringSpirit = [] := by de
 def bondOfRevival : Instruction :=
   Primitives.Instruction.sequentially
     [ returnToBattlefield (target (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])),
-      gainHaste (itVerbed (.core .return_)) (some untilYourNextTurn) ]
+      gainHaste (theVerbed (.core .return_) .one) (some untilYourNextTurn) ]
 theorem okBondOfRevival : Instruction.check [] bondOfRevival = [] := by decide
 
 def vraskasStoneglare : Instruction :=
@@ -182,7 +182,7 @@ theorem okEverAfter : Instruction.check [] everAfter = [] := by decide
 def martyrsCry : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.colorIs .white])),
-      Primitives.Instruction.doForEach (theVerbed (.action "Exile") (.type .creature) .thisWay .many)
+      Primitives.Instruction.doForEach (theVerbed (.action "Exile") .many (some (.type .creature)) .thisWay)
         (act (controllerOf it) (Primitives.Instruction.draw (.lit 1))) ]
 theorem okMartyrsCry : Instruction.check [] martyrsCry = [] := by decide
 
@@ -198,7 +198,7 @@ def eradicateSearch : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])),
       searchZonesOf (controllerOf (that .card)) anyNumber (Primitives.Predicate.named (Primitives.NameSource.sameAs (that .card))),
-      exile (themVerbed (.action "Search")),
+      exile (theVerbed (.action "Search") .many),
       act (that .player) (Primitives.Instruction.shuffle) ]
 theorem okEradicateSearch : Instruction.check [] eradicateSearch = [] := by decide
 
@@ -385,7 +385,7 @@ theorem engulfingFlamesNoDestroyStamp :
     countReach (.verbed (.action "Destroy") none .attributive) .one engulfingFlamesRider = 0 := by decide
 theorem engulfingFlamesBareReadStands : countReach .bare .one engulfingFlamesRider = 1 := by decide
 
-def bioplasmExiledPronoun : NounPhrase := itVerbed (.action "Exile")
+def bioplasmExiledPronoun : NounPhrase := theVerbed (.action "Exile") .one
 theorem okBioplasmExiledPronoun :
     NounPhrase.check (some .object) bioplasmAfterExile bioplasmExiledPronoun = [] := by decide
 theorem bioplasmNoTypedRead :
@@ -430,7 +430,7 @@ def scapeshift : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ sacrifice (counted anyNumber land),
               searchLibraryFor (Primitives.Quantity.upToOf Primitives.Amount.groupSize) land,
-              putOntoBattlefieldTapped (themVerbed (.action "Search")),
+              putOntoBattlefieldTapped (theVerbed (.action "Search") .many),
               shuffle ]) ] } }
 
 /-- Bind to Life, Vastlands Scavenger's adventure -/
@@ -449,7 +449,7 @@ theorem okGleamOfDeath : Instruction.check [] gleamOfDeath = [] := by decide
 def tezzeretAllArtifacts : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (topSlice (.lit 10)),
-      move (allFromAmong artifact (theVerbed (.action "Exile") .card .thisWay .many)) battlefield ]
+      move (allFromAmong artifact (theVerbed (.action "Exile") .many (some .card) .thisWay)) battlefield ]
 theorem okTezzeretAllArtifacts : Instruction.check [] tezzeretAllArtifacts = [] := by decide
 
 def companyContext : Bindings := lookedTop [] (.lit 6)
@@ -531,8 +531,8 @@ def hijack : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ gainControl (target (Primitives.Predicate.or [artifact, creature])) (some untilEndOfTurn) (agent := Primitives.NounPhrase.you),
-              untap (itVerbed (.core .gainControl)),
-              gainHaste (itVerbed (.action "Untap")) (some untilEndOfTurn) ]) ] } }
+              untap (theVerbed (.core .gainControl) .one),
+              gainHaste (theVerbed (.action "Untap") .one) (some untilEndOfTurn) ]) ] } }
 
 /-- Open the Vaults -/
 def openTheVaults : Instruction :=

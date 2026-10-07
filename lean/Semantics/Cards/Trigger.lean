@@ -701,7 +701,7 @@ def agencyOutfitterSearch : Instruction :=
         (Primitives.Instruction.sequentially
           [ searchZonesOf Primitives.NounPhrase.you (exactly 1)
               (Primitives.Predicate.or [Primitives.Predicate.named (Primitives.NameSource.printed "Magnifying Glass"), Primitives.Predicate.named (Primitives.NameSource.printed "Thinking Cap")]),
-            putOntoBattlefield (itVerbed (.action "Search")) ]),
+            putOntoBattlefield (theVerbed (.action "Search") .one) ]),
       Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some (relative
         .player)) (.action "Search") none none (some yourLibrary)) Primitives.NounPhrase.you
         .thisWay) shuffle none ]
@@ -728,8 +728,8 @@ def bioplasm : Spelled := spelled <| .singleFaced
                 Primitives.Instruction.doIf bioplasmCardTest
                   (get thisCreature
                     (Primitives.Delta.up (Primitives.Amount.statOf (.stat .power)
-                      (theVerbed (.action "Exile") (.ofType .card .creature) .attributive .one)))
-                    (Primitives.Delta.up (Primitives.Amount.statOf (.stat .toughness) (itVerbed (.action "Exile"))))
+                      (theVerbed (.action "Exile") .one (some (.ofType .card .creature)))))
+                    (Primitives.Delta.up (Primitives.Amount.statOf (.stat .toughness) (theVerbed (.action "Exile") .one)))
                     (some Primitives.Duration.thisTurn))
                   none ]) ],
       power := stat 4, toughness := stat 4 } }

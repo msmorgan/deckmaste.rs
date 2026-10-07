@@ -30,7 +30,7 @@ theorem okDiscardedCardWord :
     Ability.check []
       (act (.perform (discard (aAtRandom (.and [.isCard, .inZone yourHand]))))
         (.dealDamage .this
-          (.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
+          (.statOf (.stat .manaValue) (theVerbed (.action "Discard") .one (some .card)))
           (target anyTarget))) = [] := by
   decide
 
@@ -39,7 +39,7 @@ theorem badDiscardedCreatureWord :
       (act (.perform (discard (aAtRandom (.and [creature, .inZone yourHand]))))
         (.dealDamage .this
           (.statOf (.stat .manaValue)
-            (theVerbed (.action "Discard") (.type .creature) .attributive .one))
+            (theVerbed (.action "Discard") .one (some (.type .creature))))
           (target anyTarget)))
       = [.anaphor (.verbed (.action "Discard") (some (.type .creature)) .attributive) .one 0] := by
   decide

@@ -38,7 +38,7 @@ def voyagerStaff : Ability :=
     (Primitives.Instruction.sequentially
       [ exile (target creature),
         delay (Primitives.GameEvent.beginningOf .the .endStep Primitives.HeaderPossessor.noPossessor)
-          (move (theVerbed (.action "Exile") .card .attributive .one) battlefield) ])
+          (move (theVerbed (.action "Exile") .one (some .card)) battlefield) ])
 theorem okVoyagerStaff : Ability.check [] voyagerStaff = [] := by decide
 
 def staffOfNin : Ability :=

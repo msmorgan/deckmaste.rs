@@ -170,7 +170,7 @@ def escapeToTheWilds : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (topSlice (.lit 5)),
       Primitives.Instruction.establish
-        (mayPlayDeed (.action "Play") Primitives.NounPhrase.you (theVerbed (.action "Exile") .card .thisWay .many) none
+        (mayPlayDeed (.action "Play") Primitives.NounPhrase.you (theVerbed (.action "Exile") .many (some .card) .thisWay) none
           (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
         (some (Primitives.Duration.until_ (Primitives.DurationEnd.endOf .turn (some Primitives.NounPhrase.you)))) ]
 theorem okEscapeToTheWilds : Instruction.check [] escapeToTheWilds = [] := by decide
@@ -1194,7 +1194,7 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
             (act (each Primitives.Predicate.opponent) (offer
               (Primitives.Instruction.sequentially
                 [ act they (Primitives.Instruction.search (oneZone (libraryOf they)) (exactly 1) (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic])),
-                  putOntoBattlefieldTapped (itVerbed (.action "Search")),
+                  putOntoBattlefieldTapped (theVerbed (.action "Search") .one),
                   act they (Primitives.Instruction.shuffle) ]))) ],
       power := stat 3, toughness := stat 3 } }
 

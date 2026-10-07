@@ -18,13 +18,13 @@ namespace Semantics.Cards
 def boshIronGolem : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3, pip .red], Primitives.Cost.perform (sacrifice (a artifact))])
     (Primitives.Instruction.dealDamage Primitives.NounPhrase.this
-      (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Sacrifice") (.type .artifact) .attributive .one))
+      (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Sacrifice") .one (some (.type .artifact))))
       (target anyTarget))
 theorem okBoshIronGolem : Ability.check [] boshIronGolem = [] := by decide
 def pyromancy : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])))])
     (Primitives.Instruction.dealDamage thisEnchantment
-      (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
+      (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .one (some .card)))
       (target anyTarget))
 theorem okPyromancy : Ability.check [] pyromancy = [] := by decide
 def luckyOffering : Instruction :=
@@ -374,7 +374,7 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
               Primitives.Instruction.draw (.lit 3),
               discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])),
               Primitives.Instruction.dealDamage Primitives.NounPhrase.this
-                (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .card .attributive .one))
+                (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .one (some .card)))
                 thatJoin ]) ] } }
 
 def riddleOfLightning : Spelled := spelled <| .singleFaced
@@ -775,7 +775,7 @@ def birthingPodSearch : Ability :=
              Primitives.Predicate.compare [.stat .manaValue] .eq
                (Primitives.Amount.arith .plus (.lit 1)
                  (Primitives.Amount.statOf (.stat .manaValue)
-                   (theVerbed (.action "Sacrifice") (.type .creature) .attributive .one)))]))
+                   (theVerbed (.action "Sacrifice") .one (some (.type .creature)))))]))
 theorem okBirthingPodSearch : Ability.check [] birthingPodSearch = [] := by decide
 
 /-- Hibernation's End -/
@@ -889,7 +889,7 @@ def soldeviAdnate : Spelled := spelled <| .singleFaced
         [ activated
             (Primitives.Cost.compound [Primitives.Cost.tapSymbol,
               Primitives.Cost.perform (sacrifice (a (Primitives.Predicate.and [creature, Primitives.Predicate.or [Primitives.Predicate.colorIs .black, artifact]])))])
-            (Primitives.Instruction.addMana (Primitives.Amount.statOf (.stat .manaValue) (itVerbed (.action "Sacrifice")))
+            (Primitives.Instruction.addMana (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Sacrifice") .one))
               (Primitives.ProducedMana.runs [[.of .black]]) []) ],
       power := stat 1, toughness := stat 2 } }
 
@@ -903,8 +903,8 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
-                revealCards (itVerbed (.action "Search")),
-                move (itVerbed (.action "Search")) hand,
+                revealCards (theVerbed (.action "Search") .one),
+                move (theVerbed (.action "Search") .one) hand,
                 Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
                   (relative .player)) (.action "Search") none none (some yourLibrary))
                   Primitives.NounPhrase.you .thisWay) shuffle

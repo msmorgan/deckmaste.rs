@@ -39,7 +39,7 @@ def jhoiraOfTheGhitu : Ability :=
   activated
     (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.perform (exile (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))])
     (Primitives.Instruction.putCounters (.lit 4) (Primitives.CounterKindSource.printed (.named "timeCounter"))
-      (theVerbed (.action "Exile") .card .attributive .one))
+      (theVerbed (.action "Exile") .one (some .card)))
 theorem okJhoiraOfTheGhitu : Ability.check [] jhoiraOfTheGhitu = [] := by decide
 def alaundoTheSeer : Instruction :=
   Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "timeCounter")))
@@ -1216,7 +1216,7 @@ theorem okNeurokTransmuter : Instruction.check [] neurokTransmuter = [] := by de
 def syphonMind : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.sequentially [act (each otherPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))), discard them],
-      Primitives.Instruction.doForEach (theVerbed (.action "Discard") .card .thisWay .many) (Primitives.Instruction.draw (.lit 1)) ]
+      Primitives.Instruction.doForEach (theVerbed (.action "Discard") .many (some .card) .thisWay) (Primitives.Instruction.draw (.lit 1)) ]
 theorem okSyphonMind : Instruction.check [] syphonMind = [] := by decide
 def peek : Instruction := Primitives.Instruction.sequentially [lookAtHandOf (target Primitives.Predicate.anyPlayer), Primitives.Instruction.draw (.lit 1)]
 theorem okPeek : Instruction.check [] peek = [] := by decide

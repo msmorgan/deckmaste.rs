@@ -522,7 +522,7 @@ theorem millThenPutFromAmongMilled :
       (.sequentially
         [ mill (.lit 3) .you,
           offer
-            (move (fromAmong (exactly 1) artifact (theVerbed (.action "Mill") .card .thisWay .many))
+            (move (fromAmong (exactly 1) artifact (theVerbed (.action "Mill") .many (some .card) .thisWay))
               hand) ]) = [] := by
   decide
 

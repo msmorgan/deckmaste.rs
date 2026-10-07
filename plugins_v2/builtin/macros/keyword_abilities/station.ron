@@ -20,7 +20,7 @@ KeywordAbility(
                 ),
             ),
             putCounters(
-                powerOf(theVerbed(Action("Tap"), Creature, Attributive, One)),
+                powerOf(theVerbed(Action("Tap"), One, Creature)),
                 chargeCounter,
                 thisPermanent,
             ),
