@@ -102,11 +102,6 @@ semantic_macro attachTo (subject host : NounPhrase) : Semantics.Instruction :=
 semantic_macro unattach (subject : NounPhrase) : Semantics.Instruction :=
   .attachment .unattached subject none
 
-semantic_macro addTurn (count : Amount) : Semantics.Instruction := .insertPart .turn none count none
-
-semantic_macro addPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
-    (followedBy : Option TurnPart) : Semantics.Instruction :=
-  .insertPart part anchor count followedBy
 
 end Semantics.Macros.Primitives.Instruction
 

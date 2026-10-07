@@ -668,16 +668,18 @@ semantic_macro phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Instru
 /-- "attach <what> to it": the object the sentence just named. -/
 semantic_macro attachToIt (what : NounPhrase) : Instruction :=
   Primitives.Instruction.attachTo what (.pro .bare .one (.outsideIntroduced ((NounPhrase.introduced [] what).map Binding.kind)))
-/-- "there is an additional <part> [after <anchor>]" -/
-semantic_macro addPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount) : Instruction :=
-  Primitives.Instruction.addPart part anchor count none
-/-- "there is an additional <part> after this phase, followed by an additional <next>" -/
-semantic_macro addPartThen (part : TurnPart) (anchor : Option TurnPart) (count : Amount) (next : TurnPart) :
+/-- "take <count> extra turns after this one": the performer takes them [CR#500.7]. -/
+semantic_macro extraTurn (count : Amount) : Instruction := .addTurnPart .turn none count none
+/-- "there is an additional <part> [after <anchor>] [, followed by an additional <next>]": phases
+added to the current turn [CR#500.8]. -/
+semantic_macro additionalPhase (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
+    (followedBy : Option TurnPart := none) : Instruction :=
+  .addTurnPart part anchor count followedBy
+/-- "there is an additional <part> [after <anchor>]": steps added to the current turn's phase
+[CR#500.9]. -/
+semantic_macro additionalStep (part : TurnPart) (anchor : Option TurnPart) (count : Amount) :
     Instruction :=
-  Primitives.Instruction.addPart part anchor count (some next)
-/-- "<player> gets an additional <part>" -/
-semantic_macro getAdditionalPart (part : TurnPart) (count : Amount) : Instruction :=
-  Primitives.Instruction.addPart part none count none
+  .addTurnPart part anchor count none
 /-- "<subject> can't attack [this turn]" -/
 semantic_macro forbidAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .establish (.deonticRule subject .forbid [.core .attack] .agent none .noPatient none .noRider)

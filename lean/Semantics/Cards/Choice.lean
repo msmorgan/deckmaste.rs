@@ -740,7 +740,7 @@ def hellkiteCharger : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [generic 5, pip .red, pip .red]) .once)
               (some (Primitives.Instruction.sequentially
                 [ Primitives.Instruction.setStatus .untapped (allOf (Primitives.Predicate.and [creature, attacking])),
-                  addPart .combat none (.lit 1) ]))
+                  additionalPhase .combat none (.lit 1) ]))
               none) ],
       power := stat 5, toughness := stat 5 } }
 

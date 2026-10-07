@@ -92,7 +92,7 @@ def pleaForPower : Spelled := spelled <| .singleFaced
         [ abilityWord "will of the council"
             (Primitives.Ability.spell none (Primitives.Instruction.sequentially
               [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly (Primitives.Ballot.byLabel ["time", "knowledge"])),
-                doIf (Primitives.Condition.voteLead "time" false) (Primitives.Instruction.addTurn (.lit 1)),
+                doIf (Primitives.Condition.voteLead "time" false) (extraTurn (.lit 1)),
                 doIf (Primitives.Condition.voteLead "knowledge" true) (Primitives.Instruction.draw (.lit 3)) ])) ] } }
 
 /-- Coercive Portal -/

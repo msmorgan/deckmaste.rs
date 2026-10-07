@@ -448,7 +448,7 @@ mutual
     | triggerThisWay (body : Instruction) (event : GameEvent) (trigger : Instruction)
     | skipUntap (subject : NounPhrase) (steps : Amount)
     | skipPart (part : TurnPart) (count : Amount)
-    | insertPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
+    | addTurnPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
         (followedBy : Option TurnPart)
 
   inductive KeywordParam where

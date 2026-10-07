@@ -410,7 +410,7 @@ def Instruction.performed : Instruction → Bool
   | .conclude _ | .separateIntoPiles _ _ _ | .choose _ _ _ _ | .vote _ _ _
   | .copy _ _ _ _ | .changeLife _ | .addMana _ _ _ | .draw _ | .expose _ _
   | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _ | .rerollStored _ _
-  | .createObject _ _ | .enact _ _ | .pay _ _ | .skipPart _ _ | .insertPart _ _ _ _
+  | .createObject _ _ | .enact _ _ | .pay _ _ | .skipPart _ _ | .addTurnPart _ _ _ _
   | .withContinuation .optional _ _ _ => true
   | _ => false
 
@@ -1039,7 +1039,7 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .withBindings _ _ body | .inCaller _ body => body.reflexEncloseUse
   | .skipPart _ _ => .notYetTaken
-  | .insertPart .turn _ _ _ => .notYetTaken
+  | .addTurnPart .turn _ _ _ => .notYetTaken
   | .establish spec _ =>
     match spec.scopeBody with
     | .controlGrant _ _ => .reflexive
@@ -1090,7 +1090,7 @@ mutual
     | .inCaller _ body => body.costActionOk
     | .dealDamage src _ _ => src.costNounOk
     | .skipUntap n _ => n.costNounOk
-    | .insertPart _ _ _ _ => true
+    | .addTurnPart _ _ _ _ => true
     | .distribute _ _ among => among.costNounOk
     | .turnOver n => n.costNounOk
     | .setStatus _ n => n.costNounOk
@@ -1229,7 +1229,7 @@ mutual
     | .setStatus _ n => sameIntro (nomIntro bs n) []
     | .skipUntap n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
     | .skipPart _ count => let w := performerOf perf; sameIntro (Amount.intro (nomIntro bs w) count) []
-    | .insertPart part _ count _ => let who := performerOf perf;
+    | .addTurnPart part _ count _ => let who := performerOf perf;
       let afterCount := Amount.intro (nomIntro bs who) count
       if part == .turn then ⟨afterCount, turnRefB :: afterCount, none, []⟩
       else sameIntro afterCount []
@@ -1743,6 +1743,6 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .triggerReflexively _ _ | .triggerThisWay _ _ _ => []
   | .skipUntap _ steps => [(steps, .clamped)]
   | .skipPart _ count => [(count, .clamped)]
-  | .insertPart _ _ count _ => [(count, .clamped)]
+  | .addTurnPart _ _ count _ => [(count, .clamped)]
 
 end Semantics

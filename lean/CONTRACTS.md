@@ -287,8 +287,8 @@ These are checker guarantees, not an execution proof.
 
 ## Scheduling fields
 
-For `skipUntap`, `skipPart`, and `insertPart`, let `bs`
-be the input context. The subject (for `skipPart` and `insertPart`, the
+For `skipUntap`, `skipPart`, and `addTurnPart`, let `bs`
+be the input context. The subject (for `skipPart` and `addTurnPart`, the
 performer in context) is checked in `bs`. Its amount is checked in
 `nomIntro bs subject`. Part, anchor, and following-part fields carry no references.
 No scheduling field introduces an enclosed scope. The output is

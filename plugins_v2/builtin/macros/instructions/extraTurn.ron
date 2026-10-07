@@ -1,0 +1,7 @@
+// "take <count> extra turn(s) after this one": the actor takes them [CR#500.7].
+(
+    name: "extraTurn",
+    kinds: [Instruction],
+    params: {"count": Amount},
+    body: AddTurnPart(part: Turn, anchor: None, count: Param(count), followed_by: None),
+)

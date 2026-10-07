@@ -404,7 +404,7 @@ mutual
         zoneIsCheck (NounPhrase.zone bs n) .battlefield
     | .skipPart _ count => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
-    | .insertPart part anchor count followedBy => let who := performerOf perf;
+    | .addTurnPart part anchor count followedBy => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count ++
         refuse (part.proper || (part == .turn && anchor.isNone && followedBy.isNone))
           .windowOk ++ refuse (anchor.elim true TurnPart.proper) .windowOk ++

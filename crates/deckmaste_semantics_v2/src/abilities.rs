@@ -1062,7 +1062,7 @@ pub enum Instruction {
         part: TurnPart,
         count: Amount,
     },
-    InsertPart {
+    AddTurnPart {
         part: TurnPart,
         anchor: Option<TurnPart>,
         count: Amount,

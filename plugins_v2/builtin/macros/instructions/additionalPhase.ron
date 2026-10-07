@@ -1,0 +1,8 @@
+// "there is an additional <part> [after <anchor>] [followed by an additional
+// <followed_by>]": phases added to the current turn [CR#500.8].
+(
+    name: "additionalPhase",
+    kinds: [Instruction],
+    params: {"part": TurnPart, "count": Amount, "anchor": Default(Any, None), "followed_by": Default(Any, None)},
+    body: AddTurnPart(part: Param(part), anchor: Param(anchor), count: Param(count), followed_by: Param(followed_by)),
+)

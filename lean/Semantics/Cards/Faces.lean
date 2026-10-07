@@ -127,7 +127,7 @@ theorem okKarplusanMinotaurWinFlip : Ability.check [] karplusanMinotaurWinFlip =
 
 /-- Ral Zarek's ultimate -/
 def ralZarekUltimate : Instruction :=
-  Primitives.Instruction.sequentially [flipCoins 5, Primitives.Instruction.addTurn (Primitives.Amount.coinsShowing .heads)]
+  Primitives.Instruction.sequentially [flipCoins 5, extraTurn (Primitives.Amount.coinsShowing .heads)]
 theorem okRalZarekUltimate : Instruction.check [] ralZarekUltimate = [] := by decide
 
 /-- Krark's Thumb -/

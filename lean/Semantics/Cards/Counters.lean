@@ -639,7 +639,7 @@ def magistratesScepter : Spelled := spelled <| .singleFaced
               [ Primitives.Cost.tapSymbol,
                 Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 3)) (some (Primitives.CounterKindSource.printed (.named "chargeCounter")))
                   thisArtifact) ])
-            (Primitives.Instruction.addTurn (.lit 1)) ] } }
+            (extraTurn (.lit 1)) ] } }
 
 def grumgully : Spelled := spelled <| .singleFaced
   { characteristics :=
