@@ -320,3 +320,15 @@ probe results and logs are generated under this feature workspace's ignored
 `target/english-v3/`. Before retirement, this ticket's evidence is retained in
 the coordinator's ignored `target/english-v3/english-v3-scalar-property-values/`.
 No evidence snapshot or verifier is tracked or embedded in crate source.
+
+
+#### Refresh verification
+
+Kata refresh exits 0 and reports a no-op. The refreshed base is still claim
+`kypxyllkrrqv` / covered 18,646, with exactly the before census's runtime.
+Implementation `yqupppnwlkwk` / covered 19,170 retains all 1,832 measured
+runtime and declaration-dependency digests. The complete per-face comparison
+therefore applies against the refreshed base: zero Reading-count decreases
+from this change. Trunk-attributed Reading decreases: none (refresh imported
+no changes). No conflict required resolution and the passing gate remains
+applicable.
