@@ -71,7 +71,6 @@ fn surfaces(declaration: &NormalizedDeclaration) -> Vec<(SurfaceFeature, &str)> 
 
 fn attested_plural(category: SubtypeCategory, name: &str) -> Option<&'static str> {
     match (category, name) {
-        (SubtypeCategory::Artifact, "attraction") => Some("Attractions"),
         (SubtypeCategory::Artifact, "bobblehead") => Some("Bobbleheads"),
         (SubtypeCategory::Artifact, "clue") => Some("Clues"),
         (SubtypeCategory::Artifact, "contraption") => Some("Contraptions"),

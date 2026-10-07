@@ -124,7 +124,7 @@ fn every_nullary_helper_expands() {
             // A subtype declaration's body is its `Definition` node, and a
             // definition's name denotes its term, so reading the macro at a
             // `Subtype` position exercises both the derived body and the
-            // projection on all 462 declarations
+            // projection on all 461 declarations
             // (`plugins-v2-subtypes-macro-only`).
             "Subtype" => deckmaste_semantics_v2::words::Subtype,
             // The counter half of the same rule: a counter declaration's name
