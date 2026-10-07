@@ -656,7 +656,40 @@ recommendation (A) for each: (1) accessibility, since bindings already carry
 zone and kind; (2) co-arguments only, per the pin `badItAcrossOwnSlot` and
 the Weeping Angel corpus case.
 
-Owner: pending.
+Owner, 2026-10-07: both accepted, **provisionally**, in the owner's words:
+"ok to both I guess. we'll try this way for now anyhow".
+
+1. **The "cannot apply" exclusion is part of accessibility**, applied before
+   any resolution rule runs. A mention the verb cannot apply to by zone or
+   kind is not a candidate: a creature that died cannot take a counter, a
+   non-permanent cannot be sacrificed [CR#109.2,701.21a]. This is coder 1's
+   carrier and fold-state exclusion. The checker's bindings already carry zone
+   and kind, so it is a condition on the referent in the DRT sense.
+2. **Clause-mates are the co-arguments of the verb only.** Possessors and
+   small-clause objects ("counters on it") are not clause-mates. This keeps
+   the pin `badItAcrossOwnSlot` and the Weeping Angel corpus case.
+
+## Decided 2026-10-07
+
+The owner accepted the measured rules as the target ("ok"). Recorded as the
+§7 ruling of 2026-10-07 in `docs/decisions/semantics-v2.md`.
+
+- **Bare `it`: clause recency, with grammatical role as the tie-break** (D′
+  above). 60 correct on the 61 ambiguous sample sites under both coders'
+  features: 60 / 1 / 0 with coder 2's (Grip of Phyresis the one wrong),
+  60 / 0 / 1 with coder 1's (Cocoon refused).
+- **"that N": clause-mate exclusion, then most recent** (AC>R1). 76 / 11 / 0
+  on the 87 ambiguous sites, wrong on the same cards under both coders once
+  judgment 1 settles Tragic Banshee: Tahngarth, Unpredictable Cyclone,
+  Eriette, Runesword, Scythe of the Wretched, Bronze Bombshell, Gisela,
+  Solphim, Ram Through, Mangara's Equity, Noetic Scales.
+- **Those 11 are KNOWN-WRONG sites.** Each resolves silently to the wrong
+  referent; the rendered English is identical, so the round-trip cannot catch
+  it. Each needs an explicit selector when its card is written, and they
+  become a pin list in the refactor.
+- **`it` and "that N" keep different rules.**
+- **`lean-drt-anaphora-refactor` is promoted from `maybe/` to `planned/`** to
+  build what the rules read.
 
 ## The work: measure, then report (done 2026-10-06)
 
@@ -758,3 +791,75 @@ wrong, 9 undeterminable. Under strict, none flip.
 6. **Blind recoding** of the ambiguous sites.
 7. **Reciprocals.** "fight" [CR#701.14a] and "each other" need a pair binder
    that no rule here supplies.
+
+## Landing record
+
+Research ticket: its work (measure, then report) is complete and the owner
+has decided. Stamped on change `nzzrkstw` (commit "tickets: anaphor
+measurement done, promote DRT refactor"), whose parent `qvlstlsv` carries the
+ruling. No coverage command ran, so no lock `covered` count is stamped.
+
+### PROVE
+
+- **Reproduction.** The 2026-10-06 measurement regenerated the site list from
+  `data/`: 464 "that N" sites with two or more candidates, `sites.json`
+  byte-identical to the 2026-10-05 list. `pins.py` found 21 ambiguity pins,
+  not the 19 this ticket listed; the two extra are reconciled in "The
+  ambiguity pins" (14 `it`-form, 7 `that`-form).
+- **Blind second coding.** A fresh coder saw only the site texts. Referent
+  agreement: "that N" 94 of 94 determinable sites, Cohen's kappa 1.0 on both
+  labels; bare `it` 150 of 150 on referent identity (kappa 1.0 on identity;
+  0.81 and 0.96 on the index labels, the shortfall being 12 chain merges). No
+  site falls in the disagree class.
+- **No code touched; no tests touched.** Restored 0, re-spelled 0, ignored 0,
+  added 0, removed 0. No checker file, pin or Rust crate changed; the landing
+  edits documentation only.
+
+### DISCLOSE
+
+- **The two judgments** (decided above, provisional): accessibility includes
+  the cannot-apply exclusion; clause-mates are co-arguments only. Judgment 1
+  decides the ambiguity estimate and D′'s zero-error claim; judgment 2
+  decides whether AC is zero-wrong (Loki, Reincarnation, six "counters on it"
+  sites, Noetic Scales).
+- **The 11 known-wrong "that N" sites** under the accepted rule, listed under
+  "Decided 2026-10-07"; routed to `lean-drt-anaphora-refactor` as a required
+  pin list.
+- **Ambiguity estimate under each judgment 1 reading.** With the exclusion
+  (accepted): 61 of 150 sampled `it` sites ambiguous, ~1,529 of 3,759
+  occurrences. Without it: 96 of 150, ~2,406 of 3,759.
+- **Format limits** (see "Format limits"): no kind for parallel disjuncts
+  (Gisela, Solphim); the `m` convention in small clauses, now settled by
+  judgment 2; `X` hand sites scored as wrong.
+- **Deviations.** Coder 2 coded 95 "that N" and all 150 `it` sites rather
+  than the 87 and 61 ambiguous ones, because it applied no carrier exclusion
+  and judged ambiguity itself. The 2026-10-06 kind split differs from
+  2026-10-05: a 33 / b 22 / c 8 / d 2 / e 3 / f 9 (was 29 / 22 / 11 / 4 / 2 /
+  9) plus a new kind g, 44 sites, which 2026-10-05 did not count.
+- **Not done here, routed.** "Proof" above asks for the Pronouns amendment to
+  `docs/oracle-style-guide.md` with an accepted rule; it is routed to
+  `lean-drt-anaphora-refactor`. The ruling is recorded in `semantics-v2.md`
+  §7 rather than in `oracle-text-is-forward-anaphoric.md`, which gets a
+  dated note pointing at it.
+- **Glossary.** Added **Clause-mate** to
+  `docs/contexts/oracle-english/CONTEXT.md` (no CR rule fits). "In focus"
+  was not added (it collides with **Focus**). The Game Model **Reference
+  Scope** entry still states the strict uniqueness rule as current behaviour;
+  routed to the refactor.
+- **STOPs:** none.
+
+### REPORT
+
+- Evidence (ignored local directories, not version-controlled):
+  `docs/evidence/anaphora-measurement-2026-10-06/` (coder 1: report, keys,
+  `corpus.py`, `analyze.py`, `dump_that.py`, `extract_it.py`, `pins.py`,
+  `rules.py`, `score_*.py`, `breakdown.py`, `reciprocals.py`, `*.out`);
+  `docs/evidence/anaphora-blind-2026-10-07/` (coder 2: `key2_that.txt`,
+  `key2_it.txt`, `judgments.md`);
+  `docs/evidence/anaphora-agreement-2026-10-07/` (`agreement-2026-10-07.md`;
+  `agree.py`, `lists.py`, `dcheck.py`, `c2only.py`, each with `*.out`).
+- Commits that carried the measurement into this ticket: `nqzpvrlo`
+  (candidate rules from prior art, 2026-10-05), `mwwtqtxr` (measurement,
+  2026-10-06), `xqlsnruk` (blind coding and agreement, 2026-10-07).
+- **Performance advisory: not applicable.** No coverage command ran; the
+  landing changes no code or consumed data.
