@@ -282,8 +282,11 @@ cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste
 cargo clippy -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings
 ```
 
-Gate outcome: both commands pass; 802 tests/doc-tests pass, zero failures
-and zero ignored tests.
+Gate outcome: both commands pass; 802 tests/doc-tests pass, zero failures.
+One pre-existing test remains ignored:
+`macros::templates::tests::macro_schema_census_count_matches_21`, whose existing
+attribute says "cross-checks the live corpus against the census; run on demand".
+This landing adds no ignored tests and changes no ignore attribute.
 `cargo fmt --all -- --check` passes. Citation checking reports zero
 non-compliant citation strings and zero stale citations; the feature's piped
 citation diff audit selects zero new Comprehensive Rules citation sites.
