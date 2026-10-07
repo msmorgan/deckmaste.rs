@@ -811,7 +811,7 @@ fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
     );
     assert!(readings("equal", Category::AdjectivePhrase).is_empty());
     assert!(readings("equal than 2", Category::ComparativeAdjectivePhrase).is_empty());
-    assert!(!readings("greater than 2", Category::OrderingComplement).is_empty());
+    assert!(!readings("greater than 2", Category::ComparativeAdjectivePhrase).is_empty());
 }
 
 #[test]

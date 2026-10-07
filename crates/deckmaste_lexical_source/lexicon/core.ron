@@ -1196,9 +1196,9 @@
         "core-verb:BeContracted": [(kind: "Predicate", items: [Argument((relation: Complement, category: "LocativeComplement"))]), (kind: "Auxiliary", items: [Argument((relation: Complement, category: "ParticipialPredicate"))])],
         "vocab:Adjective/Able": [(kind: "Predicate", items: [Marked(vocabulary: "InfinitivalMarker", member: "To", slot: (relation: Complement, category: "BarePredicate"))])],
         "vocab:ScalarDegree/Equal": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "To", slot: (relation: Complement, category: "ComparativeComplement"))])],
-        "vocab:ScalarDegree/Greater": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "MeasurePhrase"))])],
-        "vocab:ScalarDegree/Lesser": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "MeasurePhrase"))])],
-        "vocab:Adjective/Less": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "MeasurePhrase"))])],
+        "vocab:ScalarDegree/Greater": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
+        "vocab:ScalarDegree/Lesser": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
+        "vocab:Adjective/Less": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
     },
     frame_markers: {
         "to": ("InfinitivalMarker", "To"),

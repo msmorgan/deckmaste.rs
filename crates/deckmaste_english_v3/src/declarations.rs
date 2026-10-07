@@ -206,7 +206,6 @@ constructions! {
         category ComparativeGovernor();
         category ComparativeComplement();
         category ComparativeAdjectivePhrase();
-        category OrderingComplement();
         category KeywordPhrase();
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
@@ -332,7 +331,7 @@ constructions! {
         frame Measure = Predicate(Complement(MeasurePhrase));
         frame SlashMeasure = Predicate(Complement(PowerToughnessAdjustment));
         frame Equality = Predicate(Marked(Preposition, To, Complement(ComparativeComplement)));
-        frame Ordering = Predicate(Marked(Preposition, Than, Complement(MeasurePhrase)));
+        frame Ordering = Predicate(Marked(Preposition, Than, Complement(ComparativeComplement)));
         frame GrantedAbilityComplement = Predicate(Complement(GrantedAbility));
         frame AmountComplement = Predicate(Complement(Amount));
         frame CardinalComplement = Predicate(Complement(Cardinal));
@@ -1785,6 +1784,7 @@ constructions! {
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord, NoConcord),
             (Nominal, Self, NominalConcord),
             (AdjectivePhrase, Self, AdjectiveStructureMerge),
+            (ComparativeGovernor, Self),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, NoConcord),
@@ -2867,7 +2867,7 @@ constructions! {
         // CGEL Ch. 13 §1.3, pp. 1103–1104 distinguishes the bare
         // comparative Complement and its selected expanded marker.
         table comparative_marker(frame, ComparisonMarker) -> Selection {
-            (Equality, Equality) => Yes,
+            (Equality, Equality) => Yes, (Ordering, Ordering) => Yes,
         }
 
         construction ComparativeGovernor: ComparativeGovernor {
@@ -2890,19 +2890,6 @@ constructions! {
 
         construction ComparativeAdjective: AdjectivePhrase {
             form [phrase: ComparativeAdjectivePhrase];
-            export AdjectiveStructure = Complemented;
-        }
-
-        construction OrderingComplement: OrderingComplement {
-            form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ",
-                measure: MeasurePhrase];
-            require head.frame = Ordering;
-            require marker.ComparisonMarker = Ordering;
-            require measure.MeasureKind = Scalar;
-        }
-
-        construction OrderingAdjective: AdjectivePhrase {
-            form [complement: OrderingComplement];
             export AdjectiveStructure = Complemented;
         }
 

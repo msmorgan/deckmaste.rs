@@ -100,3 +100,23 @@ fn an_independent_nominal_comparison_preserves_structure_and_words() {
     value.visit_words(&mut |word| leaves.push(word.clone())).unwrap();
     assert_eq!(leaves, [head, marker, possessor, power]);
 }
+
+#[test]
+fn scalar_inequality_and_shared_governors_keep_their_complements() {
+    // Sage-Eye Avengers; Spikeshell Harrier's comparative sentence;
+    // Ghastly Demise; Massacre Girl, Known Killer's existing numeric case.
+    for (text, comparison) in [
+        ("Whenever this creature attacks, you may return target creature to its owner's hand if its power is less than this creature's power.",
+         "less than this creature's power"),
+        ("If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1.",
+         "greater than each other player's speed"),
+        ("Destroy target nonblack creature if its toughness is less than or equal to the number of cards in your graveyard.",
+         "less than or equal to the number of cards in your graveyard"),
+        ("Whenever a creature an opponent controls dies, if its toughness was less than 1, draw a card.",
+         "less than 1"),
+    ] {
+        assert_constituents(text, Category::Document, &[(Category::AdjectivePhrase, comparison)]);
+    }
+    assert_eq!(readings("less than this creature's power", Category::AdjectivePhrase).len(), 1);
+    assert_eq!(readings("less than or equal to its power", Category::AdjectivePhrase).len(), 1);
+}
