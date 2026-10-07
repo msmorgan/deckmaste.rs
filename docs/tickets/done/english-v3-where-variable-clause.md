@@ -1312,3 +1312,17 @@ for the same four packages, all targets with `-D warnings`, passes;
 `cargo fmt --all --check` passes. Citation checks report **0 stale and 0
 noncompliant**; the piped diff audit selects **0 changed CR citation sites**.
 `gate-results-combined.json` records the check scope and outcomes.
+
+The final refresh exits **0 without conflicts** and incorporates only the
+sibling's record/routing correction at **`pumlmnyvpoun` / covered 21,070**.
+Both versions of systemic routing are retained: passive By over-admission and
+the variable-Where/binding residue. No grammar, lexical source or consumed data
+changes; the final declaration hash is unchanged, so the combined gate and
+all per-face results remain valid against this final refreshed base. Citation
+checks are rerun after the docs refresh and report **0 stale / 0 noncompliant**;
+the piped diff audit still selects **0 changed CR citation sites** of this
+follow-up. `combined-scope-proof.json` records the parent and exact source
+proof; `final-refresh-docs-only.diff` retains the imported changes. The final
+composed census remains **21,072 covered / 685,687 Readings**, with only the two
+named own gains, no own Reading decreases, and the same **3,300 → 3,330; net
++30** declaration comparison.
