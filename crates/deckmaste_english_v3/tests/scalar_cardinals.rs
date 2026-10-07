@@ -163,7 +163,8 @@ fn assert_laws(value: &Reading, text: &str, category: Category) {
 
 #[test]
 fn independently_constructed_maximum_determiners_preserve_number_and_lexical_owners() {
-    // Constituents of Sanguine Indulgence, Reasonable Doubt, and Kazandu Stomper.
+    // Constituents of Sanguine Indulgence, Reasonable Doubt, and Kazandu
+    // Stomper.
     let creature = noun("lexeme:type/creature", Number::Singular);
     let Reading::Noun {
         head: creature_word,

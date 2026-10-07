@@ -94,7 +94,7 @@ fn degree_quantifiers_keep_head_countability_and_one_constituency() {
         "that much cards",
         "that much creature",
         "that all cards",
-        "those many cards",
+        "those much life",
     ] {
         assert!(readings(text, Category::NounPhrase).is_empty(), "{text}");
     }
