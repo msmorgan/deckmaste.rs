@@ -31,6 +31,7 @@ import Semantics.Proofs.Turn
 import Semantics.Proofs.Zone
 import Semantics.Proofs.Actor
 import Semantics.Proofs.GetsBothDeltas
+import Semantics.Proofs.BindingIdentity
 
 /-!
 # Semantics.Proofs

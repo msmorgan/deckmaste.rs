@@ -188,6 +188,15 @@ mutual
     | pileOf (count : SliceCount) (by_ : Option NounPhrase)
     /-- A pronoun: what it reaches for, its number, and the window it resolves in. -/
     | pro (reach : Reach) (plurality : Plurality) (window : Window)
+    /-- A macro body's first mention of a referent parameter: the argument, checked and
+    introduced where it stands, with the binding it introduces or resolves recorded under the
+    Binding Identity `id`. -/
+    | firstMention (id : BindingId) (phrase : NounPhrase)
+    /-- A later mention of the same parameter: the binding recorded under `id`, read back by that
+    identity rather than by a pronoun search. `phrase` is the argument again, kept only for its
+    structural facts (its kind, whether it is "you" or the source); it is never checked or
+    introduced a second time, so it selects nothing. -/
+    | laterMention (id : BindingId) (phrase : NounPhrase)
     | attachHost (word : AttachWord) (head : NounWord)
     | possessorOf (axis : PossessorAxis) (subject : NounPhrase)
     | designated (designation : DesignationLabel) (whose : NounPhrase)
@@ -372,6 +381,7 @@ attribute [semantic_expression] Semantics.GameEvent Semantics.NounPhrase Semanti
 classify_semantic_syntax
 
 attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.gap
+  Semantics.NounPhrase.firstMention Semantics.NounPhrase.laterMention
   Semantics.Quantity.withBindings Semantics.Quantity.inCaller
   Semantics.ZoneExpr.withBindings Semantics.ZoneExpr.inCaller
   Semantics.Condition.withBindings Semantics.Condition.inCaller

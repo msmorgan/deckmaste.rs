@@ -558,6 +558,9 @@ structure Binding where
   det : Determiner
   plur : Plurality
   payload : Payload
+  /-- The Binding Identities this binding was recorded under: a macro body's first mention of a
+  referent parameter adds one, and the body's later mentions read the binding back by it. -/
+  idents : List BindingId := []
   deriving Repr, BEq
 
 /-- The kind a binding denotes, derived from its payload. -/
@@ -618,8 +621,8 @@ def Binding.face (b : Binding) : Option PileFace := b.payload.face
 
 /-- Re-size an object or pile binding; any other binding is returned unchanged. -/
 def sized (sz : Option Nat) : Binding → Binding
-  | ⟨det, pl, .object ty zn pv og _⟩ => ⟨det, pl, .object ty zn pv og sz⟩
-  | ⟨det, pl, .pile zn _ fc⟩ => ⟨det, pl, .pile zn sz fc⟩
+  | ⟨det, pl, .object ty zn pv og _, ids⟩ => ⟨det, pl, .object ty zn pv og sz, ids⟩
+  | ⟨det, pl, .pile zn _ fc, ids⟩ => ⟨det, pl, .pile zn sz fc, ids⟩
   | b => b
 
 /-- The head type(s) a phrase seeds, one per join half. -/
@@ -628,15 +631,15 @@ inductive HeadTy where
   | join (a b : HeadTy)
   deriving Repr, BEq
 
-def outcomeB (s : OutcomeSort) : Binding := ⟨.the, .one, .outcome s⟩
-def gapB : Binding := ⟨.the, .one, .gap⟩
-def turnRefB : Binding := ⟨.the, .one, .turnRef⟩
-def letterB (l : Letter) : Binding := ⟨.a, .one, .letter l⟩
-def qualityB (q : QualitySort) : Binding := ⟨.a, .one, .quality q⟩
+def outcomeB (s : OutcomeSort) : Binding := ⟨.the, .one, .outcome s, []⟩
+def gapB : Binding := ⟨.the, .one, .gap, []⟩
+def turnRefB : Binding := ⟨.the, .one, .turnRef, []⟩
+def letterB (l : Letter) : Binding := ⟨.a, .one, .letter l, []⟩
+def qualityB (q : QualitySort) : Binding := ⟨.a, .one, .quality q, []⟩
 
 def ChoiceSort.binding : ChoiceSort → Binding
   | .quality q => qualityB q
-  | .player => ⟨.a, .one, .player true⟩
+  | .player => ⟨.a, .one, .player true, []⟩
 
 def ChoiceSort.binds : ChoiceSort → Kind → Payload → Bool
   | .quality q, k, _ => Kind.lte (.quality q) k
@@ -655,19 +658,19 @@ def introducedChoiceAt (k : Kind) : List Binding :=
 
 def countOnes (k : Kind) : Bindings → Nat
   | [] => 0
-  | ⟨_, _, .actor _⟩ :: bs => countOnes k bs
-  | b@⟨_, .one, _⟩ :: bs => if Kind.lte k b.kind then countOnes k bs + 1 else countOnes k bs
+  | ⟨_, _, .actor _, _⟩ :: bs => countOnes k bs
+  | b@⟨_, .one, _, _⟩ :: bs => if Kind.lte k b.kind then countOnes k bs + 1 else countOnes k bs
   | _ :: bs => countOnes k bs
 
 def countOutcomes (s : OutcomeSort) : Bindings → Nat
   | [] => 0
-  | ⟨_, .one, .outcome s'⟩ :: bs =>
+  | ⟨_, .one, .outcome s', _⟩ :: bs =>
     if s == s' then countOutcomes s bs + 1 else countOutcomes s bs
   | _ :: bs => countOutcomes s bs
 
 def outcomeInScope (s : OutcomeSort) : Bindings → Bool
   | [] => false
-  | ⟨_, .one, .outcome s'⟩ :: bs => s == s' || outcomeInScope s bs
+  | ⟨_, .one, .outcome s', _⟩ :: bs => s == s' || outcomeInScope s bs
   | _ :: bs => outcomeInScope s bs
 
 def damageDealtInScope (bs : Bindings) : Bool := outcomeInScope .damageDealt bs
@@ -683,13 +686,13 @@ def OutcomeSort.isAmount : OutcomeSort → Bool
 
 def countAmountOutcomes : Bindings → Nat
   | [] => 0
-  | ⟨_, .one, .outcome s⟩ :: bs =>
+  | ⟨_, .one, .outcome s, _⟩ :: bs =>
     if s.isAmount then countAmountOutcomes bs + 1 else countAmountOutcomes bs
   | _ :: bs => countAmountOutcomes bs
 
 def countChoice (s : ChoiceSort) : Bindings → Nat
   | [] => 0
-  | ⟨_, .one, p⟩ :: bs => if s.binds p.kind p then countChoice s bs + 1 else countChoice s bs
+  | ⟨_, .one, p, _⟩ :: bs => if s.binds p.kind p then countChoice s bs + 1 else countChoice s bs
   | _ :: bs => countChoice s bs
 
 /-- Which announced choice a read names: the one standing choice, or the most recent of
@@ -706,7 +709,7 @@ def ballotLabelsOk (opts : List VoteLabel) : Bool := 2 ≤ opts.length && distin
 
 def countLetter (l : Letter) : Bindings → Nat
   | [] => 0
-  | b@⟨_, .one, _⟩ :: bs =>
+  | b@⟨_, .one, _, _⟩ :: bs =>
     if Kind.lte (.letter l) b.kind then countLetter l bs + 1 else countLetter l bs
   | _ :: bs => countLetter l bs
 
@@ -724,7 +727,7 @@ def anyOpenLetter (l : Letter) (bs : Bindings) : Bool := bs.any (openLetter l)
 def defineLetter (l : Letter) : Bindings → Bindings
   | [] => []
   | b :: bs =>
-    if openLetter l b then ⟨.the, b.plur, b.payload⟩ :: defineLetter l bs
+    if openLetter l b then { b with det := .the } :: defineLetter l bs
     else b :: defineLetter l bs
 
 def introducedLetters (l : Letter) (bs : Bindings) : List Binding :=
@@ -732,32 +735,32 @@ def introducedLetters (l : Letter) (bs : Bindings) : List Binding :=
 
 def countManysAny : Bindings → Nat
   | [] => 0
-  | ⟨_, .many, _⟩ :: bs => countManysAny bs + 1
+  | ⟨_, .many, _, _⟩ :: bs => countManysAny bs + 1
   | _ :: bs => countManysAny bs
 
 def countManys (k : Kind) : Bindings → Nat
   | [] => 0
-  | b@⟨_, .many, _⟩ :: bs => if Kind.lte k b.kind then countManys k bs + 1 else countManys k bs
+  | b@⟨_, .many, _, _⟩ :: bs => if Kind.lte k b.kind then countManys k bs + 1 else countManys k bs
   | _ :: bs => countManys k bs
 
 def objGroup (k : Kind) (b : Binding) : Bool := Kind.lte k b.kind && !b.plur.isOne
 
 def countGroups (k : Kind) : Bindings → Nat
   | [] => 0
-  | ⟨.part, _, _⟩ :: bs => countGroups k bs
-  | ⟨.bare, _, _⟩ :: bs => countGroups k bs
+  | ⟨.part, _, _, _⟩ :: bs => countGroups k bs
+  | ⟨.bare, _, _, _⟩ :: bs => countGroups k bs
   | b :: bs => if objGroup k b then countGroups k bs + 1 else countGroups k bs
 
 def countParts (k : Kind) : Bindings → Nat
   | [] => 0
-  | b@⟨.part, _, _⟩ :: bs => if Kind.lte k b.kind then countParts k bs + 1 else countParts k bs
+  | b@⟨.part, _, _, _⟩ :: bs => if Kind.lte k b.kind then countParts k bs + 1 else countParts k bs
   | _ :: bs => countParts k bs
 
 def theRestOk (k : Kind) (bs : Bindings) : Bool := countGroups k bs ≤ 1 && countParts k bs != 0
 
 def partsTaken (k : Kind) : Bindings → Nat
   | [] => 0
-  | b@⟨.part, _, _⟩ :: bs =>
+  | b@⟨.part, _, _, _⟩ :: bs =>
     if Kind.lte k b.kind
       then (match b.size with
             | some n => n + partsTaken k bs
@@ -767,8 +770,8 @@ def partsTaken (k : Kind) : Bindings → Nat
 
 def countedGroupSize (k : Kind) : Bindings → Option Nat
   | [] => none
-  | ⟨.part, _, _⟩ :: bs => countedGroupSize k bs
-  | ⟨.bare, _, _⟩ :: bs => countedGroupSize k bs
+  | ⟨.part, _, _, _⟩ :: bs => countedGroupSize k bs
+  | ⟨.bare, _, _, _⟩ :: bs => countedGroupSize k bs
   | b :: bs => if objGroup k b then b.size else countedGroupSize k bs
 
 def theOtherOk (k : Kind) (bs : Bindings) : Bool :=
@@ -795,17 +798,17 @@ def spentDistributively : Bindings → Bindings → Bool
 
 def partsClosed : Bindings → Bindings
   | [] => []
-  | ⟨.part, pl, p⟩ :: bs => ⟨.the, pl, p⟩ :: partsClosed bs
+  | ⟨.part, pl, p, ids⟩ :: bs => ⟨.the, pl, p, ids⟩ :: partsClosed bs
   | b :: bs => b :: partsClosed bs
 
 def partsDistributed : Bindings → Bool
   | [] => true
-  | ⟨.part, pl, _⟩ :: bs => !pl.isOne && partsDistributed bs
+  | ⟨.part, pl, _, _⟩ :: bs => !pl.isOne && partsDistributed bs
   | _ :: bs => partsDistributed bs
 
 def restSource (k : Kind) : Bindings → Option Binding
   | [] => none
-  | b@⟨.part, _, _⟩ :: bs =>
+  | b@⟨.part, _, _, _⟩ :: bs =>
     match restSource k bs with
     | some s => some s
     | none => if Kind.lte k b.kind then some b else none
@@ -817,7 +820,7 @@ def provOfGroup (k : Kind) (bs : Bindings) : Option Stamp := restSource k bs >>=
 
 def anyTargeted (k : Kind) : Bindings → Bool
   | [] => false
-  | b@⟨.target, _, _⟩ :: bs => Kind.lte k b.kind || anyTargeted k bs
+  | b@⟨.target, _, _, _⟩ :: bs => Kind.lte k b.kind || anyTargeted k bs
   | _ :: bs => anyTargeted k bs
 
 def anchorTyOk (t : CardType) : List CardType → Bool
@@ -826,17 +829,17 @@ def anchorTyOk (t : CardType) : List CardType → Bool
 
 def anyTargetedAt : Bindings → Bool
   | [] => false
-  | ⟨.target, _, _⟩ :: _ => true
+  | ⟨.target, _, _, _⟩ :: _ => true
   | _ :: bs => anyTargetedAt bs
 
 def settleTargets : Bindings → Bindings
   | [] => []
-  | ⟨.target, plur, payload⟩ :: bs => ⟨.the, plur, payload⟩ :: settleTargets bs
+  | ⟨.target, plur, payload, ids⟩ :: bs => ⟨.the, plur, payload, ids⟩ :: settleTargets bs
   | b :: bs => b :: settleTargets bs
 
 def outcomesOnly : Bindings → Bindings
   | [] => []
-  | b@⟨_, _, .outcome _⟩ :: bs => b :: outcomesOnly bs
+  | b@⟨_, _, .outcome _, _⟩ :: bs => b :: outcomesOnly bs
   | _ :: bs => outcomesOnly bs
 
 def agreedField {α : Type} (f : α → α → Bool) : Option α → Option α → Option α
@@ -887,7 +890,8 @@ def unionBinding (b c : Binding) : Option Binding :=
     let q := c.payload.visible
     let value ← if p == q then some p else (unionPayload p q).map Prod.snd
     let value := if b.payload.isForgotten || c.payload.isForgotten then .hidden value else value
-    pure ⟨b.det, b.plur, b.payload.restoreMasks (c.payload.restoreMasks value)⟩
+    pure ⟨b.det, b.plur, b.payload.restoreMasks (c.payload.restoreMasks value),
+      b.idents.filter c.idents.contains⟩
   else none
 
 def unionBindings : Bindings → Bindings → Option Bindings
@@ -1065,8 +1069,8 @@ def stampIs (v : Deed) : Option Stamp → Bool
   | some st => stampedBy v st
 
 def markTy (ty : List CardType) : Binding → Binding
-  | ⟨det, plur, .object old zn st og sz⟩ =>
-    ⟨det, plur, .object (mergeTypes old ty) zn st og sz⟩
+  | ⟨det, plur, .object old zn st og sz, ids⟩ =>
+    ⟨det, plur, .object (mergeTypes old ty) zn st og sz, ids⟩
   | b => b
 
 def markFirst (q : Binding → Bool) (ty : List CardType) : Bindings → Bindings
@@ -1167,14 +1171,19 @@ def bindingAt (bs : Bindings) : List Nat → Option Binding
     let b ← bs[i]?
     let .parameterFrame _ _ slots := b.payload | none
     let (_, det, pl, payload) ← slots[j]?
-    pure ⟨det, pl, payload⟩
+    pure ⟨det, pl, payload, []⟩
   | _ => none
+
+/-- An update keeps every Binding Identity the slot was recorded under. -/
+def mergeIdents (old new : List BindingId) : List BindingId :=
+  old ++ new.filter (!old.contains ·)
 
 def setBindingAt (bs : Bindings) (address : List Nat) (value : Binding) : Bindings :=
   match address with
   | [i] =>
     let value := match bs[i]? with
-      | some old => { value with payload := old.payload.withVisible value.payload }
+      | some old => { value with payload := old.payload.withVisible value.payload
+                                 idents := mergeIdents old.idents value.idents }
       | none => value
     bs.set i value
   | [i, j] =>
@@ -1248,6 +1257,45 @@ def overWindow (f : Bindings → Bindings) (w : Window) (bs : Bindings) : Bindin
   let addresses := windowAddresses w bs
   (addresses.zip (f (view w bs))).foldl (fun bs (address, b) => setBindingAt bs address b) bs
 
+/-! ### Binding Identity
+
+A macro body's first mention of a referent parameter records the binding it introduces or
+resolves under a Binding Identity; each later mention reads that binding back by the identity,
+never by a pronoun search and never by its position in the stack (`docs/decisions/semantics-v2.md`
+§7, ruling 2026-10-06). The most recent binding recorded under the identity is the one read, so
+two calls of the same macro each read their own. -/
+
+/-- The address of the most recent binding recorded under `id`, if any. -/
+def identityAddress (id : BindingId) (bs : Bindings) : Option (List Nat) :=
+  (bs.findIdx? fun b => b.idents.contains id).map ([·])
+
+/-- The binding recorded under `id`, seen through caller masks. -/
+def identityBinding (id : BindingId) (bs : Bindings) : Option Binding :=
+  identityAddress id bs >>= bindingAt bs
+
+/-- Record the binding at `address` under `id` as well. -/
+def recordIdentityAt (id : BindingId) (bs : Bindings) (address : List Nat) : Bindings :=
+  match address with
+  | [i] =>
+    match bs[i]? with
+    | some b => bs.set i { b with idents := mergeIdents b.idents [id] }
+    | none => bs
+  | _ => bs
+
+/-- Record the head of a list of introduced bindings, its own referent, under `id`. -/
+def recordHead (id : BindingId) : List Binding → List Binding
+  | b :: bs => { b with idents := mergeIdents b.idents [id] } :: bs
+  | [] => []
+
+/-- Apply a window update to the binding recorded under `id`. -/
+def overIdentity (f : Bindings → Bindings) (id : BindingId) (bs : Bindings) : Bindings :=
+  match identityAddress id bs with
+  | some address =>
+    match bindingAt bs address, f ((bindingAt bs address).toList) with
+    | some _, [b] => setBindingAt bs address b
+    | _, _ => bs
+  | none => bs
+
 /-- Leaving the last lexical scope also drops its retained private references. -/
 def closeOperands (bs : Bindings) : Bindings :=
   let closed := removeFrame bs
@@ -1307,6 +1355,17 @@ def NounResult.withValue (result : NounResult) (fallback : Binding)
   { result with value := some value, context
                 additions := context.take result.additions.length }
 
+/-- A first mention's result: the binding the phrase introduced or resolved, recorded under
+`id`. A phrase that neither introduces nor resolves a binding ("you", "this") records nothing,
+and its later mentions read the phrase again. -/
+def NounResult.recordIdentity (id : BindingId) (result : NounResult) : NounResult :=
+  match result.address with
+  | none => result
+  | some address =>
+    let context := recordIdentityAt id result.context address
+    { result with context, value := (bindingAt context address).or result.value
+                  additions := context.take result.additions.length }
+
 /-- Active captures keep physical slots stable even when ordinary discourse forgets
 an object. Every alias continues to read and update the same private slot. -/
 def filterContext (keep : Binding → Bool) (bs : Bindings) : Bindings :=
@@ -1327,8 +1386,8 @@ def groupSpent (k : Kind) (bs : Bindings) : Bindings :=
 
 def countTokenSpecs : Bindings → Nat
   | [] => 0
-  | ⟨.self, _, _⟩ :: bs => countTokenSpecs bs
-  | ⟨_, _, .object _ _ _ og _⟩ :: bs =>
+  | ⟨.self, _, _, _⟩ :: bs => countTokenSpecs bs
+  | ⟨_, _, .object _ _ _ og _, _⟩ :: bs =>
     if isTokenOrigin og then countTokenSpecs bs + 1 else countTokenSpecs bs
   | _ :: bs => countTokenSpecs bs
 

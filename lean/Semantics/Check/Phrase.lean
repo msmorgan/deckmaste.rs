@@ -93,7 +93,7 @@ def Predicate.inKind (p : Predicate) (k : Kind) : Bool :=
 
 mutual
   def NounPhrase.kind? : NounPhrase → Option Kind
-    | .withBindings _ _ body | .inCaller _ body => body.kind?
+    | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.kind?
     | .gap k => some k
     | .you | .actor | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
     | .described _ p => p.kind?
@@ -102,6 +102,7 @@ mutual
     | .theRest k _ => some k
     | .pileOf _ _ => some .pile
     | .pro r _ _ => some r.kind
+    | .laterMention _ n => some (n.kind?.getD .object)
     | .attachHost _ h => some h.kind
     | _ => some .object
   termination_by structural n => n
@@ -776,22 +777,22 @@ def Predicate.negatable : Predicate → Bool
 /-- The binding a described phrase introduces, at kind `k`. -/
 def bindFor (det : Determiner) (plur : Plurality) : Kind → Predicate → Binding
   | .object, p =>
-    if p.seedsAbility then ⟨det, plur, .ability none⟩
+    if p.seedsAbility then ⟨det, plur, .ability none, []⟩
     else ⟨det, plur,
       .object p.seedTy (p.phraseZone .object) none
-        (if p.seedsToken then some .token else none) none⟩
-  | .player, _ => ⟨det, plur, .player false⟩
-  | .quality q, _ => ⟨det, plur, .quality q⟩
-  | k@(.join _ _), p => ⟨det, plur, joinHalfPayload k p.seedTys⟩
-  | .letter l, _ => ⟨det, plur, .letter l⟩
-  | .turnRef, _ => ⟨det, plur, .turnRef⟩
-  | .pile, _ => ⟨det, plur, .pile none none none⟩
+        (if p.seedsToken then some .token else none) none, []⟩
+  | .player, _ => ⟨det, plur, .player false, []⟩
+  | .quality q, _ => ⟨det, plur, .quality q, []⟩
+  | k@(.join _ _), p => ⟨det, plur, joinHalfPayload k p.seedTys, []⟩
+  | .letter l, _ => ⟨det, plur, .letter l, []⟩
+  | .turnRef, _ => ⟨det, plur, .turnRef, []⟩
+  | .pile, _ => ⟨det, plur, .pile none none none, []⟩
   -- No predicate fixes an outcome sort, so an outcome-kinded described phrase has nothing to
   -- bind; keep it a gap, same as the truly kindless case.
-  | .outcome, _ | .gap, _ => ⟨det, plur, .gap⟩
+  | .outcome, _ | .gap, _ => ⟨det, plur, .gap, []⟩
 
 def chosenBind (det : Determiner) (plur : Plurality) : Kind → Predicate → Binding
-  | .player, _ => ⟨det, plur, .player true⟩
+  | .player, _ => ⟨det, plur, .player true, []⟩
   | k, p => bindFor det plur k p
 
 def Predicate.qualityReadOk : Predicate → Bool
@@ -967,8 +968,42 @@ def Predicate.choiceRead : Predicate → Bool
   | .chosenPlayer _ => true
   | _ => false
 
+/-! ## Number -/
+
+mutual
+  def NounPhrase.plur : NounPhrase → Plurality
+    | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.plur
+    | .gap _ => .one
+    | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .attachHost _ _ | .designated _ _ =>
+      .one
+    | .asType _ n _ => n.plur
+    | .resolvedPermanent n => n.plur
+    | .asMarker _ n => n.plur
+    | .playerGroup _ => .many
+    | .described d _ => d.plur
+    | .eachOf _ => .many
+    | .namesAgree _ g => g.plur
+    | .and _ => .many
+    | .or ns => NounPhrase.commonPlurality ns
+    | .librarySlice _ amt whose => outputPlur whose.plur amt.plur
+    | .someOf q _ _ => q.plur
+    | .theRest _ pl => pl
+    | .pileOf q _ => q.plur
+    | .pro _ pl _ => pl
+    | .laterMention _ n => n.plur
+    | .possessorOf _ n => n.plur
+    | .oneEachOf _ _ => .many
+  termination_by structural n => n
+
+  def NounPhrase.commonPlurality : List NounPhrase → Plurality
+    | [] => .many
+    | [n] => n.plur
+    | n :: ns => if n.plur == NounPhrase.commonPlurality ns then n.plur else .many
+  termination_by structural ns => ns
+end
+
 def NounPhrase.det : NounPhrase → Option Determiner
-  | .withBindings _ _ body | .inCaller _ body => body.det
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.det
   | .described d _ => some d.det
   | .eachOf _ => some .each
   | .librarySlice _ _ _ => some .the
@@ -981,7 +1016,7 @@ def NounPhrase.det : NounPhrase → Option Determiner
 
 mutual
   def NounPhrase.anchorPhrase : NounPhrase → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.anchorPhrase
+    | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.anchorPhrase
     | .or ns => NounPhrase.allAnchorPhrase ns
     | .and _ => false
     | n => n.det.elim true (· == .target)
@@ -995,7 +1030,8 @@ end
 
 def NounPhrase.groupMention : NounPhrase → Bool
   | .pro (.parameter _) pl _ => !pl.isOne
-  | .withBindings _ _ body | .inCaller _ body => body.groupMention
+  | .laterMention _ n => !n.plur.isOne
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.groupMention
   | .librarySlice _ _ _ => true
   | .pro _ pl .whole => !pl.isOne
   | .and _ => true
@@ -1005,20 +1041,21 @@ def NounPhrase.groupMention : NounPhrase → Bool
 /-- A positional own-read partitions the group it has just named, a one-card group included
 [CR#701.22a]. -/
 def NounPhrase.partitiveBase : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.partitiveBase
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.partitiveBase
   | .pro _ _ (.top _) | .pro _ _ (.introduced _) => true
   | n => n.det == some .all || n.groupMention
 
 def NounPhrase.countableGroup (n : NounPhrase) : Bool := n.det == some .bare || n.groupMention
 
 def NounPhrase.countedMention : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.countedMention
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.countedMention
   | .namesAgree _ _ => false
   | n => n.det == some .count || n.det == some .target
 
 def NounPhrase.ascribable : NounPhrase → Bool
   | .pro (.parameter shape) _ _ => shape.ascribable
-  | .withBindings _ _ body | .inCaller _ body => body.ascribable
+  | .laterMention _ n => n.ascribable
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.ascribable
   | .gap _ => true
   | .this | .designated _ _ => true
   | _ => false
@@ -1027,7 +1064,8 @@ def NounPhrase.ascribable : NounPhrase → Bool
 that may sit inside a handoff asks `isYouIn`. -/
 def NounPhrase.isYou : NounPhrase → Bool
   | .pro (.parameter shape) _ _ => shape.isYou
-  | .withBindings _ _ body | .inCaller _ body => body.isYou
+  | .laterMention _ n => n.isYou
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.isYou
   | .you | .actor => true
   | _ => false
 
@@ -1039,6 +1077,8 @@ is for those readers only; it is never checked or resolved against the context. 
 def NounPhrase.actorView (bs : Bindings) : NounPhrase → NounPhrase
   | .withBindings scope inputs body => .withBindings scope inputs (body.actorView bs)
   | .inCaller scope body => .inCaller scope (body.actorView bs)
+  | .firstMention id body => .firstMention id (body.actorView bs)
+  | .laterMention id body => .laterMention id (body.actorView bs)
   | .actor =>
     match actorShape? bs with
     | some shape => if shape.isYou then .you else .pro (.parameter shape) .one .whole
@@ -1050,7 +1090,7 @@ def NounPhrase.isYouIn (bs : Bindings) (n : NounPhrase) : Bool := (n.actorView b
 
 mutual
   def NounPhrase.targeted : NounPhrase → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.targeted
+    | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.targeted
     | .asType _ n _ => n.targeted
     | .resolvedPermanent n => n.targeted
     | .asMarker _ n => n.targeted
@@ -1068,7 +1108,7 @@ end
 
 mutual
   def NounPhrase.costNounOk : NounPhrase → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.costNounOk
+    | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.costNounOk
     | .asType _ n _ => n.costNounOk
     | .resolvedPermanent n => n.costNounOk
     | .asMarker _ n => n.costNounOk
@@ -1089,7 +1129,8 @@ end
 
 def NounPhrase.selfDefinedOk : NounPhrase → Bool
   | .pro (.parameter shape) _ _ => shape.selfDefined
-  | .withBindings _ _ body | .inCaller _ body => body.selfDefinedOk
+  | .laterMention _ n => n.selfDefinedOk
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.selfDefinedOk
   | .this => true
   | .asType _ n _ => n.selfDefinedOk
   | _ => false
@@ -1098,13 +1139,13 @@ def NounPhrase.choosable (n : NounPhrase) : Bool :=
   n.det == some .a || n.det == some .target || n.det == some .count
 
 def NounPhrase.agentChoosable : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.agentChoosable
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.agentChoosable
   | .someOf _ _ _ => true
   | .pileOf _ _ => true
   | n => n.choosable
 
 def NounPhrase.countedExistential : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.countedExistential
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.countedExistential
   | .namesAgree _ g => g.countedMention
   | _ => false
 
@@ -1113,8 +1154,9 @@ def NounPhrase.existentialMention (n : NounPhrase) : Bool := n.det == some .bare
 /-- Whether the noun names an ability on the stack [CR#113.1c], read off the description and
 the reading word, never the antecedent stack. -/
 def NounPhrase.isAbility : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.isAbility
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.isAbility
   | .pro (.parameter shape) _ _ => shape.ability
+  | .laterMention _ n => n.isAbility
   | .described _ p => p.seedsAbility
   | .pro (.word word) _ _ => word.isAbility
   | .asMarker .ability _ => true
@@ -1126,56 +1168,25 @@ def NounPhrase.isAbility : NounPhrase → Bool
   | _ => false
 
 def NounPhrase.moveDestOk : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.moveDestOk
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.moveDestOk
   | .pro r _ .whole => !r.tracksObject
-  | .pro _ _ _ => false
+  | .pro _ _ _ | .laterMention _ _ => false
   | _ => true
 
 def NounPhrase.remarkTest : NounPhrase → Option (Binding → Bool)
+  | .firstMention _ n => n.remarkTest
   | .pro (.word .ability) .one .whole => some (reaches (.word .ability) .one)
   | .pro r pl .whole => if r.tracksObject then some (reaches r pl) else none
   | _ => none
 
-/-! ## Number -/
-
-mutual
-  def NounPhrase.plur : NounPhrase → Plurality
-    | .withBindings _ _ body | .inCaller _ body => body.plur
-    | .gap _ => .one
-    | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .attachHost _ _ | .designated _ _ =>
-      .one
-    | .asType _ n _ => n.plur
-    | .resolvedPermanent n => n.plur
-    | .asMarker _ n => n.plur
-    | .playerGroup _ => .many
-    | .described d _ => d.plur
-    | .eachOf _ => .many
-    | .namesAgree _ g => g.plur
-    | .and _ => .many
-    | .or ns => NounPhrase.commonPlurality ns
-    | .librarySlice _ amt whose => outputPlur whose.plur amt.plur
-    | .someOf q _ _ => q.plur
-    | .theRest _ pl => pl
-    | .pileOf q _ => q.plur
-    | .pro _ pl _ => pl
-    | .possessorOf _ n => n.plur
-    | .oneEachOf _ _ => .many
-  termination_by structural n => n
-
-  def NounPhrase.commonPlurality : List NounPhrase → Plurality
-    | [] => .many
-    | [n] => n.plur
-    | n :: ns => if n.plur == NounPhrase.commonPlurality ns then n.plur else .many
-  termination_by structural ns => ns
-end
 
 def NounPhrase.soleHolderOk : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.soleHolderOk
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.soleHolderOk
   | .playerGroup _ => true
   | n => n.plur.isOne
 
 def NounPhrase.slicePossessorOk : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.slicePossessorOk
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.slicePossessorOk
   | .described .each _ => true
   | .eachOf _ => true
   | .playerGroup _ => true
@@ -1215,14 +1226,14 @@ def sliceTyOf : Option Predicate → List CardType → List CardType
   | some p, gty => mergeTypes gty p.seedTy
 
 def NounPhrase.selfSubjIntroduced : NounPhrase → List Binding
-  | .withBindings _ _ body | .inCaller _ body => body.selfSubjIntroduced
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.selfSubjIntroduced
   | .asType t .this _ =>
-    [⟨.self, .one, .object [t] (some .battlefield) none none none⟩]
+    [⟨.self, .one, .object [t] (some .battlefield) none none none, []⟩]
   | .attachHost _ word =>
     match word.base with
     | .type _ | .permanent =>
-      [⟨.the, .one, .object word.attachHostTy (some .battlefield) none none none⟩]
-    | .player => [⟨.the, .one, .player false⟩]
+      [⟨.the, .one, .object word.attachHostTy (some .battlefield) none none none, []⟩]
+    | .player => [⟨.the, .one, .player false, []⟩]
     | _ => []
   | _ => []
 
@@ -1233,7 +1244,8 @@ def NounPhrase.introducesOwnReferent (n : NounPhrase) : Bool :=
   !(NounPhrase.selfSubjIntroduced n).isEmpty || nominal n
 where
   nominal : NounPhrase → Bool
-    | .asType _ n _ | .resolvedPermanent n | .asMarker _ n | .eachOf n | .namesAgree _ n =>
+    | .asType _ n _ | .resolvedPermanent n | .asMarker _ n | .eachOf n | .namesAgree _ n
+    | .firstMention _ n =>
       nominal n
     | .described .the p => !p.choiceRead
     | .described _ _ | .librarySlice _ _ _ | .someOf _ _ _ | .pileOf _ _
@@ -1259,7 +1271,7 @@ mutual
   def captureBindings (bs : Bindings) (scope : Nat) (inputs : List CaptureInput)
       (slots : List OperandSlot := []) (callerWidth : Nat := 0) : Bindings :=
     match inputs with
-    | [] => ⟨.the, .one, .parameterFrame scope callerWidth slots⟩ :: bs
+    | [] => ⟨.the, .one, .parameterFrame scope callerWidth slots, []⟩ :: bs
     | input :: rest =>
       let (next, address, value) := CaptureInput.bind bs input
       let width := next.length - bs.length
@@ -1274,7 +1286,7 @@ mutual
       let result := NounPhrase.result bs subject
       let value := result.value.getD
         ⟨.the, subject.plur, elemPayload (subject.kindOr .object) subject.isAbility
-          (subject.ty bs) (subject.zone bs) none⟩
+          (subject.ty bs) (subject.zone bs) none, []⟩
       (result.context, result.address, subject.captureView value (subject.ty bs) (subject.zone bs))
     | .value amount =>
       let next := Amount.intro bs amount
@@ -1282,7 +1294,7 @@ mutual
       let address := match amount with
         | .parameter key index _ => (operandAddress bs index key).map (shiftAddress width)
         | _ => none
-      (next, address, ⟨.the, .one, .amount amount.shape⟩)
+      (next, address, ⟨.the, .one, .amount amount.shape, []⟩)
   termination_by structural input => input
 
   /-- A noun returns an explicit referent, independently of which mention it introduced first. -/
@@ -1297,15 +1309,15 @@ mutual
     | .theRest _ _ | .attachHost _ _ | .designated _ _ => ⟨bs, none, none, []⟩
     | .asType t n _ =>
       (NounPhrase.result bs n).withValue
-        ⟨.the, n.plur, .object [t] (some .battlefield) none none none⟩
+        ⟨.the, n.plur, .object [t] (some .battlefield) none none none, []⟩
         (fun value => NounPhrase.captureView (.asType t n none) value [t] (some .battlefield))
     | .resolvedPermanent n =>
       (NounPhrase.result bs n).withValue
-        ⟨.the, n.plur, .object (n.ty bs) (some .battlefield) none none none⟩
+        ⟨.the, n.plur, .object (n.ty bs) (some .battlefield) none none none, []⟩
         (fun value => NounPhrase.captureView (.resolvedPermanent n) value (n.ty bs) (some .battlefield))
     | .asMarker m n =>
       (NounPhrase.result bs n).withValue
-        ⟨.the, n.plur, elemPayload .object (m == .ability) (n.ty bs) (some m.zone) none⟩
+        ⟨.the, n.plur, elemPayload .object (m == .ability) (n.ty bs) (some m.zone) none, []⟩
         (fun value => NounPhrase.captureView (.asMarker m n) value (n.ty bs) (some m.zone))
     | .described d p =>
       introducedNounResult bs
@@ -1316,30 +1328,39 @@ mutual
     | .or ns => introducedNounResult bs (NounPhrase.introducedAlternatives bs ns) false
     | .librarySlice _ amt whose =>
       (NounPhrase.result bs whose).prepend [⟨.the, outputPlur whose.plur amt.plur,
-        .object [] (some .library) none none amt.exact⟩]
+        .object [] (some .library) none none amt.exact, []⟩]
     | .namesAgree _ g => NounPhrase.result bs g
     | .someOf q d g =>
       (NounPhrase.result bs g).prepend (⟨.part, q.plur,
-        .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact⟩ ::
+        .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact, []⟩ ::
         (SliceCount.introduced bs q ++ OptPredicate.introduced bs d))
     | .pileOf q none => introducedNounResult bs (⟨.part, q.plur,
-        .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs)⟩
+        .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs), []⟩
         :: SliceCount.introduced bs q) true
     | .pileOf q (some by_) =>
       (NounPhrase.result bs by_).prepend (⟨.part, q.plur,
-        .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs)⟩ ::
+        .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs), []⟩ ::
         SliceCount.introduced bs q)
     | .possessorOf _ n =>
       (NounPhrase.result bs n).prepend
-        (⟨.the, n.plur, .player false⟩ :: NounPhrase.selfSubjIntroduced n)
+        (⟨.the, n.plur, .player false, []⟩ :: NounPhrase.selfSubjIntroduced n)
     | .oneEachOf roles pool =>
       (NounPhrase.result bs pool).prepend (⟨.bare, .many,
-        .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none⟩ ::
+        .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none, []⟩ ::
         Predicate.introducedAll bs roles)
     | .pro reach plurality window =>
       let address := (windowAddresses window bs).find? fun address =>
         (bindingAt bs address).any (reaches reach plurality)
       ⟨bs, address, address >>= bindingAt bs, []⟩
+    | .firstMention id body => (NounPhrase.result bs body).recordIdentity id
+    | .laterMention id body =>
+      match identityAddress id bs with
+      | some address => ⟨bs, some address, bindingAt bs address, []⟩
+      | none =>
+        /- Nothing was recorded: the first mention neither introduced nor resolved a binding
+        ("you", "this"), so the phrase is read again. A phrase that would introduce is not. -/
+        let again := NounPhrase.result bs body
+        if again.additions.isEmpty then again else ⟨bs, none, none, []⟩
   termination_by structural noun => noun
 
   def NounPhrase.resultsSeq (bs : Bindings) : List NounPhrase → NounResult
@@ -1650,6 +1671,11 @@ mutual
     | .theRest k _ => zoneOfGroup k bs
     | .pileOf _ _ => zoneOfReach (.word .pile) .many bs
     | .pro r pl w => zoneOfReach r pl (view w bs)
+    | .firstMention _ body => NounPhrase.zone bs body
+    | .laterMention id body =>
+      match identityBinding id bs with
+      | some b => b.zone
+      | none => NounPhrase.zone bs body
     | .attachHost _ h => h.attachHostZone
     | .oneEachOf _ pool => NounPhrase.zone bs pool
   termination_by structural x => x
@@ -1670,6 +1696,11 @@ mutual
     | .someOf _ d g => sliceTyOf d (NounPhrase.ty bs g)
     | .theRest k _ => tyOfGroup k bs
     | .pro r pl w => tyOfReach r pl (view w bs)
+    | .firstMention _ body => NounPhrase.ty bs body
+    | .laterMention id body =>
+      match identityBinding id bs with
+      | some b => b.ty
+      | none => NounPhrase.ty bs body
     | .attachHost _ h => h.attachHostTy
     | .oneEachOf _ pool => NounPhrase.ty bs pool
   termination_by structural x => x
@@ -1691,6 +1722,7 @@ mutual
   def NounPhrase.headTys (bs : Bindings) : NounPhrase → List (List CardType)
     | .withBindings scope inputs body => body.headTys (captureBindings bs scope inputs)
     | .inCaller scope body => body.headTys (enterCaller scope bs)
+    | .firstMention _ body => body.headTys bs
     | .described _ p =>
       let alts := p.headTyAlts
       if alts.all List.isEmpty then [] else alts
@@ -1713,6 +1745,7 @@ mutual
   def NounPhrase.tys (bs : Bindings) : NounPhrase → HeadTy
     | .withBindings scope inputs body => body.tys (captureBindings bs scope inputs)
     | .inCaller scope body => body.tys (enterCaller scope bs)
+    | .firstMention _ body => body.tys bs
     | .described _ p => p.seedTys
     | .eachOf g => NounPhrase.tys bs g
     | .namesAgree _ g => NounPhrase.tys bs g
@@ -1738,6 +1771,11 @@ def NounPhrase.prov (bs : Bindings) : NounPhrase → Option Stamp
   | .inCaller scope body => body.prov (enterCaller scope bs)
   | .theRest k _ => provOfGroup k bs
   | .pro r pl w => provOfReach r pl (view w bs)
+  | .firstMention _ body => body.prov bs
+  | .laterMention id body =>
+    match identityBinding id bs with
+    | some b => b.payload.prov
+    | none => body.prov bs
   | .eachOf g => NounPhrase.prov bs g
   | .namesAgree _ g => NounPhrase.prov bs g
   | .someOf _ _ g => NounPhrase.prov bs g
@@ -1745,6 +1783,8 @@ def NounPhrase.prov (bs : Bindings) : NounPhrase → Option Stamp
 
 def NounPhrase.paidSubjectOk (bs : Bindings) : NounPhrase → Bool
   | n@(.pro (.parameter shape) _ _) => shape.selfDefined || onStackZone (n.zone bs)
+  | n@(.laterMention _ body) => body.selfDefinedOk || onStackZone (n.zone bs)
+  | .firstMention _ body => body.paidSubjectOk bs
   | .withBindings scope inputs body => body.paidSubjectOk (captureBindings bs scope inputs)
   | .inCaller scope body => body.paidSubjectOk (enterCaller scope bs)
   | .this => true
@@ -1755,6 +1795,9 @@ def NounPhrase.paidSubjectOk (bs : Bindings) : NounPhrase → Bool
 def NounPhrase.costSubjectOk (bs : Bindings) : NounPhrase → Bool
   | n@(.pro (.parameter shape) _ _) =>
     (shape.selfDefined && shape.ascribable) || onStackZone (n.zone bs)
+  | n@(.laterMention _ body) =>
+    (body.selfDefinedOk && body.ascribable) || onStackZone (n.zone bs)
+  | .firstMention _ body => body.costSubjectOk bs
   | .withBindings scope inputs body => body.costSubjectOk (captureBindings bs scope inputs)
   | .inCaller scope body => body.costSubjectOk (enterCaller scope bs)
   | .this => true
@@ -1765,11 +1808,14 @@ def NounPhrase.counterMemoryOk (bs : Bindings) : NounPhrase → Bool
   | .inCaller scope body => body.counterMemoryOk (enterCaller scope bs)
   | .pro (.verbed _ _ _) _ _ => false
   | .pro r pl w => !r.tracksObject || !stampMoves (provOfReach r pl (view w bs))
+  | .firstMention _ body => body.counterMemoryOk bs
+  | n@(.laterMention _ body) => body.kindOr .object != .object || !stampMoves (n.prov bs)
   | _ => true
 
 def NounPhrase.testSubjectOk (bs : Bindings) : NounPhrase → Bool
   | .withBindings scope inputs body => body.testSubjectOk (captureBindings bs scope inputs)
   | .inCaller scope body => body.testSubjectOk (enterCaller scope bs)
+  | .firstMention _ body => body.testSubjectOk bs
   | .described .the _ => true
   | .librarySlice _ _ _ => true
   | n => (NounPhrase.introduced bs n).isEmpty
@@ -1827,14 +1873,14 @@ def hostedRead (bs : Bindings) (p : Predicate) (n : NounPhrase) : Bool :=
 
 /-- Idris `PileMention`: a pile phrase, "that pile", or "those piles". -/
 def NounPhrase.pileMention : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.pileMention
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.pileMention
   | .pileOf _ _ => true
   | .pro (.word .pile) _ .whole => true
   | _ => false
 
 /-- Idris `LinkSource`: "exiled with this" names the source itself. -/
 def NounPhrase.linkSource : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.linkSource
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.linkSource
   | .this => true
   | .asType _ .this _ => true
   | _ => false
@@ -1875,6 +1921,11 @@ def orderOk (pl : Plurality) (z : ZoneExpr) : Bool :=
 
 def NounPhrase.discardOk (bs : Bindings) : NounPhrase → Bool
   | .this => true
+  | .firstMention _ body => body.discardOk bs
+  | .laterMention id body =>
+    match identityBinding id bs with
+    | some b => b.zone == some .hand
+    | none => body.discardOk bs
   | n => NounPhrase.zone bs n == some .hand
 
 def deedNounOk (bs : Bindings) (v : Deed) (r : Role) (n : NounPhrase) : Bool :=
@@ -1904,6 +1955,9 @@ def NounPhrase.agentIntroduced (bs : Bindings) : NounPhrase → List Binding
     let result := leaveCaller bs (body.agentIntroduced caller ++ caller)
     result.take (result.length - bs.length)
   | .described .each p => bindFor .the .one (p.kindOr .object) p :: Predicate.introduced bs p
+  | n@(.firstMention id body) =>
+    if body.introducesOwnReferent then recordHead id (body.agentIntroduced bs)
+    else NounPhrase.introduced bs n
   | n => NounPhrase.introduced bs n
 
 def agentIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.agentIntroduced bs n ++ bs
@@ -1932,6 +1986,9 @@ def NounPhrase.chosenIntroduced (bs : Bindings) : NounPhrase → List Binding
     let k := p.kindOr .object
     chosenBind (chosenDet k .count) q.plur k p :: (Quantity.introduced bs q ++ Predicate.introduced bs p)
   | .namesAgree _ g => NounPhrase.chosenIntroduced bs g
+  | n@(.firstMention id body) =>
+    if body.introducesOwnReferent then recordHead id (body.chosenIntroduced bs)
+    else NounPhrase.introduced bs n
   | n => NounPhrase.introduced bs n
 
 def chosenIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.chosenIntroduced bs n ++ bs
@@ -2006,7 +2063,7 @@ def subjCtx (bs : Bindings) : Option NounPhrase → Bindings
   | some n => selfSubjIntro bs n
 
 def elemIntro (bs : Bindings) (k : Kind) (g : NounPhrase) : Bindings :=
-  ⟨.the, .one, elemPayload k g.isAbility (NounPhrase.ty bs g) (NounPhrase.zone bs g) (NounPhrase.prov bs g)⟩
+  ⟨.the, .one, elemPayload k g.isAbility (NounPhrase.ty bs g) (NounPhrase.zone bs g) (NounPhrase.prov bs g), []⟩
     :: nomIntro bs g
 
 def Condition.negated : Condition → Bool
@@ -2021,14 +2078,28 @@ def markingOk : CondMarking → Condition → Bool
 
 def dropGaps : List Binding → List Binding
   | [] => []
-  | ⟨_, _, .gap⟩ :: bs => dropGaps bs
+  | ⟨_, _, .gap, _⟩ :: bs => dropGaps bs
   | b :: bs => b :: dropGaps bs
+
+/-- A first mention updated in place (refined, moved): record the binding the phrase introduced
+or resolved under `id` in the updated context, which keeps the shape of the phrase's own result. -/
+def recordMoved (id : BindingId) (result : NounResult) (updated : Bindings) : Bindings :=
+  match result.address with
+  | some address =>
+    if updated.length == result.context.length then recordIdentityAt id updated address
+    else updated
+  | none => updated
 
 def NounPhrase.refine (bs : Bindings) (types : List CardType) : NounPhrase → Bindings
   | .withBindings scope inputs body =>
     closeOperands (body.refine (captureBindings bs scope inputs) types)
   | .inCaller scope body => leaveCaller bs (body.refine (enterCaller scope bs) types)
   | .pro reach plurality window => overWindow (markFirst (reaches reach plurality) types) window bs
+  | .firstMention id body =>
+    recordMoved id (NounPhrase.result bs body) (body.refine bs types)
+  | .laterMention id body =>
+    if (identityAddress id bs).isSome then overIdentity (·.map (markTy types)) id bs
+    else body.refine bs types
   | noun => noun.remarkTest.elim bs (fun predicate => markFirst predicate types bs)
 
 mutual
@@ -2164,34 +2235,39 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
   | .and _ | .or _ => nomIntro bs n
   | .theRest k _ => groupSpent k bs
   | .pro r pl w => overWindow (setZoneReach r pl p z) w bs
-  | .this => ⟨.self, .one, .object [] z (mkStamp p none z.isSome) none none⟩ :: bs
+  | .firstMention id body => recordMoved id (NounPhrase.result bs body) (moveIntro bs p body z)
+  | .laterMention id body =>
+    if (identityAddress id bs).isSome then overIdentity (·.map (setZone p z)) id bs
+    else if (NounPhrase.result bs body).additions.isEmpty then moveIntro bs p body z
+    else bs
+  | .this => ⟨.self, .one, .object [] z (mkStamp p none z.isSome) none none, []⟩ :: bs
   | .attachHost _ word =>
     match word.base with
     | .type _ | .permanent =>
       ⟨.the, .one,
         .object word.attachHostTy z (mkStamp p (some .battlefield) (z != some .battlefield))
-          none none⟩ :: bs
-    | .player => ⟨.the, .one, .player false⟩ :: bs
+          none none, []⟩ :: bs
+    | .player => ⟨.the, .one, .player false, []⟩ :: bs
     | _ => bs
   | .asType t .this _ =>
     ⟨.self, .one,
-      .object [t] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+      .object [t] z (mkStamp p none (z != some .battlefield)) none none, []⟩ :: bs
   | .asType t _ _ =>
     ⟨.the, .one,
-      .object [t] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+      .object [t] z (mkStamp p none (z != some .battlefield)) none none, []⟩ :: bs
   | .resolvedPermanent m =>
     ⟨.the, m.plur,
-      .object (NounPhrase.ty bs m) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none⟩
+      .object (NounPhrase.ty bs m) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none, []⟩
       :: bs
-  | .asMarker .ability .this => ⟨.self, .one, .ability none z⟩ :: bs
-  | .asMarker .ability _ => ⟨.the, .one, .ability none z⟩ :: bs
+  | .asMarker .ability .this => ⟨.self, .one, .ability none z, []⟩ :: bs
+  | .asMarker .ability _ => ⟨.the, .one, .ability none z, []⟩ :: bs
   | .asMarker _ .this =>
-    ⟨.self, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+    ⟨.self, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none, []⟩ :: bs
   | .asMarker _ _ =>
-    ⟨.the, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none⟩ :: bs
+    ⟨.the, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none, []⟩ :: bs
   | .theGrantor m =>
     ⟨.the, .one,
-      .object [] z (mkStamp p m.grantorOrigin (z != some m.zone)) none none⟩ :: bs
+      .object [] z (mkStamp p m.grantorOrigin (z != some m.zone)) none none, []⟩ :: bs
   | .you | .actor | .combatPlayer _ | .playerGroup _ | .designated _ _ => bs
   | .possessorOf ax m => nomIntro bs (.possessorOf ax m)
 termination_by structural n

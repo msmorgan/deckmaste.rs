@@ -18,7 +18,7 @@ private def shape (bs : Bindings) : List (Kind × Plurality × Determiner) :=
   bs.map fun b => (b.kind, b.plur, b.det)
 
 /-- One player already named, for "they". -/
-private def onePlayer : Bindings := [⟨.the, .one, .player false⟩]
+private def onePlayer : Bindings := [⟨.the, .one, .player false, []⟩]
 
 /-! ## Cards -/
 

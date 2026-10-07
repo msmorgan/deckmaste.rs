@@ -63,7 +63,7 @@ theorem historyRetainsNamedParticipant :
         (.mk
           (.damage .any (some (.asType .creature (.gap .object) none))
             (some (.described (.a .unmarked) .opponent))) .thisTurn))
-      = [⟨.a, .one, .player false⟩] := by rfl
+      = [⟨.a, .one, .player false, []⟩] := by rfl
 
 theorem castCanCarryExcludedOrigins :
     LookbackClause.check .player []

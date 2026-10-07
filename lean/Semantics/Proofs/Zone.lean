@@ -279,13 +279,13 @@ theorem badNotOnBattlefield :
 
 /-- "creature of the chosen color" -/
 theorem okConsistentQualityConjunct :
-    Predicate.check .object [⟨.a, .one, .quality .color⟩]
+    Predicate.check .object [⟨.a, .one, .quality .color, []⟩]
       (.and [creature, ofChosen .color]) = [] := by
   decide
 
 /-- "of the chosen color and not of the chosen color" -/
 theorem okQualitySelfNegation :
-    Predicate.check .object [⟨.a, .one, .quality .color⟩]
+    Predicate.check .object [⟨.a, .one, .quality .color, []⟩]
       (.and [ofChosen .color, .not (ofChosen .color)]) = [] := by
   decide
 
@@ -308,26 +308,26 @@ theorem badDiscardThisCreature :
 /-- "another creature" -/
 theorem okOtherAnchored :
     Predicate.check .object
-      [⟨.target, .one, .object [.creature] (some .battlefield) none none none⟩]
+      [⟨.target, .one, .object [.creature] (some .battlefield) none none none, []⟩]
       (.and [creature, .other]) = [] := by
   decide
 
 /-- "another other creature" -/
 theorem badDoubleOther :
     Predicate.check .object
-      [⟨.target, .one, .object [.creature] (some .battlefield) none none none⟩]
+      [⟨.target, .one, .object [.creature] (some .battlefield) none none none, []⟩]
       (.and [creature, .other, .other]) = [.otherAnchored] := by
   decide
 
 /-- "You discard a card." -/
 theorem okDiscardHandCard :
-    Instruction.check [⟨.a, .one, .object [] none none none none⟩]
+    Instruction.check [⟨.a, .one, .object [] none none none none, []⟩]
       (discard (a (.and [.isCard, .inZone yourHand]))) = [] := by
   decide
 
 /-- "You discard it." -/
 theorem badDiscardIt :
-    Instruction.check [⟨.a, .one, .object [] none none none none⟩] (discard it)
+    Instruction.check [⟨.a, .one, .object [] none none none none, []⟩] (discard it)
       = [.zoneFits] := by
   decide
 

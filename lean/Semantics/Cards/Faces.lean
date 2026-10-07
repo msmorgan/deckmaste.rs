@@ -294,7 +294,7 @@ def vesuvanShapeshifterCopyDuration : Instruction :=
             (offer (Primitives.Instruction.setStatus .faceDown thisCreature))) ])
     (some (Primitives.Duration.untilEvent (Primitives.GameEvent.statusEvent thisCreature .faceDown)))
 theorem okVesuvanShapeshifterCopyDuration :
-    Instruction.check [⟨.a, .one, .object [.creature] (some .battlefield) none none none⟩]
+    Instruction.check [⟨.a, .one, .object [.creature] (some .battlefield) none none none, []⟩]
       vesuvanShapeshifterCopyDuration = [] := by
   decide
 

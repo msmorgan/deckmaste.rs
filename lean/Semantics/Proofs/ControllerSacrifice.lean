@@ -6,15 +6,15 @@ namespace Semantics.Proofs.ControllerSacrifice
 
 private def subject : NounPhrase := target (.and [artifact, creature])
 private def instruction : Instruction := controllerSacrifices subject
-private def controllerBinding : Binding := ⟨.the, .one, .player false⟩
+private def controllerBinding : Binding := ⟨.the, .one, .player false, []⟩
 private def targetBinding : Binding := ⟨.target, .one,
-  .object [.creature, .artifact] (some .battlefield) none none (some 1)⟩
+  .object [.creature, .artifact] (some .battlefield) none none (some 1), []⟩
 private def sacrificedBinding : Binding := ⟨.target, .one,
   .object [.creature, .artifact] (some .graveyard)
-    (some ⟨.action "Sacrifice", true, true⟩) none (some 1)⟩
+    (some ⟨.action "Sacrifice", true, true⟩) none (some 1), []⟩
 private def riderBinding : Binding := ⟨.target, .one,
   .object [.creature, .artifact] (some .battlefield)
-    (some ⟨.action "Sacrifice", true, false⟩) none (some 1)⟩
+    (some ⟨.action "Sacrifice", true, false⟩) none (some 1), []⟩
 private def afterSacrifice : Bindings := Instruction.intro [] instruction
 
 /-- The target occurs only in the relational subject. The body is a scoped re-read. -/
@@ -80,7 +80,7 @@ theorem existingReferenceIsAdmitted :
     Instruction.check [targetBinding] (controllerSacrifices it) = [] := by decide
 
 theorem outerArtifactDoesNotStealThePatient :
-    Instruction.check [⟨.target, .one, .object [.artifact] (some .battlefield) none none (some 1)⟩]
+    Instruction.check [⟨.target, .one, .object [.artifact] (some .battlefield) none none (some 1), []⟩]
       instruction = [] := by decide
 
 theorem thatPlayerCanTakeTheFollowingAction :
@@ -90,12 +90,12 @@ private def nestedSubject : NounPhrase := target (.and [creature,
   .hasPossessor .controller (controllerOf (target artifact))])
 private def nestedInstruction : Instruction := controllerSacrifices nestedSubject
 private def nestedArtifact : Binding :=
-  ⟨.target, .one, .object [.artifact] (some .battlefield) none none (some 1)⟩
+  ⟨.target, .one, .object [.artifact] (some .battlefield) none none (some 1), []⟩
 private def nestedCreature : Binding :=
-  ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩
+  ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1), []⟩
 private def nestedSacrificed : Binding :=
   ⟨.target, .one, .object [.creature] (some .graveyard)
-    (some ⟨.action "Sacrifice", true, true⟩) none (some 1)⟩
+    (some ⟨.action "Sacrifice", true, true⟩) none (some 1), []⟩
 
 theorem nestedDescriptionIsAdmitted :
     Instruction.check [] nestedInstruction = [] := by decide

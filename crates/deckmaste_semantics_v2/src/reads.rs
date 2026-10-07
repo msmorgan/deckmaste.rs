@@ -324,8 +324,11 @@ pub fn predicate_in_kind(predicate: &Predicate, kind: &Kind, facts: &impl Facts)
 #[must_use]
 pub fn kind_of_noun_phrase(phrase: &NounPhrase, facts: &impl Facts) -> Option<Kind> {
     match phrase {
-        NounPhrase::WithBindings { body, .. } | NounPhrase::InCaller { body, .. } => {
-            kind_of_noun_phrase(body, facts)
+        NounPhrase::WithBindings { body, .. }
+        | NounPhrase::InCaller { body, .. }
+        | NounPhrase::FirstMention { phrase: body, .. } => kind_of_noun_phrase(body, facts),
+        NounPhrase::LaterMention { phrase, .. } => {
+            Some(kind_of_noun_phrase(phrase, facts).unwrap_or(Kind::Object))
         }
         NounPhrase::Gap { kind } | NounPhrase::TheRest { kind, .. } => Some(kind.clone()),
         NounPhrase::You

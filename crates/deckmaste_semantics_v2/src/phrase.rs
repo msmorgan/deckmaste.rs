@@ -19,6 +19,7 @@ use crate::words::Arrangement;
 use crate::words::AttachMove;
 use crate::words::AttachWord;
 use crate::words::AttachmentSide;
+use crate::words::BindingId;
 use crate::words::CardFaceSide;
 use crate::words::CardType;
 use crate::words::ChapterNumber;
@@ -466,6 +467,21 @@ pub enum NounPhrase {
         reach: Reach,
         plurality: Plurality,
         window: Window,
+    },
+    /// A macro body's first mention of a referent parameter: the argument,
+    /// checked and introduced where it stands, with the binding it introduces or
+    /// resolves recorded under the Binding Identity `id`. Written by the loader,
+    /// never by a card (`crate::mentions`).
+    FirstMention {
+        id: BindingId,
+        phrase: Box<NounPhrase>,
+    },
+    /// A later mention of the same parameter: the binding recorded under `id`,
+    /// read back by that identity. `phrase` is the argument again, kept for its
+    /// structural facts only; it is never checked or introduced a second time.
+    LaterMention {
+        id: BindingId,
+        phrase: Box<NounPhrase>,
     },
     AttachHost {
         word: AttachWord,

@@ -18,20 +18,20 @@ def p11 : CounterKindSource := .printed p1p1Counter
 /-- "of the chosen creature type" -/
 theorem okChosenCreatureType :
     Predicate.check .object
-      [⟨.a, .one, .quality (.subtype .creature)⟩]
+      [⟨.a, .one, .quality (.subtype .creature), []⟩]
       (ofChosen (.subtype .creature)) = [] := by
   decide
 
 /-- "of the chosen creature type" -/
 theorem badChosenWrongSort :
-    Predicate.check .object [⟨.a, .one, .quality .color⟩]
+    Predicate.check .object [⟨.a, .one, .quality .color, []⟩]
       (ofChosen (.subtype .creature))
       = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
 
 /-- "a counter of that kind" -/
 theorem badChosenCounterKindRead :
-    Predicate.check .object [⟨.a, .one, .quality .counterKind⟩]
+    Predicate.check .object [⟨.a, .one, .quality .counterKind, []⟩]
       (ofChosen .counterKind) = [.chosenQualityRead .counterKind] := by
   decide
 

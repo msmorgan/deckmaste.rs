@@ -5,10 +5,10 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.ReferenceScopes
 
 private def creatureBinding : Binding := ⟨.target, .one,
-  .object [.creature] (some .battlefield) none none (some 1)⟩
+  .object [.creature] (some .battlefield) none none (some 1), []⟩
 private def artifactBinding : Binding := ⟨.target, .one,
-  .object [.artifact] (some .battlefield) none none (some 1)⟩
-private def playerBinding : Binding := ⟨.the, .one, .player false⟩
+  .object [.artifact] (some .battlefield) none none (some 1), []⟩
+private def playerBinding : Binding := ⟨.the, .one, .player false, []⟩
 private def outer : Bindings := [artifactBinding, letterB .x]
 private def creatureX : NounPhrase :=
   target (.and [creature, .compare [.stat .power] .eq (.letter .x)])
@@ -134,7 +134,7 @@ theorem invalidScopeCannotMutateOuter :
 theorem scopedMovePreservesTheOuterBindings :
     moveIntro (powerAfter outer) none (itsOther (target creature) (.up (.letter .x)))
       (some .exile) =
-        ⟨.target, .one, .object [.creature] (some .exile) none none (some 1)⟩ :: outer := by rfl
+        ⟨.target, .one, .object [.creature] (some .exile) none none (some 1), []⟩ :: outer := by rfl
 
 theorem ownStatStableForEveryOuterContext (bs : Bindings) :
     NounPhrase.check (some .object) (powerAfter bs)

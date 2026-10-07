@@ -623,29 +623,29 @@ theorem badAdditionalPartWithoutSubjectOrOuterContext :
 theorem okExtraTurnNestedAmountOrder :
     (Instruction.intro [qualityB .color]
       (extraTurn (plus (powerOf (target creature)) (lifeTotalOf (target .opponent)))))
-      = [turnRefB, ⟨.target, .one, .player false⟩,
-         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩,
+      = [turnRefB, ⟨.target, .one, .player false, []⟩,
+         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1), []⟩,
          qualityB .color] := by rfl
 
 theorem okSkipNextNestedAmountOrder :
     (Instruction.intro []
       (.skipPart .drawStep
         (plus (powerOf (target creature)) (lifeTotalOf (target .opponent)))))
-      = [⟨.target, .one, .player false⟩,
-         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩] := by rfl
+      = [⟨.target, .one, .player false, []⟩,
+         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1), []⟩] := by rfl
 
 theorem okAdditionalPartNestedAmountOrder :
     (Instruction.intro []
       (Primitives.Instruction.addTurnPart .upkeep none
         (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) none))
-      = [⟨.target, .one, .player false⟩,
-         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩] := by rfl
+      = [⟨.target, .one, .player false, []⟩,
+         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1), []⟩] := by rfl
 
 theorem okUntapNestedAmountOrder :
     (Instruction.intro []
       (.skipUntap .this
         (plus (powerOf (target creature)) (lifeTotalOf (target .opponent)))))
-      = [⟨.target, .one, .player false⟩,
-         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1)⟩] := by rfl
+      = [⟨.target, .one, .player false, []⟩,
+         ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1), []⟩] := by rfl
 
 end Semantics.Proofs.Turn

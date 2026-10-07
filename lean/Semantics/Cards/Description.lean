@@ -40,7 +40,7 @@ theorem okRatsOfRath : Instruction.check [] ratsOfRath = [] := by decide
 /-- "another creature or land", after a target on the battlefield. -/
 def anotherDisjunctPhrase : Predicate := Primitives.Predicate.and [Primitives.Predicate.or [creature, land], Primitives.Predicate.other]
 theorem okAnotherDisjunctPhrase :
-    Predicate.check .object [⟨.target, .one, .object [] (some .battlefield) none none none⟩]
+    Predicate.check .object [⟨.target, .one, .object [] (some .battlefield) none none none, []⟩]
       anotherDisjunctPhrase = [] := by
   decide
 

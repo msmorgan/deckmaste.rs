@@ -69,7 +69,7 @@ private semantic_macro announceThen (chosen : capture NounPhrase) (body : splice
     Instruction := .sequentially [.setStatus .tapped chosen, body]
 
 private def callerCreature : Bindings :=
-  [⟨.the, .one, .object [.creature] (some .battlefield) none none none⟩]
+  [⟨.the, .one, .object [.creature] (some .battlefield) none none none, []⟩]
 
 theorem suppliedBodyKeepsItsCallerPronoun :
     (announceThen (target artifact) (.move it .wherever graveyard [])).check callerCreature = [] := by decide
@@ -195,9 +195,9 @@ theorem nestedNounResultsKeepOuterInlineAliasesLive :
   by decide
 
 theorem closingAFrameRelocatesAddressesPastForgottenRows :
-    let rows : Bindings := [⟨.the, .one, .parameterFrame 0 0 []⟩,
-      ⟨.the, .one, .hidden (.object [.artifact] (some .library) none none none)⟩,
-      ⟨.the, .one, .object [.creature] (some .battlefield) none none none⟩]
+    let rows : Bindings := [⟨.the, .one, .parameterFrame 0 0 [], []⟩,
+      ⟨.the, .one, .hidden (.object [.artifact] (some .library) none none none), []⟩,
+      ⟨.the, .one, .object [.creature] (some .battlefield) none none none, []⟩]
     closeOperandAddress rows [2] = some [0] := by decide
 
 private semantic_macro capturedQuantity (amount : capture Amount) : Quantity := .exactlyOf amount
@@ -217,14 +217,14 @@ theorem conditionsPublishCapturedSubjectsOnce :
     countOnes .object ((capturedCondition (target creature)).intro []) = 1 := by decide
 
 theorem conditionsRetainRefinementsOfCapturedCallerSubjects :
-    let caller : Bindings := [⟨.the, .one, .object [] (some .battlefield) none none none⟩]
+    let caller : Bindings := [⟨.the, .one, .object [] (some .battlefield) none none none, []⟩]
     ((capturedCondition it).intro caller).map Binding.ty = [[.creature]] := by decide
 
 private semantic_macro resolvedSubject (subject : splice NounPhrase) : NounPhrase :=
   .resolvedPermanent subject
 
 private def callerCreatureSpell : Bindings :=
-  [⟨.the, .one, .object [.creature] (some .stack) none none none⟩]
+  [⟨.the, .one, .object [.creature] (some .stack) none none none, []⟩]
 
 theorem scopedNounResultsPreserveResolvedViews :
     (MacroCapture.input (forwardedSubject (resolvedSubject it))).bind callerCreatureSpell |>.2.2.zone =
@@ -241,7 +241,7 @@ theorem nounCoordinationPreservesContextUpdates :
   by decide
 
 theorem conditionsRefineScopedNounResults :
-    let caller : Bindings := [⟨.the, .one, .object [] (some .battlefield) none none none⟩]
+    let caller : Bindings := [⟨.the, .one, .object [] (some .battlefield) none none none, []⟩]
     ((Condition.matches (forwardedSubject it) creature).intro caller).map Binding.ty =
       [[.creature]] := by decide
 

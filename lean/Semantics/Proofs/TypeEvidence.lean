@@ -142,7 +142,7 @@ private def equipmentHost : NounPhrase :=
 
 theorem equipmentHostSeedsBothTypes :
     NounPhrase.selfSubjIntroduced equipmentHost =
-      [⟨.the, .one, .object [.creature, .artifact] (some .battlefield) none none none⟩] := by rfl
+      [⟨.the, .one, .object [.creature, .artifact] (some .battlefield) none none none, []⟩] := by rfl
 
 theorem movedEquipmentHostKeepsCreatureCardEvidence :
     countReach (.word (.ofType .card .creature)) .one

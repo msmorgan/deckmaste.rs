@@ -5,13 +5,13 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.NounWords
 
 private def creatureCard : Binding :=
-  ⟨.target, .one, .object [.creature] (some .exile) none none none⟩
+  ⟨.target, .one, .object [.creature] (some .exile) none none none, []⟩
 private def artifactCard : Binding :=
-  ⟨.target, .one, .object [.artifact] (some .exile) none none none⟩
+  ⟨.target, .one, .object [.artifact] (some .exile) none none none, []⟩
 private def creaturePermanent : Binding :=
-  ⟨.target, .one, .object [.creature] (some .battlefield) none none none⟩
-private def sourceAbility : Binding := ⟨.target, .one, .ability none⟩
-private def copiedAbility : Binding := ⟨.a, .one, .ability (some .copy)⟩
+  ⟨.target, .one, .object [.creature] (some .battlefield) none none none, []⟩
+private def sourceAbility : Binding := ⟨.target, .one, .ability none, []⟩
+private def copiedAbility : Binding := ⟨.a, .one, .ability (some .copy), []⟩
 
 theorem typedCardFindsMatchingCarrier :
     countReach (.word (.ofType .card .creature)) .one
@@ -42,7 +42,7 @@ theorem copiedAbilityIsUniqueBesideOriginal :
 
 theorem refinedWordStillExcludesSelf :
     countReach (.word (.copied .ability)) .one
-      [⟨.self, .one, .ability (some .copy)⟩] = 0 := by decide
+      [⟨.self, .one, .ability (some .copy), []⟩] = 0 := by decide
 
 theorem unrefinedAbilityRemainsAmbiguous :
     countReach (.word .ability) .one [sourceAbility, copiedAbility] = 2 := by decide
@@ -52,7 +52,7 @@ theorem copiedAbilityRemainsAmbiguousWithTwoCopies :
 
 theorem wordRefinementDoesNotBorrowTypeFromAnotherHalf :
     countReach (.word (.ofType .card .creature)) .one
-      [⟨.target, .one, .join artifactCard.payload creaturePermanent.payload⟩] = 0 := by decide
+      [⟨.target, .one, .join artifactCard.payload creaturePermanent.payload, []⟩] = 0 := by decide
 
 private def copiedArtifact : Payload :=
   .object [.artifact] (some .battlefield) none (some .copy) none
@@ -61,19 +61,19 @@ private def copiedCreature : Payload :=
 
 theorem copiedAbilityRejectsCopiedObject :
     countReach (.word (.copied .ability)) .one
-      [⟨.a, .one, copiedCreature⟩] = 0 := by decide
+      [⟨.a, .one, copiedCreature, []⟩] = 0 := by decide
 
 theorem unionRefinementDoesNotBorrowOriginFromAnotherHalf :
     countReach (.unionHalf (.copied (.type .creature))) .one
-      [⟨.target, .one, .join copiedArtifact creaturePermanent.payload⟩] = 0 := by decide
+      [⟨.target, .one, .join copiedArtifact creaturePermanent.payload, []⟩] = 0 := by decide
 
 theorem unionRefinementAcceptsOneMatchingHalf :
     countReach (.unionHalf (.copied (.type .creature))) .one
-      [⟨.target, .one, .join artifactCard.payload copiedCreature⟩] = 1 := by decide
+      [⟨.target, .one, .join artifactCard.payload copiedCreature, []⟩] = 1 := by decide
 
 private def movedCopy (deed : Deed) (origin : Option Origin) : Binding :=
   ⟨.target, .one,
-    .object [.creature] (some .exile) (some ⟨deed, true, true⟩) origin none⟩
+    .object [.creature] (some .exile) (some ⟨deed, true, true⟩) origin none, []⟩
 
 theorem verbedRefinementsKeepCarrierTypeAndOrigin :
     countReach (.verbed (.action "Exile") (.copied (.ofType .card .creature)) .attributive)

@@ -29,8 +29,9 @@ def AsThough.sort : AsThough → PremiseSort
   | .greater _ _ => .value
 
 def twoPartiesOk : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => twoPartiesOk body
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => twoPartiesOk body
   | .pro (.parameter shape) _ _ => shape.twoParties
+  | .laterMention _ body => twoPartiesOk body
   | .and [l, r] => l.plur == .one && r.plur == .one
   | .described d _ => (d.quant >>= Quantity.exact) == some 2
   | _ => false
@@ -186,7 +187,7 @@ def CostShift.introduced (bs : Bindings) : CostShift → List Binding
   | .more a => Amount.introduced bs a
   | .run _ _ _ => []
 
-def gatePayer : Binding := ⟨.the, .one, .player false⟩
+def gatePayer : Binding := ⟨.the, .one, .player false, []⟩
 
 def CountBound.introduced (bs : Bindings) : CountBound → List Binding
   | .moreThan k => Amount.introduced bs k
@@ -283,7 +284,8 @@ end
 
 def NounPhrase.opponentOnly : NounPhrase → Bool
   | .pro (.parameter shape) _ _ => shape.opponentOnly
-  | .withBindings _ _ body | .inCaller _ body => body.opponentOnly
+  | .laterMention _ body => body.opponentOnly
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.opponentOnly
   | .described _ p => p.opponentOnly
   | .playerGroup .yourOpponents => true
   | .eachOf g => g.opponentOnly
@@ -292,6 +294,7 @@ def NounPhrase.opponentOnly : NounPhrase → Bool
 def NounPhrase.libraryOwner : NounPhrase → Option NounPhrase
   | .withBindings scope inputs body => body.libraryOwner.map (.withBindings scope inputs)
   | .inCaller scope body => body.libraryOwner.map (.inCaller scope)
+  | .firstMention _ body => body.libraryOwner
   | .librarySlice _ _ whose => some whose
   | _ => none
 
@@ -314,8 +317,9 @@ def enactLibraryOwnerOkIn (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
     e.lookedLibraryOwner.elim true fun owner => (owner.actorView bs).opponentOnly
 
 def NounPhrase.bareThis : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.bareThis
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.bareThis
   | .pro (.parameter shape) _ _ => shape.bareThis
+  | .laterMention _ body => body.bareThis
   | .this => true
   | _ => false
 
@@ -336,7 +340,7 @@ def enactPatientZoneOk (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
 
 /-- Idris `CtrlOverrideOk`: a single controller, or one per member of a group. -/
 def NounPhrase.ctrlOverrideOk : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.ctrlOverrideOk
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.ctrlOverrideOk
   | .possessorOf ax _ => possessorKind ax .object
   | n => n.plur.isOne
 
@@ -373,7 +377,7 @@ def NounPhrase.performerShape (bs : Bindings) (who : NounPhrase) : NounShape :=
 /-- A phrase naming the object its own text is on: `this`, as written or as "this creature" /
 "this permanent". -/
 def NounPhrase.namesThis : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.namesThis
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.namesThis
   | .asType _ n _ | .asMarker _ n => n.namesThis
   | n => n.bareThis
 
@@ -393,7 +397,7 @@ without it the body's "that permanent" would have none. A player or any other pe
 nothing. -/
 def NounPhrase.performerInView (bs : Bindings) (who : NounPhrase) : List Binding :=
   if who.namesThis then
-    [⟨.the, .one, .object (NounPhrase.ty bs who) (some .battlefield) none none none⟩]
+    [⟨.the, .one, .object (NounPhrase.ty bs who) (some .battlefield) none none none, []⟩]
   else []
 
 /-- The body context of `act who`: the performer's own introduction, as an `enact` agent's or an
@@ -401,7 +405,7 @@ def NounPhrase.performerInView (bs : Bindings) (who : NounPhrase) : List Binding
 permanent the performer phrase does not itself introduce (`performerInView`), under the handoff
 frame that `actor` reads. -/
 def actorCtx (bs : Bindings) (who : NounPhrase) : Bindings :=
-  ⟨.the, .one, .actor (who.performerShape bs)⟩ :: (who.performerInView bs ++ agentIntro bs who)
+  ⟨.the, .one, .actor (who.performerShape bs), []⟩ :: (who.performerInView bs ++ agentIntro bs who)
 
 /-- An instruction that has a performer of its own: one of the deeds a player (or a permanent)
 does, and an offer, whose performer decides. A handoff to a group hands such an instruction to
@@ -442,7 +446,7 @@ def enactPerformer (v : Deed) (perf : Option NounPhrase) : Option NounPhrase :=
 /-- The handoff frame alone, with what it puts in view: the context a group handoff checks the
 one instruction it hands each member in, the instruction introducing the group itself. -/
 def performerFrame (bs : Bindings) (who : NounPhrase) : Bindings :=
-  ⟨.the, .one, .actor (who.performerShape bs)⟩ :: (who.performerInView bs ++ bs)
+  ⟨.the, .one, .actor (who.performerShape bs), []⟩ :: (who.performerInView bs ++ bs)
 
 /-- Leave a handoff: remove its frame and the `n` bindings the handoff put in view under it, and
 nothing else. -/
@@ -485,7 +489,7 @@ def enactCtx (bs : Bindings) (v : Deed) : Option NounPhrase → Bindings
 the player an enclosing handoff named: inside a handoff, its context starts with a handoff
 frame back to "you". Outside every handoff the context is unchanged. -/
 def ownPerformerCtx (bs : Bindings) : Bindings :=
-  if bs.any Binding.isActorFrame then ⟨.the, .one, .actor (NounPhrase.performerShape [] .you)⟩ :: bs
+  if bs.any Binding.isActorFrame then ⟨.the, .one, .actor (NounPhrase.performerShape [] .you), []⟩ :: bs
   else bs
 
 /-- The context an offer's body is checked in: its decider's, the performer `perf` a handoff hands
@@ -589,7 +593,7 @@ mutual
 end
 
 def NounPhrase.regime : NounPhrase → Option StackRegime
-  | .withBindings _ _ body | .inCaller _ body => body.regime
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.regime
   | .described _ p => p.regime
   | .namesAgree _ g => g.regime
   | _ => none
@@ -933,7 +937,8 @@ end
 
 /-- `actor` itself, through scope wrappers. -/
 def NounPhrase.isActor : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.isActor
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.isActor
+  | .laterMention _ body => body.isActor
   | .actor => true
   | _ => false
 
@@ -1197,7 +1202,7 @@ def statedNumbers (deeds : Bindings) : Bindings := deeds.filterMap fun b =>
 /-- One amount outcome, the total of the events that made it, as `countAmountOutcomes` reads
 it. -/
 def Binding.isAmountTotal : Binding → Bool
-  | ⟨_, .one, .outcome s⟩ => s.isAmount
+  | ⟨_, .one, .outcome s, _⟩ => s.isAmount
   | _ => false
 
 /-- Branch-local declarations do not escape. Facts about the incoming bindings escape
@@ -1251,13 +1256,13 @@ mutual
     | .separateIntoPiles grp piles faces => let who := performerOf perf;
       let bs' := nomIntro bs who
       ⟨nomIntro bs' grp, partsClosed (nomIntro bs' grp), none,
-       [⟨.the, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces)⟩]⟩
+       [⟨.the, .many, .pile (NounPhrase.zone bs' grp) (some piles) (pileMentionFace faces), []⟩]⟩
     | .copy src what times _ => let agent := performerOf perf;
       let bs' := nomIntro bs agent
       let k := what.kindOr .object
       sameIntro (Amount.intro (nomIntro bs' what) times)
         [⟨.the, outputPlur what.plur times.plur,
-          copyPayloadIn k what.isAbility (NounPhrase.ty bs' what) (src.landsIn (NounPhrase.zone bs' what))⟩]
+          copyPayloadIn k what.isAbility (NounPhrase.ty bs' what) (src.landsIn (NounPhrase.zone bs' what)), []⟩]
     | .chooseNewTargets what => sameIntro (nomIntro bs what) []
     | .copyTargets cp whom => sameIntro (nomIntro (nomIntro bs cp) whom) []
     | .choose _ n _ _ => let by_ := performerOf perf; sameIntro (chosenIntroBy bs by_.plur by_ n) []
@@ -1279,7 +1284,7 @@ mutual
       sameIntro (Quantity.introduced bs' q ++ Predicate.introduced bs' p ++ sc.introduced bs' ++ bs')
         [⟨.a, q.plur,
           .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
-            none⟩]
+            none, []⟩]
     | .shuffle => let whose := performerOf perf; ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
     | .flipCoins count => let who := performerOf perf; sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
     | .rollDice count _ => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB
@@ -1296,7 +1301,7 @@ mutual
         | .token token _ => (token.introduced bs', token.headTy bs', Zone.battlefield, some Origin.token)
         | .emblem _ => ([], [], Zone.command, none)
       sameIntro (mentions ++ bs')
-        [⟨.a, outputPlur agent.plur count.plur, .object types (some zone) none origin none⟩]
+        [⟨.a, outputPlur agent.plur count.plur, .object types (some zone) none origin none, []⟩]
     | .putCounters amt kind on => sameIntro (nomIntro (kind.intro (Amount.intro bs amt)) on) []
     | .removeCounters q _ from_ => sameIntro (nomIntro (optQuantIntro bs q) from_) [outcomeB .countersRemoved]
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []

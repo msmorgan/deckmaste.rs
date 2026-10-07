@@ -336,7 +336,7 @@ def GameEvent.numberSlots : GameEvent → List (Amount × NumberRegime)
 
 /-- Idris `TokenPhrase n`: a counted or indefinite description that seeds tokens. -/
 def NounPhrase.tokenPhrase : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.tokenPhrase
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.tokenPhrase
   | .described (.count _ _) p => p.seedsToken
   | .described (.a _) p => p.seedsToken
   | _ => false

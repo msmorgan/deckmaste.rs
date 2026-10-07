@@ -13,6 +13,8 @@ instance : MacroCapture NounPhrase where
   input := CaptureInput.subject
   read scope index source := match source with
     | .pro _ _ (.parameter _ _) => source
+    /- A later mention already reads its binding by identity. -/
+    | .laterMention _ _ => source
     /- `actor` introduces nothing and denotes whoever performs the instruction at the read, so
     it is read as itself; a captured shape would freeze it as the controller. -/
     | .actor => source

@@ -496,6 +496,12 @@ pub enum Reach {
     ThatTurn,
 }
 
+/// A Binding Identity: the name under which a macro body's first mention of a
+/// referent parameter records the binding it introduces or resolves, and by
+/// which the body's later mentions of that parameter read it back. A name, never
+/// a stack position (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06).
+pub type BindingId = String;
+
 /// The stretch of the antecedent stack a pronoun resolves in.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Window {

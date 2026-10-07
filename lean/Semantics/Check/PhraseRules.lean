@@ -309,6 +309,13 @@ mutual
     | .pro r pl w =>
       let n := countReach r pl (view w bs)
       ctxCheck ctx (some r.kind) ++ refuse (n == 1) (.anaphor r pl n)
+    | .firstMention _ body => NounPhrase.checkIn gap ctx bs body
+    | .laterMention id body =>
+      match identityBinding id bs with
+      | some _ => ctxCheck ctx (some (body.kindOr .object))
+      | none =>
+        if (NounPhrase.result bs body).additions.isEmpty then NounPhrase.checkIn gap ctx bs body
+        else ([.bindingIdentity id] : List Refusal)
     | .attachHost w h => ctxCheck ctx (some h.kind) ++ refuse (attachHeadOk w h) .attachHeadOk
     | .possessorOf ax n =>
       let kn := (n.actorView bs).kindOr .object

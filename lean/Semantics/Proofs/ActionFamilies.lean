@@ -43,7 +43,7 @@ theorem okCreateSeveralEmblems :
 
 theorem okEmblemPublication :
     Instruction.introducedDeeds [] (.createObject (.lit 1) (.emblem emblemAbilities)) =
-      [⟨.a, .one, .object [] (some .command) none none none⟩] := by rfl
+      [⟨.a, .one, .object [] (some .command) none none none, []⟩] := by rfl
 
 theorem badEmblemWithSpellAbility :
     Instruction.check [] (.createObject (.lit 1) (.emblem [.spell none (draw (.lit 1))])) =
@@ -87,9 +87,9 @@ theorem graveyardDestinationAcceptsCounterRiders :
       [.withCounters (.lit 1) (.printed p1p1Counter) .fresh]) = [] := by decide
 
 theorem pronounMovePreservesCopyOriginAndOuterBindings :
-    Instruction.intro [⟨.the, .one, .ability (some .copy)⟩, ⟨.the, .one, .player false⟩]
+    Instruction.intro [⟨.the, .one, .ability (some .copy), []⟩, ⟨.the, .one, .player false, []⟩]
       (.move (that .ability) .wherever graveyard []) =
-      [⟨.the, .one, .ability (some .copy) (some .graveyard)⟩, ⟨.the, .one, .player false⟩] := by rfl
+      [⟨.the, .one, .ability (some .copy) (some .graveyard), []⟩, ⟨.the, .one, .player false, []⟩] := by rfl
 
 theorem abilityUnionRetainsCommonLocation :
     (unionPayload (.ability none (some .exile)) (.ability none (some .exile))).map
@@ -135,7 +135,7 @@ theorem clearDamageDoesNotPublishDamageDealt :
 
 theorem movingThisAbilityRetainsAbilityIdentity :
     Instruction.intro [] (.move thisAbility .wherever exileZone []) =
-      [⟨.self, .one, .ability none (some .exile)⟩] := by rfl
+      [⟨.self, .one, .ability none (some .exile), []⟩] := by rfl
 
 
 private def operand (i : Nat) : NounPhrase := .pro .bare .one (.parameter 0 i)
@@ -163,7 +163,7 @@ theorem laterMentionsDoNotShiftCapturedOperands :
 /-- X already exists: a later target's X does not create a second numeric definition. -/
 theorem captureUsesActualNumericIntroductions :
     let bs : Bindings := [letterB .x, ⟨.the, .one,
-      .object [.creature] (some .battlefield) none none none⟩]
+      .object [.creature] (some .battlefield) none none none, []⟩]
     let old : NounPhrase := .pro .bare .one (.below 1)
     let second := target (.and [creature, .compare [.stat .power] .eq (.letter .x)])
     let bound := captureOperands bs [old, second]

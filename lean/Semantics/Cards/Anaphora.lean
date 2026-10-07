@@ -253,7 +253,7 @@ theorem okContrabandLivestock : Instruction.check [] contrabandLivestock = [] :=
 /-- Hypnotic Specter -/
 def hypnoticSpecterDiscard : Instruction := discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)]))
 theorem okHypnoticSpecterDiscard :
-    Instruction.check [⟨.the, .one, .player false⟩] hypnoticSpecterDiscard = [] := by decide
+    Instruction.check [⟨.the, .one, .player false, []⟩] hypnoticSpecterDiscard = [] := by decide
 
 /-- Wyll, Blade of Frontiers -/
 def wyllExtraDie : Instruction :=
