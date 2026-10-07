@@ -28,6 +28,9 @@ constructions! {
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             AdjectiveComplement, PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct } set;
         feature CompoundComplementMarker { Of }
+        feature PrepositionPhraseComplement { Yes }
+        table selected_compound_complement(CompoundComplementMarker, NominalComplementMarker)
+            -> Selection { (Of, Of) => Yes, }
         table licence_adjunct(PrepositionFunctionLicence) -> Selection contains Adjunct => Yes;
         table licence_preposed_adjunct(PrepositionFunctionLicence) -> Selection contains PreposedAdjunct => Yes;
         table licence_modifier(PrepositionFunctionLicence) -> Selection contains Modifier => Yes;
@@ -51,6 +54,15 @@ constructions! {
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
         feature PastParticipialPremodifier { No, Yes } default No;
         feature AuxiliaryComplementRealization { Overt, Elided }
+        feature AuxiliaryEllipsisLicence { No, Yes } default No;
+        table licensed_auxiliary_complement(AuxiliaryEllipsisLicence,
+            AuxiliaryComplementRealization) -> Selection {
+            (No, Overt) => Yes, (Yes, Overt) => Yes, (Yes, Elided) => Yes,
+        }
+        table auxiliary_ellipsis_concord(AuxiliaryEllipsisLicence,
+            AuxiliaryEllipsisLicence) -> AuxiliaryEllipsisLicence {
+            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+        }
         feature Clitic { No, Yes } default No;
         feature CliticHost { Free, Subject, PronounSubject }
         feature SubjectStructure { Phrase, Pronoun }
@@ -103,7 +115,7 @@ constructions! {
         }
         feature NounPremodifier { Yes }
         feature VPFinalAdjunct { Yes, No }
-        feature ClauseInitialAdjunct { Yes, No }
+        feature ClauseInitialAdjunct { Yes, No } default No;
         feature InfinitivalMarker { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
@@ -163,7 +175,8 @@ constructions! {
         category Name();
         category NamePredicate();
         category PrepositionPhrase(LocativeUse, PrepositionFunctionLicence, ObliqueNumber,
-            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse);
+            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse,
+            ClauseInitialAdjunct);
         category LocativeComplement();
         category MannerComplement();
         category FrequencyPhrase();
@@ -222,10 +235,10 @@ constructions! {
         category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
         category InfinitiveComplement();
-        category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost);
-        category SecondarySelectedHead(form, FrameUse, HeadCoordination);
-        category FiniteSelectedHeadSeries(number, person, FrameUse, CliticHost);
-        category SecondarySelectedHeadSeries(form, FrameUse);
+        category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence);
+        category SecondarySelectedHead(form, FrameUse, HeadCoordination, AuxiliaryEllipsisLicence);
+        category FiniteSelectedHeadSeries(number, person, FrameUse, CliticHost, AuxiliaryEllipsisLicence);
+        category SecondarySelectedHeadSeries(form, FrameUse, AuxiliaryEllipsisLicence);
         category ManaPhraseSeries();
         category CardinalSeries(number, CoordinationKind);
         category AmountSeries();
@@ -239,7 +252,7 @@ constructions! {
         );
         category AdjectivePhraseSeries(AdjectiveStructure);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
-            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse);
+            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
@@ -255,7 +268,7 @@ constructions! {
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse);
         category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
-            CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse);
+            CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
             DurationUse, CorrelativeCoordinator);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
@@ -266,8 +279,8 @@ constructions! {
         category CorrelativeQuotedTextSeries(CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(CorrelativeCoordinator);
         category CorrelativeFiniteSelectedHeadSeries(number, person, FrameUse,
-            CorrelativeCoordinator, CliticHost);
-        category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator);
+            CorrelativeCoordinator, CliticHost, AuxiliaryEllipsisLicence);
+        category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator, AuxiliaryEllipsisLicence);
         category CorrelativeAdjectivePhrase();
         category CorrelativeAdjectiveSeries(CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(number, person, CorrelativeCoordinator, CliticHost);
@@ -815,6 +828,8 @@ constructions! {
         }
 
         policy ObliquePrepositionConcord<Right, Source> {
+            export ClauseInitialAdjunct = coordinated_initial_adjunct(left.ClauseInitialAdjunct,
+                Right.ClauseInitialAdjunct);
             export SelectedPrepositionUse = selected_preposition_concord(left.SelectedPrepositionUse,
                 Right.SelectedPrepositionUse);
             export NominalComplementMarker = None;
@@ -851,11 +866,15 @@ constructions! {
         }
 
         policy SelectedFrameConcord<Right, Source> {
+            export AuxiliaryEllipsisLicence = auxiliary_ellipsis_concord(
+                left.AuxiliaryEllipsisLicence, Right.AuxiliaryEllipsisLicence);
             agree left.FrameUse = Right.FrameUse;
             export FrameUse = left.FrameUse;
         }
 
         policy SharedFrameConcord<Right, Source> {
+            export AuxiliaryEllipsisLicence = auxiliary_ellipsis_concord(
+                left.AuxiliaryEllipsisLicence, Right.AuxiliaryEllipsisLicence);
             agree left.FrameUse = Right.FrameUse;
             export FrameUse = left.FrameUse;
             export HeadCoordination = Yes;
@@ -913,7 +932,9 @@ constructions! {
             use PredicateHeadAgreement;
         }
 
-        // CGEL pp. 1522–1523: gerund-participial auxiliary stranding is outside Oracle English.
+        // User ruling 2026-10-06, resolved by the orchestrator 2026-10-07:
+        // omitted auxiliary Complements require a declared lexical licence.
+        // Inflection and clitic constraints remain independently enforced.
         table auxiliary_realization(form, AuxiliaryComplementRealization) -> Selection {
             (Plain, Overt) => Yes, (Plain, Elided) => Yes,
             (Present, Overt) => Yes, (Present, Elided) => Yes,
@@ -930,6 +951,8 @@ constructions! {
         }
 
         schema BareAuxiliaryPredicate {
+            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             // CGEL p. 1614: stranding requires a stressed auxiliary.
             require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization)
                 = Yes;
@@ -940,6 +963,8 @@ constructions! {
         }
 
         schema ParticipialAuxiliaryPredicate {
+            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             // CGEL p. 1614: stranding requires a stressed auxiliary.
             require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization)
                 = Yes;
@@ -950,6 +975,8 @@ constructions! {
         }
 
         schema PerfectAuxiliaryPredicate {
+            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             // CGEL p. 1614: stranding requires a stressed auxiliary.
             require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization)
                 = Yes;
@@ -1005,6 +1032,7 @@ constructions! {
         }
 
         schema SelectedVerbHead {
+            export AuxiliaryEllipsisLicence = head.AuxiliaryEllipsisLicence;
             // An uncomplemented coordinate head requires the strong form.
             require head.Clitic = No;
             form [head: lexical(Verb)];
@@ -1062,18 +1090,24 @@ constructions! {
         }
 
         schema SharedAuxiliaryBareComplement {
+            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             form [head: node, complement: node];
             require head.HeadCoordination = Yes;
             require head.FrameUse = AuxiliaryBare;
         }
 
         schema SharedAuxiliaryParticipleComplement {
+            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             form [head: node, complement: node];
             require head.HeadCoordination = Yes;
             require head.FrameUse = AuxiliaryParticiple;
         }
 
         schema SharedAuxiliaryPerfectComplement {
+            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             form [head: node, complement: node];
             require head.HeadCoordination = Yes;
             require head.FrameUse = AuxiliaryPerfect;
@@ -1547,6 +1581,8 @@ constructions! {
 
         construction InitialPreposition: Clause {
             form [dependent: PrepositionPhrase, ", ", clause: Clause];
+            form [dependent: PrepositionPhrase, " ", clause: Clause]
+                require dependent.ClauseInitialAdjunct = Yes;
             require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes;
             require dependent.SelectedPrepositionUse = No;
             export UnmarkedConjunctLicence = Yes;
@@ -2075,6 +2111,7 @@ constructions! {
         }
 
         construction PrepositionPhrase: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: AccusativePhrase];
             require head.PrepositionComplement = NounPhrase;
             export ObliqueNumber = oblique_number(head.ObliqueMarker, complement.number);
@@ -2087,6 +2124,7 @@ constructions! {
         }
 
         construction BareNominalPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: NounPhrase];
             require complement.BarePrepositionUse = Yes;
             require head.BareNominalComplement = Yes;
@@ -2105,6 +2143,7 @@ constructions! {
         // The supported predicative-NP licence is preposed; finite-clause
         // Complement permissions remain independent.
         construction PredicativeComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
             form [head: lexical(Preposition), " ", complement: PredicativeComplement];
@@ -2118,6 +2157,7 @@ constructions! {
         }
 
         construction IntransitivePreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
             form [head: lexical(Preposition)];
             require head.PrepositionComplement = None;
@@ -2126,6 +2166,7 @@ constructions! {
 
         // CGEL Ch. 7 §3.2, p. 626: preposition + adjective idioms.
         construction AdjectiveComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
             form [head: lexical(Preposition), " ", complement: lexical(Adjective)];
@@ -2139,6 +2180,7 @@ constructions! {
         }
 
         construction ClauseComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
             export ObliqueNumber = None;
@@ -2153,6 +2195,7 @@ constructions! {
         // include duration use. The lexical licence and its application to
         // the Oracle equative duration are declared project analyses.
         construction AdverbComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: AdverbPhrase];
             require head.AdverbComplementClass = Duration;
             require complement.DurationUse = Yes;
@@ -2167,6 +2210,7 @@ constructions! {
         // CGEL Ch. 8 §2.2: gerund-participials occur under means By independently
         // of passive voice; the same complementation shape also occurs under To.
         construction GerundComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: SecondaryVerbPhrase];
             require head.GerundClauseComplement = Yes;
             require complement.form = GerundParticiple;
@@ -2180,10 +2224,22 @@ constructions! {
             require phrase.LocativeUse = No;
             export PredicativeKind = Prepositional;
         }
+        // CGEL Ch. 7 §2.4, pp. 616–617: the selected PP is a constituent;
+        // omission removes its head together with its internal Complement.
         construction CompoundPrepositionPhrase: PrepositionPhrase {
-            form [head: lexical(Preposition), " ", marker: lexical(Preposition), " ", complement: PrepositionPhrase];
-            agree head.CompoundComplementMarker = marker.CompoundComplementMarker;
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
+            form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
+            require selected_compound_complement(head.CompoundComplementMarker,
+                complement.NominalComplementMarker) = Yes;
             require licence_compound(head.PrepositionFunctionLicence) = Yes;
+            export ObliqueNumber = None;
+            use PrepositionHeadPermissions;
+        }
+
+        construction PrepositionComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
+            form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
+            require head.PrepositionPhraseComplement = Yes;
             export ObliqueNumber = None;
             use PrepositionHeadPermissions;
         }
@@ -2394,6 +2450,7 @@ constructions! {
             export NominalBareClass = Boundary;
         }
         construction BareTemporalPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: BareTemporalNominal];
             agree head.NominalBareClass = complement.NominalBareClass;
@@ -2568,15 +2625,7 @@ constructions! {
             export form = Plain;
         }
 
-        construction OmittedGerundParticiple: Ellipsis {
-            form [];
-            export form = GerundParticiple;
-        }
 
-        construction OmittedPastParticiple: Ellipsis {
-            form [];
-            export form = PastParticiple;
-        }
         instance OvertComplement<Result, Predicate: predicate>: [
             (BareComplement, BarePredicate),
             (ParticipialComplement, ParticipialPredicate),
@@ -2590,23 +2639,8 @@ constructions! {
             export AuxiliaryComplementRealization = Elided;
         }
 
-        construction ProgressiveEllipsis: ParticipialComplement {
-            form [omission: Ellipsis];
-            require omission.form = GerundParticiple;
-            export AuxiliaryComplementRealization = Elided;
-        }
 
-        construction PassiveEllipsis: ParticipialComplement {
-            form [omission: Ellipsis];
-            require omission.form = PastParticiple;
-            export AuxiliaryComplementRealization = Elided;
-        }
 
-        construction PerfectEllipsis: PerfectComplement {
-            form [omission: Ellipsis];
-            require omission.form = PastParticiple;
-            export AuxiliaryComplementRealization = Elided;
-        }
 
         construction Cardinal: Cardinal {
             form [head: lexical(Numeral)];
@@ -3046,6 +3080,7 @@ constructions! {
         }
 
         construction CoordinatedClauseComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
             export ObliqueNumber = None;
@@ -3324,12 +3359,14 @@ constructions! {
         }
 
         construction KeywordComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: KeywordPhrase];
             require head.KeywordComplement = Yes;
             use PrepositionHeadPermissions;
         }
         construction QuotedComplementPreposition: PrepositionPhrase {
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
             export ObliqueNumber = None;
@@ -3377,6 +3414,7 @@ constructions! {
         }
 
         construction SharedPrepositionComplement: PrepositionPhrase {
+            export ClauseInitialAdjunct = No;
             export ObliqueNumber = None;
             form [head: SelectedPrepositionHead, " ", complement: AccusativePhrase];
             require head.HeadCoordination = Yes;

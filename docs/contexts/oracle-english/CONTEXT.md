@@ -349,10 +349,18 @@ Referent.
 
 **Ellipsis**:
 The omission of material whose grammatical content is recoverable from an
-Antecedent or context. Oracle English does not license stranded
-gerund-participial auxiliaries: stranded *being* is excluded in American
-English, and stranded *having* is dialect-restricted (CGEL, Ch. 17 §7.1,
-pp. 1522–1523).
+Antecedent or context. Oracle English licenses auxiliary stranding only in
+do-support and negative *can*; stranded *be*, *have* and other modals are
+excluded by the user ruling of 2026-10-06, applied by the orchestrator resolution
+of 2026-10-07. This is the project's attestation restriction, not a claim that
+CGEL excludes those auxiliaries from English ellipsis generally.
+
+**Auxiliary Ellipsis Licence** (project term):
+The declared permission for an auxiliary to occur with an omitted Complement.
+An overt Complement does not require this permission. In a coordination with a
+shared omitted Complement, every auxiliary must carry the permission.
+_Avoid_: inferring this permission from the auxiliary's spelling or from a
+mere enumerable Gap.
 
 **Cardinal Numeral**:
 A numeral expressing a count, such as *one* or *two*.

@@ -753,26 +753,29 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
 }
 #[test]
 fn participial_postmodifiers_and_mixed_complements_reject_wrong_form_or_function() {
-    // CGEL p. 1523: Oracle English excludes stranded gerund-participial
-    // auxiliaries.
-    for complement in [
-        Reading::ProgressiveEllipsis {
-            form: 0,
-            omission: Box::new(Reading::OmittedGerundParticiple { form: 0 }),
-        },
-        Reading::PassiveEllipsis {
-            form: 0,
-            omission: Box::new(Reading::OmittedPastParticiple { form: 0 }),
-        },
-    ] {
+    // The omitted participial/perfect routes are retired under the user
+    // ruling of 2026-10-06, resolved by the orchestrator 2026-10-07.
+    // Re-spell the same two stranding exclusions against the remaining shape.
+    for owner in ["core-verb:Be", "core-verb:Have"] {
         let invalid = Reading::ParticipialAuxiliaryPredicate {
             form: 0,
             category: Category::SecondaryVerbPhrase,
-            head: verb("core-verb:Be", WordForm::GerundParticiple, 1),
-            complement: Box::new(complement),
+            head: verb(owner, WordForm::GerundParticiple, 1),
+            complement: Box::new(Reading::BareEllipsis {
+                form: 0,
+                omission: Box::new(Reading::OmittedPlain { form: 0 }),
+            }),
         };
         assert!(invalid.admit(&LEXICON).is_err());
     }
+    // Both former omitted participial forms are absent from their shared
+    // category, and the retired perfect omission is absent as well.
+    for category in [Category::ParticipialComplement, Category::PerfectComplement] {
+        assert!(common::readings_with_lexicon(&LEXICON, "", category).is_empty());
+    }
+    assert!(
+        common::readings_with_lexicon(&LEXICON, "being", Category::SecondaryVerbPhrase).is_empty()
+    );
     let finite = Reading::ParticipialPostmodifiedNominal {
         form: 0,
         head: Box::new(noun("lexeme:type/creature")),

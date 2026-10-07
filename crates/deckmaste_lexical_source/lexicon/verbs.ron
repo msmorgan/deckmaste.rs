@@ -43,7 +43,6 @@
             Amount,
             Role("MassNoun"),
             Role("DistributionPhrase"),
-            OptionalRole("ReplacementMarker"),
         ]),
         Predicate([ObjectNounPhrase, Role("ScalarEquality"), Lex("Preposition", "To"), Role("Object")]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "To"), Role("Object"), Role("ScalarEquality")]),

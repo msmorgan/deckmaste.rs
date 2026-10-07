@@ -47,6 +47,7 @@
         Pronoun: {"RelativeUse": "No"},
     },
     feature_additions: {
+        "core-verb:Do": {"AuxiliaryEllipsisLicence": "Yes"},
         "vocab:FixedCostSymbol/HybridWhiteBlue": {"SymbolUse": "Cost", "ManaSymbolUse": "Yes"},
         "vocab:FixedCostSymbol/HybridWhiteBlack": {"SymbolUse": "Cost", "ManaSymbolUse": "Yes"},
         "vocab:FixedCostSymbol/HybridBlueBlack": {"SymbolUse": "Cost", "ManaSymbolUse": "Yes"},
@@ -164,7 +165,7 @@
         "vocab:Preposition/From": {"PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Modifier|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "From"},
         "vocab:Preposition/In": {"SelectedPrepositionUse": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|PredicativeComplement|Compound|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Into": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Into"},
-        "vocab:Preposition/Of": {"CompoundComplementMarker": "Of", "PrepositionFunctionLicence": "NounComplement|Modifier|PredicativeComplement", "ObliqueMarker": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "NominalComplementMarker": "Of", "NominalBareClass": "Interval", "KeywordMarker": "Of"},
+        "vocab:Preposition/Of": {"PrepositionPhraseComplement": "Yes", "PrepositionFunctionLicence": "NounComplement|Modifier|PredicativeComplement", "ObliqueMarker": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "NominalComplementMarker": "Of", "NominalBareClass": "Interval", "KeywordMarker": "Of"},
         "vocab:Preposition/On": {"BareNominalComplement": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "On"},
         "vocab:Preposition/Onto": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Onto"},
         "vocab:Preposition/Outside": {"PrepositionFunctionLicence": "Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
@@ -240,7 +241,7 @@
         ),
         (
             id: "vocab:Preposition/Instead", lemma: "instead", category: Preposition,
-            properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct|Compound|PreposedAdjunct", "CompoundComplementMarker": "Of", "LocativeUse": "No"}, frames: []),
+            properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct|Compound|PreposedAdjunct", "CompoundComplementMarker": "Of", "PrepositionComplement": "None", "ClauseInitialAdjunct": "Yes", "LocativeUse": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Instead"),
             capitalization: Initial, binding: Free, surface_structure: Word,
@@ -1056,7 +1057,7 @@
         ),
         (
             id: "core-verb:DoNegative", lemma: "don't", category: Verb,
-            properties: (countability: [], features: {"Polarity": "Negative", "Contraction": "Yes"}, frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])]),
+            properties: (countability: [], features: {"Polarity": "Negative", "Contraction": "Yes", "AuxiliaryEllipsisLicence": "Yes"}, frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])]),
             forms: [
                 (form: Present, features: (number: Some(Singular), person: Some(First), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["don't", "don’t"])),
                 (form: Present, features: (number: Some(Singular), person: Some(Second), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["don't", "don’t"])),
@@ -1235,7 +1236,7 @@
                 (form: Preterite, features: (number: Some(Plural), person: Some(First), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["couldn't", "couldn’t"])),
                 (form: Preterite, features: (number: Some(Plural), person: Some(Second), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["couldn't", "couldn’t"])),
                 (form: Preterite, features: (number: Some(Plural), person: Some(Third), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["couldn't", "couldn’t"])),
-            ], frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])], features: {"Polarity": "Negative"},
+            ], frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])], features: {"Polarity": "Negative", "AuxiliaryEllipsisLicence": "Yes"},
         ),
         "core-verb:May": (
             forms: [
@@ -1281,7 +1282,7 @@
                 (form: Preterite, features: (number: Some(Plural), person: Some(First), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["didn't", "didn’t"])),
                 (form: Preterite, features: (number: Some(Plural), person: Some(Second), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["didn't", "didn’t"])),
                 (form: Preterite, features: (number: Some(Plural), person: Some(Third), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["didn't", "didn’t"])),
-            ], frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])], features: {"Polarity": "Negative"},
+            ], frames: [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))])], features: {"Polarity": "Negative", "AuxiliaryEllipsisLicence": "Yes"},
         ),
     },
 )

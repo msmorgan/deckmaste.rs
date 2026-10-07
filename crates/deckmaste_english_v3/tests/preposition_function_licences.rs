@@ -1,12 +1,23 @@
 mod common;
 
-use common::{lexicon, readings};
-use deckmaste_english_v3::grammar::{Category, FrameValue, Reading, Word};
-use deckmaste_lexical::{
-    Case, FeatureBundle, Finiteness, LexicalReading, LexicalValue, Number, Person, SurfaceCase,
-    Tense, WordForm,
-};
 use std::collections::BTreeSet;
+
+use common::lexicon;
+use common::readings;
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::FrameValue;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_lexical::Case;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::Finiteness;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::Person;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::Tense;
+use deckmaste_lexical::WordForm;
 
 fn invariant(id: &str) -> Word {
     Word {
@@ -130,8 +141,11 @@ fn library_of_leng_fixed_preposition_keeps_its_pp_complement() {
     let expected = Reading::CompoundPrepositionPhrase {
         form: 0,
         head: invariant("vocab:Preposition/Instead"),
-        marker: invariant("vocab:Preposition/Of"),
-        complement: Box::new(pp("vocab:Preposition/Into", graveyard())),
+        complement: Box::new(Reading::PrepositionComplementPreposition {
+            form: 0,
+            head: invariant("vocab:Preposition/Of"),
+            complement: Box::new(pp("vocab:Preposition/Into", graveyard())),
+        }),
     };
     exact(
         "instead of into your graveyard",

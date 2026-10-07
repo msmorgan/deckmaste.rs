@@ -145,12 +145,16 @@ its verification belong to the attached feature-economy ticket.
   `BeContracted` and `HaveContracted`, respectively, in `core.ron` have **zero**
   supported-corpus tokens and are owed deletion. The dead-lexeme audit worked
   at Lexeme level; these are pruning-rule residue at surface level.
-- Full-form *be* stranding (2026-10-06): `PassiveEllipsis` and
-  `ProgressiveEllipsis` Readings under a participial postmodifier are dubious
-  and owed a measured review. "Create a token that is attacking." has **3**
-  Readings versus **1** for *that's attacking*. The clitic correctly excludes
-  stranding (CGEL, Ch. 18 §6.2, p. 1614); the extra full-form Readings predate
-  that landing.
+- Auxiliary stranding exclusion (2026-10-07):
+  [english-v3-instead-replacement](../done/english-v3-instead-replacement.md)
+  lands the declared auxiliary licence excluding stranded *be*, *have* and
+  modals, while preserving do-support and *can't*. This is the user ruling of
+  2026-10-06 applied by the orchestrator resolution of 2026-10-07, not a CGEL
+  restriction. The named Reading retirement census in that landing resolves
+  the former `english-v3-ellipsis-recoverability` maybe-ticket by measurement;
+  it is moved to done. Contextual recoverability is not implemented. General
+  residual host causes remain here; this exclusion closes the old full-form
+  stranding review rather than deferring its wrong Readings again.
 
 - `mana of any color/type that <clause>` (for example, "Add one mana of any
   color that land could produce") is not read: 31 faces, 0 covered. The relative

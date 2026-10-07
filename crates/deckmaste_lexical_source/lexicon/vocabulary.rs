@@ -129,7 +129,6 @@ constructions! {
     }
     vocab FloatedQuantifier { All = "all", Both = "both", Each = "each", }
     vocab ComparisonDirection { More = "more", Less = "less", }
-    vocab ReplacementMarker { Instead = "instead", }
     vocab PastPossession { Had = "had", }
     vocab TriggerMarker { When = "when", Whenever = "whenever", }
     // Oracle "you" denotes one player: second-person plural is intentionally

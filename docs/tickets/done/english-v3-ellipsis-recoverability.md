@@ -38,3 +38,8 @@ in Oracle text, and whether that is checked in the grammar or left to preference
 needs a dialogue with the user before any implementation. It follows
 `english-v3-by-complement-functions` because both rework the same Avacyn
 structure.
+
+## Landing record
+
+Resolved by measurement in [english-v3-instead-replacement](english-v3-instead-replacement.md), under the orchestrator resolution of 2026-10-07 applying the user ruling of 2026-10-06.
+Stranded be/have/modal ellipsis is excluded; do-support and can't remain licensed. Contextual recoverability is not implemented; remaining host causes belong to [systemic residuals](../planned/english-v3-systemic-residuals.md).

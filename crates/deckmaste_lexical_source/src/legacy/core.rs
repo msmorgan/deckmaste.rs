@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::LoadError;
 use deckmaste_construction_core as construction;
 use deckmaste_construction_core::macro_def as metadata;
 use deckmaste_lexical::Capitalization;
@@ -20,6 +19,7 @@ use serde::de::VariantAccess;
 use serde::de::Visitor;
 
 use crate::LexicalSources;
+use crate::LoadError;
 use crate::source;
 
 const VOCABULARY_PATH: &str = "crates/deckmaste_lexical_source/lexicon/vocabulary.rs";
@@ -75,8 +75,9 @@ fn inventory_category(name: &str) -> Option<Category> {
             Category::Adjective
         }
         "Preposition" | "TriggerMarker" => Category::Preposition,
-        "PredicateNegator" | "LocativeProform" | "FrequencyAdverb" | "FocusAdverb"
-        | "ReplacementMarker" => Category::Adverb,
+        "PredicateNegator" | "LocativeProform" | "FrequencyAdverb" | "FocusAdverb" => {
+            Category::Adverb
+        }
         "ComparativeQuantifier"
         | "FloatedQuantifier"
         | "SingularDemonstrative"
