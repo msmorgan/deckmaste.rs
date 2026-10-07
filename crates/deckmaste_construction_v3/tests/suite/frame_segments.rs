@@ -1,10 +1,18 @@
 use std::collections::BTreeSet;
 
 use deckmaste_construction_v3::constructions;
-use deckmaste_lexical::{
-    Category as Pos, Frame, FrameItem, FrameSlot, Lexeme, LexicalReading, Lexicon, Relation,
-    Source, SourceKind, SurfaceCase, WordForm,
-};
+use deckmaste_lexical::Category as Pos;
+use deckmaste_lexical::Frame;
+use deckmaste_lexical::FrameItem;
+use deckmaste_lexical::FrameSlot;
+use deckmaste_lexical::Lexeme;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::Lexicon;
+use deckmaste_lexical::Relation;
+use deckmaste_lexical::Source;
+use deckmaste_lexical::SourceKind;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
 
 constructions! {
     pub mod grammar {
@@ -88,8 +96,9 @@ fn lexicon() -> Lexicon {
         frame("NounPhrase", "To", "Amount"),
     ];
     entries.push(put);
-    // Same surface and individually licensed markers, but different slot relations.
-    // Their segment candidates must stay correlated until the shared head discharges them.
+    // Same surface and individually licensed markers, but different slot
+    // relations. Their segment candidates must stay correlated until the
+    // shared head discharges them.
     let mut mixed = Lexeme::verb("put-mixed-role", "put", source("put-mixed-role"));
     let onto = frame("NounPhrase", "Onto", "NounPhrase");
     let mut into = frame("NounPhrase", "Into", "NounPhrase");

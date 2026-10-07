@@ -1,10 +1,20 @@
 use std::collections::BTreeSet;
 
 use deckmaste_construction_v3::constructions;
-use deckmaste_lexical::{
-    Category as Pos, Frame, FrameItem, FrameSlot, Lexeme, LexicalReading, Lexicon, Numeral,
-    Relation, Source, SourceKind, SurfaceCase, SurfaceStructure, WordForm,
-};
+use deckmaste_lexical::Category as Pos;
+use deckmaste_lexical::Frame;
+use deckmaste_lexical::FrameItem;
+use deckmaste_lexical::FrameSlot;
+use deckmaste_lexical::Lexeme;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::Lexicon;
+use deckmaste_lexical::Numeral;
+use deckmaste_lexical::Relation;
+use deckmaste_lexical::Source;
+use deckmaste_lexical::SourceKind;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::SurfaceStructure;
+use deckmaste_lexical::WordForm;
 
 constructions! {
     pub mod grammar {
@@ -97,9 +107,9 @@ fn lexicon() -> Lexicon {
             .insert("FrameMarker".into(), reference.into());
         entries.push(lexeme);
     }
-    // Authored Amass NP+Amount, Share NP With NP and Enter Object [Under Object]
-    // frames. Enter's legacy role category is declared explicitly above;
-    // unrelated unreconciled roles remain unsupported below.
+    // Authored Amass NP+Amount, Share NP With NP and Enter Object [Under
+    // Object] frames. Enter's legacy role category is declared explicitly
+    // above; unrelated unreconciled roles remain unsupported below.
     for (id, frames) in [
         (
             "amass",

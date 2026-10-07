@@ -1,10 +1,15 @@
+use std::collections::BTreeSet;
+
 use deckmaste_construction_v3::constructions;
 use deckmaste_english_v3::parse;
-use deckmaste_lexical::{
-    Category as LexicalCategory, Countability, Lexeme, LexicalReading, Lexicon, Source, SourceKind,
-    WordForm,
-};
-use std::collections::BTreeSet;
+use deckmaste_lexical::Category as LexicalCategory;
+use deckmaste_lexical::Countability;
+use deckmaste_lexical::Lexeme;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::Lexicon;
+use deckmaste_lexical::Source;
+use deckmaste_lexical::SourceKind;
+use deckmaste_lexical::WordForm;
 
 constructions! {
     pub mod grammar {
