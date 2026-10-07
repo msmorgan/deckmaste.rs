@@ -133,10 +133,13 @@ that Remove has exactly one frame and no unsupported frame remains. No
 unreachable declaration or second label for this constituency is retained.
 Other verbs' legacy slots remain with their existing owners.
 
-CGEL, Ch. 4, §8.3.1(c), p. 315, [60ii], supplies the theme-as-Object,
-source-as-non-core-Complement pattern and rejects the locative-object alternant
-for Remove. Ch. 4, §8.3.3, p. 319, explicitly treats Remove's source Complement
-as omissible. Those citations support those linguistic claims only.
+CGEL, Ch. 4, §8.3.1(c), p. 315, [60ii], supplies the theme-as-Object
+pattern with a *from* source PP and rejects the locative-object alternant
+(∗*I removed the pool of leaves*). Ch. 4, §8.3.3, p. 319, names the
+object + non-core complement construction and sets aside cases where that
+complement is simply omissible, with *He removed the key from the table* vs
+*He removed the key* as its example. Those citations support those linguistic
+claims only.
 
 **Omissible source decision:** do not add the bare-Object frame in this landing.
 Red Ward attests "This effect doesn't remove this Aura." This is an
@@ -567,3 +570,25 @@ covered 19,682.
 | `fcc9f3bc-0bc3-4189-a4d0-9698594b99a8#card` | Enchanted River's Grasp | 24 |
 | `fef502af-6e79-4c55-a86a-b45adb3fc64a#card` | Plague Boiler | 4 |
 | `ffeb792a-6df0-46c1-badc-4deb857f7d48#card` | Freyalise's Winds | 24 |
+
+### Review notes (2026-10-07)
+
+- **Cite correction.** The Analysis paragraph above previously attributed the
+  "non-core Complement" characterization to p. 315 [60ii]. That page backs only
+  theme-as-Object with a *from* source and the absent locative-object
+  alternant; the object + non-core complement wording and the omissible-source
+  example (*He removed the key from the table* vs *He removed the key*) are
+  p. 319, §8.3.3. The sentence now says so.
+- **"remove X from combat" is unread** (about 24 attested lines: Observed
+  Stasis, Gustcloak Runner, Gustcloak Cavalier, Gustcloak Savior, Gustcloak
+  Skirmisher, Reconnaissance, Illusionist's Gambit, False Orders, Sorrow's
+  Path, Gollum, Ydwen Efreet, …). Cause: `turn_part/combat` is a bare interval
+  nominal only inside temporal PPs and is not a NounPhrase, so
+  `MarkedRole(From, NounPhrase)` cannot take it. Routed to
+  [english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md).
+- **Also unread:** passive "is removed from" (Protean Hydra; Chandra, Fire
+  Artisan; Benalish Commander; Magma Pummeler; Immard; Jinxed Choker) and the
+  pro-form "remove one from it". Routed to the same residuals ticket.
+- **Reconciliation.** 268 faces gained against the 276 sole-cause estimate.
+  The remaining estimated witnesses are blocked elsewhere (Perfect
+  Intimidation's Exile unit; Sun Droplet); no face was lost.

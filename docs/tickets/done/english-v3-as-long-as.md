@@ -437,3 +437,15 @@ Final evidence: `as-long-as-refresh-after.json`, its source provenance,
 `as-long-as-refresh-census-comparison.json`, fresh gain review and inventory,
 and refresh gate/clippy/fmt/citation logs, all in the ignored evidence directory
 linked above. No lost Reading requires justification or re-coverage routing.
+
+### Review notes (2026-10-07)
+
+- **Reach.** The plain `Adverb` construction now exports `DurationUse`, so
+  bare "for long" reads with 0 supported-corpus attestations. Already routed
+  to [english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md) (pruning-rule candidate).
+- **Remaining faces.** 738 *as long as* faces stay unread, owed to their other
+  blockers (samples in the record above); already routed to the same ticket.
+- **Stamp correction.** The "before" stamp reads the work change `zktwupyo`,
+  but the baseline tree measured was the claim parent `ttnruzyt`.
+- **Reconciliation.** 345 faces gained against the 323 sole-cause estimate; no
+  shortfall.

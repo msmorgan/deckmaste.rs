@@ -38,8 +38,8 @@ count).
 
 Some singular count nouns occur without a determiner in fixed expressions or
 frames, including expressions of time: *at dawn*, *by daybreak*, *before
-sunrise* (CGEL, Ch. 5, §8.5(b), p. 409, [20v]). The same passage notes that in
-such frames the noun is not used with its standard referential denotation.
+sunrise* (CGEL, Ch. 5, §8.5(b), p. 409, [20v]). §8.5 treats such bare NPs
+under restricted non-referential interpretations.
 Treating *combat* as such a noun alongside *turn* is the project's lexical
 classification, not a CGEL ruling about this word. The rules name the combat
 phase's first and last steps *beginning of combat* and *end of combat*
@@ -310,3 +310,17 @@ refresh. The measured after tree / covered 19,414 and its gate remain valid.
 The final declaration file is byte-identical to the refreshed claim parent:
 3,227 non-blank lines → 3,227, net 0. Final review finds only this ticket's
 two lexical assignments, eight tests and landing record above the claim.
+
+### Review notes (2026-10-07)
+
+- **Overgeneration.** Adding the Interval class to *During* lets
+  "During turn, draw a card." read (ungrammatical; 0 corpus faces), because
+  noun and preposition agree on one shared class with no pairwise restriction.
+  Routed to [english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md).
+- **Reconciliation.** 209 faces gained against the 202 sole-cause estimate.
+  The estimate was stamped at change `xxknlzypsnwy`, covered 17,322; later
+  landings cleared co-causes, so the surplus is expected.
+- **Cite correction.** The Analysis paragraph previously attributed the
+  "standard referential denotation" remark to [20v]. On p. 409 that remark
+  concerns [20i] (*in hospital*, *in bed*), not the [20v] times; the sentence
+  now cites only the section's non-referential heading.

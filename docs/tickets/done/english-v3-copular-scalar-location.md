@@ -298,3 +298,20 @@ named inventories, probes, ledgers, scripts and logs remain under this
 workspace’s ignored `target/english-v3/`; evidence is retained before retirement
 in the coordinator’s ignored `target/english-v3/english-v3-copular-scalar-location/`.
 No evidence snapshot, process verifier or temporary file is tracked.
+
+### Review notes (2026-10-07)
+
+- **Undisclosed reach, disclosed here.** `ScalarCardinalValue` joined the
+  shared `ScalarValue` category, which is also the `quantity` slot of
+  `MeasuredAttribute`, so spelled values after scalar property nouns
+  ("power three") now read. Corpus effect: zero faces.
+- **Unattested exports.** The measured-amount `ScalarDenotation = Yes` exports
+  from `CardinalMeasuredNominal`, `CardinalMeasuredNounPhrase` and
+  `MeasuredNounPhrase` have no gained face with a measured-amount Subject
+  ("Two damage is 3." reads 0). Routed to [english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md) for removal under the pruning
+  rule.
+- **Reconciliation.** 77 faces containing "(power|toughness|mana value) is"
+  remain unread. About 62 belong to other constructions (*equal to the
+  number* 21, *less than or equal* 9, *equal to your devotion* 5, …). The rest
+  are blocked outside the scalar clause (Greenhilt Trainee: activation
+  restriction; Phyrexian Devourer, Aradesh: another sentence).

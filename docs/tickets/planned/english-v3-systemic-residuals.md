@@ -148,6 +148,32 @@ its verification belong to the attached feature-economy ticket.
   repairs; do not implement a word-named attachment guard. This is an
   implementation deferral, not a CGEL requirement for an overt source.
 
+- *Remove X from combat* (2026-10-07, from the
+  `english-v3-remove-from-complement` review): about 24 attested lines stay
+  unread (Observed Stasis; Gustcloak Runner, Cavalier, Savior and Skirmisher;
+  Reconnaissance; Illusionist's Gambit; False Orders; Sorrow's Path; Gollum;
+  Ydwen Efreet). `turn_part/combat` is a bare interval nominal only inside
+  temporal PPs and is not a NounPhrase, so `MarkedRole(From, NounPhrase)`
+  cannot take it. Owned here: it needs *combat* admitted as a bare NP
+  Complement of *from*, or a Remove frame with a bare interval Complement,
+  read from declared features, never a word-named guard.
+- Remove passives and pro-forms (2026-10-07, same review): passive
+  "is removed from" (Protean Hydra; Chandra, Fire Artisan; Benalish
+  Commander; Magma Pummeler; Immard; Jinxed Choker) and the pro-form
+  "remove one from it" stay unread. Owned here.
+- Unattested measured-amount `ScalarDenotation` exports (2026-10-07, from the
+  `english-v3-copular-scalar-location` review): `CardinalMeasuredNominal`,
+  `CardinalMeasuredNounPhrase` and `MeasuredNounPhrase` export
+  `ScalarDenotation = Yes`, but no gained face uses a measured-amount Subject
+  ("Two damage is 3." reads 0 corpus faces). Owed removal under the pruning
+  rule, measured.
+- *During* Interval overgeneration (2026-10-07, from the
+  `english-v3-combat-interval-noun` review): adding the Interval class to
+  *During* lets "During turn, draw a card." read (ungrammatical; 0 corpus
+  faces), because noun and preposition agree on one shared class with no
+  pairwise restriction. Owed: restrict the bare-interval pairing by declared
+  feature, measured.
+
 - Instead landing follow-up (2026-10-07): *instead of* with a
   gerund-participial Complement remains unread on **53** supported in-scope
   faces, including Deny the Divine, Reject, Storm Herald and Loxodon Smiter
@@ -294,7 +320,8 @@ is right and this list needs fixing.
   Taken over 2026-10-07 by wave-2 owners: the Cost row
   (`ManaAmount`/`ComparisonDirection`/`ControlledCostAction`) by
   `english-v3-cost-scalar-complement`; the Remove row's `FrameComplement` slot
-  by `english-v3-remove-from-complement`; the Have
+  by `english-v3-remove-from-complement` (discharged 2026-10-07 by that
+  landing; see the Remove batch record above); the Have
   `Complement(Object), Complement(VerbPhrase)` row by
   `english-v3-causative-have`. The other `FrameComplement`, `Object`-role and
   `ResultativeComplement` rows stay here.
