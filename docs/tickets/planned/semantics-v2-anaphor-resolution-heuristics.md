@@ -165,7 +165,7 @@ target creature you don't control").
 most-recent, 6 would pick the intended referent, 2 the wrong one, and 11 are
 undeterminable.
 
-## Candidate rules — all UNTESTED
+## Candidate rules (measured 2026-10-06; see below)
 
 Discourse representation theory (Kamp and Reyle 1993) settles which
 antecedents are accessible, which the checker already models with bindings and
@@ -218,12 +218,11 @@ apart.
 The measurement asked for under "The work" below. It is research only and
 recommends no implementation. The report, scripts, answer keys and outputs
 are in
-`/tmp/claude-1000/-home-msmorgan-Projects-deckmaste-rs/d7d9fdb6-2e51-4168-8aa6-b98479d6bbb6/scratchpad/anaphora/`
+`docs/evidence/anaphora-measurement-2026-10-06/` (an ignored local evidence directory in the `default` checkout, shared into feature workspaces by provisioning; not version-controlled)
 (report `measurement-2026-10-06.md`; keys `key_that.txt`, `key_it.txt`,
 `key_pins.txt`; scripts `corpus.py`, `analyze.py`, `dump_that.py`,
 `extract_it.py`, `pins.py`, `rules.py`, `score_*.py`, `breakdown.py`,
-`reciprocals.py`; outputs `*.out`). That location is session-scoped and may
-disappear; the owner is deciding a durable home for it.
+`reciprocals.py`; outputs `*.out`).
 
 **Framing.** As in `lean-drt-anaphora-refactor`: bindings are discourse
 referents, windows and masking are accessibility. The key excludes a
