@@ -248,6 +248,22 @@ is right and this list needs fixing.
 - Selected-preposition licensing deferrals (2026-10-06): prerequisites below
   are owned here; `english-v3-selected-preposition-nominal-licensing` re-applies
   each exclusion after the replacement analysis lands and attribution passes.
+- **By Adjunct over-admission under passives, verbal and adjectival**
+  (orchestrator ruling, 2026-10-07; post-landing review of
+  [english-v3-become-adjectival-passive](../done/english-v3-become-adjectival-passive.md#landing-record)):
+  `vocab:Preposition/By` is licensed `Adjunct` by
+  `PrepositionFunctionLicence` in `crates/deckmaste_lexical_source/lexicon/core.ron`.
+  That licence admits *by a creature* over the Clause *becomes blocked* and
+  over *blocks or becomes blocked* (Talruum Champion), although neither is
+  an agent, means, or locative Adjunct use; the same overgeneration already
+  occurs on verbal passives. This passive-attachment exclusion was deferred
+  in the 2026-10-06
+  [selected-preposition licensing landing](../done/english-v3-selected-preposition-nominal-licensing.md):
+  by-A was kept because scalar-extent and means uses are attested. Preserve
+  those genuine uses and the selected By Complements of verbal and adjectival
+  passives; measured exclusion of the wrong Adjunct Readings is owed here
+  when a replacement analysis exists. This is a passive-attachment repair,
+  not removal of the entire By Adjunct licence.
 - **with-A deferred**: consume Enter's declared
   `Preposition(With), Object, Preposition(On), Complement` frame by reconciling
   `Object`/`FrameComplement`; consume Exile's declared resultative frame and

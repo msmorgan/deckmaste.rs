@@ -113,27 +113,54 @@ frame selects ComplementedAdjective. The unframed Adjective construction does
 not consume this framed owner. *Tapped* and *untapped* retain their existing
 unframed Adjective route: all three simple finite predicates have exactly one
 Reading, checked against independently authored complete values.
+Representation note: the shared participial-adjective class retains an
+asymmetry: *tapped*/*untapped* use the unframed Adjective construction, whereas
+*blocked* uses the framed IntransitiveAdjective construction for its empty
+Predicate frame and ComplementedAdjective for its marked frame. These are
+disjoint consumers of the declared frame availability, not duplicate routes
+for the same string.
 No shipped route was superseded; no lexical or grammatical declaration was
 retired or left unreachable. Both new Block/adjective frames have attested
 consumers. The marked frame reuses InternalisedComplementMarker; its By
 assignment is declared data, not a word-naming guard.
 
-**By decision (this landing, delegated by this ticket's Analysis):** admit
-*blocked by a creature* as a complemented adjective denoting the resulting
-blocked state, with the creature identified in its Complement. CGEL Ch. 16
-§10.1.3 pp. 1436, 1438–1439 supplies the adjective/verbal distinction, the
-change-of-state example *became magnetised*, and the restriction of adjectival
-By Complements to participles related to verbs with a stative sense. CGEL does
-not analyse Magic's *blocked*: applying that distinction to the attested
-Oracle wording is this project's landing decision, not a CGEL claim.
-The existing matrix By Adjunct also remains grammatical. A complemented
-AdjectivePhrase and a simple adjective with a matrix Adjunct differ in
-constituency; they are not two labels for one constituency. The standalone
-AdjectivePhrase *blocked by a creature* has exactly one Reading. The finite
-predicate has two (adjectival Complement versus matrix Adjunct); coordinated
-*blocks or becomes blocked by a creature* has three (the preceding two plus
-an Adjunct over the coordination). Existing duration attachments account for
-the remaining witness multiplicity. None is destructively selected away.
+**Orchestrator ruling (2026-10-07, post-landing review):** *block* has a
+stative relational sense in Magic. A creature that has been blocked is in the
+state *blocked*: [CR#509.1h] says it "remains blocked" even if all its blockers
+are removed from combat. That state persists until the creature is removed
+from combat, an effect makes it blocked or unblocked, or combat ends,
+whichever comes first. This Magic-specific stative analysis is a project
+ruling, not a claim made by CGEL.
+
+CGEL Ch. 16 §10.1.3, p. 1438, [38ii] establishes adjectival status through the
+complex-intransitive diagnostic *The village remained surrounded*; p. 1439
+permits By Complements in adjectival passives when the corresponding verb's
+meaning is stative. The ruling applies those diagnostics to *remains blocked*
+and licenses the By Complement of adjectival *blocked*. Under *become*, the
+adjectival construal is forced: [39ii], *It became magnetised*, attributes the
+change of state to *become* and the resulting state to its adjectival
+Complement (pp. 1438–1439). These pages support the general diagnostics; the
+application to Magic is the ruling above.
+
+**Correction of the matrix By claim:** the original landing's statement that
+the matrix By Adjunct "also remains grammatical" is retracted. In *becomes
+blocked by a creature*, the analysis placing *by a creature* over the Clause
+is not an agent, means, or locative use; neither is its placement over
+*blocks or becomes blocked* in Talruum Champion. These are pre-existing
+Adjunct overgeneration from `vocab:Preposition/By`'s `Adjunct` membership in
+`PrepositionFunctionLicence` (`lexicon/core.ron`), already present beside the
+verbal passive. The repair is routed to
+[english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md),
+with measured exclusion owed when replacement analyses exist. This docs-only
+follow-up neither changes code nor removes parser results.
+
+The standalone AdjectivePhrase *blocked by a creature* has exactly one
+Reading. The finite predicate emits two (the licensed adjectival Complement
+and the overgenerated matrix Adjunct); coordinated *blocks or becomes
+blocked by a creature* emits three (the licensed Complement and two
+inherited wrong Adjunct scopes). Existing duration attachments account for
+the remaining witness multiplicity. The counts below are retained census
+provenance, not a claim that those Adjunct readings are grammatical.
 
 ### Prove and disclose
 
@@ -157,9 +184,51 @@ covered faces: **0**; increased counts on previously covered faces: **389**.
 There are no removed Readings to classify or route. Selection is the current
 all-Readings census (English lexical-analysis decision); specificity-resolved
 selection and unresolved-tie counters are superseded and do not apply.
-The additional *be blocked* adjective analysis coexists with the original
-verbal passive, as a category/constituency distinction (CGEL p. 1436).
+Under the orchestrator's stative ruling above, *is blocked by X* is
+syntactically ambiguous between a verbal passive and a complex-intransitive
+Clause with an adjectival passive Complement, with no perceptible difference
+in meaning. This applies CGEL Ch. 16 §10.1.3, pp. 1438–1439, [38]'s
+neutralisation. Both
+Readings are grammatical and retained under the
+[retained-Readings ADR](../../decisions/english-lexical-analysis.md).
 The Sneaky Homunculus regression retains both complete values.
+
+Post-landing consequence disclosure (orchestrator review, 2026-10-07), stamped
+`rmrtuzwl` / covered **21,070**, against the claim-parent production inputs /
+covered **20,858**: the retained census reports **389** previously covered
+faces gaining **27,198** Readings, all containing *blocked*. This corrects
+the review's **385 faces / +27,198** pair against the retained census.
+For comparison, a literal *be blocked / is blocked / are blocked / was
+blocked / were blocked* surface filter (including negative forms) yields
+**385** faces and **27,089** additional Readings. The other four faces add
+**109**: Wiitigo
+**90 → 165** (+75), Sting, the Glinting Dagger **10 → 17** (+7), Wall of Nets
+**90 → 108** (+18), and Steadfast Armasaur **21 → 30** (+9). Thus **27,198**
+is the whole 389-face gain, not the 385-face subset's gain. This count
+reconciliation uses the retained `feature-diff.json`, not another census.
+The grammatical verbal/adjectival ambiguity is justified by the ruling
+above; the wrong By Adjunct scopes remain separately routed, so these
+aggregate parser counts are not a certification of every emitted Reading.
+Largest increases in that retained census:
+
+| Previously covered face | Before → after Readings |
+| --- | ---: |
+| Ant-Man, Reformed Rogue | 12,288 → 21,504 |
+| Hei Bai, Forest Guardian | 5,060 → 9,200 |
+| Questing Beast | 3,420 → 5,760 |
+| Legolas Greenleaf | 3,078 → 5,184 |
+| Cynical Loner | 2,320 → 4,176 |
+
+Post-landing review accepted the grammar: **212 gained, 0 lost, 0 decreases,
+20 probes correct**. This follow-up corrects the record and routes the
+inherited overgeneration; it changes no code and runs no new corpus census.
+
+Docs-follow-up validation: citation noncompliance **0**, stale citations **0**,
+and Kanban check **OK**. The piped `jj diff --git | cargo xtask cite audit
+--diff` selects **0** sites because `cite-config.json` excludes done tickets;
+the complete [CR#509.1h] text was instead read through `cargo xtask cite show
+509.1h` against the stative claim and all its persistence exceptions. The rule
+was already registered, so no blessing or citation-lock change was needed.
 
 Every counted Reading passed admission, lexical ownership, byte-exact
 realization, and construction/node and word/leaf traversal validation.
@@ -188,8 +257,10 @@ Each gain's selected tree includes the following licensed analysis:
 - **L1**: SelectedPredicate, Lose frame 1 selecting GrantedAbility.
 
 The 212 gains comprise B0 83, B1 60, L1 67, and B1+L1 2. The latter are
-Talruum Champion and Mammoth Harness. Per-face identity, count, and selected
-analysis follow; full sampled tree fingerprints and sources are in ignored
+Talruum Champion and Mammoth Harness.
+Reconciliation: **145** become-route gains (B0 83 + B1 60 + mixed 2) and **67–69** Lose GrantedAbility frame gains (67 sole + 2 mixed; union **212**) at `rmrtuzwl` / covered **21,070** versus the claim parent's **20,858** compare with the earlier **109 sole / 178 touched** estimate at `xxknlzyp` (`xxknlzypsnwy`) / covered **17,322**; that localized-failure estimate on a different tree was not a gain forecast.
+Per-face identity, count, and selected analysis follow; full sampled tree
+fingerprints and sources are in ignored
 `target/english-v3/english-v3-become-adjectival-passive/new-face-analyses.json`
 and `new-faces-samples.json`.
 
