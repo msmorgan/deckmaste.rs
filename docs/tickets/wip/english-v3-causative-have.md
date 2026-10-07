@@ -40,8 +40,9 @@ bare infinitival Complement; it is not an overt Subject of a finite clause.
 
 ## Witnesses
 
-Each witness's failing units all match this construction and no other recon
-STRONG bucket (`xxknlzypsnwy`):
+Four retained witnesses come from recon `xxknlzypsnwy`; Extractor Demon is
+attested in the gained faces of the fresh census, replacing Mirror Image per
+the orchestrator ruling of 2026-10-07:
 
 - Quill-Slinger Boggart: "Whenever a player casts a Kithkin spell, you may have
   target player lose 1 life."
@@ -50,8 +51,8 @@ STRONG bucket (`xxknlzypsnwy`):
   planeswalker."
 - Joraga Bard: "Whenever this creature or another Ally you control enters, you
   may have Ally creatures you control gain vigilance until end of turn."
-- Mirror Image: "You may have this creature enter as a copy of a creature you
-  control."
+- Extractor Demon: "Whenever another creature leaves the battlefield, you may
+  have target player mill two cards."
 - Ebon Dragon: "When this creature enters, you may have target opponent discard
   a card."
 
@@ -60,7 +61,7 @@ STRONG bucket (`xxknlzypsnwy`):
 Standard constraints apply (CLAUDE.md landing record, assurance, gate scope,
 cite check). Deltas:
 
-1. Before: `cargo xtask english-v3 --all --workers 12 --samples-per-face 0
+1. Before: `cargo xtask english-v3 --all --workers 6 --samples-per-face 0
    --output target/english-v3/english-v3-causative-have-before.json` on the
    claim parent, stamped with its change id and covered count; after: the same
    command to `target/english-v3/english-v3-causative-have-after.json` on the
@@ -70,7 +71,7 @@ cite check). Deltas:
    on `--all` at the end.
 3. Zero lost faces. A lost face is a defect: fix it within the ticket first;
    STOP only if the fix fails or needs a ruling.
-4. Compare per-face Reading counts against the claim-parent census. Any
+4. Compare per-face Reading counts against the refreshed-base census. Any
    decrease on a previously covered face is restored, or named and justified in
    the landing record.
 5. Spot-check at least 10 newly covered faces and list them by name with their
@@ -101,8 +102,8 @@ cite check). Deltas:
   abilities of …*): existing frames, untouched.
 - Perfect *have* with an Object Gap (*spells you've cast*): owned by
   `english-v3-systemic-residuals`.
-- *enter as a copy of …* inside the infinitival: reuse the existing Enter
-  frames; do not build *as a copy* here.
+- *enter as a copy of …* inside the infinitival: deferred to
+  `english-v3-systemic-residuals` by the orchestrator ruling of 2026-10-07.
 
 ## Scope STOP and implementation progress (2026-10-07)
 

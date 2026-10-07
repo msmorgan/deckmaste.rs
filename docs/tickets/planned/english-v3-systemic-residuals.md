@@ -25,6 +25,26 @@ obligations, flat serial coordination, within-group Type Line ordering, and
 richer document forms. Test positive/negative structural witnesses for each
 before assigning an implementation owner. Concrete starting points are:
 
+- Enter with an *as a copy of <NP>* predicative complement is unread: it is
+  verb-selected, a Complement of *enter*, never a trailing Adjunct per the
+  [predicative-*as* orchestrator ruling of 2026-10-06](../done/english-v3-fixed-cost-phrases.md).
+  The causative-have orchestrator ruling of 2026-10-07 defers this repair here.
+  All 60 supported faces containing *enter/enters as a copy of* remain unread
+  on `ostqqnplnqrm` / covered 19,826 (surface witnesses, not a sole-cause claim):
+  Activated Sleeper, Altered Ego, Auton Soldier, Body Double, Chameleon, Master of
+  Disguise, Clever Impersonator, Clone, Copy Artifact, Copy Enchantment, Copy Land,
+  Copycrook, Dack's Duplicate, Deceptive Frostkite, Essence of the Wild, Estrid's
+  Invocation, Evil Twin, Flesh Duplicate, Gigantoplasm, Glasspool Mimic, Hulking
+  Metamorph, Imposter Mech, Infinite Reflection, Jwari Shapeshifter, Lazotep Convert,
+  Machine God's Effigy, Malleable Impostor, Masterwork of Ingenuity, Mercurial
+  Pretender, Mirror Image, Mirrorhall Mimic, Mirrormade, Mocking Doppelganger,
+  Mockingbird, Moritte of the Frost, Naga Fleshcrafter, Omni-Changeling, Phantasmal
+  Image, Phyrexian Metamorph, Pirated Copy, Progenitor Mimic, Protean Raider,
+  Quicksilver Gargantuan, Sakashima of a Thousand Faces, Sakashima the Impostor,
+  Sakashima's Protege, Sakashima's Student, Sculpting Steel, Spark Double, Stunt Double,
+  Superior Spider-Man, Synth Infiltrator, The Fourteenth Doctor, The Master, Formed
+  Anew, The Mimeoplasm, Undercover Operative, Vesuvan Doppelganger, Visage Bandit,
+  Vizier of Many Faces, Wall of Stolen Identity, Waxen Shapethief.
 - Shadowborn Demon: existential *there are* host; its NP reads after
   `english-v3-comparative-quantity-determiners`. No implementation ticket owns
   existential *there*; retain this host obligation here for cause audit and

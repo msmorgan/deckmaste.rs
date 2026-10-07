@@ -88,12 +88,12 @@ fn joraga_bard_selects_plural_object_and_infinitival() {
 }
 
 #[test]
-fn mirror_image_retains_the_selected_bare_infinitival() {
+fn extractor_demon_selects_the_player_and_mill_infinitival() {
     causative(
-        "You may have this creature enter as a copy of a creature you control.",
+        "Whenever another creature leaves the battlefield, you may have target player mill two cards.",
         Category::Document,
-        "this creature",
-        &["enter as a copy of a creature you control"],
+        "target player",
+        &["mill two cards"],
     );
 }
 
