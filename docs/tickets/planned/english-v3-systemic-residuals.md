@@ -387,9 +387,13 @@ is right and this list needs fixing.
   medial-supplement follow-up corrects ten nominal probes that accidentally
   included an outside continuation: the independent-NP blocker list is 312,
   rather than the historical first-pass 322. All remaining whole-face blockers
-  retain this routing. On the final follow-up `knotusxvzkzm` / covered
-  20,860, **599** variable-Where faces remain unread, including those **312**
-  independent-NP blockers. The follow-up reports the complete comparison in the original ticket's **Post-landing fix (2026-10-07)**.
+  retain this routing. On the combined follow-up `rvpkstryvlvy` / covered
+  21,072, **599** variable-Where faces remain unread. The remaining NP
+  diagnostic list has **311** faces: trunk's `rmrtuzwlllyw` makes Glyph of
+  Delusion's equated NP, *the power of that blocked creature*, readable
+  (0 → 1), while its whole face remains unread and owned here. The follow-up
+  reports the complete comparison in the original ticket's **Post-landing fix
+  (2026-10-07)**.
   Five independently blocked NP examples, with zero admitted NP roots on that
   original stamp, are Food Chain (*1 plus the exiled creature's mana value*:
   arithmetic-plus NP with participial/genitive structure); Drag to the Bottom

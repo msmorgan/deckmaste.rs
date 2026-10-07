@@ -1138,7 +1138,7 @@ records that comparison. **Trunk-attributed Reading decreases: none.**
 The optimized build is reverified rather than assigning its changed timings
 to this feature.
 
-The final post-refresh census is stamped **`knotusxvzkzm` / covered 20,860**:
+The first post-refresh census is stamped **`knotusxvzkzm` / covered 20,860**:
 **7,477 unique, 13,383 multiple, 11,968 unread, 651,602 Readings, 0 issues**.
 Every one of the **32,828** per-face Reading counts matches the finished
 feature, including Kraul's 208 and Sardian's 2. Against the refreshed base,
@@ -1148,7 +1148,7 @@ claim gain comparison, 599 Where residue, 312 corrected NP blockers, and all
 named judgments remain unchanged. The final ledger records that its sample
 fingerprints come from the identical grammar and lexical inputs before refresh.
 
-Final performance advisory, **`knotusxvzkzm` / covered 20,860**: **6 workers**,
+First post-refresh performance advisory, **`knotusxvzkzm` / covered 20,860**: **6 workers**,
 host load (1/5/15 min) **17.491/12.790/14.735**, corpus wall **244,607,644,935 ns**, checked-text
 thread CPU **412,427 ns/B**. This run overlaps gate compilation too and exceeds
 the **16,260,000,000 ns** quiet-host advisory ceiling. The profile and host load
@@ -1157,7 +1157,7 @@ differ; these numbers do not isolate the cost of this grammar change.
 Exactly **two full corpus runs** were used in this follow-up: the finished
 feature and this post-refresh verification. The final command uses the same
 flags with `--output target/english-v3/english-v3-where-followup/after-refresh.json`.
-**Final census JSON: `target/english-v3/english-v3-where-followup/after-refresh.json`.**
+**First post-refresh census JSON: `target/english-v3/english-v3-where-followup/after-refresh.json`.**
 All evidence remains under the ignored follow-up directory, including the
 exhaustive comparisons, corrected gain ledger, NP diagnostics, inventories,
 source/hash proofs and gate logs.
@@ -1168,5 +1168,147 @@ derives the same four-package Cargo test command and exits **0**: **845 passed,
 20,860. Refreshed all-target clippy with `-D warnings` and formatting pass.
 Refreshed citation checks report **0 stale and 0 noncompliant**, and the piped
 diff audit selects **0 changed CR citation sites**. `gate-results-refresh.json`
-records the outcome. The final declaration comparison remains **3,300 → 3,320,
-net +20**, with the same feature/table/policy/construction inventory above.
+records the outcome. That declaration comparison is **3,300 → 3,320,
+net +20**, before the sibling landing incorporated below.
+
+#### Final combined tree after the sibling landing
+
+The next clean refresh incorporates **`rmrtuzwlllyw`**, the completed
+`english-v3-become-adjectival-passive` landing, and subsequent ticket-only
+changes. Both constructions and both lexicon changes are retained. The
+refreshed parent is **`oyxnwpvmkuqt` / covered 21,070**, whose grammar and
+loaded lexical inventory match the sibling's retained full census on
+**`mtzyynuxpnkt` / covered 21,070**. `combined-scope-proof.json` proves exact
+lexical inventory equivalence after reversing only this follow-up's Where
+feature value. The declaration diff separately confirms that the sibling's
+complemented adjective construction is retained. There were no conflicts.
+
+The two-run full-census budget was already spent. To verify this further
+refresh without a third `--all`, the fresh selector conservatively includes
+**all 1,296 faces containing “where” in raw text, case-insensitively**. The
+loaded inventory confirms Where is the only owner of the supplementary PP
+licence and the changed finite-complement value. The medial construction
+requires that licence. For every other finite-complement head, the ordinary
+table preserves its licence and the two coordinated forms select exactly one
+route by the existing general-coordination feature. The category summaries
+preserve that feature without adding a derivation. Renaming `host` to `anchor`
+changes the field name only. Thus every potentially affected face is freshly
+enumerated; the **31,532 untouched faces** reuse the refreshed base's complete
+validated census. Source hashes and identities match throughout.
+
+**Final census JSON: `target/english-v3/english-v3-where-followup/final.json`.**
+This is explicitly a **composed corpus census**, with fresh Where faces from
+`combined-where.json` and untouched faces from the copied
+`combined-base.json`; its `composition` object records both paths, hashes,
+stamps, selector scope and reuse proof. Its full-run wall time is null because
+no third full execution occurred. Per-face telemetry retains its measurement
+provenance; mixed aggregate CPU is not presented as a current full-run timing.
+`compose-census.py` rebuilds all corpus totals and residual groups. Exactly
+**two `--all` executions** were used; all additional work uses selectors or
+fragment probes, with **6 workers** for census selectors.
+
+| Comparison / stamped trees | Covered | Unique | Multiple | Unread | Exact Readings |
+|---|---:|---:|---:|---:|---:|
+| Refreshed base `mtzyynuxpnkt` / 21,070, equivalent to `oyxnwpvmkuqt` | 21,070 | 7,464 | 13,606 | 11,758 | 685,662 |
+| Combined follow-up `rvpkstryvlvy` / 21,072 | 21,072 | 7,464 | 13,608 | 11,756 | 685,687 |
+
+Against this refreshed base, **only Sword of the Ages (0 → 20) and Ugin's
+Insight (0 → 5)** change Reading count because of this follow-up. No previously
+covered face decreases or loses coverage. Kraul remains 208 and Sardian remains
+2; Kraul's old 208 wrong attachment values are retired and all 208 replacements
+have the correct medial structure. The current AST spot-check independently
+checks all **233** Readings across Kraul and the two gains, including equated
+NP counts **3 / 5 / 5**, in `medial-spotchecks-combined.json`. The affected
+selector has **29,713** validated Readings and zero validation, duplicate,
+cycle or internal-failure issues. The composed census likewise has zero such
+issues across **685,687** retained or freshly validated Readings. The
+independently composed-value roundtrip law is separately covered by the tests.
+`combined-comparison.json` lists every own and inherited count change.
+
+**Trunk-attributed Reading decreases: none; `rmrtuzwlllyw` contributes 212
+coverage gains and 389 increases on previously covered faces.** Its landing
+record owns those analyses; they are not gains of this follow-up. Within the
+original Where ticket's corrected 580 gains, the inherited increases are:
+
+| Face | Before → combined Readings | Judgment / attribution |
+|---|---:|---|
+| Lydia Frye | 57 → 96 | Adjectival blocked analysis, including a selected By Complement; inherited By Adjunct defect remains routed below; `rmrtuzwlllyw` |
+| Deekah, Fractal Theorist | 24 → 40 | Additional adjectival blocked analysis; `rmrtuzwlllyw` |
+| Vigorspore Wurm | 160 → 288 | Adjectival blocked analysis, including a selected By Complement; inherited By Adjunct defect remains routed below; `rmrtuzwlllyw` |
+| Cybermat | 3 → 6 | Additional adjectival blocked analysis; `rmrtuzwlllyw` |
+| Glissa's Retriever | 95 → 160 | Adjectival blocked analysis, including a selected By Complement; inherited By Adjunct defect remains routed below; `rmrtuzwlllyw` |
+
+Adjective versus verbal-passive readings have distinct categories under the
+lexical analysis contract, rather than a second construction label for one
+constituency. Their parser totals also include **inherited wrong By Adjunct
+scopes**, which must not be described as grammatical: the sibling's docs-only
+post-landing correction records the **orchestrator ruling (2026-10-07)**,
+retracts that claim and routes passive By-attachment over-admission to systemic
+residuals. Lydia, Vigorspore and Glissa contain this pattern; Deekah and Cybermat
+do not. The sibling's landing record owns the affected inherited analyses and
+their deferred measured exclusion. This qualification is a project ruling,
+not a CGEL attribution. Neither of this follow-up's two newly covered faces
+contains By, and their selected analyses above are unaffected by that defect.
+All **580 original-ticket gains** are freshly censused again with samples in
+`gains-combined.json` and judged in `final-gain-analysis-ledger-combined.json`.
+Their current total is **30,609 Readings**: **508 Where-supplement-only faces /
+29,603**, **6 ordinary variable-Subject faces / 641**, **54 sacrifice-licence-
+only faces / 333**, and **12 joint faces / 32**. The historical corrected
+**580 / 30,358** measurement above remains stamped to its pre-sibling tree;
+the additional **251** Readings come from these five inherited increases.
+The parser-coverage gain set and the **514 Where-feature-alone** attribution
+are unchanged; the inherited By defect is disclosed rather than treated as a
+new valid analysis of this follow-up.
+Only Sardian has a coordinated-clause PP in the refreshed gain samples, under
+As long as in its anchor; the affected Kraul trees are checked exhaustively.
+
+Of the same **1,119 variable-Where faces**, **520** read and **599** remain
+unread. The independent-NP diagnostic list is now **311**: the fresh probe of
+*the power of that blocked creature* gains 1 NP Reading through trunk's new
+blocked adjective, discharging that constituent on Glyph of Delusion while
+the whole face still has zero Readings. Fresh probes of the five equated NP
+strings mentioning the changed Block/Lose inventory record the inherited
+effect in `np-combined.json`; unchanged constituent diagnostics reuse their
+prior probes. `np-residual-reconciliation-combined.json` names the retained
+311 faces and the inherited discharge. All whole-face residue retains its
+systemic routing. The historical 601 / 322 counts remain explicitly historical.
+The current binding probes still yield **1 / 2**, and the positive coordinated
+definition probe still yields **1**; their trees are retained beside the census.
+
+**Declaration lines, claim parent versus landed combined tree: 3,300 → 3,330;
+net +30 = own +20 plus inherited +10 (`rmrtuzwlllyw`).** Own additions remain
+exactly: feature names **none**, existing-feature value
+`FiniteClauseComplement::Nonsequencing`, table `finite_clause_complement`,
+policy `ClauseCoordinationProperties`, construction `MedialSupplementation`.
+The sibling adds construction `ComplementedAdjective` and frame alias
+`AdjectivalPrepositionComplement`; those are inherited additions. Combined
+construction/schema count is **250** (205 ordinary, 45 schemas); feature,
+category, table and policy counts are **94 / 144 / 74 / 62**. No superseded
+declaration remains unreachable. The combined named spelling inventory stays
+**38,374**; homographs become **1,128**, solely by inherited
+*blocked*: `core-verb:Block` and `core-verb:Block/adjective`. Full named lists
+are `inventories-combined.json` and `spellings-combined.json`; literal/vocabulary
+overlap remains empty. Follow-up assurance counts remain **4 added, 7 re-spelled,
+0 restored, 0 removed, 0 newly ignored**. No new glossary gap or unresolved STOP
+arose; the sacrifice ruling and other exclusions remain unchanged.
+
+Current selector performance advisory, **`rvpkstryvlvy` / covered 21,072**:
+**6 workers**, host load **14.909 / 16.066 / 20.337**, Where-selector wall
+**8,636,363,805 ns**, checked-text thread CPU **414,691 ns/B**. The fresh
+580-gain selector has wall **7,989,906,070 ns**, host load
+**15.581 / 15.946 / 20.000**, checked-text thread CPU **500,809 ns/B**, also
+with 6 workers. These are subset measurements on a shared loaded host;
+comparison with the **16,260,000,000 ns** quiet-host full-corpus ceiling is
+not valid for subsets. The last full-run advisory remains the separately
+stamped `knotusxvzkzm` / 20,860 measurement above.
+
+Combined-tree verification, **`rvpkstryvlvy` / covered 21,072**: `cargo xtask
+gate --changed --from oyxnwpvmkuqt --run` derives `cargo test -p
+deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3
+-p xtask` and exits **0**: **851 passed, 0 failed, 1 inherited ignored,
+97 suites**. The inherited ignore and blocker are unchanged from above.
+All 13 Where tests and the six sibling adjectival-passive tests pass. Clippy
+for the same four packages, all targets with `-D warnings`, passes;
+`cargo fmt --all --check` passes. Citation checks report **0 stale and 0
+noncompliant**; the piped diff audit selects **0 changed CR citation sites**.
+`gate-results-combined.json` records the check scope and outcomes.
