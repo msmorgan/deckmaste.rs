@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-systemic-residuals, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord, english-v3-by-complement-functions, english-v3-census-tractability, english-v3-selected-preposition-nominal-licensing, english-v3-licence-plumbing-economy]
+needs: [english-v3-systemic-residuals, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord, english-v3-by-complement-functions, english-v3-census-tractability, english-v3-selected-preposition-nominal-licensing, english-v3-licence-plumbing-economy, english-v3-census-efficiency]
 ---
 # Cut production English consumers over to v3
 
@@ -39,6 +39,12 @@ ratifying whatever the run happens to cost. Standard constraints apply.
 - `english-v3-census-tractability`: the complete run must be affordable enough
   to be the acceptance evidence.
 - `english-v3-selected-preposition-nominal-licensing`: pre-existing invalid destination NP/PP groupings parse; selected noun-PP licensing is a correctness prerequisite.
+
+## Prerequisite added 2026-10-07
+
+- `english-v3-census-efficiency`: the complete run is the acceptance evidence,
+  so its memory must stay bounded as Readings grow, and runs must be comparable by
+  per-face digest.
 
 ## Legacy baseline
 
