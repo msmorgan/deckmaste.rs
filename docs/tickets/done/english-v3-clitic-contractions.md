@@ -40,10 +40,10 @@ the *have* cause is something else. Find it.
 ## Goal
 
 Each clitic form has exactly the frames of the full-form paradigm cell it
-realises, so every attested contracted host reads with the same Readings as
-its uncontracted twin. Where a frame is deliberately withheld from the clitic,
-the withholding must come from a declared feature with a CGEL basis, not from
-an ad hoc omission.
+realises, with clitic Readings forming a stranding-free subset of the
+uncontracted twin's Readings. Where a frame is deliberately withheld from the
+clitic, the withholding must come from a declared feature with a CGEL basis,
+not from an ad hoc omission.
 
 ## Analysis
 
@@ -85,8 +85,8 @@ cite check). Deltas:
    --output target/english-v3/clitic-contractions-before.json` on the claim
    parent, stamped with its change id.
 3. Write each witness and its uncontracted twin as tests first. The two must
-   have the same Reading count and the same structure modulo the auxiliary
-   leaf.
+   retain corresponding structures modulo the auxiliary leaf; the clitic
+   admits the stranding-free subset of the full form's Readings.
 4. Keep the Urza's Ruinous Blast exact two-Reading test passing unchanged.
 5. Iterate on `--face-id` selectors; verify on `--all` at the end.
 6. Zero lost faces. A lost face is a defect: fix it within the ticket first;
@@ -168,40 +168,53 @@ they require no changes.
 
 ### PROVE — preservation and laws
 
-The baseline census ran before production edits, with the grammar of the
-claim parent. Its report stamps the initially empty working change
-`tnnokwxtrvkqlkxnqvkuvmuwwuuvtlzx`, covered **15,167**. The final report stamps
-the same working change after implementation, covered **15,404**. The filenames
-and covered counts distinguish these two snapshots. Both use input SHA-256
-`49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb`
-and lexical inventory SHA-256
-`28f1b80bfdacc66b818eaa7c3004def7d31b0b7d95d1e4f721f611bc5eb78f33`.
+The corrected baseline is `zxlxvukrspktolnnsrmoqopqtkmuskwo` (covered
+**15,167**), after **Remove overlapping Pay symbol frame**, not `lpzxsvzm`.
+The original `tnnokwxtrvkq` reports preceded that change and do not describe
+the refreshed landing. The landed tree `wzutyrmomtpqtoxqquopnqqukqtnpqzy`
+(covered **15,404**) has **230,566** Readings. A fresh full-corpus run on
+2026-10-06 confirms that census on `ksnusstzlqkkpypksnnwotqqxuqwnyqz`
+(covered **15,404**), the docs-only follow-up's working tree
+on current trunk tip `vxszvmowynxunuoplppwyyymptxuuzlp`. Its grammar is
+byte-identical to `wzutyrmo`; the intervening trunk change only claims the
+sibling granted-ability ticket. The baseline report and fresh verification
+share input SHA-256
+`49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb`.
+The baseline lexical inventory SHA-256 is
+`13aa0820f27162671f2e849fd35bad94970b5b3a628bc979ebd60c7b7299470c`;
+the fresh inventory SHA-256 is
+`ee58384138b8d8e1008cec37f3ad4ac265fe249a59f93d611e7bd9578be4cbe2`.
+The clitic features change that serialization even though owners and surfaces
+are unchanged.
 
-Both censuses ran `cargo xtask english-v3 --all --workers 12
---samples-per-face 0 --output target/english-v3/clitic-contractions-<before|after>.json`.
-The complete reports are
-[before](../../../target/english-v3/clitic-contractions-before.json) and
-[after](../../../target/english-v3/clitic-contractions-after.json).
+Both censuses use `cargo xtask english-v3 --all --workers 12
+--samples-per-face 0 --output <ignored-report.json>`, without a Reading limit.
+The baseline report is the Pay de-duplication follow-up's after census; the
+fresh report and identity comparison are local ignored evidence under
+`target/english-v3/`. They are not portable links or required ticket inputs.
 
-| Census | Before: `tnnokwxtrvkq`, covered 15,167 | After: `tnnokwxtrvkq`, covered 15,404 |
+| Census | Before: `zxlxvukr`, covered 15,167 | After: `ksnusstzlqkk`, covered 15,404 |
 |---|---:|---:|
 | Supported faces | 32,828 | 32,828 |
 | Covered faces | 15,167 | 15,404 |
 | Unread faces | 17,661 | 17,424 |
-| Exactly one Reading | 6,772 | 6,781 |
-| Multiple Readings | 8,395 | 8,623 |
-| Exact Readings checked | 219,518 | 232,861 |
+| Exactly one Reading | 6,776 | 6,785 |
+| Multiple Readings | 8,391 | 8,619 |
+| Exact Readings checked | 217,223 | 230,566 |
 | Incomplete / limited / failed faces | 0 / 0 / 0 | 0 / 0 / 0 |
 | Validation issues / internal failures / duplicate Readings | 0 / 0 / 0 | 0 / 0 / 0 |
 
-Lost face identities: **[]**. Reading-count decreases: **[]**. Every previously
-covered face retains its exact Reading count; all 13,343 additional Readings
-belong to the 237 newly covered faces. No retirement or re-coverage obligation
-is created. The census checks declaration admission, contextual lexical
-ownership, byte-exact realization, and complete node/Word traversal identity
-for every counted Reading. Independent constructed-value tests additionally
-retain both exact copular and passive analyses of *it's tapped*, with exact
-realization and node/Word identity, and reject incorrect boundary forms.
+Lost face identities versus `zxlxvukr`: **[]**. Reading-count decreases versus
+that baseline: **[]**. All **237** gained faces and **13,343** additional
+Readings belong to the clitic landing. Compared instead with `lpzxsvzm`,
+**75** faces have fewer Readings: all are attributable to `zxlxvukr`'s Pay
+frame de-duplication, none to this landing. These retire duplicate derivations,
+lose no covered identity, and create no clitic re-coverage obligation. The
+census checks declaration admission, contextual lexical ownership, byte-exact
+realization, and complete node/Word traversal identity for every counted
+Reading. Independent constructed-value tests additionally retain both exact
+copular and passive analyses of *it's tapped*, with exact realization and
+node/Word identity, and reject incorrect boundary forms.
 
 Forbidden word-naming licensing guards introduced: **0**. Grammar environment
 and lexical-source loading succeed; the census reports zero internal failures.
@@ -212,19 +225,28 @@ substituted for the complete v3 census.
 
 ### DISCLOSE — selected analyses
 
-Every newly covered identity and its selected clitic analysis is listed in
-[the complete named analysis inventory](../../../target/english-v3/clitic-contractions-selected-twins.tsv).
-The [sample report](../../../target/english-v3/clitic-contractions-new-samples.json)
-contains the complete selected Reading for each identity. All 237 were
-inspected; each has an overt clitic auxiliary Complement. An ignored
-inspection program maps each selected Reading to the full auxiliary with the
-same frame signature and constituent structure, then checks admission and
-that exact full-form Reading's presence when parsing its realization. All
-237 full twins are retained. This inspection evidence is observational, not
-a new tracked verifier or gate authority.
+The original inspection covered all **237** newly covered identities; each
+selected clitic analysis has an overt auxiliary Complement. The named
+inventory and selected-tree samples are local ignored evidence. The thirteen
+analyses below stand on their own. Mapping a selected clitic Reading to its
+full auxiliary with the same frame signature and constituent structure checks
+the corresponding full-form Reading's admission; this does not establish
+equality of the complete Reading sets.
 
-Representative newly covered selected Readings, stamped `tnnokwxtrvkq`,
-covered **15,404**:
+Clitic Readings are a **stranding-free subset** of the full twin's Readings.
+Brimaz, King of Oreskos's attack-trigger unit has **21** clitic versus **133**
+full-form Readings; Onakke Oathkeeper's attack-restriction unit has **33**
+versus **111**. The minimal pair "Create a token that's attacking." has **1**
+versus **3** for "Create a token that is attacking." The extra full-form
+Readings use `PassiveEllipsis` or `ProgressiveEllipsis` stranding under a
+participial postmodifier. Excluding these from the clitic is principled:
+auxiliary stranding requires the strong form (CGEL, Ch. 18 §6.2, p. 1614). The
+full-form stranding Readings are themselves dubious and pre-existing; their
+measured review is owed to `english-v3-systemic-residuals`, not counted as a
+clitic coverage gain.
+
+Representative newly covered selected Readings, confirmed on
+`ksnusstzlqkk` (covered **15,404**; the grammar of `wzutyrmo`):
 
 | Face | Selected analysis of the clitic unit |
 |---|---|
@@ -242,18 +264,45 @@ covered **15,404**:
 | Captain's Claws | *that's tapped and attacking*: relative ParticipialAuxiliaryPredicate with mixed participial Complement |
 | Laboratory Drudge | *you've cast a spell … or activated an ability …*: PerfectAuxiliaryPredicate with coordinated past-participial Complement |
 
-The six specified witnesses and full-form twins have identical Reading counts
-and constituent/Word identities modulo the contracted auxiliary owner and
-surface form. Frame signatures, rather than different owner-local frame
-indices, are compared. The additional Myth Unbound fragment *it's been cast*
-tests `'s` as perfect *has*. Urza's Ruinous Blast retains its **two exact
-Readings**, with its existing test unchanged.
+The six specified witness tests retain their exact corresponding structures
+modulo the auxiliary owner and surface form; their equal counts do not imply
+complete-set equality for other twins. Frame signatures, rather than different
+owner-local frame indices, are compared. The additional Myth Unbound fragment
+*it's been cast* tests `'s` as perfect *has*. Urza's Ruinous Blast retains its
+**two exact Readings**, with its existing test unchanged.
+
+The earlier **352** sole-recognised-cause faces were a surface-bucket estimate,
+not a gain forecast; the landing gains **237**. After landing, the review's
+contracted-auxiliary surface bucket leaves **1,062** faces unread. That bucket
+uses substring matching and also includes *you're*; exact word-boundary
+occurrences of *it's*, *that's*, *you've*, or *they're* give **1,016** unread
+faces in the fresh census. In a sample, the full-form twin also fails in most:
+Llanowar Loamspeaker's "It's still a land." is **0/0** (clitic/full), blocked
+by *still*; Leitmotif Composer, Korvold, Gleeful Glutton, Skyshroud Condor,
+Discordant Spirit, and Yarus, Roar of the Old Gods are also **0/0**. Omen
+Machine's clitic sentence reads, but its face is blocked elsewhere. A clitic
+occurrence does not establish a clitic-only cause.
+
+The real clitic-specific gap is Murmuration's "Draw a card for each spell
+you've cast this turn.": recognition gives **0** clitic versus **1** full-form
+admitted root. Full enumeration gives **0/9** Readings, so the recognition
+count must not be called one Reading; none of the nine contains a perfect
+auxiliary. The inspected full-form Reading is a pre-existing wrong analysis:
+lexical *have* with a finite Object Gap plus a passive "cast this turn"
+depictive Adjunct, with no perfect auxiliary. The clitic correctly withholds
+lexical *have*. The review estimates about **56** unread faces in the "… you've
+<V> this turn" group; the fresh census has **49** matching that strict
+single-verb, immediate-*this turn* pattern. The approximate bucket is not a
+completed grammatical-cause census. Perfect *have* with a relative Object Gap
+is owed to `english-v3-systemic-residuals`; its landing must retire the wrong
+full-form analysis when it supplies the perfect.
 
 The census is unique/multiple, **not** unique/specificity-resolved; no
 construction pair is selected away. All ambiguity is retained.
 
 ### Deviations and additions
 
+- Orchestrator resolution (2026-10-06): the construction_v3_core compiler extension (form-level `require` clauses, canonical-form identity including requirements) is accepted as generic grammar infrastructure; disclosed and tested.
 - No frame additions: the claim parent already supplies the required *be*
   frames. Joined forms on all five existing subject-boundary constructors
   implement the same host rule without inventing a new construction family.
@@ -298,34 +347,34 @@ cross-checks the live corpus against its census and is run on demand.
 
 ### REPORT — inventories and performance advisory
 
-Stamped `tnnokwxtrvkq`, covered **15,167 → 15,404**: **230** named
-Constructions before and after (186 ordinary declarations and 44 schemas),
-135 Categories before and after; the final grammar compiles **625**
-productions. There are five added surface forms and no added/deleted
-Constructions. The complete unchanged inventory of **1,085** case-folded
-multi-owner homograph spellings, with every owner named, is in
-[the lexical inventory](../../../target/english-v3/clitic-contractions-inventory.tsv).
-Exact form-literal/vocabulary overlap names: **[]**. No lexical owner or
-spelling changed. The report's `'s` homograph retains *be*, *have*, and Genitive
-owners; it is not collapsed into one owner.
+Stamped baseline `zxlxvukr`, covered **15,167**, and fresh verification
+`ksnusstzlqkk`, covered **15,404**: **230** named Constructions before and
+after (186 ordinary declarations and 44 schemas), 135 Categories before and
+after; the final grammar compiles **625** productions. There are five added
+surface forms and no added/deleted Constructions. The unchanged inventory has
+**1,085** case-folded multi-owner homograph spellings. A fresh inventory
+confirms these totals; the named inventory is local ignored evidence, not a
+portable linked artifact. Exact form-literal/vocabulary overlap names: **[]**.
+No lexical owner or spelling changed. The `'s` homograph retains *be*, *have*,
+and Genitive owners; it is not collapsed into one owner.
 
-| Measurement | Before: `tnnokwxtrvkq`, covered 15,167 | After: `tnnokwxtrvkq`, covered 15,404 |
+| Measurement | Before: `zxlxvukr`, covered 15,167 | After: `ksnusstzlqkk`, covered 15,404 |
 |---|---:|---:|
-| Corpus wall time | 39,613,493,033 ns | 66,336,289,131 ns |
-| Setup wall time | 5,975,804,472 ns | 6,541,843,530 ns |
-| Reported setup + corpus wall time | 45,589,297,505 ns | 72,878,132,661 ns |
-| Checked-text thread CPU telemetry | 194,793 ns/B | 278,128 ns/B |
-| Aggregate thread CPU | 424,188,860,632 ns | 616,124,178,946 ns |
+| Corpus wall time | 68,865,652,661 ns | 62,135,993,494 ns |
+| Setup wall time | 7,785,738,794 ns | 8,313,602,154 ns |
+| Reported setup + corpus wall time | 76,651,391,455 ns | 70,449,595,648 ns |
+| Checked-text thread CPU telemetry | 294,268 ns/B | 248,127 ns/B |
+| Aggregate thread CPU | 640,431,211,047 ns | 553,203,986,264 ns |
+| Chart families | 99,960,922 | 107,010,739 |
 | Workers | 12 | 12 |
-| Host load (1 / 5 / 15 minutes) | 5.744 / 5.443 / 4.608 | 18.333 / 12.341 / 9.604 |
+| Host load (1 / 5 / 15 minutes) | 6.876 / 7.540 / 7.856 | 13.945 / 15.207 / 10.823 |
 
-Both corpus times exceed the **16.26s** quiet-host advisory. The final run
-overlapped gate compilation; neither run establishes quiet-host compliance.
-The setup-plus-corpus figures exclude Cargo compilation and report writing;
-even the corpus phase alone exceeds the command-time advisory.
-The final chart has 107,061,284 families versus 100,011,147 before, so the
-timing difference is not attributed solely to host load. This is disclosed
-performance evidence, not a passing performance claim.
+Both corpus times exceed the **16,260,000,000 ns** quiet-host advisory. Host
+load and worker counts are disclosed alongside each measurement; these runs do
+not establish quiet-host compliance. The setup-plus-corpus figures exclude
+Cargo compilation and report writing; even the corpus phase alone exceeds the
+command-time advisory. This is performance evidence, not a passing performance
+claim.
 
 ### Validation
 
@@ -342,11 +391,22 @@ clitic suite and the full derived clippy command are rerun after that fix;
 the clitic rerun passes **10 tests**, and the complete derived clippy command
 passes with **exit 0**. The correction only removes a redundant clone of a
 Copy identity; the previously passing complete test results remain applicable.
-Evidence: [complete test gate](../../../target/english-v3/clitic-contractions-gate-final.log),
-[clitic rerun](../../../target/english-v3/clitic-contractions-final-tests.log),
-and [final clippy](../../../target/english-v3/clitic-contractions-clippy.log).
+The complete test gate, clitic rerun, and final clippy logs are local ignored
+evidence; these results describe the implementation validation.
 
 Focused Rust formatting check passes. Citation noncompliance is **0**;
 **16,059** registered citation sites have **0** stale rules. The piped
 `jj diff --git | cargo xtask cite audit --diff` audits zero new rule sites:
 this landing changes CGEL references, not Comprehensive Rules citations.
+
+### Docs-only follow-up (2026-10-06)
+
+`english-v3-clitic-record-fix` changes only this ticket and the systemic
+residuals ticket. It corrects census provenance, twin-subset wording, the
+remainder explanation and infrastructure acceptance, and routes the three
+residuals. No code, lexicon, test or citation is changed. Follow-up assurance
+counts: restored **0**, re-spelled **0**, ignored **0**, added **0**, removed
+**0**. The fresh complete census and identity comparison pass. Citation check
+from the workspace root reports **0** noncompliant and **0** stale sites;
+`kata kanban check` reports **OK**. The implementation gate above is retained
+as historical validation, not a newly run follow-up gate.

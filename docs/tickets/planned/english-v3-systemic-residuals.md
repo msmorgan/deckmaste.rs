@@ -134,6 +134,24 @@ its verification belong to the attached feature-economy ticket.
 
 ## Batch records and what they leave open
 
+- Clitic landing follow-up (2026-10-06): perfect *have* with an Object Gap in
+  relative clauses ("each spell you've/you have cast this turn", about **56**
+  unread faces) is not read as the perfect. Murmuration's clitic sentence has
+  **0** admitted roots and the full form **1**; full enumeration is **0/9**
+  Readings, all lacking the perfect auxiliary. The inspected full-form Reading
+  is a pre-existing wrong analysis: lexical *have* with a finite Object Gap
+  plus a passive depictive Adjunct. Retire it when the perfect analysis lands.
+- Clitic surface pruning residue (2026-10-06): the `'m` and `'d` surfaces of
+  `BeContracted` and `HaveContracted`, respectively, in `core.ron` have **zero**
+  supported-corpus tokens and are owed deletion. The dead-lexeme audit worked
+  at Lexeme level; these are pruning-rule residue at surface level.
+- Full-form *be* stranding (2026-10-06): `PassiveEllipsis` and
+  `ProgressiveEllipsis` Readings under a participial postmodifier are dubious
+  and owed a measured review. "Create a token that is attacking." has **3**
+  Readings versus **1** for *that's attacking*. The clitic correctly excludes
+  stranding (CGEL, Ch. 18 §6.2, p. 1614); the extra full-form Readings predate
+  that landing.
+
 - `mana of any color/type that <clause>` (for example, "Add one mana of any
   color that land could produce") is not read: 31 faces, 0 covered. The relative
   clause on *color*/*type* inside the add-mana Nominal is owed here.
