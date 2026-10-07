@@ -96,6 +96,62 @@ fn authentic_boundary_pp_keeps_its_bare_interval_structure() {
         },
     );
 }
+
+#[test]
+fn independently_constructed_combat_intervals_roundtrip() {
+    // Glyph of Destruction: "... until end of combat."
+    // Cathedral Membrane: "... it blocked this combat."
+    // Echo Circlet: "... an additional creature each combat."
+    let Reading::Noun { head, .. } = noun("lexeme:turn_part/combat") else {
+        unreachable!()
+    };
+    let interval = Reading::BareIntervalNominal { form: 0, head };
+    exact("combat", Category::BareTemporalNominal, &interval);
+    // Basandra, Battle Seraph: "Players can't cast spells during combat."
+    exact(
+        "during combat",
+        Category::PrepositionPhrase,
+        &Reading::BareTemporalPreposition {
+            form: 0,
+            head: invariant("vocab:Preposition/During", SurfaceCase::Declared),
+            complement: Box::new(interval.clone()),
+        },
+    );
+    let Reading::Noun { head, .. } = noun("lexeme:CommonNoun/End") else {
+        unreachable!()
+    };
+    exact(
+        "until end of combat",
+        Category::PrepositionPhrase,
+        &Reading::BareTemporalPreposition {
+            form: 0,
+            head: invariant("vocab:Preposition/Until", SurfaceCase::Declared),
+            complement: Box::new(Reading::BareBoundaryNominal {
+                form: 0,
+                head,
+                marker: invariant("vocab:Preposition/Of", SurfaceCase::Declared),
+                complement: Box::new(Reading::BareBoundaryComplement {
+                    form: 0,
+                    phrase: Box::new(interval),
+                }),
+            }),
+        },
+    );
+    for (text, owner) in [
+        ("this combat", "vocab:SingularDemonstrative/This"),
+        ("each combat", "vocab:FloatedQuantifier/Each"),
+    ] {
+        exact(
+            text,
+            Category::NominalAdjunctPhrase,
+            &Reading::NominalAdjunctPhrase {
+                form: 0,
+                determiner: invariant(owner, SurfaceCase::Declared),
+                head: Box::new(noun("lexeme:turn_part/combat")),
+            },
+        );
+    }
+}
 #[test]
 fn authentic_temporal_and_manner_adjuncts_keep_their_noun_identity() {
     // Ashen-Skin Zubera: "...for each Zubera that died this turn."
