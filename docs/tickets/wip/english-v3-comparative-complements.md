@@ -133,7 +133,7 @@ cite check). Deltas:
 
 Standard constraints apply. The three governor slices are `olroklmz`
 (equality), `wzqryvzk` (scalar inequality and shared governors), and `vqwmuolk`
-(non-scalar inequality). Final runtime evidence is stamped `kruuuuup`, covered
+(non-scalar inequality). Final runtime evidence is stamped `kowrwwym`, covered
 18,646. Evidence lives in ignored `target/english-v3/` and is retained in the
 coordinator's `target/english-v3/english-v3-comparative-complements/` before
 workspace retirement. No evidence, scripts or generated inventories are tracked.
@@ -142,18 +142,28 @@ workspace retirement. No evidence, scripts or generated inventories are tracked.
 
 The original full baseline, stamped `olroklmz` before its equality edits, has
 18,019 covered faces and 386,032 Readings. The refreshed full baseline is
-stamped `mupwkuzv`, an empty child with the same runtime tree as the refreshed
-claim `pwunnqxz`, also covered 18,019. Refresh incorporated `plwnlrlq` / `sqoozkvl`
+stamped `mupwkuzv`, an empty child with the same runtime tree as
+claim `pwunnqxz` at the first refresh, also covered 18,019. Refresh incorporated
+`plwnlrlq` / `sqoozkvl`
 (the instead cleanup and verification): zero trunk-attributed face losses or
 per-face Reading decreases, and identical per-face counts.
 
-Against that refreshed base, all 32,828 supported faces are completely
+Final refresh imported `tzttsvto` (bare quantity-coordination guard): zero
+trunk-attributed face losses or per-face Reading-count changes. The final base
+is `krlkqsmm`, covered 18,019; the final feature is `kowrwwym`, covered 18,646.
+`final-refresh-delta.json` and `final-feature-refresh-delta.json` confirm
+identical per-face counts across refresh on both sides. All 627 selected
+Reading identities, costs and comparative analyses also reproduce in
+`gains-sampled-final.json`; the named audit ledger carries the final stamp.
+
+Against the final refreshed base, all 32,828 supported faces are completely
 enumerated. Coverage grows from 18,019 to 18,646: 627 gains, zero lost faces.
 Exact Readings grow from 386,032 to 475,194: 89,162 additions, zero per-face
 Reading decreases. Every previously covered face retains exactly its previous
 Reading count; all additions occur on newly covered faces. There is no removed
 Reading or re-coverage obligation.
-`refresh-delta.json` and `reading-delta.json` retain both comparisons by face.
+`final-reading-delta.json` retains the final comparison by face; the earlier
+`refresh-delta.json` and `reading-delta.json` preserve the preceding measurements.
 
 Both full censuses report zero issues, internal failures, duplicate Readings,
 admission failures, exact-realization failures, lexical-ownership failures,
@@ -231,7 +241,7 @@ comparison inside the genitive possessor; its intended full *equal to that
 card's power* constituent is also present and asserted by the witness test.
 No costs or semantic admission filters were introduced.
 
-Representative selected analyses, all stamped `kruuuuup`, covered 18,646:
+Representative selected analyses, all stamped `kowrwwym`, covered 18,646:
 
 | Face | Selected comparative analysis | Complete face Readings |
 |---|---|---:|
@@ -251,7 +261,7 @@ Representative selected analyses, all stamped `kruuuuup`, covered 18,646:
 The exact source-pattern class census below uses overlapping buckets, not
 mutually exclusive gain forecasts. Scalar inequality includes the out-of-scope
 DP *more than* pattern; no such DP is recategorized as an Adjective. Before is
-`mupwkuzv`, covered 18,019; after is `kruuuuup`, covered 18,646.
+`krlkqsmm`, covered 18,019; after is `kowrwwym`, covered 18,646.
 
 | Class | Faces touched | Covered before / after | Readings before / after |
 |---|---:|---:|---:|
@@ -302,8 +312,8 @@ fixed within scope, preserving their assertions.
 
 The measured V3 covered count is 18,019 → 18,646; there is no V3 coverage lock.
 Named constructions remain 241: 197 ordinary + 44 shared schemas on refreshed
-base `mupwkuzv` (covered 18,019), and 198 ordinary + 43 shared schemas on
-`kruuuuup` (covered 18,646). The five replacement constructions and retired
+base `krlkqsmm` (covered 18,019), and 198 ordinary + 43 shared schemas on
+`kowrwwym` (covered 18,646). The five replacement constructions and retired
 schema give no net construction growth.
 
 The declared-form inventory has 38,375 spellings on both trees, with identical
@@ -319,14 +329,24 @@ Performance is advisory. Full-census wall time, thread CPU per checked byte,
 |---|---:|---:|---|
 | original `olroklmz` / 18,019 | 60,665,740,122 | 295,929 ns/B | 7.6821 / 10.7783 / 10.1660 |
 | refreshed `mupwkuzv` / 18,019 | 77,315,259,393 | 266,357 ns/B | 10.2466 / 7.6309 / 8.0815 |
-| final `kruuuuup` / 18,646 | 176,647,509,862 | 450,008 ns/B | 29.5986 / 14.0166 / 10.2861 |
+| before final refresh `kruuuuup` / 18,646 | 176,647,509,862 | 450,008 ns/B | 29.5986 / 14.0166 / 10.2861 |
 
 All three exceed the inherited quiet-host ceiling of 16,260,000,000 ns. The
-final census overlapped gate compilation on a busy host and enumerated 89,162
+pre-refresh feature census overlapped gate compilation on a busy host and enumerated 89,162
 additional Readings; these measurements do not establish a quiet-host speed
 comparison. The 627-face selected-analysis census took 9,933,017,151 ns,
 748,197 ns/B, 12 workers, host load 17.0425 / 25.3804 / 17.1367, on `kruuuuup`
-(covered 18,646). No runtime figure is an admission gate.
+(covered 18,646). The final refreshed measurements, again with 12 workers, are:
+
+| Tree / covered | Corpus wall time (ns) | Thread CPU per byte | Host load |
+|---|---:|---:|---|
+| final base `krlkqsmm` / 18,019 | 53,017,921,015 | 252,694 ns/B | 1.8584 / 2.7759 / 4.2202 |
+| final feature `kowrwwym` / 18,646 | 69,407,240,069 | 311,208 ns/B | 2.0264 / 3.2383 / 4.1240 |
+
+Both still exceed the quiet-host ceiling. The final selected-analysis census
+reproduces all 627 inspected samples in 8,712,186,874 ns, 666,424 ns/B, 12
+workers, host load 7.3462 / 5.8892 / 5.0557, on `kowrwwym` (covered 18,646).
+No runtime figure is an admission gate.
 
 ### Validation
 
@@ -338,8 +358,9 @@ Their final outcomes and citation checks follow.
 
 `cargo xtask gate --changed --from english-v3-comparative-complements --run --clippy`
 exits 0 on the final tree: 776 tests pass, zero fail, one inherited ignore;
-Clippy with warnings denied passes. `gate-verified.log` retains the complete
-output. The split independent-value suite separately passes all six tests.
+Clippy with warnings denied passes. `gate-verified.log` retains the pre-refresh output. The repeated gate after
+`tzttsvto` is incorporated also exits 0 with the same counts and clean Clippy;
+`gate-refreshed.log` retains that final output. The split independent-value suite separately passes all six tests.
 Nightly rustfmt checks all ten changed Rust files successfully.
 
 `cargo xtask cite check --list-noncompliant` reports zero noncompliant strings;
@@ -349,3 +370,8 @@ Comprehensive Rules citation sites. No citation blessing is needed. CGEL
 passages were read through the offline reference helper before their claims
 were written; the postposed Deal frame and retained game-semantic nonsense
 are explicitly attributed to project analysis and the user ruling.
+
+The final refreshed full and selected censuses report zero issues, duplicate
+Readings and internal failures. The final source digests are retained in
+`verified-refresh-source-digests.json`. No own face or Reading-count loss
+arises after incorporating the coordinator guard.
