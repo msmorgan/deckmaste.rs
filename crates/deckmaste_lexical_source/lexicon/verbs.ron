@@ -44,8 +44,7 @@
             Role("MassNoun"),
             Role("DistributionPhrase"),
         ]),
-        Predicate([ObjectNounPhrase, Role("ScalarEquality"), Lex("Preposition", "To"), Role("Object")]),
-        Predicate([ObjectNounPhrase, Lex("Preposition", "To"), Role("Object"), Role("ScalarEquality")]),
+        Predicate([ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase, Role("ComparativeAdjectivePhrase")]),
         Predicate([Amount]),
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]),
@@ -57,7 +56,6 @@
     (identity: Do, bare: "do", third_person: "does", preterite: Some("did"), frames: [ProVerb]),
     (identity: Draw, bare: "draw", third_person: "draws", preterite: Some("drew"), participle: Some("drawn"), frames: [
         Predicate([ObjectNounPhrase]),
-        Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
         Predicate([Amount]),
     ]),
     (identity: Enter, bare: "enter", third_person: "enters", preterite: Some("entered"), frames: [
@@ -72,7 +70,6 @@
     ]),
     (identity: Gain, bare: "gain", third_person: "gains", preterite: Some("gained"), frames: [
         Predicate([ObjectNounPhrase]),
-        Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
         Predicate([Role("GrantedAbility")]),
     ]),
     (identity: Get, bare: "get", third_person: "gets", preterite: Some("got"), frames: [
@@ -93,7 +90,6 @@
     ]),
     (identity: Lose, bare: "lose", third_person: "loses", preterite: Some("lost"), frames: [
         Predicate([ObjectNounPhrase]),
-        Predicate([ObjectNounPhrase, Role("ScalarEquality")]),
     ]),
     (identity: May, bare: "may", third_person: "may", frames: [Auxiliary]),
     (identity: Must, bare: "must", third_person: "must", frames: [Auxiliary]),

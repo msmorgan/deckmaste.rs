@@ -87,13 +87,6 @@ fn signatures() -> Vec<Frame> {
         },
         Frame {
             kind: "Predicate".into(),
-            items: vec![
-                slot(Relation::Object, "NounPhrase"),
-                slot(Relation::Complement, "ScalarEquality"),
-            ],
-        },
-        Frame {
-            kind: "Predicate".into(),
             items: vec![slot(Relation::Complement, "Cardinal")],
         },
         Frame {

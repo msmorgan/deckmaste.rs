@@ -784,28 +784,33 @@ fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
         FeatureBundle::default(),
     );
     head.frame = Some(0);
-    let value = Reading::EqualityComplement {
+    let value = Reading::ComparativeAdjectivePhrase {
         form: 0,
-        head: head.clone(),
-        marker: word(
-            "vocab:Preposition/To",
-            WordForm::Invariant,
-            FeatureBundle::default(),
-        ),
-        measure: Box::new(Reading::UngroupedScalarNumeral {
+        governor: Box::new(Reading::ComparativeGovernor {
             form: 0,
-            head: numeral(2, Numeral::Arabic(false)),
+            head: head.clone(),
+            marker: word("vocab:Preposition/To", WordForm::Invariant, FeatureBundle::default()),
+        }),
+        complement: Box::new(Reading::ScalarComparativeComplement {
+            form: 0,
+            value: Box::new(Reading::ScalarMeasurePhrase {
+                form: 0,
+                head: Box::new(Reading::UngroupedScalarNumeral {
+                    form: 0,
+                    head: numeral(2, Numeral::Arabic(false)),
+                }),
+            }),
         }),
     };
     assert_eq!(value.realize(lexicon()).unwrap(), "equal to 2");
-    assert!(readings("equal to 2", Category::EqualityComplement).contains(&value));
+    assert!(readings("equal to 2", Category::ComparativeAdjectivePhrase).contains(&value));
     assert!(
         Reading::Adjective { form: 0, head }
             .admit(lexicon())
             .is_err()
     );
     assert!(readings("equal", Category::AdjectivePhrase).is_empty());
-    assert!(readings("equal than 2", Category::EqualityComplement).is_empty());
+    assert!(readings("equal than 2", Category::ComparativeAdjectivePhrase).is_empty());
     assert!(!readings("greater than 2", Category::OrderingComplement).is_empty());
 }
 
@@ -1109,19 +1114,24 @@ fn complemented_adjectives_are_postpositive_in_both_directions() {
         FeatureBundle::default(),
     );
     adjective.frame = Some(0);
-    let modifier = Reading::EqualityAdjective {
+    let modifier = Reading::ComparativeAdjective {
         form: 0,
-        complement: Box::new(Reading::EqualityComplement {
+        phrase: Box::new(Reading::ComparativeAdjectivePhrase {
             form: 0,
-            head: adjective,
-            marker: word(
-                "vocab:Preposition/To",
-                WordForm::Invariant,
-                FeatureBundle::default(),
-            ),
-            measure: Box::new(Reading::UngroupedScalarNumeral {
+            governor: Box::new(Reading::ComparativeGovernor {
                 form: 0,
-                head: numeral(2, deckmaste_lexical::Numeral::Arabic(false)),
+                head: adjective,
+                marker: word("vocab:Preposition/To", WordForm::Invariant, FeatureBundle::default()),
+            }),
+            complement: Box::new(Reading::ScalarComparativeComplement {
+                form: 0,
+                value: Box::new(Reading::ScalarMeasurePhrase {
+                    form: 0,
+                    head: Box::new(Reading::UngroupedScalarNumeral {
+                        form: 0,
+                        head: numeral(2, deckmaste_lexical::Numeral::Arabic(false)),
+                    }),
+                }),
             }),
         }),
     };

@@ -227,6 +227,19 @@ An Adverb expressing temporal extent, as with *long* in *It won't last long*
 Complement of a Preposition, as in *for long* (CGEL, Ch. 7 §5.1(d), p. 640).
 _Avoid_: classifying temporal *long* as an Adjective solely from its spelling
 
+**Comparative Governor**:
+An item that licenses a comparative Complement, such as *equal*, *less*,
+*greater* or *other* (CGEL, Ch. 13 §1.3, p. 1104).
+
+**Comparative Complement**:
+The expression of the secondary term in a comparison. The bare Complement
+excludes its governing Preposition; the expanded Complement includes that
+Preposition (CGEL, Ch. 13 §1.3, pp. 1103–1104).
+
+**Comparative Phrase**:
+A phrase containing a Comparative Governor (CGEL, Ch. 13 §1.3, p. 1105).
+An adjectival Comparative Phrase retains Adjective Phrase distribution.
+
 **Expanded Comparative Complement**:
 A comparative Complement introduced by its own marker, such as the second
 *as* in a scalar equality comparison (CGEL, Ch. 13 §1.3, p. 1104).

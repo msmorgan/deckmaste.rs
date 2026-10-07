@@ -27,7 +27,7 @@ constructions! {
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature ComparativeQuantityUse { No, Yes } default No;
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
-            AdjectiveComplement, PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct } set;
+            PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct } set;
         feature CompoundComplementMarker { Of }
         feature PrepositionPhraseComplement { Yes }
         table selected_compound_complement(CompoundComplementMarker, NominalComplementMarker)
@@ -37,7 +37,7 @@ constructions! {
         table licence_modifier(PrepositionFunctionLicence) -> Selection contains Modifier => Yes;
         table licence_noun_complement(PrepositionFunctionLicence) -> Selection contains NounComplement => Yes;
         table licence_verb_complement(PrepositionFunctionLicence) -> Selection contains VerbComplement => Yes;
-        table licence_adjective_complement(PrepositionFunctionLicence) -> Selection contains AdjectiveComplement => Yes;
+        table licence_comparative_complement(PrepositionFunctionLicence) -> Selection contains ComparativeComplement => Yes;
         table licence_predicative_complement(PrepositionFunctionLicence) -> Selection contains PredicativeComplement => Yes;
         table licence_compound(PrepositionFunctionLicence) -> Selection contains Compound => Yes;
         table coordinated_preposition_licence(PrepositionFunctionLicence, PrepositionFunctionLicence)
@@ -120,7 +120,7 @@ constructions! {
         feature InfinitivalMarker { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
-            ObjectEquality, Cardinal, Infinitive }
+            Cardinal, Infinitive }
         feature HeadCoordination { No, Yes }
         feature BareCoordination { No, Yes } default Yes;
         feature CommaCoordination { No, Yes } default No;
@@ -203,7 +203,9 @@ constructions! {
         category UnsignedScalar();
         category ScalarComponent();
         category SlashPair();
-        category EqualityComplement();
+        category ComparativeGovernor();
+        category ComparativeComplement();
+        category ComparativeAdjectivePhrase();
         category OrderingComplement();
         category KeywordPhrase();
         category KeywordQuality(KeywordQualityNumber);
@@ -295,7 +297,6 @@ constructions! {
         category CorrelativeFiniteClauseSeries(CorrelativeCoordinator);
 
         frame_category NounPhrase = AccusativePhrase;
-        frame_category ScalarEquality = EqualityComplement;
         frame_category PowerToughnessAdjustment = SlashPair;
         frame_category MeasurePhrase = ScalarMeasurePhrase;
 
@@ -330,9 +331,8 @@ constructions! {
         frame PerfectAuxiliary = Auxiliary(Complement(PastParticiplePredicate));
         frame Measure = Predicate(Complement(MeasurePhrase));
         frame SlashMeasure = Predicate(Complement(PowerToughnessAdjustment));
-        frame Equality = Predicate(Marked(Preposition, To, Complement(MeasurePhrase)));
+        frame Equality = Predicate(Marked(Preposition, To, Complement(ComparativeComplement)));
         frame Ordering = Predicate(Marked(Preposition, Than, Complement(MeasurePhrase)));
-        frame ObjectEquality = Predicate(Object(NounPhrase), Complement(ScalarEquality));
         frame GrantedAbilityComplement = Predicate(Complement(GrantedAbility));
         frame AmountComplement = Predicate(Complement(Amount));
         frame CardinalComplement = Predicate(Complement(Cardinal));
@@ -531,7 +531,6 @@ constructions! {
             (ParticipialAuxiliary) => AuxiliaryParticiple,
             (PerfectAuxiliary) => AuxiliaryPerfect,
             (ObjectName) => ObjectName,
-            (ObjectEquality) => ObjectEquality,
             (CardinalComplement) => Cardinal,
             (InfinitiveSelection) => Infinitive,
         }
@@ -1109,12 +1108,6 @@ constructions! {
             form [head: node, " ", object: node, " ", complement: node];
             require head.HeadCoordination = Yes;
             require head.FrameUse = ObjectName;
-        }
-
-        schema SharedObjectEqualityComplement {
-            form [head: node, " ", object: node, " ", complement: node];
-            require head.HeadCoordination = Yes;
-            require head.FrameUse = ObjectEquality;
         }
 
         schema EitherCoordination {
@@ -2871,17 +2864,32 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
-        construction EqualityComplement: EqualityComplement {
-            form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ",
-                measure: MeasurePhrase];
-            require head.frame = Equality;
-            require marker.ComparisonMarker = Equality;
-            require licence_adjective_complement(marker.PrepositionFunctionLicence) = Yes;
-            require measure.MeasureKind = Scalar;
+        // CGEL Ch. 13 §1.3, pp. 1103–1104 distinguishes the bare
+        // comparative Complement and its selected expanded marker.
+        table comparative_marker(frame, ComparisonMarker) -> Selection {
+            (Equality, Equality) => Yes,
         }
 
-        construction EqualityAdjective: AdjectivePhrase {
-            form [complement: EqualityComplement];
+        construction ComparativeGovernor: ComparativeGovernor {
+            form [head: lexical(Adjective), " ", marker: lexical(Preposition)];
+            require comparative_marker(head.frame, marker.ComparisonMarker) = Yes;
+            require licence_comparative_complement(marker.PrepositionFunctionLicence) = Yes;
+        }
+
+        construction ScalarComparativeComplement: ComparativeComplement {
+            form [value: ScalarMeasurePhrase];
+        }
+
+        construction NominalComparativeComplement: ComparativeComplement {
+            form [value: AccusativePhrase];
+        }
+
+        construction ComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
+            form [governor: ComparativeGovernor, " ", complement: ComparativeComplement];
+        }
+
+        construction ComparativeAdjective: AdjectivePhrase {
+            form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
         }
 
@@ -3070,16 +3078,6 @@ constructions! {
         ] {
             use Properties;
         }
-        instance SharedObjectEqualityComplement<
-            Result, Head: head, Object: object, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, AccusativePhrase, EqualityComplement,
-                PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, EqualityComplement,
-                OrdinarySelectedPredicate),
-        ] {
-            use Properties;
-        }
-
         table coordinated_locative_use(LocativeUse, LocativeUse) -> LocativeUse {
             (Yes, Yes) => Yes,
             (Yes, No) => No,
