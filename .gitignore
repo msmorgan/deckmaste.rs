@@ -2,8 +2,8 @@
 /data/
 /.workspaces/
 /.superpowers/
-/docs/memory/
-/docs/evidence/
+/docs/memory
+/docs/evidence
 /plugins/*/
 !/plugins/builtin/
 !/plugins/canon/
