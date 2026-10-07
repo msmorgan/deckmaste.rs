@@ -167,8 +167,10 @@ the complete retained-Reading census under the lexical-analysis decision.
 
 The canonical `verbs.ron` GrantedAbility role survives as a selected Complement.
 The added Object(KeywordPhrase)/Object(QuotedText) frames on Have and Gain in
-`core.ron` are retired. Existing arbitrary-signature Object frame schemas
-remain available to independently declared heads. Keyword-only grants project
+`core.ron` are retired. The post-landing follow-up also removes the unused
+KeywordObject/QuotedObject grammar frames, their FrameUse values and table rows,
+and SharedKeywordComplement/SharedQuotedComplement schemas and instances: no
+lexical declaration supplies a head for them. Keyword-only grants project
 one existing KeywordPhrase; mixed keyword/quotation grants use the shared
 binary and serial Coordination schemas. A declared quotation-structure
 feature prevents an already coordinated QuotedText from creating a duplicate
@@ -191,6 +193,30 @@ an inner Reading independently of their matrix: 740 Document witnesses and
 not a forecast: the remaining inner failures and unread matrix faces retain
 their own causes. Psionic Sliver now reads because the claim base already
 supports its ordered damage segments; this ticket changes no Deal frame.
+
+At the original landing, every previously covered keyword grant, such as
+*has flying*, changed from
+Object(KeywordPhrase) to Complement → KeywordGrantedAbility → KeywordPhrase.
+This is an Object → Complement relation change, not just a wrapper rename.
+Reading counts remain unchanged on all 15,404 previously covered faces; the
+post-landing review accepts the analyses (21 probes correct, zero lost faces).
+
+The 388 measured gains are compared with the ticket's historical 396 sole-cause
+estimate on `wlvwtnppyovn` at 13,716 covered. That estimate classified failing
+surface units on an earlier tree, whereas the landing measures whole-face
+coverage on a claim base already covering 15,404 faces. The eight-face numeric
+difference is not an eight-face regression or an identity-matched obligation:
+the earlier surface bucket was not a gain forecast. The measured comparison
+against the actual claim base has zero losses.
+
+Thirteen supported faces nest single quotes inside a double-quoted granted
+ability: Urza's Saga; Nesting Dragon; Reef Worm; Koth of the Hammer; Arlinn Kord;
+Mu Yanling; Liliana of the Dark Realms; Old-Growth Troll; Huatli; Preston Garvey;
+Harold and Bob; Toggo; Teferi's Talent. Arlinn Kord and Huatli here identify
+the back faces Arlinn, Embraced by the Moon and Roar of the Fifth People;
+full face names, identities and sources are in the ignored follow-up evidence.
+QuotedText declares only double-quote forms, so none of these whole faces reads and none is mis-analysed as a coverage
+gain. The nested single-quote gap is routed to `english-v3-systemic-residuals`.
 
 Representative reviewed Readings (each quoted Document recursively contains
 its own Ability, Paragraph, Sentence and Clause as appropriate):
@@ -693,3 +719,69 @@ source spans are in `granted-quotes-gain-review.json` and
 | `fdbac0a7-18c0-48a5-a174-0d4d1473fd9c#card` | Wrench | C | ActivatedAbility |
 | `d27bebc9-348d-4b8e-816a-a4da66fb5618#card` | Writhing Chrysalis | M | ActivatedAbility |
 | `393d0bf8-5f2e-4eaa-91a1-9132429a7371#card` | Zurgo, Thunder's Decree | C | OrdinaryAbility |
+
+### Post-landing fix (2026-10-06)
+
+The accepted review found 21 correct probes, zero lost faces and unchanged
+Reading counts on the 15,404 faces covered before the original landing. This
+follow-up removes the remaining dead grammar route: KeywordObject and
+QuotedObject frames, the Keyword/Quoted FrameUse values and selected-frame-use
+rows, and SharedKeywordComplement/SharedQuotedComplement schemas and instances.
+No lexicon or plugins_v2 declaration supplies a head for either retired frame.
+The canonical GrantedAbility Complement route remains.
+
+Declaration counts are stamped before on start parent `nmtxxkuv` and after on
+`qrkrqyzzlkrpmwmnopnvxmvrtysrxwnu`, each at 15,792 covered. Nonblank lines
+(every non-whitespace line, including comments):
+**2,868 → 2,842**, a decrease of 26. Total declaration lines: 3,155 → 3,127.
+Ordinary Constructions remain 189; shared schemas decrease 45 → 43 (234 → 232
+named declarations). Four category-instance rows and two instance groups are
+removed. Assurance counts: 0 restored, 1 re-spelled, 1 added, 0 ignored,
+0 removed and 0 weakened. The independent atomic-head fixture now selects the
+canonical Complement(GrantedAbility), replacing the two retired Object
+signatures while retaining exact value comparisons. A new rejection test checks
+both retired signatures for finite and secondary heads. This addition beyond
+the ticket follows from the derived gate finding the stale fixture; no grammar
+scope is added.
+
+DISCLOSE now records the Object → Complement relation change for every prior
+keyword grant, reconciles the 388 gains with the earlier 396 surface-bucket
+estimate at 13,716 covered, and names/routes the 13 unread nested single-quote
+faces. The residuals ticket marks Gain/Have GrantedAbility landed, removes
+Psionic Sliver's stale residual claim and owns the nested single-quote gap.
+
+The exhaustive follow-up census is stamped on change `qrkrqyzzlkrpmwmnopnvxmvrtysrxwnu`,
+covered **15,792**: 6,924 one-Reading and 8,868 multiple-Reading faces, 17,036
+unread and zero undetermined. All **237,401 retained Readings** roundtrip
+exactly, with zero issues, duplicate Readings or internal failures. Compared
+with the original landing's final census, there are **0 gained, 0 lost and
+0 changed per-face Reading counts** on all 15,792 previously covered faces.
+The 13 named nested single-quote faces remain unread; none is counted as a gain.
+
+Performance advisory on the same change (covered 15,792):
+85,075,391,635 ns corpus wall time, 301,240 ns/B checked-text thread CPU,
+workers 12, host load 8.536 / 6.993 / 7.053. The 85.08-second loaded-host run
+exceeds the 16.26-second quiet-host advisory; another build was running.
+
+Evidence lives in the workspace's ignored `target/english-v3/quotes-followup/`
+and will be retained under the coordinator's ignored
+`target/english-v3/english-v3-quotes-followup/`. `after.json`, `comparison.json`,
+`declaration-counts.json` and `nested-single-quotes.json` hold the measurements
+and exact face identities. No evidence file is tracked.
+
+The derived gate from start parent `nmtxxkuv` runs:
+
+```sh
+cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask
+cargo clippy -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings
+```
+
+The full command is `cargo xtask gate --changed --from nmtxxkuv --run --clippy`.
+The derived test command passes: 675 passed, 0 failed and 1 existing ignored
+test (`macro_schema_census_count_matches_21`, which cross-checks the live corpus
+on demand). No ignore was added. Clippy and `cargo fmt --all --check` pass
+(exit 0). From the workspace root, citation checks report 0 stale and
+0 non-compliant strings; `kata kanban check` reports OK. The first derived
+gate failed on the stale independent atomic-head fixture; re-spelling it and
+adding the rejection witness above resolves that failure without weakening a
+value comparison. No unresolved STOP or glossary gap remains.

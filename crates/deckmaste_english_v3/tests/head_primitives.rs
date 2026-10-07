@@ -64,11 +64,7 @@ fn signatures() -> Vec<Frame> {
         },
         Frame {
             kind: "Predicate".into(),
-            items: vec![slot(Relation::Object, "KeywordPhrase")],
-        },
-        Frame {
-            kind: "Predicate".into(),
-            items: vec![slot(Relation::Object, "QuotedText")],
+            items: vec![slot(Relation::Complement, "GrantedAbility")],
         },
         Frame {
             kind: "Auxiliary".into(),
@@ -107,7 +103,7 @@ fn signatures() -> Vec<Frame> {
     ]
 }
 
-fn lexicon() -> Lexicon {
+fn lexicon_with_signatures(frames: Vec<Frame>) -> Lexicon {
     let mut head = Lexeme::verb(
         "fixture:head",
         "act",
@@ -117,7 +113,7 @@ fn lexicon() -> Lexicon {
             owner: "fixture:head".into(),
         },
     );
-    head.properties.frames = signatures();
+    head.properties.frames = frames;
     let card = Lexeme::noun(
         "fixture:card",
         "card",
@@ -129,6 +125,10 @@ fn lexicon() -> Lexicon {
         },
     );
     Lexicon::new([head, card]).unwrap()
+}
+
+fn lexicon() -> Lexicon {
+    lexicon_with_signatures(signatures())
 }
 
 fn word(frame: usize, finite: bool) -> Word {
@@ -156,7 +156,7 @@ fn word(frame: usize, finite: bool) -> Word {
 }
 
 fn primitive(frame: usize, finite: bool) -> Reading {
-    assert!(frame < 16, "unknown fixture signature");
+    assert!(frame < signatures().len(), "unknown fixture signature");
     Reading::SelectedVerbHead {
         category: if finite {
             Category::FiniteSelectedHead
@@ -202,11 +202,30 @@ fn independent_atomic_heads_preserve_every_exact_selected_signature() {
         (true, "acts", Category::FiniteSelectedHead),
         (false, "act", Category::SecondarySelectedHead),
     ] {
-        let expected: BTreeSet<_> = (0..16).map(|index| primitive(index, finite)).collect();
+        let expected: BTreeSet<_> = (0..signatures().len())
+            .map(|index| primitive(index, finite))
+            .collect();
         for reading in &expected {
             assert_eq!(reading.realize(&lexicon).unwrap(), text);
         }
         assert_eq!(readings(&lexicon, text, category), expected);
+    }
+}
+
+#[test]
+fn independent_atomic_heads_reject_retired_ability_object_signatures() {
+    for category in ["KeywordPhrase", "QuotedText"] {
+        let lexicon = lexicon_with_signatures(vec![Frame {
+            kind: "Predicate".into(),
+            items: vec![slot(Relation::Object, category)],
+        }]);
+        for (finite, text, category) in [
+            (true, "acts", Category::FiniteSelectedHead),
+            (false, "act", Category::SecondarySelectedHead),
+        ] {
+            assert!(primitive(0, finite).admit(&lexicon).is_err());
+            assert_eq!(readings(&lexicon, text, category), BTreeSet::new());
+        }
     }
 }
 
@@ -250,7 +269,7 @@ fn independent_atomic_heads_reject_wrong_signature_index_and_morphology() {
     let invalid = Reading::SelectedVerbHead {
         category: Category::FiniteSelectedHead,
         form: 0,
-        head: word(16, true),
+        head: word(signatures().len(), true),
     };
     assert!(invalid.admit(&lexicon).is_err());
     assert_eq!(

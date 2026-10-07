@@ -242,17 +242,21 @@ is right and this list needs fixing.
   consumable by `english-v3-selected-preposition-nominal-licensing`; Put's
   legacy source-bearing forms remain open under the deferrals above.
 - The 19 verb frame shapes / 20 assignments the generic frame consumer
-  (`english-v3-generic-frame-consumption`, done) still reports as unsupported; see
+  (`english-v3-generic-frame-consumption`, done) originally reported as
+  unsupported; see
   the `### Unsupported inventory and owners` table in
   [that ticket](../done/english-v3-generic-frame-consumption.md). The unreconciled
-  slot categories are legacy `Object` role labels, `FrameComplement`,
+  slot categories on that landing were legacy `Object` role labels,
+  `FrameComplement`,
   `ReplacementMarker`, `MassNoun`, `DistributionPhrase`, `GrantedAbility`,
   `VerbPhrase`, `ManaAmount`/`ComparisonDirection`/`ControlledCostAction`, and
-  `ResultativeComplement`; each needs typed reconciliation before a consumer can
+  `ResultativeComplement`; each needed typed reconciliation before a consumer
+  could
   admit it.
-  Owned since 2026-10-06: the Gain/Have `Complement(GrantedAbility)` row by
-  `english-v3-granted-ability-quotes`; the Look row and the two Put rows with
-  `Preposition(On), Complement(FrameComplement)` by `english-v3-library-position`;
+  Landed 2026-10-06: the Gain/Have `Complement(GrantedAbility)` row by
+  `english-v3-granted-ability-quotes` (including the quoted Complement and
+  keyword/quotation Coordination). Owned since 2026-10-06: the Look row and
+  the two Put rows with `Preposition(On), Complement(FrameComplement)` by `english-v3-library-position`;
   Deal's two `ScalarEquality` rows by `english-v3-scalar-comparisons`; the
   `ReplacementMarker` slot of Deal's first row by `english-v3-instead-replacement`
   (its `MassNoun`/`DistributionPhrase` slots stay here).
@@ -301,14 +305,24 @@ is right and this list needs fixing.
   first failing unit is a library position (every name above except the 13
   below) are owned by `english-v3-library-position`. Burn the Accursed (only
   failing unit an *instead* sentence) is owned by
-  `english-v3-instead-replacement`. Psionic Sliver's quote is owned by
-  `english-v3-granted-ability-quotes`, but its inner ability also needs Deal's
-  ordered amount/recipient segments, so the face stays here too. The other 11
-  stay here: Sunflare Shaman, Drakuseth, Assembled Alphas, Chandra, The
+  `english-v3-instead-replacement`. Psionic Sliver now reads: its quote landed
+  in `english-v3-granted-ability-quotes` (2026-10-06), and its inner ordered
+  damage/recipient segments were already supported on that landing's base.
+  It no longer remains a residual. The other 11 stay here: Sunflare Shaman,
+  Drakuseth, Assembled Alphas, Chandra, The
   Brothers' War, Trick Shot, Self-Destruct, Tropical Storm, Judgment Bolt and
   Sparksmith fail on Deal's ordered amount/recipient segments; Neonate's Rush
   fails on cost reduction. None of the 42 fails on `, then`, so
   `english-v3-then-sequencing` takes over none of them.
+
+- Nested single-quote abilities inside a double-quoted granted ability
+  (2026-10-06, retained from `english-v3-granted-ability-quotes`): Urza's Saga;
+  Nesting Dragon; Reef Worm; Koth of the Hammer; Arlinn Kord; Mu Yanling;
+  Liliana of the Dark Realms; Old-Growth Troll; Huatli; Preston Garvey; Harold
+  and Bob; Toggo; Teferi's Talent. Arlinn Kord and Huatli refer to their back
+  faces Arlinn, Embraced by the Moon and Roar of the Fifth People. These 13
+  supported faces have no whole-face Reading because QuotedText has only
+  double-quote forms; none is mis-analysed.
 
 The records also name two cutover blockers that now have their own owners: the
 cost of the complete corpus run (english-v3-census-tractability) and the Avacyn

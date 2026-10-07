@@ -88,7 +88,7 @@ constructions! {
         feature ClauseInitialAdjunct { Yes, No }
         feature InfinitivalMarker { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
-            Keyword, Quoted, GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
+            GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
             ObjectEquality, Cardinal, Infinitive }
         feature HeadCoordination { No, Yes }
         feature NoncorrelativeCoordination { Yes, No }
@@ -288,8 +288,6 @@ constructions! {
         frame Equality = Predicate(Marked(Preposition, To, Complement(MeasurePhrase)));
         frame Ordering = Predicate(Marked(Preposition, Than, Complement(MeasurePhrase)));
         frame ObjectEquality = Predicate(Object(NounPhrase), Complement(ScalarEquality));
-        frame KeywordObject = Predicate(Object(KeywordPhrase));
-        frame QuotedObject = Predicate(Object(QuotedText));
         frame GrantedAbilityComplement = Predicate(Complement(GrantedAbility));
         frame AmountComplement = Predicate(Complement(Amount));
         frame CardinalComplement = Predicate(Complement(Cardinal));
@@ -484,8 +482,6 @@ constructions! {
             (AmountComplement) => Amount,
             (Measure) => Measure,
             (SlashMeasure) => SlashMeasure,
-            (KeywordObject) => Keyword,
-            (QuotedObject) => Quoted,
             (GrantedAbilityComplement) => GrantedAbility,
             (BareAuxiliary) => AuxiliaryBare,
             (ParticipialAuxiliary) => AuxiliaryParticiple,
@@ -979,18 +975,6 @@ constructions! {
             form [head: node, " ", measure: node];
             require head.HeadCoordination = Yes;
             require head.FrameUse = SlashMeasure;
-        }
-
-        schema SharedKeywordComplement {
-            form [head: node, " ", object: node];
-            require head.HeadCoordination = Yes;
-            require head.FrameUse = Keyword;
-        }
-
-        schema SharedQuotedComplement {
-            form [head: node, " ", object: node];
-            require head.HeadCoordination = Yes;
-            require head.FrameUse = Quoted;
         }
 
         schema SharedGrantedAbilityComplement {
@@ -2728,18 +2712,6 @@ constructions! {
         instance SharedSlashMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
             (FinitePredicate, FiniteSelectedHead, SlashPair, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, SlashPair, OrdinarySelectedPredicate),
-        ] {
-            use Properties;
-        }
-        instance SharedKeywordComplement<Result, Head: head, Object: object, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, KeywordPhrase, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, KeywordPhrase, OrdinarySelectedPredicate),
-        ] {
-            use Properties;
-        }
-        instance SharedQuotedComplement<Result, Head: head, Object: object, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, QuotedText, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, QuotedText, OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
