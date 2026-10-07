@@ -30,7 +30,7 @@ before assigning an implementation owner. Concrete starting points are:
   [predicative-*as* orchestrator ruling of 2026-10-06](../done/english-v3-fixed-cost-phrases.md).
   The causative-have orchestrator ruling of 2026-10-07 defers this repair here.
   All 60 supported faces containing *enter/enters as a copy of* remain unread
-  on `xlowzpyyzvzw` / covered 19,826 (surface witnesses, not a sole-cause claim):
+  on `vusnwtmuoytr` / covered 19,826 (surface witnesses, not a sole-cause claim):
   Activated Sleeper, Altered Ego, Auton Soldier, Body Double, Chameleon, Master of
   Disguise, Clever Impersonator, Clone, Copy Artifact, Copy Enchantment, Copy Land,
   Copycrook, Dack's Duplicate, Deceptive Frostkite, Essence of the Wild, Estrid's

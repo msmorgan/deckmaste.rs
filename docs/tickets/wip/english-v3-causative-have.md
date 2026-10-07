@@ -63,9 +63,9 @@ Standard constraints apply (CLAUDE.md landing record, assurance, gate scope,
 cite check). Deltas:
 
 1. Before: `cargo xtask english-v3 --all --workers 6 --samples-per-face 0
-   --output target/english-v3/english-v3-causative-have-before.json` on the
+   --output target/english-v3/refreshed-base-census.json` on the
    claim parent, stamped with its change id and covered count; after: the same
-   command to `target/english-v3/english-v3-causative-have-after.json` on the
+   command to `target/english-v3/refreshed-final-census.json` on the
    final tree. Evidence lives under the workspace's ignored
    `target/english-v3/`, never `/tmp`.
 2. Write each witness as a test first. Iterate on `--face-id` selectors; verify
@@ -153,27 +153,40 @@ Both orchestrator rulings are project authority, never attributed to CGEL.
 
 ### Census, provenance and no silent loss
 
-All final production figures below are stamped **`xlowzpyyzvzw` / covered
-19,826**, unless a baseline stamp is explicitly given. Evidence is retained in
-ignored [target/english-v3/english-v3-causative-have](../../../target/english-v3/english-v3-causative-have/).
-The before report was measured before the frame edit in the then-current
-`ostqqnplnqrm` snapshot, covered 19,682; its lexical inventory hash is
-`94f34b962b45cf5596590f00e0e8df6eb32d6e3bacf5addcb43091267e3d58cf`. The final hash is
-`aef5a92a9e109d9d070c252c2b7cf8eba6f591325557d32c3e9fd3c79f3ef192`. These distinguish production snapshots
-of the mutable change rather than treating its later content as the baseline.
+All final production figures below are stamped **`vusnwtmuoytr` / covered
+19,826**, unless a refreshed-baseline stamp is explicitly given. Evidence is
+retained in ignored
+[target/english-v3/english-v3-causative-have](../../../target/english-v3/english-v3-causative-have/).
+The refreshed-base report is measured on `tlupskwqkwmv` / covered 19,682,
+an empty diagnostic child of claim `pozynvyu`, with the exact base production
+sources. The final report is measured on `vusnwtmuoytr` / covered 19,826,
+with the typed Have frame. Their lexical inventory hashes are, respectively,
+`f34ca4043c1b8ba59b19b264b575f70adfa031c889396373a62819d976c58658` and
+`2b96cec97b9b2d3a35a6e3f93756e092135ecbc4dbb2899d298fac25920cfdd8`.
 
-The refreshed base is `rsvurmpmypks` (`english-v3-causative-have-`), with the
-claim at `pozynvyu`. Compared with the original production base `mqlxrskmtpzt`,
-trunk changes are ticket records/claims and `scripts/fmt` /
-`scripts/jj-repo-config`; no English production source, consumed lexical data,
-compiler or corpus input changes. Thus the before production census is also
-the refreshed-base census. Refresh introduced no Reading decrease requiring
-trunk attribution. Every face identity and analyzed-source hash agrees.
+The refreshed base is `mtxtksrr` (`english-v3-causative-have-`). Final refresh
+incorporated the chooser-and-taker landing, including shared plugin data,
+xtask and Lean changes. The gate was rebuilt and rerun. Trunk's
+`swptuusp` removes the out-of-scope Attraction subtype; `xttprnpy` regroups the
+Lean commands, and `ouysnvuw` / `xxqksrzw` change semantic actor fields and turn
+helpers. The dedicated refreshed-base census has identical per-face Reading
+counts to the original before census (`ostqqnplnqrm` / covered 19,682).
+**Trunk-attributed Reading decreases: none** (`trunk-refresh-comparison.json`).
+Thus the comparison below uses a freshly measured base, without borrowing any
+pre-refresh production totals. All face identities and analyzed-source hashes
+agree. Refresh completed without conflicts and preserved other workspaces.
 
 | Census stamp / covered | No Reading | One Reading | Multiple Readings | Exact Readings |
 |---|---:|---:|---:|---:|
-| Before `ostqqnplnqrm` / 19,682 | 13,146 | 7,294 | 12,388 | 560,894 |
-| Final `xlowzpyyzvzw` / 19,826 | 13,002 | 7,331 | 12,495 | 584,148 |
+| Refreshed base `tlupskwqkwmv` / 19,682 | 13,146 | 7,294 | 12,388 | 560,894 |
+| Final `vusnwtmuoytr` / 19,826 | 13,002 | 7,331 | 12,495 | 584,148 |
+
+Aggregate packed-chart metrics on the same measured trees (not per-face peaks):
+
+| Census stamp / covered | Items | Families | Completed nodes | Completion work |
+|---|---:|---:|---:|---:|
+| Refreshed base `tlupskwqkwmv` / 19,682 | 125,555,843 | 131,576,578 | 2,919,870 | 20,433,596 |
+| Final `vusnwtmuoytr` / 19,826 | 126,367,237 | 132,421,288 | 2,937,331 | 20,556,916 |
 
 Both runs completely enumerate all 32,828 supported faces, with zero failed or
 limited enumerations, undetermined faces, validation issues, duplicate
@@ -181,8 +194,8 @@ Readings, cyclic derivations or internal failures. Gains: 144 identities and
 23,254 Readings. Lost identities: **none**. Decreased Reading counts on
 previously covered faces: **none**. Increased counts on previously covered
 faces: **none**. All 19,682 retain their exact former counts; no identity is
-silently removed or owed re-coverage. `comparison-final.json` records the
-identity-level comparison against the refreshed-base-equivalent census.
+silently removed or owed re-coverage. `comparison-refreshed-final.json` records
+the identity-level comparison against the refreshed-base census.
 
 The v3 contract retains every admitted grammatical Reading. Its One/Multiple
 census is the selection census above; specificity-resolved selection is not an
@@ -203,7 +216,7 @@ Troubadour (5), Extractor Demon (1), Lava Blister (2), Quill-Slinger Boggart (1)
 Rage Forger (15), Joraga Bard (10). None of these inspected causative nodes
 absorbs the infinitival into a reduced relative or a possessive-Have Adjunct.
 See `gains-spot-check-analysis.json`, `gains-spot-checks.json`,
-`spot-check-analysis.json` and `spot-checks.json`, each measured on `xlowzpyyzvzw`
+`spot-check-analysis.json` and `spot-checks.json`, each measured on `vusnwtmuoytr`
 with the full-tree covered count 19,826.
 
 The five full-face witnesses gain Ebon Dragon 0 → 1, Quill-Slinger Boggart
@@ -246,20 +259,21 @@ cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste
 cargo clippy -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings
 ```
 
-Both derived commands pass: the complete test closure and clippy with warnings
-denied. The causative suite reports 9 passed, 0 failed and 0 ignored.
+Both derived commands pass again after refresh: the complete test closure and
+clippy with warnings denied. The causative suite reports 9 passed, 0 failed
+and 0 ignored.
 Formatting (`cargo fmt --all -- --check`), focused nightly rustfmt, and derive
 order checks pass. The additional whole-repository nightly check finds inherited
-drift on 170 unchanged paths (named in `inherited-nightly-format-drift.json`);
+drift on 170 unchanged paths (named in `inherited-nightly-format-drift-refreshed.json`);
 none is changed by this ticket. Citation noncompliance has
-zero entries; `cite check` reports 16,111 sites and **0 stale**. The piped
+zero entries; `cite check` reports 16,112 sites and **0 stale**. The piped
 `jj diff --git --from english-v3-causative-have | cargo-xtask cite audit --diff`
 audits 0 changed CR sites; this change adds CGEL citations only, so no bless is
 needed. Final gate, clippy, formatting and citation logs are retained with the
 census evidence.
 
 The final declaration file is byte-identical to the refreshed claim parent:
-**3,227 non-blank lines → 3,227, net 0**, on `xlowzpyyzvzw` / covered 19,826.
+**3,227 non-blank lines → 3,227, net 0**, on `vusnwtmuoytr` / covered 19,826.
 The inherited over-ceiling file is not enlarged. The construction inventory
 remains 204 ordinary Constructions plus 43 shared schemas (247 Reading
 variants), 315 category instances and 612 static Productions. Features added:
@@ -286,34 +300,38 @@ implementation features; no unresolved glossary gap remains.
 
 ### Inventory and performance advisory
 
-On `xlowzpyyzvzw` / covered 19,826, the generated-form homograph inventory is
-unchanged at 586 named surfaces (excluding card-name catalogs and
-capitalization alternatives); `inventory-before.json` and
-`inventory-final.json` retain every surface's lexical owners. Word-bearing
+On `vusnwtmuoytr` / covered 19,826, the generated-form homograph inventory is
+unchanged against the refreshed base at 585 named surfaces (excluding card-name
+catalogs and capitalization alternatives); `inventory-refreshed-base.json` and
+`inventory-refreshed-final.json` retain every surface's lexical owners.
+Trunk `swptuusp` removes the homograph surface `Attraction` (owners before:
+`catalog:artifact-types.txt/Attraction`, `lexeme:artifact_subtype/attraction`),
+changing the original inventory of 586 to 585 before this ticket's comparison.
+This ticket changes no homograph surface or lexical owner. Word-bearing
 form literals: **none**. Form-literal/vocabulary overlaps: **none**. The full
 named homograph surface list follows the gained-identity list below.
 
 | Census stamp / covered | Wall time (ns) | Checked-text thread CPU | Host load (1/5/15 min) | Workers |
 |---|---:|---:|---|---:|
-| Before `ostqqnplnqrm` / 19,682 | 112,705,430,965 | 260,907 ns/B | 14.25 / 12.93 / 13.06 | 6 |
-| Final `xlowzpyyzvzw` / 19,826 | 164,186,672,011 | 342,458 ns/B | 8.14 / 9.40 / 13.18 | 6 |
+| Refreshed base `tlupskwqkwmv` / 19,682 | 127,004,870,086 | 260,914 ns/B | 1.39 / 4.51 / 9.15 | 6 |
+| Final `vusnwtmuoytr` / 19,826 | 130,739,481,125 | 275,990 ns/B | 23.04 / 12.43 / 11.36 | 6 |
 
 Both exceed the 16,260,000,000 ns quiet-host advisory. These loaded-host runs
-include competing jobs (the final census also overlaps the test gate and gain
-checks); they do not establish quiet-host performance. Full command:
+include competing jobs (the final census also overlaps the test gate); they
+do not establish quiet-host performance. Full command:
 
 ```text
-target/debug/cargo-xtask english-v3 --all --workers 6 --samples-per-face 0 --output target/english-v3/english-v3-causative-have-after.json
+target/debug/cargo-xtask english-v3 --all --workers 6 --samples-per-face 0 --output target/english-v3/refreshed-final-census.json
 ```
 
 The direct workspace-built xtask binary avoids Cargo's build lock while the
 gate runs; no grammar Rust code changed. The paired before command used the
-same options with `english-v3-causative-have-before.json`. Subset checks used
+same options with `refreshed-base-census.json`. Subset checks used
 explicit identity manifests, six workers and no Reading limit.
 
 ### Newly covered identities and selected analysis
 
-All rows are stamped `xlowzpyyzvzw` / covered 19,826. Before counts are 0 for each;
+All rows are stamped `vusnwtmuoytr` / covered 19,826. Before counts are 0 for each;
 the following column gives the completely enumerated after count. Every row's
 inspected new Have node selects **Object NP + bare-infinitival catenative
 Complement** through `SelectedPredicate` (Have frame 2), preserving other
@@ -470,70 +488,69 @@ gain.
 
 ### Named homograph surfaces
 
-Unchanged before/final inventory, final `xlowzpyyzvzw` / covered 19,826; lexical
-owners are listed in the paired ignored inventory artifacts.
+Unchanged refreshed-base/final inventory, final `vusnwtmuoytr` / covered 19,826;
+lexical owners are listed in the paired ignored inventory artifacts.
 
 `'s`; `Adamant`; `Addendum`; `Adventure`; `Advisor`; `Aetherborn`; `Ajani`; `Alien`; `Alliance`;
 `Ally`; `Aminatou`; `Angel`; `Angrath`; `Antelope`; `Ape`; `Arcane`; `Archer`; `Archon`; `Arlinn`;
 `Armadillo`; `Army`; `Artificer`; `Ashiok`; `Assassin`; `Assembly-Worker`; `Astartes`; `Atog`;
-`Attraction`; `Aura`; `Aurochs`; `Avatar`; `Azra`; `Background`; `Badger`; `Bahamut`; `Balloon`;
-`Barbarian`; `Bard`; `Basilisk`; `Basri`; `Bat`; `Battalion`; `Bear`; `Beast`; `Beaver`; `Beeble`;
-`Beholder`; `Berserker`; `Bird`; `Bison`; `Blinkmoth`; `Blood`; `Bloodrush`; `Boar`; `Bobblehead`;
-`Bolas`; `Book`; `Bringer`; `Brushwagg`; `C'tan`; `Calix`; `Camarid`; `Camel`; `Capybara`;
-`Caribou`; `Carrier`; `Cartouche`; `Case`; `Cat`; `Cave`; `Celebration`; `Centaur`; `Chandra`;
-`Channel`; `Child`; `Chimera`; `Chroma`; `Citizen`; `Class`; `Cleric`; `Clown`; `Clue`;
-`Cockatrice`; `Cohort`; `Comet`; `Constellation`; `Construct`; `Contraption`; `Converge`; `Council's
-dilemma`; `Coven`; `Coward`; `Coyote`; `Crab`; `Crocodile`; `Curse`; `Custodes`; `Cyberman`;
-`Cyclops`; `Dack`; `Dakkon`; `Dalek`; `Daretti`; `Dauthi`; `Davriel`; `Delirium`; `Dellian`;
-`Demigod`; `Demon`; `Descend 4`; `Descend 8`; `Desert`; `Deserter`; `Detective`; `Devil`; `Dihada`;
-`Dinosaur`; `Disappear`; `Djinn`; `Doctor`; `Dog`; `Domain`; `Domri`; `Dovin`; `Dragon`; `Drake`;
-`Dreadnought`; `Drix`; `Drone`; `Druid`; `Dryad`; `Dwarf`; `Echidna`; `Eerie`; `Efreet`; `Egg`;
-`Elder`; `Eldrazi`; `Elemental`; `Elephant`; `Elf`; `Elk`; `Ellywick`; `Elminster`; `Elspeth`;
-`Eminence`; `Employee`; `Enrage`; `Equipment`; `Estrid`; `Eternal`; `Eye`; `Faerie`; `Fateful hour`;
-`Fathomless descent`; `Ferocious`; `Ferret`; `Fish`; `Flagbearer`; `Flurry`; `Food`; `Forest`;
-`Formidable`; `Fortification`; `Fox`; `Fractal`; `Freyalise`; `Frog`; `Fungus`; `Gamer`; `Gamma`;
-`Gargoyle`; `Garruk`; `Gate`; `Germ`; `Giant`; `Gideon`; `Giraffe`; `Gith`; `Glimmer`; `Gnoll`;
-`Gnome`; `Goat`; `Goblin`; `God`; `Gold`; `Golem`; `Gorgon`; `Grandeur`; `Graveborn`; `Gremlin`;
-`Griffin`; `Grist`; `Guest`; `Guff`; `Hag`; `Halfling`; `Hamster`; `Harpy`; `Hedgehog`; `Hellbent`;
-`Hellion`; `Hero`; `Heroic`; `Hippo`; `Hippogriff`; `Homarid`; `Homunculus`; `Horror`; `Horse`;
-`Huatli`; `Human`; `Hydra`; `Hyena`; `I`; `Illusion`; `Imp`; `Imprint`; `Incarnation`; `Incubator`;
-`Infinity`; `Infusion`; `Inhuman`; `Inkling`; `Inquisitor`; `Insect`; `Inspired`; `Island`; `Jace`;
-`Jackal`; `Jared`; `Jaya`; `Jellyfish`; `Jeska`; `Join forces`; `Juggernaut`; `Junk`; `Kaito`;
-`Kangaroo`; `Karn`; `Kasmina`; `Kavu`; `Kaya`; `Kinship`; `Kiora`; `Kirin`; `Kithkin`; `Knight`;
-`Kobold`; `Kor`; `Koth`; `Kraken`; `Kree`; `Lair`; `Lamia`; `Lammasu`; `Lander`; `Landfall`;
-`Leech`; `Lemur`; `Lesson`; `Leviathan`; `Lhurgoyf`; `Licid`; `Lieutenant`; `Liliana`; `Lizard`;
-`Llama`; `Lobster`; `Locus`; `Lolth`; `Lukka`; `Magecraft`; `Manticore`; `Map`; `Masticore`;
-`Mercenary`; `Merfolk`; `Metalcraft`; `Metathran`; `Mine`; `Minion`; `Minotaur`; `Minsc`; `Mite`;
-`Mole`; `Monger`; `Mongoose`; `Monk`; `Monkey`; `Moogle`; `Moonfolk`; `Morbid`; `Mordenkainen`;
-`More Than Meets the Eye`; `Mount`; `Mountain`; `Mouse`; `Mutagen`; `Mutant`; `Myr`; `Mystic`;
-`Nahiri`; `Narset`; `Nautilus`; `Necron`; `Nephilim`; `Nightmare`; `Nightstalker`; `Niko`; `Ninja`;
-`Nissa`; `Nixilis`; `Noble`; `Noggle`; `Nomad`; `Nymph`; `Octopus`; `Ogre`; `Oko`; `Omen`; `Ooze`;
-`Opus`; `Orb`; `Orc`; `Orgg`; `Otter`; `Ouphe`; `Ox`; `Oyster`; `Pack tactics`; `Pangolin`;
-`Paradox`; `Parley`; `Peasant`; `Pegasus`; `Pentavite`; `Performer`; `Pest`; `Phelddagrif`;
-`Phoenix`; `Phyrexian`; `Pilot`; `Pincher`; `Pirate`; `Plains`; `Plan`; `Planet`; `Plant`;
-`Platypus`; `Porcupine`; `Possum`; `Power-Plant`; `Powerstone`; `Praetor`; `Primarch`; `Prism`;
-`Processor`; `Qu`; `Quintorius`; `Rabbit`; `Raccoon`; `Radiance`; `Raid`; `Ral`; `Rally`; `Ranger`;
-`Rat`; `Rebel`; `Reflection`; `Renew`; `Repartee`; `Revolt`; `Rhino`; `Rigger`; `Robot`; `Rogue`;
-`Role`; `Room`; `Rowan`; `Rune`; `Sable`; `Saga`; `Saheeli`; `Salamander`; `Samurai`; `Samut`;
-`Sand`; `Saproling`; `Sarkhan`; `Satyr`; `Scarecrow`; `Scientist`; `Scion`; `Scorpion`; `Scout`;
-`Sculpture`; `Seal`; `Secret council`; `Serf`; `Serpent`; `Serra`; `Servo`; `Shade`; `Shaman`;
-`Shapeshifter`; `Shard`; `Shark`; `Sheep`; `Shi'ar`; `Shrine`; `Siege`; `Siren`; `Sivitri`;
-`Skeleton`; `Skrull`; `Skunk`; `Slith`; `Sliver`; `Sloth`; `Slug`; `Snail`; `Snake`; `Soldier`;
-`Soltari`; `Sorcerer`; `Sorin`; `Spacecraft`; `Spawn`; `Specter`; `Spell mastery`; `Spellshaper`;
-`Sphere`; `Sphinx`; `Spider`; `Spike`; `Spirit`; `Splinter`; `Sponge`; `Spy`; `Squid`; `Squirrel`;
-`Starfish`; `Stone`; `Strive`; `Surrakar`; `Survival`; `Survivor`; `Swamp`; `Sweep`; `Symbiote`;
-`Synth`; `Szat`; `Tamiyo`; `Tasha`; `Teferi`; `Tempting offer`; `Tentacle`; `Tetravite`; `Teyo`;
-`Tezzeret`; `Thalakos`; `Thopter`; `Threshold`; `Thrull`; `Tibalt`; `Tiefling`; `Time Lord`;
-`Tower`; `Town`; `Toy`; `Trap`; `Treasure`; `Treefolk`; `Trilobite`; `Triskelavite`; `Troll`;
-`Turtle`; `Tyranid`; `Tyvar`; `Ugin`; `Undergrowth`; `Unicorn`; `Urza`; `Urza's`; `Utrom`;
-`Valiant`; `Vampire`; `Varmint`; `Vedalken`; `Vehicle`; `Venser`; `Vibranium`; `Villain`; `Vivid`;
-`Vivien`; `Void`; `Volver`; `Vraska`; `Vronos`; `Wall`; `Walrus`; `Warlock`; `Warrior`; `Weasel`;
-`Weird`; `Werewolf`; `Whale`; `Will`; `Will of the council`; `Windgrace`; `Wizard`; `Wolf`;
-`Wolverine`; `Wombat`; `Worm`; `Wraith`; `Wrenn`; `Wurm`; `X`; `Xenagos`; `Yanggu`; `Yanling`;
-`Yeti`; `Zariel`; `Zombie`; `Zubera`; `as`; `bottom`; `control`; `copies`; `copy`; `cost`; `costs`;
-`counter`; `counters`; `cycling`; `deathtouch`; `decayed`; `die`; `double strike`; `draw`; `draws`;
-`exalted`; `exile`; `exiles`; `first strike`; `flying`; `goaded`; `harnessed`; `haste`; `her`;
-`hexproof`; `his`; `if`; `indestructible`; `it`; `legendary`; `less`; `lifelink`; `menace`; `name`;
-`names`; `one`; `reach`; `shadow`; `solved`; `suspected`; `tapped`; `target`; `targets`; `that`;
-`then`; `time`; `to`; `top`; `trample`; `turn`; `turns`; `untap`; `untapped`; `up`; `vigilance`;
-`you`; `’s`; `∞`.
+`Aura`; `Aurochs`; `Avatar`; `Azra`; `Background`; `Badger`; `Bahamut`; `Balloon`; `Barbarian`;
+`Bard`; `Basilisk`; `Basri`; `Bat`; `Battalion`; `Bear`; `Beast`; `Beaver`; `Beeble`; `Beholder`;
+`Berserker`; `Bird`; `Bison`; `Blinkmoth`; `Blood`; `Bloodrush`; `Boar`; `Bobblehead`; `Bolas`;
+`Book`; `Bringer`; `Brushwagg`; `C'tan`; `Calix`; `Camarid`; `Camel`; `Capybara`; `Caribou`;
+`Carrier`; `Cartouche`; `Case`; `Cat`; `Cave`; `Celebration`; `Centaur`; `Chandra`; `Channel`;
+`Child`; `Chimera`; `Chroma`; `Citizen`; `Class`; `Cleric`; `Clown`; `Clue`; `Cockatrice`; `Cohort`;
+`Comet`; `Constellation`; `Construct`; `Contraption`; `Converge`; `Council's dilemma`; `Coven`;
+`Coward`; `Coyote`; `Crab`; `Crocodile`; `Curse`; `Custodes`; `Cyberman`; `Cyclops`; `Dack`;
+`Dakkon`; `Dalek`; `Daretti`; `Dauthi`; `Davriel`; `Delirium`; `Dellian`; `Demigod`; `Demon`;
+`Descend 4`; `Descend 8`; `Desert`; `Deserter`; `Detective`; `Devil`; `Dihada`; `Dinosaur`;
+`Disappear`; `Djinn`; `Doctor`; `Dog`; `Domain`; `Domri`; `Dovin`; `Dragon`; `Drake`; `Dreadnought`;
+`Drix`; `Drone`; `Druid`; `Dryad`; `Dwarf`; `Echidna`; `Eerie`; `Efreet`; `Egg`; `Elder`; `Eldrazi`;
+`Elemental`; `Elephant`; `Elf`; `Elk`; `Ellywick`; `Elminster`; `Elspeth`; `Eminence`; `Employee`;
+`Enrage`; `Equipment`; `Estrid`; `Eternal`; `Eye`; `Faerie`; `Fateful hour`; `Fathomless descent`;
+`Ferocious`; `Ferret`; `Fish`; `Flagbearer`; `Flurry`; `Food`; `Forest`; `Formidable`;
+`Fortification`; `Fox`; `Fractal`; `Freyalise`; `Frog`; `Fungus`; `Gamer`; `Gamma`; `Gargoyle`;
+`Garruk`; `Gate`; `Germ`; `Giant`; `Gideon`; `Giraffe`; `Gith`; `Glimmer`; `Gnoll`; `Gnome`; `Goat`;
+`Goblin`; `God`; `Gold`; `Golem`; `Gorgon`; `Grandeur`; `Graveborn`; `Gremlin`; `Griffin`; `Grist`;
+`Guest`; `Guff`; `Hag`; `Halfling`; `Hamster`; `Harpy`; `Hedgehog`; `Hellbent`; `Hellion`; `Hero`;
+`Heroic`; `Hippo`; `Hippogriff`; `Homarid`; `Homunculus`; `Horror`; `Horse`; `Huatli`; `Human`;
+`Hydra`; `Hyena`; `I`; `Illusion`; `Imp`; `Imprint`; `Incarnation`; `Incubator`; `Infinity`;
+`Infusion`; `Inhuman`; `Inkling`; `Inquisitor`; `Insect`; `Inspired`; `Island`; `Jace`; `Jackal`;
+`Jared`; `Jaya`; `Jellyfish`; `Jeska`; `Join forces`; `Juggernaut`; `Junk`; `Kaito`; `Kangaroo`;
+`Karn`; `Kasmina`; `Kavu`; `Kaya`; `Kinship`; `Kiora`; `Kirin`; `Kithkin`; `Knight`; `Kobold`;
+`Kor`; `Koth`; `Kraken`; `Kree`; `Lair`; `Lamia`; `Lammasu`; `Lander`; `Landfall`; `Leech`; `Lemur`;
+`Lesson`; `Leviathan`; `Lhurgoyf`; `Licid`; `Lieutenant`; `Liliana`; `Lizard`; `Llama`; `Lobster`;
+`Locus`; `Lolth`; `Lukka`; `Magecraft`; `Manticore`; `Map`; `Masticore`; `Mercenary`; `Merfolk`;
+`Metalcraft`; `Metathran`; `Mine`; `Minion`; `Minotaur`; `Minsc`; `Mite`; `Mole`; `Monger`;
+`Mongoose`; `Monk`; `Monkey`; `Moogle`; `Moonfolk`; `Morbid`; `Mordenkainen`; `More Than Meets the
+Eye`; `Mount`; `Mountain`; `Mouse`; `Mutagen`; `Mutant`; `Myr`; `Mystic`; `Nahiri`; `Narset`;
+`Nautilus`; `Necron`; `Nephilim`; `Nightmare`; `Nightstalker`; `Niko`; `Ninja`; `Nissa`; `Nixilis`;
+`Noble`; `Noggle`; `Nomad`; `Nymph`; `Octopus`; `Ogre`; `Oko`; `Omen`; `Ooze`; `Opus`; `Orb`; `Orc`;
+`Orgg`; `Otter`; `Ouphe`; `Ox`; `Oyster`; `Pack tactics`; `Pangolin`; `Paradox`; `Parley`;
+`Peasant`; `Pegasus`; `Pentavite`; `Performer`; `Pest`; `Phelddagrif`; `Phoenix`; `Phyrexian`;
+`Pilot`; `Pincher`; `Pirate`; `Plains`; `Plan`; `Planet`; `Plant`; `Platypus`; `Porcupine`;
+`Possum`; `Power-Plant`; `Powerstone`; `Praetor`; `Primarch`; `Prism`; `Processor`; `Qu`;
+`Quintorius`; `Rabbit`; `Raccoon`; `Radiance`; `Raid`; `Ral`; `Rally`; `Ranger`; `Rat`; `Rebel`;
+`Reflection`; `Renew`; `Repartee`; `Revolt`; `Rhino`; `Rigger`; `Robot`; `Rogue`; `Role`; `Room`;
+`Rowan`; `Rune`; `Sable`; `Saga`; `Saheeli`; `Salamander`; `Samurai`; `Samut`; `Sand`; `Saproling`;
+`Sarkhan`; `Satyr`; `Scarecrow`; `Scientist`; `Scion`; `Scorpion`; `Scout`; `Sculpture`; `Seal`;
+`Secret council`; `Serf`; `Serpent`; `Serra`; `Servo`; `Shade`; `Shaman`; `Shapeshifter`; `Shard`;
+`Shark`; `Sheep`; `Shi'ar`; `Shrine`; `Siege`; `Siren`; `Sivitri`; `Skeleton`; `Skrull`; `Skunk`;
+`Slith`; `Sliver`; `Sloth`; `Slug`; `Snail`; `Snake`; `Soldier`; `Soltari`; `Sorcerer`; `Sorin`;
+`Spacecraft`; `Spawn`; `Specter`; `Spell mastery`; `Spellshaper`; `Sphere`; `Sphinx`; `Spider`;
+`Spike`; `Spirit`; `Splinter`; `Sponge`; `Spy`; `Squid`; `Squirrel`; `Starfish`; `Stone`; `Strive`;
+`Surrakar`; `Survival`; `Survivor`; `Swamp`; `Sweep`; `Symbiote`; `Synth`; `Szat`; `Tamiyo`;
+`Tasha`; `Teferi`; `Tempting offer`; `Tentacle`; `Tetravite`; `Teyo`; `Tezzeret`; `Thalakos`;
+`Thopter`; `Threshold`; `Thrull`; `Tibalt`; `Tiefling`; `Time Lord`; `Tower`; `Town`; `Toy`; `Trap`;
+`Treasure`; `Treefolk`; `Trilobite`; `Triskelavite`; `Troll`; `Turtle`; `Tyranid`; `Tyvar`; `Ugin`;
+`Undergrowth`; `Unicorn`; `Urza`; `Urza's`; `Utrom`; `Valiant`; `Vampire`; `Varmint`; `Vedalken`;
+`Vehicle`; `Venser`; `Vibranium`; `Villain`; `Vivid`; `Vivien`; `Void`; `Volver`; `Vraska`;
+`Vronos`; `Wall`; `Walrus`; `Warlock`; `Warrior`; `Weasel`; `Weird`; `Werewolf`; `Whale`; `Will`;
+`Will of the council`; `Windgrace`; `Wizard`; `Wolf`; `Wolverine`; `Wombat`; `Worm`; `Wraith`;
+`Wrenn`; `Wurm`; `X`; `Xenagos`; `Yanggu`; `Yanling`; `Yeti`; `Zariel`; `Zombie`; `Zubera`; `as`;
+`bottom`; `control`; `copies`; `copy`; `cost`; `costs`; `counter`; `counters`; `cycling`;
+`deathtouch`; `decayed`; `die`; `double strike`; `draw`; `draws`; `exalted`; `exile`; `exiles`;
+`first strike`; `flying`; `goaded`; `harnessed`; `haste`; `her`; `hexproof`; `his`; `if`;
+`indestructible`; `it`; `legendary`; `less`; `lifelink`; `menace`; `name`; `names`; `one`; `reach`;
+`shadow`; `solved`; `suspected`; `tapped`; `target`; `targets`; `that`; `then`; `time`; `to`; `top`;
+`trample`; `turn`; `turns`; `untap`; `untapped`; `up`; `vigilance`; `you`; `’s`; `∞`.
