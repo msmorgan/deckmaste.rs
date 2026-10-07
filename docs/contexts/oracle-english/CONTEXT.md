@@ -281,6 +281,14 @@ _Avoid_: treating a reanalysed conditional Compound Preposition as a duration co
 **Adjective Phrase**:
 A phrase headed by an Adjective.
 
+**Adjectival Passive**:
+An Adjective Phrase related to a verb's past participle and functioning as a
+predicative Complement. The containing Clause is complex-intransitive, rather
+than a passive Clause. A dynamic host such as *become* can denote a change of
+state while its adjectival Complement denotes the resulting state (CGEL,
+Ch. 16 §10.1.3, pp. 1436, 1438–1439).
+_Avoid_: Bare Passive for an adjectival Complement; adjectival passive Clause
+
 **Preposition**:
 A lexical Category whose members head phrases expressing relations and
 characteristically select Complements.

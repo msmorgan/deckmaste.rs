@@ -102,11 +102,11 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     }
     supplement::apply(root, &mut output)?;
     native::replace_forms(&mut output.lexemes, native.form_replacements)?;
-    native::add_frames(&mut output.lexemes, native.frame_additions)?;
     native::add_features(&mut output.lexemes, native.feature_additions)?;
     compound::add_compound_nouns(&mut output, compounds)?;
     native::add_adjective_classes(&mut output.lexemes, native.adjective_classes)?;
     native::add_participial_adjectives(&mut output.lexemes, native.participial_adjective_classes)?;
+    native::add_frames(&mut output.lexemes, native.frame_additions)?;
     native::add_category_feature_defaults(&mut output.lexemes, &native.category_feature_defaults)?;
     native::reconcile_frames(&mut output.lexemes, &native.frame_markers)?;
     for lexeme in &mut output.lexemes {

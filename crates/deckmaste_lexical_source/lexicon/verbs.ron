@@ -93,6 +93,7 @@
     ]),
     (identity: Lose, bare: "lose", third_person: "loses", preterite: Some("lost"), frames: [
         Predicate([ObjectNounPhrase]),
+        Predicate([Role("GrantedAbility")]),
     ]),
     (identity: May, bare: "may", third_person: "may", frames: [Auxiliary]),
     (identity: Must, bare: "must", third_person: "must", frames: [Auxiliary]),

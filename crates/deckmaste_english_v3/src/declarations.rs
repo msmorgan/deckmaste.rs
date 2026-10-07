@@ -338,6 +338,8 @@ constructions! {
         frame NominalInfinitive = Nominal(Complement(InfinitiveComplement));
         frame NominalPreposition = Nominal(Marked(Preposition, Of, Complement(NounPhrase)));
         frame Predicative = Predicate(Complement(PredicativeComplement));
+        frame AdjectivalPrepositionComplement = Adjectival(
+            Marked(Preposition, By, Complement(NounPhrase)));
         frame Locative = Predicate(Complement(LocativeComplement));
         frame ObjectLocative = Predicate(Object(NounPhrase), Complement(LocativeComplement));
         frame BareAuxiliary = Auxiliary(Complement(BarePredicate));
@@ -1832,6 +1834,15 @@ constructions! {
             require head.frame = Intransitive;
             export AdjectiveStructure = Simple;
             export TargetingPremodifierUse = head.TargetingPremodifierUse;
+        }
+
+        construction ComplementedAdjective: AdjectivePhrase {
+            form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ",
+                complement: AccusativePhrase];
+            require head.frame = AdjectivalPrepositionComplement;
+            require marker.InternalisedComplementMarker = Yes;
+            export AdjectiveStructure = Complemented;
+            export TargetingPremodifierUse = No;
         }
 
         construction NounPremodifier: NounPremodifier {

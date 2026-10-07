@@ -15,7 +15,7 @@
     )],
     participial_adjective_classes: [(
         form: PastParticiple,
-        members: ["lexeme:keyword_action/tap", "lexeme:keyword_action/untap"],
+        members: ["lexeme:keyword_action/tap", "lexeme:keyword_action/untap", "core-verb:Block"],
     )],
     // Oracle compound nouns use declared noun-head recipes.
     compound_noun_classes: [(
@@ -1189,6 +1189,10 @@
         "vocab:RelativePronoun/Whose": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive))), (form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)))],
     },
     frame_additions: {
+        "core-verb:Block/adjective": [
+            (kind: "Predicate", items: []),
+            (kind: "Adjectival", items: [Marked(vocabulary: "Preposition", member: "By", slot: (relation: Complement, category: "NounPhrase"))]),
+        ],
         "lexeme:CommonNoun/Cost": [
             (kind: "Nominal", items: []),
             (kind: "Nominal", items: [Argument((relation: Complement, category: "InfinitiveComplement"))]),

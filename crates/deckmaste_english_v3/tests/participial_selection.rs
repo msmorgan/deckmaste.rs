@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use common::LEXICON;
 use common::readings;
 use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::FrameValue;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
 use deckmaste_lexical::FeatureBundle;
@@ -145,9 +146,31 @@ fn authentic_mixed_coordination_retains_ordinary_and_passive_predicates() {
         right: Box::new(be_passive(WordForm::Plain, passive("core-verb:Block", 1))),
     };
     roundtrip(&value, "block or be blocked", Category::SecondaryVerbPhrase);
+    let mut adjectival = value.clone();
+    if let Reading::Coordination { right, .. } = &mut adjectival {
+        **right = Reading::SelectedPredicate {
+            category: Category::SecondaryVerbPhrase,
+            form: 0,
+            head: verb("core-verb:Be", 0, WordForm::Plain),
+            complements: vec![FrameValue::Argument(Box::new(
+                Reading::AdjectivalComplement {
+                    form: 0,
+                    phrase: Box::new(Reading::IntransitiveAdjective {
+                        form: 0,
+                        head: verb("core-verb:Block/adjective", 0, WordForm::Invariant),
+                    }),
+                },
+            ))],
+        };
+    }
+    roundtrip(
+        &adjectival,
+        "block or be blocked",
+        Category::SecondaryVerbPhrase,
+    );
     assert_eq!(
         readings("block or be blocked", Category::SecondaryVerbPhrase),
-        BTreeSet::from([value])
+        BTreeSet::from([value, adjectival])
     );
 }
 
