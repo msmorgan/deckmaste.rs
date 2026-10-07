@@ -25,6 +25,10 @@ obligations, flat serial coordination, within-group Type Line ordering, and
 richer document forms. Test positive/negative structural witnesses for each
 before assigning an implementation owner. Concrete starting points are:
 
+- Shadowborn Demon: existential *there are* host; its NP reads after
+  `english-v3-comparative-quantity-determiners`. No implementation ticket owns
+  existential *there*; retain this host obligation here for cause audit and
+  bounded-ticket routing.
 - Ashen-Skin Zubera and Boldwyr Heavyweights: finite preterite in relatives,
   with temporal Adjuncts preserved.
 - Aggravate and Ballista Wielder: reduced passive, not finite preterite.

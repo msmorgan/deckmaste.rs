@@ -45,6 +45,10 @@ not a CGEL citation. The numeral-*or*-comparative coordination is cited in
 the quantity-determiner ticket (Ch. 5, §7.6, p. 386, [44iiia]); here it fills
 the value position, not a Determiner.
 
+Reuse stops at *4 or greater*: *greater* is adjectival (CGEL, Ch. 5,
+§11(d), p. 432 n. 48) and has no `ComparativeQuantityUse`, so the current
+`NumeralComparativeCoordination` cannot admit that value.
+
 ## Witnesses
 
 - Disembowel: "Destroy target creature with mana value X."

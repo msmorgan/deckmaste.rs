@@ -396,6 +396,7 @@ fn comparative_quantities_do_not_overlap_other_quantity_or_adjunct_routes() {
         "up than two creatures",
         "more to one creature",
         "three and more creatures",
+        "three nor more creatures",
         "three or many creatures",
     ] {
         assert!(readings(text, Category::NounPhrase).is_empty(), "{text}");

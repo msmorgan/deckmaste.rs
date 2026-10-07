@@ -2699,6 +2699,7 @@ constructions! {
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
                 right: lexical(Determinative)];
             require marker.CoordinationKind = Alternative;
+            require marker.NoncorrelativeCoordination = Yes;
             require right.ComparativeQuantityUse = Yes;
             export number = Plural;
         }

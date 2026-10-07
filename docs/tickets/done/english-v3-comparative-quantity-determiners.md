@@ -169,7 +169,16 @@ ignored `newly-covered-readings.md` and `selected-analysis-audit.json` evidence.
 Every selected analysis contains the existing `CountedNounPhrase` and its
 `ComparativeQuantityDeterminer`. The inventory comprises 422 faces with
 numeral Coordination and 41 with a headed comparative DP; no new gain lacks
-one of those quantity analyses. Representative witnesses follow:
+one of those quantity analyses. The 463 gains reconcile as 422 coordination
+faces plus 41 comparative-DP faces. Of the coordination faces, 143 contain
+“one or more” and 279 do not (the named analysis ledger supplies that split).
+The ticket’s earlier sole-cause figures, 274 for the other numeral bucket,
+123 for “one or more” and 99 for the entire *than* bucket, were overlapping
+surface classifiers on `wlvwtnppyovn` / 13,716 covered; the last bucket also
+contains comparative hosts outside this ticket. They are not disjoint gain
+predictions for the measured landing base of 17,556 covered. The identity and
+selected-constituency audit, rather than sums of those older buckets, establishes
+the actual 422 + 41 partition. Representative witnesses follow:
 
 | Face | Quantity | Selected constituency | Complete face Readings |
 |---|---|---|---:|
@@ -214,7 +223,10 @@ The reusable interface is `ComparativeQuantity(number)`, with
 `NumeralComparativeCoordination { left: QuantityConjunct, marker, right }`.
 It admits the attested “three or more”, “one or more”, “twenty or fewer” and
 “0 or less” units. The scalar-property and copular-scalar tickets can consume
-that same unit. Its native numeric Conjunct does not acquire unrelated Cardinal
+that same unit. Reuse stops at “4 or greater”: *greater* is adjectival
+(CGEL, Ch. 5 §11(d), p. 432 n. 48) and has no `ComparativeQuantityUse`,
+so the current `NumeralComparativeCoordination` cannot admit that value.
+Its native numeric Conjunct does not acquire unrelated Cardinal
 functions. `ComparativePrepositionPhrase(number)` uses the existing quantitative
 PP schema; a headed comparative DP feeds the existing counted-NP interface.
 
@@ -303,3 +315,106 @@ ignored `target/english-v3/`. Before workspace retirement, the review evidence
 is retained under the coordinator workspace's ignored
 `target/english-v3/english-v3-comparative-quantity-determiners/`. No evidence
 snapshot or verifier is tracked or embedded in source.
+
+
+### Post-landing fix (2026-10-07)
+
+Standard constraints apply. The accepted review found an invalid bare
+*nor* coordination, an unrecorded residual route, and an overstated reuse
+interface. This follow-up requires `NoncorrelativeCoordination = Yes` on
+`NumeralComparativeCoordination`, retaining the existing Alternative-kind
+requirement. The negative NP list now includes “three nor more creatures”.
+*And/or more* remains admitted through the existing Alternative,
+noncorrelative coordinator; its licensing is unchanged.
+
+Shadowborn Demon's existential *there are* obligation is now recorded in
+`english-v3-systemic-residuals`, which owns cause audit and bounded-ticket
+routing; there is no existing implementation ticket for existential *there*.
+Its quantified NP remains covered by the unchanged authentic regression test.
+The reuse note here and the scalar-property ticket's Analysis now state that
+adjectival *greater* has no `ComparativeQuantityUse`, so “4 or greater” cannot
+reuse the current `NumeralComparativeCoordination`. CGEL Ch. 5 §11(d),
+p. 432 n. 48 supports only the adjective classification; the declared licence
+and resulting implementation limit are project facts. The 463 original gains
+are reconciled above against the older overlapping sole-cause figures.
+
+#### PROVE / DISCLOSE / REPORT
+
+Full enumeration is unchanged on all 32,828 supported faces: 18,019 covered,
+386,032 Readings, 7,185 unique and 10,834 multiple faces, zero gained or lost
+faces, zero per-face count changes (including all previously covered faces).
+`base.json` is stamped `tzttsvto` / covered 18,019 and has the
+runtime declarations of initial base `pwunnqxz`; `after.json` is stamped
+`wsvqxusx` / covered 18,019. `delta.json` supplies the identity-level
+comparison; runtime digests distinguish the measured trees. Both censuses
+report zero issues, duplicate Readings and internal failures, preserving both
+roundtrip laws, admission, lexical ownership and construction/leaf traversal.
+The initial base also matches every per-face Reading count on the accepted
+landing (`accepted-to-initial-base.json`). Refresh before verification was a
+no-op; no inherited trunk count change is present.
+
+The invalid full “Destroy three nor more creatures.” probe falls from one
+Reading to zero: a wrong analysis retired outside the supported corpus,
+with no re-coverage obligation. “Three and/or more creatures” retains one
+Reading; “4 or greater” retains zero at `ComparativeQuantity`. All six
+before/after probes report zero issues; this negative result does not promise
+that the scalar-property host is implemented.
+
+| Measured tree / covered | Workers | Host load (1/5/15 min) | Corpus wall ns | Checked-text thread CPU |
+|---|---:|---|---:|---:|
+| `tzttsvto` / 18,019 (base runtime) | 12 | 12.45/8.72/8.43 | 55,018,005,280 | 268,963 ns/B |
+| `wsvqxusx` / 18,019 (follow-up runtime) | 12 | 17.20/10.49/9.08 | 186,509,667,173 | 434,876 ns/B |
+
+Performance advisory: both runs exceed the 16.26s quiet-host ceiling; the
+final census overlaps the gate build on a busier host. Wall and per-byte CPU
+rise; these measurements do not isolate the guard's causal cost.
+
+Construction counts remain 197 ordinary + 44 shared schemas (241 named),
+with no instance added or removed. Homograph and form-literal/vocabulary
+overlap inventories remain the named lists in the original landing evidence:
+1,128 declared spellings, 1,012 attested spellings and zero overlaps. All these
+unchanged inventory counts carry the before/after stamps and covered counts
+above. V3 has no retired coverage-lock or permitted-checker-total output. No Construction, lexical declaration, surface or frame is
+added or removed. The new guard reads a declared feature, with no word-named
+licensing checker. No overlapping route is introduced or superseded.
+
+#### Verification
+
+The full-corpus commands are `cargo xtask english-v3 --all --workers 12
+--samples-per-face 0 --output target/english-v3/base.json` and the same command
+with `after.json`, executed through the rebuilt `target/debug/cargo-xtask`
+for the final run while the gate tests compile. The complete per-face
+comparison is `target/english-v3/delta.json`.
+
+Derived gate: `cargo xtask gate --changed --from pwunnqxz --run --clippy`:
+
+```text
+cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask
+cargo clippy -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings
+```
+
+Gate passes: 714 tests passed, zero failed, one inherited ignored
+`macro_schema_census_count_matches_21` with its existing blocker “cross-checks
+the live corpus against the census; run on demand”. All six quantity tests
+pass; clippy passes with warnings denied. The newly strengthened rejection
+first failed on “three nor more creatures” before the guard, then passed
+without changing any other assertion.
+
+Citation checks from the workspace root report zero stale sites among 16,113
+citations and zero noncompliant strings; the piped diff audit selects zero new
+CR sites. No citation blessing is needed. The CGEL footnote was read directly.
+
+Formatting passes for both changed Rust files with nightly rustfmt. The
+broader `cargo +nightly fmt --all -- --check` reports inherited formatting
+drift in 170 other files, with no diff in either changed Rust file; its named
+inventory and log are retained as `inherited-format-drift.json` and
+`workspace-fmt.log`. This follow-up does not reformat that unrelated tree.
+
+Assurance: one existing rejection test strengthened with one negative case;
+added test functions 0, restored 0, re-spelled 0, removed 0, new ignores 0.
+No glossary gap, new Comprehensive Rules citation, scope deviation or STOP.
+
+All full-corpus reports, per-face comparisons, runtime digests, probes and logs
+are under this workspace's ignored `target/english-v3/`; retained review
+evidence after retirement is under the coordinator workspace's ignored
+`target/english-v3/english-v3-cqd-followup/`.
