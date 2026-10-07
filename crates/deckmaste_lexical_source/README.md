@@ -58,3 +58,13 @@ construction vocabularies are not automatically assigned a part of speech;
 raw flavor heads, abbreviated names, uncommon word forms and unhandled notation
 remain named input for the whole-grammar activation report. Flavor words have
 no enumerated lexical inventory.
+
+Generate the canonical catalogs from the local rules and Oracle snapshots with
+`cargo xtask catalogs generate` before loading a fresh checkout's lexicon. This
+also writes `data/gen/catalogs/card-name-nicknames.json`, containing attested
+shortened card-name spellings and the Oracle corpus's size and SHA-256. Missing
+or stale nickname catalogs fail with a regeneration command. `cargo xtask
+catalogs check` checks this artifact together with the canonical line catalogs.
+Feature provisioning shares `data/` with the default checkout, so generation
+belongs to the catalog command rather than each workspace's provisioning hook.
+Regenerate after replacing the Oracle snapshot.
