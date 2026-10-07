@@ -138,6 +138,16 @@ its verification belong to the attached feature-economy ticket.
 
 ## Batch records and what they leave open
 
+- Remove source omission (2026-10-07):
+  [english-v3-remove-from-complement](../done/english-v3-remove-from-complement.md)
+  replaces Remove's unsupported source slot with a selected From-marked NP
+  Complement. The bare-Object frame remains owed here: Red Ward attests source
+  omission, but admitting the bare frame before the existing From Modifier /
+  Adjunct licensing deferrals are discharged introduces wrong source attachments
+  beside the selected Reading. Coordinate its admission with those prerequisite
+  repairs; do not implement a word-named attachment guard. This is an
+  implementation deferral, not a CGEL requirement for an overt source.
+
 - Instead landing follow-up (2026-10-07): *instead of* with a
   gerund-participial Complement remains unread on **53** supported in-scope
   faces, including Deny the Divine, Reject, Storm Herald and Loxodon Smiter
