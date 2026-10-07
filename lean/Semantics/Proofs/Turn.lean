@@ -305,7 +305,7 @@ theorem okTriggeredEmblem :
 
 /-- "You get an emblem with 'flying'." -/
 theorem badKeywordEmblem :
-    Instruction.check [] (Primitives.Instruction.getEmblem [keyword "Flying"]) = [.emblemAbilities] := by
+    Instruction.check [] (Primitives.Instruction.getEmblem [keyword (.named "flying")]) = [.emblemAbilities] := by
         decide
 
 /-- "You get an emblem." -/

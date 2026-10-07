@@ -96,8 +96,8 @@ def deadeyeBrawler : Spelled := spelled <| .singleFaced
     { name := "Deadeye Brawler", cost := some [generic 2, pip .blue, pip .black],
       types := [.creature], subtypes := [creatureType "Human", creatureType "Pirate"],
       text :=
-        [ keyword "Deathtouch",
-          keyword "Ascend",
+        [ keyword (.named "deathtouch"),
+          keyword (.named "ascend"),
           triggeredIf (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
             (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation (.named "citysBlessing") none))
             (Primitives.Instruction.draw (.lit 1)) ],
@@ -126,7 +126,7 @@ def duskLegionDuelist : Spelled := spelled <| .singleFaced
     { name := "Dusk Legion Duelist", cost := some [generic 1, pip .white], types := [.creature],
       subtypes := [creatureType "Vampire", creatureType "Soldier"],
       text :=
-        [ keyword "Vigilance",
+        [ keyword (.named "vigilance"),
           triggeredOnlyOnce (counterEvent .put p1p1Counter .many thisCreature) Primitives.UsageLimit.oncePerTurn
             (Primitives.Instruction.draw (.lit 1)) ],
       power := stat 2, toughness := stat 2 } }
@@ -175,7 +175,7 @@ def soulstoneSanctuary : Spelled := spelled <| .singleFaced
               (Primitives.StaticSpec.qualityChange thisLand .sets
                 (Primitives.QualityPayload.bundle
                   { characteristics :=
-                    { types := [.creature], text := [keyword "Vigilance"],
+                    { types := [.creature], text := [keyword (.named "vigilance")],
                       power := stat 3, toughness := stat 3 },
                     qualities := [Primitives.TokenQuality.withEveryType .creature] }
                   (some .land)))
@@ -217,7 +217,7 @@ def saheeliFiligreeMaster : Spelled := spelled <| .singleFaced
               [ create (.lit 2)
                   { characteristics :=
                     { types := [.artifact, .creature], subtypes := [creatureType "Thopter"],
-                      text := [keyword "Flying"], power := stat 1, toughness := stat 1 } },
+                      text := [keyword (.named "flying")], power := stat 1, toughness := stat 1 } },
                 gainHaste them (some untilEndOfTurn) ]),
           activated (Primitives.Cost.loyaltySymbol (.down 4))
             (Primitives.Instruction.getEmblem
@@ -281,7 +281,7 @@ def adarkarUnicorn : Spelled := spelled <| .singleFaced
       text :=
         [ activated Primitives.Cost.tapSymbol
             (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .blue], [.colorless, .of .blue]])
-              [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toPay (.ofKeyword "CumulativeUpkeep")]]) ],
+              [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toPay (.ofKeyword (.named "cumulativeUpkeep"))]]) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Overgrown Zealot -/
@@ -304,7 +304,7 @@ def unblinkingObserver : Spelled := spelled <| .singleFaced
       text :=
         [ activated Primitives.Cost.tapSymbol
             (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .blue]])
-              [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toPay (.ofKeyword "Disturb"), Primitives.SpendPurpose.toCast instantOrSorcery]]) ],
+              [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toPay (.ofKeyword (.named "disturb")), Primitives.SpendPurpose.toCast instantOrSorcery]]) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Qarsi Deceiver -/
@@ -312,7 +312,7 @@ def qarsiDeceiverMorphSpend : Ability :=
   activated Primitives.Cost.tapSymbol
     (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.colorless]])
       [Primitives.ManaRider.spendOnly [ Primitives.SpendPurpose.toCast (Primitives.Predicate.and [creature, faceDown]), Primitives.SpendPurpose.toPay (.ofSpecialAction .turnFaceUp),
-                    Primitives.SpendPurpose.toPay (.ofKeyword "Morph") ]])
+                    Primitives.SpendPurpose.toPay (.ofKeyword (.named "morph")) ]])
 theorem okQarsiDeceiverMorphSpend : Ability.check [] qarsiDeceiverMorphSpend = [] := by decide
 
 /-- Mercadian Bazaar -/
@@ -355,7 +355,7 @@ def elementalResonance : Spelled := spelled <| .singleFaced
     { name := "Elemental Resonance", cost := some [generic 2, pip .green, pip .green],
       types := [.enchantment], subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" permanent,
+        [ keywordSubject (.named "enchant") permanent,
           at_ (Primitives.GameEvent.beginningOf .the .firstMain (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
             (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.asPrintedCost (Primitives.NounPhrase.attachHost .enchanted .permanent)) []) ] } }
 
@@ -669,7 +669,7 @@ def vegaTheWatcher : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Bird", creatureType "Spirit"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
             (Primitives.Predicate.and [spell, Primitives.Predicate.not
             (Primitives.Predicate.castFrom (handOf Primitives.NounPhrase.you))]))) none)
@@ -780,7 +780,7 @@ theorem okBirthingPodSearch : Ability.check [] birthingPodSearch = [] := by deci
 
 /-- Hibernation's End -/
 def hibernationsEndTrigger : Ability :=
-  whenever (Primitives.GameEvent.paysCost (some Primitives.NounPhrase.you) .paid thisEnchantment "CumulativeUpkeep")
+  whenever (Primitives.GameEvent.paysCost (some Primitives.NounPhrase.you) .paid thisEnchantment (.named "cumulativeUpkeep"))
     (offer
       (Primitives.Instruction.sequentially
         [ searchLibraryFor (exactly 1)
@@ -795,9 +795,9 @@ def latchkeyFaerie : Spelled := spelled <| .singleFaced
     { name := "Latchkey Faerie", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [creatureType "Faerie", creatureType "Rogue"],
       text :=
-        [ keyword "Flying",
-          keywordCosting "Prowl" (Primitives.Cost.mana [generic 2, pip .blue]),
-          triggeredIf (Primitives.GameEvent.enters thisCreature none) (costWasPaid (.byKeyword "Prowl") none thisCreature)
+        [ keyword (.named "flying"),
+          keywordCosting (.named "prowl") (Primitives.Cost.mana [generic 2, pip .blue]),
+          triggeredIf (Primitives.GameEvent.enters thisCreature none) (costWasPaid (.byKeyword (.named "prowl")) none thisCreature)
             (Primitives.Instruction.draw (.lit 1)) ],
       power := stat 3, toughness := stat 1 } }
 
@@ -832,8 +832,8 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Scout"],
       text :=
-        [ keyword "Flying",
-          keyword "Vigilance",
+        [ keyword (.named "flying"),
+          keyword (.named "vigilance"),
           triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
             (Primitives.Condition.not (happened (Primitives.GameEvent.casts (relative .player) (some
               (a spell)) (some (Primitives.EventSource.zones [handOf Primitives.NounPhrase.you])))
@@ -847,7 +847,7 @@ def gnarlbackRhino : Spelled := spelled <| .singleFaced
     { name := "Gnarlback Rhino", cost := some [generic 2, pip .green, pip .green], types := [.creature],
       subtypes := [creatureType "Rhino"],
       text :=
-        [ keyword "Trample",
+        [ keyword (.named "trample"),
           whenever (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
             (Primitives.Predicate.and [spell, Primitives.Predicate.targets thisCreature
             .someTarget]))) none)
@@ -899,7 +899,7 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
     { name := "Delivery Moogle", cost := some [generic 3, pip .white], types := [.creature],
       subtypes := [creatureType "Moogle"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
@@ -988,7 +988,7 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Faerie", creatureType "Noble"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           Primitives.Ability.static (entersChoosing thisCreature .number),
           whenever
             (Primitives.GameEvent.casts (a Primitives.Predicate.opponent)
@@ -1090,7 +1090,7 @@ def shimmerwildsGrowth : Spelled := spelled <| .singleFaced
     { name := "Shimmerwilds Growth", cost := some [generic 1, pip .green], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" land,
+        [ keywordSubject (.named "enchant") land,
           Primitives.Ability.static (entersChoosing thisAura .color),
           Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.attachHost .enchanted (.type .land)) .sets
             (Primitives.QualityPayload.chosenQuality (ofChosen .color))),
@@ -1154,7 +1154,7 @@ def tolaria : Spelled := spelled <| .singleFaced
           activatedOnlyDuring (Primitives.Cost.compound [Primitives.Cost.tapSymbol])
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.abilityLoss (target creature)
-                [Primitives.AbilityLost.written (keyword "Banding"), Primitives.AbilityLost.term bandsWithOtherAbilities])
+                [Primitives.AbilityLost.written (keyword (.named "banding")), Primitives.AbilityLost.term bandsWithOtherAbilities])
               (some untilEndOfTurn))
             (Primitives.Timing.duringPart .upkeep none) ] } }
 

@@ -31,6 +31,7 @@ use deckmaste_semantics_v2::words::CoreDeed;
 use deckmaste_semantics_v2::words::CounterKind;
 use deckmaste_semantics_v2::words::Deed;
 use deckmaste_semantics_v2::words::DesignationLabel;
+use deckmaste_semantics_v2::words::KeywordLabel;
 use deckmaste_semantics_v2::words::ManaSymbol;
 use deckmaste_semantics_v2::words::ProjAxis;
 use deckmaste_semantics_v2::words::Reach;
@@ -585,12 +586,12 @@ fn a_card_writes_a_macro_where_the_basis_has_a_constructor() {
             .expect("the builtin declarations load");
     let ability: deckmaste_semantics_v2::abilities::Ability = builtin
         .macros
-        .read_str_restricted(r#"keyword(label: "Flying")"#)
+        .read_str_restricted("keyword(label: flying)")
         .expect("the macro reads under restriction");
     assert_eq!(
         ability,
         deckmaste_semantics_v2::abilities::Ability::Keyword {
-            keyword: "Flying".to_owned(),
+            keyword: KeywordLabel::named("flying"),
             params: vec![],
             body: vec![],
         }
@@ -846,12 +847,12 @@ fn a_counter_conferral_helper_writes_what_one_counter_confers() {
         }
     );
     assert_eq!(
-        read(r#"grants(keyword("Flying"))"#),
+        read("grants(flying)"),
         Conferral::Property {
             spec: StaticSpec::AbilityGrant {
                 subject: NounPhrase::This,
                 ability: Box::new(Ability::Keyword {
-                    keyword: "Flying".to_owned(),
+                    keyword: KeywordLabel::named("flying"),
                     params: vec![],
                     body: vec![],
                 }),
@@ -1312,5 +1313,43 @@ fn keyword_action_names_collide_with_no_other_declaration() {
         at_deed,
         Vec::<&str>::new(),
         "no declaration registers at `Deed` itself"
+    );
+}
+
+/// A keyword ability's declaration name reads bare where a keyword label is
+/// wanted and denotes the label its own `Keyword` term carries, which is that
+/// name verbatim; a name no keyword ability declares, or the `Named`
+/// constructor written raw, is refused when the card loads
+/// (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06).
+#[test]
+fn a_keyword_ability_name_denotes_its_label() {
+    let builtin = builtin_plugin();
+    for name in ["flying", "firstStrike", "kicker", "ward"] {
+        let read: KeywordLabel = builtin
+            .macros
+            .read_str_restricted(name)
+            .unwrap_or_else(|error| panic!("{name} reads at a `KeywordLabel` position: {error}"));
+        assert_eq!(read, KeywordLabel::named(name), "{name}");
+    }
+    for written in ["flyng", "Flying", r#""Flying""#, r#"Named(name: "flying")"#] {
+        assert!(
+            builtin
+                .macros
+                .read_str_restricted::<KeywordLabel>(written)
+                .is_err(),
+            "`{written}` is no declared keyword"
+        );
+    }
+    let flying: Ability = builtin
+        .macros
+        .read_str_restricted("keyword(flying)")
+        .expect("a keyword ability name reads at the helper's label");
+    assert_eq!(
+        flying,
+        Ability::Keyword {
+            keyword: KeywordLabel::named("flying"),
+            params: vec![],
+            body: vec![],
+        }
     );
 }

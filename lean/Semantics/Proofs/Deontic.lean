@@ -442,7 +442,7 @@ theorem badTheDamageUnannounced :
 theorem okObjectPremiseAtCast :
     StaticSpec.check []
       (.deonticRule .you .permit [.action "cast"] .agent none (.counterpart (allOf spell))
-        (some (.of (.hasKeyword (.the "Flash")))) playRider) = [] := by
+        (some (.of (.hasKeyword (.the (.named "flash"))))) playRider) = [] := by
   decide
 
 /-- "This creature can attack as though it were mana of any color." -/

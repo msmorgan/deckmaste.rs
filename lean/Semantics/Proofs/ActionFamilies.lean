@@ -36,7 +36,7 @@ theorem badExtraTurnWithoutPlayer :
     Instruction.check [] (act (target creature) (.addTurnPart .turn none (.lit 1) none))
       = [.kindMismatch .player .object] := by decide
 
-def emblemAbilities : List Ability := [.static (.abilityGrant (allOf creatureYouControl) (keyword "Haste"))]
+def emblemAbilities : List Ability := [.static (.abilityGrant (allOf creatureYouControl) (keyword (.named "haste")))]
 
 theorem okCreateSeveralEmblems :
     Instruction.check [] (.createObject (.lit 2) (.emblem emblemAbilities)) = [] := by decide
@@ -228,7 +228,7 @@ theorem capturedOperandSurvivesOrdinaryShuffleForgetting :
 
 theorem postposedCounterConditionReadsTheUnmovedSpell :
     Instruction.check [] (.doOnlyIf (Primitives.Instruction.counterSpell (target spell))
-      (costWasPaid (.byKeyword "Kicker") none it) none) = [] := by decide
+      (costWasPaid (.byKeyword (.named "kicker")) none it) none) = [] := by decide
 
 
 theorem losingCountersAmountReadsItsPlayer :

@@ -157,28 +157,28 @@ theorem badCastBeforeTheTurn :
   decide
 
 /-- "Ward {2}" -/
-theorem okWardCost : Ability.check [] (keywordCosting "Ward" (.mana [generic 2])) = [] := by
+theorem okWardCost : Ability.check [] (keywordCosting (.named "ward") (.mana [generic 2])) = [] := by
   decide
 
 /-- "Ward" -/
 theorem badBareWardLine :
-    Ability.check [] (.keyword "Ward" [] []) = [.keywordParamFits "Ward"] := by decide
+    Ability.check [] (.keyword (.named "ward") [] []) = [.keywordParamFits (.named "ward")] := by decide
 
 /-- "Ward red" -/
 theorem badWardQuality :
-    Ability.check [] (.keyword "Ward" [.quality (.colorIs .red)] [])
-      = [.keywordParamFits "Ward"] := by
+    Ability.check [] (.keyword (.named "ward") [.quality (.colorIs .red)] [])
+      = [.keywordParamFits (.named "ward")] := by
   decide
 
 /-- "Flying {2}" -/
 theorem badParamOnNullaryKeyword :
-    Ability.check [] (keywordCosting "Flying" (.mana [generic 2]))
-      = [.keywordParamFits "Flying"] := by
+    Ability.check [] (keywordCosting (.named "flying") (.mana [generic 2]))
+      = [.keywordParamFits (.named "flying")] := by
   decide
 
 /-- "Flyign" -/
 theorem badUnknownKeywordLabel :
-    Ability.check [] (.keyword "Flyign" [] []) = [.keywordParamFits "Flyign"] := by decide
+    Ability.check [] (.keyword (.named "flyign") [] []) = [.keywordParamFits (.named "flyign")] := by decide
 
 /-- "Add {R}." -/
 theorem okSingleProduction :
@@ -300,12 +300,12 @@ theorem badChosenColorNoChooser :
 
 /-- "Cumulative upkeep {2}" -/
 theorem okCostedCumulativeUpkeep :
-    Ability.check [] (keywordCosting "CumulativeUpkeep" (.mana [generic 2])) = [] := by decide
+    Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])) = [] := by decide
 
 /-- "Cumulative upkeep" -/
 theorem badBareCumulativeUpkeep :
-    Ability.check [] (.keyword "CumulativeUpkeep" [] [])
-      = [.keywordParamFits "CumulativeUpkeep"] := by
+    Ability.check [] (.keyword (.named "cumulativeUpkeep") [] [])
+      = [.keywordParamFits (.named "cumulativeUpkeep")] := by
   decide
 
 /-- "… pays {1} for each artifact you control." -/
@@ -328,7 +328,7 @@ theorem okUnearthGrantInGraveyard :
     Ability.check []
       (.static
         (.abilityGrant (allOf (.and [creature, .inZone (graveyardOf .you)]))
-          (keywordCosting "Unearth" (.mana [generic 2])))) = [] := by
+          (keywordCosting (.named "unearth") (.mana [generic 2])))) = [] := by
   decide
 
 /-- "Creature cards in your graveyard have warp {2}." -/
@@ -336,7 +336,7 @@ theorem badWarpGrantInGraveyard :
     Ability.check []
       (.static
         (.abilityGrant (allOf (.and [creature, .inZone (graveyardOf .you)]))
-          (keywordCosting "Warp" (.mana [generic 2])))) = [.grantSubject] := by
+          (keywordCosting (.named "warp") (.mana [generic 2])))) = [.grantSubject] := by
   decide
 
 /-- "permanents you control" -/
@@ -374,13 +374,13 @@ theorem badDomainlessOpenAxis :
 /-- "Cumulative upkeep {2}". The Idris macro also wrote out the keyword's expansion; here the
 keyword line carries the law directly. -/
 theorem okManaCumulativeUpkeep :
-    Ability.check [] (keywordCosting "CumulativeUpkeep" (.mana [generic 2])) = [] := by decide
+    Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])) = [] := by decide
 
 /-- "Cumulative upkeep — an opponent loses 1 life." -/
 theorem badOpponentPaysYourCost :
     Ability.check []
-      (keywordCosting "CumulativeUpkeep" (.perform (Macros.act anOpponent (loseLife (.lit 1)))))
-      = [.keywordCostPaidByYou "CumulativeUpkeep"] := by
+      (keywordCosting (.named "cumulativeUpkeep") (.perform (Macros.act anOpponent (loseLife (.lit 1)))))
+      = [.keywordCostPaidByYou (.named "cumulativeUpkeep")] := by
   decide
 
 /-- "Whenever a player taps a land for mana, …" -/

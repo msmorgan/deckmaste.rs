@@ -22,7 +22,7 @@ SingleFaced(face: (
                     conditional(
                         spec: abilityGrant(
                             subject: asType(type: Creature, subject: this, subtype: None),
-                            ability: keyword("Flying"),
+                            ability: keyword(flying),
                         ),
                         condition: compareAmt(
                             subject: countOf(inZone(zone(zone: Graveyard, scope: PossessedBy(you)))),

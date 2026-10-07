@@ -6,5 +6,5 @@ CounterKind(
     spelling: "haste",
     grammar: FixedTerm(surface: "haste"),
     holder: Object,
-    confers: [grants(keyword("Haste"))],
+    confers: [grants(haste)],
 )

@@ -255,8 +255,9 @@ fn read_macros(
                     // its own name does not read there.
                     let mut definition = definition;
                     // A keyword action's name reads bare where a deed is
-                    // wanted (`crate::keywords::deed_macro`), registered
-                    // beside the declaration under the `Deed` position.
+                    // wanted, and a keyword ability's where a keyword label
+                    // is (`crate::keywords::deed_macro`, `label_macro`),
+                    // each registered beside the declaration.
                     let members = if family == crate::designations::DESIGNATION {
                         match crate::designations::member_macros(&definition, &produced) {
                             Ok(members) => members,
@@ -264,6 +265,8 @@ fn read_macros(
                         }
                     } else if family == crate::keywords::KEYWORD_ACTION {
                         vec![crate::keywords::deed_macro(&definition)]
+                    } else if family == crate::keywords::KEYWORD_ABILITY {
+                        vec![crate::keywords::label_macro(&definition)]
                     } else {
                         Vec::new()
                     };

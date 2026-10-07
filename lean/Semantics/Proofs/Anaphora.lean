@@ -189,16 +189,16 @@ theorem badStackAnaphorOnPlayerUnion :
 
 /-- "a creature with protection from a color" -/
 theorem okKeywordClassWithSort :
-    Predicate.check .object [] (.hasKeyword (.anyIn ⟨"Protection", some .color⟩)) = [] := by decide
+    Predicate.check .object [] (.hasKeyword (.anyIn ⟨(.named "protection"), some .color⟩)) = [] := by decide
 
 /-- "a creature with flyings" -/
 theorem badClassOfParamlessKeyword :
-    Predicate.check .object [] (.hasKeyword (.anyIn ⟨"Flying", none⟩)) = [.knownKeywordTerm] := by
+    Predicate.check .object [] (.hasKeyword (.anyIn ⟨(.named "flying"), none⟩)) = [.knownKeywordTerm] := by
   decide
 
 /-- "a creature with renown of any color" -/
 theorem badSortedClassOnNumberKeyword :
-    Predicate.check .object [] (.hasKeyword (.anyIn ⟨"Renown", some .color⟩))
+    Predicate.check .object [] (.hasKeyword (.anyIn ⟨(.named "renown"), some .color⟩))
       = [.knownKeywordTerm] := by
   decide
 
@@ -635,14 +635,14 @@ theorem badExtremeOverFlips :
 
 /-- "When a player doesn't pay this creature's cumulative upkeep, …" -/
 theorem okPayKeywordWithACost :
-    GameEvent.check [] (.paysCost (some (a .anyPlayer)) .unpaid thisCreature "CumulativeUpkeep")
+    GameEvent.check [] (.paysCost (some (a .anyPlayer)) .unpaid thisCreature (.named "cumulativeUpkeep"))
       = [] := by
   decide
 
 /-- "When a player doesn't pay this creature's flying, …" -/
 theorem badPayCostlessKeyword :
-    GameEvent.check [] (.paysCost (some (a .anyPlayer)) .unpaid thisCreature "Flying")
-      = [.keywordCost "Flying"] := by
+    GameEvent.check [] (.paysCost (some (a .anyPlayer)) .unpaid thisCreature (.named "flying"))
+      = [.keywordCost (.named "flying")] := by
   decide
 
 /-- "if you paid life this turn" -/

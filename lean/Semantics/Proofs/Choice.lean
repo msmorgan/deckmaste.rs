@@ -651,6 +651,6 @@ theorem badDomainContentsAndSort :
 
 theorem okAbilityDomainContentsAndSort :
     Predicate.check (.quality .ability) []
-      (.qualityNoun .ability (some (.abilitiesAmong [.the "Flying"]))) = [] := by decide
+      (.qualityNoun .ability (some (.abilitiesAmong [.the (.named "flying")]))) = [] := by decide
 
 end Semantics.Proofs.Choice

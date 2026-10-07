@@ -19,7 +19,7 @@ SingleFaced(face: (
                     ),
                     condition: compareAmt(
                         subject: paid(
-                            facet: Readback(which: ByKeyword("Bargain"), lookback: None),
+                            facet: Readback(which: ByKeyword(bargain), lookback: None),
                             subject: asMarker(marker: Spell, subject: this),
                         ),
                         comparator: AtLeast,

@@ -119,7 +119,7 @@ def aerialVolley : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (dealDivided Primitives.NounPhrase.this (.lit 3)
             (Primitives.NounPhrase.described (Primitives.DetPhrase.target (oneThrough 3))
-              (Primitives.Predicate.and [creature, Primitives.Predicate.hasKeyword (.the "Flying")]))) ] } }
+              (Primitives.Predicate.and [creature, Primitives.Predicate.hasKeyword (.the (.named "flying"))]))) ] } }
 
 /-- Terrifying Presence -/
 def terrifyingPresenceAnchor : Predicate := Primitives.Predicate.and [creature, Primitives.Predicate.otherThan (target creature)]
@@ -334,7 +334,7 @@ def balefulMasteryPaidRead : Ability :=
 theorem okBalefulMasteryPaidRead : Ability.check [] balefulMasteryPaidRead = [] := by decide
 
 /-- Karai, Future of the Foot -/
-def karaiSneakPaidThisTurn : Amount := paidCostRead (.byKeyword "Sneak") (some .thisTurn) Primitives.NounPhrase.this
+def karaiSneakPaidThisTurn : Amount := paidCostRead (.byKeyword (.named "sneak")) (some .thisTurn) Primitives.NounPhrase.this
 theorem okKaraiSneakPaidThisTurn : Amount.check [] karaiSneakPaidThisTurn = [] := by decide
 
 /-- Requiting Hex's read -/
@@ -526,7 +526,7 @@ def archpriestOfIonaFullParty : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .the .combat (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you)) fullParty
     (Primitives.Instruction.sequentially
       [ get (target creature) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn),
-        gain it (keyword "Flying") (some untilEndOfTurn) ])
+        gain it (keyword (.named "flying")) (some untilEndOfTurn) ])
 theorem okArchpriestOfIonaFullParty : Ability.check [] archpriestOfIonaFullParty = [] := by decide
 
 /-- Squad Commander -/
@@ -538,7 +538,7 @@ theorem okSquadCommanderTokens : Ability.check [] squadCommanderTokens = [] := b
 /-- At Knifepoint -/
 def atKnifepointOutlaws : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.partScope .turn (some Primitives.NounPhrase.you) (Primitives.StaticSpec.abilityGrant (allOf outlawYouControl) (keyword
-      "FirstStrike")))
+      (.named "firstStrike"))))
 def atKnifepointCrime : Ability :=
   Primitives.Ability.triggered (Primitives.GameEvent.commitsCrime Primitives.NounPhrase.you) [] none [] none (some Primitives.UsageLimit.oncePerTurn) none
     (create (.lit 1)

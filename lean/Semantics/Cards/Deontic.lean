@@ -139,7 +139,7 @@ def bloodshedFever : Spelled := spelled <| .singleFaced
     { name := "Bloodshed Fever", cost := some [pip .red], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (deontic (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.Compulsion.require [.core .attack]
             .agent Primitives.DeonticPatient.noPatient) ] } }
 
@@ -149,7 +149,7 @@ def pacifism : Spelled := spelled <| .singleFaced
     { name := "Pacifism", cost := some [generic 1, pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (deontic (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.Compulsion.forbid
             [.core .attack, .core .block] .agent Primitives.DeonticPatient.noPatient) ] } }
 
@@ -167,7 +167,7 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Elemental"],
       text :=
         [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
-          keyword "Haste",
+          keyword (.named "haste"),
           Primitives.Ability.static (cantBeTargetedBy thisCreature
             (allOf (Primitives.Predicate.or [ Primitives.Predicate.and [spell, Primitives.Predicate.not (Primitives.Predicate.colorIs .green)],
                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [source, Primitives.Predicate.not (Primitives.Predicate.colorIs .green)])) ]))) ],
@@ -178,9 +178,9 @@ def nowhereToRunWardLine : StaticSpec :=
   Primitives.StaticSpec.conjunction none
     [ canBeTargetedAsThough (allOf creatureYourOpponentsControl)
         (allOf (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack]))
-        (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the "Hexproof"))),
+        (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the (.named "hexproof")))),
       deontic
-        (allOf (Primitives.Predicate.and [Primitives.Predicate.abilityHead (.keyword "Ward"), Primitives.Predicate.abilityOf (those (.type .creature))]))
+        (allOf (Primitives.Predicate.and [Primitives.Predicate.abilityHead (.keyword (.named "ward")), Primitives.Predicate.abilityOf (those (.type .creature))]))
         Primitives.Compulsion.forbid [.core .trigger] .agent Primitives.DeonticPatient.noPatient ]
 theorem okNowhereToRunWardLine : StaticSpec.check [] nowhereToRunWardLine = [] := by decide
 
@@ -194,7 +194,7 @@ def brainwash : Spelled := spelled <| .singleFaced
     { name := "Brainwash", cost := some [pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (deontic (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Compulsion.gatedBy (Primitives.Cost.mana [generic 3]))
             [.core .attack] .agent Primitives.DeonticPatient.noPatient) ] } }
 
@@ -233,7 +233,7 @@ def aetherTunnel : Spelled := spelled <| .singleFaced
     { name := "Aether Tunnel", cost := some [generic 1, pip .blue], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
             [ Primitives.StaticSpec.modification (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) .power (Primitives.Delta.up (.lit 1)),
               Primitives.StaticSpec.modification (itsOther (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Delta.up (.lit 1)))
@@ -257,7 +257,7 @@ def flaringPain : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.establish (Primitives.StaticSpec.preventionBan .any (Primitives.Unpreventable.described Primitives.DamageAgent.unattributed Primitives.DamageScope.everywhere)
                 .noPreventionOnly)
               (some Primitives.Duration.thisTurn)),
-          keywordCosting "Flashback" (Primitives.Cost.mana [pip .red]) ] } }
+          keywordCosting (.named "flashback") (Primitives.Cost.mana [pip .red]) ] } }
 
 def gideonJura : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -379,7 +379,7 @@ def blindingAngel : Spelled := spelled <| .singleFaced
     { name := "Blinding Angel", cost := some [generic 3, pip .white, pip .white],
       types := [.creature], subtypes := [creatureType "Angel"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           whenever
             (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
             (act (that .player) (Primitives.Instruction.skipPart .combat (.lit 1))) ],
@@ -418,7 +418,7 @@ def wormfangManta : Spelled := spelled <| .singleFaced
       types := [.creature],
       subtypes := [creatureType "Nightmare", creatureType "Fish", creatureType "Beast"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.skipPart .turn (.lit 1)),
           when (leavesBattlefield thisCreature) (extraTurn (.lit 1)) ],
       power := stat 6, toughness := stat 1 } }
@@ -477,7 +477,7 @@ def demotion : Spelled := spelled <| .singleFaced
     { name := "Demotion", cost := some [pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
             [ deontic (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.Compulsion.forbid [.core .block] .agent
                 Primitives.DeonticPatient.noPatient,
@@ -551,12 +551,12 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (canBeTargetedAsThough
             (allOf (Primitives.Predicate.and [ creature, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup .yourOpponents),
-                           Primitives.Predicate.hasKeyword (.the "Hexproof") ]))
+                           Primitives.Predicate.hasKeyword (.the (.named "hexproof")) ]))
             (allOf (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
-            (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the "Hexproof")))),
+            (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the (.named "hexproof"))))),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (sacrifice thisArtifact)])
             (Primitives.Instruction.sequentially
-              [ gain (allOf creatureYouControl) (keyword "Hexproof") (some untilEndOfTurn),
+              [ gain (allOf creatureYouControl) (keyword (.named "hexproof")) (some untilEndOfTurn),
                 Primitives.Instruction.establish
                   (deontic (allOf creatureYouControl) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
                   (some Primitives.Duration.thisTurn) ]) ] } }
@@ -592,7 +592,7 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
     { name := "Nekrataal", cost := some [generic 2, pip .black, pip .black], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Assassin"],
       text :=
-        [ keyword "FirstStrike",
+        [ keyword (.named "firstStrike"),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.doAndForbid (destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.not artifact, Primitives.Predicate.not (Primitives.Predicate.colorIs
                 .black)])))
@@ -618,7 +618,7 @@ def ulamogsCrusher : Spelled := spelled <| .singleFaced
     { name := "Ulamog's Crusher", cost := some [generic 8], types := [.creature],
       subtypes := [creatureType "Eldrazi"],
       text :=
-        [ keywordNumber "Annihilator" (.lit 2),
+        [ keywordNumber (.named "annihilator") (.lit 2),
           Primitives.Ability.static (deontic thisCreature Primitives.Compulsion.require [.core .attack] .agent Primitives.DeonticPatient.noPatient) ],
       power := stat 8, toughness := stat 8 } }
 
@@ -666,8 +666,8 @@ def archonOfAbsolution : Spelled := spelled <| .singleFaced
     { name := "Archon of Absolution", cost := some [generic 3, pip .white], types := [.creature],
       subtypes := [creatureType "Archon"],
       text :=
-        [ keyword "Flying",
-          keywordQuality "Protection" (Primitives.Predicate.colorIs .white),
+        [ keyword (.named "flying"),
+          keywordQuality (.named "protection") (Primitives.Predicate.colorIs .white),
           Primitives.Ability.static (deontic (allOf creature) (Primitives.Compulsion.gatedBy (scaledMana .generic (times (.lit 1) Primitives.Amount.groupSize)))
             [.core .attack] .agent
             (Primitives.DeonticPatient.defendingPlayer
@@ -707,7 +707,7 @@ def awesomePresence : Spelled := spelled <| .singleFaced
     { name := "Awesome Presence", cost := some [pip .blue], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (deontic (Primitives.NounPhrase.attachHost .enchanted (.type .creature))
             (Primitives.Compulsion.gatedBy (scaledMana .generic (times (.lit 3)
               (countOf (Primitives.Predicate.and [ creature, Primitives.Predicate.hasPossessor .controller they,
@@ -720,7 +720,7 @@ def oppressiveRays : Spelled := spelled <| .singleFaced
     { name := "Oppressive Rays", cost := some [pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (deontic (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Compulsion.gatedBy (Primitives.Cost.mana [generic 3]))
             [.core .attack, .core .block] .agent Primitives.DeonticPatient.noPatient),
           Primitives.Ability.static (Primitives.StaticSpec.costShift
@@ -742,8 +742,8 @@ def retroMutation : Spelled := spelled <| .singleFaced
     { name := "Retro-Mutation", cost := some [generic 2, pip .blue], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keyword "Flash",
-          keywordSubject "Enchant" creature,
+        [ keyword (.named "flash"),
+          keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
             [ Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) .sets
                 (Primitives.QualityPayload.bundle { characteristics := { subtypes := [creatureType "Turtle"] } } none),
@@ -758,17 +758,17 @@ def hotshotMechanic : Spelled := spelled <| .singleFaced
     { name := "Hotshot Mechanic", cost := some [pip .white], types := [.artifact, .creature],
       subtypes := [creatureType "Fox", creatureType "Pilot"],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.deonticRule thisCreature Primitives.Compulsion.permit [.ofAbility "Crew"] .agent none
+        [ Primitives.Ability.static (Primitives.StaticSpec.deonticRule thisCreature Primitives.Compulsion.permit [.ofAbility (.named "crew")] .agent none
             (Primitives.DeonticPatient.counterpart (allOf (Primitives.Predicate.hasSubtype (artifactType "Vehicle"))))
             (some (Primitives.AsThough.greater .power (.lit 2))) Primitives.DeonticRider.noRider) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Cloudspire Captain -/
 def cloudspireCaptainCrewLine : StaticSpec :=
-  Primitives.StaticSpec.deonticRule thisCreature Primitives.Compulsion.permit [.ofAbility "Saddle", .ofAbility "Crew"] .agent none
+  Primitives.StaticSpec.deonticRule thisCreature Primitives.Compulsion.permit [.ofAbility (.named "saddle"), .ofAbility (.named "crew")] .agent none
     (Primitives.DeonticPatient.counterpartsAt
-      [ ⟨.ofAbility "Saddle", allOf (Primitives.Predicate.hasSubtype (creatureType "Mount"))⟩,
-        ⟨.ofAbility "Crew", allOf (Primitives.Predicate.hasSubtype (artifactType "Vehicle"))⟩ ])
+      [ ⟨.ofAbility (.named "saddle"), allOf (Primitives.Predicate.hasSubtype (creatureType "Mount"))⟩,
+        ⟨.ofAbility (.named "crew"), allOf (Primitives.Predicate.hasSubtype (artifactType "Vehicle"))⟩ ])
     (some (Primitives.AsThough.greater .power (.lit 2))) Primitives.DeonticRider.noRider
 theorem okCloudspireCaptainCrewLine : StaticSpec.check [] cloudspireCaptainCrewLine = [] := by
   decide
@@ -779,10 +779,10 @@ def revokePrivileges : Spelled := spelled <| .singleFaced
     { name := "Revoke Privileges", cost := some [generic 2, pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (Primitives.StaticSpec.deonticRule (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.Compulsion.forbid
-            [.core .attack, .core .block, .ofAbility "Crew"] .agent none
-            (Primitives.DeonticPatient.counterpartsAt [⟨.ofAbility "Crew", allOf (Primitives.Predicate.hasSubtype (artifactType "Vehicle"))⟩])
+            [.core .attack, .core .block, .ofAbility (.named "crew")] .agent none
+            (Primitives.DeonticPatient.counterpartsAt [⟨.ofAbility (.named "crew"), allOf (Primitives.Predicate.hasSubtype (artifactType "Vehicle"))⟩])
             none Primitives.DeonticRider.noRider) ] } }
 
 /-- Harried Spearguard -/
@@ -791,7 +791,7 @@ def harriedSpearguard : Spelled := spelled <| .singleFaced
     { name := "Harried Spearguard", cost := some [pip .red], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Soldier"],
       text :=
-        [ keyword "Haste",
+        [ keyword (.named "haste"),
           when (Primitives.GameEvent.dies thisCreature)
             (create (.lit 1)
               { characteristics :=
@@ -809,7 +809,7 @@ def arrest : Spelled := spelled <| .singleFaced
     { name := "Arrest", cost := some [generic 2, pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
             [ deontic (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.Compulsion.forbid
                 [.core .attack, .core .block] .agent Primitives.DeonticPatient.noPatient,

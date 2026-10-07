@@ -326,7 +326,7 @@ def ertaisTrickery : Spelled := spelled <| .singleFaced
     { name := "Ertai's Trickery", cost := some [pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.doOnlyIf (Primitives.Instruction.counterSpell (target spell))
-            (costWasPaid (.byKeyword "Kicker") none it) none) ] } }
+            (costWasPaid (.byKeyword (.named "kicker")) none it) none) ] } }
 
 /-- Celebrate the Harvest -/
 def celebrateTheHarvest : Spelled := spelled <| .singleFaced
@@ -658,7 +658,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Elder", creatureType "Dragon"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           whenever (attacks thisCreature)
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.doForEach (each Primitives.Predicate.anyPlayer)

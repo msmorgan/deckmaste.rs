@@ -6,5 +6,5 @@ CounterKind(
     spelling: "trample",
     grammar: FixedTerm(surface: "trample"),
     holder: Object,
-    confers: [grants(keyword("Trample"))],
+    confers: [grants(trample)],
 )

@@ -26,13 +26,12 @@
 //!   only when the file names one: `None` for an action whose definition is not
 //!   a single named deed, written unwrapped.
 //!
-//! A keyword ability's label is the one boundary at which a declaration's
-//! name is read as a label rather than as an identity: the name capitalized
-//! (`firstStrike` → `FirstStrike`). A keyword action is named by its
-//! declaration name itself (`collectEvidence`), which is also how a card
-//! names it where a deed is wanted: [`deed_macro`] registers the name at the
-//! `Deed` position (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06,
-//! "Deeds and keyword labels are declared names").
+//! Both are named by the declaration's name itself (`firstStrike`,
+//! `collectEvidence`), which is also how a card names them: [`label_macro`]
+//! registers a keyword ability's name at the `KeywordLabel` position and
+//! [`deed_macro`] a keyword action's at the `Deed` position
+//! (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06, "Deeds and
+//! keyword labels are declared names").
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -49,11 +48,29 @@ pub const KEYWORD_ABILITY: &str = "KeywordAbility";
 /// The family kind of a keyword-action declaration.
 pub const KEYWORD_ACTION: &str = "KeywordAction";
 
-/// A keyword ability's label: its declaration name with the first letter
-/// capitalized, so `flying` is `Flying` and `firstStrike` is `FirstStrike`.
+/// The `KeywordLabel` position a keyword ability's declaration name reads at.
+pub const KEYWORD_LABEL: &str = "KeywordLabel";
+
+/// The macro that makes a keyword ability's declaration name read bare where a
+/// keyword label is wanted [CR#702.1]: `grants(flying)`, `keyword(haste)`. It
+/// takes no arguments and denotes `Named(name: <name>)`, the label the
+/// declaration's own `Keyword` term carries; [`deed_macro`]'s twin.
 #[must_use]
-pub fn keyword_ability_label(name: &str) -> String {
-    capitalized(name)
+pub fn label_macro(declaration: &macro_ron::MacroDef) -> macro_ron::MacroDef {
+    name_macro(declaration, KEYWORD_LABEL, "Named(name: ")
+}
+
+fn name_macro(
+    declaration: &macro_ron::MacroDef,
+    position: &str,
+    constructor: &str,
+) -> macro_ron::MacroDef {
+    let mut named = declaration
+        .clone()
+        .with_body(&format!("{constructor}\"{}\")", declaration.name.as_str()));
+    named.kinds = vec![macro_ron::Ident::from(position)];
+    named.params = Params::Positional(Vec::new());
+    named
 }
 
 /// The `Deed` position a keyword action's declaration name reads at.
@@ -68,20 +85,7 @@ pub const DEED: &str = "Deed";
 /// (`crate::ron`), so the name is the only way a card writes the deed.
 #[must_use]
 pub fn deed_macro(declaration: &macro_ron::MacroDef) -> macro_ron::MacroDef {
-    let mut deed = declaration
-        .clone()
-        .with_body(&format!("Action(label: \"{}\")", declaration.name.as_str()));
-    deed.kinds = vec![macro_ron::Ident::from(DEED)];
-    deed.params = Params::Positional(Vec::new());
-    deed
-}
-
-fn capitalized(word: &str) -> String {
-    let mut chars = word.chars();
-    match chars.next() {
-        Some(first) => first.to_uppercase().chain(chars).collect(),
-        None => String::new(),
-    }
+    name_macro(declaration, DEED, "Action(label: ")
 }
 
 /// The definition a declaration of family `family` registers, given the body
@@ -123,8 +127,7 @@ pub fn keyword_ability_body(name: &str, params: &Params, body: &str) -> Result<S
         None => forwarded_keyword_params(name, params)?,
     };
     Ok(format!(
-        "Keyword(keyword: \"{}\", params: {keyword_params}, body: {abilities})",
-        keyword_ability_label(name)
+        "Keyword(keyword: Named(name: \"{name}\"), params: {keyword_params}, body: {abilities})"
     ))
 }
 
@@ -331,17 +334,22 @@ mod tests {
     use macro_ron::Params;
 
     use super::keyword_ability_body;
-    use super::keyword_ability_label;
     use super::keyword_action_body;
 
     fn positional(types: &[&str]) -> Params {
         Params::Positional(types.iter().map(|ty| ParamType::plain(*ty)).collect())
     }
 
+    /// A keyword ability's label is its declaration name, verbatim: the
+    /// capitalized label (`FirstStrike`) is retired (ruling 2026-10-06).
     #[test]
-    fn labels_capitalize_the_name() {
-        assert_eq!(keyword_ability_label("flying"), "Flying");
-        assert_eq!(keyword_ability_label("firstStrike"), "FirstStrike");
+    fn a_keyword_abilitys_label_is_its_declaration_name() {
+        for name in ["flying", "firstStrike"] {
+            assert_eq!(
+                keyword_ability_body(name, &positional(&[]), "(abilities: [])").unwrap(),
+                format!("Keyword(keyword: Named(name: \"{name}\"), params: [], body: [])")
+            );
+        }
     }
 
     /// A keyword action's deed is its declaration name, verbatim: the label
@@ -368,7 +376,7 @@ mod tests {
                 "(abilities: [])"
             )
             .unwrap(),
-            "Keyword(keyword: \"Ward\", params: [Number(Param(0)), Cost(Param(2))], body: [])"
+            "Keyword(keyword: Named(name: \"ward\"), params: [Number(Param(0)), Cost(Param(2))], body: [])"
         );
         assert_eq!(
             keyword_ability_body(
@@ -377,7 +385,7 @@ mod tests {
                 "(keyword_params: [], abilities: [])"
             )
             .unwrap(),
-            "Keyword(keyword: \"Champion\", params: [], body: [])"
+            "Keyword(keyword: Named(name: \"champion\"), params: [], body: [])"
         );
         let error =
             keyword_ability_body("companion", &positional(&["Condition"]), "(abilities: [])")

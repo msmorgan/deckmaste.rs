@@ -191,7 +191,7 @@ fn every_ported_alias_expands() {
         Instruction: "createToken(characteristics: creatureToken(power: 0, toughness: 0, colors: [Black], subtypes: [army]))",
         Instruction: "putCounters(amount: 1, kind: p1p1Counter, on: You)",
         StaticSpec: "addSubtype(subject: You, subtype: army)",
-        Ability: "keyword(label: \"Flying\")",
+        Ability: "keyword(label: flying)",
         Ability: "triggered(event: FlipsCoin(player: You, call: None), instruction: Shuffle)",
         Ability: "activated(cost: TapSymbol, instruction: Shuffle)",
     }

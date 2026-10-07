@@ -52,7 +52,7 @@ theorem okAdantoVanguard : Ability.check [] adantoVanguard = [] := by decide
 /-- Nowhere to Run -/
 def nowhereToRunTargetLine : StaticSpec :=
   canBeTargetedAsThough (allOf creatureYourOpponentsControl)
-    (allOf (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack])) (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the "Hexproof")))
+    (allOf (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack])) (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the (.named "hexproof"))))
 theorem okNowhereToRunTargetLine : StaticSpec.check [] nowhereToRunTargetLine = [] := by decide
 /-- Hithlain Rope -/
 def hithlainRopeSacrificeLock : StaticSpec := objectCant (.action "sacrifice") Primitives.NounPhrase.this

@@ -100,6 +100,9 @@ pub fn kinds() -> KindSet {
     // (`macros/meta/Designation.ron`), and the type's `denoted_by` marker
     // reads the node it expands to as the label it defines.
     kinds.add(crate::words::DesignationLabel::kind());
+    // A keyword ability declaration's name reads bare where a keyword is
+    // written (`crate::keywords::label_macro`), as a designation's does.
+    kinds.add(crate::words::KeywordLabel::kind());
     // The pronoun-word injection (§11.1): `NounWord::Type` embeds a
     // `CardType`, so "that creature" is `that(Creature)`.
     kinds.add(crate::words::NounWord::kind());
@@ -214,7 +217,11 @@ const HAND_BUILT_NATIVE: &[(&str, &[&str])] =
 /// undeclared name is refused when the card loads rather than when it is
 /// checked (§7, ruling 2026-10-06, "Deeds and keyword labels are declared
 /// names").
-const DECLARED_NAME_ONLY: &[(&str, &[&str])] = &[("Deed", &["Action"])];
+///
+/// `KeywordLabel::Named` likewise: a card names a keyword ability by its
+/// declaration name (`flying`, `crate::keywords::label_macro`).
+const DECLARED_NAME_ONLY: &[(&str, &[&str])] =
+    &[("Deed", &["Action"]), ("KeywordLabel", &["Named"])];
 
 /// The literal leaves (§11.1): Lean tags these `semantic_literal`, and
 /// `onlyMacros` admits a literal where it refuses a constructor. A card writes
@@ -355,7 +362,7 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<String>("FlavorWordLabel");
     types.add_typed::<Vec<crate::phrase::GameEvent>>("GameEvents");
     types.add_typed::<Vec<crate::triggers::JoinedHeader>>("JoinedHeaders");
-    types.add_typed::<String>("KeywordLabel");
+    types.add_typed::<crate::words::KeywordLabel>("KeywordLabel");
     types.add_typed::<crate::words::Kind>("Kind");
     types.add_typed::<crate::card::LevelRange>("LevelRange");
     types.add_typed::<crate::words::Lookback>("Lookback");

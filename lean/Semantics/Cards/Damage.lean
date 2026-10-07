@@ -181,7 +181,7 @@ def extraArms : Spelled := spelled <| .singleFaced
     { name := "Extra Arms", cost := some [generic 4, pip .red], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           whenever (attacks (Primitives.NounPhrase.attachHost .enchanted (.type .creature)))
             (Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget)) ] } }
 
@@ -231,7 +231,7 @@ def lionHeart : Spelled := spelled <| .singleFaced
       text :=
         [ when (Primitives.GameEvent.enters thisEquipment none) (Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget)),
           Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .equipped (.type .creature)) (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 1))),
-          keywordCosting "Equip" (Primitives.Cost.mana [generic 2]) ] } }
+          keywordCosting (.named "equip") (Primitives.Cost.mana [generic 2]) ] } }
 
 def lightmineField : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -292,7 +292,7 @@ def defang : Spelled := spelled <| .singleFaced
     { name := "Defang", cost := some [generic 1, pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (Primitives.NounPhrase.attachHost .enchanted (.type .creature))) Primitives.DamageScope.everywhere
             (Primitives.DamageOp.prevent Primitives.PreventCut.all none) .repeatedly) ] } }
 
@@ -339,7 +339,7 @@ def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
                       { characteristics :=
                         { types := [.creature],
                           subtypes := [creatureType "Human", creatureType "Soldier", creatureType "Ally"],
-                          text := [keyword "Indestructible"], power := stat 5, toughness := stat 5 } }
+                          text := [keyword (.named "indestructible")], power := stat 5, toughness := stat 5 } }
                       (some .planeswalker)))
                   (some untilEndOfTurn),
                 preventAll .any (Primitives.DamageScope.toRecipient it) (some Primitives.Duration.thisTurn) ]),
@@ -364,7 +364,7 @@ def pariah : Spelled := spelled <| .singleFaced
     { name := "Pariah", cost := some [generic 2, pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you)
             (Primitives.DamageOp.redirect Primitives.PreventCut.all (Primitives.NounPhrase.attachHost .enchanted (.type .creature))) .repeatedly) ] } }
 
@@ -384,7 +384,7 @@ def wardOfPiety : Spelled := spelled <| .singleFaced
     { name := "Ward of Piety", cost := some [generic 1, pip .white], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           activated (Primitives.Cost.mana [generic 1, pip .white])
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (Primitives.NounPhrase.attachHost .enchanted (.type .creature)))
@@ -682,8 +682,8 @@ def platedPegasus : Spelled := spelled <| .singleFaced
     { name := "Plated Pegasus", cost := some [generic 2, pip .white], types := [.creature],
       subtypes := [creatureType "Pegasus"],
       text :=
-        [ keyword "Flash",
-          keyword "Flying",
+        [ keyword (.named "flash"),
+          keyword (.named "flying"),
           Primitives.Ability.static (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (a spell)) (Primitives.DamageScope.toRecipient (a (Primitives.Predicate.or [permanent, Primitives.Predicate.anyPlayer])))
             (Primitives.DamageOp.prevent (Primitives.PreventCut.some (.lit 1)) none) .repeatedly) ],
       power := stat 1, toughness := stat 2 } }
@@ -724,7 +724,7 @@ def spitefulShadows : Spelled := spelled <| .singleFaced
     { name := "Spiteful Shadows", cost := some [generic 1, pip .black], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           whenever (Primitives.GameEvent.isDealtDamage .any (Primitives.NounPhrase.attachHost .enchanted (.type .creature)))
             (Primitives.Instruction.dealDamage it Primitives.Amount.thatMuch (controllerOf it)) ] } }
 
@@ -733,7 +733,7 @@ def bindingAgony : Spelled := spelled <| .singleFaced
     { name := "Binding Agony", cost := some [generic 1, pip .black], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" creature,
+        [ keywordSubject (.named "enchant") creature,
           whenever (Primitives.GameEvent.isDealtDamage .any (Primitives.NounPhrase.attachHost .enchanted (.type .creature)))
             (Primitives.Instruction.dealDamage thisAura Primitives.Amount.thatMuch (controllerOf (that (.type .creature)))) ] } }
 
@@ -752,7 +752,7 @@ def screamingNemesis : Spelled := spelled <| .singleFaced
     { name := "Screaming Nemesis", cost := some [generic 2, pip .red], types := [.creature],
       subtypes := [creatureType "Spirit"],
       text :=
-        [ keyword "Haste",
+        [ keyword (.named "haste"),
           whenever (Primitives.GameEvent.isDealtDamage .any thisCreature)
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage it Primitives.Amount.thatMuch (target (Primitives.Predicate.and [anyTarget, Primitives.Predicate.otherThan Primitives.NounPhrase.this])),
@@ -765,7 +765,7 @@ def sonicShrieker : Spelled := spelled <| .singleFaced
     { name := "Sonic Shrieker", cost := some [generic 2, pip .red, pip .white, pip .black],
       types := [.creature], subtypes := [creatureType "Dragon"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget),
@@ -779,7 +779,7 @@ def grievousWoundLifeLock : Spelled := spelled <| .singleFaced
     { name := "Grievous Wound", cost := some [generic 3, pip .black, pip .black], types := [.enchantment],
       subtypes := [enchantmentType "Aura"],
       text :=
-        [ keywordSubject "Enchant" Primitives.Predicate.anyPlayer,
+        [ keywordSubject (.named "enchant") Primitives.Predicate.anyPlayer,
           Primitives.Ability.static (playerCant (.core .gainLife) (Primitives.NounPhrase.attachHost .enchanted .player)),
           whenever (Primitives.GameEvent.isDealtDamage .any (Primitives.NounPhrase.attachHost .enchanted .player))
             (act they (loseLife (Primitives.Amount.half .up (lifeTotalOf they)))) ] } }
@@ -814,7 +814,7 @@ def stuffyDoll : Spelled := spelled <| .singleFaced
     { name := "Stuffy Doll", cost := some [generic 5], types := [.artifact, .creature],
       subtypes := [creatureType "Construct"],
       text :=
-        [ keyword "Indestructible",
+        [ keyword (.named "indestructible"),
           Primitives.Ability.static (entersChoosingPlayer thisCreature none),
           whenever (Primitives.GameEvent.isDealtDamage .any thisCreature) (Primitives.Instruction.dealDamage it Primitives.Amount.thatMuch (the chosenPlayer)),
           activated Primitives.Cost.tapSymbol (Primitives.Instruction.dealDamage thisCreature (.lit 1) thisCreature) ],
@@ -847,8 +847,8 @@ def infernoOfTheStarMounts : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature], subtypes := [creatureType "Dragon"],
       text :=
         [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
-          keyword "Flying",
-          keyword "Haste",
+          keyword (.named "flying"),
+          keyword (.named "haste"),
           activated (Primitives.Cost.mana [pip .red])
             (Primitives.Instruction.triggerThisWay (get thisCreature (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn))
               (Primitives.GameEvent.statBecomes it .power (.lit 20))
@@ -873,8 +873,8 @@ def ashZealot : Spelled := spelled <| .singleFaced
     { name := "Ash Zealot", cost := some [pip .red, pip .red], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Warrior"],
       text :=
-        [ keyword "FirstStrike",
-          keyword "Haste",
+        [ keyword (.named "firstStrike"),
+          keyword (.named "haste"),
           whenever (Primitives.GameEvent.casts (a Primitives.Predicate.anyPlayer) (some (a
             (Primitives.Predicate.and [spell, Primitives.Predicate.castFrom graveyard]))) none)
             (Primitives.Instruction.dealDamage thisCreature (.lit 3) (that .player)) ],
@@ -904,7 +904,7 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
     { name := "Twinshot Sniper", cost := some [generic 3, pip .red], types := [.artifact, .creature],
       subtypes := [creatureType "Goblin", creatureType "Archer"],
       text :=
-        [ keyword "Reach",
+        [ keyword (.named "reach"),
           when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.dealDamage it (.lit 2) (target anyTarget)),
           abilityWord "channel"
             (activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 1, pip .red], Primitives.Cost.perform (discard Primitives.NounPhrase.this)])
@@ -1114,9 +1114,9 @@ def tyrantOfValakut : Spelled := spelled <| .singleFaced
     { name := "Tyrant of Valakut", cost := some [generic 5, pip .red, pip .red], types := [.creature],
       subtypes := [creatureType "Dragon"],
       text :=
-        [ keywordCosting "Surge" (Primitives.Cost.mana [generic 3, pip .red, pip .red]),
-          keyword "Flying",
-          triggeredIf (Primitives.GameEvent.enters thisCreature none) (costWasPaid (.byKeyword "Surge") none thisCreature)
+        [ keywordCosting (.named "surge") (Primitives.Cost.mana [generic 3, pip .red, pip .red]),
+          keyword (.named "flying"),
+          triggeredIf (Primitives.GameEvent.enters thisCreature none) (costWasPaid (.byKeyword (.named "surge")) none thisCreature)
             (Primitives.Instruction.dealDamage thisCreature (.lit 3) (target anyTarget)) ],
       power := stat 5, toughness := stat 4 } }
 
@@ -1125,7 +1125,7 @@ def fallOfTheTitansCard : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fall of the Titans", cost := some [.variable, .variable, pip .red], types := [.instant],
       text :=
-        [ keywordCosting "Surge" (Primitives.Cost.mana [.variable, pip .red]),
+        [ keywordCosting (.named "surge") (Primitives.Cost.mana [.variable, pip .red]),
           Primitives.Ability.spell none
             (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (Primitives.Amount.letter .x) (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) anyTarget))) ] } }
 
@@ -1165,9 +1165,9 @@ def aureliaTheLawAbove : Spelled := spelled <| .singleFaced
     { name := "Aurelia, the Law Above", cost := some [generic 3, pip .red, pip .white],
       supertypes := [.legendary], types := [.creature], subtypes := [creatureType "Angel"],
       text :=
-        [ keyword "Flying",
-          keyword "Vigilance",
-          keyword "Haste",
+        [ keyword (.named "flying"),
+          keyword (.named "vigilance"),
+          keyword (.named "haste"),
           whenever (Primitives.GameEvent.attacksWith (a Primitives.Predicate.anyPlayer) none (counted (atLeast 3) creature)) (Primitives.Instruction.draw (.lit 1)),
           whenever (Primitives.GameEvent.attacksWith (a Primitives.Predicate.anyPlayer) none (counted (atLeast 5) creature))
             (Primitives.Instruction.sequentially [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (each Primitives.Predicate.opponent), gainLife (.lit 3)]) ],
@@ -1226,7 +1226,7 @@ def inquisitorsFlail : Spelled := spelled <| .singleFaced
             (Primitives.DamageAgent.dealtBy (a (otherCreature (Primitives.NounPhrase.attachHost .equipped (.type .creature)))))
             (Primitives.DamageScope.toRecipient (Primitives.NounPhrase.attachHost .equipped (.type .creature))) (Primitives.DamageOp.scale (Primitives.DamageScale.multiplied .doubled))
             .repeatedly),
-          keywordCosting "Equip" (Primitives.Cost.mana [generic 2]) ] } }
+          keywordCosting (.named "equip") (Primitives.Cost.mana [generic 2]) ] } }
 
 /-- Oath of Kaya -/
 def oathOfKaya : Spelled := spelled <| .singleFaced
@@ -1288,7 +1288,7 @@ def blindFury : Spelled := spelled <| .singleFaced
     { name := "Blind Fury", cost := some [generic 2, pip .red, pip .red], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.establish (Primitives.StaticSpec.abilityLoss (allOf creature) [Primitives.AbilityLost.written (keyword "Trample")])
+            [ Primitives.Instruction.establish (Primitives.StaticSpec.abilityLoss (allOf creature) [Primitives.AbilityLost.written (keyword (.named "trample"))])
                 (some untilEndOfTurn),
               Primitives.Instruction.establish
                 (Primitives.StaticSpec.damageRule .combatOnly (Primitives.DamageAgent.dealtBy (a creature)) (Primitives.DamageScope.toRecipient (a creature))

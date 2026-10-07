@@ -91,24 +91,44 @@ marking?)`; `itVerbed` and `themVerbed` retired in RON and Lean), `nzkqnwxo`
 `itVerbed(Action("Search"))` to `theVerbed(Action("Search"), One)` and
 `nzkqnwxo` re-spelled it `theVerbed(search, One)` (transmute, transfigure).
 
-**STOP: the keyword-label half is not landed.** `grants(flying)` and
+**STOP: the keyword-label half, and its resolution.** `grants(flying)` and
 `keyword(flying)` need a keyword ability's name to read at a `KeywordLabel`
-position, and `KeywordLabel` is a `String` (Lean `abbrev KeywordLabel :=
-String`; Rust `pub type KeywordLabel = String`). `macro_ron` expands a macro
-only at an enum position or at a struct position that hosts macros; a string
-position never expands, and ron reads no string at an enum position, so a
-bare name cannot read there without one of: (A) a new `macro_ron` reader rule
-(a newtype position that hosts macros is intercepted, as a struct position
-is) with a Rust newtype `KeywordLabel(String)` read through ron's
-`unwrap_newtypes` — a macro-system feature, which
-`docs/decisions/macros-are-declarative.md` sends to a separate decision, and a
-mirror shape `lean_drift` would have to pair with Lean's `abbrev`; (B)
-`KeywordLabel` as a one-constructor type in Lean and Rust, as
-`DesignationLabel` is, re-spelling every written label (well beyond the 22
-`keyword("…")` sites); (C) `grants(flying)` and bare `flying` at an `Ability`
-position, which already read today but carry the keyword's definition body
-(`flyingExpansion`), so the 15 counter conferrals and 7 canon cards would
-change term, not spelling. The 22 `keyword("…")` sites are unchanged.
+position, and `KeywordLabel` was a `String` in Lean and Rust, where
+`macro_ron` expands nothing. Three ways were reported: (A) a new `macro_ron`
+reader rule for newtype positions, (B) `KeywordLabel` as a one-constructor
+type, (C) `grants(flying)` at an `Ability` position, which carries the
+keyword's definition body and so changes meaning. Resolved by the
+orchestrator, Option B: "the ruling's precedent, DesignationLabel, is a
+one-constructor type". A is a macro feature the owner rejects for this, and C
+changes meaning. Landed as the label stage below.
+
+**Label stage.** `KeywordLabel` is `inductive KeywordLabel | named (name :
+String)` (mirror `enum KeywordLabel { Named { name } }`), the name being the
+keyword ability declaration's name verbatim (`flying`, `firstStrike`). The
+loader registers each keyword ability's name at `KeywordLabel` denoting
+`Named(name: <name>)` (`keywords::label_macro`, the twin of `deed_macro`), and
+`Named` is not author vocabulary at a restricted read. The loader-built
+`Keyword` term writes the name, and `keyword_ability_label` (the capitalized
+label) is retired. `grants` takes a `KeywordLabel` in RON and Lean
+(`grants(flying)`, `grants (.named "flying")`), so the 15 counter conferrals
+write `grants(flying)` with the term unchanged but for the label. The 7 canon
+card sites write `keyword(flying)`: a bare `flying` at an `Ability` position
+is the declaration's full definition (Option C), so the helper stays and its
+argument is the bare name. The facts generator writes `word := .named
+"<name>"`. Its gate-column overlay is shared with the Idris generator and
+keeps its capitalized keys (`facts/lean.rs` `overlay_key`), so
+`FactsGen.idr` is byte-identical. RON label sites re-spelled: 22 `keyword(…)`,
+7 `The(…)`, 6 `keywordCostPaid(…)`, 4 `keywordSubject(…)`, 1
+`keywordNumber(…)`, 1 `Keyword(…)` (`gainHaste`), 1 `ByKeyword(…)`. Lean: 730
+label sites in 33 files written `.named "<name>"` (bench, pins, `Macros.lean`,
+`abilityDeedFacts`, the checker's own label literals), and three label lists
+mapped through `.named`.
+
+`deed: connive` in a keyword action declaration resolves through the `Deed`
+registration. A scratch plugin outside the repo
+(`KeywordAction(name: "conniveProbe", deed: connive, body: Shuffle)`), loaded
+over builtin by `cargo xtask expansions --plugin`, expands to `Enact { verb:
+Action { label: "connive" }, … }`. Nothing for it is landed here.
 
 **PROVE.**
 - Lean, full build (`lean/scripts/build`, `--wfail`): 83 jobs, no errors or
@@ -178,6 +198,32 @@ for the constructor plus the three helper bodies in `Macros.lean` (a), 59 for th
 `keyword_action_label` assertions in `labels_capitalize_the_name` re-spelled as
 `a_keyword_actions_deed_is_its_declaration_name` (the function is retired).
 Ignored 0. Added 11 (7 Lean, 4 Rust). Removed 0.
+
+**Label stage proofs.** Full Lean build (`--wfail`): clean. `lean check`:
+canon 134/134, testing 7/7; the emitted terms differ from the deed stage's on
+93 canon lines, every one a keyword label (normalizing `KeywordLabel.named
+"x"` back to the old string leaves 0 other differences), testing unchanged.
+`lean definitions`: 553/553. `facts generate` then `facts check`: up to date,
+`Facts.lean` 194 rows re-keyed, `FactsGen.idr` unchanged. Expansions against
+the deed stage: 221 files, every changed value line a keyword label
+(`keyword: "Flying"` → `keyword: Named { name: "flying" }`), plus the sample
+invocation headers of the label-taking helpers and `grants`, whose parameter
+is now a `KeywordLabel`; two samples in `expansions.rs` re-spelled to
+`Named(name: "Sample")` so the same declarations print. Crate-local tests
+(`deckmaste_semantics_v2`, `xtask`): pass. Lexicon export: byte-identical.
+
+**Label stage counts.** Restored 0. Re-spelled: Lean about 760 label sites
+(above); Rust/xtask 13 tests: `tests/reader.rs` (two `Ability::Keyword`
+literals, `a_card_writes_a_macro_where_the_basis_has_a_constructor`,
+`a_counter_conferral_helper_writes_what_one_counter_confers`),
+`tests/corpus.rs` (the `keyword` alias sample), `keywords.rs`
+`a_keyword_ability_forwards_its_signature` and `labels_capitalize_the_name`
+(re-spelled as `a_keyword_abilitys_label_is_its_declaration_name`; the
+function is retired), `builtin_v2_counter_kinds.rs` (`grants(deathtouch)`), `plugins_v2_declarations.rs` (gift, champion and the
+`threshold` ability), `facts/lean.rs` (three `Ward` rows and the shadow-counter
+body), `expansions.rs` (`every_syntax_kind_has_a_renderer`, by a
+`KeywordLabel` renderer). Lean pin `grantsIsTheKeywordConferral` re-spelled.
+Ignored 0. Added 1 (`a_keyword_ability_name_denotes_its_label`). Removed 0.
 
 **REPORT.** ADR §12.1 recount: 412 = 312 declarations + the two `counters`
 macros + 98. Not an English-coverage landing: the coverage lock and its

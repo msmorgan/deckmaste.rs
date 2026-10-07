@@ -74,7 +74,7 @@ def hollowhengeSpirit : Ability :=
     (Primitives.Instruction.removeFromCombat (target (Primitives.Predicate.and [creature, Primitives.Predicate.or [attacking, blocking]])))
 theorem okHollowhengeSpirit : Ability.check [] hollowhengeSpirit = [] := by decide
 def netcasterSpider : Ability :=
-  whenever (blocks thisCreature (some (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasKeyword (.the "Flying")]))))
+  whenever (blocks thisCreature (some (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasKeyword (.the (.named "flying"))]))))
     (get thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn))
 theorem okNetcasterSpider : Ability.check [] netcasterSpider = [] := by decide
 def viashinoWeaponsmith : Ability :=
@@ -341,7 +341,7 @@ def bardHeirOfGirion : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Archer"],
       text :=
-        [ keyword "Reach", keyword "Vigilance",
+        [ keyword (.named "reach"), keyword (.named "vigilance"),
           Primitives.Ability.static (getsPt (allOf (otherCreatureYouControl thisCreature)) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1))),
           whenever (attacks Primitives.NounPhrase.you) (Primitives.Instruction.draw (.lit 1)) ],
       power := stat 4, toughness := stat 4 } }
@@ -484,8 +484,8 @@ theorem okNetheresePuzzleWardIllumination :
 def faridehResultRead : Ability :=
   whenever (Primitives.GameEvent.rollsDice Primitives.NounPhrase.you .many none Primitives.RollWatch.anyResult)
     (Primitives.Instruction.sequentially
-      [ gain thisCreature (keyword "Flying") (some untilEndOfTurn),
-        gain thisCreature (keyword "Menace") (some untilEndOfTurn),
+      [ gain thisCreature (keyword (.named "flying")) (some untilEndOfTurn),
+        gain thisCreature (keyword (.named "menace")) (some untilEndOfTurn),
         doIf (Primitives.Condition.anyResultIs .atLeast (.lit 10)) (Primitives.Instruction.draw (.lit 1)) ])
 theorem okFaridehResultRead : Ability.check [] faridehResultRead = [] := by decide
 /-- Jaws of Defeat -/
@@ -525,20 +525,20 @@ def politicalTriumphHeader : GameEvent :=
 theorem okPoliticalTriumphHeader : GameEvent.check [] politicalTriumphHeader = [] := by decide
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=
-  when (Primitives.GameEvent.paysCost (some (a Primitives.Predicate.anyPlayer)) .unpaid thisEnchantment "CumulativeUpkeep")
+  when (Primitives.GameEvent.paysCost (some (a Primitives.Predicate.anyPlayer)) .unpaid thisEnchantment (.named "cumulativeUpkeep"))
     (act (that .player) (exile (each (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (libraryOf they)]))))
 theorem okThoughtLashTrigger : Ability.check [] thoughtLashTrigger = [] := by decide
 /-- Heart of Bogardan -/
 def heartOfBogardanHeader : GameEvent :=
-  Primitives.GameEvent.paysCost (some (a Primitives.Predicate.anyPlayer)) .unpaid thisEnchantment "CumulativeUpkeep"
+  Primitives.GameEvent.paysCost (some (a Primitives.Predicate.anyPlayer)) .unpaid thisEnchantment (.named "cumulativeUpkeep")
 theorem okHeartOfBogardanHeader : GameEvent.check [] heartOfBogardanHeader = [] := by decide
 /-- Balduvian Fallen -/
-def balduvianFallenHeader : GameEvent := Primitives.GameEvent.paysCost none .paid thisCreature "CumulativeUpkeep"
+def balduvianFallenHeader : GameEvent := Primitives.GameEvent.paysCost none .paid thisCreature (.named "cumulativeUpkeep")
 theorem okBalduvianFallenHeader : GameEvent.check [] balduvianFallenHeader = [] := by decide
 /-- Stormscape Battlemage -/
 def stormscapeBattlemageFirstKicker : Ability :=
   triggeredIf (Primitives.GameEvent.enters thisCreature none)
-    (costWasPaid (.byNthKeyword (.nth 1) "Kicker") none thisCreature) (gainLife (.lit 3))
+    (costWasPaid (.byNthKeyword (.nth 1) (.named "kicker")) none thisCreature) (gainLife (.lit 3))
 theorem okStormscapeBattlemageFirstKicker :
     Ability.check [] stormscapeBattlemageFirstKicker = [] := by decide
 /-- All-Seeing Arbiter -/
@@ -810,7 +810,7 @@ def foulEmissaryLine : Ability :=
   triggeredWhile (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action
     "sacrifice") (some thisCreature) none none)
     (Primitives.Concurrent.whileDoing (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
-      (Primitives.Predicate.and [spell, Primitives.Predicate.hasKeyword (.the "Emerge")]))) none))
+      (Primitives.Predicate.and [spell, Primitives.Predicate.hasKeyword (.the (.named "emerge"))]))) none))
     (create (.lit 1) (creatureToken 3 2 [] [creatureType "Eldrazi", creatureType "Horror"]))
 theorem okFoulEmissaryLine : Ability.check [] foulEmissaryLine = [] := by decide
 
@@ -938,7 +938,7 @@ def dread : Spelled := spelled <| .singleFaced
     { name := "Dread", cost := some [generic 3, pip .black, pip .black, pip .black],
       types := [.creature], subtypes := [creatureType "Elemental", creatureType "Incarnation"],
       text :=
-        [ keyword "Fear",
+        [ keyword (.named "fear"),
           whenever (Primitives.GameEvent.dealsDamage .any (a creature)
             (some Primitives.NounPhrase.you)) (destroy it),
           when (putIntoFrom Primitives.NounPhrase.this graveyard Primitives.EventSource.anywhere)

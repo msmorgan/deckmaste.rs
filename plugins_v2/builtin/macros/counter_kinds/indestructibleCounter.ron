@@ -6,5 +6,5 @@ CounterKind(
     spelling: "indestructible",
     grammar: FixedTerm(surface: "indestructible"),
     holder: Object,
-    confers: [grants(keyword("Indestructible"))],
+    confers: [grants(indestructible)],
 )

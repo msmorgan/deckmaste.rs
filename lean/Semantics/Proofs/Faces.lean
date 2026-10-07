@@ -94,7 +94,7 @@ theorem badKeywordOnInstant :
     Card.check
       (one
         { name := some "", cost := some [pip .red], types := [.instant],
-          text := [keyword "Flying"] }) = [.cardText] := by
+          text := [keyword (.named "flying")] }) = [.cardText] := by
   decide
 
 /-- "{T}: Draw a card." -/
@@ -182,7 +182,7 @@ theorem okProtectionOnCreature :
     Card.check
       (one
         { name := some "", cost := some [pip .white], types := [.creature],
-          text := [keywordQuality "Protection" (.colorIs .red)], power := stat 2,
+          text := [keywordQuality (.named "protection") (.colorIs .red)], power := stat 2,
           toughness := stat 2 }) = [] := by
   decide
 
@@ -196,11 +196,11 @@ theorem badStarlessDefinedPt :
 
 /-- "each creature with flying" -/
 theorem okKnownKeywordPredicate :
-    Predicate.check .object [] (.hasKeyword (.the "Flying")) = [] := by decide
+    Predicate.check .object [] (.hasKeyword (.the (.named "flying"))) = [] := by decide
 
 /-- "each creature with flyign" -/
 theorem badUnknownKeywordPredicate :
-    Predicate.check .object [] (.hasKeyword (.the "Flyign")) = [.knownKeywordTerm] := by decide
+    Predicate.check .object [] (.hasKeyword (.the (.named "flyign"))) = [.knownKeywordTerm] := by decide
 
 /-- "Protection from red" on a creature card -/
 theorem okProtectionOnPermanentCard :
@@ -208,7 +208,7 @@ theorem okProtectionOnPermanentCard :
       (one
         { name := some "", cost := some [pip .white], types := [.creature],
           subtypes := [creatureType "Soldier"],
-          text := [keywordQuality "Protection" (.colorIs .red)], power := stat 2,
+          text := [keywordQuality (.named "protection") (.colorIs .red)], power := stat 2,
           toughness := stat 2 }) = [] := by
   decide
 
@@ -217,17 +217,17 @@ theorem badProtectionOnInstant :
     Card.check
       (one
         { name := some "", cost := some [pip .white], types := [.instant],
-          text := [keywordQuality "Protection" (.colorIs .red)] }) = [.cardText] := by
+          text := [keywordQuality (.named "protection") (.colorIs .red)] }) = [.cardText] := by
   decide
 
 /-- "Protection from red" -/
 theorem okProtectionFromAColor :
-    Ability.check [] (keywordQuality "Protection" (.colorIs .red)) = [] := by decide
+    Ability.check [] (keywordQuality (.named "protection") (.colorIs .red)) = [] := by decide
 
 /-- "Protection from player" -/
 theorem badProtectionFromPlayerRestriction :
-    Ability.check [] (.keyword "Protection" [.subject .anyPlayer] [])
-      = [.keywordParamFits "Protection"] := by
+    Ability.check [] (.keyword (.named "protection") [.subject .anyPlayer] [])
+      = [.keywordParamFits (.named "protection")] := by
   decide
 
 /-- "Equip {2}" on an Equipment card -/
@@ -236,7 +236,7 @@ theorem okEquipOnEquipment :
       (one
         { name := some "", cost := some [generic 1], types := [.artifact],
           subtypes := [artifactType "Equipment"],
-          text := [keywordCosting "Equip" (.mana [generic 2])] }) = [] := by
+          text := [keywordCosting (.named "equip") (.mana [generic 2])] }) = [] := by
   decide
 
 /-- "Equip {2}" -/
@@ -244,7 +244,7 @@ theorem badEquipOnSorcery :
     Card.check
       (one
         { name := some "", cost := some [generic 1], types := [.sorcery],
-          text := [keywordCosting "Equip" (.mana [generic 2])] }) = [.cardText] := by
+          text := [keywordCosting (.named "equip") (.mana [generic 2])] }) = [.cardText] := by
   decide
 
 /-- "each of up to two target creatures" -/
@@ -276,17 +276,17 @@ theorem badFortifiedCreatureNoun :
 
 /-- "Target creature gains indestructible." -/
 theorem okGainsIndestructible :
-    StaticSpec.check [] (.abilityGrant (target creature) (keyword "Indestructible")) = [] := by
+    StaticSpec.check [] (.abilityGrant (target creature) (keyword (.named "indestructible"))) = [] := by
         decide
 
 /-- "Target creature gains flash." -/
 theorem badBattlefieldFlash :
-    StaticSpec.check [] (.abilityGrant (target creature) (keyword "Flash")) = [.grantSubject] := by
+    StaticSpec.check [] (.abilityGrant (target creature) (keyword (.named "flash"))) = [.grantSubject] := by
   decide
 
 /-- "Target spell gains indestructible." -/
 theorem badSpellIndestructible :
-    StaticSpec.check [] (.abilityGrant (target spell) (keyword "Indestructible")) = [.grantSubject]
+    StaticSpec.check [] (.abilityGrant (target spell) (keyword (.named "indestructible"))) = [.grantSubject]
         := by
   decide
 
@@ -295,7 +295,7 @@ theorem okKindredWithAnotherType :
     Card.check
       (one
         { name := some "", cost := some [generic 2], types := [.kindred, .enchantment],
-          subtypes := [creatureType "Merfolk"], text := [keyword "Flying"] }) = [] := by
+          subtypes := [creatureType "Merfolk"], text := [keyword (.named "flying")] }) = [] := by
   decide
 
 /-- a "Kindred Enchantment — Siege" card -/
@@ -303,7 +303,7 @@ theorem badSiegeWithoutBattle :
     Card.check
       (one
         { name := some "", cost := some [generic 2], types := [.kindred, .enchantment],
-          subtypes := [.of .battle "Siege"], text := [keyword "Flying"] }) = [.cardLine] := by
+          subtypes := [.of .battle "Siege"], text := [keyword (.named "flying")] }) = [.cardLine] := by
   decide
 
 /-- a "Kindred — Merfolk" card naming no other card type -/
@@ -311,7 +311,7 @@ theorem badKindredAlone :
     Card.check
       (one
         { name := some "", cost := some [generic 2], types := [.kindred],
-          subtypes := [creatureType "Merfolk"], text := [keyword "Flying"] }) = [.cardLine] := by
+          subtypes := [creatureType "Merfolk"], text := [keyword (.named "flying")] }) = [.cardLine] := by
   decide
 
 /-- "Enchanted creature can't attack." -/
@@ -458,7 +458,7 @@ theorem okEscalateWithModes :
       (one
         { name := some "", cost := some [pip .black], types := [.instant],
           text :=
-            [ keywordCosting "Escalate" (.mana [generic 2]),
+            [ keywordCosting (.named "escalate") (.mana [generic 2]),
               .spell none
                 (chooseModes (.range (some 1) (some 2))
                   [ get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
@@ -471,7 +471,7 @@ theorem badEscalateWithoutModes :
     Card.check
       (one
         { name := some "", cost := some [pip .black], types := [.instant],
-          text := [keywordCosting "Escalate" (.mana [generic 2])] }) = [.modalFrame] := by
+          text := [keywordCosting (.named "escalate") (.mana [generic 2])] }) = [.modalFrame] := by
   decide
 
 /-- "Entwine {2}" -/
@@ -479,7 +479,7 @@ theorem badEntwineWithoutModes :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.sorcery],
-          text := [keywordCosting "Entwine" (.mana [generic 2])] }) = [.modalFrame] := by
+          text := [keywordCosting (.named "entwine") (.mana [generic 2])] }) = [.modalFrame] := by
   decide
 
 theorem jointCrossAbilityChoice :
@@ -489,7 +489,7 @@ theorem jointCrossAbilityChoice :
             { name := some "Joint choice witness", types := [.creature],
               subtypes := [creatureType "Shapeshifter"],
               text :=
-                [ .static (.abilityGrant thisCreature (keywordQuality "Protection" (ofChosen
+                [ .static (.abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen
                     .color))),
                   .static (entersChoosing thisCreature .color) ],
               power := stat 1, toughness := stat 1 },
@@ -501,7 +501,7 @@ theorem okCumulativeUpkeepOnPermanent :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.enchantment],
-          text := [keywordCosting "CumulativeUpkeep" (.mana [generic 2])] }) = [] := by
+          text := [keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])] }) = [] := by
   decide
 
 /-- "Cumulative upkeep {2}" -/
@@ -509,12 +509,12 @@ theorem badCumulativeUpkeepOnSpell :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.sorcery],
-          text := [keywordCosting "CumulativeUpkeep" (.mana [generic 2])] }) = [.cardText] := by
+          text := [keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])] }) = [.cardText] := by
   decide
 
 /-- "Renown 1 (When this creature deals combat damage to a player, …)" -/
 theorem okRenownWithRenownExpansion :
-    Ability.check [] (.keyword "Renown" [.number (.lit 1)] [renownExpansion 1])
+    Ability.check [] (.keyword (.named "renown") [.number (.lit 1)] [renownExpansion 1])
       = [] := by
   decide
 
@@ -522,8 +522,8 @@ theorem okRenownWithRenownExpansion :
 static ability [CR#702.9b], so a triggered body is the wrong category. Re-spelled from
 `badBodyOnBodilessKeyword`, which asserted the same refusal when no keyword took a static body. -/
 theorem badTriggeredBodyOnStaticKeyword :
-    Ability.check [] (.keyword "Flying" [] [renownExpansion 1])
-      = [.keywordBodyFits "Flying"] := by
+    Ability.check [] (.keyword (.named "flying") [] [renownExpansion 1])
+      = [.keywordBodyFits (.named "flying")] := by
   decide
 
 /-- "Flying (This creature can't be blocked except by creatures with flying and/or reach.)" -/
@@ -532,8 +532,8 @@ theorem okFlyingWithFlyingDefinition : Ability.check [] flying = [] := by decide
 /-- "Renown 1 (This creature can't be blocked except by creatures with flying and/or reach.)":
 renown's definition is a triggered ability [CR#702.112a]. -/
 theorem badStaticBodyOnTriggeredKeyword :
-    Ability.check [] (.keyword "Renown" [.number (.lit 1)] [flyingExpansion])
-      = [.keywordBodyFits "Renown"] := by
+    Ability.check [] (.keyword (.named "renown") [.number (.lit 1)] [flyingExpansion])
+      = [.keywordBodyFits (.named "renown")] := by
   decide
 
 /-- "Bushido 2 (Whenever this creature blocks or becomes blocked, it gets +2/+2 until end of
@@ -547,16 +547,16 @@ theorem okCyclingWithCyclingDefinition :
 /-- "Flying ({2}, Discard this card: Draw a card.)": an activated body on a keyword whose
 definition is static [CR#702.9b]. -/
 theorem badActivatedBodyOnStaticKeyword :
-    Ability.check [] (.keyword "Flying" [] [cyclingExpansion (.mana [generic 2])])
-      = [.keywordBodyFits "Flying"] := by
+    Ability.check [] (.keyword (.named "flying") [] [cyclingExpansion (.mana [generic 2])])
+      = [.keywordBodyFits (.named "flying")] := by
   decide
 
 /-- "Bushido 2 ({2}, Discard this card: Draw a card.)": an activated body on a keyword whose
 definition is triggered [CR#702.45a]. -/
 theorem badActivatedBodyOnTriggeredKeyword :
-    Ability.check [] (.keyword "Bushido" [.number (.lit 2)]
+    Ability.check [] (.keyword (.named "bushido") [.number (.lit 2)]
         [cyclingExpansion (.mana [generic 2])])
-      = [.keywordBodyFits "Bushido"] := by
+      = [.keywordBodyFits (.named "bushido")] := by
   decide
 
 /-- "Modular 1 (This permanent enters with a +1/+1 counter on it. When it dies, you may put a
@@ -567,15 +567,15 @@ theorem okModularWithModularDefinition : Ability.check [] (modular 1) = [] := by
 /-- "Modular 1 (… {2}, Discard this card: Draw a card.)": one element of the definition list is
 of a category modular does not declare [CR#702.43a]. -/
 theorem badUndeclaredCategoryInDefinitionList :
-    Ability.check [] (.keyword "Modular" [.number (.lit 1)]
+    Ability.check [] (.keyword (.named "modular") [.number (.lit 1)]
         (modularExpansion 1 ++ [cyclingExpansion (.mana [generic 2])]))
-      = [.keywordBodyFits "Modular"] := by
+      = [.keywordBodyFits (.named "modular")] := by
   decide
 
 /-- "Renown 1 (When you cast this spell, copy it …)" -/
 theorem badRenownWithStormExpansion :
-    Ability.check [] (.keyword "Renown" [.number (.lit 1)] [stormExpansion])
-      = [.keywordBodyFits "Renown"] := by
+    Ability.check [] (.keyword (.named "renown") [.number (.lit 1)] [stormExpansion])
+      = [.keywordBodyFits (.named "renown")] := by
   decide
 
 /-- "your commander" -/
@@ -590,16 +590,16 @@ theorem badPossessedMonarch :
 
 /-- "Unearth {B}" -/
 theorem okCostedUnearth :
-    Ability.check [] (keywordCosting "Unearth" (.mana [pip .black])) = [] := by decide
+    Ability.check [] (keywordCosting (.named "unearth") (.mana [pip .black])) = [] := by decide
 
 /-- "Unearth" -/
 theorem badBareUnearth :
-    Ability.check [] (.keyword "Unearth" [] []) = [.keywordParamFits "Unearth"] := by decide
+    Ability.check [] (.keyword (.named "unearth") [] []) = [.keywordParamFits (.named "unearth")] := by decide
 
 /-- "Retrace {1}" -/
 theorem badCostedRetrace :
-    Ability.check [] (keywordCosting "Retrace" (.mana [generic 1]))
-      = [.keywordParamFits "Retrace"] := by
+    Ability.check [] (keywordCosting (.named "retrace") (.mana [generic 1]))
+      = [.keywordParamFits (.named "retrace")] := by
   decide
 
 /-- "Unearth {B}" on a creature card -/
@@ -608,7 +608,7 @@ theorem okUnearthOnPermanentCard :
       (one
         { name := some "", cost := some [pip .black], types := [.creature],
           subtypes := [creatureType "Zombie"],
-          text := [keywordCosting "Unearth" (.mana [pip .black])], power := stat 2,
+          text := [keywordCosting (.named "unearth") (.mana [pip .black])], power := stat 2,
           toughness := stat 2 }) = [] := by
   decide
 
@@ -617,7 +617,7 @@ theorem badUnearthOnSpellCard :
     Card.check
       (one
         { name := some "", cost := some [pip .black], types := [.instant],
-          text := [keywordCosting "Unearth" (.mana [pip .black])] }) = [.cardText] := by
+          text := [keywordCosting (.named "unearth") (.mana [pip .black])] }) = [.cardText] := by
   decide
 
 /-- "Flashback {2}{U}" -/
@@ -625,7 +625,7 @@ theorem badFlashbackOnPermanentCard :
     Card.check
       (one
         { name := some "", cost := some [generic 2, pip .blue], types := [.artifact],
-          text := [keywordCosting "Flashback" (.mana [generic 2, pip .blue])] })
+          text := [keywordCosting (.named "flashback") (.mana [generic 2, pip .blue])] })
       = [.cardText] := by
   decide
 
@@ -856,9 +856,9 @@ theorem emblemGrantorRead : NounPhrase.check (some .object) [] (.theGrantor .emb
 
 /-- The alternative-cost keywords whose payment reads back. -/
 def alternativeCostKeywords : List KeywordLabel :=
-  [ "Escape", "Foretell", "Bestow", "Disguise", "Mutate", "Overload", "Disturb", "Dash", "Evoke",
-    "Blitz", "Cleave", "Harmonize", "Impending", "Awaken", "Buyback", "Casualty", "Squad",
-    "Offspring", "Gift", "Replicate" ]
+  [ (.named "escape"), (.named "foretell"), (.named "bestow"), (.named "disguise"), (.named "mutate"), (.named "overload"), (.named "disturb"), (.named "dash"), (.named "evoke"),
+    (.named "blitz"), (.named "cleave"), (.named "harmonize"), (.named "impending"), (.named "awaken"), (.named "buyback"), (.named "casualty"), (.named "squad"),
+    (.named "offspring"), (.named "gift"), (.named "replicate") ]
 
 theorem alternativeCostReadbacks :
     alternativeCostKeywords.all
@@ -866,8 +866,8 @@ theorem alternativeCostReadbacks :
   decide
 
 theorem modalCostReadbacks :
-    Amount.check [] (paidCostRead (.byKeyword "Entwine") none .this) ++
-      Amount.check [] (timesPaid (.byKeyword "Escalate") .this) = [] := by
+    Amount.check [] (paidCostRead (.byKeyword (.named "entwine")) none .this) ++
+      Amount.check [] (timesPaid (.byKeyword (.named "escalate")) .this) = [] := by
   decide
 
 /-- "It doesn't untap during its controller's next untap step." -/

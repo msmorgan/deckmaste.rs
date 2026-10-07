@@ -129,7 +129,7 @@ fn temp_plugin(files: &[(&str, &str)]) -> tempfile::TempDir {
 #[test]
 fn an_ability_word_invocation_expands_at_an_ability_position() {
     let plugin = Plugin::load(builtin()).expect("semantics_v2 reads the builtin declarations");
-    let ability = r#"Keyword(keyword: "Flying", params: [], body: [])"#;
+    let ability = r#"Keyword(keyword: Named(name: "flying"), params: [], body: [])"#;
 
     let invoked: Ability = plugin
         .macros
@@ -244,12 +244,12 @@ fn a_keyword_declaration_builds_its_wrapper() {
     // Forwarded: `gift` declares a `Subject` and writes no abilities.
     assert_eq!(
         body("KeywordAbility", "gift"),
-        r#"Keyword(keyword: "Gift", params: [Subject(Param(0))], body: [])"#
+        r#"Keyword(keyword: Named(name: "gift"), params: [Subject(Param(0))], body: [])"#
     );
     // Overridden: `champion` declares a `Subject` it cannot forward.
     assert_eq!(
         body("KeywordAbility", "champion"),
-        r#"Keyword(keyword: "Champion", params: [], body: [])"#
+        r#"Keyword(keyword: Named(name: "champion"), params: [], body: [])"#
     );
     // The default deed is the action the name spells, done by the actor, its
     // body read in its own scope and each parameter in the caller's view.

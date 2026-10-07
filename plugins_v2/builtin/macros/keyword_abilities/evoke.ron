@@ -12,7 +12,7 @@ KeywordAbility(
         static(mayCastFor(you, Param(0))),
         triggeredIf(
             enters(thisPermanent),
-            keywordCostPaid("Evoke", thisPermanent),
+            keywordCostPaid(evoke, thisPermanent),
             act(controllerOf(thisPermanent), sacrifice(thisPermanent)),
         ),
     ],

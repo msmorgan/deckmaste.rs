@@ -8,6 +8,6 @@ KeywordAbility(
     // "A creature with horsemanship can't be blocked by creatures without
     // horsemanship." [CR#702.31b]
     body: [
-        static(cantBeBlockedBy(thisCreature, and([creature, not(hasKeyword(The("Horsemanship")))]))),
+        static(cantBeBlockedBy(thisCreature, and([creature, not(hasKeyword(The(horsemanship)))]))),
     ],
 )

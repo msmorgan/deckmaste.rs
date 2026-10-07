@@ -16,7 +16,7 @@ KeywordAbility(
                     zoneChange(thisSpell, Before, Zones([stack]), graveyard),
                     move(thisSpell, wherever, hand),
                 ),
-                keywordCostPaid("Buyback", thisSpell),
+                keywordCostPaid(buyback, thisSpell),
             ),
         ),
     ],

@@ -3,5 +3,5 @@
     name: "gainHaste",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "duration": Duration},
-    body: gain(subject: Param(subject), ability: Keyword("Haste", [], []), duration: Param(duration)),
+    body: gain(subject: Param(subject), ability: Keyword(haste, [], []), duration: Param(duration)),
 )

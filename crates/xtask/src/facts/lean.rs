@@ -41,6 +41,7 @@ use deckmaste_semantics_v2::rules::Conferral;
 use deckmaste_semantics_v2::rules::Definition;
 use deckmaste_semantics_v2::words::CardType;
 use deckmaste_semantics_v2::words::DesignationScope;
+use deckmaste_semantics_v2::words::KeywordLabel;
 use deckmaste_semantics_v2::words::Kind;
 use deckmaste_semantics_v2::words::RoomHalf;
 use deckmaste_semantics_v2::words::Subtype;
@@ -192,7 +193,7 @@ pub(super) struct KeywordDefinition {
 )]
 enum KeywordShape {
     Keyword {
-        keyword: String,
+        keyword: KeywordLabel,
         params: IgnoredAny,
         body: Vec<IgnoredAny>,
     },
@@ -297,7 +298,7 @@ pub(super) fn keyword_definitions(
             keyword_categories(plugin, &Samples::new(&plugin.macros), name)?
         };
         result.push(KeywordDefinition {
-            word: keyword,
+            word: overlay_key(keyword.name()),
             categories,
             params: declared
                 .params()
@@ -432,11 +433,34 @@ pub(super) fn counter_eligible_keywords(
             } = conferral
                 && let Ability::Keyword { keyword, .. } = *ability
             {
-                result.insert(keyword);
+                result.insert(overlay_key(keyword.name()));
             }
         }
     }
     Ok(result)
+}
+
+/// The overlay key of a keyword ability. The gate-column overlay is shared
+/// with the Idris generator, which keys a keyword by its capitalized label
+/// (`FirstStrike`); the Lean facts and the grammar key it by the declaration's
+/// name (`firstStrike`, `docs/decisions/semantics-v2.md` §7, ruling
+/// 2026-10-06), which is that key with its first letter lowered
+/// ([`keyword_name`]). The capitalized key stays inside this generator.
+pub(super) fn overlay_key(name: &str) -> String {
+    let mut chars = name.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
+}
+
+/// The keyword ability declaration name an overlay key names.
+fn keyword_name(overlay_key: &str) -> String {
+    let mut chars = overlay_key.chars();
+    match chars.next() {
+        Some(first) => first.to_lowercase().chain(chars).collect(),
+        None => String::new(),
+    }
 }
 
 fn keyword_rows(
@@ -489,7 +513,7 @@ fn keyword_rows(
                 row.label
             );
             let mut fields = vec![
-                format!("word := {}", quoted(row.label)),
+                format!("word := .named {}", quoted(&keyword_name(row.label))),
                 format!("argumentSchemas := [{}]", schemas.join(", ")),
             ];
             if counter_keywords.contains(row.label) {
@@ -881,7 +905,7 @@ mod tests {
         let generated = render(temp.path()).unwrap();
         let row = generated
             .lines()
-            .find(|line| line.contains("word := \"Ward\""))
+            .find(|line| line.contains("word := .named \"ward\""))
             .unwrap();
         assert!(
             row.contains("argumentSchemas := [[⟨.number, none⟩]]"),
@@ -912,7 +936,7 @@ mod tests {
         let generated = render(temp.path()).unwrap();
         let row = generated
             .lines()
-            .find(|line| line.contains("word := \"Ward\""))
+            .find(|line| line.contains("word := .named \"ward\""))
             .unwrap();
         assert!(
             row.contains("argumentSchemas := [[⟨.number, none⟩, ⟨.cost, none⟩]]"),
@@ -928,7 +952,7 @@ mod tests {
         let reordered = render(temp.path()).unwrap();
         let row = reordered
             .lines()
-            .find(|line| line.contains("word := \"Ward\""))
+            .find(|line| line.contains("word := .named \"ward\""))
             .unwrap();
         assert!(
             row.contains(
@@ -1092,8 +1116,8 @@ mod tests {
             ),
             (
                 "counter_kinds/shadowCounter.ron",
-                "grants(ability: keyword(label: \"Shadow\"))",
-                "grants(keyword(\"Shadow\"))",
+                "grants(keyword: shadow)",
+                "grants(shadow)",
             ),
         ];
 
@@ -1121,7 +1145,7 @@ mod tests {
         );
         assert!(
             by_name.contains(
-                "{ word := \"Shadow\", argumentSchemas := [[]], counterEligible := true,"
+                "{ word := .named \"shadow\", argumentSchemas := [[]], counterEligible := true,"
             ),
             "the counter row moved"
         );

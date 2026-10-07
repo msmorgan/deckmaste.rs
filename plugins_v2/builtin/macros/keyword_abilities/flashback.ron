@@ -15,7 +15,7 @@ KeywordAbility(
         static(
             onlyWhile(
                 insteadOf(leavesZone(thisSpell, stack), exile(thisSpell)),
-                keywordCostPaid("Flashback", thisSpell),
+                keywordCostPaid(flashback, thisSpell),
             ),
         ),
     ],

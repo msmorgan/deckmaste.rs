@@ -6,5 +6,5 @@ CounterKind(
     spelling: "lifelink",
     grammar: FixedTerm(surface: "lifelink"),
     holder: Object,
-    confers: [grants(keyword("Lifelink"))],
+    confers: [grants(lifelink)],
 )

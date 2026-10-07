@@ -12,7 +12,7 @@ KeywordAbility(
     // pronoun: `the` needs a uniquifying predicate and `blockerOf` is not one.
     body: [
         triggered(
-            becomesBlocked(thisCreature, a(and([creature, not(hasKeyword(The("Flanking")))]))),
+            becomesBlocked(thisCreature, a(and([creature, not(hasKeyword(The(flanking)))]))),
             getsBoth(that(Creature), down(1), untilEndOfTurn),
         ),
     ],

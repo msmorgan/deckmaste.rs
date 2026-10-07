@@ -12,7 +12,7 @@ private def plain : Spelled := spelled <| .singleFaced
 private def withKeyword : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.creature], cost := some [generic 1],
-      power := stat 1, toughness := stat 1, text := [keyword "Flying"] } }
+      power := stat 1, toughness := stat 1, text := [keyword (.named "flying")] } }
 
 private def withDraw : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -32,7 +32,7 @@ theorem authoredCardStillPassesSemanticCheck : withDraw.card.check = [] := withD
 private def rawKeywordCard : Card := .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.creature], cost := some [generic 1],
-      power := stat 1, toughness := stat 1, text := [.keyword "Flying" [] []] } }
+      power := stat 1, toughness := stat 1, text := [.keyword (.named "flying") [] []] } }
 
 theorem expandedValueIsDefinitionallyIdentical : withKeyword.card = rawKeywordCard := by rfl
 
@@ -91,11 +91,11 @@ example (card : Card) : Spelled := spelled <| card
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Ability.keyword] -/
 #guard_msgs in
 example : Spelled := spelled <|
-  let _discarded : Ability := .keyword "Flying" [] []
+  let _discarded : Ability := .keyword (.named "flying") [] []
   withKeyword.card
 
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Ability.keyword] -/
 #guard_msgs in
-example : Spelled := spelled <| (withKeyword.card, (Ability.keyword "Flying" [] [])).1
+example : Spelled := spelled <| (withKeyword.card, (Ability.keyword (.named "flying") [] [])).1
 
 end Semantics.Proofs.Authoring

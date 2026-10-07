@@ -726,7 +726,14 @@ the node raw is refused by name; the projection is the mirror's
 beside each keyword action declaration, an argument-free macro of the same
 name at `Deed` that denotes `Action(label: <name>)`, and `Deed::Action` is not
 author vocabulary at a restricted read, so `theVerbed(exile, Many)` reads and
-an undeclared name is refused when the card loads (§7, ruling 2026-10-06). What a macro's own
+an undeclared name is refused when the card loads (§7, ruling 2026-10-06). A
+keyword ability's name reads at a `KeywordLabel` position the same way:
+`KeywordLabel` is a one-constructor type, `named name` (mirror
+`KeywordLabel::Named { name }`), as `DesignationLabel` is, whose name is the
+declaration's name verbatim (`flying`, `firstStrike`); the loader registers
+each keyword ability's name at `KeywordLabel` denoting `Named(name: <name>)`,
+and `Named` is not author vocabulary there (`grants(flying)`,
+`keyword(haste)`). What a macro's own
 BODY may write is what a card may write, because a body is read at the
 position it expands to and goes through the same reader. A macro's declared
 signature still determines its hole vocabulary: positional signatures resolve

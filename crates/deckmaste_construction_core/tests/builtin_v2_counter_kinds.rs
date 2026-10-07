@@ -154,7 +154,7 @@ fn builtin_v2_counter_kinds_preserve_open_phrases_scopes_and_conferrals() {
             .body()
             .unwrap()
             .get_ron()
-            .contains("Counter(kind: Named(name: \"deathtouchCounter\"), holder: Object, confers: [grants(keyword(\"Deathtouch\"))])")
+            .contains("Counter(kind: Named(name: \"deathtouchCounter\"), holder: Object, confers: [grants(deathtouch)])")
     );
     assert!(
         counter(&declarations, "p1p1Counter")

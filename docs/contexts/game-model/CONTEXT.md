@@ -159,7 +159,10 @@ _Avoid_: Ability Class, which names the families a grant or a removal selects
 **Keyword Ability**:
 An Ability represented in rules text by a keyword whose game rule supplies its
 meaning ([CR#702.1]). One keyword name may represent multiple component
-Abilities.
+Abilities. A Keyword Ability is named by its declaration's name (`flying`,
+`firstStrike`), never by the phrase a card prints ("first strike"): a card writes
+that name bare wherever a keyword is wanted, and a name no declaration gives is
+refused when the card loads.
 
 **Intrinsic Ability**:
 An Ability that the CR itself calls intrinsic, notably the mana Ability an

@@ -166,7 +166,7 @@ theorem okLifePaymentPayerReadback :
     NounPhrase.check (some .player) afterLifePayment (that .player) = [] := by decide
 
 def afterPassivePayment : Bindings :=
-  GameEvent.after [] (.paysCost none .paid thisCreature "CumulativeUpkeep")
+  GameEvent.after [] (.paysCost none .paid thisCreature (.named "cumulativeUpkeep"))
 
 /-- "Whenever this creature's cumulative upkeep is paid, that player …" -/
 theorem badPassivePayerReadback :
@@ -178,7 +178,7 @@ theorem badPassivePayerReadback :
 theorem okLifePaymentThatMuch : Amount.check afterLifePayment .thatMuch = [] := by decide
 
 def afterKeywordCostPayment : Bindings :=
-  GameEvent.after [] (.paysCost (some .you) .paid thisEnchantment "CumulativeUpkeep")
+  GameEvent.after [] (.paysCost (some .you) .paid thisEnchantment (.named "cumulativeUpkeep"))
 
 theorem badKeywordCostPaymentThatMuch :
     Amount.check afterKeywordCostPayment .thatMuch = [.quantOutcomeInScope 0] := by decide

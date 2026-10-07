@@ -10,7 +10,7 @@ SingleFaced(face: (
             aura,
         ],
         text: [
-            keywordSubject(label: "Enchant", subject: hasType(Creature)),
+            keywordSubject(label: enchant, subject: hasType(Creature)),
             static(
                 conjunction(
                     subject: None,

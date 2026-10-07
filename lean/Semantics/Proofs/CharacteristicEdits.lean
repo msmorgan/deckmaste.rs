@@ -52,7 +52,7 @@ theorem malformedManaCostIsRefused :
 
 theorem specifiedAbilityRemoval :
     StaticSpec.check [] (.characteristicChange thisCreature
-      [.removedAbilities (.specified [.term (.the "Flying")])]) = [] := by decide
+      [.removedAbilities (.specified [.term (.the (.named "flying"))])]) = [] := by decide
 
 theorem familyAbilityRemoval :
     StaticSpec.check [] (.characteristicChange thisCreature
@@ -64,7 +64,7 @@ theorem allAbilityRemoval :
 
 theorem unknownAbilityFamilyIsRefused :
     StaticSpec.check [] (.characteristicChange thisCreature
-      [.removedAbilities (.family (.keyword "Flyign"))]) = [.knownKeywordTerm] := by decide
+      [.removedAbilities (.family (.keyword (.named "flyign")))]) = [.knownKeywordTerm] := by decide
 
 theorem numericEditsShareOneLocalScope :
     CopyExcept.check [] (.edits
@@ -83,11 +83,11 @@ theorem subjectIsNotPublishedBeforeItsEdits :
       [.anaphor .bare .one 0] := by decide
 
 theorem copySpecificAdditionsRemainSeparate :
-    CopyExcept.checkAll [] [.ability (keyword "Flying"),
+    CopyExcept.checkAll [] [.ability (keyword (.named "flying")),
       .entersWithCounters (.lit 1) p1p1Counter .fresh] = [] := by decide
 
 
 theorem abilityOnlyCopyInputNeedsNoEmptyEditBlock :
-    CopyExcept.checkAll [] (copyCharacteristics {text := [keyword "Flying"]} false) = [] := by decide
+    CopyExcept.checkAll [] (copyCharacteristics {text := [keyword (.named "flying")]} false) = [] := by decide
 
 end Semantics.Proofs.CharacteristicEdits

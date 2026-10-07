@@ -103,7 +103,7 @@ pub const SAMPLES: &[&str] = &[
     "ItsManaCost",
     // Ability.
     "MayBeginOnBattlefield",
-    "Keyword(keyword: \"Sample\", params: [], body: [])",
+    "Keyword(keyword: Named(name: \"Sample\"), params: [], body: [])",
     // Instruction.
     "Shuffle",
     "DrawGame",
@@ -282,7 +282,7 @@ pub const WORD_SAMPLES: &[&str] = &[
     "DownX",
     "EndOf(part: Cleanup, whose: None)",
     "Host",
-    "The(keyword: \"Sample\")",
+    "The(keyword: Named(name: \"Sample\"))",
     "AbilityWord(label: \"Sample\")",
     "More(amount: 2)",
     "Damage(source: This)",
@@ -500,6 +500,7 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "Color" => render::<words::Color>,
         "CounterKind" => render::<words::CounterKind>,
         "DesignationLabel" => render::<words::DesignationLabel>,
+        "KeywordLabel" => render::<words::KeywordLabel>,
         "NounWord" => render::<words::NounWord>,
         "CardType" => render::<words::CardType>,
         "Deed" => render::<words::Deed>,

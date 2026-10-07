@@ -6,5 +6,5 @@ CounterKind(
     spelling: "reach",
     grammar: FixedTerm(surface: "reach"),
     holder: Object,
-    confers: [grants(keyword("Reach"))],
+    confers: [grants(reach)],
 )

@@ -117,7 +117,7 @@ def custodiSquire : Spelled := spelled <| .singleFaced
     { name := "Custodi Squire", cost := some [generic 4, pip .white], types := [.creature],
       subtypes := [creatureType "Spirit", creatureType "Cleric"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           abilityWord "will of the council"
             (when (Primitives.GameEvent.enters thisCreature none)
               (Primitives.Instruction.sequentially

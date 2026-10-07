@@ -10,5 +10,5 @@ CounterKind(
     spelling: "flying",
     grammar: FixedTerm(surface: "flying"),
     holder: Object,
-    confers: [grants(keyword("Flying"))],
+    confers: [grants(flying)],
 )

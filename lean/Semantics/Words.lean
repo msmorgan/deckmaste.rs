@@ -182,7 +182,13 @@ inductive DesignationScope where
   | heldByGame
   deriving DecidableEq, Repr
 
-abbrev KeywordLabel := String
+/-- A keyword ability [CR#702.1]: the NAME of the keyword ability declaration that defines it,
+verbatim (`flying`, `firstStrike`), never the phrase a card prints ("first strike"), which is the
+declaration's spelling. A type of its own rather than a `String`, as `DesignationLabel` is, so a
+card names a keyword by its declaration's name and an undeclared name is refused when it loads. -/
+inductive KeywordLabel where
+  | named (name : String)
+  deriving DecidableEq, Repr
 abbrev AbilityWordLabel := String
 abbrev FlavorWordLabel := String
 abbrev VoteLabel := String

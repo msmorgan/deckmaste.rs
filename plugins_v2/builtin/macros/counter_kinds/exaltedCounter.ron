@@ -7,5 +7,5 @@ CounterKind(
     spelling: "exalted",
     grammar: FixedTerm(surface: "exalted"),
     holder: Object,
-    confers: [grants(keyword("Exalted"))],
+    confers: [grants(exalted)],
 )

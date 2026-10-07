@@ -178,7 +178,7 @@ of its abilities (`Ability.check` reads the body from an empty context), so a bo
 "it" finds nothing, while the same ability written on the card reads the card's mention. -/
 theorem keywordAbilityBodyCannotReadItsCard :
     let card : Bindings := [⟨.the, .one, .object [.creature] (some .battlefield) none none none, []⟩]
-    ((Ability.check card (.keyword "Flying" [] [Primitives.Ability.spell none (destroy it)])).contains
+    ((Ability.check card (.keyword (.named "flying") [] [Primitives.Ability.spell none (destroy it)])).contains
         (.anaphor .bare .one 0),
      Ability.check card (Primitives.Ability.spell none (destroy it))) = (true, []) := by
   decide
@@ -334,10 +334,10 @@ theorem foreignPayerCostHandoffTwin :
 
 /-- "Cumulative upkeep—An opponent loses 1 life." (`Mana.badOpponentPaysYourCost`) -/
 theorem opponentPaysYourCostHandoffTwin :
-    Ability.check [] (keywordCosting "CumulativeUpkeep" (.perform (act anOpponent (loseLife (.lit 1)))))
-        = [.keywordCostPaidByYou "CumulativeUpkeep"] ∧
-      Ability.check [] (keywordCosting "CumulativeUpkeep" (.perform (act anOpponent (loseLife (.lit 1))))) =
-        Ability.check [] (keywordCosting "CumulativeUpkeep" (.perform (act anOpponent (loseLife (.lit 1))))) := by
+    Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.perform (act anOpponent (loseLife (.lit 1)))))
+        = [.keywordCostPaidByYou (.named "cumulativeUpkeep")] ∧
+      Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.perform (act anOpponent (loseLife (.lit 1))))) =
+        Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.perform (act anOpponent (loseLife (.lit 1))))) := by
   decide
 
 /-- "You may pay an opponent's 1 life. If you do, draw a card." (`Choice.badMismatchedPayer`) -/
@@ -554,7 +554,7 @@ private def syndicOfTithes (loss : Instruction) : Card :=
       { name := "Syndic of Tithes", cost := some [generic 1, pip .white], types := [.creature],
         subtypes := [creatureType "Human", creatureType "Cleric"],
         text :=
-          [ .keyword "Extort" []
+          [ .keyword (.named "extort") []
               [ .triggered
                   (.casts .you
                     (some (.described (.a .unmarked)

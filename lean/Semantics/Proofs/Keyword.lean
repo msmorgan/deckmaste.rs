@@ -33,7 +33,7 @@ theorem badCostReadsSiblingDeed :
 
 /-- "Target creature gains flying." -/
 theorem okGainsKeyword :
-    Instruction.check [] (gain (target creature) (keyword "Flying") none) = [] := by decide
+    Instruction.check [] (gain (target creature) (keyword (.named "flying")) none) = [] := by decide
 
 /-- "Target creature gains a spell ability." -/
 theorem badGainsSpellAbility :
@@ -55,12 +55,12 @@ theorem badCostSubjectOnBattlefield :
 
 /-- "Creatures you control have flying." -/
 theorem okBattlefieldFlying :
-    StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword "Flying")) = [] := by
+    StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword (.named "flying"))) = [] := by
         decide
 
 /-- "Creatures you control have convoke." -/
 theorem badBattlefieldConvoke :
-    StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword "Convoke"))
+    StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword (.named "convoke")))
       = [.grantSubject] := by
   decide
 
@@ -70,8 +70,8 @@ theorem okFlatCoordination :
       (.conjunction none
         [ .modification (target creature) .power (.up (.lit 1)),
           .modification it .toughness (.up (.lit 1)),
-          .abilityGrant it (keyword "Flying"),
-          .abilityGrant it (keyword "Trample") ]) = [] := by
+          .abilityGrant it (keyword (.named "flying")),
+          .abilityGrant it (keyword (.named "trample")) ]) = [] := by
   decide
 
 /-- "Target creature gets +1/+1 and gains flying and gains trample." -/
@@ -81,8 +81,8 @@ theorem badNestedCoordination :
         [ .conjunction none
             [ .modification (target creature) .power (.up (.lit 1)),
               .modification it .toughness (.up (.lit 1)),
-              .abilityGrant it (keyword "Flying") ],
-          .abilityGrant it (keyword "Trample") ]) = [.notCoord] := by
+              .abilityGrant it (keyword (.named "flying")) ],
+          .abilityGrant it (keyword (.named "trample")) ]) = [.notCoord] := by
   decide
 
 /-- "Whenever a creature enters, destroy that creature." -/
@@ -99,7 +99,7 @@ theorem badThatCreatureIsStaticSubject :
         (.conjunction none
           [ .modification thisCreature .power (.up (.lit 1)),
             .modification it .toughness (.up (.lit 1)),
-            .abilityGrant (that (.type .creature)) (keyword "Flying") ]))
+            .abilityGrant (that (.type .creature)) (keyword (.named "flying")) ]))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
@@ -110,7 +110,7 @@ theorem okCoordinatedPlural :
         (.conjunction none
           [ .modification (allOf creatureYouControl) .power (.up (.lit 1)),
             .modification them .toughness (.up (.lit 1)),
-            .abilityGrant them (keyword "Flying") ])) = [] := by
+            .abilityGrant them (keyword (.named "flying")) ])) = [] := by
   decide
 
 /-- "Enchanted creature gets +1/+1 and they have flying." -/
@@ -120,7 +120,7 @@ theorem badCoordinatedHostPlural :
         (.conjunction none
           [ .modification (.attachHost .enchanted (.type .creature)) .power (.up (.lit 1)),
             .modification it .toughness (.up (.lit 1)),
-            .abilityGrant them (keyword "Flying") ])) = [.anaphor .bare .many 0] := by
+            .abilityGrant them (keyword (.named "flying")) ])) = [.anaphor .bare .many 0] := by
   decide
 
 /-- "Create a 1/1 white Soldier creature token with flying." -/
@@ -129,7 +129,7 @@ theorem okTokenKeywordAbility :
       (create (.lit 1)
         { characteristics :=
           { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
-            power := some (.lit 1), toughness := some (.lit 1), text := [keyword "Flying"] } })
+            power := some (.lit 1), toughness := some (.lit 1), text := [keyword (.named "flying")] } })
       = [] := by
   decide
 
@@ -209,7 +209,7 @@ theorem badChosenProtectionBeforeChoice :
             text :=
               [ .static
                   (.abilityGrant thisCreature
-                    (.keyword "Protection" [.quality (ofChosen .color)] [])),
+                    (.keyword (.named "protection") [.quality (ofChosen .color)] [])),
                 .static (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) none .openly) ] } })
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
@@ -256,12 +256,12 @@ theorem badChapterJoin :
 /-- "As long as a card exiled with this creature has flying, this creature has flying." -/
 def flyingWhileExiledFlying : Ability :=
   .static
-    (.conditional (.abilityGrant thisCreature (keyword "Flying"))
-      (exists_ (.and [.exiledWith thisCreature, .hasKeyword (.the "Flying")])) .asLongAs)
+    (.conditional (.abilityGrant thisCreature (keyword (.named "flying")))
+      (exists_ (.and [.exiledWith thisCreature, .hasKeyword (.the (.named "flying"))])) .asLongAs)
 
 /-- "The same is true for menace and trample." -/
 theorem okKeywordListOverGrant :
-    Ability.check [] (.alsoForKeywords flyingWhileExiledFlying [.the "Menace", .the "Trample"])
+    Ability.check [] (.alsoForKeywords flyingWhileExiledFlying [.the (.named "menace"), .the (.named "trample")])
       = [] := by
   decide
 
@@ -270,7 +270,7 @@ refutes the extension; the keyword list has no base keyword to repeat either. -/
 theorem badKeywordListOnPlainLine :
     Ability.check []
       (.alsoForKeywords (.static (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1))))
-        [.the "Menace", .the "Trample"]) = [.keywordExtendable, .keywordListOk] := by
+        [.the (.named "menace"), .the (.named "trample")]) = [.keywordExtendable, .keywordListOk] := by
   decide
 
 theorem badEmptyKeywordList :
@@ -278,12 +278,12 @@ theorem badEmptyKeywordList :
 
 theorem badKeywordListRepeatingBase :
     Ability.check []
-      (.alsoForKeywords flyingWhileExiledFlying [.the "Menace", .the "Flying", .the "Trample"])
+      (.alsoForKeywords flyingWhileExiledFlying [.the (.named "menace"), .the (.named "flying"), .the (.named "trample")])
       = [.keywordListOk] := by
   decide
 
 theorem badParameterisedKeywordInList :
-    Ability.check [] (.alsoForKeywords flyingWhileExiledFlying [.the "Ward"])
+    Ability.check [] (.alsoForKeywords flyingWhileExiledFlying [.the (.named "ward")])
       = [.keywordListOk] := by
   decide
 
@@ -302,17 +302,17 @@ theorem badBasicCreatureTypeAxis :
 
 /-- "Echo {2}{W}" -/
 theorem okParameterisedEcho :
-    Ability.check [] (keywordCosting "Echo" (.mana [generic 2, pip .white])) = [] := by decide
+    Ability.check [] (keywordCosting (.named "echo") (.mana [generic 2, pip .white])) = [] := by decide
 
 /-- "Echo" -/
 theorem badBareEcho :
-    Ability.check [] (.keyword "Echo" [] []) = [.keywordParamFits "Echo"] := by decide
+    Ability.check [] (.keyword (.named "echo") [] []) = [.keywordParamFits (.named "echo")] := by decide
 
 /-- "each creature with flying" -/
-theorem okKnownKeywordClass : AbilityClass.known (.keyword "Flying") = true := by decide
+theorem okKnownKeywordClass : AbilityClass.known (.keyword (.named "flying")) = true := by decide
 
 /-- "each creature with flyign": the refusal names the label and the table -/
-theorem badUnknownKeywordClass : AbilityClass.known (.keyword "Flyign") = false := by decide
+theorem badUnknownKeywordClass : AbilityClass.known (.keyword (.named "flyign")) = false := by decide
 
 /-- "{T}: This deals X damage to any target, where X is 3." -/
 theorem okActivatedOpensItsOwnLetter :
@@ -335,7 +335,7 @@ theorem sharedSubjectSurvivesSecondSingular :
           establishFor (target creature)
             [ .modification (ownSubject (target creature)) .power (.up (.lit 1)),
               .modification (ownSubject (target creature)) .toughness (.up (.lit 1)),
-              .abilityGrant (ownSubject (target creature)) (keyword "Flying") ]
+              .abilityGrant (ownSubject (target creature)) (keyword (.named "flying")) ]
             (some untilEndOfTurn) ]) = [] := by
   decide
 
@@ -445,7 +445,7 @@ theorem badFatesealYourOwnLibrary :
 theorem okThatAbilityAfterChoice :
     Instruction.check []
       (.sequentially
-        [ choose (a (qualityFrom .ability (.abilitiesAmong [.the "Flying", .the "Trample"]))),
+        [ choose (a (qualityFrom .ability (.abilitiesAmong [.the (.named "flying"), .the (.named "trample")]))),
           gain thisCreature (.thatAbility .theChoice) (some untilEndOfTurn) ]) = [] := by
   decide
 

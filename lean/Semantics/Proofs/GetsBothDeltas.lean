@@ -112,7 +112,7 @@ part (`badGetsInsideCoordinationTwoHalves`) and the bench wrote its two halves b
 theorem okGetsInsideCoordination :
     StaticSpec.check []
       (.conjunction none
-        [getsPt (target creature) (.up (.lit 1)) (.up (.lit 1)), .abilityGrant it (keyword "Flying")])
+        [getsPt (target creature) (.up (.lit 1)) (.up (.lit 1)), .abilityGrant it (keyword (.named "flying"))])
       = [] := by
   decide
 
@@ -120,7 +120,7 @@ theorem badGetsInsideCoordinationTwoHalves :
     StaticSpec.check []
       (.conjunction none
         [ getsPtTwoHalves (target creature) (.up (.lit 1)) (.up (.lit 1)),
-          .abilityGrant it (keyword "Flying") ])
+          .abilityGrant it (keyword (.named "flying")) ])
       = [.notCoord] := by
   decide
 
@@ -195,14 +195,14 @@ theorem badStaticOnSorceryTwin :
 
 /-- `Faces.okEscalateWithModes`: the same refusals in both spellings. -/
 theorem okEscalateWithModesTwin :
-    Card.check (oneFaced { name := some "", cost := some [pip .black], types := [.instant], text := [ keywordCosting "Escalate" (.mana [generic 2]), .spell none (chooseModes (.range (some 1) (some 2)) [ get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn), get (target creature) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn) ]) ] }) =
-      Card.check (oneFaced { name := some "", cost := some [pip .black], types := [.instant], text := [ keywordCosting "Escalate" (.mana [generic 2]), .spell none (chooseModes (.range (some 1) (some 2)) [ getTwoHalves (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn), getTwoHalves (target creature) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn) ]) ] }) := by
+    Card.check (oneFaced { name := some "", cost := some [pip .black], types := [.instant], text := [ keywordCosting (.named "escalate") (.mana [generic 2]), .spell none (chooseModes (.range (some 1) (some 2)) [ get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn), get (target creature) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn) ]) ] }) =
+      Card.check (oneFaced { name := some "", cost := some [pip .black], types := [.instant], text := [ keywordCosting (.named "escalate") (.mana [generic 2]), .spell none (chooseModes (.range (some 1) (some 2)) [ getTwoHalves (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn), getTwoHalves (target creature) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn) ]) ] }) := by
   decide
 
 /-- `Keyword.badKeywordListOnPlainLine`: the same refusals in both spellings. -/
 theorem badKeywordListOnPlainLineTwin :
-    Ability.check [] (.alsoForKeywords (.static (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))) [.the "Menace", .the "Trample"]) =
-      Ability.check [] (.alsoForKeywords (.static (getsPtTwoHalves (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))) [.the "Menace", .the "Trample"]) := by
+    Ability.check [] (.alsoForKeywords (.static (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))) [.the (.named "menace"), .the (.named "trample")]) =
+      Ability.check [] (.alsoForKeywords (.static (getsPtTwoHalves (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))) [.the (.named "menace"), .the (.named "trample")]) := by
   decide
 
 /-- `Mana.okContinuousPumpClause`: the same refusals in both spellings. -/
@@ -278,7 +278,7 @@ theorem badUntilBeginningOfUpkeepTwin :
 theorem okBushidoWithBushidoDefinitionTwin :
     Ability.check [] (bushido 2) =
       Ability.check []
-        (.keyword "Bushido" [.number (.lit 2)]
+        (.keyword (.named "bushido") [.number (.lit 2)]
           [ triggeredOr (blocks thisCreature none) [becomesBlocked thisCreature none]
               (getTwoHalves thisCreature (.up (.lit 2)) (.up (.lit 2)) (some untilEndOfTurn)) ]) := by
   decide
@@ -320,14 +320,14 @@ theorem okFlatCoordinationTwin :
     StaticSpec.check []
       (.conjunction none
         [ .ptModification (target creature) (.up (.lit 1)) (.up (.lit 1)),
-          .abilityGrant it (keyword "Flying"),
-          .abilityGrant it (keyword "Trample") ]) =
+          .abilityGrant it (keyword (.named "flying")),
+          .abilityGrant it (keyword (.named "trample")) ]) =
       StaticSpec.check []
         (.conjunction none
           [ .modification (target creature) .power (.up (.lit 1)),
             .modification it .toughness (.up (.lit 1)),
-            .abilityGrant it (keyword "Flying"),
-            .abilityGrant it (keyword "Trample") ]) := by
+            .abilityGrant it (keyword (.named "flying")),
+            .abilityGrant it (keyword (.named "trample")) ]) := by
   decide
 
 /-- `Keyword.badNestedCoordination`. -/
@@ -336,15 +336,15 @@ theorem badNestedCoordinationTwin :
       (.conjunction none
         [ .conjunction none
             [ .ptModification (target creature) (.up (.lit 1)) (.up (.lit 1)),
-              .abilityGrant it (keyword "Flying") ],
-          .abilityGrant it (keyword "Trample") ]) =
+              .abilityGrant it (keyword (.named "flying")) ],
+          .abilityGrant it (keyword (.named "trample")) ]) =
       StaticSpec.check []
         (.conjunction none
           [ .conjunction none
               [ .modification (target creature) .power (.up (.lit 1)),
                 .modification it .toughness (.up (.lit 1)),
-                .abilityGrant it (keyword "Flying") ],
-            .abilityGrant it (keyword "Trample") ]) := by
+                .abilityGrant it (keyword (.named "flying")) ],
+            .abilityGrant it (keyword (.named "trample")) ]) := by
   decide
 
 /-- `Keyword.badThatCreatureIsStaticSubject`. -/
@@ -353,13 +353,13 @@ theorem badThatCreatureIsStaticSubjectTwin :
       (.static
         (.conjunction none
           [ .ptModification thisCreature (.up (.lit 1)) (.up (.lit 1)),
-            .abilityGrant (that (.type .creature)) (keyword "Flying") ])) =
+            .abilityGrant (that (.type .creature)) (keyword (.named "flying")) ])) =
       Ability.check []
         (.static
           (.conjunction none
             [ .modification thisCreature .power (.up (.lit 1)),
               .modification it .toughness (.up (.lit 1)),
-              .abilityGrant (that (.type .creature)) (keyword "Flying") ])) := by
+              .abilityGrant (that (.type .creature)) (keyword (.named "flying")) ])) := by
   decide
 
 /-- `Keyword.okCoordinatedPlural`. -/
@@ -368,13 +368,13 @@ theorem okCoordinatedPluralTwin :
       (.static
         (.conjunction none
           [ .ptModification (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)),
-            .abilityGrant them (keyword "Flying") ])) =
+            .abilityGrant them (keyword (.named "flying")) ])) =
       Ability.check []
         (.static
           (.conjunction none
             [ .modification (allOf creatureYouControl) .power (.up (.lit 1)),
               .modification them .toughness (.up (.lit 1)),
-              .abilityGrant them (keyword "Flying") ])) := by
+              .abilityGrant them (keyword (.named "flying")) ])) := by
   decide
 
 /-- `Keyword.badCoordinatedHostPlural`. -/
@@ -383,13 +383,13 @@ theorem badCoordinatedHostPluralTwin :
       (.static
         (.conjunction none
           [ .ptModification (.attachHost .enchanted (.type .creature)) (.up (.lit 1)) (.up (.lit 1)),
-            .abilityGrant them (keyword "Flying") ])) =
+            .abilityGrant them (keyword (.named "flying")) ])) =
       Ability.check []
         (.static
           (.conjunction none
             [ .modification (.attachHost .enchanted (.type .creature)) .power (.up (.lit 1)),
               .modification it .toughness (.up (.lit 1)),
-              .abilityGrant them (keyword "Flying") ])) := by
+              .abilityGrant them (keyword (.named "flying")) ])) := by
   decide
 
 /-- `Keyword.sharedSubjectSurvivesSecondSingular`. -/
@@ -399,7 +399,7 @@ theorem sharedSubjectSurvivesSecondSingularTwin :
         [ exile (target artifact),
           establishFor (target creature)
             [ .ptModification (ownSubject (target creature)) (.up (.lit 1)) (.up (.lit 1)),
-              .abilityGrant (ownSubject (target creature)) (keyword "Flying") ]
+              .abilityGrant (ownSubject (target creature)) (keyword (.named "flying")) ]
             (some untilEndOfTurn) ]) =
       Instruction.check []
         (.sequentially
@@ -407,7 +407,7 @@ theorem sharedSubjectSurvivesSecondSingularTwin :
             establishFor (target creature)
               [ .modification (ownSubject (target creature)) .power (.up (.lit 1)),
                 .modification (ownSubject (target creature)) .toughness (.up (.lit 1)),
-                .abilityGrant (ownSubject (target creature)) (keyword "Flying") ]
+                .abilityGrant (ownSubject (target creature)) (keyword (.named "flying")) ]
               (some untilEndOfTurn) ]) := by
   decide
 
@@ -533,13 +533,13 @@ theorem builtToSmashTwin :
     Instruction.check []
       (.sequentially
         [ get (target (.and [creature, attacking])) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn),
-          .doIf (.matches it (.and [artifact, creature])) (gain it (keyword "Trample") (some untilEndOfTurn))
+          .doIf (.matches it (.and [artifact, creature])) (gain it (keyword (.named "trample")) (some untilEndOfTurn))
             none ]) =
       Instruction.check []
         (.sequentially
           [ getTwoHalves (target (.and [creature, attacking])) (.up (.lit 3)) (.up (.lit 3))
               (some untilEndOfTurn),
-            .doIf (.matches it (.and [artifact, creature])) (gain it (keyword "Trample") (some untilEndOfTurn))
+            .doIf (.matches it (.and [artifact, creature])) (gain it (keyword (.named "trample")) (some untilEndOfTurn))
               none ]) := by
   decide
 
@@ -588,12 +588,12 @@ theorem archpriestOfIonaFullPartyTwin :
       (triggeredIf (.beginningOf .the .combat (.byPlayer .you)) fullParty
         (.sequentially
           [ get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
-            gain it (keyword "Flying") (some untilEndOfTurn) ])) =
+            gain it (keyword (.named "flying")) (some untilEndOfTurn) ])) =
       Ability.check []
         (triggeredIf (.beginningOf .the .combat (.byPlayer .you)) fullParty
           (.sequentially
             [ getTwoHalves (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
-              gain it (keyword "Flying") (some untilEndOfTurn) ])) := by
+              gain it (keyword (.named "flying")) (some untilEndOfTurn) ])) := by
   decide
 
 /-- Nightmarish End: "Target creature gets −X/−X until end of turn, where X is the number of
@@ -667,14 +667,14 @@ theorem awakenTheBearTwin :
       (.establish
         (.conjunction none
           [ .ptModification (target creature) (.up (.lit 3)) (.up (.lit 3)),
-            .abilityGrant it (keyword "Trample") ])
+            .abilityGrant it (keyword (.named "trample")) ])
         (some untilEndOfTurn)) =
       Instruction.check []
         (.establish
           (.conjunction none
             [ .modification (target creature) .power (.up (.lit 3)),
               .modification (itsOther (target creature) (.up (.lit 3))) .toughness (.up (.lit 3)),
-              .abilityGrant it (keyword "Trample") ])
+              .abilityGrant it (keyword (.named "trample")) ])
           (some untilEndOfTurn)) := by
   decide
 
@@ -685,14 +685,14 @@ theorem spidersilkArmorTwin :
       (.static
         (.conjunction none
           [ .ptModification (allOf creatureYouControl) (.up (.lit 0)) (.up (.lit 1)),
-            .abilityGrant them (keyword "Reach") ])) =
+            .abilityGrant them (keyword (.named "reach")) ])) =
       Ability.check []
         (.static
           (.conjunction none
             [ .modification (allOf creatureYouControl) .power (.up (.lit 0)),
               .modification (itsOther (allOf creatureYouControl) (.up (.lit 0))) .toughness
                 (.up (.lit 1)),
-              .abilityGrant them (keyword "Reach") ])) := by
+              .abilityGrant them (keyword (.named "reach")) ])) := by
   decide
 
 /-- The bench's "enchanted creature loses all abilities and is a blue Frog creature with base

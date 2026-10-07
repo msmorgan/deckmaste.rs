@@ -80,7 +80,7 @@ theorem okPlaneswalkerLoyalty : ConferralRule.check planeswalkerLoyalty = [] := 
 /-- A conferral scopes what can have an ability — an object, or a player granted one
 [CR#113.1a,113.1b] — and a color is neither. -/
 theorem badConferralScopeKind :
-    ConferralRule.check { scope := .qualityNoun .color none, confer := keyword "Flying" }
+    ConferralRule.check { scope := .qualityNoun .color none, confer := keyword (.named "flying") }
       = [.kindLte (.quality .color) ruleScopeBound] := by
   decide
 
@@ -138,13 +138,13 @@ theorem okChargeCounter : Definition.check chargeCounter = [] := by decide
 The grant states a quality of the bearer rather than giving it an ability of its own
 [CR#113.12], so it is the ability-free `property` flavor. -/
 def flyingCounter : Definition :=
-  .counter (.named "flyingCounter") .object [.property (.abilityGrant .this (keyword "Flying"))]
+  .counter (.named "flyingCounter") .object [.property (.abilityGrant .this (keyword (.named "flying")))]
 theorem okFlyingCounter : Definition.check flyingCounter = [] := by decide
 
 /-- The conferral helpers are the raw conferrals: `grants` is `flyingCounter`'s, and `boost` is
 the one stat change carrying both deltas. -/
 theorem grantsIsTheKeywordConferral :
-    grants (keyword "Flying") = .property (.abilityGrant .this (keyword "Flying")) := rfl
+    grants (.named "flying") = .property (.abilityGrant .this (keyword (.named "flying"))) := rfl
 theorem boostIsOneStatChange :
     boost (.up (.lit 1)) (.up (.lit 1)) =
       .property (.ptModification .this (.up (.lit 1)) (.up (.lit 1))) := rfl
@@ -334,7 +334,7 @@ def vibranium : PredefinedToken :=
       { characteristics :=
           { types := [.artifact], subtypes := [artifactType "Vibranium"],
             text :=
-              [ keyword "Indestructible",
+              [ keyword (.named "indestructible"),
                 activated .tapSymbol
                   (.addMana (.lit 1) (.runs [[.colorless]])
                     [.spendNotOn [.toCast (.and [.not artifact, spell])]]) ] } } }

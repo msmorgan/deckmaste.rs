@@ -50,7 +50,7 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
       defense := stat 5 } }
   { characteristics :=
     { name := "Serra Faithkeeper", types := [.creature], subtypes := [creatureType "Angel"],
-      text := [keyword "Flying", keyword "Vigilance"], power := stat 4, toughness := stat 4 } }
+      text := [keyword (.named "flying"), keyword (.named "vigilance")], power := stat 4, toughness := stat 4 } }
 
 /-- Missy -/
 def missyFaceDownReturn : Ability :=
@@ -208,7 +208,7 @@ def akkiLavarunner : Spelled := spelled <| .flip
     { name := "Akki Lavarunner", cost := some [generic 3, pip .red], types := [.creature],
       subtypes := [creatureType "Goblin", creatureType "Warrior"],
       text :=
-        [ keyword "Haste",
+        [ keyword (.named "haste"),
           whenever (Primitives.GameEvent.dealsDamage .any thisCreature (some anOpponent))
             (Primitives.Instruction.setStatus .flipped thisCreature) ],
       power := stat 1, toughness := stat 1 } }
@@ -216,7 +216,7 @@ def akkiLavarunner : Spelled := spelled <| .flip
     { name := "Tok-Tok, Volcano Born", supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Goblin", creatureType "Shaman"],
       text :=
-        [ keywordQuality "Protection" (Primitives.Predicate.colorIs .red),
+        [ keywordQuality (.named "protection") (Primitives.Predicate.colorIs .red),
           Primitives.Ability.static (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (a (Primitives.Predicate.and [source, Primitives.Predicate.colorIs .red])))
             (Primitives.DamageScope.toRecipient (a Primitives.Predicate.anyPlayer)) (Primitives.DamageOp.scale (Primitives.DamageScale.shifted .up (.lit 1))) .repeatedly) ],
       power := stat 2, toughness := stat 2 } }
@@ -237,7 +237,7 @@ def bushiTenderfoot : Spelled := spelled <| .flip
   { characteristics :=
     { name := "Kenzo the Hardhearted", supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Samurai"],
-      text := [keyword "DoubleStrike", keywordNumber "Bushido" (.lit 2)],
+      text := [keyword (.named "doubleStrike"), keywordNumber (.named "bushido") (.lit 2)],
       power := stat 3, toughness := stat 4 } }
 
 /-- Kitsune Mystic -/
@@ -310,8 +310,8 @@ def arlinnKord : Spelled := spelled <| .transforming
               (Primitives.StaticSpec.conjunction none
                 [ Primitives.StaticSpec.modification (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1)) creature) .power (Primitives.Delta.up (.lit 2)),
                   Primitives.StaticSpec.modification it .toughness (Primitives.Delta.up (.lit 2)),
-                  Primitives.StaticSpec.abilityGrant it (keyword "Vigilance"),
-                  Primitives.StaticSpec.abilityGrant it (keyword "Haste") ])
+                  Primitives.StaticSpec.abilityGrant it (keyword (.named "vigilance")),
+                  Primitives.StaticSpec.abilityGrant it (keyword (.named "haste")) ])
               (some untilEndOfTurn)),
           activated (Primitives.Cost.loyaltySymbol .zero)
             (Primitives.Instruction.sequentially
@@ -327,7 +327,7 @@ def arlinnKord : Spelled := spelled <| .transforming
               (Primitives.StaticSpec.conjunction none
                 [ Primitives.StaticSpec.modification (allOf creatureYouControl) .power (Primitives.Delta.up (.lit 1)),
                   Primitives.StaticSpec.modification them .toughness (Primitives.Delta.up (.lit 1)),
-                  Primitives.StaticSpec.abilityGrant them (keyword "Trample") ])
+                  Primitives.StaticSpec.abilityGrant them (keyword (.named "trample")) ])
               (some untilEndOfTurn)),
           activated (Primitives.Cost.loyaltySymbol (.down 1))
             (Primitives.Instruction.sequentially
@@ -335,7 +335,7 @@ def arlinnKord : Spelled := spelled <| .transforming
           activated (Primitives.Cost.loyaltySymbol (.down 6))
             (Primitives.Instruction.getEmblem
               [ Primitives.Ability.static (Primitives.StaticSpec.conjunction none
-                  [ Primitives.StaticSpec.abilityGrant (allOf creatureYouControl) (keyword "Haste"),
+                  [ Primitives.StaticSpec.abilityGrant (allOf creatureYouControl) (keyword (.named "haste")),
                     Primitives.StaticSpec.abilityGrant them
                       (activated Primitives.Cost.tapSymbol
                         (Primitives.Instruction.dealDamage thisCreature (Primitives.Amount.statOf (.stat .power) thisCreature)
@@ -352,15 +352,15 @@ def neglectedHeirloom : Spelled := spelled <| .transforming
             (Primitives.GameEvent.verbedEvent none (.action "transform")
               (some (Primitives.NounPhrase.attachHost .equipped (.type .creature))) none none)
             (transform thisEquipment),
-          keywordCosting "Equip" (Primitives.Cost.mana [generic 1]) ] } }
+          keywordCosting (.named "equip") (Primitives.Cost.mana [generic 1]) ] } }
   { characteristics :=
     { name := "Ashmouth Blade", types := [.artifact], subtypes := [artifactType "Equipment"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.conjunction none
             [ Primitives.StaticSpec.modification (Primitives.NounPhrase.attachHost .equipped (.type .creature)) .power (Primitives.Delta.up (.lit 3)),
               Primitives.StaticSpec.modification it .toughness (Primitives.Delta.up (.lit 3)),
-              Primitives.StaticSpec.abilityGrant it (keyword "FirstStrike") ]),
-          keywordCosting "Equip" (Primitives.Cost.mana [generic 3]) ] } }
+              Primitives.StaticSpec.abilityGrant it (keyword (.named "firstStrike")) ]),
+          keywordCosting (.named "equip") (Primitives.Cost.mana [generic 3]) ] } }
 
 /-- Harvest Hand // Scrounged Scythe -/
 def harvestHand : Spelled := spelled <| .transforming
@@ -374,10 +374,10 @@ def harvestHand : Spelled := spelled <| .transforming
       text :=
         [ Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .equipped (.type .creature)) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1))),
           Primitives.Ability.static
-            (onlyWhile (Primitives.StaticSpec.abilityGrant (Primitives.NounPhrase.attachHost .equipped (.type .creature)) (keyword "Menace"))
+            (onlyWhile (Primitives.StaticSpec.abilityGrant (Primitives.NounPhrase.attachHost .equipped (.type .creature)) (keyword (.named "menace")))
               (Primitives.Condition.matches (Primitives.NounPhrase.attachHost .equipped (.type .creature))
                 (Primitives.Predicate.hasSubtype (creatureType "Human")))),
-          keywordCosting "Equip" (Primitives.Cost.mana [generic 2]) ] } }
+          keywordCosting (.named "equip") (Primitives.Cost.mana [generic 2]) ] } }
 
 /-- Cult of the Waxing Moon -/
 def cultOfTheWaxingMoon : Spelled := spelled <| .singleFaced
@@ -399,14 +399,14 @@ def chitteringHost : CardFace :=
     { name := "Chittering Host", types := [.creature],
       subtypes := [creatureType "Eldrazi", creatureType "Horror"],
       text :=
-        [ keyword "Haste", keyword "Menace",
+        [ keyword (.named "haste"), keyword (.named "menace"),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.conjunction none
                 [ Primitives.StaticSpec.modification (allOf (otherCreatureYouControl thisCreature)) .power (Primitives.Delta.up (.lit
                     1)),
                   Primitives.StaticSpec.modification them .toughness (Primitives.Delta.up (.lit 0)),
-                  Primitives.StaticSpec.abilityGrant them (keyword "Menace") ])
+                  Primitives.StaticSpec.abilityGrant them (keyword (.named "menace")) ])
               (some untilEndOfTurn)) ],
       power := stat 5, toughness := stat 6 } }
 def chitteringHostOnScavengers : CardFace := chitteringHost
@@ -448,14 +448,14 @@ def profitLoss : Spelled := spelled <| .split
       text :=
         [ Primitives.Ability.spell none
             (get (allOf creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn)),
-          keyword "Fuse" ] } }
+          keyword (.named "fuse") ] } }
   { characteristics :=
     { name := "Loss", cost := some [generic 2, pip .black], types := [.instant],
       text :=
         [ Primitives.Ability.spell none
             (get (allOf creatureYourOpponentsControl) (Primitives.Delta.down (.lit 1)) (Primitives.Delta.down (.lit 1))
               (some untilEndOfTurn)),
-          keyword "Fuse" ] } }
+          keyword (.named "fuse") ] } }
 
 /-- Glassworks // Shattered Yard -/
 def glassworksShatteredYard : Spelled := spelled <| .sharedLineSplit
@@ -492,7 +492,7 @@ def ghostlyKeybearer : Spelled := spelled <| .singleFaced
     { name := "Ghostly Keybearer", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [creatureType "Spirit"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
             (Primitives.Instruction.unlock (Primitives.Door.doorOf (some .locked)
               (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1))
@@ -529,7 +529,7 @@ def curatorOfDestinies : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Sphinx"],
       text :=
         [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
-          keyword "Flying",
+          keyword (.named "flying"),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ lookAt (topSlice (.lit 5)),
@@ -546,7 +546,7 @@ def atrisOracleOfHalfTruths : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Advisor"],
       text :=
-        [ keyword "Menace",
+        [ keyword (.named "menace"),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ act (target Primitives.Predicate.opponent) (Primitives.Instruction.expose .lookAt (Primitives.Exposed.cards (topSlice (.lit 3)))),
@@ -579,7 +579,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
             (create (.lit 1)
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [creatureType "Wolf"],
-                  text := [keyword "Deathtouch"], power := stat 1, toughness := stat 1 } }),
+                  text := [keyword (.named "deathtouch")], power := stat 1, toughness := stat 1 } }),
           activated (Primitives.Cost.loyaltySymbol (.down 1))
             (Primitives.Instruction.doIfDone (sacrifice (a creature))
               (some (Primitives.Instruction.sequentially
@@ -590,7 +590,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.establish
                   (Primitives.StaticSpec.conjunction none
-                    [ Primitives.StaticSpec.abilityGrant (allOf creatureYouControl) (keyword "Trample"),
+                    [ Primitives.StaticSpec.abilityGrant (allOf creatureYouControl) (keyword (.named "trample")),
                       Primitives.StaticSpec.modification them .power (Primitives.Delta.up (Primitives.Amount.letter .x)),
                       Primitives.StaticSpec.modification them .toughness (Primitives.Delta.up (Primitives.Amount.letter .x)) ])
                   (some untilEndOfTurn),
@@ -613,8 +613,8 @@ def studentOfWarfare : Spelled := spelled <| .leveler
     { name := "Student of Warfare", cost := some [pip .white], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Knight"],
       text := [levelUp (Primitives.Cost.mana [pip .white])], power := stat 1, toughness := stat 1 } }
-  [ levelBand (.between 2 6) 3 3 [keyword "FirstStrike"],
-    levelBand (.atLeast 7) 4 4 [keyword "DoubleStrike"] ]
+  [ levelBand (.between 2 6) 3 3 [keyword (.named "firstStrike")],
+    levelBand (.atLeast 7) 4 4 [keyword (.named "doubleStrike")] ]
 
 /-- Kargan Dragonlord -/
 def karganDragonlord : Spelled := spelled <| .leveler
@@ -622,9 +622,9 @@ def karganDragonlord : Spelled := spelled <| .leveler
     { name := "Kargan Dragonlord", cost := some [pip .red, pip .red], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Warrior"],
       text := [levelUp (Primitives.Cost.mana [pip .red])], power := stat 2, toughness := stat 2 } }
-  [ levelBand (.between 4 7) 4 4 [keyword "Flying"],
+  [ levelBand (.between 4 7) 4 4 [keyword (.named "flying")],
     levelBand (.atLeast 8) 8 8
-      [ keyword "Flying", keyword "Trample",
+      [ keyword (.named "flying"), keyword (.named "trample"),
         activated (Primitives.Cost.mana [pip .red])
           (get thisCreature (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn)) ] ]
 
@@ -653,7 +653,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
 def blitzAutomaton : Spelled := spelled <| .prototype
   { characteristics :=
     { name := "Blitz Automaton", cost := some [generic 7], types := [.artifact, .creature],
-      subtypes := [creatureType "Construct"], text := [keyword "Haste"],
+      subtypes := [creatureType "Construct"], text := [keyword (.named "haste")],
       power := stat 6, toughness := stat 4 } }
   (prototypeAlt [generic 2, pip .red] 3 2)
 
@@ -661,7 +661,7 @@ def blitzAutomaton : Spelled := spelled <| .prototype
 def goringWarplow : Spelled := spelled <| .prototype
   { characteristics :=
     { name := "Goring Warplow", cost := some [generic 6], types := [.artifact, .creature],
-      subtypes := [creatureType "Construct"], text := [keyword "Deathtouch"],
+      subtypes := [creatureType "Construct"], text := [keyword (.named "deathtouch")],
       power := stat 5, toughness := stat 4 } }
   (prototypeAlt [generic 1, pip .black] 1 1)
 

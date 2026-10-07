@@ -300,7 +300,35 @@ pub enum DesignationScope {
     HeldByGame,
 }
 
-pub type KeywordLabel = String;
+/// A keyword ability [CR#702.1]: the NAME of the keyword ability declaration
+/// that defines it, verbatim (`flying`, `firstStrike`), never the phrase a card
+/// prints ("first strike"), which is the declaration's spelling.
+///
+/// A type of its own rather than a `String`, as [`DesignationLabel`] is (Lean
+/// `Semantics.KeywordLabel`): the loader registers each keyword ability's name
+/// at this position (`crate::keywords::label_macro`), and `Named` is not author
+/// vocabulary at a restricted read (`crate::ron`), so a card writes `flying`
+/// and an undeclared name is refused when it loads.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum KeywordLabel {
+    Named { name: String },
+}
+
+impl KeywordLabel {
+    /// A label naming the declaration `name`.
+    #[must_use]
+    pub fn named(name: impl Into<String>) -> Self {
+        Self::Named { name: name.into() }
+    }
+
+    /// The declaration name the keyword is.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Named { name } => name,
+        }
+    }
+}
 
 pub type AbilityWordLabel = String;
 

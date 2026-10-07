@@ -6,5 +6,5 @@ CounterKind(
     spelling: "deathtouch",
     grammar: FixedTerm(surface: "deathtouch"),
     holder: Object,
-    confers: [grants(keyword("Deathtouch"))],
+    confers: [grants(deathtouch)],
 )

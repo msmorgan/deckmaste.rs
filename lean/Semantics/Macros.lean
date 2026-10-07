@@ -389,8 +389,10 @@ semantic_macro m1m1Counter : CounterKind := .named "m1m1Counter"
 definition's conferral is per counter (`Definition.counter`), so the deltas read no count. -/
 semantic_macro boost (power toughness : Delta Amount) : Conferral :=
   .property (.ptModification .this power toughness)
-/-- What one keyword counter confers [CR#122.1b]: its bearer gains the keyword [CR#613.1f]. -/
-semantic_macro grants (ability : Ability) : Conferral := .property (.abilityGrant .this ability)
+/-- What one keyword counter confers [CR#122.1b]: its bearer gains the keyword [CR#613.1f], named
+by its declaration's name (`grants (.named "flying")`). -/
+semantic_macro grants (keyword : KeywordLabel) : Conferral :=
+  .property (.abilityGrant .this (.keyword keyword [] []))
 
 /-! ## Instructions -/
 
@@ -826,7 +828,7 @@ semantic_macro gain (subject : NounPhrase) (ability : Ability) (duration : Optio
   .establish (.abilityGrant subject ability) duration
 /-- "<subject> gains haste [until …]" -/
 semantic_macro gainHaste (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  gain subject (.keyword "Haste" [] []) duration
+  gain subject (.keyword (.named "haste") [] []) duration
 /-- "<subject> becomes <added> in addition to its other types [until …]" -/
 semantic_macro become (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration) :
     Instruction :=
@@ -1055,7 +1057,7 @@ semantic_macro flavorWord (word : FlavorWordLabel) (ability : Ability) : Ability
   .italicHead (.flavorWord word) ability
 /-- "Companion — <condition>" -/
 semantic_macro companion (condition : DeckCondition) : Ability :=
-  .keyword "Companion" [.deckCondition condition] []
+  .keyword (.named "companion") [.deckCondition condition] []
 /-- "Pay N life" as a cost. -/
 semantic_macro payLife (amount : Nat) : Cost :=
   .perform (.changeLife (.down (.lit amount)))
@@ -1078,7 +1080,7 @@ semantic_macro keywordQualityCosting (label : KeywordLabel) (quality : Predicate
 semantic_macro keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) : Ability :=
   .keyword label [.number amount, .cost cost] []
 /-- "Level up [cost]" [CR#702.87a] -/
-semantic_macro levelUp (cost : Cost) : Ability := keywordCosting "LevelUp" cost
+semantic_macro levelUp (cost : Cost) : Ability := keywordCosting (.named "levelUp") cost
 /-- "When <event>, if <condition>, <instruction>" -/
 semantic_macro triggeredIf (event : GameEvent) (condition : Condition)
     (instruction : Instruction) : Ability :=
@@ -1169,10 +1171,10 @@ semantic_macro stormExpansion : Ability :=
         .otherThan thisSpell]))) none) (a .anyPlayer) .earlierThisTurn) [],
         offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
 /-- "Storm" with its reminder text. -/
-semantic_macro storm : Ability := .keyword "Storm" [] [stormExpansion]
+semantic_macro storm : Ability := .keyword (.named "storm") [] [stormExpansion]
 /-- "Renown N" with its reminder text. -/
 semantic_macro renown (count : Nat) : Ability :=
-  .keyword "Renown" [.number (.lit count)] [renownExpansion count]
+  .keyword (.named "renown") [.number (.lit count)] [renownExpansion count]
 /-- Cumulative upkeep's reminder text: "At the beginning of your upkeep, if this permanent is
 on the battlefield, put an age counter on it. Then you may pay [cost] for each age counter on
 it. If you don't, sacrifice it." [CR#702.24a] -/
@@ -1185,15 +1187,15 @@ semantic_macro cumulativeUpkeepExpansion (cost : Cost) : Ability :=
           none (some (sacrifice thisPermanent)) ])
 /-- "Cumulative upkeep [cost]" with its reminder text. -/
 semantic_macro cumulativeUpkeep (cost : Cost) : Ability :=
-  .keyword "CumulativeUpkeep" [.cost cost] [cumulativeUpkeepExpansion cost]
+  .keyword (.named "cumulativeUpkeep") [.cost cost] [cumulativeUpkeepExpansion cost]
 /-- Flying's definition, a static ability: "This creature can't be blocked except by creatures
 with flying and/or reach." [CR#702.9b] -/
 semantic_macro flyingExpansion : Ability :=
   .static (deontic thisCreature .forbid [.core .block] .patient
     (.counterpart (allOf (.and [creature,
-      .not (.or [.hasKeyword (.the "Flying"), .hasKeyword (.the "Reach")])]))))
+      .not (.or [.hasKeyword (.the (.named "flying")), .hasKeyword (.the (.named "reach"))])]))))
 /-- "Flying" with its definition. -/
-semantic_macro flying : Ability := .keyword "Flying" [] [flyingExpansion]
+semantic_macro flying : Ability := .keyword (.named "flying") [] [flyingExpansion]
 /-- Bushido N's definition, a triggered ability: "Whenever this creature blocks or becomes
 blocked, it gets +N/+N until end of turn." [CR#702.45a] -/
 semantic_macro bushidoExpansion (count : Nat) : Ability :=
@@ -1201,7 +1203,7 @@ semantic_macro bushidoExpansion (count : Nat) : Ability :=
     (get thisCreature (.up (.lit count)) (.up (.lit count)) (some untilEndOfTurn))
 /-- "Bushido N" with its definition. -/
 semantic_macro bushido (count : Nat) : Ability :=
-  .keyword "Bushido" [.number (.lit count)] [bushidoExpansion count]
+  .keyword (.named "bushido") [.number (.lit count)] [bushidoExpansion count]
 /-- Modular N's definition, a static ability and a triggered one [CR#702.43a]: "This permanent
 enters with N +1/+1 counters on it" and "When this permanent is put into a graveyard from the
 battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on
@@ -1213,7 +1215,7 @@ semantic_macro modularExpansion (count : Nat) : List Ability :=
         (target (.and [artifact, creature])))) ]
 /-- "Modular N" with its definition. -/
 semantic_macro modular (count : Nat) : Ability :=
-  .keyword "Modular" [.number (.lit count)] (modularExpansion count)
+  .keyword (.named "modular") [.number (.lit count)] (modularExpansion count)
 semantic_macro activated (cost : Cost) (instruction : Instruction) : Ability :=
   .activated cost instruction none none none none
 /-- "[cost]: <instruction>. Activate only <timing>." -/
@@ -1239,7 +1241,7 @@ semantic_macro cyclingExpansion (cost : Cost) : Ability :=
   activated (.compound [cost, .perform (discard .this)]) (draw (.lit 1))
 /-- "Cycling [cost]" with its definition. -/
 semantic_macro cycling (cost : Cost) : Ability :=
-  .keyword "Cycling" [.cost cost] [cyclingExpansion cost]
+  .keyword (.named "cycling") [.cost cost] [cyclingExpansion cost]
 
 /-! ## Cards -/
 

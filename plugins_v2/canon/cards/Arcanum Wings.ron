@@ -10,7 +10,7 @@ SingleFaced(face: (
         types: [Enchantment],
         subtypes: [aura],
         text: [
-            keywordSubject(label: "Enchant", subject: hasType(Creature)),
+            keywordSubject(label: enchant, subject: hasType(Creature)),
             static(
                 abilityGrant(
                     subject: attachHost(word: Enchanted, head: Type(Creature)),

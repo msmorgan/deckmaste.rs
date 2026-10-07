@@ -17,14 +17,14 @@ KeywordAbility(
         static(
             onlyWhile(
                 entersWithCounters(thisPermanent, Param(0), timeCounter),
-                keywordCostPaid("Impending", thisPermanent),
+                keywordCostPaid(impending, thisPermanent),
             ),
         ),
         static(
             onlyWhile(
                 characteristicChange(thisPermanent, [TypeLine(Loses, (types: [Creature]))]),
                 and([
-                    keywordCostPaid("Impending", thisPermanent),
+                    keywordCostPaid(impending, thisPermanent),
                     matches(thisPermanent, hasCounters(timeCounter)),
                 ]),
             ),
@@ -32,7 +32,7 @@ KeywordAbility(
         triggeredIf(
             beginningOfYour(EndStep),
             and([
-                keywordCostPaid("Impending", thisPermanent),
+                keywordCostPaid(impending, thisPermanent),
                 matches(thisPermanent, hasCounters(timeCounter)),
             ]),
             removeCounters(exactly(1), timeCounter, thisPermanent),

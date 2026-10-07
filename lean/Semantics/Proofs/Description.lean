@@ -67,14 +67,14 @@ theorem badDisjunctAntecedent :
 /-- "Tap target creature with flying." -/
 theorem okKeywordConjunction :
     Instruction.check []
-      (.setStatus .tapped (target (.and [creature, .hasKeyword (.the "Flying")]))) = [] := by
+      (.setStatus .tapped (target (.and [creature, .hasKeyword (.the (.named "flying"))]))) = [] := by
   decide
 
 /-- "Tap target creature with flying that doesn't have flying." -/
 theorem okKeywordSelfNegation :
     Instruction.check []
-      (.setStatus .tapped (target (.and [creature, .hasKeyword (.the "Flying"),
-                                         .not (.hasKeyword (.the "Flying"))]))) = [] := by
+      (.setStatus .tapped (target (.and [creature, .hasKeyword (.the (.named "flying")),
+                                         .not (.hasKeyword (.the (.named "flying")))]))) = [] := by
   decide
 
 /-- "Tap target nonland Forest." -/
@@ -400,16 +400,16 @@ theorem badExactlySixColors :
 
 /-- "if this creature's kicker cost was paid" -/
 theorem okPaidCostOnKeywordWithACost :
-    Amount.check [] (.paid (.readback (.byKeyword "Kicker") none) .this) = [] := by decide
+    Amount.check [] (.paid (.readback (.byKeyword (.named "kicker")) none) .this) = [] := by decide
 
 /-- "if this creature's flying cost was paid" -/
 theorem badPaidCostOnCostlessKeyword :
-    Amount.check [] (.paid (.readback (.byKeyword "Flying") none) .this) = [.paidFacetNamed] := by
+    Amount.check [] (.paid (.readback (.byKeyword (.named "flying")) none) .this) = [.paidFacetNamed] := by
   decide
 
 /-- "for each time it was kickre'd" -/
 theorem badTimesPaidUnknownKeyword :
-    Amount.check [] (.paid (.timesPaid (.byKeyword "Kickre")) thisCreature) = [.paidFacetNamed] := by
+    Amount.check [] (.paid (.timesPaid (.byKeyword (.named "kickre"))) thisCreature) = [.paidFacetNamed] := by
   decide
 
 /-- "for each color of mana spent to cast this spell" -/

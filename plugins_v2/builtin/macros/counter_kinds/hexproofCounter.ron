@@ -6,5 +6,5 @@ CounterKind(
     spelling: "hexproof",
     grammar: FixedTerm(surface: "hexproof"),
     holder: Object,
-    confers: [grants(keyword("Hexproof"))],
+    confers: [grants(hexproof)],
 )

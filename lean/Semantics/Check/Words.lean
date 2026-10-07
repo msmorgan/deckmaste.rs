@@ -266,15 +266,15 @@ def coreDeedFacts : CoreDeed → ActFacts
 "crews a Vehicle" [CR#702.122b], "becomes saddled" [CR#702.171a], "phase in" [CR#702.26a]. The
 keyword is the key because the deed exists only where its keyword does. -/
 def abilityDeedFacts : List (KeywordLabel × ActFacts) :=
-  [ ("Crew",
+  [ ((.named "crew"),
       { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
         patientRole := ⟨some ⟨.object, [], [.artifact]⟩, true, some .battlefield⟩,
         counterfactual := some .value, bounded := true }),
-    ("Saddle",
+    ((.named "saddle"),
       { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
         patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
         counterfactual := some .value, bounded := true }),
-    ("Phasing",
+    ((.named "phasing"),
       { intransitive := true,
         agentRole := ⟨some ⟨.object, [], []⟩, true, some .battlefield⟩ }) ]
 

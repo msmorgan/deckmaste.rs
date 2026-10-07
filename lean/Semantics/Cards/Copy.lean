@@ -49,7 +49,7 @@ def frontlineHeroismCopy : Ability :=
       [ create (.lit 1)
           { characteristics :=
             { colors := [.red], types := [.creature], subtypes := [creatureType "Soldier"],
-              text := [keyword "Haste"], power := stat 1, toughness := stat 1 } },
+              text := [keyword (.named "haste")], power := stat 1, toughness := stat 1 } },
         Primitives.Instruction.copy .fromStack (that .spell) (.lit 1) [],
         Primitives.Instruction.copyTargets (that .copy) (that .token) ])
 theorem okFrontlineHeroismCopy : Ability.check [] frontlineHeroismCopy = [] := by decide
@@ -157,7 +157,7 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.artifact, .creature],
       subtypes := [creatureType "Human", creatureType "Hero"],
       text :=
-        [ keyword "Flying",
+        [ keyword (.named "flying"),
           triggeredOnlyOnce (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
             (Primitives.Predicate.and [artifact, spell]))) none)
             Primitives.UsageLimit.actionOncePerTurn
@@ -176,7 +176,7 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
             (Primitives.GameEvent.casts Primitives.NounPhrase.you
               (some (a (Primitives.Predicate.and [ creature, spell, Primitives.Predicate.not
                 (Primitives.Predicate.hasSupertype .legendary),
-                         Primitives.Predicate.hasKeyword (.the "Flying") ])))
+                         Primitives.Predicate.hasKeyword (.the (.named "flying")) ])))
               none)
             Primitives.UsageLimit.actionOncePerTurn
             (offer
