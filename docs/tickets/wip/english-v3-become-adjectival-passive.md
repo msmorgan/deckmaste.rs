@@ -630,8 +630,9 @@ Both corpus walls and the recorded finished command wall exceed the quiet-host
 advisory ceiling **16,260,000,000 ns**; this shared-host run makes no
 quiet-host performance claim.
 
-Full census budget so far: **2 of 3**. Final feature census:
-`target/english-v3/english-v3-become-adjectival-passive/after.json`.
+Full census budget: **3 of 3**. Final refreshed census:
+`target/english-v3/english-v3-become-adjectival-passive/refreshed.json`.
+The pre-refresh finished-feature census is `after.json` in the same directory.
 Baseline: the same directory's `before.json`. Reading-count comparison:
 `feature-diff.json`; all gains' sampled trees: `new-faces-samples.json`.
 These ignored artifacts are copied to the coordinator's same target path
@@ -653,5 +654,51 @@ these were corrected without changing any asserted value. Recheck:
 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings`: **exit 0**.
 `cargo fmt --all -- --check`: **exit 0**. Citation check: **16,112 checked,
 0 stale**; noncompliant citation-looking strings: **0**. Piped jj diff citation
-audit: **0 new CR sites**. Unconditional Kata refresh and its final census
-follow before integration.
+audit: **0 new CR sites**. Refreshed verification is recorded below.
+
+
+Kata refresh completed with **exit 0, no conflicts**. It incorporated trunk's
+semantics stack, headed by `luvlozvxnvyo` (keyword-body-reference-scope and
+macro-capture-and-plurality), plus its follow-up documentation and shared
+claims. Trunk attribution: **0 Reading-count decreases brought in by refresh**;
+no trunk-attributed loss identities exist. All face identities, sources, and
+per-face Reading counts match the pre-refresh finished feature.
+`refresh-diff.json` records zero gains, losses, decreases, and increases.
+The declaration hash remains
+`9778ff6c7270ce03ea8fa6ab6af260fdb4fb26bf6fd903494bf08019a49fe46b`.
+Thus the refreshed base does not change this feature's zero-loss result or
+its selected-analysis audit. Final nonblank declaration lines remain **3,310**,
+net **+10 versus the claim parent**. All inventories and construction counts
+above remain unchanged on the refreshed tree at the following stamp.
+
+Final refreshed stamp: **mtzyynuxpnktonsoutnxypvszorkyqzq / covered 21,070** (code feature `rmrtuzwl`).
+Covered **21,070**, unique **7,464**, multiple **13,606**,
+unread **11,758**, Readings **685,662**; complete faces
+**32,828**, issues/failed/limited/duplicates/cycles/internal failures
+**0**. Both roundtrip laws retain the independent test evidence above.
+Workers **6**; host load **5.57080078125 / 11.77099609375 / 17.818359375**
+(1/5/15 minutes); setup wall **2,587,587,379 ns**, corpus wall
+**119,115,826,525 ns**, command wall **123,444,966,921 ns**, per-byte thread CPU
+**256,322 ns/B**. This measured command wall is
+above the **16,260,000,000 ns** quiet-host advisory; no quiet-host claim.
+
+Refreshed `cargo xtask gate --changed --from wssttryk --run --clippy`:
+**exit 0**. Derived test command remains
+`cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3
+-p deckmaste_english_v3 -p xtask`: **847 passed, 0 failed,
+1 inherited ignore** (same named blocker above). Derived Clippy command
+remains the same four packages with `--all-targets -- -D warnings`: **exit 0**.
+Refreshed formatting: **exit 0**; citations: **16,151 checked, 0 stale**;
+noncompliant strings: **0**. No tests were weakened, removed, or newly ignored
+in either check round.
+
+The last currentness refresh also incorporated documentation changes
+`ktnsqqywqtms`, `xuykxuuxxxvk`, `zuqyqxtswnmx`, and build-profile change
+`vsskuolwykss` (development optimization level 2 for lexical_source and
+construction_core). No grammar, lexicon, loader, compiler, or test source
+changed in that refresh. The completed gate above ran before this final
+profile-only refresh; its functional and Clippy results are preserved under
+Kata's unchanged-behavior rule. The final xtask binary was rebuilt under the
+updated profile, and the third full census verifies all counted Readings on
+that binary. No fourth full census was run. Final citation and formatting
+checks include the latest documentation.
