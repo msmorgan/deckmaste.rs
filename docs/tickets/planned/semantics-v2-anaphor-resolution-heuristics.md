@@ -213,7 +213,299 @@ Expected residue under all four: the same-syntax pairs above (Vampiric Embrace
 against Scythe of the Wretched), unless the measurement finds what tells them
 apart.
 
-## The work: measure, then report
+## Measured 2026-10-06
+
+The measurement asked for under "The work" below. It is research only and
+recommends no implementation. The report, scripts, answer keys and outputs
+are in
+`/tmp/claude-1000/-home-msmorgan-Projects-deckmaste-rs/d7d9fdb6-2e51-4168-8aa6-b98479d6bbb6/scratchpad/anaphora/`
+(report `measurement-2026-10-06.md`; keys `key_that.txt`, `key_it.txt`,
+`key_pins.txt`; scripts `corpus.py`, `analyze.py`, `dump_that.py`,
+`extract_it.py`, `pins.py`, `rules.py`, `score_*.py`, `breakdown.py`,
+`reciprocals.py`; outputs `*.out`). That location is session-scoped and may
+disappear; the owner is deciding a durable home for it.
+
+**Framing.** As in `lean-drt-anaphora-refactor`: bindings are discourse
+referents, windows and masking are accessibility. The key excludes a
+candidate only as inaccessible: `i` inside the anaphor's own unbound NP; `g`
+non-referring (predicate nominal, plural, quoted ability, the "card" of "card
+name"); `s` closed scope (`each`/`no`/`any`, the `Otherwise` arm reading the
+condition, a mention outside a quoted ability); `c` the consuming verb cannot
+apply in the candidate's zone [CR#109.2]. Mentions of one referent are merged
+into one chain. The rules choose among what remains.
+
+### Reproduction
+
+- 31,981 Vintage-legal, non-funny oracle ids (32,828 faces, 60,106
+  paragraphs); 4,517 "that N" occurrences.
+- 464 with two or more regex candidates; `sites.json` is byte-identical to the
+  2026-10-05 list.
+- 121 are not the newest regex mention: the 77 in kinds a–f, split a 33 /
+  b 22 / c 8 / d 2 / e 3 / f 9 (2026-10-05: 29 / 22 / 11 / 4 / 2 / 9; the f
+  cards are the same nine), plus a new **kind g**, 44 sites: the newest regex
+  mention does not refer at all ("If it's a creature card, … that card"). The
+  2026-10-05 hand check did not count g. The a/c/d/e differences are boundary
+  judgments: Mythos of Illuna and Arna Kennerüd moved from c to a; d counts
+  only where the token is the newest regex mention (Kalitas, Broken Visage);
+  Battle Angels of Tyr's two "than each other player" sites are e.
+
+### "that N": why the strict count admits or refuses each site
+
+- 239 are one coreference chain ("target creature … that creature … that
+  creature").
+- 138 have one accessible referent: 58 after `g`, 40 after `s`, 32 after `i`,
+  8 after `c`.
+- **87 are genuinely ambiguous**: 84 with two accessible referents, 3 with
+  three.
+
+The 377 single-referent sites resolve correctly under strict only if the
+checker's minting and masking match the key's accessibility, which is
+unverified.
+
+### Rules measured
+
+All apply after accessibility. strict: exactly one, else refuse. R0/R1: plain
+recency over raw regex mentions / accessible referents (R1 is today's `find?`).
+A: remove clause-mates, then require uniqueness; Aarg: Principle B proper,
+exempting possessive anaphors and possessor-only clause-mates. B (`it` only):
+B1 subject, B2 object of the preceding or superordinate clause, B3 first
+target; for `that N`, A+B = A. C: remove what a pronoun in the demonstrative's
+own clause picks up; ACwB1/ACwB2 also shun the B1/B2 referent. D: rank role
+(S > O > X), then nearer clause, refuse a true tie. D′: nearer clause, then
+role (the ADR's reserved clause-recency). X>Y: filter X, then pick by Y. A pick
+rule turns a wrong answer into a clean check; a filter can only refuse.
+
+### "that N": the 87 ambiguous sites
+
+| Rule | Correct | Wrong (silent) | Refused | Correct − wrong |
+|---|---|---|---|---|
+| strict | 0 | 0 | 87 | 0 |
+| R1 recency | 53 | 34 | 0 | 19 |
+| A | 28 | 0 | 59 | 28 |
+| A+B (= A) | 28 | 0 | 59 | 28 |
+| Aarg | 23 | 0 | 64 | 23 |
+| C alone | 14 | 0 | 73 | 14 |
+| A+B+C (AC) | 29 | 0 | 58 | 29 |
+| ACwB1 | 40 | 8 | 39 | 32 |
+| ACwB2 | 33 | 27 | 27 | 6 |
+| D alone | 36 | 47 | 4 | −11 |
+| D′ alone | 44 | 39 | 4 | 5 |
+| AC>D | 61 | 24 | 2 | 37 |
+| AC>D′ | 72 | 13 | 2 | 59 |
+| **AC>R1** | **76** | **11** | **0** | **65** |
+
+Over all 464: R0 343 correct / 121 wrong; AC>R1 453 / 11; strict 377 correct,
+87 refused. No site is undeterminable.
+
+By kind (correct/wrong/refused):
+
+| Rule | a 33 | b 22 | c 8 | d 2 | e 3 | f 9 | g 44 |
+|---|---|---|---|---|---|---|---|
+| strict | 31/0/2 | 5/0/17 | 0/0/8 | 0/0/2 | 3/0/0 | 2/0/7 | 44/0/0 |
+| R1 | 33/0/0 | 5/17/0 | 0/8/0 | 0/2/0 | 3/0/0 | 2/7/0 | 44/0/0 |
+| A (= A+B) | 31/0/2 | 21/0/1 | 0/0/8 | 2/0/0 | 3/0/0 | 6/0/3 | 44/0/0 |
+| AC | 31/0/2 | 21/0/1 | 0/0/8 | 2/0/0 | 3/0/0 | 6/0/3 | 44/0/0 |
+| D | 32/1/0 | 6/16/0 | 5/1/2 | 2/0/0 | 3/0/0 | 5/4/0 | 44/0/0 |
+| AC>D | 32/1/0 | 22/0/0 | 5/1/2 | 2/0/0 | 3/0/0 | 7/2/0 | 44/0/0 |
+| AC>D′ | 32/1/0 | 22/0/0 | 5/1/2 | 2/0/0 | 3/0/0 | 7/2/0 | 44/0/0 |
+| AC>R1 | 33/0/0 | 22/0/0 | 0/8/0 | 2/0/0 | 3/0/0 | 6/3/0 | 44/0/0 |
+
+A clears kinds b and d as predicted; a, e and g are accessibility matters.
+Kind c is where recency and role disagree: AC>R1 gets all 8 wrong, AC>D′ 5 of
+8 right.
+
+**The 11 wrong under AC>R1** (0 refused, 0 undeterminable):
+
+- Kind c, a newer mention inside the intended referent's modifier: Tahngarth,
+  First Mate; Unpredictable Cyclone; Eriette, the Beguiler; Runesword; Scythe
+  of the Wretched; Bronze Bombshell.
+- "an opponent or a permanent an opponent controls", the newer opponent inside
+  the sibling disjunct: Gisela, Blade of Goldnight; Solphim, Mayhem Dominus.
+- Kind f: Ram Through; Mangara's Equity; Noetic Scales.
+
+The 13 wrong under AC>D′: Joint Assault, Wall of Caltrops, Sword of Kaldra,
+Mythos of Illuna, Ram Through, Guile, Shield of the Righteous, Eriette, Hazel
+of the Rootbloom, Barrow-Blade, Aegis of the Legion, Neko-Te, Noetic Scales;
+mostly "Whenever X deals damage to/blocks a creature, … that creature", where
+role ranking picks the subject X.
+
+Five of the nine f-cards resolve under A: Guard Dogs ("if it shares a color
+with that permanent"), Alpha Brawl ("each of those creatures deals damage … to
+that creature"), Reincarnation (the returned card is the object of "return"),
+Sokrates ("This creature's controller and that player"). Zur's Weirding
+resolves under strict: "If a player does" is not accessible from the
+`Otherwise` arm (DRT, and the checker's own `badOtherwiseReadsIfArm`).
+
+### Bare `it`: a random sample
+
+`extract_it.py` takes every `it`/`it's` (not `its`) and counts every earlier
+singular object mention in the paragraph, `CARDNAME` and "this N" included:
+9,151 occurrences, **3,759 (on 2,846 cards) with two or more candidates**. This
+frame is broader than the ADR's ~2,541, so the counts are not directly
+comparable. Sample: **150**, random, seed 20261006. One is non-anaphoric (Grim
+Reaper's Sprint, "If it's your main phase"); 20 are coreference chains; 68
+have one accessible referent (25 by carrier alone); **61 are ambiguous**
+(40.7%, Wilson 95% CI 33.1–48.7%), **projected ~1,529 of 3,759 (95%
+1,246–1,829)**, above the ADR's ~886 (710–1,061) because of the broader frame
+and because carrier was applied only where the verb cannot apply at all.
+
+| Rule | Correct | Wrong (silent) | Refused | Correct − wrong | Wrong in population |
+|---|---|---|---|---|---|
+| strict | 0 | 0 | 61 | 0 | 0 |
+| R1 recency | 46 | 15 | 0 | 31 | ~376 (231–596) |
+| A | 3 | 1 | 57 | 2 | ~25 |
+| Aarg | 3 | 0 | 58 | 3 | 0 |
+| B1 | 19 | 2 | 40 | 17 | ~50 |
+| B2 | 30 | 1 | 30 | 29 | ~25 (4–138) |
+| B3 | 12 | 7 | 42 | 5 | ~175 |
+| A+B2 | 30 | 1 | 30 | 29 | ~25 |
+| D alone | 34 | 25 | 2 | 9 | ~626 (434–881) |
+| A>D | 35 | 24 | 2 | 11 | ~601 |
+| **D′ alone** | **60** | **0** | **1** | **60** | **0 (0–94)** |
+| A>D′ | 59 | 1 | 1 | 58 | ~25 |
+| A>R1 / Aarg>R1 | 47 / 48 | 14 / 13 | 0 | 33 / 35 | ~350 |
+
+D′'s one refusal is Cocoon ("if this Aura has a pupa counter on it", two
+clause subjects). Of D's 25 errors, 20 are an earlier (trigger) subject
+outranking a searched, revealed or targeted object.
+
+**The copy template.** 12 of R1's 15 errors are copy templates: in "create a
+token that's a copy of target creature, except it has haste" the newest
+mention is the copied creature but "it" is the token (Callidus Assassin, Jolly
+Balloon Man, Mocking Doppelganger, Splinter Twin, Multiversal Recruitment,
+Vesuvan Shapeshifter, Imposter Mech, Twinflame, Offspring's Revenge, Shuri,
+Sakashima, Orthion). The other 3: Frostwielder (kind c); Grip of Phyresis and
+Anthem of Rakdos (clause-mates).
+
+### The ambiguity pins
+
+`pins.py` finds **21** theorems in `lean/Semantics/Proofs/` asserting
+`.anaphor … n` with n >= 2, not 19 (14 `it`/`them`/`its`, 7 `that N`/`they`/
+`that turn`):
+
+| Pin | Location | Theorem | Key |
+|---|---|---|---|
+| P01 | Actor.lean:82 | `badAmassBareItAfterDestroy` | intended |
+| P02 | Anaphora.lean:465 | `badSingularSpellReadAfterCopy` | ? |
+| P03 | Anaphora.lean:486 | `badSingularAbilityReadAfterCopy` | ? |
+| P04 | Anaphora.lean:782 | `badIndefiniteChosenPlayerRead` | intended |
+| P05 | Anaphora.lean:848 | `badItAcrossOwnSlot` | intended |
+| P06 | Anaphora.lean:886 | `badCondUnwindowedRead` | intended |
+| P07 | Anaphora.lean:914 | `badSharedSubjectTwoInDelta` | conjunction |
+| P08 | ControllerSacrifice.lean:106 | `wholeOwnedScopeWouldBeAmbiguous` | intended |
+| P09 | Counters.lean:178 | `badBatchTwoCreatesThenIt` | ? |
+| P10 | Damage.lean:53 | `badIt` | ? |
+| P11 | Damage.lean:81 | `badThemAmbig` | ? |
+| P12 | Damage.lean:89 | `badInnerAmbig` | ? |
+| P13 | Faces.lean:886 | `badUntapNextAmbiguousIt` | ? |
+| P14 | GetsBothDeltas.lean:315 | `badSharedSubjectTwoInDeltaTwoHalves` | conjunction |
+| P15 | ReferenceScopes.lean:106 | `attachKeepsOuterAmbiguity` | ? |
+| P16 | ReferenceScopes.lean:28 | `ordinaryItRemainsAmbiguous` | ? |
+| P17 | ReferenceScopes.lean:33 | `formerDepthReachesOuterArtifact` | intended |
+| P18 | Turn.lean:120 | `badVerbedAmbig` | ? |
+| P19 | Turn.lean:128 | `badBareCardRead` | intended |
+| P20 | Turn.lean:499 | `badThatTurnAfterTwoTurns` | ? |
+| P21 | Turn.lean:68 | `badTwoCostMentions` | ? |
+
+`key_pins.txt` codes 7 pins with a determinate intended referent (`I=B`, the
+newer binding in each): P01, P04, P05, P06, P08, P17, P19. The report's prose
+lists five of them as "intended" and puts P08 and P19 under "wrong if
+resolved", meaning a wrong pick is possible there (A picks the wrong one for
+P08); the key itself counts all seven as intended. P07 and P14 (`I=X`, the
+shared subject "both … get +1/+1") intend the conjunction, so any single pick
+is wrong. The other 12 (`I=?`) are constructed ambiguities with no intended
+referent ("Target creature fights target creature. Tap it."). For P08 the key
+assumes the creature binding is minted after the artifact embedded in it.
+
+Flips (no longer refused) / correct / wrong / undeterminable:
+
+| Rule | 14 `it`-form pins | 7 `that`-form pins |
+|---|---|---|
+| strict | 0/0/0/0 | 0/0/0/0 |
+| R1 | 14/5/2/7 | 7/2/0/5 |
+| A | 2/0/2/0 (P05, P08 go wrong) | 0 |
+| Aarg | 0 | 0 |
+| B1 / B2 / B3 | 4/3/0/1 · 6/1/1/4 · 10/1/6/3 | n/a |
+| D | 8/4/0/4 | 6/2/0/4 |
+| D′ | 8/4/0/4 | 6/2/0/4 |
+| AC>R1 | n/a | 7/2/0/5 |
+
+- **"`it`: D′, `that N`: AC>R1" (clause recency for `it`, A–C then recency for
+  `that N`)**: 15 of 21 flip, 6 intended, 0 wrong, 9 undeterminable; the 6
+  that stay refused are true ties (P07, P08, P09, P12, P15, P16).
+- **Plain recency (R1) for both**: 21 flip, 7 intended, 2 wrong (P07, P14), 12
+  undeterminable; the 2026-10-05 6/2/11 plus the two extra pins.
+- **Rule A must not exclude possessives.** P05 `badItAcrossOwnSlot` ("Target
+  creature deals damage equal to its power to any target"): a possessive `its`
+  may take its own clause's subject, as `itsOther`, `ownSubject` and
+  `dealDamageOwnPower` encode. Weeping Angel ("that creature's owner shuffles
+  it") is the corpus case: the possessor of the subject is the antecedent, so
+  an A that excludes possessors is wrong and Aarg is right.
+
+### The same-syntax pair is settled by zone
+
+Recency picks the creature inside the modifier ("by enchanted creature"); role
+ranking picks the head ("a creature … dies"). Vampiric Embrace means the
+embedded creature; Scythe of the Wretched and Runesword mean the head. The
+separating feature is fold-state, not syntax: in Vampiric Embrace the head
+creature has died, so "put a +1/+1 counter on that creature" cannot apply to
+it [CR#109.2], and with that `c` exclusion Vampiric Embrace resolves under
+strict. Scythe ("return that card … Attach this Equipment to that creature")
+is resolved only by D′, since it re-mentions the creature that died; Runesword
+by D′ and AC>D; AC>R1 gets both wrong. Zone settles **8 sites, which the zone
+exclusion removes from the 95 otherwise ambiguous, leaving 87**: Survival of
+the Fittest, Takklemaggot, Next of Kin, Tragic Banshee, Necrotic Plague,
+Devour Intellect, Vampiric Embrace, Infectious Rage. This assumes the checker
+applies carrier and zone to `that N` as it does for `ItAt`, which is
+unverified.
+
+### The reciprocal gap row
+
+Not a candidate rule: not a choice among antecedents, and none of A–D
+addresses it.
+
+| Construction | Paragraphs / cards | What the model needs |
+|---|---|---|
+| "fight(s)", reciprocal by rule: "Each of those creatures deals damage equal to its power to the other creature" [CR#701.14a] | 145 / 142 | A binder over a pair that reads "the other member" |
+| "fight each other" | 11 / 11 | Same |
+| "one another" (Chrome Replicator, Mechanized Production) | 2 / 2 | Same |
+
+### What each rule reads (step 6)
+
+Mechanism today: the gate is `lean/Semantics/Check/PhraseRules.lean` L309–311
+(`.pro`, `refuse (n == 1) (.anaphor r pl n)` at L311); the denotation is
+`lean/Semantics/Check/Phrase.lean` L1343–1346 (`NounPhrase.result`'s `.pro`
+arm, `(windowAddresses window bs).find?` at L1344, already R1 within the
+window); windows are `lean/Semantics/Words.lean` L304–311; the hand-built
+windows are the macros inventoried above (same lines).
+
+| Rule | What the context must carry | Existing hand-coding it would generalise |
+|---|---|---|
+| R1 / AC>R1 | Nothing new: `bs` order is recency; the gate becomes a pick. | `find?` (Phrase.lean L1344) |
+| A / Aarg | **Clause membership**: the bindings introduced or read by the sibling argument slots of the predicate being checked (`NounResult` already returns a read's `address`). Aarg also needs the anaphor's **position** (possessive or argument) and whether the clause-mate link runs through a possessor. | `attachToIt`, `requireBlockIt` (`outsideIntroduced` of one sibling); `itsOther`, `ownSubject`, `controllerSacrifices` encode the opposite, so a general A must exempt possessives (P05, Weeping Angel). |
+| C | The addresses that pronouns in the same clause resolved to. | None |
+| B1 / B2 | **Antecedent status**: each binding stamped with its grammatical role (S/O/X) and the instruction or clause it came from, relative to the reading clause. | `itCondSubject`, `agentRef` (B1); `itPrior`, `lookedCards` (B2-like) |
+| B3 | A first-target marker (`Binding.det = .target` plus order). | None |
+| D / D′ | Role and clause distance for every binding (as B), plus a ranked pick with tie refusal. | `Window.top` users (`comparesOwnStat`, `dealDamageOwnPower`) |
+
+### Caveats
+
+1. **One annotator, unblinded.** The same agent judged the intended referents
+   and coded clause distance and role, knowing the intended referent. D′'s
+   near-perfect `it` score depends on those distance codes. The 87 + 61
+   ambiguous sites need a blind second coding before any rule is accepted.
+2. **Accessibility is the key's DRT judgment, not the checker's behaviour.** Of
+   the 377 sites strict resolves, 40 depend on `s`, 32 on `i`, 8 on `c`.
+3. **The candidate frame is regex head nouns**; hands and missed names were
+   added by hand (7 `it` sites).
+4. **The `it` result is a sample** (150 sites, 61 ambiguous); the `that N`
+   result is a census.
+
+## The work: measure, then report (done 2026-10-06)
+
+Done; the results are "Measured 2026-10-06" above and the decision is
+"Put to the owner" below.
+
 
 1. **Regenerable corpus extraction.** Build the site lists from `data/`
    (`data/scryfall/oracle-cards.jsonl` for Vintage legality and set type,
@@ -256,3 +548,55 @@ counts as its evidence. The amendment lands only with an accepted rule.
 ## Out of scope
 
 Changing `PhraseRules.lean`, `Phrase.lean` or any pin.
+
+## Put to the owner (2026-10-06)
+
+From the measurement above. No rule is recommended for implementation; the
+strict rule stands ("Decided 2026-10-05") until the owner accepts one.
+
+**`that N`** (87 ambiguous sites), ranked by correct − wrong:
+
+| Rank | Rule | Correct / wrong / refused | Score | Trade-off |
+|---|---|---|---|---|
+| 1 | AC>R1 | 76 / 11 / 0 | 65 | The existing find-first behind the A and C filters; reads clause membership only. Silent errors concentrate in kind c (Tahngarth, Unpredictable Cyclone, Eriette, Runesword, Scythe, Bronze Bombshell, plus the disjunct cases Gisela, Solphim) and kind f (Ram Through, Mangara's Equity, Noetic Scales). Never refuses. |
+| 2 | AC>D′ | 72 / 13 / 2 | 59 | Gets 5 of 8 kind-c sites right; fails "Whenever X deals damage to a creature, … that creature" by picking the subject. Needs role and clause stamps. |
+| 3 | AC>D | 61 / 24 / 2 | 37 | Silent errors are high. |
+| 4 | ACwB1 | 40 / 8 / 39 | 32 | The Givenness reading (the demonstrative avoids the subject in focus). Refuses many. |
+| 5 | AC (= A+B+C) | 29 / 0 / 58 | 29 | **Zero wrong**: a pure narrowing of the count that keeps the `countBy` gate shape. Leaves 58 refused. |
+
+Strict scores 0; pure D −11.
+
+**Bare `it`** (61 ambiguous sampled sites, ≈1,529 occurrences):
+
+| Rank | Rule | Correct / wrong / refused | Score | Trade-off |
+|---|---|---|---|---|
+| 1 | D′ (clause recency, then role, refusing ties) | 60 / 0 / 1 | 60 | 0 wrong (upper bound ~94 occurrences). Needs every binding stamped with role and clause; replaces the count with a pick and the `countBy` witnesses with ranking lemmas. |
+| 2 | A>D′ | 59 / 1 / 1 | 58 | Adds Weeping Angel as an error unless A exempts possessors (Aarg>D′ = D′). |
+| 3 | R1 | 46 / 15 / 0 | 31 | Existing mechanism; 12 silent errors on copy templates. |
+| 4 | B2 / A+B2 | 30 / 1 / 30 | 29 | Still a filter, so the gate shape survives; half stay refused. |
+
+Pure D scores 9: role-first ranking lets trigger subjects beat searched cards.
+
+**Pins.** Under "`it`: D′, `that N`: AC>R1", 15 of 21 flip: 6 intended, 0
+wrong, 9 undeterminable. Under strict, none flip.
+
+**Open judgments:**
+
+1. **Pick or filter.** Buy a pick with silent errors (`that N` 11 of 87; `it`
+   0 of 61 in the sample), or keep a filter (AC, B2) at 0–1 wrong with roughly
+   half still refused?
+2. **Separate rules.** The data supports different rules for the two forms:
+   `it` by clause recency with role ranking, `that N` by disjoint reference
+   then recency. The demonstrative's kind-c failures are where they differ
+   most.
+3. **What counts as a clause-mate.** Including possessors (the Kalitas reading)
+   breaks Weeping Angel and P05/P08; Principle B proper (Aarg) costs Kalitas
+   and Broken Visage.
+4. **Fold-state for `that N`.** Give `that N` the carrier and fold-state
+   scoping of `ItAt`? That alone settles 8 sites, Vampiric Embrace among them.
+5. **Accessibility.** The key's accessibility (quantifier scope, if/otherwise,
+   quoted abilities) is the premise of every number; confirm it matches the
+   checker before trusting the strict baseline.
+6. **Blind recoding** of the ambiguous sites.
+7. **Reciprocals.** "fight" [CR#701.14a] and "each other" need a pair binder
+   that no rule here supplies.
