@@ -480,3 +480,35 @@ category that may add auxiliary or other clause structure. Historical uses of
 “valence,” “Numerative,” and “base verb frame” above are retained as the
 record of the earlier decision but no longer name current declarations, roles,
 or syntax-tree values.
+
+## Amendment: keyword spellings are card-usage templates (2026-10-07)
+
+Owner ruling, 2026-10-07. **Keyword spellings are card-usage templates;
+grammar is the word's own definition; hints override per-kind defaults.**
+
+- Every keyword action and keyword ability declaration's `spelling` is the
+  full uninflected template a card prints, with `<Param(n)>` slots: "the
+  spelling crate will need a full uninflected template, not just a plain
+  verb". The corpus had drifted to bare heads (`spelling: "scry"`) against
+  this ADR's own `scry <Param(0)>` example; the templates restore the
+  Decision above.
+- `grammar` keeps its separate function, untouched: "there's two separate
+  and distinct functions: here's a new word and how it parses, and here's
+  how it's used on a card. They're often very similar but not completely.
+  maybe can be unified later but that's not what I'm asking you for." The
+  template's literal head still equals the grammar head.
+- Each parameter kind has a default realization (an Amount is an arabic
+  numeral, a Cost is mana symbols, a Subtype is singular); a slot carries a
+  hint, `<Param(n):hint>`, only where the default is wrong (amass's subtype
+  is `:plural`). Owner: "lots of things are defaultable and you'd be
+  inventing a bunch of spurious hint types to do it that way." The hint
+  vocabulary is the minimum the corpus needs.
+- A form a card prints without a number is its own declaration, not a
+  defaulted positional: bare "connive" and "connive N" are two macros.
+  Owner: "even if we allowed trailing positionals to be defaulted, two
+  macros are probably necessary because connive would be spelled 'connive'
+  with no number."
+
+This still does not reinstate v1's `template:` language: no per-site codec
+such as `${n:card|cards}`, no text offsets, no `kinds:` registry. Work:
+`plugins-v2-connive-bare-and-n`, then `builtin-v2-keyword-spelling-templates`.
