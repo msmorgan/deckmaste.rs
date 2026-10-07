@@ -31,7 +31,7 @@ fn comparative_quantities_compose_with_the_existing_counted_nominal() {
     ] {
         let values = readings(text, Category::NounPhrase);
         assert_eq!(values.len(), 1, "{text}: {values:?}");
-        let Reading::CountedNounPhrase {
+        let Reading::QuantifiedNounPhrase {
             quantity: observed,
             head,
             ..
@@ -154,7 +154,7 @@ fn counted(value: Reading, owner: &str, number: Number) -> Reading {
     noun.form = if number == Number::Singular { WordForm::Singular } else { WordForm::Plural };
     noun.features.number = Some(number);
     head.countability = Some(true);
-    Reading::CountedNounPhrase {
+    Reading::QuantifiedNounPhrase {
         form: 0,
         quantity: Box::new(Reading::ComparativeQuantityDeterminer {
             form: 0,

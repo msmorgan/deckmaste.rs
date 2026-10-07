@@ -12,6 +12,7 @@ constructions! {
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
+        feature DegreeUse { Head, Modifier }
         feature DeterminerRequirement { No, Yes } default No;
         feature NumberTransparency { No, Yes } default No;
         feature QuantificationalDeterminer { No, Yes } default No;
@@ -201,7 +202,7 @@ constructions! {
         category FiniteObjectGap(number, person, CliticHost);
         category BareObjectGap();
         category Cardinal(number);
-        category QuantitativeDeterminer(number);
+        category QuantitativeDeterminer(DeterminerUse);
         category CardinalPrepositionPhrase(number);
         category QuantitativePrepositionPhrase(number);
         category ComparativePrepositionPhrase(number);
@@ -2795,28 +2796,39 @@ constructions! {
         construction ComparativeQuantityDeterminer: QuantitativeDeterminer {
             cost 0;
             form [value: ComparativeQuantity];
-            export number = value.number;
+            export DeterminerUse = cardinal_determiner_use(value.number);
         }
 
         construction CardinalDeterminer: QuantitativeDeterminer {
             cost 0;
             form [value: Cardinal];
-            export number = value.number;
+            export DeterminerUse = cardinal_determiner_use(value.number);
         }
 
         construction PrepositionDeterminer: QuantitativeDeterminer {
             cost 0;
             form [value: QuantitativePrepositionPhrase];
-            export number = value.number;
+            export DeterminerUse = cardinal_determiner_use(value.number);
         }
 
-        construction CountedNounPhrase: NounPhrase {
+        table cardinal_determiner_use(number) -> DeterminerUse {
+            (Singular) => SingularCount, (Plural) => PluralCount,
+        }
+
+        // CGEL Ch. 5 §11(c), p. 431: degree modification within a DP.
+        construction DegreeDeterminativePhrase: QuantitativeDeterminer {
+            form [modifier: lexical(Determinative), " ", head: lexical(Determinative)];
+            require modifier.DegreeUse = Modifier;
+            require head.DegreeUse = Head;
+            export DeterminerUse = head.DeterminerUse;
+        }
+
+        construction QuantifiedNounPhrase: NounPhrase {
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             form [quantity: QuantitativeDeterminer, " ", head: Nominal];
-            require head.countability = Count;
+            require determiner_license(quantity.DeterminerUse, head.number, head.countability) = Yes;
             require head.DeterminerRequirement = No;
-            agree quantity.number = head.number;
             use NounPhraseHeadAgreement;
         }
 

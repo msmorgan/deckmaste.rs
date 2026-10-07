@@ -631,7 +631,7 @@ fn slash_pairs_compose_with_nominal_modifiers_and_selected_predicates() {
         let values = readings(surface, Category::NounPhrase);
         assert!(!values.is_empty(), "{surface}");
         for value in values {
-            let Reading::CountedNounPhrase { quantity, head, .. } = value else {
+            let Reading::QuantifiedNounPhrase { quantity, head, .. } = value else {
                 panic!("{value:?}")
             };
             assert_eq!(
@@ -692,7 +692,7 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
         },
     );
     tokens.countability = Some(true);
-    let value = Reading::CountedNounPhrase {
+    let value = Reading::QuantifiedNounPhrase {
         form: 0,
         quantity: Box::new(Reading::CardinalDeterminer {
             form: 0,

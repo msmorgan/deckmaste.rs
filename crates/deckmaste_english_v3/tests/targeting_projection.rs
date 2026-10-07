@@ -65,7 +65,7 @@ fn counted(head: Reading) -> Reading {
     counted_number(head, 2)
 }
 fn counted_number(head: Reading, value: i32) -> Reading {
-    Reading::CountedNounPhrase {
+    Reading::QuantifiedNounPhrase {
         form: 0,
         quantity: Box::new(Reading::CardinalDeterminer {
             form: 0,

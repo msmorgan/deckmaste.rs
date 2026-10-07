@@ -573,6 +573,15 @@ It is distinct from the Determiner function.
 **Determinative Phrase**:
 A phrase headed by a Determinative, including cardinal determinatives.
 
+**Degree Modifier**:
+A Modifier expressing degree, including the Determinative *that* modifying
+*many* or *much* within a Determinative Phrase (CGEL, Ch. 5 §11(c), p. 431).
+
+**Degree Use** (project term):
+A Determinative's declared permission to function as a Degree Modifier or as
+the head admitting one. The grammatical functions are described in CGEL,
+Ch. 5 §11(c), p. 431; their declared licensing is a project representation.
+
 **Determiner**:
 The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
@@ -590,11 +599,17 @@ The Complement of *of* is the partitive oblique (CGEL, Ch. 5, p. 333).
 _Avoid_: an omitted noun as an invented lexical head
 
 **Quantitative Determiner**:
-A Determiner that expresses a count, realized by a Cardinal Numeral or a
+A Determiner that expresses a count or amount, realized by a Cardinal Numeral or a
 quantitative Preposition Phrase, a comparative Determinative Phrase, or a
-numeral Coordination. In *up to two target creature cards*, the
+numeral Coordination, or a degree-modified Determinative Phrase (CGEL, Ch. 5
+§11(c), p. 431). In *up to two target creature cards*, the
 Preposition Phrase *up to two* fills this function and the Nominal retains its
 noun head (CGEL, Ch. 5 §4, pp. 357–358).
+
+**Quantified Noun Phrase**:
+A Noun Phrase with a Quantitative Determiner and a Nominal head. Degree
+determinatives select count plural or non-count singular heads according to
+their lexical distribution (CGEL, Ch. 5 §7.11, p. 393).
 
 **Comparative Quantity** (project term):
 A comparative expression of quantity, including the numeral Coordination

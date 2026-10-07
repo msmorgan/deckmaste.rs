@@ -24,7 +24,7 @@ fn pinned_maximum_quantities_keep_the_counted_nominal_structure() {
         let values = readings(text, Category::NounPhrase);
         assert!(!values.is_empty(), "{text}");
         for value in values {
-            let Reading::CountedNounPhrase { quantity, head, .. } = value else {
+            let Reading::QuantifiedNounPhrase { quantity, head, .. } = value else {
                 panic!("maximum quantity changed the Noun Phrase family: {value:?}")
             };
             assert_eq!(
@@ -115,7 +115,7 @@ fn targeted(head: Reading) -> Reading {
 }
 
 fn counted(value: Reading, head: Reading, bounded: bool) -> Reading {
-    Reading::CountedNounPhrase {
+    Reading::QuantifiedNounPhrase {
         form: 0,
         quantity: Box::new(if bounded {
             Reading::PrepositionDeterminer {
@@ -216,7 +216,7 @@ fn independently_constructed_maximum_determiners_preserve_number_and_lexical_own
         let bounded = counted(cardinal(count), head.clone(), true);
         assert_laws(&bounded, text, Category::NounPhrase);
         let exact = counted(cardinal(count), head, false);
-        let Reading::CountedNounPhrase { quantity, .. } = &exact else {
+        let Reading::QuantifiedNounPhrase { quantity, .. } = &exact else {
             unreachable!()
         };
         assert_eq!(quantity.local_cost(), 0);
