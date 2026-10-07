@@ -376,3 +376,64 @@ fn urzas_ruinous_blast_keeps_the_adjective_inside_the_relative_clause() {
         expected_predicates
     );
 }
+
+#[test]
+fn sun_droplet_remove_retains_object_and_marked_source_roundtrip() {
+    // Sun Droplet: "...you may remove a charge counter from this artifact."
+    let object = accusative(Reading::IndefiniteNounPhrase {
+        form: 0,
+        determiner: word("vocab:Article/Indefinite", WordForm::Invariant, None, None),
+        head: Box::new(noun(
+            "lexeme:counter_kind/chargeCounter/compound-noun",
+            WordForm::Singular,
+        )),
+    });
+    let source = accusative(Reading::DeterminedNounPhrase {
+        form: 0,
+        determiner: word(
+            "vocab:SingularDemonstrative/This",
+            WordForm::Invariant,
+            None,
+            None,
+        ),
+        head: Box::new(noun("lexeme:type/artifact", WordForm::Singular)),
+    });
+    let expected = predicate(
+        "core-verb:Remove",
+        0,
+        vec![
+            argument(object),
+            FrameValue::Marked {
+                marker: word("vocab:Preposition/From", WordForm::Invariant, None, None),
+                argument: Box::new(source),
+            },
+        ],
+    );
+    laws("remove a charge counter from this artifact", &expected);
+    assert_eq!(
+        readings("remove a charge counter from this artifact"),
+        BTreeSet::from([expected.clone()])
+    );
+    let mut expected_words = Vec::new();
+    expected
+        .visit_words(&mut |word| expected_words.push(word.clone()))
+        .unwrap();
+    let actual = readings("remove a charge counter from this artifact")
+        .pop_first()
+        .unwrap();
+    let mut actual_words = Vec::new();
+    actual
+        .visit_words(&mut |word| actual_words.push(word.clone()))
+        .unwrap();
+    assert_eq!(actual_words, expected_words);
+
+    let mut wrong = expected;
+    let Reading::SelectedPredicate { complements, .. } = &mut wrong else {
+        unreachable!()
+    };
+    let FrameValue::Marked { marker, .. } = &mut complements[1] else {
+        unreachable!()
+    };
+    *marker = word("vocab:Preposition/To", WordForm::Invariant, None, None);
+    assert!(ENVIRONMENT.admit(&wrong).is_err());
+}
