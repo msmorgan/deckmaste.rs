@@ -1,7 +1,9 @@
 use std::collections::BTreeSet;
 use std::fmt::Write as FmtWrite;
 use std::fs::File;
+use std::io::BufRead;
 use std::io::BufReader;
+use std::io::Cursor;
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
@@ -171,15 +173,102 @@ pub(crate) struct SelectedCorpus {
     pub faces: Vec<SelectedFace>,
 }
 
-/// Stream one pinned snapshot, retain only selected supported faces, and
-/// optionally persist the selected source card records as JSONL.
+/// Select supported faces from a pinned snapshot. Name-only requests first
+/// deserialize substring candidates; other selections stream every record.
 pub(crate) fn load_selected(
     path: &Path,
     request: &SelectionRequest,
     export_subset: Option<&Path>,
 ) -> anyhow::Result<SelectedCorpus> {
     request.validate()?;
+    if !request.card_names.is_empty()
+        && request.oracle_ids.is_empty()
+        && request.face_identities.is_empty()
+        && !request.has_predicates()
+    {
+        let bytes = std::fs::read(path).with_context(|| format!("opening {}", path.display()))?;
+        let candidates = name_candidates(&bytes, &request.card_names)?;
+        // Candidate records still pass the ordinary reader and exact matching.
+        // Missing names (or rejected candidates) use the full stream's errors.
+        if let Ok(selected) = load_selected_reader(
+            path,
+            request,
+            export_subset,
+            Cursor::new(&candidates),
+            Some(digest(&bytes)),
+        ) {
+            return Ok(selected);
+        }
+    }
+    load_selected_streaming(path, request, export_subset)
+}
+
+fn name_candidates(bytes: &[u8], names: &BTreeSet<String>) -> anyhow::Result<Vec<u8>> {
+    let mut lines = BTreeSet::new();
+    for name in names {
+        let needle = format!("\"name\":{}", serde_json::to_string(name)?);
+        for start in memchr::memmem::find_iter(bytes, needle.as_bytes()) {
+            lines.insert(line_bounds(bytes, start));
+        }
+    }
+    // Alternate JSON encodings can coexist with compact exact hits in custom
+    // snapshots. Include those lines as candidates too, so finding one compact
+    // match never hides a second face with the same displayed name.
+    for start in memchr::memmem::find_iter(bytes, b"\"name\"") {
+        let suffix = &bytes[start + 6..];
+        if !suffix.starts_with(b":\"")
+            && suffix
+                .iter()
+                .copied()
+                .find(|byte| !byte.is_ascii_whitespace())
+                == Some(b':')
+        {
+            lines.insert(line_bounds(bytes, start));
+        }
+    }
+    for escape in [b"\\u", b"\\/"] {
+        for start in memchr::memmem::find_iter(bytes, escape) {
+            let preceding_backslashes = bytes[..start]
+                .iter()
+                .rev()
+                .take_while(|byte| **byte == b'\\')
+                .count();
+            if preceding_backslashes.is_multiple_of(2) {
+                lines.insert(line_bounds(bytes, start));
+            }
+        }
+    }
+    let mut candidates = Vec::new();
+    for (start, end) in lines {
+        candidates.extend_from_slice(&bytes[start..end]);
+        candidates.push(b'\n');
+    }
+    Ok(candidates)
+}
+
+fn line_bounds(bytes: &[u8], start: usize) -> (usize, usize) {
+    let line_start = memchr::memrchr(b'\n', &bytes[..start]).map_or(0, |i| i + 1);
+    let line_end = memchr::memchr(b'\n', &bytes[start..]).map_or(bytes.len(), |i| start + i);
+    (line_start, line_end)
+}
+
+fn load_selected_streaming(
+    path: &Path,
+    request: &SelectionRequest,
+    export_subset: Option<&Path>,
+) -> anyhow::Result<SelectedCorpus> {
+    request.validate()?;
     let file = File::open(path).with_context(|| format!("opening {}", path.display()))?;
+    load_selected_reader(path, request, export_subset, BufReader::new(file), None)
+}
+
+fn load_selected_reader(
+    path: &Path,
+    request: &SelectionRequest,
+    export_subset: Option<&Path>,
+    reader: impl BufRead,
+    snapshot_sha256: Option<String>,
+) -> anyhow::Result<SelectedCorpus> {
     let mut records_scanned = 0;
     let mut supported_faces_examined = 0;
     let mut faces = Vec::new();
@@ -188,7 +277,7 @@ pub(crate) fn load_selected(
     let mut found_face_identities = BTreeSet::new();
     let mut found_card_names = BTreeSet::new();
 
-    for card in OracleCardReader::new(BufReader::new(file)) {
+    for card in OracleCardReader::new(reader) {
         let card = card.with_context(|| format!("reading {}", path.display()))?;
         records_scanned += 1;
         if !card.supported() {
@@ -258,7 +347,10 @@ pub(crate) fn load_selected(
     }
 
     Ok(SelectedCorpus {
-        snapshot_sha256: digest_file(path)?,
+        snapshot_sha256: match snapshot_sha256 {
+            Some(digest) => digest,
+            None => digest_file(path)?,
+        },
         selection: request.clone(),
         selection_status: if request.all {
             SelectionStatus::Complete
@@ -410,6 +502,177 @@ mod selection_tests {
                 .insert("card_faces".into(), faces);
         }
         serde_json::to_string(&value).unwrap()
+    }
+
+    fn fixture_directory() -> tempfile::TempDir {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/english-v3/selection-tests");
+        fs::create_dir_all(&path).unwrap();
+        tempfile::tempdir_in(path).unwrap()
+    }
+
+    #[test]
+    fn lightning_bolt_candidates_are_validated_by_exact_name() {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/scryfall/oracle-cards.jsonl");
+        let names = BTreeSet::from(["Lightning Bolt".to_owned()]);
+        let bytes = fs::read(&path).unwrap();
+        let candidates = name_candidates(&bytes, &names).unwrap();
+        assert_eq!(OracleCardReader::new(Cursor::new(&candidates)).count(), 6);
+        let root = fixture_directory();
+        let subset = root.path().join("selected.jsonl");
+        let request = SelectionRequest {
+            card_names: names,
+            ..SelectionRequest::default()
+        };
+        let fast = load_selected(&path, &request, Some(&subset)).unwrap();
+        let streamed = load_selected_streaming(&path, &request, None).unwrap();
+        assert_eq!(fast.faces, streamed.faces);
+        assert_eq!(fast.faces.len(), 2);
+        assert_eq!(
+            fast.faces
+                .iter()
+                .filter(|face| face.group_name == "Lightning Bolt")
+                .count(),
+            1
+        );
+        assert_eq!(
+            fast.faces
+                .iter()
+                .map(|face| (face.group_name.as_str(), face.name.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                ("Lightning Bolt", "Lightning Bolt"),
+                ("Emeritus of Conflict // Lightning Bolt", "Lightning Bolt")
+            ]
+        );
+        assert_eq!(fast.records_scanned, 6);
+        assert_eq!(
+            OracleCardReader::new(BufReader::new(File::open(subset).unwrap())).count(),
+            2
+        );
+    }
+
+    #[test]
+    fn candidate_selection_preserves_faces_groups_and_escaped_names() {
+        let root = fixture_directory();
+        let path = root.path().join("cards.jsonl");
+        let names = [
+            "Alpha",
+            "A \"quoted\" title",
+            "A \\ title",
+            "Æther",
+            "Front",
+            "Back",
+            "Front // Back",
+        ];
+        let mut records = names[..4]
+            .iter()
+            .enumerate()
+            .map(|(i, name)| {
+                record(
+                    &format!("oracle-{i}"),
+                    name,
+                    "legal",
+                    serde_json::Value::Null,
+                )
+            })
+            .collect::<Vec<_>>();
+        records.push(record(
+            "oracle-faces",
+            names[6],
+            "legal",
+            serde_json::json!([
+                {"name":"Front", "oracle_text":"front"}, {"name":"Back", "oracle_text":"back"}
+            ]),
+        ));
+        fs::write(&path, records.join("\n")).unwrap();
+        for name in names {
+            let request = SelectionRequest {
+                card_names: BTreeSet::from([name.to_owned()]),
+                ..SelectionRequest::default()
+            };
+            let fast = load_selected(&path, &request, None).unwrap();
+            let streamed = load_selected_streaming(&path, &request, None).unwrap();
+            assert_eq!(fast.faces, streamed.faces, "{name}");
+            assert_eq!(fast.snapshot_sha256, streamed.snapshot_sha256);
+            assert_eq!(fast.faces.len(), if name == names[6] { 2 } else { 1 });
+        }
+    }
+
+    #[test]
+    fn compact_hits_do_not_hide_other_json_encodings_of_the_same_name() {
+        let root = fixture_directory();
+        let path = root.path().join("cards.jsonl");
+        let first = record("oracle-a", "Alpha/Beta", "legal", serde_json::Value::Null);
+        let second = record("oracle-b", "Alpha/Beta", "legal", serde_json::Value::Null);
+        for alternate in [
+            second.replace("\"name\":", "\"name\" : "),
+            second.replace("Alpha/Beta", "\\u0041lpha/Beta"),
+            second.replace("Alpha/Beta", "Alpha\\/Beta"),
+            second.replace("\"name\"", "\"na\\u006de\""),
+        ] {
+            fs::write(&path, format!("{first}\n{alternate}\n")).unwrap();
+            let request = SelectionRequest {
+                card_names: BTreeSet::from(["Alpha/Beta".to_owned()]),
+                ..SelectionRequest::default()
+            };
+            let fast = load_selected(&path, &request, None).unwrap();
+            let streamed = load_selected_streaming(&path, &request, None).unwrap();
+            assert_eq!(fast.faces, streamed.faces);
+            assert_eq!(fast.faces.len(), 2);
+        }
+    }
+
+    #[test]
+    fn real_double_faced_lookup_preserves_only_the_requested_face() {
+        let path =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/scryfall/oracle-cards.jsonl");
+        let request = SelectionRequest {
+            card_names: BTreeSet::from(["Insectile Aberration".to_owned()]),
+            ..SelectionRequest::default()
+        };
+        let fast = load_selected(&path, &request, None).unwrap();
+        let streamed = load_selected_streaming(&path, &request, None).unwrap();
+        assert_eq!(fast.faces, streamed.faces);
+        assert_eq!(fast.faces.len(), 1);
+        assert_eq!(
+            fast.faces[0].group_name,
+            "Delver of Secrets // Insectile Aberration"
+        );
+        assert_eq!(fast.faces[0].name, "Insectile Aberration");
+    }
+
+    #[test]
+    fn missing_name_falls_back_to_the_full_reader() {
+        let root = fixture_directory();
+        let path = root.path().join("cards.jsonl");
+        // The malformed noncandidate proves that the fallback reads the stream.
+        fs::write(&path, "{\n").unwrap();
+        let request = SelectionRequest {
+            card_names: BTreeSet::from(["Missing".to_owned()]),
+            ..SelectionRequest::default()
+        };
+        assert_eq!(
+            format!("{:#}", load_selected(&path, &request, None).unwrap_err()),
+            format!(
+                "{:#}",
+                load_selected_streaming(&path, &request, None).unwrap_err()
+            )
+        );
+        // Noncompact JSON preserves the same exact selection.
+        let card = record("oracle-a", "Alpha", "legal", serde_json::Value::Null);
+        fs::write(&path, card.replace("\"name\":", "\"name\": ")).unwrap();
+        let request = SelectionRequest {
+            card_names: BTreeSet::from(["Alpha".to_owned()]),
+            ..SelectionRequest::default()
+        };
+        assert_eq!(
+            load_selected(&path, &request, None).unwrap().faces,
+            load_selected_streaming(&path, &request, None)
+                .unwrap()
+                .faces
+        );
     }
 
     #[test]

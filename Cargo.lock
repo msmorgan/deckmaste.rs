@@ -2349,6 +2349,7 @@ dependencies = [
  "flate2",
  "libc",
  "macro_ron",
+ "memchr",
  "proc-macro2",
  "quote",
  "rayon",
