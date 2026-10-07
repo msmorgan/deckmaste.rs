@@ -4,8 +4,9 @@
 // the rest (`deckmaste_semantics_v2::mentions`): a target is selected once. The
 // rule's own wording, "each of those creatures deals damage equal to its power
 // to the other creature", is a reciprocal the model lacks; the body writes the
-// two damage events instead (routed to
-// `semantics-v2-anaphor-resolution-heuristics`). That a creature no longer on
+// two damage events instead (the gap was routed to
+// `semantics-v2-anaphor-resolution-heuristics`, now done; it lives on in
+// `lean-drt-anaphora-refactor`). That a creature no longer on
 // the battlefield deals no fight damage [CR#701.14b] is the rules' to apply,
 // not a guard here: a guard's condition may not introduce its subject. The
 // deed's row names no performer.

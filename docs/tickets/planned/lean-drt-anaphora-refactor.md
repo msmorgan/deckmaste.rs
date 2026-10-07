@@ -195,3 +195,11 @@ general rule or stays, with a sentence saying what else it encodes:
 
 `lean-checker-binding-ids` is an independent cleanup of how frame slots address
 bindings. Neither ticket needs the other.
+
+## Routed from `semantics-v2-macro-capture-and-plurality` (2026-10-07)
+
+Fight's rule text, "Each of those creatures deals damage equal to its power to
+the other creature" [CR#701.14a], is a reciprocal the model lacks. The
+`plugins_v2` fight body writes two damage events by Binding Identity instead;
+the reciprocal was routed to `semantics-v2-anaphor-resolution-heuristics`,
+which closed without it.

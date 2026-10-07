@@ -566,7 +566,7 @@ constructors already take (`lean_emit::LEAN_ESCAPED`). RON is not bound by
 Lean's reserved words, so the declaration keeps the plain name (ruling,
 2026-10-04).
 
-Nineteen helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), `mayCastFrom` (Lean `Actor.mayCastFrom`, the namespace dropped; RON adds a `paying` parameter defaulting to Lean's `ItsOwnCost` and an `exclusive` one defaulting to Lean's `false`), and `exileFrom`, `selectRandom`, `theirHand` and the six exchange helpers `exchangeControl`, `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues` and `exchangeTextBoxes` (no Lean macro; the bench writes the constructor alias `Primitives.Instruction.exchange` with the `Exchanged` arm, and each helper expands to that same term), and `getsBoth` (no Lean macro; "<subject> gets +X/+X", the one delta written for both stats of `StaticSpec.ptModification`, §7), and `artifactCreatureToken`, `createTokenCopy`, `discards` and `mayOrElse` (no Lean macro; each expands to the term the bench writes in its place: the creature token bundle with `artifact` beside `creature`, `create` of a `copyOf` token, `verbedEvent` with the `Discard` deed, and `withContinuation (.optional actor)` with only its "if they don't" branch).
+Twenty helpers are named apart from Lean's: `aRandom` (Lean `aAtRandom`), `card` (Lean `isCard`; the owner, 2026-10-05), `random` (Lean `countedAtRandom`), `revealHand` (Lean `Actor.revealHand`, the namespace dropped), `mayCastFrom` (Lean `Actor.mayCastFrom`, the namespace dropped; RON adds a `paying` parameter defaulting to Lean's `ItsOwnCost` and an `exclusive` one defaulting to Lean's `false`), and `exileFrom`, `selectRandom` and the six exchange helpers `exchangeControl`, `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues` and `exchangeTextBoxes` (no Lean macro; the bench writes the constructor alias `Primitives.Instruction.exchange` with the `Exchanged` arm, and each helper expands to that same term), and `getsBoth` (no Lean macro; "<subject> gets +X/+X", the one delta written for both stats of `StaticSpec.ptModification`, §7), and `artifactCreatureToken`, `createTokenCopy`, `discards` and `mayOrElse` (no Lean macro; each expands to the term the bench writes in its place: the creature token bundle with `artifact` beside `creature`, `create` of a `copyOf` token, `verbedEvent` with the `Discard` deed, and `withContinuation (.optional actor)` with only its "if they don't" branch), and `lookAndSortSlice` and `discardThenForEachNonland` (no Lean macro; the look scry, surveil and fateseal share, and connive's discard, each reading back by Binding Identity what it mentions twice, §12.1). `theirHand` was retired at `semantics-v2-macro-capture-and-plurality` (2026-10-07) to its general form, `handOf(they)`.
 
 The nursery is SHARED, and `read_builtin_v2` takes its nine spelled families
 by name — `ability_words`, `counter_kinds`, `designations`, `flavor_words`,
@@ -782,7 +782,13 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
 `semantics-v2-chooser-and-taker-fields`, which retired `Actor.choose` and
 replaced `addPart`, `addPartThen` and `getAdditionalPart` with the declared
 `extraTurn`, `additionalPhase` and `additionalStep`: 420 = 319 declarations +
-the two `counters` macros + 99.)
+the two `counters` macros + 99. Recounted 2026-10-07 at
+`semantics-v2-macro-capture-and-plurality`, which retired eight declared
+pronoun-baking helpers to their general forms (`itsA`, `itsACard`, `itIsntA`,
+`itIsntAnAbility`, `thatTurns`, `revealIt`, `searchTheirLibraryFor`,
+`foundCard`) and the Lean-only `sacrificeIt` and `itOrThem`, and added the
+declared `itPermanent`, `byTurn` and `ownMember` and the Lean-only `oneZone`:
+414 = 314 declarations + the two `counters` macros + 98.)
 
 - **A spelled declaration already owns the identity (17).** The keyword
   families keep their own declarations: `companion`, `destroy`, `discard`,
@@ -802,13 +808,13 @@ the two `counters` macros + 99.)
   `leavesBattlefield`, `mayDeclineUntap`,
   `offer`, `offerWhen`, `putIntoFrom`, `splitOverPermanent`,
   `splitOverPlaneswalker`, `untapsDuring`, `youAnd`, `youOr`.
-- **It computes (22).** Not a substitution bundle: a `let`, a `match`, a
+- **It computes (21).** Not a substitution bundle: a `let`, a `match`, a
   `.map` over an argument, an anonymous constructor, a plurality read off a
   subject. `agentRef`, `amass`, `chooseSpree`,
   `controllerSacrifices`, `dealDamageOwnPower`, `itCondSubject`, `itPrior`,
   `itsOther`, `joinedHead`, `joinedHeadWhile`, `lookAndSort`,
   `lookAndSortInto`, `lookedCards`, `lookedTop`, `loseCounters`, `modular`,
-  `ownSubject`, `partyOf`, `requireBlockIt`, `rollRow`, `sacrificeIt`,
+  `ownSubject`, `partyOf`, `requireBlockIt`, `rollRow`,
   `scaledMana`. These are routed to
   `semantics-v2-macro-capture-and-plurality`. The capture question is
   answered (§7, ruling 2026-10-06): a referent parameter is bound at the
@@ -830,8 +836,13 @@ the two `counters` macros + 99.)
 - **It expands to no single position (4).** A macro occupies one position, and
   `List X` / `Option X` is not one: `copyCharacteristics`, `modularExpansion`,
   `partyRoles`, `stat`.
-- **It is defined by pattern matching on an argument (3).** `agentPlur`,
-  `itOrThem`, `sameWindow`.
+- **It is defined by pattern matching on an argument (2).** `agentPlur`,
+  `sameWindow`. (`itOrThem`, which had no callers, was deleted at
+  `semantics-v2-macro-capture-and-plurality`.)
+- **It is a constructor alias for a type that is not a `semantic_expression` (1).**
+  `oneZone`, the `SearchScope` constructor a bench card writes in place of the
+  retired `searchTheirLibraryFor`; a RON body writes `OneZone(…)` natively, since
+  `SearchScope` is no macro kind.
 - **It is a performer helper in the `Actor` namespace (3).** These spell what
   the unprefixed macros do not (§7, ruling 2026-10-05). One has a RON
   declaration of the unprefixed name that writes the same term (the keyword
@@ -898,6 +909,48 @@ body expands to is a registered kind — including four that are not
 `semantic_expression` types and so carry no dispatch set of their own
 (`CharacteristicBundle`, `HeaderPossessor`, `LevelBand`, `PrototypeFrame`),
 registered by hand the way `Delta` is.
+
+### 12.2 Capture, plurality and keyword scope in the loader
+
+Built at `semantics-v2-macro-capture-and-plurality` (2026-10-07), under the
+§7 rulings of 2026-10-06. Nothing here is a `macro_ron` feature: the
+expander stays the dumb substituter of
+[macros-are-declarative](macros-are-declarative.md), and each device is a
+rewrite the `deckmaste_semantics_v2` loader makes to a declaration's body text
+before registering it, into constructors Lean tags `internal_expansion`.
+
+- **First mention binds** (`deckmaste_semantics_v2::mentions`). A referent
+  parameter (`Subject` or `NounPhrase`, defaulted or not) that a body mentions
+  more than once has its first `Param(p)` written `firstMention(id, Param(p))`
+  and each later one `laterMention(id, Param(p))`, with the Binding Identity
+  `id` the name `"<declaration>.<p>"`. Lean `NounPhrase.firstMention` checks
+  and introduces its phrase where it stands and records the binding it
+  introduced or resolved under `id` (`Binding.idents`); `laterMention` reads
+  back the most recent binding recorded under `id`, never a pronoun search and
+  never a stack position, and keeps its phrase only for the phrase's structural
+  facts. A phrase that records nothing ("you", "this") is read again; a later
+  mention whose phrase would select anew and finds no record is refused
+  `bindingIdentity`. A body that mentions a parameter once is not rewritten, so
+  it expands byte-identically.
+- **Plurality off the amount.** No device of its own: the slice scry, surveil
+  and fateseal look at, and the cards connive discards, are parameters of a
+  helper (`lookAndSortSlice`, `discardThenForEachNonland`) that mentions them
+  twice, so the later mention reads them by identity with the phrase's own
+  number, which is its amount's (`Quantity.exactlyOf` now reads its amount's
+  number). Scry 1 reads "that card", scry 2 "those cards".
+- **A keyword action body's own scope** (`deckmaste_semantics_v2::keywords`).
+  Inside its `Enact` wrapper the body is written `OwnScope(0, …)`, and each
+  parameter hole of a type with an `InCaller` constructor `inCaller(0, …)`.
+  Lean `Instruction.ownScope` masks the calling text's mentions except the
+  performer the innermost handoff names (its frame and the bindings it put in
+  view); a caller view lifts that mask for the parameter and masks the body's
+  own mentions and the scope's frame, so a parameter forwarded into a nested
+  body reads through to the next scope out. A keyword ability body was already
+  read from an empty context (`Ability.check`), its own scope. Helper macros
+  are transparent: they get no scope.
+- The loader registers the three macros it writes (`firstMention`,
+  `laterMention`, `inCaller`) with every v2 macro set; no plugin file writes
+  them (`tests/corpus.rs`).
 
 ## 13. Gate and bench
 

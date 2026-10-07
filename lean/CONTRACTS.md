@@ -163,7 +163,7 @@ never an assumed fixed depth. The audit covers every affected helper:
 | `lookedCards` | The library slice's introduction, including its possessor's mentions. |
 | `attachToIt` / `requireBlockIt` | The containing context outside the current noun's introduction. Ambiguity within that outer context remains an error. |
 | `aTheirChoice` | The immediately preceding chooser mention. The macro requires that grammatical caller position; the fixed one-binding window is independent of the outer context. |
-| `comparesOwnStat` | The one subject binding that `Predicate.check` places immediately before the measure. Its fixed internal depth is independent of outer context and letters. |
+| `comparesOwnStat` | The one subject binding that `Predicate.check` places immediately before the measure, read through its `member` argument, `ownMember` unless written. Its fixed internal depth is independent of outer context and letters. |
 
 `Proofs/ReferenceScopes.lean` pins the former X-reuse counterexample, scope twins
 with and without outer bindings, preservation of selected type/carrier facts,
@@ -284,6 +284,44 @@ group handoff's totals, and the handoff to a permanent with the default to the
 source permanent. The bench's group handoffs over one instruction (votes,
 distributed choices and sacrifices, drains) pin the group-performer reading.
 These are checker guarantees, not an execution proof.
+
+## Binding identity and a keyword body's own scope
+
+A registry macro's referent parameter is bound at the body's first mention and
+read back by its Binding Identity at every later one (`docs/decisions/semantics-v2.md`
+§7, ruling 2026-10-06; §12.2). `NounPhrase.firstMention id phrase` is checked
+and introduced as `phrase` is, and records the binding `phrase` introduced or
+resolved under `id` (`Binding.idents`, `NounResult.recordIdentity`).
+`NounPhrase.laterMention id phrase` reads the most recent binding recorded
+under `id` (`identityAddress`): it selects nothing and searches no window, so a
+target argument is one targeting however often the body mentions it, and a
+binding pushed between the mentions does not move the read. The identity is a
+name, never a stack position. Its `phrase` answers only the structural readers
+(`isYou`, `selfDefinedOk`, `kind?`, `plur`, …), as a captured parameter's
+`NounShape` does. A phrase that records nothing ("you", "this") is read again
+at a later mention; a later mention whose phrase would introduce, with no
+record, is refused `bindingIdentity`, never read as a second selection. Updates
+in place (`moveIntro`, `refine`, `setBindingAt`) keep a binding's identities.
+
+A keyword action body is read in its own Reference Scope:
+`Instruction.ownScope scope body`, which the loader writes inside the action's
+`enact` wrapper, masks every mention of the calling text but the performer the
+innermost handoff names: its frame and the bindings it put in view
+(`Payload.actor`'s width, `enterOwnScope`). The body's parameters are written
+`inCaller scope`; a caller view of an own scope lifts that mask for the
+parameter, masks the body's own mentions and the scope's frame, so a parameter
+forwarded into a nested body reads the next scope out (`enterCaller`). Leaving
+the scope keeps what the body introduced and every update (`leaveOwnScope`). A
+caller view with no frame open is the phrase's own view: the structural reads of
+an `enact` wrapper (`enactPatient`, `Instruction.unscoped` for the provenance a
+deed stamps) see a parameter where the call writes it. A keyword ability body is
+checked from an empty context, its own scope. `Proofs/BindingIdentity.lean` pins
+the identity reads, fight, regenerate, the looks of scry, surveil and fateseal
+with the slice's number, and connive; `Proofs/Actor.lean` pins the scope (the
+literal amass after a destroy, refused bare and checked in its scope, Azog's
+amount read in the caller's view, a body that cannot read its caller, a keyword
+ability that cannot read its card). These are checker guarantees, not an
+execution proof.
 
 ## Scheduling fields
 
@@ -731,11 +769,14 @@ reference accidentally. The older kind-pattern windows above remain appropriate
 only at their documented immediate boundaries. Collection-member binding,
 aggregation, and the numeric-anaphora redesign remain separate work.
 
-Fight uses an ordinary creature-and-battlefield guard for both captured subjects,
+The bench's captured `fight` macro uses an ordinary creature-and-battlefield guard for both captured subjects,
 then simultaneous damage at each subject's power [CR#701.14a..701.14c]. Group
 subjects are rejected by the singular power read and per-member damage checks;
 the checker no longer relies on a failed singular private reference to reject
-them or borrows attacking-creature admissibility for fight.
+them or borrows attacking-creature admissibility for fight. The `plugins_v2` declaration
+binds each creature at its first mention instead and writes no guard: a
+condition may not introduce its subject (`testSubject`), and the battlefield
+demand is the rules' [CR#701.14b].
 
 Regeneration installation creates a next-time-this-turn destruction replacement.
 The Regenerate label belongs to its application: clear marked damage, have the
