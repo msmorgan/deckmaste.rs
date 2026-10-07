@@ -95,6 +95,10 @@ cite check). Deltas:
    untouched. Lexicon additions must be attested in the supported corpus
    (pruning rule). Deleting the duplicate lexeme follows the same rule.
 8. Gate: `cargo xtask gate --changed --from <claim> --run`.
+9. A CGEL citation may back only what the cited passage itself says; a project
+   or orchestrator ruling is cited as a ruling, never attributed to CGEL.
+10. Retire a superseded route on both the lexicon and the grammar side; do not
+    leave unreachable declarations.
 
 ## Out of scope
 
