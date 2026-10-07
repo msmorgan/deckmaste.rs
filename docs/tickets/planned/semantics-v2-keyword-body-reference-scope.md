@@ -62,16 +62,25 @@ refusals) before relying on it.
   A captured subject is selected once and keeps its identity; parameter
   windows point at actual slots and add no ordinary pronoun candidate.
 
-## The decision and what remains open
+## The decision
 
 Decided 2026-10-05: a keyword action body is read in its own reference scope,
 so that its pronouns see only its parameters and what the body itself
 introduces, never the calling card's mentions. [CR#701.47a] defines amass as a self-contained
 procedure ("Choose an Army creature you control. Put N +1/+1 counters on that
 creature."), so "that creature" there cannot mean anything the card said
-before. Still to settle in the work: where the scope is opened (the loader's
-`Enact` wrapper, the `act` handoff, or a body-level form), and whether the
-same holds for keyword ability bodies and helper macros.
+before.
+
+Decided 2026-10-06 (`docs/decisions/semantics-v2.md` §7), settling what was
+left open:
+
+- The scope opens at the loader's `Enact` wrapper, the keyword action
+  boundary, never at an `act` handoff: `act(they, discard(that(Card)))` must
+  see the choice made before it. A body-level form is not added.
+- Every keyword ability body is read in its own scope too.
+- Helper macros are transparent: a helper reads the scope of the body that
+  calls it. Helpers that only bake a pronoun in are retired to the general
+  form in the capture landing (its "Decided 2026-10-06" section lists them).
 
 ## Built inside the capture-and-plurality landing
 

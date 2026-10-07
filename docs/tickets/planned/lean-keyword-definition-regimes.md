@@ -26,3 +26,22 @@ enters event `none`, so `keywordStackRegime "Gift" == bodyEventRegime ev`
 fails and `keywordBodyFits "Gift"` refuses the trigger. Same law, same fix;
 add a gift-permanent pin with the others. Gift's spell form is a separate
 refusal, owned by `semantics-v2-keyword-definition-by-card-class`.
+
+## Decided 2026-10-06
+
+**Shape (a): the regime is a per-part declared fact, and each part is
+checked against its own.** Nothing is exempt: no part skips the law. Kicker's
+definition is the one-part case (its body is only `static(addedCost(…))`,
+`plugins_v2/builtin/macros/keyword_abilities/kicker.ron`) [CR#702.33a]
+(`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06 on gift and the
+additional-cost keywords). The rules give each part's regime:
+
+- offspring and squad: the second ability is an enters trigger
+  [CR#702.175a,702.157a];
+- casualty: the second ability is a cast trigger that functions on the stack
+  [CR#702.153a];
+- gift: the second ability is an enters trigger on a permanent and a spell
+  ability on an instant or sorcery [CR#702.174b] (the spell form waits on
+  `semantics-v2-keyword-definition-by-card-class`).
+
+Impending's latent mismatch is caught by the per-part check, not skipped.

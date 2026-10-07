@@ -3,8 +3,8 @@ needs: []
 ---
 **A player chosen while paying a cost cannot be read back by the ability
 linked to it.** Found by the stopped `plugins-v2-gift-variants` attempt
-(2026-10-05). Standard constraints apply. `[design]`: pick the device with
-the owner.
+(2026-10-05). Standard constraints apply. The device was decided 2026-10-06:
+option 1, the paid-cost facet (below).
 
 ## Evidence
 
@@ -27,7 +27,7 @@ reads a player back from a paid cost: `PaidFacet`
 So gift's second ability, on a permanent or a spell, has no faithful way to
 name its performer.
 
-## What a fix needs (options)
+## The options put to the owner
 
 1. **A paid-cost facet**: a `PaidFacet` (or `PaidCostName`-keyed reference)
    for "the player chosen as [named cost] was paid", read by the second ability
@@ -43,3 +43,25 @@ Either way: a pin where gift's second ability reads the chosen opponent, and
 a refusal where an unlinked ability reads `chosenPlayer` with no choice in
 scope. Related engine-side store: `engine-linked-abilities` (v1 engine
 `Reference::Linked` resolution), not a prerequisite here.
+
+## Decided 2026-10-06
+
+**Option 1, the paid-cost facet**, because that is how the rules link the two
+abilities (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06 on gift and
+the additional-cost keywords). Owner: "idk do what the CR says."
+
+- Gift's first ability is a cost: "As an additional cost to cast this spell,
+  you may choose an opponent." [CR#702.174a]. A printed ability that allows
+  an additional cost and one that refers to whether it was paid are linked
+  [CR#607.2i], as kicker's are [CR#702.33e]; a "choose" and "the chosen" pair
+  is linked too [CR#607.2d].
+- `PaidFacet` (`lean/Semantics/Words.lean`, `inductive PaidFacet`) gains a
+  facet "the player chosen as [named cost] was paid", keyed by `PaidCostName`
+  (same file) and read through `byKeyword` as `readback` already is for "its
+  gift cost was paid". Mirror it in Rust and RON in the same landing.
+- Option 2, a general linked-ability binding, is not needed for gift. The
+  enters-time "choose X / the chosen X" pairs are a different family and stay
+  with `engine-linked-abilities`.
+- Pins as above: gift's second ability reads the chosen opponent through the
+  facet, and an unlinked `chosenPlayer` with no choice in scope is still
+  refused.

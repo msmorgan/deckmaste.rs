@@ -7,6 +7,12 @@ needs: [semantics-v2-anaphor-resolution-heuristics]
 puts a rule to the owner and the owner accepts one.** Standard constraints
 apply.
 
+Decided 2026-10-06: this ticket is promoted to `planned/` when the owner
+accepts a rule the measurement puts to them, and not before. The measurement
+runs now, framed on the table below; it also inventories the hand-built
+windows in `lean/Semantics/Macros.lean` and the reciprocal fight needs ("each
+… the other" [CR#701.14a]).
+
 Owner's motivation (2026-10-05): the checker has reinvented discourse
 representation theory piecemeal, and taking the prior art deliberately may fix
 references it handles badly today. "Another target creature blocks it" on

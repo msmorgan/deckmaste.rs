@@ -24,6 +24,49 @@ Direction for the measurement, not a rule change:
   that Oracle English is uniform enough for a good heuristic to be good: what
   the corpus bears out is the editors' convention.
 
+## Decided 2026-10-06
+
+- **The measurement runs now.** It is read-only work for an agent; its results
+  are written into this ticket. It changes no checker code and no pin (see
+  "Out of scope").
+- **Frame it on the discourse-representation table** in
+  `docs/tickets/maybe/lean-drt-anaphora-refactor.md`: bindings are discourse
+  referents, windows and masking are accessibility, a unique reach is a
+  presupposition bound to its antecedent. The missing piece, and the subject of
+  this measurement, is the choice among accessible antecedents.
+- **`lean-drt-anaphora-refactor` is promoted to `planned/` when the owner
+  accepts a measured rule**, and not before.
+- Owner: "the last quarter mile here may be trickier than we realize."
+
+### Inventory: windows built by hand
+
+The Lean macros that build a pronoun window themselves are the piecemeal
+resolution the refactor names. Each is evidence for which rule the corpus
+needs; the measurement says, for each, whether the candidate rule reproduces
+it. They are not conveniences and the capture landing does not touch them.
+Lines in `lean/Semantics/Macros.lean`, 2026-10-06:
+
+| Macro | Line | Window |
+|---|---|---|
+| `itPrior` | 37 | `.introduced` over what the previous instruction announced |
+| `itCondSubject` | 44 | `.introduced` over what the condition introduced |
+| `attachToIt` | 670 | `.outsideIntroduced` (671) |
+| `requireBlockIt` | 696 | `.outsideIntroduced` (699) |
+| `agentRef` | 727 | `.introduced` over the agent's own bindings |
+| `itsOther` | 747 | `sameWindow` over `selfSubjIntro` |
+| `ownSubject` | 761 | `.introduced` over what the subject announced |
+| `controllerSacrifices` | 766 | `.introduced [.player, …]`, or `ownSubject` |
+| `lookedCards` | 776 | `.introduced` over the slice |
+
+### The reciprocal gap
+
+Fight's rule text, "Each of those creatures deals damage equal to its power
+to the other creature" [CR#701.14a], is a reciprocal ("each … the other"):
+each member of a pair reads the remaining member as its antecedent. The model
+has no such reference form. The capture landing writes fight with the
+first-mention binding rule; the measurement classifies the reciprocal with the
+other forms and says what the context would need to carry for it.
+
 ## The current mechanism
 
 - A pronoun (`it`, `that(N)`, `they`) is refused unless exactly one visible

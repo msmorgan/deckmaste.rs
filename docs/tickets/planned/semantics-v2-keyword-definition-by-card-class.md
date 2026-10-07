@@ -4,8 +4,8 @@ needs: []
 **A keyword definition cannot say "this on a permanent, that on an instant or
 sorcery".** Found by the stopped `plugins-v2-gift-variants` attempt
 (2026-10-05), which wrote gift's faithful body and ran the checker on probe
-cards. Standard constraints apply. `[design]`: the model device is an open
-owner decision (below).
+cards. Standard constraints apply. The model device was decided 2026-10-06:
+option 1 (below).
 
 ## Evidence
 
@@ -65,7 +65,7 @@ contrasts a permanent with a player, not card classes; Offspring and Squad are
 on permanents only; Casualty, Replicate and Kicker appear on both but define
 one text for both.
 
-## Open decision (owner)
+## The options put to the owner
 
 How gift's two forms are declared. Options:
 
@@ -98,17 +98,27 @@ How gift's two forms are declared. Options:
    name which one.
 4. Something else the owner names.
 
-## The work (options, not a design)
+## Decided 2026-10-06
+
+**Option 1: one definition, each half guarded by the card's class with the
+existing conditional forms** (`docs/decisions/semantics-v2.md` §7, ruling
+2026-10-06 on gift and the additional-cost keywords). No selector device.
+Both guarded halves are still checked on every card, class-blind, and each
+must pass on its own. Vintage-legal cards that need it (permanent /
+instant-or-sorcery): gift 4 / 21, ascend 22 / 5, haunt 7 / 3. Gift's other two
+model gaps are `semantics-v2-linked-choice-readback` (the chosen player) and
+`lean-keyword-definition-regimes` (each part's regime).
+
+## The work
 
 - Admit a spell ability [CR#113.3a] in a keyword definition: a fourth category
   (`spell`) in `AbilityCategory` and `Ability.category`, with the registry
-  row's `definition` declaring it. This applies under every option above.
-- Under option 1: confirm a card-class condition can be written in the
+  row's `definition` declaring it.
+- Confirm a card-class condition can be written in the
   definition (a `.matches` of this object against a permanent /
   instant-or-sorcery predicate) and that each guarded half checks with no
-  class context. Under option 2: a selector form, with `keywordBodyPartFits`
-  checking a part against the class it is selected for.
+  class context.
 - The facts generator (`crates/xtask/src/facts/lean.rs` `category`) accepts
-  the new category (and the selector, under option 2).
+  the new category.
 - Pins: a gift permanent and a gift instant each accepted. Each guarded half
   is checked on both card classes. Ascend is re-checked once it is bodied.

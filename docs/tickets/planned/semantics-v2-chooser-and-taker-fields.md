@@ -4,9 +4,10 @@ needs: []
 **Two optional performer fields outlived `semantics-v2-drop-agent-fields`:
 `choose`'s chooser and `insertPart`'s taker.** That landing deleted every
 other agent field. Removing either of these changes whether a bench pin
-checks, so they stay until the owner decides. The STOP is recorded in
+checks, so they stayed until the owner decided. The STOP is recorded in
 `docs/tickets/done/semantics-v2-drop-agent-fields.md`; this ticket owns it.
-Standard constraints apply.
+Decided 2026-10-06: (A), delete both (below). This ticket goes first in the
+2026-10-06 order. Standard constraints apply.
 
 ## The two fields
 
@@ -46,7 +47,7 @@ Standard constraints apply.
   `getAdditionalPart` write `some agent`; `addPart` and `addPartThen` ("there
   is an additional combat phase") write `none`.
 
-## The decision
+## The options put to the owner
 
 **(A) Delete both fields.** The chooser and the taker become the actor in
 context, as every other performer is.
@@ -96,7 +97,8 @@ context, as every other performer is.
   only for random or announced selections, and a taker slot that is set only
   for "you get" parts.
 
-**Orchestrator's recommendation:** (A) for the chooser and (B) for the taker.
+**Orchestrator's recommendation (not taken for the taker):** (A) for the
+chooser and (B) for the taker.
 - For the chooser, RON already records the actor everywhere, randomness lives
   in the determiner, and `.choiceClause` keeps a subject.
 - For the taker, the absent taker distinguishes [CR#500.8] from
@@ -112,3 +114,62 @@ context, as every other performer is.
   (A) they are re-spelled, as `exileNamedAgent` was (`act .you (choose …)`).
 - `Actor.choose` (Lean) differs from `choose` only by recording the chooser.
   Under (A) it is retired as the other identical `Actor` helpers were.
+
+## Decided 2026-10-06
+
+**(A) for both fields** (`docs/decisions/semantics-v2.md` §7, ruling
+2026-10-06). The chooser and the taker are the actor in context, as every
+other performer has been since the 2026-10-05 handoff ruling; the owner
+rejects performer exceptions. What the taker distinguished moves into the
+part's kind: a turn is taken by the player the instruction was handed to
+[CR#500.7], and a phase or step is added to the current turn
+[CR#500.8,500.9]. Work under (A) above, plus the following.
+
+- **Rename `InsertPart`.** One renamed node replaces the Lean constructor
+  `Instruction.insertPart` (`lean/Semantics/Abilities.lean`), the mirror
+  `InsertPart` (`crates/deckmaste_semantics_v2/src/abilities.rs`) and the RON
+  alias `plugins_v2/builtin/macros/instructions/insertPart.ron`. The RON
+  helpers become `extraTurn`, `additionalPhase(…)` and `additionalStep(…)`;
+  the Lean helpers `addPart`, `addPartThen`, `getAdditionalPart` and `addTurn`
+  (`lean/Semantics/Macros.lean`) follow. The node's name is the landing's
+  call (owner: "insertPart? weirdass name"); check it against the Turn, Phase
+  and Step entries of `docs/contexts/game-model/CONTEXT.md`. No card in
+  `plugins_v2/canon` or `plugins_v2/testing` calls `insertPart.ron` today.
+- **Pins.** `badExtraTurnWithoutPlayer` (`Proofs/ActionFamilies.lean`,
+  `insertPart .turn none (.lit 1) none none` = `[.windowOk]`) is re-spelled as
+  a turn handed to a permanent, which is refused (`handoffPerformer`): the
+  same claim, that an extra turn belongs to a player [CR#500.7], in the
+  spelling that can still be written. `badChooseSomeOf` is re-spelled as
+  (A) above describes. `okExtraTurnPublishesTurnReference` loses its
+  `(some .you)` and keeps its outcome.
+- **Delete the Attraction subtype.**
+  `plugins_v2/builtin/macros/subtypes/artifact/attraction.ron` goes: the
+  CLAUDE.md scope clause excludes Unfinity, and no Vintage-legal card is an
+  Attraction (owner: "no vintage-legal attractions anyhow"). Its
+  `attested_plural` row in
+  `crates/deckmaste_construction_core/tests/builtin_v2_noncreature_subtypes.rs`
+  (`(SubtypeCategory::Artifact, "attraction")`) goes with it. The other
+  matches for "attraction" are the v1 `crates/deckmaste_english/src/catalog.rs`
+  (retired stack, not touched) and a doc comment in
+  `crates/deckmaste_construction_core/src/macro_def/tests.rs`; re-grep before
+  deleting.
+- **Regroup the Lean xtasks** (owner: "sgtm"): `cargo xtask lean-check`
+  (`crates/xtask/src/lean_check.rs`) becomes `cargo xtask lean check`, and
+  `cargo xtask definition-check` (`crates/xtask/src/definition_check.rs`,
+  which already reuses `lean_check`'s `build` and `attribute`) becomes
+  `cargo xtask lean definitions`. `facts` stays top-level, because it also
+  writes the Idris twin. Update every live reference: `docs/guided_tour.md`,
+  `docs/decisions/semantics-v2.md` §13, `lean/CONTRACTS.md`, `lean/README.md`,
+  `docs/keyword-policy.md`, `docs/decisions/lean-is-the-workbench.md`,
+  `docs/decisions/idris-is-a-soundness-gate.md`, `.github/workflows/ci.yml`,
+  the Rust sources and tests that name the commands (`crates/xtask/tests/lean_check.rs`,
+  `crates/deckmaste_semantics_v2/src/lean_emit.rs`,
+  `crates/deckmaste_semantics_v2/tests/corpus.rs`, `crates/xtask/src/expansions.rs`,
+  `crates/xtask/src/facts/lean.rs`), and the open tickets. Find them with
+  `rg 'lean-check|definition-check'`. Tickets in `done/` are history and stay.
+- **Names confirmed kept:** `members`, `exileFrom`, `mayCastFrom(what, zone,
+  paying, exclusive)`, the `handoffPerformer` refusal, and the `act` field
+  `performer`.
+- **Glossary.** The **Actor** entry's `_Avoid_` line names "the two optional
+  model fields left (a choice's chooser, an added turn part's taker)"; amend
+  it when the fields go.

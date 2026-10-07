@@ -44,14 +44,22 @@ therefore being unparseable".
   body IS `gift(draw(1))` under that label with its own spelling. Owner,
   2026-10-05: "yes to 2". (Without it the loader labels `giftACard` a keyword
   of its own, "GiftACard", with no facts row — see F4.)
-- **Open, with the owner:** how gift's permanent and spell forms are
-  declared. Owned by `semantics-v2-keyword-definition-by-card-class`, which
-  records the options. The orchestrator recommends one gift definition
-  holding both halves, each guarded by the card's class with the existing
-  conditional forms (`doIf` on a card-class condition), not a new selector
-  device. The guards handle the branching. The real blockers are the two
-  checker laws: a spell ability [CR#113.3a] in a keyword definition, and the
-  regime law.
+- **Decided 2026-10-06:** gift's permanent and spell forms are one
+  definition holding both halves, each guarded by the card's class with the
+  existing conditional forms, not a new selector device
+  (`semantics-v2-keyword-definition-by-card-class`).
+- **Three model gaps, each its own ticket, in this order** (decided
+  2026-10-06): these are three gaps in the model that gift exposed, each its
+  own ticket.
+  1. `semantics-v2-keyword-definition-by-card-class`: the class guard, and a
+     spell ability [CR#113.3a] admitted in a keyword definition.
+  2. `semantics-v2-linked-choice-readback`: the chosen player read back
+     through a paid-cost facet.
+  3. `lean-keyword-definition-regimes`: each part checked against its own
+     regime.
+
+  Then gift. No stub lands before them: a stub body would be a negative
+  oracle.
 - **Excluded:** "Gift a Rhystic Study" (Archival Whorl) is not Vintage-legal.
 
 ## Stopped 2026-10-05
@@ -82,7 +90,7 @@ it committed nothing and the ticket returned to `planned/` (owner: "yes to
 
 ## The work
 
-Blocked steps name their law ticket; the rest can start once the existing
+Blocked steps name their gap ticket; the rest can start once the existing
 needs land.
 
 1. **Let a keyword declaration omit `spelling`.** Decided 2026-10-05: the

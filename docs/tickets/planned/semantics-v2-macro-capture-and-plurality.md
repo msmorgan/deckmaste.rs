@@ -9,12 +9,12 @@ Lean's
 `semantic_macro` bodies use two devices with no positional-RON spelling:
 `capture` parameters that re-read an argument after a binding is introduced
 (Fight, Regenerate) and plurality computed from an `Amount` argument
-(`Amount.plur (.lit 1) = .one`: Scry, Surveil, Fateseal, Connive). Decide
-whether the RON macro language grows the device (`macros-are-declarative.md`
-forbids control flow; a typed capture is not control flow) or the Lean macro
-is re-spelled without it. `lean-macros-from-ron` needs the same answer from
-the other side, so record it in `semantics-v2.md` §12. `target-sugar-elaboration`
-names Fight as its fixture for a different mechanism; related, not overlapping.
+(`Amount.plur (.lit 1) = .one`: Scry, Surveil, Fateseal, Connive). Decided
+2026-10-06 (below): a referent parameter is bound at its first mention, and
+plurality is read off the `Amount` argument. `lean-macros-from-ron` needs the
+same answer from the other side; it is recorded in `semantics-v2.md` §7
+(ruling 2026-10-06) and §12.1 points there. `target-sugar-elaboration` names
+Fight as its fixture for a different mechanism; related, not overlapping.
 
 
 Then give Fight, Regenerate, Scry, Surveil, Fateseal, and Connive their
@@ -128,7 +128,8 @@ player performer, so when it is writable the declaration needs
 `agent: None`; `Scry` and `Surveil` are `playerAgent`, so they take the
 ordinary `Some(actor)` wrapper.
 
-The smallest change for fight is the capture device itself: a typed capture
+The smallest change proposed for fight was the capture device itself (rejected
+2026-10-06, below): a typed capture
 parameter in the RON signature (`params: [Capture(Subject), Capture(Subject)]`
 or similar) that the semantics_v2 loader turns into `WithBindings` with a
 loader-allocated scope and the `NounShape` read computed by the mirror, as
@@ -137,5 +138,86 @@ loader-allocated scope and the `NounShape` read computed by the mirror, as
 **Related finding.** `plugins_v2/builtin/macros/instructions/regenerationApplication.ron`
 writes `Param(subject)` six times where Lean's `regenerationApplication`
 captures its subject; it has no callers, so nothing depends on the
-difference yet. When Regenerate gets its body here, re-spell that helper over
-the same device.
+difference yet. When Regenerate gets its body here, re-spell that helper
+under the binding rule below.
+
+## Decided 2026-10-06
+
+Recorded as rulings in `docs/decisions/semantics-v2.md` §7 (2026-10-06);
+§12.1's "It computes" bucket points there.
+
+**First mention binds, later mentions refer.** A referent parameter
+(`Subject`, `NounPhrase`) of a registry macro is introduced by the body's
+first mention of it; every later mention is a back-reference to that binding,
+resolved by binding identity (glossary: **Binding Identity**), not by pronoun
+search. Substitution by copy stays for a parameter mentioned once. The
+loader generates the back-reference, which needs a binding identity to
+address; `docs/tickets/maybe/lean-checker-binding-ids.md` holds the
+addressing observation. Owner: "really painted myself into a corner here
+didn't I. I guess B'."
+
+- Rejected: binding at the call (the owner's first intent, "B"). It hoists
+  the argument out of its clause: `act(each(opponent), discard(a(card)))`
+  would choose one card for every opponent, and a choice under `may` or
+  `doIf` would be made whether or not the branch runs.
+- Rejected: an opt-in `Capture(Subject)` annotation (the device sketched in
+  the evidence above).
+- The v1 `Target(N)` device is not re-adopted (owner).
+
+Counted 2026-10-06: 228 macros have a referent parameter (254 parameters);
+223 of them expand byte-identically under the rule. Three mention one twice
+or more: `instructions/regenerationApplication.ron` (`subject`, 6 mentions,
+no callers), `keyword_actions/detain.ron` (parameter 0, 2) and
+`keyword_actions/harness.ron` (parameter 0, 2). The fight and regenerate
+bodies written here join them. `Instruction` parameters (46) and
+`Predicate` parameters (35) are never mentioned twice. `Amount` parameters
+are mentioned twice in `dredge`, `fabricate` and `endure`; substitution is
+right for an amount.
+
+**Plurality is read off the `Amount` argument**: scry 1 is "that card",
+scry 2 "those cards". The Lean re-spelling of `lookAndSort` with a
+numberless pronoun is rejected.
+
+**Scope** (`semantics-v2-keyword-body-reference-scope`, its open items
+settled): the scope opens at the loader's `Enact` wrapper, never at an `act`
+handoff; keyword ability bodies get their own scope too; helper macros are
+transparent and read the scope of the body that calls them.
+
+**Retire the convenience helpers to their general form, in this landing.**
+A helper that bakes a pronoun in where `verb(it)` says the same is retired; a
+helper that carries its own `spelling` stays (none of those below does,
+checked 2026-10-06). Owner: "those 'shorthands' were not doing anything for
+the most part"; on `sacrificeIt`, it is "`add1 = (+) 1`".
+
+| Helper | General form |
+|---|---|
+| `determiners/itsA.ron`, `itsACard.ron`, `itIsntA.ron`, `abilities/itIsntAnAbility.ron` | `matches(it, p)` and its negation |
+| `events/thatTurns.ron` | `byTurn(thatTurn)` |
+| `instructions/revealIt.ron` | `revealCards(foundCard)` |
+| `zones/theirHand.ron` | `handOf(they)` |
+| `instructions/searchTheirLibraryFor.ron` | `search(libraryOf(they), exactly(1), p)` |
+| `instructions/foundCard.ron` | `theVerbed(search, One)` once `semantics-v2-deed-is-a-name` lands; `itVerbed(…)` until then |
+| Lean `sacrificeIt` (`Macros.lean`, 3 callers) | `sacrifice(it)` with the slot selector |
+| Lean `itOrThem` (`Macros.lean`, no callers) | deleted |
+
+`predicates/comparesOwnStat.ron` bakes `Pro(Bare, One, Top(1))` inside a
+larger body: re-spell it with the pronoun as an argument. The primitive
+aliases `thatMuch`, `theDifference`, `itsManaCost`, `theGrantor`,
+`theOutcome` and `thatAbility` stay: the name is the constructor.
+
+The nine Lean macros that build a pronoun window (`itPrior`,
+`itCondSubject`, `attachToIt`, `requireBlockIt`, `itsOther`, `ownSubject`,
+`controllerSacrifices`, `lookedCards`, `agentRef`) are not conveniences and
+are not touched here; they are inventory for
+`semantics-v2-anaphor-resolution-heuristics`.
+
+**Bodies to write:** fight, regenerate (`regenerationApplication.ron`
+re-spelled), scry, surveil, fateseal and connive. Fight's rule text, "Each
+of those creatures deals damage equal to its power to the other creature"
+[CR#701.14a], is a reciprocal the model lacks; write fight with the binding
+rule, and the reciprocal gap is routed to
+`semantics-v2-anaphor-resolution-heuristics`.
+
+**Burglar Rat.** Owner, 2026-10-06: "burglar rat should probably be
+cardIn(hand)", that is, its discard argument reads `cardIn(hand)` rather than
+`a(card)`. Settle it when that body is re-spelled.
