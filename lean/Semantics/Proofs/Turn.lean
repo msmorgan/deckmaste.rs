@@ -100,7 +100,7 @@ theorem badVerbedWrongVerb :
     Ability.check []
       (act (.perform (discard (a (.and [.isCard, .inZone yourHand]))))
         (move (theVerbed (.action "Sacrifice") .card .attributive .one) battlefield))
-      = [.anaphor (.verbed (.action "Sacrifice") .card .attributive) .one 0] := by
+      = [.anaphor (.verbed (.action "Sacrifice") (some .card) .attributive) .one 0] := by
   decide
 
 /-- "Sacrifice an artifact: Return the sacrificed creature to the battlefield." -/
@@ -108,7 +108,7 @@ theorem badVerbedWrongNoun :
     Ability.check []
       (act (.perform (sacrifice (a artifact)))
         (move (theVerbed (.action "Sacrifice") (.type .creature) .attributive .one) battlefield))
-      = [.anaphor (.verbed (.action "Sacrifice") (.type .creature) .attributive) .one 0] := by
+      = [.anaphor (.verbed (.action "Sacrifice") (some (.type .creature)) .attributive) .one 0] := by
   decide
 
 theorem badVerbedAmbig :
@@ -117,7 +117,7 @@ theorem badVerbedAmbig :
         (.compound [.perform (sacrifice (a creature)), .perform (sacrifice (a
             creature))])
         (move (theVerbed (.action "Sacrifice") .card .attributive .one) battlefield))
-      = [.anaphor (.verbed (.action "Sacrifice") .card .attributive) .one 2] := by
+      = [.anaphor (.verbed (.action "Sacrifice") (some .card) .attributive) .one 2] := by
   decide
 
 theorem badBareCardRead :

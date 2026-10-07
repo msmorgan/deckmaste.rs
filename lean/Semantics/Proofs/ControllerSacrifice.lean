@@ -45,7 +45,7 @@ theorem laterCardIsTheSacrificedObject :
     firstReach (.word .card) .one afterSacrifice = some sacrificedBinding := by rfl
 
 theorem sacrificeStampSelectsTheSameObject :
-    firstReach (.stamped (.action "Sacrifice")) .one afterSacrifice =
+    firstReach (.verbed (.action "Sacrifice") none .attributive) .one afterSacrifice =
       some sacrificedBinding := by rfl
 
 theorem laterPlayerReadIsAdmitted :
@@ -65,7 +65,7 @@ theorem laterCardRetainsGraveyardCarrier :
     NounPhrase.zone afterSacrifice (that .card) = some .graveyard := by decide
 
 theorem riderReadsTheStampedPatient :
-    firstReach (.stamped (.action "Sacrifice")) .one
+    firstReach (.verbed (.action "Sacrifice") none .attributive) .one
       (Instruction.profile [] instruction).riderCtx = some riderBinding := by rfl
 
 theorem reflexiveFollowUpRemainsAvailable :

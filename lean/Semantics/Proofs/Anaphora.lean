@@ -942,7 +942,7 @@ theorem badDistributedDiscardSingular :
       (.sequentially
         [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
           exile (theVerbed (.action "Discard") .card .attributive .one) ])
-      = [.anaphor (.verbed (.action "Discard") .card .attributive) .one 0] := by
+      = [.anaphor (.verbed (.action "Discard") (some .card) .attributive) .one 0] := by
   decide
 
 /-- "Tap target creature." -/

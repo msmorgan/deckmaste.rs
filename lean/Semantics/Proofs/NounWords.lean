@@ -76,16 +76,44 @@ private def movedCopy (deed : Deed) (origin : Option Origin) : Binding :=
     .object [.creature] (some .exile) (some ⟨deed, true, true⟩) origin none, []⟩
 
 theorem verbedRefinementsKeepCarrierTypeAndOrigin :
-    countReach (.verbed (.action "Exile") (.copied (.ofType .card .creature)) .attributive)
+    countReach (.verbed (.action "Exile") (some (.copied (.ofType .card .creature))) .attributive)
       .one [movedCopy (.action "Exile") (some .copy)] = 1 := by decide
 
 theorem verbedRefinementsRejectWrongDeed :
-    countReach (.verbed (.action "Exile") (.copied (.ofType .card .creature)) .attributive)
+    countReach (.verbed (.action "Exile") (some (.copied (.ofType .card .creature))) .attributive)
       .one [movedCopy (.action "Destroy") (some .copy)] = 0 := by decide
 
 theorem verbedRefinementsRejectOriginal :
-    countReach (.verbed (.action "Exile") (.copied (.ofType .card .creature)) .attributive)
+    countReach (.verbed (.action "Exile") (some (.copied (.ofType .card .creature))) .attributive)
       .one [movedCopy (.action "Exile") none] = 0 := by decide
+
+/-! The one verbed selector, twice: with no noun word it is the pronoun ("it", stamped by the
+deed that produced it), which reaches any object the deed stamped and tracks it as it moves; with
+a word it is the description ("the exiled card"), whose kind is the word's and which does not. -/
+
+theorem verbedPronounReachesTheStampedObject :
+    countReach (.verbed (.action "Exile") none .attributive) .one
+      [movedCopy (.action "Exile") none] = 1 := by decide
+
+theorem verbedDescriptionReachesTheStampedObject :
+    countReach (.verbed (.action "Exile") (some .card) .attributive) .one
+      [movedCopy (.action "Exile") none] = 1 := by decide
+
+theorem verbedPronounRejectsWrongDeed :
+    countReach (.verbed (.action "Exile") none .attributive) .one
+      [movedCopy (.action "Destroy") none] = 0 := by decide
+
+theorem verbedPronounTracksItsObject :
+    Reach.tracksObject (.verbed (.action "Exile") none .attributive) = true := by decide
+
+theorem verbedDescriptionDoesNotTrackItsObject :
+    Reach.tracksObject (.verbed (.action "Exile") (some .card) .attributive) = false := by decide
+
+theorem verbedPronounIsAnObject :
+    Reach.kind (.verbed (.action "Exile") none .attributive) = .object := by decide
+
+theorem verbedDescriptionTakesItsWordsKind :
+    Reach.kind (.verbed (.action "Exile") (some .player) .attributive) = .player := by decide
 
 theorem typeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (b : Binding) :
     wordReaches (.copied (.ofType word ty)) b =

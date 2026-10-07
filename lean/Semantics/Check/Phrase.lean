@@ -1122,7 +1122,7 @@ mutual
     | .someOf _ _ g => g.costNounOk
     | .or ns => NounPhrase.allCostNounOk ns
     | .and _ => false
-    | .pro (.verbed _ _ _) _ _ => false
+    | .pro (.verbed _ (some _) _) _ _ => false
     | _ => true
   termination_by structural n => n
 
@@ -1811,7 +1811,7 @@ def NounPhrase.costSubjectOk (bs : Bindings) : NounPhrase → Bool
 def NounPhrase.counterMemoryOk (bs : Bindings) : NounPhrase → Bool
   | .withBindings scope inputs body => body.counterMemoryOk (captureBindings bs scope inputs)
   | .inCaller scope body => body.counterMemoryOk (enterCaller scope bs)
-  | .pro (.verbed _ _ _) _ _ => false
+  | .pro (.verbed _ (some _) _) _ _ => false
   | .pro r pl w => !r.tracksObject || !stampMoves (provOfReach r pl (view w bs))
   | .firstMention _ body => body.counterMemoryOk bs
   | n@(.laterMention _ body) => body.kindOr .object != .object || !stampMoves (n.prov bs)

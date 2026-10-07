@@ -478,9 +478,6 @@ pub enum Reach {
     AtSlot {
         slot: SlotCarrier,
     },
-    Stamped {
-        verb: Deed,
-    },
     TokenBorn,
     Word {
         word: NounWord,
@@ -488,9 +485,11 @@ pub enum Reach {
     UnionHalf {
         word: NounWord,
     },
+    /// "the exiled card" names its noun word; "it", stamped by the deed that
+    /// produced it, names none.
     Verbed {
         verb: Deed,
-        word: NounWord,
+        word: Option<NounWord>,
         marking: VerbedMarking,
     },
     ThatTurn,

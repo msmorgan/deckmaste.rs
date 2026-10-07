@@ -191,9 +191,11 @@ pub fn kind_of_noun_word(word: &NounWord) -> Kind {
 pub fn kind_of_reach(reach: &Reach) -> Kind {
     match reach {
         Reach::Parameter { shape } => shape.kind.clone(),
-        Reach::Word { word } | Reach::UnionHalf { word } | Reach::Verbed { word, .. } => {
-            kind_of_noun_word(word)
-        }
+        Reach::Word { word }
+        | Reach::UnionHalf { word }
+        | Reach::Verbed {
+            word: Some(word), ..
+        } => kind_of_noun_word(word),
         Reach::ThatTurn => Kind::TurnRef,
         _ => Kind::Object,
     }

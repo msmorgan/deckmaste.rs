@@ -41,7 +41,7 @@ theorem badDiscardedCreatureWord :
           (.statOf (.stat .manaValue)
             (theVerbed (.action "Discard") (.type .creature) .attributive .one))
           (target anyTarget)))
-      = [.anaphor (.verbed (.action "Discard") (.type .creature) .attributive) .one 0] := by
+      = [.anaphor (.verbed (.action "Discard") (some (.type .creature)) .attributive) .one 0] := by
   decide
 
 /-- "{1}, {T}, {T}: Draw a card." written with the second {T} a nesting level down. -/

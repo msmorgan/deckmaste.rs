@@ -292,11 +292,12 @@ inductive Reach where
   | parameter (shape : NounShape)
   | bare
   | atSlot (slot : SlotCarrier)
-  | stamped (verb : Deed)
   | tokenBorn
   | word (word : NounWord)
   | unionHalf (word : NounWord)
-  | verbed (verb : Deed) (word : NounWord) (marking : VerbedMarking)
+  /-- "the exiled card" names its noun word; "it", stamped by the deed that produced it, names
+  none. -/
+  | verbed (verb : Deed) (word : Option NounWord) (marking : VerbedMarking)
   | thatTurn
   deriving DecidableEq, Repr
 

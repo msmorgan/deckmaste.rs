@@ -365,7 +365,7 @@ def nekrataalRider : Bindings :=
   Instruction.riderIntro (GameEvent.after [] nekrataalEntry) nekrataalDestroy
 theorem nekrataalOneCreatureWord : countReach (.word (.type .creature)) .one nekrataalRider = 1 := by
   decide
-theorem nekrataalOneDestroyed : countReach (.stamped (.action "Destroy")) .one nekrataalRider = 1 := by
+theorem nekrataalOneDestroyed : countReach (.verbed (.action "Destroy") none .attributive) .one nekrataalRider = 1 := by
   decide
 
 def sequencedRiderBody : Instruction :=
@@ -373,8 +373,8 @@ def sequencedRiderBody : Instruction :=
 theorem okSequencedRiderBody : Instruction.check [] sequencedRiderBody = [] := by decide
 def sequencedRider : Bindings := Instruction.riderIntro [] sequencedRiderBody
 theorem sequencedRiderOneDestroyed :
-    countReach (.stamped (.action "Destroy")) .one sequencedRider = 1 := by decide
-theorem sequencedRiderOneExiled : countReach (.stamped (.action "Exile")) .one sequencedRider = 1 := by
+    countReach (.verbed (.action "Destroy") none .attributive) .one sequencedRider = 1 := by decide
+theorem sequencedRiderOneExiled : countReach (.verbed (.action "Exile") none .attributive) .one sequencedRider = 1 := by
   decide
 
 /-- Engulfing Flames -/
@@ -382,29 +382,29 @@ def engulfingFlamesBody : Instruction := Primitives.Instruction.dealDamage Primi
 theorem okEngulfingFlamesBody : Instruction.check [] engulfingFlamesBody = [] := by decide
 def engulfingFlamesRider : Bindings := Instruction.riderIntro [] engulfingFlamesBody
 theorem engulfingFlamesNoDestroyStamp :
-    countReach (.stamped (.action "Destroy")) .one engulfingFlamesRider = 0 := by decide
+    countReach (.verbed (.action "Destroy") none .attributive) .one engulfingFlamesRider = 0 := by decide
 theorem engulfingFlamesBareReadStands : countReach .bare .one engulfingFlamesRider = 1 := by decide
 
 def bioplasmExiledPronoun : NounPhrase := itVerbed (.action "Exile")
 theorem okBioplasmExiledPronoun :
     NounPhrase.check (some .object) bioplasmAfterExile bioplasmExiledPronoun = [] := by decide
 theorem bioplasmNoTypedRead :
-    countReach (.verbed (.action "Exile") (.type .creature) .attributive) .one bioplasmAfterExile
+    countReach (.verbed (.action "Exile") (some (.type .creature)) .attributive) .one bioplasmAfterExile
       = 0 := by
   decide
 theorem bioplasmExiledCardHasNoType :
-    tyOfReach (.stamped (.action "Exile")) .one bioplasmAfterExile = [] := by decide
+    tyOfReach (.verbed (.action "Exile") none .attributive) .one bioplasmAfterExile = [] := by decide
 def bioplasmAfterTest : Bindings := Condition.intro bioplasmAfterExile bioplasmCardTest
 theorem bioplasmTestRemarksType :
-    tyOfReach (.stamped (.action "Exile")) .one bioplasmAfterTest = [.creature] := by decide
+    tyOfReach (.verbed (.action "Exile") none .attributive) .one bioplasmAfterTest = [.creature] := by decide
 theorem bioplasmTestKeepsCardSlot : countReach (.atSlot .card) .one bioplasmAfterTest = 1 := by
   decide
 theorem bioplasmTypedReadStillRefused :
-    countReach (.verbed (.action "Exile") (.type .creature) .attributive) .one bioplasmAfterTest
+    countReach (.verbed (.action "Exile") (some (.type .creature)) .attributive) .one bioplasmAfterTest
       = 0 := by
   decide
 theorem bioplasmTypedCardReadWrites :
-    countReach (.verbed (.action "Exile") (.ofType .card .creature) .attributive) .one
+    countReach (.verbed (.action "Exile") (some (.ofType .card .creature)) .attributive) .one
       bioplasmAfterTest = 1 := by
   decide
 
@@ -418,9 +418,9 @@ theorem okScapeshiftSearch : Instruction.check scapeshiftSacrificed scapeshiftSe
 def scapeshiftAfterSearch : Bindings := Instruction.intro scapeshiftSacrificed scapeshiftSearch
 theorem scapeshiftTwoGroups : countReach .bare .many scapeshiftAfterSearch = 2 := by decide
 theorem scapeshiftOneSearchedGroup :
-    countReach (.stamped (.action "Search")) .many scapeshiftAfterSearch = 1 := by decide
+    countReach (.verbed (.action "Search") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
 theorem scapeshiftOneSacrificedGroup :
-    countReach (.stamped (.action "Sacrifice")) .many scapeshiftAfterSearch = 1 := by decide
+    countReach (.verbed (.action "Sacrifice") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
 
 /-- Scapeshift -/
 def scapeshift : Spelled := spelled <| .singleFaced

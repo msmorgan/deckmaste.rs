@@ -957,7 +957,7 @@ def onStackZone (z : Option Zone) : Bool := zoneIsB z .stack
 /-- The reaches that resolve to an object binding a move can re-stamp. -/
 def Reach.tracksObject : Reach → Bool
   | .parameter shape => shape.kind == .object
-  | .bare | .atSlot _ | .stamped _ | .tokenBorn => true
+  | .bare | .atSlot _ | .verbed _ none _ | .tokenBorn => true
   | _ => false
 
 def slotZoneOk : SlotCarrier → Option Zone → Bool
@@ -1052,7 +1052,7 @@ def Reach.kind : Reach → Kind
   | .parameter shape => shape.kind
   | .word w => w.kind
   | .unionHalf w => w.kind
-  | .verbed _ w _ => w.kind
+  | .verbed _ (some w) _ => w.kind
   | .thatTurn => .turnRef
   | _ => .object
 
@@ -1098,12 +1098,13 @@ def reaches (r : Reach) (pl : Plurality) (b : Binding) : Bool :=
     Kind.lte b.kind shape.kind && pl.isOne == b.plur.isOne && (!shape.ability || wordNow .ability b)
   | .bare => Kind.lte .object b.kind && pl.isOne == b.plur.isOne
   | .atSlot sl => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && slotZoneOk sl b.zone
-  | .stamped v => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && stampIs v b.payload.prov
+  | .verbed v none _ =>
+    Kind.lte .object b.kind && pl.isOne == b.plur.isOne && stampIs v b.payload.prov
   | .tokenBorn =>
     Kind.lte .object b.kind && pl.isOne == b.plur.isOne && isTokenOrigin b.payload.orig
   | .word w => pl.isOne == b.plur.isOne && wordNow w b
   | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
-  | .verbed v w _ =>
+  | .verbed v (some w) _ =>
     match b.payload with
     | .object ty zn (some st) og _ =>
       pl.isOne == b.plur.isOne && stampWordOk v w st ty zn og
