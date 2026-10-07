@@ -11,7 +11,7 @@ SingleFaced(face: (
         text: [
             triggered(
                 event: enters(asType(type: Creature, subject: this, subtype: None)),
-                instruction: act(each(opponent), discard(a(card))),
+                instruction: act(each(opponent), discard(a(cardIn(hand)))),
             ),
         ],
         power: 1,
