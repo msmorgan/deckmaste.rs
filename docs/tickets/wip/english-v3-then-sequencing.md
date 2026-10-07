@@ -196,7 +196,10 @@ first-Clause-only temporal-Adjunct reading is counted as a gain.
 The complete identity/name/selected-analysis/Reading-count list is
 [landing-identities.md](../../../target/english-v3/english-v3-then-sequencing/landing-identities.md);
 `gains-reviewed.json` retains each source and representative fingerprint.
-Selected examples, all on the after tree stamped above:
+Selected examples, all on the after tree stamped above. Counts below cover
+the full face; the comparison above covers only each quoted witness unit
+(Obsessive Stitcher therefore has 10 full-face Readings and 2 quoted-unit
+Readings):
 
 Face | Selected representative analysis | Exact Readings
 --- | --- | ---:
@@ -276,11 +279,18 @@ the on-demand live-corpus census cross-check.
 
 Strict clippy passes for that same crate closure with `--all-targets -- -D warnings`.
 The edited Rust files pass scoped nightly rustfmt. Citation verification:
-16,059 citations checked, 0 stale, 0 noncompliant strings; the actual piped
+16,059 citations checked before refresh and 16,112 after refresh, 0 stale,
+0 noncompliant strings; the actual piped
 jj diff audit selected 0 changed CR citation sites. No new CR rule needed
 registration.
 The CGEL passages were read directly, including the distinction between the
 passages' *so/yet* examples and the project's Oracle *then* application.
+
+Refresh incorporated only other ticket documentation. The verified grammar
+and lexicon still match the saved candidate byte-for-byte; no code or consumed
+data in the test closure changed. Corpus and test results remain applicable.
+The citation count rose because the newly incorporated tickets contain
+citations; the refreshed tree also passes the complete citation check.
 
 ### Deviations and additions
 
