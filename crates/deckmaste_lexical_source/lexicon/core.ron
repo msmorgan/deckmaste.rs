@@ -821,7 +821,7 @@
         ),
         (
             id: "vocab:Preposition/Where", lemma: "where", category: Preposition,
-            properties: (countability: [], features: {"PrepositionFunctionLicence": "Supplement", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "ClauseInitialAdjunct": "No"}, frames: []),
+            properties: (countability: [], features: {"PrepositionFunctionLicence": "Supplement", "FiniteClauseComplement": "Nonsequencing", "LocativeUse": "No", "ClauseInitialAdjunct": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Where"),
             capitalization: Initial, binding: Free, surface_structure: Word,

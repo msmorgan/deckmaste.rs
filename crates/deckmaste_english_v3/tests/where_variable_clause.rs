@@ -19,7 +19,7 @@ fn witness(text: &str, host: &str, definition: &str) {
             .visit(&mut |node| {
                 if let Reading::Supplementation {
                     category,
-                    host: anchor,
+                    anchor,
                     supplement,
                     ..
                 } = node
@@ -183,7 +183,7 @@ fn keyword_supplement() -> Reading {
     Reading::Supplementation {
         category: Category::Ability,
         form: 0,
-        host: Box::new(Reading::AmountKeyword {
+        anchor: Box::new(Reading::AmountKeyword {
             form: 0,
             head: keyword,
             amount: Box::new(Reading::ScalarVariable {
@@ -276,4 +276,173 @@ fn independent_supplement_rejects_an_unlicensed_preposition() {
     *head = word("vocab:Preposition/After", WordForm::Invariant);
     assert!(value.admit(lexicon()).is_err());
     assert!(value.realize(lexicon()).is_err());
+}
+
+#[test]
+fn kraul_harpooner_keeps_sequencing_outside_the_medial_definition() {
+    let anchor = "This creature gets +X/+0 until end of turn";
+    let definition = "where X is the number of creature cards in your graveyard";
+    let continuation = "you may have this creature fight that creature";
+    let text = format!(
+        "Reach\nUndergrowth — When this creature enters, choose up to one target creature you don't control with flying. {anchor}, {definition}, then {continuation}."
+    );
+    let values = readings(&text, Category::Document);
+    assert!(!values.is_empty());
+    for value in values {
+        let mut attachments = Vec::new();
+        value
+            .visit(&mut |node| {
+                if let Reading::MedialSupplementation {
+                    anchor,
+                    supplement,
+                    coordinator,
+                    continuation,
+                    ..
+                } = node
+                {
+                    attachments.push((
+                        anchor.realize(lexicon()).unwrap(),
+                        supplement.realize(lexicon()).unwrap(),
+                        lexicon().realize(&coordinator.value).unwrap(),
+                        continuation.realize(lexicon()).unwrap(),
+                    ));
+                }
+                if let Reading::CoordinatedClauseComplementPreposition { head, .. } = node {
+                    assert_ne!(lexicon().realize(&head.value).unwrap(), "where");
+                }
+            })
+            .unwrap();
+        assert_eq!(
+            attachments,
+            vec![(
+                anchor.to_owned(),
+                definition.to_owned(),
+                "then".to_owned(),
+                continuation.to_owned(),
+            )]
+        );
+    }
+    assert_constituents(
+        &text,
+        Category::Document,
+        &[
+            (
+                Category::Clause,
+                &format!("{anchor}, {definition}, then {continuation}"),
+            ),
+            (Category::Clause, anchor),
+            (Category::PrepositionPhrase, definition),
+            (
+                Category::FiniteClause,
+                "X is the number of creature cards in your graveyard",
+            ),
+            (
+                Category::NounPhrase,
+                "the number of creature cards in your graveyard",
+            ),
+            (Category::Clause, continuation),
+        ],
+    );
+    assert!(
+        readings(
+            &format!("{definition}, then {continuation}"),
+            Category::PrepositionPhrase
+        )
+        .is_empty()
+    );
+}
+
+#[test]
+fn independently_composed_medial_supplement_retains_its_anchor_and_continuation() {
+    let anchor = "This creature gets +X/+0 until end of turn";
+    let definition = "where X is the number of creature cards in your graveyard";
+    let continuation = "you may have this creature fight that creature";
+    let value = Reading::MedialSupplementation {
+        form: 0,
+        anchor: Box::new(
+            readings(anchor, Category::Clause)
+                .into_iter()
+                .next()
+                .unwrap(),
+        ),
+        supplement: Box::new(
+            readings(definition, Category::PrepositionPhrase)
+                .into_iter()
+                .next()
+                .unwrap(),
+        ),
+        coordinator: word("vocab:Coordinator/Then", WordForm::Invariant),
+        continuation: Box::new(
+            readings(continuation, Category::Clause)
+                .into_iter()
+                .next()
+                .unwrap(),
+        ),
+    };
+    let text = format!("{anchor}, {definition}, then {continuation}");
+    assert_eq!(value.realize(lexicon()).unwrap(), text);
+    assert!(readings(&text, Category::Clause).contains(&value));
+    let mut independent = Vec::new();
+    value
+        .visit(&mut |node| independent.push(node.clone()))
+        .unwrap();
+    let admitted = readings(&text, Category::Clause)
+        .get(&value)
+        .unwrap()
+        .clone();
+    let mut reparsed = Vec::new();
+    admitted
+        .visit(&mut |node| reparsed.push(node.clone()))
+        .unwrap();
+    assert_eq!(independent, reparsed);
+    let mut independent_words = Vec::new();
+    let mut reparsed_words = Vec::new();
+    value
+        .visit_words(&mut |word| independent_words.push(word.clone()))
+        .unwrap();
+    admitted
+        .visit_words(&mut |word| reparsed_words.push(word.clone()))
+        .unwrap();
+    assert_eq!(independent_words, reparsed_words);
+}
+
+#[test]
+fn sardian_cliffstomper_keeps_coordination_in_the_anchor_condition() {
+    let text = "As long as it's your turn and you control four or more Mountains, this creature gets +X/+0, where X is the number of Mountains you control.";
+    let values = readings(text, Category::Document);
+    assert_eq!(values.len(), 2);
+    for value in values {
+        let mut coordinated_heads = Vec::new();
+        let mut supplements = 0;
+        value
+            .visit(&mut |node| {
+                if let Reading::CoordinatedClauseComplementPreposition { head, .. } = node {
+                    coordinated_heads.push(lexicon().realize(&head.value).unwrap());
+                }
+                if let Reading::Supplementation { .. } = node {
+                    supplements += 1;
+                }
+            })
+            .unwrap();
+        assert_eq!(coordinated_heads, vec!["As long as"]);
+        assert_eq!(supplements, 1);
+    }
+}
+
+#[test]
+fn coordinated_definitions_retain_general_coordination() {
+    let text = "where X is its power and Y is its toughness";
+    assert_eq!(readings(text, Category::PrepositionPhrase).len(), 1);
+    assert_constituents(
+        text,
+        Category::PrepositionPhrase,
+        &[
+            (
+                Category::CoordinatedFiniteClause,
+                "X is its power and Y is its toughness",
+            ),
+            (Category::FiniteClause, "X is its power"),
+            (Category::FiniteClause, "Y is its toughness"),
+        ],
+    );
 }

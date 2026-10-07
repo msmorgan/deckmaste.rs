@@ -56,7 +56,10 @@ constructions! {
             -> PrepositionFunctionLicence intersection;
         frame_marker_licence Predicate(Preposition) = licence_verb_complement;
         feature FrequencyUnit { Yes }
-        feature FiniteClauseComplement { Yes }
+        feature FiniteClauseComplement { Yes, Nonsequencing }
+        table finite_clause_complement(FiniteClauseComplement) -> Selection {
+            (Yes) => Yes, (Nonsequencing) => Yes,
+        }
         feature GerundClauseComplement { Yes }
         feature InternalisedComplementMarker { No, Yes } default No;
         feature InternalisedComplementPresent { No, Yes } default No;
@@ -278,8 +281,8 @@ constructions! {
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(number, person, CliticHost);
         category BareObjectGapSeries();
-        category CoordinatedFiniteClause();
-        category FiniteClauseSeries();
+        category CoordinatedFiniteClause(GeneralCoordination);
+        category FiniteClauseSeries(GeneralCoordination);
         category PredicativeComplementSeries(PredicativeKind);
         category CorrelativeClauseSeries(CorrelativeCoordinator, UnmarkedConjunctLicence);
         category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator, CliticHost);
@@ -308,7 +311,7 @@ constructions! {
         category SelectedPrepositionHead(LocativeUse, PrepositionFunctionLicence, HeadCoordination,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse);
         category SelectedPrepositionHeadSeries(LocativeUse, PrepositionFunctionLicence, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse);
-        category CorrelativeFiniteClauseSeries(CorrelativeCoordinator);
+        category CorrelativeFiniteClauseSeries(CorrelativeCoordinator, GeneralCoordination);
 
         frame_category NounPhrase = AccusativePhrase;
         frame_category PowerToughnessAdjustment = SlashPair;
@@ -940,6 +943,10 @@ constructions! {
         policy UnmarkedConjunct<Right, Source> {
             require Right.UnmarkedConjunctLicence = Yes;
             export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
+        }
+
+        policy ClauseCoordinationProperties<Right, Source> {
+            export GeneralCoordination = Source.GeneralCoordination;
         }
 
         policy GeneralCoordinatorDistribution<Right, Source> {
@@ -1586,14 +1593,14 @@ constructions! {
         // content-clause selection, not this variable-defining application.
         schema Supplementation {
             boundary Initial;
-            form [host: node, ", ", supplement: PrepositionPhrase, "."];
+            form [anchor: node, ", ", supplement: PrepositionPhrase, "."];
             require licence_supplement(supplement.PrepositionFunctionLicence) = Yes;
-            require host.terminal_punctuation = None;
+            require anchor.terminal_punctuation = None;
         }
         policy UnlabelledSupplementation {
             export LabelKind = None;
         }
-        instance Supplementation<Result, Host: host, Properties>: [
+        instance Supplementation<Result, Anchor: anchor, Properties>: [
             (Sentence, Clause, NoFeatures),
             (Ability, KeywordPhrase, UnlabelledSupplementation),
         ] {
@@ -1655,6 +1662,17 @@ constructions! {
             export UnmarkedConjunctLicence = clause.UnmarkedConjunctLicence;
         }
 
+        construction MedialSupplementation: Clause {
+            form [anchor: Clause, ", ", supplement: PrepositionPhrase, ", ",
+                coordinator: lexical(Coordinator), " ", continuation: Clause];
+            require licence_supplement(supplement.PrepositionFunctionLicence) = Yes;
+            require coordinator.NoncorrelativeCoordination = Yes;
+            require coordinator.CommaCoordination = Yes;
+            require coordinator.GeneralCoordination = No;
+            require anchor.terminal_punctuation = None;
+            export UnmarkedConjunctLicence = anchor.UnmarkedConjunctLicence;
+        }
+
         construction ClauseCoordination: Clause {
             form [left: Clause, ", ", coordinator: lexical(Coordinator), " ", right: Clause];
             form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause]
@@ -1691,7 +1709,7 @@ constructions! {
             (FrequencyPhraseSeries, FrequencyPhrase),
             (FiniteObjectGapSeries, FiniteObjectGap, FiniteConcord, NoConcord, NoConcord),
             (BareObjectGapSeries, BareObjectGap, NoConcord, NoConcord, NoConcord),
-            (FiniteClauseSeries, FiniteClause, NoConcord, NoConcord, NoConcord),
+            (FiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhraseSeries, DepictivePhrase, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, PredicativeListEnd),
             (SelectedPrepositionHeadSeries, SelectedPrepositionHead, PrepositionPermissions),
@@ -1732,7 +1750,7 @@ constructions! {
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
             (FiniteObjectGapSeries, FiniteObjectGap, Self, FiniteConcord),
             (BareObjectGapSeries, BareObjectGap, Self),
-            (FiniteClauseSeries, FiniteClause, Self),
+            (FiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
             (DepictivePhraseSeries, DepictivePhrase, Self, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListEnd),
             (SelectedPrepositionHeadSeries, SelectedPrepositionHead, Self, PrepositionPermissions),
@@ -1769,7 +1787,7 @@ constructions! {
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
             (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteConcord),
             (BareObjectGap, Self, BareObjectGapSeries),
-            (CoordinatedFiniteClause, FiniteClause, FiniteClauseSeries),
+            (CoordinatedFiniteClause, FiniteClause, FiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
             (DepictivePhrase, Self, DepictivePhraseSeries, UnlikeDepictives),
             (PredicativeComplement, Self, PredicativeComplementSeries, UnlikePredicatives),
             (SelectedPrepositionHead, Self, SelectedPrepositionHeadSeries, PrepositionPermissions,
@@ -1877,7 +1895,7 @@ constructions! {
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
             (BareObjectGap, Self, NoConcord, NoConcord, NoConcord),
-            (CoordinatedFiniteClause, FiniteClause, NoConcord, NoConcord, NoConcord),
+            (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhrase, Self, UnlikeDepictives),
             (PredicativeComplement, Self, UnlikePredicatives),
             (SelectedPrepositionHead, Self, PrepositionPermissions, SharedHeadStatus),
@@ -2287,7 +2305,7 @@ constructions! {
             export NominalComplementMarker = None;
             export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: FiniteClause];
-            require head.FiniteClauseComplement = Yes;
+            require finite_clause_complement(head.FiniteClauseComplement) = Yes;
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
@@ -3281,8 +3299,12 @@ constructions! {
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
             export ObliqueNumber = None;
-            form [head: lexical(Preposition), " ", complement: CoordinatedFiniteClause];
-            require head.FiniteClauseComplement = Yes;
+            form [head: lexical(Preposition), " ", complement: CoordinatedFiniteClause]
+                require complement.GeneralCoordination = Yes;
+            form [head: lexical(Preposition), " ", complement: CoordinatedFiniteClause]
+                require complement.GeneralCoordination = No
+                require head.FiniteClauseComplement = Yes;
+            require finite_clause_complement(head.FiniteClauseComplement) = Yes;
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
@@ -3356,7 +3378,7 @@ constructions! {
             (CorrelativeAdjectivePhrase, AdjectivePhrase),
             (FiniteObjectGap, Self, FiniteConcord),
             (BareObjectGap, Self),
-            (CoordinatedFiniteClause, FiniteClause),
+            (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -3387,7 +3409,7 @@ constructions! {
             (CorrelativeAdjectiveSeries, AdjectivePhrase),
             (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, FiniteConcord),
             (CorrelativeBareObjectGapSeries, BareObjectGap),
-            (CorrelativeFiniteClauseSeries, FiniteClause),
+            (CorrelativeFiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -3419,7 +3441,7 @@ constructions! {
             (CorrelativeAdjectiveSeries, AdjectivePhrase, Self),
             (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, Self, FiniteConcord),
             (CorrelativeBareObjectGapSeries, BareObjectGap, Self),
-            (CorrelativeFiniteClauseSeries, FiniteClause, Self),
+            (CorrelativeFiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -3448,7 +3470,7 @@ constructions! {
             (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries),
             (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteConcord),
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries),
-            (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries),
+            (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);

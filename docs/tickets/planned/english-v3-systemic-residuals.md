@@ -372,9 +372,41 @@ is right and this list needs fixing.
 - Copular scalar location is discharged by `english-v3-copular-scalar-location`
   on `lxupmwno` (covered 19,205): all six pinned faces read. The synthetic
   "The number of cards in your hand is three." has two Readings (its two PP
-  attachments); the plural-*are* probe has none. Scalar variable Subjects,
-  including Magma Sliver's *X*, remain owned here. *Is equal to* and *is less
+  attachments); the plural-*are* probe has none. Scalar variable Subjects are
+  **discharged** by `english-v3-where-variable-clause` on `wzuorztqvmnl`
+  (covered 20,858): Magma Sliver reads through the existing nominal predicative
+  NP, as do the six ordinary variable-Subject gains Bargaining Table, Spoils of
+  War, Chromatic Armor, Soul Immolation, Mortarion, Daemon Primarch, and Shanna,
+  Purifying Blade. `ScalarDenotation` remains No for this projection;
+  numeric-predicative `X is 2` is not thereby licensed. *Is equal to* and *is less
   than* are be + comparative AdjP and belong to `english-v3-comparative-complements`.
+- Variable-*where* residue is owned here for cause audit and bounded routing.
+  The original landing on `wzuorztqvmnl` (covered 20,858) leaves 601 variable-
+  *where* faces unread, with 322 reported as containing an independently unread
+  equated NP. These are overlapping diagnostics, not sole-cause counts. The
+  medial-supplement follow-up corrects ten nominal probes that accidentally
+  included an outside continuation: the independent-NP blocker list is 312,
+  rather than the historical first-pass 322. All remaining whole-face blockers
+  retain this routing. On the finished follow-up `worzsvpnqyms` / covered
+  20,860, **599** variable-Where faces remain unread, including those **312**
+  independent-NP blockers. The follow-up reports the complete comparison in the original ticket's **Post-landing fix (2026-10-07)**.
+  Five independently blocked NP examples, with zero admitted NP roots on that
+  original stamp, are Food Chain (*1 plus the exiled creature's mana value*:
+  arithmetic-plus NP with participial/genitive structure); Drag to the Bottom
+  (*1 plus the number of basic land types among lands you control*: arithmetic-
+  plus NP); Voracious Wurm (*the amount of life you've gained this turn*:
+  perfect-relative NP); Doran, Besieged by Time (*the difference between its
+  power and toughness*: vocabulary gap **difference**); and Cactus Preserve
+  (*the greatest mana value among your commanders*: vocabulary gap
+  **commanders**). These identify a blocked constituent or actual vocabulary
+  gap, not a proved sole cause for the whole face.
+- The variable-binding check remains owed here for routing under
+  `oracle-text-is-forward-anaphoric`: grammar admits “Target creature gets
+  +X/+X, where Y is its power.” (1 Reading) and “Target creature gets +1/+1
+  until end of turn, where X is its power.” (2 Readings) on the original
+  `wzuorztqvmnl` / covered 20,858. The first defines a different variable;
+  the second has no variable quantity in its anchor. These are grammar-only
+  outcomes, not semantic binding proofs, and need a later binding check.
 - Compound/split lexical ambiguity: "untap step" is read both as one compound
   lexeme and as *untap* + *step*, doubling every Reading of Seedborn Muse (the selected-preposition
   landing re-spells its attachment set to two and retires the nominal third). Decide whether declared game-term compounds should

@@ -114,8 +114,8 @@ as integer ns and ns/B with host load and worker count.
 ### Project analysis
 
 The variable-defining *where* is a Preposition selecting a non-expandable
-Finite Clause. Its phrase is supplementary to the completed Clause, or to the
-Keyword Phrase on a punctuated keyword line. The `Supplementation` schema
+Finite Clause. Its phrase is supplementary to its **anchor**, the completed
+Clause or Keyword Phrase on a punctuated keyword line. The `Supplementation` schema
 keeps that phrase beside its completed clause/keyword expression and attaches
 it once; it is neither a Relative Clause nor a locative Adjunct of an NP.
 The specifying clause uses the existing nominal predicative frame of *be*,
@@ -192,7 +192,15 @@ existing sacrifice lexeme. Full named deltas and judgments are in
 The gains partition into 506 where-supplement-only faces (29,327 Readings),
 54 sacrifice-licence-only faces (333), 12 joint faces (32), and 6 ordinary
 variable-Subject faces (641). Thus the where feature alone gains 512 faces,
-of which 506 actually use the supplement. The last six are Bargaining Table,
+of which 506 actually use the supplement. These are measurements of the
+finished landing, not the old sole-cause estimate: **149**, stamped
+`xxknlzypsnwy` / covered **17,322**, counted faces where the missing route was
+the only blocker on that older tree. Later landings cleared co-blockers before
+the implementation baseline (covered 20,280); the resulting 506 supplement
+gains plus 6 ordinary variable-Subject gains explain the 512 where-feature
+figure. The two inventories measure different trees and different causes.
+The post-landing fix below supersedes the gain totals and Kraul analysis.
+The last six are Bargaining Table,
 Soul Immolation, Mortarion, Daemon Primarch, Chromatic Armor, Shanna, Purifying
 Blade, and Spoils of War. Their sampled trees use the same singular,
 third-person variable Subject and existing nominal predicative *be* frame;
@@ -200,9 +208,10 @@ the modal negative cases use the existing comparative complement. They add no
 new frame or duplicate constituency and have no Supplementation node.
 
 Of 1,119 variable-where faces, 518 are covered and 601 remain unread.
-Independent noun-phrase probes identify 322 of those 601 as containing at
-least one independently unread equated constituent; this does not assert
-sole causation. The other excluded NP work remains excluded. The 361 distinct
+The first-pass noun-phrase probes reported 322 of those 601 as containing an
+independently unread equated constituent; this did not assert sole causation.
+The post-landing boundary audit below corrects ten fragments that included
+an outside continuation, reducing this diagnostic to 312 actual NP blockers. The other excluded NP work remains excluded. The 361 distinct
 constituent probes and the refreshed sacrifice-containing probes have zero
 internal/validation errors and are named in `equated-np-residuals-final.json`.
 Magma Sliver is naturally covered through its existing nominal predicative
@@ -642,7 +651,7 @@ replacement for the other retained Readings.
 | Kinscaer Sentry / `fdf0fba8-f335-419c-b96b-e99037727c43#card` | 9 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: the number of attacking creatures you control |
 | Kithkeeper / `5c5766f9-befd-4426-9527-d50af0699ca1#card` | 60 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: the number of colors among permanents you control |
 | Kitsune Loreweaver / `d989d8aa-2b2a-4fd2-a8c9-1d182909987c#card` | 6 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: the number of cards in your hand |
-| Kraul Harpooner / `332b6ed7-90de-46c0-85ad-1ad708b2c1e1#card` | 208 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: the number of creature cards in your graveyard, then you may have this creature fight that creature |
+| Kraul Harpooner / `332b6ed7-90de-46c0-85ad-1ad708b2c1e1#card` | 208 historical wrong Readings, retired; corrected count below | where supplement alone, corrected by follow-up | Medial PP supplement of the left Clause anchor; specifying be clause; equated NP **the number of creature cards in your graveyard** (definite NP headed by *number*, *of creature cards* and *in your graveyard* postmodifiers; 3 independently admitted NP Readings). The intended graveyard restriction is inside the creature-card NP; higher postmodifier attachment remains a grammatical Reading. The `then you may have …` Clause continues the outer host and is outside the definition. |
 | Krenko, Mob Boss / `68418069-f615-40ef-ae0d-764192acae00#card` | 2 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: the number of Goblins you control |
 | Kresh the Bloodbraided / `6343cf6f-b1e3-49ce-8933-8fe6c9dc83f3#card` | 1 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: that creature's power |
 | Kry Shield / `2c4bd475-b8af-4916-b7a0-68abb8994138#card` | 64 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: its mana value |
@@ -924,3 +933,198 @@ replacement for the other retained Readings.
 | Zedruu the Greathearted / `514179c0-a50b-4565-8e71-9dad256edd85#card` | 18 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: the number of permanents you own that your opponents control |
 | Zenith Flare / `ae005f00-3817-40ca-b8be-069a4085cfee#card` | 12 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: the number of cards with a cycling ability in your graveyard |
 | Zoyowa's Justice / `17e11f0c-4ac7-4060-9e0b-27cd5c151e50#card` | 5 | where supplement alone | PP supplement of completed Clause/Keyword Phrase; nominal specifying be clause; equated NP: its mana value |
+
+
+### Post-landing fix (2026-10-07)
+
+The post-landing HIGH finding is resolved with a medial supplement. In Kraul
+Harpooner, `MedialSupplementation` attaches the Where PP to the left Clause
+anchor, and the comma plus sequencing coordinator introduces the continuing
+Clause. Its equated NP is **the number of creature cards in your graveyard**,
+with 3 independently admitted nominal Readings; the continuation is outside
+that NP and outside Where's content clause. The historical table row above
+is corrected. All 208 historical Kraul Readings had the wrong attachment and
+are explicitly retired as wrong analyses, rather than counted as valid gains.
+
+The declaration reads the existing supplementary licence and coordination
+features; it names no lexeme in a licensing guard. The existing
+`FiniteClauseComplement` feature gains the value `Nonsequencing`, assigned to
+the existing Where lexeme. `finite_clause_complement` admits both values for
+an ordinary finite complement. A coordinated complement exports the existing
+`GeneralCoordination` feature through `ClauseCoordinationProperties` across
+simple, serial and correlative routes. Its mutually exclusive forms keep
+general coordination available under both licences and sequencing available
+under the unrestricted licence. Thus the old wrong Where sequencing route
+is retired on both the lexical and grammar sides, without leaving a dead
+construction or labelling the same constituency twice.
+
+This is the reviewer's preferred generic medial-position resolution, not a
+blanket pruning of coordinated definitions. Three supported faces attest
+coordinated definitions: Aspect of Wolf, Phyrexian Ingester and Bioplasm.
+Twelve faces contain host sequencing after a definition; the named sources
+are in `where-coordination-attestations.json`. Sardian Cliffstomper's two
+Readings retain coordination under **As long as** in the anchor, with its
+Where definition remaining a separate, final supplement. The restriction on
+sequencing is a project analysis of these source boundaries, not a CGEL claim.
+CGEL Ch. 15 §5.1, p. 1351 supplies the term **anchor**, and p. 1355 permits
+interpolation among supplement positions; those passages alone are cited for
+those claims. The Supplement glossary entry and the existing Supplementation
+schema field now use `anchor`.
+
+Routing is corrected in
+[english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md):
+Magma Sliver and the six ordinary variable-Subject gains are discharged;
+the historical 601 unread variable-Where faces and the reported 322 NP
+diagnostics remain routed there for cause audit. Ten of those NP diagnostics
+incorrectly included a continuing Clause in the nominal probe, so the corrected
+independent-NP blocker list has 312 faces. Five examples
+name their constituent blockers, not merely their face names. Those diagnostic
+counts are historical and overlapping, not sole-cause claims; the current
+Where residue is measured below. The 149 sole-cause estimate on
+`xxknlzypsnwy` / covered 17,322 and the later 512 feature-caused gains are
+reconciled above by their distinct trees and cleared co-blockers.
+
+Binding remains outside this grammar landing. “Target creature gets +X/+X,
+where Y is its power.” has 1 Reading; “Target creature gets +1/+1 until end of
+turn, where X is its power.” has 2. The ignored direct fragment probes retain
+the exact trees. These admit grammatical syntax without proving a matching
+variable occurrence in the anchor; a later variable-binding check is routed
+to systemic residuals under `oracle-text-is-forward-anaphoric`.
+
+The ten false NP-blocker diagnostics are Collective Voyage, Jaheira's Respite,
+Descendant of Soramaro, Sword of the Ages, Sylvan Primordial, Information
+Dealer, Ugin's Insight, Rampant Rejuvenator, Boundless Realms and Harvest
+Season. Their equated NPs independently admit a root when stopped before the
+outside continuation; they retain any other whole-face blocker. The correction
+also separates X and Y's equated constituents on the three attested coordinated
+definitions. Aspect of Wolf's half-number expression and the exiled-card possessive
+expression on Phyrexian Ingester and Bioplasm still fail the independent NP
+probe. Original NP
+probes whose boundaries and grammar are unchanged are reused; all corrected
+boundaries are freshly probed. Named evidence is `corrected-np-boundaries.json`
+and `np-residual-reconciliation.json`, under the follow-up evidence directory.
+
+Follow-up measurements in this section are stamped **`worzsvpnqyms` / covered
+20,860**, with the exact grammar and lexical hashes in `measurement-stamps.json`.
+The starting parent is `trlolklusowmn` / covered 20,858. Its declarations and
+fully loaded baseline lexical inventory are byte-identical to the reused
+`wzuorztqvmnl` / covered 20,858 full census; intervening semantic-body and
+document changes do not change this baseline. `base-stamp.json` records that
+proof. No extra baseline full run was spent.
+
+| Comparison / stamped trees | Covered | Unique | Multiple | Unread | Exact Readings |
+|---|---:|---:|---:|---:|---:|
+| Reused base `wzuorztqvmnl` / 20,858, equivalent to `trlolklusowmn` | 20,858 | 7,477 | 13,381 | 11,970 | 651,577 |
+| Finished follow-up `worzsvpnqyms` / 20,860 | 20,860 | 7,477 | 13,383 | 11,968 | 651,602 |
+
+All 20,858 previously covered faces keep their exact Reading counts, including
+Kraul Harpooner (208 → 208) and Sardian Cliffstomper (2 → 2). The count comparison
+has **zero decreases, zero coverage losses, and no unnamed changed face**.
+Kraul's 208 old wrong-attachment values are explicitly retired and replaced by
+208 correct medial values; identical counts do not conceal that structural
+replacement. Every Kraul Reading is checked for the same correct anchor,
+supplement and continuing Clause. Byte-exact realization, lexical ownership,
+construction and leaf traversal identity all pass over **651,602 Readings**;
+there are zero duplicate Readings, cyclic derivations, materialization/internal
+failures or validation issues. Readings remain preserved under the lexical
+analysis contract, without destructive selection. V3 has no specificity-resolved
+selection category or legacy coverage-lock/checker-total output. New word-named
+licensing guards: **0**. Lexical loading and GrammarEnvironment construction
+succeed; declared features supply every new guard.
+
+Only two faces change count against the starting base, both valid new gains:
+
+| Face / identity | Before → after | Judged analysis |
+|---|---:|---|
+| Sword of the Ages / `201f2434-96b3-408c-a5ce-74d0675920ed#card` | 0 → 20 | Activated ability retains its cost; the medial Where supplement anchors to **This artifact deals X damage to any target**. Equated NP **the total power of the creatures sacrificed this way** has 5 independent Readings: a definite power NP with *total*, an *of* phrase, and the creatures' participial postmodifier. **exile this artifact and those creature cards** is the outside imperative continuation. |
+| Ugin's Insight / `ad7b9db0-e061-4360-9b81-0408d18d971d#card` | 0 → 5 | The medial Where supplement anchors to **Scry X**. Equated NP **the greatest mana value among permanents you control** has 5 independent Readings: a definite mana-value NP with the superlative and an *among* phrase containing the object-relative permanent NP. **draw three cards** is the outside imperative continuation. |
+
+The ignored AST spot-check utility verifies all **233** Readings on these two
+faces plus Kraul, not merely their samples; `medial-spotchecks.json` records the
+exact constituents and independent NP counts. The final candidate selector
+contains 52 faces with samples and matches the full census. No other original
+gain has the wrong sequencing-inside-Where shape: the original exhaustive
+coordinated-complement inventory has only Kraul and Sardian among Where faces,
+and Sardian's coordination is inside its **As long as** anchor condition.
+
+Against the original claim baseline `wlmqosnolmnx` / covered 20,280 (the
+code-equivalent runtime `toxwntsklvow` snapshot), the corrected result is
+**580 gained faces and 30,358 added Readings**, replacing the historical
+578 / 30,333 claim. The partition is **508 Where-supplement-only faces /
+29,352 Readings**, **6 ordinary variable-Subject faces / 641**, **54
+sacrifice-licence-only faces / 333**, and **12 joint faces / 32**. Thus the
+Where feature now accounts for **514** gains by itself, versus the historical
+512 before this follow-up. The existing sacrifice licence is unchanged;
+Sword's *sacrificed* is a postmodifier, so its gain comes from the medial
+supplement. The refreshed `final-gain-analysis-ledger.json` contains all **580** named
+identities with current sample fingerprints and judgments, including the
+corrected Kraul analysis and these two new rows. Its counts match the full
+census. Only Sardian retains a coordinated-clause PP on any gain; both
+Readings put its coordination under As long as. `comparison.json` holds the
+full per-face comparison and gain list. Of 1,119 variable-Where faces, **520** read
+and **599** remain unread, including the corrected **312** independent-NP
+blocker faces. All residue retains systemic routing.
+
+Deviations and additions: **no feature, category, lexical frame or test is
+removed**. Added feature name: **none**; added existing-feature value:
+`FiniteClauseComplement::Nonsequencing`. Added table:
+`finite_clause_complement`. Added policy: `ClauseCoordinationProperties`.
+Added construction: `MedialSupplementation`. The three coordinated-clause
+category summaries reuse the existing `GeneralCoordination` feature. The
+field rename `Supplementation.host` → `Supplementation.anchor` follows the
+requested terminology correction. There is no new ruling contradiction or
+unresolved STOP; the existing sacrifice orchestrator resolution and all other
+exclusions remain in force.
+
+Nonblank declaration lines, claim parent versus finished follow-up:
+**3,300 → 3,320; net +20**. Named construction/schema count **248 → 249**
+(203 → 204 ordinary; 45 schemas unchanged); features **94**, categories **144**,
+tables **73 → 74**, policies **61 → 62**. The inherited 2,800-line ceiling is
+still exceeded; the change reuses feature names, lexical categories and
+coordination licences. Named spellings **38,374** and homographs **1,127** are
+unchanged; `spellings-final.json` matches the original inventory, and
+`inventories-final.json` retains the complete named homograph and form-literal
+lists and the empty form-literal/vocabulary overlap list. The new form uses
+existing comma and space literals. No glossary gap remains after defining the
+anchor in Supplement.
+
+Assurance: **4 tests added, 7 existing tests re-spelled, 0 restored, 0 removed,
+0 newly ignored**. Added tests are
+`kraul_harpooner_keeps_sequencing_outside_the_medial_definition`,
+`independently_composed_medial_supplement_retains_its_anchor_and_continuation`,
+`sardian_cliffstomper_keeps_coordination_in_the_anchor_condition`, and
+`coordinated_definitions_retain_general_coordination`. The five witness tests
+(Chameleon Colossus, Wild Beastmaster, Hemosymbic Mite, Elenda, Tip the Scales)
+and the two independent-keyword tests retain their exact outcomes through the
+anchor field rename; all 9 original tests remain. The new independently
+composed medial root uses separately parsed children, and proves exact value,
+node and leaf traversal roundtrip; it is not described as a wholly handwritten
+tree. The original fully independent keyword tree remains checked. The focused
+suite passes **13 tests**.
+
+Performance advisory, `worzsvpnqyms` / covered 20,860: **6 workers**, host load
+(1/5/15 min) **38.934/26.580/22.078**, corpus wall **226,555,570,831 ns**, checked-text thread CPU
+**343,261 ns/B**. The wall time exceeds the **16,260,000,000 ns** quiet-host
+advisory ceiling. The census overlaps gate compilation on a loaded shared host;
+these timings do not isolate the causal cost of the grammar change. This is an
+advisory, not a gate. All source hashes, exact host load and CPU telemetry are
+retained in `after.json`.
+
+The finished-feature full command is `target/debug/cargo-xtask english-v3
+--all --workers 6 --samples-per-face 0 --output
+target/english-v3/english-v3-where-followup/after.json` (the built `cargo xtask`
+CLI). This is **one** full run for the follow-up; selector subsets and fragment
+probes supply iteration and spot-checks. All follow-up census/evidence files
+are ignored under **`target/english-v3/english-v3-where-followup/`**.
+
+Verification on `worzsvpnqyms` / covered 20,860: `cargo xtask gate --changed
+--from trlolklusowmn --run` derives `cargo test -p deckmaste_lexical_source -p
+deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask` and exits **0**:
+**845 passed, 0 failed, 1 inherited ignored, 96 suites**. The sole inherited
+ignore is `macros::templates::tests::macro_schema_census_count_matches_21`,
+whose attribute says it cross-checks the live corpus against the census and
+runs on demand. Clippy for those four packages, all targets, with `-D warnings`
+passes. `cargo fmt -p deckmaste_english_v3 --check` passes. Citation checks
+report **0 stale and 0 noncompliant**; the piped jj diff audit selects **0 CR
+citation sites**, because this follow-up changes no CR citation. The final
+finished-feature census is **`target/english-v3/english-v3-where-followup/after.json`**.

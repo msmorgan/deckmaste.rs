@@ -199,8 +199,8 @@ The highest ordinary syntactic unit of Oracle text, terminated by sentence
 punctuation and containing one or more Clauses.
 
 **Supplement**:
-Material set apart from an expression and related to it without integration
-into its headed syntax (CGEL, Ch. 15 §5.1, pp. 1350–1351). The variable-defining
+Material set apart from a related expression, its **anchor**, without
+integration into the anchor's headed syntax (CGEL, Ch. 15 §5.1, pp. 1350–1351). The variable-defining
 *where X is …* Preposition Phrase is supplementary under the
 [where-variable-clause project analysis](../../tickets/done/english-v3-where-variable-clause.md#project-analysis).
 
