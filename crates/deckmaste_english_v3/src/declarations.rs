@@ -158,8 +158,8 @@ constructions! {
         category DepictivePhraseSeries(DepictiveKind);
         category Ellipsis(form);
         category BareComplement(AuxiliaryComplementRealization);
-        category ParticipialComplement(AuxiliaryComplementRealization);
-        category PerfectComplement(AuxiliaryComplementRealization);
+        category ParticipialComplement();
+        category PerfectComplement();
         category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse);
@@ -967,27 +967,13 @@ constructions! {
         }
 
         schema ParticipialAuxiliaryPredicate {
-            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
-                complement.AuxiliaryComplementRealization) = Yes;
-            // CGEL p. 1614: stranding requires a stressed auxiliary.
-            require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization)
-                = Yes;
             form [head: lexical(Verb), complement: node];
             require head.frame = ParticipialAuxiliary;
-            require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
-                = Yes;
         }
 
         schema PerfectAuxiliaryPredicate {
-            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
-                complement.AuxiliaryComplementRealization) = Yes;
-            // CGEL p. 1614: stranding requires a stressed auxiliary.
-            require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization)
-                = Yes;
             form [head: lexical(Verb), complement: node];
             require head.frame = PerfectAuxiliary;
-            require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
-                = Yes;
         }
 
         schema NominalAdjunctPredicate {
@@ -1015,9 +1001,15 @@ constructions! {
             export InternalisedComplementPresent = Yes;
         }
 
+        policy NoComplementProperties {
+        }
+
+        policy OvertComplementRealization {
+            export AuxiliaryComplementRealization = Overt;
+        }
+
         schema OvertComplement {
             form [" ", predicate: node];
-            export AuxiliaryComplementRealization = Overt;
         }
 
         // Complete lexical hosts keep auxiliary ellipsis outside depictive attachment.
@@ -1102,16 +1094,12 @@ constructions! {
         }
 
         schema SharedAuxiliaryParticipleComplement {
-            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
-                complement.AuxiliaryComplementRealization) = Yes;
             form [head: node, complement: node];
             require head.HeadCoordination = Yes;
             require head.FrameUse = AuxiliaryParticiple;
         }
 
         schema SharedAuxiliaryPerfectComplement {
-            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
-                complement.AuxiliaryComplementRealization) = Yes;
             form [head: node, complement: node];
             require head.HeadCoordination = Yes;
             require head.FrameUse = AuxiliaryPerfect;
@@ -2231,7 +2219,7 @@ constructions! {
         // CGEL Ch. 7 §2.4, pp. 616–617: the selected PP is a constituent;
         // omission removes its head together with its internal Complement.
         construction CompoundPrepositionPhrase: PrepositionPhrase {
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
+            export ClauseInitialAdjunct = No;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require selected_compound_complement(head.CompoundComplementMarker,
                 complement.NominalComplementMarker) = Yes;
@@ -2630,11 +2618,12 @@ constructions! {
         }
 
 
-        instance OvertComplement<Result, Predicate: predicate>: [
-            (BareComplement, BarePredicate),
+        instance OvertComplement<Result, Predicate: predicate, Properties = NoComplementProperties>: [
+            (BareComplement, BarePredicate, OvertComplementRealization),
             (ParticipialComplement, ParticipialPredicate),
             (PerfectComplement, PastParticiplePredicate),
         ] {
+            use Properties;
         }
 
         construction BareEllipsis: BareComplement {
@@ -3060,7 +3049,7 @@ constructions! {
             Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, ParticipialComplement, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, ParticipialComplement,
-                AuxiliarySelectedPredicate),
+                OrdinarySelectedPredicate),
         ] {
             use Properties;
         }
@@ -3068,7 +3057,7 @@ constructions! {
             Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, PerfectComplement, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, PerfectComplement,
-                AuxiliarySelectedPredicate),
+                OrdinarySelectedPredicate),
         ] {
             use Properties;
         }

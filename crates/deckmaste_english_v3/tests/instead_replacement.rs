@@ -247,3 +247,13 @@ fn passive_relative_twin_retains_its_two_overt_readings() {
         );
     }
 }
+
+#[test]
+fn unpunctuated_initial_connective_rejects_an_overt_complement() {
+    assert!(readings("Instead of that card exile it.", Category::Document).is_empty());
+    // Divine Resilience retains the attested bare initial form.
+    assert!(!readings(
+        "If this spell was kicked, instead any number of target creatures you control gain indestructible until end of turn.",
+        Category::Document,
+    ).is_empty());
+}

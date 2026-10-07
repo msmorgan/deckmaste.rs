@@ -461,6 +461,22 @@ not fabricated or obtained from the retired coverage pipeline.
 
 ### DISCLOSE
 
+Residual routing (post-landing review, 2026-10-07): *instead of* with a
+gerund-participial Complement remains unread on 53 supported in-scope faces
+(Deny the Divine, Reject, Storm Herald, Loxodon Smiter, among others), now owned
+by the "Batch records and what they leave open" list in
+[english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md#batch-records-and-what-they-leave-open).
+
+The landing gained **234 of 982** supported faces containing *instead*; six
+were already covered and 742 remain unread. The ticket's older 288 sole-cause
+figure was a recognized surface-cause bucket on `wlvwtnppyovn` / 13,716 covered,
+not a prediction that every host would read after this lexical repair. The
+shortfall includes *from anywhere* (Forbidden Crypt's second sentence), the
+missing Produce lexical host and reduced *if tapped* conditional (Reality
+Twist), and the missing gerund-participial Complement above (for example,
+Deny the Divine and Reject). All are routed to systemic residuals; the named
+Instead census and gerund residual list are retained in the follow-up evidence.
+
 | Measured tree / covered | Unread | Unique | Multiple | Complete Readings |
 |---|---:|---:|---:|---:|
 | `pmpwnupr`, claim-parent `pyoyosmv` grammar / 17,322 | 15,506 | 7,111 | 10,211 | 367,247 |
@@ -629,3 +645,77 @@ From the workspace root, `cargo xtask cite check --list-noncompliant` reports
 zero noncompliant strings and `cargo xtask cite check` checks 16,112 citations
 with zero stale. `jj diff --git | cargo xtask cite audit --diff` audits zero
 changed CR citation sites; no blessing is needed.
+
+### Post-landing fix (2026-10-07)
+
+The accepted review's four follow-ups land together in
+`english-v3-instead-followup`: route the 53 gerund-participial Complement
+residuals to systemic residuals, reconcile 234 gains against the historical
+288 surface-cause bucket (234 of 982 Instead faces), remove constant auxiliary
+state and its vacuous checks, and prune the unattested no-comma initial
+compound route through the existing declared feature.
+
+PROVE: measured baseline `wlvwtnppyovnwwoolmkvvvonnsvryuul` / 17,556 covered
+is source-equivalent to the feature's start base `otlzrzzy`, verified against
+its consumed declarations and captured lexical-source hashes. The prewarmed
+baseline executable reports its coordinator build root; the source comparison
+and `followup-base-provenance.json` establish the feature-base correspondence.
+Final measured tree `plwnlrlqvvqszsooymrqrnrvqlvmvkxx` / 17,556 covered:
+all 32,828 faces are completely enumerated, 15,272 unread / 7,122 unique /
+10,434 multiple, **343,616 Readings**. The full per-face comparison is `[]`:
+zero gained or lost faces, zero decreased or increased Reading counts.
+Admission, lexical ownership, byte-exact realization and construction/leaf
+traversal validations have zero issues; enumeration has zero internal
+failures, limits, cycles or duplicate Readings. No word-naming guard is added.
+
+DISCLOSE: ParticipialComplement and PerfectComplement no longer carry the
+constant Overt state. Their direct/shared ellipsis checks are removed, along
+with the constant form/clitic checks that read it; inflectional and selected
+frame constraints remain on the live heads and their Complement predicates.
+BareComplement retains variable Overt/Elided state and both live direct/shared
+licence checks. The existing OvertComplement schema uses two small property
+adapters to export realization only for its BareComplement instance, and
+shared overt auxiliary heads reuse OrdinarySelectedPredicate. No Construction
+is added or retired. The participial negative test now puts a valid gerund
+child into correctly typed passive/perfect Complements and exercises their
+live form/function constraints; both omission-category and surface negatives
+remain. The extra no-comma negative fails on the base (one Reading) and passes
+here (none), with Divine Resilience's bare initial positive retained.
+
+CompoundPrepositionPhrase explicitly exports ClauseInitialAdjunct = No;
+IntransitivePreposition retains the head's declared Yes. InitialPreposition's
+no-comma form reads that feature, while its comma form keeps its existing
+function licence. This expresses the restriction generically without a word,
+card or construction-named admission guard. The review reports zero corpus
+attestations of the pruned placement; an independent enumeration of all 150
+existing instead-of Readings also finds zero such initial compound sites.
+All 53 routed in-scope putting/declaring Complement faces remain unread;
+Deny the Divine, Reject, Storm Herald and Loxodon Smiter are named examples.
+The shortfall and routing are also disclosed in the original DISCLOSE section.
+These additions and removals implement the four requested fixes; no new
+lexeme, frame, fixture, xtask command or glossary term is added. Glossary gap:
+none. Assurance: restored 0, re-spelled 1, added 1, newly ignored 0, removed 0.
+
+REPORT: corpus SHA-256 and lexical inventory SHA-256 are unchanged from the
+post-refresh record above. Construction inventory remains 192 ordinary +
+44 schemas = 236; the named homograph and empty literal-overlap inventories
+are unchanged. All evidence is ignored under `target/english-v3/`, retained
+at `target/english-v3/english-v3-instead-followup/` in the coordinator on drop.
+Performance advisory, integer nanoseconds, 12 workers in both full runs:
+
+| Measured change / covered | Corpus wall ns | Checked-text thread CPU ns/B | Host load (1 / 5 / 15 minute) |
+|---|---:|---:|---|
+| `wlvwtnppyovn` / 17,556 | 109,815,218,272 | 375,739 ns/B | 4.59375 / 9.33935546875 / 7.93310546875 |
+| `plwnlrlq` / 17,556 | 163,439,700,297 | 346,759 ns/B | 6.9765625 / 8.56787109375 / 8.2958984375 |
+
+Both loaded-host runs exceed the 16,260,000,000 ns quiet-host advisory ceiling.
+Setup: before 5,976,024,698 ns, after 6,586,779,946 ns. The comparison is not a
+quiet-host performance claim. Focused tests pass 20 tests; changed-file nightly
+formatting and Clippy for construction v3, English v3 and xtask with all
+targets pass. The derived command is `cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`, run with
+`cargo xtask gate --changed --from otlzrzzy --run`: exit zero,
+**708 passed, zero failed, one unchanged ignored census test with the
+existing on-demand cross-check blocker**. All seven Lean registry checks pass.
+From the workspace root, citation checks report zero noncompliant strings and
+zero stale among 16,113 citations; the piped diff audit selects zero changed
+CR sites. No unresolved STOP remains.

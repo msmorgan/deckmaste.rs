@@ -134,6 +134,13 @@ its verification belong to the attached feature-economy ticket.
 
 ## Batch records and what they leave open
 
+- Instead landing follow-up (2026-10-07): *instead of* with a
+  gerund-participial Complement remains unread on **53** supported in-scope
+  faces, including Deny the Divine, Reject, Storm Herald and Loxodon Smiter
+  ("Exile it instead of putting it into your graveyard."). This ticket owns
+  the missing selected gerund-participial Complement beneath *of* inside the
+  compound PP; the nominal Complement route is insufficient. The named census
+  is retained with the [Instead post-landing fix](../done/english-v3-instead-replacement.md#post-landing-fix-2026-10-07).
 - Clitic landing follow-up (2026-10-06): perfect *have* with an Object Gap in
   relative clauses ("each spell you've/you have cast this turn", about **56**
   unread faces) is not read as the perfect. Murmuration's clitic sentence has

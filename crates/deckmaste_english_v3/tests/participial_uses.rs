@@ -753,29 +753,54 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
 }
 #[test]
 fn participial_postmodifiers_and_mixed_complements_reject_wrong_form_or_function() {
-    // The omitted participial/perfect routes are retired under the user
-    // ruling of 2026-10-06, resolved by the orchestrator 2026-10-07.
-    // Re-spell the same two stranding exclusions against the remaining shape.
-    for owner in ["core-verb:Be", "core-verb:Have"] {
-        let invalid = Reading::ParticipialAuxiliaryPredicate {
+    // The omitted routes are retired. Exercise live form constraints with
+    // a valid gerund-participial child in each correctly typed Complement.
+    let gerund = Reading::SelectedPredicate {
+        form: 0,
+        category: Category::SecondaryVerbPhrase,
+        head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),
+        complements: vec![],
+    };
+    gerund.admit(&LEXICON).unwrap();
+    assert_eq!(gerund.realize(&LEXICON).unwrap(), "attacking");
+    let invalid_passive = Reading::ParticipialAuxiliaryPredicate {
+        form: 0,
+        category: Category::SecondaryVerbPhrase,
+        head: verb("core-verb:Be", WordForm::GerundParticiple, 1),
+        complement: Box::new(Reading::OvertComplement {
             form: 0,
-            category: Category::SecondaryVerbPhrase,
-            head: verb(owner, WordForm::GerundParticiple, 1),
-            complement: Box::new(Reading::BareEllipsis {
+            category: Category::ParticipialComplement,
+            predicate: Box::new(Reading::PassiveComplement {
                 form: 0,
-                omission: Box::new(Reading::OmittedPlain { form: 0 }),
+                head: Box::new(gerund.clone()),
             }),
-        };
-        assert!(invalid.admit(&LEXICON).is_err());
-    }
+        }),
+    };
+    assert!(invalid_passive.admit(&LEXICON).is_err());
+    let invalid_perfect = Reading::PerfectAuxiliaryPredicate {
+        form: 0,
+        category: Category::SecondaryVerbPhrase,
+        head: verb("core-verb:Have", WordForm::GerundParticiple, 4),
+        complement: Box::new(Reading::OvertComplement {
+            form: 0,
+            category: Category::PerfectComplement,
+            predicate: Box::new(Reading::PerfectComplement {
+                form: 0,
+                head: Box::new(gerund),
+            }),
+        }),
+    };
+    assert!(invalid_perfect.admit(&LEXICON).is_err());
     // Both former omitted participial forms are absent from their shared
     // category, and the retired perfect omission is absent as well.
     for category in [Category::ParticipialComplement, Category::PerfectComplement] {
         assert!(common::readings_with_lexicon(&LEXICON, "", category).is_empty());
     }
-    assert!(
-        common::readings_with_lexicon(&LEXICON, "being", Category::SecondaryVerbPhrase).is_empty()
-    );
+    for text in ["being", "having"] {
+        assert!(
+            common::readings_with_lexicon(&LEXICON, text, Category::SecondaryVerbPhrase).is_empty()
+        );
+    }
     let finite = Reading::ParticipialPostmodifiedNominal {
         form: 0,
         head: Box::new(noun("lexeme:type/creature")),
