@@ -782,7 +782,7 @@
         ),
         (
             id: "vocab:Adverb/Then", lemma: "then", category: Adverb,
-            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "Yes"}, frames: []),
+            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "Yes", "UnmarkedConjunctLicence": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Then"),
             capitalization: Initial, binding: Free, surface_structure: Word,

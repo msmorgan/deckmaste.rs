@@ -94,10 +94,11 @@ cite check). Deltas:
 
 ## Out of scope
 
-- The 42-face frame-coordination residue in `english-v3-systemic-residuals`:
-  none of those faces fails on `, then` (29 fail on library positions and are
-  owned by `english-v3-library-position`; 10 fail on Deal's ordered
-  amount/recipient segments). This ticket takes over none of them.
+- The inherited 42-face frame-coordination inventory is reconciled with
+  `english-v3-systemic-residuals`: its comma-*then* links on Organ Hoarder,
+  Vigean Intuition and Tamiyo, Collector of Tales are discharged here.
+  Bare *Choose a card type.* / *Choose a nonland card name.* units remain
+  with residuals, as do Deal's ordered amount/recipient segments.
 - Library positions, comparisons and *where X is* clauses inside a
   `then`-Conjunct; they are owned elsewhere.
 
@@ -144,6 +145,10 @@ checks that owner explicitly. No gains are credited to sentence-initial
 
 ### Proof and census
 
+These are the historical original landing measurements. The current-tree
+figures and the subsequent Reading retirement are stamped separately in
+Post-landing fix below.
+
 All census, candidate, inventory and review artifacts are ignored files in
 `target/english-v3/`; the completed evidence set is retained under
 `target/english-v3/english-v3-then-sequencing/` in the default workspace.
@@ -187,7 +192,18 @@ analysis ruling supersedes the old zero-tie requirement. The one/multiple
 census above reports ambiguity directly; unique/specificity-resolved selection
 counts are not an active v3 metric.
 
-Newly covered identities number 980. Every selected representative was checked
+Newly covered identities number 980. The original 874 sole-cause estimate
+was a surface reconnaissance on `wlvwtnppyovn` at 13,716 covered faces; the
+implementation baseline had 15,997 covered after intervening tickets. The
+106-face excess is not an excess over a gain forecast: other blockers on
+comma-*then* faces had been discharged before this landing. Examples include
+Organ Hoarder (*look at the top three cards of your library*), Brainstorm
+(*put two cards ... on top of your library in any order*), and Amass the
+Components (*put a card ... on the bottom of your library*), whose library
+position routes landed in `english-v3-library-position`. Each still lacked
+its comma-*then* link and is counted only when its whole face becomes covered.
+The original before/after comparison, including all 980 named identities,
+remains the evidence for the actual gain total. Every selected representative was checked
 for its comma-link role and inspected in the grouped verb/Conjunct review;
 every link is clausal or verbal, with verbal content on both sides. These are
 representatives for reporting, not grounds for discarding other grammatical
@@ -297,6 +313,32 @@ citations; the refreshed tree also passes the complete citation check.
 - Three declared lexical permissions, one distribution policy, one comma form
   in an existing schema, and one attested lexical owner supply the missing link.
   Existing constructor families, agreement and shared-frame machinery are reused.
+- ClauseCoordination's existing bare form gained a BareCoordination requirement.
+  This prevents the new marker owner from creating an unpunctuated link; the
+  original comma form remains available.
+- The Coordination and CoordinationSeriesEnd instance families gained a fifth
+  Distribution parameter. Its default applies GeneralCoordinatorDistribution;
+  the existing clausal/verbal rows specialize it to NoConcord, preserving their
+  other agreement and property policies.
+- Erode's 16 quoted-unit Readings include 10 ClauseSeries analyses and 6 analyses
+  sharing one Subject/modal above the predicate series. Both sets are grammatical
+  retained scope alternatives and occur with *and* as well; the original
+  shared-Subject description reported one family, not the complete inventory.
+- Orchestrator resolution (2026-10-06): the Coordinator/marker analysis of
+  linking *then* is accepted. Ground: CGEL, Ch. 15 §2.10, pp. 1319–1320,
+  [79]–[80] analyses *so*/*yet* without *and* as markers of coordination,
+  since omitting them leaves mere juxtaposition. Oracle's comma-*then* behaves
+  the same way. This is the project's application of that account to *then*,
+  not a classification of *then* made in the cited passage. Sentence-initial
+  *Then* remains a connective Adjunct, using Adverb/Then (CGEL, Ch. 8 §19,
+  p. 778, [9ii]). The glossary distinguishes these routes.
+- Cryptic Annelid judgment (same resolution): the 2 of 13 Readings with a
+  ClauseSeries middle member InitialAdverb (*then scry 2*, Adverb/Then) and
+  Coordinator *then* only on the final link are duplicate labels for the same
+  linking position, like the Pay frame overlap. They are wrong analyses to
+  retire, not scope ambiguity to preserve. The follow-up below removes that
+  route through declared features while preserving the other grammatical
+  Readings and both Adverb contexts.
 - Two tests beyond the six requested witnesses prove independently constructed
   values, traversal identity, punctuation licensing and the retained initial
   Adverb route. They address structural laws and overgeneration directly.
@@ -309,6 +351,147 @@ citations; the refreshed tree also passes the complete citation check.
 - No xtask command, flag, tracked fixture or verifier was added; plugin bodies
   are untouched. Evidence generation stays in ignored `target/english-v3/`.
 
-No residue is transferred from the 42-face frame-coordination inventory.
-Library positions, comparisons and *where X is* remain with their existing
-owners; this landing does not claim their sentence-initial-*Then* failures.
+The 42-face frame-coordination inventory did include comma-*then* obligations.
+Organ Hoarder (`a6f0dcbc-ca45-4ae8-961e-e42ef8d8a975#card`) is one of this
+landing's 980 gains: 0 → 9 full-face Readings. Vigean Intuition's and Tamiyo,
+Collector of Tales' comma-*then* links also now read, but their faces remain
+unread because of the bare *Choose a card type.* / *Choose a nonland card name.*
+unit respectively. Those bare choice units belong explicitly to
+`english-v3-systemic-residuals`; resolving a link does not establish full-face
+coverage. Its annotation is corrected in this follow-up. Library positions,
+comparisons and *where X is* retain their other existing owners.
+
+### Post-landing fix (2026-10-06)
+
+The orchestrator's post-landing review accepted the linking grammar: no lost
+faces, no Reading-count changes on previously covered faces, and 21 correct
+probes. The original +101,103 Readings are ambiguity from the existing
+Coordination machinery on newly covered faces, matching the *and* controls.
+The Cryptic Annelid judgment under Deviations identifies the duplicate labels
+within that total; it does not authorize pruning the remaining scope Readings.
+
+The follow-up's declared Unmarked Conjunct Licence permits an expression to
+begin a comma-linked Conjunct without an overt Coordinator. Adverb/Then lacks
+that licence; its Adverb Phrase and InitialAdverb Clause carry that fact.
+Existing Coordination/series projections carry the leading expression's
+licence. A comma introducing an unmarked Clause/ClauseSeries tail requires
+that tail's licence, including unmarked members inside a correlative series.
+Clause wrappers and overt correlative prefixes declare the appropriate leading
+licence; other lexical defaults remain permissive.
+There is no word-, owner-, card-, verb- or construction-named admission guard.
+The superseded route is retired in its lexical permission and every
+comma-series admission/realization path; no declaration is left unreachable.
+Sentence-initial *Then* after a full stop and the Adjunct after *and* remain
+licensed, each preserving its one-Reading control.
+
+Four tests are added: Cryptic Annelid's exact 11 marker Readings, rejection of
+an independently composed unmarked Adverb Conjunct during admission and
+realization, the one-Reading *and then* control with its lexical owners, and
+Erode's 10 ClauseSeries / 6 shared-Subject Readings with either marker. The
+existing full-stop control is strengthened to require exactly one Reading.
+The two defect tests failed before the code fix; the other ten tests passed.
+Restored 0, re-spelled 0, added 4, removed 0, newly ignored 0; no test is weakened.
+The *and then* diagnostic is the orchestrator-requested variant of the Stitcher
+constituent, not a new card claim or an invented game-semantic test contract.
+
+Before: change `stwlrsrzkmymmwpnnwlpwruwqqkwyrmz`, covered 16,977, lexical inventory
+`958e1ccfed83835a7cd480940ab23ae665b763d288e68ca25a7e278a9fc3fd4d`.
+
+After: change `stwlrsrzkmymmwpnnwlpwruwqqkwyrmz`, covered 16,977, lexical inventory
+`ac0a096d51b0460069e5b528a7532660ba7208b2f16e55c93d2fb1c153306d5e`.
+
+Both measured trees use input SHA-256
+`49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb`. The old pre-refresh `lklxwwpr` figures above are
+historical; this complete current-trunk comparison is the follow-up authority.
+
+Metric | Before: stwlrsrz / covered 16,977 | After: stwlrsrz / covered 16,977
+--- | ---: | ---:
+Supported faces | 32,828 | 32,828
+No Reading | 15,851 | 15,851
+One Reading | 7,025 | 7,025
+Multiple Readings | 9,952 | 9,952
+Exact and checked Readings | 346,445 | 346,443
+Complete enumerations | 32,828 | 32,828
+Limited / undetermined / failed | 0 / 0 / 0 | 0 / 0 / 0
+Validation issues | 0 | 0
+
+Lost identities: `[]`. Gained identities: `[]`. The complete Reading-count
+change list has exactly one face:
+
+Identity | Face | Before | After | Classification
+--- | --- | ---: | ---: | ---
+`32ebc862-3bf6-4754-b7b8-8bb73f1651cf#card` | Cryptic Annelid | 13 | 11 | Two wrong Adverb-label analyses retired under the orchestrator resolution
+
+Every other face has the same exact count as before. Cryptic Annelid's
+complete retained tree set is the old set minus exactly the two reviewed
+InitialAdverb middle-member trees, with no replacement trees. The full-stop,
+*and then*, and Erode controls retain their complete tree sets, not just counts.
+No sibling of the same shape changes in this supported corpus.
+
+All counted Readings pass declaration admission, lexical ownership/context,
+byte-exact realization and construction/leaf traversal identity against
+materialization traces. Internal failures, duplicate Readings and cyclic
+derivations are zero, with every face completely enumerated. The independent
+Stitcher roundtrip/traversal test remains passing; the new constructed rejected
+series proves matching admission and realization restrictions. All grammatical
+scope Readings remain retained; zero-tie/specificity selection is not imposed.
+Source and GrammarEnvironment loading report zero errors. Added forbidden
+word-/construction-/card-named checkers: 0. Legacy permitted-checker and coverage
+lock counters are not emitted by v3 and remain inapplicable.
+
+Named constructors remain 237 (193 ordinary constructions + 44 schemas), and
+categories remain 138 on both stamped trees. Forms, frames, lexical owners
+and surface inventories are unchanged: the only lexical-data change is the
+existing Adverb owner's new declared permission. The named homograph inventory
+remains the 395 declared surfaces / 359 case-folded surfaces listed in the
+original retained `homographs.md` and `grammar-inventory.json`; added/retired
+homographs `[]`, form-literal/vocabulary overlaps `[]`. No new word literal is
+introduced by the fix.
+
+Runtime measurements exclude Cargo build time. Host load and worker count
+are stated for each stamped tree. The runtime wall totals exceed the
+16,260,000,000 ns quiet-host advisory ceiling; the after host was busy with
+concurrent compiler work. These measurements do not establish quiet-host
+performance.
+
+Metric | Before: stwlrsrz / covered 16,977 | After: stwlrsrz / covered 16,977
+--- | ---: | ---:
+Workers | 12 | 12
+Host load (1 / 5 / 15 minutes) | 6.8916015625 / 9.29638671875 / 12.71630859375 | 38.1884765625 / 17.9541015625 / 12.533203125
+Setup wall | 6,568,095,174 ns | 18,160,331,123 ns
+Corpus wall | 51,530,612,416 ns | 105,929,596,668 ns
+Setup + corpus wall | 58,098,707,590 ns | 124,089,927,791 ns
+Thread CPU | 609,770,535,786 ns | 879,592,871,364 ns
+Checked-text CPU telemetry | 267,566 ns/B | 385,781 ns/B
+
+Full census command for each side:
+`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/then-followup-{before,after}.json`.
+The current-trunk identity comparison is `then-followup-delta.json`.
+All evidence lives in ignored `target/english-v3/`; it is retained after
+workspace retirement under the default workspace's
+`target/english-v3/english-v3-then-followup/`.
+
+The bare choice units remain residual obligations: Vigean Intuition's *Choose
+a card type.* and Tamiyo's *Choose a nonland card name.* each admit 0 Readings,
+and both complete faces remain unread. Organ Hoarder's full face remains
+covered; its original 0 → 9 gain is credited above rather than re-counted here.
+
+The isolated derived gate, run from the feature workspace root, exits 0:
+749 tests passed, 0 failed, 1 inherited ignored test. Its command is
+`cargo xtask gate --changed --from rslmnrov --run`, deriving
+`cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`.
+Strict clippy for those crates with `--all-targets -- -D warnings` exits 0;
+scoped nightly rustfmt exits 0. Root citation checks report 16,112 sites,
+0 stale and 0 noncompliant strings; the piped diff audit selects 0 changed CR
+sites. The inherited ignored test is
+`macros::templates::tests::macro_schema_census_count_matches_21`, the unchanged
+on-demand live-corpus cross-check. No new CR citation requires blessing.
+
+Deviations in this follow-up: the leading-position licence needs explicit
+feature exports on existing Clause producers and coordination projections,
+including constant permission for overt correlative prefixes. No constructor,
+form, lexical owner or frame is added or removed. The glossary gains Unmarked
+Conjunct Licence and explains the sentence-initial connective-Adjunct route.
+The record corrections reconcile the inherited residual inventory, the old
+estimate, the marker judgment, and the original bare-form/instance-parameter
+changes; no previously claimed face gain is silently discarded.

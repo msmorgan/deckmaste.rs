@@ -184,7 +184,10 @@ fn connective_marker_requires_punctuation_and_a_clausal_or_verbal_role() {
         assert!(owners.contains(&"vocab:Adverb/Then".into()));
         assert!(!owners.contains(&"vocab:Coordinator/Then".into()));
     }
-    assert!(!readings("Draw a card. Then discard a card.", Category::Document).is_empty());
+    assert_eq!(
+        readings("Draw a card. Then discard a card.", Category::Document).len(),
+        1
+    );
 }
 
 #[test]
@@ -287,4 +290,97 @@ fn vengeful_villagers_keeps_the_second_clauses_own_subject_and_modal() {
             ),
         ],
     );
+}
+
+#[test]
+fn cryptic_annelid_retains_marker_readings_without_an_unmarked_adverb_conjunct() {
+    let values = readings(
+        "When this creature enters, scry 1, then scry 2, then scry 3.",
+        Category::Document,
+    );
+    assert_eq!(values.len(), 11);
+    for value in values {
+        let mut markers = 0;
+        let mut adjuncts = 0;
+        value
+            .visit_words(&mut |word| {
+                if let LexicalReading::Word(word) = &word.value {
+                    if word.lexeme == deckmaste_lexical::LexemeId::from("vocab:Coordinator/Then") {
+                        markers += 1;
+                    }
+                    if word.lexeme == deckmaste_lexical::LexemeId::from("vocab:Adverb/Then") {
+                        adjuncts += 1;
+                    }
+                }
+            })
+            .unwrap();
+        assert_eq!((markers, adjuncts), (2, 0));
+    }
+}
+
+#[test]
+fn independently_composed_unmarked_adverb_conjunct_fails_admission_and_realization() {
+    let clause = |text| readings(text, Category::Clause).into_iter().next().unwrap();
+    let misplaced = Reading::SerialCoordination {
+        category: Category::Clause,
+        form: 0,
+        left: Box::new(clause("scry 1")),
+        rest: Box::new(Reading::CoordinationSeriesEnd {
+            category: Category::ClauseSeries,
+            form: 0,
+            left: Box::new(clause("then scry 2")),
+            coordinator: word("vocab:Coordinator/Then", WordForm::Invariant, None),
+            right: Box::new(clause("scry 3")),
+        }),
+    };
+    assert!(misplaced.admit(&LEXICON).is_err());
+    assert!(misplaced.realize(&LEXICON).is_err());
+}
+
+#[test]
+fn overt_coordinator_preserves_the_second_conjuncts_connective_adverb() {
+    let values = readings("Draw a card and then discard a card.", Category::Document);
+    assert_eq!(values.len(), 1);
+    for value in values {
+        let mut owners = Vec::new();
+        value
+            .visit_words(&mut |word| {
+                if let LexicalReading::Word(word) = &word.value {
+                    owners.push(word.lexeme);
+                }
+            })
+            .unwrap();
+        assert!(owners.contains(&"vocab:Coordinator/And".into()));
+        assert!(owners.contains(&"vocab:Adverb/Then".into()));
+        assert!(!owners.contains(&"vocab:Coordinator/Then".into()));
+    }
+}
+
+#[test]
+fn erode_retains_clause_series_and_shared_subject_readings_for_both_markers() {
+    let text = "Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle.";
+    for text in [text.to_owned(), text.replace(", then", ", and")] {
+        let values = readings(&text, Category::Document);
+        assert_eq!(values.len(), 16);
+        let mut clause_series = 0;
+        let mut shared_subject = 0;
+        for value in values {
+            let mut has_clause_series = false;
+            let mut has_predicate_series = false;
+            value
+                .visit(&mut |node| {
+                    if let Reading::SerialCoordination { category, .. } = node {
+                        has_clause_series |= *category == Category::Clause;
+                        has_predicate_series |= *category == Category::SecondaryVerbPhrase;
+                    }
+                })
+                .unwrap();
+            match (has_clause_series, has_predicate_series) {
+                (true, false) => clause_series += 1,
+                (false, true) => shared_subject += 1,
+                _ => panic!("one serial scope in each Erode Reading"),
+            }
+        }
+        assert_eq!((clause_series, shared_subject), (10, 6));
+    }
 }

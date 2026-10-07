@@ -385,8 +385,11 @@ or other expression without serving as a nominal argument.
 A phrase headed by an Adverb.
 
 **Connective Adjunct**:
-An Adjunct relating its Clause to surrounding text or context. Connective
-elements can also link units smaller than a Clause (CGEL, Ch. 8 §19, p. 775).
+An Adjunct relating its Clause to surrounding text or context; connective
+elements can also link smaller units (CGEL, Ch. 8 §19, p. 775). In Oracle
+English, sentence-initial *Then* uses this Adverb route (CGEL, Ch. 8 §19,
+p. 778, [9ii]); sole-linking comma-*then* is a coordination marker under the
+project's orchestrator resolution of 2026-10-06.
 
 **Focus**:
 The constituent whose interpretation is made prominent or restricted relative
@@ -648,6 +651,10 @@ The marker that links Conjuncts, such as *and* or *or*.
 **Coordinator Distribution** (project term):
 The licensed Conjunct roles and punctuation environments of a coordination
 marker in Oracle English.
+
+**Unmarked Conjunct Licence** (project term):
+Permission for an expression to begin a Conjunct after a comma without an
+overt Coordinator.
 
 **Anchor** (project term):
 An ordered position at which a Coordination or a coordinated frame segment joins

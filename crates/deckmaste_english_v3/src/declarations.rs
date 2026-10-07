@@ -112,6 +112,7 @@ constructions! {
         feature BareCoordination { No, Yes } default Yes;
         feature CommaCoordination { No, Yes } default No;
         feature GeneralCoordination { No, Yes } default Yes;
+        feature UnmarkedConjunctLicence { No, Yes } default Yes;
         feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
@@ -130,7 +131,7 @@ constructions! {
         category ParagraphItem();
         category ParagraphContinuation();
         category Sentence();
-        category Clause();
+        category Clause(UnmarkedConjunctLicence);
         category FiniteClause();
         category FinitePredicate(number, person, CliticHost);
         category SecondaryVerbPhrase(form, ParticipialUse, InternalisedComplementPresent);
@@ -215,11 +216,11 @@ constructions! {
         category CardTypeContinuation();
         category Subtypes();
         category SubtypeContinuation();
-        category ClauseSeries();
+        category ClauseSeries(UnmarkedConjunctLicence);
         category FinitePredicateSeries(number, person, CliticHost);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent);
         category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse);
-        category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse);
+        category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
         category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost);
         category SecondarySelectedHead(form, FrameUse, HeadCoordination);
@@ -239,7 +240,7 @@ constructions! {
         category AdjectivePhraseSeries(AdjectiveStructure);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse);
-        category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse);
+        category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(number, person, CliticHost);
@@ -247,7 +248,7 @@ constructions! {
         category CoordinatedFiniteClause();
         category FiniteClauseSeries();
         category PredicativeComplementSeries(PredicativeKind);
-        category CorrelativeClauseSeries(CorrelativeCoordinator);
+        category CorrelativeClauseSeries(CorrelativeCoordinator, UnmarkedConjunctLicence);
         category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator, CliticHost);
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent);
@@ -862,6 +863,24 @@ constructions! {
 
         policy SharedHeadStatus<Right, Source> {
             export HeadCoordination = Yes;
+        }
+
+        policy UnmarkedConjunctHead<Right, Source> {
+            export UnmarkedConjunctLicence = Yes;
+        }
+
+        policy MarkedConjunctSeries<Right, Source> {
+            require Right.UnmarkedConjunctLicence = Yes;
+            export UnmarkedConjunctLicence = Yes;
+        }
+
+        policy LeadingConjunct<Right, Source> {
+            export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
+        }
+
+        policy UnmarkedConjunct<Right, Source> {
+            require Right.UnmarkedConjunctLicence = Yes;
+            export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
         }
 
         policy GeneralCoordinatorDistribution<Right, Source> {
@@ -1508,10 +1527,12 @@ constructions! {
 
         construction Declarative: Clause {
             form [clause: FiniteClause];
+            export UnmarkedConjunctLicence = Yes;
         }
 
         construction Imperative: Clause {
             form [predicate: BarePredicate];
+            export UnmarkedConjunctLicence = Yes;
         }
 
         construction FiniteClause: FiniteClause {
@@ -1528,12 +1549,14 @@ constructions! {
             form [dependent: PrepositionPhrase, ", ", clause: Clause];
             require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes;
             require dependent.SelectedPrepositionUse = No;
+            export UnmarkedConjunctLicence = Yes;
         }
 
         construction ClausalPreposition: Clause {
             form [clause: Clause, " ", dependent: PrepositionPhrase];
             require licence_adjunct(dependent.PrepositionFunctionLicence) = Yes;
             require dependent.SelectedPrepositionUse = No;
+            export UnmarkedConjunctLicence = clause.UnmarkedConjunctLicence;
         }
 
         construction ClauseCoordination: Clause {
@@ -1541,10 +1564,11 @@ constructions! {
             form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause]
                 require coordinator.BareCoordination = Yes;
             require coordinator.NoncorrelativeCoordination = Yes;
+            export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
         }
         instance CoordinationSeriesEnd<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
-            (ClauseSeries, Clause, NoConcord, NoConcord, NoConcord),
+            (ClauseSeries, Clause, NoConcord, LeadingConjunct, NoConcord),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
@@ -1566,7 +1590,7 @@ constructions! {
             (NominalSeries, Nominal, NominalConcord, CoordinatorKindSummary),
             (AdjectivePhraseSeries, AdjectivePhrase, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
-            (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions),
+            (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
             (FiniteObjectGapSeries, FiniteObjectGap, FiniteConcord, NoConcord, NoConcord),
@@ -1584,7 +1608,7 @@ constructions! {
         instance CoordinationSeriesContinuation<
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
-            (ClauseSeries, Clause, Self, NoConcord),
+            (ClauseSeries, Clause, Self, UnmarkedConjunct),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, Self,
                 QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
@@ -1607,7 +1631,7 @@ constructions! {
             (NominalSeries, Nominal, Self, NominalConcord, CoordinatorKindSummary),
             (AdjectivePhraseSeries, AdjectivePhrase, Self, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
-            (AdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions),
+            (AdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
             (FiniteObjectGapSeries, FiniteObjectGap, Self, FiniteConcord),
@@ -1622,7 +1646,7 @@ constructions! {
         }
         instance SerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
-            (Clause, Self, ClauseSeries, NoConcord),
+            (Clause, Self, ClauseSeries, UnmarkedConjunct),
             (KeywordQualityPreposition, Self, KeywordQualityPrepositionSeries,
                 QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
@@ -1644,7 +1668,7 @@ constructions! {
             (Nominal, Self, NominalSeries, NominalConcord),
             (AdjectivePhrase, Self, AdjectivePhraseSeries, AdjectiveStructureMerge),
             (PrepositionPhrase, Self, PrepositionPhraseSeries, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions),
+            (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
             (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteConcord),
@@ -1741,7 +1765,7 @@ constructions! {
             (Nominal, Self, NominalConcord),
             (AdjectivePhrase, Self, AdjectiveStructureMerge),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPermissions),
+            (AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
             (BareObjectGap, Self, NoConcord, NoConcord, NoConcord),
@@ -2826,6 +2850,7 @@ constructions! {
             export DurationUse = head.DurationUse;
             export VPFinalAdjunct = head.VPFinalAdjunct;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
+            export UnmarkedConjunctLicence = governor.UnmarkedConjunctLicence;
         }
 
         construction Adverb: AdverbPhrase {
@@ -2833,6 +2858,7 @@ constructions! {
             export VPFinalAdjunct = head.VPFinalAdjunct;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export DurationUse = head.DurationUse;
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
         }
         instance DepictivePredicate<Result, Properties>: [
             (FinitePredicate, FiniteHeadAgreement),
@@ -2857,6 +2883,7 @@ constructions! {
             form [modifier: AdverbPhrase, " ", clause: Clause];
             form [modifier: AdverbPhrase, ", ", clause: Clause];
             require modifier.ClauseInitialAdjunct = Yes;
+            export UnmarkedConjunctLicence = modifier.UnmarkedConjunctLicence;
         }
 
         construction ToInfinitive: InfinitiveComplement {
@@ -3079,12 +3106,12 @@ constructions! {
         // Nominal/AdjP deferred until pre-head placement is represented in summaries.
         instance EitherCoordination<Result, Member, Agreement = NoConcord,
             Properties = NoConcord>: [
-            (Clause, Self, NoConcord),
+            (Clause, Self, UnmarkedConjunctHead),
             (FinitePredicate, Self, FiniteConcord),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPermissions),
+            (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -3106,7 +3133,7 @@ constructions! {
 
         instance CorrelativeSeriesEnd<Result, Member, Agreement = NoConcord, Properties = NoConcord,
             Status = NoConcord>: [
-            (CorrelativeClauseSeries, Clause, NoConcord),
+            (CorrelativeClauseSeries, Clause, NoConcord, LeadingConjunct),
             (CorrelativeFinitePredicateSeries, FinitePredicate, FiniteConcord),
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase,
                 SecondaryConjunctProperties),
@@ -3138,7 +3165,7 @@ constructions! {
         instance CorrelativeSeriesContinuation<
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, Status = NoConcord>: [
-            (CorrelativeClauseSeries, Clause, Self, NoConcord),
+            (CorrelativeClauseSeries, Clause, Self, UnmarkedConjunct),
             (CorrelativeFinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase, Self,
                 SecondaryConjunctProperties),
@@ -3168,13 +3195,13 @@ constructions! {
         }
         instance EitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
-            (Clause, Self, CorrelativeClauseSeries, NoConcord),
+            (Clause, Self, CorrelativeClauseSeries, MarkedConjunctSeries),
             (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord),
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries,
                 SecondaryConjunctProperties),
             (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
             (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions),
+            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),
@@ -3199,7 +3226,7 @@ constructions! {
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPermissions),
+            (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -3224,7 +3251,7 @@ constructions! {
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPermissions),
+            (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -3250,7 +3277,7 @@ constructions! {
                 SecondaryConjunctProperties),
             (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
             (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions),
+            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),

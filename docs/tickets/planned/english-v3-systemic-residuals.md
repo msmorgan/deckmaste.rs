@@ -334,9 +334,13 @@ is right and this list needs fixing.
   lists every face, its Reading count and the next failing cause. Remaining
   From-among sources on Tracker's Instincts, Pieces of the Puzzle and
   Kruphix's Insight stay here, along with Winding Way's bare singular type
-  choice and Tamiyo, Collector of Tales's unconsumed Cause frame. Tamiyo
-  also retains From-among and comma-then failures. Vigean Intuition and Organ
-  Hoarder's comma-then links belong to `english-v3-then-sequencing`; Discerning
+  choice. Comma-then reconciliation (2026-10-06): Organ Hoarder is a
+  gain in `english-v3-then-sequencing` (0 → 9 full-face Readings). Vigean
+  Intuition's and Tamiyo, Collector of Tales' comma-then links now read as
+  well, but each face remains unread on its bare *Choose a card type.* /
+  *Choose a nonland card name.* unit respectively. Those bare choice units
+  are owned here explicitly; the comma links are discharged. This supersedes
+  the earlier remaining-failure annotation for these three faces. Discerning
   Taste's comparison body belongs to `english-v3-comparative-complements`, with
   residual superlative composition audited here. Library-position parsing
   does not discharge other sharing/scope obligations. Telling Time's retained
