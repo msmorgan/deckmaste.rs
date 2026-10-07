@@ -95,6 +95,8 @@ Timings are integer ns. No new fixtures are checked in. Evidence goes under
 Sampled validation; counting at the forest level; tracking predicted
 categories at the chart level (the follow-up above).
 
+By-name corpus selection and nickname derivation are owned by `card-corpus-fast-lookup`.
+
 ## Landing record
 
 The identity proof (A); RSS and wall tables at 4 and 12 workers; the digest

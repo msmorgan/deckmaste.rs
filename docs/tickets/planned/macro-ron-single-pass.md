@@ -24,7 +24,7 @@ Standard constraints apply. Add a unit test that the single-pass metadata equals
 
 ## Out of scope
 
-A `build.rs` or checked-in expanded artifact for the 899 declarations, worth about another 220,000,000 ns. A possible later step, only after this ticket and `lexicon-nickname-precompute`.
+A `build.rs` or checked-in expanded artifact for the 899 declarations, worth about another 220,000,000 ns. A possible later step, only after this ticket and `card-corpus-fast-lookup`.
 
 ## Landing record
 
