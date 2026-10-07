@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Args;
 use clap::Subcommand;
+use deckmaste_catalogs::CardNameNicknames;
 use deckmaste_catalogs::CatalogSet;
 use deckmaste_catalogs::compare_directories;
 use deckmaste_catalogs::legacy::LegacyCatalogSet;
@@ -85,13 +86,15 @@ pub fn run(args: &CatalogArgs) -> anyhow::Result<()> {
 }
 
 fn generate(args: &GenerateArgs) -> anyhow::Result<()> {
-    Ok(generate_catalogs(&args.cr, &args.oracle_cards)?.write_to(&args.output)?)
+    write_catalogs(&args.cr, &args.oracle_cards, &args.output)
 }
 
 fn check(args: &CheckArgs) -> anyhow::Result<()> {
-    let temp = tempfile::tempdir().context("creating catalog check directory")?;
+    let evidence = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/catalogs");
+    fs::create_dir_all(&evidence).context("creating catalog check parent")?;
+    let temp = tempfile::tempdir_in(evidence).context("creating catalog check directory")?;
     let generated = temp.path().join("catalogs");
-    generate_catalogs(&args.cr, &args.oracle_cards)?.write_to(&generated)?;
+    write_catalogs(&args.cr, &args.oracle_cards, &generated)?;
     let diff = compare_directories(&generated, &args.checked)?;
     if diff.is_empty() {
         println!("catalogs are up to date");
@@ -119,18 +122,20 @@ fn text(args: &TextArgs) -> anyhow::Result<()> {
     )
 }
 
-fn generate_catalogs(cr_path: &Path, oracle_cards_path: &Path) -> anyhow::Result<CatalogSet> {
+fn write_catalogs(cr_path: &Path, oracle_cards_path: &Path, output: &Path) -> anyhow::Result<()> {
     let cr =
         fs::read_to_string(cr_path).with_context(|| format!("reading {}", cr_path.display()))?;
-    let oracle_cards = File::open(oracle_cards_path)
+    let bytes = fs::read(oracle_cards_path)
         .with_context(|| format!("opening {}", oracle_cards_path.display()))?;
-    CatalogSet::generate(&cr, BufReader::new(oracle_cards)).with_context(|| {
+    let catalogs = CatalogSet::generate(&cr, bytes.as_slice()).with_context(|| {
         format!(
             "extracting canonical catalogs from CR {}; card-names source {}",
             cr_path.display(),
             oracle_cards_path.display()
         )
-    })
+    })?;
+    let nicknames = CardNameNicknames::generate(&bytes)?;
+    Ok(catalogs.write_to_with_nicknames(output, &nicknames)?)
 }
 
 #[cfg(test)]
@@ -177,6 +182,7 @@ mod tests {
                 "ability-words.txt",
                 "artifact-types.txt",
                 "battle-types.txt",
+                "card-name-nicknames.json",
                 "card-names.txt",
                 "card-types.txt",
                 "counter-kind-phrases.txt",
@@ -202,7 +208,7 @@ mod tests {
 
         run(&generate_args(cr, oracle, output.clone())).unwrap();
 
-        assert_eq!(directory_bytes(&output).len(), 14);
+        assert_eq!(directory_bytes(&output).len(), 15);
     }
 
     #[test]

@@ -1,4 +1,5 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
 /// Failure to generate, load, compare, or replace a catalog inventory.
 #[derive(Debug, thiserror::Error)]
@@ -18,6 +19,8 @@ pub enum CatalogError {
     },
     #[error("parsing Scryfall Oracle Cards JSONL: {0}")]
     Oracle(#[from] deckmaste_data::scryfall::OracleCardReadError),
+    #[error("nickname catalog {}: {reason}; regenerate with `cargo xtask catalogs generate`", path.display())]
+    NicknameCatalog { path: PathBuf, reason: String },
     #[error("missing {catalog} catalog")]
     MissingCatalog { catalog: String },
     #[error("blank entry in {} at line {line}", path.display())]

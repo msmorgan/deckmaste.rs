@@ -470,8 +470,11 @@ name = "deckmaste_catalogs"
 version = "0.1.0"
 dependencies = [
  "deckmaste_data",
+ "deckmaste_lexical",
  "regex",
+ "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror",
 ]

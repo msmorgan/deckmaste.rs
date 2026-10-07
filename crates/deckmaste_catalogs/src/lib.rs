@@ -1,7 +1,10 @@
 mod error;
-pub use error::{CatalogError, OutputProblem};
+pub use error::CatalogError;
+pub use error::OutputProblem;
 
 mod cards;
+mod nicknames;
+pub use nicknames::CardNameNicknames;
 mod cr;
 mod diff;
 mod io;

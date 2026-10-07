@@ -1,4 +1,3 @@
-use crate::CatalogError;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::env;
@@ -8,14 +7,15 @@ use std::io;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::error::IoContext;
-
+use crate::CatalogError;
 use crate::CatalogKind;
 use crate::CatalogSet;
 use crate::OutputProblem;
+use crate::error::IoContext;
 
 impl CatalogSet {
-    /// Loads the complete canonical catalog inventory from plain UTF-8 line files.
+    /// Loads the complete canonical catalog inventory from plain UTF-8 line
+    /// files.
     ///
     /// # Errors
     ///
@@ -34,18 +34,44 @@ impl CatalogSet {
         Self::from_entries(entries)
     }
 
-    /// Writes every catalog deterministically, replacing only `output` on success.
+    /// Writes every catalog deterministically, replacing only `output` on
+    /// success.
     ///
     /// # Errors
     ///
-    /// Returns an error when rendering, staging, or replacing the output directory
-    /// fails. An existing output directory is restored if staging cannot replace it.
+    /// Returns an error when rendering, staging, or replacing the output
+    /// directory fails. An existing output directory is restored if staging
+    /// cannot replace it.
     pub fn write_to(&self, output: impl AsRef<Path>) -> Result<(), CatalogError> {
         write_line_directory(
             output.as_ref(),
             CatalogKind::ALL
                 .into_iter()
                 .map(|kind| (kind.filename(), self.get(kind))),
+        )
+    }
+
+    /// Publish canonical catalogs and their corpus-checked nickname artifact
+    /// together.
+    ///
+    /// # Errors
+    /// Returns an error if rendering or atomic directory replacement fails.
+    pub fn write_to_with_nicknames(
+        &self,
+        output: impl AsRef<Path>,
+        nicknames: &crate::CardNameNicknames,
+    ) -> Result<(), CatalogError> {
+        write_rendered_directory_with_placement(
+            output.as_ref(),
+            || {
+                let mut files = CatalogKind::ALL
+                    .into_iter()
+                    .map(|kind| render(kind.filename(), self.get(kind)))
+                    .collect::<Result<Vec<_>, _>>()?;
+                files.push((crate::CardNameNicknames::FILENAME, nicknames.render()?));
+                Ok(files)
+            },
+            |source, destination| fs::rename(source, destination),
         )
     }
 
@@ -94,15 +120,28 @@ fn write_line_directory_with_placement<'a>(
     entries: impl IntoIterator<Item = (&'static str, &'a BTreeSet<String>)>,
     place: impl FnOnce(&Path, &Path) -> io::Result<()>,
 ) -> Result<(), CatalogError> {
+    write_rendered_directory_with_placement(
+        output,
+        || {
+            entries
+                .into_iter()
+                .map(|(filename, values)| render(filename, values))
+                .collect()
+        },
+        place,
+    )
+}
+
+fn write_rendered_directory_with_placement(
+    output: &Path,
+    render: impl FnOnce() -> Result<Vec<(&'static str, String)>, CatalogError>,
+    place: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> Result<(), CatalogError> {
     let output = validate_output(output)?;
     let parent = output
         .parent()
         .ok_or_else(|| invalid_output(&output, OutputProblem::MissingParent))?;
-
-    let rendered = entries
-        .into_iter()
-        .map(|(filename, values)| render(filename, values))
-        .collect::<Result<Vec<_>, CatalogError>>()?;
+    let rendered = render()?;
     let staging = tempfile::Builder::new()
         .prefix(".catalogs-")
         .tempdir_in(parent)

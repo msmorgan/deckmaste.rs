@@ -13,3 +13,6 @@ thiserror = { workspace = true }
 deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
 regex = "1.12.3"
 tempfile = "3.27.0"
+serde = { version = "1.0.228", features = ["derive"] }
+sha2 = "0.11.0"
+deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }

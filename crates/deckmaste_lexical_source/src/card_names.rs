@@ -152,6 +152,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn generated_nicknames_equal_the_streamed_computation() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let bytes = std::fs::read(root.join("data/scryfall/oracle-cards.jsonl")).unwrap();
+        let generated = deckmaste_catalogs::CardNameNicknames::generate(&bytes).unwrap();
+        assert_eq!(generated.nicknames(), &load(&root).unwrap());
+    }
+
+    #[test]
     fn oracle_short_names_preserve_multiword_prefixes_and_use_the_numeral_codec() {
         for (name, expected) in [
             ("Gut, True Soul Zealot", Some("Gut")),
