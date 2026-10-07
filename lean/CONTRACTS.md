@@ -5,6 +5,21 @@ consistency, not compatibility with previous checker behavior. Tests that encode
 obsolete shapes or incorrect laws must be corrected with an explanation and
 meaningful replacement coverage (user clarification, 2026-09-06).
 
+The checker's charter (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06)
+is that a written term is a faithful reading of the card's English: its
+references resolve (anaphora, outcomes, choices, stamps, scope windows,
+plurality, the handoff performer) and its terms are well-kinded. It is not a
+rules engine. An instruction the game cannot carry out is still a faithful
+reading, since the impossible part is ignored and the rest is done
+[CR#101.3,609.3]. The game-rule refusals below (zones, timing windows, costs
+and deontics, tokens, grants, the card frame) are frozen: no new one lands
+without a dated ruling, and the existing ones are retired bucket by bucket by
+the `lean-checker-sweep-*` tickets, which update the sections they touch. Until
+a sweep lands, the sections below still describe what the checker does. Zone
+state on bindings stays, because references resolve on it. On the question of
+scope this supersedes "rules correctness" in the paragraph above; the rest of
+that paragraph stands.
+
 The checker receives the information that indexed syntax formerly carried in
 its types. This document records where those duties live. A passing check is
 an admission of the written semantic term, not a proof of lowering or execution.

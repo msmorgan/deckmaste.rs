@@ -418,6 +418,17 @@ A historical-event predicate binds the entity it describes locally; a nested
 historical-event predicate establishes its own scope.
 _Avoid_: author-chosen numeric stack depth
 
+**Binding Identity** (project term):
+The identity of one mention's binding in the checker's context, fixed when the
+mention introduces it. In discourse-representation terms a binding is a
+discourse referent and its Binding Identity is that referent; Reference Scope
+is accessibility. A later Reference that names the binding by its identity
+resolves to it without a pronoun search: a registry macro's referent parameter
+is bound at the body's first mention, and each later mention of the parameter
+refers back by Binding Identity.
+_Avoid_: stack position or depth for the identity — a position shifts as
+bindings are pushed and removed; capture for the binding rule
+
 **Referent Sort** (project term):
 The domain classification required of an Entity denoted by a Reference or
 contained in a Selection. It is two axes, not one: the Entity domain — Player,

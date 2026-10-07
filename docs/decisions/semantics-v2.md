@@ -202,6 +202,7 @@ mimicked.
   turn or phase, which stay while their removal waits on the owner: each
   would change whether a bench sentence checks (a choice whose chooser is not
   recorded may not be of "one of them"; an added turn must have a taker).
+  (Decided 2026-10-06: both are deleted; see the ruling below.)
   Every rule that read a field reads the performer in context instead: the
   actor, or, for the one instruction a handoff to a group hands each member,
   that group, so "each player votes" and "each opponent sacrifices a
@@ -291,6 +292,108 @@ mimicked.
   `semantics-v2-designation-is-a-name`: "I'd prefer to avoid stringly typed
   so yes", and, on each label being its own bare name, "yes."; the type's
   shape is the orchestrator's call.)
+- **The checker's charter: references resolve and terms are well-kinded.**
+  The Lean checker (`lean/Semantics/Check/`) admits a written term as a
+  faithful reading of the card's English. Its charter is that references
+  resolve (anaphora, outcomes, choices, stamps, scope windows, plurality, the
+  handoff performer) and that terms are well-kinded. It is not a rules
+  engine: an instruction the game cannot carry out is still a faithful
+  reading, because the rules say any part of an instruction that is
+  impossible to perform is ignored and an effect that attempts the impossible
+  does only as much as possible [CR#101.3,609.3]. Consequences:
+  (a) no new refusal that asserts a game rule about zones, timing windows,
+  costs and deontics, tokens, grants or the card frame lands without a dated
+  ruling; (b) the existing ones are retired bucket by bucket by
+  `lean-checker-sweep-zone`, `lean-checker-sweep-timing`,
+  `lean-checker-sweep-costs` and `lean-checker-sweep-game-rules`, each
+  retirement recording whether any retired pin ever encoded a real card
+  defect; (c) zone state on bindings stays, because `that(Permanent)` against
+  `that(Card)` resolves on it (the proposal to strip zone and provenance from
+  bindings was rejected 2026-10-05, `lean-checker-binding-ids`
+  "Provenance"); (d) the card-frame rules may survive the sweep at the
+  owner's call, since they are not instructions and do not move with the
+  model. This supersedes `lean/CONTRACTS.md`'s "Its authority is rules
+  correctness and internal consistency" on the question of scope; the header
+  there is amended to match. Evidence: `Refusal` has 234 constructors
+  (`lean/Semantics/Check/Refusal.lean`), of which 50 are reference resolution
+  (282 pin lines under `lean/Semantics/Proofs/`), 83 term shape (208 pin
+  lines), 33 zone and object state (174), 10 timing and window (25), 15 cost
+  and deontic (60) and 43 other game rules (132). The breadth is inherited:
+  the Idris prototype (`idris/src/Experimental/*.idr`) carried about 1,100
+  obligation sites and the Lean type is its port ("One constructor per Idris
+  obligation"); Lean added `handoffPerformer`, `opponentsLibrary`,
+  `keywordCostPaidByYou`, `tokenNamed`, `definitionHolder`,
+  `definitionNamed`, `definitionScoped`, `amountParameter`, `lexicalScope`
+  and `bindingless`. (Ruling, 2026-10-06, owner: "what I truly care about is
+  that anaphora and other backreferences resolve; other concerns keep
+  accruing by accident".)
+- **A macro's referent parameter is bound at its first mention; later
+  mentions refer back.** A referent parameter (`Subject`, `NounPhrase`) of a
+  registry macro is introduced by the body's first mention of it; every later
+  mention is a back-reference to that binding, resolved by binding identity,
+  not by pronoun search. Substitution by copy stays for a parameter mentioned
+  once, which is 223 of the 228 macros with a referent parameter: they expand
+  byte-identically. Rejected: binding at the call, because it hoists the
+  argument out of its clause (`act(each(opponent), discard(a(card)))` would
+  choose one card for every opponent, and a choice under `may` or `doIf`
+  would be made whether or not the branch runs). Rejected: an opt-in
+  `Capture(Subject)` parameter annotation. The v1 `Target(N)` device is not
+  re-adopted. (Ruling, 2026-10-06, owner,
+  `semantics-v2-macro-capture-and-plurality`: "really painted myself into a
+  corner here didn't I. I guess B'.")
+- **Deeds and keyword labels are declared names.** A keyword action is
+  referenced by its declaration name read bare where a deed is wanted
+  (`theVerbed(exile, Many)`, `enact(discard, …)`), and a keyword ability
+  likewise where a keyword label is wanted (`grants(flying)`); the loader
+  refuses an undeclared name at load time. Lean keeps `Deed.action name` and
+  `Deed.ofAbility name` (`lean/Semantics/Words.lean`), as it keeps
+  `CounterKind.named`. The fifteen core deeds (`CoreDeed`) stay a closed enum.
+  This is the shape of the 2026-10-05 rulings "a counter's kind is a name"
+  and "a designation is a name". The stamped pronouns `itVerbed` and
+  `themVerbed` retire into `theVerbed` with an optional noun word; `it` and
+  `them` are not overloaded. (Ruling, 2026-10-06, owner,
+  `semantics-v2-deed-is-a-name`: "I don't want to overload it and them like
+  that, it'd take new macro_ron features".)
+- **A keyword body has its own reference scope; helper macros are
+  transparent.** Every keyword action body and every keyword ability body is
+  read in its own reference scope, seeing only its parameters and what it
+  introduces. The scope opens at the loader's `Enact` wrapper, the keyword
+  action boundary, never at an `act` handoff: `act(they, discard(that(Card)))`
+  must see the choice made before it. A helper macro reads the scope of the
+  body that calls it. A helper that bakes in a pronoun where `verb(it)` says
+  the same thing is retired to the general form; a helper that carries its
+  own `spelling` stays. (Ruling, 2026-10-06, owner,
+  `semantics-v2-keyword-body-reference-scope`, settling its open items;
+  `sacrificeIt` is "`add1 = (+) 1`".)
+- **`choose` has no chooser and an added turn part no taker.** `choose`'s
+  optional chooser and `insertPart`'s optional taker are deleted: both are
+  the actor in context, as every other performer is since the 2026-10-05
+  handoff ruling, with no performer exception. The part's kind carries the
+  difference the taker carried: a turn is taken by the player the
+  instruction was handed to [CR#500.7], and a phase or step is added to the
+  current turn [CR#500.8,500.9]. The RON helpers become `extraTurn`,
+  `additionalPhase(…)` and `additionalStep(…)` over one renamed node.
+  (Ruling, 2026-10-06, owner, `semantics-v2-chooser-and-taker-fields`:
+  "insertPart? weirdass name".)
+- **Gift and the additional-cost keywords share one mechanism.** Gift has one
+  definition whose second ability is guarded by the card's class
+  [CR#702.174a,702.174b]. The second ability reads the first through the
+  paid-cost facets the registry already uses for kicker, as the rules link
+  them [CR#607.2d,607.2i,702.33e], with a third facet: the player chosen as
+  the named cost was paid. A keyword definition is a list of parts, each
+  carrying the regime the rules give it
+  [CR#702.174a,702.175a,702.157a,702.153a]; kicker is the one-part case
+  [CR#702.33a]. (Ruling, 2026-10-06, owner,
+  `semantics-v2-linked-choice-readback`,
+  `semantics-v2-keyword-definition-by-card-class`,
+  `lean-keyword-definition-regimes`: "maro might say that these abilities are
+  basically kicker, so we should use a consistent mechanism across the lot.")
+- **The bearer exemption stays narrow until the zone sweep.** The exemption
+  in `Conferral.checkProperty` (`lean/Semantics/Check/Rules.lean`) covers only
+  a two-stat `ptModification` on `this`, until `lean-checker-sweep-zone`
+  retires the battlefield demand altogether. No counter kind needs a wider
+  rule: of 73 counter declarations only `p1p1Counter` and `m1m1Counter`
+  confer a stat change, both through `boost`. (Ruling, 2026-10-06.)
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.
@@ -659,7 +762,10 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
   `lookAndSortInto`, `lookedCards`, `lookedTop`, `loseCounters`, `modular`,
   `ownSubject`, `partyOf`, `requireBlockIt`, `rollRow`, `sacrificeIt`,
   `scaledMana`. These are routed to
-  `semantics-v2-macro-capture-and-plurality`.
+  `semantics-v2-macro-capture-and-plurality`. The capture question is
+  answered (§7, ruling 2026-10-06): a referent parameter is bound at the
+  body's first mention and every later mention refers back to that binding;
+  the RON macro language grows no capture annotation.
 - **It calls one of the above (27).** A macro that does not port takes its
   callers with it. Some of these were blocked only by the 27 that have now
   ported and are available to a later port; the bucket is not re-derived here,
