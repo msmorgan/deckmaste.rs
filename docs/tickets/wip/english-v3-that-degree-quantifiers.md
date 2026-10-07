@@ -118,7 +118,10 @@ runtime declarations, before implementation. Final figures are stamped
 `truuumzxqqxutmwwttoxtrzpkywykpqz` / covered 20,280, with implementation
 `zzzsrztrvnqzxquwrumqzyxylpvumryt`. These stamps apply to the inventories,
 assurance counts and corpus figures below. Runtime digests accompany the
-reports. Refresh was a no-op; the claim parent is also the refreshed base.
+reports. The first refresh was a no-op. The final refresh moves the claim
+after `capture-and-scope` claim `mtxtksrr`, with no tree-content change in the
+claim evolution and unchanged runtime digests. The claim-parent census
+therefore also describes the refreshed base; no check behavior changed.
 
 #### PROVE — retained Readings and structural laws
 
