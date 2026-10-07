@@ -1,0 +1,8 @@
+// "itself": the member a comparison over a domain is measuring, the one
+// subject binding the checker places immediately before the measure.
+(
+    name: "ownMember",
+    kinds: [NounPhrase],
+    params: [],
+    body: Pro(Bare, One, Top(1)),
+)

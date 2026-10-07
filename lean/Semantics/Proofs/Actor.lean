@@ -91,7 +91,7 @@ private def literalAmass : Instruction :=
         none,
       choose (a Actor.army),
       .putCounters (.lit 2) (.printed p1p1Counter) (that (.type .creature)),
-      .doIf (itIsntA (.hasSubtype (creatureType "Orc")))
+      .doIf (.not (.matches it (.hasSubtype (creatureType "Orc"))))
         (.establish (Primitives.StaticSpec.qualityChange it .adds
           (.bundle { characteristics := { subtypes := [creatureType "Orc"] } } none)) none)
         none ]
@@ -147,7 +147,7 @@ private def scopedAmassOf (amount : Amount) : Instruction :=
         none,
       choose (a Actor.army),
       .putCounters (.inCaller 0 amount) (.printed p1p1Counter) (that (.type .creature)),
-      .doIf (itIsntA (.hasSubtype (creatureType "Goblin")))
+      .doIf (.not (.matches it (.hasSubtype (creatureType "Goblin"))))
         (.establish (Primitives.StaticSpec.qualityChange it .adds
           (.bundle { characteristics := { subtypes := [creatureType "Goblin"] } } none)) none)
         none ]))

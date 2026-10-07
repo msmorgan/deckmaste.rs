@@ -1,0 +1,7 @@
+// "<turn>'s", as a header possessor: "that turn's end step".
+(
+    name: "byTurn",
+    kinds: [HeaderPossessor],
+    params: {"turn": NounPhrase},
+    body: ByTurn(Param(turn)),
+)

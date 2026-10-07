@@ -1,7 +1,14 @@
-// "a <dom> with <stat> <r> <bound>", the stat read of the member itself.
+// "a <dom> with <stat> <r> <bound>": the stat of `member`, the member itself
+// (`ownMember`) unless written.
 (
     name: "comparesOwnStat",
     kinds: [Predicate],
-    params: {"stat": Stat, "domain": Predicate, "comparator": Comparator, "bound": Amount},
-    body: CompareOver(Param(domain), StatOf(Stat(Param(stat)), Pro(Bare, One, Top(1))), Param(comparator), Param(bound)),
+    params: {
+        "stat": Stat,
+        "domain": Predicate,
+        "comparator": Comparator,
+        "bound": Amount,
+        "member": Default(NounPhrase, ownMember),
+    },
+    body: CompareOver(Param(domain), StatOf(Stat(Param(stat)), Param(member)), Param(comparator), Param(bound)),
 )

@@ -317,7 +317,7 @@ theorem okDeicticTurnAfterExtraTurn :
     Instruction.check []
       (.sequentially
         [ extraTurn (.lit 1),
-          delay (.beginningOf .the .endStep (.byTurn thatTurn)) (.conclude .loseGame) ])
+          delay (.beginningOf .the .endStep (byTurn thatTurn)) (.conclude .loseGame) ])
       = [] := by
   decide
 
@@ -326,7 +326,7 @@ theorem badDeicticTurnWithoutIntroducer :
     Instruction.check []
       (.sequentially
         [ draw (.lit 1),
-          delay (.beginningOf .the .endStep (.byTurn thatTurn)) (.conclude .loseGame) ])
+          delay (.beginningOf .the .endStep (byTurn thatTurn)) (.conclude .loseGame) ])
       = [.anaphor .thatTurn .one 0] := by
   decide
 

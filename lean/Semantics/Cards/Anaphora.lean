@@ -346,7 +346,7 @@ def opponentWithMoreLands : Predicate :=
 theorem okOpponentWithMoreLands : Predicate.check .player [] opponentWithMoreLands = [] := by
   decide
 
-def bioplasmCardTest : Condition := itsACard creature
+def bioplasmCardTest : Condition := Primitives.Condition.matches itCard creature
 theorem okBioplasmCardTest : Condition.check bioplasmAfterExile bioplasmCardTest = [] := by decide
 
 /-- Blessed Respite -/
@@ -488,7 +488,7 @@ theorem eachPlayerBindsAGroup : countManys .player (nomIntro [] eachPlayerBase) 
 
 /-- Soul Ransom -/
 def soulRansomRansom : Instruction :=
-  Primitives.Instruction.sequentially [act (controllerOf thisAura) (sacrificeIt), act they (Primitives.Instruction.draw (.lit 2))]
+  Primitives.Instruction.sequentially [act (controllerOf thisAura) (sacrifice itPermanent), act they (Primitives.Instruction.draw (.lit 2))]
 theorem okSoulRansomRansom : Instruction.check [] soulRansomRansom = [] := by decide
 def thisAurasController : NounPhrase := controllerOf thisAura
 theorem okThisAurasController : NounPhrase.check (some .player) [] thisAurasController = [] := by
@@ -672,7 +672,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                                   ]))
                   (Primitives.Instruction.sequentially
                     [ act they (Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.librarySlice .top (.lit 1) they))),
-                      Primitives.Instruction.doIf (itsACard permanentCard) (move itCard battlefield)
+                      Primitives.Instruction.doIf (Primitives.Condition.matches itCard permanentCard) (move itCard battlefield)
                         none ]) ]) ],
       power := stat 6, toughness := stat 6 } }
 

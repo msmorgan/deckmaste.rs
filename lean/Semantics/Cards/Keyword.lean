@@ -27,7 +27,7 @@ theorem okGabrielAngelfire : Instruction.check [] gabrielAngelfire = [] := by de
 def builtToSmash : Instruction :=
   Primitives.Instruction.sequentially
     [ get (target (Primitives.Predicate.and [creature, attacking])) (Primitives.Delta.up (.lit 3)) (Primitives.Delta.up (.lit 3)) (some untilEndOfTurn),
-      Primitives.Instruction.doIf (itsA (Primitives.Predicate.and [artifact, creature]))
+      Primitives.Instruction.doIf (Primitives.Condition.matches it (Primitives.Predicate.and [artifact, creature]))
         (gain it (keyword "Trample") (some untilEndOfTurn)) none ]
 theorem okBuiltToSmash : Instruction.check [] builtToSmash = [] := by decide
 
@@ -1228,7 +1228,7 @@ def towerWinder : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Command Tower")),
-                revealIt, move foundCard hand,
+                revealCards (itVerbed (.action "Search")), move (itVerbed (.action "Search")) hand,
                 Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
                   (relative .player)) (.action "Search") none none (some yourLibrary))
                   Primitives.NounPhrase.you .thisWay) shuffle

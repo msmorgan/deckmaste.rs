@@ -651,7 +651,7 @@ def frostWalker : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Elemental"],
       text :=
         [ when (Primitives.GameEvent.becomesTarget thisCreature (a (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack])))
-            (sacrificeIt) ],
+            (sacrifice itPermanent) ],
       power := stat 4, toughness := stat 1 } }
 
 /-- Loaming Shaman -/
@@ -701,7 +701,7 @@ def agencyOutfitterSearch : Instruction :=
         (Primitives.Instruction.sequentially
           [ searchZonesOf Primitives.NounPhrase.you (exactly 1)
               (Primitives.Predicate.or [Primitives.Predicate.named (Primitives.NameSource.printed "Magnifying Glass"), Primitives.Predicate.named (Primitives.NameSource.printed "Thinking Cap")]),
-            putOntoBattlefield foundCard ]),
+            putOntoBattlefield (itVerbed (.action "Search")) ]),
       Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some (relative
         .player)) (.action "Search") none none (some yourLibrary)) Primitives.NounPhrase.you
         .thisWay) shuffle none ]

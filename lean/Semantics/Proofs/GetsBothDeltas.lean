@@ -533,13 +533,13 @@ theorem builtToSmashTwin :
     Instruction.check []
       (.sequentially
         [ get (target (.and [creature, attacking])) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn),
-          .doIf (itsA (.and [artifact, creature])) (gain it (keyword "Trample") (some untilEndOfTurn))
+          .doIf (.matches it (.and [artifact, creature])) (gain it (keyword "Trample") (some untilEndOfTurn))
             none ]) =
       Instruction.check []
         (.sequentially
           [ getTwoHalves (target (.and [creature, attacking])) (.up (.lit 3)) (.up (.lit 3))
               (some untilEndOfTurn),
-            .doIf (itsA (.and [artifact, creature])) (gain it (keyword "Trample") (some untilEndOfTurn))
+            .doIf (.matches it (.and [artifact, creature])) (gain it (keyword "Trample") (some untilEndOfTurn))
               none ]) := by
   decide
 

@@ -179,7 +179,7 @@ def finalFortune : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ extraTurn (.lit 1),
-              delay (Primitives.GameEvent.beginningOf .the .endStep thatTurns) (Primitives.Instruction.conclude .loseGame) ])
+              delay (Primitives.GameEvent.beginningOf .the .endStep (byTurn thatTurn)) (Primitives.Instruction.conclude .loseGame) ])
                   ] } }
 
 def finalFortuneExtraTurn : Instruction := extraTurn (.lit 1)
@@ -196,7 +196,7 @@ def lastChance : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ extraTurn (.lit 1),
-              delay (Primitives.GameEvent.beginningOf .the .endStep thatTurns) (Primitives.Instruction.conclude .loseGame) ])
+              delay (Primitives.GameEvent.beginningOf .the .endStep (byTurn thatTurn)) (Primitives.Instruction.conclude .loseGame) ])
                   ] } }
 
 def chanceForGlory : Spelled := spelled <| .singleFaced
@@ -210,7 +210,7 @@ def chanceForGlory : Spelled := spelled <| .singleFaced
                   (keyword "Indestructible"))
                 none,
               extraTurn (.lit 1),
-              delay (Primitives.GameEvent.beginningOf .the .endStep thatTurns) (Primitives.Instruction.conclude .loseGame) ])
+              delay (Primitives.GameEvent.beginningOf .the .endStep (byTurn thatTurn)) (Primitives.Instruction.conclude .loseGame) ])
                   ] } }
 
 def aggravatedAssault : Spelled := spelled <| .singleFaced

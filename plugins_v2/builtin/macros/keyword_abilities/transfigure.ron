@@ -21,7 +21,7 @@ KeywordAbility(
                         compare(Eq, statOf(Stat(ManaValue), thisPermanent), [Stat(ManaValue)]),
                     ]),
                 ),
-                putOntoBattlefield(foundCard),
+                putOntoBattlefield(itVerbed(Action("Search"))),
                 shuffle,
             ]),
             asSorcery,

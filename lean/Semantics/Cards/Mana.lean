@@ -903,8 +903,8 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
-                revealIt,
-                move foundCard hand,
+                revealCards (itVerbed (.action "Search")),
+                move (itVerbed (.action "Search")) hand,
                 Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
                   (relative .player)) (.action "Search") none none (some yourLibrary))
                   Primitives.NounPhrase.you .thisWay) shuffle

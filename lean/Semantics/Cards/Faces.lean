@@ -583,7 +583,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
           activated (Primitives.Cost.loyaltySymbol (.down 1))
             (Primitives.Instruction.doIfDone (sacrifice (a creature))
               (some (Primitives.Instruction.sequentially
-                [ searchLibraryFor (exactly 1) creature, revealIt, move foundCard hand,
+                [ searchLibraryFor (exactly 1) creature, revealCards (itVerbed (.action "Search")), move (itVerbed (.action "Search")) hand,
                   shuffle ]))
               none),
           activated (Primitives.Cost.loyaltySymbol (.down 3))

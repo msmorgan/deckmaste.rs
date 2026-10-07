@@ -921,7 +921,7 @@ def primalSurge : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ exile (topSlice (.lit 1)),
-              Primitives.Instruction.doIf (itsA permanentCard)
+              Primitives.Instruction.doIf (Primitives.Condition.matches it permanentCard)
                 (Primitives.Instruction.offer (putOntoBattlefield it) (some (Primitives.Instruction.repeat_ Primitives.Repetition.again)) none) none
                     ]) ] } }
 
@@ -1165,7 +1165,7 @@ def soulRansom : Spelled := spelled <| .singleFaced
           activatedBy
             (Primitives.Cost.perform (Primitives.Instruction.repeatTimes (.lit 2)
               (Primitives.Instruction.sequentially [choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])), discard (that .card)])))
-            (Primitives.Instruction.sequentially [act (controllerOf thisAura) (sacrificeIt), act they (Primitives.Instruction.draw (.lit 2))])
+            (Primitives.Instruction.sequentially [act (controllerOf thisAura) (sacrifice itPermanent), act they (Primitives.Instruction.draw (.lit 2))])
             (Primitives.NounPhrase.playerGroup .yourOpponents) ] } }
 
 /-- Vraska's Scorn -/
@@ -1193,8 +1193,8 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters thisCreature none)
             (act (each Primitives.Predicate.opponent) (offer
               (Primitives.Instruction.sequentially
-                [ act they (searchTheirLibraryFor (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic])),
-                  putOntoBattlefieldTapped foundCard,
+                [ act they (Primitives.Instruction.search (oneZone (libraryOf they)) (exactly 1) (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic])),
+                  putOntoBattlefieldTapped (itVerbed (.action "Search")),
                   act they (Primitives.Instruction.shuffle) ]))) ],
       power := stat 3, toughness := stat 3 } }
 

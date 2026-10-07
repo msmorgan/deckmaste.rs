@@ -27,6 +27,8 @@ semantic_macro it : NounPhrase := .pro .bare .one .whole
 semantic_macro them : NounPhrase := .pro .bare .many .whole
 /-- "that card": the card slot's occupant. -/
 semantic_macro itCard : NounPhrase := .pro (.atSlot .card) .one .whole
+/-- "it": the permanent slot's occupant, as "sacrifice it" reads it. -/
+semantic_macro itPermanent : NounPhrase := .pro (.atSlot .permanent) .one .whole
 /-- "that token": the token just created. -/
 semantic_macro itAsToken : NounPhrase := .pro .tokenBorn .one .whole
 
@@ -111,12 +113,6 @@ semantic_macro countedAtRandom (q : Quantity) (p : Predicate) : NounPhrase :=
 
 /-- "if there is a …" -/
 semantic_macro exists_ (p : Predicate) : Condition := .exists_ (bare p)
-/-- "if it's a <p> card": the card slot's occupant, tested. -/
-semantic_macro itsACard (p : Predicate) : Condition := .matches itCard p
-/-- "if it's a <p>" -/
-semantic_macro itsA (p : Predicate) : Condition := .matches it p
-/-- "if it isn't a <p>" -/
-semantic_macro itIsntA (p : Predicate) : Condition := .not (itsA p)
 
 /-- "the number of …s" -/
 semantic_macro countOf (p : Predicate) : Amount := .countOf (bare p)
@@ -248,10 +244,13 @@ semantic_macro quality (sort : QualitySort) : Predicate := .qualityNoun sort non
 /-- A quality noun with its domain: "a color other than blue". -/
 semantic_macro qualityFrom (sort : QualitySort) (domain : ChoiceDomain) : Predicate :=
   .qualityNoun sort (some domain)
-/-- "a <dom> with <stat> <r> <bound>", the stat read of the member itself. -/
-semantic_macro comparesOwnStat (stat : Stat) (domain : Predicate) (comparator : Comparator) (bound : Amount) :
-    Predicate :=
-  .compareOver domain (.statOf (.stat stat) (.pro .bare .one (.top 1))) comparator bound
+/-- "itself": the member a comparison over a domain is measuring, the one subject binding
+`Predicate.check` places immediately before the measure. -/
+semantic_macro ownMember : NounPhrase := .pro .bare .one (.top 1)
+/-- "a <dom> with <stat> <r> <bound>": the stat of `member`, the member itself unless written. -/
+semantic_macro comparesOwnStat (stat : Stat) (domain : Predicate) (comparator : Comparator) (bound : Amount)
+    (member : NounPhrase := ownMember) : Predicate :=
+  .compareOver domain (.statOf (.stat stat) member) comparator bound
 /-- "the chosen color" -/
 semantic_macro thatColor : ColorTerm := .chosen .theChoice
 
@@ -410,9 +409,6 @@ semantic_macro exileWithCounters (subject : NounPhrase) (amount : Amount) (kind 
   .enact (.action "Exile") (.move subject .wherever exileZone [.withCounters amount (.printed kind) .fresh])
 semantic_macro sacrifice (subject : NounPhrase) : Instruction :=
   .enact (.action "Sacrifice") (.move subject (.zone .battlefield .bare) graveyard [])
-/-- "sacrifice it": the permanent slot's occupant. -/
-semantic_macro sacrificeIt : Instruction :=
-  sacrifice (.pro (.atSlot .permanent) .one .whole)
 /-- "put <subject> <destination>" -/
 semantic_macro put (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
   .enact (.core .put) (.move subject .wherever destination [])
@@ -464,6 +460,9 @@ semantic_macro putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instr
 /-- "put <subject> onto the battlefield tapped and attacking" -/
 semantic_macro putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
   .move subject .wherever battlefield [.entersAs .tapped, .entersAttacking none]
+/-- A search of one zone: the scope constructor, which has no generated primitive because
+`SearchScope` is not a `semantic_expression` type. -/
+semantic_macro oneZone (zone : ZoneExpr) : SearchScope := .oneZone zone
 /-- "Search your library for <quantity> <p>" -/
 semantic_macro searchLibraryFor (quantity : Quantity) (p : Predicate) : Instruction :=
   .search (.oneZone yourLibrary) quantity p
@@ -473,9 +472,6 @@ semantic_macro searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Pre
 /-- "search your library and/or graveyard for a <p>" -/
 semantic_macro searchLibraryOrGraveyard (p : Predicate) : Instruction :=
   .search (.someZones (some .you) [.library, .graveyard]) (exactly 1) p
-/-- "search their library for a <p>" -/
-semantic_macro searchTheirLibraryFor (p : Predicate) : Instruction :=
-  .search (.oneZone (libraryOf they)) (exactly 1) p
 /-- "reveal their hand" -/
 semantic_macro revealTheirHand : Instruction := .expose .reveal (.zone (handOf they))
 /-- Fight captures each selected creature once and guards the whole simultaneous event
@@ -524,10 +520,6 @@ semantic_macro lookAt (cards : NounPhrase) : Instruction := .expose .lookAt (.ca
 semantic_macro lookAtHandOf (player : NounPhrase) : Instruction :=
   .expose .lookAt (.zone (handOf player))
 semantic_macro revealCards (cards : NounPhrase) : Instruction := .expose .reveal (.cards cards)
-/-- "the card found by a search" -/
-semantic_macro foundCard : NounPhrase := itVerbed (.action "Search")
-/-- "reveal it": the card a search found. -/
-semantic_macro revealIt : Instruction := revealCards foundCard
 semantic_macro shuffleInto (subject : NounPhrase) : Instruction :=
   .enact (.action "Shuffle") (.move subject .wherever ((.library .shuffled none none .bare)) [])
 semantic_macro doIf (condition : Condition) (instruction : Instruction) : Instruction :=
@@ -733,10 +725,6 @@ semantic_macro agentRef (agent : NounPhrase) : NounPhrase :=
 semantic_macro doUnless (instruction : Instruction) (cost : Cost) : Instruction :=
   Primitives.Instruction.offer (.pay cost .once) none (some instruction)
 
-/-- "it" or "them", by number. -/
-semantic_macro itOrThem : Plurality → NounPhrase
-  | .one => it
-  | .many => them
 /-- The window over exactly what a phrase introduced; a phrase that introduced nothing (a
 pronoun) is read again through the whole stack. -/
 semantic_macro sameWindow : Bindings → Window
@@ -819,7 +807,7 @@ semantic_macro amass (subtype : String) (count : Nat) : Instruction :=
         none,
       choose (a armyYouControl),
       .putCounters (.lit count) (.printed p1p1Counter) (that (.type .creature)),
-      .doIf (itIsntA (.hasSubtype (creatureType subtype)))
+      .doIf (.not (.matches it (.hasSubtype (creatureType subtype))))
         (.establish
           (Primitives.StaticSpec.qualityChange it .adds
             (.bundle { characteristics := { subtypes := [creatureType subtype] } } none))
@@ -1001,8 +989,8 @@ semantic_macro leavesZone (subject : NounPhrase) (zone : ZoneExpr) : GameEvent :
 semantic_macro beginningOfPossessed (quantifier : PartQuant) (part : TurnPart) (possessor : NounPhrase) :
     GameEvent :=
   .beginningOf quantifier part (.byPlayer possessor)
-/-- "that turn's": the extra turn just granted, as a header possessor. -/
-semantic_macro thatTurns : HeaderPossessor := .byTurn thatTurn
+/-- "<turn>'s", as a header possessor: "that turn's end step". -/
+semantic_macro byTurn (turn : NounPhrase) : HeaderPossessor := .byTurn turn
 semantic_macro dealsCombatDamage (source : NounPhrase) (patient : NounPhrase) : GameEvent :=
   Primitives.GameEvent.dealsDamage .combatOnly source (some patient)
 semantic_macro attacks (subject : NounPhrase) : GameEvent := .combat .attackerOf subject none
@@ -1102,8 +1090,6 @@ semantic_macro triggeredIf (event : GameEvent) (condition : Condition)
 semantic_macro triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit) (instruction : Instruction) :
     Ability :=
   .triggered event [] none [] none (some limit) none instruction
-/-- "if it isn't <p>", read of the ability just named. -/
-semantic_macro itIsntAnAbility (p : Predicate) : Condition := .not (.matches (that .ability) p)
 /-- "As <subject> enters, choose a <quality>." -/
 semantic_macro entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   Primitives.StaticSpec.entryChoice subject (.quality sort) none .openly

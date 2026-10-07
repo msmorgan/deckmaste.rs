@@ -143,7 +143,7 @@ def ringsOfBrighthearth : Spelled := spelled <| .singleFaced
     { name := "Rings of Brighthearth", cost := some [generic 3], types := [.artifact],
       text :=
         [ triggeredIf (Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead .anyActivated)))
-            (itIsntAnAbility Primitives.Predicate.isManaAbility)
+            (Primitives.Condition.not (Primitives.Condition.matches (that .ability) Primitives.Predicate.isManaAbility))
             (Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [generic 2]) .once)
               (some (Primitives.Instruction.sequentially
                 [ Primitives.Instruction.copy .fromStack (that .ability) (.lit 1) [],

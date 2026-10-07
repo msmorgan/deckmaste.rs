@@ -1,7 +1,0 @@
-// "<performer> searches their library for a <p>"
-(
-    name: "searchTheirLibraryFor",
-    kinds: [Instruction],
-    params: {"p": Predicate},
-    body: Search(scope: OneZone(libraryOf(player: they)), quantity: exactly(n: 1), predicate: Param(p)),
-)

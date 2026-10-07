@@ -468,7 +468,7 @@ theorem okSearchZoneFreeDescription :
 /-- "If you would search your library for a creature card, instead search your library for a
 creature card and reveal that card." [CR#614.1a] -/
 theorem okInsteadOfSearchRevealsIt :
-    Instruction.check [] (.replace (searchLibraryFor (exactly 1) creature) revealIt) = [] := by
+    Instruction.check [] (.replace (searchLibraryFor (exactly 1) creature) (revealCards (itVerbed (.action "Search")))) = [] := by
   decide
 
 /-- "Search your library for a creature card in a graveyard." -/
