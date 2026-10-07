@@ -31,6 +31,11 @@ decision from the user: whether these texts should read, and if so how a shared
 head is expressed given that each counter kind is one compound-noun lexeme. It
 graduates to a ticket when that is decided.
 
+Decided 2026-10-06 (owner: "yup."): yes, the eight disjunction texts and the
+three "from among" texts should read. How a shared head is spelled is English
+grammar design, to be grilled when English work resumes; the entry graduates
+when that shape is pinned.
+
 **Evidence for whoever owns the English grammar: counter kinds share one
 "counter" head by disjunction in real Oracle text.** A note from the
 semantics_v2 design session of 2026-10-05, not a prescription. The English

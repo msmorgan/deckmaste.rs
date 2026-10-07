@@ -67,4 +67,7 @@ card asking for it yet. Standard constraints apply.
   is skipped by `cargo xtask expansions`, so give it coverage before
   re-spelling. (The counter declarations are rewritten by
   `semantics-v2-counter-kind-is-a-name`; do this after it.)
+  Unblocked 2026-10-06: `semantics-v2-counter-kind-is-a-name` is done, so the
+  counter and type raw-conferral re-spells this item was holding can go
+  ahead. They are Sonnet-mechanical.
 - **Helper macros' own bodies** were left for a later pass.
