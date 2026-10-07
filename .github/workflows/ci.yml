@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    # wip is the off-site backup bookmark; it is pushed red and never gated.
+    branches-ignore: [wip]
   pull_request:
 
 env:
