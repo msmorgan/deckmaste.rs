@@ -284,7 +284,7 @@ finding.
 The intermediate census, delta, samples and gate log prefixed `unlicensed-` are
 superseded by the final census and gate. The `ownership-before-` reports and
 `ownership-gate.log` precede the native-owner repair. `witnesses-licensed.log` supersedes the
-earlier witness logs/reports. The final refresh outcome is recorded in the completion amendment below.
+earlier witness logs/reports. Refresh completed without conflicts. The refreshed base has no consumed grammar or lexical-source changes; the measured baseline therefore remains the refreshed-base census. There are no trunk Reading decreases to attribute.
 
 ### REPORT
 
@@ -543,3 +543,17 @@ ordinal Adjective Phrases. All rows have the final stamp
 | Wrap in Flames | `b46efd59-eda7-4fe6-ace7-67ca8f6c088d#card` | 3 | D | `8ba241b19ea27de13d055e5959fdc1abd90558d495baadfaa4b0823304b1a9dc` |
 | Zell Dincht | `f207ce73-e4cd-4dfc-b3b9-5704f5148959#card` | 20 | D | `0500c2a593919ee4f55cea48c0c1949b5072c676520506c130b1dcde04f2e000` |
 | Zephyr Sentinel | `dcddd143-a7d9-4a38-a2da-dd6bd2e48205#card` | 6 | A | `46cf94de74903305a0e94f70f1c78098abdbcc530e4a9c2fa7f5496ef2c3d62a` |
+
+
+### Closure and refresh
+
+The final reverse-dependency gate passes both derived commands, including Lean
+integration tests and Clippy with warnings denied. Refresh exits zero with no
+conflicts. Only other sessions' ticket claims advanced the coordinator; the
+consumed sources and per-face baseline remain unchanged. The claim-parent to
+landed declaration delta remains **+32 nonblank lines**.
+
+A local plugin-cache replacement removed the previously resolved launcher and
+status hook. The current Kata skill and launcher were resolved again; command
+output and exit statuses are retained in the ignored evidence directory despite
+the failing post-command status hook. Repository protection is unchanged.
