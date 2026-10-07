@@ -1128,3 +1128,45 @@ passes. `cargo fmt -p deckmaste_english_v3 --check` passes. Citation checks
 report **0 stale and 0 noncompliant**; the piped jj diff audit selects **0 CR
 citation sites**, because this follow-up changes no CR citation. The final
 finished-feature census is **`target/english-v3/english-v3-where-followup/after.json`**.
+
+
+Refresh exits **0 without conflicts**. It incorporates trunk's dev-profile
+optimization at **`vsskuolwykss` / covered 20,858**, documentation and citation-
+lock additions. The refreshed base's grammar, core lexicon and complete loaded
+lexical inventory are byte-identical to the reused baseline; `refresh-proof.json`
+records that comparison. **Trunk-attributed Reading decreases: none.**
+The optimized build is reverified rather than assigning its changed timings
+to this feature.
+
+The final post-refresh census is stamped **`knotusxvzkzm` / covered 20,860**:
+**7,477 unique, 13,383 multiple, 11,968 unread, 651,602 Readings, 0 issues**.
+Every one of the **32,828** per-face Reading counts matches the finished
+feature, including Kraul's 208 and Sardian's 2. Against the refreshed base,
+all previously covered faces keep their counts; only Sword of the Ages
+(0 → 20) and Ugin's Insight (0 → 5) change. Thus the 580 / 30,358 original-
+claim gain comparison, 599 Where residue, 312 corrected NP blockers, and all
+named judgments remain unchanged. The final ledger records that its sample
+fingerprints come from the identical grammar and lexical inputs before refresh.
+
+Final performance advisory, **`knotusxvzkzm` / covered 20,860**: **6 workers**,
+host load (1/5/15 min) **17.491/12.790/14.735**, corpus wall **244,607,644,935 ns**, checked-text
+thread CPU **412,427 ns/B**. This run overlaps gate compilation too and exceeds
+the **16,260,000,000 ns** quiet-host advisory ceiling. The profile and host load
+differ; these numbers do not isolate the cost of this grammar change.
+
+Exactly **two full corpus runs** were used in this follow-up: the finished
+feature and this post-refresh verification. The final command uses the same
+flags with `--output target/english-v3/english-v3-where-followup/after-refresh.json`.
+**Final census JSON: `target/english-v3/english-v3-where-followup/after-refresh.json`.**
+All evidence remains under the ignored follow-up directory, including the
+exhaustive comparisons, corrected gain ledger, NP diagnostics, inventories,
+source/hash proofs and gate logs.
+
+The refreshed gate, `cargo xtask gate --changed --from vsskuolwykss --run`,
+derives the same four-package Cargo test command and exits **0**: **845 passed,
+0 failed, 1 inherited ignored, 96 suites**, stamped `knotusxvzkzm` / covered
+20,860. Refreshed all-target clippy with `-D warnings` and formatting pass.
+Refreshed citation checks report **0 stale and 0 noncompliant**, and the piped
+diff audit selects **0 changed CR citation sites**. `gate-results-refresh.json`
+records the outcome. The final declaration comparison remains **3,300 → 3,320,
+net +20**, with the same feature/table/policy/construction inventory above.

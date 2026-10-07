@@ -387,7 +387,7 @@ is right and this list needs fixing.
   medial-supplement follow-up corrects ten nominal probes that accidentally
   included an outside continuation: the independent-NP blocker list is 312,
   rather than the historical first-pass 322. All remaining whole-face blockers
-  retain this routing. On the finished follow-up `worzsvpnqyms` / covered
+  retain this routing. On the final follow-up `knotusxvzkzm` / covered
   20,860, **599** variable-Where faces remain unread, including those **312**
   independent-NP blockers. The follow-up reports the complete comparison in the original ticket's **Post-landing fix (2026-10-07)**.
   Five independently blocked NP examples, with zero admitted NP roots on that
