@@ -121,3 +121,185 @@ change ids; the Agreement observed for *one or more* and *more than one*
 heads; the interface the numeral-*or*-comparative coordination exposes for
 the two sibling hosts; timings as integer ns and ns/B with host load and
 worker count.
+
+
+### Landing record — 2026-10-07
+
+Standard constraints apply. Before figures are stamped `zssmqvsw` / covered
+17,556: that report was taken before implementation, with runtime declarations
+identical to claim `otlzrzzy`. Final figures are stamped `ztnzpnsq` / covered
+18,019: that report's empty child has implementation `zssmqvsw`'s runtime tree.
+The covered count distinguishes the two measured states of the implementation
+change id. Runtime source digests accompany both censuses.
+
+#### PROVE — retained Readings and structural laws
+
+All 32,828 supported faces are enumerated completely on both measured states.
+Covered faces increase from 17,556 to 18,019: 463 gains, zero lost faces.
+Every previously covered face retains exactly its previous Reading count:
+zero decreases and zero increases. Total Readings increase from 343,616 to
+386,032, with all 42,416 additions on newly covered faces. No old production,
+lexical form, frame or Reading is retired; there is no no-silent-loss debt.
+Refresh has brought in no runtime change, so there is no trunk-attributed loss.
+
+Both full censuses report zero issues, internal failures, duplicate Readings,
+admission failures, exact-realization failures, lexical-ownership failures and
+construction/leaf traversal failures. Independent values establish both
+roundtrip laws and exact construction/leaf identity for the pinned quantities,
+the internal PP Complement and the Arabic scalar coordination. Each new
+quantity constituent has exactly one Reading; it cannot also become a Cardinal
+or an ordinary PP Adjunct. No competing NP family was introduced.
+
+Word-named licensing guards added: zero. Every new guard reads declared
+features. Lexical source loading and GrammarEnvironment construction succeed;
+existing load-error checks remain intact. V3 emits neither the retired parser's
+coverage lock nor its permitted-licensing-checker total; these figures are the
+complete V3 census, not a claim about that parser.
+
+Assurance counts: added 6; restored 0; re-spelled 0; removed 0; new ignores 0.
+The existing `counts_and_measures_interact_with_nominals_frames_and_prepositions`
+test exposed the draft's unintended admission of “Draw 2 cards.” It was kept
+unchanged; the code fix confines Arabic numerals to Quantity Conjunct use.
+
+#### DISCLOSE — analyses and scope
+
+All 463 newly covered identities, their names, complete Reading counts,
+selected Reading identities/costs and quantity analyses are listed in the
+ignored `newly-covered-readings.md` and `selected-analysis-audit.json` evidence.
+Every selected analysis contains the existing `CountedNounPhrase` and its
+`ComparativeQuantityDeterminer`. The inventory comprises 422 faces with
+numeral Coordination and 41 with a headed comparative DP; no new gain lacks
+one of those quantity analyses. Representative witnesses follow:
+
+| Face | Quantity | Selected constituency | Complete face Readings |
+|---|---|---|---:|
+| Warcry Phoenix | three or more | numeral Coordination; Quantity Conjunct; Quantitative Determiner of the counted NP | 1 |
+| Garrison Excavator | one or more | numeral Coordination; Quantity Conjunct; Quantitative Determiner of the counted NP | 1 |
+| Ironhoof Ox | more than one | comparative DP; internal quantitative PP Complement; Quantitative Determiner of the counted NP | 5 |
+| Eidolon of Rhetoric | more than one | comparative DP; internal quantitative PP Complement; Quantitative Determiner of the counted NP | 2 |
+| Norwood Riders | more than one | comparative DP; internal quantitative PP Complement; Quantitative Determiner of the counted NP | 5 |
+| Outland Colossus | more than one | comparative DP; internal quantitative PP Complement; Quantitative Determiner of the counted NP | 5 |
+| Rule of Law | more than one | comparative DP; internal quantitative PP Complement; Quantitative Determiner of the counted NP | 2 |
+| Familiar Ground | more than one | comparative DP; internal quantitative PP Complement; Quantitative Determiner of the counted NP | 5 |
+| Isleback Spawn | twenty or fewer | numeral Coordination; Quantity Conjunct; Quantitative Determiner of the counted NP | 7 |
+| Concealed Courtyard | two or fewer | numeral Coordination; Quantity Conjunct; Quantitative Determiner of the counted NP | 2 |
+| Battle of Wits | 200 or more | numeral Coordination; Quantity Conjunct; Quantitative Determiner of the counted NP | 2 |
+| Sheltered Valley | three or fewer | numeral Coordination; Quantity Conjunct; Quantitative Determiner of the counted NP | 12 |
+
+The selection census is 7,122 unique / 10,434 multiple before, and 7,185
+unique / 10,834 multiple after; all previously covered multiplicities remain
+unchanged. There is no specificity-resolution admission step. Sample ranking
+retains every Reading and is a presentation choice only.
+
+Surface-bucket counts below use reminder-stripped supported text and cardinal
+word/digit bounds. Buckets overlap and include outer hosts owned by sibling
+tickets; they are not sole-cause or gain forecasts. Each column carries the
+before/after stamps given above.
+
+| Surface item | Touched faces | Covered before / after | Readings before / after |
+|---|---:|---:|---:|
+| N or comparative, excluding the one-or-more occurrence | 1,724 | 1 / 281 | 1 / 30,092 |
+| one or more | 592 | 0 / 148 | 0 / 12,030 |
+| comparative than numeral | 136 | 1 / 42 | 1 / 506 |
+
+“One or more cards” selects a plural Nominal and plural finite “leave”.
+“More than one creature” selects a singular Nominal; its PP Complement contains
+cardinal one. Parsed and independently constructed wrong head numbers fail.
+These selection facts are supported by CGEL Ch. 5 §3.4, p. 353 n. 13 and
+§11(d), p. 432; the numeral Coordination is supported by §7.6, p. 386.
+Project licensing and the Quantity Conjunct interface are project choices,
+not claims attributed to CGEL.
+
+The reusable interface is `ComparativeQuantity(number)`, with
+`NumeralComparativeCoordination { left: QuantityConjunct, marker, right }`.
+It admits the attested “three or more”, “one or more”, “twenty or fewer” and
+“0 or less” units. The scalar-property and copular-scalar tickets can consume
+that same unit. Its native numeric Conjunct does not acquire unrelated Cardinal
+functions. `ComparativePrepositionPhrase(number)` uses the existing quantitative
+PP schema; a headed comparative DP feeds the existing counted-NP interface.
+
+Deviations and additions:
+
+- Added five ordinary Constructions: `NumericQuantityConjunct`, the zero-cost
+  `CardinalQuantityConjunct` projection, `NumeralComparativeCoordination`,
+  `ComparativeDeterminativePhrase`, and the zero-cost
+  `ComparativeQuantityDeterminer`. Added one instance of the existing
+  quantitative PP schema. The scoped numeric Conjunct is necessary for the
+  sibling host's attested Arabic “0 or less”; the shared Conjunct interface
+  preserves the compiler's field-category contract and prevents a second
+  coordination recipe. No existing Construction or test was removed.
+- The draft general `SmallCount` route is completely retired from the final
+  grammar. It added 15 unrelated damage-partitive gains (165 Readings) and
+  failed the existing numeric-cardinal rejection test. Those draft figures
+  are not final gains. No lexical form or frame was introduced for that route,
+  so there is no corresponding lexical declaration to orphan or retain.
+- The ticket's old recon overstated Shadowborn Demon's sole cause. Its full
+  quantified NP now reads, but its full face remains at zero because the
+  existential “there are” host is independently unimplemented. Its authentic
+  NP remains tested; the host residual is routed to live
+  `english-v3-systemic-residuals`, not counted as a gain.
+- Added Comparative Quantity, Comparative Quantity Use and Quantity Conjunct
+  glossary entries and expanded Quantitative Determiner to include these
+  realizations. No Comprehensive Rules claim or citation was added.
+
+STOPs: none; no recorded ruling was contradicted. The draft regression was
+fixed inside the ticket before integration; the two-form compiler rejection
+was resolved through the shared Conjunct interface.
+
+#### REPORT — provenance and performance
+
+Construction inventory: 192 ordinary + 44 shared schemas before (236 named),
+197 ordinary + 44 shared schemas after (241 named). One category instance of
+the existing PP schema is added. These figures carry the above before/after
+change-id and covered-count stamps. Grammar economy's ultimate 250 ceiling
+remains applicable.
+
+Declared-form homograph inventory: unchanged, 1,128 spellings; 1,012 are
+attested as exact spellings in raw supported Oracle text, including reminders.
+Both named lists, with lexical owners, are in ignored `inventories.json` and
+`attested-homographs.json`. Form-literal/vocabulary overlap inventory: empty,
+unchanged. No lexical surface or owner was added or removed.
+
+| Measured tree / covered | Workers | Host load (1/5/15 min) | Corpus wall ns | Checked-text thread CPU |
+|---|---:|---|---:|---:|
+| `zssmqvsw` / 17,556 (claim runtime) | 12 | 5.91/7.18/5.26 | 55,825,333,148 | 277,189 ns/B |
+| `ztnzpnsq` / 18,019 (final runtime) | 12 | 13.67/8.37/8.11 | 64,540,107,969 | 301,487 ns/B |
+
+Both busy-host runs exceed the inherited 16.26s quiet-host ceiling. Wall time
+and per-byte CPU rise; host load and simultaneous gate compilation limit a
+causal comparison. This is a performance advisory, not an admission gate.
+The final all-gains sampled run additionally validates all 463 preferred
+analyses and all 42,416 Readings: 13,262,463,016 ns, 669,438 ns/B, 12 workers,
+host load 11.56/9.48/8.60, stamp `ztnzpnsq` / whole-corpus covered 18,019.
+
+#### Verification and evidence
+
+Full final census: `target/debug/cargo-xtask english-v3 --all --workers 12
+--samples-per-face 0 --output target/english-v3/quantity-determiners-final.json`.
+The binary was rebuilt by `cargo xtask gate` before direct invocation; both
+launchers execute the same census command. All-gains iteration uses explicit
+`--face-id` selectors, one selected sample per face and complete enumeration.
+
+Gate: `cargo xtask gate --changed --from english-v3-comparative-quantity-determiners
+--run --clippy`, deriving:
+
+```text
+cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask
+cargo clippy -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings
+```
+
+Gate passes: 769 tests passed, zero failed, one inherited ignored corpus
+cross-check (`macro_schema_census_count_matches_21`, whose existing blocker is
+“cross-checks the live corpus against the census; run on demand”). Clippy
+passes with warnings denied. The six focused quantity tests pass. Nightly
+formatting of changed Rust files passes. Citation checks
+report zero noncompliant strings and zero stale citations across 16,113 sites;
+the piped diff citation audit selects zero new Comprehensive Rules sites.
+No citation blessing is needed.
+
+All census, named inventories, identity deltas, analysis ledgers, runtime
+digests, probe results and logs were generated under the feature workspace's
+ignored `target/english-v3/`. Before workspace retirement, the review evidence
+is retained under the coordinator workspace's ignored
+`target/english-v3/english-v3-comparative-quantity-determiners/`. No evidence
+snapshot or verifier is tracked or embedded in source.

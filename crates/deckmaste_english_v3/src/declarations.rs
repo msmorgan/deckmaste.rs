@@ -25,6 +25,7 @@ constructions! {
         feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No;
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
+        feature ComparativeQuantityUse { No, Yes } default No;
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             AdjectiveComplement, PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct } set;
         feature CompoundComplementMarker { Of }
@@ -191,6 +192,9 @@ constructions! {
         category QuantitativeDeterminer(number);
         category CardinalPrepositionPhrase(number);
         category QuantitativePrepositionPhrase(number);
+        category ComparativePrepositionPhrase(number);
+        category QuantityConjunct(number);
+        category ComparativeQuantity(number);
         category Amount();
         category MeasurePhrase(MeasureKind);
         category ScalarMeasurePhrase();
@@ -2655,6 +2659,19 @@ constructions! {
             export number = head.number;
         }
 
+        construction NumericQuantityConjunct: QuantityConjunct {
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Arabic;
+            require head.numeral_size = Small;
+            export number = head.number;
+        }
+
+        construction CardinalQuantityConjunct: QuantityConjunct {
+            cost 0;
+            form [value: Cardinal];
+            export number = value.number;
+        }
+
         construction VariableCount: Cardinal {
             form [head: lexical(Numeral)];
             require head.ScalarVariable = Yes;
@@ -2674,12 +2691,41 @@ constructions! {
             require head.QuantitativeComplement = CardinalPrepositionPhrase;
         }
 
+        policy ComparativePrepositionComplement {
+            require head.ComparisonMarker = Ordering;
+        }
+
         instance QuantitativePrepositionPhrase<Result, Complement: complement, Properties>: [
             (CardinalPrepositionPhrase, Cardinal, CardinalPrepositionComplement),
             (QuantitativePrepositionPhrase, CardinalPrepositionPhrase,
                 QuantitativePrepositionComplement),
+            (ComparativePrepositionPhrase, Cardinal, ComparativePrepositionComplement),
         ] {
             use Properties;
+        }
+
+        // CGEL Ch. 5 §7.6, p. 386: a numeral and comparative are Conjuncts.
+        // §3.4, p. 353 n. 13: this coordination selects a plural head.
+        construction NumeralComparativeCoordination: ComparativeQuantity {
+            form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
+                right: lexical(Determinative)];
+            require marker.CoordinationKind = Alternative;
+            require right.ComparativeQuantityUse = Yes;
+            export number = Plural;
+        }
+
+        // CGEL Ch. 5 §11(d), p. 432: the quantifier in the PP Complement
+        // controls head selection, including singular more than one.
+        construction ComparativeDeterminativePhrase: ComparativeQuantity {
+            form [head: lexical(Determinative), " ", complement: ComparativePrepositionPhrase];
+            require head.ComparativeQuantityUse = Yes;
+            export number = complement.number;
+        }
+
+        construction ComparativeQuantityDeterminer: QuantitativeDeterminer {
+            cost 0;
+            form [value: ComparativeQuantity];
+            export number = value.number;
         }
 
         construction CardinalDeterminer: QuantitativeDeterminer {

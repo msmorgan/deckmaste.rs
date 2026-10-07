@@ -517,9 +517,31 @@ _Avoid_: an omitted noun as an invented lexical head
 
 **Quantitative Determiner**:
 A Determiner that expresses a count, realized by a Cardinal Numeral or a
-quantitative Preposition Phrase. In *up to two target creature cards*, the
+quantitative Preposition Phrase, a comparative Determinative Phrase, or a
+numeral Coordination. In *up to two target creature cards*, the
 Preposition Phrase *up to two* fills this function and the Nominal retains its
 noun head (CGEL, Ch. 5 §4, pp. 357–358).
+
+**Comparative Quantity** (project term):
+A comparative expression of quantity, including the numeral Coordination
+*three or more* (CGEL, Ch. 5 §7.6, p. 386) and the Determinative Phrase
+*more than one*, whose *than* Preposition Phrase is a Complement (CGEL,
+Ch. 5 §11(d), p. 432). In Determiner function, *one or more* selects a plural
+head, whereas *more than one* selects a singular head (CGEL, Ch. 5 §3.4,
+p. 353, n. 13).
+
+**Comparative Quantity Use** (project term):
+A comparative Determinative's declared permission to take a quantitative
+comparative Complement or to occur as the comparative Conjunct of a numeral
+Coordination. Comparative forms and their quantitative Complements are
+described in CGEL, Ch. 5 §11(d), p. 432; their count and non-count distribution
+is described in Ch. 13 §4.1.2, pp. 1126–1127.
+
+**Quantity Conjunct** (project term):
+A cardinal expression or Arabic numeral used as the first Conjunct of a
+Comparative Quantity Coordination, such as *three* in *three or more* or
+*0* in *0 or less*. This contextual use does not itself grant the expression
+other phrase functions.
 
 **Quantitative Preposition Phrase**:
 A Preposition Phrase expressing a quantity. In determiner function its
