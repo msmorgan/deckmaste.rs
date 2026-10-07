@@ -500,6 +500,164 @@ windows are the macros inventoried above (same lines).
 4. **The `it` result is a sample** (150 sites, 61 ambiguous); the `that N`
    result is a census.
 
+## Blind second coding and agreement (2026-10-07)
+
+Answers caveat 1 above and open judgment 6 below. Research only; it recommends
+no implementation. Every number comes from the agreement scripts; the coder 1
+columns reproduce `score_that.out` and `score_it.out` byte for byte.
+
+**Artifacts.** `docs/evidence/anaphora-measurement-2026-10-06/` (coder 1,
+above); `docs/evidence/anaphora-blind-2026-10-07/` (coder 2: keys
+`key2_that.txt`, `key2_it.txt`, hard-site notes `judgments.md`);
+`docs/evidence/anaphora-agreement-2026-10-07/` (report
+`agreement-2026-10-07.md`; scripts `agree.py`, `lists.py`, `dcheck.py`,
+`c2only.py`, each with its `*.out`). All three are ignored local evidence
+directories, not version-controlled. The scripts import coder 1's `rules.py`
+unchanged.
+
+**Design.** A fresh coder saw the site texts only: not coder 1's keys and not
+the 2026-10-06 report. Coder 2 used different referent labels and a different
+clause convention, so the keys are aligned through the candidate-index set of
+each coder's intended referent: exact (same set), merge (one set contains the
+other: same referent, one coder merged a further mention into its chain),
+non-object (coder 1's `+` hand against coder 2's `X`), both-`+`,
+undeterminable (`?` on one side), and disagree (disjoint or partial overlap).
+
+### Referent agreement
+
+**No site falls in the disagree class.**
+
+- **"that N"**: 94 of 94 determinable sites agree (92 exact, 2 merges:
+  Deadly Cover-Up and Green Slime, which coder 2 therefore finds
+  unambiguous). One is undeterminable to coder 2: T426 Analyze the Pollen,
+  where "that card" is whichever search happened, a disjunctive antecedent.
+- **Bare `it`**: 150 of 150 agree: 128 exact, 12 merges, 6 hand sites
+  (coder 1 `+`, coder 2 `X`), 3 both-`+`, 1 expletive (Grim Reaper's Sprint).
+- **Cohen's kappa**, over two site-independent labels (L1: how many regex
+  mentions follow the referent's latest mention; L2: whether the referent
+  holds the newest mention): 1.0 on both for "that N". For `it`, 0.81 (L1)
+  and 0.96 (L2) over all 150. The whole shortfall is the 12 merges: the
+  referent is the same, but the coders disagree on whether a predicative,
+  copy-target ("a token that's a copy of …") or quoted "this creature"
+  mention belongs to its chain, which moves the referent's latest index. On
+  referent identity alone, agreement is 100% and kappa 1.0.
+
+### Clause distance and role
+
+- **Clause distance** matches exactly on 81% of matched referent pairs for
+  "that N" (149/183) and 66% for `it` (89/134).
+- **The cause is systematic.** Coder 2 counts trigger conditions and costs as
+  clauses (Nissa, Abundance, Divining Witch, River's Grasp, the bare-`it` self
+  mentions), and puts relative and "except" clauses inside their host, so
+  coder 1's minimal d0 becomes coder 2's d1 (all copy templates, Gurzigost).
+  Coder 2's distance is larger in 63 of 79 mismatches. **The offset is not
+  constant**: it varies within 24 "that N" sites and 23 `it` sites, so it does
+  not cancel out of the within-site ranking there.
+- **Role** matches on 91% (kappa 0.86 for both forms).
+
+### Re-scores, three ways
+
+Correct / wrong / refused, `u` undeterminable: coder 1's labels on coder 1's
+ambiguous set; coder 2's labels on coder 2's set; and the agreed subset (83
+"that N", 61 `it`) under each coder's features.
+
+**"that N"**
+
+| Rule | c1 on c1's 87 | c2 on c2's 92 | Agreed 83, c1 | Agreed 83, c2 |
+|---|---|---|---|---|
+| AC | 29/0/58 | 27/0/65 | 29/0/54 | 27/0/56 |
+| AC>D | 61/24/2 | 54/33/4 u1 | 58/23/2 | 51/28/4 |
+| AC>D′ | 72/13/2 | 71/16/4 u1 | 69/12/2 | 65/14/4 |
+| **AC>R1** | **76/11/0** | **78/11/2 u1** | **73/10/0** | **71/10/2** |
+
+- AC>R1 errs on the **same ten cards** under both keys: Tahngarth, Bronze
+  Bombshell, Ram Through, Unpredictable Cyclone, Gisela, Eriette, Solphim,
+  Runesword, Scythe of the Wretched, Mangara's Equity. The eleventh differs:
+  Noetic Scales for coder 1 (coder 2 codes "its owner" inaccessible, `dep`),
+  Tragic Banshee for coder 2.
+- AC keeps **zero wrong** under both keys.
+- AC>D′ goes from 13 to 16 wrong; AC>D from 24 to 33. With coder 1's labels
+  and accessibility but coder 2's distance and role alone, AC>D′ on the 87 is
+  68/15/4 and AC>D 54/29/4: any rule that reads raw distance across clause
+  types is fragile.
+
+**Bare `it`**
+
+| Rule | c1 on c1's 61 | c2 on c2's 96 | Agreed 61, c1 | Agreed 61, c2 |
+|---|---|---|---|---|
+| R1 | 46/15/0 | 72/24/0 | 46/15/0 | 46/15/0 |
+| **D′** | **60/0/1** | **88/7/1** | **60/0/1** | **60/1/0** |
+| A>D′ | 59/1/1 | 88/8/0 | 59/1/1 | 60/1/0 |
+
+- **D′ on coder 1's 61 with coder 2's features is 60/1/0.** Grip of Phyresis
+  is the one flip to wrong (coder 2 codes the Equipment as d0); Cocoon goes
+  from refused to correct. D′'s score on the shared set does not hinge on
+  coder 1's distance codes.
+- **The ambiguous count rises from 61 to 96 of 150**: about 2,406 of 3,759
+  occurrences (Wilson 2,107–2,678), against coder 1's ~1,529. Of the 35 extra
+  sites, 28 are carrier self-mentions that coder 1's `c` had removed; the rest
+  are 2 hands (Brain Maggot, Elite Spellbinder), 2 merge or for-each recodings
+  (Mizzix's Mastery, Wedding Announcement), Serene Master (`i`) and Alaundo
+  the Seer (`s`).
+- **D′ on coder 2's 96 is 88/7/1.** Two wrong are the `X` hand sites (a format
+  artifact); five are real: Grip of Phyresis, and four carrier sites where the
+  self mention outranks the intended referent (Bloodtracker, Dusk Urchins,
+  Vogar, Engulfing Flames). That scales to about 125 wrong in the population
+  (54–284), against coder 1's 0 (0–94).
+
+### Carrier and fold-state: the single driver
+
+The keys differ on almost nothing except coder 1's carrier and fold-state
+exclusion (`n=c`, [CR#109.2]), which coder 2 did not apply:
+
+- It accounts for 28 of the 35 extra ambiguous `it` sites and 4 of the 5 real
+  D′ errors.
+- The 8 fold-state "that N" sites (Survival of the Fittest, Takklemaggot,
+  Next of Kin, Tragic Banshee, Necrotic Plague, Devour Intellect, Vampiric
+  Embrace, Infectious Rage) are ambiguous only to coder 2. Tragic Banshee
+  becomes an AC>R1 error.
+- Loki and Reincarnation become AC>R1 refusals, because coder 2 marks both
+  referents as clause-mates (`m`) where coder 1 did not (judgment 2 below).
+
+### Format limits
+
+- **Parallel disjuncts** ("that player or permanent" against "an opponent or
+  a permanent an opponent controls"): no kind for them; 2 sites (Gisela,
+  Solphim), coded kind c loosely by coder 2 and in neither coder 1's kind c.
+  Both are AC>R1 errors under both keys.
+- **`m` in small clauses** ("counters on it"): 6 sites. If the intended
+  referent were coded `m` there, A>D′ and A>R1 would each go correct to wrong
+  on 5 and correct to refused on 1; A and Aarg refused to wrong on 4. D′ and
+  R1 ignore `m`. The consequence: whether AC really is zero-wrong depends on
+  this convention.
+- **`X` is scored as wrong**: 6 hand sites, of which 2 (Brain Maggot, Elite
+  Spellbinder) are ambiguous to coder 2 and count as wrong against every pick
+  rule.
+
+**Pins.** Coder 2 did not code them. The pin result above (15 of 21 flip: 6
+intended, 0 wrong, 9 undeterminable) stands as coder 1's alone.
+
+### Put to the owner (2026-10-07)
+
+The two judgments the agreement report raises, as it states them:
+
+1. **Is the carrier and fold-state exclusion part of accessibility?** That
+   is, does the checker resolve against "the candidates the verb can apply
+   to"? Or is it a later filter whose errors count against the resolution
+   rule? The two keys differ on almost nothing else, and the D′ zero-error
+   claim and the ambiguity estimate depend on it.
+2. **Do possessor and small-clause clause-mates count as `m`?** This covers
+   Loki, Reincarnation, the six "counters on it" sites and Noetic Scales'
+   `dep`. It moves AC and the A-family rules by several sites, and so it
+   decides whether AC really is zero-wrong.
+
+Both were put to the owner on 2026-10-07 with the orchestrator's
+recommendation (A) for each: (1) accessibility, since bindings already carry
+zone and kind; (2) co-arguments only, per the pin `badItAcrossOwnSlot` and
+the Weeping Angel corpus case.
+
+Owner: pending.
+
 ## The work: measure, then report (done 2026-10-06)
 
 Done; the results are "Measured 2026-10-06" above and the decision is
@@ -509,11 +667,12 @@ Done; the results are "Measured 2026-10-06" above and the decision is
 1. **Regenerable corpus extraction.** Build the site lists from `data/`
    (`data/scryfall/oracle-cards.jsonl` for Vintage legality and set type,
    `data/derived/cards.jsonl` for text), not from session files. The
-   2026-10-05 research ran from session scratch
-   (`/tmp/claude-1000/-home-msmorgan-Projects-deckmaste-rs/d7d9fdb6-2e51-4168-8aa6-b98479d6bbb6/scratchpad/`:
-   `corpus.py`, `analyze.py`, `dump.py`, `dumprest.py`, `paras.json`,
-   `sites.json`, `pins.py`, `count.py`); those files are temporary and may be
-   gone. Use them as a reference if present; the measurement must be
+   2026-10-05 research ran from session scratch (`corpus.py`, `analyze.py`,
+   `dump.py`, `dumprest.py`, `paras.json`, `sites.json`, `pins.py`,
+   `count.py`). Of these, `corpus.py`, `analyze.py`, `paras.json`,
+   `sites.json` and `pins.py` are retained, in their 2026-10-06 form, in
+   `docs/evidence/anaphora-measurement-2026-10-06/`; `dump.py`, `dumprest.py`
+   and `count.py` were session-scoped and not retained. The measurement must be
    reproducible without them, and per CLAUDE.md the scripts and their output
    stay out of `crates/` and out of version control.
 2. **Classify the 464 "that N" sites** under each candidate rule: whether it
