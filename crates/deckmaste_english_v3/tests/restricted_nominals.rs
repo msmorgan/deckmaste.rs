@@ -157,9 +157,14 @@ fn authentic_full_genitive_possessor_preserves_internal_structure() {
         determiner: invariant("vocab:FloatedQuantifier/Each", SurfaceCase::Declared),
         head: Box::new(Reading::PremodifiedNominal {
             form: 0,
-            modifier: Box::new(Reading::Adjective {
+            modifier: Box::new(Reading::IntransitiveAdjective {
                 form: 0,
-                head: invariant("vocab:AttributiveAdjective/Other", SurfaceCase::Declared),
+                head: {
+                    let mut head =
+                        invariant("vocab:AttributiveAdjective/Other", SurfaceCase::Declared);
+                    head.frame = Some(0);
+                    head
+                },
             }),
             head: Box::new(noun("lexeme:CommonNoun/Player")),
         }),

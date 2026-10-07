@@ -5,6 +5,42 @@ use common::lexicon;
 use common::readings;
 use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_lexical::Case;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::Person;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
+
+fn word(id: &str, form: WordForm, features: FeatureBundle) -> Word {
+    Word {
+        value: LexicalReading::Word(LexicalValue {
+            lexeme: id.into(),
+            form,
+            features,
+            variant: 0,
+            capitalization: SurfaceCase::Declared,
+        }),
+        frame: None,
+        countability: None,
+    }
+}
+
+fn power_word() -> Word {
+    let mut power = word(
+        "lexeme:CommonNoun/Power",
+        WordForm::Singular,
+        FeatureBundle {
+            number: Some(Number::Singular),
+            ..FeatureBundle::default()
+        },
+    );
+    power.countability = Some(true);
+    power
+}
 
 #[test]
 fn equality_complements_belong_to_the_adjective_inside_the_object() {
@@ -71,26 +107,6 @@ fn equality_is_predicative_and_survives_a_postposed_recipient_order() {
 
 #[test]
 fn an_independent_nominal_comparison_preserves_structure_and_words() {
-    use deckmaste_english_v3::grammar::Word;
-    use deckmaste_lexical::Case;
-    use deckmaste_lexical::FeatureBundle;
-    use deckmaste_lexical::LexicalReading;
-    use deckmaste_lexical::LexicalValue;
-    use deckmaste_lexical::Number;
-    use deckmaste_lexical::Person;
-    use deckmaste_lexical::SurfaceCase;
-    use deckmaste_lexical::WordForm;
-    let word = |id: &str, form, features| Word {
-        value: LexicalReading::Word(LexicalValue {
-            lexeme: id.into(),
-            form,
-            features,
-            variant: 0,
-            capitalization: SurfaceCase::Declared,
-        }),
-        frame: None,
-        countability: None,
-    };
     let mut head = word(
         "vocab:ScalarDegree/Equal",
         WordForm::Invariant,
@@ -112,15 +128,7 @@ fn an_independent_nominal_comparison_preserves_structure_and_words() {
             ..FeatureBundle::default()
         },
     );
-    let mut power = word(
-        "lexeme:CommonNoun/Power",
-        WordForm::Singular,
-        FeatureBundle {
-            number: Some(Number::Singular),
-            ..FeatureBundle::default()
-        },
-    );
-    power.countability = Some(true);
+    let power = power_word();
     let value = Reading::ComparativeAdjective {
         form: 0,
         phrase: Box::new(Reading::ComparativeAdjectivePhrase {
@@ -158,11 +166,23 @@ fn an_independent_nominal_comparison_preserves_structure_and_words() {
     value
         .visit_words(&mut |word| leaves.push(word.clone()))
         .unwrap();
-    assert_eq!(
-        leaves,
-        [head.clone(), marker.clone(), possessor, power.clone()]
-    );
+    assert_eq!(leaves, [head, marker, possessor, power]);
+}
 
+#[test]
+fn an_independent_shared_governor_comparison_preserves_structure_and_words() {
+    let mut head = word(
+        "vocab:ScalarDegree/Equal",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    head.frame = Some(0);
+    let marker = word(
+        "vocab:Preposition/To",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    let power = power_word();
     // Sandbender Scavengers / Gurgling Anointer: one bare Complement is
     // shared by two governors, each retaining its own selected marker.
     let mut less = word(

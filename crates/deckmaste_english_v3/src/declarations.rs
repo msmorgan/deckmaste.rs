@@ -2864,8 +2864,8 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
-        // CGEL Ch. 13 §1.3, pp. 1103–1104 distinguishes the bare
-        // comparative Complement and its selected expanded marker.
+        // CGEL Ch. 13 §1.3, pp. 1103–1104 distinguishes the bare comparative
+        // Complement from the expanded Complement that includes its marker.
         table comparative_marker(frame, ComparisonMarker) -> Selection {
             (Equality, Equality) => Yes, (Ordering, Ordering) => Yes,
         }

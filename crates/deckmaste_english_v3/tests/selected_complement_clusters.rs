@@ -110,9 +110,13 @@ fn any_target(other: bool) -> Reading {
         head: Box::new(if other {
             Reading::PremodifiedNominal {
                 form: 0,
-                modifier: Box::new(Reading::Adjective {
+                modifier: Box::new(Reading::IntransitiveAdjective {
                     form: 0,
-                    head: invariant("vocab:AttributiveAdjective/Other"),
+                    head: {
+                        let mut head = invariant("vocab:AttributiveAdjective/Other");
+                        head.frame = Some(0);
+                        head
+                    },
                 }),
                 head: Box::new(target),
             }
@@ -147,7 +151,7 @@ fn clusters(first: i32, second: i32, recipient: Reading) -> Reading {
     Reading::SelectedComplementClustersPredicate {
         category: Category::FinitePredicate,
         form: 0,
-        head: verb("core-verb:Deal", WordForm::Present, 5),
+        head: verb("core-verb:Deal", WordForm::Present, 4),
         tail: Box::new(Reading::Coordination {
             category: Category::SelectedComplementTail,
             form: 0,
@@ -313,7 +317,7 @@ fn selected_cluster_hosts_require_coordination_and_parallel_selected_markers() {
     let invalid = Reading::SelectedComplementClustersPredicate {
         category: Category::FinitePredicate,
         form: 0,
-        head: verb("core-verb:Deal", WordForm::Present, 5),
+        head: verb("core-verb:Deal", WordForm::Present, 4),
         tail: Box::new(tail(3, any_target(false))),
     };
     assert!(invalid.admit(&LEXICON).is_err());
@@ -322,7 +326,7 @@ fn selected_cluster_hosts_require_coordination_and_parallel_selected_markers() {
     let ordinary = Reading::SelectedPredicate {
         category: Category::FinitePredicate,
         form: 0,
-        head: verb("core-verb:Deal", WordForm::Present, 5),
+        head: verb("core-verb:Deal", WordForm::Present, 4),
         complements: vec![
             deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(damage(3))),
             deckmaste_english_v3::grammar::FrameValue::Marker(invariant("vocab:Preposition/To")),
@@ -389,7 +393,7 @@ fn avacyn_recipient_stays_with_the_lexical_passive_below_both_auxiliaries() {
     let selected = Reading::SelectedGapPrepositionPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,
-        head: verb("core-verb:Deal", WordForm::PastParticiple, 5),
+        head: verb("core-verb:Deal", WordForm::PastParticiple, 4),
         marker: invariant("vocab:Preposition/To"),
         complement: Box::new(another_creature()),
     };
@@ -406,7 +410,7 @@ fn avacyn_recipient_stays_with_the_lexical_passive_below_both_auxiliaries() {
     }
     let bare = Reading::PassivePredicate {
         form: 0,
-        head: verb("core-verb:Deal", WordForm::PastParticiple, 4),
+        head: verb("core-verb:Deal", WordForm::PastParticiple, 3),
     };
     for (category, head) in [
         (Category::SecondaryVerbPhrase, bare.clone()),

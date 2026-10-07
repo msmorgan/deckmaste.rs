@@ -153,7 +153,7 @@ fn avacyn_passive() -> Reading {
         head: Box::new(Reading::SelectedGapPrepositionPredicate {
             category: Category::SecondaryVerbPhrase,
             form: 0,
-            head: word("core-verb:Deal", WordForm::PastParticiple, Some(5), None),
+            head: word("core-verb:Deal", WordForm::PastParticiple, Some(4), None),
             marker: invariant("vocab:Preposition/To"),
             complement: Box::new(acc(creature)),
         }),
@@ -387,9 +387,13 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
         "vocab:PossessiveDeterminerPronoun/Their",
         Reading::PremodifiedNominal {
             form: 0,
-            modifier: Box::new(Reading::Adjective {
+            modifier: Box::new(Reading::IntransitiveAdjective {
                 form: 0,
-                head: invariant("vocab:AttributiveAdjective/Other"),
+                head: {
+                    let mut head = invariant("vocab:AttributiveAdjective/Other");
+                    head.frame = Some(0);
+                    head
+                },
             }),
             head: Box::new(Reading::BareFramedNoun {
                 form: 0,

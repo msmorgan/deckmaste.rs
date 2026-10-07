@@ -1,7 +1,8 @@
 use std::path::Path;
 use std::sync::LazyLock;
 
-use deckmaste_lexical::{Category, Lexeme};
+use deckmaste_lexical::Category;
+use deckmaste_lexical::Lexeme;
 
 static SOURCES: LazyLock<deckmaste_lexical_source::LexicalSources> = LazyLock::new(|| {
     deckmaste_lexical_source::load_workspace(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."))
@@ -178,10 +179,28 @@ fn selected_markers_and_recipient_first_deal_are_declared_lexical_frames() {
         deal.properties.frames.last(),
         Some(&deckmaste_lexical::Frame {
             kind: "Predicate".into(),
-            items: vec![object.clone(), object],
+            items: vec![object.clone(), object.clone()],
         })
     );
-    assert_eq!(deal.properties.frames.len(), 7);
+    assert_eq!(deal.properties.frames.len(), 6);
+    assert_eq!(
+        deal.properties.frames[1],
+        deckmaste_lexical::Frame {
+            kind: "Predicate".into(),
+            items: vec![
+                object.clone(),
+                deckmaste_lexical::FrameItem::Marker {
+                    vocabulary: "Preposition".into(),
+                    member: "To".into(),
+                },
+                object,
+                deckmaste_lexical::FrameItem::Argument(deckmaste_lexical::FrameSlot {
+                    relation: deckmaste_lexical::Relation::Complement,
+                    category: "ComparativeAdjectivePhrase".into(),
+                }),
+            ],
+        }
+    );
 }
 
 #[test]

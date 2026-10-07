@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-comparative-quantity-determiners, english-v3-comparative-complements, english-v3-scalar-property-values, english-v3-copular-scalar-location, english-v3-as-long-as, english-v3-instead-replacement, english-v3-cost-scalar-complement, english-v3-remove-from-complement, english-v3-that-degree-quantifiers, english-v3-combat-interval-noun, english-v3-where-variable-clause, english-v3-each-of-partitive, english-v3-causative-have, english-v3-focusing-only, english-v3-once-frequency, english-v3-become-adjectival-passive]
+needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-comparative-quantity-determiners, english-v3-comparative-complements, english-v3-postpositive-comparative-determinatives, english-v3-scalar-property-values, english-v3-copular-scalar-location, english-v3-as-long-as, english-v3-instead-replacement, english-v3-cost-scalar-complement, english-v3-remove-from-complement, english-v3-that-degree-quantifiers, english-v3-combat-interval-noun, english-v3-where-variable-clause, english-v3-each-of-partitive, english-v3-causative-have, english-v3-focusing-only, english-v3-once-frequency, english-v3-become-adjectival-passive]
 ---
 # Reconcile systemic residuals before production cutover
 
@@ -429,3 +429,10 @@ are not accepted repairs. No 80-percent coverage forecast or raw occurrence coun
 is a promised gain. Preserve cause classification and actual identity reconciliation
 here after each implementation. The three demonstrated composition defects are
 explicit production-cutover prerequisites; the broader audit remains open.
+
+- Postpositive comparative Determinatives after measured NPs (*at least 10
+  life more than your starting life total*) are owned by
+  `english-v3-postpositive-comparative-determinatives`, split during the
+  adjective-complement landing. CGEL Ch. 5 §14.2(a), p. 445 identifies their
+  category and post-head distribution; they must not become Adjective
+  homographs. The eight supported witnesses and host gaps are named there.

@@ -195,7 +195,7 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
     }
     let passive = Reading::RetainedObjectPassive {
         form: 0,
-        head: verb("core-verb:Deal", WordForm::PastParticiple, 6),
+        head: verb("core-verb:Deal", WordForm::PastParticiple, 5),
         object: Box::new(acc(Reading::BareMass {
             form: 0,
             head: Box::new(damage),

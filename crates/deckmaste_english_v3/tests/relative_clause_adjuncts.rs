@@ -1,11 +1,20 @@
 mod common;
 
-use common::{lexicon, readings};
-use deckmaste_english_v3::grammar::{Category, Reading, Word};
-use deckmaste_lexical::{
-    Case, FeatureBundle, Finiteness, LexicalReading, LexicalValue, Number, Person, SurfaceCase,
-    Tense, WordForm,
-};
+use common::lexicon;
+use common::readings;
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_lexical::Case;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::Finiteness;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::Person;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::Tense;
+use deckmaste_lexical::WordForm;
 
 fn word(owner: &str, form: WordForm, features: FeatureBundle) -> Word {
     Word {
@@ -57,9 +66,13 @@ fn during_untap_step() -> Reading {
                 determiner: invariant("vocab:FloatedQuantifier/Each"),
                 head: Box::new(Reading::PremodifiedNominal {
                     form: 0,
-                    modifier: Box::new(Reading::Adjective {
+                    modifier: Box::new(Reading::IntransitiveAdjective {
                         form: 0,
-                        head: invariant("vocab:AttributiveAdjective/Other"),
+                        head: {
+                            let mut head = invariant("vocab:AttributiveAdjective/Other");
+                            head.frame = Some(0);
+                            head
+                        },
                     }),
                     head: Box::new(noun("lexeme:CommonNoun/Player")),
                 }),
