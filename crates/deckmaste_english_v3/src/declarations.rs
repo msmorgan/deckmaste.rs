@@ -19,6 +19,14 @@ constructions! {
         feature ObliqueNumber { None, Singular, Plural } default None;
         feature CaseUse { Common, Nominative, Accusative }
         feature Targeting { No, Yes }
+        feature TargetingPremodifierUse { No, Yes } default No;
+        table targeting_premodifier(TargetingPremodifierUse, Targeting) -> Selection {
+            (No, No) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+        }
+        table coordinated_targeting_premodifier(TargetingPremodifierUse, TargetingPremodifierUse)
+            -> TargetingPremodifierUse {
+            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+        }
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase, PredicativeNounPhrase, None }
         feature AdjectiveComplementClass { Manner }
@@ -176,7 +184,7 @@ constructions! {
             BarePrepositionUse, SelectedPrepositionUse, ScalarDenotation);
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, ScalarDenotation);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse);
-        category AdjectivePhrase(AdjectiveStructure);
+        category AdjectivePhrase(AdjectiveStructure, TargetingPremodifierUse);
         category Name();
         category NamePredicate();
         category PrepositionPhrase(LocativeUse, PrepositionFunctionLicence, ObliqueNumber,
@@ -260,7 +268,7 @@ constructions! {
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation
         );
-        category AdjectivePhraseSeries(AdjectiveStructure);
+        category AdjectivePhraseSeries(AdjectiveStructure, TargetingPremodifierUse);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
@@ -726,6 +734,8 @@ constructions! {
         policy AdjectiveStructureMerge<Right, Source> {
             export AdjectiveStructure = coordinated_adjective_structure(left.AdjectiveStructure,
                 Right.AdjectiveStructure);
+            export TargetingPremodifierUse = coordinated_targeting_premodifier(
+                left.TargetingPremodifierUse, Right.TargetingPremodifierUse);
         }
 
         policy AdverbPermissions<Right, Source> {
@@ -1793,12 +1803,14 @@ constructions! {
             form [head: lexical(Adjective)];
             require head.framing = Unframed;
             export AdjectiveStructure = Simple;
+            export TargetingPremodifierUse = head.TargetingPremodifierUse;
         }
 
         construction IntransitiveAdjective: AdjectivePhrase {
             form [head: lexical(Adjective)];
             require head.frame = Intransitive;
             export AdjectiveStructure = Simple;
+            export TargetingPremodifierUse = head.TargetingPremodifierUse;
         }
 
         construction NounPremodifier: NounPremodifier {
@@ -1858,7 +1870,7 @@ constructions! {
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             require modifier.AdjectiveStructure = Simple;
-            require head.Targeting = No;
+            require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
         }
 
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
@@ -2037,6 +2049,25 @@ constructions! {
             require licence_noun_complement(complement.PrepositionFunctionLicence) = Yes;
             export number = quantity.number;
             export Targeting = No;
+            use ThirdPersonCommonCase;
+        }
+
+        // CGEL Ch. 5 §§9.1–9.2, pp. 411–413: explicitly partitive determiner-head.
+        // Targeted obliques are the each-of ticket's Oracle-English decision.
+        construction DeterminerHeadPartitiveNounPhrase: NounPhrase {
+            form [head: lexical(Determinative), " ", complement: PrepositionPhrase,
+                modifiers: repeat(PartitiveModifier, "")];
+            require head.NominalComplementMarker = Of;
+            agree head.NominalComplementMarker = complement.NominalComplementMarker;
+            require complement.ObliqueNumber = Plural;
+            require licence_noun_complement(complement.PrepositionFunctionLicence) = Yes;
+            require head.DeterminerUse = SingularCount;
+            export number = Singular;
+            export Targeting = No;
+            export ScalarDenotation = No;
+            export SelectedPrepositionUse = No;
+            export BarePrepositionUse = No;
+            export BareGenitiveHost = No;
             use ThirdPersonCommonCase;
         }
 
@@ -2793,6 +2824,7 @@ constructions! {
             form [head: lexical(Numeral)];
             require head.numeral_kind = Ordinal;
             export AdjectiveStructure = Simple;
+            export TargetingPremodifierUse = Yes;
         }
 
         construction GroupedScalarNumeral: MeasurePhrase {
@@ -2981,6 +3013,7 @@ constructions! {
         construction ComparativeAdjective: AdjectivePhrase {
             form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
+            export TargetingPremodifierUse = No;
         }
 
         construction CardinalAmount: Amount {

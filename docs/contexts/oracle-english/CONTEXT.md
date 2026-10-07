@@ -550,10 +550,11 @@ distribution; the noun's permission alone does not make it a Complement of
 every preposition ([project ruling, 2026-10-06](../../tickets/done/english-v3-library-position.md#post-landing-fix-2026-10-06)).
 
 **Nominal Complement Marker** (project term):
-A declared marker of a noun's selected Complement, such as *of* in *the bottom
-of the library*. A selected Complement and an optional Postmodifier have
-different functions even when both are Preposition Phrases (CGEL, Ch. 5 §14,
-p. 439, introduces the distinction; §14.2, p. 446 [14], illustrates PP
+A declared marker of a nominal head's selected Complement, such as *of* in
+*the bottom of the library* or the fused determiner-head *each of them*
+(CGEL, Ch. 5 §§9.1–9.2, pp. 411–413). A selected Complement and an optional
+Postmodifier have different functions even when both are Preposition Phrases
+(CGEL, Ch. 5 §14, p. 439, introduces the distinction; §14.2, p. 446 [14], illustrates PP
 Postmodifiers; Ch. 7 §3.1, pp. 620–623 discusses competing internal analyses).
 
 **Selected Preposition Use** (project term):
@@ -839,6 +840,13 @@ count noun *target* and the verb *target*.
 **Target Noun**:
 The count-noun Lexeme whose Word Forms *target* and *targets* denote Game Model
 Targets.
+
+**Targeting Premodifier Use** (project term):
+A Modifier's declared permission to precede a Nominal containing a Targeting
+Marker. This Oracle-English licence preserves the project's existing colour
+modifier restriction while admitting the attested *other target creatures* and
+ordinal compositions; its evidence and limits are recorded in the
+[each-of landing](../../tickets/done/english-v3-each-of-partitive.md#landing-record).
 
 **Target Verb**:
 The Verb Lexeme realized as *target*, *targets*, *targeted*, or *targeting* in

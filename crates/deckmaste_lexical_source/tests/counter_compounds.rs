@@ -230,3 +230,38 @@ fn native_counter_notation_inventory_has_exact_independent_singular_and_plural_v
         );
     }
 }
+
+#[test]
+fn native_word_counter_keeps_core_ownership_and_exact_noun_values() {
+    // The War in Heaven attests “a necrodermis counter”.
+    let owner = "lexeme:CommonNoun/NecrodermisCounter/compound-noun";
+    let noun = &LEXICON.lexemes()[owner];
+    assert_eq!(noun.source.kind, SourceKind::Core);
+    assert_eq!(noun.source.owner, "lexeme:CommonNoun/NecrodermisCounter");
+    assert_eq!(
+        noun.source.path,
+        "crates/deckmaste_lexical_source/lexicon/core.ron"
+    );
+    assert_eq!(noun.category, Category::Noun);
+    assert_eq!(noun.properties.countability, [Countability::Count]);
+    assert_eq!(
+        noun.properties.features["CompoundHead"],
+        "lexeme:CommonNoun/Counter"
+    );
+    assert_eq!(noun.surface_structure, SurfaceStructure::Multiword);
+    for (text, form, number) in [
+        ("necrodermis counter", WordForm::Singular, Number::Singular),
+        ("necrodermis counters", WordForm::Plural, Number::Plural),
+    ] {
+        let expected = value(owner, form, number);
+        assert_eq!(LEXICON.realize(&expected).unwrap(), text);
+        let actual: BTreeSet<_> = LEXICON
+            .analyze(text)
+            .matches
+            .into_iter()
+            .filter(|matched| matched.start == 0 && matched.end == text.chars().count())
+            .map(|matched| matched.reading)
+            .collect();
+        assert_eq!(actual, BTreeSet::from([expected]));
+    }
+}
