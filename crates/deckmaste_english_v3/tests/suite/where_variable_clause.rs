@@ -453,3 +453,62 @@ fn coordinated_definitions_retain_general_coordination() {
         ],
     );
 }
+
+#[test]
+fn neverending_torment_keeps_general_coordination_outside_the_medial_definition() {
+    let anchor = "Search target player's library for X cards";
+    let definition = "where X is the number of cards in your hand";
+    let continuation = "exile them";
+    let text =
+        format!("{anchor}, {definition}, and {continuation}. Then that player shuffles.\nEpic");
+    let values = readings(&text, Category::Document);
+    assert!(!values.is_empty());
+    for value in values {
+        let mut attachments = Vec::new();
+        value
+            .visit(&mut |node| {
+                if let Reading::MedialSupplementation {
+                    anchor,
+                    supplement,
+                    coordinator,
+                    continuation,
+                    ..
+                } = node
+                {
+                    attachments.push((
+                        anchor.realize(lexicon()).unwrap(),
+                        supplement.realize(lexicon()).unwrap(),
+                        lexicon().realize(&coordinator.value).unwrap(),
+                        continuation.realize(lexicon()).unwrap(),
+                    ));
+                }
+                if let Reading::CoordinatedClauseComplementPreposition { head, .. } = node {
+                    assert_ne!(lexicon().realize(&head.value).unwrap(), "where");
+                }
+            })
+            .unwrap();
+        assert_eq!(
+            attachments,
+            vec![(
+                anchor.to_owned(),
+                definition.to_owned(),
+                "and".to_owned(),
+                continuation.to_owned(),
+            )]
+        );
+    }
+    assert_constituents(
+        &text,
+        Category::Document,
+        &[
+            (Category::Clause, anchor),
+            (Category::PrepositionPhrase, definition),
+            (
+                Category::FiniteClause,
+                "X is the number of cards in your hand",
+            ),
+            (Category::NounPhrase, "the number of cards in your hand"),
+            (Category::Clause, continuation),
+        ],
+    );
+}

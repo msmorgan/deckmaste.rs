@@ -1667,8 +1667,6 @@ constructions! {
                 coordinator: lexical(Coordinator), " ", continuation: Clause];
             require licence_supplement(supplement.PrepositionFunctionLicence) = Yes;
             require coordinator.NoncorrelativeCoordination = Yes;
-            require coordinator.CommaCoordination = Yes;
-            require coordinator.GeneralCoordination = No;
             require anchor.terminal_punctuation = None;
             export UnmarkedConjunctLicence = anchor.UnmarkedConjunctLicence;
         }
