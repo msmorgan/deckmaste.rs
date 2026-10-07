@@ -126,7 +126,10 @@ checker guarantees; no engine history-query implementation is claimed.
 ## Grammatical references and internal windows
 
 Ordinary `it`, `them`, and worded pronouns resolve in the whole containing
-context and require exactly one compatible antecedent. The authoring boundary
+context and require exactly one compatible antecedent. This is the checker's
+current behaviour, not the target: `docs/decisions/semantics-v2.md` §7 (ruling
+2026-10-07) replaces it with measured resolution rules, which apply once
+`lean-drt-anaphora-refactor` lands. The authoring boundary
 excludes raw `NounPhrase.pro` and `Window` construction, including both numeric
 windows and introduction patterns. Named scope macros carry the phrase,
 instruction or condition whose mentions they re-read; their expanded windows

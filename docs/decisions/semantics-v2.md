@@ -103,6 +103,9 @@ spellings:
   uniqueness after its word filter. There is no nearest-wins tiebreak at the
   semantics layer; the guide's own editorial rule — repeat a noun rather than
   stack ambiguous pronouns — is the type discipline.
+  (Superseded as the target by the §7 ruling of 2026-10-07, "Anaphor
+  resolution: measured rules replace the strict rule as the target"; this
+  remains the checker's behaviour until `lean-drt-anaphora-refactor` lands.)
 - "its controller" is `ControllerOf It`: relational nouns compose over any
   noun; there are no fused pronoun forms.
 - The carrier word is a typing discipline [CR#109.2,110.1]. Bindings carry
@@ -394,6 +397,45 @@ mimicked.
   retires the battlefield demand altogether. No counter kind needs a wider
   rule: of 73 counter declarations only `p1p1Counter` and `m1m1Counter`
   confer a stat change, both through `boost`. (Ruling, 2026-10-06.)
+- **Anaphor resolution: measured rules replace the strict rule as the
+  target.** Accessibility comes first. A mention is inaccessible to a read
+  when the consuming verb cannot apply to it by zone or kind: a creature that
+  died cannot take a counter, and a non-permanent cannot be sacrificed
+  [CR#109.2,701.21a]. This exclusion runs before any resolution rule. The
+  checker's bindings already carry zone and kind, so it is a condition on the
+  referent in the discourse-representation sense. The clause-mates of an
+  anaphor are the co-arguments of its verb only. A possessor ("its power") and
+  the object of a small clause ("counters on it") are not clause-mates, which
+  keeps the pin `badItAcrossOwnSlot` and the Weeping Angel corpus case. Among
+  the accessible referents, `it` and "that N" keep different rules. Bare
+  `it` takes the referent in the nearest clause, with grammatical role
+  (subject, then object, then other) as the tie-break, and a true tie still
+  refuses. On the 61 ambiguous sites in a 150-site sample this is 60 correct
+  under both coders' features: 60 / 1 / 0 (correct / wrong / refused) with
+  coder 2's, Grip of Phyresis the one wrong, and 60 / 0 / 1 with coder 1's,
+  Cocoon refused. "That N" first removes the anaphor's clause-mates and whatever a
+  pronoun in its own clause resolved to, then takes the most recent of what
+  remains. On the 87 ambiguous sites this is 76 correct, 11 wrong and
+  0 refused. Both coders' keys put it wrong on the same ten cards; the
+  eleventh is Noetic Scales for coder 1 and Tragic Banshee for coder 2, a
+  fold-state site the accessibility exclusion above settles. The 11 "that N" sites are known-wrong: Tahngarth, First Mate; Unpredictable
+  Cyclone; Eriette, the Beguiler; Runesword; Scythe of the Wretched; Bronze
+  Bombshell; Gisela, Blade of Goldnight; Solphim, Mayhem Dominus; Ram Through;
+  Mangara's Equity; Noetic Scales. Each resolves silently to the wrong
+  referent, and the round-trip cannot catch it because the rendered English
+  is identical. Each needs an explicit selector when its card is written, and
+  the refactor pins all 11. This is the target: it supersedes the strict
+  statement in `lean/CONTRACTS.md` ("Grammatical references and internal
+  windows") and §4's "no nearest-wins tiebreak". The checker keeps its
+  current behaviour until `lean-drt-anaphora-refactor` lands. Evidence:
+  `docs/tickets/done/semantics-v2-anaphor-resolution-heuristics.md`
+  ("Measured 2026-10-06", "Blind second coding and agreement") and the ignored
+  local directories `docs/evidence/anaphora-measurement-2026-10-06/`,
+  `docs/evidence/anaphora-blind-2026-10-07/` and
+  `docs/evidence/anaphora-agreement-2026-10-07/`. (Ruling, 2026-10-07, owner,
+  `semantics-v2-anaphor-resolution-heuristics`. The accessibility and
+  clause-mate judgments are provisional: "ok to both I guess. we'll try this
+  way for now anyhow". The rules were accepted with "ok".)
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.

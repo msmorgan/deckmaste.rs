@@ -3,6 +3,8 @@
 > Workbench succession (2026-09-05): current workbench evidence lives in
 > `lean/`; Idris paths below are historical. See
 > [Lean is the workbench](lean-is-the-workbench.md).
+>
+> Superseded as the target (2026-10-07): clause 3's counted uniqueness, the "NOT a preference" passage and the reserved clause-recency give way to the measured rules in [Semantics v2](semantics-v2.md) §7, "Anaphor resolution: measured rules replace the strict rule as the target"; the checker keeps them until `lean-drt-anaphora-refactor` lands.
 
 ## Decision
 
