@@ -1,8 +1,10 @@
 #!/usr/bin/env fish
 # Formats the workspace: rustfmt on nightly (rustfmt.toml uses unstable
-# options), then `cargo sort-derives` (alphabetical, the tool's default —
-# the order this codebase uses). A cargo alias can only run a single cargo
-# command, so this script is what "cargo fmt" means here.
+# options), then `cargo sort-derives` (the listed traits first, the rest
+# alphabetical — the order this codebase uses). A cargo alias can only run a
+# single cargo command, so this script is what "cargo fmt" means here.
+# scripts/jj-repo-config gives `jj fix` the same two passes; keep the derive
+# order in step with it.
 
 cd (dirname (status filename))/..; or exit
 

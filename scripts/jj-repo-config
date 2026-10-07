@@ -1,0 +1,27 @@
+#!/usr/bin/env fish
+# Installs this repo's jj repo-scope config. jj keeps that config outside the
+# checkout (`jj config path --repo`), so a fresh clone starts without it: run
+# this once per clone, from any workspace. Re-running is harmless.
+
+cd (dirname (status filename))/..; or exit
+
+function set_repo
+    jj --no-pager config set --repo $argv; or exit
+end
+
+# `jj fix`: the same two passes as scripts/fmt, in the same order (jj runs
+# tools in name order, hence the numeric prefixes). Keep the derive order in
+# step with scripts/fmt.
+set_repo fix.tools.1-rustfmt.command '["rustfmt", "+nightly", "--emit", "stdout", "--edition", "2024", "--config-path", "$root/rustfmt.toml"]'
+set_repo fix.tools.1-rustfmt.patterns '["glob:**/*.rs"]'
+set_repo fix.tools.2-sort-derives.command '["cargo", "sort-derives", "--stdin", "--order", "Debug,Clone,Copy,Default,PartialEq,Eq,Hash"]'
+set_repo fix.tools.2-sort-derives.patterns '["glob:**/*.rs"]'
+
+# Workspace boundaries: the four aliases jj-sensei's boundaries skill installs
+# (see CLAUDE.md "Version control"). jj-kata checks them by exact text, so if
+# the plugin rewords them, re-run that skill rather than editing these; audit
+# with its `--check`.
+set_repo "revset-aliases.'other_workspaces()'" 'working_copies() ~ @'
+set_repo "revset-aliases.'not_default()'" '@ ~ default@'
+set_repo "revset-aliases.'only_if(condition, revisions)'" 'revisions & descendants(ancestors(condition))'
+set_repo "revset-aliases.'immutable_heads()'" 'builtin_immutable_heads() | only_if(not_default(), other_workspaces())'
