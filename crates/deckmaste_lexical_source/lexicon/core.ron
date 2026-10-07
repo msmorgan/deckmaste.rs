@@ -1199,6 +1199,10 @@
         "vocab:ScalarDegree/Greater": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
         "vocab:ScalarDegree/Lesser": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
         "vocab:Adjective/Less": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
+        "vocab:AttributiveAdjective/Other": [
+            (kind: "Predicate", items: []),
+            (kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))]),
+        ],
     },
     frame_markers: {
         "to": ("InfinitivalMarker", "To"),

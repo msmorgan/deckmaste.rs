@@ -203,7 +203,7 @@ constructions! {
         category UnsignedScalar();
         category ScalarComponent();
         category SlashPair();
-        category ComparativeGovernor();
+        category ComparativeGovernorHead();
         category ComparativeComplement();
         category ComparativeAdjectivePhrase();
         category KeywordPhrase();
@@ -1784,7 +1784,7 @@ constructions! {
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord, NoConcord),
             (Nominal, Self, NominalConcord),
             (AdjectivePhrase, Self, AdjectiveStructureMerge),
-            (ComparativeGovernor, Self),
+            (ComparativeGovernorHead, Self),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, NoConcord),
@@ -2870,7 +2870,7 @@ constructions! {
             (Equality, Equality) => Yes, (Ordering, Ordering) => Yes,
         }
 
-        construction ComparativeGovernor: ComparativeGovernor {
+        construction ComparativeGovernorHead: ComparativeGovernorHead {
             form [head: lexical(Adjective), " ", marker: lexical(Preposition)];
             require comparative_marker(head.frame, marker.ComparisonMarker) = Yes;
             require licence_comparative_complement(marker.PrepositionFunctionLicence) = Yes;
@@ -2885,7 +2885,7 @@ constructions! {
         }
 
         construction ComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
-            form [governor: ComparativeGovernor, " ", complement: ComparativeComplement];
+            form [governor: ComparativeGovernorHead, " ", complement: ComparativeComplement];
         }
 
         construction ComparativeAdjective: AdjectivePhrase {

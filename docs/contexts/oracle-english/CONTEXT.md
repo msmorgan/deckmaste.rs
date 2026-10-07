@@ -231,6 +231,12 @@ _Avoid_: classifying temporal *long* as an Adjective solely from its spelling
 An item that licenses a comparative Complement, such as *equal*, *less*,
 *greater* or *other* (CGEL, Ch. 13 §1.3, p. 1104).
 
+**Comparative Governor Head** (project term):
+An adjectival Comparative Governor together with its selected Preposition,
+preceding a bare Comparative Complement. Such left portions can share a
+delayed right Complement; CGEL, Ch. 15 §4.4, p. 1343, n. 66 illustrates
+comparative Coordination retaining each selected marker.
+
 **Comparative Complement**:
 The expression of the secondary term in a comparison. The bare Complement
 excludes its governing Preposition; the expanded Complement includes that

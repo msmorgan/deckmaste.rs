@@ -786,10 +786,14 @@ fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
     head.frame = Some(0);
     let value = Reading::ComparativeAdjectivePhrase {
         form: 0,
-        governor: Box::new(Reading::ComparativeGovernor {
+        governor: Box::new(Reading::ComparativeGovernorHead {
             form: 0,
             head: head.clone(),
-            marker: word("vocab:Preposition/To", WordForm::Invariant, FeatureBundle::default()),
+            marker: word(
+                "vocab:Preposition/To",
+                WordForm::Invariant,
+                FeatureBundle::default(),
+            ),
         }),
         complement: Box::new(Reading::ScalarComparativeComplement {
             form: 0,
@@ -1118,10 +1122,14 @@ fn complemented_adjectives_are_postpositive_in_both_directions() {
         form: 0,
         phrase: Box::new(Reading::ComparativeAdjectivePhrase {
             form: 0,
-            governor: Box::new(Reading::ComparativeGovernor {
+            governor: Box::new(Reading::ComparativeGovernorHead {
                 form: 0,
                 head: adjective,
-                marker: word("vocab:Preposition/To", WordForm::Invariant, FeatureBundle::default()),
+                marker: word(
+                    "vocab:Preposition/To",
+                    WordForm::Invariant,
+                    FeatureBundle::default(),
+                ),
             }),
             complement: Box::new(Reading::ScalarComparativeComplement {
                 form: 0,
