@@ -220,4 +220,39 @@ theorem conniveReadsTheDiscardsNumber :
      (NounPhrase.laterMention "d" (counted (.exactlyOf (.lit 2)) .isCard)).plur) =
       (.one, .many) := by decide
 
+/-! ## Regenerate
+
+"Regenerate <permanent>" [CR#701.19a]: the next time it would be destroyed this turn, instead
+remove all damage marked on it and its controller taps it; if it's an attacking or blocking
+creature, remove it from combat. The `plugins_v2` declaration binds the permanent where the
+replacement's event first mentions it, and the application (`regenerationApplication`) binds
+its own subject at its first mention, read back by identity in the other five. -/
+
+private def regenerationApplicationBy (subject : NounPhrase) : Instruction :=
+  let s := NounPhrase.laterMention "regenerationApplication.subject" subject
+  .enact (.action "Regenerate") (.sequentially [
+    .clearDamage (.firstMention "regenerationApplication.subject" subject),
+    act (.possessorOf .controller s) (.enact (.action "Tap") (.setStatus .tapped s)),
+    .doIf (.or [.matches s (.inCombat .attackerOf none), .matches s (.inCombat .blockerOf none)])
+      (.combat s (.participation .outsideCombat)) none])
+
+private def regenerateBy (permanent : NounPhrase) : Instruction :=
+  .establish (.replacement
+    (.verbedEvent none (.action "Destroy") (some (.firstMention "regenerate.0" permanent)) none none)
+    [] none (regenerationApplicationBy (.laterMention "regenerate.0" permanent)) .nextTimeOnly none)
+    (some .thisTurn)
+
+/-- "Regenerate target creature." -/
+theorem okRegenerateTarget : Instruction.check [] (regenerateBy (target creature)) = [] := by decide
+
+/-- "Regenerate this creature." -/
+theorem okRegenerateThisCreature : Instruction.check [] (regenerateBy thisCreature) = [] := by decide
+
+/-- The target is mentioned seven times and targeted once. -/
+theorem regenerateTargetsOnce :
+    targets ((regenerateBy (target creature)).intro []) = 1 := by decide
+
+/-- The application alone, as a static regeneration ability applies it [CR#701.19b]. -/
+theorem okRegenerationApplication :
+    Instruction.check [] (regenerationApplicationBy (target creature)) = [] := by decide
 end Semantics.Proofs.BindingIdentity

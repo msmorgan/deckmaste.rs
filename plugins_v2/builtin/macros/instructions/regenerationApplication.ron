@@ -1,5 +1,8 @@
 // The replacement's application, rather than installation of a new shield
-// [CR#701.19b,701.19c].
+// [CR#701.19b,701.19c]. The subject is mentioned six times: the loader binds it
+// at its first mention, the damage removal, and reads it back by identity in
+// the other five (`deckmaste_semantics_v2::mentions`), so a targeted subject is
+// targeted once.
 (
     name: "regenerationApplication",
     kinds: [Instruction],

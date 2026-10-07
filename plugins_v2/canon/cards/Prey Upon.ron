@@ -1,0 +1,15 @@
+// "Target creature you control fights target creature you don't control."
+// [CR#701.14a]: each target is selected once, though the fight body mentions
+// each creature three times.
+SingleFaced(face: (
+    characteristics: (
+        name: "Prey Upon",
+        cost: [Green],
+        types: [Sorcery],
+        text: [
+            spell(
+                fight(target(creatureYouControl), target(creatureYouDontControl)),
+            ),
+        ],
+    ),
+))

@@ -1,0 +1,13 @@
+// "Regenerate target creature." [CR#701.19a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Mending Touch",
+        cost: [Green],
+        types: [Instant],
+        text: [
+            spell(
+                regenerate(target(creature)),
+            ),
+        ],
+    ),
+))

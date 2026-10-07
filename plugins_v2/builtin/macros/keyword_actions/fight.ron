@@ -1,8 +1,24 @@
+// "<creature> fights <creature>" [CR#701.14a]: each deals damage equal to its
+// power to the other. Each creature is mentioned three times, so it is bound
+// where the first damage event first mentions it and read back by identity in
+// the rest (`deckmaste_semantics_v2::mentions`): a target is selected once. The
+// rule's own wording, "each of those creatures deals damage equal to its power
+// to the other creature", is a reciprocal the model lacks; the body writes the
+// two damage events instead (routed to
+// `semantics-v2-anaphor-resolution-heuristics`). That a creature no longer on
+// the battlefield deals no fight damage [CR#701.14b] is the rules' to apply,
+// not a guard here: a guard's condition may not introduce its subject. The
+// deed's row names no performer.
 KeywordAction(
     name: "fight",
+    params: [Subject, Subject],
     spelling: "fight",
     grammar: Verb(
         bare: "fight",
         frame_set: Transitive,
     ),
+    body: simultaneously([
+        dealDamage(Param(0), powerOf(Param(0)), Param(1)),
+        dealDamage(Param(1), powerOf(Param(1)), Param(0)),
+    ]),
 )

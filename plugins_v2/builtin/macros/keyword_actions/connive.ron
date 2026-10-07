@@ -6,7 +6,8 @@
 // hands the action to it and the body hands the steps on to
 // `controllerOf(actor)`, inside which "that permanent" is the conniving one.
 // The discarded cards are read back by identity (`discardThenForEachNonland`),
-// so their number is N's.
+// so their number is N's; they are cards in hand, written `cardIn(hand)` as the
+// owner settled for Burglar Rat's discard (2026-10-06).
 KeywordAction(
     name: "connive",
     params: [Amount],
@@ -20,7 +21,7 @@ KeywordAction(
         sequentially([
             draw(Param(0)),
             discardThenForEachNonland(
-                counted(exactlyOf(Param(0)), card),
+                counted(exactlyOf(Param(0)), cardIn(hand)),
                 putCounters(1, p1p1Counter, that(Permanent)),
             ),
         ]),

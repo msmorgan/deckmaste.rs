@@ -1,8 +1,23 @@
+// "Regenerate <permanent>" [CR#701.19a]: the next time it would be destroyed
+// this turn, instead remove all damage marked on it and its controller taps
+// it; if it's an attacking or blocking creature, remove it from combat. A
+// resolving regeneration installs this single-use shield; only its eventual
+// application carries the Regenerate label [CR#701.19c], so the declaration
+// names no deed and the application (`regenerationApplication`) enacts it. The
+// permanent is mentioned twice, so it is bound where the replacement's event
+// first mentions it and read back by identity in the application.
 KeywordAction(
     name: "regenerate",
+    params: [Subject],
     spelling: "regenerate",
     grammar: Verb(
         bare: "regenerate",
         frame_set: Transitive,
+    ),
+    deed: None,
+    body: replaceNextEvent(
+        verbedEvent(Action("Destroy"), Param(0)),
+        regenerationApplication(Param(0)),
+        thisTurn,
     ),
 )
