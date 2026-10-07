@@ -96,7 +96,7 @@ pub fn definition_body(
 ) -> Result<Option<String>, String> {
     match family {
         KEYWORD_ABILITY => keyword_ability_body(name, params, body).map(Some),
-        KEYWORD_ACTION => keyword_action_body(name, body).map(Some),
+        KEYWORD_ACTION => keyword_action_body(name, params, body).map(Some),
         crate::designations::DESIGNATION => {
             crate::designations::designation_body(name, body).map(Some)
         }
@@ -127,9 +127,17 @@ pub fn keyword_ability_body(name: &str, params: &Params, body: &str) -> Result<S
 /// has no instruction (`()`, the meta's omitted-body default) or names no
 /// deed (`deed: None`).
 ///
+/// Inside the deed the body is read in its own Reference Scope
+/// (`OwnScope`, `docs/decisions/semantics-v2.md` §7, ruling 2026-10-06): it
+/// sees the performer, its parameters and what it introduces, never the
+/// calling text's other mentions. Each parameter hole is read in the caller's
+/// view (`inCaller`), so an argument such as "it" or "that creature's power"
+/// still reads the text that wrote it. The scope opens here, at the keyword
+/// action boundary, never at a handoff.
+///
 /// # Errors
 /// As [`definition_body`].
-pub fn keyword_action_body(name: &str, body: &str) -> Result<String, String> {
+pub fn keyword_action_body(name: &str, params: &Params, body: &str) -> Result<String, String> {
     let record = Record::read(body, &["deed", "instruction"])?;
     let instruction = record.required("instruction")?;
     if instruction == "()" {
@@ -140,7 +148,69 @@ pub fn keyword_action_body(name: &str, body: &str) -> Result<String, String> {
         Some(deed) => deed.to_owned(),
         None => format!("Action(\"{}\")", keyword_action_label(name)),
     };
-    Ok(format!("Enact(verb: {deed}, instruction: {instruction})"))
+    Ok(format!(
+        "Enact(verb: {deed}, instruction: OwnScope(scope: {OWN_SCOPE}, body: {}))",
+        in_caller(params, instruction)
+    ))
+}
+
+/// The scope key the loader writes for every keyword action body's own scope
+/// and its parameters' caller views. One key serves every nesting: a caller view
+/// masks the frame it opens from, so a parameter forwarded into a nested body
+/// reads through to the next scope out.
+pub const OWN_SCOPE: u32 = 0;
+
+/// The parameter types whose arguments can refer back into the calling text,
+/// and so are read in the caller's view: each has an `InCaller` constructor.
+const CALLER_VIEW_TYPES: &[&str] = &[
+    "Subject",
+    "NounPhrase",
+    "Amount",
+    "Power",
+    "Toughness",
+    "Quality",
+    "Predicate",
+    "Quantity",
+    "Condition",
+    "ZoneExpr",
+    "Instruction",
+    "Cost",
+    "StaticSpec",
+    "GameEvent",
+];
+
+/// `instruction` with each hole of a caller-view parameter wrapped
+/// `inCaller(OWN_SCOPE, Param(p))`.
+fn in_caller(params: &Params, instruction: &str) -> String {
+    let viewed: Vec<String> = match params {
+        Params::Positional(types) => types
+            .iter()
+            .enumerate()
+            .filter(|(_, ty)| CALLER_VIEW_TYPES.contains(&ty.name.as_str()))
+            .map(|(index, _)| index.to_string())
+            .collect(),
+        Params::Named(named) => named
+            .iter()
+            .filter(|(_, ty)| CALLER_VIEW_TYPES.contains(&ty.name.as_str()))
+            .map(|(param, _)| param.as_str().to_owned())
+            .collect(),
+    };
+    let mut out = String::with_capacity(instruction.len());
+    let mut cursor = 0;
+    for hole in crate::mentions::param_holes(instruction) {
+        if !viewed.contains(&hole.param) {
+            continue;
+        }
+        out.push_str(&instruction[cursor..hole.start]);
+        out.push_str("inCaller(");
+        out.push_str(&OWN_SCOPE.to_string());
+        out.push_str(", ");
+        out.push_str(&instruction[hole.start..hole.end]);
+        out.push(')');
+        cursor = hole.end;
+    }
+    out.push_str(&instruction[cursor..]);
+    out
 }
 
 /// The keyword arguments a keyword ability's signature forwards, one per
@@ -303,28 +373,41 @@ mod tests {
     #[test]
     fn a_keyword_action_enacts_its_deed() {
         assert_eq!(
-            keyword_action_body("timeTravel", "(instruction: Shuffle)").unwrap(),
-            "Enact(verb: Action(\"Time Travel\"), instruction: Shuffle)"
+            keyword_action_body("timeTravel", &positional(&[]), "(instruction: Shuffle)").unwrap(),
+            "Enact(verb: Action(\"Time Travel\"), instruction: OwnScope(scope: 0, body: Shuffle))"
         );
         assert_eq!(
-            keyword_action_body("shuffle", "(deed: None, instruction: Shuffle)").unwrap(),
+            keyword_action_body(
+                "shuffle",
+                &positional(&[]),
+                "(deed: None, instruction: Shuffle)"
+            )
+            .unwrap(),
             "Shuffle"
         );
         assert_eq!(
-            keyword_action_body("scry", "(instruction: ())").unwrap(),
+            keyword_action_body("scry", &positional(&[]), "(instruction: ())").unwrap(),
             "()"
         );
         // `adapt` is performed by a permanent, and its wrapper names no
         // performer all the same: the actor is that permanent under a handoff
         // to it, and the source permanent by default.
         assert_eq!(
-            keyword_action_body("adapt", "(instruction: Shuffle)").unwrap(),
-            "Enact(verb: Action(\"Adapt\"), instruction: Shuffle)"
+            keyword_action_body(
+                "adapt",
+                &positional(&["Amount"]),
+                "(instruction: Grow(Param(0)))"
+            )
+            .unwrap(),
+            "Enact(verb: Action(\"Adapt\"), instruction: OwnScope(scope: 0, body: Grow(inCaller(0, Param(0)))))"
         );
         for agent in ["None", "You"] {
-            let error =
-                keyword_action_body("adapt", &format!("(agent: {agent}, instruction: Shuffle)"))
-                    .unwrap_err();
+            let error = keyword_action_body(
+                "adapt",
+                &positional(&[]),
+                &format!("(agent: {agent}, instruction: Shuffle)"),
+            )
+            .unwrap_err();
             assert!(error.contains("agent"), "{error}");
         }
     }

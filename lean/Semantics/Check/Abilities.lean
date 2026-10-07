@@ -15,7 +15,7 @@ namespace Semantics
 /-! ## Small attributes -/
 
 def Instruction.scopeBody : Instruction → Instruction
-  | .withBindings _ _ body | .inCaller _ body => body.scopeBody
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.scopeBody
   | body => body
 
 def StaticSpec.scopeBody : StaticSpec → StaticSpec
@@ -266,6 +266,7 @@ def DividedVerb.intro (bs : Bindings) : DividedVerb → Bindings
 def Instruction.enactPatient : Instruction → Option NounPhrase
   | .withBindings scope inputs body => body.enactPatient.map (.withBindings scope inputs)
   | .inCaller scope body => body.enactPatient.map (.inCaller scope)
+  | .ownScope _ body => body.enactPatient
   | .move n _ _ _ => some n
   | _ => none
 
@@ -302,6 +303,7 @@ def NounPhrase.libraryOwner : NounPhrase → Option NounPhrase
 def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
   | .withBindings scope inputs body => body.lookedLibraryOwner.map (.withBindings scope inputs)
   | .inCaller scope body => body.lookedLibraryOwner.map (.inCaller scope)
+  | .ownScope _ body => body.lookedLibraryOwner
   | .sequentially (first :: _) => first.lookedLibraryOwner
   | .expose .lookAt (.cards subject) => subject.libraryOwner
   | _ => none
@@ -405,7 +407,8 @@ def NounPhrase.performerInView (bs : Bindings) (who : NounPhrase) : List Binding
 permanent the performer phrase does not itself introduce (`performerInView`), under the handoff
 frame that `actor` reads. -/
 def actorCtx (bs : Bindings) (who : NounPhrase) : Bindings :=
-  ⟨.the, .one, .actor (who.performerShape bs), []⟩ :: (who.performerInView bs ++ agentIntro bs who)
+  let inView := who.performerInView bs ++ agentIntro bs who
+  ⟨.the, .one, .actor (who.performerShape bs) (inView.length - bs.length), []⟩ :: inView
 
 /-- An instruction that has a performer of its own: one of the deeds a player (or a permanent)
 does, and an offer, whose performer decides. A handoff to a group hands such an instruction to
@@ -446,7 +449,8 @@ def enactPerformer (v : Deed) (perf : Option NounPhrase) : Option NounPhrase :=
 /-- The handoff frame alone, with what it puts in view: the context a group handoff checks the
 one instruction it hands each member in, the instruction introducing the group itself. -/
 def performerFrame (bs : Bindings) (who : NounPhrase) : Bindings :=
-  ⟨.the, .one, .actor (who.performerShape bs), []⟩ :: (who.performerInView bs ++ bs)
+  ⟨.the, .one, .actor (who.performerShape bs) (who.performerInView bs).length, []⟩ ::
+    (who.performerInView bs ++ bs)
 
 /-- Leave a handoff: remove its frame and the `n` bindings the handoff put in view under it, and
 nothing else. -/
@@ -489,7 +493,7 @@ def enactCtx (bs : Bindings) (v : Deed) : Option NounPhrase → Bindings
 the player an enclosing handoff named: inside a handoff, its context starts with a handoff
 frame back to "you". Outside every handoff the context is unchanged. -/
 def ownPerformerCtx (bs : Bindings) : Bindings :=
-  if bs.any Binding.isActorFrame then ⟨.the, .one, .actor (NounPhrase.performerShape [] .you), []⟩ :: bs
+  if bs.any Binding.isActorFrame then ⟨.the, .one, .actor (NounPhrase.performerShape [] .you) 0, []⟩ :: bs
   else bs
 
 /-- The context an offer's body is checked in: its decider's, the performer `perf` a handoff hands
@@ -946,7 +950,7 @@ def NounPhrase.isActor : NounPhrase → Bool
 A life payment targets its payer; granting life may target anyone [CR#119.4]. A handoff names
 the performer of its body, so a payment inside it is judged as that player's. -/
 def Instruction.paidByYouAs (performerIsYou : Bool) : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.paidByYouAs performerIsYou
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.paidByYouAs performerIsYou
   | .changeLife (.down _) => performerIsYou
   | .enact v _ => !deedNamesPerformer v || performerIsYou
   | .act who body => body.paidByYouAs (if who.isActor then performerIsYou else who.isYou)
@@ -1019,11 +1023,20 @@ mutual
   termination_by structural cs => cs
 end
 
+/-- An enacted deed's body without the own scope the loader reads a keyword action body in: the
+move or status change a deed's provenance stamps is read through it. -/
+def Instruction.unscoped : Instruction → Instruction
+  | .ownScope _ body => body.unscoped
+  | e => e
+
 def Instruction.heldUntilOk : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.heldUntilOk
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.heldUntilOk
   | .setStatus .phasedOut _ => true
   | .move _ _ _ _ => true
-  | .enact _ (.move _ _ _ _) => true
+  | .enact _ e =>
+    match e.unscoped with
+    | .move _ _ _ _ => true
+    | _ => false
   | _ => false
 
 inductive EncloseUse where
@@ -1042,7 +1055,7 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
   | _ => false
 
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
-  | .withBindings _ _ body | .inCaller _ body => body.reflexEncloseUse
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.reflexEncloseUse
   | .skipPart _ _ => .notYetTaken
   | .addTurnPart .turn _ _ _ => .notYetTaken
   | .establish spec _ =>
@@ -1077,7 +1090,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | _ => .agentless
 
 def Instruction.thisWayOutcomeOk : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.thisWayOutcomeOk
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.thisWayOutcomeOk
   | .delay _ _ _ _ => false
   | .withContinuation _ body _ _ => body.thisWayOutcomeOk
   | .act _ body => body.thisWayOutcomeOk
@@ -1092,7 +1105,7 @@ def StaticSpec.definitionCostOk : StaticSpec → Bool
 mutual
   def Instruction.costActionOk : Instruction → Bool
     | .withBindings _ inputs body => inputs.all CaptureInput.costNounOk && body.costActionOk
-    | .inCaller _ body => body.costActionOk
+    | .inCaller _ body | .ownScope _ body => body.costActionOk
     | .dealDamage src _ _ => src.costNounOk
     | .skipUntap n _ => n.costNounOk
     | .addTurnPart _ _ _ _ => true
@@ -1152,7 +1165,7 @@ mutual
 end
 
 def Instruction.isInstead : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.isInstead
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.isInstead
   | .replace _ _ => true
   | _ => false
 
@@ -1222,6 +1235,10 @@ mutual
     | .inCaller scope body =>
       let p := Instruction.profileWith (enterCaller scope bs) none body
       ⟨leaveCaller bs p.pre, leaveCaller bs p.announced, p.rider.map (leaveCaller bs), p.deed⟩
+    | .ownScope scope body =>
+      let p := Instruction.profileWith (enterOwnScope scope bs) perf body
+      ⟨leaveOwnScope scope p.pre, leaveOwnScope scope p.announced,
+       p.rider.map (leaveOwnScope scope), p.deed⟩
     | .dealDamage src amt to =>
       sameIntro (nomIntro (Amount.introduced (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
         [outcomeB .damageDealt]
@@ -1307,7 +1324,7 @@ mutual
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []
     | .doubleCounters on => sameIntro (nomIntro bs on) []
     | .enact v e =>
-      match enactPerformer v perf, e with
+      match enactPerformer v perf, e.unscoped with
       | none, .move what _ to _ =>
         ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what to.sort),
          some (stampIntro bs (some v) what), []⟩
@@ -1317,8 +1334,9 @@ mutual
       if enactDefaultsToThis bs v s then
         let leave := leaveHandoff (sourcePermanent.performerInView bs).length
         let ep := Instruction.profileWith (enactCtx bs v (some s)) none e
-        doesProfile bs s.plur s v e ⟨leave ep.pre, leave ep.announced, ep.rider.map leave, ep.deed⟩
-      else doesProfile bs s.plur s v e (Instruction.profileWith (agentIntro bs s) none e)
+        doesProfile bs s.plur s v e.unscoped
+          ⟨leave ep.pre, leave ep.announced, ep.rider.map leave, ep.deed⟩
+      else doesProfile bs s.plur s v e.unscoped (Instruction.profileWith (agentIntro bs s) none e)
     | .pay c .once => let who := performerOf perf; ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, []⟩
     /- One performer: the body's own profile outside the handoff frame, so the player the
     handoff introduced stays published. Distributive performers follow `doForEach`: what each
@@ -1494,7 +1512,7 @@ def thisWayCtx (bs : Bindings) (body : Instruction) (ev : GameEvent) : Bindings 
   settleTargets (GameEvent.after (body.intro bs) ev)
 
 def Instruction.namesThisDoor : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.namesThisDoor
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.namesThisDoor
   | .delay ev alts _ _ => ev.namesThisDoor || alts.any GameEvent.namesThisDoor
   | .holdUntil _ ev => ev.namesThisDoor
   | .triggerThisWay _ ev _ => ev.namesThisDoor
@@ -1512,7 +1530,7 @@ def Ability.namesThisDoor : Ability → Bool
 
 mutual
   def Instruction.introducedChoices : Instruction → List Binding
-    | .withBindings _ _ body | .inCaller _ body => body.introducedChoices
+    | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.introducedChoices
     | .choose _ (.described (.a _) p) _ _ => introducedChoiceAt (p.kindOr .object)
     | .choose _ _ _ _ => []
     | .sequentially es => Instruction.introducedChoicesAll es
@@ -1700,7 +1718,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
 
 /-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
 def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
-  | .withBindings _ _ body | .inCaller _ body => body.numberSlots
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.numberSlots
   -- You can't deal negative damage [CR#107.1b].
   | .dealDamage _ amount _ => [(amount, .clamped)]
   | .setStatus _ _ | .turnOver _ | .combat _ _ => []

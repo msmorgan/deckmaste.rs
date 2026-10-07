@@ -104,6 +104,85 @@ second object is in view, and it checks. -/
 theorem okLiteralAmassHandedOff : Instruction.check [] (act (target .opponent) literalAmass) = [] := by
   decide
 
+/-! ## A keyword body's own reference scope
+
+A keyword action body is read in its own Reference Scope: it sees the performer, its parameters
+and what it introduces, never the calling text's other mentions (`docs/decisions/semantics-v2.md`
+§7, ruling 2026-10-06). The `plugins_v2` loader writes the scope inside the action's `enact`
+wrapper (`Instruction.ownScope`) and each parameter `inCaller`, read in the caller's view. -/
+
+/-- The literal amass body inside the loader's wrapper. -/
+private def scopedAmass : Instruction := .enact (.action "Amass") (.ownScope 0 literalAmass)
+
+/-- "Amass Orcs 2" in its scope checks on its own, as the bare body does. -/
+theorem okScopedAmass : Instruction.check [] scopedAmass = [] := by decide
+
+/-- "Target opponent amasses Orcs 2" in its scope checks, as the bare body does. -/
+theorem okScopedAmassHandedOff : Instruction.check [] (act (target .opponent) scopedAmass) = [] := by
+  decide
+
+/-- The inferred pin the scope ticket asked for: the literal body with no scope, after "destroy
+target creature", is refused as the explicit-agent `amass` is (`badAmassBareItAfterDestroy`):
+its bare "that creature" and "it" see the destroyed creature as a second antecedent. -/
+theorem badLiteralAmassAfterDestroy :
+    Instruction.check []
+      (.sequentially [destroy (target creature), act (controllerOf it) literalAmass])
+      = [.anaphor .bare .one 2, .anaphor .bare .one 2] := by
+  decide
+
+/-- Azog, Moria's Ruin, with the body in its own scope: "Destroy target creature. Its
+controller amasses Goblins 2." The destroyed creature is the caller's mention, masked from the
+body, so "that creature" and "it" are the chosen Army alone. -/
+theorem okScopedAmassAfterDestroy :
+    Instruction.check []
+      (.sequentially [destroy (target creature), act (controllerOf it) scopedAmass]) = [] := by
+  decide
+
+/-- The amass body with its amount a parameter, as the loader writes it: read in the caller's
+view (`inCaller`). -/
+private def scopedAmassOf (amount : Amount) : Instruction :=
+  .enact (.action "Amass") (.ownScope 0 (.sequentially
+    [ .doIf (.not (exists_ Actor.army))
+        (create (.lit 1) (creatureToken 0 0 [.black] [creatureType "Goblin", creatureType "Army"]))
+        none,
+      choose (a Actor.army),
+      .putCounters (.inCaller 0 amount) (.printed p1p1Counter) (that (.type .creature)),
+      .doIf (itIsntA (.hasSubtype (creatureType "Goblin")))
+        (.establish (Primitives.StaticSpec.qualityChange it .adds
+          (.bundle { characteristics := { subtypes := [creatureType "Goblin"] } } none)) none)
+        none ]))
+
+/-- Azog's shape with X: "Its controller amasses Goblins X, where X is its power." The amount
+is a parameter, so it reads the destroyed creature in the caller's view while the body's own
+"that creature" and "it" read the Army. -/
+theorem okAzogScopedAmassX :
+    Instruction.check []
+      (.sequentially
+        [ destroy (target creature),
+          act (controllerOf it) (scopedAmassOf (.statOf (.stat .power) it)) ])
+      = [] := by
+  decide
+
+/-- A body's own "it" does not see the calling text's creature, which the same words written
+outside the scope read. -/
+theorem scopedBodyCannotReadTheCaller :
+    let caller : Bindings :=
+      [⟨.target, .one, .object [.creature] (some .battlefield) none none none, []⟩]
+    ((Instruction.check caller (.enact (.action "Destroy") (.ownScope 0 (destroy it)))).contains
+        (.anaphor .bare .one 0),
+     Instruction.check caller (.enact (.action "Destroy") (destroy it))) = (true, []) := by
+  decide
+
+/-- A keyword ability's body is read in its own scope too: the card's mentions are not in view
+of its abilities (`Ability.check` reads the body from an empty context), so a body that reads
+"it" finds nothing, while the same ability written on the card reads the card's mention. -/
+theorem keywordAbilityBodyCannotReadItsCard :
+    let card : Bindings := [⟨.the, .one, .object [.creature] (some .battlefield) none none none, []⟩]
+    ((Ability.check card (.keyword "Flying" [] [Primitives.Ability.spell none (destroy it)])).contains
+        (.anaphor .bare .one 0),
+     Ability.check card (Primitives.Ability.spell none (destroy it))) = (true, []) := by
+  decide
+
 /-! ## The actor outside a handoff is the controller -/
 
 /-- "Draw a card.": the same refusals and the same published bindings as handed to "you". -/

@@ -1,0 +1,20 @@
+// A probe for a keyword body's own reference scope, quoting no real card (the
+// shape of Azog, Moria's Ruin): "Destroy target creature. Its controller
+// amasses Goblins 2." The amass body's "that creature" and "it" read only its
+// own chosen Army: the destroyed creature is the calling text's mention, and
+// the body is read in its own scope [CR#701.47a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Amass After Destroy Probe",
+        cost: [2, Black],
+        types: [Sorcery],
+        text: [
+            spell(
+                sequentially([
+                    destroy(target(creature)),
+                    act(controllerOf(it), amass(goblin, 2)),
+                ]),
+            ),
+        ],
+    ),
+))

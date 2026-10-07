@@ -804,6 +804,14 @@ pub enum Instruction {
         scope: u32,
         body: Box<Instruction>,
     },
+    /// A keyword action body read in its own Reference Scope: the performer,
+    /// its parameters (each `InCaller { scope, .. }`) and what it introduces,
+    /// never the calling text's other mentions. Written by the loader inside a
+    /// keyword action's `Enact` wrapper (`crate::keywords`).
+    OwnScope {
+        scope: u32,
+        body: Box<Instruction>,
+    },
     DealDamage {
         source: NounPhrase,
         amount: Amount,

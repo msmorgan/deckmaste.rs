@@ -926,7 +926,8 @@ fn a_bare_card_type_reads_as_the_pronoun_word_it_types() {
 /// `amass` written over the helper macros expands to exactly the basis term
 /// its body spells constructor by constructor, `Param`s substituted
 /// [CR#701.47a]: the deed "Amass" done by the actor, whose reminder text reads
-/// "you" as the actor.
+/// "you" as the actor, the body read in its own scope and its amount in the
+/// caller's view.
 #[test]
 fn amass_expands_to_the_term_its_constructor_body_spelled() {
     let builtin =
@@ -940,7 +941,7 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
         .macros
         .read_str(
             r#"
-            Enact(verb: Action("Amass"), instruction: Sequentially([
+            Enact(verb: Action("Amass"), instruction: OwnScope(scope: 0, body: Sequentially([
                     DoIf(
                         condition: Not(Exists(Described(
                             determiner: Bare,
@@ -979,7 +980,7 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                         when: None,
                     ),
                     PutCounters(
-                        amount: Lit(value: 2),
+                        amount: InCaller(scope: 0, body: Lit(value: 2)),
                         kind: Printed(Named(name: "p1p1Counter")),
                         on: Pro(reach: Word(Type(Creature)), plurality: One, window: Whole),
                     ),
@@ -999,7 +1000,7 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
                         ),
                         otherwise: None,
                     ),
-                ]))
+                ])))
             "#,
         )
         .expect("the constructor-spelled body reads");

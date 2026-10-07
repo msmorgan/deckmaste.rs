@@ -251,15 +251,18 @@ fn a_keyword_declaration_builds_its_wrapper() {
         body("KeywordAbility", "champion"),
         r#"Keyword(keyword: "Champion", params: [], body: [])"#
     );
-    // The default deed is the action the name spells, done by the actor.
+    // The default deed is the action the name spells, done by the actor, its
+    // body read in its own scope and each parameter in the caller's view.
     assert_eq!(
         body("KeywordAction", "destroy"),
-        "Enact(verb: Action(\"Destroy\"), instruction: move(Param(0), battlefield, graveyard))"
+        "Enact(verb: Action(\"Destroy\"), instruction: OwnScope(scope: 0, body: \
+         move(inCaller(0, Param(0)), battlefield, graveyard)))"
     );
     // Every wrapped action is performed by the actor in context, heal included.
     assert_eq!(
         body("KeywordAction", "heal"),
-        "Enact(verb: Action(\"Heal\"), instruction: clearDamage(Param(0)))"
+        "Enact(verb: Action(\"Heal\"), instruction: OwnScope(scope: 0, body: \
+         clearDamage(inCaller(0, Param(0)))))"
     );
     // A bodyless action stays bodyless (scry had no body until
     // `semantics-v2-macro-capture-and-plurality` gave it one).

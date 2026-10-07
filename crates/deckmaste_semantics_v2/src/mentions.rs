@@ -29,7 +29,8 @@ use macro_ron::MacroDef;
 use macro_ron::MacroSet;
 use macro_ron::Params;
 
-/// The two macros the rewrite writes, one per mention form. They are loader
+/// The macros the loader writes into declaration bodies: one per mention
+/// form, and the caller view of a keyword action body's parameter. They are loader
 /// vocabulary, registered with every v2 macro set rather than declared under
 /// `plugins_v2`: a declaration body's arguments are read as author text, so the
 /// wrapper around a forwarded hole must be a macro there, while no card writes
@@ -42,10 +43,16 @@ const MENTION_MACROS: &[&str] = &[
     "(name: \"laterMention\", kinds: [NounPhrase], \
      params: {\"id\": String, \"phrase\": NounPhrase}, \
      body: LaterMention(id: Param(id), phrase: Param(phrase)))",
+    // A keyword action body's parameter read in the caller's view
+    // (`crate::keywords::keyword_action_body`).
+    "(name: \"inCaller\", kinds: [NounPhrase, Amount, Predicate, Quantity, Condition, \
+     ZoneExpr, Instruction, Cost, StaticSpec, GameEvent], \
+     params: {\"scope\": Any, \"body\": Any}, \
+     body: InCaller(scope: Param(scope), body: Param(body)))",
 ];
 
-/// The names of the mention macros, which no card may write.
-pub const MENTION_MACRO_NAMES: &[&str] = &["firstMention", "laterMention"];
+/// The names of the loader's macros, which no card may write.
+pub const MENTION_MACRO_NAMES: &[&str] = &["firstMention", "laterMention", "inCaller"];
 
 /// Registers the mention macros with `macros`.
 ///
@@ -122,15 +129,15 @@ pub fn bind_first_mentions(name: &str, params: &Params, body: &str) -> Option<St
 }
 
 /// One `Param(p)` hole in a body: its byte span and the parameter it names.
-struct Hole {
-    start: usize,
-    end: usize,
-    param: String,
+pub(crate) struct Hole {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+    pub(crate) param: String,
 }
 
 /// Every `Param(p)` hole in `body`, in textual order, skipping string literals
 /// and comments.
-fn param_holes(body: &str) -> Vec<Hole> {
+pub(crate) fn param_holes(body: &str) -> Vec<Hole> {
     let bytes = body.as_bytes();
     let mut holes = Vec::new();
     let mut i = 0;

@@ -469,7 +469,10 @@ inductive Payload where
       (slots : List (Option (List Nat) × Determiner × Plurality × Payload))
   /-- Checker-private handoff frame: the facts of the player or permanent performing the
   enclosing `Instruction.act` body, its kind among them. It is never a discourse referent. -/
-  | actor (shape : NounShape)
+  | actor (shape : NounShape) (width : Nat)
+  /-- Checker-private frame of a keyword action body's own Reference Scope
+  (`Instruction.ownScope`). It is never a discourse referent. -/
+  | scopeFrame (scope : Nat)
   /-- A forgotten ordinary mention retained solely for an active lexical capture. -/
   | hidden (value : Payload)
   /-- Temporary caller-view masking; unlike forgetting, it is restored after the supplied body. -/
@@ -489,7 +492,8 @@ mutual
     | .pile a b c, .pile d e f => a == d && b == e && c == f
     | .join a b, .join c d => a.same c && b.same d
     | .parameterFrame s w a, .parameterFrame t v b => s == t && w == v && Payload.sameSlots a b
-    | .actor a, .actor b => a == b
+    | .actor a w, .actor b v => a == b && w == v
+    | .scopeFrame a, .scopeFrame b => a == b
     | .hidden a, .hidden b => a.same b
     | .masked s a, .masked t b => s == t && a.same b
     | _, _ => false
@@ -515,7 +519,7 @@ def kind : Payload → Kind
   | .player _ => .player
   | .quality q => .quality q
   | .outcome _ => .outcome
-  | .gap | .parameterFrame _ _ _ | .actor _ | .hidden _ | .masked _ _ => .gap
+  | .gap | .parameterFrame _ _ _ | .actor _ _ | .scopeFrame _ | .hidden _ | .masked _ _ => .gap
   | .amount _ => .quality .number
   | .letter l => .letter l
   | .turnRef => .turnRef
@@ -658,7 +662,7 @@ def introducedChoiceAt (k : Kind) : List Binding :=
 
 def countOnes (k : Kind) : Bindings → Nat
   | [] => 0
-  | ⟨_, _, .actor _, _⟩ :: bs => countOnes k bs
+  | ⟨_, _, .actor _ _, _⟩ :: bs => countOnes k bs
   | b@⟨_, .one, _, _⟩ :: bs => if Kind.lte k b.kind then countOnes k bs + 1 else countOnes k bs
   | _ :: bs => countOnes k bs
 
@@ -1147,8 +1151,27 @@ def Binding.isOperandFrame (b : Binding) : Bool :=
 /-- A handoff frame, seen through caller masks. -/
 def Binding.isActorFrame (b : Binding) : Bool :=
   match b.payload.visible with
-  | .actor _ => true
+  | .actor _ _ => true
   | _ => false
+
+/-- How many bindings a handoff frame put in view under it: the performer's own introduction
+and a permanent it names. -/
+def Binding.actorWidth (b : Binding) : Nat :=
+  match b.payload.visible with
+  | .actor _ width => width
+  | _ => 0
+
+/-- An own-scope frame (`Instruction.ownScope`) not masked by a caller view. -/
+def Binding.isScopeFrame (b : Binding) : Bool :=
+  match b.payload with
+  | .scopeFrame _ => true
+  | _ => false
+
+/-- Remove the outermost caller mask of `scope`, looking through a forgotten mention. -/
+def Payload.peel (scope : Nat) : Payload → Payload
+  | .masked key p => if key == scope then p else .masked key (p.peel scope)
+  | .hidden p => .hidden (p.peel scope)
+  | p => p
 
 /-- The innermost handoff's performer; `none` outside every handoff, where the performer is
 the controller. -/
@@ -1156,7 +1179,7 @@ def actorShape? : Bindings → Option NounShape
   | [] => none
   | b :: bs =>
     match b.payload.visible with
-    | .actor shape => some shape
+    | .actor shape _ => some shape
     | _ => actorShape? bs
 
 /-- Leave the innermost handoff: remove its frame and nothing else. -/
@@ -1215,7 +1238,7 @@ def operandAddress (bs : Bindings) (index : Nat) (scope : Nat := 0) : Option (Li
 
 def windowAddresses (w : Window) (bs : Bindings) : List (List Nat) :=
   let visible := bs.zipIdx |>.filter (fun (b, _) =>
-    !b.isOperandFrame && !b.isActorFrame && !b.payload.isHidden)
+    !b.isOperandFrame && !b.isActorFrame && !b.isScopeFrame && !b.payload.isHidden)
   let select := fun xs : List (Binding × Nat) => xs.map (fun (_, i) => [i])
   match w with
   | .parameter scope i => (operandAddress bs i scope).toList
@@ -1227,21 +1250,60 @@ def windowAddresses (w : Window) (bs : Bindings) : List (List Nat) :=
   | .outsideIntroduced pattern =>
     (introductionWidth pattern (visible.map Prod.fst)).elim [] (fun n => select (visible.drop n))
 
-def callerBoundary (scope : Nat) (bs : Bindings) : Option Nat := do
-  let frame ← bs.findIdx? fun b => match b.payload with
+/-- The innermost frame a caller view of `scope` opens from: a lexical capture frame, or an
+own-scope frame not already masked by an enclosing caller view. -/
+def callerFrame (scope : Nat) (bs : Bindings) : Option Nat :=
+  bs.findIdx? fun b => match b.payload with
     | .parameterFrame key _ _ => key == scope
+    | .scopeFrame key => key == scope
     | _ => false
-  let binding ← bs[frame]?
-  let .parameterFrame _ width _ := binding.payload | none
-  pure (frame + 1 + width)
 
-/-- Hide macro-local mentions while retaining physical slots and lexical references. -/
+def callerBoundary (scope : Nat) (bs : Bindings) : Option Nat := do
+  let frame ← callerFrame scope bs
+  let binding ← bs[frame]?
+  match binding.payload with
+  | .parameterFrame _ width _ => pure (frame + 1 + width)
+  | .scopeFrame _ => pure (frame + 1)
+  | _ => none
+
+/-- Hide macro-local mentions while retaining physical slots and lexical references. A caller
+view of an own scope also masks the scope's frame, so an argument forwarded into a nested
+keyword body reads through to the next scope out, and lifts the mask the scope put on the
+caller's mentions. -/
 def enterCaller (scope : Nat) (bs : Bindings) : Bindings :=
-  let boundary := (callerBoundary scope bs).getD bs.length
-  bs.zipIdx |>.map fun (b, i) =>
-    if i < boundary && !b.isOperandFrame && !b.isActorFrame then
-      { b with payload := .masked scope b.payload }
-    else b
+  match callerBoundary scope bs with
+  /- No frame of `scope` is open: the phrase is read where it is written, which is its caller's
+  own view (a structural read of an `enact` wrapper's parameter). A lexical capture's caller
+  view outside its scope is refused `lexicalScope` by the checks. -/
+  | none => bs
+  | some boundary =>
+    let ownScope := ((callerFrame scope bs).bind (bs[·]?)).any Binding.isScopeFrame
+    bs.zipIdx |>.map fun (b, i) =>
+      if i < boundary && !b.isOperandFrame && !b.isActorFrame then
+        { b with payload := .masked scope b.payload }
+      else if ownScope && i ≥ boundary then { b with payload := b.payload.peel scope }
+      else b
+
+/-- Open a keyword action body's own Reference Scope: mask every mention of the calling text
+except the performer the innermost handoff names (its frame and the bindings it put in view),
+under an own-scope frame. The body's parameters read the masked mentions through `inCaller`. -/
+def enterOwnScope (scope : Nat) (bs : Bindings) : Bindings :=
+  let zone : Nat × Nat := match bs.findIdx? Binding.isActorFrame with
+    | some f => (f, f + 1 + ((bs[f]?).elim 0 Binding.actorWidth))
+    | none => (0, 0)
+  ⟨.the, .one, .scopeFrame scope, []⟩ :: (bs.zipIdx.map fun (b, i) =>
+    if b.isOperandFrame || b.isActorFrame || b.isScopeFrame || (zone.1 < i && i < zone.2) then b
+    else { b with payload := .masked scope b.payload })
+
+/-- Close an own scope: drop its frame and lift its mask, keeping what the body introduced and
+every update it made. -/
+def leaveOwnScope (scope : Nat) (after : Bindings) : Bindings :=
+  match after.findIdx? (fun b => match b.payload with
+      | .scopeFrame key => key == scope
+      | _ => false) with
+  | some f => after.take f ++ (after.drop (f + 1)).map fun b =>
+      { b with payload := b.payload.peel scope }
+  | none => after
 
 /-- Restore the incoming visibility without undoing updates or permanent forgetting. -/
 def leaveCaller (before after : Bindings) : Bindings :=
@@ -1374,7 +1436,8 @@ def filterContext (keep : Binding → Bool) (bs : Bindings) : Bindings :=
       if b.isOperandFrame || b.isActorFrame || b.payload.isForgotten ||
           keep { b with payload := b.payload.visible } then b
       else { b with payload := .hidden b.payload }
-  else bs.filter fun b => b.isActorFrame || keep b
+  else bs.filter fun b =>
+    b.isActorFrame || b.isScopeFrame || keep { b with payload := b.payload.visible }
 
 def publicOnly (bs : Bindings) : Bindings := filterContext Binding.isPublic bs
 

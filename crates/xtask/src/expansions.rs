@@ -885,7 +885,7 @@ mod tests {
         );
         let raw = |amount: u32| {
             format!(
-                r#"Enact(verb: Action("Amass"), instruction: Sequentially([
+                r#"Enact(verb: Action("Amass"), instruction: OwnScope(scope: 0, body: Sequentially([
                 DoIf(
                     condition: Not(Exists(Described(
                         determiner: Bare,
@@ -924,7 +924,7 @@ mod tests {
                     when: None,
                 ),
                 PutCounters(
-                    amount: Lit(value: {amount}),
+                    amount: InCaller(scope: 0, body: Lit(value: {amount})),
                     kind: Printed(Named(name: "p1p1Counter")),
                     on: Pro(reach: Word(Type(Creature)), plurality: One, window: Whole),
                 ),
@@ -944,7 +944,7 @@ mod tests {
                     ),
                     otherwise: None,
                 ),
-            ]))"#
+            ])))"#
             )
         };
         let body = |text: &str| {

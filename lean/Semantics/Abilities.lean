@@ -368,6 +368,12 @@ mutual
     /-- Bind ordered typed inputs for the body, without an implicit whole-body precondition. -/
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Instruction)
     | inCaller (scope : Nat) (body : Instruction)
+    /-- A keyword action body read in its own Reference Scope: it sees the performer the
+    innermost handoff names, its parameters (each written `inCaller scope`, read in the caller's
+    view) and what it introduces itself, never the calling text's other mentions
+    (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06). The `plugins_v2` loader writes it
+    inside a keyword action's `enact` wrapper. -/
+    | ownScope (scope : Nat) (body : Instruction)
     | dealDamage (source : NounPhrase) (amount : Amount) (recipient : NounPhrase)
     | setStatus (status : Status) (subject : NounPhrase)
     | turnOver (subject : NounPhrase)
@@ -495,5 +501,5 @@ attribute [semantic_expression] Semantics.Instruction Semantics.StaticSpec Seman
 classify_semantic_syntax
 
 attribute [internal_expansion] Semantics.Instruction.enact Semantics.Instruction.withBindings
-  Semantics.Instruction.inCaller Semantics.Cost.withBindings Semantics.Cost.inCaller
+  Semantics.Instruction.inCaller Semantics.Instruction.ownScope Semantics.Cost.withBindings Semantics.Cost.inCaller
   Semantics.StaticSpec.withBindings Semantics.StaticSpec.inCaller

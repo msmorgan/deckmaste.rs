@@ -156,6 +156,7 @@ mutual
     | .inCaller scope body =>
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         Instruction.checkWith (enterCaller scope bs) none body
+    | .ownScope scope body => Instruction.checkWith (enterOwnScope scope bs) perf body
     | .dealDamage src amt to =>
       let bs' := selfSubjIntro bs src
       let bs'' := Amount.introduced bs' amt ++ nomIntro bs src
