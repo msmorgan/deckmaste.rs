@@ -52,7 +52,7 @@ fn causative(text: &str, category: Category, object: &str, predicates: &[&str]) 
             .unwrap();
         assert_eq!(found.len(), 1, "missing or duplicate causative in {text}");
     }
-    assert_eq!(observed, predicates.iter().map(|s| s.to_string()).collect());
+    assert_eq!(observed, predicates.iter().map(ToString::to_string).collect());
 }
 
 #[test]
@@ -88,7 +88,7 @@ fn joraga_bard_selects_plural_object_and_infinitival() {
 }
 
 #[test]
-fn mirror_image_reuses_enter_with_its_copy_adjunct() {
+fn mirror_image_retains_the_selected_bare_infinitival() {
     causative(
         "You may have this creature enter as a copy of a creature you control.",
         Category::Document,

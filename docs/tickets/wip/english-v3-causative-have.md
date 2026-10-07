@@ -166,8 +166,12 @@ enumerations, and undetermined faces.
 
 Candidate gains: 144; lost faces: 0; decreased Reading counts on previously
 covered faces: 0; increased counts on previously covered faces: 0. Every
-previously covered face retains exactly its former count. This comparison is against the original base; the refreshed
-base comparison is still required before landing. No specificity-based
+previously covered face retains exactly its former count. Kata refresh completed
+without conflicts. Its base changes are the sibling
+semantics ticket claim and `scripts/fmt` / `scripts/jj-repo-config`; no English
+production source, consumed lexical data or corpus input changed. The original
+English census therefore remains the refreshed-base census. No trunk-attributed
+Reading decrease entered this base. No specificity-based
 selection is introduced. Byte-exact realization, lexical ownership and
 construction/leaf traversal validation pass for every counted Reading.
 
@@ -226,11 +230,19 @@ cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste
 cargo clippy -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask --all-targets -- -D warnings
 ```
 
-The full gate cannot pass while the preserved Mirror Image witness fails.
+Gate outcome: failed at the preserved Mirror Image witness; its suite reports
+8 passed, 1 failed, 0 ignored. Earlier completed suites pass. Cargo stops there,
+so later suites and the chained clippy command are not claimed green. The
+Mirror Image test was subsequently renamed to
+`mirror_image_retains_the_selected_bare_infinitival`, preserving its input and
+all structural assertions while removing the unestablished Adjunct claim from
+its name. The final witness rerun likewise reports 8 passed, 1 failed, 0
+ignored. The independently run derived clippy command passes after correcting
+one redundant method-call closure in the new test; no lint allowance was added.
 Formatting passes. Citation noncompliance is empty; the citation checker
 reports 0 stale. The diff citation audit selects 0 changed rule sites (no CR
-citation changed). Final gate results, refresh, and a resolved Landing record
-remain required before integration.
+citation changed). A passing final gate and a resolved Landing record remain
+required before integration; refresh has completed without conflicts.
 
 ## Landing record
 
