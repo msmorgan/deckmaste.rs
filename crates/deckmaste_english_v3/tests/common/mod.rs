@@ -1,8 +1,3 @@
-#![allow(
-    dead_code,
-    reason = "each integration test uses its own subset of this support module"
-)]
-
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -12,6 +7,7 @@ use deckmaste_english_v3::Materializer;
 use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Error;
 use deckmaste_english_v3::grammar::Grammar;
+use deckmaste_english_v3::grammar::GrammarEnvironment;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::State;
 use deckmaste_english_v3::grammar::Summary;
@@ -29,12 +25,15 @@ pub static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
     .unwrap()
 });
 
+pub static ENVIRONMENT: LazyLock<GrammarEnvironment<'static>> =
+    LazyLock::new(|| GrammarEnvironment::new(lexicon()));
+
 pub fn lexicon() -> &'static Lexicon {
     &LEXICON
 }
 
 pub fn readings(text: &str, category: Category) -> BTreeSet<Reading> {
-    readings_with_lexicon(lexicon(), text, category)
+    readings_with_grammar(ENVIRONMENT.grammar(), lexicon(), text, category)
 }
 
 pub fn readings_with_lexicon(
@@ -43,7 +42,15 @@ pub fn readings_with_lexicon(
     category: Category,
 ) -> BTreeSet<Reading> {
     let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(lexicon);
-    let grammar = environment.grammar();
+    readings_with_grammar(environment.grammar(), lexicon, text, category)
+}
+
+fn readings_with_grammar(
+    grammar: &Grammar,
+    lexicon: &Lexicon,
+    text: &str,
+    category: Category,
+) -> BTreeSet<Reading> {
     let input = lexicon.analyze(text);
     let forest = parse(grammar, lexicon, &input, &category).unwrap();
     let mut values = BTreeSet::new();
@@ -196,8 +203,7 @@ pub fn constituent_positions(
     text: &str,
     category: Category,
 ) -> Vec<BTreeSet<(Category, usize, usize)>> {
-    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(lexicon());
-    let grammar = environment.grammar();
+    let grammar = ENVIRONMENT.grammar();
     let input = lexicon().analyze(text);
     let forest = parse(grammar, lexicon(), &input, &category).unwrap();
     // The parser's coordinates count Unicode scalars; assertion spans count

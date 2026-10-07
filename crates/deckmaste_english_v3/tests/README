@@ -1,0 +1,15 @@
+Integration tests share one binary and workspace fixtures.
+
+Add a test file under tests/suite/ and register it in tests/main.rs:
+
+    #[path = "suite/new_module.rs"]
+    mod new_module;
+
+Import shared fixtures with `use crate::common;` rather than declaring
+`mod common;` in a test module. `common::lexicon()` and `common::ENVIRONMENT`
+load the workspace Lexicon and compile its Grammar once for the binary.
+Custom Lexicons remain local to the tests that need them.
+
+Run one module with:
+
+    cargo test -p deckmaste_english_v3 --test main new_module::
