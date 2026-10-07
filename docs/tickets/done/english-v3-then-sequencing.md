@@ -138,10 +138,10 @@ modal. Existing agreement and Shared Complement policies remain in force.
 
 The experimental Adjunct route is retired on both sides: no experimental
 Connective Conjunct category, construction, schema or lexical feature remains.
-The pre-existing Adverb owner is still live for sentence-initial *Then* and is
-not a superseded comma-link route. The positive sentence-initial control
-checks that owner explicitly. No gains are credited to sentence-initial
-*Then* alone.
+The pre-existing Adverb owner remains live for sentence-initial *Then* and
+*and then*. The follow-up below retires its unmarked comma-series route;
+the positive sentence-initial control checks that owner explicitly. No gains
+are credited to sentence-initial *Then* alone.
 
 ### Proof and census
 
@@ -195,8 +195,8 @@ counts are not an active v3 metric.
 Newly covered identities number 980. The original 874 sole-cause estimate
 was a surface reconnaissance on `wlvwtnppyovn` at 13,716 covered faces; the
 implementation baseline had 15,997 covered after intervening tickets. The
-106-face excess is not an excess over a gain forecast: other blockers on
-comma-*then* faces had been discharged before this landing. Examples include
+106-face net difference reflects comma-*then* faces whose other blockers were
+discharged by intervening tickets. Examples include
 Organ Hoarder (*look at the top three cards of your library*), Brainstorm
 (*put two cards ... on top of your library in any order*), and Amass the
 Components (*put a card ... on the bottom of your library*), whose library
@@ -394,23 +394,31 @@ Restored 0, re-spelled 0, added 4, removed 0, newly ignored 0; no test is weaken
 The *and then* diagnostic is the orchestrator-requested variant of the Stitcher
 constituent, not a new card claim or an invented game-semantic test contract.
 
-Before: change `stwlrsrzkmymmwpnnwlpwruwqqkwyrmz`, covered 16,977, lexical inventory
+Before: change `ryowrwurpzkwkxkrrlloyutlzvymxtor`, covered 16,977, lexical inventory
 `958e1ccfed83835a7cd480940ab23ae665b763d288e68ca25a7e278a9fc3fd4d`.
 
-After: change `stwlrsrzkmymmwpnnwlpwruwqqkwyrmz`, covered 16,977, lexical inventory
+After: change `mlxxkmttrzowqrpmrtwstzptxnrxqlsp`, covered 16,977, lexical inventory
 `ac0a096d51b0460069e5b528a7532660ba7208b2f16e55c93d2fb1c153306d5e`.
 
 Both measured trees use input SHA-256
 `49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb`. The old pre-refresh `lklxwwpr` figures above are
-historical; this complete current-trunk comparison is the follow-up authority.
+historical; the refreshed comparison below is the follow-up authority. Its
+baseline is the full census retained by the integrated library follow-up
+(`owyyynoyxstupwposuuzymvuqwpunnyl`), whose integrated tree was verified to
+have zero file differences from the coordinator. The census provenance is
+retained in `then-followup-upstream-baseline-verification.json`. That follow-up
+restored 36 Readings without changing covered faces; they are included on both
+sides here, not credited to this fix. The earlier isolated comparison
+(`stwlrsrzkmymmwpnnwlpwruwqqkwyrmz`, covered 16,977 on both trees) remains
+retained evidence: 346,445 → 346,443, with exactly the same one-face delta.
 
-Metric | Before: stwlrsrz / covered 16,977 | After: stwlrsrz / covered 16,977
+Metric | Before: ryowrwur / covered 16,977 | After: mlxxkmtt / covered 16,977
 --- | ---: | ---:
 Supported faces | 32,828 | 32,828
 No Reading | 15,851 | 15,851
 One Reading | 7,025 | 7,025
 Multiple Readings | 9,952 | 9,952
-Exact and checked Readings | 346,445 | 346,443
+Exact and checked Readings | 346,481 | 346,479
 Complete enumerations | 32,828 | 32,828
 Limited / undetermined / failed | 0 / 0 / 0 | 0 / 0 / 0
 Validation issues | 0 | 0
@@ -439,7 +447,7 @@ Source and GrammarEnvironment loading report zero errors. Added forbidden
 word-/construction-/card-named checkers: 0. Legacy permitted-checker and coverage
 lock counters are not emitted by v3 and remain inapplicable.
 
-Named constructors remain 237 (193 ordinary constructions + 44 schemas), and
+Named constructors remain 238 (194 ordinary constructions + 44 schemas), and
 categories remain 138 on both stamped trees. Forms, frames, lexical owners
 and surface inventories are unchanged: the only lexical-data change is the
 existing Adverb owner's new declared permission. The named homograph inventory
@@ -454,19 +462,21 @@ are stated for each stamped tree. The runtime wall totals exceed the
 concurrent compiler work. These measurements do not establish quiet-host
 performance.
 
-Metric | Before: stwlrsrz / covered 16,977 | After: stwlrsrz / covered 16,977
+Metric | Before: ryowrwur / covered 16,977 | After: mlxxkmtt / covered 16,977
 --- | ---: | ---:
 Workers | 12 | 12
-Host load (1 / 5 / 15 minutes) | 6.8916015625 / 9.29638671875 / 12.71630859375 | 38.1884765625 / 17.9541015625 / 12.533203125
-Setup wall | 6,568,095,174 ns | 18,160,331,123 ns
-Corpus wall | 51,530,612,416 ns | 105,929,596,668 ns
-Setup + corpus wall | 58,098,707,590 ns | 124,089,927,791 ns
-Thread CPU | 609,770,535,786 ns | 879,592,871,364 ns
-Checked-text CPU telemetry | 267,566 ns/B | 385,781 ns/B
+Host load (1 / 5 / 15 minutes) | 5.67724609375 / 9.458984375 / 13.05126953125 | 17.1181640625 / 11.6884765625 / 10.89501953125
+Setup wall | 6,220,103,686 ns | 6,522,995,880 ns
+Corpus wall | 50,154,307,958 ns | 71,535,626,223 ns
+Setup + corpus wall | 56,374,411,644 ns | 78,058,622,103 ns
+Thread CPU | 581,163,178,660 ns | 701,456,537,188 ns
+Checked-text CPU telemetry | 253,747 ns/B | 308,212 ns/B
 
-Full census command for each side:
-`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/then-followup-{before,after}.json`.
-The current-trunk identity comparison is `then-followup-delta.json`.
+Full census command on the refreshed after tree:
+`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/then-followup-refreshed-after.json`.
+The before tree also used complete `--all` enumeration with 12 workers; its
+retained census is `then-followup-refreshed-before.json`. The current-trunk
+identity comparison is `then-followup-refreshed-delta.json`.
 All evidence lives in ignored `target/english-v3/`; it is retained after
 workspace retirement under the default workspace's
 `target/english-v3/english-v3-then-followup/`.
@@ -476,11 +486,14 @@ a card type.* and Tamiyo's *Choose a nonland card name.* each admit 0 Readings,
 and both complete faces remain unread. Organ Hoarder's full face remains
 covered; its original 0 → 9 gain is credited above rather than re-counted here.
 
-The isolated derived gate, run from the feature workspace root, exits 0:
-749 tests passed, 0 failed, 1 inherited ignored test. Its command is
-`cargo xtask gate --changed --from rslmnrov --run`, deriving
+The refreshed derived gate, run from the feature workspace root, exits 0:
+750 tests passed, 0 failed, 1 inherited ignored test. Its command is
+`cargo xtask gate --changed --from owyyynoyxstupwposuuzymvuqwpunnyl --run`, deriving
 `cargo test -p deckmaste_lexical_source -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`.
-Strict clippy for those crates with `--all-targets -- -D warnings` exits 0;
+All checks below use the refreshed tree stamped `mlxxkmttrzowqrpmrtwstzptxnrxqlsp`,
+covered 16,977. The isolated gate had 749 passing tests; the refreshed gate also
+includes the library follow-up’s added complement-cluster regression test. Strict clippy for the derived
+crate closure with `--all-targets -- -D warnings` exits 0;
 scoped nightly rustfmt exits 0. Root citation checks report 16,112 sites,
 0 stale and 0 noncompliant strings; the piped diff audit selects 0 changed CR
 sites. The inherited ignored test is
