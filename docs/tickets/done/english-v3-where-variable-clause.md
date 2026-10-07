@@ -1326,3 +1326,123 @@ proof; `final-refresh-docs-only.diff` retains the imported changes. The final
 composed census remains **21,072 covered / 685,687 Readings**, with only the two
 named own gains, no own Reading decreases, and the same **3,300 → 3,330; net
 +30** declaration comparison.
+
+#### General-coordinator scope follow-up (2026-10-07)
+
+The first follow-up's then-only scope was a project narrowing, now lifted by
+**orchestrator ruling (2026-10-07)** under the attestation pruning rule. CGEL
+Ch. 15 §5.1 pp. 1350, 1355 supports supplements interpolated within their
+anchor; the corpus licensing decision is the ruling, not a claim attributed
+to CGEL. Existing `MedialSupplementation` now uses the same declared
+`NoncorrelativeCoordination` licence as comma `ClauseCoordination`. Removing
+both `GeneralCoordination = No` and `CommaCoordination = Yes` is necessary:
+general coordinators have the latter feature's default No. This admits the
+existing general coordinators, including comma-*and* and comma-*or*, while
+retaining the existing nonsequencing restriction on Where's content clause.
+No lexical declaration changes and no retired route reopens.
+
+The claim parent `wlvwtnppyovn` / covered **21,072** and refreshed base
+`smnmpwpryoxu` / covered **21,072** have the exact baseline grammar and lexical
+inventory. The reused complete baseline is stamped `rvpkstryvlvy` / covered
+**21,072**, **685,687 Readings**; the fresh baseline Where selector matches it
+face for face. Refresh imports test consolidation, with the English placement
+change `qtwrslvqyzyq`, plus CI/ticket changes: **0 inherited Reading decreases**
+and no grammar, lexical or consumed-data changes. The modify/delete conflict
+keeps the consolidated `tests/suite/where_variable_clause.rs` placement and the
+new regression's complete content; refresh then exits **0**. Exact source
+and path evidence is `refreshed-base-proof.json` beside the final census.
+
+The single full census is stamped **`ossltroowkzt` / covered 21,074**:
+**32,828 faces**, **7,464 one / 13,610 multiple / 11,754 unread**,
+**685,707 Readings**. Against the refreshed base, the complete per-face
+comparison finds precisely these two changes:
+
+| Face / identity | Readings | Selected analysis and equated NP judgment |
+|---|---:|---|
+| Neverending Torment / `0f07d3d0-1f79-4d50-ab3e-f9dc5ef59482#card` | 0 → 12 | Where supplements the Search left conjunct; comma-*and* continues with *exile them*. Equated NP *the number of cards in your hand* independently reads twice. The shuffle sentence and Epic remain outside the definition. |
+| Nightmare Incursion / `3e734759-d43a-4bbe-baff-26d866ff0923#card` | 0 → 8 | Same medial attachment; *up to X cards* already reads as an NP. Equated NP *the number of Swamps you control* independently reads twice; shuffle stays outside the definition. No remaining blocker. |
+
+The original ticket's cumulative gain set is now **582 faces / 30,629 Readings**:
+**510 Where-supplement-only / 29,623**, **6 ordinary variable-Subject / 641**,
+**54 sacrifice-licence-only / 333**, and **12 joint / 32**. Where-feature-alone
+attribution becomes **516 faces**. `gain-ledger.json` matches every retained
+count against this full census and adds the two exhaustively checked analyses;
+the previously disclosed inherited By-attachment defect and its routing remain
+unchanged. All these figures are stamped `ossltroowkzt` / covered **21,074**.
+
+**0 lost faces, 0 decreases, 0 changed counts on previously covered faces.**
+The all-Where selector covers **1,296 faces** and yields **29,713 → 29,733
+Readings**; final-position Onward and Rush of Blood remain **2 each**.
+Kraul Harpooner remains **208**, Sword of the Ages **20**, Ugin's Insight **5**,
+and Sardian Cliffstomper **2**. `medial-spotcheck.json` exhaustively verifies
+all **253** Readings across Kraul, Sword, Ugin and both gains, including the
+exact anchor, supplement, coordinator and continuation. The fresh readable
+coordinated-definition probe still has **1 Reading**; the nested Where-*then*
+PP probe still has **0**, and a comma-*or* Document probe has **12**.
+Aspect of Wolf's actual whole face and coordinated definition remain **0 → 0**,
+with the independently confirmed vocabulary gaps *half* and *rounded*.
+The readable coordinated-definition regression remains intact. General definition coordination remains licensed.
+
+Of **1,119 variable-Where faces**, **522** read and **597** remain unread;
+the retained independent-NP diagnostic list stays **311**. Of the three
+attested outer medial comma-*and* faces, only **Palantír of Orthanc** remains
+unread: its equated NP *the number of influence counters on Palantír of
+Orthanc* has **0 NP Readings**, with vocabulary gap *influence*. That face
+and blocker are named in systemic residuals. The other loose comma-*and*
+attestations are coordinated definitions or NP/relative enumerations, not
+additional outer medial residue (`attestation-classification.json`). Binding,
+the sacrifice ruling and the ticket's other exclusions remain as recorded.
+
+**Declaration non-blank lines, claim parent versus landed: 3,330 → 3,328;
+net −2.** Features, tables, policies, constructions and forms added: **none**.
+Construction/schema count stays **250**; feature/category/table/policy counts
+stay **94 / 144 / 74 / 62**. No replacement route or unreachable declaration
+was introduced. Named spelling inventory **38,374**, homographs **1,128**,
+and the empty literal/vocabulary overlap inventory are unchanged, proven by
+identical lexical hashes; complete named lists are copied to
+`inventories-combined.json` and `spellings-combined.json` beside the census.
+No new glossary gap or unresolved STOP arose.
+
+Assurance: **1 added, 0 restored, 0 re-spelled, 0 ignored, 0 removed** own tests.
+The new Neverending Torment regression checks the exact attachment in every
+Reading, excludes a coordinated Where complement, and checks the equated NP
+constituent. Its initial failure exposed the second coordinator restriction;
+the grammar was corrected without weakening any assertion. The gate running
+across the consolidation refresh encountered retired test paths; it is rerun
+against the consolidated layout. The full census validates declaration
+admission, lexical ownership, byte-exact realization and construction/leaf
+traversal for every counted Reading: **0 issues, duplicates, cycles, internal
+failures, limited enumerations or failed faces**. Independently constructed
+Reading roundtrip is covered by package tests. New word-named licensing
+guards: **0**; lexical loading and GrammarEnvironment construction succeed.
+V3 retains all Readings and has no specificity-resolved selector or legacy
+coverage-lock/checker-total output.
+
+Performance advisory, **`ossltroowkzt` / covered 21,074**: **6 workers**, host
+load **15.585 / 15.221 / 15.440**, corpus wall **277,024,877,710 ns**,
+checked-text thread CPU **449,263 ns/B**. This exceeds the
+**16,260,000,000 ns** quiet-host ceiling; the census overlaps compilation on
+the shared loaded host. The finished all-Where subset on `nzvnsktkpnxy` /
+covered **21,074** measures **7,295,906,427 ns**, **364,847 ns/B**,
+**6 workers**, load **6.639 / 13.387 / 15.237**; a subset is not comparable to
+the full-corpus ceiling.
+
+Final census: **`target/english-v3/english-v3-where-followup-2/final.json`**.
+`final-comparison.json` names every per-face delta and `refreshed-base-proof.json`
+proves why the reused baseline represents the refreshed base. Exactly **one
+full --all census** was run; iteration used selector subsets and probes.
+
+Refreshed-tree verification, **`ossltroowkzt` / covered 21,074**: `cargo xtask
+gate --changed --from smnmpwpryoxu --run` derives `cargo test -p
+deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask` and exits **0**:
+**795 passed, 0 failed, 1 inherited ignored, 10 suites**.
+All **14 Where tests** pass in the consolidated module, and both independently
+constructed Reading roundtrip laws remain tested. The inherited ignored test
+is `macros::templates::tests::macro_schema_census_count_matches_21`, whose
+existing reason is its on-demand live-corpus cross-check. Clippy for the same
+three packages, all targets with `-D warnings`, passes; `cargo fmt --all
+--check` passes. Citation checks report **0 stale / 0 noncompliant**, and the
+piped `jj diff --git | cargo xtask cite audit --diff` audits **0 changed CR
+citation sites**. `verification.json` records the scope and results. The
+required package tests were rerun after preserving the consolidation placement
+and regression content; no assertions were removed or weakened.

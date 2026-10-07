@@ -393,7 +393,18 @@ is right and this list needs fixing.
   Delusion's equated NP, *the power of that blocked creature*, readable
   (0 → 1), while its whole face remains unread and owned here. The follow-up
   reports the complete comparison in the original ticket's **Post-landing fix
-  (2026-10-07)**.
+  (2026-10-07)**. The general-coordinator follow-up on `ossltroowkzt` / covered
+  21,074 discharges Neverending Torment (12 Readings) and Nightmare Incursion
+  (8 Readings), leaving **597** variable-Where faces unread. Neither gain had
+  an independently unread equated NP, so the **311** NP diagnostics remain.
+  Remaining medial-`, and` residue: **Palantír of Orthanc**, whose equated NP
+  *the number of influence counters on Palantír of Orthanc* has zero NP
+  Readings because **influence** is absent from the vocabulary; the whole
+  face still reads zero. Nightmare Incursion has no remaining blocker.
+  Aspect of Wolf's final coordinated definition remains unread because
+  **half** and **rounded** are absent; the already readable coordinated-
+  definition witness is preserved. The general-coordinator licence is an
+  **orchestrator ruling (2026-10-07)** applying the attestation pruning rule.
   Five independently blocked NP examples, with zero admitted NP roots on that
   original stamp, are Food Chain (*1 plus the exiled creature's mana value*:
   arithmetic-plus NP with participial/genitive structure); Drag to the Bottom
