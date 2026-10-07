@@ -145,4 +145,79 @@ theorem groupHandoffByIdentityPublishesPlurals :
   decide
 
 
+/-! ## Plurality read off the amount
+
+"Scry N" looks at a library slice and sorts it [CR#701.22a]. The slice is the body's own
+mention, read back by identity, so the read's number is the slice's, which is the amount's:
+scry 1 reads "that card", scry 2 "those cards" (ruling 2026-10-06). -/
+
+/-- The `plugins_v2` helper `lookAndSortSlice` as the loader expands it. -/
+private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) : Instruction :=
+  .sequentially
+    [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
+      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .wherever spill [],
+      .move (.theRest .object .many) .wherever (onTopIn .anyOrder) [] ]
+
+private def scryBy (amount : Amount) : Instruction :=
+  .enact (.action "Scry") (lookAndSortSlice (.librarySlice .top amount .actor) (onBottomIn .anyOrder))
+
+/-- "Scry 1." -/
+theorem okScryOne : Instruction.check [] (scryBy (.lit 1)) = [] := by decide
+
+/-- "Scry 2." -/
+theorem okScryTwo : Instruction.check [] (scryBy (.lit 2)) = [] := by decide
+
+/-- Scry 1's read back is singular: "that card". -/
+theorem scryOneReadsThatCard :
+    (NounPhrase.laterMention "lookAndSortSlice.slice" (.librarySlice .top (.lit 1) .actor)).plur
+      = .one := by decide
+
+/-- Scry 2's read back is plural: "those cards". -/
+theorem scryTwoReadsThoseCards :
+    (NounPhrase.laterMention "lookAndSortSlice.slice" (.librarySlice .top (.lit 2) .actor)).plur
+      = .many := by decide
+
+/-- "Surveil 2." [CR#701.25a] -/
+theorem okSurveilTwo :
+    Instruction.check []
+      (.enact (.action "Surveil") (lookAndSortSlice (.librarySlice .top (.lit 2) .actor) graveyard))
+      = [] := by decide
+
+/-- "Fateseal 2." [CR#701.29a]: an opponent's library. -/
+theorem okFatesealTwo :
+    Instruction.check []
+      (.enact (.action "Fateseal")
+        (lookAndSortSlice (.librarySlice .top (.lit 2) (a .opponent)) (onBottomIn .anyOrder)))
+      = [] := by decide
+
+/-! ## Connive
+
+"Connive N" [CR#701.50a,701.50d]: the permanent's controller draws N cards, discards N cards,
+and puts a +1/+1 counter on the permanent for each nonland card discarded this way. The
+`plugins_v2` helper `discardThenForEachNonland` reads the discarded cards back by identity. -/
+
+private def conniveDiscards (discarded : NounPhrase) : Instruction :=
+  .sequentially
+    [ Actor.discard (.firstMention "conniveDiscards.discarded" discarded),
+      .doForEach (allFromAmong (.not land) (.laterMention "conniveDiscards.discarded" discarded))
+        (.putCounters (.lit 1) (.printed p1p1Counter) (that .permanent)) ]
+
+private def conniveBy (amount : Amount) : Instruction :=
+  .enact (.action "Connive") (act (controllerOf .actor)
+    (.sequentially [draw amount, conniveDiscards (counted (.exactlyOf amount) .isCard)]))
+
+/-- "Connive" (connive 1), performed by the source permanent [CR#701.50a]. -/
+theorem okConniveOne : Instruction.check [] (conniveBy (.lit 1)) = [] := by decide
+
+/-- "Target creature connives 2." [CR#701.50d]: the action is handed to the creature. -/
+theorem okConniveTwoHandedToTarget :
+    Instruction.check [] (act (target creature) (conniveBy (.lit 2))) = [] := by decide
+
+/-- The discarded cards are read back with the discard's number: one card for connive 1,
+several for connive 2. -/
+theorem conniveReadsTheDiscardsNumber :
+    ((NounPhrase.laterMention "d" (counted (.exactlyOf (.lit 1)) .isCard)).plur,
+     (NounPhrase.laterMention "d" (counted (.exactlyOf (.lit 2)) .isCard)).plur) =
+      (.one, .many) := by decide
+
 end Semantics.Proofs.BindingIdentity

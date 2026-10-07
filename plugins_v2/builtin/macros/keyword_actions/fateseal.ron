@@ -1,5 +1,10 @@
+// "Fateseal N" [CR#701.29a]: look at the top N cards of an opponent's library,
+// then put any number of them on the bottom of that library in any order and
+// the rest on top in any order. The slice is read back as scry's is
+// (`lookAndSortSlice`).
 KeywordAction(
     name: "fateseal",
+    params: [Amount],
     spelling: "fateseal",
     grammar: Verb(
         bare: "fateseal",
@@ -7,4 +12,5 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: MeasureComplement,
     ),
+    body: lookAndSortSlice(librarySlice(Top, Param(0), a(opponent)), onBottomIn(AnyOrder)),
 )

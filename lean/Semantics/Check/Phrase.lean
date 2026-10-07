@@ -928,6 +928,8 @@ def Quantity.exact : Quantity → Option Nat
 def Quantity.plur : Quantity → Plurality
   | .withBindings _ _ body | .inCaller _ body => body.plur
   | .range _ (some 1) => .one
+  /- "Exactly N" has N's number: one card for 1, cards for any other amount. -/
+  | .exactlyOf amount => amount.plur
   | _ => .many
 
 def Quantity.literal : Quantity → Bool
@@ -1043,6 +1045,9 @@ def NounPhrase.groupMention : NounPhrase → Bool
 def NounPhrase.partitiveBase : NounPhrase → Bool
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.partitiveBase
   | .pro _ _ (.top _) | .pro _ _ (.introduced _) => true
+  /- A later mention reads back by identity the group its own body named, as a positional
+  own-read does. -/
+  | .laterMention _ _ => true
   | n => n.det == some .all || n.groupMention
 
 def NounPhrase.countableGroup (n : NounPhrase) : Bool := n.det == some .bare || n.groupMention

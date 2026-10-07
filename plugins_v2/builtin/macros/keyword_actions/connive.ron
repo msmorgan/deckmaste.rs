@@ -1,8 +1,28 @@
+// "[Permanent] connives N" [CR#701.50a,701.50d]: that permanent's controller
+// draws N cards, discards N cards, then puts a +1/+1 counter on the conniving
+// permanent for each nonland card discarded this way. "Connive" is connive 1,
+// written `connive(1)`, for which this is the rule's own wording
+// [CR#701.50a]. The rules instruct the permanent, so, as explore does, a card
+// hands the action to it and the body hands the steps on to
+// `controllerOf(actor)`, inside which "that permanent" is the conniving one.
+// The discarded cards are read back by identity (`discardThenForEachNonland`),
+// so their number is N's.
 KeywordAction(
     name: "connive",
+    params: [Amount],
     spelling: "connive",
     grammar: Verb(
         bare: "connive",
         frame_set: Custom(frames: [[], [Amount]]),
+    ),
+    body: act(
+        controllerOf(actor),
+        sequentially([
+            draw(Param(0)),
+            discardThenForEachNonland(
+                counted(exactlyOf(Param(0)), card),
+                putCounters(1, p1p1Counter, that(Permanent)),
+            ),
+        ]),
     ),
 )

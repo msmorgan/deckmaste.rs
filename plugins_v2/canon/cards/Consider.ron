@@ -1,0 +1,13 @@
+// "Surveil 1. Draw a card." [CR#701.25a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Consider",
+        cost: [Blue],
+        types: [Instant],
+        text: [
+            spell(
+                sequentially([surveil(1), draw(1)]),
+            ),
+        ],
+    ),
+))

@@ -1,0 +1,21 @@
+// "Target player draws a card, then up to one target creature you control
+// connives." [CR#701.50a]: the rules instruct the creature, so the action is
+// handed to it.
+SingleFaced(face: (
+    characteristics: (
+        name: "Unstable Experiment",
+        cost: [1, Blue],
+        types: [Instant],
+        text: [
+            spell(
+                sequentially([
+                    act(target(anyPlayer), draw(1)),
+                    act(
+                        described(determiner: Target(upTo(1)), predicate: creatureYouControl),
+                        connive(1),
+                    ),
+                ]),
+            ),
+        ],
+    ),
+))

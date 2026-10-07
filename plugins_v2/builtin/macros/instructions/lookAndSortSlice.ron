@@ -1,0 +1,18 @@
+// "Look at <slice>, then put any number of them <spill> and the rest on top of
+// that library in any order": the look scry, surveil and fateseal share
+// [CR#701.22a,701.25a,701.29a]. The slice is mentioned twice, so it is bound
+// where it is looked at and read back by identity where some of it is moved
+// (`deckmaste_semantics_v2::mentions`); the read's number is the slice's, which
+// is its amount's, so "scry 1" reads "that card" and "scry 2" "those cards"
+// (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06). It replaces the
+// Lean `lookAndSort`/`lookAndSortInto` and their computed `lookedCards` window.
+(
+    name: "lookAndSortSlice",
+    kinds: [Instruction],
+    params: {"slice": NounPhrase, "spill": ZoneExpr},
+    body: sequentially([
+        lookAt(Param(slice)),
+        move(someOf(anyNumber, Param(slice)), wherever, Param(spill)),
+        move(theRest(Object), wherever, onTopIn(AnyOrder)),
+    ]),
+)

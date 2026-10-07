@@ -261,8 +261,9 @@ fn a_keyword_declaration_builds_its_wrapper() {
         body("KeywordAction", "heal"),
         "Enact(verb: Action(\"Heal\"), instruction: clearDamage(Param(0)))"
     );
-    // A bodyless action stays bodyless.
-    assert_eq!(body("KeywordAction", "scry"), "()");
+    // A bodyless action stays bodyless (scry had no body until
+    // `semantics-v2-macro-capture-and-plurality` gave it one).
+    assert_eq!(body("KeywordAction", "exchange"), "()");
     // `deed: None` leaves the instruction unwrapped.
     assert_eq!(body("KeywordAction", "shuffle"), "Shuffle");
 }

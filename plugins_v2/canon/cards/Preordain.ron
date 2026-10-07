@@ -1,0 +1,14 @@
+// "Scry 2, then draw a card." [CR#701.22a]: scry 2 reads its two looked-at
+// cards back as "those cards".
+SingleFaced(face: (
+    characteristics: (
+        name: "Preordain",
+        cost: [Blue],
+        types: [Sorcery],
+        text: [
+            spell(
+                sequentially([scry(2), draw(1)]),
+            ),
+        ],
+    ),
+))

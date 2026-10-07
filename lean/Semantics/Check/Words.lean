@@ -303,7 +303,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("Clash", { agentRole := playerAgent }),
     ("Cloak", { dest := some .battlefield, agentRole := playerAgent }),
     ("Collect Evidence", { dest := some .exile, agentRole := playerAgent }),
-    ("Connive", {}),
+    ("Connive", { agentRole := permanentAgent }),
     ("Convert", { intransitive := true, agentRole := playerAgent, patientRole := fieldObject }),
     ("Counter",
       { agentRole := playerAgent,

@@ -1,0 +1,14 @@
+// "Discard <discarded>, then <step> for each nonland card discarded this way":
+// connive's discard and the counters that follow it [CR#701.50a,701.50d]. The
+// discarded cards are mentioned twice, so they are bound where they are
+// discarded and read back by identity among the nonland ones; the read's number
+// is the discard's, which is its amount's.
+(
+    name: "discardThenForEachNonland",
+    kinds: [Instruction],
+    params: {"discarded": NounPhrase, "step": Instruction},
+    body: sequentially([
+        discard(Param(discarded)),
+        doForEach(allFromAmong(not(land), Param(discarded)), Param(step)),
+    ]),
+)

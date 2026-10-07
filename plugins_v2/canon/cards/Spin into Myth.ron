@@ -1,0 +1,17 @@
+// "Put target creature on top of its owner's library, then fateseal 2."
+// [CR#701.29a]: the library a card goes to is its owner's [CR#400.3].
+SingleFaced(face: (
+    characteristics: (
+        name: "Spin into Myth",
+        cost: [4, Blue],
+        types: [Instant],
+        text: [
+            spell(
+                sequentially([
+                    move(target(creature), wherever, onTop),
+                    fateseal(2),
+                ]),
+            ),
+        ],
+    ),
+))

@@ -1,9 +1,16 @@
+// "Scry N" [CR#701.22a]: look at the top N cards of your library, then put any
+// number of them on the bottom of your library in any order and the rest on
+// top in any order. "Your" is the actor's. The look reads its slice back by
+// identity, so its number is N's: "that card" for scry 1, "those cards" for
+// scry 2 (`lookAndSortSlice`).
 KeywordAction(
     name: "scry",
+    params: [Amount],
     spelling: "scry",
     grammar: Verb(
         bare: "scry",
         third_person: "scries",
         frame_set: Custom(frames: [[], [Amount], [ObjectNounPhrase]]),
     ),
+    body: lookAndSortSlice(librarySlice(Top, Param(0), actor), onBottomIn(AnyOrder)),
 )
