@@ -397,7 +397,7 @@ A noun use or measured amount's denotation of a quantity or scalar property.
 An ordinary headed phrase retains that denotation; a number-transparent
 quantificational use instead denotes its Oblique. Its licensing of a value Complement after
 *be* is the restriction of the
-[copular-scalar-location ticket](../../tickets/wip/english-v3-copular-scalar-location.md),
+[copular-scalar-location ticket](../../tickets/done/english-v3-copular-scalar-location.md),
 not a restriction asserted by CGEL's scalar-location passage.
 
 **Scalar Value** (project term):

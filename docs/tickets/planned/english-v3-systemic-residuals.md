@@ -295,11 +295,11 @@ is right and this list needs fixing.
   resultative analysis until one exists. CGEL Ch. 4 §5.3 treats a verb-licensed
   resultative as a Complement, which is why the frame was kept.
 - The wider depictive hosts left open by the participial-composition batch.
-- Copular scalar location: "The number of cards in your hand is three." parses in
-  neither number on 2026-10-06 (the *becomes* version does). CGEL Ch. 8 §5.4,
-  pp. 693-694 treats *be* + NP as scalar location; a copula gap, not a concord one.
-  Owned by `english-v3-copular-scalar-location` (split from
-  `english-v3-scalar-comparisons`, 2026-10-06). *Is equal to* and *is less
+- Copular scalar location is discharged by `english-v3-copular-scalar-location`
+  on `lxupmwno` (covered 19,205): all six pinned faces read. The synthetic
+  "The number of cards in your hand is three." has two Readings (its two PP
+  attachments); the plural-*are* probe has none. Scalar variable Subjects,
+  including Magma Sliver's *X*, remain owned here. *Is equal to* and *is less
   than* are be + comparative AdjP and belong to `english-v3-comparative-complements`.
 - Compound/split lexical ambiguity: "untap step" is read both as one compound
   lexeme and as *untap* + *step*, doubling every Reading of Seedborn Muse (the selected-preposition

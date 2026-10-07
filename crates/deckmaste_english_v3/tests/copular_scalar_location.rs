@@ -173,19 +173,34 @@ fn independent_scalar_location_preserves_both_laws_and_traversal_identity() {
             right: word("vocab:Determinative/Less", WordForm::Invariant),
         }),
     };
-    for (value, text) in [
+    let mut cardinal = numeric(3);
+    let LexicalReading::Numeral { notation, .. } = &mut cardinal.value else {
+        unreachable!()
+    };
+    *notation = Numeral::Cardinal;
+    for (value, text, category) in [
         (
             scalar_location("vocab:PossessiveDeterminerPronoun/Its", scalar(2)),
             "its power is 2",
+            Category::FiniteClause,
         ),
         (
             scalar_location("vocab:PossessiveDeterminerPronoun/Her", coordinated),
             "her power is 1 or less",
+            Category::FiniteClause,
+        ),
+        (
+            Reading::ScalarCardinalValue {
+                form: 0,
+                head: cardinal,
+            },
+            "three",
+            Category::ScalarValue,
         ),
     ] {
         value.admit(lexicon()).unwrap();
         assert_eq!(value.realize(lexicon()).unwrap(), text);
-        let parsed = readings(text, Category::FiniteClause);
+        let parsed = readings(text, category);
         assert_eq!(parsed, std::collections::BTreeSet::from([value.clone()]));
         let observed = parsed.get(&value).unwrap();
         let (mut nodes, mut parsed_nodes, mut words, mut parsed_words) =
@@ -211,7 +226,7 @@ fn independent_non_scalar_subject_and_wrong_frame_are_rejected() {
     let Reading::ScalarLocation { subject, .. } = &mut wrong_subject else {
         unreachable!()
     };
-    *subject = Box::new(Reading::CasePhrase {
+    **subject = Reading::CasePhrase {
         form: 0,
         category: Category::NominativePhrase,
         head: Box::new(Reading::DeterminedNounPhrase {
@@ -222,7 +237,7 @@ fn independent_non_scalar_subject_and_wrong_frame_are_rejected() {
                 head: word("lexeme:type/creature", WordForm::Singular),
             }),
         }),
-    });
+    };
     let mut wrong_frame = scalar_location("vocab:PossessiveDeterminerPronoun/Its", scalar(2));
     let Reading::ScalarLocation { predicate, .. } = &mut wrong_frame else {
         unreachable!()
