@@ -337,7 +337,7 @@ def aggressiveMining : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Aggressive Mining", cost := some [generic 3, pip .red], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (cantDoTo (.action "Play") Primitives.NounPhrase.you (allOf land)),
+        [ Primitives.Ability.static (cantDoTo (.action "play") Primitives.NounPhrase.you (allOf land)),
           activatedOnlyOnce (Primitives.Cost.perform (sacrifice (a land))) (Primitives.Instruction.draw (.lit 2)) Primitives.UsageLimit.oncePerTurn ] } }
 
 def rootGreevil : Spelled := spelled <| .singleFaced
@@ -544,9 +544,9 @@ def vexingShusher : Spelled := spelled <| .singleFaced
     { name := "Vexing Shusher", cost := some [hybridPip .red .green, hybridPip .red .green],
       types := [.creature], subtypes := [creatureType "Goblin", creatureType "Shaman"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "Counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
           activated (Primitives.Cost.mana [hybridPip .red .green])
-            (Primitives.Instruction.establish (objectCant (.action "Counter") (target spell)) none) ],
+            (Primitives.Instruction.establish (objectCant (.action "counter") (target spell)) none) ],
       power := stat 2, toughness := stat 2 } }
 
 def trainingGrounds : Spelled := spelled <| .singleFaced
@@ -657,7 +657,7 @@ def asphodelWanderer : Spelled := spelled <| .singleFaced
 
 def hurrJackalAbility : Ability :=
   activated Primitives.Cost.tapSymbol
-    (Primitives.Instruction.establish (objectCant (.action "Regenerate") (target creature)) (some Primitives.Duration.thisTurn))
+    (Primitives.Instruction.establish (objectCant (.action "regenerate") (target creature)) (some Primitives.Duration.thisTurn))
 theorem okHurrJackalAbility : Ability.check [] hurrJackalAbility = [] := by decide
 
 def wickedAkuba : Spelled := spelled <| .singleFaced

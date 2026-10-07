@@ -349,7 +349,7 @@ def neglectedHeirloom : Spelled := spelled <| .transforming
       text :=
         [ Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .equipped (.type .creature)) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1))),
           when
-            (Primitives.GameEvent.verbedEvent none (.action "Transform")
+            (Primitives.GameEvent.verbedEvent none (.action "transform")
               (some (Primitives.NounPhrase.attachHost .equipped (.type .creature))) none none)
             (transform thisEquipment),
           keywordCosting "Equip" (Primitives.Cost.mana [generic 1]) ] } }
@@ -386,7 +386,7 @@ def cultOfTheWaxingMoon : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Human", creatureType "Shaman"],
       text :=
         [ whenever
-            (Primitives.GameEvent.verbedEvent none (.action "Transform")
+            (Primitives.GameEvent.verbedEvent none (.action "transform")
               (some (a (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
               (some (Primitives.Predicate.and [creature, Primitives.Predicate.not
                 (Primitives.Predicate.hasSubtype (creatureType "Human"))])) none)
@@ -438,7 +438,7 @@ def meldThemInto : Instruction :=
         (allOf (Primitives.Predicate.and [ creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
                        Primitives.Predicate.or [ Primitives.Predicate.named (Primitives.NameSource.printed "Graf Rats"),
                              Primitives.Predicate.named (Primitives.NameSource.printed "Midnight Scavengers") ] ])),
-      meldInto (theVerbed (.action "Exile") .many) "Chittering Host" ]
+      meldInto (theVerbed (.action "exile") .many) "Chittering Host" ]
 theorem okMeldThemInto : Instruction.check [] meldThemInto = [] := by decide
 
 /-- Profit // Loss -/
@@ -528,7 +528,7 @@ def curatorOfDestinies : Spelled := spelled <| .singleFaced
     { name := "Curator of Destinies", cost := some [generic 4, pip .blue, pip .blue],
       types := [.creature], subtypes := [creatureType "Sphinx"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "Counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
           keyword "Flying",
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
@@ -583,7 +583,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
           activated (Primitives.Cost.loyaltySymbol (.down 1))
             (Primitives.Instruction.doIfDone (sacrifice (a creature))
               (some (Primitives.Instruction.sequentially
-                [ searchLibraryFor (exactly 1) creature, revealCards (theVerbed (.action "Search") .one), move (theVerbed (.action "Search") .one) hand,
+                [ searchLibraryFor (exactly 1) creature, revealCards (theVerbed (.action "search") .one), move (theVerbed (.action "search") .one) hand,
                   shuffle ]))
               none),
           activated (Primitives.Cost.loyaltySymbol (.down 3))
@@ -643,7 +643,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
                                   Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you) ])),
                 Primitives.Instruction.copy .fromCardZone (that .card) (.lit 1) [],
                 Primitives.Instruction.establish
-                  (mayPlayDeed (.action "Cast") Primitives.NounPhrase.you (that .copy) none
+                  (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (that .copy) none
                     (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.withoutPaying))
                   none ]) ],
       power := stat 4, toughness := stat 3 } }

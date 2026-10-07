@@ -7,5 +7,5 @@
     name: "regenerationApplication",
     kinds: [Instruction],
     params: {"subject": NounPhrase},
-    body: Enact(verb: Action("Regenerate"), instruction: Sequentially([ClearDamage(Param(subject)), Act(PossessorOf(Controller, Param(subject)), Enact(Action("Tap"), SetStatus(Tapped, Param(subject)))), DoIf(Or([Matches(Param(subject), InCombat(AttackerOf, None)), Matches(Param(subject), InCombat(BlockerOf, None))]), Combat(Param(subject), Participation(OutsideCombat)), None)])),
+    body: Enact(verb: regenerate, instruction: Sequentially([ClearDamage(Param(subject)), Act(PossessorOf(Controller, Param(subject)), Enact(tap, SetStatus(Tapped, Param(subject)))), DoIf(Or([Matches(Param(subject), InCombat(AttackerOf, None)), Matches(Param(subject), InCombat(BlockerOf, None))]), Combat(Param(subject), Participation(OutsideCombat)), None)])),
 )

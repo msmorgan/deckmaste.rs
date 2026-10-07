@@ -97,7 +97,7 @@ semantic_macro stopBlocking (subject blocked : NounPhrase) : Semantics.Instructi
   .combat subject (.blocking .unattached blocked)
 
 semantic_macro attachTo (subject host : NounPhrase) : Semantics.Instruction :=
-  .enact (.action "Attach") (.attachment .attached subject (some host))
+  .enact (.action "attach") (.attachment .attached subject (some host))
 
 semantic_macro unattach (subject : NounPhrase) : Semantics.Instruction :=
   .attachment .unattached subject none
@@ -120,7 +120,7 @@ namespace Semantics.Macros.Primitives.Instruction
 
 /-- Counter is one labeled stack-to-graveyard move [CR#701.6a]. -/
 semantic_macro counterSpell (subject : NounPhrase) : Semantics.Instruction :=
-  .enact (.action "Counter") (.move subject (.zone .stack .bare) (.zone .graveyard .bare) [])
+  .enact (.action "counter") (.move subject (.zone .stack .bare) (.zone .graveyard .bare) [])
 
 end Semantics.Macros.Primitives.Instruction
 

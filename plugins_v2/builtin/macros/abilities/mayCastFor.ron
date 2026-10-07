@@ -3,5 +3,5 @@
     name: "mayCastFor",
     kinds: [StaticSpec],
     params: {"player": NounPhrase, "cost": Cost, "from": Default(Any, None)},
-    body: DeonticRule(Param(player), Permit, [Action("Cast")], Agent, None, Counterpart(This), None, Play(Param(from), None, None, false, PayingInstead(Param(cost)))),
+    body: DeonticRule(Param(player), Permit, [cast], Agent, None, Counterpart(This), None, Play(Param(from), None, None, false, PayingInstead(Param(cost)))),
 )

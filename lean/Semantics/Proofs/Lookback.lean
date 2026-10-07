@@ -80,13 +80,13 @@ theorem castRejectsEmptyOriginExclusion :
 theorem namedActionCanCarryItsLocus :
     LookbackClause.check .player []
       (.mk
-        (.verbedEvent (some (.gap .player)) (.action "Search") none none
+        (.verbedEvent (some (.gap .player)) (.action "search") none none
           (some (.zone .library (.possessedBy .you)))) .thisWay) = [] := by decide
 
 theorem locusUsesDeclaredActionFeatures :
     LookbackClause.check .player []
       (.mk
-        (.verbedEvent (some (.gap .player)) (.action "Shuffle") none none
+        (.verbedEvent (some (.gap .player)) (.action "shuffle") none none
           (some (.zone .graveyard (.possessedBy .you)))) .thisWay)
       = [.lookbackLocus] := by decide
 

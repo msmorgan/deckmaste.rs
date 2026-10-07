@@ -654,7 +654,7 @@ def akroanSergeant : Spelled := spelled <| .singleFaced
       text := [keyword "FirstStrike", renown 1], power := stat 2, toughness := stat 2 } }
 
 def castCreatureSpellsFromTop : StaticSpec :=
-  mayPlayDeed (.action "Cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, creature])) none
+  mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, creature])) none
     (Primitives.DeonticRider.play (some onTop) none none false Primitives.PlayPayment.itsOwnCost)
 theorem okCastCreatureSpellsFromTop : StaticSpec.check [] castCreatureSpellsFromTop = [] := by decide
 
@@ -771,14 +771,14 @@ def clarionConqueror : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Dragon"],
       text :=
         [ keyword "Flying",
-          Primitives.Ability.static (objectCant (.action "Activate")
+          Primitives.Ability.static (objectCant (.action "activate")
             (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
                            Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.or [artifact, creature, Primitives.Predicate.hasType .planeswalker])) ]))) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Kang the Conqueror -/
 def kangPowerUpLock : StaticSpec :=
-  objectCant (.action "Activate") (allOf (Primitives.Predicate.abilityHead (.keyword "PowerUp")))
+  objectCant (.action "activate") (allOf (Primitives.Predicate.abilityHead (.keyword "PowerUp")))
 theorem okKangPowerUpLock : StaticSpec.check [] kangPowerUpLock = [] := by decide
 
 def vipersKiss : Spelled := spelled <| .singleFaced
@@ -792,7 +792,7 @@ def vipersKiss : Spelled := spelled <| .singleFaced
               Primitives.StaticSpec.modification (itsOther (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Delta.down (.lit 1)))
                   .toughness
                 (Primitives.Delta.down (.lit 1)),
-              objectCant (.action "Activate")
+              objectCant (.action "activate")
                 (allOf (Primitives.Predicate.and [Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.abilityOf it])) ]) ] } }
 
 def stupefyingTouch : Spelled := spelled <| .singleFaced
@@ -802,7 +802,7 @@ def stupefyingTouch : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject "Enchant" creature,
           when (Primitives.GameEvent.enters thisAura none) (Primitives.Instruction.draw (.lit 1)),
-          Primitives.Ability.static (objectCant (.action "Activate")
+          Primitives.Ability.static (objectCant (.action "activate")
             (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
                            Primitives.Predicate.abilityOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) ]))) ] } }
 
@@ -812,7 +812,7 @@ def linvalaKeeperOfSilence : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature], subtypes := [creatureType "Angel"],
       text :=
         [ keyword "Flying",
-          Primitives.Ability.static (objectCant (.action "Activate")
+          Primitives.Ability.static (objectCant (.action "activate")
             (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
                            Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup .yourOpponents)])) ]))) ],
       power := stat 3, toughness := stat 4 } }
@@ -969,7 +969,7 @@ theorem okHateMirageTokens : Instruction.check [] hateMirageTokens = [] := by de
 def descentOfTheDragons : Instruction :=
   Primitives.Instruction.sequentially
     [ destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) creature),
-      Primitives.Instruction.doForEach (theVerbed (.action "Destroy") .many (some (.type .creature)) .thisWay)
+      Primitives.Instruction.doForEach (theVerbed (.action "destroy") .many (some (.type .creature)) .thisWay)
         (act (controllerOf it) (Primitives.Instruction.create (.lit 1)
           (Primitives.TokenSpec.written
             { characteristics :=
@@ -1142,7 +1142,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
 
 /-- Tourach, Dread Cantor -/
 def tourachDiscardTrigger : Ability :=
-  whenever (Primitives.GameEvent.verbedEvent (some anOpponent) (.action "Discard") (some (a
+  whenever (Primitives.GameEvent.verbedEvent (some anOpponent) (.action "discard") (some (a
     Primitives.Predicate.isCard)) none none)
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature)
 theorem okTourachDiscardTrigger : Ability.check [] tourachDiscardTrigger = [] := by decide
@@ -1228,9 +1228,9 @@ def towerWinder : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Command Tower")),
-                revealCards (theVerbed (.action "Search") .one), move (theVerbed (.action "Search") .one) hand,
+                revealCards (theVerbed (.action "search") .one), move (theVerbed (.action "search") .one) hand,
                 Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
-                  (relative .player)) (.action "Search") none none (some yourLibrary))
+                  (relative .player)) (.action "search") none none (some yourLibrary))
                   Primitives.NounPhrase.you .thisWay) shuffle
                   none ]) ],
       power := stat 1, toughness := stat 1 } }
@@ -1244,9 +1244,9 @@ def aimHigh : Spelled := spelled <| .singleFaced
             [ untap (target creature),
               Primitives.Instruction.establish
                 (Primitives.StaticSpec.conjunction none
-                  [ Primitives.StaticSpec.modification (theVerbed (.action "Untap") .one) .power (Primitives.Delta.up (.lit 2)),
-                    Primitives.StaticSpec.modification (theVerbed (.action "Untap") .one) .toughness (Primitives.Delta.up (.lit 2)),
-                    Primitives.StaticSpec.abilityGrant (theVerbed (.action "Untap") .one) (keyword "Reach") ])
+                  [ Primitives.StaticSpec.modification (theVerbed (.action "untap") .one) .power (Primitives.Delta.up (.lit 2)),
+                    Primitives.StaticSpec.modification (theVerbed (.action "untap") .one) .toughness (Primitives.Delta.up (.lit 2)),
+                    Primitives.StaticSpec.abilityGrant (theVerbed (.action "untap") .one) (keyword "Reach") ])
                 (some untilEndOfTurn) ]) ] } }
 
 /-- Harried Dronesmith -/
@@ -1308,7 +1308,7 @@ def darkbladeAgentGrants : Ability :=
       [ Primitives.StaticSpec.abilityGrant thisCreature (keyword "Deathtouch"),
         Primitives.StaticSpec.abilityGrant thisCreature
           (whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer)) (Primitives.Instruction.draw (.lit 1))) ])
-    (happened (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "Surveil") none
+    (happened (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "surveil") none
       none none) Primitives.NounPhrase.you .thisTurn) .asLongAs)
 theorem okDarkbladeAgentGrants : Ability.check [] darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
@@ -1409,7 +1409,7 @@ def marketGnome : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Gnome"],
       text :=
         [ when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.sequentially [gainLife (.lit 1), Primitives.Instruction.draw (.lit 1)]),
-          triggeredWhile (Primitives.GameEvent.verbedEvent none (.action "Exile") (some
+          triggeredWhile (Primitives.GameEvent.verbedEvent none (.action "exile") (some
             thisCreature) none none)
             (Primitives.Concurrent.whileDoing (Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead (.keyword "Craft")))))
             (Primitives.Instruction.sequentially [gainLife (.lit 1), Primitives.Instruction.draw (.lit 1)]) ],

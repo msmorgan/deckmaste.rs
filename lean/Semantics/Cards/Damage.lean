@@ -272,7 +272,7 @@ def psychicPurge : Spelled := spelled <| .singleFaced
             (Primitives.GameEvent.causes
               (Primitives.Causing.source (a (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack],
                                  Primitives.Predicate.hasPossessor .controller (a Primitives.Predicate.opponent)])))
-              (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action "Discard")
+              (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action "discard")
                 (some Primitives.NounPhrase.this) none none))
             (act (that .player) (loseLife (.lit 5))) ] } }
 
@@ -846,7 +846,7 @@ def infernoOfTheStarMounts : Spelled := spelled <| .singleFaced
     { name := "Inferno of the Star Mounts", cost := some [generic 4, pip .red, pip .red],
       supertypes := [.legendary], types := [.creature], subtypes := [creatureType "Dragon"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "Counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
           keyword "Flying",
           keyword "Haste",
           activated (Primitives.Cost.mana [pip .red])
@@ -862,7 +862,7 @@ def incinerate : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target anyTarget),
               Primitives.Instruction.establish
-                (objectCant (.action "Regenerate")
+                (objectCant (.action "regenerate")
                   (a (Primitives.Predicate.and [creature, Primitives.Predicate.happenedTo
                     (Primitives.LookbackClause.mk (Primitives.GameEvent.isDealtDamage .any
                     (Primitives.NounPhrase.asMarker .permanent (relative .object))) .thisWay)])))
@@ -1373,7 +1373,7 @@ def fry : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fry", cost := some [generic 1, pip .red], types := [.instant],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "Counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
           Primitives.Ability.spell none
             (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 5)
               (target (Primitives.Predicate.and [Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker], Primitives.Predicate.or [Primitives.Predicate.colorIs .white, Primitives.Predicate.colorIs .blue]]))) ] } }

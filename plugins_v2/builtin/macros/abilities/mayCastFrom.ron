@@ -6,5 +6,5 @@
     name: "mayCastFrom",
     kinds: [StaticSpec],
     params: {"what": NounPhrase, "zone": ZoneExpr, "paying": Default(Any, ItsOwnCost), "exclusive": Default(Any, false)},
-    body: mayPlayDeed(Action("Cast"), actor, Param(what), Play(Param(zone), None, None, Param(exclusive), Param(paying))),
+    body: mayPlayDeed(cast, actor, Param(what), Play(Param(zone), None, None, Param(exclusive), Param(paying))),
 )

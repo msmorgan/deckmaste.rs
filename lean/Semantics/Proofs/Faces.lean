@@ -85,7 +85,7 @@ theorem badCastWindowAsDeonticStatic :
           text :=
             [ .static
                 (Primitives.StaticSpec.partScope .declareAttackers none
-                  (deontic .this .permit [.action "Cast"] .patient .noPatient)),
+                  (deontic .this .permit [.action "cast"] .patient .noPatient)),
               .spell none (draw (.lit 1)) ] }) = [.cardText] := by
   decide
 
@@ -842,7 +842,7 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Instruction.check []
       (.sequentially
-        [ Macros.act (each .opponent) (.enact (.action "Shuffle") (Macros.act they (.shuffle))),
+        [ Macros.act (each .opponent) (.enact (.action "shuffle") (Macros.act they (.shuffle))),
           Macros.act (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
   decide
 

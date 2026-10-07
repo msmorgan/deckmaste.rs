@@ -15,13 +15,13 @@ KeywordAbility(
                 deontic(
                     allOf(anyPlayer),
                     Forbid,
-                    [Action("Cast"), Action("Activate")],
+                    [cast, activate],
                     Agent,
                     CounterpartsAt([
-                        (counterpart: allOf(anotherSpell), deed: Action("Cast")),
+                        (counterpart: allOf(anotherSpell), deed: cast),
                         (
                             counterpart: allOf(and([abilityHead(AnyActivated), not(isManaAbility)])),
-                            deed: Action("Activate"),
+                            deed: activate,
                         ),
                     ]),
                 ),

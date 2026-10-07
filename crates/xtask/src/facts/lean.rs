@@ -536,9 +536,10 @@ fn keyword_rows(
 
 /// Every keyword-action declaration's checker label, in declaration order.
 ///
-/// The label is the one the declaration's own `Enact` deed carries
-/// ([`keywords::keyword_action_label`]): the words the camelCase name spells,
-/// each capitalized, so `collectEvidence` is "Collect Evidence".
+/// The label is the one the declaration's own `Enact` deed carries, which is
+/// the declaration's name verbatim (`collectEvidence`): a keyword action is
+/// named by its declaration name wherever a deed is wanted
+/// (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06).
 ///
 /// The columns themselves are the checker's own data, hand-written as
 /// `actFacts` in `Check/Words.lean`; this list is what `Proofs/Tables.lean`
@@ -551,7 +552,7 @@ fn action_labels(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<S
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::KeywordAction)
     {
-        let label = keywords::keyword_action_label(declared.identity().name());
+        let label = declared.identity().name().to_owned();
         anyhow::ensure!(
             seen.insert(label.clone()),
             "{}: two keyword actions share the checker label {label}",
@@ -858,7 +859,7 @@ mod tests {
             .split("\n\n")
             .next()
             .expect("the label list ends at the blank line");
-        assert!(table.contains("\"Test Action\""), "{table}");
+        assert!(table.contains("\"testAction\""), "{table}");
     }
 
     #[test]

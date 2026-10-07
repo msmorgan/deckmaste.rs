@@ -52,7 +52,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (.enact (.action "Destroy") (.draw (.lit 1)))] } }
+      text := [Primitives.Ability.spell none (.enact (.action "destroy") (.draw (.lit 1)))] } }
 
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.enact] -/
 #guard_msgs in
@@ -60,7 +60,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none
-        (.enact (.action "Destroy") (.move (target creature) (.zone .battlefield .bare) ((.zone .hand .bare)) []))] } }
+        (.enact (.action "destroy") (.move (target creature) (.zone .battlefield .bare) ((.zone .hand .bare)) []))] } }
 
 /-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.enact] -/
 #guard_msgs in
@@ -68,7 +68,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially
-        [.enact (.action "Destroy") (.sequentially [.move (target creature) (.zone .battlefield .bare) ((.zone .hand .bare)) []])])] } }
+        [.enact (.action "destroy") (.sequentially [.move (target creature) (.zone .battlefield .bare) ((.zone .hand .bare)) []])])] } }
 
 /-- error: invalid {...} notation, constructor for `Spelled` is marked as private -/
 #guard_msgs in

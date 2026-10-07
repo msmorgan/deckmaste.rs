@@ -188,7 +188,8 @@ abbrev FlavorWordLabel := String
 abbrev VoteLabel := String
 
 /-- A keyword action's name [CR#701.1]. The keyword actions are an open set the registry
-declares, so a deed of that source is keyed by its written label, as a designation is. -/
+declares, so a deed of that source is keyed by the declaration's name verbatim (`exile`,
+`collectEvidence`), as a designation is. -/
 abbrev KeywordActionLabel := String
 
 /-- Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions

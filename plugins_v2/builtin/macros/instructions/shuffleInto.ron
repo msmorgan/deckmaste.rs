@@ -2,5 +2,5 @@
     name: "shuffleInto",
     kinds: [Instruction],
     params: {"subject": NounPhrase},
-    body: Enact(verb: Action("Shuffle"), instruction: Move(Param(subject), wherever, Library(Shuffled, None, None, Bare), [])),
+    body: Enact(verb: shuffle, instruction: Move(Param(subject), wherever, Library(Shuffled, None, None, Bare), [])),
 )

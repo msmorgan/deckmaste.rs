@@ -543,7 +543,7 @@ theorem okStormscapeBattlemageFirstKicker :
     Ability.check [] stormscapeBattlemageFirstKicker = [] := by decide
 /-- All-Seeing Arbiter -/
 def allSeeingArbiterHeader : GameEvent :=
-  Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action "Discard") (some (a
+  Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action "discard") (some (a
     (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))) none none
 theorem okAllSeeingArbiterHeader : GameEvent.check [] allSeeingArbiterHeader = [] := by decide
 
@@ -552,7 +552,7 @@ def lilianasCaress : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Liliana's Caress", cost := some [generic 1, pip .black], types := [.enchantment],
       text :=
-        [ whenever (Primitives.GameEvent.verbedEvent (some anOpponent) (.action "Discard") (some (a
+        [ whenever (Primitives.GameEvent.verbedEvent (some anOpponent) (.action "discard") (some (a
           (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))) none none)
             (act they (loseLife (.lit 2))) ] } }
 
@@ -563,7 +563,7 @@ def schemingAspirant : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Phyrexian", creatureType "Advisor"],
       text :=
         [ whenever (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action
-          "Proliferate") none none none)
+          "proliferate") none none none)
             (Primitives.Instruction.sequentially [act (each Primitives.Predicate.opponent) (loseLife (.lit 2)), gainLife (.lit 2)]) ],
       power := stat 1, toughness := stat 3 } }
 
@@ -701,9 +701,9 @@ def agencyOutfitterSearch : Instruction :=
         (Primitives.Instruction.sequentially
           [ searchZonesOf Primitives.NounPhrase.you (exactly 1)
               (Primitives.Predicate.or [Primitives.Predicate.named (Primitives.NameSource.printed "Magnifying Glass"), Primitives.Predicate.named (Primitives.NameSource.printed "Thinking Cap")]),
-            putOntoBattlefield (theVerbed (.action "Search") .one) ]),
+            putOntoBattlefield (theVerbed (.action "search") .one) ]),
       Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some (relative
-        .player)) (.action "Search") none none (some yourLibrary)) Primitives.NounPhrase.you
+        .player)) (.action "search") none none (some yourLibrary)) Primitives.NounPhrase.you
         .thisWay) shuffle none ]
 theorem okAgencyOutfitterSearch : Instruction.check [] agencyOutfitterSearch = [] := by decide
 
@@ -728,15 +728,15 @@ def bioplasm : Spelled := spelled <| .singleFaced
                 Primitives.Instruction.doIf bioplasmCardTest
                   (get thisCreature
                     (Primitives.Delta.up (Primitives.Amount.statOf (.stat .power)
-                      (theVerbed (.action "Exile") .one (some (.ofType .card .creature)))))
-                    (Primitives.Delta.up (Primitives.Amount.statOf (.stat .toughness) (theVerbed (.action "Exile") .one)))
+                      (theVerbed (.action "exile") .one (some (.ofType .card .creature)))))
+                    (Primitives.Delta.up (Primitives.Amount.statOf (.stat .toughness) (theVerbed (.action "exile") .one)))
                     (some Primitives.Duration.thisTurn))
                   none ]) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Hostile Investigator -/
 def hostileInvestigatorHeader : GameEvent :=
-  Primitives.GameEvent.verbedEvent (some (counted (atLeast 1) Primitives.Predicate.anyPlayer)) (.action "Discard")
+  Primitives.GameEvent.verbedEvent (some (counted (atLeast 1) Primitives.Predicate.anyPlayer)) (.action "discard")
     (some (counted (atLeast 1) Primitives.Predicate.isCard)) none none
 theorem okHostileInvestigatorHeader : GameEvent.check [] hostileInvestigatorHeader = [] := by decide
 
@@ -808,7 +808,7 @@ theorem okAltarOfTheBrood : Ability.check [] altarOfTheBrood = [] := by decide
 /-- Foul Emissary -/
 def foulEmissaryLine : Ability :=
   triggeredWhile (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action
-    "Sacrifice") (some thisCreature) none none)
+    "sacrifice") (some thisCreature) none none)
     (Primitives.Concurrent.whileDoing (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
       (Primitives.Predicate.and [spell, Primitives.Predicate.hasKeyword (.the "Emerge")]))) none))
     (create (.lit 1) (creatureToken 3 2 [] [creatureType "Eldrazi", creatureType "Horror"]))

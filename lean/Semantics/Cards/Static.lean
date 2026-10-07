@@ -55,7 +55,7 @@ def nowhereToRunTargetLine : StaticSpec :=
     (allOf (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack])) (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the "Hexproof")))
 theorem okNowhereToRunTargetLine : StaticSpec.check [] nowhereToRunTargetLine = [] := by decide
 /-- Hithlain Rope -/
-def hithlainRopeSacrificeLock : StaticSpec := objectCant (.action "Sacrifice") Primitives.NounPhrase.this
+def hithlainRopeSacrificeLock : StaticSpec := objectCant (.action "sacrifice") Primitives.NounPhrase.this
 theorem okHithlainRopeSacrificeLock : StaticSpec.check [] hithlainRopeSacrificeLock = [] := by
   decide
 /-- Lich's Mastery -/
@@ -226,13 +226,13 @@ theorem okTahngarthAttacksThatJoin :
 def mindlockOrb : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mindlock Orb", cost := some [generic 3, pip .blue], types := [.artifact],
-      text := [Primitives.Ability.static (playerCant (.action "Search") (Primitives.NounPhrase.playerGroup .allPlayers))] } }
+      text := [Primitives.Ability.static (playerCant (.action "search") (Primitives.NounPhrase.playerGroup .allPlayers))] } }
 
 def silence : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Silence", cost := some [pip .white], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.establish (playerCant (.action "Cast") (Primitives.NounPhrase.playerGroup .yourOpponents))
+        [ Primitives.Ability.spell none (Primitives.Instruction.establish (playerCant (.action "cast") (Primitives.NounPhrase.playerGroup .yourOpponents))
             (some Primitives.Duration.thisTurn)) ] } }
 
 def shadowOfDoubt : Spelled := spelled <| .singleFaced
@@ -241,14 +241,14 @@ def shadowOfDoubt : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.establish (playerCant (.action "Search") (Primitives.NounPhrase.playerGroup .allPlayers))
+            [ Primitives.Instruction.establish (playerCant (.action "search") (Primitives.NounPhrase.playerGroup .allPlayers))
                 (some Primitives.Duration.thisTurn),
               Primitives.Instruction.draw (.lit 1) ]) ] } }
 
 def omenMachineDraw : Ability := Primitives.Ability.static (playerCant (.core .draw) (Primitives.NounPhrase.playerGroup .allPlayers))
 theorem okOmenMachineDraw : Ability.check [] omenMachineDraw = [] := by decide
 def solfataraLandLock : Instruction :=
-  Primitives.Instruction.establish (playerCant (.action "Play") (target Primitives.Predicate.anyPlayer)) (some Primitives.Duration.thisTurn)
+  Primitives.Instruction.establish (playerCant (.action "play") (target Primitives.Predicate.anyPlayer)) (some Primitives.Duration.thisTurn)
 theorem okSolfataraLandLock : Instruction.check [] solfataraLandLock = [] := by decide
 
 /-- "each nonbasic land is a <type>": a moon effect. -/
@@ -399,7 +399,7 @@ def dovinsVeto : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Dovin's Veto", cost := some [pip .white, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "Counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
           Primitives.Ability.spell none (Primitives.Instruction.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.not creature]))) ] } }
 
 def goblinSpy : Spelled := spelled <| .singleFaced
@@ -547,7 +547,7 @@ def blatantThievery : Spelled := spelled <| .singleFaced
 
 /-- "activated abilities of <p> can't be activated" -/
 def cantActivateAbilitiesOf (p : Predicate) : StaticSpec :=
-  objectCant (.action "Activate")
+  objectCant (.action "activate")
     (allOf (Primitives.Predicate.and [Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.abilityOf (allOf p)]))
 
 def cursedTotem : Spelled := spelled <| .singleFaced
@@ -569,7 +569,7 @@ def dampingMatrix : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Damping Matrix", cost := some [generic 3], types := [.artifact],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "Activate")
+        [ Primitives.Ability.static (objectCant (.action "activate")
             (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
                            Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.or [artifact, creature])),
                            Primitives.Predicate.not Primitives.Predicate.isManaAbility ]))) ] } }
@@ -666,7 +666,7 @@ theorem okTheLadyOfOtariaLine : StaticSpec.check [] theLadyOfOtariaLine = [] := 
 /-- Clergy of the Holy Nimbus -/
 def clergyOfTheHolyNimbus : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.verbedEvent
-    none (.action "Destroy") (some thisCreature) none none) [] none
+    none (.action "destroy") (some thisCreature) none none) [] none
     (regenerationApplication it) .repeatedly none)
 theorem okClergyOfTheHolyNimbus : Ability.check [] clergyOfTheHolyNimbus = [] := by decide
 /-- Rampant Frogantua -/

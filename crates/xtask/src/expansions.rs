@@ -885,7 +885,7 @@ mod tests {
         );
         let raw = |amount: u32| {
             format!(
-                r#"Enact(verb: Action("Amass"), instruction: OwnScope(scope: 0, body: Sequentially([
+                r#"Enact(verb: Action("amass"), instruction: OwnScope(scope: 0, body: Sequentially([
                 DoIf(
                     condition: Not(Exists(Described(
                         determiner: Bare,

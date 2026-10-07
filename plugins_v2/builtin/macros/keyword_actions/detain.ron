@@ -15,7 +15,7 @@ KeywordAction(
         [
             deontic(Param(0), Forbid, [Attack, Block], Agent, NoPatient),
             objectCant(
-                Action("Activate"),
+                activate,
                 allOf(and([abilityHead(AnyActivated), abilityOf(Param(0))])),
             ),
         ],

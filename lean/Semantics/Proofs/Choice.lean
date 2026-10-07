@@ -503,9 +503,9 @@ theorem playAndCastFromGraveyardThisTurn :
     Instruction.check []
       (.establish
         (.conjunction none
-          [ mayPlayDeed (.action "Play") .you (allOf land) none
+          [ mayPlayDeed (.action "play") .you (allOf land) none
               (.play (some (graveyardOf .you)) none none false .itsOwnCost),
-            mayPlayDeed (.action "Cast") .you (allOf spell) none
+            mayPlayDeed (.action "cast") .you (allOf spell) none
               (.play (some (graveyardOf .you)) none none false .itsOwnCost) ])
         (some untilEndOfTurn)) = [] := by
   decide
@@ -522,7 +522,7 @@ theorem millThenPutFromAmongMilled :
       (.sequentially
         [ mill (.lit 3) .you,
           offer
-            (move (fromAmong (exactly 1) artifact (theVerbed (.action "Mill") .many (some .card) .thisWay))
+            (move (fromAmong (exactly 1) artifact (theVerbed (.action "mill") .many (some .card) .thisWay))
               hand) ]) = [] := by
   decide
 

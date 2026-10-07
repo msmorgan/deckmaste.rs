@@ -18,13 +18,13 @@ namespace Semantics.Cards
 def boshIronGolem : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3, pip .red], Primitives.Cost.perform (sacrifice (a artifact))])
     (Primitives.Instruction.dealDamage Primitives.NounPhrase.this
-      (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Sacrifice") .one (some (.type .artifact))))
+      (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one (some (.type .artifact))))
       (target anyTarget))
 theorem okBoshIronGolem : Ability.check [] boshIronGolem = [] := by decide
 def pyromancy : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])))])
     (Primitives.Instruction.dealDamage thisEnchantment
-      (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .one (some .card)))
+      (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card)))
       (target anyTarget))
 theorem okPyromancy : Ability.check [] pyromancy = [] := by decide
 def luckyOffering : Instruction :=
@@ -374,7 +374,7 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
               Primitives.Instruction.draw (.lit 3),
               discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])),
               Primitives.Instruction.dealDamage Primitives.NounPhrase.this
-                (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Discard") .one (some .card)))
+                (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card)))
                 thatJoin ]) ] } }
 
 def riddleOfLightning : Spelled := spelled <| .singleFaced
@@ -405,7 +405,7 @@ def sanctumPrelate : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Human", creatureType "Cleric"],
       text :=
         [ Primitives.Ability.static (entersChoosing thisCreature .number),
-          Primitives.Ability.static (objectCant (.action "Cast")
+          Primitives.Ability.static (objectCant (.action "cast")
             (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.not creature, Primitives.Predicate.compare [.stat .manaValue] .eq chosenNumber]))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -413,7 +413,7 @@ def abruptDecay : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Abrupt Decay", cost := some [pip .black, pip .green], types := [.instant],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "Counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
           Primitives.Ability.spell none
             (destroy (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)]))) ] } }
 
@@ -443,7 +443,7 @@ def theFlux : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ exile (topSlice (.lit 1)),
                 Primitives.Instruction.establish
-                  (mayPlayDeed (.action "Play") Primitives.NounPhrase.you (that .card) none
+                  (mayPlayDeed (.action "play") Primitives.NounPhrase.you (that .card) none
                     (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
                   (some Primitives.Duration.thisTurn) ]),
           when (Primitives.GameEvent.chapterMark [6]) (Primitives.Instruction.addMana (.lit 6) (Primitives.ProducedMana.runs [[.of .red]]) []) ] } }
@@ -479,9 +479,9 @@ def gaddockTeeg : Spelled := spelled <| .singleFaced
     { name := "Gaddock Teeg", cost := some [pip .green, pip .white], supertypes := [.legendary],
       types := [.creature], subtypes := [creatureType "Kithkin", creatureType "Advisor"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "Cast")
+        [ Primitives.Ability.static (objectCant (.action "cast")
             (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.not creature, Primitives.Predicate.compare [.stat .manaValue] .atLeast (.lit 4)]))),
-          Primitives.Ability.static (objectCant (.action "Cast")
+          Primitives.Ability.static (objectCant (.action "cast")
             (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.not creature, Primitives.Predicate.manaCostHas .variable]))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -775,7 +775,7 @@ def birthingPodSearch : Ability :=
              Primitives.Predicate.compare [.stat .manaValue] .eq
                (Primitives.Amount.arith .plus (.lit 1)
                  (Primitives.Amount.statOf (.stat .manaValue)
-                   (theVerbed (.action "Sacrifice") .one (some (.type .creature)))))]))
+                   (theVerbed (.action "sacrifice") .one (some (.type .creature)))))]))
 theorem okBirthingPodSearch : Ability.check [] birthingPodSearch = [] := by decide
 
 /-- Hibernation's End -/
@@ -889,7 +889,7 @@ def soldeviAdnate : Spelled := spelled <| .singleFaced
         [ activated
             (Primitives.Cost.compound [Primitives.Cost.tapSymbol,
               Primitives.Cost.perform (sacrifice (a (Primitives.Predicate.and [creature, Primitives.Predicate.or [Primitives.Predicate.colorIs .black, artifact]])))])
-            (Primitives.Instruction.addMana (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "Sacrifice") .one))
+            (Primitives.Instruction.addMana (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one))
               (Primitives.ProducedMana.runs [[.of .black]]) []) ],
       power := stat 1, toughness := stat 2 } }
 
@@ -903,10 +903,10 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
-                revealCards (theVerbed (.action "Search") .one),
-                move (theVerbed (.action "Search") .one) hand,
+                revealCards (theVerbed (.action "search") .one),
+                move (theVerbed (.action "search") .one) hand,
                 Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
-                  (relative .player)) (.action "Search") none none (some yourLibrary))
+                  (relative .player)) (.action "search") none none (some yourLibrary))
                   Primitives.NounPhrase.you .thisWay) shuffle
                     none ]) ],
       power := stat 3, toughness := stat 2 } }
@@ -1010,7 +1010,7 @@ def delightedHalflingMana : Ability :=
   activated Primitives.Cost.tapSymbol
     (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.anyColor .sameColor)
       [ Primitives.ManaRider.onSpent .affectsIt true (a (Primitives.Predicate.and [Primitives.Predicate.hasSupertype .legendary, spell]))
-          (Primitives.Instruction.establish (objectCant (.action "Counter") (that .spell)) none) ])
+          (Primitives.Instruction.establish (objectCant (.action "counter") (that .spell)) none) ])
 theorem okDelightedHalflingMana : Ability.check [] delightedHalflingMana = [] := by decide
 
 /-- Boseiju, Who Shelters All -/
@@ -1018,7 +1018,7 @@ def boseijuMana : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, payLife 2])
     (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.colorless]])
       [ Primitives.ManaRider.onSpent .affectsIt false (a (Primitives.Predicate.and [instantOrSorcery, spell]))
-          (Primitives.Instruction.establish (objectCant (.action "Counter") (that .spell)) none) ])
+          (Primitives.Instruction.establish (objectCant (.action "counter") (that .spell)) none) ])
 theorem okBoseijuMana : Ability.check [] boseijuMana = [] := by decide
 
 /-- Generator Servant -/

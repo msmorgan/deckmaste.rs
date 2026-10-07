@@ -39,7 +39,7 @@ def jhoiraOfTheGhitu : Ability :=
   activated
     (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.perform (exile (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))])
     (Primitives.Instruction.putCounters (.lit 4) (Primitives.CounterKindSource.printed (.named "timeCounter"))
-      (theVerbed (.action "Exile") .one (some .card)))
+      (theVerbed (.action "exile") .one (some .card)))
 theorem okJhoiraOfTheGhitu : Ability.check [] jhoiraOfTheGhitu = [] := by decide
 def alaundoTheSeer : Instruction :=
   Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "timeCounter")))
@@ -901,7 +901,7 @@ theorem okKorvoldCombatTrigger : Ability.check [] korvoldCombatTrigger = [] := b
 /-- Mirelurk Queen -/
 def mirelurkQueenTrigger : Ability :=
   triggeredOnlyOnce
-    (Primitives.GameEvent.verbedEvent none (.action "Mill")
+    (Primitives.GameEvent.verbedEvent none (.action "mill")
       (some (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.not land,
         Primitives.Predicate.inZone library]))) none none)
     Primitives.UsageLimit.oncePerTurn
@@ -1038,7 +1038,7 @@ def stonebindersFamiliar : Spelled := spelled <| .singleFaced
 /-- Nazgûl -/
 def nazgulRingTrigger : Ability :=
   whenever (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action
-    "The Ring Tempts You") none none none)
+    "theRingTemptsYou") none none none)
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter)
       (each (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Wraith"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
 theorem okNazgulRingTrigger : Ability.check [] nazgulRingTrigger = [] := by decide
@@ -1216,7 +1216,7 @@ theorem okNeurokTransmuter : Instruction.check [] neurokTransmuter = [] := by de
 def syphonMind : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.sequentially [act (each otherPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))), discard them],
-      Primitives.Instruction.doForEach (theVerbed (.action "Discard") .many (some .card) .thisWay) (Primitives.Instruction.draw (.lit 1)) ]
+      Primitives.Instruction.doForEach (theVerbed (.action "discard") .many (some .card) .thisWay) (Primitives.Instruction.draw (.lit 1)) ]
 theorem okSyphonMind : Instruction.check [] syphonMind = [] := by decide
 def peek : Instruction := Primitives.Instruction.sequentially [lookAtHandOf (target Primitives.Predicate.anyPlayer), Primitives.Instruction.draw (.lit 1)]
 theorem okPeek : Instruction.check [] peek = [] := by decide

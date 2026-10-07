@@ -11,15 +11,15 @@ private def targetBinding : Binding := ⟨.target, .one,
   .object [.creature, .artifact] (some .battlefield) none none (some 1), []⟩
 private def sacrificedBinding : Binding := ⟨.target, .one,
   .object [.creature, .artifact] (some .graveyard)
-    (some ⟨.action "Sacrifice", true, true⟩) none (some 1), []⟩
+    (some ⟨.action "sacrifice", true, true⟩) none (some 1), []⟩
 private def riderBinding : Binding := ⟨.target, .one,
   .object [.creature, .artifact] (some .battlefield)
-    (some ⟨.action "Sacrifice", true, false⟩) none (some 1), []⟩
+    (some ⟨.action "sacrifice", true, false⟩) none (some 1), []⟩
 private def afterSacrifice : Bindings := Instruction.intro [] instruction
 
 /-- The target occurs only in the relational subject. The body is a scoped re-read. -/
 theorem expansionIntroducesTheTargetOnce :
-    instruction = act (controllerOf subject) (.enact (.action "Sacrifice")
+    instruction = act (controllerOf subject) (.enact (.action "sacrifice")
       (.move (.pro .bare .one (.introduced [.player, .object])) (.zone .battlefield .bare) graveyard [])) := by rfl
 
 /-- Full profile, including the general deed machinery's explicit rider context. -/
@@ -45,7 +45,7 @@ theorem laterCardIsTheSacrificedObject :
     firstReach (.word .card) .one afterSacrifice = some sacrificedBinding := by rfl
 
 theorem sacrificeStampSelectsTheSameObject :
-    firstReach (.verbed (.action "Sacrifice") none .attributive) .one afterSacrifice =
+    firstReach (.verbed (.action "sacrifice") none .attributive) .one afterSacrifice =
       some sacrificedBinding := by rfl
 
 theorem laterPlayerReadIsAdmitted :
@@ -56,7 +56,7 @@ theorem laterCardReadIsAdmitted :
 
 theorem formerPermanentReadIsAdmitted :
     NounPhrase.check (some .object) afterSacrifice
-      (theVerbed (.action "Sacrifice") .one (some .permanent) .thisWay) = [] := by decide
+      (theVerbed (.action "sacrifice") .one (some .permanent) .thisWay) = [] := by decide
 
 theorem laterCardRetainsBothTypes :
     NounPhrase.ty afterSacrifice (that .card) = [.creature, .artifact] := by decide
@@ -65,7 +65,7 @@ theorem laterCardRetainsGraveyardCarrier :
     NounPhrase.zone afterSacrifice (that .card) = some .graveyard := by decide
 
 theorem riderReadsTheStampedPatient :
-    firstReach (.verbed (.action "Sacrifice") none .attributive) .one
+    firstReach (.verbed (.action "sacrifice") none .attributive) .one
       (Instruction.profile [] instruction).riderCtx = some riderBinding := by rfl
 
 theorem reflexiveFollowUpRemainsAvailable :
@@ -95,7 +95,7 @@ private def nestedCreature : Binding :=
   ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1), []⟩
 private def nestedSacrificed : Binding :=
   ⟨.target, .one, .object [.creature] (some .graveyard)
-    (some ⟨.action "Sacrifice", true, true⟩) none (some 1), []⟩
+    (some ⟨.action "sacrifice", true, true⟩) none (some 1), []⟩
 
 theorem nestedDescriptionIsAdmitted :
     Instruction.check [] nestedInstruction = [] := by decide

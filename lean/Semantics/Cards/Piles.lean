@@ -187,7 +187,7 @@ def doOrDie : Spelled := spelled <| .singleFaced
                 (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (target Primitives.Predicate.anyPlayer)])) 2 [],
               Primitives.Instruction.doAndForbid
                 (destroy (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.inPile (pileOfChoice they)])))
-                (.action "Regenerate") (theVerbed (.action "Destroy") .many) ]) ] } }
+                (.action "regenerate") (theVerbed (.action "destroy") .many) ]) ] } }
 
 /-- Liliana of the Veil -/
 def lilianaOfTheVeil : Spelled := spelled <| .singleFaced

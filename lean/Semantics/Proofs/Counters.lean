@@ -237,7 +237,7 @@ theorem badThemCounterRecipient :
 /-- "Exile target creature with a +1/+1 counter on it." -/
 theorem okExileWithCounterRider :
     Instruction.check []
-      (.enact (.action "Exile")
+      (.enact (.action "exile")
         (.move (target creature) .wherever exileZone [.withCounters (.lit 1) p11 .fresh])) =
             [] := by
   decide
@@ -245,7 +245,7 @@ theorem okExileWithCounterRider :
 /-- "Exile target creature tapped." -/
 theorem badExileTapped :
     Instruction.check []
-      (.enact (.action "Exile") (.move (target creature) .wherever exileZone [.entersAs .tapped]))
+      (.enact (.action "exile") (.move (target creature) .wherever exileZone [.entersAs .tapped]))
       = [.ridersFit] := by
   decide
 
@@ -563,10 +563,10 @@ theorem okOtherThanExiledByThisAbility :
         (.compound [.tapSymbol, .perform (exile (a (.and [.not land, .inZone (handOf .you)])))])
         (.sequentially
           [ .putCounters (.lit 4) (.printed (.named "timeCounter"))
-              (theVerbed (.action "Exile") .one (some .card)),
+              (theVerbed (.action "exile") .one (some .card)),
             .removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter")))
               (each (.and
-                [ .otherThan (theVerbed (.action "Exile") .one (some .card)),
+                [ .otherThan (theVerbed (.action "exile") .one (some .card)),
                   .hasPossessor .owner .you, .inZone exileZone ])) ])) = [] := by
   decide
 

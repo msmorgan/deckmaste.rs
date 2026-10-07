@@ -254,15 +254,20 @@ fn read_macros(
                     // the declaration that lists them is no designation, so
                     // its own name does not read there.
                     let mut definition = definition;
+                    // A keyword action's name reads bare where a deed is
+                    // wanted (`crate::keywords::deed_macro`), registered
+                    // beside the declaration under the `Deed` position.
                     let members = if family == crate::designations::DESIGNATION {
                         match crate::designations::member_macros(&definition, &produced) {
                             Ok(members) => members,
                             Err(reason) => return Err(LoadError::Definition { path, reason }),
                         }
+                    } else if family == crate::keywords::KEYWORD_ACTION {
+                        vec![crate::keywords::deed_macro(&definition)]
                     } else {
                         Vec::new()
                     };
-                    if !members.is_empty() {
+                    if family == crate::designations::DESIGNATION && !members.is_empty() {
                         definition
                             .kinds
                             .retain(|kind| kind.as_str() != crate::designations::DESIGNATION_LABEL);

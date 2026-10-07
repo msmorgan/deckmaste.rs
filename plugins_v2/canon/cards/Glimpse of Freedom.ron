@@ -16,7 +16,7 @@ SingleFaced(face: (
                     Blue,
                 ]),
                 perform(enact(
-                    verb: Action("Exile"),
+                    verb: exile,
                     instruction: move(subject: described( determiner: Count(quantity: range(low: 5, high: 5), mode: None), predicate: and([ card, inZone(zone(zone: Graveyard, scope: PossessedBy(you))), otherThan(this), ]), ), from: zone(zone: Graveyard, scope: PossessedBy(you)), to: zone(zone: Exile, scope: Bare)),
                 )),
             ])),

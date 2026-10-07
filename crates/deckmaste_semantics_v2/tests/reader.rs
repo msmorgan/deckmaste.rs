@@ -27,7 +27,9 @@ use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::words::CardType;
 use deckmaste_semantics_v2::words::Color;
 use deckmaste_semantics_v2::words::ColorOrColorless;
+use deckmaste_semantics_v2::words::CoreDeed;
 use deckmaste_semantics_v2::words::CounterKind;
+use deckmaste_semantics_v2::words::Deed;
 use deckmaste_semantics_v2::words::DesignationLabel;
 use deckmaste_semantics_v2::words::ManaSymbol;
 use deckmaste_semantics_v2::words::ProjAxis;
@@ -35,6 +37,7 @@ use deckmaste_semantics_v2::words::Reach;
 use deckmaste_semantics_v2::words::SimpleManaSymbol;
 use deckmaste_semantics_v2::words::Stat;
 use deckmaste_semantics_v2::words::Subtype;
+use deckmaste_semantics_v2::words::VerbedMarking;
 use deckmaste_semantics_v2::words::Zone;
 
 /// The testing plugin over the builtin prelude, which is how every consumer
@@ -941,7 +944,7 @@ fn amass_expands_to_the_term_its_constructor_body_spelled() {
         .macros
         .read_str(
             r#"
-            Enact(verb: Action("Amass"), instruction: OwnScope(scope: 0, body: Sequentially([
+            Enact(verb: Action("amass"), instruction: OwnScope(scope: 0, body: Sequentially([
                     DoIf(
                         condition: Not(Exists(Described(
                             determiner: Bare,
@@ -1183,4 +1186,131 @@ fn gets_both_is_gets_with_the_same_delta_twice() {
         )
         .expect("gets reads in a card");
     assert_eq!(both, gets);
+}
+
+fn builtin_plugin() -> Plugin {
+    Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+        .expect("the builtin declarations load")
+}
+
+/// A keyword action's declaration name reads bare where a deed is wanted and
+/// denotes the deed the declaration's own `Enact` names, which is that name
+/// verbatim (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06). An
+/// action whose definition is no single named deed (`search`, `deed: None`)
+/// is a deed all the same [CR#701.1].
+#[test]
+fn a_keyword_action_name_denotes_its_deed() {
+    let builtin = builtin_plugin();
+    for name in [
+        "exile",
+        "discard",
+        "collectEvidence",
+        "theRingTemptsYou",
+        "search",
+    ] {
+        let read: Deed = builtin
+            .macros
+            .read_str_restricted(name)
+            .unwrap_or_else(|error| panic!("{name} reads at a `Deed` position: {error}"));
+        assert_eq!(
+            read,
+            Deed::Action {
+                label: name.to_owned()
+            },
+            "{name}"
+        );
+    }
+    let them: NounPhrase = builtin
+        .macros
+        .read_str_restricted("theVerbed(exile, Many)")
+        .expect("a keyword action name reads at theVerbed's deed");
+    let NounPhrase::Pro { reach, .. } = them else {
+        panic!("theVerbed is a pronoun: {them:?}");
+    };
+    assert_eq!(
+        reach,
+        Reach::Verbed {
+            verb: Deed::Action {
+                label: "exile".to_owned()
+            },
+            word: None,
+            marking: VerbedMarking::Attributive,
+        }
+    );
+}
+
+/// A name no keyword action declares is refused when the card loads, not when
+/// it is checked, and the `Action` constructor is not author vocabulary, so a
+/// card cannot spell an undeclared deed around the name either.
+#[test]
+fn an_undeclared_deed_is_refused_at_load() {
+    let builtin = builtin_plugin();
+    for written in [
+        "exiled",
+        "Exile",
+        r#"Action(label: "exile")"#,
+        r#"Action("Exile")"#,
+    ] {
+        assert!(
+            builtin.macros.read_str_restricted::<Deed>(written).is_err(),
+            "`{written}` is no declared deed"
+        );
+    }
+    assert!(
+        builtin
+            .macros
+            .read_str_restricted::<NounPhrase>("theVerbed(exiled, Many)")
+            .is_err(),
+        "an undeclared deed inside a helper's argument is refused too"
+    );
+    // The closed core deeds still read by their own names (§11.1).
+    assert_eq!(
+        builtin
+            .macros
+            .read_str_restricted::<Deed>("Block")
+            .expect("a core deed reads bare"),
+        Deed::Core {
+            deed: CoreDeed::Block
+        }
+    );
+}
+
+/// No keyword action's name is the name of any other declaration, so a bare
+/// name at a deed position cannot mean something else elsewhere, and nothing
+/// but a keyword action registers at the `Deed` position.
+#[test]
+fn keyword_action_names_collide_with_no_other_declaration() {
+    let builtin = builtin_plugin();
+    let actions: std::collections::BTreeSet<&str> = builtin
+        .declarations
+        .keys()
+        .filter(|(kind, _)| kind.as_str() == "KeywordAction")
+        .map(|(_, name)| name.as_str())
+        .collect();
+    assert!(actions.len() > 60, "{} keyword actions", actions.len());
+    let collisions: Vec<String> = builtin
+        .declarations
+        .values()
+        .filter(|declared| {
+            declared
+                .definition
+                .kinds
+                .first()
+                .is_some_and(|family| family.as_str() != "KeywordAction")
+                && actions.contains(declared.definition.name.as_str())
+        })
+        .map(|declared| declared.path.display().to_string())
+        .collect();
+    assert_eq!(collisions, Vec::<String>::new());
+    let at_deed: Vec<&str> = builtin
+        .declarations
+        .keys()
+        .filter(|(kind, _)| kind.as_str() == "Deed")
+        .map(|(_, name)| name.as_str())
+        .collect();
+    assert_eq!(
+        at_deed,
+        Vec::<&str>::new(),
+        "no declaration registers at `Deed` itself"
+    );
 }

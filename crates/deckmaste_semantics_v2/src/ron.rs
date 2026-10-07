@@ -205,6 +205,17 @@ pub const EXPRESSION_KINDS: &[&str] = &[
 const HAND_BUILT_NATIVE: &[(&str, &[&str])] =
     &[("HeaderPossessor", &["NoPossessor", "ByPlayer", "ByTurn"])];
 
+/// The variants of a word type that are NOT author vocabulary even though the
+/// type is no `semantic_expression`: a card names them by a declared name
+/// instead, and the variant is what the name's macro expands to (read free).
+///
+/// `Deed::Action` is a keyword action's deed, and a card names it by the keyword
+/// action's declaration name (`exile`, `crate::keywords::deed_macro`), so an
+/// undeclared name is refused when the card loads rather than when it is
+/// checked (§7, ruling 2026-10-06, "Deeds and keyword labels are declared
+/// names").
+const DECLARED_NAME_ONLY: &[(&str, &[&str])] = &[("Deed", &["Action"])];
+
 /// The literal leaves (§11.1): Lean tags these `semantic_literal`, and
 /// `onlyMacros` admits a literal where it refuses a constructor. A card writes
 /// the numeral, but the written-out form stays legal at the leaf.
@@ -231,8 +242,18 @@ fn carve_out_the_non_expression_kinds(kinds: &KindSet) -> KindSet {
                 .iter()
                 .filter(|(kind, _)| *kind == name)
                 .flat_map(|(_, variants)| variants.iter().copied());
-            kind.natively_spellable(variants.iter().copied())
-                .natively_spellable(hand_built)
+            let declared_only: Vec<&'static str> = DECLARED_NAME_ONLY
+                .iter()
+                .filter(|(kind, _)| *kind == name)
+                .flat_map(|(_, variants)| variants.iter().copied())
+                .collect();
+            kind.natively_spellable(
+                variants
+                    .iter()
+                    .copied()
+                    .filter(|variant| !declared_only.contains(variant)),
+            )
+            .natively_spellable(hand_built)
         };
         out.add(kind);
     }

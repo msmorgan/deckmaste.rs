@@ -3,5 +3,5 @@
     name: "exileWithCounters",
     kinds: [Instruction],
     params: {"subject": NounPhrase, "amount": Amount, "kind": CounterKind},
-    body: Enact(verb: Action("Exile"), instruction: Move(Param(subject), wherever, exileZone, [WithCounters(Param(amount), Printed(Param(kind)), Fresh)])),
+    body: Enact(verb: exile, instruction: Move(Param(subject), wherever, exileZone, [WithCounters(Param(amount), Printed(Param(kind)), Fresh)])),
 )

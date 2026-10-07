@@ -39,7 +39,7 @@ so it cannot carry a first mention. -/
 private def fightByIdentity (l r : NounPhrase) : Instruction :=
   let left := NounPhrase.laterMention "fight.0" l
   let right := NounPhrase.laterMention "fight.1" r
-  .enact (.action "Fight") (.simultaneously [
+  .enact (.action "fight") (.simultaneously [
     .dealDamage (.firstMention "fight.0" l) (.statOf (.stat .power) left) (.firstMention "fight.1" r),
     .dealDamage right (.statOf (.stat .power) right) left])
 
@@ -159,7 +159,7 @@ private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) : Instructi
       .move (.theRest .object .many) .wherever (onTopIn .anyOrder) [] ]
 
 private def scryBy (amount : Amount) : Instruction :=
-  .enact (.action "Scry") (lookAndSortSlice (.librarySlice .top amount .actor) (onBottomIn .anyOrder))
+  .enact (.action "scry") (lookAndSortSlice (.librarySlice .top amount .actor) (onBottomIn .anyOrder))
 
 /-- "Scry 1." -/
 theorem okScryOne : Instruction.check [] (scryBy (.lit 1)) = [] := by decide
@@ -180,13 +180,13 @@ theorem scryTwoReadsThoseCards :
 /-- "Surveil 2." [CR#701.25a] -/
 theorem okSurveilTwo :
     Instruction.check []
-      (.enact (.action "Surveil") (lookAndSortSlice (.librarySlice .top (.lit 2) .actor) graveyard))
+      (.enact (.action "surveil") (lookAndSortSlice (.librarySlice .top (.lit 2) .actor) graveyard))
       = [] := by decide
 
 /-- "Fateseal 2." [CR#701.29a]: an opponent's library. -/
 theorem okFatesealTwo :
     Instruction.check []
-      (.enact (.action "Fateseal")
+      (.enact (.action "fateseal")
         (lookAndSortSlice (.librarySlice .top (.lit 2) (a .opponent)) (onBottomIn .anyOrder)))
       = [] := by decide
 
@@ -203,7 +203,7 @@ private def conniveDiscards (discarded : NounPhrase) : Instruction :=
         (.putCounters (.lit 1) (.printed p1p1Counter) (that .permanent)) ]
 
 private def conniveBy (amount : Amount) : Instruction :=
-  .enact (.action "Connive") (act (controllerOf .actor)
+  .enact (.action "connive") (act (controllerOf .actor)
     (.sequentially [draw amount, conniveDiscards (counted (.exactlyOf amount) .isCard)]))
 
 /-- "Connive" (connive 1), performed by the source permanent [CR#701.50a]. -/
@@ -230,15 +230,15 @@ its own subject at its first mention, read back by identity in the other five. -
 
 private def regenerationApplicationBy (subject : NounPhrase) : Instruction :=
   let s := NounPhrase.laterMention "regenerationApplication.subject" subject
-  .enact (.action "Regenerate") (.sequentially [
+  .enact (.action "regenerate") (.sequentially [
     .clearDamage (.firstMention "regenerationApplication.subject" subject),
-    act (.possessorOf .controller s) (.enact (.action "Tap") (.setStatus .tapped s)),
+    act (.possessorOf .controller s) (.enact (.action "tap") (.setStatus .tapped s)),
     .doIf (.or [.matches s (.inCombat .attackerOf none), .matches s (.inCombat .blockerOf none)])
       (.combat s (.participation .outsideCombat)) none])
 
 private def regenerateBy (permanent : NounPhrase) : Instruction :=
   .establish (.replacement
-    (.verbedEvent none (.action "Destroy") (some (.firstMention "regenerate.0" permanent)) none none)
+    (.verbedEvent none (.action "destroy") (some (.firstMention "regenerate.0" permanent)) none none)
     [] none (regenerationApplicationBy (.laterMention "regenerate.0" permanent)) .nextTimeOnly none)
     (some .thisTurn)
 

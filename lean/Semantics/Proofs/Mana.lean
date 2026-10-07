@@ -30,7 +30,7 @@ theorem okDiscardedCardWord :
     Ability.check []
       (act (.perform (discard (aAtRandom (.and [.isCard, .inZone yourHand]))))
         (.dealDamage .this
-          (.statOf (.stat .manaValue) (theVerbed (.action "Discard") .one (some .card)))
+          (.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card)))
           (target anyTarget))) = [] := by
   decide
 
@@ -39,9 +39,9 @@ theorem badDiscardedCreatureWord :
       (act (.perform (discard (aAtRandom (.and [creature, .inZone yourHand]))))
         (.dealDamage .this
           (.statOf (.stat .manaValue)
-            (theVerbed (.action "Discard") .one (some (.type .creature))))
+            (theVerbed (.action "discard") .one (some (.type .creature))))
           (target anyTarget)))
-      = [.anaphor (.verbed (.action "Discard") (some (.type .creature)) .attributive) .one 0] := by
+      = [.anaphor (.verbed (.action "discard") (some (.type .creature)) .attributive) .one 0] := by
   decide
 
 /-- "{1}, {T}, {T}: Draw a card." written with the second {T} a nesting level down. -/
@@ -427,7 +427,7 @@ def afterALandTapForMana : Bindings :=
   GameEvent.after [] (.tappedForMana (some (a .anyPlayer)) (a land) none)
 
 def afterAPlainLandTap : Bindings :=
-  GameEvent.after [] (.verbedEvent (some (a .anyPlayer)) (.action "Tap") (some (a land)) none none)
+  GameEvent.after [] (.verbedEvent (some (a .anyPlayer)) (.action "tap") (some (a land)) none none)
 
 /-- "one mana of any type that land produced" -/
 theorem okProducedByTapEvent :

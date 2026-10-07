@@ -228,20 +228,20 @@ theorem badDestroyGraveyardCard :
 
 /-- "Destroy a creature." -/
 theorem okKnownKeywordAction :
-    Instruction.check [] (.enact (.action "Destroy") (.move (a creature) (.zone .battlefield .bare) graveyard []))
+    Instruction.check [] (.enact (.action "destroy") (.move (a creature) (.zone .battlefield .bare) graveyard []))
       = [] := by
   decide
 
 /-- A keyword action the registry does not declare -/
 theorem badUnknownKeywordAction :
-    Instruction.check [] (.enact (.action "Descry") (.move (a creature) .wherever graveyard []))
-      = [.knownAct (.action "Descry")] := by
+    Instruction.check [] (.enact (.action "descry") (.move (a creature) .wherever graveyard []))
+      = [.knownAct (.action "descry")] := by
   decide
 
 /-- "You exile a card from your hand." -/
 theorem okAgentedKnownAct :
     Instruction.check []
-      (.enact (.action "Exile") (.move (a (.and [.isCard, .inZone hand])) .wherever exileZone []))
+      (.enact (.action "exile") (.move (a (.and [.isCard, .inZone hand])) .wherever exileZone []))
       = [] := by
   decide
 
@@ -249,7 +249,7 @@ theorem okAgentedKnownAct :
 four lands", Burning of Xinye), so its facts row's agent role names a player. -/
 theorem okAgentedDestroy :
     Instruction.check []
-      (.enact (.action "Destroy") (.move (target creature) (.zone .battlefield .bare) graveyard []))
+      (.enact (.action "destroy") (.move (target creature) (.zone .battlefield .bare) graveyard []))
       = [] := by
   decide
 
@@ -258,7 +258,7 @@ theorem okAgentedDestroy :
 is refused; the printed sentence names the fighting creatures, `Instruction.fights`. -/
 theorem badAgentedAgentlessAct :
     Instruction.check []
-      (act .you (.enact (.action "Fight") (fight (target creature) (target creature))))
+      (act .you (.enact (.action "fight") (fight (target creature) (target creature))))
       = [.enactAgentOk] := by
   decide
 
@@ -468,7 +468,7 @@ theorem okSearchZoneFreeDescription :
 /-- "If you would search your library for a creature card, instead search your library for a
 creature card and reveal that card." [CR#614.1a] -/
 theorem okInsteadOfSearchRevealsIt :
-    Instruction.check [] (.replace (searchLibraryFor (exactly 1) creature) (revealCards (theVerbed (.action "Search") .one))) = [] := by
+    Instruction.check [] (.replace (searchLibraryFor (exactly 1) creature) (revealCards (theVerbed (.action "search") .one))) = [] := by
   decide
 
 /-- "Search your library for a creature card in a graveyard." -/
@@ -628,14 +628,14 @@ theorem badRemoveFromCombatGraveyard :
 /-- "Players can't untap more than one creature during each untap step." -/
 theorem okUntapCapBattlefieldSet :
     Ability.check []
-      (.static (cantMoreThan (.playerGroup .allPlayers) (.action "Untap") 1 creature))
+      (.static (cantMoreThan (.playerGroup .allPlayers) (.action "untap") 1 creature))
       = [] := by
   decide
 
 theorem badUntapCapGraveyardSet :
     Ability.check []
       (.static
-        (cantMoreThan (.playerGroup .allPlayers) (.action "Untap") 1
+        (cantMoreThan (.playerGroup .allPlayers) (.action "untap") 1
           (.and [creature, .inZone (graveyardOf .you)]))) = [.deonticPatientOk] := by
   decide
 
@@ -734,12 +734,12 @@ theorem badSingularNameAgreement :
 
 /-- "This spell can't be countered." -/
 theorem okCantBeCountered :
-    StaticSpec.check [] (objectCant (.action "Counter") .this) = [] := by decide
+    StaticSpec.check [] (objectCant (.action "counter") .this) = [] := by decide
 
 /-- "Creature cards in graveyards can't be countered." -/
 theorem badCounteredInGraveyard :
     StaticSpec.check []
-      (objectCant (.action "Counter") (allOf (.and [creature, .inZone graveyard])))
+      (objectCant (.action "counter") (allOf (.and [creature, .inZone graveyard])))
       = [.deedFits] := by
   decide
 
@@ -784,11 +784,11 @@ theorem badRegenerateBareThis :
 
 /-- "Creatures can't be regenerated." -/
 theorem okRegenerationBanOnBattlefield :
-    StaticSpec.check [] (objectCant (.action "Regenerate") (allOf creature)) = [] := by decide
+    StaticSpec.check [] (objectCant (.action "regenerate") (allOf creature)) = [] := by decide
 
 /-- "Creature cards in your graveyard can't be regenerated." -/
 theorem badRegeneratedInGraveyard :
-    StaticSpec.check [] (objectCant (.action "Regenerate") (a (.and [creature, .inZone graveyard])))
+    StaticSpec.check [] (objectCant (.action "regenerate") (a (.and [creature, .inZone graveyard])))
       = [.deedFits] := by
   decide
 

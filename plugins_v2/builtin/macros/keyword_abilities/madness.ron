@@ -14,13 +14,13 @@ KeywordAbility(
         static(
             insteadOf(
                 discards(a(anyPlayer), this),
-                enact(Action("Discard"), move(this, hand, exileZone)),
+                enact(discard, move(this, hand, exileZone)),
             ),
         ),
         triggered(
             // "this way": the exile the replacement above performed.
             causes(
-                Event(verbedEvent(Action("Discard"), this)),
+                Event(verbedEvent(discard, this)),
                 zoneChange(this, After, Zones([hand]), exileZone),
             ),
             act(

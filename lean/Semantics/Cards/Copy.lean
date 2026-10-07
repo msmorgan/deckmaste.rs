@@ -60,7 +60,7 @@ def flawlessForgeryLine : Instruction :=
     [ exile (target (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.inZone (graveyardOf (a Primitives.Predicate.opponent))])),
       Primitives.Instruction.copy .fromCardZone (that .card) (.lit 1) [],
       Primitives.Instruction.establish
-        (mayPlayDeed (.action "Cast") Primitives.NounPhrase.you (that .copy) none
+        (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (that .copy) none
           (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.withoutPaying))
         none ]
 theorem okFlawlessForgeryLine : Instruction.check [] flawlessForgeryLine = [] := by decide
@@ -225,7 +225,7 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static
-            (mayPlayDeed (.action "Cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, instantOrSorcery])) none
+            (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, instantOrSorcery])) none
               (Primitives.DeonticRider.play (some onTop) none none false Primitives.PlayPayment.itsOwnCost)),
           whenever
             (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a (Primitives.Predicate.and

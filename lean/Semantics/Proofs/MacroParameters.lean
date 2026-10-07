@@ -379,15 +379,15 @@ private semantic_macro scopedMove (subject : capture NounPhrase) : Instruction :
   .move subject .wherever graveyard []
 
 theorem scopedEnactedMoveRetainsSourceZoneCheck :
-    (Instruction.enact (.action "Destroy")
+    (Instruction.enact (.action "destroy")
       (scopedMove (target (.and [creature, .inZone graveyard])))).check [] = [.zoneFits] := by
   decide
 
 theorem capturedBareThisRetainsEnactedZoneExemption :
-    (Instruction.enact (.action "Destroy") (scopedMove .this)).check [] = [] := by decide
+    (Instruction.enact (.action "destroy") (scopedMove .this)).check [] = [] := by decide
 
 theorem scopedLookRetainsOpponentRequirement :
-    (Instruction.enact (.action "Fateseal")
+    (Instruction.enact (.action "fateseal")
       (.withBindings 5 [] (lookAndSort .you (.lit 2)))).check [] =
         [.opponentsLibrary] := by decide
 
@@ -395,7 +395,7 @@ private semantic_macro capturedLook (whose : capture NounPhrase) : Instruction :
   lookAndSort whose (.lit 2)
 
 theorem capturedLibraryOwnerRetainsOpponentClassification :
-    (Instruction.enact (.action "Fateseal") (capturedLook anOpponent)).check [] =
+    (Instruction.enact (.action "fateseal") (capturedLook anOpponent)).check [] =
       [] := by decide
 
 theorem nestedReplacementCannotHideInScope :
@@ -497,7 +497,7 @@ theorem independentValueSubjectsRemainIndependent :
       (capturedPower (target creature)))).check [] = [] := by decide
 
 theorem scopedLibrarySliceRetainsItsOwner :
-    enactLibraryOwnerOk (.action "Fateseal")
+    enactLibraryOwnerOk (.action "fateseal")
       (.expose .lookAt (.cards (.withBindings 5 [] (.librarySlice .top (.lit 2) .you)))) =
         false := by decide
 

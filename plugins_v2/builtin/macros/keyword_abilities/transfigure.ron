@@ -21,7 +21,7 @@ KeywordAbility(
                         compare(Eq, statOf(Stat(ManaValue), thisPermanent), [Stat(ManaValue)]),
                     ]),
                 ),
-                putOntoBattlefield(theVerbed(Action("Search"), One)),
+                putOntoBattlefield(theVerbed(search, One)),
                 shuffle,
             ]),
             asSorcery,

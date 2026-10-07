@@ -182,7 +182,7 @@ theorem okEverAfter : Instruction.check [] everAfter = [] := by decide
 def martyrsCry : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.colorIs .white])),
-      Primitives.Instruction.doForEach (theVerbed (.action "Exile") .many (some (.type .creature)) .thisWay)
+      Primitives.Instruction.doForEach (theVerbed (.action "exile") .many (some (.type .creature)) .thisWay)
         (act (controllerOf it) (Primitives.Instruction.draw (.lit 1))) ]
 theorem okMartyrsCry : Instruction.check [] martyrsCry = [] := by decide
 
@@ -198,7 +198,7 @@ def eradicateSearch : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])),
       searchZonesOf (controllerOf (that .card)) anyNumber (Primitives.Predicate.named (Primitives.NameSource.sameAs (that .card))),
-      exile (theVerbed (.action "Search") .many),
+      exile (theVerbed (.action "search") .many),
       act (that .player) (Primitives.Instruction.shuffle) ]
 theorem okEradicateSearch : Instruction.check [] eradicateSearch = [] := by decide
 
@@ -365,7 +365,7 @@ def nekrataalRider : Bindings :=
   Instruction.riderIntro (GameEvent.after [] nekrataalEntry) nekrataalDestroy
 theorem nekrataalOneCreatureWord : countReach (.word (.type .creature)) .one nekrataalRider = 1 := by
   decide
-theorem nekrataalOneDestroyed : countReach (.verbed (.action "Destroy") none .attributive) .one nekrataalRider = 1 := by
+theorem nekrataalOneDestroyed : countReach (.verbed (.action "destroy") none .attributive) .one nekrataalRider = 1 := by
   decide
 
 def sequencedRiderBody : Instruction :=
@@ -373,8 +373,8 @@ def sequencedRiderBody : Instruction :=
 theorem okSequencedRiderBody : Instruction.check [] sequencedRiderBody = [] := by decide
 def sequencedRider : Bindings := Instruction.riderIntro [] sequencedRiderBody
 theorem sequencedRiderOneDestroyed :
-    countReach (.verbed (.action "Destroy") none .attributive) .one sequencedRider = 1 := by decide
-theorem sequencedRiderOneExiled : countReach (.verbed (.action "Exile") none .attributive) .one sequencedRider = 1 := by
+    countReach (.verbed (.action "destroy") none .attributive) .one sequencedRider = 1 := by decide
+theorem sequencedRiderOneExiled : countReach (.verbed (.action "exile") none .attributive) .one sequencedRider = 1 := by
   decide
 
 /-- Engulfing Flames -/
@@ -382,29 +382,29 @@ def engulfingFlamesBody : Instruction := Primitives.Instruction.dealDamage Primi
 theorem okEngulfingFlamesBody : Instruction.check [] engulfingFlamesBody = [] := by decide
 def engulfingFlamesRider : Bindings := Instruction.riderIntro [] engulfingFlamesBody
 theorem engulfingFlamesNoDestroyStamp :
-    countReach (.verbed (.action "Destroy") none .attributive) .one engulfingFlamesRider = 0 := by decide
+    countReach (.verbed (.action "destroy") none .attributive) .one engulfingFlamesRider = 0 := by decide
 theorem engulfingFlamesBareReadStands : countReach .bare .one engulfingFlamesRider = 1 := by decide
 
-def bioplasmExiledPronoun : NounPhrase := theVerbed (.action "Exile") .one
+def bioplasmExiledPronoun : NounPhrase := theVerbed (.action "exile") .one
 theorem okBioplasmExiledPronoun :
     NounPhrase.check (some .object) bioplasmAfterExile bioplasmExiledPronoun = [] := by decide
 theorem bioplasmNoTypedRead :
-    countReach (.verbed (.action "Exile") (some (.type .creature)) .attributive) .one bioplasmAfterExile
+    countReach (.verbed (.action "exile") (some (.type .creature)) .attributive) .one bioplasmAfterExile
       = 0 := by
   decide
 theorem bioplasmExiledCardHasNoType :
-    tyOfReach (.verbed (.action "Exile") none .attributive) .one bioplasmAfterExile = [] := by decide
+    tyOfReach (.verbed (.action "exile") none .attributive) .one bioplasmAfterExile = [] := by decide
 def bioplasmAfterTest : Bindings := Condition.intro bioplasmAfterExile bioplasmCardTest
 theorem bioplasmTestRemarksType :
-    tyOfReach (.verbed (.action "Exile") none .attributive) .one bioplasmAfterTest = [.creature] := by decide
+    tyOfReach (.verbed (.action "exile") none .attributive) .one bioplasmAfterTest = [.creature] := by decide
 theorem bioplasmTestKeepsCardSlot : countReach (.atSlot .card) .one bioplasmAfterTest = 1 := by
   decide
 theorem bioplasmTypedReadStillRefused :
-    countReach (.verbed (.action "Exile") (some (.type .creature)) .attributive) .one bioplasmAfterTest
+    countReach (.verbed (.action "exile") (some (.type .creature)) .attributive) .one bioplasmAfterTest
       = 0 := by
   decide
 theorem bioplasmTypedCardReadWrites :
-    countReach (.verbed (.action "Exile") (some (.ofType .card .creature)) .attributive) .one
+    countReach (.verbed (.action "exile") (some (.ofType .card .creature)) .attributive) .one
       bioplasmAfterTest = 1 := by
   decide
 
@@ -418,9 +418,9 @@ theorem okScapeshiftSearch : Instruction.check scapeshiftSacrificed scapeshiftSe
 def scapeshiftAfterSearch : Bindings := Instruction.intro scapeshiftSacrificed scapeshiftSearch
 theorem scapeshiftTwoGroups : countReach .bare .many scapeshiftAfterSearch = 2 := by decide
 theorem scapeshiftOneSearchedGroup :
-    countReach (.verbed (.action "Search") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
+    countReach (.verbed (.action "search") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
 theorem scapeshiftOneSacrificedGroup :
-    countReach (.verbed (.action "Sacrifice") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
+    countReach (.verbed (.action "sacrifice") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
 
 /-- Scapeshift -/
 def scapeshift : Spelled := spelled <| .singleFaced
@@ -430,7 +430,7 @@ def scapeshift : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ sacrifice (counted anyNumber land),
               searchLibraryFor (Primitives.Quantity.upToOf Primitives.Amount.groupSize) land,
-              putOntoBattlefieldTapped (theVerbed (.action "Search") .many),
+              putOntoBattlefieldTapped (theVerbed (.action "search") .many),
               shuffle ]) ] } }
 
 /-- Bind to Life, Vastlands Scavenger's adventure -/
@@ -449,7 +449,7 @@ theorem okGleamOfDeath : Instruction.check [] gleamOfDeath = [] := by decide
 def tezzeretAllArtifacts : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (topSlice (.lit 10)),
-      move (allFromAmong artifact (theVerbed (.action "Exile") .many (some .card) .thisWay)) battlefield ]
+      move (allFromAmong artifact (theVerbed (.action "exile") .many (some .card) .thisWay)) battlefield ]
 theorem okTezzeretAllArtifacts : Instruction.check [] tezzeretAllArtifacts = [] := by decide
 
 def companyContext : Bindings := lookedTop [] (.lit 6)
@@ -476,7 +476,7 @@ theorem okGreatestCardsAnOpponentDrew : Amount.check [] greatestCardsAnOpponentD
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   Primitives.Amount.aggregateOver .max Primitives.Predicate.anyPlayer
-    (eventCount (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "Discard")
+    (eventCount (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "discard")
       (some (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))) none none) they .thisWay)
 theorem okGreatestCardsAPlayerDiscardedThisWay :
     Amount.check [] greatestCardsAPlayerDiscardedThisWay = [] := by decide
@@ -532,7 +532,7 @@ def hijack : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ gainControl (target (Primitives.Predicate.or [artifact, creature])) (some untilEndOfTurn) (agent := Primitives.NounPhrase.you),
               untap (theVerbed (.core .gainControl) .one),
-              gainHaste (theVerbed (.action "Untap") .one) (some untilEndOfTurn) ]) ] } }
+              gainHaste (theVerbed (.action "untap") .one) (some untilEndOfTurn) ]) ] } }
 
 /-- Open the Vaults -/
 def openTheVaults : Instruction :=
@@ -668,7 +668,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                   (each (Primitives.Predicate.and [ Primitives.Predicate.anyPlayer,
                                 Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
                                   (Primitives.GameEvent.verbedEvent (some (relative .player))
-                                  (.action "Sacrifice") (some (a permanent)) none none) .thisWay)
+                                  (.action "sacrifice") (some (a permanent)) none none) .thisWay)
                                   ]))
                   (Primitives.Instruction.sequentially
                     [ act they (Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.librarySlice .top (.lit 1) they))),

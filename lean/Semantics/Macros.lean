@@ -397,15 +397,15 @@ semantic_macro grants (ability : Ability) : Conferral := .property (.abilityGran
 semantic_macro move (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
   .move subject .wherever destination []
 semantic_macro destroy (subject : NounPhrase) : Instruction :=
-  .enact (.action "Destroy") (.move subject (.zone .battlefield .bare) graveyard [])
+  .enact (.action "destroy") (.move subject (.zone .battlefield .bare) graveyard [])
 semantic_macro exile (subject : NounPhrase) : Instruction :=
-  .enact (.action "Exile") (.move subject .wherever exileZone [])
+  .enact (.action "exile") (.move subject .wherever exileZone [])
 /-- "exile <subject> with N <kind> counters on it" -/
 semantic_macro exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     Instruction :=
-  .enact (.action "Exile") (.move subject .wherever exileZone [.withCounters amount (.printed kind) .fresh])
+  .enact (.action "exile") (.move subject .wherever exileZone [.withCounters amount (.printed kind) .fresh])
 semantic_macro sacrifice (subject : NounPhrase) : Instruction :=
-  .enact (.action "Sacrifice") (.move subject (.zone .battlefield .bare) graveyard [])
+  .enact (.action "sacrifice") (.move subject (.zone .battlefield .bare) graveyard [])
 /-- "put <subject> <destination>" -/
 semantic_macro put (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
   .enact (.core .put) (.move subject .wherever destination [])
@@ -424,30 +424,30 @@ semantic_macro returnToBattlefieldWithCounters (subject who : NounPhrase) (amoun
   .move subject .wherever battlefield [.under who, .withCounters amount (.printed kind) .fresh]
 /-- "transform <subject>" -/
 semantic_macro transform (subject : NounPhrase) : Instruction :=
-  .enact (.action "Transform") (.turnOver subject)
+  .enact (.action "transform") (.turnOver subject)
 /-- "meld <subject> into <name>" -/
 semantic_macro meldInto (subject : NounPhrase) (into : String) : Instruction :=
-  .enact (.action "Meld") (.move subject .wherever battlefield [.entersMelded into])
+  .enact (.action "meld") (.move subject .wherever battlefield [.entersMelded into])
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a].
 This retains the existing fragment; face-down characteristics and the turn-up special
 action are not represented here. -/
 semantic_macro manifestPlacement (subject : NounPhrase) : Instruction :=
-  .enact (.action "Manifest") (.move subject .wherever battlefield [])
+  .enact (.action "manifest") (.move subject .wherever battlefield [])
 semantic_macro tap (subject : NounPhrase) : Instruction :=
-  .enact (.action "Tap") (.setStatus .tapped subject)
+  .enact (.action "tap") (.setStatus .tapped subject)
 /-- "discard <subject>": a move from its owner's hand [CR#701.9a]. An indefinite subject implies
 its own selection, by default the affected player's [CR#701.9b]. -/
 semantic_macro discard (subject : NounPhrase) : Instruction :=
-  .enact (.action "Discard") (.move subject (.zone .hand .bare) graveyard [])
+  .enact (.action "discard") (.move subject (.zone .hand .bare) graveyard [])
 semantic_macro shuffle : Instruction := .shuffle
 semantic_macro untap (subject : NounPhrase) : Instruction :=
-  .enact (.action "Untap") (.setStatus .untapped subject)
+  .enact (.action "untap") (.setStatus .untapped subject)
 /-- "Exile <subject> until <event>." -/
 semantic_macro exileUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
   .holdUntil (exile subject) event
 /-- "mill <amount> cards" from <whose> library. -/
 semantic_macro mill (amount : Amount) (whose : NounPhrase) : Instruction :=
-  .enact (.action "Mill") (.move (.librarySlice .top amount whose) (.zone .library .bare) graveyard [])
+  .enact (.action "mill") (.move (.librarySlice .top amount whose) (.zone .library .bare) graveyard [])
 semantic_macro putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject .wherever battlefield []
 semantic_macro putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
   .move subject .wherever battlefield [.entersAs .tapped]
@@ -476,17 +476,17 @@ semantic_macro revealTheirHand : Instruction := .expose .reveal (.zone (handOf t
 semantic_macro fight (left right : capture NounPhrase) : Instruction :=
   .doIf (.and [.matches left (.and [creature, permanent]),
               .matches right (.and [creature, permanent])])
-    (.enact (.action "Fight") (.simultaneously [
+    (.enact (.action "fight") (.simultaneously [
       .dealDamage left (.statOf (.stat .power) left) right,
       .dealDamage right (.statOf (.stat .power) right) left])) none
 
 /-- The replacement's application, rather than installation of a new shield
 [CR#701.19b,701.19c]. -/
 semantic_macro regenerationApplication (subject : capture NounPhrase) : Instruction :=
-  .enact (.action "Regenerate") <|
+  .enact (.action "regenerate") <|
     .sequentially [
       .clearDamage subject,
-      .act (.possessorOf .controller subject) (.enact (.action "Tap") (.setStatus .tapped subject)),
+      .act (.possessorOf .controller subject) (.enact (.action "tap") (.setStatus .tapped subject)),
       .doIf (.or [.matches subject (.inCombat .attackerOf none),
                   .matches subject (.inCombat .blockerOf none)])
         (.combat subject (.participation .outsideCombat)) none]
@@ -495,7 +495,7 @@ semantic_macro regenerationApplication (subject : capture NounPhrase) : Instruct
 only its eventual application carries the Regenerate label [CR#701.19a,701.19c]. -/
 semantic_macro regenerate (subject : capture NounPhrase) : Instruction :=
   .establish (.replacement
-    (.verbedEvent none (.action "Destroy") (some subject) none none)
+    (.verbedEvent none (.action "destroy") (some subject) none none)
     [] none (regenerationApplication subject) .nextTimeOnly none) (some .thisTurn)
 
 /-- Losing counters is removal from the named player. Capturing that player first keeps
@@ -518,7 +518,7 @@ semantic_macro lookAtHandOf (player : NounPhrase) : Instruction :=
   .expose .lookAt (.zone (handOf player))
 semantic_macro revealCards (cards : NounPhrase) : Instruction := .expose .reveal (.cards cards)
 semantic_macro shuffleInto (subject : NounPhrase) : Instruction :=
-  .enact (.action "Shuffle") (.move subject .wherever ((.library .shuffled none none .bare)) [])
+  .enact (.action "shuffle") (.move subject .wherever ((.library .shuffled none none .bare)) [])
 semantic_macro doIf (condition : Condition) (instruction : Instruction) : Instruction :=
   .doIf condition instruction none
 /-- "choose <subject>" -/
@@ -633,7 +633,7 @@ semantic_macro removedThisWay : Amount := .theOutcome .countersRemoved
 semantic_macro shiftResult (amount : Amount) : Instruction := .shiftResult none amount
 /-- "<player> may play N additional lands" -/
 semantic_macro mayPlayAdditionalLands (player : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .deonticRule player .permit [.action "Play"] .agent (some (.additional quantity))
+  .deonticRule player .permit [.action "play"] .agent (some (.additional quantity))
     (.counterpart (allOf land))
     none .noRider
 /-- "<player> may <deed> <what> [as though …] [rider]" -/
@@ -778,17 +778,17 @@ semantic_macro lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : Z
       move (theRest .object) (onTopIn .anyOrder) ]
 /-- "scry N" [CR#701.22a]: the performer's own library. -/
 semantic_macro scry (amount : Amount) : Instruction :=
-  .enact (.action "Scry") (lookAndSort .actor amount)
+  .enact (.action "scry") (lookAndSort .actor amount)
 /-- "fateseal N" [CR#701.29a] -/
 semantic_macro fateseal (whose : NounPhrase) (amount : Amount) : Instruction :=
-  .enact (.action "Fateseal") (lookAndSort whose amount)
+  .enact (.action "fateseal") (lookAndSort whose amount)
 /-- "surveil N" [CR#701.25a]: the performer's own library. -/
 semantic_macro surveil (amount : Amount) : Instruction :=
-  .enact (.action "Surveil") (lookAndSortInto .actor amount graveyard)
+  .enact (.action "surveil") (lookAndSortInto .actor amount graveyard)
 /-- "Proliferate" with its reminder text [CR#701.34a]: "Choose any number of permanents and/or
 players, then give each another counter of each kind already there." -/
 semantic_macro proliferate : Instruction :=
-  .enact (.action "Proliferate") (.sequentially
+  .enact (.action "proliferate") (.sequentially
       [ .choose none (counted anyNumber
             (.or [ .and [permanent, .hasCounters none],
                    .compare [.anyCounter .player] .atLeast (.lit 1) ])) .openly none,
@@ -896,22 +896,22 @@ semantic_macro establishThroughout (spec : StaticSpec) (duration : Duration) : I
   .establish spec (some duration)
 /-- "<n> doesn't untap during [<whose>] untap step" -/
 semantic_macro doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  Primitives.StaticSpec.partScope .untapStep whose (objectCant (.action "Untap") subject)
+  Primitives.StaticSpec.partScope .untapStep whose (objectCant (.action "untap") subject)
 /-- "you may choose not to untap <subject> during [<whose>] untap step" -/
 semantic_macro mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   Primitives.StaticSpec.partScope .untapStep whose
-    (.deonticRule subject .permit [.action "Untap"] .patient none .noPatient none .noRider)
+    (.deonticRule subject .permit [.action "untap"] .patient none .noPatient none .noRider)
 /-- "untap <subject> during [<whose>] untap step" -/
 semantic_macro untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   Primitives.StaticSpec.partScope .untapStep whose
-    (.deonticRule subject .require [.action "Untap"] .patient none .noPatient none .noRider)
+    (.deonticRule subject .require [.action "untap"] .patient none .noPatient none .noRider)
 /-- "<subject> can block an additional creature each combat" -/
 semantic_macro mayBlockAdditional (subject : NounPhrase) (quantity : Quantity) : StaticSpec :=
   .deonticRule subject .permit [.core .block] .agent (some (.additional quantity))
     (.counterpart (allOf creature)) none .noRider
 /-- "<who> may vote an additional time" -/
 semantic_macro mayVoteAdditional (who : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .deonticRule who .permit [.action "Vote"] .agent (some (.additional quantity)) .noPatient none
+  .deonticRule who .permit [.action "vote"] .agent (some (.additional quantity)) .noPatient none
     .noRider
 /-- "<who> may spend mana as though it were mana of <as> [to <purpose>]" -/
 semantic_macro maySpendAsThough (who : NounPhrase) (what : Option ColorOrColorless) (as_ : ManaMatch)
@@ -947,10 +947,10 @@ semantic_macro revealHand : Instruction := .expose .reveal (.zone (handOf .actor
 /-- "<performer> discards <subject>": a move from the performer's hand to the graveyard
 [CR#701.9a]. -/
 semantic_macro discard (subject : NounPhrase) : Instruction :=
-  .enact (.action "Discard") (.move subject (.zone .hand (.possessedBy .actor)) graveyard [])
+  .enact (.action "discard") (.move subject (.zone .hand (.possessedBy .actor)) graveyard [])
 /-- "<performer> may cast <what> from <zone>", paying its own cost. -/
 semantic_macro mayCastFrom (what : NounPhrase) (zone : ZoneExpr) : StaticSpec :=
-  mayPlayDeed (.action "Cast") .actor what none (.play (some zone) none none false .itsOwnCost)
+  mayPlayDeed (.action "cast") .actor what none (.play (some zone) none none false .itsOwnCost)
 /-- An Army the performer controls. -/
 semantic_macro army : Predicate := .and [.hasSubtype (creatureType "Army"), creature, actorControls]
 /-- "<performer> amasses <subtype> N" [CR#701.47a]: "If you don't control an Army creature,
@@ -1033,7 +1033,7 @@ semantic_macro lastCounterRemoved (kind : CounterKind) (subject : NounPhrase) : 
   .counterEvent .removed (some kind) subject .emptying none false
 /-- "<subject> regenerates": the verb as an event. -/
 semantic_macro regenerates (subject : NounPhrase) : GameEvent :=
-  .verbedEvent none (.action "Regenerate") (some subject) none none
+  .verbedEvent none (.action "regenerate") (some subject) none none
 
 /-- Copy exceptions retain their own edit block; added abilities remain copy-specific. -/
 semantic_macro copyCharacteristics (c : Characteristics) (typesAdded : Bool) : List CopyExcept :=

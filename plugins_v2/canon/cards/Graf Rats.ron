@@ -37,7 +37,7 @@ SingleFaced(face: (
                         ]),
                     )),
                     meld(
-                        theVerbed(Action("Exile"), Many),
+                        theVerbed(exile, Many),
                         "Chittering Host",
                     ),
                 ])),

@@ -3,5 +3,5 @@
     name: "regenerates",
     kinds: [GameEvent],
     params: {"subject": NounPhrase},
-    body: VerbedEvent(None, Action("Regenerate"), Param(subject), None, None),
+    body: VerbedEvent(None, regenerate, Param(subject), None, None),
 )

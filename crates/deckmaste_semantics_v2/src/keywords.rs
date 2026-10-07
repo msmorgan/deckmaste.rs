@@ -3,7 +3,7 @@
 //! A keyword ability's definition is an `Ability.keyword` term
 //! [CR#702.1] — `Keyword(keyword: <label>, params: <arguments>, body:
 //! <abilities>)` — and a keyword action's is the deed it names done by the
-//! actor [CR#701.1,109.5] — `Enact(verb: Action(<label>), instruction:
+//! actor [CR#701.1,109.5] — `Enact(verb: Action(<name>), instruction:
 //! <instruction>)`, the performer being the actor in context. Every part of
 //! both wrappers but the
 //! abilities and the instruction follows from the declaration's name and
@@ -26,11 +26,13 @@
 //!   only when the file names one: `None` for an action whose definition is not
 //!   a single named deed, written unwrapped.
 //!
-//! The labels are the two boundaries at which a declaration's name is read as
-//! a label rather than as an identity: a keyword ability's is the name
-//! capitalized (`firstStrike` → `FirstStrike`), a keyword action's the words
-//! the camelCase name spells, each capitalized (`collectEvidence` → `Collect
-//! Evidence`). `cargo xtask facts` reads both through here.
+//! A keyword ability's label is the one boundary at which a declaration's
+//! name is read as a label rather than as an identity: the name capitalized
+//! (`firstStrike` → `FirstStrike`). A keyword action is named by its
+//! declaration name itself (`collectEvidence`), which is also how a card
+//! names it where a deed is wanted: [`deed_macro`] registers the name at the
+//! `Deed` position (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06,
+//! "Deeds and keyword labels are declared names").
 
 use std::collections::BTreeMap;
 use std::fmt;
@@ -54,19 +56,24 @@ pub fn keyword_ability_label(name: &str) -> String {
     capitalized(name)
 }
 
-/// A keyword action's label [CR#701.1]: its camelCase declaration name read
-/// as the words it spells, each capitalized, so `collectEvidence` is "Collect
-/// Evidence" and `theRingTemptsYou` is "The Ring Tempts You".
+/// The `Deed` position a keyword action's declaration name reads at.
+pub const DEED: &str = "Deed";
+
+/// The macro that makes a keyword action's declaration name read bare where a
+/// deed is wanted [CR#701.1]: `theVerbed(exile, Many)`, `enact(discard, …)`.
+/// It takes no arguments and denotes `Action(label: <name>)`, the deed the
+/// declaration's own `Enact` wrapper names. A name no keyword action declares
+/// has no such macro, so a card writing it is refused when it loads; the
+/// `Action` constructor itself is not author vocabulary at a restricted read
+/// (`crate::ron`), so the name is the only way a card writes the deed.
 #[must_use]
-pub fn keyword_action_label(name: &str) -> String {
-    let mut label = String::new();
-    for (index, ch) in capitalized(name).chars().enumerate() {
-        if index > 0 && ch.is_uppercase() {
-            label.push(' ');
-        }
-        label.push(ch);
-    }
-    label
+pub fn deed_macro(declaration: &macro_ron::MacroDef) -> macro_ron::MacroDef {
+    let mut deed = declaration
+        .clone()
+        .with_body(&format!("Action(label: \"{}\")", declaration.name.as_str()));
+    deed.kinds = vec![macro_ron::Ident::from(DEED)];
+    deed.params = Params::Positional(Vec::new());
+    deed
 }
 
 fn capitalized(word: &str) -> String {
@@ -146,7 +153,7 @@ pub fn keyword_action_body(name: &str, params: &Params, body: &str) -> Result<St
     let deed = match record.get("deed") {
         Some("None") => return Ok(instruction.to_owned()),
         Some(deed) => deed.to_owned(),
-        None => format!("Action(\"{}\")", keyword_action_label(name)),
+        None => format!("Action(\"{name}\")"),
     };
     Ok(format!(
         "Enact(verb: {deed}, instruction: OwnScope(scope: {OWN_SCOPE}, body: {}))",
@@ -326,7 +333,6 @@ mod tests {
     use super::keyword_ability_body;
     use super::keyword_ability_label;
     use super::keyword_action_body;
-    use super::keyword_action_label;
 
     fn positional(types: &[&str]) -> Params {
         Params::Positional(types.iter().map(|ty| ParamType::plain(*ty)).collect())
@@ -336,12 +342,21 @@ mod tests {
     fn labels_capitalize_the_name() {
         assert_eq!(keyword_ability_label("flying"), "Flying");
         assert_eq!(keyword_ability_label("firstStrike"), "FirstStrike");
-        assert_eq!(keyword_action_label("destroy"), "Destroy");
-        assert_eq!(keyword_action_label("collectEvidence"), "Collect Evidence");
-        assert_eq!(
-            keyword_action_label("faceAVillainousChoice"),
-            "Face A Villainous Choice"
-        );
+    }
+
+    /// A keyword action's deed is its declaration name, verbatim: the label
+    /// the camelCase name used to be read as ("Collect Evidence") is retired
+    /// (ruling 2026-10-06).
+    #[test]
+    fn a_keyword_actions_deed_is_its_declaration_name() {
+        for name in ["destroy", "collectEvidence", "faceAVillainousChoice"] {
+            assert_eq!(
+                keyword_action_body(name, &positional(&[]), "(instruction: Shuffle)").unwrap(),
+                format!(
+                    "Enact(verb: Action(\"{name}\"), instruction: OwnScope(scope: 0, body: Shuffle))"
+                )
+            );
+        }
     }
 
     #[test]
@@ -374,7 +389,7 @@ mod tests {
     fn a_keyword_action_enacts_its_deed() {
         assert_eq!(
             keyword_action_body("timeTravel", &positional(&[]), "(instruction: Shuffle)").unwrap(),
-            "Enact(verb: Action(\"Time Travel\"), instruction: OwnScope(scope: 0, body: Shuffle))"
+            "Enact(verb: Action(\"timeTravel\"), instruction: OwnScope(scope: 0, body: Shuffle))"
         );
         assert_eq!(
             keyword_action_body(
@@ -399,7 +414,7 @@ mod tests {
                 "(instruction: Grow(Param(0)))"
             )
             .unwrap(),
-            "Enact(verb: Action(\"Adapt\"), instruction: OwnScope(scope: 0, body: Grow(inCaller(0, Param(0)))))"
+            "Enact(verb: Action(\"adapt\"), instruction: OwnScope(scope: 0, body: Grow(inCaller(0, Param(0)))))"
         );
         for agent in ["None", "You"] {
             let error = keyword_action_body(

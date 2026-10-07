@@ -12,7 +12,7 @@ KeywordAbility(
         activated(
             perform(
                 enact(
-                    Action("Tap"),
+                    tap,
                     setStatus(
                         Tapped,
                         a(and([creature, otherThan(thisPermanent), untapped, youControl])),
@@ -20,7 +20,7 @@ KeywordAbility(
                 ),
             ),
             putCounters(
-                powerOf(theVerbed(Action("Tap"), One, Creature)),
+                powerOf(theVerbed(tap, One, Creature)),
                 chargeCounter,
                 thisPermanent,
             ),

@@ -206,7 +206,7 @@ theorem counterPreservesTheAbilityCategory :
 
 theorem counterIsSingleEnactedMove (subject : NounPhrase) :
     Primitives.Instruction.counterSpell subject =
-      .enact (.action "Counter") (.move subject (.zone .stack .bare) graveyard []) := by rfl
+      .enact (.action "counter") (.move subject (.zone .stack .bare) graveyard []) := by rfl
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
     countOutcomes .countersRemoved (Instruction.intro []

@@ -112,7 +112,7 @@ and what it introduces, never the calling text's other mentions (`docs/decisions
 wrapper (`Instruction.ownScope`) and each parameter `inCaller`, read in the caller's view. -/
 
 /-- The literal amass body inside the loader's wrapper. -/
-private def scopedAmass : Instruction := .enact (.action "Amass") (.ownScope 0 literalAmass)
+private def scopedAmass : Instruction := .enact (.action "amass") (.ownScope 0 literalAmass)
 
 /-- "Amass Orcs 2" in its scope checks on its own, as the bare body does. -/
 theorem okScopedAmass : Instruction.check [] scopedAmass = [] := by decide
@@ -141,7 +141,7 @@ theorem okScopedAmassAfterDestroy :
 /-- The amass body with its amount a parameter, as the loader writes it: read in the caller's
 view (`inCaller`). -/
 private def scopedAmassOf (amount : Amount) : Instruction :=
-  .enact (.action "Amass") (.ownScope 0 (.sequentially
+  .enact (.action "amass") (.ownScope 0 (.sequentially
     [ .doIf (.not (exists_ Actor.army))
         (create (.lit 1) (creatureToken 0 0 [.black] [creatureType "Goblin", creatureType "Army"]))
         none,
@@ -168,9 +168,9 @@ outside the scope read. -/
 theorem scopedBodyCannotReadTheCaller :
     let caller : Bindings :=
       [⟨.target, .one, .object [.creature] (some .battlefield) none none none, []⟩]
-    ((Instruction.check caller (.enact (.action "Destroy") (.ownScope 0 (destroy it)))).contains
+    ((Instruction.check caller (.enact (.action "destroy") (.ownScope 0 (destroy it)))).contains
         (.anaphor .bare .one 0),
-     Instruction.check caller (.enact (.action "Destroy") (destroy it))) = (true, []) := by
+     Instruction.check caller (.enact (.action "destroy") (destroy it))) = (true, []) := by
   decide
 
 /-- A keyword ability's body is read in its own scope too: the card's mentions are not in view
@@ -481,7 +481,7 @@ theorem okStaticActorPermission :
     Ability.check [] (.static (Actor.mayCastFrom (allOf spell) (graveyardOf actor))) = [] ∧
       Ability.check [] (.static (Actor.mayCastFrom (allOf spell) (graveyardOf actor))) =
         Ability.check []
-          (.static (mayPlayDeed (.action "Cast") .you (allOf spell) none
+          (.static (mayPlayDeed (.action "cast") .you (allOf spell) none
             (.play (some (graveyardOf .you)) none none false .itsOwnCost))) := by
   decide
 
@@ -496,12 +496,12 @@ theorem okHandedCastPermission :
 
 /-! ## Named actions carry their performer -/
 
-/-- "That player discards that card." as `enact (.action "Discard") …` under the handoff, the
+/-- "That player discards that card." as `enact (.action "discard") …` under the handoff, the
 deed performed by the actor in context [CR#701.9a]. -/
 theorem okDiscardWrapperCarriesActor :
     Instruction.check onePlayer
       (act they
-        (.enact (.action "Discard") (.move (a .isCard) (.zone .hand (.possessedBy actor)) graveyard [])))
+        (.enact (.action "discard") (.move (a .isCard) (.zone .hand (.possessedBy actor)) graveyard [])))
       = [] := by
   decide
 
@@ -509,7 +509,7 @@ theorem okDiscardWrapperCarriesActor :
 that player. -/
 theorem okDiscardWrapperWithAgent :
     Instruction.check []
-      (act (target .anyPlayer) (.enact (.action "Discard") (.move (a .isCard) (.zone .hand .bare) graveyard [])))
+      (act (target .anyPlayer) (.enact (.action "discard") (.move (a .isCard) (.zone .hand .bare) graveyard [])))
       = [] := by
   decide
 
@@ -655,12 +655,12 @@ private def exploreBody (perm : NounPhrase) : Instruction :=
 
 /-- `explore` as the keyword-action loader wraps it: the deed, performed by the actor. -/
 private def literalExplore (perm : NounPhrase := that .permanent) : Instruction :=
-  .enact (.action "Explore") (exploreBody perm)
+  .enact (.action "explore") (exploreBody perm)
 
 /-- `endure N` as declared [CR#701.63a]: the enduring permanent's controller chooses between
 the counters on "that permanent" and the Spirit token. -/
 private def literalEndure (n : Nat) : Instruction :=
-  .enact (.action "Endure")
+  .enact (.action "endure")
     (act (controllerOf actor)
       (.chooseModes (.range (some 1) (some 1))
         [ (none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent)),
@@ -668,7 +668,7 @@ private def literalEndure (n : Nat) : Instruction :=
 
 /-- `adapt N` as declared [CR#701.46a]: unchanged, still reading "this permanent". -/
 private def literalAdapt (n : Nat) : Instruction :=
-  .enact (.action "Adapt")
+  .enact (.action "adapt")
     (.doIf (.not (.matches thisPermanent (.hasCounters (some p1p1Counter))))
       (.putCounters (.lit n) (.printed p1p1Counter) thisPermanent) none)
 
@@ -744,10 +744,10 @@ theorem badAdaptHandedToOpponent :
 /-- "Whenever a creature explores": the event's performer is a permanent, as the deed's row
 says; "whenever a player explores" is refused, while a player still bolsters. -/
 theorem exploreEventTakesAPermanent :
-    GameEvent.check [] (.verbedEvent (some (a creature)) (.action "Explore") none none none) = [] ∧
-      GameEvent.check [] (.verbedEvent (some (a .anyPlayer)) (.action "Explore") none none none)
+    GameEvent.check [] (.verbedEvent (some (a creature)) (.action "explore") none none none) = [] ∧
+      GameEvent.check [] (.verbedEvent (some (a .anyPlayer)) (.action "explore") none none none)
         = [.kindMismatch .object .player] ∧
-      GameEvent.check [] (.verbedEvent (some (a .anyPlayer)) (.action "Bolster") none none none)
+      GameEvent.check [] (.verbedEvent (some (a .anyPlayer)) (.action "bolster") none none none)
         = [] := by
   decide
 

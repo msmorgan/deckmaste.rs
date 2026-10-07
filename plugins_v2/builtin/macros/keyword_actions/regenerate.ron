@@ -16,7 +16,7 @@ KeywordAction(
     ),
     deed: None,
     body: replaceNextEvent(
-        verbedEvent(Action("Destroy"), Param(0)),
+        verbedEvent(destroy, Param(0)),
         regenerationApplication(Param(0)),
         thisTurn,
     ),

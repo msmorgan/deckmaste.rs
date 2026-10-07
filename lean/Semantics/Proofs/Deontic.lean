@@ -237,7 +237,7 @@ theorem badStaticTargets :
 theorem okPlayFromGraveyard :
     Instruction.check []
       (.establish
-        (.deonticRule .you .permit [.action "Play"] .agent none
+        (.deonticRule .you .permit [.action "play"] .agent none
           (.counterpart (a (.and [.isCard, .inZone graveyard]))) none playRider) (some .thisTurn)) = [] := by
   decide
 
@@ -245,7 +245,7 @@ theorem okPlayFromGraveyard :
 theorem badPlayFromBattlefield :
     Instruction.check []
       (.establish
-        (.deonticRule .you .permit [.action "Play"] .agent none (.counterpart (a creature)) none
+        (.deonticRule .you .permit [.action "play"] .agent none (.counterpart (a creature)) none
           playRider)
         (some .thisTurn)) = [.deonticRiderOk] := by
   decide
@@ -254,7 +254,7 @@ theorem badPlayFromBattlefield :
 theorem okPlayLandFromGraveyard :
     Instruction.check []
       (.establish
-        (.deonticRule .you .permit [.action "Play"] .agent none
+        (.deonticRule .you .permit [.action "play"] .agent none
           (.counterpart (a (.and [land, .inZone (graveyardOf .you)]))) none
           (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some .thisTurn))
       = [] := by
@@ -264,7 +264,7 @@ theorem okPlayLandFromGraveyard :
 theorem badPlayFromStack :
     Instruction.check []
       (.establish
-        (.deonticRule .you .permit [.action "Play"] .agent none (.counterpart (a spell)) none
+        (.deonticRule .you .permit [.action "play"] .agent none (.counterpart (a spell)) none
             playRider)
         (some .thisTurn)) = [.deonticRiderOk] := by
   decide
@@ -273,7 +273,7 @@ theorem badPlayFromStack :
 theorem okCastCreatureFromGraveyard :
     Instruction.check []
       (.establish
-        (.deonticRule .you .permit [.action "Cast"] .agent none
+        (.deonticRule .you .permit [.action "cast"] .agent none
           (.counterpart (a (.and [creature, .inZone (graveyardOf .you)]))) none
           (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some .thisTurn))
       = [] := by
@@ -283,7 +283,7 @@ theorem okCastCreatureFromGraveyard :
 theorem badCastALand :
     Instruction.check []
       (.establish
-        (.deonticRule .you .permit [.action "Cast"] .agent none
+        (.deonticRule .you .permit [.action "cast"] .agent none
           (.counterpart (a (.and [land, .inZone (graveyardOf .you)]))) none playRider)
         (some .thisTurn)) = [.deonticPatientOk] := by
   decide
@@ -292,7 +292,7 @@ theorem badCastALand :
 theorem badPlayFromWrongZone :
     Instruction.check []
       (.establish
-        (.deonticRule .you .permit [.action "Play"] .agent none
+        (.deonticRule .you .permit [.action "play"] .agent none
           (.counterpart (a (.and [creature, .inZone exileZone]))) none
           (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some .thisTurn))
       = [.deonticRiderOk] := by
@@ -441,7 +441,7 @@ theorem badTheDamageUnannounced :
 /-- "You may cast spells as though they had flash." -/
 theorem okObjectPremiseAtCast :
     StaticSpec.check []
-      (.deonticRule .you .permit [.action "Cast"] .agent none (.counterpart (allOf spell))
+      (.deonticRule .you .permit [.action "cast"] .agent none (.counterpart (allOf spell))
         (some (.of (.hasKeyword (.the "Flash")))) playRider) = [] := by
   decide
 
@@ -462,7 +462,7 @@ theorem okBlockBoundOnBlock :
 /-- "This spell can't be countered more than once." -/
 theorem badCounterBoundTwice :
     StaticSpec.check []
-      (.deonticRule .this .forbid [.action "Counter"] .patient (some (.moreThan (.lit 1)))
+      (.deonticRule .this .forbid [.action "counter"] .patient (some (.moreThan (.lit 1)))
           .noPatient
         none .noRider) = [.deonticBoundOk] := by
   decide
@@ -478,19 +478,19 @@ theorem badObjectPremiseAtSpend :
 [CR#113.9], so the Counter deed's patient admits a spell or an ability. -/
 theorem okCantCounterSpellsAndAbilities :
     StaticSpec.check []
-      (objectCant (.action "Counter") (allOf (.or [spell, .abilityHead .anyActivated])))
+      (objectCant (.action "counter") (allOf (.or [spell, .abilityHead .anyActivated])))
       = [] := by
   decide
 
 /-- "Activated abilities can't be countered." -/
 theorem okCantCounterAbilities :
-    StaticSpec.check [] (objectCant (.action "Counter") (allOf (.abilityHead .anyActivated)))
+    StaticSpec.check [] (objectCant (.action "counter") (allOf (.abilityHead .anyActivated)))
       = [] := by
   decide
 
 /-- "Creatures can't be countered.": only a spell or an ability on the stack is countered. -/
 theorem badCantCounterCreatures :
-    StaticSpec.check [] (objectCant (.action "Counter") (allOf creature)) = [.deedFits] := by decide
+    StaticSpec.check [] (objectCant (.action "counter") (allOf creature)) = [.deedFits] := by decide
 
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
@@ -503,8 +503,8 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
     Instruction.check []
-      (.doAndForbid (Macros.act (each .opponent) (sacrifice (a creature))) (.action "Regenerate")
-        (theVerbed (.action "Sacrifice") .many (some .permanent))) = [] := by
+      (.doAndForbid (Macros.act (each .opponent) (sacrifice (a creature))) (.action "regenerate")
+        (theVerbed (.action "sacrifice") .many (some .permanent))) = [] := by
   decide
 
 /-- "... dealt damage, they lose half their life, rounded up." -/
@@ -526,7 +526,7 @@ theorem goadedAttacksOther :
 
 /-- "as you scry": a concurrent window with no printed card on the bench. -/
 theorem whileScrying :
-    Concurrent.check [] (.whileDoing (.verbedEvent (some .you) (.action "Scry") none none none))
+    Concurrent.check [] (.whileDoing (.verbedEvent (some .you) (.action "scry") none none none))
       = [] := by
   decide
 

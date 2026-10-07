@@ -312,14 +312,14 @@ theorem okPlacementIntoBattlefield :
 theorem okShuffleLocusAtLibrary :
     Condition.check []
       (.happened .you
-        (.mk (.verbedEvent (some (.gap .player)) (.action "Shuffle") none none (some yourLibrary))
+        (.mk (.verbedEvent (some (.gap .player)) (.action "shuffle") none none (some yourLibrary))
           .thisWay))
       = [] := by
   decide
 
 /-- "if you searched this way, shuffle" -/
 theorem badBareSearchLookback :
-    Condition.check [] (.happened .you (.mk (.verbedEvent (some (.gap .player)) (.action "Search")
+    Condition.check [] (.happened .you (.mk (.verbedEvent (some (.gap .player)) (.action "search")
       none none none) .thisWay))
       = [.complementWritten] := by
   decide
@@ -328,7 +328,7 @@ theorem badBareSearchLookback :
 theorem badShuffleLocusAtGraveyard :
     Condition.check []
       (.happened .you
-        (.mk (.verbedEvent (some (.gap .player)) (.action "Shuffle") none none (some (graveyardOf
+        (.mk (.verbedEvent (some (.gap .player)) (.action "shuffle") none none (some (graveyardOf
           .you))) .thisWay))
       = [.lookbackLocus] := by
   decide
@@ -689,18 +689,18 @@ theorem badReadsShuffledLibraryCard :
 
 /-- "Whenever you scry, …" -/
 theorem okPatientlessScry :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "Scry") none none none) = [] := by decide
+    GameEvent.check [] (.verbedEvent (some .you) (.action "scry") none none none) = [] := by decide
 
 /-- "Whenever you scry a card, …" -/
 theorem badScryPatient :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "Scry") (some (a (.and [.isCard, .inZone library]))) none
+    GameEvent.check [] (.verbedEvent (some .you) (.action "scry") (some (a (.and [.isCard, .inZone library]))) none
       none)
       = [.verbPatientOk] := by
   decide
 
 /-- "Whenever discards a card, …" -/
 theorem badVoicelessAct :
-    GameEvent.check [] (.verbedEvent none (.action "Scry") none none none) = [.verbedVoiceOk] := by
+    GameEvent.check [] (.verbedEvent none (.action "scry") none none none) = [.verbedVoiceOk] := by
   decide
 
 /-- "Whenever a card is put, …" -/
@@ -712,27 +712,27 @@ theorem badPassiveWithoutParticiple :
 /-- "Whenever a creature transforms into a Phyrexian, …" -/
 theorem okIntransitiveBecomes :
     GameEvent.check []
-      (.verbedEvent none (.action "Transform") (some (a creature))
+      (.verbedEvent none (.action "transform") (some (a creature))
         (some (.hasSubtype (creatureType "Phyrexian"))) none) = [] := by
   decide
 
 /-- "Whenever a card is milled into a Phyrexian, …" -/
 theorem badBecomesWithoutIntransitive :
     GameEvent.check []
-      (.verbedEvent none (.action "Mill") (some (a (.and [.isCard, .inZone library])))
+      (.verbedEvent none (.action "mill") (some (a (.and [.isCard, .inZone library])))
         (some (.hasSubtype (creatureType "Phyrexian"))) none) = [.verbBecomesOk] := by
   decide
 
 /-- "Whenever you discard a card, …" -/
 theorem okDiscardFromHand :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "Discard") (some (a (.and [.isCard, .inZone hand]))) none
+    GameEvent.check [] (.verbedEvent (some .you) (.action "discard") (some (a (.and [.isCard, .inZone hand]))) none
       none)
       = [] := by
   decide
 
 /-- "Whenever a card in a graveyard is destroyed, …" -/
 theorem badDestroyInGraveyard :
-    GameEvent.check [] (.verbedEvent none (.action "Destroy") (some (a (.and [.isCard, .inZone graveyard]))) none
+    GameEvent.check [] (.verbedEvent none (.action "destroy") (some (a (.and [.isCard, .inZone graveyard]))) none
       none)
       = [.zoneFits] := by
   decide
@@ -740,7 +740,7 @@ theorem badDestroyInGraveyard :
 /-- "Whenever you discard a permanent you control, …" -/
 theorem badDiscardFromBattlefield :
     GameEvent.check []
-      (.verbedEvent (some .you) (.action "Discard") (some (a (.inZone battlefield))) none none)
+      (.verbedEvent (some .you) (.action "discard") (some (a (.inZone battlefield))) none none)
       = [.zoneFits] := by
   decide
 
@@ -924,7 +924,7 @@ theorem distributedDeedReadsBackPlural :
     Instruction.check []
       (.sequentially
         [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
-          exile (theVerbed (.action "Discard") .many (some .card)) ]) = [] := by
+          exile (theVerbed (.action "discard") .many (some .card)) ]) = [] := by
   decide
 
 /-- "Discard a card. Exile the discarded card." -/
@@ -932,7 +932,7 @@ theorem okTheVerbedAfterSingularDiscard :
     Instruction.check []
       (.sequentially
         [ discard (a (.and [.isCard, .inZone yourHand])),
-          exile (theVerbed (.action "Discard") .one (some .card)) ])
+          exile (theVerbed (.action "discard") .one (some .card)) ])
       = [] := by
   decide
 
@@ -941,8 +941,8 @@ theorem badDistributedDiscardSingular :
     Instruction.check []
       (.sequentially
         [ .sequentially [act (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
-          exile (theVerbed (.action "Discard") .one (some .card)) ])
-      = [.anaphor (.verbed (.action "Discard") (some .card) .attributive) .one 0] := by
+          exile (theVerbed (.action "discard") .one (some .card)) ])
+      = [.anaphor (.verbed (.action "discard") (some .card) .attributive) .one 0] := by
   decide
 
 /-- "Tap target creature." -/
