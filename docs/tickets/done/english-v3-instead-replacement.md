@@ -655,12 +655,12 @@ residuals to systemic residuals, reconcile 234 gains against the historical
 state and its vacuous checks, and prune the unattested no-comma initial
 compound route through the existing declared feature.
 
-PROVE: measured baseline `wlvwtnppyovnwwoolmkvvvonnsvryuul` / 17,556 covered
+PROVE, pre-refresh: measured baseline `wlvwtnppyovnwwoolmkvvvonnsvryuul` / 17,556 covered
 is source-equivalent to the feature's start base `otlzrzzy`, verified against
 its consumed declarations and captured lexical-source hashes. The prewarmed
 baseline executable reports its coordinator build root; the source comparison
 and `followup-base-provenance.json` establish the feature-base correspondence.
-Final measured tree `plwnlrlqvvqszsooymrqrnrvqlvmvkxx` / 17,556 covered:
+Pre-refresh feature tree `plwnlrlqvvqszsooymrqrnrvqlvmvkxx` / 17,556 covered:
 all 32,828 faces are completely enumerated, 15,272 unread / 7,122 unique /
 10,434 multiple, **343,616 Readings**. The full per-face comparison is `[]`:
 zero gained or lost faces, zero decreased or increased Reading counts.
@@ -696,7 +696,7 @@ These additions and removals implement the four requested fixes; no new
 lexeme, frame, fixture, xtask command or glossary term is added. Glossary gap:
 none. Assurance: restored 0, re-spelled 1, added 1, newly ignored 0, removed 0.
 
-REPORT: corpus SHA-256 and lexical inventory SHA-256 are unchanged from the
+REPORT, pre-refresh: corpus SHA-256 and lexical inventory SHA-256 are unchanged from the
 post-refresh record above. Construction inventory remains 192 ordinary +
 44 schemas = 236; the named homograph and empty literal-overlap inventories
 are unchanged. All evidence is ignored under `target/english-v3/`, retained
@@ -719,3 +719,46 @@ existing on-demand cross-check blocker**. All seven Lean registry checks pass.
 From the workspace root, citation checks report zero noncompliant strings and
 zero stale among 16,113 citations; the piped diff audit selects zero changed
 CR sites. No unresolved STOP remains.
+
+Refresh verification (2026-10-07), authoritative final corpus comparison:
+refresh incorporated `zssmqvsw` (comparative-quantity-determiners) through
+completion `lssvvkyk` without conflicts. Its **463 gained faces and 42,416
+additional Readings are inherited trunk changes**, not this follow-up's gains.
+The refreshed-base census was measured on
+`ztnzpnsqlrrlwnoqwrpklnluxunntwys` / 18,019 covered; hashes of all 2,215
+consumed source and build-input files match the refreshed base, including its declarations.
+`followup-refreshed-base-provenance.json` records the source equivalence.
+
+Final measured feature `sqoozkvlrzoxxpklkrsyzonwukpyxxrs` / **18,019 covered**:
+32,828 faces completely enumerated, 14,809 unread / 7,185 unique / 10,834
+multiple, **386,032 Readings**. Every per-face count equals the refreshed
+base: zero gained or lost faces and zero increased or decreased Reading
+counts. Validation issues, enumeration failures, limits, cycles, duplicates
+and internal failures are all zero. All 53 routed gerund Complement faces
+remain unread. The post-refresh construction inventory is 197 ordinary +
+44 schemas = 241; this follow-up adds or retires no Construction. The named
+homograph and empty literal-overlap inventories remain unchanged. Corpus
+SHA-256 remains `49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb`;
+the refreshed lexical inventory SHA-256 is
+`71314cd40f29dc348f9cd9e2fa01d7607e5deed70157c7d003c6cd54bfeed37f`.
+
+| Measured change / covered | Corpus wall ns | Checked-text thread CPU ns/B | Host load (1 / 5 / 15 minute) |
+|---|---:|---:|---|
+| `ztnzpnsq` / 18,019 (archived refreshed base) | 64,540,107,969 | 301,487 ns/B | 13.673828125 / 8.3701171875 / 8.1123046875 |
+| `sqoozkvl` / 18,019 (follow-up) | 74,326,498,874 | 329,449 ns/B | 17.52880859375 / 10.68603515625 / 9.74267578125 |
+
+Both runs use 12 workers and exceed the 16,260,000,000 ns quiet-host advisory
+ceiling; these loaded-host measurements are provenance. Setup: archived base
+12,553,877,255 ns, follow-up 10,519,165,921 ns. Post-refresh Clippy for the three
+derived packages with all targets and warnings denied passes; changed-file
+nightly formatting passes.
+From the workspace root, post-refresh citation checks report zero noncompliant
+strings and zero stale among 16,113 citations; the piped diff audit selects
+zero changed CR sites. No citation blessing is needed.
+Post-refresh derived gate: `cargo xtask gate --changed --from lssvvkyk --run`
+runs `cargo test -p deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`
+and exits zero: **714 passed, zero failed, one unchanged ignored census
+test with its existing on-demand cross-check blocker**. All seven Lean registry
+checks pass, as do all eight Instead and twelve participial tests. Assurance
+counts remain restored 0, re-spelled 1, added 1, newly ignored 0, removed 0.
+No unresolved STOP or glossary gap remains.
