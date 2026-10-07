@@ -392,6 +392,11 @@ and nonfinite infinitivals; participial forms are nonfinite.
 A Complement expressing location, source, or goal. It is distinct from a
 predicative Complement and from an optional locative Adjunct.
 
+**Manner Complement**:
+A dependent expressing manner that is selected by its head. Manner dependents
+can have NP or PP form, and their function as Complement is distinct from
+their syntactic Category (CGEL, Ch. 8 §2.1, p. 671).
+
 **Lexical Verb Phrase**:
 An instantiated lexical verb together with the complements it selects, before
 higher auxiliary and clause structure is added.
@@ -419,6 +424,34 @@ An intermediate nominal constituent headed by a noun or noun-like element.
 **Noun Phrase**:
 A phrase whose head or fused head is nominal and which can fill functions such
 as Subject, Object, or Complement of a preposition.
+
+**Bare Preposition Use** (project term):
+The declared availability of a singular count Noun Phrase without a Determiner
+as the internal Complement of a preposition. The noun retains its Countability;
+this use does not license a bare count Subject or Object. In the right-branching
+analysis of *on top of the library*, *top of the library* is the Noun Phrase
+Complement of *on* (CGEL, Ch. 7 §3.1, pp. 620–623).
+
+**Bare Nominal Complement** (project term):
+A preposition's declared permission to take a singular count Noun Phrase with
+Bare Preposition Use. Both the preposition and the nominal must license this
+distribution; the noun's permission alone does not make it a Complement of
+every preposition (CGEL, Ch. 7 §3.1, pp. 620–623).
+
+**Nominal Complement Marker** (project term):
+A declared marker of a noun's selected Complement, such as *of* in *the bottom
+of the library*. A selected Complement and an optional Postmodifier have
+different functions even when both are Preposition Phrases (CGEL, Ch. 5 §14.2,
+p. 446; Ch. 7 §3.1, pp. 620–623).
+
+**Selected Preposition Use** (project term):
+The declared pairing of nominal and preposition permissions that restricts the
+resulting Preposition Phrase to a selected Complement function in Oracle English.
+The nominal permission also identifies the NP material of the corresponding
+selected manner frame. It prevents a selected manner tail from becoming an NP
+Postmodifier, a Locative Complement or a free Adjunct.
+Manner PPs and selection are separate grammatical distinctions (CGEL, Ch. 8
+§2.1, p. 671; Ch. 7 §2.1, pp. 604–606).
 
 **Determinative**:
 A lexical Category containing words such as *the*, *this*, *each*, and *any*.

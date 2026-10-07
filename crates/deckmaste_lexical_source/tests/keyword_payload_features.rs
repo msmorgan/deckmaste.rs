@@ -196,9 +196,9 @@ fn complete_put_and_look_frames_preserve_their_typed_np_slots() {
     };
     // Boldwyr Heavyweights: “put it onto the battlefield”.
     let put = entry("put", Category::Verb);
-    assert_eq!(put.properties.frames.len(), 7);
+    assert_eq!(put.properties.frames.len(), 6);
     assert_eq!(
-        put.properties.frames[6],
+        put.properties.frames[5],
         deckmaste_lexical::Frame {
             kind: "Predicate".into(),
             items: vec![object.clone(), marker("Onto"), object.clone()],
@@ -206,13 +206,18 @@ fn complete_put_and_look_frames_preserve_their_typed_np_slots() {
     );
     // Genesis Ultimatum: “Look at the top five cards of your library”.
     let look = entry("look", Category::Verb);
-    assert_eq!(look.properties.frames.len(), 2);
+    assert_eq!(look.properties.frames.len(), 1);
     assert_eq!(
-        look.properties.frames[1],
+        look.properties.frames[0],
         deckmaste_lexical::Frame {
             kind: "Predicate".into(),
-            items: vec![marker("At"), object],
+            items: vec![
+                marker("At"),
+                deckmaste_lexical::FrameItem::Argument(deckmaste_lexical::FrameSlot {
+                    relation: deckmaste_lexical::Relation::Complement,
+                    category: "NounPhrase".into(),
+                }),
+            ],
         }
     );
-    assert_ne!(look.properties.frames[0], look.properties.frames[1]);
 }

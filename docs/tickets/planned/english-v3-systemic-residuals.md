@@ -255,8 +255,10 @@ is right and this list needs fixing.
   admit it.
   Landed 2026-10-06: the Gain/Have `Complement(GrantedAbility)` row by
   `english-v3-granted-ability-quotes` (including the quoted Complement and
-  keyword/quotation Coordination). Owned since 2026-10-06: the Look row and
-  the two Put rows with `Preposition(On), Complement(FrameComplement)` by `english-v3-library-position`;
+  keyword/quotation Coordination); the Look row and the two Put rows with
+  `Preposition(On), Complement(FrameComplement)` by
+  `english-v3-library-position` (selected NP, Locative Complement and manner
+  tail, with passive/Object Gap support). Still owned:
   Deal's two `ScalarEquality` rows by `english-v3-scalar-comparisons`; the
   `ReplacementMarker` slot of Deal's first row by `english-v3-instead-replacement`
   (its `MassNoun`/`DistributionPhrase` slots stay here).
@@ -312,8 +314,25 @@ is right and this list needs fixing.
   Drakuseth, Assembled Alphas, Chandra, The
   Brothers' War, Trick Shot, Self-Destruct, Tropical Storm, Judgment Bolt and
   Sparksmith fail on Deal's ordered amount/recipient segments; Neonate's Rush
-  fails on cost reduction. None of the 42 fails on `, then`, so
-  `english-v3-then-sequencing` takes over none of them.
+  fails on cost reduction. The earlier attribution of no `, then` failures
+  among these 42 is superseded by the library-position landing's current
+  discriminating probes, as reconciled below.
+
+  Library-position reconciliation (2026-10-06, `xltvxkxk`, 15,997 covered):
+  20 of its 29 inherited faces already read on the measured base; 21 read
+  finally, with Shadow Guildmage the gain. The
+  [landing record](../done/english-v3-library-position.md#landing-record)
+  lists every face, its Reading count and the next failing cause. Remaining
+  From-among sources on Tracker's Instincts, Pieces of the Puzzle and
+  Kruphix's Insight stay here, along with Winding Way's bare singular type
+  choice and Tamiyo, Collector of Tales's unconsumed Cause frame. Tamiyo
+  also retains From-among and comma-then failures. Vigean Intuition and Organ
+  Hoarder's comma-then links belong to `english-v3-then-sequencing`; Discerning
+  Taste's comparison body belongs to `english-v3-scalar-comparisons`, with
+  residual superlative composition audited here. Library-position parsing
+  does not discharge other sharing/scope obligations. Telling Time's retained
+  NP-coordination Reading does not establish its intended Complement Cluster;
+  that structural obligation remains here.
 
 - Nested single-quote abilities inside a double-quoted granted ability
   (2026-10-06, retained from `english-v3-granted-ability-quotes`): Urza's Saga;

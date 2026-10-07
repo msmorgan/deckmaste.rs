@@ -106,7 +106,7 @@ fn animal_magnetism_has_only_the_two_selected_segment_readings() {
     };
     let expected = [WordForm::Plain, WordForm::PastParticiple].map(|form| {
         let mut head = invariant("core-verb:Put");
-        head.frame = Some(6);
+        head.frame = Some(5);
         let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
         value.form = form;
         if form == WordForm::PastParticiple {

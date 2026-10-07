@@ -585,13 +585,13 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
         .flat_map(|form| {
             let intended = movement(
                 "core-verb:Put",
-                6,
+                5,
                 form,
                 it.clone(),
                 "vocab:Preposition/Onto",
                 false,
             );
-            let mut head = verb("core-verb:Put", form, 6);
+            let mut head = verb("core-verb:Put", form, 5);
             if form == WordForm::PastParticiple
                 && let LexicalReading::Word(value) = &mut head.value
             {
@@ -690,7 +690,7 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
                 .map(move |form| {
                     movement(
                         "core-verb:Put",
-                        6,
+                        5,
                         form,
                         object.clone(),
                         "vocab:Preposition/Onto",

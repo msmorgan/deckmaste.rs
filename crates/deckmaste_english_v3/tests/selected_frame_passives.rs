@@ -108,7 +108,7 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
     let plain = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,
-        head: verb("core-verb:Put", WordForm::Plain, 6),
+        head: verb("core-verb:Put", WordForm::Plain, 5),
         complements: vec![
             deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(acc(
                 Reading::AccusativePronoun { form: 0, head: it },
@@ -130,7 +130,7 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
     let Reading::SelectedPredicate { head, .. } = &mut participial else {
         unreachable!()
     };
-    *head = verb("core-verb:Put", WordForm::PastParticiple, 6);
+    *head = verb("core-verb:Put", WordForm::PastParticiple, 5);
     // Put is syncretic: the isolated VP also has an ordinary past-participial
     // reading.
     for value in [&plain, &participial] {

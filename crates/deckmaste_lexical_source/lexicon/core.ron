@@ -162,10 +162,10 @@
         "vocab:Preposition/Except": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
         "vocab:Preposition/For": {"PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Adjunct|Modifier|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "For"},
         "vocab:Preposition/From": {"PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Modifier|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "From"},
-        "vocab:Preposition/In": {"PrepositionFunctionLicence": "Modifier|PredicativeComplement|Compound|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
+        "vocab:Preposition/In": {"SelectedPrepositionUse": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|PredicativeComplement|Compound|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Into": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Into"},
         "vocab:Preposition/Of": {"CompoundComplementMarker": "Of", "PrepositionFunctionLicence": "NounComplement|Modifier|PredicativeComplement", "ObliqueMarker": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "NominalComplementMarker": "Of", "NominalBareClass": "Interval", "KeywordMarker": "Of"},
-        "vocab:Preposition/On": {"PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "On"},
+        "vocab:Preposition/On": {"BareNominalComplement": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "On"},
         "vocab:Preposition/Onto": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Onto"},
         "vocab:Preposition/Outside": {"PrepositionFunctionLicence": "Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Over": {"PrepositionFunctionLicence": "Adjunct|Modifier|VerbComplement|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
@@ -921,6 +921,26 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
+            id: "lexeme:CommonNoun/Top", lemma: "top", category: Noun,
+            properties: (countability: [Count], features: {"BarePrepositionUse": "Yes", "NominalComplementMarker": "Of"}, frames: [
+                (kind: "Nominal", items: []),
+                (kind: "Nominal", items: [Marked(vocabulary: "Preposition", member: "Of", slot: (relation: Complement, category: "NounPhrase"))]),
+            ]),
+            forms: [(form: Singular, features: (number: Some(Singular)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Top"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "lexeme:CommonNoun/Bottom", lemma: "bottom", category: Noun,
+            properties: (countability: [Count], features: {"NominalComplementMarker": "Of"}, frames: [
+                (kind: "Nominal", items: []),
+                (kind: "Nominal", items: [Marked(vocabulary: "Preposition", member: "Of", slot: (relation: Complement, category: "NounPhrase"))]),
+            ]),
+            forms: [(form: Singular, features: (number: Some(Singular)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Bottom"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
             id: "vocab:Adjective/Top", lemma: "top", category: Adjective,
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -971,7 +991,7 @@
         ),
         (
             id: "lexeme:CommonNoun/Order", lemma: "order", category: Noun,
-            properties: (countability: [Count], features: {}, frames: []),
+            properties: (countability: [Count], features: {"SelectedPrepositionUse": "Yes"}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Order"),
             capitalization: Initial, binding: Free, surface_structure: Word,
