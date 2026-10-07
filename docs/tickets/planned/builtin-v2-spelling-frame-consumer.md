@@ -42,3 +42,8 @@ declarations, an unselectable nursery record, identity-local coherence
 failure, and multiple valid frames reported as ambiguity. Parser assertions
 inspect AST and selected declaration identity rather than bracket-string
 goldens. Standard constraints apply.
+
+Since 2026-10-07 each keyword `spelling` is a card-usage template with
+per-kind default realizations and `<Param(n):hint>` overrides
+([builtin-v2-keyword-spelling-templates](builtin-v2-keyword-spelling-templates.md));
+compile the template and read its hints for the expected argument surface.
