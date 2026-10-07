@@ -287,8 +287,12 @@ Rust files pass nightly rustfmt. Citation checks report zero noncompliant
 strings and zero stale citations across 16,113 sites; the piped diff audit
 selects zero changed Comprehensive Rules sites, so no blessing is needed.
 
-Refresh imports only the comparative attribution/documentation follow-up,
-with no conflicts. Against its 1,832 runtime/declaration dependency digests,
+The first refresh imports the comparative attribution/documentation follow-up,
+with no conflicts. Final refresh also imports `lryqtwsk`, which changes
+ignore rules and an anaphor ticket only; all 1,832 recorded runtime digests
+remain identical (`final-refresh-digests.json`), so all per-face counts and
+verification results above are retained. No trunk-attributed Reading decrease
+is introduced. Against its 1,832 runtime/declaration dependency digests,
 only our grammar declaration and core lexicon differ. All census files,
 named inventories, probes, ledgers, scripts and logs remain under this
 workspace’s ignored `target/english-v3/`; evidence is retained before retirement
