@@ -78,7 +78,10 @@
     (identity: Have, bare: "have", third_person: "has", frames: [
         Predicate([Role("GrantedAbility")]),
         Predicate([ObjectNounPhrase, PredicativeComplement]),
-        Predicate([Role("Object"), Role("VerbPhrase")]),
+        Predicate([
+            Argument((relation: Object, category: "NounPhrase")),
+            Argument((relation: Complement, category: "BarePredicate")),
+        ]),
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Leave, bare: "leave", third_person: "leaves", preterite: Some("left"), frames: [

@@ -210,6 +210,21 @@ A syntactic unit organized around a predication and its dependents.
 A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.
 
+**Bare Infinitival**:
+A nonfinite Clause with a plain-form verb and without the infinitival
+Subordinator *to* (CGEL, Ch. 14 §1.1, pp. 1173–1174).
+_Avoid_: treating the plain Word Form alone as evidence of Finiteness
+
+**Catenative Construction**:
+A Construction in which a verb selects a nonfinite internal Complement.
+The complex Construction contains an intervening Noun Phrase between the
+matrix and subordinate verbs (CGEL, Ch. 14 §1.2, pp. 1177–1178).
+
+**Catenative Complement**:
+A nonfinite Clause selected by a catenative verb, with a Complement function
+distinct from Object or predicative Complement (CGEL, Ch. 14 §1.2,
+pp. 1176–1177).
+
 **Subordinator**:
 A grammatical marker, such as content-clause or relative *that*, *whether*, or
 interrogative *if*, that marks a Clause as subordinate. A Preposition taking a
