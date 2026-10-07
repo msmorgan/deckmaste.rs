@@ -375,7 +375,9 @@ mimicked.
   difference the taker carried: a turn is taken by the player the
   instruction was handed to [CR#500.7], and a phase or step is added to the
   current turn [CR#500.8,500.9]. The RON helpers become `extraTurn`,
-  `additionalPhase(…)` and `additionalStep(…)` over one renamed node.
+  `additionalPhase(…)` and `additionalStep(…)` over one renamed node,
+  `addTurnPart` (Rust `AddTurnPart`; the landing's call, after
+  `skipPart` and the `TurnPart` its first field takes).
   (Ruling, 2026-10-06, owner, `semantics-v2-chooser-and-taker-fields`:
   "insertPart? weirdass name".)
 - **Gift and the additional-cost keywords share one mechanism.** Gift has one
@@ -729,8 +731,8 @@ sequence mapped by declaration order; mixed calls remain invalid.
 
 ### 12.1 The helper macro layer
 
-`lean/Semantics/Macros.lean`'s 421 `semantic_macro`s are the phrasings a card
-writes over the constructor basis. 316 of them are declarations under
+`lean/Semantics/Macros.lean`'s 420 `semantic_macro`s are the phrasings a card
+writes over the constructor basis. 319 of them are declarations under
 `plugins_v2/builtin/macros/<family>/` — the families are the Lean file's own
 sections (`pronouns`, `quantities`, `determiners`, `zones`, `predicates`,
 `nouns`, `mana`, `durations`, `amounts`, `instructions`, `events`,
@@ -760,7 +762,7 @@ next bucket — their keyword-action declarations already own the name, with a
 body that is the constructor itself, which names no performer (§7, amendment
 2026-10-06).
 
-The other 103 stay Lean-only, in eight buckets. (Counts recounted
+The other 99 stay Lean-only, in eight buckets. (Counts recounted
 2026-10-05 at `semantics-v2-actor-handoff`, and again at
 `plugins-v2-implicit-actor-spelling`, where `revealTheirHand` left the
 declarations, and at `plugins-v2-keyword-helper-additions`, where
@@ -776,7 +778,11 @@ its helper apart. 426 = 316 declarations + the two `counters` macros + 108;
 their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
 `doUnless`, `forEach`, `leavesZone`. Recounted 2026-10-06 at
 `semantics-v2-drop-agent-fields`, which retired five `Actor` helpers: 421 =
-316 declarations + the two `counters` macros + 103.)
+316 declarations + the two `counters` macros + 103. Recounted 2026-10-07 at
+`semantics-v2-chooser-and-taker-fields`, which retired `Actor.choose` and
+replaced `addPart`, `addPartThen` and `getAdditionalPart` with the declared
+`extraTurn`, `additionalPhase` and `additionalStep`: 420 = 319 declarations +
+the two `counters` macros + 99.)
 
 - **A spelled declaration already owns the identity (17).** The keyword
   families keep their own declarations: `companion`, `destroy`, `discard`,
@@ -784,16 +790,16 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
   `proliferate`, `regenerate`, `sacrifice`, `shuffle`, `tap`, `transform`,
   `untap`, `vote`. A ported body that calls one of these calls the
   DECLARATION, under its declaration's positional signature.
-- **It calls a `Primitives.*` helper (24).** `Semantics.Macros.Primitives`
+- **It calls a `Primitives.*` helper (21).** `Semantics.Macros.Primitives`
   holds hand-written macros beside the constructor wrappers
   `declare_semantic_primitives` generates; a wrapper is the constructor and
   converts as one, but the hand-written helpers are a second Lean-side layer
-  this port does not cover: `addPart`, `addPartThen`, `attachChoosing`,
+  this port does not cover: `attachChoosing`,
   `attachToIt`, `become`, `becomeColor`, `create`,
   `cumulativeUpkeepExpansion`, `doesntUntap`, `entersChoosing`,
   `entersChoosingFrom`,
   `entersChoosingPlayer`, `entersChoosingPlayerSecretly`,
-  `getAdditionalPart`, `leavesBattlefield`, `mayDeclineUntap`,
+  `leavesBattlefield`, `mayDeclineUntap`,
   `offer`, `offerWhen`, `putIntoFrom`, `splitOverPermanent`,
   `splitOverPlaneswalker`, `untapsDuring`, `youAnd`, `youOr`.
 - **It computes (22).** Not a substitution bundle: a `let`, a `match`, a
@@ -826,19 +832,20 @@ their buckets: `chooseModes`, `createTappedAttacking`, `dealsCombatDamage`,
   `partyRoles`, `stat`.
 - **It is defined by pattern matching on an argument (3).** `agentPlur`,
   `itOrThem`, `sameWindow`.
-- **It is a performer helper in the `Actor` namespace (4).** These spell what
-  the unprefixed macros do not (§7, ruling 2026-10-05). Two have a RON
-  declaration of the unprefixed name that writes the same term (`choose`,
-  which records its chooser, and the keyword action `discard`, from the
-  performer's own hand); the method keeps the `Actor` prefix, so they stay
-  counted here while the Lean bench's unprefixed macros of those names
-  differ. The other two have none: `amass` writes the literal reminder text
-  rather than `itPrior`, and `army` is a subtype and no predicate is added
-  (owner, 2026-10-05): `Actor.amass`, `Actor.army`, `Actor.choose`,
+- **It is a performer helper in the `Actor` namespace (3).** These spell what
+  the unprefixed macros do not (§7, ruling 2026-10-05). One has a RON
+  declaration of the unprefixed name that writes the same term (the keyword
+  action `discard`, from the performer's own hand); the method keeps the
+  `Actor` prefix, so it stays counted here while the Lean bench's unprefixed
+  macro of that name differs. The other two have none: `amass` writes the
+  literal reminder text rather than `itPrior`, and `army` is a subtype and no
+  predicate is added (owner, 2026-10-05): `Actor.amass`, `Actor.army`,
   `Actor.discard`. `Actor.create`, `Actor.draw`, `Actor.gainLife`,
   `Actor.loseLife` and `Actor.sacrifice` were retired at
   `semantics-v2-drop-agent-fields` (2026-10-06): with the agent fields gone
-  each wrote the term of the unprefixed macro. `Actor.mayCastFrom`
+  each wrote the term of the unprefixed macro. `Actor.choose` was retired at
+  `semantics-v2-chooser-and-taker-fields` (2026-10-07) for the same reason,
+  once `choose` lost its chooser. `Actor.mayCastFrom`
   left this bucket at `plugins-v2-keyword-helper-additions`: Lean has no
   explicit-agent macro of that name, so RON's `mayCastFrom` is its helper,
   named apart in §11 as `revealHand` is.
@@ -859,14 +866,12 @@ constructor of a `semantic_expression` type, `clearDamage(subject: …)` for
 `ClearDamage`, which is what `declare_semantic_primitives` generates in Lean
 and what makes §11.1's macro-only rule satisfiable — a card that may write
 only macros needs a macro for every constructor. Since
-`semantics-v2-drop-agent-fields` (2026-10-06) no constructor but `choose` and
-`insertPart` has an agent field (§7), so the aliases take Lean's signatures:
+`semantics-v2-chooser-and-taker-fields` (2026-10-07) no constructor has an
+agent field (§7), so the aliases take Lean's signatures:
 `skipPart(part: …, count: …)` is `SkipPart(part, count)`, and `changeLife`,
 `enact`, `returnTo`, `returnToBattlefield`, `meldInto` and
-`exileWithCounters` take no performer. One helper keeps an agent parameter,
-`insertPart`, whose agent is optional and `None` where no player takes the
-added part, as in Lean's `Option NounPhrase := none`; `choose` takes none
-and records the actor as its chooser. Of the aliases, 244 are declarations; the rest of
+`exileWithCounters` take no performer, nor do `choose` and `addTurnPart`
+(formerly `insertPart`), whose chooser and taker are the actor. Of the aliases, 244 are declarations; the rest of
 the basis is already covered by a phrasing macro of the same name (the 27
 above among them, whose narrower signature is the one a card writes, and
 `exists`, whose `Predicate` signature is Lean's `exists_` phrasing — the

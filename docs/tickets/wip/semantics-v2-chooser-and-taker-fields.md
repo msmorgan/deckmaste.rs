@@ -173,3 +173,102 @@ part's kind: a turn is taken by the player the instruction was handed to
 - **Glossary.** The **Actor** entry's `_Avoid_` line names "the two optional
   model fields left (a choice's chooser, an added turn part's taker)"; amend
   it when the fields go.
+
+## Landing record
+
+Series, oldest first, on claim `tytuymwwpxur` (stamped after `kata refresh`
+onto `oorvrlsmvmmr`): `xttprnpypuks` (xtask regroup), `swptuuspxtkl`
+(Attraction), `ouysnvuwvwro` (fields deleted), `xxqksrzwmqwk` (node and
+helper rename), `zskxwtpsmvrz` (glossary, ADR, this record).
+
+**What changed.**
+- `cargo xtask lean check` and `cargo xtask lean definitions` replace
+  `lean-check` and `definition-check` (`crates/xtask/src/lean.rs`; the old
+  names no longer parse). Every live reference moved: the CI workflow, the
+  ADRs, `lean/README.md`, `lean/CONTRACTS.md`, `lean/lakefile.toml`,
+  `docs/guided_tour.md`, `docs/keyword-policy.md`, the Rust sources and the
+  open tickets. `done/` tickets stay.
+- `plugins_v2/builtin/macros/subtypes/artifact/attraction.ron` and its
+  `attested_plural` row are gone. The subtype census pin moves 462 → 461 and
+  the `corpus.rs` comment with it. The `macro_def/tests.rs` doc comment names
+  the retired keyword-action stub `RollToVisitYourAttractions`, not the
+  subtype, so it stays; v1 `catalog.rs` is untouched.
+- Lean `Instruction.choose first chosen disclosure when` and
+  `Instruction.addTurnPart part anchor count followedBy` (formerly
+  `insertPart`), mirror `Choose`/`AddTurnPart` without `agent`. Checker
+  (`lean/Semantics/Check/`): the choose arm reads `performerOf perf`, checks
+  it as a player, reads the chosen phrase in `agentIntro`, refuses with
+  `choiceOrderOk first (some by_)` (the vote's form) and
+  `n.agentChoosable`; its profile is `chosenIntroBy`. `choiceClauseOk`,
+  `agentCtx` and `chooseIntro` are deleted; `choosable` stays as
+  `agentChoosable`'s fallback and the `byCandidate` rule's test. The added
+  part arm reads the performer as `skipPart` does; the window rule drops its
+  `who.isSome` clause; `reflexEncloseUse` is `.notYetTaken` for a turn and
+  falls to `.agentless` for a phase or step (the part's kind carries what the
+  taker carried); `costActionOk` is `true` (`NounPhrase.actor.costNounOk`).
+  No refusal constructor was added.
+- Helpers: Lean and RON `extraTurn count`, `additionalPhase part anchor count
+  (followedBy := none)`, `additionalStep part anchor count`; the RON alias is
+  `addTurnPart.ron`. Lean `addPart`, `addPartThen`, `getAdditionalPart`,
+  `Primitives.Instruction.addTurn`, `Primitives.Instruction.addPart` and
+  `Actor.choose` are retired. Node name: `addTurnPart`, after `skipPart` and
+  the `TurnPart` type of its first field; the glossary has Turn, Phase and
+  Step and no umbrella term, so the type's name is the one in use. `addPart`
+  was rejected because it was the name of two helpers this landing retires.
+
+**Pins.** 1926 pin theorems before and after. Changed outcome, both ruled:
+`badChooseSomeOf` is now `okChooseSomeOf`, the same text asserting `[]`.
+`badExtraTurnWithoutPlayer` is re-spelled as "Target creature takes an extra
+turn", `act (target creature) (.addTurnPart .turn none (.lit 1) none)`, and
+asserts `[.kindMismatch .player .object]`, not `[.windowOk]`. The ticket's
+"refused (`handoffPerformer`)" does not hold: `handoffPerformerOk` admits a
+permanent [CR#701.44a]. The refusal that fires is the performer's existing
+player check, the one `actorInPermanentHandoffIsThePermanent` pins for a
+draw. 58 more theorems are re-spelled mechanically (the agent argument
+dropped or a renamed helper) with an unchanged right-hand side, and the
+build proves each one. Among them are `chooseOmittedAgent`, `chooseNamedAgent`
+and `chooseSecretlyNamedAgent`, now spelled `act .you (choose …)`.
+`okExtraTurnPublishesTurnReference` lost `(some .you)` and keeps `[]`. Its
+Turn twins (`badAdditionalPartAmountReadsSubject` and
+`badAdditionalPartWithoutSubjectOrOuterContext`) are now the same term and
+still pass. Counts: restored 0, re-spelled 61, ignored 0, added 1 (Rust
+`lean_command_family_requires_a_subcommand`), removed 0.
+
+**Proofs** (on `zskxwtpsmvrz`, after refresh). `lean/scripts/build`
+(`--wfail`) passed with 82 jobs. `lean check`: canon 127/127, testing 6/6.
+`lean definitions`: 553/553 (73 counters, 461 subtypes, 19 designations).
+`facts check`: up to date. Gate: `cargo test -p deckmaste_construction_core
+-p deckmaste_lexical_source -p deckmaste_semantics_v2 -p
+deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask` passed 1349,
+failed 0, ignored 1 (pre-existing) in 111 suites, 21m12s wall. `cite check`
+reported 0 non-compliant and 0 stale. `cite audit` over the series diff read
+11 sites [CR#500.7,500.8,500.9]. `kanban check` OK. clippy `-D warnings` was
+clean.
+
+**Expansions** (`diff -r`). Stage (c): only `agent` lines leave `choose`,
+`chooseWhile`, `insertPart`, `selectRandom` and the seven choose-bearing
+keyword bodies (demonstrate, amass, behold, bolster, populate, proliferate,
+timeTravel). Stage (d): `insertPart` → `addTurnPart`, identical modulo the
+name, and `extraTurn`, `additionalPhase` and `additionalStep` are added.
+1510 → 1513 declarations, 0 failed.
+
+**Lexicon export** (`--card-name "Black Lotus" --export`). The only change
+is the `lexeme:artifact_subtype/attraction` noun (Attraction deletion). The
+stage (d) export is byte-identical to the post-Attraction one.
+`--text-contains Attraction` selects 0 supported faces, so no coverage
+identity is lost.
+
+**Deviations and additions.**
+- Added: the CLI parse test.
+- `choiceOrderOkIn` was not minted. The arm calls `choiceOrderOk first
+  (some (performerOf perf))`, as `vote` does, which is the same predicate.
+- Disclosed judgement change, no pin: a phase or step handed to a permanent
+  is now refused by the performer's player check, as `skipPart` already
+  was. No refusal constructor was added.
+- ADR §12.1 recounted: 420 = 319 declarations + 2 + 99. The `Primitives`
+  bucket is now 21 and the `Actor` bucket 3. The alias paragraph now says no
+  constructor has an agent field.
+- Observation, not acted on: `subtypes/artifact/contraption.ron` is also an
+  Un-set subtype.
+
+No glossary gap. The Actor `_Avoid_` line is amended.
