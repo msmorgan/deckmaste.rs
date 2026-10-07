@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-comparative-quantity-determiners, english-v3-comparative-complements, english-v3-scalar-property-values, english-v3-copular-scalar-location, english-v3-as-long-as, english-v3-instead-replacement]
+needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-comparative-quantity-determiners, english-v3-comparative-complements, english-v3-scalar-property-values, english-v3-copular-scalar-location, english-v3-as-long-as, english-v3-instead-replacement, english-v3-cost-scalar-complement, english-v3-remove-from-complement, english-v3-that-degree-quantifiers, english-v3-combat-interval-noun, english-v3-where-variable-clause, english-v3-each-of-partitive, english-v3-causative-have, english-v3-focusing-only, english-v3-once-frequency, english-v3-become-adjectival-passive]
 ---
 # Reconcile systemic residuals before production cutover
 
@@ -163,6 +163,8 @@ its verification belong to the attached feature-economy ticket.
   sorcery* remains with the existing only-restriction residual here. Its landing
   widens the position licence for clause-final predicative *as*, measured; the
   fixed-cost landing licenses only the preposed, comma-separated Adjunct.
+  **Taken over (2026-10-07)** by `english-v3-focusing-only`, including the
+  deferred clause-final predicative-*as* widening.
 
 The landing records of the batches run under this ticket (restricted Oracle
 hosts, selected complement coordination and PP licensing, the verified coverage
@@ -262,6 +264,13 @@ is right and this list needs fixing.
   Deal's two `ScalarEquality` rows by `english-v3-comparative-complements`; the
   `ReplacementMarker` slot of Deal's first row by `english-v3-instead-replacement`
   (its `MassNoun`/`DistributionPhrase` slots stay here).
+  Taken over 2026-10-07 by wave-2 owners: the Cost row
+  (`ManaAmount`/`ComparisonDirection`/`ControlledCostAction`) by
+  `english-v3-cost-scalar-complement`; the Remove row's `FrameComplement` slot
+  by `english-v3-remove-from-complement`; the Have
+  `Complement(Object), Complement(VerbPhrase)` row by
+  `english-v3-causative-have`. The other `FrameComplement`, `Object`-role and
+  `ResultativeComplement` rows stay here.
 - The exile resultative frame (`[ObjectNounPhrase, Role("ResultativeComplement")]`
   in `plugins_v2/builtin/macros/keyword_actions/exile.ron`) is declared but has no
   consumer, so attested "exile ... face down" sentences (Duplicity, The Foretold
@@ -293,8 +302,10 @@ is right and this list needs fixing.
   `english-v3-comparative-complements`; property values (*with power 2 or
   less*, *with mana value X*) by `english-v3-scalar-property-values`; copular
   scalar location by `english-v3-copular-scalar-location`. Spikeshell
-  Harrier's *below 1* sentence is not a comparative and stays here. Only-if/only-during has
-  no other live owner and stays here (`english-v3-fixed-cost-phrases` excludes it).
+  Harrier's *below 1* sentence is not a comparative and stays here. Only-if/only-during
+  is **taken over (2026-10-07)** by `english-v3-focusing-only` (focusing *only* on
+  the clause-final Adjunct); its *only once each turn* frequency case by
+  `english-v3-once-frequency`.
 
 - Frame-coordination reconciliation (2026-10-06): 42 inherited no-Reading faces
   remain owned here for exact structural cause discrimination: Commune with
@@ -323,7 +334,8 @@ is right and this list needs fixing.
   Drakuseth, Assembled Alphas, Chandra, The
   Brothers' War, Trick Shot, Self-Destruct, Tropical Storm, Judgment Bolt and
   Sparksmith fail on Deal's ordered amount/recipient segments; Neonate's Rush
-  fails on cost reduction. The earlier attribution of no `, then` failures
+  fails on cost reduction (**taken over 2026-10-07** by
+  `english-v3-cost-scalar-complement`). The earlier attribution of no `, then` failures
   among these 42 is superseded by the library-position landing's current
   discriminating probes, as reconciled below.
 
@@ -355,6 +367,25 @@ is right and this list needs fixing.
   faces Arlinn, Embraced by the Moon and Roar of the Fifth People. These 13
   supported faces have no whole-face Reading because QuotedText has only
   double-quote forms; none is mis-analysed.
+
+- *Combat phase* duplicate analysis (2026-10-07, from the
+  `english-v3-lexical-gaps-batch-1` record): Moment of Silence, Stonehorn
+  Dignitary, False Peace and Empty City Ruse gained a redundant Reading in that
+  landing, the composite *combat* (Premodifier) + *phase* beside the atomic
+  `lexeme:turn_part/combatPhase`. Two labels for one constituency is a spurious
+  duplicate; retire one route, measured (Reading counts of the four faces
+  before/after). `english-v3-combat-interval-noun` must not add a third.
+- `BareGenitiveHost` (2026-10-07): the feature on eight nouns in `core.ron`
+  stands in for a productive morphological property. The bare genitive is
+  obligatory with plural nouns ending in *s*, regular or irregular (CGEL,
+  Ch. 18, §4.2, pp. 1595–1596, [35i]), so other *·s'* plurals fail. Generalize from the plural form when a case arises,
+  retiring the per-noun feature.
+- `Adverb` now exports `DurationUse` (2026-10-07, from the
+  `english-v3-as-long-as` landing), so bare "for long" reads although it has
+  0 supported-corpus attestations. Harmless reach; a pruning-rule candidate.
+- The 738 *as long as* faces still unread after `english-v3-as-long-as` are
+  owed to their other blockers, routed here; that landing's record lists
+  samples. They are not claimed as covered.
 
 The records also name two cutover blockers that now have their own owners: the
 cost of the complete corpus run (english-v3-census-tractability) and the Avacyn

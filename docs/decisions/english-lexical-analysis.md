@@ -311,7 +311,7 @@ faces in the full-corpus run. Both conditions are measured, not argued.
   [english-v3-systemic-residuals](../tickets/planned/english-v3-systemic-residuals.md).
 - The same rule governs lexemes: one with zero tokens in the supported corpus
   is deleted
-  ([english-v3-dead-lexeme-audit](../tickets/planned/english-v3-dead-lexeme-audit.md)),
+  ([english-v3-dead-lexeme-audit](../tickets/done/english-v3-dead-lexeme-audit.md)),
   one with any token stays.
 
 Rationale: overgeneration is tolerable and the grammar prunes toward what
