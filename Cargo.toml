@@ -95,6 +95,13 @@ opt-level = 2
 [profile.dev.package.deckmaste_lexical]
 opt-level = 2
 
+# Generic JSONL/macro_ron decoding is monomorphized here and governs startup.
+[profile.dev.package.deckmaste_lexical_source]
+opt-level = 2
+
+[profile.dev.package.deckmaste_construction_core]
+opt-level = 2
+
 [profile.dev.package.xtask]
 opt-level = 2
 
