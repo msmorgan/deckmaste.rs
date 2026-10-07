@@ -216,6 +216,22 @@ fn read_macros(
             match macros.read_str::<MacroDef<OpaqueMetadata>>(&source) {
                 Ok(read) => {
                     let definition = read.erase_metadata();
+                    // A referent parameter mentioned more than once is bound at
+                    // its first mention and read back by identity at the rest
+                    // (`crate::mentions`); a meta-macro's own parameters are not
+                    // referents of the declarations it builds.
+                    let is_meta = definition
+                        .kinds
+                        .iter()
+                        .any(|kind| kind.as_str() == crate::ron::MACRO_KIND);
+                    let definition = match crate::mentions::bind_first_mentions(
+                        definition.name.as_str(),
+                        &definition.params,
+                        definition.body(),
+                    ) {
+                        Some(body) if !is_meta => definition.with_body(&body),
+                        _ => definition,
+                    };
                     // A keyword declaration's meta-macro hands over what the
                     // file wrote; the declaration builds the wrapper around it
                     // (`crate::keywords`).

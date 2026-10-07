@@ -395,11 +395,13 @@ pub fn raw_options() -> ::ron::Options {
 /// `hasType(Creature)` — which is how the Lean bench writes applications.
 #[must_use]
 pub fn macro_set() -> MacroSet {
-    MacroSet::new(kinds())
+    let mut macros = MacroSet::new(kinds())
         .with_options(raw_options())
         .with_param_types(param_types())
         .denying_unknown_fields()
-        .reading_positional_arguments()
+        .reading_positional_arguments();
+    crate::mentions::register(&mut macros);
+    macros
 }
 
 #[cfg(test)]

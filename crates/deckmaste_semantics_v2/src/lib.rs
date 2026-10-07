@@ -30,6 +30,7 @@ pub mod events;
 pub mod facts;
 pub mod keywords;
 pub mod lean_emit;
+pub mod mentions;
 pub mod phrase;
 pub mod reader;
 pub mod reads;

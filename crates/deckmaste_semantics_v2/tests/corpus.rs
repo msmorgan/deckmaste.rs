@@ -333,3 +333,29 @@ fn no_source_file_writes_out_an_elided_constructor() {
         "only {checked} files checked; the scan lost the corpus it reads"
     );
 }
+
+/// The mention macros are loader vocabulary (`deckmaste_semantics_v2::mentions`):
+/// the loader writes them into a declaration body whose referent parameter it
+/// mentions more than once, and no card or declaration writes them itself.
+#[test]
+fn no_plugin_file_writes_a_mention_macro() {
+    let mut offenders = Vec::new();
+    let mut stack = vec![plugins_root()];
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).expect("the plugins_v2 tree lists") {
+            let path = entry.expect("a directory entry reads").path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.extension().is_some_and(|ext| ext == "ron") {
+                let source = std::fs::read_to_string(&path).expect("a plugin file reads");
+                if deckmaste_semantics_v2::mentions::MENTION_MACRO_NAMES
+                    .iter()
+                    .any(|name| source.contains(name))
+                {
+                    offenders.push(path);
+                }
+            }
+        }
+    }
+    assert!(offenders.is_empty(), "{offenders:?} write a mention macro");
+}
