@@ -1069,6 +1069,7 @@ mutual
     | .inCaller scope body => leaveCaller bs (body.intro (enterCaller scope bs))
     | .mana c => if manaHasX c then letterB .x :: bs else bs
     | .scaled c _ => Cost.intro bs c
+    | .withSubstitute c _ => Cost.intro bs c
     | .loyaltySymbol .downX => letterB .x :: bs
     | .perform e => (Instruction.profileWith bs none e).intro
     | .compound cs => Cost.costsIntro bs cs
@@ -1094,6 +1095,7 @@ mutual
     | .costShift n sh => sh.introduced (selfSubjIntro bs n) ++ selfSubjIntro bs n
     | .altCost n _ => selfSubjIntro bs n
     | .addedCost _ _ _ => bs
+    | .paySubstitute n _ => selfSubjIntro bs n
     | .abilityGrant n ab => ab.introducedLetters ++ selfSubjIntro bs n
     | .abilityGrantFrom n _ src _ => nomIntro (nomIntro bs n) src
     | .deonticRule n _ _ _ _ _ _ _ => selfSubjIntro bs n
@@ -1333,7 +1335,7 @@ def Cost.numberSlots : Cost → List (Amount × NumberRegime)
   | .mana _ => []
   | .scaled _ amount => [(amount, .clamped)]
   | .tapSymbol | .untapSymbol | .loyaltySymbol _ => []
-  | .perform _ | .compound _ | .or _ | .itsManaCost | .tapForGeneric _ _ => []
+  | .perform _ | .compound _ | .or _ | .itsManaCost | .withSubstitute _ _ => []
 
 /-- The static spec's own slots and the regime each is read in [CR#107.1b]. -/
 def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
@@ -1344,7 +1346,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .ptDefinition _ _ amount => [(amount, .signed)]
   | .ptSwitch _ => []
   | .costShift _ shift => shift.numberSlots
-  | .altCost _ _ | .addedCost _ _ _ => []
+  | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ => []
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
   | .letterDefinition _ amount => [(amount, .clamped)]

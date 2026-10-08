@@ -16,19 +16,6 @@ Selection are what it denotes, not two spellings.
 
 namespace Semantics
 
-/-- A color, written or "the chosen color". -/
-inductive ColorTerm where
-  | lit (color : Color)
-  | chosen (ref : ChoiceRef)
-  deriving DecidableEq, Repr
-
-/-- The mana type a "tapped for mana of …" trigger specifies [CR#106.12a]: colorless, or a
-color written or chosen; the six types of [CR#106.1b]. -/
-inductive ManaTypeTerm where
-  | colorless
-  | ofColor (color : ColorTerm)
-  deriving Repr, BEq
-
 /-- Which version of a zone-changing object supplies the event pattern's characteristics
 [CR#603.10,603.10a]. -/
 inductive ObservationPoint where
@@ -158,6 +145,20 @@ mutual
     | count (quantity : Quantity) (mode : Option ChoiceMode)
     /-- the bare plural: a description, no determiner [CR#109.2] -/
     | bare
+
+  /-- A color, written, "the chosen color", or an object's color ("that creature's color"). -/
+  inductive ColorTerm where
+    | lit (color : Color)
+    | chosen (ref : ChoiceRef)
+    /-- The color of `object` [CR#105.2]: a Mana Substitute's colored pip reads the acted-on
+    object back ("mana of that creature's color" [CR#702.51a]). -/
+    | colorOf (object : NounPhrase)
+
+  /-- The mana type a "tapped for mana of …" trigger specifies [CR#106.12a]: colorless, or a
+  color written or chosen; the six types of [CR#106.1b]. -/
+  inductive ManaTypeTerm where
+    | colorless
+    | ofColor (color : ColorTerm)
 
   inductive NounPhrase where
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : NounPhrase)
@@ -341,7 +342,7 @@ mutual
 end
 
 /-! `DecidableEq` does not derive for a nested mutual block; `BEq` and `Repr` do. -/
-deriving instance Repr, BEq for CaptureInput, ZoneScope, LibraryPlace, ZoneExpr, NameSource, ChoiceDomain,
+deriving instance Repr, BEq for ColorTerm, ManaTypeTerm, CaptureInput, ZoneScope, LibraryPlace, ZoneExpr, NameSource, ChoiceDomain,
   EventSource, LookbackClause, Predicate, DetPhrase, NounPhrase, Amount,
   Quantity, SliceCount, Door, RollWatch, HeaderPossessor, Condition, GameEvent, Causing
 

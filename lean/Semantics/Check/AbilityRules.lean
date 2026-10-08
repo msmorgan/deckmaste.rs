@@ -131,6 +131,11 @@ def DieSides.check (bs : Bindings) : DieSides → List Refusal
     let n := countOutcomes .diceRolled bs
     refuse (n == 1) (.outcomeInScope .diceRolled n)
 
+/-- The mana one act of a Mana Substitute pays: a color reads one object [CR#105.2]. -/
+def PipPaid.check (bs : Bindings) : PipPaid → List Refusal
+  | .generic => []
+  | .ofColor c => ColorTerm.check bs c
+
 /-- Written stat slots in order, each read after the ones before it ("X/X"). -/
 def statsCheck (bs : Bindings) : List (Option Amount) → List Refusal
   | [] => []
@@ -440,13 +445,24 @@ mutual
     | .mana c => refuse (!c.isEmpty) .nonEmpty ++ ManaCost.check c
     | .scaled c amt => Cost.check bs c ++ Amount.check bs amt ++ refuse amt.forEach .forEachAmount
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ | .itsManaCost => []
-    | .tapForGeneric c tapped => Cost.check bs c ++ Predicate.check .object bs tapped
+    | .withSubstitute c s => Cost.check bs c ++ ManaSubstitute.check bs s
     | .perform e => Instruction.checkWith bs none e
     | .compound cs => refuse (!cs.isEmpty) .nonEmpty ++ Cost.checkSeq bs cs
     | .or cs =>
       refuse (atLeastTwo cs.length) .atLeastTwo ++ Cost.checkAlternatives bs cs ++
         cs.flatMap (fun c => refuse (!c.isCompound) .notCompound)
   termination_by structural c => c
+
+  /-- The action is an instruction like any other; the mana each act pays reads only what the
+  action introduced, so an anaphor in `pays` resolves to the acted-on object ("that creature's
+  color" [CR#702.51a]) or has no antecedent and is refused. -/
+  def ManaSubstitute.check (bs : Bindings) : ManaSubstitute → List Refusal
+    | ⟨action, pays⟩ =>
+      let introduced := (Instruction.profileWith bs none action).intro
+      let acted := introduced.take (introduced.length - bs.length)
+      Instruction.checkWith bs none action ++ refuse (!pays.isEmpty) .nonEmpty ++
+        pays.flatMap (PipPaid.check acted)
+  termination_by structural s => s
 
   def Cost.checkAlternatives (bs : Bindings) : List Cost → List Refusal
     | [] => []
@@ -613,6 +629,7 @@ mutual
     | .altCost n c =>
       NounPhrase.check (some .object) bs n ++ OptCost.check (selfSubjIntro bs n) c
     | .addedCost c _ _ => Cost.check bs c
+    | .paySubstitute n s => NounPhrase.check (some .object) bs n ++ ManaSubstitute.check bs s
     | .letterDefinition l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .abilityGrant n ab =>
       NounPhrase.check (some .object) bs n ++ Ability.check bs ab

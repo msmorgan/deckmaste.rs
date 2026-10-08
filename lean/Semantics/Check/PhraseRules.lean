@@ -50,12 +50,6 @@ def ChoiceMode.check (bs : Bindings) : ChoiceMode → List Refusal
     refuse (n == 1) (.chooserInScope n)
   | _ => []
 
-def ColorTerm.check (bs : Bindings) : ColorTerm → List Refusal
-  | .lit _ => []
-  | .chosen ref =>
-    let n := countChoice (.quality .color) bs
-    refuse (ref.ok n) (.choiceRef ref (.quality .color) n)
-
 /-- Idris `ChoiceDomain : ChoiceSort → Type`: the domain's sort must be the announced one. -/
 def ChoiceDomain.sort : ChoiceDomain → ChoiceSort
   | .nameOfCard _ => .quality .cardName
@@ -467,10 +461,10 @@ mutual
       refuse (n == 1) (.gapInScope n)
     | .devotion who c d =>
       NounPhrase.checkIn gap (some .player) bs who ++ refuse who.plur.isOne .singular ++
-        ColorTerm.check bs c ++
+        ColorTerm.checkIn gap bs c ++
         (match d with
          | none => (⟨[], false⟩ : CheckResult)
-         | some d => ColorTerm.check bs d)
+         | some d => ColorTerm.checkIn gap bs d)
     | .half _ a => Amount.checkIn gap bs a
     | .aggregateOver _ dom body =>
       let k := dom.kindOr .object
@@ -622,9 +616,19 @@ def HeaderPossessor.checkIn (gap : Option Kind) (bs : Bindings) : HeaderPossesso
   | .byPlayer n => NounPhrase.checkIn gap (some .player) bs n
   | .byTurn n => NounPhrase.checkIn gap (some .turnRef) bs n
 
-def ManaTypeTerm.checkIn (_gap : Option Kind) (bs : Bindings) : ManaTypeTerm → CheckResult
+  /-- An object's color reads one object [CR#105.2]. -/
+  def ColorTerm.checkIn (gap : Option Kind) (bs : Bindings) : ColorTerm → CheckResult
+    | .lit _ => (⟨[], false⟩ : CheckResult)
+    | .chosen ref =>
+      let n := countChoice (.quality .color) bs
+      refuse (ref.ok n) (.choiceRef ref (.quality .color) n)
+    | .colorOf object =>
+      NounPhrase.checkIn gap (some .object) bs object ++ refuse object.plur.isOne .singular
+  termination_by structural c => c
+
+def ManaTypeTerm.checkIn (gap : Option Kind) (bs : Bindings) : ManaTypeTerm → CheckResult
   | .colorless => (⟨[], false⟩ : CheckResult)
-  | .ofColor c => ColorTerm.check bs c
+  | .ofColor c => ColorTerm.checkIn gap bs c
 
 def OptManaTypeTerm.checkIn (gap : Option Kind) (bs : Bindings) : Option ManaTypeTerm → CheckResult
   | none => (⟨[], false⟩ : CheckResult)
@@ -781,6 +785,7 @@ abbrev DamagePatient.check := fun bs value => (DamagePatient.checkIn none bs val
 abbrev Door.check := fun bs value => (Door.checkIn none bs value).refusals
 abbrev RollWatch.check := fun bs value => (RollWatch.checkIn none bs value).refusals
 abbrev HeaderPossessor.check := fun bs value => (HeaderPossessor.checkIn none bs value).refusals
+abbrev ColorTerm.check := fun bs value => (ColorTerm.checkIn none bs value).refusals
 abbrev ManaTypeTerm.check := fun bs value => (ManaTypeTerm.checkIn none bs value).refusals
 abbrev OptManaTypeTerm.check := fun bs value => (OptManaTypeTerm.checkIn none bs value).refusals
 abbrev OptEventSource.check := fun bs value => (OptEventSource.checkIn none bs value).refusals

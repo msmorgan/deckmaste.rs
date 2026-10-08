@@ -83,6 +83,13 @@ inductive CostShift where
   | run (run : ManaCost) (rises : Bool) (coloredOnly : Bool)
   deriving Repr, BEq
 
+/-- The mana one act of a Mana Substitute pays for: one generic mana, or one mana of a color
+[CR#702.51a,702.66a,702.126a,701.67a]. -/
+inductive PipPaid where
+  | generic
+  | ofColor (color : ColorTerm)
+  deriving Repr, BEq
+
 inductive CountBound where
   | moreThan (amount : Amount)
   | additional (quantity : Quantity)
@@ -304,6 +311,10 @@ mutual
     | choice (occasion : ChoiceOccasion) (subject : NounPhrase) (sort : ChoiceSort)
         (domain : Option ChoiceDomain) (disclosure : Disclosure)
     | conjunction (subject : Option NounPhrase) (parts : List StaticSpec)
+    /-- A Mana Substitute on a spell (convoke, delve, improvise): neither an additional nor an
+    alternative cost, applied once the spell's total cost is locked
+    [CR#702.51b,702.66b,702.126b]. -/
+    | paySubstitute (subject : NounPhrase) (substitute : ManaSubstitute)
 
   inductive Compulsion where
     | forbid
@@ -352,9 +363,16 @@ mutual
     | compound (costs : List Cost)
     | or (costs : List Cost)
     | itsManaCost
-    /-- Pay `cost`, tapping an untapped `tapped` permanent the payer controls rather than paying
-    each generic mana in that cost [CR#701.67a,701.67b]. -/
-    | tapForGeneric (cost : Cost) (tapped : Predicate)
+    /-- Pay `cost`, `substitute` standing in only for that cost's own generic mana
+    (waterbend [CR#701.67b]). -/
+    | withSubstitute (cost : Cost) (substitute : ManaSubstitute)
+
+  /-- "For each [generic | colored] mana in the cost, you may <action> rather than pay that
+  mana" [CR#702.51a,702.66a,702.126a,701.67a]: the action first, then the mana each act pays,
+  read back from the acted-on object by anaphora ("that creature's color"). -/
+  structure ManaSubstitute where
+    action : Instruction
+    pays : List PipPaid
 
   inductive ManaRider where
     | spendOnly (purposes : List SpendPurpose)
@@ -508,7 +526,7 @@ end
 
 deriving instance Repr, BEq for Characteristics, CharacteristicBundle, CharacteristicEdit, AbilitySelection,
   TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost,
-  ManaRider, CopyExcept, RollRow, Repetition, CreationSpec, Instruction, KeywordParam,
+  ManaSubstitute, ManaRider, CopyExcept, RollRow, Repetition, CreationSpec, Instruction, KeywordParam,
   AbilityLost, Ability
 
 end Semantics
