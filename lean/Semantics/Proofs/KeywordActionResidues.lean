@@ -28,9 +28,10 @@ theorem badWithTotalUnresolvedBound :
 remaining exiled cards" the rest of the run. -/
 theorem okDiscover : Instruction.check [] (Actor.discover (.lit 5)) = [] := by decide
 
-/-- A run comes from a player's library: a creature has none. -/
+/-- A run comes from a pile, and a library pile is a player's: a creature has none, so "its
+library" names no pile to run. -/
 theorem badLibraryRunOfAnObject :
-    Instruction.check [] (move (.libraryRun .top land thisCreature) exileZone) =
+    Instruction.check [] (move (.run .top land (library thisCreature)) exileZone) =
       [.kindMismatch .player .object] := by decide
 
 /-- "Incubate 3" [CR#701.53a,701.53b]. -/
@@ -76,11 +77,11 @@ theorem okCrewCost :
 
 /-- "Manifest the top card of your library" [CR#701.40a]. -/
 theorem okManifest :
-    Instruction.check [] (Actor.manifest (.librarySlice .top (.lit 1) .you)) = [] := by decide
+    Instruction.check [] (Actor.manifest (.slice .top (.lit 1) (library .you))) = [] := by decide
 
 /-- "Cloak the top card of your library" [CR#701.58a]. -/
 theorem okCloak :
-    Instruction.check [] (Actor.cloak (.librarySlice .top (.lit 1) .you)) = [] := by decide
+    Instruction.check [] (Actor.cloak (.slice .top (.lit 1) (library .you))) = [] := by decide
 
 /-- "Manifest dread" [CR#701.62a]: the manifested card is a part of the look, and the rest the
 other card. -/

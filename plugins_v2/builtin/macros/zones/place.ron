@@ -1,0 +1,8 @@
+// `ZoneExpr.Place` under Lean's own name for it: "on top of <pile>", "on the
+// bottom of <pile>", a move destination at one end of a pile.
+(
+    name: "place",
+    kinds: [ZoneExpr],
+    params: {"end": Any, "pile": Pile},
+    body: Place(end: Param(end), pile: Param(pile)),
+)

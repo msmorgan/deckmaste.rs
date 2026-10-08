@@ -1,7 +1,0 @@
-// "on the top or bottom of your library"
-(
-    name: "topOrBottom",
-    kinds: [ZoneExpr],
-    params: [],
-    body: Library(EitherEnd(None), None, None, Bare),
-)

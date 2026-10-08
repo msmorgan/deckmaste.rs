@@ -26,7 +26,7 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
                     [ revealCards
                         (fromAmong (exactly 1) (Primitives.Predicate.or [Primitives.Predicate.colorIs .blue, artifact]) them),
                       move (that .card) hand ]),
-                move (theRest .object) (onBottomIn .randomOrder) ]),
+                Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.TokenRider.inOrder .randomOrder] ]),
           activated
             (Primitives.Cost.compound [Primitives.Cost.mana [generic 5, pip .blue], Primitives.Cost.tapSymbol,
                         Primitives.Cost.perform (sacrifice thisArtifact)])

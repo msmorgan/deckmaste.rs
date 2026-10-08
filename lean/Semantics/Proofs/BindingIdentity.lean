@@ -162,14 +162,16 @@ mention, read back by identity, so the read's number is the slice's, which is th
 scry 1 reads "that card", scry 2 "those cards" (ruling 2026-10-06). -/
 
 /-- The `plugins_v2` helper `lookAndSortSlice` as the loader expands it. -/
-private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) : Instruction :=
+private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) (spillRiders : List TokenRider) :
+    Instruction :=
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .wherever spill [],
-      .move (.theRest .object .many) .wherever (onTopIn .anyOrder) [] ]
+      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .wherever spill
+        spillRiders,
+      .move (.theRest .object .many) .wherever onTop [.inOrder .anyOrder] ]
 
 private def scryBy (amount : Amount) : Instruction :=
-  .enact (.action "scry") (lookAndSortSlice (.librarySlice .top amount .actor) (onBottomIn .anyOrder))
+  .enact (.action "scry") (lookAndSortSlice (.slice .top amount (library .actor)) onBottom [.inOrder .anyOrder])
 
 /-- "Scry 1." -/
 theorem okScryOne : Instruction.check [] (scryBy (.lit 1)) = [] := by decide
@@ -179,25 +181,26 @@ theorem okScryTwo : Instruction.check [] (scryBy (.lit 2)) = [] := by decide
 
 /-- Scry 1's read back is singular: "that card". -/
 theorem scryOneReadsThatCard :
-    (NounPhrase.laterMention "lookAndSortSlice.slice" (.librarySlice .top (.lit 1) .actor)).plur
+    (NounPhrase.laterMention "lookAndSortSlice.slice" (.slice .top (.lit 1) (library .actor))).plur
       = .one := by decide
 
 /-- Scry 2's read back is plural: "those cards". -/
 theorem scryTwoReadsThoseCards :
-    (NounPhrase.laterMention "lookAndSortSlice.slice" (.librarySlice .top (.lit 2) .actor)).plur
+    (NounPhrase.laterMention "lookAndSortSlice.slice" (.slice .top (.lit 2) (library .actor))).plur
       = .many := by decide
 
 /-- "Surveil 2." [CR#701.25a] -/
 theorem okSurveilTwo :
     Instruction.check []
-      (.enact (.action "surveil") (lookAndSortSlice (.librarySlice .top (.lit 2) .actor) graveyard))
+      (.enact (.action "surveil") (lookAndSortSlice (.slice .top (.lit 2) (library .actor)) graveyard []))
       = [] := by decide
 
 /-- "Fateseal 2." [CR#701.29a]: an opponent's library. -/
 theorem okFatesealTwo :
     Instruction.check []
       (.enact (.action "fateseal")
-        (lookAndSortSlice (.librarySlice .top (.lit 2) (a .opponent)) (onBottomIn .anyOrder)))
+        (lookAndSortSlice (.slice .top (.lit 2) (library (a .opponent))) onBottom
+          [.inOrder .anyOrder]))
       = [] := by decide
 
 /-! ## Connive

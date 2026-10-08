@@ -123,36 +123,22 @@ semantic_macro aggregate (op : AggregateOp) (axis : ProjAxis) (p : Predicate) : 
 semantic_macro battlefield : ZoneExpr := .zone .battlefield .bare
 semantic_macro exileZone : ZoneExpr := .zone .exile .bare
 semantic_macro hand : ZoneExpr := .zone .hand .bare
-semantic_macro library : ZoneExpr := .zone .library .bare
 semantic_macro graveyard : ZoneExpr := .zone .graveyard .bare
 semantic_macro stack : ZoneExpr := .zone .stack .bare
 semantic_macro command : ZoneExpr := .zone .command .bare
 /-- "the command zone", scoped to nobody. -/
 semantic_macro commandZone : ZoneExpr := .zone .command .bare
-semantic_macro libraryOf (player : NounPhrase) : ZoneExpr := .zone .library (.possessedBy player)
-semantic_macro yourLibrary : ZoneExpr := libraryOf .you
-/-- "on the bottom of your library in <arrangement>" -/
-semantic_macro onBottomIn (arrangement : Arrangement) : ZoneExpr :=
-  .library (.oneEnd .bottom) (some arrangement) none .bare
-semantic_macro onTopIn (arrangement : Arrangement) : ZoneExpr :=
-  .library (.oneEnd .top) (some arrangement) none .bare
+semantic_macro yourLibrary : ZoneExpr := .zone .library (.possessedBy .you)
+/-- "<player>'s library": a face-down pile [CR#401.2]. -/
+semantic_macro library (player : NounPhrase) : Pile := .library (.possessedBy player)
 /-- "on the bottom of its owner's library" -/
-semantic_macro onBottom : ZoneExpr := .library (.oneEnd .bottom) none none .bare
-semantic_macro onTop : ZoneExpr := .library (.oneEnd .top) none none .bare
-/-- "on the top or bottom of your library" -/
-semantic_macro topOrBottom : ZoneExpr := .library (.eitherEnd none) none none .bare
-/-- "on the top or bottom of its owner's library, <chooser>'s choice" -/
-semantic_macro choiceOfTopOrBottom (chooser : NounPhrase) : ZoneExpr :=
-  .library (.eitherEnd (some chooser)) none none .bare
-/-- "Nth from the top or bottom of your library" -/
-semantic_macro nthFromTopOrBottom (ordinal : Ordinal) : ZoneExpr :=
-  .library (.eitherEnd none) none (some ordinal) .bare
+semantic_macro onBottom : ZoneExpr := .place .bottom (.library .bare)
+/-- "on top of its owner's library" -/
+semantic_macro onTop : ZoneExpr := .place .top (.library .bare)
 semantic_macro handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
 /-- "your hand" -/
 semantic_macro yourHand : ZoneExpr := handOf .you
 semantic_macro graveyardOf (player : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy player)
-/-- "Nth from the top of its owner's library" -/
-semantic_macro nthFromTop (ordinal : Ordinal) : ZoneExpr := .library (.oneEnd .top) none (some ordinal) .bare
 
 /-! ## Predicates -/
 
@@ -329,9 +315,9 @@ semantic_macro youOr (subject : NounPhrase) : NounPhrase := Primitives.NounPhras
 semantic_macro controllerOf (subject : NounPhrase) : NounPhrase := .possessorOf .controller subject
 semantic_macro ownerOf (subject : NounPhrase) : NounPhrase := .possessorOf .owner subject
 /-- "the top N cards of your library" -/
-semantic_macro topSlice (amount : Amount) : NounPhrase := .librarySlice .top amount .you
+semantic_macro topSlice (amount : Amount) : NounPhrase := .slice .top amount (library .you)
 /-- "the bottom card of your library" -/
-semantic_macro bottomCard : NounPhrase := .librarySlice .bottom (.lit 1) .you
+semantic_macro bottomCard : NounPhrase := .slice .bottom (.lit 1) (library .you)
 /-- The stack after "look at the top N cards of your library". -/
 semantic_macro lookedTop (bs : Bindings) (amount : Amount) : Bindings := nomIntro bs (topSlice amount)
 /-- "[a player]'s party" [CR#700.8]. -/
@@ -416,6 +402,11 @@ semantic_macro sacrifice (subject : NounPhrase) : Instruction :=
 /-- "put <subject> <destination>" -/
 semantic_macro put (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
   .enact (.core .put) (.move subject .wherever destination [])
+/-- "put <subject> <destination>" with the move's riders ("second from the top", "on the top or
+bottom") -/
+semantic_macro putWith (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider) :
+    Instruction :=
+  .enact (.core .put) (.move subject .wherever destination riders)
 /-- "return <subject> to <zone>" -/
 semantic_macro returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider) :
     Instruction :=
@@ -446,7 +437,8 @@ semantic_macro tap (subject : NounPhrase) : Instruction :=
 its own selection, by default the affected player's [CR#701.9b]. -/
 semantic_macro discard (subject : NounPhrase) : Instruction :=
   .enact (.action "discard") (.move subject (.zone .hand .bare) graveyard [])
-semantic_macro shuffle : Instruction := .shuffle
+/-- A bare "shuffle": the performer's own library [CR#701.24a]. -/
+semantic_macro shuffle : Instruction := .shuffle (library .actor)
 semantic_macro untap (subject : NounPhrase) : Instruction :=
   .enact (.action "untap") (.setStatus .untapped subject)
 /-- "Exile <subject> until <event>." -/
@@ -454,7 +446,7 @@ semantic_macro exileUntil (subject : NounPhrase) (event : GameEvent) : Instructi
   .holdUntil (exile subject) event
 /-- "mill <amount> cards" from <whose> library. -/
 semantic_macro mill (amount : Amount) (whose : NounPhrase) : Instruction :=
-  .enact (.action "mill") (.move (.librarySlice .top amount whose) (.zone .library .bare) graveyard [])
+  .enact (.action "mill") (.move (.slice .top amount (library whose)) (.zone .library .bare) graveyard [])
 semantic_macro putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject .wherever battlefield []
 semantic_macro putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
   .move subject .wherever battlefield [.entersAs .tapped]
@@ -525,8 +517,12 @@ semantic_macro lookAt (cards : NounPhrase) : Instruction := .expose .lookAt (.ca
 semantic_macro lookAtHandOf (player : NounPhrase) : Instruction :=
   .expose .lookAt (.zone (handOf player))
 semantic_macro revealCards (cards : NounPhrase) : Instruction := .expose .reveal (.cards cards)
+/-- "shuffle <subject> into its owner's library": the move, then the shuffle of that library,
+which happens even if nothing moved [CR#701.24c,701.24d]. -/
 semantic_macro shuffleInto (subject : NounPhrase) : Instruction :=
-  .enact (.action "shuffle") (.move subject .wherever ((.library .shuffled none none .bare)) [])
+  .sequentially
+    [ .enact (.action "shuffle") (.move subject .wherever (.zone .library .bare) []),
+      .shuffle (.library .bare) ]
 semantic_macro doIf (condition : Condition) (instruction : Instruction) : Instruction :=
   .doIf condition instruction none
 /-- "choose <subject>" -/
@@ -775,19 +771,19 @@ semantic_macro lookedCards (slice : NounPhrase) : NounPhrase :=
 /-- "look at the top N cards of <whose> library, put any number of them on the bottom in any order
 and the rest on top in any order" -/
 semantic_macro lookAndSort (whose : NounPhrase) (amount : Amount) : Instruction :=
-  let slice : NounPhrase := .librarySlice .top amount whose
+  let slice : NounPhrase := .slice .top amount (library whose)
   .sequentially
     [ .expose .lookAt (.cards slice),
-      move (someOf anyNumber (lookedCards slice)) (onBottomIn .anyOrder),
-      move (theRest .object) (onTopIn .anyOrder) ]
+      .move (someOf anyNumber (lookedCards slice)) .wherever onBottom [.inOrder .anyOrder],
+      .move (theRest .object) .wherever onTop [.inOrder .anyOrder] ]
 /-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
 semantic_macro lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr) :
     Instruction :=
-  let slice : NounPhrase := .librarySlice .top amount whose
+  let slice : NounPhrase := .slice .top amount (library whose)
   .sequentially
     [ .expose .lookAt (.cards slice),
       move (someOf anyNumber (lookedCards slice)) spill,
-      move (theRest .object) (onTopIn .anyOrder) ]
+      .move (theRest .object) .wherever onTop [.inOrder .anyOrder] ]
 /-- "scry N" [CR#701.22a]: the performer's own library. -/
 semantic_macro scry (amount : Amount) : Instruction :=
   .enact (.action "scry") (lookAndSort .actor amount)
@@ -1010,10 +1006,10 @@ card that stopped it cast or put into their hand, the rest on the bottom at rand
 semantic_macro discover (amount : Amount) : Instruction :=
   let fits : Predicate := .compare [.stat .manaValue] .atMost amount
   .enact (.action "discover") (.sequentially
-    [ move (.libraryRun .top (.and [.not land, fits]) .actor) exileZone,
+    [ move (.run .top (.and [.not land, fits]) (library .actor)) exileZone,
       .withContinuation .optional (castWithoutPaying (that .card) (some fits)) none
         (some (move (that .card) hand)),
-      move (theRest .object) (onBottomIn .randomOrder) ])
+      .move (theRest .object) .wherever onBottom [.inOrder .randomOrder] ])
 /-- "<performer> incubates N" [CR#701.53a,701.53b]: an Incubator token with N +1/+1 counters. -/
 semantic_macro incubate (amount : Amount) : Instruction :=
   .enact (.action "incubate") (.createObject (.lit 1) (.token
@@ -1048,7 +1044,7 @@ semantic_macro cloak (subject : NounPhrase) : Instruction :=
 manifest one, put the other into their graveyard. -/
 semantic_macro manifestDread : Instruction :=
   .enact (.action "manifestDread") (.sequentially
-    [ .expose .lookAt (.cards (.librarySlice .top (.lit 2) .actor)),
+    [ .expose .lookAt (.cards (.slice .top (.lit 2) (library .actor))),
       manifest (someOf (exactly 1) them),
       move (theRest .object) graveyard ])
 /-- "support N" [CR#701.41a]: a +1/+1 counter on each of up to N other target creatures. -/

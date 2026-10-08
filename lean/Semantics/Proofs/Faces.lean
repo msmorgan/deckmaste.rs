@@ -767,7 +767,7 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Instruction.check []
       (.sequentially
-        [ Macros.act (each .opponent) (.enact (.action "shuffle") (Macros.act they (.shuffle))),
+        [ Macros.act (each .opponent) (.enact (.action "shuffle") (Macros.act they (.shuffle (library .actor)))),
           Macros.act (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
   decide
 

@@ -276,7 +276,7 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
                                .thisGame ])
             (Primitives.Instruction.conclude .winGame)
             (some (Primitives.Instruction.sequentially
-              [ move Primitives.NounPhrase.this (nthFromTop (.nth 7)), gainLife (.lit 7) ]))) ] } }
+              [ Primitives.Instruction.move Primitives.NounPhrase.this Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 7)], gainLife (.lit 7) ]))) ] } }
 
 /-- "a loyalty ability of enchanted planeswalker" -/
 def loyaltyAbilityOfEnchanted : NounPhrase :=
@@ -375,7 +375,7 @@ theorem okBioplasmExiledCard :
     NounPhrase.check (some .object) bioplasmAfterExile bioplasmExiledCard = [] := by decide
 
 /-- "the top card of each player's library" -/
-def playersTopCardSlice : NounPhrase := Primitives.NounPhrase.librarySlice .top (.lit 1) (Primitives.NounPhrase.playerGroup .allPlayers)
+def playersTopCardSlice : NounPhrase := Primitives.NounPhrase.slice .top (.lit 1) (library (Primitives.NounPhrase.playerGroup .allPlayers))
 theorem okPlayersTopCardSlice : NounPhrase.check (some .object) [] playersTopCardSlice = [] := by
   decide
 

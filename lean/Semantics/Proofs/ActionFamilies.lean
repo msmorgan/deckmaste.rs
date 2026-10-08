@@ -236,7 +236,7 @@ theorem aliasesAcrossNestedFramesRemainOneObjectAfterShuffle :
 
 theorem conditionalForgettingKeepsTheOperandScope :
     Instruction.check [] (.withBindings 0 [.subject (a (.and [.isCard, .inZone yourLibrary]))] (.sequentially [
-      .doIf (.matches .you .anyPlayer) (.shuffle) none,
+      .doIf (.matches .you .anyPlayer) (.shuffle (library .actor)) none,
       .move (operand 0) .wherever graveyard []])) = [] := by decide
 
 theorem capturePreservesTheResolvedPermanentView :

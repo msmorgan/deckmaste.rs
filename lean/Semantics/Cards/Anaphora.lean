@@ -70,13 +70,13 @@ theorem okPhyrexianInfiltrator : Instruction.check [] phyrexianInfiltrator = [] 
 def impulse : Instruction :=
   Primitives.Instruction.sequentially
     [ lookAt (topSlice (.lit 4)), move (someOf (exactly 1) them) hand,
-      move (theRest .object) (onBottomIn .anyOrder) ]
+      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.TokenRider.inOrder .anyOrder] ]
 theorem okImpulse : Instruction.check [] impulse = [] := by decide
 
 def anticipate : Instruction :=
   Primitives.Instruction.sequentially
     [ lookAt (topSlice (.lit 3)), move (someOf (exactly 1) them) hand,
-      move (theRest .object) (onBottomIn .anyOrder) ]
+      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.TokenRider.inOrder .anyOrder] ]
 theorem okAnticipate : Instruction.check [] anticipate = [] := by decide
 
 def revealFourPartition : Instruction :=
@@ -88,7 +88,7 @@ theorem okRevealFourPartition : Instruction.check [] revealFourPartition = [] :=
 def exileFourOfThem : Instruction :=
   Primitives.Instruction.sequentially
     [ lookAt (topSlice (.lit 8)), exile (someOf (exactly 4) them),
-      move (theRest .object) (onTopIn .anyOrder) ]
+      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.inOrder .anyOrder] ]
 theorem okExileFourOfThem : Instruction.check [] exileFourOfThem = [] := by decide
 
 def sylvanScrying : Instruction :=
@@ -160,7 +160,7 @@ def oust : Spelled := spelled <| .singleFaced
     { name := "Oust", cost := some [pip .white], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ move (target creature) (nthFromTop (.nth 2)),
+            [ Primitives.Instruction.move (target creature) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 2)],
               act (controllerOf it) (gainLife (.lit 3)) ]) ] } }
 
 def riseFromTheGrave : Instruction :=
@@ -199,12 +199,12 @@ def eradicateSearch : Instruction :=
     [ exile (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])),
       searchZonesOf (controllerOf (that .card)) anyNumber (Primitives.Predicate.named (Primitives.NameSource.sameAs (that .card))),
       exile (theVerbed (.action "search") .many),
-      act (that .player) (Primitives.Instruction.shuffle) ]
+      act (that .player) shuffle ]
 theorem okEradicateSearch : Instruction.check [] eradicateSearch = [] := by decide
 
 /-- Deem Inferior -/
 def deemInferior : Instruction :=
-  act (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))) (put it (nthFromTopOrBottom (.nth 2)))
+  act (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))) (putWith it onTop [Primitives.TokenRider.nthFromEnd (.nth 2), Primitives.TokenRider.orOtherEnd])
 theorem okDeemInferior : Instruction.check [] deemInferior = [] := by decide
 
 /-- Write into Being -/
@@ -212,7 +212,7 @@ def writeIntoBeingPlacement : Instruction :=
   Primitives.Instruction.sequentially
     [ lookAt (topSlice (.lit 2)),
       manifestPlacement (someOf (exactly 1) them),
-      move (theOther .object) topOrBottom ]
+      Primitives.Instruction.move (theOther .object) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.orOtherEnd] ]
 theorem okWriteIntoBeingPlacement : Instruction.check [] writeIntoBeingPlacement = [] := by decide
 
 /-- Mystical Tutor -/
@@ -464,7 +464,7 @@ theorem okCompanyBareSlice : NounPhrase.check (some .object) companyContext comp
 /-- Lord of the Void -/
 def exileTopThenPutFromAmong : Instruction :=
   Primitives.Instruction.sequentially
-    [ exile (Primitives.NounPhrase.librarySlice .top (.lit 7) (target Primitives.Predicate.opponent)),
+    [ exile (Primitives.NounPhrase.slice .top (.lit 7) (library (target Primitives.Predicate.opponent))),
       putOntoBattlefieldUnderYourControl (fromAmong (exactly 1) creature them) ]
 theorem okExileTopThenPutFromAmong : Instruction.check [] exileTopThenPutFromAmong = [] := by decide
 
@@ -549,14 +549,14 @@ def codecrackerHoundLook : Instruction :=
       move (theOther .object) graveyard ]
 theorem okCodecrackerHoundLook : Instruction.check [] codecrackerHoundLook = [] := by decide
 
-def oneOfTheTopTwo : NounPhrase := someOf (exactly 1) (Primitives.NounPhrase.librarySlice .top (.lit 2) Primitives.NounPhrase.you)
+def oneOfTheTopTwo : NounPhrase := someOf (exactly 1) (Primitives.NounPhrase.slice .top (.lit 2) (library Primitives.NounPhrase.you))
 theorem okOneOfTheTopTwo : NounPhrase.check (some .object) [] oneOfTheTopTwo = [] := by decide
 def oneOfAnUncountedTop : NounPhrase :=
-  someOf (exactly 1) (Primitives.NounPhrase.librarySlice .top (countOf creature) Primitives.NounPhrase.you)
+  someOf (exactly 1) (Primitives.NounPhrase.slice .top (countOf creature) (library Primitives.NounPhrase.you))
 theorem okOneOfAnUncountedTop : NounPhrase.check (some .object) [] oneOfAnUncountedTop = [] := by
   decide
 def theArtifactsAmongTheTopFive : NounPhrase :=
-  allAmong artifact (Primitives.NounPhrase.librarySlice .top (.lit 5) Primitives.NounPhrase.you)
+  allAmong artifact (Primitives.NounPhrase.slice .top (.lit 5) (library Primitives.NounPhrase.you))
 theorem okTheArtifactsAmongTheTopFive :
     NounPhrase.check (some .object) [] theArtifactsAmongTheTopFive = [] := by decide
 theorem theOtherAfterATwoCardLook : theOtherOk .object (nomIntro [] oneOfTheTopTwo) = true := by
@@ -600,7 +600,7 @@ theorem okGrenzoBottomCard : Instruction.check [] grenzoBottomCard = [] := by de
 def chronostutter : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Chronostutter", cost := some [generic 5, pip .blue], types := [.instant],
-      text := [ Primitives.Ability.spell none (move (target creature) (nthFromTop (.nth 2))) ] } }
+      text := [ Primitives.Ability.spell none (Primitives.Instruction.move (target creature) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 2)]) ] } }
 
 theorem nekrataalTwoObjects : countOnes .object nekrataalRider = 2 := by decide
 theorem bioplasmTestMintsNothing : countOnes .object bioplasmAfterTest = 2 := by decide
@@ -671,7 +671,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                                   (.action "sacrifice") (some (a permanent)) none none) .thisWay)
                                   ]))
                   (Primitives.Instruction.sequentially
-                    [ act they (Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.librarySlice .top (.lit 1) they))),
+                    [ act they (Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.slice .top (.lit 1) (library they)))),
                       Primitives.Instruction.doIf (Primitives.Condition.matches itCard permanentCard) (move itCard battlefield)
                         none ]) ]) ],
       power := stat 6, toughness := stat 6 } }

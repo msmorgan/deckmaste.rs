@@ -1,0 +1,8 @@
+// `NounPhrase.Run` under Lean's own name for it: "cards from the top of <pile>
+// until a <stop> card", the run and the card that stopped it [CR#701.57a].
+(
+    name: "run",
+    kinds: [NounPhrase],
+    params: {"end": Any, "stop": Predicate, "pile": Pile},
+    body: Run(end: Param(end), stop: Param(stop), pile: Param(pile)),
+)

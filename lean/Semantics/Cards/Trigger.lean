@@ -526,7 +526,7 @@ theorem okPoliticalTriumphHeader : GameEvent.check [] politicalTriumphHeader = [
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=
   when (Primitives.GameEvent.paysCost (some (a Primitives.Predicate.anyPlayer)) .unpaid thisEnchantment (.named "cumulativeUpkeep"))
-    (act (that .player) (exile (each (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (libraryOf they)]))))
+    (act (that .player) (exile (each (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (Primitives.ZoneExpr.zone .library (Primitives.ZoneScope.possessedBy they))]))))
 theorem okThoughtLashTrigger : Ability.check [] thoughtLashTrigger = [] := by decide
 /-- Heart of Bogardan -/
 def heartOfBogardanHeader : GameEvent :=

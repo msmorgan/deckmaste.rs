@@ -1,7 +1,8 @@
-// "on the bottom of its owner's library"
+// "on the bottom of its owner's library": the library a card goes to is its
+// owner's [CR#400.3].
 (
     name: "onBottom",
     kinds: [ZoneExpr],
     params: [],
-    body: Library(OneEnd(Bottom), None, None, Bare),
+    body: Place(Bottom, Library(Bare)),
 )

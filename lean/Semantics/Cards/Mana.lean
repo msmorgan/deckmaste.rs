@@ -878,7 +878,7 @@ def collectedCompany : Spelled := spelled <| .singleFaced
             [ lookAt (topSlice (.lit 6)),
               move (fromAmong (upTo 2) (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)]) them)
                 battlefield,
-              move (theRest .object) (onBottomIn .anyOrder) ]) ] } }
+              Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.TokenRider.inOrder .anyOrder] ]) ] } }
 
 /-- Soldevi Adnate -/
 def soldeviAdnate : Spelled := spelled <| .singleFaced

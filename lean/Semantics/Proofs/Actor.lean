@@ -655,7 +655,7 @@ a +1/+1 counter and the card may go to the graveyard. `perm` is how the body nam
 permanent. -/
 private def exploreBody (perm : NounPhrase) : Instruction :=
   act (controllerOf actor) (.sequentially
-    [ .expose .reveal (.cards (.librarySlice .top (.lit 1) actor)),
+    [ .expose .reveal (.cards (.slice .top (.lit 1) (library actor))),
       .doIf (.matches (that .card) land) (.move (that .card) .wherever (.zone .hand .bare) [])
         (some (.sequentially
           [ .putCounters (.lit 1) (.printed p1p1Counter) perm,

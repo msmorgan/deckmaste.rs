@@ -79,7 +79,7 @@ theorem excludingOnePlayersZoneDoesNotExcludeEveryPlayersZone :
 theorem arrivalCanBeDescribedAsCard :
     GameEvent.check []
       (.zoneChange (a (.and [.isCard, creature]))
-        (some (.zones [library])) (some graveyard) .after) = [] := by decide
+        (some (.zones [.zone .library .bare])) (some graveyard) .after) = [] := by decide
 
 theorem anywhereAndBattlefieldHaveDifferentObservation :
     (match Primitives.GameEvent.putInto .this graveyard (some .anywhere) with

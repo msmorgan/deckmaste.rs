@@ -1,0 +1,10 @@
+// `NounPhrase.Slice` under Lean's own name for it: "the top N cards of <pile>",
+// an ordered group of the pile's objects [CR#700.3c]. The alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "slice",
+    kinds: [NounPhrase],
+    params: {"end": Any, "amount": Amount, "pile": Pile},
+    body: Slice(end: Param(end), amount: Param(amount), pile: Param(pile)),
+)

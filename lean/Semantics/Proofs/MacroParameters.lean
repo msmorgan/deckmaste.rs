@@ -492,7 +492,7 @@ private semantic_macro resolvingPlayer (subject : capture NounPhrase) : NounPhra
 
 theorem librarySlicesPreserveScopedOwnerUpdates :
     (nomIntro callerCreatureSpell
-      (.librarySlice .top (.lit 2) (resolvingPlayer (.resolvedPermanent it)))).map Binding.zone =
+      (.slice .top (.lit 2) (library (resolvingPlayer (.resolvedPermanent it))))).map Binding.zone =
         [some .library, some .battlefield] := by decide
 
 theorem containingNounsRetainIndependentCaptureIntroductions :

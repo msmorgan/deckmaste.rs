@@ -903,7 +903,7 @@ def mirelurkQueenTrigger : Ability :=
   triggeredOnlyOnce
     (Primitives.GameEvent.verbedEvent none (.action "mill")
       (some (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.not land,
-        Primitives.Predicate.inZone library]))) none none)
+        Primitives.Predicate.inZone (Primitives.ZoneExpr.zone .library .bare)]))) none none)
     Primitives.UsageLimit.oncePerTurn
     (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 1), Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter)
         thisCreature])

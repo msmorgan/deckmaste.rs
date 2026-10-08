@@ -20,7 +20,7 @@ private def powerAfter (bs : Bindings) : Bindings :=
   StaticSpec.intro bs (.modification (target creature) .power (.up (.letter .x)))
 private def previous : Instruction := .putCounters (.lit 1) (.printed p1p1Counter) creatureX
 private def subjectCondition : Condition := .matches creatureX creature
-private def libraryCards : NounPhrase := .librarySlice .top (.lit 2) playerX
+private def libraryCards : NounPhrase := .slice .top (.lit 2) (library playerX)
 
 /-- Ordinary pronouns keep the ambiguity of their containing discourse. -/
 theorem ordinaryItRemainsAmbiguous :

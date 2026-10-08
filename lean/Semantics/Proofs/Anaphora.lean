@@ -347,22 +347,24 @@ theorem okActivationLookbackComplement :
       = [] := by
   decide
 
-/-- "on top of your library in any order, third from the top" -/
+/-- "on top of your library in any order, third from the top": the place, and its order and
+depth as the move's riders. -/
 theorem okOneEndArrangedOrdinal :
-    ZoneExpr.check [] (.library (.oneEnd .top) (some .anyOrder) (some (.nth 3)) .bare) = [] := by
+    ZoneExpr.check [] onTop ++ TokenRider.checkAll [] [.inOrder .anyOrder, .nthFromEnd (.nth 3)]
+      = [] := by
   decide
 
-/-- "Shuffle those cards into your library." -/
+/-- "Shuffle those cards into your library.": the library they go into, then its shuffle. -/
 theorem okShuffledPlain :
-    ZoneExpr.check [] (.library .shuffled none none .bare) = [] := by decide
+    ZoneExpr.check [] (.zone .library .bare) ++ Instruction.check [] (.shuffle (.library .bare))
+      = [] := by decide
 
 /-- "third from the top" -/
-theorem okThirdFromTop :
-    ZoneExpr.check [] (.library (.oneEnd .top) none (some (.nth 3)) .bare) = [] := by decide
+theorem okThirdFromTop : TokenRider.check [] (.nthFromEnd (.nth 3)) = [] := by decide
 
 /-- "zeroth from the top" -/
 theorem badZerothFromTop :
-    ZoneExpr.check [] (.library (.oneEnd .top) none (some (.nth 0)) .bare) = [.ordinalNonZero] := by
+    TokenRider.check [] (.nthFromEnd (.nth 0)) = [.ordinalNonZero] := by
   decide
 
 theorem copyParticipleUnwritten : participleOf (.core .copy) = none := by decide
@@ -606,7 +608,7 @@ theorem okPatientlessScry :
 
 /-- "Whenever you scry a card, …" -/
 theorem badScryPatient :
-    GameEvent.check [] (.verbedEvent (some .you) (.action "scry") (some (a (.and [.isCard, .inZone library]))) none
+    GameEvent.check [] (.verbedEvent (some .you) (.action "scry") (some (a (.and [.isCard, .inZone (.zone .library .bare)]))) none
       none)
       = [.verbPatientOk] := by
   decide
@@ -632,7 +634,7 @@ theorem okIntransitiveBecomes :
 /-- "Whenever a card is milled into a Phyrexian, …" -/
 theorem badBecomesWithoutIntransitive :
     GameEvent.check []
-      (.verbedEvent none (.action "mill") (some (a (.and [.isCard, .inZone library])))
+      (.verbedEvent none (.action "mill") (some (a (.and [.isCard, .inZone (.zone .library .bare)])))
         (some (.hasSubtype (creatureType "Phyrexian"))) none) = [.verbBecomesOk] := by
   decide
 

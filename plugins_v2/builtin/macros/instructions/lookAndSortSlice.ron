@@ -4,15 +4,17 @@
 // where it is looked at and read back by identity where some of it is moved
 // (`deckmaste_semantics_v2::mentions`); the read's number is the slice's, which
 // is its amount's, so "scry 1" reads "that card" and "scry 2" "those cards"
-// (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06). It replaces the
-// Lean `lookAndSort`/`lookAndSortInto` and their computed `lookedCards` window.
+// (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06). `spillRiders` is
+// how the spilled cards land: "in any order" on the bottom of a library
+// [CR#401.4], nothing for a graveyard. It replaces the Lean
+// `lookAndSort`/`lookAndSortInto` and their computed `lookedCards` window.
 (
     name: "lookAndSortSlice",
     kinds: [Instruction],
-    params: {"slice": NounPhrase, "spill": ZoneExpr},
+    params: {"slice": NounPhrase, "spill": ZoneExpr, "spillRiders": TokenRiders},
     body: sequentially([
         lookAt(Param(slice)),
-        move(someOf(anyNumber, Param(slice)), wherever, Param(spill)),
-        move(theRest(Object), wherever, onTopIn(AnyOrder)),
+        move(someOf(anyNumber, Param(slice)), wherever, Param(spill), Param(spillRiders)),
+        move(theRest(Object), wherever, onTop, [InOrder(AnyOrder)]),
     ]),
 )

@@ -1210,7 +1210,7 @@ def fumingEffigy : Spelled := spelled <| .singleFaced
 def eachOfThoseOpponentsTopCard : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (each Primitives.Predicate.opponent),
-      exile (Primitives.NounPhrase.librarySlice .top (.lit 1) (Primitives.NounPhrase.eachOf (those .player))) ]
+      exile (Primitives.NounPhrase.slice .top (.lit 1) (library (Primitives.NounPhrase.eachOf (those .player)))) ]
 theorem okEachOfThoseOpponentsTopCard : Instruction.check [] eachOfThoseOpponentsTopCard = [] := by
   decide
 

@@ -1,0 +1,7 @@
+// "<player>'s library": a face-down pile [CR#401.2].
+(
+    name: "library",
+    kinds: [Pile],
+    params: {"player": NounPhrase},
+    body: Library(PossessedBy(Param(player))),
+)

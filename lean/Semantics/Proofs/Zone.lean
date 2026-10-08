@@ -318,7 +318,7 @@ theorem okGainControlBattlefield :
 theorem okPluralOrderRider :
     Instruction.check []
       (.sequentially
-        [revealCards (topSlice (.lit 4)), .move (those .card) .wherever ((onBottomIn .anyOrder)) []]) = [] := by
+        [revealCards (topSlice (.lit 4)), .move (those .card) .wherever onBottom [.inOrder .anyOrder]]) = [] := by
   decide
 
 /-- "Look at the top four cards of your library. Put them into your hand." -/

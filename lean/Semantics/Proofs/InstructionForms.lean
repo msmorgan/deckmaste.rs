@@ -27,6 +27,6 @@ theorem chooseSecretlyNamedAgent :
 theorem millNamedAgent :
     mill (.lit 3) .you =
       Instruction.enact (.action "mill")
-        (.move (.librarySlice .top (.lit 3) .you) (.zone .library .bare) graveyard []) := by rfl
+        (.move (.slice .top (.lit 3) (library .you)) (.zone .library .bare) graveyard []) := by rfl
 
 end Semantics.Proofs.InstructionForms

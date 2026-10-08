@@ -655,7 +655,7 @@ def precognitionField : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .lookAt Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static (castFromTop (Primitives.Predicate.and [spell, instantOrSorcery])),
-          activated (Primitives.Cost.mana [generic 3]) (exile (Primitives.NounPhrase.librarySlice .top (.lit 1) Primitives.NounPhrase.you)) ] } }
+          activated (Primitives.Cost.mana [generic 3]) (exile (Primitives.NounPhrase.slice .top (.lit 1) (library Primitives.NounPhrase.you))) ] } }
 
 def mysticForge : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -664,7 +664,7 @@ def mysticForge : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .lookAt Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none [castFromTop (Primitives.Predicate.and [spell, artifact]), castFromTop (Primitives.Predicate.and
               [spell, colorless])]),
-          activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, payLife 1]) (exile (Primitives.NounPhrase.librarySlice .top (.lit 1) Primitives.NounPhrase.you)) ] } }
+          activated (Primitives.Cost.compound [Primitives.Cost.tapSymbol, payLife 1]) (exile (Primitives.NounPhrase.slice .top (.lit 1) (library Primitives.NounPhrase.you))) ] } }
 
 def exploration : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -854,7 +854,7 @@ def gandalfWhiteRider : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ get (each creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn),
                 scry (.lit 1) ]),
-          when (Primitives.GameEvent.dies thisCreature) (offer (move it (nthFromTop (.nth 5)))) ],
+          when (Primitives.GameEvent.dies thisCreature) (offer (Primitives.Instruction.move it Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 5)])) ],
       power := stat 3, toughness := stat 3 } }
 
 def helmOfPossession : Spelled := spelled <| .singleFaced
@@ -965,20 +965,20 @@ def memoricideSearch : Instruction :=
   Primitives.Instruction.sequentially
     [ choose (a (qualityFrom .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not land)))),
       searchZonesOf (target Primitives.Predicate.anyPlayer) (exactly 1) (Primitives.Predicate.named Primitives.NameSource.chosen),
-      act (that .player) (Primitives.Instruction.shuffle) ]
+      act (that .player) shuffle ]
 theorem okMemoricideSearch : Instruction.check [] memoricideSearch = [] := by decide
 /-- Lost Hours -/
 def lostHoursPlacement : Instruction :=
   Primitives.Instruction.sequentially
     [ act (target Primitives.Predicate.anyPlayer) (revealTheirHand),
       choose (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone (handOf they)])),
-      act (that .player) (put it (nthFromTop (.nth 3))) ]
+      act (that .player) (putWith it onTop [Primitives.TokenRider.nthFromEnd (.nth 3)]) ]
 theorem okLostHoursPlacement : Instruction.check [] lostHoursPlacement = [] := by decide
 /-- Aether Gust -/
 def aetherGustPlacement : Instruction :=
   Primitives.Instruction.sequentially
     [ choose (target (Primitives.Predicate.and [permanent, Primitives.Predicate.colorIs .red])),
-      act (ownerOf it) (put it (choiceOfTopOrBottom they)) ]
+      act (ownerOf it) (putWith it onTop [Primitives.TokenRider.orOtherEnd]) ]
 theorem okAetherGustPlacement : Instruction.check [] aetherGustPlacement = [] := by decide
 /-- Fastbond -/
 def fastbondLands : Ability := Primitives.Ability.static (mayPlayAdditionalLands Primitives.NounPhrase.you anyNumber)
@@ -1193,9 +1193,9 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters thisCreature none)
             (act (each Primitives.Predicate.opponent) (offer
               (Primitives.Instruction.sequentially
-                [ act they (Primitives.Instruction.search (oneZone (libraryOf they)) (exactly 1) (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic])),
+                [ act they (Primitives.Instruction.search (oneZone (Primitives.ZoneExpr.zone .library (Primitives.ZoneScope.possessedBy they))) (exactly 1) (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic])),
                   putOntoBattlefieldTapped (theVerbed (.action "search") .one),
-                  act they (Primitives.Instruction.shuffle) ]))) ],
+                  act they shuffle ]))) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Verity Circle -/
@@ -1253,7 +1253,7 @@ def haakonStromgaldScourge : Spelled := spelled <| .singleFaced
 /-- Apex of Power -/
 def apexOfPowerCast : Instruction :=
   Primitives.Instruction.sequentially
-    [ exile (Primitives.NounPhrase.librarySlice .top (.lit 7) Primitives.NounPhrase.you),
+    [ exile (Primitives.NounPhrase.slice .top (.lit 7) (library Primitives.NounPhrase.you)),
       Primitives.Instruction.establish
         (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (fromAmong anyNumber spell them) none
           (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
@@ -1365,7 +1365,8 @@ def snowCoveredForest : Spelled := spelled <| .singleFaced
 
 /-- Not Forgotten -/
 def notForgottenPlacement : Instruction :=
-  move (target (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone graveyard])) (choiceOfTopOrBottom Primitives.NounPhrase.you)
+  Primitives.Instruction.move (target (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone graveyard]))
+    Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.orOtherEnd]
 theorem okNotForgottenPlacement : Instruction.check [] notForgottenPlacement = [] := by decide
 
 def duneblastCard : Spelled := spelled <| .singleFaced

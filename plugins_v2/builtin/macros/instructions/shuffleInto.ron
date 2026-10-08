@@ -1,6 +1,11 @@
+// "Shuffle <subject> into its owner's library": the move, then the shuffle of
+// that library, which happens even if nothing moved [CR#701.24c,701.24d].
 (
     name: "shuffleInto",
     kinds: [Instruction],
     params: {"subject": NounPhrase},
-    body: Enact(verb: shuffle, instruction: Move(Param(subject), wherever, Library(Shuffled, None, None, Bare), [])),
+    body: Sequentially([
+        Enact(verb: shuffle, instruction: Move(Param(subject), wherever, Zone(Library, Bare), [])),
+        Shuffle(Library(Bare)),
+    ]),
 )

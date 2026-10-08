@@ -3,5 +3,5 @@
     name: "topSlice",
     kinds: [NounPhrase],
     params: {"amount": Amount},
-    body: LibrarySlice(Top, Param(amount), You),
+    body: Slice(Top, Param(amount), library(You)),
 )

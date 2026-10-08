@@ -1,7 +1,0 @@
-// "Nth from the top or bottom of your library"
-(
-    name: "nthFromTopOrBottom",
-    kinds: [ZoneExpr],
-    params: {"ordinal": Ordinal},
-    body: Library(EitherEnd(None), None, Param(ordinal), Bare),
-)

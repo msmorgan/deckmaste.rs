@@ -37,12 +37,12 @@ theorem badEachOfSingular :
 
 /-- "Look at the top card of target player's library." -/
 theorem okSliceOfOnePossessor :
-    Instruction.check [] (lookAt (.librarySlice .top (.lit 1) (target .anyPlayer))) = [] := by decide
+    Instruction.check [] (lookAt (.slice .top (.lit 1) (library (target .anyPlayer)))) = [] := by decide
 
 /-- "Look at the top card of two target players' library." -/
 theorem badSliceOfCountedPossessor :
     Instruction.check []
-      (lookAt (.librarySlice .top (.lit 1) (.described (.target (exactly 2)) .anyPlayer)))
+      (lookAt (.slice .top (.lit 1) (library (.described (.target (exactly 2)) .anyPlayer))))
       = [.slicePossessor] := by
   decide
 
@@ -301,7 +301,7 @@ theorem badObjectMonarch :
 /-- "one of the top two cards of your library" -/
 theorem okPartitiveOfSlice :
     NounPhrase.check (some .object) []
-      (.someOf (.counted (exactly 1)) none (.librarySlice .top (.lit 2) .you)) = [] := by
+      (.someOf (.counted (exactly 1)) none (.slice .top (.lit 2) (library .you))) = [] := by
   decide
 
 /-- "one of one or more creatures" -/
