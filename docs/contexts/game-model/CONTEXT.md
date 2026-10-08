@@ -360,6 +360,18 @@ An ordered group of cards grouped together in a zone, never itself an Object
 decides who may look at it.
 _Avoid_: Object, for the pile itself
 
+**Slice**:
+A number of Objects counted from one end of a Pile, "the top three cards of
+your library": an ordered group of the pile's Objects, still in its zone
+([CR#700.3c]).
+_Avoid_: library slice, since a graveyard or a made pile has slices too
+
+**Run**:
+The Objects taken one at a time from one end of a Pile until the first that
+matches a description, that one included ([CR#701.57a,702.85a]). An ordered
+group, the stopping Object a part of it.
+_Avoid_: library run
+
 **Owner**:
 The Player determined for a card by [CR#108.3] and for other Objects by the
 applicable CR rules. Ownership is not a Characteristic.
