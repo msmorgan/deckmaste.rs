@@ -1196,7 +1196,7 @@ def tourachDreadCantor : Spelled := spelled <| .singleFaced
           keywordQuality (.named "protection") (Primitives.Predicate.colorIs .white),
           tourachDiscardTrigger,
           triggeredIf (Primitives.GameEvent.enters thisCreature none) (costWasPaid (.byKeyword (.named "kicker")) none thisCreature)
-            (discard (countedAtRandom (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (target Primitives.Predicate.opponent))]))) ],
+            (act (target Primitives.Predicate.opponent) (Actor.discard (countedAtRandom (exactly 2) Primitives.Predicate.isCard))) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Talrand's Invocation -/
