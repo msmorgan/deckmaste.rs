@@ -15,10 +15,10 @@ use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 
-/// Keyword actions whose template no frame of their grammar derives slot for
-/// slot. Their spelling stays the bare head until a ruling writes the
-/// template: ticket `builtin-v2-keyword-spelling-templates-residue` names
-/// each one's blocker and the decisions owed.
+/// Keyword actions that still spell only their bare head. Fight waits until
+/// its first creature becomes the performer (`actor`) instead of a
+/// parameter. That needs a performer row for the fight deed in the Lean
+/// checker: ticket `semantics-v2-fight-is-performed-by-the-creature`.
 const PENDING_RULING: &[&str] = &["fight"];
 
 const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[

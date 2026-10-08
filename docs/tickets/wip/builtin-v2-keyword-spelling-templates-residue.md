@@ -131,7 +131,8 @@ English grammar or corpus parse, so no lock count was measured.
   [CR#701.14a]) records none, and is refused when a handoff names one."
   That ruling contradicts D2, and the fix is in lean/, which this landing
   may not edit. The trial was reverted. Fight keeps the bare head and stays
-  in `PENDING_RULING`, which now holds only `"fight"`.
+  in `PENDING_RULING`, which now holds only `"fight"`. Routed to
+  `semantics-v2-fight-is-performed-by-the-creature` (planned).
 - **Deviations and additions.** (1) Stage (b) wrote seven templates, not
   eight, and `PENDING_RULING` holds fight (STOP). (2) Vote's template opens
   with a slot: the disclosure prints before the verb ("secretly votes").
@@ -153,8 +154,8 @@ English grammar or corpus parse, so no lock count was measured.
   `cargo xtask lexical --card-name "Black Lotus" --export`: the export
   RON is byte-identical before and after (sha256 prefix
   `cc171fe4a39e8115`). `cite check --list-noncompliant`: 0. `cite check`:
-  0 stale. `cite audit --diff` from the claim: 3 sites (701.17a, and
-  701.14a twice), each read against its claim. `kata kanban check`: OK.
+  0 stale. `cite audit --diff` from the claim: 7 sites ([CR#701.17a] twice, and
+  [CR#701.14a] five times), each read against its claim. `kata kanban check`: OK.
 - **Counts.** Restored 0. Re-spelled 1: the keyword-action head assertion
   (`builtin_v2_keyword_actions.rs`). Ignored 0. Added 1: the reader unit
   test for `:word`. Removed 0. Updated in place: seven template pins, and
