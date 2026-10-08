@@ -12,6 +12,7 @@ use crate::LexicalReading;
 use crate::LexicalValue;
 use crate::SurfaceCase;
 use crate::SurfaceStructure;
+use crate::WordForm;
 use crate::morphology;
 use crate::numeral::Numeral;
 use crate::numeral::NumeralCodec;
@@ -215,6 +216,9 @@ impl Lexicon {
                 if !morphology::applicable(lexeme.category, declaration.form, &declaration.features)
                 {
                     return Err(error("inapplicable form or feature bundle"));
+                }
+                if declaration.form == WordForm::Irrealis && declaration.surfaces.is_none() {
+                    return Err(error("irrealis requires an explicit spelling"));
                 }
                 let surfaces = declaration.surfaces.clone().unwrap_or_else(|| {
                     vec![morphology::default_surface(

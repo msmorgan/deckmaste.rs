@@ -178,8 +178,7 @@
         "vocab:Preposition/Up": {"PrepositionFunctionLicence": "Compound"},
         "vocab:Preposition/If": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "VerblessClauseComplement": "Yes", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/Unless": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
-        "vocab:Preposition/As": {"ExpandedComparisonMarker": "Equality", "PrepositionFunctionLicence": "Compound|Adjunct|PreposedAdjunct", "PrepositionComplement": "PredicativeNounPhrase", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
-        "vocab:Preposition/Though": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
+        "vocab:Preposition/As": {"ExpandedComparisonMarker": "Equality", "PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "PredicativeNounPhrase", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/While": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/Until": {"PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Since": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase"},
@@ -628,11 +627,11 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Preposition/Though", lemma: "though", category: Preposition,
-            properties: (countability: [], features: {}, frames: []),
+            id: "vocab:Preposition/AsThough", lemma: "as though", category: Preposition,
+            properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct", "FiniteClauseComplement": "Nonsequencing", "IrrealisClauseComplement": "Yes", "LocativeUse": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Though"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/AsThough"),
+            capitalization: Initial, binding: Free, surface_structure: Multiword,
         ),
         (
             id: "vocab:Preposition/While", lemma: "while", category: Preposition,
@@ -1107,6 +1106,7 @@
             id: "core-verb:Be", lemma: "be", category: Verb,
             properties: (countability: [], features: {}, frames: [(kind: "Predicate", items: [Argument((relation: Complement, category: "PredicativeComplement"))]), (kind: "Auxiliary", items: [Argument((relation: Complement, category: "ParticipialPredicate"))])]),
             forms: [
+                (form: Irrealis, features: (number: Some(Singular), person: Some(Third), finiteness: Some(Finite)), surfaces: Some(["were"])),
                 (form: Plain, features: ()),
                 (form: GerundParticiple, features: (finiteness: Some(Nonfinite)), surfaces: Some(["being"])),
                 (form: PastParticiple, features: (finiteness: Some(Nonfinite)), surfaces: Some(["been"])),
@@ -1144,6 +1144,7 @@
             id: "core-verb:BeNegative", lemma: "isn't", category: Verb,
             properties: (countability: [], features: {"Polarity": "Negative", "Contraction": "Yes"}, frames: [(kind: "Predicate", items: [Argument((relation: Complement, category: "PredicativeComplement"))])]),
             forms: [
+                (form: Irrealis, features: (number: Some(Singular), person: Some(Third), finiteness: Some(Finite)), surfaces: Some(["weren't", "weren’t"])),
                 (form: Preterite, features: (number: Some(Singular), person: Some(First), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["wasn't", "wasn’t"])),
                 (form: Present, features: (number: Some(Singular), person: Some(Second), tense: Some(Present), finiteness: Some(Finite)), surfaces: Some(["aren't", "aren’t"])),
                 (form: Preterite, features: (number: Some(Singular), person: Some(Second), tense: Some(Past), finiteness: Some(Finite)), surfaces: Some(["weren't", "weren’t"])),

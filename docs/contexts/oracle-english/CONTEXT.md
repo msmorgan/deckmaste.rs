@@ -237,6 +237,27 @@ An element outside the displaced Subject that extends an Existential Clause;
 a locative extension is a Complement of *be* (CGEL, Ch. 16 §6.2.1,
 pp. 1393–1394).
 
+**Content Clause**:
+A Subordinate Clause expressing propositional content. Compound Prepositions
+*as if* and *as though* take content clauses as Complements (CGEL, Ch. 13
+§5.5, p. 1151).
+
+**Irrealis**:
+The non-tensed Inflectional Form of *be* used with first- or third-person
+singular Subjects in modal-remoteness constructions; other Persons and
+Numbers use the preterite (CGEL, Ch. 3 §1.7, pp. 86–88). An irrealis Clause
+is finite (CGEL, Ch. 3 §§1.8–1.8.1, p. 88). *As if* and *as though* permit
+irrealis as well as modal preterite (CGEL, Ch. 13 §5.5, p. 1152).
+_Avoid_: past subjunctive; treating irrealis as a Past Tense
+
+**Irrealis Clause**:
+A finite Clause whose Predicate contains an Irrealis verb.
+
+**Irrealis Clause Complement** (project term):
+A Preposition's declared permission to take a finite Content Clause with an
+Irrealis Predicate. It does not itself license a grammatical function or
+attachment for the resulting Preposition Phrase.
+
 **Subordinate Clause**:
 A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.
@@ -1096,8 +1117,9 @@ It is distinct from Finiteness and from the Word Form that realizes it.
 
 **Inflectional Form**:
 A morphological form of a Verb Lexeme, such as plain, third-person-singular
-present, preterite, gerund-participle, or past participle. It is distinct from
-Finiteness and from Agreement, though those dimensions constrain its selection.
+present, preterite, gerund-participle, past participle, or irrealis. It is distinct
+from Finiteness and from Agreement, though those dimensions constrain its
+selection.
 _Avoid_: Verb Form when the specific morphological dimension is meant
 
 **Onset** (project term):

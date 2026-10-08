@@ -35,6 +35,14 @@ pub(crate) fn applicable(category: Category, form: WordForm, features: &FeatureB
                 && features.number.is_none()
                 && features.case.is_none()
         }
+        WordForm::Irrealis => {
+            category == Category::Verb
+                && features.finiteness == Some(Finiteness::Finite)
+                && features.number == Some(Number::Singular)
+                && matches!(features.person, Some(Person::First | Person::Third))
+                && features.tense.is_none()
+                && features.case.is_none()
+        }
         WordForm::Present | WordForm::Preterite => {
             category == Category::Verb
                 && features.finiteness == Some(Finiteness::Finite)

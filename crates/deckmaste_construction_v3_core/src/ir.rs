@@ -157,6 +157,7 @@ fn builtin_domains() -> Vec<Domain> {
                 "Plain",
                 "Present",
                 "Preterite",
+                "Irrealis",
                 "GerundParticiple",
                 "PastParticiple",
             ][..],

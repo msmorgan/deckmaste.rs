@@ -120,6 +120,7 @@ constructions! {
         table finite_clause_complement(FiniteClauseComplement) -> Selection {
             (Yes) => Yes, (Nonsequencing) => Yes,
         }
+        feature IrrealisClauseComplement { No, Yes } default No;
         feature VerblessClauseComplement { No, Yes } default No;
         feature VerblessPredicateUse { No, Yes } default No;
         feature GerundClauseComplement { Yes }
@@ -248,6 +249,8 @@ constructions! {
         category Sentence();
         category Clause(UnmarkedConjunctLicence);
         category FiniteClause();
+        category IrrealisClause();
+        category IrrealisPredicate(number, person);
         category ExistentialExtension();
         category FinitePredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category ScalarLocationPredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
@@ -419,6 +422,7 @@ constructions! {
         }
         instance SelectedPredicate<Result, Properties>: [
             (FinitePredicate, FiniteHeadAgreement),
+            (IrrealisPredicate, IrrealisHeadAgreement),
             (SecondaryVerbPhrase, OrdinarySecondaryHead),
         ] {
             use Properties;
@@ -467,6 +471,10 @@ constructions! {
         frame AtObject = Predicate(Preposition(At), Object(NounPhrase));
         frame Ditransitive = Predicate(Object(NounPhrase), Object(NounPhrase));
         frame ObjectExtent = Predicate(Object(NounPhrase), Complement(ScalarExtentComplement));
+
+        table tensed_form(form) -> Selection {
+            (Present) => Yes, (Preterite) => Yes,
+        }
 
         // Plain form is shared by finite imperatives and nonfinite infinitivals.
         table secondary_form(form) -> form {
@@ -710,6 +718,14 @@ constructions! {
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export CliticHost = clitic_host(head.Clitic, head.form, head.number, head.person);
             require head.finiteness = Finite;
+            export number = head.number;
+            export person = head.person;
+        }
+
+        policy IrrealisHeadAgreement {
+            require head.form = Irrealis;
+            require head.finiteness = Finite;
+            require head.Clitic = No;
             export number = head.number;
             export person = head.person;
         }
@@ -1928,6 +1944,14 @@ constructions! {
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
+        // CGEL Ch. 3 §§1.7–1.8.1, pp. 86–88: finite irrealis is non-tensed
+        // and distinct from the ordinary agreeing preterite.
+        construction IrrealisClause: IrrealisClause {
+            form [subject: NominativePhrase, " ", predicate: IrrealisPredicate];
+            agree subject.number = predicate.number;
+            agree subject.person = predicate.person;
+        }
+
         // CGEL Ch. 16 §6.1, p. 1391: dummy Subject and displaced Subject
         // (an internal Complement, not an Object). Agreement inheritance:
         // Ch. 4 §3.2.2, p. 242. Strict concord also with clitic forms is the
@@ -1942,6 +1966,7 @@ constructions! {
             require subject.ExistentialUse = Yes;
             require head.frame = Existential;
             require head.finiteness = Finite;
+            require tensed_form(head.form) = Yes;
             agree displaced_subject.number = head.number;
             agree displaced_subject.person = head.person;
         }
@@ -2780,6 +2805,9 @@ constructions! {
             export PrepositionFunctionLicence = Adjunct;
         }
 
+        // CGEL Ch. 13 §5.5, pp. 1151–1152: compound prepositions take
+        // content clauses, including modal preterites and irrealis.
+        // Their Oracle function and irrealis licences are lexical declarations.
         construction ClauseComplementPreposition: PrepositionPhrase {
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
@@ -2794,6 +2822,24 @@ constructions! {
             export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: FiniteClause];
             require finite_clause_complement(head.FiniteClauseComplement) = Yes;
+            export LocativeUse = No;
+            export InternalisedComplementMarker = No;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
+        }
+
+        // CGEL Ch. 13 §5.5, p. 1152: irrealis content-clause Complement.
+        construction IrrealisClauseComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
+            export SourceComplementUse = head.SourceComplementUse;
+            export SourceMarker = head.SourceMarker;
+            export FocusedUse = No;
+            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
+            export SelectedPrepositionUse = No;
+            export SourceModifierPresent = No;
+            export NominalComplementMarker = None;
+            export ObliqueNumber = None;
+            form [head: lexical(Preposition), " ", complement: IrrealisClause];
+            require head.IrrealisClauseComplement = Yes;
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
@@ -2973,6 +3019,7 @@ constructions! {
         }
         instance ParticipialAuxiliaryPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, ParticipialComplement, FiniteAuxiliaryAgreement),
+            (IrrealisPredicate, ParticipialComplement, IrrealisHeadAgreement),
             (SecondaryVerbPhrase, ParticipialComplement, SecondaryAuxiliaryProperties),
         ] {
             use Properties;

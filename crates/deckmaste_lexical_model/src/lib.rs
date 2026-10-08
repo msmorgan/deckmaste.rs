@@ -85,6 +85,7 @@ pub enum WordForm {
     Plain,
     Present,
     Preterite,
+    Irrealis,
     GerundParticiple,
     PastParticiple,
 }

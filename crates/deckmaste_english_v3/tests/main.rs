@@ -6,6 +6,8 @@ mod amount_complements;
 mod articles;
 #[path = "suite/as_long_as.rs"]
 mod as_long_as;
+#[path = "suite/as_though_content_clauses.rs"]
+mod as_though_content_clauses;
 #[path = "suite/base_phrases.rs"]
 mod base_phrases;
 #[path = "suite/become_adjectival_passive.rs"]
