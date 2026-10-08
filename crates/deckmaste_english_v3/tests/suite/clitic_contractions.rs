@@ -219,7 +219,7 @@ fn independently_constructed_clitic_copula_and_passive_roundtrip() {
     let expected: BTreeSet<_> = [copular, passive]
         .into_iter()
         .map(|predicate| Reading::FiniteClause {
-            form: 1,
+            form: 0,
             subject: Box::new(subject.clone()),
             predicate: Box::new(predicate),
         })
@@ -248,12 +248,12 @@ fn independently_constructed_clitic_copula_and_passive_roundtrip() {
             .visit_words(&mut |word| actual_words.push(word.clone()))
             .unwrap();
         assert_eq!(actual_words, expected_words);
-        let mut spaced = value.clone();
-        let Reading::FiniteClause { form, .. } = &mut spaced else {
+        let mut obsolete = value.clone();
+        let Reading::FiniteClause { form, .. } = &mut obsolete else {
             panic!("the witness is a finite Clause");
         };
-        *form = 0;
-        assert!(spaced.admit(common::lexicon()).is_err());
+        *form = 1;
+        assert!(obsolete.admit(common::lexicon()).is_err());
     }
     for mut joined in common::readings("it is tapped", Category::FiniteClause) {
         let Reading::FiniteClause { form, .. } = &mut joined else {

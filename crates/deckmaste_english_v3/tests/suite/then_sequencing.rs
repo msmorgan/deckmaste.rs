@@ -111,7 +111,7 @@ fn card_predicate(owner: &str, capitalization: SurfaceCase) -> Reading {
 fn independently_constructed_stitcher_link_preserves_both_roundtrip_laws_and_traversals() {
     let expected = Reading::Coordination {
         category: Category::SecondaryVerbPhrase,
-        form: 1,
+        form: 0,
         left: Box::new(card_predicate("core-verb:Draw", SurfaceCase::Initial)),
         coordinator: word("vocab:Coordinator/Then", WordForm::Invariant, None),
         right: Box::new(card_predicate(
@@ -155,15 +155,15 @@ fn independently_constructed_stitcher_link_preserves_both_roundtrip_laws_and_tra
     else {
         unreachable!()
     };
-    let unpunctuated = Reading::Coordination {
+    let obsolete_form = Reading::Coordination {
         category,
-        form: 0,
+        form: 1,
         left,
         coordinator,
         right,
     };
-    assert!(unpunctuated.admit(&LEXICON).is_err());
-    assert!(unpunctuated.realize(&LEXICON).is_err());
+    assert!(obsolete_form.admit(&LEXICON).is_err());
+    assert!(obsolete_form.realize(&LEXICON).is_err());
 }
 
 #[test]

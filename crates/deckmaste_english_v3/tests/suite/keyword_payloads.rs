@@ -202,7 +202,6 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
                 form: 0,
                 head: number(1),
             }),
-            separator: Box::new(Reading::DashKeywordSeparator { form: 0 }),
             cost: Box::new(cost(named("Red"), vec![])),
         },
     );
@@ -219,7 +218,6 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
                 },
                 vec![named("Green"), named("Green")],
             )),
-            separator: Box::new(Reading::SpacedDashKeywordSeparator { form: 0 }),
             size: Box::new(Reading::SlashPair {
                 form: 0,
                 left: Box::new(Reading::UnsignedScalar {
@@ -252,7 +250,6 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
                     phrase: Box::new(arcane),
                 },
             )),
-            separator: Box::new(Reading::SpaceKeywordSeparator { form: 0 }),
             cost: Box::new(cost(named("Green"), vec![])),
         },
     );
@@ -322,7 +319,6 @@ fn authentic_boast_payload_preserves_activated_ability_structure() {
         &Reading::ClausalKeyword {
             form: 0,
             head: keyword("boast"),
-            separator: Box::new(Reading::SpacedDashKeywordSeparator { form: 0 }),
             body: Box::new(Reading::AbilityKeywordPayload {
                 form: 0,
                 body: Box::new(Reading::ActivatedAbility {

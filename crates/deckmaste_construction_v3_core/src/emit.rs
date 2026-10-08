@@ -352,19 +352,44 @@ fn frame_item(item: &FrameItem) -> TokenStream {
 }
 
 fn form_pieces(
+    ir: &Ir,
     form: &crate::ir::Form,
     bindings: &[syn::Ident],
     owner: &str,
 ) -> [Vec<TokenStream>; 4] {
-    let mut summaries = vec![];
+    let mut summaries = vec![quote!(None); form.fields.len()];
     let mut write = vec![];
     let mut visit = vec![];
     let mut word = vec![];
     for piece in &form.pieces {
         match piece {
             Piece::Literal(text) => {
-                summaries.push(quote!(None));
                 write.push(quote!(output.push_str(#text);));
+            }
+            Piece::SelectedLiteral { table, arguments } => {
+                let inputs = arguments.iter().map(|(field, feature)| {
+                    let binding = &bindings[*field];
+                    let summary = match &form.fields[*field].1 {
+                        FieldType::Lexical(category) => {
+                            let category = format_ident!("{category}");
+                            quote!(cache.word(#binding, grammar, lexicon, ::deckmaste_lexical::Category::#category)?)
+                        }
+                        FieldType::One(_) => quote!(cache.admit(#binding, grammar, lexicon)?),
+                        _ => unreachable!(),
+                    };
+                    quote!(#summary.values[#feature].clone().ok_or(Error::Invalid(#owner, "selected literal argument"))?)
+                });
+                let rows = ir.tables[*table].rows.iter().zip(&ir.tables[*table].literals).map(|((inputs, _), text)| {
+                    quote!(if inputs == vec![#(#inputs),*] { return Ok(#text); })
+                });
+                write.push(quote!({
+                    let text = (|| -> Result<&'static str, Error> {
+                        let inputs = vec![#(#inputs),*];
+                        #(#rows)*
+                        Err(Error::Invalid(#owner, "selected literal lookup"))
+                    })()?;
+                    output.push_str(text);
+                }));
             }
             Piece::Field(field) => {
                 let binding = &bindings[*field];
@@ -385,18 +410,18 @@ fn form_pieces(
                 match ty {
                     FieldType::SelectedFrame(_, _) => unreachable!(),
                     FieldType::Lexical(_) => {
-                        summaries.push(quote!(Some(cache.word(#binding, grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?)));
+                        summaries[*field] = quote!(Some(cache.word(#binding, grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?));
                         write.push(quote!(output.word(#binding, lexicon)?;));
                         word.push(quote!(visitor(#binding);));
                     }
                     FieldType::One(_) => {
-                        summaries.push(quote!(Some({ let child = #binding; #check_category cache.admit(child, grammar, lexicon)? })));
+                        summaries[*field] = quote!(Some({ let child = #binding; #check_category cache.admit(child, grammar, lexicon)? }));
                         write.push(quote!(#binding.write(grammar, lexicon, output, cache)?;));
                         visit.push(quote!(#binding.visit(visitor)?;));
                         word.push(quote!(#binding.visit_words(visitor)?;));
                     }
                     FieldType::Optional(_) => {
-                        summaries.push(quote!(Some({ if let Some(child) = #binding { #check_category cache.admit(child, grammar, lexicon)? } else { Summary::default() } })));
+                        summaries[*field] = quote!(Some({ if let Some(child) = #binding { #check_category cache.admit(child, grammar, lexicon)? } else { Summary::default() } }));
                         write.push(quote!(if let Some(child) = #binding { child.write(grammar, lexicon, output, cache)?; }));
                         visit
                             .push(quote!(if let Some(child) = #binding { child.visit(visitor)?; }));
@@ -405,7 +430,7 @@ fn form_pieces(
                         );
                     }
                     FieldType::Repeated(_, separator) => {
-                        summaries.push(quote!(Some({ let mut result = Summary::default(); for (index, child) in #binding.iter().enumerate() { #check_category if index != 0 { result.surface.literal(#separator); } let summary = cache.admit(child, grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result.values[14] = Some(FeatureValue::TerminalPunctuation(result.surface.terminal)); result })));
+                        summaries[*field] = quote!(Some({ let mut result = Summary::default(); for (index, child) in #binding.iter().enumerate() { #check_category if index != 0 { result.surface.literal(#separator); } let summary = cache.admit(child, grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result.values[14] = Some(FeatureValue::TerminalPunctuation(result.surface.terminal)); result }));
                         write.push(quote!(for (index, child) in #binding.iter().enumerate() { if index != 0 { output.push_str(#separator); } child.write(grammar, lexicon, output, cache)?; }));
                         visit.push(quote!(for child in #binding { child.visit(visitor)?; }));
                         word.push(quote!(for child in #binding { child.visit_words(visitor)?; }));
@@ -418,6 +443,7 @@ fn form_pieces(
 }
 
 fn form_admission(
+    ir: &Ir,
     form: &crate::ir::Form,
     bindings: &[syn::Ident],
     owner: &str,
@@ -441,14 +467,54 @@ fn form_admission(
             vec![quote!(grammar.write_selected(#rule, #head, #binding, lexicon, output, cache)?;)];
         quote!(grammar.admit_selected(#rule, #head, #binding, lexicon, cache))
     } else {
-        quote! {
-            let summaries: Vec<Option<Summary>> = vec![#(#summaries),*];
-            let rule = &grammar.rules[#rule];
-            let mut state = State::new(rule.initial.clone());
-            for (dot, summary) in summaries.iter().enumerate() {
-                state = rule.advance(dot, &state, summary.as_ref()).ok_or(Error::Invalid(#owner, "feature admission"))?;
+        if form.rules.len() == 1 {
+            let rule = &ir.rules[form.rule];
+            let Build::Construction { slots, .. } = &rule.build else { unreachable!() };
+            let ordered = rule.symbols.iter().enumerate().map(|(dot, symbol)| {
+                if matches!(symbol, Symbol::Literal(_)) {
+                    quote!(None)
+                } else {
+                    let field = slots.iter().position(|&slot| slot == dot).unwrap();
+                    summaries[field].clone()
+                }
+            });
+            let index = form.rule;
+            return quote! {
+                let summaries: Vec<Option<Summary>> = vec![#(#ordered),*];
+                let rule = &grammar.rules[#index];
+                let mut state = State::new(rule.initial.clone());
+                for (dot, summary) in summaries.iter().enumerate() {
+                    state = rule.advance(dot, &state, summary.as_ref()).ok_or(Error::Invalid(#owner, "feature admission"))?;
+                }
+                rule.complete(&state).ok_or(Error::Invalid(#owner, "feature export"))
+            };
+        }
+        let alternatives = form.rules.iter().map(|&index| {
+            let rule = &ir.rules[index];
+            let Build::Construction { slots, .. } = &rule.build else { unreachable!() };
+            let ordered = rule.symbols.iter().enumerate().map(|(dot, symbol)| {
+                if matches!(symbol, Symbol::Literal(_)) { quote!(None) } else {
+                    let field = slots.iter().position(|&slot| slot == dot).unwrap();
+                    let summary = &summaries[field];
+                    quote!(#summary)
+                }
+            });
+            quote! {
+                if let Some(summary) = (|| -> Result<Option<Summary>, Error> {
+                    let summaries: Vec<Option<Summary>> = vec![#(#ordered),*];
+                    let rule = &grammar.rules[#index];
+                    let mut state = State::new(rule.initial.clone());
+                    for (dot, summary) in summaries.iter().enumerate() {
+                        let Some(next) = rule.advance(dot, &state, summary.as_ref()) else { return Ok(None); };
+                        state = next;
+                    }
+                    Ok(rule.complete(&state))
+                })()? { return Ok(summary); }
             }
-            rule.complete(&state).ok_or(Error::Invalid(#owner, "feature export"))
+        });
+        quote! {
+            #(#alternatives)*
+            Err(Error::Invalid(#owner, "feature admission"))
         }
     }
 }
@@ -509,8 +575,8 @@ fn ast(ir: &Ir) -> TokenStream {
             } else {
                 quote!(#index)
             };
-            let [summaries, mut write, visit, word] = form_pieces(form, &bindings, &owner);
-            let admission = form_admission(form, &bindings, &owner, &summaries, &mut write);
+            let [summaries, mut write, visit, word] = form_pieces(ir, form, &bindings, &owner);
+            let admission = form_admission(ir, form, &bindings, &owner, &summaries, &mut write);
             if constructor.shared {
                 let method = format_ident!(
                     "__schema_admit_{}_{}_{}",

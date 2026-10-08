@@ -53,9 +53,10 @@ pub(crate) enum DomainKind {
 pub(crate) struct FeatureTable {
     pub name: Ident,
     pub inputs: Vec<usize>,
-    pub output: usize,
+    pub output: Option<usize>,
     pub rows: Vec<(Vec<TokenStream>, TokenStream)>,
     pub operation: Option<TokenStream>,
+    pub literals: Vec<String>,
 }
 
 #[derive(Clone)]
@@ -87,12 +88,17 @@ pub(crate) struct Form {
     pub fields: Vec<(Ident, FieldType)>,
     pub pieces: Vec<Piece>,
     pub rule: usize,
+    pub rules: Vec<usize>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub(crate) enum Piece {
     Literal(String),
     Field(usize),
+    SelectedLiteral {
+        table: usize,
+        arguments: Vec<(usize, usize)>,
+    },
 }
 
 pub(crate) struct Rule {
@@ -489,7 +495,13 @@ fn validate_marker_licences(ir: &mut Ir, licences: Vec<(Ident, Ident, Ident)>) -
                 "frame marker licence requires a set containment table",
             )
         })?;
-        let expected = value(ir, table.output, &Ident::new("Yes", table_name.span()))?;
+        let expected = value(
+            ir,
+            table.output.ok_or_else(|| {
+                error(&table_name, "frame marker licence requires a feature table")
+            })?,
+            &Ident::new("Yes", table_name.span()),
+        )?;
         ir.frame_marker_licences.push((
             kind.to_string(),
             pos.to_string(),
@@ -516,7 +528,11 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
             .iter()
             .map(|name| feature_index(&ir.features, name))
             .collect::<syn::Result<_>>()?;
-        let output = feature_index(&ir.features, &table.output)?;
+        let output = table
+            .output
+            .as_ref()
+            .map(|name| feature_index(&ir.features, name))
+            .transpose()?;
         let operation = if let Some((name, parameters)) = table.operation {
             let feature = *inputs
                 .first()
@@ -532,11 +548,11 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
                         .position(|value| value == &member.to_string())
                         .ok_or_else(|| error(&member, "unknown set member"))?;
                     let mask = 1usize << index;
-                    let result = value(ir, output, &result)?;
+                    let result = value(ir, output.unwrap(), &result)?;
                     Some(quote!(TableOperation::Contains(#feature, #mask, #result)))
                 }
                 ("intersection", None)
-                    if inputs.len() == 2 && inputs[1] == feature && output == feature =>
+                    if inputs.len() == 2 && inputs[1] == feature && output == Some(feature) =>
                 {
                     Some(quote!(TableOperation::Intersection(#feature)))
                 }
@@ -547,6 +563,7 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
         };
         let mut seen = BTreeSet::new();
         let mut rows = vec![];
+        let mut literals = vec![];
         for (arguments, result) in table.rows {
             if arguments.len() != inputs.len() {
                 return Err(error(&table.name, "feature table row has wrong arity"));
@@ -564,7 +581,15 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
                 .zip(arguments.iter())
                 .map(|(&domain, name)| value(ir, domain, name))
                 .collect::<syn::Result<_>>()?;
-            rows.push((arguments, value(ir, output, &result)?));
+            let result = match result {
+                crate::parse::TableResult::Feature(result) => value(ir, output.unwrap(), &result)?,
+                crate::parse::TableResult::Literal(result) => {
+                    let text = result.value();
+                    literals.push(text.clone());
+                    quote!(FeatureValue::SelectedLiteral(#text))
+                }
+            };
+            rows.push((arguments, result));
         }
         ir.tables.push(FeatureTable {
             name: table.name,
@@ -572,6 +597,7 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
             output,
             rows,
             operation,
+            literals,
         });
     }
     Ok(())
@@ -610,7 +636,6 @@ fn normalize(
         {
             let mut obligations = construction.equations.clone();
             obligations.extend(requirements.iter().cloned());
-            let plan = equations(ir, index, interfaces, &obligations)?;
             if parts.iter().any(|p| {
                 matches!(
                     p,
@@ -639,82 +664,92 @@ fn normalize(
                     ));
                 }
             }
-            let pieces = normalize_form(parts, &ir.constructors[index].fields);
+            let pieces = normalize_form(ir, index, interfaces, parts)?;
             let canonical = ir.constructors[index].forms.iter().position(|f| {
                 f.pieces == pieces && canonical_requirements[f.index] == *requirements
             });
             let form_index = canonical.unwrap_or(ir.constructors[index].forms.len());
-            let mut symbols = vec![];
-            let mut slots = vec![0; ir.constructors[index].fields.len()];
-            let mut checks = vec![];
-            for piece in &pieces {
-                match piece {
-                    Piece::Literal(text) => {
-                        symbols.push(Symbol::Literal(text.clone()));
-                        checks.push(vec![]);
-                    }
-                    Piece::Field(field) => {
-                        slots[*field] = symbols.len();
-                        symbols.push(match &field_symbols[*field] {
-                            Symbol::Lexical(c) => Symbol::Lexical(c.clone()),
-                            Symbol::Nonterminal(c) => Symbol::Nonterminal(*c),
-                            Symbol::Literal(_) => unreachable!(),
-                        });
-                        checks.push(
-                            plan.references
-                                .iter()
-                                .filter(|((f, _), _)| f == field)
-                                .map(|((_, feature), reg)| (*feature, *reg))
-                                .collect(),
-                        );
+            let mut form_rules = vec![];
+            for (expanded, selected_requirements) in expand_selected_literals(ir, parts)? {
+                let mut row_obligations = obligations.clone();
+                row_obligations.extend(selected_requirements);
+                let plan = equations(ir, index, interfaces, &row_obligations)?;
+                let scan_pieces = normalize_form(ir, index, interfaces, &expanded)?;
+                let mut symbols = vec![];
+                let mut slots = vec![0; ir.constructors[index].fields.len()];
+                let mut checks = vec![];
+                for piece in &scan_pieces {
+                    match piece {
+                        Piece::Literal(text) => {
+                            symbols.push(Symbol::Literal(text.clone()));
+                            checks.push(vec![]);
+                        }
+                        Piece::SelectedLiteral { .. } => unreachable!(),
+                        Piece::Field(field) => {
+                            slots[*field] = symbols.len();
+                            symbols.push(match &field_symbols[*field] {
+                                Symbol::Lexical(c) => Symbol::Lexical(c.clone()),
+                                Symbol::Nonterminal(c) => Symbol::Nonterminal(*c),
+                                Symbol::Literal(_) => unreachable!(),
+                            });
+                            checks.push(
+                                plan.references
+                                    .iter()
+                                    .filter(|((f, _), _)| f == field)
+                                    .map(|((_, feature), reg)| (*feature, *reg))
+                                    .collect(),
+                            );
+                        }
                     }
                 }
-            }
-            let mut release = vec![vec![]; symbols.len()];
-            for register in 0..plan.initial.len() {
-                if !plan.exports.iter().any(|(_, r)| *r == register)
-                    && !plan
-                        .table_exports
-                        .iter()
-                        .any(|export| export.registers.contains(&register))
-                    && !plan
-                        .table_requirements
-                        .iter()
-                        .any(|requirement| requirement.registers.contains(&register))
-                    && let Some(last) = checks
-                        .iter()
-                        .rposition(|c| c.iter().any(|(_, r)| *r == register))
-                {
-                    release[last].push(register);
+                let mut release = vec![vec![]; symbols.len()];
+                for register in 0..plan.initial.len() {
+                    if !plan.exports.iter().any(|(_, r)| *r == register)
+                        && !plan
+                            .table_exports
+                            .iter()
+                            .any(|export| export.registers.contains(&register))
+                        && !plan
+                            .table_requirements
+                            .iter()
+                            .any(|requirement| requirement.registers.contains(&register))
+                        && let Some(last) = checks
+                            .iter()
+                            .rposition(|c| c.iter().any(|(_, r)| *r == register))
+                    {
+                        release[last].push(register);
+                    }
                 }
+                let segments = segment_relation(construction, &ir.constructors[index], &slots)?;
+                let rule = ir.rules.len();
+                ir.rules.push(Rule {
+                    category: ir.constructors[index].category,
+                    symbols,
+                    checks,
+                    initial: plan.initial.clone(),
+                    boundary: construction.boundary.clone(),
+                    onset: construction.onset.clone(),
+                    exports: plan.exports.clone(),
+                    table_exports: plan.table_exports.clone(),
+                    table_requirements: plan.table_requirements.clone(),
+                    release,
+                    segments,
+                    build: Build::Construction {
+                        constructor: index,
+                        form: form_index,
+                        slots,
+                    },
+                });
+                form_rules.push(rule);
             }
-            let segments = segment_relation(construction, &ir.constructors[index], &slots)?;
-            let rule = ir.rules.len();
-            ir.rules.push(Rule {
-                category: ir.constructors[index].category,
-                symbols,
-                checks,
-                initial: plan.initial.clone(),
-                boundary: construction.boundary.clone(),
-                onset: construction.onset.clone(),
-                exports: plan.exports.clone(),
-                table_exports: plan.table_exports.clone(),
-                table_requirements: plan.table_requirements.clone(),
-                release,
-                segments,
-                build: Build::Construction {
-                    constructor: index,
-                    form: form_index,
-                    slots,
-                },
-            });
             if canonical.is_none() {
                 canonical_requirements.push(requirements.clone());
                 let category = ir.constructors[index].category;
                 let fields = ir.constructors[index].fields.clone();
                 ir.constructors[index].forms.push(Form {
                     pieces,
-                    rule,
+                    rule: form_rules[0],
+                    rules: form_rules,
                     index: form_index,
                     category,
                     fields,
@@ -800,7 +835,55 @@ fn collect_fields(parts: &[Part], owner: &Ident) -> syn::Result<Vec<(Ident, Fiel
     Ok(result)
 }
 
-fn normalize_form(parts: &[Part], fields: &[(Ident, FieldType)]) -> Vec<Piece> {
+fn expand_selected_literals(
+    ir: &Ir,
+    parts: &[Part],
+) -> syn::Result<Vec<(Vec<Part>, Vec<Equation>)>> {
+    let mut alternatives = vec![(vec![], vec![])];
+    for part in parts {
+        if let Part::SelectedLiteral(name, arguments) = part {
+            let table = ir
+                .tables
+                .iter()
+                .find(|table| table.name == *name)
+                .ok_or_else(|| error(name, "unknown separator table"))?;
+            if table.output.is_some() {
+                return Err(error(name, "selected literal requires a separator table"));
+            }
+            let texts: BTreeSet<_> = table.literals.iter().collect();
+            alternatives = alternatives
+                .into_iter()
+                .flat_map(|(pieces, requirements)| {
+                    texts.iter().map(move |text| {
+                        let mut pieces = pieces.clone();
+                        pieces.push(Part::Literal(syn::LitStr::new(text, name.span())));
+                        let mut requirements = requirements.clone();
+                        requirements.push(Equation::RequireSelectedLiteral(
+                            name.clone(),
+                            arguments.clone(),
+                            (*text).clone(),
+                        ));
+                        (pieces, requirements)
+                    })
+                })
+                .collect();
+        } else {
+            for (pieces, _) in &mut alternatives {
+                pieces.push(part.clone());
+            }
+        }
+    }
+    Ok(alternatives)
+}
+
+fn normalize_form(
+    ir: &Ir,
+    constructor: usize,
+    interfaces: &[BTreeSet<usize>],
+    parts: &[Part],
+) -> syn::Result<Vec<Piece>> {
+    let construction = &ir.constructors[constructor];
+    let fields = &construction.fields;
     let mut pieces = vec![];
     for part in parts {
         match part {
@@ -815,9 +898,21 @@ fn normalize_form(parts: &[Part], fields: &[(Ident, FieldType)]) -> Vec<Piece> {
             Part::Field(name, _) => pieces.push(Piece::Field(
                 fields.iter().position(|(n, _)| n == name).unwrap(),
             )),
+            Part::SelectedLiteral(name, arguments) => {
+                let table = ir
+                    .tables
+                    .iter()
+                    .position(|table| table.name == *name)
+                    .ok_or_else(|| error(name, "unknown separator table"))?;
+                let arguments = arguments
+                    .iter()
+                    .map(|reference| resolve_reference(ir, construction, interfaces, reference))
+                    .collect::<syn::Result<Vec<_>>>()?;
+                pieces.push(Piece::SelectedLiteral { table, arguments });
+            }
         }
     }
-    pieces
+    Ok(pieces)
 }
 
 fn feature_index(features: &[Domain], name: &Ident) -> syn::Result<usize> {
@@ -953,7 +1048,9 @@ fn equation_references(
                 refs.insert(resolve(r)?);
             }
             Equation::ExportConstant(_, _) => {}
-            Equation::ExportTable(_, _, arguments) | Equation::RequireTable(_, arguments, _) => {
+            Equation::ExportTable(_, _, arguments)
+            | Equation::RequireTable(_, arguments, _)
+            | Equation::RequireSelectedLiteral(_, arguments, _) => {
                 for argument in arguments {
                     refs.insert(resolve(argument)?);
                 }
@@ -1088,7 +1185,7 @@ fn equations(
                 let feature = feature_index(&ir.features, name)?;
                 let (table, registers) = table_call(table_name, arguments)?;
                 let declaration = &ir.tables[table];
-                if declaration.output != feature
+                if declaration.output != Some(feature)
                     || !interfaces[construction.category].contains(&feature)
                     || !exported.insert(feature)
                 {
@@ -1105,11 +1202,25 @@ fn equations(
             }
             Equation::RequireTable(table_name, arguments, constant) => {
                 let (table, registers) = table_call(table_name, arguments)?;
-                let expected = value(ir, ir.tables[table].output, constant)?;
+                let expected = value(
+                    ir,
+                    ir.tables[table]
+                        .output
+                        .ok_or_else(|| error(table_name, "separator is not a feature table"))?,
+                    constant,
+                )?;
                 plan.table_requirements.push(TableRequirement {
                     table,
                     registers,
                     expected,
+                });
+            }
+            Equation::RequireSelectedLiteral(table_name, arguments, text) => {
+                let (table, registers) = table_call(table_name, arguments)?;
+                plan.table_requirements.push(TableRequirement {
+                    table,
+                    registers,
+                    expected: quote!(FeatureValue::SelectedLiteral(#text)),
                 });
             }
             Equation::Agree(_, _) => {}

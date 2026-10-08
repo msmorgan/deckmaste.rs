@@ -264,8 +264,65 @@ Standard constraints apply. Deltas:
 
 ## Landing record
 
-The six items in CLAUDE.md. Also give the number of constructions and of
-declaration lines removed, from `declarations.rs` and from `core.ron`.
+1. **Census delta.** Claim parent `oxvkxppy`: 23,460 covered faces and
+   1,605,559 Readings; finished feature `xtxrnswz`: 23,460 and 1,605,559.
+   Lost faces: none. Removed Readings: none; every face retains its count.
+   The parent baseline reconciles the signed-numeral-cost full census with
+   licence-hygiene's refreshed subset; its grammar, compiler and lexical
+   sources match `oxvkxppy`. At `xtxrnswz`, 1,981 faces change digest, with
+   AmountCostKeyword 74, ClausalKeyword 111, Coordination 702, CostPowerToughnessKeyword 13, ExistentialClause 7, FiniteClause 368, ObjectRelativeClause 0, PronounSubjectRelative 0, QualityCostKeyword 21, ScalarLocation 0, Sentence 568, SubjectRelativeClause 215, ZeroObjectRelativeClause 0 (all measured at `xtxrnswz`). Counts overlap on faces with several changed nodes. Refresh brought no
+   grammar, lexicon or construction-core changes; these results remain
+   applicable.
+   No unexplained digest changes, internal failures, roundtrip failures or
+   traversal failures (`xtxrnswz`). Evidence: ignored
+   `target/english-v3/english-v3-derived-punctuation-forms/`.
+2. **Witnesses.** After counts (`xtxrnswz`): Stitcher's Supplier 1;
+   Takklemaggot 0; Winter, Cursed Rider 0; Dance of the Dead 4,800;
+   Animate Dead 84. Both straight-quoted keyword spellings remain attested:
+   Dance of the Dead and Animate Dead have the unpunctuated quoted enchant
+   phrase and the quoted enchant clause ending in a full stop; Mind Bend
+   has quoted “islandwalk.”. The curly variants have zero corpus attestations
+   (`xtxrnswz`); no bare supplementation route was added.
+3. **Spot checks.** No newly covered faces (`xtxrnswz`), as expected for
+   this zero-gain ticket. Ten affected faces inspected at `xtxrnswz`:
+   Rift Bolt (1), AmountCostKeyword; Kodama's Might (2), QualityCostKeyword;
+   Rust Goliath (1), CostPowerToughnessKeyword; Goldmaw Champion (2),
+   ClausalKeyword; Obsessive Stitcher (2), SecondaryVerbPhrase Coordination;
+   Verdant Haven (9), Sentence containing a quoted ability; Llanowar Mentor
+   (6), quoted activated ability with an outer Sentence; Cogwork Assembler
+   (4), SubjectRelativeClause with a clitic predicate; Mistform Wall (18),
+   FiniteClause with a clitic predicate; Bounty Agent (5),
+   SubjectRelativeClause with a clitic predicate. Each collapsed node uses
+   form 0 (`xtxrnswz`); selected analyses are retained in `spotchecks.json`.
+4. **Deviations and STOPs.** The ticket's post-hygiene scan additionally
+   collapsed seven feature-fixed space/empty pairs: FiniteClause,
+   ScalarLocation, ExistentialClause, PronounSubjectRelative,
+   SubjectRelativeClause, ObjectRelativeClause and ZeroObjectRelativeClause
+   (`xtxrnswz`). These read CliticHost or Clitic, preserving the declared
+   contraction conditions. Identical table outputs share a scan production
+   to avoid duplicate derivations. No new constructions or frames. Removed
+   three keyword separator constructions (216 → 213), four curly quotation
+   forms, 56 curly lexical spellings, and the obsolete parameter_separator
+   and joined_clitic tables; added six selected-literal tables (`xtxrnswz`).
+   `declarations.rs`: 4,480 lines (`oxvkxppy`) → 4,448 (`xtxrnswz`), net
+   32 removed; `core.ron`: 1,368 → 1,368, net 0 removed, with lexical
+   overrides retained. The except separator and all other attested source
+   variations remain. The Selected Literal glossary gap was filled using
+   the ticket's owner ruling, with no CGEL claim. STOPs: none.
+5. **Tests.** At `xtxrnswz`, `cargo test -p deckmaste_english_v3` passes
+   498 tests; `cargo test -p deckmaste_lexical_source` passes 57;
+   `cargo test -p deckmaste_construction_v3_core` passes 27.
+   `cargo clippy -p deckmaste_construction_v3_core -p deckmaste_english_v3
+   -p deckmaste_lexical_source --tests -- -D warnings` passes; the final
+   lexical-source test adjustment also passes
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`.
+   Changed Rust files pass rustfmt checks. Assurance counts (`xtxrnswz`):
+   restored 0, re-spelled 7, ignored-with-blocker 0, added 5, removed 0.
+   The 24-face iteration subset and the single full census pass; a
+   changed-face selector diagnostic accounts for the merged forms
+   (`xtxrnswz`). No xtask tests or Lean checks were run.
+6. **Timing.** The one full census at `xtxrnswz` took 205.919 seconds
+   with 12 workers and zero samples per face.
 
 ## Out of scope
 

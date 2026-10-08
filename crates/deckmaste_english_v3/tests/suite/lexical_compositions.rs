@@ -228,13 +228,15 @@ fn plural_bare_genitives_preserve_possessor_number_and_the_apostrophe() {
     // The final noun's eligibility cannot be inherited from an earlier head.
     // The text can separately read with the genitive inside the of phrase.
     assert!(wrong.admit(lexicon()).is_err());
-    let mut curved = expected;
+    let mut curved = expected.clone();
     let Reading::GenitiveNounPhrase { marker, .. } = &mut curved else {
         unreachable!()
     };
     let LexicalReading::Word(value) = &mut marker.value else { unreachable!() };
     value.variant = 1;
-    exact("their owners’ hands", Category::NounPhrase, curved);
+    assert!(curved.admit(lexicon()).is_err());
+    assert!(readings("their owners’ hands", Category::NounPhrase).is_empty());
+    exact("their owners' hands", Category::NounPhrase, expected);
     for text in [
         "their owner's' hands",
         "their owner' hands",

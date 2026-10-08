@@ -329,7 +329,6 @@ constructions! {
         category KeywordQualityPrepositionSeries(KeywordMarker, KeywordQualityNumber);
         category SelectedComplementTail(HeadCoordination);
         category SelectedComplementTailSeries(HeadCoordination);
-        category KeywordSeparator(KeywordSeparator);
         category KeywordContinuation();
         category Cost();
         category CostComponent();
@@ -711,8 +710,11 @@ constructions! {
         table relative_clitic(CliticHost) -> Selection {
             (Free) => Yes, (Subject) => Yes,
         }
-        table joined_clitic(CliticHost) -> Selection {
-            (Subject) => Yes, (PronounSubject) => Yes,
+        separator clitic_separator(CliticHost) {
+            (Free) => " ", (Subject) => "", (PronounSubject) => "",
+        }
+        separator lexical_clitic_separator(Clitic) {
+            (No) => " ", (Yes) => "",
         }
         table clitic_complement(Clitic, AuxiliaryComplementRealization) -> Selection {
             (No, Overt) => Yes, (No, Elided) => Yes, (Yes, Overt) => Yes,
@@ -1253,11 +1255,12 @@ constructions! {
             form [left: node, ", ", rest: node];
         }
 
+        separator coordination_separator(CommaCoordination) {
+            (No) => " ", (Yes) => ", ",
+        }
         schema Coordination {
-            form [left: node, " ", coordinator: lexical(Coordinator), " ", right: node]
-                require coordinator.BareCoordination = Yes;
-            form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node]
-                require coordinator.CommaCoordination = Yes;
+            form [left: node, coordination_separator(coordinator.CommaCoordination),
+                coordinator: lexical(Coordinator), " ", right: node];
             require coordinator.NoncorrelativeCoordination = Yes;
         }
 
@@ -1614,14 +1617,12 @@ constructions! {
         construction QuotedText: QuotedText {
             export QuotationStructure = Simple;
             form ["\"", text: Document, "\""];
-            form ["“", text: Document, "”"];
         }
 
         construction QuotedClause: QuotedText {
             export QuotationStructure = Simple;
             boundary Interior;
             form ["\"", clause: Clause, "\""];
-            form ["“", clause: Clause, "”"];
         }
 
         construction QuotedKeyword: QuotedText {
@@ -1629,8 +1630,6 @@ constructions! {
             boundary Interior;
             form ["\"", keyword: KeywordPhrase, "\""];
             form ["\"", keyword: KeywordPhrase, ".\""];
-            form ["“", keyword: KeywordPhrase, "”"];
-            form ["“", keyword: KeywordPhrase, ".”"];
         }
 
         construction KeywordGrantedAbility: GrantedAbility {
@@ -1776,8 +1775,11 @@ constructions! {
             (Singular, Plural) => Any, (Plural, Any) => Any,
             (Plural, Singular) => Any, (Plural, Plural) => Plural,
         }
-        table parameter_separator(KeywordParameterSeparator, KeywordSeparator) -> Selection {
-            (Space, Space) => Yes, (Dash, Dash) => Yes, (SpacedDash, SpacedDash) => Yes,
+        separator keyword_separator(KeywordSeparator) {
+            (Space) => " ", (Dash) => "—", (SpacedDash) => " — ",
+        }
+        separator keyword_parameter_separator(KeywordParameterSeparator) {
+            (Space) => " ", (Dash) => "—", (SpacedDash) => " — ",
         }
         policy SelectedTailConcord<Right, Source> {
             require left.HeadCoordination = No;
@@ -1819,18 +1821,6 @@ constructions! {
             export KeywordMarker = head.KeywordMarker;
             export KeywordQualityNumber = quality.KeywordQualityNumber;
         }
-        construction SpaceKeywordSeparator: KeywordSeparator {
-            form [" "];
-            export KeywordSeparator = Space;
-        }
-        construction DashKeywordSeparator: KeywordSeparator {
-            form ["—"];
-            export KeywordSeparator = Dash;
-        }
-        construction SpacedDashKeywordSeparator: KeywordSeparator {
-            form [" — "];
-            export KeywordSeparator = SpacedDash;
-        }
         construction QualityKeyword: KeywordPhrase {
             form [head: lexical(Keyword), " ", quality: KeywordQualityPreposition];
             require head.KeywordParameterClass = Quality;
@@ -1857,23 +1847,19 @@ constructions! {
         }
         construction AmountCostKeyword: KeywordPhrase {
             form [head: lexical(Keyword), " ", amount: MeasurePhrase,
-                separator: KeywordSeparator, cost: CostSymbols];
+                keyword_parameter_separator(head.KeywordParameterSeparator), cost: CostSymbols];
             require head.KeywordParameterClass = AmountCost;
             require head.KeywordSeparator = Space;
             require amount.MeasureKind = Scalar;
-            require parameter_separator(head.KeywordParameterSeparator,
-                separator.KeywordSeparator) = Yes;
         }
         construction QualityCostKeyword: KeywordPhrase {
             form [head: lexical(Keyword), " ", quality: KeywordQualityPreposition,
-                separator: KeywordSeparator, cost: CostSymbols];
+                keyword_parameter_separator(head.KeywordParameterSeparator), cost: CostSymbols];
             require head.KeywordParameterClass = QualityCost;
             require head.KeywordSeparator = Space;
             agree head.KeywordMarker = quality.KeywordMarker;
             require compatible_quality(head.KeywordQualityNumber,
                 quality.KeywordQualityNumber) = Yes;
-            require parameter_separator(head.KeywordParameterSeparator,
-                separator.KeywordSeparator) = Yes;
         }
         category ClausalKeywordPayload(KeywordParameterClass);
         construction AbilityKeywordPayload: ClausalKeywordPayload {
@@ -1886,18 +1872,15 @@ constructions! {
             export KeywordParameterClass = Condition;
         }
         construction ClausalKeyword: KeywordPhrase {
-            form [head: lexical(Keyword), separator: KeywordSeparator,
+            form [head: lexical(Keyword), keyword_separator(head.KeywordSeparator),
                 body: ClausalKeywordPayload];
             agree head.KeywordParameterClass = body.KeywordParameterClass;
-            agree head.KeywordSeparator = separator.KeywordSeparator;
         }
         construction CostPowerToughnessKeyword: KeywordPhrase {
             form [head: lexical(Keyword), " ", cost: CostSymbols,
-                separator: KeywordSeparator, size: SlashPair];
+                keyword_parameter_separator(head.KeywordParameterSeparator), size: SlashPair];
             require head.KeywordParameterClass = CostPowerToughness;
             require head.KeywordSeparator = Space;
-            require parameter_separator(head.KeywordParameterSeparator,
-                separator.KeywordSeparator) = Yes;
         }
 
         construction RemindedKeyword: KeywordPhrase {
@@ -1921,12 +1904,12 @@ constructions! {
             form [header: Clause, " —\n", modes: Modes];
         }
 
+        separator sentence_terminal(terminal_punctuation) {
+            (None) => ".", (QuotedFullStop) => "",
+        }
         construction Sentence: Sentence {
             boundary Initial;
-            form [clause: Clause, "."]
-                require clause.terminal_punctuation = None;
-            form [clause: Clause]
-                require clause.terminal_punctuation = QuotedFullStop;
+            form [clause: Clause, sentence_terminal(clause.terminal_punctuation)];
         }
 
         // Project analysis: a variable-defining PP supplements the completed
@@ -1959,10 +1942,8 @@ constructions! {
         }
 
         construction FiniteClause: FiniteClause {
-            form [subject: NominativePhrase, " ", predicate: FinitePredicate]
-                require predicate.CliticHost = Free;
-            form [subject: NominativePhrase, predicate: FinitePredicate]
-                require joined_clitic(predicate.CliticHost) = Yes;
+            form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),
+                predicate: FinitePredicate];
             agree subject.number = predicate.number;
             agree subject.person = predicate.person;
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
@@ -1981,12 +1962,9 @@ constructions! {
         // Ch. 4 §3.2.2, p. 242. Strict concord also with clitic forms is the
         // existential-there ticket's Oracle-English requirement.
         construction ExistentialClause: FiniteClause {
-            form [subject: lexical(Pronoun), " ", head: lexical(Verb), " ",
-                displaced_subject: AccusativePhrase, extension: optional(ExistentialExtension)]
-                require head.Clitic = No;
-            form [subject: lexical(Pronoun), head: lexical(Verb), " ",
-                displaced_subject: AccusativePhrase, extension: optional(ExistentialExtension)]
-                require head.Clitic = Yes;
+            form [subject: lexical(Pronoun), lexical_clitic_separator(head.Clitic),
+                head: lexical(Verb), " ", displaced_subject: AccusativePhrase,
+                extension: optional(ExistentialExtension)];
             require subject.ExistentialUse = Yes;
             require head.frame = Existential;
             require head.finiteness = Finite;
@@ -2005,10 +1983,8 @@ constructions! {
         // predicative Complement. The Subject restriction is this ticket's
         // Oracle-English contract, not a restriction asserted by that passage.
         construction ScalarLocation: FiniteClause {
-            form [subject: NominativePhrase, " ", predicate: ScalarLocationPredicate]
-                require predicate.CliticHost = Free;
-            form [subject: NominativePhrase, predicate: ScalarLocationPredicate]
-                require joined_clitic(predicate.CliticHost) = Yes;
+            form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),
+                predicate: ScalarLocationPredicate];
             require subject.ScalarDenotation = Yes;
             agree subject.number = predicate.number;
             agree subject.person = predicate.person;
@@ -3273,10 +3249,8 @@ constructions! {
         }
 
         construction PronounSubjectRelative: SubjectRelativeClause {
-            form [marker: lexical(Pronoun), " ", predicate: FinitePredicate]
-                require predicate.CliticHost = Free;
-            form [marker: lexical(Pronoun), predicate: FinitePredicate]
-                require joined_clitic(predicate.CliticHost) = Yes;
+            form [marker: lexical(Pronoun), clitic_separator(predicate.CliticHost),
+                predicate: FinitePredicate];
             require marker.RelativeUse = Yes;
             require marker.case = Nominative;
             agree marker.person = predicate.person;
@@ -3366,10 +3340,8 @@ constructions! {
         }
 
         construction SubjectRelativeClause: SubjectRelativeClause {
-            form [marker: lexical(Subordinator), " ", predicate: FinitePredicate]
-                require predicate.CliticHost = Free;
-            form [marker: lexical(Subordinator), predicate: FinitePredicate]
-                require joined_clitic(predicate.CliticHost) = Yes;
+            form [marker: lexical(Subordinator), clitic_separator(predicate.CliticHost),
+                predicate: FinitePredicate];
             require marker.RelativeSubordinator = Yes;
             require relative_clitic(predicate.CliticHost) = Yes;
             require predicate.person = Third;
@@ -3408,10 +3380,8 @@ constructions! {
         }
 
         construction ObjectRelativeClause: ObjectRelativeClause {
-            form [marker: lexical(Subordinator), " ", subject: NominativePhrase, " ",
-                predicate: FiniteObjectGap] require predicate.CliticHost = Free;
             form [marker: lexical(Subordinator), " ", subject: NominativePhrase,
-                predicate: FiniteObjectGap] require joined_clitic(predicate.CliticHost) = Yes;
+                clitic_separator(predicate.CliticHost), predicate: FiniteObjectGap];
             require marker.RelativeSubordinator = Yes;
             agree subject.number = predicate.number;
             agree subject.person = predicate.person;
@@ -3419,10 +3389,8 @@ constructions! {
         }
 
         construction ZeroObjectRelativeClause: ObjectRelativeClause {
-            form [subject: NominativePhrase, " ", predicate: FiniteObjectGap]
-                require predicate.CliticHost = Free;
-            form [subject: NominativePhrase, predicate: FiniteObjectGap]
-                require joined_clitic(predicate.CliticHost) = Yes;
+            form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),
+                predicate: FiniteObjectGap];
             agree subject.number = predicate.number;
             agree subject.person = predicate.person;
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;

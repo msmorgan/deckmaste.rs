@@ -837,7 +837,7 @@ fn document_collections_connect_keywords_costs_modes_quotes_and_clauses() {
         "Creatures have flying.",
         "Creatures gain ward {2}.",
         "Creatures have \"Draw cards.\"",
-        "Creatures have “{T}: Draw cards.”",
+        "Creatures have \"{T}: Draw cards.\"",
         "Choose one —\n• Draw cards.\n• Discard cards.",
         "{T}: Choose one —\n• Draw cards.\n• Discard cards.",
         "Flying\n{T}: Draw cards.\nLandfall — Draw cards.",

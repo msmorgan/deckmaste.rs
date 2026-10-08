@@ -42,9 +42,14 @@ pub(crate) struct Feature {
 pub(crate) struct FeatureTable {
     pub name: Ident,
     pub inputs: Vec<Ident>,
-    pub output: Ident,
-    pub rows: Vec<(Vec<Ident>, Ident)>,
+    pub output: Option<Ident>,
+    pub rows: Vec<(Vec<Ident>, TableResult)>,
     pub operation: Option<(Ident, Option<(Ident, Ident)>)>,
+}
+
+pub(crate) enum TableResult {
+    Feature(Ident),
+    Literal(LitStr),
 }
 
 #[derive(Clone)]
@@ -101,6 +106,7 @@ pub(crate) enum FieldType {
 pub(crate) enum Part {
     Literal(LitStr),
     Field(Ident, FieldType),
+    SelectedLiteral(Ident, Vec<Reference>),
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -117,6 +123,7 @@ pub(crate) enum Equation {
     Agree(Reference, Reference),
     Require(Reference, Ident),
     RequireTable(Ident, Vec<Reference>, Ident),
+    RequireSelectedLiteral(Ident, Vec<Reference>, String),
 }
 
 fn names(input: ParseStream<'_>) -> syn::Result<Vec<Ident>> {
@@ -241,7 +248,8 @@ impl Parse for Declaration {
                     result.frames.push((name, frame));
                     body.parse::<Token![;]>()?;
                 }
-                "table" => result.tables.push(parse_table(&body, name)?),
+                "table" => result.tables.push(parse_table(&body, name, false)?),
+                "separator" => result.tables.push(parse_table(&body, name, true)?),
                 "policy" => {
                     policies.push(parse_construction(&body, name, true, true)?);
                 }
@@ -261,7 +269,7 @@ impl Parse for Declaration {
                 _ => {
                     return Err(syn::Error::new(
                         keyword.span(),
-                        "expected capitalization, category, feature, frame, table, construction, schema, instance or policy",
+                        "expected capitalization, category, feature, frame, table, separator, construction, schema, instance or policy",
                     ));
                 }
             }
@@ -279,13 +287,17 @@ impl Parse for Declaration {
     }
 }
 
-fn parse_table(input: ParseStream<'_>, name: Ident) -> syn::Result<FeatureTable> {
+fn parse_table(input: ParseStream<'_>, name: Ident, separator: bool) -> syn::Result<FeatureTable> {
     let inputs;
     parenthesized!(inputs in input);
     let inputs = names(&inputs)?;
-    input.parse::<Token![->]>()?;
-    let output = input.parse()?;
-    if input.peek(Ident) {
+    let output = if separator {
+        None
+    } else {
+        input.parse::<Token![->]>()?;
+        Some(input.parse()?)
+    };
+    if !separator && input.peek(Ident) {
         let operation: Ident = input.parse()?;
         let parameters = if operation == "contains" {
             let member = input.parse()?;
@@ -311,7 +323,14 @@ fn parse_table(input: ParseStream<'_>, name: Ident) -> syn::Result<FeatureTable>
         parenthesized!(arguments in rows);
         let arguments = names(&arguments)?;
         rows.parse::<Token![=>]>()?;
-        values.push((arguments, rows.parse()?));
+        values.push((
+            arguments,
+            if separator {
+                TableResult::Literal(rows.parse()?)
+            } else {
+                TableResult::Feature(rows.parse()?)
+            },
+        ));
         if rows.is_empty() {
             break;
         }
@@ -1095,6 +1114,20 @@ fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {
             parts.push(Part::Literal(form.parse()?));
         } else {
             let field = form.parse()?;
+            if form.peek(syn::token::Paren) {
+                let arguments;
+                parenthesized!(arguments in form);
+                let arguments = arguments
+                    .parse_terminated(reference, Token![,])?
+                    .into_iter()
+                    .collect();
+                parts.push(Part::SelectedLiteral(field, arguments));
+                if form.is_empty() {
+                    break;
+                }
+                form.parse::<Token![,]>()?;
+                continue;
+            }
             form.parse::<Token![:]>()?;
             let ty: Ident = form.parse()?;
             let ty = if form.peek(syn::token::Paren) {
@@ -1144,7 +1177,7 @@ fn declared_fields(forms: &[Vec<Part>]) -> std::collections::BTreeSet<String> {
         .flatten()
         .filter_map(|part| match part {
             Part::Field(name, _) => Some(name.to_string()),
-            Part::Literal(_) => None,
+            Part::Literal(_) | Part::SelectedLiteral(_, _) => None,
         })
         .collect()
 }
@@ -1153,9 +1186,9 @@ impl Equation {
     fn references_mut(&mut self) -> Vec<&mut Reference> {
         match self {
             Self::Export(_, reference) | Self::Require(reference, _) => vec![reference],
-            Self::ExportTable(_, _, arguments) | Self::RequireTable(_, arguments, _) => {
-                arguments.iter_mut().collect()
-            }
+            Self::ExportTable(_, _, arguments)
+            | Self::RequireTable(_, arguments, _)
+            | Self::RequireSelectedLiteral(_, arguments, _) => arguments.iter_mut().collect(),
             Self::Agree(left, right) => vec![left, right],
             Self::ExportConstant(_, _) => vec![],
         }

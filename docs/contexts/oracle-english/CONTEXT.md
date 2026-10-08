@@ -157,6 +157,13 @@ in one Scope Class is not uniqueness of interpretation.
 The relationship by which an abstract grammatical value is expressed in a
 surface form.
 
+**Selected Literal** (project term):
+A fixed surface expression determined by its constituents' declared features
+or grammatical summaries, under the [derived-punctuation project ruling,
+2026-10-08](../../tickets/done/english-v3-derived-punctuation-forms.md#why).
+Its spelling contributes no independent distinction to a Reading.
+_Avoid_: Spelling Variant for a structurally determined expression
+
 **Linearization**:
 The ordering of a Construction's constituents into a surface sequence.
 

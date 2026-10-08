@@ -16,6 +16,7 @@ pub enum FeatureValue {
     TerminalPunctuation(TerminalPunctuation),
     Custom(usize, usize),
     Set(usize, usize),
+    SelectedLiteral(&'static str),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -101,7 +102,7 @@ impl SurfaceSummary {
             self.terminal_nonempty = true;
             self.terminal = match ch {
                 '.' => TerminalPunctuation::FullStop,
-                '"' | '”'
+                '"'
                     if matches!(self.terminal,
                         TerminalPunctuation::FullStop | TerminalPunctuation::QuotedFullStop) =>
                     TerminalPunctuation::QuotedFullStop,

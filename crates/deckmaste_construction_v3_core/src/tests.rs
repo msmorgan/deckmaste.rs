@@ -943,3 +943,87 @@ fn set_features_validate_members_operations_and_frame_marker_licences() {
         "a feature table requires inputs and rows",
     );
 }
+
+#[test]
+fn selected_literals_share_one_form_and_expand_only_distinct_surfaces() {
+    let declaration = quote! { mod valid {
+        category Atom();
+        separator ending(number) { (Singular) => "", (Plural) => "." }
+        construction Atom: Atom {
+            form [word: lexical(Noun), ending(word.number)];
+            form ["", word: lexical(Noun), ending(word.number)];
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    let form = &ir.constructors[0].forms[0];
+    assert_eq!(ir.constructors[0].forms.len(), 1);
+    assert_eq!(form.index, 0);
+    assert_eq!(form.rules.len(), 2);
+    for (index, &rule) in form.rules.iter().enumerate() {
+        let rule = &ir.rules[rule];
+        assert!(matches!(
+            rule.build,
+            crate::ir::Build::Construction { form: 0, .. }
+        ));
+        assert_eq!(rule.symbols.len(), index + 1);
+        assert_eq!(rule.table_requirements.len(), 1);
+    }
+    syn::parse2::<syn::File>(compile(declaration).unwrap()).unwrap();
+    let declaration = quote! { mod valid {
+        category Atom();
+        separator ending(number) { (Singular) => ".", (Plural) => "." }
+        construction Atom: Atom { form [word: lexical(Noun), ending(word.number)]; }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration).unwrap()).unwrap();
+    assert_eq!(ir.constructors[0].forms[0].rules.len(), 1);
+}
+
+#[test]
+fn selected_literals_reject_ambiguous_untyped_and_inaccessible_lookups() {
+    for (table, piece, expected) in [
+        (
+            quote!(separator ending(number) { (Singular) => ".", (Singular) => "" }),
+            quote!(ending(word.number)),
+            "duplicate feature table input tuple",
+        ),
+        (
+            quote!(separator ending(number) { (Singular) => "." }),
+            quote!(ending(word.person)),
+            "wrong domain",
+        ),
+        (
+            quote!(separator ending(number) { (Singular) => "." }),
+            quote!(ending()),
+            "wrong arity",
+        ),
+        (
+            quote!(separator ending(number) { (First) => "." }),
+            quote!(ending(word.number)),
+            "not a value",
+        ),
+        (
+            quote!(separator ending(number) { (Singular) => "." }),
+            quote!(ending(missing.number)),
+            "cannot reach field",
+        ),
+        (
+            quote!(feature Verdict { Yes } table ending(number) -> Verdict { (Singular) => Yes }),
+            quote!(ending(word.number)),
+            "requires a separator table",
+        ),
+    ] {
+        rejects(
+            quote!(mod bad { category Atom(); #table construction Atom: Atom { form [word: lexical(Noun), #piece]; } }),
+            expected,
+        );
+    }
+    rejects(
+        quote!(mod bad {
+            category Atom(); category Wrapper();
+            separator ending(number) { (Singular) => "." }
+            construction Atom: Atom { form [word: lexical(Noun)]; }
+            construction Wrapper: Wrapper { form [word: Atom, ending(word.number)]; }
+        }),
+        "Category interface",
+    );
+}

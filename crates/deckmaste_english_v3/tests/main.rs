@@ -165,3 +165,6 @@ mod signed_numeral_cost;
 
 #[path = "suite/licence_hygiene.rs"]
 mod licence_hygiene;
+
+#[path = "suite/derived_punctuation.rs"]
+mod derived_punctuation;

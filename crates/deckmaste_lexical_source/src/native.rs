@@ -782,10 +782,14 @@ mod tests {
     fn contractions_genitives_and_homographs_remain_independent_alternatives() {
         let lexicon = workspace();
         for text in [
-            "it's", "it’s", "you've", "they're", "owner's", "owners'", "nonland",
+            "it's", "it is", "you've", "they're", "owner's", "owners'", "nonland",
         ] {
             assert!(lexicon.analyze(text).unknown_words().is_empty(), "{text}");
         }
+        assert_ne!(
+            lexicon.analyze("it’s").unknown_words(),
+            Vec::<std::ops::Range<usize>>::new()
+        );
         let text = lexicon.analyze("it's");
         let categories: std::collections::BTreeSet<_> = text
             .matches
