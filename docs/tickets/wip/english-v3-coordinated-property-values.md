@@ -353,3 +353,20 @@ Evidence is entirely under the workspace's ignored
 coordinator's same ignored directory before workspace retirement. No evidence
 snapshot, per-task verifier or process artifact is tracked or embedded in a
 crate. Refresh verification is appended below before integration.
+
+#### Refresh verification
+
+Kata refresh exits 0 and moves the claim onto `vqxrosrx`. The imported changes
+are a separate gerund-preposition claim plus documentation in
+`semantics-v2.md`, `lean/CONTRACTS.md` and the completed Lean sweep ticket.
+The card-frame ruling concerns Semantics and does not contradict this
+independent English property analysis. No grammar, lexicon, plugin definition
+or runtime source changes: all **1,697** measured source hashes still agree
+(`post-refresh-source-equivalence.json`).
+
+The before stamp remains `oqrvnvwr` / covered 22,669, source-equivalent to
+the refreshed parent `vqxrosrx`; the after stamp remains `owmovnyy` / covered
+22,853. Trunk-attributed face or Reading-count decreases: **none**. There
+are no conflicts or ledger residues to route. Per the binding verification
+budget, no post-refresh census, tests or Lean checks are needed for these
+documentation-only imports; all measured results are preserved.
