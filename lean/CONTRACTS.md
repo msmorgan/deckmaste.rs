@@ -52,8 +52,9 @@ an edit's chosen quality is `qualityRead`. Eight stay as kind, plurality or term
 shape: `designationScope` (a designation's holder sort), `facesFit`,
 `manaSymbolOk`, `twoParties`, and the registry and table shape checks
 `tokenNamed`, `definitionHolder`, `definitionNamed` and `definitionScoped`. The
-fourteen card-frame rules (`cardLine` through `prototypeFrame`) are kept pending
-the owner's call (§7 ruling 2026-10-06, consequence (d)). Zone state on bindings stays, because references resolve
+fourteen card-frame rules (`cardLine` through `prototypeFrame`) are kept: the owner
+decided so on 2026-10-08 (§7 ruling 2026-10-06, consequence (d)), because they check
+that a term is a well-formed card, not what an instruction does. Zone state on bindings stays, because references resolve
 on it. On the question of
 scope this supersedes "rules correctness" in the paragraph above; the rest of
 that paragraph stands.

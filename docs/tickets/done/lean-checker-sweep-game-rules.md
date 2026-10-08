@@ -312,14 +312,16 @@ Commits: `mzlrtupu` the emission sites, the dead predicates and the 21 `Refusal`
 - **STOPs.** None.
 - **Glossary.** No new term needed.
 
-### Card-frame rules: kept pending the owner's call (Q42)
+### Card-frame rules: kept by the owner (Q42, decided 2026-10-08)
 
 The fourteen card-frame refusals (`cardLine`, `cardText`, `modalFrame`, `chapterFrame`,
 `doorFrame`, `cardName`, `cardBox`, `cardCost`, `adventureInset`, `flipHalf`, `levelRange`,
 `levelerFrame`, `bandsDisjoint`, `prototypeFrame`) are untouched. The owner was asked (Q42)
-whether to keep or retire them; no answer had arrived when the other 29 were done and proved, so
-they stay under the ruling's default, "may survive the sweep at the owner's call" (§7 ruling
-2026-10-06, consequence (d)), recorded there with a dated note. Their pins are unchanged.
+whether to keep or retire them and decided on 2026-10-08 ("ok with the rec") to keep all
+fourteen. Reason: they check that a term is a well-formed card at all, not what an instruction
+does, so the impossible-instruction argument does not reach them, and they do not move when the
+instruction model moves (§7 ruling 2026-10-06, consequence (d), with a dated note). Their pins
+are unchanged.
 
 ### REPORT
 

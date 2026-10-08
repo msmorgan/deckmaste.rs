@@ -338,7 +338,11 @@ mimicked.
   No answer had arrived when the sweep landed, so the fourteen card-frame
   rules, `cardLine` through `prototypeFrame`, stay under the default "may
   survive", pending that call. Of the bucket's other 29 refusals the sweep
-  retired 21 and kept 8 as kind, plurality or term shape.)
+  retired 21 and kept 8 as kind, plurality or term shape.) (Note, 2026-10-08,
+  owner, "ok with the rec": Q42 is answered; the fourteen card-frame rules are
+  kept. They check that a term is a well-formed card at all, not what an
+  instruction does, so the impossible-instruction argument does not reach
+  them, and they do not move when the instruction model moves.)
 - **A macro's referent parameter is bound at its first mention; later
   mentions refer back.** A referent parameter (`Subject`, `NounPhrase`) of a
   registry macro is introduced by the body's first mention of it; every later
