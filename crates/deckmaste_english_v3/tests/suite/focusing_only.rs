@@ -147,6 +147,7 @@ fn independent_nominal_and_interval_gaps_remain_visible() {
 fn focus_does_not_supply_missing_constituents_or_other_functions() {
     for text in [
         "Activate only.",
+        "Activate only only during your turn.",
         "Destroy only target creature.",
         "Only creatures attack.",
         "Activate only once each turn.",

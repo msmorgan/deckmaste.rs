@@ -34,6 +34,7 @@ constructions! {
         feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No;
         feature FocusingModifierUse { Restrictive }
+        feature FocusedUse { No, Yes } default No;
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature ComparativeQuantityUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
@@ -196,7 +197,7 @@ constructions! {
         category NamePredicate();
         category PrepositionPhrase(LocativeUse, PrepositionFunctionLicence, ObliqueNumber,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse,
-            ClauseInitialAdjunct);
+            ClauseInitialAdjunct, FocusedUse);
         category LocativeComplement();
         category MannerComplement();
         category FrequencyPhrase();
@@ -279,7 +280,7 @@ constructions! {
         );
         category AdjectivePhraseSeries(AdjectiveStructure, TargetingPremodifierUse);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
-            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct);
+            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct, FocusedUse);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
@@ -295,7 +296,7 @@ constructions! {
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, ScalarDenotation);
         category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
-            CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct);
+            CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct, FocusedUse);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
             DurationUse, CorrelativeCoordinator);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
@@ -875,6 +876,7 @@ constructions! {
         }
 
         policy ObliquePrepositionConcord<Right, Source> {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = coordinated_initial_adjunct(left.ClauseInitialAdjunct,
                 Right.ClauseInitialAdjunct);
             export SelectedPrepositionUse = selected_preposition_concord(left.SelectedPrepositionUse,
@@ -2225,6 +2227,7 @@ constructions! {
         }
 
         construction PrepositionPhrase: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: AccusativePhrase];
             require head.PrepositionComplement = NounPhrase;
@@ -2238,6 +2241,7 @@ constructions! {
         }
 
         construction BareNominalPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: NounPhrase];
             require complement.BarePrepositionUse = Yes;
@@ -2257,6 +2261,7 @@ constructions! {
         // The supported predicative-NP licence is preposed; finite-clause
         // Complement permissions remain independent.
         construction PredicativeComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
@@ -2275,9 +2280,11 @@ constructions! {
         construction FocusedPrepositionPhrase: PrepositionPhrase {
             form [modifier: lexical(Adverb), " ", head: PrepositionPhrase];
             require modifier.FocusingModifierUse = Restrictive;
+            require head.FocusedUse = No;
             require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
             require head.SelectedPrepositionUse = No;
             export PrepositionFunctionLicence = Adjunct;
+            export FocusedUse = Yes;
             export ClauseInitialAdjunct = No;
             export SelectedPrepositionUse = No;
             export LocativeUse = No;
@@ -2287,6 +2294,7 @@ constructions! {
         }
 
         construction IntransitivePreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
             form [head: lexical(Preposition)];
@@ -2296,6 +2304,7 @@ constructions! {
 
         // CGEL Ch. 7 §3.2, p. 626: preposition + adjective idioms.
         construction AdjectiveComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
@@ -2310,6 +2319,7 @@ constructions! {
         }
 
         construction ClauseComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
@@ -2325,6 +2335,7 @@ constructions! {
         // include duration use. The lexical licence and its application to
         // the Oracle equative duration are declared project analyses.
         construction AdverbComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: AdverbPhrase];
             require head.AdverbComplementClass = Duration;
@@ -2340,6 +2351,7 @@ constructions! {
         // CGEL Ch. 8 §2.2: gerund-participials occur under means By independently
         // of passive voice; the same complementation shape also occurs under To.
         construction GerundComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: SecondaryVerbPhrase];
             require head.GerundClauseComplement = Yes;
@@ -2357,6 +2369,7 @@ constructions! {
         // CGEL Ch. 7 §2.4, pp. 616–617: the selected PP is a constituent;
         // omission removes its head together with its internal Complement.
         construction CompoundPrepositionPhrase: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = No;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require selected_compound_complement(head.CompoundComplementMarker,
@@ -2367,6 +2380,7 @@ constructions! {
         }
 
         construction PrepositionComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require head.PrepositionPhraseComplement = Yes;
@@ -2580,6 +2594,7 @@ constructions! {
             export NominalBareClass = Boundary;
         }
         construction BareTemporalPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: BareTemporalNominal];
@@ -3325,6 +3340,7 @@ constructions! {
         }
 
         construction CoordinatedClauseComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
@@ -3608,6 +3624,7 @@ constructions! {
         }
 
         construction KeywordComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: KeywordPhrase];
@@ -3615,6 +3632,7 @@ constructions! {
             use PrepositionHeadPermissions;
         }
         construction QuotedComplementPreposition: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export NominalComplementMarker = None;
@@ -3663,6 +3681,7 @@ constructions! {
         }
 
         construction SharedPrepositionComplement: PrepositionPhrase {
+            export FocusedUse = No;
             export ClauseInitialAdjunct = No;
             export ObliqueNumber = None;
             form [head: SelectedPrepositionHead, " ", complement: AccusativePhrase];

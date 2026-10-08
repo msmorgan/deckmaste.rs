@@ -205,6 +205,18 @@ its source hashes and explicit admission/structure tests are the v3 evidence.
 
 ### Selected gain analyses
 
+Post-landing reconciliation (orchestrator review, 2026-10-08): the **215** validated
+gains do not fulfill the earlier **472** sole-cause estimate. That estimate was
+prioritization evidence, not a verified gain forecast; the retained *as* deferral
+and independent host gaps limit what this implementation can discharge. **984**
+unread faces still contain the restriction strings. The overlapping categories
+are *as a sorcery* **501**, deferred until both **Same–as equality comparative
+Complement** and **Enter selected predicative-as Complement** land; *once each
+turn* **281**, owned by the in-flight `english-v3-once-frequency`; *only if*
+**125** and *only during* **106**, on multi-cause hosts; and *declared* **45** and
+*only before* **8**, with vocabulary gaps. These categories are not additive.
+This is review evidence for the accepted landing, not a new full census.
+
 The 641-face selector audit samples all **215** final gains plus the rejected
 attempt's remaining candidates. Every audited face's count and complete Reading
 digest matches the full census. `gain-analysis-ledger.json` names each gained
@@ -243,10 +255,15 @@ Manual spot-checks at `urxxrvzrurrtxvvqpmotlxvvtoyvwsrw` / covered **21,701**
   bidirectional form differs only in the two allowed Number/Countability pairs.
   The shared table permits exactly plural/count and singular/mass, preserving
   Determiner Requirement and all other equations. This avoids construction
-  growth for a clear new grammatical distinction. Both superseded declarations
+  growth for a clear new grammatical distinction. This merge was outside the
+  ticket's letter and was done to hold the construction count. It was proven
+  Reading-identical: **4,605** faces changed their digest only, with unchanged
+  Reading counts and analyses. Both superseded declarations
   are retired; no lexical frame names either old route, and lexical count/mass
   declarations remain authoritative. No duplicate constituency route is kept.
-- Restored **1** existing test in full, re-spelled **18** existing tests and
+- Relative to the claim parent, restored **0** tests: the test described in
+  `test-accounting-reverted.json` as restored once during iteration is unchanged
+  in the landed feature. Re-spelled **18** existing tests and
   **8** helpers at **28** constructor sites, added **12** tests, ignored **0**,
   removed **0** (`test-accounting-reverted.json`). The three new focusing tests
   adjusted by the ruling keep their subjects: Mind Slash is a negative deferral
@@ -562,3 +579,64 @@ The complete selected fingerprints and dependencies are in `gain-analysis-ledger
 | Yes Man, Personal Securitron (`16b8eab0-ccbd-4dbf-9998-82a4d85d0f77#card`) | 432 | T |
 | Zhalfirin Decoy (`b22e55ef-fb74-4991-a43b-9d3ce06c23e5#card`) | 14 | C |
 | Zuran Enchanter (`ee0f883f-d7c9-4acf-a78f-f733b6f268d3#card`) | 2 | T |
+
+
+### Post-landing follow-up (2026-10-08)
+
+The accepted review found two wrong Readings of *Activate only only during your
+turn.* `FocusedUse` now distinguishes a phrase with its own Focusing Modifier:
+`FocusedPrepositionPhrase` exports Yes and requires its head to export No.
+Ordinary PP constructors and coordination export No; focus on a whole
+coordination remains distinct from focus on its members. The guard reads a
+declared feature, with no construction-name or word-name condition. The negative
+is added to `focus_does_not_supply_missing_constituents_or_other_functions`.
+The existing independent focusing roundtrip and lexical/traversal identity
+assertions remain intact. The glossary now defines **Focused Use** as a project
+term, attributed to this review rather than to CGEL. No new STOP or ruling
+contradiction arose.
+
+The reconciliation paragraph above records the review's 984 unread faces and
+its overlapping restriction categories, including both prerequisites of the
+predicative-*as* deferral. The nominal merge is explicitly disclosed as outside
+the original ticket's letter, Reading-identical on 4,605 digest-only changes,
+and undertaken to hold the construction count. The original assurance count now
+states that the intermediate restoration left that test unchanged relative to
+the claim parent.
+
+Follow-up assurance: restored **0**, re-spelled **0**, ignored **0**, removed
+**0**, added **0** test functions; **1** existing test strengthened with **1**
+negative case. `cargo test -p deckmaste_english_v3` passed **383** tests, none
+failed or ignored (`tests.log`); `cargo clippy -p deckmaste_english_v3 --tests --
+-D warnings` passed (`clippy.log`); `cargo fmt --all -- --check` passed
+(`fmt.log`). No lexicon data changed, no lexical-source package tests were
+needed, and no Lean checks or xtask tests were run. Follow-up evidence is under
+`target/english-v3/english-v3-focusing-followup/`.
+
+
+The authorized **215-face selector** at
+`sqzukyvnqplmsyxxrprltlkztpwtzkrs` / subset covered **215**, referenced to the
+accepted full census `urxxrvzrurrtxvvqpmotlxvvtoyvwsrw` / covered **21,701**,
+retains **44,615** exact Readings. `comparison.json` compares every selected face:
+**0** count changes, **0** digest changes, **0** source changes, **0** losses,
+and **0** issues, duplicates, cyclic derivations or internal failures. Every
+counted Reading passes declaration admission, lexical ownership/context,
+byte-exact realization and node/word traversal comparison. The independent
+constructed-value roundtrip remains covered by the package tests. No full
+census was run for this follow-up.
+
+Command: `cargo xtask english-v3 --identity-manifest
+target/english-v3/english-v3-focusing-followup/gained-selector.json --workers 12
+--samples-per-face 0 --output
+target/english-v3/english-v3-focusing-followup/after.json` (`selector.log`).
+Selector corpus wall time **12,309,285,976 ns**; checked-text thread CPU
+**665,610 ns/B**, **12** workers, host load `[7.4306640625, 10.130859375,
+10.47119140625]`. These subset timings describe this tree and scope; the
+whole-corpus performance advisory above remains the accepted full-run record.
+
+On that measured tree the declared construction/schema count remains
+**202 + 48 = 250** and Categories remain **146**. Nonblank declaration lines
+are **3,379**. No lexical declaration, spelling, form literal or vocabulary
+inventory changed; the lexical inventory hash matches the accepted full census.
+The named homograph and overlap inventories above remain applicable. The new
+licensing guard reads a declared feature; zero word-naming conditions were
+introduced, and the existing environment load-error tests passed.

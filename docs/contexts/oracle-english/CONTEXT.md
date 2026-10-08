@@ -525,6 +525,11 @@ distinction (p. 589).
 A Lexeme's declared permission to function as a Focusing Modifier, with its
 restrictive or additive interpretation kept distinct.
 
+**Focused Use** (project term):
+A phrase's having a Focusing Modifier of its own. In this project's restrictive
+PP analysis, a phrase already in Focused Use cannot itself be the head of another
+restrictive Focusing Modifier (post-landing review, 2026-10-08).
+
 **Predicate**:
 The grammatical function in a Clause that predicates something of the Subject.
 This is distinct from a Game Model Predicate.
