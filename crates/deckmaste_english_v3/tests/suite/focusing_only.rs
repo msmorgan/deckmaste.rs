@@ -150,7 +150,6 @@ fn focus_does_not_supply_missing_constituents_or_other_functions() {
         "Activate only only during your turn.",
         "Destroy only target creature.",
         "Only creatures attack.",
-        "Activate only once each turn.",
         "Activate only before attackers are declared.",
         "Activate only as tapped.",
         "Only during your turn, activate.",
@@ -158,6 +157,15 @@ fn focus_does_not_supply_missing_constituents_or_other_functions() {
         assert!(readings(text, Category::Document).is_empty(), "{text}");
     }
     assert!(readings("only during your turn", Category::NounPhrase).is_empty());
+    // The once-frequency ticket supplies the previously missing Adjunct.
+    assert_constituents(
+        "Activate only once each turn.",
+        Category::Document,
+        &[
+            (Category::AdverbPhrase, "only once"),
+            (Category::NominalAdjunctPhrase, "each turn"),
+        ],
+    );
 }
 
 fn invariant(owner: &str) -> Word {
@@ -193,7 +201,8 @@ fn independently_constructed_focus_preserves_structure_and_lexical_identity() {
             head: noun,
         }),
     };
-    let expected = Reading::FocusedPrepositionPhrase {
+    let expected = Reading::FocusedPhrase {
+        category: Category::PrepositionPhrase,
         form: 0,
         modifier: invariant("vocab:FocusAdverb/Only"),
         head: Box::new(Reading::PrepositionPhrase {
@@ -238,16 +247,14 @@ fn independently_constructed_focus_preserves_structure_and_lexical_identity() {
     );
 
     let mut wrong = expected.clone();
-    let Reading::FocusedPrepositionPhrase { modifier, .. } = &mut wrong else {
+    let Reading::FocusedPhrase { modifier, .. } = &mut wrong else {
         unreachable!()
     };
     *modifier = invariant("vocab:FrequencyAdverb/Once");
     assert!(wrong.admit(lexicon()).is_err());
     assert!(wrong.realize(lexicon()).is_err());
 
-    let Reading::FocusedPrepositionPhrase { head, .. } = &mut wrong else {
-        unreachable!()
-    };
+    let Reading::FocusedPhrase { head, .. } = &mut wrong else { unreachable!() };
     **head = Reading::PrepositionPhrase {
         form: 0,
         head: invariant("vocab:Preposition/Of"),
@@ -257,7 +264,7 @@ fn independently_constructed_focus_preserves_structure_and_lexical_identity() {
             head: Box::new(nominal),
         }),
     };
-    let Reading::FocusedPrepositionPhrase { modifier, .. } = &mut wrong else {
+    let Reading::FocusedPhrase { modifier, .. } = &mut wrong else {
         unreachable!()
     };
     *modifier = invariant("vocab:FocusAdverb/Only");

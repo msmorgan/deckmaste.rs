@@ -35,6 +35,7 @@ constructions! {
         feature DurationUse { No, Yes } default No;
         feature FocusingModifierUse { Restrictive }
         feature FocusedUse { No, Yes } default No;
+        feature FusedHeadUse { No, Yes } default No;
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature ComparativeQuantityUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
@@ -261,7 +262,7 @@ constructions! {
         category FinitePredicateSeries(number, person, CliticHost);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent);
         category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, ScalarDenotation);
-        category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
+        category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence);
         category SecondarySelectedHead(form, FrameUse, HeadCoordination, AuxiliaryEllipsisLicence);
@@ -281,7 +282,7 @@ constructions! {
         category AdjectivePhraseSeries(AdjectiveStructure, TargetingPremodifierUse);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct, FocusedUse);
-        category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence);
+        category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(number, person, CliticHost);
@@ -298,7 +299,7 @@ constructions! {
         category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct, FocusedUse);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
-            DurationUse, CorrelativeCoordinator);
+            DurationUse, CorrelativeCoordinator, FocusedUse);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
         category CorrelativeCardinalSeries(number, CorrelativeCoordinator, CoordinationKind);
         category CorrelativeAmountSeries(CorrelativeCoordinator);
@@ -751,6 +752,7 @@ constructions! {
         }
 
         policy AdverbPermissions<Right, Source> {
+            export FocusedUse = No;
             export VPFinalAdjunct = coordinated_final_adjunct(left.VPFinalAdjunct,
                 Right.VPFinalAdjunct);
             export ClauseInitialAdjunct = coordinated_initial_adjunct(left.ClauseInitialAdjunct,
@@ -2125,6 +2127,21 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
+        // CGEL Ch. 5 §9.2(c), pp. 414–415: a singular demonstrative
+        // can fuse Determiner and Head without an overt nominal.
+        construction FusedDeterminerHeadNounPhrase: NounPhrase {
+            form [head: lexical(Determinative)];
+            require head.FusedHeadUse = Yes;
+            require head.DeterminerUse = Singular;
+            export number = Singular;
+            export Targeting = No;
+            export ScalarDenotation = No;
+            export SelectedPrepositionUse = No;
+            export BarePrepositionUse = No;
+            export BareGenitiveHost = No;
+            use ThirdPersonCommonCase;
+        }
+
         construction DeterminedNounPhrase: NounPhrase {
             export ScalarDenotation = quantificational_scalar_denotation(
                 determiner.QuantificationalDeterminer, head.NumberTransparency, head.ScalarDenotation);
@@ -2275,12 +2292,14 @@ constructions! {
             export LocativeUse = head.LocativeUse;
         }
 
-        // CGEL Ch. 6 §7.3.1, p. 587, [41–42]: restrictive focusing
-        // Adverbs can modify PPs. Clause-final Adjunct use is this ticket's scope.
-        construction FocusedPrepositionPhrase: PrepositionPhrase {
-            form [modifier: lexical(Adverb), " ", head: PrepositionPhrase];
+        // CGEL Ch. 6 §7.3.1, p. 587, [42ii,iv]: restrictive focusing
+        // Adverbs can modify PPs and AdvPs. Final Adjuncts are this scope.
+        schema FocusedPhrase {
+            form [modifier: lexical(Adverb), " ", head: node];
             require modifier.FocusingModifierUse = Restrictive;
             require head.FocusedUse = No;
+        }
+        policy FocusedPrepositionPermissions {
             require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
             require head.SelectedPrepositionUse = No;
             export PrepositionFunctionLicence = Adjunct;
@@ -2291,6 +2310,20 @@ constructions! {
             export NominalComplementMarker = None;
             export InternalisedComplementMarker = No;
             export ObliqueNumber = None;
+        }
+        policy FocusedAdverbPermissions {
+            export FocusedUse = Yes;
+            require head.VPFinalAdjunct = Yes;
+            export VPFinalAdjunct = head.VPFinalAdjunct;
+            export ClauseInitialAdjunct = No;
+            export DurationUse = head.DurationUse;
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
+        }
+        instance FocusedPhrase<Result, Head: head, Properties>: [
+            (PrepositionPhrase, Self, FocusedPrepositionPermissions),
+            (AdverbPhrase, Self, FocusedAdverbPermissions),
+        ] {
+            use Properties;
         }
 
         construction IntransitivePreposition: PrepositionPhrase {
@@ -3134,6 +3167,7 @@ constructions! {
         // use of the adverb. Applying that analysis to Oracle duration
         // Complements is the project analysis tested in this ticket.
         construction EquativeAdverb: AdverbPhrase {
+            export FocusedUse = No;
             form [governor: lexical(Adverb), " ", head: lexical(Adverb), " ",
                 marker: lexical(Preposition), " ", complement: FiniteClause];
             require governor.ComparisonMarker = Equality;
@@ -3146,6 +3180,7 @@ constructions! {
         }
 
         construction Adverb: AdverbPhrase {
+            export FocusedUse = No;
             form [head: lexical(Adverb)];
             export VPFinalAdjunct = head.VPFinalAdjunct;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;

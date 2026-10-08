@@ -527,7 +527,7 @@ restrictive or additive interpretation kept distinct.
 
 **Focused Use** (project term):
 A phrase's having a Focusing Modifier of its own. In this project's restrictive
-PP analysis, a phrase already in Focused Use cannot itself be the head of another
+PP and Adverb Phrase analysis, a phrase already in Focused Use cannot itself be the head of another
 restrictive Focusing Modifier (post-landing review, 2026-10-08).
 
 **Predicate**:
@@ -642,6 +642,18 @@ A Nominal's unresolved need for an outer Determiner when a cardinal numeral
 functions as its internal Modifier, as in *that one mistake* (CGEL, Ch. 5
 §7.6, p. 386). Without the outer Determiner the numeral instead functions as
 the Determiner.
+
+**Fused Determiner-Head**:
+An expression combining the Determiner and Head functions in a Noun Phrase;
+singular demonstratives can have this use without an overt nominal
+(CGEL, Ch. 5 §§9.1–9.2, pp. 410–415).
+_Avoid_: Pronoun for a Determinative in fused-head use
+
+**Fused Head Use** (project term):
+A Determinative's declared permission to fuse the Determiner and Head
+functions without an overt nominal or partitive Complement. Fused heads and
+their distributions are described in CGEL, Ch. 5 §§9.1–9.2, pp. 410–415;
+the lexical permission is a project representation.
 
 **Partitive Noun Phrase**:
 A fused-head Noun Phrase containing an *of* phrase and denoting a subset of

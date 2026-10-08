@@ -132,3 +132,6 @@ mod targeting_projection;
 mod then_sequencing;
 #[path = "suite/where_variable_clause.rs"]
 mod where_variable_clause;
+
+#[path = "suite/once_frequency.rs"]
+mod once_frequency;
