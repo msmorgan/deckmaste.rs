@@ -182,6 +182,21 @@ theorem movingAScopedNounUpdatesItsReturnedSubject :
 
 private semantic_macro forwardedSubject (subject : capture NounPhrase) : NounPhrase := subject
 
+/-- The move through the nested alias moves the outer subject's binding: read back afterwards,
+"that permanent" finds nothing, since the subject now lies in a graveyard [CR#110.1]. Without
+the move the same read resolves. The subject is `target creature`, not the bare `this` the old
+zone-refusal spelling used, because a bare `this` introduces nothing for "that permanent" to read. -/
+private semantic_macro moveThroughNestedAlias (subject : capture NounPhrase) : Instruction :=
+  .sequentially [.move (forwardedSubject subject) .wherever graveyard [], .setStatus .tapped (that .permanent)]
+
+private semantic_macro tapThroughNestedAlias (subject : capture NounPhrase) : Instruction :=
+  .sequentially [.setStatus .tapped (forwardedSubject subject), .setStatus .tapped (that .permanent)]
+
+theorem nestedNounResultsKeepOuterInlineAliasesLive :
+    (moveThroughNestedAlias (target creature)).check [] = [.anaphor (.word .permanent) .one 0] ∧
+      (tapThroughNestedAlias (target creature)).check [] = [] := by
+  decide
+
 theorem closingAFrameRelocatesAddressesPastForgottenRows :
     let rows : Bindings := [⟨.the, .one, .parameterFrame 0 0 [], []⟩,
       ⟨.the, .one, .hidden (.object [.artifact] (some .library) none none none), []⟩,
@@ -289,6 +304,19 @@ private structure Flag where
 private def discardedInstruction (_ : Instruction) : Flag := ⟨true⟩
 
 private semantic_macro configuredDraw (_flag : Bool) : Instruction := .draw (.lit 1)
+
+/-- `second` is captured after `first` and reads it, so moving `second` moves `first`'s
+binding: "that permanent" no longer finds it, while "that card" does [CR#110.1,109.2]. -/
+private semantic_macro dependentSubjects (first second : capture NounPhrase) : Instruction :=
+  .sequentially [.move second .wherever graveyard [], .setStatus .tapped (that .permanent)]
+
+private semantic_macro dependentSubjectsAsCard (first second : capture NounPhrase) : Instruction :=
+  .sequentially [.move second .wherever graveyard [], exile (that .card)]
+
+theorem dependentCapturesFollowDeclarationOrderRatherThanBodyUse :
+    (dependentSubjects (target creature) it).check [] = [.anaphor (.word .permanent) .one 0] ∧
+      (dependentSubjectsAsCard (target creature) it).check [] = [] := by
+  decide
 
 private def nestedBodyCapture : Spelled := spelled <| .singleFaced
   { characteristics :=
