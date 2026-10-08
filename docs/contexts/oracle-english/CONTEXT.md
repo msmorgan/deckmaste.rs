@@ -330,9 +330,10 @@ Phrase (CGEL, Ch. 7 §2.2, p. 617, n. 3), and may be narrower than in general
 English. CGEL licenses predicative-*as* phrases in Adjunct function generally
 (Ch. 7 §5.1, p. 637). Their licence in Oracle English admits the preposed,
 comma-separated, clause-initial position under the
-[orchestrator resolution of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md),
-and the clause-final position under the assigned widening in
-[focusing-only](../../tickets/done/english-v3-focusing-only.md).
+[orchestrator resolution of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md).
+The assigned clause-final widening remains unfinished at the
+[focusing-only admission STOP](../../tickets/wip/english-v3-focusing-only.md#stop--predicative-as-widening-revives-excluded-readings-2026-10-07);
+comparative and verb-selected Complements must not become Adjuncts.
 _Avoid_: adverbial PP, adjectival PP, AdverbialUse
 
 **Predicative Complement of a Preposition**:

@@ -122,3 +122,61 @@ and the as-position widening reported separately (its own before/after counts
 and Reading counts on the fixed-cost witnesses); the residual items discharged;
 before/after counts stamped with change ids; timings as integer ns and ns/B
 with host load and worker count.
+
+### STOP — predicative-as widening revives excluded Readings (2026-10-07)
+
+**Unfinished; not integrated.** The focusing implementation and its four required
+witnesses work, but the final full census exposed wrong Readings caused by the
+assigned clause-final predicative-*as* widening. These are defects, not coverage
+gains. No ruling has been superseded and no excluded Reading is accepted here.
+
+The claim parent is `pvmzprsz`; `before.json` reuses the source-equivalent full
+census at `nplzxtwkzkyslwmlysqrnpmmmuvnknxv`, covered **21,486**
+(`baseline-provenance.json`). The one authorized full feature census at
+`pnqvxvwqwkxqnqzrwsyppzyonqxlunrw` reports a raw covered count of **22,124**:
+32,828 faces, 10,704 unread, 7,472 unique and 14,652 multiple; 912,136 Readings.
+Face-by-face comparison finds zero lost faces and zero Reading-count decreases.
+The raw 638 newly admitted faces are **not a validated gain claim**.
+
+| Witness | Claim-parent Readings | Attempt Readings | Defect |
+| --- | ---: | ---: | --- |
+| Counterbore (`1198ec53-9050-417d-812f-692e1378d346#card`) | 0 | 39 | *as that spell* is a predicative PP Adjunct instead of the comparative Complement in *the same name as that spell*. |
+| Clone (`42226b87-0746-4ebf-9fd0-108d508462af#card`) | 0 | 18 | *as a copy of any creature* is an Adjunct instead of Enter's selected Complement. |
+| Aven Shrine (`09c450cf-5f22-45c2-86ed-21b85552a96f#card`) | 0 | 9 | The same comparative-to-Adjunct defect. |
+
+The [fixed-cost-phrases STOP and orchestrator resolution of 2026-10-06](../done/english-v3-fixed-cost-phrases.md#stop--comparative-admission-2026-10-06-resolved-by-orchestrator)
+expressly reject the comparative Adjunct analysis and defer comparative licensing.
+The [systemic-residuals predicative-as ruling](../planned/english-v3-systemic-residuals.md)
+requires Enter's *as a copy* to be a selected Complement, never a trailing Adjunct.
+The ticket's assigned position widening cannot waive either ruling. A declared-feature
+exclusion/selection repair needs a scope ruling; no word-naming guard or preference
+can repair admission. The request to extend scope and authorize one replacement
+full census is pending. The binding one-full-run budget has been exhausted, so
+no additional `--all` run has been performed.
+
+Evidence is under `target/english-v3/english-v3-focusing-only/`: `after.json`,
+`comparison.json`, `as-without-focus-gains.json` (all 78 newly admitted faces
+without focusing), `as-audit.json` (selector-only census), and the three named
+`*-as-tree.txt` extracts. The three previously covered increases are Deputy of
+Detention **96 → 396**, Banishment **96 → 396**, and Phyrexian Processor **2 → 5**;
+their added Readings also require audit before any landing.
+
+The full command was exactly
+`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/english-v3-focusing-only/after.json`.
+At the measured change / raw covered 22,124, wall time was **183,119,704,184 ns**,
+with 12 workers and host load **[7.3154296875, 5.84033203125, 8.9130859375]**;
+per-byte thread CPU was **501,981 ns/B**. The wall time exceeds the quiet-host
+**16,260,000,000 ns** advisory; it was not a quiet-host measurement. Structural
+validation found zero issues, duplicate Readings, cyclic derivations or internal
+failures; this does not establish that the admitted analyses are correct.
+
+Before these discoveries, `cargo test -p deckmaste_english_v3` passed **381** tests,
+`cargo test -p deckmaste_lexical_source` passed **56**, and
+`cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source --tests -- -D warnings`
+passed. Those green results missed the excluded Readings. Two additional regression
+tests retain the Counterbore and Clone exclusions and currently fail
+(`as-regressions-red.log`); they are not ignored or weakened. No test was removed.
+No xtask tests, Lean checks or derived gate were run. A pre-census Kata refresh
+changed no grammar, lexicon, runtime or census sources (`pre-census-refresh-proof.json`).
+The STOP tests fail as expected: **2 failed, 381 filtered out**, with neither
+ignored. Nightly formatting passes; `cargo xtask cite check` reports **0 stale**.

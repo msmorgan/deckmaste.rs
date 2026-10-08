@@ -84,6 +84,22 @@ fn bare_as_position_has_one_reading() {
 }
 
 #[test]
+fn selected_and_comparative_as_does_not_become_a_comparative_adjunct() {
+    // Project ruling: fixed-cost-phrases, comparative-admission STOP,
+    // resolved 2026-10-06. The comparative Complement is still unimplemented.
+    let text = "Counter target spell. Search its controller's graveyard, hand, and library for all cards with the same name as that spell and exile them. Then that player shuffles.";
+    assert!(readings(text, Category::Document).is_empty());
+}
+
+#[test]
+fn selected_and_comparative_as_does_not_become_an_enter_adjunct() {
+    // Project ruling: systemic-residuals, predicative-as, 2026-10-06.
+    // Enter's selected predicative Complement is still unimplemented.
+    let text = "You may have this creature enter as a copy of any creature on the battlefield.";
+    assert!(readings(text, Category::Document).is_empty());
+}
+
+#[test]
 fn quakebringer_focuses_the_final_adjunct_in_a_finite_clause() {
     let text = "This ability triggers only if Quakebringer is on the battlefield or if Quakebringer is in your graveyard and you control a Giant";
     assert_constituents(
