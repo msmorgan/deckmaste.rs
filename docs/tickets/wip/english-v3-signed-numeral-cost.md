@@ -94,5 +94,47 @@ cite check). Deltas:
 
 ## Landing record
 
-The six items in CLAUDE.md, plus: the Cost form and how the three sign
-spellings are declared; the count of Planeswalker faces read before/after.
+1. **Census delta**: `pvmvwtuq` (source-identical to original claim parent
+   `xrlqpono`): 23,216 covered faces / 1,147,462 Readings → `xnkuznpo`:
+   23,459 / 1,605,535. Refreshed trunk `qxqootwz`: 23,352 / 1,199,416;
+   this ticket adds 107 faces / 406,119 Readings (`xnkuznpo`). Lost faces:
+   none; count decreases: none; all previously covered digests unchanged
+   against both baselines (`xnkuznpo`). Planeswalkers: 0 (`pvmvwtuq`) →
+   107 of 314 (`xnkuznpo`). Final census (`xnkuznpo`): 9,369 no Reading,
+   8,170 one, 15,289 multiple; 0 validation/internal failures; exact
+   realization and node/word traversal passed.
+2. **Witnesses** (`xnkuznpo`, full Documents): Ob Nixilis, the Hate-Twisted: 5; Kiora, Behemoth Beckoner: 2; Arlinn, Voice of the Pack: 14; Jiang Yanggu, Wildcrafter: 5; Teyo, the Shieldmage: 7.
+3. **Spot checks** (`xnkuznpo`, first sampled Reading): each sequence below
+   is the Cost of an ActivatedAbility with a separate Paragraph body;
+   signed entries use SignedScalarCost, bare `0` uses ZeroScalarCost.
+   Ajani Vengeant: `+1 / −2 / −7`;
+   Ajani, Inspiring Leader: `+2 / −3 / −10`;
+   Ajani, Mentor of Heroes: `+1 / +1 / −8`;
+   Ajani, Nacatl Avenger: `+2 / 0 / −4`;
+   Ajani, the Greathearted: `+1 / −2`;
+   Angrath, Captain of Chaos: `−2`;
+   Angrath, Minotaur Pirate: `+2 / −3 / −11`;
+   Angrath, the Flame-Chained: `+1 / −3 / −8`;
+   Arlinn Kord: `+1 / 0`;
+   Arlinn, Voice of the Pack: `−2`
+4. **Deviations and STOPs**: SignedScalarCost reuses PositiveScalar's `+`
+   and NegativeScalar's `-`; U+2212 `−` is a separate NegativeScalar form.
+   ZeroScalarCost declares the unsigned-zero exception. ScalarSign and its
+   glossary entry distinguish explicit signs; the guard reads that feature.
+   No lexicon additions or superseded routes; no grammatical STOPs or glossary
+   gaps. Refresh inherited the as-though work (`tvknqzwq`, `xrxurmzr`, measured
+   `qxqootwz`), with no inherited decreases. One initial `--all` invocation
+   was interrupted during compilation after the refresh source gate failed;
+   the census had not started. The landing measurement is the single completed
+   full run. No CGEL claim was added for this Oracle notation.
+5. **Tests** (`xnkuznpo`): `cargo test -p deckmaste_english_v3` passed
+   (486 integration tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed. Refresh changed `core.ron`, so `cargo test -p deckmaste_lexical_source`
+   passed (23 unit / 34 integration tests), and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Assurance (`xnkuznpo`): restored 0 / re-spelled 0 / ignored with blockers 0 /
+   added 8 / removed 0. Five witness tests failed before the fix (`vvxtllnq`);
+   independent Cost construction, sign identity and traversal tests now pass.
+6. **Timing** (`xnkuznpo`): 214.70 seconds wall time, 12 workers,
+   one full `cargo xtask english-v3 --all --workers 12 --samples-per-face 0
+   --output target/english-v3/english-v3-signed-numeral-cost/after.json`.
