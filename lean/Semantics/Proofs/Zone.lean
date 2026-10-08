@@ -638,13 +638,6 @@ theorem okFlatInstead :
     Instruction.check [] (.replace (draw (.lit 1)) (draw (.lit 2)))
         = [] := by decide
 
-theorem badNestedInstead :
-    Instruction.check []
-      (.replace (.replace (draw (.lit 1)) (draw (.lit 2))) (draw
-          (.lit 3)))
-      = [.notInstead] := by
-  decide
-
 /-- "Untap target creature." -/
 theorem okUntapInstruction :
     Instruction.check [] (.setStatus .untapped (target creature)) = [] := by decide

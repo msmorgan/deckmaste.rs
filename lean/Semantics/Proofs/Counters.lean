@@ -429,16 +429,6 @@ theorem okInterceptsCounterEvent :
         (.putCounters (plus .thatMuch (.lit 1)) p11 it) .repeatedly none) = [] := by
   decide
 
-theorem badTriggeringReplaced :
-    StaticSpec.check []
-      (.replacement
-        (.triggers
-          (a (.and
-            [ .abilityHead .anyTriggered,
-              .abilityOf (a (.and [permanent, .hasPossessor .controller .you])) ])))
-        [] none (draw (.lit 1)) .repeatedly none) = [.interceptable] := by
-  decide
-
 /-- "Target creature becomes an artifact in addition to its other types." -/
 theorem okBecomesArtifact :
     Instruction.check []

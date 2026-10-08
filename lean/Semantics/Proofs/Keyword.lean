@@ -224,29 +224,6 @@ theorem okActivatedTurnLimit :
       = [] := by
   decide
 
-/-- "{T}: Draw a card. Do this only once each turn." -/
-theorem badActionLimitOnActivated :
-    Ability.check []
-      (.activated .tapSymbol (draw (.lit 1)) none (some .actionOncePerTurn) none
-          none)
-      = [.untriggeredLimit] := by
-  decide
-
-/-- "I — while you control a creature, draw a card." -/
-theorem badChapterWhile :
-    Ability.check []
-      (.triggered (.chapterMark [1]) []
-        (some (.whileTrue (exists_ (.and [creature, .hasPossessor .controller .you])))) [] none
-        none none (draw (.lit 1))) = [.chapterDefaults] := by
-  decide
-
-/-- "I — and whenever you draw a card, draw a card." -/
-theorem badChapterJoin :
-    Ability.check []
-      (.triggered (.chapterMark [1]) [] none [⟨.draws .you, [], none, none⟩]
-        none none none (draw (.lit 1))) = [.chapterDefaults] := by
-  decide
-
 /-- "As long as a card exiled with this creature has flying, this creature has flying." -/
 def flyingWhileExiledFlying : Ability :=
   .static

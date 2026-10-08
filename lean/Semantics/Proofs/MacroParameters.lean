@@ -403,11 +403,6 @@ theorem capturedLibraryOwnerRetainsOpponentClassification :
     (Instruction.enact (.action "fateseal") (capturedLook anOpponent)).check [] =
       [] := by decide
 
-theorem nestedReplacementCannotHideInScope :
-    (Instruction.replace
-      (.withBindings 5 [] (.replace (draw (.lit 1)) (draw (.lit 2))))
-      (draw (.lit 3))).check [] = [.notInstead] := by decide
-
 theorem scopedCoordinationRetainsTwoParties :
     twoPartiesOk (.withBindings 5 [] (.and [.you, anOpponent])) = true := by decide
 

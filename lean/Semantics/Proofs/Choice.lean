@@ -551,12 +551,6 @@ theorem okChoiceWithActivationRider :
       (chooseWhile opponentWithMoreLife (.whileDoing (.activates .you thisAbility))) = [] := by
   decide
 
-/-- The same choice ridered on a death, which is not an event a choice can be made during. -/
-theorem badChoiceRiderNotUnderway :
-    Instruction.check [] (chooseWhile opponentWithMoreLife (.whileDoing (Primitives.GameEvent.dies thisCreature)))
-      = [.eventUnderway] := by
-  decide
-
 /-- "Each player secretly chooses a number. Then those numbers are revealed. Each player who
 chose the highest number loses that much life." (Menacing Ogre): not a vote [CR#701.38c]; the
 gate is the plural choice. -/

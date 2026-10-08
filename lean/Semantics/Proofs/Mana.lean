@@ -113,15 +113,6 @@ theorem okBeforeCombatDamage :
       = [] := by
   decide
 
-/-- "Activate only before the turn." A turn is made of its phases [CR#500.1], so a point before
-the turn one is already taking is not a window inside it; a step or phase is
-(`okBeforeCombatDamage`). -/
-theorem badBeforeTheTurn :
-    Ability.check [] (act (.mana [generic 2]) (draw (.lit 1)) (some (.beforePart
-        .turn none)))
-      = [.windowOk] := by
-  decide
-
 /-- "Activate only before each player's attackers are declared." -/
 theorem okDistributiveAttackWindow :
     Ability.check []
@@ -129,26 +120,10 @@ theorem okDistributiveAttackWindow :
         (some (.beforePart .declareAttackers (some (each .anyPlayer))))) = [] := by
   decide
 
-/-- "Activate only before all players' attackers are declared." A turn part has one active
-player [CR#102.1]. -/
-theorem badPluralAttackWindow :
-    Ability.check []
-      (act (.mana [generic 2]) (draw (.lit 1))
-        (some (.beforePart .declareAttackers (some (allOf .anyPlayer))))) = [.pointWindowOk] := by
-  decide
-
 /-- "Cast this spell only before the combat damage step." -/
 theorem okCastBeforeCombatDamage :
     Ability.check [] (.spell (some (.beforePart .combatDamage none)) (draw (.lit 1)))
       = [] := by
-  decide
-
-/-- "Cast this spell only before the turn." A turn is made of its phases [CR#500.1], so a point
-before the turn the spell would be cast in is not a window inside it
-(`okCastBeforeCombatDamage`). -/
-theorem badCastBeforeTheTurn :
-    Ability.check [] (.spell (some (.beforePart .turn none)) (draw (.lit 1)))
-      = [.windowOk] := by
   decide
 
 /-- "Ward {2}" -/

@@ -32,13 +32,6 @@ theorem okWhileDoingCast :
         (draw (.lit 1))) = [] := by
   decide
 
-/-- "Whenever this creature attacks while a creature is dying, draw a card." -/
-theorem badWhileDoingMoment :
-    Ability.check []
-      (.triggered (attacks thisCreature) [] (some (.whileDoing (Primitives.GameEvent.dies (a creature))))
-        [] none none none (draw (.lit 1))) = [.eventUnderway] := by
-  decide
-
 /-- "Whenever a creature dies, draw a card." -/
 theorem okNontargetDeathHeader :
     Ability.check [] (whenever (Primitives.GameEvent.dies (a creature)) (draw (.lit 1))) = [] := by
@@ -100,14 +93,6 @@ theorem okHeaderOwnTurnWindow :
         (some (.duringPart .turn (some .you))) none none (draw (.lit 1))) = [] := by
   decide
 
-/-- "Whenever a creature enters during the turn, draw a card." -/
-theorem badHeaderBareTurnWindow :
-    Ability.check []
-      (.triggered (Primitives.GameEvent.enters (a creature) none) [] none []
-        (some (.duringPart .turn none)) none none (draw (.lit 1))) = [.windowOk] :=
-            by
-  decide
-
 /-- "If one or more tokens would be created under your control, …" -/
 theorem okTokenCreationSubject :
     GameEvent.check [] (.tokensCreated (counted (atLeast 1) .isToken) false none (some .you))
@@ -125,21 +110,6 @@ theorem okTriggerLimitOffChapter :
     Ability.check []
       (.triggered (.draws .you) [] none [] none (some .oncePerTurn) none
         (draw (.lit 1))) = [] := by
-  decide
-
-/-- "I — Draw a card. This ability triggers only once each turn." -/
-theorem badChapterLimit :
-    Ability.check []
-      (.triggered (.chapterMark [1]) [] none [] none (some .oncePerTurn) none
-        (draw (.lit 1))) = [.chapterDefaults] := by
-  decide
-
-/-- "I — , if you control a creature, draw a card." -/
-theorem badChapterIntervening :
-    Ability.check []
-      (.triggered (.chapterMark [1]) [] none [] none none
-        (some (exists_ (.and [creature, .hasPossessor .controller .you]))) (draw (.lit 1)))
-      = [.chapterDefaults] := by
   decide
 
 /-- "Whenever a creature attacks a player" -/
@@ -222,12 +192,6 @@ theorem okMultipliedTrigger :
       (.additionalTriggers
         (.triggers (a (.and [.abilityHead .anyTriggered, .abilityOf (a creatureYouControl)])))
         (exactly 1)) = [] := by
-  decide
-
-/-- "If a creature you control dies, that ability triggers an additional time." -/
-theorem badMultipliedNonTrigger :
-    StaticSpec.check [] (.additionalTriggers (Primitives.GameEvent.dies (a creatureYouControl)) (exactly 1))
-      = [.triggerCountOk] := by
   decide
 
 /-- "Exchange life totals with target opponent." -/

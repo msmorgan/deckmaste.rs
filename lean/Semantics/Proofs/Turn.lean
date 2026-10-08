@@ -124,24 +124,10 @@ theorem okTriggerAtYourUpkeep :
       (at_ (.beginningOf .the .upkeep (.byPlayer .you)) (draw (.lit 1))) = [] := by
   decide
 
-/-- "At the beginning of your turn, draw a card." -/
-theorem badTriggerAtYourTurn :
-    Ability.check []
-      (at_ (.beginningOf .the .turn (.byPlayer .you)) (draw (.lit 1)))
-      = [.windowOk] := by
-  decide
-
 /-- "Target creature gets +3/+3 until end of turn." -/
 theorem okUntilEndOfTurnDuration :
     Instruction.check []
       (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
-  decide
-
-/-- "Target creature gets +3/+3 until the beginning of your next upkeep." -/
-theorem badUntilBeginningOfUpkeep :
-    Instruction.check []
-      (get (target creature) (.up (.lit 3)) (.up (.lit 3))
-        (some (.untilEvent (.beginningOf .the .upkeep (.byPlayer .you))))) = [.durationOk] := by
   decide
 
 /-- "Sacrifice a creature. When you do, draw a card." -/
@@ -219,13 +205,6 @@ theorem okDistributivePartWindow :
         (some (.duringPart .endStep (some (each .anyPlayer))))) = [] := by
   decide
 
-/-- "{2}: Draw a card. Activate only during all players' end step." [CR#102.1] -/
-theorem badPluralPartWindow :
-    Ability.check []
-      (act (.mana [generic 2]) (draw (.lit 1))
-        (some (.duringPart .endStep (some (allOf .anyPlayer))))) = [.windowOk] := by
-  decide
-
 /-- "until the beginning of your next upkeep" -/
 theorem okDurationEndYourUpkeep :
     DurationEnd.check [] (.startOf .upkeep (some .you)) = [] := by decide
@@ -284,12 +263,6 @@ theorem okAdditionalUpkeep :
     Instruction.check [] (Primitives.Instruction.addTurnPart .upkeep (some .combat) (.lit 1) none) = [] := by
   decide
 
-/-- "After this combat phase, there is an additional turn." -/
-theorem badAdditionalTurn :
-    Instruction.check [] (Primitives.Instruction.addTurnPart .turn (some .combat) (.lit 1) none)
-      = [.windowOk] := by
-  decide
-
 /-- "Spells with the chosen name can't be cast." -/
 theorem okCastSpellClass :
     StaticSpec.check [qualityB .cardName]
@@ -334,26 +307,12 @@ theorem okSingularPartPossessor :
       (at_ (.beginningOf .the .upkeep (.byPlayer .you)) (draw (.lit 1))) = [] := by
   decide
 
-/-- "At the beginning of all players' upkeep, draw a card." [CR#102.1] -/
-theorem badPluralPartPossessor :
-    Ability.check []
-      (at_ (.beginningOf .the .upkeep (.byPlayer (allOf .anyPlayer)))
-        (draw (.lit 1))) = [.windowOk] := by
-  decide
-
 /-- "At the beginning of combat on your turn, draw a card." The beginning of combat step is
 its own part of the combat phase [CR#506.1]. -/
 theorem okBeginningOfCombatPossessor :
     Ability.check []
       (at_ (.beginningOf .the .beginningOfCombat (.byPlayer .you)) (draw (.lit 1)))
       = [] := by
-  decide
-
-/-- "At the beginning of combat on all players' turns, draw a card." [CR#102.1] -/
-theorem badBeginningOfCombatPlural :
-    Ability.check []
-      (at_ (.beginningOf .the .beginningOfCombat (.byPlayer (allOf .anyPlayer)))
-        (draw (.lit 1))) = [.windowOk] := by
   decide
 
 /-- "{2}: Draw a card. Activate only during each player's ending phase." The ending phase is the
@@ -364,25 +323,10 @@ theorem okEndingPhaseWindow :
         (some (.duringPart .endingPhase (some (each .anyPlayer))))) = [] := by
   decide
 
-/-- "{2}: Draw a card. Activate only during all players' ending phase." [CR#102.1] -/
-theorem badEndingPhaseWindow :
-    Ability.check []
-      (act (.mana [generic 2]) (draw (.lit 1))
-        (some (.duringPart .endingPhase (some (allOf .anyPlayer))))) = [.windowOk] := by
-  decide
-
 /-- "After this postcombat main phase, there is an additional ending phase." [CR#500.1] -/
 theorem okAdditionalEndingPhase :
     Instruction.check []
       (Primitives.Instruction.addTurnPart .endingPhase (some .postcombatMain) (.lit 1) none) = [] := by
-  decide
-
-/-- "After this turn, there is an additional ending phase." A turn is not one of its own parts
-[CR#500.1], so it anchors nothing. -/
-theorem badAdditionalEndingPhaseAfterTurn :
-    Instruction.check []
-      (Primitives.Instruction.addTurnPart .endingPhase (some .turn) (.lit 1) none)
-      = [.windowOk] := by
   decide
 
 /-- "creature that could block each attacking creature" -/

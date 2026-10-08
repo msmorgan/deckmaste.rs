@@ -250,7 +250,8 @@ theorem okUntilEndOfTurnDurationTwin :
       Instruction.check [] (getTwoHalves (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) := by
   decide
 
-/-- `Turn.badUntilBeginningOfUpkeep`: the same refusals in both spellings. -/
+/-- "Until the beginning of your next upkeep" (the pin `Turn.badUntilBeginningOfUpkeep` retired
+with `durationOk` by `lean-checker-sweep-timing`): the same refusals in both spellings. -/
 theorem badUntilBeginningOfUpkeepTwin :
     Instruction.check [] (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some (.untilEvent (.beginningOf .the .upkeep (.byPlayer .you))))) =
       Instruction.check [] (getTwoHalves (target creature) (.up (.lit 3)) (.up (.lit 3)) (some (.untilEvent (.beginningOf .the .upkeep (.byPlayer .you))))) := by

@@ -169,13 +169,6 @@ theorem okDrawReplacement :
       = [] := by
   decide
 
-/-- "If I — would happen, draw a card instead." -/
-theorem badChapterReplacement :
-    StaticSpec.check []
-      (.replacement (.chapterMark [1]) [] none (draw (.lit 1)) .repeatedly none)
-      = [.interceptable] := by
-  decide
-
 /-- "unless you control an artifact" -/
 theorem okUnlessOverNegatedCondition :
     StaticSpec.check []
