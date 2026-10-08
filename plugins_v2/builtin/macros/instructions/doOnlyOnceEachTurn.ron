@@ -1,0 +1,8 @@
+// "<instruction>. Do this only once each turn.": the instruction is limited,
+// not the ability that carries it, which still triggers each time [CR#603.2h].
+(
+    name: "doOnlyOnceEachTurn",
+    kinds: [Instruction],
+    params: {"instruction": Instruction},
+    body: Limited(Param(instruction), oncePerTurn),
+)

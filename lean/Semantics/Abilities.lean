@@ -470,6 +470,9 @@ mutual
     | withContinuation (policy : ContinuationPolicy) (body : Instruction)
         (ifDid : Option Instruction) (ifNot : Option Instruction)
     | doOnlyIf (instruction : Instruction) (condition : Condition) (otherwise : Option Instruction)
+    /-- "<instruction>. Do this only once each turn.": the instruction is limited, not the ability
+    that carries it; the ability still triggers, and is done only within `limit` [CR#603.2h]. -/
+    | limited (instruction : Instruction) (limit : UsageLimit)
     | doIf (condition : Condition) (instruction : Instruction) (otherwise : Option Instruction)
     | doForEach (group : NounPhrase) (body : Instruction)
     | doForEachKind (axis : KindAxis) (domain : Option NounPhrase) (sort : QualitySort)

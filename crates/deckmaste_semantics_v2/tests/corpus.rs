@@ -179,6 +179,8 @@ fn every_ported_alias_expands() {
         NounPhrase: "run(end: Top, stop: HasType(Land), pile: Graveyard(whose: Bare))",
         deckmaste_semantics_v2::phrase::ZoneExpr: "place(end: Bottom, pile: That)",
         Instruction: "draw(amount: Lit(value: 1))",
+        Instruction: "doOnlyOnceEachTurn(instruction: draw(amount: Lit(value: 1)))",
+        Instruction: "limited(instruction: draw(amount: Lit(value: 1)), limit: oncePerGame)",
         Instruction: "doIf(condition: Exists(subject: You), instruction: Shuffle(pile: Library(whose: Bare)))",
         Instruction: "choose(subject: You)",
         Instruction: "rollDice(count: 1, sides: 20)",

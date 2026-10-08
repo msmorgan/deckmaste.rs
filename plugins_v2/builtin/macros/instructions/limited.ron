@@ -1,0 +1,9 @@
+// `Instruction.Limited` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "limited",
+    kinds: [Instruction],
+    params: {"instruction": Instruction, "limit": UsageLimit},
+    body: Limited(Param(instruction), Param(limit)),
+)

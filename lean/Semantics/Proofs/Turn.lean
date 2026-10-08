@@ -578,4 +578,18 @@ theorem okCastWhenASorceryCouldNotHaveBeen :
       = [] := by
   decide
 
+/-- "Whenever you cast a spell, you may draw a card. Do this only once each turn." [CR#603.2h]:
+the ability triggers every time and the instruction is limited (Iron Man, Bleeding Edge and
+Donal, Herald of Wings; the retired `UsageLimit.actionOncePerTurn`). -/
+theorem okDoThisOnlyOnceEachTurn :
+    Ability.check [] (triggered (.casts .you (some (a spell)) none)
+      (doOnlyOnceEachTurn (offer (draw (.lit 1))))) = [] := by
+  decide
+
+/-- The limited instruction is checked as the instruction it wraps. -/
+theorem limitedChecksItsInstruction :
+    Instruction.check [] (.limited (move it hand) oncePerTurn) =
+      Instruction.check [] (move it hand) := by
+  decide
+
 end Semantics.Proofs.Turn

@@ -347,6 +347,7 @@ mutual
          | .optional => []
          | .required => refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure ++
              refuse (ifDoneArmed ifDid ifNot) .ifDoneArmed)
+    | .limited e limit => Instruction.checkWith bs perf e ++ UsageLimit.check bs limit
     | .doOnlyIf e c otherwise =>
       let bs' := e.preIntro bs
       Instruction.checkWith bs none e ++ Condition.check bs' c ++

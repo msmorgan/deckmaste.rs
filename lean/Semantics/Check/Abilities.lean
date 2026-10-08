@@ -782,6 +782,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .withContinuation _ body none _ => body.reflexEncloseUse
   | .withContinuation _ _ _ _ => .notOneAction
   | .act _ body => body.reflexEncloseUse
+  | .limited e _ => e.reflexEncloseUse
   | .doOnlyIf e _ _ => e.reflexEncloseUse
   | .doIf _ _ _ | .doForEach _ _ | .doForEachKind _ _ _ _ => .notOneAction
   | .repeat_ (.fixed _ body) =>
@@ -805,6 +806,7 @@ def Instruction.thisWayOutcomeOk : Instruction → Bool
   | .delay _ _ _ _ => false
   | .withContinuation _ body _ _ => body.thisWayOutcomeOk
   | .act _ body => body.thisWayOutcomeOk
+  | .limited e _ => e.thisWayOutcomeOk
   | _ => true
 
 def ifDoneArmed : Option Instruction → Option Instruction → Bool
@@ -1000,6 +1002,7 @@ mutual
          fresh.filter Binding.isAmountTotal⟩
     | .pay c _ => let who := performerOf perf; ⟨nomIntro bs who, Cost.intro (nomIntro bs who) c, none, [outcomeB
         .repeatCount]⟩
+    | .limited e _ => Instruction.profileWith bs perf e
     | .withContinuation policy body did notd =>
       let bodyP := Instruction.profileWith (policy.contextBy perf bs) none body
       mayProfile bodyP (Instruction.profileOpt bodyP.intro did) notd
@@ -1144,6 +1147,7 @@ def Instruction.replacedCtx (bs : Bindings) : Instruction → Bindings
   | .sequentially es => Instruction.annSeqs bs es
   | .withContinuation policy body _ _ => Instruction.replacedCtx (policy.context bs) body
   | .doOnlyIf e _ _ => Instruction.replacedCtx bs e
+  | .limited e _ => Instruction.replacedCtx bs e
   | .doIf _ _ _ => bs
   | e => e.introducedDeeds bs ++ e.annIntro bs
 
@@ -1180,6 +1184,7 @@ mutual
     | .sequentially es => Instruction.introducedChoicesAll es
     | .withContinuation _ body _ _ => body.introducedChoices
     | .act _ body => body.introducedChoices
+    | .limited e _ => e.introducedChoices
     | _ => []
   termination_by structural e => e
 
@@ -1402,7 +1407,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .moveCounters amount _ _ _ => [(amount, .clamped)]
   | .doubleCounters _ => []
   | .enact _ _ | .pay _ _ | .act _ _ => []
-  | .withContinuation _ _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ => []
+  | .withContinuation _ _ _ _ | .doOnlyIf _ _ _ | .doIf _ _ _ | .limited _ _ => []
   | .doForEach _ _ | .doForEachKind _ _ _ _ => []
   | .repeat_ repetition => repetition.numberSlots
   | .sequentially _ | .simultaneously _ | .chooseModes _ _ => []

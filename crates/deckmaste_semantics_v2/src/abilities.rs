@@ -1071,6 +1071,12 @@ pub enum Instruction {
         condition: Condition,
         otherwise: Option<Box<Instruction>>,
     },
+    /// "<instruction>. Do this only once each turn.": the instruction is
+    /// limited, not the ability that carries it [CR#603.2h].
+    Limited {
+        instruction: Box<Instruction>,
+        limit: UsageLimit,
+    },
     DoIf {
         condition: Condition,
         instruction: Box<Instruction>,

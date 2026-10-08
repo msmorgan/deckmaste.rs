@@ -158,10 +158,9 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Hero"],
       text :=
         [ keyword (.named "flying"),
-          triggeredOnlyOnce (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+          triggered (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
             (Primitives.Predicate.and [artifact, spell]))) none)
-            oncePerTurn
-            (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.nonlegendary]))
+            (doOnlyOnceEachTurn (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.nonlegendary])))
                 ],
       power := stat 3, toughness := stat 5 } }
 
@@ -172,18 +171,17 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
-        [ triggeredOnlyOnce
+        [ triggered
             (Primitives.GameEvent.casts Primitives.NounPhrase.you
               (some (a (Primitives.Predicate.and [ creature, spell, Primitives.Predicate.not
                 (Primitives.Predicate.hasSupertype .legendary),
                          Primitives.Predicate.hasKeyword (.the (.named "flying")) ])))
               none)
-            oncePerTurn
-            (offer
+            (doOnlyOnceEachTurn (offer
               (Primitives.Instruction.copy .fromStack it (.lit 1)
                 (copyCharacteristics {
                            subtypes := [creatureType "Spirit"], power := stat 1,
-                           toughness := stat 1 } true))) ],
+                           toughness := stat 1 } true)))) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Tawnos, the Toymaker -/

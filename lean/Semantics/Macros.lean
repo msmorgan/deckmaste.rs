@@ -422,6 +422,9 @@ semantic_macro oncePerTurn : UsageLimit := ⟨.moreThan (.lit 1), .turn⟩
 semantic_macro oncePerGame : UsageLimit := ⟨.moreThan (.lit 1), .game⟩
 /-- "only once during each of your turns" -/
 semantic_macro onceEachYourTurn : UsageLimit := ⟨.moreThan (.lit 1), .yourTurn⟩
+/-- "<instruction>. Do this only once each turn." [CR#603.2h] -/
+semantic_macro doOnlyOnceEachTurn (instruction : Instruction) : Instruction :=
+  .limited instruction oncePerTurn
 
 /-! ## Amounts -/
 
