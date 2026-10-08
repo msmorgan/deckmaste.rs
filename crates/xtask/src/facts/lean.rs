@@ -201,14 +201,19 @@ enum KeywordShape {
 }
 
 /// The category of one ability of a keyword's definition
-/// [CR#113.3b,113.3c,113.3d]. A definition is written in one of the three
-/// [CR#702.1], so a body ability of any other shape is a refusal.
+/// [CR#113.3a,113.3b,113.3c,113.3d]. A definition is written in these four
+/// [CR#702.1] — a spell ability as the half a keyword represents on an instant
+/// or sorcery spell [CR#702.174b] — so a body ability of any other shape is a
+/// refusal.
 fn category(ability: &Ability) -> anyhow::Result<&'static str> {
     Ok(match ability {
         Ability::Static { .. } => ".static",
         Ability::Triggered { .. } => ".triggered",
         Ability::Activated { .. } => ".activated",
-        other => anyhow::bail!("a keyword definition is static, triggered or activated: {other:?}"),
+        Ability::Spell { .. } => ".spell",
+        other => anyhow::bail!(
+            "a keyword definition is static, triggered, activated or spell: {other:?}"
+        ),
     })
 }
 
@@ -1030,6 +1035,35 @@ mod tests {
         assert!(
             error.contains("has no consuming or deferred codec class"),
             "{error}"
+        );
+    }
+
+    /// A spell ability is the half a keyword represents on an instant or
+    /// sorcery spell, written under that class's guard [CR#113.3a,702.174b],
+    /// so a definition holding one declares the spell category.
+    #[test]
+    fn a_class_guarded_spell_ability_declares_the_spell_category() {
+        let temp = fixture();
+        let path = temp
+            .path()
+            .join("plugins_v2/builtin/macros/keyword_abilities/storm.ron");
+        let source = fs::read_to_string(&path).unwrap();
+        fs::write(
+            &path,
+            source.replace(
+                "    ],\n)",
+                "        spell(doIf(matches(this, instantOrSorcery), draw(1))),\n    ],\n)",
+            ),
+        )
+        .unwrap();
+        let generated = render(temp.path()).unwrap();
+        let row = generated
+            .lines()
+            .find(|line| line.contains("word := .named \"storm\""))
+            .unwrap();
+        assert!(
+            row.contains("definition := [.triggered, .spell]"),
+            "{row}"
         );
     }
 
