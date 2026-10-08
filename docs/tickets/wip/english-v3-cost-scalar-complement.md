@@ -172,7 +172,11 @@ Refresh imported keyword-template changes `kuwpwmvu`, `szkkroqv`, `zvrkmqpx`,
 refresh, and the 15-face witness subset has identical Reading counts and
 Reading digests (`refresh-source-proof.json`, `inventory-refreshed.json`,
 `witnesses-refreshed.json`). The full comparison has **zero trunk-attributed
-Reading decreases**. The lexical adapter was rechecked because refresh changed
+Reading decreases**. The final refresh imported `wnnrmnpk` and `pzwktsnw`: only
+xtask Lean-definition/facts checker sources changed, with no parser, lexicon or
+corpus change (`final-refresh-source-proof.json`). The measured corpus numbers
+therefore remain stamped to their measured tree; no post-refresh census was
+run. The lexical adapter was rechecked because refresh changed
 it; Lean and plugin verification were outside the user's binding scope.
 
 Every counted Reading passes admission, lexical ownership/context, byte-exact
@@ -275,6 +279,10 @@ systemic-residuals ticket and the explicitly deferred comparative/where tickets.
 - Added the attested count Noun Unlock and its NounPremodifier use for the
   required Inquisitive Glimmer witness. Its surface forms already existed with
   other owners; it is not a new keyword-specific grammar route.
+- The repository formatter also reorders imports and wraps comments in six
+  lexical-source files (`compound.rs`, `error.rs`, `legacy/plugins.rs`, `lib.rs`,
+  `native.rs`, `supplement.rs`); those changes are formatting only and were
+  included in the measured/tested tree.
 - Added five integration tests in `tests/main.rs` → `tests/suite/`; re-spelled
   24 existing tests affected by shared Reading constructors. Assurance counts:
   **0 restored, 24 re-spelled, 0 ignored, 5 added, 0 removed**. Their names and
