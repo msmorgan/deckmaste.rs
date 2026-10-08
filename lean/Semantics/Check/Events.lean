@@ -87,15 +87,7 @@ def deedHeadTysOk (v : Deed) (r : Role) : List (List CardType) → Bool
   | alts => alts.all (deedAltOk v r)
 
 def deedZoneOf (v : Deed) (r : Role) : Option Zone := (deedRoleOf v r).zone
-/-- The deed a defender is declared against: attacking, the turn-based action [CR#508.1,508.1b]. -/
-def deedDefendsOk (v : Deed) : Bool := v == .core .attack
-/-- The deed that makes an object a target [CR#115.1]. -/
-def deedTargetedOk (v : Deed) : Bool := v == .core .target
-def deedPremiseSort (v : Deed) : Option PremiseSort := deedFacts v >>= (·.counterfactual)
-def deedPremiseOk (s : PremiseSort) (v : Deed) : Bool := deedPremiseSort v == some s
 def deedRidesOk (v : Deed) : Bool := (deedFacts v).elim false (·.rides)
-def deedPlaysOk (v : Deed) : Bool := (deedFacts v).elim false (·.plays)
-def deedBoundedOk (v : Deed) : Bool := (deedFacts v).elim false (·.bounded)
 
 def knownActs (ds : Deeds) : Bool := ds.all knownAct
 
@@ -121,19 +113,6 @@ def deedFits (ds : Deeds) (r : Role) (k : Kind) (ab : Bool) (ts : List (List Car
   ds.all fun d =>
     deedKindOk d r k && deedClassOk d r ab && deedHeadTysOk d r ts &&
       zoneFits z (deedZoneOf d r)
-
-def playWindowOk : Option PlayLimit → Option PlayTiming → Bool
-  | _, none => true
-  | some .onceEachYourTurn, some .duringEachOfYourTurns => false
-  | _, _ => true
-
-def playableFrom : Option Zone → Bool
-  | some .stack => false
-  | _ => true
-
-def Zone.placementDestOk : Zone → Bool
-  | .battlefield | .stack => false
-  | _ => true
 
 /-- Idris `Possessable z`: the zones a player owns. -/
 def Zone.possessable : Zone → Bool

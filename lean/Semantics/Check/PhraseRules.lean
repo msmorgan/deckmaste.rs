@@ -712,10 +712,10 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
     | .flipsCoin who _ => NounPhrase.checkIn gap (some .player) bs who
     | .rollsDice who _ _ res => NounPhrase.checkIn gap (some .player) bs who ++ RollWatch.checkIn
       gap bs res
-    | .paysCost who _ whose kw =>
+    | .paysCost who _ whose _ =>
       OptNoun.checkIn gap (some .player) bs who ++ NounPhrase.checkIn gap (some .object)
         (optAgentIntro bs who) whose ++
-        refuse (keywordCosts kw) (.keywordCost kw) ++ refuse whose.plur.isOne .singular
+        refuse whose.plur.isOne .singular
     | .paysLife who => NounPhrase.checkIn gap (some .player) bs who
     | .lifeChanges who _ => NounPhrase.checkIn gap (some .player) bs who
     | .verbedEvent who v what becomes locus =>

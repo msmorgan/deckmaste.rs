@@ -1104,27 +1104,6 @@ mutual
   termination_by structural ns => ns
 end
 
-mutual
-  def NounPhrase.costNounOk : NounPhrase → Bool
-    | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.costNounOk
-    | .asType _ n _ => n.costNounOk
-    | .resolvedPermanent n => n.costNounOk
-    | .asMarker _ n => n.costNounOk
-    | .eachOf g => g.costNounOk
-    | .namesAgree _ g => g.costNounOk
-    | .someOf _ _ g => g.costNounOk
-    | .or ns => NounPhrase.allCostNounOk ns
-    | .and _ => false
-    | .pro (.verbed _ (some _) _) _ _ => false
-    | _ => true
-  termination_by structural n => n
-
-  def NounPhrase.allCostNounOk : List NounPhrase → Bool
-    | [] => true
-    | n :: ns => n.costNounOk && NounPhrase.allCostNounOk ns
-  termination_by structural ns => ns
-end
-
 def NounPhrase.selfDefinedOk : NounPhrase → Bool
   | .pro (.parameter shape) _ _ => shape.selfDefined
   | .laterMention _ n => n.selfDefinedOk
@@ -1938,10 +1917,6 @@ def selfSubjIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.self
 def captureOperands (bs : Bindings) (subjects : List NounPhrase) : Bindings :=
   captureBindings bs 0 (subjects.map CaptureInput.subject)
 
-def CaptureInput.costNounOk : CaptureInput → Bool
-  | .subject noun => noun.costNounOk
-  | .value _ => true
-
 
 def subjCtx (bs : Bindings) : Option NounPhrase → Bindings
   | none => bs
@@ -2065,13 +2040,6 @@ def Condition.intro (bs : Bindings) (c : Condition) : Bindings := Condition.intr
 def interveningIntro (bs : Bindings) : Option Condition → Bindings
   | none => bs
   | some c => c.intro bs
-
-def playSourceOk : Option Zone → Option ZoneExpr → Bool → Bool
-  | zn, none, false => zn.elim true Zone.placementDestOk
-  | zn, some z, false =>
-    playableFrom z.sort && (!zn.elim true Zone.placementDestOk || zoneFits zn z.sort)
-  | _, none, true => true
-  | _, some z, true => playableFrom z.sort
 
 def Condition.isAnd : Condition → Bool
   | .withBindings _ _ body | .inCaller _ body => body.isAnd

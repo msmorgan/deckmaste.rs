@@ -62,7 +62,7 @@ def CostShift.check (bs : Bindings) : CostShift → List Refusal
   | .less amt floor =>
     Amount.check bs amt ++ (match floor with | none => [] | some f => Amount.check bs f)
   | .more amt => Amount.check bs amt
-  | .run r _ _ => refuse (manaRun r) .manaRun ++ ManaCost.check r
+  | .run r _ _ => refuse (!r.isEmpty) .nonEmpty ++ ManaCost.check r
 
 def CountBound.check (bs : Bindings) : CountBound → List Refusal
   | .moreThan k => Amount.check bs k
@@ -325,8 +325,7 @@ mutual
         refuse (enactLibraryOwnerOkIn inner v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
     | .pay c _ => let who := performerOf perf;
-      NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c ++
-        refuse c.payable .payable ++ refuse (payAgreesOkIn bs who c) .payAgrees
+      NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c
     | .act who body =>
       let inner := actorCtx bs who
       if who.plur == .many && body.performed then
@@ -370,8 +369,7 @@ mutual
     | .chooseModes q modes =>
       Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++
         refuse (atLeastTwo modes.length) .atLeastTwo ++
-        refuse (q.modesFit modes.length) .modesFit ++
-        refuse (modesCostedUniformly modes) .modesCosted ++ Instruction.checkModes bs modes
+        refuse (q.modesFit modes.length) .modesFit ++ Instruction.checkModes bs modes
     | .delay ev alts span body =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptDuration.check bs span ++
         Instruction.checkWith (delayedCtx bs alts ev) none body
@@ -440,10 +438,10 @@ mutual
     | .inCaller scope body =>
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         Cost.check (enterCaller scope bs) body
-    | .mana c => refuse (manaRun c) .manaRun ++ ManaCost.check c
+    | .mana c => refuse (!c.isEmpty) .nonEmpty ++ ManaCost.check c
     | .scaled c amt => Cost.check bs c ++ Amount.check bs amt ++ refuse amt.forEach .forEachAmount
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ | .itsManaCost => []
-    | .perform e => Instruction.checkWith bs none e ++ refuse e.costActionOk .costAction
+    | .perform e => Instruction.checkWith bs none e
     | .compound cs => refuse (!cs.isEmpty) .nonEmpty ++ Cost.checkSeq bs cs
     | .or cs =>
       refuse (atLeastTwo cs.length) .atLeastTwo ++ Cost.checkAlternatives bs cs ++
@@ -471,7 +469,7 @@ mutual
   termination_by structural c => c
 
   def PlayPayment.check (bs : Bindings) : PlayPayment → List Refusal
-    | .payingInstead c => Cost.check bs c ++ refuse c.offBattlefield .altPayment
+    | .payingInstead c => Cost.check bs c
     | _ => []
   termination_by structural p => p
 
@@ -613,9 +611,8 @@ mutual
     | .costShift n sh =>
       NounPhrase.check (some .object) bs n ++ sh.check bs
     | .altCost n c =>
-      NounPhrase.check (some .object) bs n ++ OptCost.check (selfSubjIntro bs n) c ++
-        refuse (c.elim true Cost.offBattlefield) .altPayment
-    | .addedCost c _ => Cost.check bs c ++ refuse c.offBattlefield .addedPayment
+      NounPhrase.check (some .object) bs n ++ OptCost.check (selfSubjIntro bs n) c
+    | .addedCost c _ => Cost.check bs c
     | .letterDefinition l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .abilityGrant n ab =>
       NounPhrase.check (some .object) bs n ++ Ability.check bs ab ++
@@ -640,11 +637,7 @@ mutual
         refuse (!deeds.isEmpty) .nonEmpty ++ refuse (distinctDeeds deeds) .distinct ++
         refuse (knownActs deeds) .deedFits ++
         refuse (deedFits deeds role k n.isAbility (NounPhrase.headTys bs n) (NounPhrase.zone bs n)) .deedFits ++
-        refuse (deonticBoundOk bs' deeds bound) .deonticBoundOk ++
-        refuse (deonticPatientOk bs n deeds role patient rider) .deonticPatientOk ++
-        refuse (asThoughOk c deeds asThough) .asThoughOk ++
-        refuse (deonticRiderOk (patient.intro bs') deeds role c patient asThough.isSome rider)
-          .deonticRiderOk
+        refuse (deonticPatientOk bs n deeds role patient) .deonticPatientOk
     | .manaRetention who what => NounPhrase.check (some .player) bs who ++ what.check (nomIntro bs
         who)
     | .partSkip who _ => NounPhrase.check (some .player) bs who
@@ -726,13 +719,11 @@ mutual
       KeywordParam.checkAll bs ((keywordSchemaFor k param).getD []) param ++
         Ability.checkAll [] body ++
         refuse (keywordParamFits k param) (.keywordParamFits k) ++
-        refuse (keywordBodyFits k body) (.keywordBodyFits k) ++
-        refuse (keywordCostPaidByYou k param) (.keywordCostPaidByYou k)
+        refuse (keywordBodyFits k body) (.keywordBodyFits k)
     | .activated cost instr window _ guard activator =>
       let bs := ownPerformerCtx bs
       let bsc := dropLetter .x bs
       Cost.check bsc cost ++ Instruction.checkWith (publicOnly (cost.intro bsc)) none instr ++
-        refuse cost.tapOnce .costTapOnce ++ refuse cost.paidByYou .costPaidByYou ++
         OptTiming.check bs window ++ OptCondition.check bs guard ++ OptNoun.check (some .player) bs activator
     | .triggered ev alts while_ joins window _ intervening instr =>
       let bs := ownPerformerCtx bs

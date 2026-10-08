@@ -48,14 +48,6 @@ def Exchanged.deed : Exchanged → List Binding
   | .lifeTotals _ => [outcomeB .lifeGained, outcomeB .lifeLost]
   | _ => []
 
-def Exchanged.costOk : Exchanged → Bool
-  | .lifeTotals parties => parties.costNounOk
-  | .controlOf a b => a.costNounOk && b.costNounOk
-  | .cardsAcross a b => a.costNounOk && b.costNounOk
-  | .zones _ _ => true
-  | .values _ _ => true
-  | .textBoxes a b => a.costNounOk && b.costNounOk
-
 /-- The numerical values an exchange can set [CR#701.12g]: a life total, a power or
 toughness, or a rolled result. -/
 def Amount.settableValue : Amount → Bool
@@ -177,14 +169,6 @@ def CostShift.introduced (bs : Bindings) : CostShift → List Binding
 
 def gatePayer : Binding := ⟨.the, .one, .player false, []⟩
 
-def CountBound.introduced (bs : Bindings) : CountBound → List Binding
-  | .moreThan k => Amount.introduced bs k
-  | .additional q => Quantity.introduced bs q
-
-def deonticBoundOk (bs : Bindings) (ds : Deeds) : Option CountBound → Bool
-  | none => true
-  | some b => ds.all deedBoundedOk && (b.introduced bs).isEmpty
-
 def DeonticPatient.intro (bs : Bindings) : DeonticPatient → Bindings
   | .noPatient => bs
   | .defendingPlayer m => nomIntro bs m
@@ -192,13 +176,9 @@ def DeonticPatient.intro (bs : Bindings) : DeonticPatient → Bindings
   | .targetedBy m => nomIntro bs m
   | .counterpartsAt _ => bs
 
-def Role.isAgent : Role → Bool
-  | .agent => true
-  | .patient => false
-
-def counterpartFits (bs : Bindings) (ds : Deeds) (r : Role) (m : NounPhrase) (moved : Bool) : Bool :=
-  deedFits ds r (m.kindOr .object) m.isAbility (NounPhrase.headTys bs m)
-    (if moved then none else NounPhrase.zone bs m)
+/-- A counterpart is of a kind every deed's role `r` takes. -/
+def counterpartKindOk (ds : Deeds) (r : Role) (m : NounPhrase) : Bool :=
+  ds.all fun d => deedKindOk d r (m.kindOr .object)
 
 /-- A counterpart named after `n` must not be `n` read back. -/
 def counterpartNotSelf (bs : Bindings) (n m : NounPhrase) : Bool :=
@@ -214,7 +194,7 @@ def counterpartNotSelf (bs : Bindings) (n m : NounPhrase) : Bool :=
 
 def complementAtOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role) (c : DeedComplement) :
     Bool :=
-  ds.elem c.deed && counterpartFits (nomIntro bs n) [c.deed] r.counter c.counterpart false &&
+  ds.elem c.deed && counterpartKindOk [c.deed] r.counter c.counterpart &&
     counterpartNotSelf bs n c.counterpart
 
 def DamageScope.intro (bs : Bindings) : DamageScope → Bindings
@@ -681,42 +661,17 @@ def StaticSpec.notCarvedOut : StaticSpec → Bool
   | .retention _ _ => false
   | _ => true
 
-def DeonticRider.playRidden : DeonticRider → Bool
-  | .noRider | .stateBased _ => false
-  | .play _ _ _ _ _ => true
-
-def deonticPatientOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role) (patient : DeonticPatient)
-    (rider : DeonticRider) : Bool :=
+/-- A deontic rule's counterparts, read as references and kinds: each counterpart is of a kind
+the deed's other role takes, a complement names one of the rule's own deeds and no deed twice,
+and a counterpart named after the subject is not the subject read back (`counterpartNotSelf`).
+Which deeds a patient form goes with, and a counterpart's object class, card types and zone, are
+game rules the checker does not assert (`lean-checker-sweep-costs`). -/
+def deonticPatientOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role)
+    (patient : DeonticPatient) : Bool :=
   match patient with
-  | .noPatient => true
-  | .defendingPlayer _ => ds.all deedDefendsOk && r.isAgent
-  | .counterpart m => counterpartFits (nomIntro bs n) ds r.counter m rider.playRidden && counterpartNotSelf bs n m
-  | .targetedBy _ => ds.all deedTargetedOk
+  | .noPatient | .defendingPlayer _ | .targetedBy _ => true
+  | .counterpart m => counterpartKindOk ds r.counter m && counterpartNotSelf bs n m
   | .counterpartsAt cs => distinctDeeds (cs.map (·.deed)) && cs.all (complementAtOk bs n ds r)
-
-def asThoughOk : Compulsion → Deeds → Option AsThough → Bool
-  | _, _, none => true
-  | .permit, ds, some a => ds.all (deedPremiseOk a.sort)
-  | _, _, some _ => false
-
-def Compulsion.permits : Compulsion → Bool
-  | .permit => true
-  | _ => false
-
-/-- The deed caused by a state-based condition [CR#704.5a]. -/
-def StateBasedCause.deed : StateBasedCause → CoreDeed
-  | .nonpositiveLife => .loseGame
-
-def deonticRiderOk (bs : Bindings) (ds : Deeds) (r : Role) (c : Compulsion) (pat : DeonticPatient)
-    (at_ : Bool) : DeonticRider → Bool
-  | .noRider => true
-  | .stateBased cause => ds.all (· == .core cause.deed)
-  | .play from_ lim win exc _ =>
-    match pat with
-    | .counterpart m =>
-      c.permits && ds.all deedPlaysOk && r.isAgent && playSourceOk (NounPhrase.zone bs m) from_ at_ &&
-        playWindowOk lim win && (!exc || from_.isSome)
-    | _ => false
 
 def DamageOp.intro (bs : Bindings) : DamageOp → Bindings
   | .prevent cut _ => cut.intro bs
@@ -981,97 +936,6 @@ mutual
   termination_by structural parts => parts
 end
 
-/-! How many times a cost turns the source itself over [CR#107.5,107.6]. -/
-mutual
-  def Cost.selfTapUses : Cost → Nat
-    | .withBindings _ _ body | .inCaller _ body => body.selfTapUses
-    | .scaled c _ => c.selfTapUses
-    | .tapSymbol => 1
-    | .untapSymbol => 1
-    | .compound cs => Cost.selfTapCount cs
-    | .or cs => Cost.selfTapMax cs
-    | _ => 0
-  termination_by structural c => c
-
-  def Cost.selfTapMax : List Cost → Nat
-    | [] => 0
-    | c :: cs => max c.selfTapUses (Cost.selfTapMax cs)
-  termination_by structural cs => cs
-
-  def Cost.selfTapCount : List Cost → Nat
-    | [] => 0
-    | c :: cs => c.selfTapUses + Cost.selfTapCount cs
-  termination_by structural cs => cs
-end
-
-mutual
-  def Cost.tapOnce : Cost → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.tapOnce
-    | .scaled c _ => c.tapOnce
-    | .compound cs => Cost.selfTapCount cs ≤ 1
-    | .or cs => Cost.allTapOnce cs
-    | _ => true
-  termination_by structural c => c
-
-  def Cost.allTapOnce : List Cost → Bool
-    | [] => true
-    | c :: cs => c.tapOnce && Cost.allTapOnce cs
-  termination_by structural cs => cs
-end
-
-/-- `actor` itself, through scope wrappers. -/
-def NounPhrase.isActor : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.isActor
-  | .laterMention _ body => body.isActor
-  | .actor => true
-  | _ => false
-
-/-- Whether a performed cost instruction is the controller's, given whether its performer is.
-A life payment targets its payer; granting life may target anyone [CR#119.4]. A handoff names
-the performer of its body, so a payment inside it is judged as that player's. -/
-def Instruction.paidByYouAs (performerIsYou : Bool) : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.paidByYouAs performerIsYou
-  | .changeLife (.down _) => performerIsYou
-  | .enact v _ => !deedNamesPerformer v || performerIsYou
-  | .act who body => body.paidByYouAs (if who.isActor then performerIsYou else who.isYou)
-  | _ => true
-
-mutual
-  /-- `paidByYou` with the cost's performer given: the controller outside every handoff. -/
-  def Cost.paidByYouAs (performerIsYou : Bool) : Cost → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.paidByYouAs performerIsYou
-    | .scaled c _ => c.paidByYouAs performerIsYou
-    | .perform instruction => instruction.paidByYouAs performerIsYou
-    | .compound cs => Cost.allPaidByYouAs performerIsYou cs
-    | .or cs => Cost.allPaidByYouAs performerIsYou cs
-    | _ => true
-  termination_by structural c => c
-
-  def Cost.allPaidByYouAs (performerIsYou : Bool) : List Cost → Bool
-    | [] => true
-    | c :: cs => c.paidByYouAs performerIsYou && Cost.allPaidByYouAs performerIsYou cs
-  termination_by structural cs => cs
-end
-
-/-- A cost the controller pays: its performer is the controller. -/
-def Cost.paidByYou (c : Cost) : Bool := c.paidByYouAs true
-
-/-- A keyword whose parameter cost the controller pays ("cumulative upkeep {2}", "ward {2}")
-takes a cost payable by you; a deed done by another player is not a payment of it. -/
-def keywordCostPaidByYou (k : KeywordLabel) (params : List KeywordParam) : Bool :=
-  !(keywordFactsFor k).elim false (·.paidCost) || params.all (fun param =>
-    match param with
-    | .cost c => c.paidByYou
-    | _ => true)
-
-
-def payAgreesOk (who : NounPhrase) (c : Cost) : Bool := !who.isYou || c.paidByYou
-
-/-- `payAgreesOk` read in its handoff: the payer through `actorView`, and an `actor` inside the
-cost as the current performer. -/
-def payAgreesOkIn (bs : Bindings) (who : NounPhrase) (c : Cost) : Bool :=
-  !(who.actorView bs).isYou || c.paidByYouAs (NounPhrase.actor.isYouIn bs)
-
 mutual
   def Cost.offBattlefield : Cost → Bool
     | .withBindings _ _ body | .inCaller _ body => body.offBattlefield
@@ -1085,21 +949,6 @@ mutual
   def Cost.allOffBattlefield : List Cost → Bool
     | [] => true
     | c :: cs => c.offBattlefield && Cost.allOffBattlefield cs
-  termination_by structural cs => cs
-end
-
-mutual
-  def Cost.payable : Cost → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.payable
-    | .scaled c _ => c.payable
-    | .tapSymbol | .untapSymbol | .loyaltySymbol _ => false
-    | .or cs => Cost.allPayable cs
-    | _ => true
-  termination_by structural c => c
-
-  def Cost.allPayable : List Cost → Bool
-    | [] => true
-    | c :: cs => c.payable && Cost.allPayable cs
   termination_by structural cs => cs
 end
 
@@ -1165,74 +1014,6 @@ def Instruction.thisWayOutcomeOk : Instruction → Bool
   | .withContinuation _ body _ _ => body.thisWayOutcomeOk
   | .act _ body => body.thisWayOutcomeOk
   | _ => true
-
-def StaticSpec.definitionCostOk : StaticSpec → Bool
-  | .withBindings _ inputs body => inputs.all CaptureInput.costNounOk && body.definitionCostOk
-  | .inCaller _ body => body.definitionCostOk
-  | .letterDefinition _ _ => true
-  | _ => false
-
-mutual
-  def Instruction.costActionOk : Instruction → Bool
-    | .withBindings _ inputs body => inputs.all CaptureInput.costNounOk && body.costActionOk
-    | .inCaller _ body | .ownScope _ body => body.costActionOk
-    | .dealDamage src _ _ => src.costNounOk
-    | .skipUntap n _ => n.costNounOk
-    | .addTurnPart _ _ _ _ => true
-    | .distribute _ _ among => among.costNounOk
-    | .turnOver n => n.costNounOk
-    | .setStatus _ n => n.costNounOk
-    | .combat n _ => n.costNounOk
-    | .attachment _ what _ => what.costNounOk
-    | .clearDamage n => n.costNounOk
-    | .doAndForbid e _ _ => e.costActionOk
-    | .gainDesignation n _ _ => n.costNounOk
-    | .unlock .thisDoor => true
-    | .unlock (.doorOf _ room) => room.costNounOk
-    | .setGameDesignation _ | .conclude _ | .drawGame | .changeLife _ | .draw _ => true
-    | .createObject _ (.emblem _) => true
-    | .establish spec none => spec.definitionCostOk
-    | .separateIntoPiles grp _ _ => grp.costNounOk
-    | .copy _ what _ _ => what.costNounOk
-    | .chooseNewTargets what => what.costNounOk
-    | .copyTargets cp _ => cp.costNounOk
-    | .choose _ n _ _ => n.costNounOk
-    | .move what _ _ _ => what.costNounOk
-    | .exchange what => what.costOk
-    | .addMana _ _ _ | .expose _ _ | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _
-    | .rerollStored _ _ | .createObject _ _ => NounPhrase.actor.costNounOk
-    | .putCounters _ _ on => on.costNounOk
-    | .removeCounters _ _ from_ => from_.costNounOk
-    | .moveCounters _ _ src dst => src.costNounOk && dst.costNounOk
-    | .doubleCounters on => on.costNounOk
-    | .enact _ e => e.costActionOk
-    | .act who body => who.costNounOk && body.costActionOk
-    | .withContinuation _ body ifDid ifNot => body.costActionOk && Instruction.costActionOkOpt ifDid &&
-        Instruction.costActionOkOpt ifNot
-    | .doOnlyIf e _ otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
-    | .doIf _ e otherwise => e.costActionOk && Instruction.costActionOkOpt otherwise
-    | .doForEach _ body => body.costActionOk
-    | .doForEachKind _ _ _ body => body.costActionOk
-    | .repeat_ (.fixed _ (.sequentially es)) => Instruction.costStepsOk es
-    | .repeat_ (.fixed _ body) => body.costActionOk
-    | .chooseModes _ modes => Instruction.costModesOk modes
-    | _ => false
-  termination_by structural e => e
-
-  def Instruction.costActionOkOpt : Option Instruction → Bool
-    | none => true
-    | some e => e.costActionOk
-
-  def Instruction.costModesOk : List (Option Cost × Instruction) → Bool
-    | [] => true
-    | (_, e) :: es => e.costActionOk && Instruction.costModesOk es
-  termination_by structural es => es
-
-  def Instruction.costStepsOk : List Instruction → Bool
-    | [] => true
-    | e :: es => e.costActionOk && Instruction.costStepsOk es
-  termination_by structural es => es
-end
 
 def ifDoneArmed : Option Instruction → Option Instruction → Bool
   | none, none => false

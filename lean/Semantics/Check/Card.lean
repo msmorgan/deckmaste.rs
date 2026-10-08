@@ -269,7 +269,7 @@ def PrototypeFrame.box (a : PrototypeFrame) : Characteristics :=
 
 def prototypeAltCheck (inner : Characteristics) (alternative : PrototypeFrame) : List Refusal :=
   refuse alternative.cost.isSome .cardCost ++
-    refuse (alternative.cost.elim true manaRun) .manaRun ++
+    refuse (alternative.cost.elim true (!·.isEmpty)) .nonEmpty ++
     (alternative.cost.map ManaCost.check).getD [] ++
     refuse alternative.box.ptWritten .prototypeFrame ++
     refuse (cardBoxOk .front inner.types [] alternative.box) .cardBox

@@ -117,8 +117,6 @@ inductive Refusal where
   | durationPossessor
   | quantLiteral
   | modesFit
-  /-- Every mode is costed, or none is [CR#702.172a]. -/
-  | modesCosted
   | facesFit
   | chapterMarks
   | distinct
@@ -136,9 +134,6 @@ inductive Refusal where
   | costNameable
   | keywordParamFits (k : KeywordLabel)
   | keywordBodyFits (k : KeywordLabel)
-  | keywordCost (k : KeywordLabel)
-  /-- A keyword whose parameter is a cost the controller pays takes a cost payable by you. -/
-  | keywordCostPaidByYou (k : KeywordLabel)
   | deedFits
   /-- The deed opens an opponent's library [CR#701.29a]. -/
   | opponentsLibrary
@@ -163,32 +158,23 @@ inductive Refusal where
   | settableValue
   | selfExchanged
   | numberChoiceInScope
-  | deonticBoundOk
+  /-- A deontic rule's counterpart is the subject read back, is of a kind the deed's other role
+  does not take, or a complement names a deed outside the rule or twice. -/
   | deonticPatientOk
-  | asThoughOk
-  | deonticRiderOk
   | deckReadable
   | deckComparable
   | selfDefinedOk
   | grantSubject
   | grantable
-  | altPayment
-  | addedPayment
   | notCarvedOut
   | notCoord
   | clauseStatic
   | becomesOk
   | damageOpUse
-  | manaRun
   /-- A hybrid or Phyrexian symbol names two different halves [CR#107.4e,107.4f]. -/
   | manaSymbolOk
   | forEachAmount
-  | costAction
   | notCompound
-  | payable
-  | payAgrees
-  | costTapOnce
-  | costPaidByYou
   | reflexEnclosure
   | thisWayOutcome
   | ifDoneArmed

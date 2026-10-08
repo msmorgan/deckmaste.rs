@@ -198,10 +198,7 @@ structure ActFacts where
   agentRole : DeedRole := noRole
   patientRole : DeedRole := noRole
   feature : Option DeedFeature := none
-  counterfactual : Option PremiseSort := none
   rides : Bool := false
-  plays : Bool := false
-  bounded : Bool := false
   /-- The deed opens an opponent's library ("fateseal" [CR#701.29a]); the same look over one's
   own library is a different deed. -/
   opponentsLibrary : Bool := false
@@ -233,29 +230,25 @@ def coreDeedFacts : CoreDeed → ActFacts
   [CR#508.1,508.1a]. -/
   | .attack =>
       { agentRole := ⟨some ⟨.either, [], [.creature]⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], [.planeswalker, .battle]⟩, false, some .battlefield⟩,
-        counterfactual := some .object, bounded := true }
+        patientRole := ⟨some ⟨.object, [], [.planeswalker, .battle]⟩, false, some .battlefield⟩ }
   | .block =>
       { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], [.creature]⟩, false, some .battlefield⟩,
-        counterfactual := some .object, bounded := true }
+        patientRole := ⟨some ⟨.object, [], [.creature]⟩, false, some .battlefield⟩ }
   | .target =>
       { agentRole := ⟨none, true, some .stack⟩,
-        patientRole := ⟨some ⟨.either, [], allTypes⟩, true, none⟩,
-        counterfactual := some .object, bounded := true }
+        patientRole := ⟨some ⟨.either, [], allTypes⟩, true, none⟩ }
   | .copy =>
       { agentRole := ⟨none, true, some .stack⟩,
-        patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩,
-        bounded := true }
+        patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩ }
   | .draw =>
       { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, true, some .library⟩, bounded := true }
-  | .gainLife => { agentRole := playerAgent, bounded := true }
+        patientRole := ⟨some ⟨.object, [], []⟩, true, some .library⟩ }
+  | .gainLife => { agentRole := playerAgent }
   | .loseGame => { agentRole := playerAgent }
   | .winGame => { agentRole := playerAgent }
-  | .spend => { agentRole := playerAgent, counterfactual := some .mana, bounded := true }
+  | .spend => { agentRole := playerAgent }
   | .trigger =>
-      { agentRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩, bounded := true }
+      { agentRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩ }
   | .put =>
       { agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }
   | .return_ =>
@@ -270,12 +263,10 @@ keyword is the key because the deed exists only where its keyword does. -/
 def abilityDeedFacts : List (KeywordLabel × ActFacts) :=
   [ ((.named "crew"),
       { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], [.artifact]⟩, true, some .battlefield⟩,
-        counterfactual := some .value, bounded := true }),
+        patientRole := ⟨some ⟨.object, [], [.artifact]⟩, true, some .battlefield⟩ }),
     ((.named "saddle"),
       { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        counterfactual := some .value, bounded := true }),
+        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
     ((.named "phasing"),
       { intransitive := true,
         agentRole := ⟨some ⟨.object, [], []⟩, true, some .battlefield⟩ }) ]
@@ -289,7 +280,7 @@ every row names a declared keyword action. -/
 def actFacts : List (KeywordActionLabel × ActFacts) :=
   [ ("activate",
       { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩, bounded := true }),
+        patientRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩ }),
     ("adapt", { agentRole := permanentAgent }),
     ("airbend", { dest := some .exile, agentRole := playerAgent }),
     ("amass", { agentRole := playerAgent }),
@@ -301,7 +292,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("cast",
       { agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], spellTypes⟩, true, some .stack⟩,
-        counterfactual := some .object, rides := true, plays := true, bounded := true }),
+        rides := true }),
     ("clash", { agentRole := playerAgent }),
     ("cloak", { dest := some .battlefield, agentRole := playerAgent }),
     ("collectEvidence", { dest := some .exile, agentRole := playerAgent }),
@@ -350,23 +341,22 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("monstrosity", { agentRole := permanentAgent }),
     ("play",
       { agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], allTypes⟩, true, none⟩,
-        counterfactual := some .object, rides := true, plays := true, bounded := true }),
+        rides := true }),
     ("populate", { agentRole := playerAgent }),
     ("proliferate", { agentRole := playerAgent }),
     ("recruit", { agentRole := playerAgent }),
     ("regenerate",
       { participle := some "regenerated", agentRole := ⟨none, true, none⟩,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩, rides := true,
-        bounded := true }),
+        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩, rides := true }),
     ("reveal", { agentRole := playerAgent }),
     ("sacrifice",
       { participle := some "sacrificed", dest := some .graveyard, agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        feature := some .sacrificing, bounded := true, ownPatient := true }),
+        feature := some .sacrificing, ownPatient := true }),
     ("scry", { agentRole := playerAgent }),
     ("search",
       { loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
-        agentRole := playerAgent, feature := some .librarySearch, bounded := true }),
+        agentRole := playerAgent, feature := some .librarySearch }),
     ("shuffle", { loci := [.library], agentRole := playerAgent }),
     ("support", {}),
     ("surveil", { agentRole := playerAgent }),
@@ -380,10 +370,9 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("triple", {}),
     ("untap",
       { participle := some "untapped", agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        bounded := true }),
+        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
     ("ventureIntoTheDungeon", {}),
-    ("vote", { agentRole := playerAgent, bounded := true }),
+    ("vote", { agentRole := playerAgent }),
     ("waterbend", { agentRole := playerAgent }) ]
 
 def distinctActLabels : List (KeywordActionLabel × ActFacts) → Bool
@@ -1534,11 +1523,6 @@ def Kind.qualityParam : Kind → Bool
   | .player => true
   | _ => false
 
-/-- Modes are costed all together or not at all: a spell whose modes carry costs is a spree,
-and every one of its modes has a cost [CR#702.172a]. -/
-def modesCostedUniformly {α β : Type} (modes : List (Option α × β)) : Bool :=
-  modes.all (·.1.isSome) || modes.all (·.1.isNone)
-
 /-! ## Mana -/
 
 def halvesDistinct : SimpleManaSymbol → Color → Bool
@@ -1558,8 +1542,6 @@ def manaHasX : ManaCost → Bool
 def costLetters : Option ManaCost → Bindings
   | none => []
   | some c => if manaHasX c then [letterB .x] else []
-
-def manaRun (c : ManaCost) : Bool := !c.isEmpty
 
 def runsNonEmpty : List ProducedRun → Bool
   | [] => true
