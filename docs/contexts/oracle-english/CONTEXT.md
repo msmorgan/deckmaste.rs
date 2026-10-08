@@ -392,6 +392,33 @@ Preposition Phrase; it does not change the head's lexical Category into Adverb
 (CGEL, Ch. 7 §2.4, pp. 612–613).
 _Avoid_: adverb for a complementless Preposition
 
+**Matrix-licensed Complement**:
+A Complement of a Preposition whose availability depends on features of the
+containing matrix Clause, rather than solely on the Preposition's lexical
+selection (CGEL, Ch. 7 §5.1(g), pp. 641–643).
+_Avoid_: treating every Complement of an exception-marking Preposition as matrix-licensed
+
+**Matrix Complement Licence** (project term):
+A host's declared permission for a nominal or content-clause exception
+Complement. The Oracle copy-description and selected-*for* uses are the
+[project analysis requested by the except ticket](../../tickets/done/english-v3-except-matrix-complements.md#goal),
+not an application established by CGEL's speech-verb example.
+
+**Matrix Complement Requirement** (project term):
+The host distribution an exception PP requires before attaching: an
+internalised passive Complement, a nominal exception, or a content-clause
+exception. This requirement remains separate from the PP's function licence.
+
+**Matrix Complement Governor** (project term):
+A Preposition's declared availability to head a PP whose Complement needs a
+matrix licence. Availability of the governor alone does not supply that licence.
+
+**Nominal Exception Complement Use** (project term):
+A PP's declared availability as the Complement of an exception governor in
+nominal exception wording, including a fused-head cardinal Complement.
+The selected-*for* relation is described by CGEL, Ch. 7 §5.1(c), p. 640;
+the restrictions on Oracle hosts are the exception ticket's project analysis.
+
 **Preposition Phrase Complement Licence** (project term):
 A preposition's declared restriction on the heads of its PP Complements,
 independent of its permission to take an NP Complement. Prepositions can take

@@ -35,6 +35,16 @@ either a *for* complement or an object (Ch. 7, §5.1(c), p. 640, [15i]). Only th
 PP and declarative content clause are attested in the witnesses; add no other
 complement category (pruning rule).
 
+## Project analysis
+
+The ticket's Goal requests declared host licensing for the Oracle nominal
+and copy-description exceptions. This is project analysis, not a claim that
+CGEL §5.1(g)'s directly-admissible matrix counterpart supplies either
+“sacrifices … for three” or “Create … it isn't legendary”. CGEL §5.1(c),
+p. 640 independently licenses a selected *for* PP under *except*. The passive
+PP use follows the matrix-licensed principle together with the existing
+internalised passive Complement distribution.
+
 ## Witnesses
 
 Each witness's failing units all match this construction and no other recon

@@ -151,3 +151,6 @@ mod coordinated_property_values;
 
 #[path = "suite/gerund_preposition_complements.rs"]
 mod gerund_preposition_complements;
+
+#[path = "suite/except_matrix_complements.rs"]
+mod except_matrix_complements;
