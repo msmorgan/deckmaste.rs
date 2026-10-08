@@ -45,7 +45,7 @@ construction is in play; no English or Lean source changed.
 - **No word-naming.** No checker rule and no guard added.
 - **Cites.** `cite check --list-noncompliant` empty; `cite check` 0 stale
   (16,391 citations); the audit of the diff from the claim read
-  [CR#701.65a] against the probe's claim. 701.65a was already registered.
+  [CR#701.65a] against the probe's claim; the rule was already registered.
 
 ### DISCLOSE
 
@@ -60,7 +60,7 @@ construction is in play; no English or Lean source changed.
   own number (§12.2).
 - **Why not `theVerbed(exile, Many)`.** Tried first: the stamp resolves after
   the body's own exile, but a stamped pronoun fixes its number and `reaches`
-  requires it to agree with the binding's. 701.65a airbends "one or more"
+  requires it to agree with the binding's. [CR#701.65a] airbends "one or more"
   objects: `theVerbed(exile, Many)` proved for "airbend up to two target
   creatures" and was refused `[anaphor (verbed (action "exile") none
   attributive) many 0]` ×3 for "airbend target creature"; `One` fails the
@@ -72,11 +72,12 @@ construction is in play; no English or Lean source changed.
   the stamped pronoun the brief named (above). One testing card added; no
   helper, no test added or removed (restored 0, re-spelled 0, ignored 0,
   added 0, removed 0).
-- **STOP (open).** "For each card exiled this way … its owner may cast it"
+- **STOP (routed).** "For each card exiled this way … its owner may cast it"
   distributes per card. `act(ownerOf(Param(0)), …)` hands the permission to
   the owner of the exiled objects as one performer, which is exact for one
   object and for several with one owner, but not for several with different
   owners. The group handoff the brief named, `act(each(ownerOf(…)), …)`, does
   not exist: `each` takes a Predicate, and `eachOf` refuses a singular group,
-  so no number-agnostic distributive performer is available. Needs a ruling
-  or a form; not routed here.
+  so no number-agnostic distributive performer is available. Routed to
+  `semantics-v2-per-member-handoff` (planned); airbend.ron carries a STOP
+  comment at the `ownerOf(Param(0))` line naming it.

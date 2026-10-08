@@ -16,6 +16,8 @@ KeywordAction(
     body: sequentially([
         exile(Param(0)),
         act(
+            // STOP: one performer for the whole group; per-card owners wait on
+            // `semantics-v2-per-member-handoff`.
             ownerOf(Param(0)),
             establish(
                 mayCastFrom(Param(0), exileZone, PayingInstead(mana([2]))),
