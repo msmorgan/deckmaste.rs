@@ -97,7 +97,7 @@
         "lexeme:CommonNoun/Opponent": {"BareGenitiveHost": "Yes"},
         "lexeme:CommonNoun/Player": {"BareGenitiveHost": "Yes"},
         "lexeme:CommonNoun/Card": {"BareGenitiveHost": "Yes"},
-        "lexeme:CommonNoun/Permanent": {"BareGenitiveHost": "Yes"},
+        "lexeme:CommonNoun/Permanent": {"BareGenitiveHost": "Yes", "NounPremodifier": "Yes"},
         "lexeme:type/creature": {"BareGenitiveHost": "Yes"},
         "lexeme:type/planeswalker": {"BareGenitiveHost": "Yes"},
         "lexeme:turn_part/combat": {"NounPremodifier": "Yes", "NominalBareClass": "Interval", "NominalAdjunctClass": "Temporal"},

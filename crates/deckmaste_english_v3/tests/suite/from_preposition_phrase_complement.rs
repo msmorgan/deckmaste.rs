@@ -71,10 +71,11 @@ fn tomakul_scrapsmith_keeps_the_nested_source() {
 }
 
 #[test]
-fn midnight_tilling_source_constituent_survives_its_independent_nominal_gap() {
-    // The source-free control also fails: permanent lacks noun Premodifier use.
-    // Keep this extra witness localized to its source PP; it is not a face gain.
-    assert!(common::readings("a permanent card", Category::NounPhrase).is_empty());
+fn midnight_tilling_keeps_the_nested_source() {
+    nested_source(
+        "Mill four cards, then you may return a permanent card from among them to your hand.",
+        &["among them"],
+    );
     let expected = Reading::PrepositionComplementPreposition {
         form: 0,
         head: invariant("vocab:Preposition/From"),

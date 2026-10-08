@@ -298,3 +298,80 @@ fn authentic_coordinated_noun_modifiers_share_the_head_with_oxford_serials() {
         );
     }
 }
+
+#[test]
+fn permanent_premodifiers_keep_independently_constructed_noun_identity() {
+    // Cosmic Rebirth, Primevals' Glorious Rebirth, and Defiler of Vigor.
+    exact(
+        "permanent",
+        Category::NounPremodifier,
+        modifier("lexeme:CommonNoun/Permanent"),
+    );
+    for (text, owner, number) in [
+        ("permanent card", "lexeme:CommonNoun/Card", Number::Singular),
+        ("permanent cards", "lexeme:CommonNoun/Card", Number::Plural),
+        (
+            "permanent spell",
+            "lexeme:CommonNoun/Spell",
+            Number::Singular,
+        ),
+    ] {
+        exact(
+            text,
+            Category::Nominal,
+            modified("lexeme:CommonNoun/Permanent", noun(owner, number)),
+        );
+    }
+    // Skyshroud Poacher and Illuna, Apex of Wishes: stacked noun Premodifiers.
+    for (text, owner) in [
+        ("Elf permanent card", "lexeme:creature_subtype/elf"),
+        ("nonland permanent card", "lexeme:type/land/non"),
+    ] {
+        exact(
+            text,
+            Category::Nominal,
+            modified(
+                owner,
+                modified(
+                    "lexeme:CommonNoun/Permanent",
+                    noun("lexeme:CommonNoun/Card", Number::Singular),
+                ),
+            ),
+        );
+    }
+}
+
+#[test]
+fn permanent_head_use_is_unchanged_and_plural_modifiers_are_rejected() {
+    // Vindicate: "Destroy target permanent."
+    exact(
+        "permanent",
+        Category::Nominal,
+        noun("lexeme:CommonNoun/Permanent", Number::Singular),
+    );
+    let values = readings("target permanent", Category::NounPhrase);
+    assert_eq!(values.len(), 1);
+    for value in values {
+        let mut heads = Vec::new();
+        value
+            .visit(&mut |node| {
+                if let Reading::Noun { .. } = node {
+                    heads.push(node.clone());
+                }
+            })
+            .unwrap();
+        assert_eq!(
+            heads,
+            vec![noun("lexeme:CommonNoun/Permanent", Number::Singular)]
+        );
+    }
+    for text in ["permanents card", "permanents cards", "permanents spell"] {
+        assert!(readings(text, Category::Nominal).is_empty(), "{text}");
+    }
+    let plural = Reading::NounPremodifier {
+        form: 0,
+        head: word("lexeme:CommonNoun/Permanent", Number::Plural),
+    };
+    assert!(plural.admit(&LEXICON).is_err());
+    assert!(plural.realize(&LEXICON).is_err());
+}

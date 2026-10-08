@@ -96,6 +96,8 @@ mod packed;
 mod participial_selection;
 #[path = "suite/participial_uses.rs"]
 mod participial_uses;
+#[path = "suite/permanent_noun_premodifier.rs"]
+mod permanent_noun_premodifier;
 #[path = "suite/phrase_coordination.rs"]
 mod phrase_coordination;
 #[path = "suite/possessive_phrases.rs"]
