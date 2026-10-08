@@ -383,3 +383,7 @@ English-v3 tests passed, plus construction-core/lexical-source Clippy and the
 plugin Lean checks. No census/compiler-v3/declaration/validation/digest code
 changed. Evidence: `E/current-reader-build.log`, `E/template-current.json`,
 `E/template-source-proof.json`; the owner's completed ticket records its tests.
+
+### Review notes (2026-10-07)
+
+The incremental mode here is lexicon-only; grammar-change-aware reuse is `english-v3-census-face-reuse`.
