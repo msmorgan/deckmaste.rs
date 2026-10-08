@@ -83,10 +83,18 @@ instance : HAppend CheckResult (List Refusal) CheckResult :=
 instance : HAppend (List Refusal) CheckResult CheckResult :=
   ⟨fun a b => ⟨a ++ b.refusals, b.usedGap⟩⟩
 
-/-- Aura hosts can be objects or players; the other attachment words require objects. -/
+/-- A phrase that names a player or an object: an attachment host, what damage is dealt to
+[CR#120.1], and what is attacked [CR#506.2]. This is the kind alone; which objects can host an
+attachment, be dealt damage or be attacked are game rules the checker does not assert. -/
+def objectOrPlayerCheck (k : Kind) : List Refusal :=
+  refuse (Kind.lte k (.join .object .player)) (.kindLte k (.join .object .player))
+
+/-- An Aura's host is an object or a player; an Equipment's or a Fortification's host is an
+object [CR#301.5,301.6]. The kind alone: which objects an attachment can host is a game rule the
+checker does not assert. -/
 def attachmentHostKindCheck (word : Option AttachWord) (k : Kind) : List Refusal :=
-  refuse (Kind.lte k (.join .object .player)) (.kindLte k (.join .object .player)) ++
-    refuse (word.elim true (fun w => w == .enchanted || Kind.lte k .object)) .attachFits
+  objectOrPlayerCheck k ++
+    refuse (word.elim true (fun w => w == .enchanted || Kind.lte k .object)) (.kindLte k .object)
 
 mutual
   def CaptureInput.checkAllIn (gap : Option Kind) (bs : Bindings) :
@@ -116,8 +124,7 @@ mutual
     | .qualityNoun q dom => kindCheck k (some (.quality q)) ++ sortedDomainCheckIn gap bs (.quality
       q) dom
     | .counterKindOn n =>
-      kindCheck k (some (.quality .counterKind)) ++ NounPhrase.checkIn gap (some .object) bs n ++
-        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
+      kindCheck k (some (.quality .counterKind)) ++ NounPhrase.checkIn gap (some .object) bs n
     | .ofChosen ref q =>
       let n := countChoice (.quality q) bs
       kindCheck k (some .object) ++ refuse (ref.ok n) (.choiceRef ref (.quality q) n) ++
@@ -134,12 +141,18 @@ mutual
         refuse n.soleHolderOk .soleHolder ++
         refuse (OptOrdinal.ok (rank.map (·.1))) .ordinalNonZero
     | .castFrom z =>
-      kindCheck k (some .object) ++ ZoneExpr.checkIn gap bs z ++
-        refuse (playableFrom z.sort) .playableFrom
-    | .inCombat r none => kindCheck k (some .object) ++ refuse r.bare .combatRelOk
+      kindCheck k (some .object) ++ ZoneExpr.checkIn gap bs z
+    | .inCombat _ none => kindCheck k (some .object)
+    -- The kinds alone: a combat relation relates objects, and an attack relates an object to a
+    -- player or an object [CR#506.2]. Where the relata are is a game rule the checker does not
+    -- assert.
     | .inCombat r (some m) =>
+      let km := m.kindOr .object
       NounPhrase.checkIn gap none bs m ++
-        refuse (combatRelOk r k (m.kindOr .object) (NounPhrase.zone bs m) (NounPhrase.tys bs m)) .combatRelOk
+        (match r with
+         | .attackerOf => kindCheck k (some .object) ++ objectOrPlayerCheck km
+         | .attackedBy => objectOrPlayerCheck km
+         | _ => kindCheck k (some .object) ++ kindCheck .object (some km))
     | .happenedTo lb => LookbackClause.checkIn gap k bs lb
     | .colorCount r n => kindCheck k (some .object) ++ refuse (colorBoundOk r n) .colorBoundOk
     | .named src => kindCheck k (some .object) ++ NameSource.checkIn gap bs src
@@ -157,8 +170,7 @@ mutual
            match side with
            | .host => NounPhrase.checkIn gap (some .object) bs n
            | .attachment => NounPhrase.checkIn gap none bs n ++
-               attachmentHostKindCheck word (n.kindOr .object) ++
-               refuse (attachWordsOk word.toList (NounPhrase.headTys bs n)) .attachFits)
+               attachmentHostKindCheck word (n.kindOr .object))
     | .hasCounters kind =>
       kindCheck k (some .object) ++ OptCounterKind.checkIn gap kind ++
         refuse (counterKindNamed .object kind) (.counterKindNamed .object)
@@ -189,8 +201,7 @@ mutual
       kindCheck k (some .object) ++ NounPhrase.checkIn gap (some .object) bs src ++
         refuse src.linkSource .linkSource
     | .and ps =>
-      Predicate.checkAllIn gap k bs ps ++ refuse (zonesOk ps) .zoneCoherent ++
-        refuse (contradictionFree ps) .contradictionFree ++
+      Predicate.checkAllIn gap k bs ps ++ refuse (contradictionFree ps) .contradictionFree ++
         refuse (otherAnchorOk bs k (Predicate.headTysAll ps) ps) .otherAnchored
     | .or ps =>
       if Predicate.joins ps then
@@ -274,7 +285,6 @@ mutual
         refuse n.ascribable .ascribable
     | .resolvedPermanent spell =>
       ctxCheck ctx (some .object) ++ NounPhrase.checkIn gap (some .object) bs spell ++
-        refuse (zoneIsB (NounPhrase.zone bs spell) .stack) (.zoneIs .stack) ++
         refuse (permanentSpellType (NounPhrase.ty bs spell)) .permanentSpellType
     | .described d p =>
       let k := p.kindOr (ctx.getD .object)
@@ -316,7 +326,9 @@ mutual
       | none =>
         if (NounPhrase.result bs body).additions.isEmpty then NounPhrase.checkIn gap ctx bs body
         else ([.bindingIdentity id] : List Refusal)
-    | .attachHost w h => ctxCheck ctx (some h.kind) ++ refuse (attachHeadOk w h) .attachHeadOk
+    | .attachHost w h =>
+      ctxCheck ctx (some h.kind) ++
+        refuse (w == .enchanted || Kind.lte h.kind .object) (.kindLte h.kind .object)
     | .possessorOf ax n =>
       let kn := (n.actorView bs).kindOr .object
       ctxCheck ctx (some .player) ++ NounPhrase.checkIn gap none bs n ++
@@ -330,8 +342,7 @@ mutual
         (match f with
          | .chosenPlayer which => refuse f.choiceFound (.paidChoiceInScope which)
          | _ => (⟨[], false⟩ : CheckResult)) ++
-        NounPhrase.checkIn gap (some .object) bs n ++ refuse (n.paidSubjectOk bs) .paidSubject ++
-        refuse n.plur.isOne .singular
+        NounPhrase.checkIn gap (some .object) bs n ++ refuse n.plur.isOne .singular
     | .oneEachOf roles pool =>
       ctxCheck ctx (some .object) ++ Predicate.checkAllIn gap .object bs roles ++
         NounPhrase.checkIn gap (some .object) bs pool ++ refuse (pool.plur == .many) .plural ++
@@ -420,8 +431,7 @@ mutual
         refuse (g.plur == .many) .plural
     | .paid f n =>
       refuse f.named .paidFacetNamed ++ refuse (!f.readsPlayer) .paidFacetKind ++
-        NounPhrase.checkIn gap (some .object) bs n ++
-        refuse (n.paidSubjectOk bs) .paidSubject ++ refuse n.plur.isOne .singular
+        NounPhrase.checkIn gap (some .object) bs n ++ refuse n.plur.isOne .singular
     | .eventTally op who lb =>
       NounPhrase.checkIn gap none bs who ++ LookbackClause.checkIn gap (who.kindOr .object)
         (nomIntro bs who) lb ++
@@ -466,10 +476,9 @@ mutual
     | .upTo b => Amount.checkIn gap bs b
   termination_by structural a => a
 
-  def ZoneScope.checkIn (gap : Option Kind) (z : Zone) (bs : Bindings) : ZoneScope → CheckResult
+  def ZoneScope.checkIn (gap : Option Kind) (bs : Bindings) : ZoneScope → CheckResult
     | .bare => (⟨[], false⟩ : CheckResult)
-    | .possessedBy n => refuse z.possessable (.possessable z) ++ NounPhrase.checkIn gap (some
-      .player) bs n
+    | .possessedBy n => NounPhrase.checkIn gap (some .player) bs n
   termination_by structural s => s
 
   def LibraryPlace.checkIn (gap : Option Kind) (bs : Bindings) : LibraryPlace → CheckResult
@@ -485,11 +494,10 @@ mutual
     | .inCaller scope body =>
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         ZoneExpr.checkIn gap (enterCaller scope bs) body
-    | .zone z scope => ZoneScope.checkIn gap z bs scope
-    | .library place ord off scope =>
-      LibraryPlace.checkIn gap bs place ++ refuse (place.arrangementOk ord) .placeArrangementFits ++
-        refuse (place.ordinalOk off) .placeOrdinalFits ++
-        refuse (OptOrdinal.ok off) .ordinalNonZero ++ ZoneScope.checkIn gap .library bs scope
+    | .zone _ scope => ZoneScope.checkIn gap bs scope
+    | .library place _ off scope =>
+      LibraryPlace.checkIn gap bs place ++ refuse (OptOrdinal.ok off) .ordinalNonZero ++
+        ZoneScope.checkIn gap bs scope
     | .wherever => (⟨[], false⟩ : CheckResult)
   termination_by structural z => z
 
@@ -543,16 +551,14 @@ mutual
       let k := n.kindOr .object
       NounPhrase.checkIn gap none bs n ++ Predicate.checkIn gap k bs p ++ refuse (n.testSubjectOk
         bs) .testSubject ++
-        refuse p.says .predSays ++ refuse (zoneFits (NounPhrase.zone bs n) p.seedZone) .zoneFits ++
-        refuse (attachWordsOk p.attachWordsIn (NounPhrase.headTys bs n)) .attachFits
+        refuse p.says .predSays
     | .compareAmt subj _ bound =>
       Amount.checkIn gap bs subj ++ Amount.checkIn gap (Amount.intro bs subj) bound ++
         refuse subj.read .readAmount
     | .dealtThisWay p =>
       let k := p.kindOr .object
       Predicate.checkIn gap k bs p ++ refuse (damageDealtInScope bs) .damageDealtInScope ++
-        refuse (Kind.lte k (.join .object .player)) (.kindLte k (.join .object .player)) ++
-        refuse (!zoneIsB p.seedZone .stack) (.zoneIs .stack)
+        refuse (Kind.lte k (.join .object .player)) (.kindLte k (.join .object .player))
     | .choseThisWay who p =>
       let k := p.kindOr .object
       NounPhrase.checkIn gap (some .player) bs who ++ Predicate.checkIn gap k bs p ++
@@ -591,18 +597,17 @@ mutual
 def AttackDefender.checkIn (gap : Option Kind) (bs : Bindings) : Option NounPhrase → CheckResult
   | none => (⟨[], false⟩ : CheckResult)
   | some m =>
-    NounPhrase.checkIn gap none bs m ++ refuse m.plur.isOne .singular ++ refuse (m.attackable bs)
-      .attackable
+    NounPhrase.checkIn gap none bs m ++ refuse m.plur.isOne .singular ++
+      objectOrPlayerCheck (m.kindOr .object)
 
 def DamagePatient.checkIn (gap : Option Kind) (bs : Bindings) : Option NounPhrase → CheckResult
   | none => (⟨[], false⟩ : CheckResult)
-  | some m => NounPhrase.checkIn gap none bs m ++ refuse (m.damageRecipient bs) .damageRecipient
+  | some m => NounPhrase.checkIn gap none bs m ++ objectOrPlayerCheck (m.kindOr .object)
 
 def Door.checkIn (gap : Option Kind) (bs : Bindings) : Door → CheckResult
   | .thisDoor => (⟨[], false⟩ : CheckResult)
   | .doorOf _ room =>
-    NounPhrase.checkIn gap (some .object) bs room ++
-      refuse (zoneIsB (NounPhrase.zone bs room) .battlefield) (.zoneIs .battlefield)
+    NounPhrase.checkIn gap (some .object) bs room
 
 def RollWatch.checkIn (gap : Option Kind) (bs : Bindings) : RollWatch → CheckResult
   | .resultIn q =>
@@ -639,47 +644,37 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
     | .inCaller scope body =>
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         GameEvent.checkIn gap (enterCaller scope bs) body
-    | .zoneChange n from_ to observation =>
+    | .zoneChange n from_ to _ =>
       let subjects := nomIntro bs n
       let origins := OptEventSource.introduced subjects from_ ++ subjects
       NounPhrase.checkIn gap (some .object) bs n ++ OptEventSource.checkIn gap subjects from_ ++
-        OptZoneExpr.checkIn gap origins to ++
-        refuse (transitionSubjectOk (NounPhrase.zone bs n) from_ to observation) .zoneFits ++
-        refuse (transitionEndpointsOk from_ to) .zoneCoherent
+        OptZoneExpr.checkIn gap origins to
     | .draws who => NounPhrase.checkIn gap (some .player) bs who
     | .losesGame who => NounPhrase.checkIn gap (some .player) bs who
     | .combat .attackerOf n whom =>
       NounPhrase.checkIn gap none bs n ++ AttackDefender.checkIn gap (nomIntro bs n) whom ++
-        refuse (n.attackerOk bs) .attacker
-    | .combat r n counterpart =>
-      let bs' := nomIntro bs n
-      NounPhrase.checkIn gap (some .object) bs n ++ OptNoun.checkIn gap (some .object) bs'
-        counterpart ++
-        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield) ++
-        refuse (patientZoneIsB bs' counterpart .battlefield) (.zoneIs .battlefield) ++
-        refuse r.eventRelation .combatRelOk
+        objectOrPlayerCheck (n.kindOr .object)
+    | .combat _ n counterpart =>
+      NounPhrase.checkIn gap (some .object) bs n ++ OptNoun.checkIn gap (some .object) (nomIntro bs n)
+        counterpart
     | .attacksWith who whom attackers =>
       let bs' := nomIntro bs who
       let bs'' := optIntro bs' whom
       NounPhrase.checkIn gap (some .player) bs who ++ AttackDefender.checkIn gap bs' whom ++
-        NounPhrase.checkIn gap (some .object) bs'' attackers ++
-        refuse (zoneIsB (NounPhrase.zone bs'' attackers) .battlefield) (.zoneIs .battlefield)
+        NounPhrase.checkIn gap (some .object) bs'' attackers
     | .attachment .attached n host =>
       let kh := host.kindOr .object
       NounPhrase.checkIn gap (some .object) bs n ++ NounPhrase.checkIn gap none (nomIntro bs n) host
         ++
-        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield) ++
         refuse (Kind.lte kh (.join .object .player)) (.kindLte kh (.join .object .player))
     | .attachment .unattached n host =>
       NounPhrase.checkIn gap (some .object) bs n ++ NounPhrase.checkIn gap (some .object) (nomIntro
-        bs n) host ++
-        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
+        bs n) host
     | .damage _ none none => refuse false .nonEmpty
     | .damage _ none (some to) =>
-      NounPhrase.checkIn gap none bs to ++ refuse (to.damageRecipient bs) .damageRecipient
-    | .damage kind (some n) to =>
-      NounPhrase.checkIn gap (some .object) bs n ++ DamagePatient.checkIn gap (nomIntro bs n) to ++
-        refuse (zoneFits (NounPhrase.zone bs n) kind.sourceZone) .zoneFits
+      NounPhrase.checkIn gap none bs to ++ objectOrPlayerCheck (to.kindOr .object)
+    | .damage _ (some n) to =>
+      NounPhrase.checkIn gap (some .object) bs n ++ DamagePatient.checkIn gap (nomIntro bs n) to
     | .beginningOf _ part whose =>
       HeaderPossessor.checkIn gap bs whose ++ refuse (part.proper && whose.ok) .windowOk
     | .casts who what from_ =>
@@ -689,18 +684,13 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
         (match what with
          | none => (⟨[], false⟩ : CheckResult)
          | some n =>
-           refuse (zoneIsB (NounPhrase.zone bs' n) .stack) (.zoneIs .stack) ++
-             refuse n.plur.isOne .singular ++ refuse (!n.targeted) .nontarget) ++
-        refuse (castSourceOk from_) .playableFrom
+           refuse n.plur.isOne .singular ++ refuse (!n.targeted) .nontarget)
     | .becomesTarget n by_ =>
       let kn := n.kindOr .object
       let kb := by_.kindOr .object
       NounPhrase.checkIn gap none bs n ++ NounPhrase.checkIn gap none (nomIntro bs n) by_ ++
         refuse kn.targetable (.targetable kn) ++ refuse kb.targeter (.targeter kb)
-    | .statusEvent n v =>
-      NounPhrase.checkIn gap (some .object) bs n ++
-        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield) ++
-        refuse v.markable .statusMarkable
+    | .statusEvent n _ => NounPhrase.checkIn gap (some .object) bs n
     | .gameBecomes d => refuse d.gameWide (.designationScope d)
     | .stateHolds c => Condition.checkIn gap bs c
     | .counterEvent dir kind n batch by_ byEffect =>
@@ -720,8 +710,7 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
         (nomIntro bs who) what ++
         refuse what.plur.isOne .singular ++ refuse (!what.targeted) .nontarget
     | .statBecomes n _ v =>
-      NounPhrase.checkIn gap (some .object) bs n ++ Amount.checkIn gap (nomIntro bs n) v ++
-        refuse (zoneIsB (NounPhrase.zone bs n) .battlefield) (.zoneIs .battlefield)
+      NounPhrase.checkIn gap (some .object) bs n ++ Amount.checkIn gap (nomIntro bs n) v
     | .flipsCoin who _ => NounPhrase.checkIn gap (some .player) bs who
     | .rollsDice who _ _ res => NounPhrase.checkIn gap (some .player) bs who ++ RollWatch.checkIn
       gap bs res
@@ -737,7 +726,6 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
         OptNoun.checkIn gap (some .object) bs' what ++
         OptPredicate.checkIn gap .object bs' becomes ++ refuse (knownAct v) (.knownAct v) ++
         refuse (verbPatientOk v what) .verbPatientOk ++
-        refuse (zoneFits (patientZone bs' what) (actZoneOf v)) .zoneFits ++
         refuse (verbedVoiceOk v who what) .verbedVoiceOk ++
         refuse (verbBecomesOk v becomes) .verbBecomesOk ++
         OptZoneExpr.checkIn gap bs' locus ++
@@ -748,7 +736,6 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
     | .tappedForMana who what ty =>
       let bs' := optAgentIntro bs who
       OptNoun.checkIn gap (some .player) bs who ++ NounPhrase.checkIn gap (some .object) bs' what ++
-        refuse (zoneFits (NounPhrase.zone bs' what) (some .battlefield)) .zoneFits ++
         OptManaTypeTerm.checkIn gap (nomIntro bs' what) ty
     | .unlocksDoor who door => NounPhrase.checkIn gap (some .player) bs who ++ Door.checkIn gap
       (nomIntro bs who) door
@@ -781,7 +768,7 @@ abbrev DetPhrase.check := fun k bs d p => (DetPhrase.checkIn none k bs d p).refu
 abbrev Quantity.check := fun bs value => (Quantity.checkIn none bs value).refusals
 abbrev SliceCount.check := fun bs value => (SliceCount.checkIn none bs value).refusals
 abbrev Amount.check := fun bs value => (Amount.checkIn none bs value).refusals
-abbrev ZoneScope.check := fun z bs value => (ZoneScope.checkIn none z bs value).refusals
+abbrev ZoneScope.check := fun bs value => (ZoneScope.checkIn none bs value).refusals
 abbrev LibraryPlace.check := fun bs value => (LibraryPlace.checkIn none bs value).refusals
 abbrev ZoneExpr.check := fun bs value => (ZoneExpr.checkIn none bs value).refusals
 abbrev ZoneExpr.checkAll := fun bs value => (ZoneExpr.checkAllIn none bs value).refusals
@@ -830,9 +817,7 @@ def Ballot.check (bs : Bindings) : Ballot → List Refusal
 
 def Exposed.check (bs : Bindings) : Exposed → List Refusal
   | .cards n => NounPhrase.check (some .object) bs n
-  | .zone z => ZoneExpr.check bs z ++ match z.sort with
-    | some s => refuse s.exposable (.exposableZone s)
-    | none => []
+  | .zone z => ZoneExpr.check bs z
   | .choice q =>
     let n := countChoice q bs
     refuse (n == 1) (.choiceRef .theChoice q n)

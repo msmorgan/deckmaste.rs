@@ -940,11 +940,6 @@ def Zone.isPublic : Zone → Bool
   | .library => false
   | _ => true
 
-def Zone.exposable : Zone → Bool
-  | .hand => true
-  | .library => true
-  | _ => false
-
 def Binding.isPublic (b : Binding) : Bool :=
   match b.payload with
   | .object _ (some z) _ _ _ _ => z.isPublic
@@ -1522,10 +1517,6 @@ def CardType.damageable : CardType → Bool
   | .creature | .planeswalker | .battle => true
   | _ => false
 
-/-- `[]` means unknown-therefore-permissive, at both levels. -/
-def damageableHeadTysOk (alts : List (List CardType)) : Bool :=
-  alts.all fun types => types.isEmpty || types.any CardType.damageable
-
 /-- A copy of an ability is itself an ability [CR#707.10]: the source's payload shape, not its
 kind, decides which object the copy is. -/
 def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
@@ -1711,12 +1702,6 @@ def RoomHalf.designation (h : RoomHalf) : DesignationLabel :=
 
 def DesignationLabel.half (label : DesignationLabel) : Option RoomHalf := label.facts >>= (·.half)
 
-/-- A combat relation written without its counterpart ("attacking", "blocking", "blocked"):
-the ones that read as a bare participle. -/
-def CombatRelation.bare : CombatRelation → Bool
-  | .attackerOf | .declaredAttacker | .blockerOf | .blockedBy => true
-  | .attackedBy | .couldBlock | .couldBeBlockedBy => false
-
 /-! ## Attachment, status, counters -/
 
 def NounWord.attachHostZone : NounWord → Option Zone
@@ -1844,14 +1829,6 @@ def CardType.isInstantOrSorcery : CardType → Bool
   | .instant | .sorcery => true
   | _ => false
 
-def placeableTy (types : List CardType) : Bool :=
-  types.isEmpty ||
-    (types.any CardType.permanent && !types.any CardType.isInstantOrSorcery)
-
-def destTypeOk (ty : List CardType) : Zone → Bool
-  | .battlefield => placeableTy ty
-  | _ => true
-
 def Status.clash : Status → Status → Bool
   | .tapped, .untapped | .untapped, .tapped | .flipped, .unflipped | .unflipped, .flipped
   | .faceUp, .faceDown | .faceDown, .faceUp | .phasedIn, .phasedOut | .phasedOut, .phasedIn => true
@@ -1861,11 +1838,6 @@ def Status.clash : Status → Status → Bool
 def Status.word : Status → Bool
   | .tapped | .untapped | .faceUp | .faceDown => true
   | _ => false
-
-/-- Which status values an instruction can set directly. -/
-def Status.markable : Status → Bool
-  | .unflipped => false
-  | _ => true
 
 def colorsDistinct : List Color → Bool
   | [] => true

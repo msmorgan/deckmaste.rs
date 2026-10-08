@@ -132,10 +132,6 @@ def attachTysOk (w : AttachWord) (ts : List CardType) : Bool :=
 def attachWordsOk (ws : List AttachWord) (alts : List (List CardType)) : Bool :=
   ws.all fun w => alts.all (attachTysOk w)
 
-def zoneAdmits (z : Zone) : List Zone → Bool
-  | [] => true
-  | zs => zs.elem z
-
 def allNegated (negs : List CardType) : List CardType → Bool
   | [] => true
   | t :: ts => negs.elem t && allNegated negs ts
@@ -182,11 +178,6 @@ def chosenDet : Kind → Determiner → Determiner
   | .object, _ => .part
   | _, d => d
 
-def counterKind : Kind → Bool
-  | .object => true
-  | .join a b => counterKind a && counterKind b
-  | _ => false
-
 def controlKind : Kind → Bool
   | .object => true
   | .join a b => controlKind a && controlKind b
@@ -196,23 +187,7 @@ def possessorKind : PossessorAxis → Kind → Bool
   | .controller, k => controlKind k
   | .owner, k => Kind.lte k .object
 
-def copyKind : Kind → Bool
-  | .object => true
-  | .join a b => copyKind a && copyKind b
-  | _ => false
-
 /-! ## Zones and places -/
-
-def LibraryPlace.arrangementOk : LibraryPlace → Option Arrangement → Bool
-  | .oneEnd _, _ => true
-  | .eitherEnd _, none => true
-  | .eitherEnd _, some _ => false
-  | .shuffled, none => true
-  | .shuffled, some _ => false
-
-def LibraryPlace.ordinalOk : LibraryPlace → Option Ordinal → Bool
-  | .shuffled, some _ => false
-  | _, _ => true
 
 def LibraryPlace.shuffles : LibraryPlace → Bool
   | .shuffled => true
@@ -246,10 +221,6 @@ def afterMoveTo (to : ZoneExpr) (out : Bindings) : Bindings :=
 def sourceZone : Option EventSource → Option Zone
   | some (.zones [z]) => z.sort
   | _ => none
-
-def EventSource.zonesOk (ok : Zone → Bool) : EventSource → Bool
-  | .anywhere => true
-  | .zones zs | .anywhereBut zs => !zs.isEmpty && zs.all (fun z => z.sort.any ok)
 
 def LookbackClause.event : LookbackClause → GameEvent
   | .mk ev _ => ev
@@ -475,11 +446,6 @@ mutual
     | p :: ps => p.seedsAbility && Predicate.seedsAbilityAll ps
 end
 
-def Predicate.zoneAdmit : Predicate → List Zone
-  | .withBindings _ _ body | .inCaller _ body => body.zoneAdmit
-  | .hasPossessor .controller _ => [.battlefield, .stack]
-  | _ => []
-
 mutual
   def Predicate.seedType : Predicate → Option CardType
     | .withBindings _ _ body | .inCaller _ body => body.seedType
@@ -579,53 +545,11 @@ mutual
   termination_by structural p => p
 end
 
-def zonesAgree : Option Zone → List Predicate → Bool
-  | _, [] => true
-  | acc, p :: ps =>
-    match p.seedZone with
-    | none => zonesAgree acc ps
-    | some z =>
-      match acc with
-      | none => zonesAgree (some z) ps
-      | some w => w == z && zonesAgree (some w) ps
-
-def Predicate.negZonesOf : Predicate → List Zone
-  | .withBindings _ _ body | .inCaller _ body => body.negZonesOf
-  | .not (.inZone (.zone z .bare)) => [z]
-  | .not (.inZone (.library _ _ _ .bare)) => [.library]
-  | _ => []
-
-def negZones (ps : List Predicate) : List Zone := ps.flatMap Predicate.negZonesOf
-
-def zoneAdmitsAll (z : Zone) (ps : List Predicate) : Bool :=
-  ps.all fun p => zoneAdmits z p.zoneAdmit
-
 /-- Only definite zone identities can prove a clash. Repeated indefinite player
 phrases may introduce different players, so syntax equality would be unsound here. -/
 def ZoneExpr.scopeBody : ZoneExpr → ZoneExpr
   | .withBindings _ _ body | .inCaller _ body => body.scopeBody
   | body => body
-
-def ZoneExpr.sameKnownZone (left right : ZoneExpr) : Bool :=
-  match left.scopeBody, right.scopeBody with
-  | .zone z .bare, .zone w .bare => z == w
-  | .zone z (.possessedBy .you), .zone w (.possessedBy .you) => z == w
-  | _, _ => false
-
-def zonesOk (ps : List Predicate) : Bool :=
-  let fs := Predicate.flatten ps
-  let candidates := match Predicate.seedZoneAll fs with
-    | some z => [z]
-    | none =>
-      if fs.any (fun p => match p with | .isCard | .isSource => true | _ => false) then
-        [Zone.battlefield, .graveyard, .exile, .hand, .library, .stack, .command]
-      else [.battlefield]
-  let explicitClash := fs.any (fun p => match p with
-    | .not (.inZone excluded) => fs.any (fun q => match q with
-        | .inZone known => known.sameKnownZone excluded
-        | _ => false)
-    | _ => false)
-  !explicitClash && zonesAgree none fs && candidates.any (fun z => !(negZones fs).elem z && zoneAdmitsAll z fs)
 
 /-- Each status category always has exactly one of its two values [CR#110.5]. -/
 def statusClashOf : Predicate → Predicate → Bool
@@ -1240,12 +1164,6 @@ def NounPhrase.isAbility : NounPhrase → Bool
   | .asMarker _ n => n.isAbility
   | .someOf _ _ g => g.isAbility
   | _ => false
-
-def NounPhrase.moveDestOk : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.moveDestOk
-  | .pro r _ .whole => !r.tracksObject
-  | .pro _ _ _ | .laterMention _ _ => false
-  | _ => true
 
 def NounPhrase.remarkTest : NounPhrase → Option (Binding → Bool)
   | .firstMention _ n => n.remarkTest
@@ -1879,28 +1797,6 @@ def NounPhrase.prov (bs : Bindings) : NounPhrase → Option Stamp
   | .someOf _ _ g => NounPhrase.prov bs g
   | _ => none
 
-def NounPhrase.paidSubjectOk (bs : Bindings) : NounPhrase → Bool
-  | n@(.pro (.parameter shape) _ _) => shape.selfDefined || onStackZone (n.zone bs)
-  | n@(.laterMention _ body) => body.selfDefinedOk || onStackZone (n.zone bs)
-  | .firstMention _ body => body.paidSubjectOk bs
-  | .withBindings scope inputs body => body.paidSubjectOk (captureBindings bs scope inputs)
-  | .inCaller scope body => body.paidSubjectOk (enterCaller scope bs)
-  | .this => true
-  | .asType _ n _ => NounPhrase.paidSubjectOk bs n
-  | .asMarker _ n => NounPhrase.paidSubjectOk bs n
-  | n => onStackZone (NounPhrase.zone bs n)
-
-def NounPhrase.costSubjectOk (bs : Bindings) : NounPhrase → Bool
-  | n@(.pro (.parameter shape) _ _) =>
-    (shape.selfDefined && shape.ascribable) || onStackZone (n.zone bs)
-  | n@(.laterMention _ body) =>
-    (body.selfDefinedOk && body.ascribable) || onStackZone (n.zone bs)
-  | .firstMention _ body => body.costSubjectOk bs
-  | .withBindings scope inputs body => body.costSubjectOk (captureBindings bs scope inputs)
-  | .inCaller scope body => body.costSubjectOk (enterCaller scope bs)
-  | .this => true
-  | n => onStackZone (NounPhrase.zone bs n)
-
 def NounPhrase.counterMemoryOk (bs : Bindings) : NounPhrase → Bool
   | .withBindings scope inputs body => body.counterMemoryOk (captureBindings bs scope inputs)
   | .inCaller scope body => body.counterMemoryOk (enterCaller scope bs)
@@ -1925,45 +1821,6 @@ def eventAgentOk (bs : Bindings) : Option NounPhrase → Bool
   | none => true
   | some n => NounPhrase.bindingless bs n
 
-def attackableKind : Kind → HeadTy → Bool
-  | .player, _ => true
-  | .object, .sole t => deedAltOk (.core .attack) .patient t
-  | .join a b, .join l r => attackableKind a l && attackableKind b r
-  | .join a b, .sole t => attackableKind a (.sole t) && attackableKind b (.sole t)
-  | _, _ => false
-
-/-- The attacker of an attacked player, planeswalker or battle: a creature on the battlefield,
-or the attacking player themself [CR#506.2]. -/
-def combatPartyKind : Kind → Option Zone → Bool
-  | .player, _ => true
-  | .object, z => zoneIsB z .battlefield
-  | .join a b, z => combatPartyKind a z && combatPartyKind b z
-  | _, _ => false
-
-def combatRelOk : CombatRelation → Kind → Kind → Option Zone → HeadTy → Bool
-  | .attackerOf, k, km, _, tys => k == .object && attackableKind km tys
-  | .attackedBy, _, km, z, _ => combatPartyKind km z
-  | _, k, km, z, _ => k == .object && km == .object && zoneIsB z .battlefield
-
-def damageableKind : Kind → HeadTy → Bool
-  | .player, _ => true
-  | .object, .sole t => damageableHeadTysOk (soleAlt t)
-  | .join a b, .join l r => damageableKind a l && damageableKind b r
-  | .join a b, .sole t => damageableKind a (.sole t) && damageableKind b (.sole t)
-  | _, _ => false
-
-/-- Idris `DamageRecipient n`: a player, a join with damageable halves, or an object on the
-battlefield whose head types can be dealt damage. -/
-def NounPhrase.damageRecipient (bs : Bindings) (n : NounPhrase) : Bool :=
-  match n.kindOr .object with
-  | .player => true
-  | .join a b => damageableKind (.join a b) (NounPhrase.tys bs n)
-  | .object => zoneIsB (NounPhrase.zone bs n) .battlefield && damageableHeadTysOk (NounPhrase.headTys bs n)
-  | _ => false
-
-def NounPhrase.attackable (bs : Bindings) (n : NounPhrase) : Bool :=
-  attackableKind (n.kindOr .object) (NounPhrase.tys bs n)
-
 def hostedRead (bs : Bindings) (p : Predicate) (n : NounPhrase) : Bool :=
   match p.qualityReadHost with
   | none => true
@@ -1983,63 +1840,11 @@ def NounPhrase.linkSource : NounPhrase → Bool
   | .asType _ .this _ => true
   | _ => false
 
-/-- Idris `StackActOn p n`: a spell on the stack, or a join whose kinds `p` admits. -/
-def NounPhrase.stackActOn (bs : Bindings) (p : Kind → Bool) (n : NounPhrase) : Bool :=
-  match n.kindOr .object with
-  | .join a b => p (.join a b)
-  | _ => zoneIsB (NounPhrase.zone bs n) .stack
-
-def NounPhrase.counterable (bs : Bindings) (n : NounPhrase) : Bool := n.stackActOn bs counterKind
-def NounPhrase.copiable (bs : Bindings) (n : NounPhrase) : Bool := n.stackActOn bs copyKind
-
-def copySourceOk (bs : Bindings) : CopySort → NounPhrase → Bool
-  | .fromStack, n => n.copiable bs
-  | .fromCardZone, n => isCardZone (NounPhrase.zone bs n)
-
-/-- Objects and piles can move. Abilities can be exiled with other stack objects
-[CR#724.1b,724.2b]. -/
-def NounPhrase.movable (n : NounPhrase) : Bool :=
-  match n.kindOr .object with
-  | .object => true
-  | .pile => true
-  | _ => false
-
-/-- Idris `DestOk`: a bare battlefield, exile, hand, or graveyard, or a bare library place. -/
-def ZoneExpr.destOk : ZoneExpr → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.destOk
-  | .zone .battlefield .bare | .zone .exile .bare | .zone .hand .bare
-  | .zone .graveyard .bare => true
-  | .library place arrg offs .bare => place.arrangementOk arrg && place.ordinalOk offs
-  | _ => false
-
-def orderOk (pl : Plurality) (z : ZoneExpr) : Bool :=
-  match z.arrangement with
-  | none => true
-  | some _ => !pl.isOne
-
-def NounPhrase.discardOk (bs : Bindings) : NounPhrase → Bool
-  | .this => true
-  | .firstMention _ body => body.discardOk bs
-  | .laterMention id body =>
-    match identityBinding id bs with
-    | some b => b.zone == some .hand
-    | none => body.discardOk bs
-  | n => NounPhrase.zone bs n == some .hand
-
 def deedNounOk (bs : Bindings) (v : Deed) (r : Role) (n : NounPhrase) : Bool :=
   match NounPhrase.headTys bs n with
   | [] => n.det.isNone && deedBareOk v r
   | ts => ts.all fun types =>
       if types.isEmpty then n.det.isNone && deedBareOk v r else deedAltOk v r types
-
-/-- Who declares an attack: the active player [CR#508.1] or a creature they control
-[CR#508.1a]. The attack deed's agent role decides which kinds attack and keeps the object
-reading's type gate, and an object attacker is a battlefield permanent: `attackableKind`'s
-counterpart on the declaring side. -/
-def NounPhrase.attackerOk (bs : Bindings) (n : NounPhrase) : Bool :=
-  let k := n.kindOr .object
-  deedKindOk (.core .attack) .agent k && deedNounOk bs (.core .attack) .agent n &&
-    combatPartyKind k (NounPhrase.zone bs n)
 
 /-! ## Agents, choices, and the stacks they leave -/
 
@@ -2138,13 +1943,6 @@ def VisibleThing.intro (bs : Bindings) : VisibleThing → Bindings
   | .topOfLibrary => bs
   | .wholeHand => bs
   | .objects n => nomIntro bs n
-
-def visibilityOk : ExposeVerb → VisibleThing → Bool
-  | .reveal, .topOfLibrary => true
-  | .reveal, .wholeHand => true
-  | .lookAt, .topOfLibrary => true
-  | .lookAt, .wholeHand => false
-  | _, .objects _ => true
 
 def selfSubjIntro (bs : Bindings) (n : NounPhrase) : Bindings := NounPhrase.selfSubjIntroduced n ++ nomIntro bs n
 

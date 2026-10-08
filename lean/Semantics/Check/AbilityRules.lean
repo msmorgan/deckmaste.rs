@@ -10,8 +10,6 @@ threads to it.
 
 namespace Semantics
 
-def zoneIsCheck (z : Option Zone) (want : Zone) : List Refusal := refuse (zoneIsB z want) (.zoneIs want)
-
 def CounterKindSource.check (bs : Bindings) : CounterKindSource → List Refusal
   | .printed c => c.check
   | .chosen menu => refuse (!menu.isEmpty) .nonEmpty ++ menu.flatMap CounterKind.check
@@ -46,27 +44,19 @@ def Exchanged.check (bs : Bindings) : Exchanged → List Refusal
   | .lifeTotals parties => NounPhrase.check (some .player) bs parties ++ refuse (twoPartiesOk parties) .twoParties
   | .controlOf a b =>
     let bs' := nomIntro bs a
-    NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b ++
-      refuse (controlExchangeZone (NounPhrase.zone bs a)) .controlExchangeZone ++
-      refuse (controlExchangeZone (NounPhrase.zone bs' b)) .controlExchangeZone
+    NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b
   | .cardsAcross a b =>
     let bs' := nomIntro bs a
-    NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b ++
-      refuse (cardSwapZonesOk (NounPhrase.zone bs a) (NounPhrase.zone bs' b)) .cardSwapZones
+    NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b
   | .zones a b =>
-    ZoneExpr.check bs a ++ ZoneExpr.check (ZoneExpr.introduced bs a ++ bs) b ++
-      refuse (match a.sort, b.sort with
-        | some x, some y => zoneSwapOk x y
-        | _, _ => false) .zoneSwap
+    ZoneExpr.check bs a ++ ZoneExpr.check (ZoneExpr.introduced bs a ++ bs) b
   | .values a b =>
     let bs' := Amount.intro bs a
     Amount.check bs a ++ Amount.check bs' b ++ refuse a.settableValue .settableValue ++
       refuse b.settableValue .settableValue ++ refuse (!selfExchanged bs a b) .selfExchanged
   | .textBoxes a b =>
     let bs' := nomIntro bs a
-    NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b ++
-      refuse (zoneIsB (NounPhrase.zone bs a) .battlefield) (.zoneIs .battlefield) ++
-      refuse (zoneIsB (NounPhrase.zone bs' b) .battlefield) (.zoneIs .battlefield)
+    NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b
 
 def CostShift.check (bs : Bindings) : CostShift → List Refusal
   | .less amt floor =>
@@ -80,7 +70,8 @@ def CountBound.check (bs : Bindings) : CountBound → List Refusal
 
 def DeonticPatient.check (bs : Bindings) : DeonticPatient → List Refusal
   | .noPatient => []
-  | .defendingPlayer m => NounPhrase.check Option.none bs m ++ refuse (m.attackable bs) .attackable
+  | .defendingPlayer m =>
+    NounPhrase.check Option.none bs m ++ objectOrPlayerCheck (m.kindOr .object)
   | .counterpart m => NounPhrase.check Option.none bs m
   | .targetedBy m =>
     let k := m.kindOr .object
@@ -90,7 +81,7 @@ def DeonticPatient.check (bs : Bindings) : DeonticPatient → List Refusal
 
 def DamageScope.check (bs : Bindings) : DamageScope → List Refusal
   | .everywhere => []
-  | .toRecipient n => NounPhrase.check none bs n ++ refuse (n.damageRecipient bs) .damageRecipient
+  | .toRecipient n => NounPhrase.check none bs n ++ objectOrPlayerCheck (n.kindOr .object)
 
 def DamageAgent.check (bs : Bindings) : DamageAgent → List Refusal
   | .unattributed => []
@@ -161,15 +152,13 @@ mutual
       let bs' := selfSubjIntro bs src
       let bs'' := Amount.introduced bs' amt ++ nomIntro bs src
       NounPhrase.check (some .object) bs src ++ Amount.check bs' amt ++ NounPhrase.check none bs'' to ++
-        refuse to.perMemberOk .perMember ++ refuse (to.damageRecipient bs'') .damageRecipient
-    | .setStatus v n =>
-      let k := n.kindOr .object
-      NounPhrase.check none bs n ++ refuse (k == .object) .statusHolder ++
-        zoneIsCheck (NounPhrase.zone bs n) .battlefield ++ refuse v.markable .statusMarkable
-    | .turnOver what => NounPhrase.check (some .object) bs what ++ zoneIsCheck (NounPhrase.zone bs what) .battlefield
+        refuse to.perMemberOk .perMember ++ objectOrPlayerCheck (to.kindOr .object)
+    -- A status is a permanent's [CR#110.5]: the kind is an object's.
+    | .setStatus _ n => NounPhrase.check (some .object) bs n
+    | .turnOver what => NounPhrase.check (some .object) bs what
     | .combat n update =>
       let bs' := nomIntro bs n
-      NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
+      NounPhrase.check (some .object) bs n ++
         (match update with
          | .participation .outsideCombat => []
          | .participation (.blocked _) =>
@@ -179,18 +168,18 @@ mutual
              AttackDefender.check bs' whom
          | .blocking _ what =>
            refuse (deedNounOk bs (.core .block) .agent n) (.deedNounOk (.core .block)) ++
-             NounPhrase.check (some .object) bs' what ++ zoneIsCheck (NounPhrase.zone bs' what) .battlefield ++
+             NounPhrase.check (some .object) bs' what ++
              refuse (deedNounOk bs' (.core .block) .patient what) (.deedNounOk (.core .block)))
-    | .attachment move what host =>
-      NounPhrase.check (some .object) bs what ++ zoneIsCheck (NounPhrase.zone bs what) .battlefield ++
+    | .attachment _ what host =>
+      NounPhrase.check (some .object) bs what ++
         (match host with
-         | none => refuse (move == .unattached) .attachFits
+         | none => []
          | some host =>
            let kh := host.kindOr .object
            NounPhrase.check none (nomIntro bs what) host ++
              refuse (Kind.lte kh (.join .object .player)) (.kindLte kh (.join .object .player)))
     | .clearDamage n =>
-      NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
+      NounPhrase.check (some .object) bs n
     | .doAndForbid e deed what =>
       let bs' := e.riderIntro bs
       let k := what.kindOr .object
@@ -222,26 +211,25 @@ mutual
       OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs' voters ++
         Ballot.check (nomIntro bs' voters) ballot ++
         refuse (choiceOrderOk first (some voters)) .choiceOrder
+    -- A zone holds objects [CR#400.1], and each object in a pile is still an object
+    -- [CR#700.3b]: the kind moved is an object or a pile.
     | .move what from_ to riders =>
       let bs' := nomIntro bs what
+      let k := what.kindOr .object
       NounPhrase.check none bs what ++ ZoneExpr.check bs' from_ ++ ZoneExpr.check bs' to ++
         TokenRider.checkAll bs' riders ++
-        refuse what.movable .movable ++ refuse to.destOk .destOk ++
-        refuse (orderOk what.plur to) .arrangementOk ++
-        refuse (to.sort.all (destTypeOk (NounPhrase.ty bs what))) .placeable ++
-        refuse (to.sort.all (ridersFitZone riders)) .ridersFit
-    | .copy src what times exc => let agent := performerOf perf;
+        refuse (Kind.lte k (.join .object .pile)) (.kindLte k (.join .object .pile))
+    | .copy _ what times exc => let agent := performerOf perf;
       let bs' := nomIntro bs agent
       let bs'' := nomIntro bs' what
       let k := what.kindOr .object
       NounPhrase.check (some .player) bs agent ++ NounPhrase.check none bs' what ++ Amount.check bs'' times ++
-        CopyExcept.checkAll (Amount.intro bs'' times) exc ++ refuse k.phrasal (.phrasal k) ++
-        refuse (copySourceOk bs' src what) .copySourceOk
-    | .chooseNewTargets what => NounPhrase.check none bs what ++ refuse (what.copiable bs) .stackActOn
+        CopyExcept.checkAll (Amount.intro bs'' times) exc ++ refuse k.phrasal (.phrasal k)
+    | .chooseNewTargets what => NounPhrase.check none bs what
     | .copyTargets cp whom =>
       let kt := whom.kindOr .object
       NounPhrase.check none bs cp ++ NounPhrase.check none (nomIntro bs cp) whom ++
-        refuse (cp.copiable bs) .stackActOn ++ refuse kt.targetable (.targetable kt)
+        refuse kt.targetable (.targetable kt)
     | .changeLife d => let who := performerOf perf; NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who)
         d.amount
     | .exchange what => what.check bs
@@ -257,7 +245,7 @@ mutual
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ sc.check bs' ++ Quantity.check bs' q ++
         Predicate.check .object bs' p ++ refuse q.nonZero .nonZeroQ ++
-        refuse q.wellFormed .wellFormedQ ++ refuse p.seedZone.isNone .zoneCoherent
+        refuse q.wellFormed .wellFormedQ
     | .shuffle => let whose := performerOf perf; NounPhrase.check (some .player) bs whose
     | .flipCoins count => let who := performerOf perf; NounPhrase.check (some .player) bs who ++ count.check (nomIntro bs
         who)
@@ -306,7 +294,7 @@ mutual
       v.check bs ++ Amount.check bs' amt ++ NounPhrase.check none bs'' among ++
         refuse among.groupMention .groupMention ++
         (match v with
-         | .damage _ => refuse (among.damageRecipient bs'') .damageRecipient
+         | .damage _ => objectOrPlayerCheck (among.kindOr .object)
          | .counters _ => kindCheck .object among.kind?)
     | .removeCounters q kind from_ =>
       let bs' := optQuantIntro bs q
@@ -323,7 +311,7 @@ mutual
       Amount.check bs amt ++ OptCounterKindSource.check bs kind ++ NounPhrase.check (some .object) bs' src ++
         NounPhrase.check (some .object) bs'' dst ++ refuse (optKindAmountOk amt kind) .kindAmountOk ++
         refuse (optCounterSourceScope kind .object) .counterSourceScope ++
-        refuse (src.counterMemoryOk bs') .counterMemory ++ refuse dst.moveDestOk .moveDestination ++
+        refuse (src.counterMemoryOk bs') .counterMemory ++
         refuse dst.perMemberOk .perMember
     | .doubleCounters on =>
       let k := on.kindOr .object
@@ -333,7 +321,6 @@ mutual
       let inner := enactCtx bs v subj
       OptNoun.check (some (enactAgentKind bs v subj)) bs subj ++ Instruction.checkWith inner none e ++
         refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk bs subj v) .enactAgentOk ++
-        refuse (enactPatientZoneOk inner v e) .zoneFits ++
         refuse (enactPatientPossessorOk inner v subj e) .patientPossessor ++
         refuse (enactLibraryOwnerOkIn inner v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
@@ -402,8 +389,7 @@ mutual
         Instruction.checkWith (thisWayCtx bs body ev) none trig ++
         refuse body.thisWayOutcomeOk .thisWayOutcome
     | .skipUntap n steps =>
-      NounPhrase.check (some .object) bs n ++ Amount.check (nomIntro bs n) steps ++
-        zoneIsCheck (NounPhrase.zone bs n) .battlefield
+      NounPhrase.check (some .object) bs n ++ Amount.check (nomIntro bs n) steps
     | .skipPart _ count => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
     | .addTurnPart part anchor count followedBy => let who := performerOf perf;
@@ -504,18 +490,17 @@ mutual
       cut.check bs ++ Instruction.checkOpt (outcomeB .damagePrevented :: cut.intro bs) also
     | .redirect cut to =>
       let bs' := cut.intro bs
-      cut.check bs ++ NounPhrase.check none bs' to ++ refuse (to.damageRecipient bs') .damageRecipient ++
+      cut.check bs ++ NounPhrase.check none bs' to ++ objectOrPlayerCheck (to.kindOr .object) ++
         refuse to.plur.isOne .singular
     | .scale sc => sc.check bs
   termination_by structural op => op
 
   def TokenRider.check (bs : Bindings) : TokenRider → List Refusal
-    | .entersAs v => refuse v.markable .statusMarkable
     | .entersAttacking whom => AttackDefender.check bs whom
-    | .entersTransformed | .entersMelded _ => []
+    | .entersAs _ | .entersTransformed | .entersMelded _ => []
     | .withCounters amt kind _ =>
       Amount.check bs amt ++ kind.check (Amount.intro bs amt) ++ refuse (kindAmountOk amt kind) .kindAmountOk
-    | .under who => NounPhrase.check (some .player) bs who ++ refuse who.ctrlOverrideOk .ctrlOverride
+    | .under who => NounPhrase.check (some .player) bs who
     | .asCopyOf _ src exc =>
       NounPhrase.check (some .object) bs src ++ CopyExcept.checkAll bs exc ++ refuse src.perMemberOk .perMember
   termination_by structural r => r
@@ -563,20 +548,9 @@ mutual
   def AbilitySelection.check (bs : Bindings) (subject : Option NounPhrase) :
       AbilitySelection → List Refusal
     | .specified abilities =>
-      (match subject with
-       | none => []
-       | some n => zoneIsCheck (NounPhrase.zone bs n) .battlefield) ++
-        refuse (!abilities.isEmpty) .nonEmpty ++ AbilityLost.checkAll bs abilities
-    | .family class_ =>
-      refuse class_.known .knownKeywordTerm ++
-        (match subject with
-         | none => []
-         | some n => zoneIsCheck (NounPhrase.zone bs n) .battlefield)
-    | .allExcept except =>
-      OptPredicate.check .object (subjCtx bs subject) except ++
-        (match subject with
-         | none => []
-         | some n => zoneIsCheck (NounPhrase.zone bs n) .battlefield)
+      refuse (!abilities.isEmpty) .nonEmpty ++ AbilityLost.checkAll bs abilities
+    | .family class_ => refuse class_.known .knownKeywordTerm
+    | .allExcept except => OptPredicate.check .object (subjCtx bs subject) except
   termination_by structural selection => selection
 
   def TokenSpec.check (bs : Bindings) : TokenSpec → List Refusal
@@ -616,8 +590,7 @@ mutual
     | .spendOnly ps => refuse (!ps.isEmpty) .nonEmpty ++ ps.flatMap (SpendPurpose.check bs)
     | .spendNotOn ps => refuse (!ps.isEmpty) .nonEmpty ++ ps.flatMap (SpendPurpose.check bs)
     | .onSpent _ _ what says =>
-      NounPhrase.check (some .object) bs what ++ Instruction.checkWith (nomIntro bs what) none says ++
-        zoneIsCheck (NounPhrase.zone bs what) .stack
+      NounPhrase.check (some .object) bs what ++ Instruction.checkWith (nomIntro bs what) none says
   termination_by structural r => r
 
   def ManaRider.checkAll (bs : Bindings) : List ManaRider → List Refusal
@@ -631,25 +604,22 @@ mutual
     | .inCaller scope body =>
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         StaticSpec.check (enterCaller scope bs) body
-    | .modification n what d =>
-      NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) d.amount ++
-        zoneIsCheck (NounPhrase.zone bs n) .battlefield ++ refuse what.modifyOk .modifyStat
+    | .modification n _ d =>
+      NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) d.amount
     -- The subject is checked once; the toughness delta reads what the power delta announced,
     -- as the toughness half of a two-modification conjunction does.
     | .ptModification n p t =>
       NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) p.amount ++
-        zoneIsCheck (NounPhrase.zone bs n) .battlefield ++
         Amount.check (Delta.introduced (selfSubjIntro bs n) p ++ selfSubjIntro bs n) t.amount
     | .ptDefinition n _ amt =>
       NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) amt ++
         refuse n.selfDefinedOk .selfDefinedOk
-    | .ptSwitch n => NounPhrase.check (some .object) bs n ++ zoneIsCheck (NounPhrase.zone bs n)
-        .battlefield
+    | .ptSwitch n => NounPhrase.check (some .object) bs n
     | .costShift n sh =>
-      NounPhrase.check (some .object) bs n ++ sh.check bs ++ refuse (n.costSubjectOk bs) .costSubject
+      NounPhrase.check (some .object) bs n ++ sh.check bs
     | .altCost n c =>
       NounPhrase.check (some .object) bs n ++ OptCost.check (selfSubjIntro bs n) c ++
-        refuse (c.elim true Cost.offBattlefield) .altPayment ++ refuse (n.costSubjectOk bs) .costSubject
+        refuse (c.elim true Cost.offBattlefield) .altPayment
     | .addedCost c _ => Cost.check bs c ++ refuse c.offBattlefield .addedPayment
     | .letterDefinition l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .abilityGrant n ab =>
@@ -695,8 +665,7 @@ mutual
         CopyExcept.checkAll (nomIntro bs' src) exc ++ refuse src.perMemberOk .perMember
     | .controlGrant who what =>
       let bs' := nomIntro bs who
-      NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' what ++
-        zoneIsCheck (NounPhrase.zone bs' what) .battlefield
+      NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' what
     | .replacement ev alts window repl _ limit =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptTiming.check bs window ++
         Instruction.checkWith (interceptCtx bs alts ev) none repl ++
@@ -710,18 +679,16 @@ mutual
     | .conditional se c marking =>
       StaticSpec.check bs se ++ Condition.check (StaticSpec.intro bs se) c ++
         refuse (markingOk marking c) .markingOk
-    | .visibility v who what =>
-      NounPhrase.check (some .player) bs who ++ VisibleThing.check (nomIntro bs who) what ++
-        refuse (visibilityOk v what) .visibilityOk
+    | .visibility _ who what =>
+      NounPhrase.check (some .player) bs who ++ VisibleThing.check (nomIntro bs who) what
     | .additionalTriggers ev q =>
       GameEvent.check bs ev ++ Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++
         refuse q.wellFormed .wellFormedQ ++ refuse (Quantity.introduced bs q).isEmpty .quantLiteral ++
         refuse (triggerCountOk ev) .triggerCountOk
     | .entryRider n rider =>
-      NounPhrase.check (some .object) bs n ++ TokenRider.check (nomIntro bs n) rider ++
-        zoneIsCheck (NounPhrase.zone bs n) .battlefield
+      NounPhrase.check (some .object) bs n ++ TokenRider.check (nomIntro bs n) rider
     | .choice _ n q dom _ =>
-      NounPhrase.check (some .object) bs n ++ sortedDomainCheck bs q dom ++ zoneIsCheck (NounPhrase.zone bs n) .battlefield
+      NounPhrase.check (some .object) bs n ++ sortedDomainCheck bs q dom
     | .conjunction subject parts =>
       OptNoun.check (some .object) bs subject ++ refuse (!parts.isEmpty) .nonEmpty ++
         StaticSpec.checkParts (subjCtx bs subject) parts

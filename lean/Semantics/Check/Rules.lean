@@ -40,13 +40,13 @@ def ConferralRule.check (r : ConferralRule) : List Refusal :=
   Predicate.check k [] r.scope ++ refuse (Kind.lte k ruleScopeBound) (.kindLte k ruleScopeBound) ++
     Ability.check [] r.confer ++ refuse r.confer.grantable .grantable
 
-/-- Damage reaches battles, creatures, planeswalkers and players and nothing else
-[CR#120.1,120.1a], and the counters it removes must be counters that recipient can hold — the
-counter registry declares the holder, so the two reads have to agree. -/
+/-- Damage is dealt to a player or an object [CR#120.1], and the counters it removes must be
+counters that recipient can hold — the counter registry declares the holder, so the two reads
+have to agree. Which objects damage can reach [CR#120.1a] is a game rule the checker does not
+assert. -/
 def DamageResultRule.check (r : DamageResultRule) : List Refusal :=
   let k := ruleScopeKind r.recipient
-  Predicate.check k [] r.recipient ++
-    refuse (damageableKind k r.recipient.seedTys) .damageRecipient ++
+  Predicate.check k [] r.recipient ++ objectOrPlayerCheck k ++
     r.remove.check ++ refuse (counterKindNamed k (some r.remove)) (.counterKindNamed k)
 
 /-- A catalog entry obeys the token laws its characteristics would obey inside a `create`
@@ -62,30 +62,14 @@ def distinctPredefinedTokens : List PredefinedToken → Bool
 
 /-! ## Registry definitions -/
 
-/-- A definition's stat change on its bearer is about the bearer wherever the bearer is, so it is
-checked as a card's stat change is, less the demand that its subject be on the battlefield. A
-+X/+Y counter counts "on a creature or on a creature card in a zone other than the battlefield"
-[CR#122.1a]; a counter sits on an exiled card [CR#702.62a,702.62b] and on a player [CR#122.1];
-and the zone matters where counters are PUT [CR#122.6], an instruction that cannot be carried out
-doing only what it can [CR#609.3], which is the instruction's check and not the definition's.
-
-Only the bearer (`this`) is narrowed, and only here: a card's own "gets +1/+1", and a
-definition's stat change on any other subject, keep `StaticSpec.check`'s demand. -/
-def Conferral.checkProperty : StaticSpec → List Refusal
-  | .ptModification .this p t =>
-      NounPhrase.check (some .object) [] .this ++ Amount.check (selfSubjIntro [] .this) p.amount ++
-        Amount.check (Delta.introduced (selfSubjIntro [] .this) p ++ selfSubjIntro [] .this) t.amount
-  | spec => StaticSpec.check [] spec
-
 /-- What a definition confers obeys the laws its syntax obeys inside a card, in the empty
 binding context: the definition supplies no binding, exactly as a rules table's scope supplies
 only `this`. A conferred ability must be one an effect could grant at all [CR#113.3a], and
 neither a state-based action [CR#704.1] nor a turn-based action [CR#703.1] uses the stack, so
-neither can target [CR#601.2c]. A stat change on the bearer is the one exception to "as inside a
-card" (`Conferral.checkProperty`). -/
+neither can target [CR#601.2c]. -/
 def Conferral.check : Conferral → List Refusal
   | .ability a => Ability.check [] a ++ refuse a.grantable .grantable
-  | .property spec => Conferral.checkProperty spec
+  | .property spec => StaticSpec.check [] spec
   | .stateBased when then_ =>
       Condition.check [] when ++ Instruction.check [] then_ ++
         refuse (!anyTargetedAt (Instruction.intro [] then_)) .nontarget

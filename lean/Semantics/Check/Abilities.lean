@@ -36,14 +36,6 @@ def twoPartiesOk : NounPhrase → Bool
   | .described d _ => (d.quant >>= Quantity.exact) == some 2
   | _ => false
 
-def controlExchangeZone (z : Option Zone) : Bool := onFieldZone z || onStackZone z
-
-def cardSwapZonesOk : Option Zone → Option Zone → Bool
-  | some a, some b => a != b
-  | _, _ => false
-
-def zoneSwapOk (a b : Zone) : Bool := isCardZone (some a) && isCardZone (some b) && a != b
-
 def Exchanged.intro (bs : Bindings) : Exchanged → Bindings
   | .lifeTotals parties => nomIntro bs parties
   | .controlOf a b => nomIntro (nomIntro bs a) b
@@ -178,10 +170,6 @@ def ptDelta (bs : Bindings) : Option (Amount × Amount) → List Binding
   | none => []
   | some (p, t) => Amount.introduced (Amount.intro bs p) t ++ Amount.introduced bs p
 
-def Stat.modifyOk : Stat → Bool
-  | .power | .toughness => true
-  | _ => false
-
 def CostShift.introduced (bs : Bindings) : CostShift → List Binding
   | .less a _ => Amount.introduced bs a
   | .more a => Amount.introduced bs a
@@ -303,21 +291,6 @@ def NounPhrase.bareThis : NounPhrase → Bool
   | .this => true
   | _ => false
 
-/-- A deed done by name happens where the deed table says its patient lives ("destroy" on the
-battlefield [CR#701.8a], "discard" from a hand [CR#701.9a]); "this" is wherever the text is.
-The Idris carried this on each verb's macro. An indefinite patient that names no zone ("discard
-a card") is selected where the deed's patient lives: the deed supplies that restriction. -/
-def enactPatientZoneOk (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
-  match e.enactPatient with
-  | none => true
-  | some n =>
-    if n.bareThis then true else
-    match actZoneOf v with
-    | none => true
-    | some z =>
-      let written := NounPhrase.zone bs n
-      zoneIsB written z || (written.isNone && (n.det == some .a || n.det == some .count))
-
 /-- A deed whose patient is the performer's own (`ActFacts.ownPatient`): a permanent the performer
 controls [CR#701.21a], a card in the performer's own hand [CR#701.9a]. Both forms read the same
 possessor (`NounPhrase.possessor`): the conjunct an indefinite patient's description writes
@@ -329,12 +302,6 @@ def enactPatientPossessorOk (bs : Bindings) (v : Deed) (perf : Option NounPhrase
     match e.enactPatient, perf with
     | some n, some who => !Possessor.differs (NounPhrase.possessor bs n) (who.possessorSide bs)
     | _, _ => true
-
-/-- Idris `CtrlOverrideOk`: a single controller, or one per member of a group. -/
-def NounPhrase.ctrlOverrideOk : NounPhrase → Bool
-  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.ctrlOverrideOk
-  | .possessorOf ax _ => possessorKind ax .object
-  | n => n.plur.isOne
 
 def Amount.forEach : Amount → Bool
   | .withBindings _ _ body | .inCaller _ body => body.forEach
@@ -701,13 +668,6 @@ def TokenRider.intro (bs : Bindings) : TokenRider → Bindings
   | .withCounters amt kind _ => kind.intro (Amount.intro bs amt)
   | .under who => nomIntro bs who
   | _ => bs
-
-def ridersZoneFree : List TokenRider → Bool
-  | [] => true
-  | .withCounters _ _ _ :: rs => ridersZoneFree rs
-  | _ :: _ => false
-
-def ridersFitZone (rs : List TokenRider) (z : Zone) : Bool := ridersZoneFree rs || z == .battlefield
 
 /-! ## Static and instruction attributes -/
 

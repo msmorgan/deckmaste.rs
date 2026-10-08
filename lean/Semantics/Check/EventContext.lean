@@ -29,43 +29,6 @@ def creationVoiceOk (bs : Bindings) (byEffect : Bool) (by_ under : Option NounPh
 
 def causedByOk (byEffect : Bool) (by_ : Option NounPhrase) : Bool := !(byEffect && by_.isSome)
 
-/-- Unknown subject locations remain compatible; explicit locations must meet the
-observed endpoint, including excluded origins. -/
-def EventSource.admits (z : Zone) : EventSource → Bool
-  | .anywhere => true
-  | .zones zs => zs.any (fun origin => origin.sort == some z)
-  | .anywhereBut zs => !zs.any (fun origin => match origin.scopeBody with
-      | .zone sort .bare => sort == z
-      | .library _ _ _ .bare => z == .library
-      | _ => false)
-
-def transitionSubjectOk (z : Option Zone) (src : Option EventSource) (dest : Option ZoneExpr) :
-    ObservationPoint → Bool
-  | .before => z.elim true (fun zone => src.elim true (EventSource.admits zone))
-  | .after => zoneFits z (dest.bind ZoneExpr.sort)
-
-/-- Battlefield, stack, exile, and command are single shared zones. A purported move
-from one of these zones back to itself is not a zone change. Player-owned zones may
-have different owners even when their zone sorts agree. -/
-def transitionEndpointsOk (src : Option EventSource) (dest : Option ZoneExpr) : Bool :=
-  let possible := src.elim true (fun origin =>
-    [Zone.battlefield, .graveyard, .exile, .hand, .library, .stack, .command].any
-      (fun zone => origin.admits zone))
-  possible && match src, dest with
-  | some (.zones zs), some to =>
-    !zs.all (fun from_ => from_.sort == to.sort &&
-      (to.sort.any [Zone.battlefield, .stack, .exile, .command].contains))
-  | _, _ => true
-
-def castSourceOk : Option EventSource → Bool
-  | none => true
-  | some src => src.zonesOk (fun z => playableFrom (some z))
-
-/-- The combat relations that name an event: attacking, blocking, becoming blocked. -/
-def CombatRelation.eventRelation : CombatRelation → Bool
-  | .attackerOf | .blockerOf | .blockedBy => true
-  | _ => false
-
 def optIntro (bs : Bindings) : Option NounPhrase → Bindings
   | none => bs
   | some m => nomIntro bs m
@@ -74,14 +37,6 @@ def optIntro (bs : Bindings) : Option NounPhrase → Bindings
 def optAgentIntro (bs : Bindings) : Option NounPhrase → Bindings
   | none => bs
   | some who => nomIntro bs who
-
-def patientZone (bs : Bindings) : Option NounPhrase → Option Zone
-  | none => none
-  | some n => NounPhrase.zone bs n
-
-def patientZoneIsB (bs : Bindings) : Option NounPhrase → Zone → Bool
-  | none, _ => true
-  | some n, z => zoneIsB (NounPhrase.zone bs n) z
 
 def verbPatientOk (v : Deed) : Option NounPhrase → Bool
   | none => (actPatientKindsOf v).isEmpty
@@ -94,11 +49,6 @@ def verbBecomesOk (v : Deed) : Option Predicate → Bool
 def verbedVoiceOk (v : Deed) : Option NounPhrase → Option NounPhrase → Bool
   | some _, _ => true
   | none, what => what.isSome && (actNamesParticiple v || actIntransitiveOf v)
-
-def DamageKind.sourceZone : DamageKind → Option Zone
-  | .any => none
-  | .combatOnly => some .battlefield
-  | .noncombatOnly => none
 
 def HeaderPossessor.intro (bs : Bindings) : HeaderPossessor → Bindings
   | .noPossessor => bs
@@ -306,11 +256,6 @@ def chapterDefaultsOk (ev : GameEvent) (alts : List GameEvent) (wh : Option Conc
 
 def GameEvent.headerNontarget (bs : Bindings) (ev : GameEvent) : Bool :=
   !anyTargetedAt (GameEvent.intro bs ev)
-
-def GameEvent.headerStatusOk : GameEvent → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.headerStatusOk
-  | .statusEvent _ v => v.markable
-  | _ => true
 
 /-! ## Number slots
 

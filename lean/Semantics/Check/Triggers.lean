@@ -39,10 +39,9 @@ def OptConcurrent.check (bs : Bindings) : Option Concurrent → List Refusal
   | none => []
   | some c => Concurrent.check bs c
 
-/-- Idris `HeaderNontarget` and `HeaderStatus` on a header event and each `or`-arm. -/
+/-- Idris `HeaderNontarget` on a header event and each `or`-arm. -/
 def headerEventCheck (bs : Bindings) (ev : GameEvent) : List Refusal :=
-  GameEvent.check bs ev ++ refuse (ev.headerNontarget bs) .headerNontarget ++
-    refuse ev.headerStatusOk .statusMarkable
+  GameEvent.check bs ev ++ refuse (ev.headerNontarget bs) .headerNontarget
 
 def JoinedHeader.check (bs : Bindings) (j : JoinedHeader) : List Refusal :=
   headerEventCheck bs j.event ++ j.alternatives.flatMap (headerEventCheck bs) ++
