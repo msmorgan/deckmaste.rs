@@ -28,4 +28,4 @@ A `build.rs` or checked-in expanded artifact for the 899 declarations, worth abo
 
 ## Landing record
 
-Standard tiers. Plus: declaration-set, metadata and inventory-hash comparison before and after, the equivalence test, and before/after timings (integer ns, host load, worker count).
+The six items in CLAUDE.md. Plus: declaration-set, metadata and inventory-hash comparison before and after, the equivalence test, and before/after timings (integer ns, worker count).

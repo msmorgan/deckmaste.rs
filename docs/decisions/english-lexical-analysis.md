@@ -317,3 +317,29 @@ faces in the full-corpus run. Both conditions are measured, not argued.
 Rationale: overgeneration is tolerable and the grammar prunes toward what
 Oracle text attests, but a wrong exclusion is a silent coverage loss, which the
 landing contract treats as a defect.
+
+## Amendment: landing record slimmed to six items (2026-10-08)
+
+Ruling (user, 2026-10-08): the three-tier PROVE / DISCLOSE / REPORT landing
+record is retired. A landing record is now the six items in `CLAUDE.md`
+(Feature workflow): census delta with lost faces classified by name, witness
+Reading counts, ten spot checks, deviations and STOPs, tests run with their
+assurance counts, and one census wall time with worker count. This supersedes
+[Amendment: what a landing proves, discloses, and reports (2026-09-04)](english-v2-rewrite.md#amendment-what-a-landing-proves-discloses-and-reports-2026-09-04)
+as a record format. Dropped outright: lists of newly covered faces, hash and
+stamp attestation prose, the homograph and form-literal/vocabulary overlap
+inventories, the selection-specificity census, the permitted licensing-checker
+total, the performance advisory with its quiet-host ceiling and ns/B figures,
+and the `DECKMASTE_COVERAGE_LOCK=report` ceremony wording.
+
+The safety laws that record encoded stay in force: no silent loss, no test
+deletion, no word-naming guard, a wrong analysis that parses is a defect, and
+every grammatical Reading is preserved. They are enforced by the per-face
+census digest diff, the `environment.rs` load errors and the `CLAUDE.md`
+Assurance section. A ticket-vs-ruling contradiction still requires a STOP;
+disclosure is not authority.
+
+Rationale: the per-face digest census already proves what the prose
+attestation restated, so the attestation added nothing checkable. Name dumps
+made tickets unreadable (done tickets reached hundreds of KB, the largest
+about 350 KB) and burned implementer turns writing them.

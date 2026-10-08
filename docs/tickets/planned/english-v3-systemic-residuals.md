@@ -108,12 +108,12 @@ Report complete no/one/multiple census, identity-level gains/losses and their
 analyses, invalid-Reading audit, both roundtrip laws, traversal, lexical gaps,
 zero internal failures and correlated packed-forest metrics. Deferred rejects
 are not Readings. Run the full corpus once on the refreshed final tree after
-subset iteration, with complete enumeration and explicit worker count/load.
-The baseline's 8.66 s used one worker at load 6.55/5.55/3.54 and mostly failed
-early; 35,923 ns/B covers parsed text. It does not establish future throughput.
-Measure expanded coverage and justify operational corpus-runtime and forest
-bounds for cutover against the 16.26 s advisory; linear extrapolation is only
-an estimate. Stamp results with the measured change and applicable lock count.
+subset iteration, with complete enumeration and an explicit worker count.
+The baseline's 8.66 s used one worker and mostly failed early; it does not
+establish future throughput. Measure expanded coverage and justify operational
+corpus-runtime and forest bounds for cutover; linear extrapolation is only an
+estimate. The landing record is the six items in CLAUDE.md, stamped with the
+measured change id.
 
 Keep all grammatical Readings, generated bidirectional declarations and the
 Earley/packed admission contract. V2 remains untouched until cutover. STOP and

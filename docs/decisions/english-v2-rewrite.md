@@ -1316,6 +1316,9 @@ construction, or card.
 
 ## Amendment: what a landing proves, discloses, and reports (2026-09-04)
 
+> Superseded as a record format on 2026-10-08 by
+> [Amendment: landing record slimmed to six items](english-lexical-analysis.md#amendment-landing-record-slimmed-to-six-items-2026-10-08).
+
 The Plan 09 metric set was designed for a corpus-driven incremental coverage
 push and outlived the approach it measured; the fallout audit found roughly half
 of executor spend going into the measurement apparatus, and every regression in

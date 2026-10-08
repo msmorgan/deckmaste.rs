@@ -69,8 +69,8 @@ must distinguish inherited linguistic decisions from implementation hypotheses
 and resolve conflicts explicitly. The earlier Group R order and the
 largest-first tail loop no longer schedule this phase.
 
-Production migrations retain the rewrite's structural laws and the
-PROVE/DISCLOSE/REPORT landing contract. Workbench tickets instead validate their
+Production migrations retain the rewrite's structural laws and the CLAUDE.md
+landing record (six items since 2026-10-08). Workbench tickets instead validate their
 Lean definitions, witnesses, and named proofs; they do not run production
 coverage ceremonies or claim coverage gains. No proof transfers to Rust merely
 because its types resemble the Lean model. Review the correspondence and test

@@ -86,7 +86,6 @@ cite check). Deltas:
    leave unreachable declarations.
 10. A CGEL citation may back only what the cited passage itself says; a project
     or orchestrator ruling is cited as a ruling, never attributed to CGEL.
-11. Timings as integer ns and ns/B, with host load and worker count.
 
 ## Out of scope
 
@@ -95,7 +94,5 @@ cite check). Deltas:
 
 ## Landing record
 
-In addition to the standard record: the Cost form and how the three sign
-spellings are declared; the count of Planeswalker faces read before/after;
-Reading counts of each witness; before/after counts stamped with change ids;
-timings as integer ns and ns/B with host load and worker count.
+The six items in CLAUDE.md, plus: the Cost form and how the three sign
+spellings are declared; the count of Planeswalker faces read before/after.
