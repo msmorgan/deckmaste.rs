@@ -45,5 +45,12 @@ goldens. Standard constraints apply.
 
 Since 2026-10-07 each keyword `spelling` is a card-usage template with
 per-kind default realizations and `<Param(n):hint>` overrides
-([builtin-v2-keyword-spelling-templates](builtin-v2-keyword-spelling-templates.md));
-compile the template and read its hints for the expected argument surface.
+(`builtin-v2-keyword-spelling-templates`; the default table is in the
+ADR's 2026-10-07 amendment); compile the template and read its hints for
+the expected argument surface. The template's literals and slots are the
+frame: its head literal is the grammar head at a word boundary (separators
+such as " — " and fixed prepositions such as "from" follow it), or a slot
+glued to the grammar's bound suffix ("<Param(0)>walk"); the one hint is
+`plural` (amass's subtype; affinity's and protection's quality). Eight
+keyword actions (behold, create, faceAVillainousChoice, fight, meld, mill,
+search, vote) still spell their bare head pending a template ruling.

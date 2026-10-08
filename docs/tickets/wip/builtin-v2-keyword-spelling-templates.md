@@ -158,3 +158,70 @@ change outside the unmapped list is a defect); the English v3 pins (generic pred
 "amass Orcs 1", amount complements "Scry 3.", the selected-frame tests) are
 unchanged; `cargo xtask expansions` shows no change (spelling is not in a
 body); `cargo xtask gate --changed --run` passes; state the command.
+
+## Landing record
+
+Measured on the refreshed tree (claim `xlkquwvx`, stages `kuwpwmvu`
+survey, `szkkroqv` reader, `zvrkmqpx` corpus, `mtkmtkxz` lexicon export,
+`zuqtlvou` docs). This landing changes no English grammar or corpus parse,
+so no lock count was measured.
+
+- **Templates.** 135 declarations templated: 30 keyword actions (with
+  `conniveN` as "connive <Param(0)>") and 105 keyword abilities. 115 stay
+  as the head because they have no parameters (28 actions, 87 abilities).
+  The rewrite is the scratchpad script `templates.py --write`, which only
+  derives templates. Its rules are in the Survey section.
+- **Hint vocabulary:** `plural`, 3 uses (amass's Subtype; affinity's and
+  protection's Quality). An unknown hint is an `InvalidSpelling` load error.
+  A hint on a kind it does not apply to is the new
+  `ValidationError::SpellingHintKindMismatch`. The default table is under
+  Decided and in the ADR.
+- **Head rule.** `spelling_head` and `GrammarSpellingMismatch` still hold,
+  reading the template's head literal: either it equals the grammar head,
+  or it starts with the grammar head at a word boundary. A literal glued
+  after a leading slot must be the grammar's bound suffix.
+- **STOP, open: 8 keyword actions have no template** (behold, create,
+  faceAVillainousChoice, fight, meld, mill, search, vote). Their params
+  match no grammar frame slot for slot (reasons in the Survey). They keep
+  the bare head, and the consistency test lists them by name in
+  `PENDING_RULING`. That list fails once any of them is templated.
+- **Lexicon export.** The "parameterized-spelling" unmapped marking is
+  gone. The export reads `grammar` alone and records nothing for a
+  template. `keyword_syntax` stays as the lexicon's parse hint. Proof:
+  `cargo xtask lexical --card-name "Black Lotus" --output … --export …`.
+  The export RON is byte-identical before and after (sha256 prefix
+  `5a273b80bd15daac`). The report's `unmapped_sources` holds 87 entries
+  both before and after, identical. The intermediate corpus-only state had
+  222 (135 marking entries).
+- **Expansions.** `cargo xtask expansions` before and after: `diff -r`
+  shows no difference.
+- **Tests** (`cargo test -p … --no-fail-fast`, all exit 0):
+  deckmaste_construction_core 463 passed; deckmaste_lexical_source 56;
+  deckmaste_semantics_v2 96; deckmaste_english_v3 366; 0 failed and 0
+  ignored in each. `cargo clippy -p deckmaste_construction_core -p
+  deckmaste_lexical_source --tests -- -D warnings`: clean.
+  `cargo xtask lean check`: canon 134/134, testing 7/7. No lean/ edits.
+  The gate was not run: the owner removed `cargo xtask gate`.
+- **Counts.** Restored 0. Re-spelled 4: the keyword-actions "one literal
+  spelling part" stub and the destroy spelling pin
+  (`builtin_v2_keyword_actions.rs`); the keyword-abilities single-literal
+  assertion, which now checks the template derived from keyword syntax, and
+  the infinity/More Than Meets the Eye/web-slinging spelling list
+  (`builtin_v2_keyword_abilities.rs`). Ignored 0. Added 5: two reader unit
+  tests (hints; the head rule), the per-declaration pin test and the
+  consistency test (`tests/builtin_v2_keyword_spelling_templates.rs`), and
+  the lexicon test that no template is unmapped. Removed 0.
+- **Cites.** `cite check --list-noncompliant`: 0. `cite check`: 0 stale.
+  `cite audit --diff` from the claim: 5 sites (701.47a, 702.142a, 702.47a,
+  702.48a, 702.14a). Each was read against its claim.
+  `kata kanban check`: OK.
+- **Deviations and additions.** (1) The `plural` hint on protection was
+  not named by the ticket. The survey found that a bare nominal there
+  prints plural. (2) Prototype's "/" between power and toughness comes
+  from the CostPowerToughness class (v3 `SlashPair`), not from
+  `keyword_syntax`. (3) Eight declarations are pending, as listed above.
+  (4) The head rule was widened to word-boundary and bound-suffix matching,
+  because separators, prepositions, before-head payloads and bound
+  suffixes could not otherwise pass. (5) `SpellingPart::Param` became
+  `Param { index, hint }`.
+- **Glossary gap:** none found.

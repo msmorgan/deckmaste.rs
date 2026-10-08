@@ -522,6 +522,19 @@ only by the declarations whose template no frame derives (TokenSpec,
 Instruction, Disclosure, Ballot, SearchScope, Quantity, String) get their
 defaults with those templates.
 
+Landed 2026-10-07 (`builtin-v2-keyword-spelling-templates`): the keyword
+corpus now matches the Decision's `scry <Param(0)>` example. The reader
+accepts `<Param(n):hint>`; an unknown hint, or a hint on a kind it cannot
+apply to, is a load error. The literal-head rule reads the template's head
+literal: it is the grammar head, or begins with it at a word boundary
+("boast — <Param(0)>", "splice onto <Param(0)> <Param(1)>"), and a literal
+glued after a leading slot is the grammar's bound suffix ("<Param(0)>walk").
+`keyword_syntax` stays the lexicon's parse hint; a test re-derives each
+keyword ability's template from it. Eight keyword actions whose params no
+frame of their grammar realizes slot for slot (behold, create,
+faceAVillainousChoice, fight, meld, mill, search, vote) keep the bare head
+pending a ruling.
+
 This still does not reinstate v1's `template:` language: no per-site codec
 such as `${n:card|cards}`, no text offsets, no `kinds:` registry. Work:
 `plugins-v2-connive-bare-and-n`, then `builtin-v2-keyword-spelling-templates`.
