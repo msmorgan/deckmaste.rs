@@ -571,7 +571,7 @@ regime. -/
 def StaticSpec.regimeFits (r : Option StackRegime) : StaticSpec → Bool
   | .withBindings _ _ body | .inCaller _ body => body.regimeFits r
   | .conditional se _ _ => se.regimeFits r
-  | .addedCost _ _ | .costShift _ _ => r == some .atCasting
+  | .addedCost _ _ _ | .costShift _ _ => r == some .atCasting
   | .altCost _ _ | .deonticRule _ .permit _ _ _ _ _ (.play _ _ _ _ _) => r != some .atResolution
   | _ => r == none
 termination_by structural se => se
@@ -1089,7 +1089,7 @@ mutual
     | .ptSwitch n => selfSubjIntro bs n
     | .costShift n sh => sh.introduced (selfSubjIntro bs n) ++ selfSubjIntro bs n
     | .altCost n _ => selfSubjIntro bs n
-    | .addedCost _ _ => bs
+    | .addedCost _ _ _ => bs
     | .abilityGrant n ab => ab.introducedLetters ++ selfSubjIntro bs n
     | .abilityGrantFrom n _ src _ => nomIntro (nomIntro bs n) src
     | .deonticRule n _ _ _ _ _ _ _ => selfSubjIntro bs n
@@ -1197,7 +1197,7 @@ mutual
     | .inCaller scope body => body.introducedChoices (enterCaller scope bs)
     | .choice _ _ q _ _ => [q.binding]
     | .conjunction _ parts => StaticSpec.partsIntroducedChoices bs parts
-    | .addedCost c _ => c.introduced bs
+    | .addedCost c _ _ => c.introduced bs
     | _ => []
   termination_by structural se => se
 
@@ -1340,7 +1340,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .ptDefinition _ _ amount => [(amount, .signed)]
   | .ptSwitch _ => []
   | .costShift _ shift => shift.numberSlots
-  | .altCost _ _ | .addedCost _ _ => []
+  | .altCost _ _ | .addedCost _ _ _ => []
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
   | .letterDefinition _ amount => [(amount, .clamped)]

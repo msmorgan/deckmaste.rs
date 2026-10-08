@@ -1,9 +1,10 @@
 // `StaticSpec.AddedCost` under Lean's own name for it: the alias
 // `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// basis has a constructor (ADR 12.1). `times` is how often the cost may be
+// paid, `Once` unless written: squad's "any number of times" [CR#702.157a].
 (
     name: "addedCost",
     kinds: [StaticSpec],
-    params: {"cost": Cost, "offered": Any},
-    body: AddedCost(cost: Param(cost), offered: Param(offered)),
+    params: {"cost": Cost, "offered": Any, "times": Default(Any, Once)},
+    body: AddedCost(cost: Param(cost), offered: Param(offered), times: Param(times)),
 )

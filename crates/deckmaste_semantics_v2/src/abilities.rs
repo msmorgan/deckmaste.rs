@@ -534,6 +534,7 @@ pub enum StaticSpec {
     AddedCost {
         cost: Box<Cost>,
         offered: bool,
+        times: PayTimes,
     },
     LetterDefinition {
         letter: Letter,

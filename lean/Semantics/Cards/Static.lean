@@ -757,7 +757,7 @@ def rooftopStorm : Spelled := spelled <| .singleFaced
 
 /-- Voltage Surge's declaration -/
 def voltageSurgeAddedCost : Ability :=
-  Primitives.Ability.static (Primitives.StaticSpec.addedCost (Primitives.Cost.perform (sacrifice (a artifact))) true)
+  Primitives.Ability.static (Primitives.StaticSpec.addedCost (Primitives.Cost.perform (sacrifice (a artifact))) true .once)
 theorem okVoltageSurgeAddedCost : Ability.check [] voltageSurgeAddedCost = [] := by decide
 /-- Tarmogoyf -/
 def tarmogoyfDefinition : Ability :=

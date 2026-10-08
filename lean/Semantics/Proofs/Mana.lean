@@ -197,7 +197,7 @@ theorem okPlayPaymentMana : PlayPayment.check [] (.payingInstead (.mana [generic
 
 /-- "As an additional cost to cast this spell, sacrifice an artifact." -/
 theorem okAddedCostSacrifice :
-    StaticSpec.check [] (.addedCost (.perform (sacrifice (a artifact))) false) = []
+    StaticSpec.check [] (.addedCost (.perform (sacrifice (a artifact))) false .once) = []
         := by
   decide
 

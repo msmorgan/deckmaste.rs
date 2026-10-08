@@ -36,7 +36,7 @@ def StaticSpec.onInstantOrSorceryCardOk : StaticSpec → Bool
     deeds.all fun deed => deedZoneOf deed .patient == some .stack
   | .altCost .this _ => true
   | .costShift .this _ => true
-  | .addedCost _ _ => true
+  | .addedCost _ _ _ => true
   | .conditional se _ _ => se.onInstantOrSorceryCardOk
   | _ => false
 

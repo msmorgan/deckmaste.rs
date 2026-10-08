@@ -1094,7 +1094,7 @@ def burnAtTheStake : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.addedCost
             (Primitives.Cost.perform (tap (counted anyNumber (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, untapped]))))
-            false),
+            false .once),
           Primitives.Ability.spell none (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (times (.lit 3) Primitives.Amount.groupSize) (target anyTarget)) ] } }
 
 /-- Explosive Singularity -/
@@ -1104,7 +1104,7 @@ def explosiveSingularity : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.addedCost
             (Primitives.Cost.perform (tap (counted anyNumber (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, untapped]))))
-            true),
+            true .once),
           Primitives.Ability.static (Primitives.StaticSpec.costShift Primitives.NounPhrase.this (Primitives.CostShift.less (times (.lit 1) Primitives.Amount.groupSize) none)),
           Primitives.Ability.spell none (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 10) (target anyTarget)) ] } }
 

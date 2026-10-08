@@ -33,7 +33,7 @@ def handed (effect : Instruction) : Instruction :=
   doIf (costWasPaid giftCost none .this) (act (chosenAsPaid (.named "gift") .this) effect)
 
 /-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
-def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true)
+def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
 
 /-- Gift's term with its effect, as the declaration builds it [CR#702.174a,702.174b]. -/
 def gift (effect : Instruction) : Ability :=

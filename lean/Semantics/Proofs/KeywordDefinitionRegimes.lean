@@ -11,12 +11,12 @@ is exempt. Kicker is the one-component case [CR#702.33a]. Offspring and squad ad
 trigger [CR#702.175a,702.157a], casualty a cast trigger [CR#702.153a], and gift an enters trigger
 on a permanent and a spell ability on an instant or sorcery [CR#702.174a,702.174b].
 
-Squad and casualty declare no definition yet, so their pins hold rows written here, shaped as
-theirs will be; offspring's row here agrees with the registry's since its definition was declared
-(`okOffspringRegistryRow`), and gift's predates its definition, which `Proofs/GiftVariants.lean`
-checks against the registry's own row. The stand-in effects read each component's form, not what
-it does; offspring's declared definition and squad's second ability are pinned with their real
-effects.
+Casualty declares no definition yet, so its pins hold a row written here, shaped as its will be;
+the offspring and squad rows here agree with the registry's since their definitions were declared
+(`okOffspringRegistryRow`, `okSquadRegistryRow`), and gift's predates its definition, which
+`Proofs/GiftVariants.lean` checks against the registry's own row. The stand-in effects read each
+component's form, not what it does; offspring's and squad's declared definitions are pinned with
+their real effects.
 -/
 
 open Semantics Semantics.Macros
@@ -27,7 +27,7 @@ namespace Semantics.Proofs.KeywordDefinitionRegimes
 def two : Cost := .mana [generic 2]
 
 /-- "You may pay an additional {2} as you cast this spell." -/
-def costPart : Ability := .static (.addedCost two true)
+def costPart : Ability := .static (.addedCost two true .once)
 
 /-- "When this permanent enters, draw a card." -/
 def entersPart : Ability :=
@@ -143,9 +143,7 @@ theorem okOffspringDefinition :
   decide
 
 /-- Squad's second ability: "When this creature enters, if its squad cost was paid, create a
-token that's a copy of it for each time its squad cost was paid." [CR#702.157a] Its first
-ability, a cost paid any number of times, has no `addedCost` spelling yet, so squad declares no
-definition; this pins the second against squad's components and the checker. -/
+token that's a copy of it for each time its squad cost was paid." [CR#702.157a] -/
 def squadEntersPart : Ability :=
   triggeredIf (Primitives.GameEvent.enters thisCreature none)
     (costWasPaid (.byKeyword (.named "squad")) none thisCreature)
@@ -154,6 +152,29 @@ def squadEntersPart : Ability :=
 
 theorem okSquadSecondAbility :
     (squadRow.bodyPartFits squadEntersPart, Ability.check [] squadEntersPart) = (true, []) := by
+  decide
+
+/-- Squad's first ability: "As an additional cost to cast this spell, you may pay {2} any number
+of times." The cost carries its repetition, so `timesPaid` counts payments of {2} itself
+[CR#702.157a] (ruling 2026-10-08). -/
+def squadCostPart : Ability := .static (.addedCost two true .anyNumberOfTimes)
+
+/-- Squad's definition as its declaration builds it [CR#702.157a]. -/
+def squadDefinition : List Ability := [squadCostPart, squadEntersPart]
+
+/-- The registry's squad row declares the components the pins above were written against. -/
+theorem okSquadRegistryRow :
+    ((keywordFactsFor (.named "squad")).map (·.definition),
+      (keywordFactsFor (.named "squad")).map (·.regime))
+      = (some squadRow.definition, some squadRow.regime) := by
+  decide
+
+/-- "Squad {2}" with its declared definition fits the registry's row and checks
+[CR#702.157a]. -/
+theorem okSquadDefinition :
+    (keywordBodyFits (.named "squad") squadDefinition,
+      Ability.check [] (.keyword (.named "squad") [.cost two] squadDefinition))
+      = (true, []) := by
   decide
 
 /-- Under one regime for the whole keyword the enters trigger is refused, as it was. -/

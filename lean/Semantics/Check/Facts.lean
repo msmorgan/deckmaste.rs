@@ -154,7 +154,7 @@ def keywordFacts : List KeywordFacts :=
     { word := .named "awaken", argumentSchemas := [[⟨.number, none⟩, ⟨.cost, none⟩]], functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true, onPermanentCard := false, regime := some .atCasting },
     { word := .named "buyback", argumentSchemas := [[⟨.cost, none⟩]], functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true, onPermanentCard := false, definition := [⟨.static, some .atCasting⟩, ⟨.static, none⟩], regime := some .atCasting },
     { word := .named "casualty", argumentSchemas := [[⟨.number, none⟩]], functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true, regime := some .atCasting },
-    { word := .named "squad", argumentSchemas := [[⟨.cost, none⟩]], functionsOnStack := true, paidCost := true, regime := some .atCasting },
+    { word := .named "squad", argumentSchemas := [[⟨.cost, none⟩]], functionsOnStack := true, paidCost := true, definition := [⟨.static, some .atCasting⟩, ⟨.triggered, none⟩], regime := some .atCasting },
     { word := .named "offspring", argumentSchemas := [[⟨.cost, none⟩]], functionsOnStack := true, paidCost := true, definition := [⟨.static, some .atCasting⟩, ⟨.triggered, none⟩], regime := some .atCasting },
     { word := .named "gift", argumentSchemas := [[]], functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true, costChoosesPlayer := true, definition := [⟨.static, some .atCasting⟩, ⟨.triggered, none⟩, ⟨.spell, some .atResolution⟩], regime := some .atCasting },
     { word := .named "replicate", argumentSchemas := [[⟨.cost, none⟩]], functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true, onPermanentCard := false, regime := some .atCasting },

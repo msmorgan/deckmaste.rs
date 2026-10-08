@@ -273,7 +273,10 @@ mutual
     | ptSwitch (subject : NounPhrase)
     | costShift (subject : NounPhrase) (shift : CostShift)
     | altCost (subject : NounPhrase) (cost : Option Cost)
-    | addedCost (cost : Cost) (offered : Bool)
+    /-- An additional cost to cast the spell [CR#601.2f]: `offered` when the player may decline
+    it ("you may pay"), and `times` how often it may be paid, as squad's and replicate's "any
+    number of times" [CR#702.157a,702.56a]. -/
+    | addedCost (cost : Cost) (offered : Bool) (times : PayTimes)
     | letterDefinition (letter : Letter) (amount : Amount)
     | abilityGrant (subject : NounPhrase) (ability : Ability)
     | abilityGrantFrom (subject : NounPhrase) (classes : List AbilityClass) (source : NounPhrase)

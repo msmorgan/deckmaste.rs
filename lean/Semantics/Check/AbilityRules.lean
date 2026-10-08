@@ -603,7 +603,7 @@ mutual
       NounPhrase.check (some .object) bs n ++ sh.check bs
     | .altCost n c =>
       NounPhrase.check (some .object) bs n ++ OptCost.check (selfSubjIntro bs n) c
-    | .addedCost c _ => Cost.check bs c
+    | .addedCost c _ _ => Cost.check bs c
     | .letterDefinition l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .abilityGrant n ab =>
       NounPhrase.check (some .object) bs n ++ Ability.check bs ab

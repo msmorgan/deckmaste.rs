@@ -1033,7 +1033,7 @@ def callerOfTheHunt : Spelled := spelled <| .singleFaced
     { name := "Caller of the Hunt", cost := some [generic 2, pip .green], types := [.creature],
       subtypes := [creatureType "Human"],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.addedCost (Primitives.Cost.perform (choose (a (quality (.subtype .creature))))) false),
+        [ Primitives.Ability.static (Primitives.StaticSpec.addedCost (Primitives.Cost.perform (choose (a (quality (.subtype .creature))))) false .once),
           Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .bothEach
             (countOf (Primitives.Predicate.and [creature, ofChosen (.subtype .creature)]))) ] } }
 
