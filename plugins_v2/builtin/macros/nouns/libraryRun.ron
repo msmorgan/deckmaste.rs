@@ -1,0 +1,9 @@
+// `NounPhrase.LibraryRun` under Lean's own name for it: "cards from the top of
+// <whose> library until a <stop> card", the run and the card that stopped it
+// [CR#701.57a].
+(
+    name: "libraryRun",
+    kinds: [NounPhrase],
+    params: {"end": Any, "stop": Predicate, "whose": Subject},
+    body: LibraryRun(end: Param(end), stop: Param(stop), whose: Param(whose)),
+)

@@ -1,8 +1,29 @@
+// "Discover N" [CR#701.57a]: exile cards from the top of your library until
+// you exile a nonland card with mana value N or less. You may cast that card
+// without paying its mana cost if the resulting spell's mana value is less
+// than or equal to N. If you don't cast it, put that card into your hand. Put
+// the remaining exiled cards on the bottom of your library in a random order.
+// The run is one group and the card that stopped it a part of it
+// (`libraryRun`), so "that card" reads the one and `theRest` the others.
 KeywordAction(
     name: "discover",
-    spelling: "discover",
+    params: [Amount],
+    spelling: "discover <Param(0)>",
     grammar: Verb(
         bare: "discover",
         frame_set: MeasureComplement,
     ),
+    body: sequentially([
+        move(
+            libraryRun(Top, and([not(land), compare(AtMost, Param(0), [Stat(ManaValue)])]), actor),
+            wherever,
+            exileZone,
+        ),
+        may(
+            castWithoutPaying(that(Card), compare(AtMost, Param(0), [Stat(ManaValue)])),
+            None,
+            move(that(Card), wherever, hand),
+        ),
+        move(theRest(Object), wherever, onBottomIn(RandomOrder)),
+    ]),
 )

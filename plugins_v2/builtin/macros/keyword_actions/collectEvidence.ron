@@ -1,10 +1,21 @@
+// "Collect evidence N" [CR#701.59a]: exile any number of cards from your
+// graveyard with total mana value N or greater. "Your" is the actor's; the
+// chosen cards are a part of the graveyard's cards bounded by the sum of their
+// mana values (`withTotal`). That a player unable to reach N can't choose to
+// collect evidence [CR#701.59b] is the rules' to apply.
 KeywordAction(
     name: "collectEvidence",
-    spelling: "collect evidence",
+    params: [Amount],
+    spelling: "collect evidence <Param(0)>",
     grammar: Verb(
         bare: "collect evidence",
         // No Oracle or Comprehensive Rules occurrence of "collects evidence" was found in the 2026-08-18 morphology audit.
         third_person: Unavailable,
         frame_set: MeasureComplement,
+    ),
+    body: move(
+        withTotal(Stat(ManaValue), AtLeast, Param(0), allOf(cardIn(graveyardOf(actor)))),
+        wherever,
+        exileZone,
     ),
 )

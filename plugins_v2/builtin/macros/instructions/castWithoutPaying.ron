@@ -1,0 +1,9 @@
+// "<performer> casts <subject> without paying its mana cost [if the resulting
+// spell <resulting>]": the cast keyword action's deed, done during resolution
+// with the payment the text names [CR#701.5a,601.2,701.57a].
+(
+    name: "castWithoutPaying",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "resulting": Default(Any, None)},
+    body: enact(cast, procedure(Cast, Param(subject), WithoutPaying, Param(resulting))),
+)

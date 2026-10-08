@@ -1,0 +1,20 @@
+// "Trample. When this creature enters, discover 5. {2}{R}, Discard this card:
+// It deals 3 damage to target creature or planeswalker." [CR#701.57a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Trumpeting Carnosaur",
+        cost: [4, Red, Red],
+        types: [Creature],
+        subtypes: [dinosaur],
+        power: 7,
+        toughness: 6,
+        text: [
+            trample,
+            triggered(enters(asType(type: Creature, subject: this, subtype: None)), discover(5)),
+            activated(
+                compound([mana([2, Red]), perform(discard(this))]),
+                dealDamage(this, 3, target(or([creature, planeswalker]))),
+            ),
+        ],
+    ),
+))

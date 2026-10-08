@@ -1,0 +1,15 @@
+// "Flying. Waterbend {4}: Draw a card, then discard a card." [CR#701.67a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Geyser Leaper",
+        cost: [4, Blue],
+        types: [Creature],
+        subtypes: [human, warrior, ally],
+        power: 4,
+        toughness: 3,
+        text: [
+            flying,
+            activated(perform(waterbend(mana([4]))), sequentially([draw(1), discard(a(cardIn(hand)))])),
+        ],
+    ),
+))

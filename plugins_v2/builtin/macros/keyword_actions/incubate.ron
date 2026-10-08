@@ -1,8 +1,34 @@
+// "Incubate N" [CR#701.53a]: create an Incubator token that enters with N
+// +1/+1 counters on it. The Incubator is double-faced [CR#701.53b,111.10i]:
+// its front face a colorless Incubator artifact with "{2}: Transform this
+// token", its back face a 0/0 colorless Phyrexian artifact creature named
+// Phyrexian Token. Written out, as investigate's Clue is, because the token's
+// characteristics are the definition.
 KeywordAction(
     name: "incubate",
-    spelling: "incubate",
+    params: [Amount],
+    spelling: "incubate <Param(0)>",
     grammar: Verb(
         bare: "incubate",
         frame_set: MeasureComplement,
+    ),
+    body: createDoubleFacedToken(
+        (
+            characteristics: (
+                subtypes: [incubator],
+                text: [activated(mana([2]), transform(this))],
+                types: [Artifact],
+            ),
+        ),
+        (
+            characteristics: (
+                name: "Phyrexian Token",
+                subtypes: [phyrexian],
+                types: [Artifact, Creature],
+                power: 0,
+                toughness: 0,
+            ),
+        ),
+        [WithCounters(Param(0), p1p1Counter, Fresh)],
     ),
 )

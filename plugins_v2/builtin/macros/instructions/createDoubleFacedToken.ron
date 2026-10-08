@@ -1,0 +1,8 @@
+// "<performer> creates a double-faced token" with the front and back faces the
+// instruction writes [CR#111.3,111.10i] and the riders it enters with.
+(
+    name: "createDoubleFacedToken",
+    kinds: [Instruction],
+    params: {"front": CharacteristicBundle, "back": CharacteristicBundle, "riders": Default(Any, [])},
+    body: CreateObject(count: 1, spec: Token(spec: DoubleFaced(front: Param(front), back: Param(back)), riders: Param(riders))),
+)

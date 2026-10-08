@@ -1,0 +1,9 @@
+// `Instruction.Procedure` under Lean's own name for it: carry out a rules
+// procedure (activate, cast, play) on the subject during resolution
+// [CR#701.2a,701.5a,701.18a].
+(
+    name: "procedure",
+    kinds: [Instruction],
+    params: {"kind": Any, "subject": NounPhrase, "payment": Any, "resulting": Default(Any, None)},
+    body: Procedure(kind: Param(kind), subject: Param(subject), payment: Param(payment), resulting: Param(resulting)),
+)

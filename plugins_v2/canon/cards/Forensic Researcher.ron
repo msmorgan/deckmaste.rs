@@ -1,0 +1,16 @@
+// "{T}: Untap another target permanent you control. {T}, Collect evidence 3:
+// Tap target creature you don't control." [CR#701.59a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Forensic Researcher",
+        cost: [2, Blue],
+        types: [Creature],
+        subtypes: [merfolk, detective],
+        power: 1,
+        toughness: 3,
+        text: [
+            activated(tapSymbol, untap(target(and([permanent, otherThan(this), youControl])))),
+            activated(compound([tapSymbol, perform(collectEvidence(3))]), tap(target(and([creature, not(youControl)])))),
+        ],
+    ),
+))

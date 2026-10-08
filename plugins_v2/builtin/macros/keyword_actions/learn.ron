@@ -1,3 +1,8 @@
+// "Learn" [CR#701.48a]: "You may discard a card. If you do, draw a card. If
+// you didn't discard a card, you may reveal a Lesson card you own from outside
+// the game and put it into your hand." Bodyless: a card outside the game has
+// no place in the model yet [CR#400.11], which is
+// `core-location-outside-the-game`'s to give; the body waits on it.
 KeywordAction(
     name: "learn",
     spelling: "learn",

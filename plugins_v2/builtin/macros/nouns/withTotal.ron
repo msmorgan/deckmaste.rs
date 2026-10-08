@@ -1,0 +1,9 @@
+// "any number of <group> with total <axis> <comparator> <bound>": as many of
+// the group as the chooser likes, so long as the sum of the axis over the
+// chosen ones compares to the bound [CR#701.59a].
+(
+    name: "withTotal",
+    kinds: [NounPhrase],
+    params: {"axis": Any, "comparator": Comparator, "bound": Amount, "group": NounPhrase},
+    body: SomeOf(Totalling(Param(axis), Param(comparator), Param(bound)), None, Param(group)),
+)

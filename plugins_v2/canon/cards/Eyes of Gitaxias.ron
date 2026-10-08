@@ -1,0 +1,9 @@
+// "Incubate 3. Draw a card." [CR#701.53a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Eyes of Gitaxias",
+        cost: [2, Blue],
+        types: [Sorcery],
+        text: [spell(sequentially([incubate(3), draw(1)]))],
+    ),
+))
