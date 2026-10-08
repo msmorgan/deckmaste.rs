@@ -49,22 +49,22 @@ theorem designationLabelsDistinct : distinctDesignationLabels designationTable =
 theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by decide
 
 /-- The declaration that lists two members reaches the table under each member's name, and each
-is effectful, so an instruction may confer it. -/
+row is marked effectful. -/
 theorem everyDayNightLabelIsAnEffectfulDesignation :
-    [.named "day", .named "night"].all DesignationLabel.checked = true := by decide
+    ([.named "day", .named "night"] : List DesignationLabel).all
+      (fun l => l.facts.map (·.effectful) == some true) = true := by decide
 
 /-- The two door designations are exactly the rows the table marks with a room half. -/
 theorem bothDoorLabelsAreDeclaredHalves :
     (designationTable.filter (·.half.isSome)).map (·.label)
       = ["leftHalfUnlocked", "rightHalfUnlocked"] := by decide
 
-/-- The one designation the table marks non-effectful: a rule confers it, so no instruction
-may. -/
+/-- The one designation the table marks non-effectful: a rule confers it. -/
 theorem aRuleOnlyDesignationIsNotEffectful :
-    DesignationLabel.checked (.named "commander") = false := by decide
+    (DesignationLabel.named "commander").facts.map (·.effectful) = some false := by decide
 
-/-- A name outside the declared members is no designation at all, so nothing may confer it. -/
+/-- A name outside the declared members is no designation at all. -/
 theorem anUndeclaredDayNightLabelIsNotADesignation :
-    DesignationLabel.checked (.named "dusk") = false := by decide
+    (DesignationLabel.named "dusk").known = false := by decide
 
 end Semantics.Proofs.Tables

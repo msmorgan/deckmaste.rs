@@ -383,11 +383,6 @@ private semantic_macro scopedMove (subject : capture NounPhrase) : Instruction :
 theorem capturedBareThisRetainsEnactedZoneExemption :
     (Instruction.enact (.action "destroy") (scopedMove .this)).check [] = [] := by decide
 
-theorem scopedLookRetainsOpponentRequirement :
-    (Instruction.enact (.action "fateseal")
-      (.withBindings 5 [] (lookAndSort .you (.lit 2)))).check [] =
-        [.opponentsLibrary] := by decide
-
 private semantic_macro capturedLook (whose : capture NounPhrase) : Instruction :=
   lookAndSort whose (.lit 2)
 
@@ -400,10 +395,6 @@ theorem scopedCoordinationRetainsTwoParties :
 
 theorem capturedCoordinationRetainsTwoParties :
     twoPartiesOk (MacroCapture.read 5 0 (NounPhrase.and [.you, anOpponent])) = true := by decide
-
-theorem scopedAmountCannotConcealSelfExchange :
-    (Instruction.exchange (.values (.withBindings 5 [] (powerOf thisCreature))
-      (powerOf thisCreature))).check [] = [.selfExchanged] := by decide
 
 theorem scopedDefinitionRetainsNumberRegime :
     (Instruction.establish (.withBindings 5 [] (.letterDefinition .x (.lit 2))) none).numberSlots =
@@ -472,22 +463,14 @@ example : Spelled := spelled <| .singleFaced
     { name := "Function container witness", types := [.sorcery],
       text := [Primitives.Ability.spell none (functionListConfig subjectFunctions)] } }
 
-theorem capturedAmountSubjectCannotConcealSelfExchange :
-    (Instruction.exchange (.values (capturedPower thisCreature)
-      (powerOf thisCreature))).check [] = [.selfExchanged] := by decide
-
-theorem sameSelectedSubjectCannotConcealSelfExchange :
+/-- "it" in the second half reads back the target the captured first half selected. -/
+theorem sameSelectedSubjectIsReadBackThroughTheCapture :
     (Instruction.exchange (.values (capturedPower (target creature))
-      (powerOf it))).check [] = [.selfExchanged] := by decide
+      (powerOf it))).check [] = [] := by decide
 
 theorem independentValueSubjectsRemainIndependent :
     (Instruction.exchange (.values (capturedPower (target creature))
       (capturedPower (target creature)))).check [] = [] := by decide
-
-theorem scopedLibrarySliceRetainsItsOwner :
-    enactLibraryOwnerOk (.action "fateseal")
-      (.expose .lookAt (.cards (.withBindings 5 [] (.librarySlice .top (.lit 2) .you)))) =
-        false := by decide
 
 theorem callerCounterpartCannotConcealSelfReference :
     (Instruction.establish (deontic (target creature) .require [.core .block] .agent

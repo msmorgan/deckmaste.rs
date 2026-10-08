@@ -146,12 +146,6 @@ theorem okStaticPlayerCant :
       = [] := by
   decide
 
-/-- "Target player can't gain life." -/
-theorem badStaticPlayerCantTargets :
-    Ability.check [] (.static (playerCant (.core .gainLife) (target .anyPlayer)))
-      = [.nontarget] := by
-  decide
-
 /-- "the basic land type of your choice" -/
 def chosenBasicLandType : QualityPayload :=
   .chosenQuality (.ofYourChoice (.subtype .land) (some .basicTypesOnly))
@@ -163,25 +157,11 @@ theorem okChosenBasicTypeOnLand :
       = [] := by
   decide
 
-theorem badChosenBasicTypeOnCreature :
-    Instruction.check []
-      (.establish (Primitives.StaticSpec.qualityChange (target creature) .sets chosenBasicLandType)
-        (some untilEndOfTurn)) = [.becomesOk] := by
-  decide
-
 /-- "Lands you control are Mountains." -/
 theorem okLandsAreMountains :
     StaticSpec.check []
       (Primitives.StaticSpec.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .sets
         (.bundle { characteristics := { subtypes := [landType "Mountain"] } } none)) = [] := by
-  decide
-
-/-- "Creatures are Mountains." -/
-theorem badCreaturesAreMountains :
-    StaticSpec.check []
-      (Primitives.StaticSpec.qualityChange (allOf creature) .sets (.bundle { characteristics :=
-                                                  { subtypes := [landType "Mountain"] } } none))
-      = [.becomesOk] := by
   decide
 
 /-- "Choose a creature type other than Wall." -/
@@ -227,29 +207,13 @@ theorem okAddsAColor :
 
 theorem badAddsNoColor :
     StaticSpec.check [] (Primitives.StaticSpec.qualityChange (target creature) .adds (.colored (.some [])))
-      = [.becomesOk] := by
+      = [.nonEmpty] := by
   decide
 
 /-- "Target creature loses colorless until end of turn." -/
 theorem badLosesNoColor :
     StaticSpec.check [] (Primitives.StaticSpec.qualityChange (target creature) .loses (.colored (.some [])))
-      = [.becomesOk] := by
-  decide
-
-/-- "Equipped permanent isn't a 2/2 creature." -/
-theorem badLosesPt :
-    StaticSpec.check []
-      (Primitives.StaticSpec.qualityChange (.attachHost .equipped .permanent) .loses
-        (.bundle { characteristics :=
-                   { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
-          none)) = [.becomesOk] := by
-  decide
-
-theorem badStillOnAddition :
-    StaticSpec.check []
-      (Primitives.StaticSpec.qualityChange (target creature) .adds
-        (.bundle { characteristics := { types := [.artifact] } } (some .creature)))
-      = [.becomesOk] := by
+      = [.nonEmpty] := by
   decide
 
 def afterChoiceMade : Bindings := Instruction.intro [] (choose (counted (upTo 1) creature))

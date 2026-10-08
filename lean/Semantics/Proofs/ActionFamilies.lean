@@ -42,10 +42,6 @@ theorem okEmblemPublication :
     Instruction.introducedDeeds [] (.createObject (.lit 1) (.emblem emblemAbilities)) =
       [⟨.a, .one, .object [] (some .command) none none none, []⟩] := by rfl
 
-theorem badEmblemWithSpellAbility :
-    Instruction.check [] (.createObject (.lit 1) (.emblem [.spell none (draw (.lit 1))])) =
-      [.emblemAbilities] := by decide
-
 
 private def exiledAbility : Bindings :=
   Instruction.intro [] (.move (target (.abilityHead .anyActivated)) .wherever exileZone [])

@@ -25,12 +25,6 @@ theorem okSacrificeAsCost :
 theorem okGainsKeyword :
     Instruction.check [] (gain (target creature) (keyword (.named "flying")) none) = [] := by decide
 
-/-- "Target creature gains a spell ability." -/
-theorem badGainsSpellAbility :
-    Instruction.check [] (gain (target creature) (.spell none (draw (.lit 1))) none)
-      = [.grantable] := by
-  decide
-
 /-- "Creature spells you cast cost {1} less to cast." -/
 theorem okCostSubjectOnStack :
     StaticSpec.check [] (.costShift (allOf (.and [creature, spell])) (.less (.lit 1) none)) = [] :=
@@ -41,12 +35,6 @@ theorem okCostSubjectOnStack :
 theorem okBattlefieldFlying :
     StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword (.named "flying"))) = [] := by
         decide
-
-/-- "Creatures you control have convoke." -/
-theorem badBattlefieldConvoke :
-    StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword (.named "convoke")))
-      = [.grantSubject] := by
-  decide
 
 /-- "Target creature gets +1/+1, gains flying, and gains trample." -/
 theorem okFlatCoordination :
@@ -117,27 +105,10 @@ theorem okTokenKeywordAbility :
       = [] := by
   decide
 
-/-- "Create a 1/1 white Soldier creature token with 'Draw two cards.'" -/
-theorem badTokenSpellAbility :
-    Instruction.check []
-      (create (.lit 1)
-        { characteristics :=
-          { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
-            power := some (.lit 1), toughness := some (.lit 1),
-            text := [.spell none (draw (.lit 1))] } }) = [.tokenAbilities] := by
-  decide
-
 /-- "Creatures you control have '{T}: Draw a card.'" -/
 theorem okQuotedGrantOnPermanent :
     StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (act .tapSymbol (draw (.lit 1))))
       = [] := by
-  decide
-
-/-- "Instant and sorcery spells you cast have '{T}: Draw a card.'" -/
-theorem badQuotedGrantOnSpell :
-    StaticSpec.check []
-      (.abilityGrant (allOf (.and [instantOrSorcery, spell, castBy .you]))
-        (act .tapSymbol (draw (.lit 1)))) = [.grantSubject] := by
   decide
 
 /-- "of the creature type of your choice" -/
@@ -381,12 +352,6 @@ theorem okEachPlayerScriesOne :
 /-- "Fateseal 2.": the sorted library is an opponent's [CR#701.29a]. -/
 theorem okFatesealAnOpponent :
     Instruction.check [] (fateseal anOpponent (.lit 2)) = [] := by decide
-
-/-- "Fateseal 2" over your own library: fateseal is defined only over an opponent's library
-[CR#701.29a]; looking at your own top cards and sorting them is scry [CR#701.22a], spelled
-`scry`. -/
-theorem badFatesealYourOwnLibrary :
-    Instruction.check [] (fateseal .you (.lit 2)) = [.opponentsLibrary] := by decide
 
 /-- "Choose flying or trample. This creature gains that ability until end of turn." -/
 theorem okThatAbilityAfterChoice :

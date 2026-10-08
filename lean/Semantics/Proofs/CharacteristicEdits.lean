@@ -15,10 +15,10 @@ theorem setEmptyIsAnEdit :
 
 theorem emptyRemovalIsRefused :
     StaticSpec.check [] (.characteristicChange thisCreature
-      [.typeLine .loses {subtypes := some []}]) = [.becomesOk] := by decide
+      [.typeLine .loses {subtypes := some []}]) = [.lineNonEmpty] := by decide
 
 theorem absentEditIsRefused :
-    StaticSpec.check [] (.characteristicChange thisCreature []) = [.becomesOk] := by decide
+    StaticSpec.check [] (.characteristicChange thisCreature []) = [.nonEmpty] := by decide
 
 theorem setAndAddStayDistinct :
     CharacteristicEdit.typeLine .sets {types := some [.artifact]} ≠
@@ -38,13 +38,7 @@ theorem copyCanSetEmptyColor :
     CopyExcept.check [] (.edits [.colors .sets (.some [])]) = [] := by decide
 
 theorem copyCannotAddEmptyColor :
-    CopyExcept.check [] (.edits [.colors .adds (.some [])]) = [.becomesOk] := by decide
-
-theorem copyCannotRemoveName :
-    CopyExcept.check [] (.edits [.name .loses "A name"]) = [.becomesOk] := by decide
-
-theorem copyCannotAddBasePower :
-    CopyExcept.check [] (.edits [.stat .adds .power (.lit 2)]) = [.becomesOk] := by decide
+    CopyExcept.check [] (.edits [.colors .adds (.some [])]) = [.nonEmpty] := by decide
 
 theorem malformedManaCostIsRefused :
     CopyExcept.check [] (.edits [.manaCost (some [.hybrid (.specific (.of .blue)) .blue])]) =

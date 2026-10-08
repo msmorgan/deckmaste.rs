@@ -37,12 +37,6 @@ theorem okNontargetDeathHeader :
     Ability.check [] (whenever (Primitives.GameEvent.dies (a creature)) (draw (.lit 1))) = [] := by
   decide
 
-/-- "Whenever target creature dies, draw a card." -/
-theorem badTargetedDeathHeader :
-    Ability.check [] (whenever (Primitives.GameEvent.dies (target creature)) (draw (.lit 1)))
-      = [.headerNontarget] := by
-  decide
-
 /-- "Whenever a creature attacks, that creature gets +2/+0 until end of turn." -/
 theorem okThatCreatureAfterAttack :
     Ability.check []

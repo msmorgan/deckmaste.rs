@@ -231,14 +231,9 @@ theorem okTriggeredEmblem :
       = [] := by
   decide
 
-/-- "You get an emblem with 'flying'." -/
-theorem badKeywordEmblem :
-    Instruction.check [] (Primitives.Instruction.getEmblem [keyword (.named "flying")]) = [.emblemAbilities] := by
-        decide
-
 /-- "You get an emblem." -/
 theorem badEmptyEmblem :
-    Instruction.check [] (Primitives.Instruction.getEmblem []) = [.emblemAbilities] := by decide
+    Instruction.check [] (Primitives.Instruction.getEmblem []) = [.nonEmpty] := by decide
 
 /-- "… At the beginning of that turn's end step, you lose the game." -/
 theorem okDeicticTurnAfterExtraTurn :
@@ -394,7 +389,7 @@ theorem badTokenDuplicateSupertype :
         { characteristics :=
           { name := some "Marit Lage", colors := [.black], supertypes := [.legendary, .legendary],
             types := [.creature], subtypes := [creatureType "Avatar"],
-            power := some (.lit 20), toughness := some (.lit 20) } }) = [.tokenCanonical] := by
+            power := some (.lit 20), toughness := some (.lit 20) } }) = [.distinct] := by
   decide
 
 /-! ## Constructor fields share the preceding discourse -/

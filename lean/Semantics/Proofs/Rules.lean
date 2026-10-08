@@ -44,16 +44,6 @@ def battleDefenseZero : SbaRule :=
     then_ := move .this graveyard }
 theorem okBattleDefenseZero : SbaRule.check battleDefenseZero = [] := by decide
 
-/-- A state-based action doesn't use the stack [CR#704.1], and a target is chosen as a spell or
-ability is put on the stack [CR#601.2c], so nothing it does is targeted. -/
-theorem badSbaThatTargets :
-    SbaRule.check
-      { scope := creature,
-        when := .compareAmt (toughnessOf .this) .atMost (.lit 0),
-        then_ := move (target creature) graveyard }
-      = [.nontarget] := by
-  decide
-
 /-- A scope binds objects or players; a color is neither. -/
 theorem badSbaScopeKind :
     SbaRule.check
@@ -82,14 +72,6 @@ theorem okPlaneswalkerLoyalty : ConferralRule.check planeswalkerLoyalty = [] := 
 theorem badConferralScopeKind :
     ConferralRule.check { scope := .qualityNoun .color none, confer := keyword (.named "flying") }
       = [.kindLte (.quality .color) ruleScopeBound] := by
-  decide
-
-/-- A spell ability is followed as instructions while an instant or sorcery resolves
-[CR#113.3a]; there is nothing a rule could confer one onto. -/
-theorem badConferralOfSpellAbility :
-    ConferralRule.check
-      { scope := .hasType .planeswalker, confer := .spell none (draw (.lit 1)) }
-      = [.grantable] := by
   decide
 
 /-! ## Damage results -/
@@ -199,13 +181,6 @@ theorem okGargoyle : Definition.check gargoyle = [] := by decide
 unreachable. -/
 theorem badNamelessSubtype :
     Definition.check (.subtype (creatureType "") []) = [.definitionNamed] := by decide
-
-/-- A conferral gives an ordinary ability [CR#305.6], and a spell ability is followed while a
-spell resolves [CR#113.3a]: no type rule could put one on a permanent. -/
-theorem badSubtypeConfersASpellAbility :
-    Definition.check (.subtype (artifactType "Equipment") [.ability (.spell none (draw (.lit 1)))])
-      = [.grantable] := by
-  decide
 
 /-- [CR#725.1] "The monarch is a designation a player can have. There is no monarch in a game
 until an effect instructs a player to become the monarch" — so the designation is effectful. -/
@@ -337,14 +312,6 @@ theorem builtinPredefinedTokensDistinct :
 unreachable. -/
 theorem badUnnamedPredefinedToken :
     PredefinedToken.check { treasure with name := "" } = [.tokenNamed] := by decide
-
-/-- A token represents a permanent [CR#111.1] and every permanent has one of the six permanent
-types [CR#110.4]; a bundle that writes none is not a token. -/
-theorem badUntypedPredefinedToken :
-    PredefinedToken.check
-      { name := "Treasure", token := { characteristics := { subtypes := [artifactType "Treasure"] } } }
-      = [.tokenTyped, .subsFitLine] := by
-  decide
 
 /-! ## The builtin tables -/
 

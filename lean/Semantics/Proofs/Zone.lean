@@ -196,7 +196,7 @@ theorem badAgentedAgentlessAct :
         .dealDamage (.laterMention "fight.0" (target creature))
           (.statOf (.stat .power) (.laterMention "fight.0" (target creature))) actor])))
       = [.kindMismatch .object .player, .kindMismatch .object .player,
-         .kindMismatch .object .player, .enactAgentOk] := by
+         .kindMismatch .object .player] := by
   decide
 
 /-- "1 life for each creature" -/
@@ -547,22 +547,6 @@ theorem badCounteredInGraveyard :
 theorem okLookAtTopOfLibrary :
     StaticSpec.check [] (.visibility .lookAt .you .topOfLibrary) = [] := by decide
 
-/-- "Lands you control are every creature type.": an object can't gain a subtype that
-corresponds to none of its card types [CR#205.3d]. -/
-theorem badEveryCreatureTypeOnLand :
-    StaticSpec.check []
-      (Primitives.StaticSpec.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .adds
-        (.everyTypeOf .creature)) = [.becomesOk] := by
-  decide
-
-/-- "Creatures you control are every basic land type.": an object can't gain a subtype that
-corresponds to none of its card types [CR#205.3d]. -/
-theorem badEveryBasicLandTypeOnCreature :
-    StaticSpec.check []
-      (Primitives.StaticSpec.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
-        (.everyTypeOf .basicLand)) = [.becomesOk] := by
-  decide
-
 /-- "Regenerate target creature." -/
 theorem okRegenerateCreature :
     Instruction.check [] (regenerate (target creature))
@@ -689,13 +673,6 @@ settable values [CR#701.12g]. -/
 theorem okExchangeTwoValues :
     Instruction.check [] (.exchange (.values (lifeTotalOf .you) (toughnessOf thisCreature)))
       = [] := by
-  decide
-
-/-- "Exchange this creature's power with this creature's power.": each value would become
-equal to its own previous value [CR#701.12g]. -/
-theorem badExchangeValueWithItself :
-    Instruction.check [] (.exchange (.values (powerOf thisCreature) (powerOf thisCreature)))
-      = [.selfExchanged] := by
   decide
 
 /-- "Exchange this creature's power with three.": a literal is not a value the game can set

@@ -36,11 +36,6 @@ theorem badStateBasedLossOnCreature :
       (.deonticRule thisCreature .forbid [.core .loseGame] .agent none .noPatient none
         (.stateBased .nonpositiveLife))) = [.deedFits] := by decide
 
-theorem badTargetedStateBasedLossGate :
-    Ability.check [] (.static
-      (.deonticRule (target .anyPlayer) .forbid [.core .loseGame] .agent none .noPatient none
-        (.stateBased .nonpositiveLife))) = [.nontarget] := by decide
-
 /-- Targets belong to the enclosing spell, not to a static ability. -/
 theorem okTargetedContinuousStateBasedLossGate :
     Instruction.check [] (.establish
@@ -147,12 +142,6 @@ theorem badEmptyCompound :
 theorem okStaticUntargeting :
     Ability.check [] (.static (deontic (allOf creature) .forbid [.core .attack] .agent .noPatient))
       = [] := by
-  decide
-
-/-- "Target creature can't attack." -/
-theorem badStaticTargets :
-    Ability.check [] (.static (deontic (target creature) .forbid [.core .attack] .agent .noPatient))
-      = [.nontarget] := by
   decide
 
 /-- "You may play a card in your graveyard this turn." -/

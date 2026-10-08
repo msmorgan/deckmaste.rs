@@ -123,14 +123,14 @@ theorem badTokenDuplicateType :
       (create (.lit 1)
         { characteristics :=
           { types := [.creature, .creature], power := some (.lit 1), toughness := some (.lit 1) } })
-      = [.tokenCanonical] := by
+      = [.distinct] := by
   decide
 
 /-- "Create a 1/1 white white Soldier creature token." -/
 theorem badTokenDuplicateColor :
     Instruction.check []
       (create (.lit 1) (creatureToken 1 1 [.white, .white] [creatureType "Soldier"]))
-      = [.tokenCanonical] := by
+      = [.distinct] := by
   decide
 
 /-- "Target opponent loses 2 life. You gain that much life." -/
@@ -435,24 +435,10 @@ theorem okBecomesArtifact :
       (become (target creature) { characteristics := { types := [.artifact] } } none) = [] := by
   decide
 
-/-- "Target land becomes a Zombie in addition to its other types." -/
-theorem badBecomesZombieLand :
-    Instruction.check []
-      (become (target land) { characteristics := { subtypes := [creatureType "Zombie"] } } none)
-      = [.becomesOk] := by
-  decide
-
 /-- "Target creature becomes in addition to its other types." -/
 theorem badBecomesNothing :
     Instruction.check [] (become (target creature) { characteristics := {} } none)
-      = [.becomesOk] := by
-  decide
-
-/-- "Target creature becomes a creature in addition to its other types." -/
-theorem badBecomesOwnType :
-    Instruction.check []
-      (become (target creature) { characteristics := { types := [.creature] } } none)
-      = [.becomesOk] := by
+      = [.lineNonEmpty] := by
   decide
 
 /-- The Idris pin refutes the anaphor. -/

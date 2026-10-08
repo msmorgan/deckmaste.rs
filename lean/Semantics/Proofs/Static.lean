@@ -42,12 +42,6 @@ theorem okEquippedCreature :
 theorem okUntargetedOutcomeGate :
     Ability.check [] (.static (playerCant (.core .loseGame) .you)) = [] := by decide
 
-/-- "Target player can't lose the game." -/
-theorem badTargetedOutcomeGate :
-    Ability.check [] (.static (playerCant (.core .loseGame) (target .anyPlayer)))
-      = [.nontarget] := by
-  decide
-
 /-- "where X is the number of creatures you control." -/
 theorem okSingleStaticXRider :
     StaticSpec.check []
@@ -85,12 +79,6 @@ theorem okContinuousClause :
         (some untilEndOfTurn)) = [] := by
   decide
 
-theorem badPtDefinitionClause :
-    Instruction.check []
-      (.establish (.ptDefinition thisCreature .bothEach (countOf creatureYouControl)) none)
-      = [.clauseStatic] := by
-  decide
-
 /-- "You become the monarch." -/
 theorem okBecomesMonarch :
     Instruction.check [] (.gainDesignation .you (.named "monarch") none) = [] := by decide
@@ -107,12 +95,12 @@ theorem okBecomesMonstrous :
     Instruction.check [] (.gainDesignation thisCreature (.named "monstrous") none) = [] := by
   decide
 
-/-- A designation a rule confers is not one an instruction may grant. The commander is held by
-a card, so the scope and holder refusals land too; the last is the law itself. -/
+/-- The commander is held by a card, not granted to an object, so the scope and holder
+refusals land. That a rule confers it and no instruction may is a game rule the checker does not
+assert (`lean-checker-sweep-game-rules`). -/
 theorem badGainsCommander :
     Instruction.check [] (.gainDesignation thisCreature (.named "commander") none)
-      = [.designationScope (.named "commander"), .designationHolder (.named "commander") .object,
-         .designationChecked (.named "commander")] := by
+      = [.designationScope (.named "commander"), .designationHolder (.named "commander") .object] := by
   decide
 
 /-- "You get an enduring story," the grant the storied keyword ability's expansion writes. -/
@@ -127,21 +115,6 @@ theorem okStillALand :
         (.bundle { characteristics :=
                    { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
           (some .land))) = [] := by
-  decide
-
-/-- "Target creature becomes a Coward until end of turn. It's still a land." -/
-theorem badStillOnSubtypeSet :
-    StaticSpec.check []
-      (Primitives.StaticSpec.qualityChange (target creature) .sets
-        (.bundle { characteristics := { subtypes := [creatureType "Coward"] } } (some .land)))
-      = [.becomesOk] := by
-  decide
-
-theorem badStillAnInstant :
-    StaticSpec.check []
-      (Primitives.StaticSpec.qualityChange (target creature) .sets
-        (.bundle { characteristics := { types := [.artifact] } } (some .instant)))
-      = [.becomesOk] := by
   decide
 
 /-- "Target creature gets +1/+0." -/

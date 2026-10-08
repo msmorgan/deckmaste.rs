@@ -723,7 +723,7 @@ permanent, and "that permanent" has no antecedent. -/
 theorem badExploreHandedToOpponent :
     Instruction.check [] (act (target .opponent) literalExplore)
       = [.kindMismatch .object .player, .possessorKind .controller .player,
-         .anaphor (.word .permanent) .one 0, .enactAgentOk] := by
+         .anaphor (.word .permanent) .one 0] := by
   decide
 
 /-- A card in a graveyard is not a permanent, and is never handed an instruction [CR#110.1]. -/
@@ -747,7 +747,7 @@ theorem okBareExploreAndEndureDefaultToThis :
 controller, so there is no default to the source permanent and the performer is refused. -/
 theorem badAdaptHandedToOpponent :
     Instruction.check [] (act (target .opponent) (literalAdapt 2))
-      = [.kindMismatch .object .player, .enactAgentOk] := by
+      = [.kindMismatch .object .player] := by
   decide
 
 /-- "Whenever a creature explores": the event's performer is a permanent, as the deed's row

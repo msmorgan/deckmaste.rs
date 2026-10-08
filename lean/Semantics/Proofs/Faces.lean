@@ -255,17 +255,6 @@ theorem okGainsIndestructible :
     StaticSpec.check [] (.abilityGrant (target creature) (keyword (.named "indestructible"))) = [] := by
         decide
 
-/-- "Target creature gains flash." -/
-theorem badBattlefieldFlash :
-    StaticSpec.check [] (.abilityGrant (target creature) (keyword (.named "flash"))) = [.grantSubject] := by
-  decide
-
-/-- "Target spell gains indestructible." -/
-theorem badSpellIndestructible :
-    StaticSpec.check [] (.abilityGrant (target spell) (keyword (.named "indestructible"))) = [.grantSubject]
-        := by
-  decide
-
 /-- a "Kindred Enchantment — Merfolk" card -/
 theorem okKindredWithAnotherType :
     Card.check
@@ -738,10 +727,6 @@ theorem okUnlockRoomDoor :
         (.doorOf (some .locked)
           (.described (.target (upTo 1)) (.and [room, .hasPossessor .controller .you]))))
       = [] := by
-  decide
-
-/-- "unlock this door" -/
-theorem badUnlockThisDoor : Instruction.check [] (.unlock .thisDoor) = [.doorNamesHost] := by
   decide
 
 /-- "When you unlock this door, this Room deals N damage to each opponent." -/

@@ -208,15 +208,6 @@ theorem okContinuousPumpClause :
         (some untilEndOfTurn)) = [] := by
   decide
 
-/-- "You may sacrifice a Mountain rather than pay this spell's mana cost" -/
-theorem badAltCostClause :
-    Instruction.check []
-      (.establish
-        (.altCost .this
-          (some (.perform (sacrifice (a (.and [land, .hasSubtype (landType "Mountain")]))))))
-        none) = [.clauseStatic] := by
-  decide
-
 /-- A land with the given text. -/
 def landWith (text : List Ability) : Card :=
   .singleFaced { characteristics := { name := "", types := [.land], text } }
@@ -268,14 +259,6 @@ theorem okUnearthGrantInGraveyard :
       (.static
         (.abilityGrant (allOf (.and [creature, .inZone (graveyardOf .you)]))
           (keywordCosting (.named "unearth") (.mana [generic 2])))) = [] := by
-  decide
-
-/-- "Creature cards in your graveyard have warp {2}." -/
-theorem badWarpGrantInGraveyard :
-    Ability.check []
-      (.static
-        (.abilityGrant (allOf (.and [creature, .inZone (graveyardOf .you)]))
-          (keywordCosting (.named "warp") (.mana [generic 2])))) = [.grantSubject] := by
   decide
 
 /-- "permanents you control" -/
@@ -401,26 +384,18 @@ theorem okUnnamedAddition :
       = [] := by
   decide
 
-/-- "Target creature becomes a Zombie named Bob in addition to its other types." -/
-theorem badNamedAddition :
-    Instruction.check []
-      (become (target creature)
-        { characteristics := { name := some "Bob", subtypes := [creatureType "Zombie"] } } none)
-      = [.becomesOk] := by
-  decide
-
 theorem badRepeatedAdditionColor :
     Instruction.check []
       (become (target creature)
         { characteristics :=
           { colors := [.black, .black], subtypes := [creatureType "Zombie"] } } none)
-      = [.becomesOk] := by
+      = [.distinct] := by
   decide
 
 theorem badRepeatedAdditionType :
     Instruction.check [] (become (target creature) { characteristics :=
                                                       { types := [.artifact, .artifact] } } none)
-      = [.becomesOk] := by
+      = [.distinct] := by
   decide
 
 end Semantics.Proofs.Mana

@@ -419,12 +419,6 @@ theorem okShieldRepeatedly :
         .repeatedly) = [] := by
   decide
 
-theorem badShieldNextTimeOnly :
-    StaticSpec.check []
-      (.damageRule .any .unattributed (.toRecipient .you) (.prevent (.shield (.lit 3)) none)
-        .nextTimeOnly) = [.damageOpUse] := by
-  decide
-
 theorem badShieldSizedByItsOwnPrevention :
     StaticSpec.check []
       (.damageRule .any .unattributed (.toRecipient .you)
@@ -618,36 +612,6 @@ theorem okJoinDamageRecipient :
 theorem okSoldierToken :
     Instruction.check [] (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]))
       = [] := by
-  decide
-
-/-- "Create a 1/1 black Zombie artifact token.": each subtype is correlated to a card type the
-object has [CR#205.3c] and Zombie is a creature type [CR#205.3m]. -/
-theorem badZombieArtifactToken :
-    Instruction.check []
-      (create (.lit 1)
-        { characteristics :=
-          { colors := [.black], types := [.artifact], subtypes := [creatureType "Zombie"],
-            power := some (.lit 1), toughness := some (.lit 1) } }) = [.subsFitLine] := by
-  decide
-
-/-- "Create a white Soldier creature token.": a creature has power and toughness [CR#208.1],
-and a token has only the characteristics its creating ability defines [CR#111.3]. -/
-theorem badCreatureTokenNoPt :
-    Instruction.check []
-      (create (.lit 1)
-        { characteristics :=
-          { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"] } })
-      = [.tokenPtOk] := by
-  decide
-
-/-- "Create a 1/1 white token.": a token represents a permanent [CR#111.1], which carries a
-permanent card type [CR#110.4a]. -/
-theorem badTypelessToken :
-    Instruction.check []
-      (create (.lit 1)
-        { characteristics :=
-          { colors := [.white], power := some (.lit 1), toughness := some (.lit 1) } })
-      = [.tokenTyped] := by
   decide
 
 /-- "You gain life equal to your life total." -/
