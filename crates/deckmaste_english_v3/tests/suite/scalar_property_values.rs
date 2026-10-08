@@ -27,7 +27,7 @@ fn property_values_are_dependents_of_the_property_noun() {
         let Reading::MeasuredAttribute { head, quantity, .. } = values.first().unwrap() else {
             panic!("property noun and its dependent value must remain constituents")
         };
-        assert_eq!(lexicon().realize(&head.value).unwrap(), property);
+        assert_eq!(head.realize(lexicon()).unwrap(), property);
         assert_eq!(quantity.realize(lexicon()).unwrap(), value);
     }
 }
@@ -110,7 +110,10 @@ fn scalar_values_reuse_one_coordination_without_determiner_or_clause_overlap() {
     }
 }
 
-fn word(owner: &str, form: deckmaste_lexical::WordForm) -> deckmaste_english_v3::grammar::Word {
+pub(super) fn word(
+    owner: &str,
+    form: deckmaste_lexical::WordForm,
+) -> deckmaste_english_v3::grammar::Word {
     let value = lexicon()
         .values()
         .find(|value| value.lexeme.as_str() == owner && value.form == form)
@@ -123,7 +126,7 @@ fn word(owner: &str, form: deckmaste_lexical::WordForm) -> deckmaste_english_v3:
     }
 }
 
-fn numeric(value: i32) -> deckmaste_english_v3::grammar::Word {
+pub(super) fn numeric(value: i32) -> deckmaste_english_v3::grammar::Word {
     deckmaste_english_v3::grammar::Word {
         value: deckmaste_lexical::LexicalReading::Numeral {
             value,
@@ -135,7 +138,7 @@ fn numeric(value: i32) -> deckmaste_english_v3::grammar::Word {
     }
 }
 
-fn assert_laws(value: &Reading, text: &str, category: Category) {
+pub(super) fn assert_laws(value: &Reading, text: &str, category: Category) {
     value.admit(lexicon()).unwrap();
     assert_eq!(value.realize(lexicon()).unwrap(), text);
     let parsed = readings(text, category);
@@ -239,8 +242,15 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
         assert_laws(&quantity, value_surface, Category::ScalarValue);
         let np = Reading::MeasuredAttribute {
             form: 0,
-            head: word(&format!("lexeme:CommonNoun/{property}"), WordForm::Singular),
-            quantity: Box::new(quantity),
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(&format!("lexeme:CommonNoun/{property}"), WordForm::Singular),
+            }),
+            quantity: Box::new(Reading::ScalarMeasureValue {
+                category: Category::PropertyValue,
+                form: 0,
+                value: Box::new(quantity),
+            }),
         };
         assert_laws(&np, surface, Category::NounPhrase);
         let pp = Reading::PrepositionPhrase {

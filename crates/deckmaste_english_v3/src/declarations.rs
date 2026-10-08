@@ -125,7 +125,8 @@ constructions! {
         feature ScalarVariable { Yes }
         feature MeasureOperator { Yes }
         feature ScalarDenotation { No, Yes } default No;
-        feature MeasurePosition { None, Before, After } default None;
+        feature MeasurePosition { None, Before } default None;
+        feature PropertyValuePosition { None, Single, First, Second, Pair } default None;
         feature CardinalMeasurementUse { No, Yes } default No;
         feature MeasureKind { Scalar, Pair }
         feature ComparisonMarker { Equality, Ordering }
@@ -219,7 +220,7 @@ constructions! {
         category ParticipialComplement(PurposeAdjunctLicence);
         category PerfectComplement(PurposeAdjunctLicence);
         category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
-            NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, CardinalMeasurementUse,
+            NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation, SourceModifierPresent);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
@@ -259,6 +260,7 @@ constructions! {
         category HollowInfinitivalComplement();
         category PurposeInfinitival(FocusedUse);
         category ScalarValue();
+        category PropertyValue(MeasureKind);
         category Amount();
         category MeasurePhrase(MeasureKind);
         category ScalarMeasurePhrase();
@@ -316,7 +318,7 @@ constructions! {
         category QuotedTextSeries();
         category NominalSeries(
             number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
-            NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, CardinalMeasurementUse,
+            NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation
         , SourceModifierPresent);
         category AdjectivePhraseSeries(AdjectiveStructure, TargetingPremodifierUse);
@@ -674,6 +676,7 @@ constructions! {
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
+            export PropertyValuePosition = head.PropertyValuePosition;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
@@ -692,6 +695,7 @@ constructions! {
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
+            export PropertyValuePosition = head.PropertyValuePosition;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
@@ -811,6 +815,7 @@ constructions! {
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = No;
             export MeasurePosition = head.MeasurePosition;
+            export PropertyValuePosition = head.PropertyValuePosition;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
@@ -889,10 +894,53 @@ constructions! {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
         table coordinated_measure_position(MeasurePosition, MeasurePosition) -> MeasurePosition {
-            (Before, Before) => Before, (After, After) => After,
-            (None, None) => None, (None, Before) => None, (None, After) => None,
-            (Before, None) => None, (After, None) => None,
-            (Before, After) => None, (After, Before) => None,
+            (Before, Before) => Before,
+            (None, None) => None, (None, Before) => None, (Before, None) => None,
+        }
+        table coordinated_property_value_position(CoordinationKind, PropertyValuePosition,
+            PropertyValuePosition) -> PropertyValuePosition {
+            (Additive, None, None) => None, (Additive, None, Single) => None,
+            (Additive, None, First) => None, (Additive, None, Second) => None,
+            (Additive, None, Pair) => None, (Additive, Single, None) => None,
+            (Additive, Single, Single) => None, (Additive, Single, First) => None,
+            (Additive, Single, Second) => None, (Additive, Single, Pair) => None,
+            (Additive, First, None) => None, (Additive, First, Single) => None,
+            (Additive, First, First) => None, (Additive, First, Second) => Pair,
+            (Additive, First, Pair) => None, (Additive, Second, None) => None,
+            (Additive, Second, Single) => None, (Additive, Second, First) => None,
+            (Additive, Second, Second) => None, (Additive, Second, Pair) => None,
+            (Additive, Pair, None) => None, (Additive, Pair, Single) => None,
+            (Additive, Pair, First) => None, (Additive, Pair, Second) => None,
+            (Additive, Pair, Pair) => None, (Alternative, None, None) => None,
+            (Alternative, None, Single) => None, (Alternative, None, First) => None,
+            (Alternative, None, Second) => None, (Alternative, None, Pair) => None,
+            (Alternative, Single, None) => None, (Alternative, Single, Single) => None,
+            (Alternative, Single, First) => None, (Alternative, Single, Second) => None,
+            (Alternative, Single, Pair) => None, (Alternative, First, None) => None,
+            (Alternative, First, Single) => None, (Alternative, First, First) => None,
+            (Alternative, First, Second) => None, (Alternative, First, Pair) => None,
+            (Alternative, Second, None) => None, (Alternative, Second, Single) => None,
+            (Alternative, Second, First) => None, (Alternative, Second, Second) => None,
+            (Alternative, Second, Pair) => None, (Alternative, Pair, None) => None,
+            (Alternative, Pair, Single) => None, (Alternative, Pair, First) => None,
+            (Alternative, Pair, Second) => None, (Alternative, Pair, Pair) => None,
+            (Adversative, None, None) => None, (Adversative, None, Single) => None,
+            (Adversative, None, First) => None, (Adversative, None, Second) => None,
+            (Adversative, None, Pair) => None, (Adversative, Single, None) => None,
+            (Adversative, Single, Single) => None, (Adversative, Single, First) => None,
+            (Adversative, Single, Second) => None, (Adversative, Single, Pair) => None,
+            (Adversative, First, None) => None, (Adversative, First, Single) => None,
+            (Adversative, First, First) => None, (Adversative, First, Second) => None,
+            (Adversative, First, Pair) => None, (Adversative, Second, None) => None,
+            (Adversative, Second, Single) => None, (Adversative, Second, First) => None,
+            (Adversative, Second, Second) => None, (Adversative, Second, Pair) => None,
+            (Adversative, Pair, None) => None, (Adversative, Pair, Single) => None,
+            (Adversative, Pair, First) => None, (Adversative, Pair, Second) => None,
+            (Adversative, Pair, Pair) => None,
+        }
+        table property_value_kind(PropertyValuePosition, MeasureKind) -> Selection {
+            (Single, Scalar) => Yes, (First, Scalar) => Yes, (Second, Scalar) => Yes,
+            (Pair, Pair) => Yes,
         }
         table coordinated_cardinal_measurement(CardinalMeasurementUse, CardinalMeasurementUse)
             -> CardinalMeasurementUse {
@@ -910,6 +958,8 @@ constructions! {
                 left.CardinalMeasurementUse, Right.CardinalMeasurementUse);
             export MeasurePosition = coordinated_measure_position(
                 left.MeasurePosition, Right.MeasurePosition);
+            export PropertyValuePosition = coordinated_property_value_position(
+                Source.CoordinationKind, left.PropertyValuePosition, Right.PropertyValuePosition);
             export DeterminerRequirement = coordinated_determiner_requirement(
                 left.DeterminerRequirement, Right.DeterminerRequirement);
             export BareGenitiveHost = No;
@@ -2081,6 +2131,7 @@ constructions! {
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
             export MeasurePosition = head.MeasurePosition;
+            export PropertyValuePosition = head.PropertyValuePosition;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             form [quantity: Cardinal, " ", head: Nominal];
@@ -2117,6 +2168,7 @@ constructions! {
             export countability = Count;
             export DeterminerRequirement = Yes;
             export MeasurePosition = None;
+            export PropertyValuePosition = None;
             export CardinalMeasurementUse = No;
             export Targeting = head.Targeting;
             export NominalAdjunctClass = None;
@@ -2212,6 +2264,7 @@ constructions! {
             export NominalComplementMarker = None;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
+            export PropertyValuePosition = head.PropertyValuePosition;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export BareGenitiveHost = head.BareGenitiveHost;
@@ -3280,10 +3333,11 @@ constructions! {
             form [left: ScalarComponent, "/", right: ScalarComponent];
         }
 
-        construction SlashMeasure: MeasurePhrase {
+        schema SlashMeasure {
             form [pair: SlashPair];
             export MeasureKind = Pair;
         }
+        instance SlashMeasure<Result>: [(MeasurePhrase), (PropertyValue)] {}
 
         table slash_premodifier_concord(SlashPremodifierUse, SlashPremodifierUse)
             -> SlashPremodifierUse {
@@ -3348,6 +3402,9 @@ constructions! {
         policy ScalarValueMeasure {
             require value.MeasureKind = Scalar;
         }
+        policy ScalarPropertyValueKind {
+            export MeasureKind = Scalar;
+        }
         schema ScalarMeasureValue {
             cost 0;
             form [value: node];
@@ -3355,6 +3412,7 @@ constructions! {
         instance ScalarMeasureValue<Result, Value: value, Properties>: [
             (ScalarValue, MeasurePhrase, ScalarValueMeasure),
             (ScalarLocationComplement, CostSymbols, NoFeatures),
+            (PropertyValue, ScalarValue, ScalarPropertyValueKind),
         ] {
             use Properties;
         }
@@ -3380,8 +3438,9 @@ constructions! {
             require right.ScalarComparativeUse = Yes;
         }
 
-        // Project ruling, scalar-property-values (2026-10-07): the following
-        // value is a Complement of the property noun, not a Determiner.
+        // Project rulings: scalar-property-values (2026-10-07) and
+        // coordinated-property-values (2026-10-08). A property Nominal selects
+        // its following value Complement through declared position and kind.
         construction MeasuredAttribute: NounPhrase {
             export ScalarDenotation = head.ScalarDenotation;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -3389,8 +3448,10 @@ constructions! {
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
             export Targeting = No;
-            form [head: lexical(Noun), " ", quantity: ScalarValue];
-            require head.MeasurePosition = After;
+            form [head: Nominal, " ", quantity: PropertyValue];
+            require property_value_kind(head.PropertyValuePosition, quantity.MeasureKind) = Yes;
+            require head.DeterminerRequirement = No;
+            require head.Targeting = No;
             require head.number = Singular;
             export number = Singular;
             use ThirdPersonCommonCase;

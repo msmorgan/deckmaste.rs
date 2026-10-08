@@ -549,15 +549,33 @@ a numeral Coordination, usable in a scalar property dependent or a scalar
 location predicative Complement.
 
 **Scalar Property Value** (project term):
-A Scalar Value selected as a dependent by a scalar property noun; its
+A Scalar Value selected as a dependent by a scalar property Nominal; its
 treatment as a Complement in
 *power 2* is a [project ruling (2026-10-07)](../../tickets/done/english-v3-scalar-property-values.md#project-ruling-scalar-property-values),
 not a claim made by CGEL's account of property-denoting NP Postmodifiers.
 
 **Measure Position** (project term):
-A noun's declared permission for a scalar value to precede it in measurement
-or follow it as a Scalar Property Value; the following value is a selected
-Complement under the project's scalar-property ruling.
+A noun's declared permission for a scalar value to precede it in measurement.
+Following property Complements are licensed by Property Value Position.
+
+**Slash Pair** (project term):
+An ordered pair of scalar components realized with a slash separator, as
+in *0/2* or *X/X*. Its use as a selected Property Value is the
+[coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values).
+
+**Property Value** (project term):
+A selected value Complement of a property Nominal: a Scalar Property Value
+for a single property, or a Slash Pair for an ordered pair of properties.
+This extension is the [coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values),
+not an analysis attributed to CGEL.
+
+**Property Value Position** (project term):
+A property's declared position in a value: a single scalar property, the
+first or second coordinate of a Slash Pair, or their ordered additive pair.
+Premodification preserves the position; additive Coordination of first and
+second positions licenses the pair, in that order. Other Coordinations do
+not license a Property Value. This is the
+[coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values).
 
 **Scalar Comparative Use** (project term):
 An Adjective's declared permission to be the comparative Conjunct in a

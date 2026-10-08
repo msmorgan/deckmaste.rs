@@ -145,3 +145,6 @@ mod purpose_infinitival;
 
 #[path = "suite/verbless_if_complement.rs"]
 mod verbless_if_complement;
+
+#[path = "suite/coordinated_property_values.rs"]
+mod coordinated_property_values;

@@ -597,6 +597,7 @@ fn slash_pairs_preserve_ordered_components_and_explicit_signs() {
         BTreeSet::from([pair.clone()])
     );
     let measure = Reading::SlashMeasure {
+        category: Category::MeasurePhrase,
         form: 0,
         pair: Box::new(pair),
     };
