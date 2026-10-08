@@ -102,7 +102,9 @@ impl Shape {
     /// when the signature is outside the workbench's admitted vocabulary.
     fn from_params(params: &[&str]) -> Option<Shape> {
         Some(match params {
-            [] => Shape::Nothing,
+            // Gift's effect is an instruction written into its definition,
+            // not a keyword argument [CR#702.174b].
+            [] | ["Instruction"] => Shape::Nothing,
             ["Cost"] => Shape::Cost,
             ["Quality"] => Shape::Quality,
             ["Subject"] => Shape::Subject,
@@ -1328,6 +1330,35 @@ fn stub_names(dir: &Path) -> anyhow::Result<Vec<String>> {
     Ok(names)
 }
 
+/// The keyword-ability stubs that define a keyword of their own: every stem
+/// under `KEYWORD_STUBS` but the variants, each of which carries another
+/// keyword's label (`giftACard` is gift's `gift(draw(1))` [CR#702.174e]) and so
+/// shares that keyword's row.
+fn keyword_stub_names(
+    root: &Path,
+    declarations: &[deckmaste_construction_core::macro_def::NormalizedDeclaration],
+) -> anyhow::Result<Vec<String>> {
+    let mut variants = Vec::new();
+    for declared in declarations.iter().filter(|declared| {
+        declared.identity().kind()
+            == deckmaste_construction_core::macro_def::DeclarationKind::KeywordAbility
+    }) {
+        let name = declared.identity().name();
+        let Some(body) = declared.body() else {
+            continue;
+        };
+        if deckmaste_semantics_v2::keywords::is_variant(body.get_ron())
+            .map_err(|reason| anyhow::anyhow!("{name}: {reason}"))?
+        {
+            variants.push(name.to_owned());
+        }
+    }
+    Ok(stub_names(&root.join(KEYWORD_STUBS))?
+        .into_iter()
+        .filter(|name| !variants.contains(name))
+        .collect())
+}
+
 /// The value of a stub's top-level `field: …,` entry, verbatim and trimmed.
 /// The stubs are one macro call per file, written at a fixed indent, so the
 /// field's own line is the whole value for every field this command reads.
@@ -1846,7 +1877,7 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
         Table {
             name: "keyword abilities",
             scope: KEYWORD_SCOPE,
-            stubs: stub_names(&root.join(KEYWORD_STUBS))?,
+            stubs: keyword_stub_names(root, &declarations)?,
             rows: overlay().iter().map(|r| r.label.to_owned()).collect(),
             stub_exempt: KEYWORD_STUBS_EXEMPT,
             row_exempt: KEYWORD_ROWS_EXEMPT,
@@ -1907,6 +1938,7 @@ mod tests {
     #[test]
     fn stub_signatures_map_to_workbench_shapes() {
         assert_eq!(Shape::from_params(&[]), Some(Shape::Nothing));
+        assert_eq!(Shape::from_params(&["Instruction"]), Some(Shape::Nothing));
         assert_eq!(Shape::from_params(&["Cost"]), Some(Shape::Cost));
         assert_eq!(
             Shape::from_params(&["Amount", "Cost"]),

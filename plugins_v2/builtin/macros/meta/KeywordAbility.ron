@@ -6,18 +6,26 @@
 // alone (`body`, omitted when empty). The body here is the record of what the
 // file wrote, and `deckmaste_semantics_v2::keywords` builds the keyword's
 // `Keyword(keyword: <label>, params: <arguments>, body: <abilities>)` term
-// from it: the label is the name capitalized, and the arguments forward the
+// from it: the label is the declaration's name, and the arguments forward the
 // declared parameters in order unless the file writes `keyword_params`.
+//
+// `spelling` is the card-usage template. A declaration that writes none is
+// deliberately unparseable: bare `gift`, which only its spelled variants
+// invoke. A variant writes `label`, the keyword whose label it carries, and
+// its body is that keyword invoked once (`giftACard`: `label: gift`, `body:
+// [gift(draw(1))]`); the declaration's term is that invocation, labelled as
+// the keyword it names, never a keyword of its own.
 (
     name: "KeywordAbility",
     kinds: [Macro],
     params: {
         "name": String,
         "params": Elidable(Any),
-        "spelling": String,
+        "spelling": Elidable(String),
         "grammar": Elidable(Any),
         "keyword_syntax": Elidable(Any),
         "keyword_params": Elidable(Any),
+        "label": Elidable(Any),
         "body": Default(Any, []),
     },
     body: (
@@ -29,6 +37,6 @@
             grammar: Param(grammar),
             keyword_syntax: Param(keyword_syntax),
         ),
-        body: (keyword_params: Param(keyword_params), abilities: Param(body)),
+        body: (keyword_params: Param(keyword_params), label: Param(label), abilities: Param(body)),
     ),
 )

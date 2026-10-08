@@ -95,7 +95,11 @@ pub fn declaration_macro_set() -> Result<macro_ron::MacroSet, DeclarationReaderE
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
-    pub spelling: String,
+    /// The card-usage template. Only a keyword ability may omit it, and one
+    /// that does is deliberately unparseable: bare `gift`, which its spelled
+    /// variants invoke.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spelling: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub grammar: Option<Grammar>,
     /// Noun-attachment facts declared once by each noun-bearing declaration
@@ -332,6 +336,10 @@ pub enum UnsupportedKeywordParameterClass {
     Ability,
     Condition,
     CostPowerToughness,
+    /// An instruction argument, which no keyword line prints: bare `gift`
+    /// takes its effect this way and is spelled only through its variants
+    /// [CR#702.174a,702.174b].
+    Instruction,
 }
 
 /// The closed relationship between a keyword declaration and its line codec.
@@ -1192,7 +1200,8 @@ struct ValidationSourceMap {
     declaration: SourcePosition,
     name: SourcePosition,
     params: Option<SourcePosition>,
-    spelling: SourcePosition,
+    /// `None` for a keyword ability that writes no spelling.
+    spelling: Option<SourcePosition>,
     grammar: Option<GrammarSourceMap>,
     body: BodySource,
 }
@@ -1294,14 +1303,16 @@ struct DiagnosticKeywordAbility<'a> {
     name: &'a RawValue,
     #[serde(default, borrow)]
     params: Option<&'a RawValue>,
-    #[serde(borrow)]
-    spelling: &'a RawValue,
+    #[serde(default, borrow)]
+    spelling: Option<&'a RawValue>,
     #[serde(default, borrow)]
     grammar: Option<DiagnosticGrammar<'a>>,
     #[serde(rename = "keyword_syntax", default, borrow)]
     _keyword_syntax: Option<&'a RawValue>,
     #[serde(rename = "keyword_params", default, borrow)]
     _keyword_params: Option<&'a RawValue>,
+    #[serde(rename = "label", default, borrow)]
+    _label: Option<&'a RawValue>,
     #[serde(default, borrow)]
     body: Option<&'a RawValue>,
 }
@@ -1408,7 +1419,7 @@ struct DiagnosticDesignation<'a> {
 struct DiagnosticFieldValues<'a> {
     name: &'a RawValue,
     params: Option<&'a RawValue>,
-    spelling: &'a RawValue,
+    spelling: Option<&'a RawValue>,
     grammar: Option<DiagnosticGrammar<'a>>,
     /// The authored body, for a family whose meta takes one; `None` for the
     /// subtype, counter and designation families, whose meta derives it
@@ -1680,7 +1691,7 @@ impl ValidationSourceMap {
                 DiagnosticFieldValues {
                     name: fields.name,
                     params: fields.params,
-                    spelling: fields.spelling,
+                    spelling: Some(fields.spelling),
                     grammar: fields.grammar,
                     body: fields.body,
                     derived_body: false,
@@ -1695,7 +1706,7 @@ impl ValidationSourceMap {
                 DiagnosticFieldValues {
                     name: fields.name,
                     params: fields.params,
-                    spelling: fields.spelling,
+                    spelling: Some(fields.spelling),
                     grammar: fields.grammar,
                     body: fields.body,
                     derived_body: false,
@@ -1708,7 +1719,7 @@ impl ValidationSourceMap {
                 DiagnosticFieldValues {
                     name: designation.name,
                     params: designation.params,
-                    spelling: designation.spelling,
+                    spelling: Some(designation.spelling),
                     grammar: designation.grammar,
                     body: None,
                     derived_body: true,
@@ -1721,7 +1732,7 @@ impl ValidationSourceMap {
                 DiagnosticFieldValues {
                     name: counter.name,
                     params: counter.params,
-                    spelling: counter.spelling,
+                    spelling: Some(counter.spelling),
                     grammar: counter.grammar,
                     body: None,
                     derived_body: true,
@@ -1735,7 +1746,7 @@ impl ValidationSourceMap {
                 DiagnosticFieldValues {
                     name: subtype.name,
                     params: subtype.params,
-                    spelling: subtype.spelling,
+                    spelling: Some(subtype.spelling),
                     grammar: subtype.grammar,
                     body: None,
                     derived_body: true,
@@ -1757,7 +1768,10 @@ impl ValidationSourceMap {
                 .params
                 .map(|params| raw_position(path, source, params, declaration))
                 .transpose()?,
-            spelling: raw_position(path, source, fields.spelling, declaration)?,
+            spelling: fields
+                .spelling
+                .map(|spelling| raw_position(path, source, spelling, declaration))
+                .transpose()?,
             grammar: fields
                 .grammar
                 .map(|grammar| {
@@ -2224,19 +2238,32 @@ fn normalize(
         ));
     }
 
-    let spelling_parts = parse_spelling(&spelling).map_err(|reason| {
-        validation_error_at(
-            &path,
-            source_map.spelling,
-            ValidationError::InvalidSpelling { reason },
-        )
-    })?;
-    validate_spelling_params(
-        &path,
-        source_map.spelling,
-        &spelling_parts,
-        params.as_deref(),
-    )?;
+    // A keyword ability may write no spelling: it is then deliberately
+    // unparseable (bare `gift`), and has no template to check.
+    let spelling_position = source_map.spelling.unwrap_or(source_map.declaration);
+    let spelling_parts = match spelling {
+        Some(spelling) => {
+            let parts = parse_spelling(&spelling).map_err(|reason| {
+                validation_error_at(
+                    &path,
+                    spelling_position,
+                    ValidationError::InvalidSpelling { reason },
+                )
+            })?;
+            validate_spelling_params(&path, spelling_position, &parts, params.as_deref())?;
+            parts
+        }
+        None if kind == DeclarationKind::KeywordAbility => Vec::new(),
+        None => {
+            return Err(validation_error_at(
+                &path,
+                source_map.declaration,
+                ValidationError::InvalidSpelling {
+                    reason: format!("a {kind} declaration must write a spelling"),
+                },
+            ));
+        }
+    };
     validate_body_params(
         &path,
         source_map.declaration,
@@ -2259,7 +2286,7 @@ fn normalize(
             normalize_grammar(
                 &path,
                 grammar_map,
-                source_map.spelling,
+                spelling_position,
                 &spelling_parts,
                 grammar,
             )
@@ -2428,6 +2455,9 @@ fn normalized_keyword_parameter_class(
         [Type::Subject] => Class::Subject,
         [Type::Ability] => Class::Unsupported(Unsupported::Ability),
         [Type::Condition] => Class::Unsupported(Unsupported::Condition),
+        [Type::Other(name)] if name == "Instruction" => {
+            Class::Unsupported(Unsupported::Instruction)
+        }
         [Type::Cost, Type::Power, Type::Toughness] => {
             Class::Unsupported(Unsupported::CostPowerToughness)
         }
@@ -2769,7 +2799,10 @@ fn finish_grammar_normalization(
 ) -> Result<GrammarRow, ReadError> {
     let (grammar_head, recipe, surfaces, participial_adjective, block_label) = normalized;
     let (spelling_head, glued) = spelling_head(spelling);
-    if !spelling_head_matches(&spelling_head, glued, &grammar_head, &surfaces) {
+    // An unspelled declaration has no template whose head could disagree.
+    if !spelling.is_empty()
+        && !spelling_head_matches(&spelling_head, glued, &grammar_head, &surfaces)
+    {
         return Err(validation_error_at(
             path,
             spelling_position,

@@ -266,7 +266,14 @@ fn read_macros(
                     } else if family == crate::keywords::KEYWORD_ACTION {
                         vec![crate::keywords::deed_macro(&definition)]
                     } else if family == crate::keywords::KEYWORD_ABILITY {
-                        vec![crate::keywords::label_macro(&definition)]
+                        let label = match crate::keywords::carried_label(
+                            definition.name.as_str(),
+                            &produced,
+                        ) {
+                            Ok(label) => label,
+                            Err(reason) => return Err(LoadError::Definition { path, reason }),
+                        };
+                        vec![crate::keywords::label_macro(&definition, &label)]
                     } else {
                         Vec::new()
                     };

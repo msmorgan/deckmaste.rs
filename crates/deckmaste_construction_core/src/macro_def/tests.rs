@@ -203,7 +203,14 @@ fn nursery_and_graduated_sources_use_the_ordinary_macro_reader() {
             Some(family),
             "{source}"
         );
-        assert!(!definition.metadata().spelling.is_empty(), "{source}");
+        assert!(
+            definition
+                .metadata()
+                .spelling
+                .as_deref()
+                .is_some_and(|spelling| !spelling.is_empty()),
+            "{source}"
+        );
         assert_eq!(
             matches!(&definition.params, macro_ron::Params::Positional(params) if params.is_empty()),
             !source.contains("params:") || source.contains("params:[]"),
@@ -976,6 +983,37 @@ KeywordAbility(
     assert_eq!(adjective.feature(), SurfaceFeature::PAST_PARTICIPLE);
     assert_eq!(adjective.text(), "turned");
     assert_eq!(adjective.onset(), Onset::Consonant);
+}
+
+/// A keyword ability may write no spelling: it is then deliberately
+/// unparseable (bare `gift`, whose spelled variants invoke it), keeps its
+/// grammar, and has no template whose head could disagree with it. Only a
+/// keyword ability may do so; every other family's meta requires one.
+#[test]
+fn a_keyword_ability_may_omit_its_spelling() {
+    let declaration = read_str(
+        source_path("Gift.ron"),
+        r#"
+KeywordAbility(
+    name: "gift",
+    params: [Instruction],
+    grammar: FixedKeyword(surface: "gift"),
+)
+"#,
+    )
+    .expect("an unspelled keyword ability normalizes");
+    assert_eq!(declaration.spelling(), []);
+    assert_eq!(
+        declaration.grammar().expect("grammar is kept").surfaces()[0].text(),
+        "gift"
+    );
+    assert!(matches!(
+        read_str(
+            source_path("Broken.ron"),
+            r#"KeywordAction(name:"Ping",params:[],body:Ping)"#,
+        ),
+        Err(ReadError::Reader { .. } | ReadError::Parse { .. } | ReadError::Validate { .. })
+    ));
 }
 
 #[test]

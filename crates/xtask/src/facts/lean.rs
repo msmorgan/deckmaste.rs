@@ -117,8 +117,11 @@ fn optional(value: Option<&'static str>) -> String {
 }
 
 fn argument_schema(params: &[&str]) -> anyhow::Result<String> {
+    // An instruction is no keyword argument: gift's effect is written into
+    // its definition, and its keyword term carries no argument for it.
     let slots = params
         .iter()
+        .filter(|param| **param != "Instruction")
         .map(|param| {
             let (shape, domain) = match *param {
                 "Cost" => (".cost", "none"),
@@ -344,6 +347,13 @@ pub(super) fn keyword_definitions(
         let body = declared
             .body()
             .with_context(|| format!("{name}: keyword ability has no declaration body"))?;
+        // A variant carries another keyword's label (`giftACard` is gift's
+        // `gift(draw(1))`): it defines no keyword, so it has no row.
+        if keywords::is_variant(body.get_ron())
+            .map_err(|reason| anyhow::anyhow!("{name}: {reason}"))?
+        {
+            continue;
+        }
         let params = declared
             .params()
             .unwrap_or_default()

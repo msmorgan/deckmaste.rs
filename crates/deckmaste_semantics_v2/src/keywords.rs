@@ -55,19 +55,23 @@ pub const KEYWORD_LABEL: &str = "KeywordLabel";
 /// keyword label is wanted [CR#702.1]: `grants(flying)`, `keyword(haste)`. It
 /// takes no arguments and denotes `Named(name: <name>)`, the label the
 /// declaration's own `Keyword` term carries; [`deed_macro`]'s twin.
+///
+/// A variant (`giftACard`) reads as the label it carries (`label`, from
+/// [`carried_label`]): it names gift, whose row it shares.
 #[must_use]
-pub fn label_macro(declaration: &macro_ron::MacroDef) -> macro_ron::MacroDef {
-    name_macro(declaration, KEYWORD_LABEL, "Named(name: ")
+pub fn label_macro(declaration: &macro_ron::MacroDef, label: &str) -> macro_ron::MacroDef {
+    name_macro(declaration, KEYWORD_LABEL, "Named(name: ", label)
 }
 
 fn name_macro(
     declaration: &macro_ron::MacroDef,
     position: &str,
     constructor: &str,
+    label: &str,
 ) -> macro_ron::MacroDef {
     let mut named = declaration
         .clone()
-        .with_body(&format!("{constructor}\"{}\")", declaration.name.as_str()));
+        .with_body(&format!("{constructor}\"{label}\")"));
     named.kinds = vec![macro_ron::Ident::from(position)];
     named.params = Params::Positional(Vec::new());
     named
@@ -85,7 +89,12 @@ pub const DEED: &str = "Deed";
 /// (`crate::ron`), so the name is the only way a card writes the deed.
 #[must_use]
 pub fn deed_macro(declaration: &macro_ron::MacroDef) -> macro_ron::MacroDef {
-    name_macro(declaration, DEED, "Action(label: ")
+    name_macro(
+        declaration,
+        DEED,
+        "Action(label: ",
+        declaration.name.as_str(),
+    )
 }
 
 /// The definition a declaration of family `family` registers, given the body
@@ -120,8 +129,11 @@ pub fn definition_body(
 /// # Errors
 /// As [`definition_body`].
 pub fn keyword_ability_body(name: &str, params: &Params, body: &str) -> Result<String, String> {
-    let record = Record::read(body, &["keyword_params", "abilities"])?;
+    let record = Record::read(body, KEYWORD_ABILITY_FIELDS)?;
     let abilities = record.required("abilities")?;
+    if let Some(label) = record.get("label") {
+        return carried_keyword(name, label, &record, abilities);
+    }
     let keyword_params = match record.get("keyword_params") {
         Some(written) => written.to_owned(),
         None => forwarded_keyword_params(name, params)?,
@@ -129,6 +141,92 @@ pub fn keyword_ability_body(name: &str, params: &Params, body: &str) -> Result<S
     Ok(format!(
         "Keyword(keyword: Named(name: \"{name}\"), params: {keyword_params}, body: {abilities})"
     ))
+}
+
+/// The fields a keyword ability's meta-macro record may carry.
+const KEYWORD_ABILITY_FIELDS: &[&str] = &["keyword_params", "label", "abilities"];
+
+/// The keyword label a keyword ability's declaration carries, given the body
+/// its meta-macro produced: the keyword it names under `label` when it is a
+/// variant of another keyword (`giftACard` carries `gift`), else its own name.
+///
+/// # Errors
+/// If the produced body is not the record the meta-macro writes.
+pub fn carried_label(name: &str, body: &str) -> Result<String, String> {
+    let record = Record::read(body, KEYWORD_ABILITY_FIELDS)?;
+    Ok(record.get("label").unwrap_or(name).to_owned())
+}
+
+/// Whether a keyword ability's declaration, given the body its meta-macro
+/// produced, is a variant carrying another keyword's label: it defines no
+/// keyword of its own, so it has no registry row.
+///
+/// # Errors
+/// If the produced body is not the record the meta-macro writes.
+pub fn is_variant(body: &str) -> Result<bool, String> {
+    Ok(Record::read(body, KEYWORD_ABILITY_FIELDS)?
+        .get("label")
+        .is_some())
+}
+
+/// A variant's term: the one invocation of the keyword it names, labelled as
+/// that keyword. "Gift a card" is `gift(draw(1))` under gift's label
+/// [CR#702.174e]; nesting it inside a keyword of its own would give a
+/// keyword with no category in another's definition.
+fn carried_keyword(
+    name: &str,
+    label: &str,
+    record: &Record,
+    abilities: &str,
+) -> Result<String, String> {
+    if record.get("keyword_params").is_some() {
+        return Err(format!(
+            "keyword ability `{name}` carries `{label}`'s label, so its arguments are \
+             `{label}`'s; it writes no `keyword_params`"
+        ));
+    }
+    let invocation = abilities
+        .strip_prefix('[')
+        .and_then(|rest| rest.strip_suffix(']'))
+        .map(|inner| inner.trim().trim_end_matches(',').trim())
+        .unwrap_or_default();
+    let invokes_label = invocation
+        .strip_prefix(label)
+        .is_some_and(|rest| rest.trim_start().starts_with('('));
+    if !invokes_label || top_level_commas(invocation) > 0 {
+        return Err(format!(
+            "keyword ability `{name}` carries `{label}`'s label, so its body is one invocation \
+             of `{label}`: found `{abilities}`"
+        ));
+    }
+    Ok(invocation.to_owned())
+}
+
+/// The commas in `text` outside any bracket or string.
+fn top_level_commas(text: &str) -> usize {
+    let mut depth = 0_i32;
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut commas = 0;
+    for ch in text.chars() {
+        if in_string {
+            match (escaped, ch) {
+                (true, _) => escaped = false,
+                (false, '\\') => escaped = true,
+                (false, '"') => in_string = false,
+                _ => {}
+            }
+            continue;
+        }
+        match ch {
+            '"' => in_string = true,
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ',' if depth == 0 => commas += 1,
+            _ => {}
+        }
+    }
+    commas
 }
 
 /// A keyword action's definition from its meta-macro's record: the
@@ -226,8 +324,10 @@ fn in_caller(params: &Params, instruction: &str) -> String {
 /// The keyword arguments a keyword ability's signature forwards, one per
 /// declared parameter in order, each the `KeywordParam` that carries its
 /// type: `Cost` → `Cost`, `Amount` → `Number`, `Quality` → `Quality`,
-/// `Subject` → `Subject`. An `Ability` parameter is forwarded as nothing —
-/// `KeywordParam` has no `Ability` variant — and any other type is an error
+/// `Subject` → `Subject`. An `Ability` or `Instruction` parameter is
+/// forwarded as nothing — `KeywordParam` has neither variant; gift's effect
+/// is written into its definition, not carried as an argument — and any
+/// other type is an error
 /// the declaration answers by writing `keyword_params` itself.
 fn forwarded_keyword_params(name: &str, params: &Params) -> Result<String, String> {
     let types: Vec<&str> = match params {
@@ -246,7 +346,7 @@ fn forwarded_keyword_params(name: &str, params: &Params) -> Result<String, Strin
             "Amount" => "Number",
             "Quality" => "Quality",
             "Subject" => "Subject",
-            "Ability" => continue,
+            "Ability" | "Instruction" => continue,
             other => {
                 return Err(format!(
                     "keyword ability `{name}`: a `{other}` parameter has no keyword argument to \
@@ -333,6 +433,8 @@ mod tests {
     use macro_ron::ParamType;
     use macro_ron::Params;
 
+    use super::carried_label;
+    use super::is_variant;
     use super::keyword_ability_body;
     use super::keyword_action_body;
 
@@ -391,6 +493,45 @@ mod tests {
             keyword_ability_body("companion", &positional(&["Condition"]), "(abilities: [])")
                 .unwrap_err();
         assert!(error.contains("keyword_params"), "{error}");
+    }
+
+    /// Gift takes its effect as an instruction, which no keyword argument
+    /// carries: it is forwarded as nothing, as an ability is [CR#702.174b].
+    #[test]
+    fn an_instruction_parameter_is_forwarded_as_nothing() {
+        assert_eq!(
+            keyword_ability_body("gift", &positional(&["Instruction"]), "(abilities: [])").unwrap(),
+            "Keyword(keyword: Named(name: \"gift\"), params: [], body: [])"
+        );
+    }
+
+    /// A variant carries the label of the keyword it names: its term is that
+    /// keyword's one invocation, never a keyword of its own wrapping it.
+    #[test]
+    fn a_variant_is_the_keyword_it_carries() {
+        let variant = "(label: gift, abilities: [gift(draw(1))])";
+        assert_eq!(
+            keyword_ability_body("giftACard", &positional(&[]), variant).unwrap(),
+            "gift(draw(1))"
+        );
+        assert_eq!(carried_label("giftACard", variant).unwrap(), "gift");
+        assert_eq!(
+            carried_label("flying", "(abilities: [])").unwrap(),
+            "flying"
+        );
+        assert!(is_variant(variant).unwrap());
+        assert!(!is_variant("(abilities: [])").unwrap());
+        for refused in [
+            "(label: gift, abilities: [])",
+            "(label: gift, abilities: [kicker(tapSymbol)])",
+            "(label: gift, abilities: [gift(draw(1)), gift(draw(2))])",
+            "(label: gift, keyword_params: [], abilities: [gift(draw(1))])",
+        ] {
+            assert!(
+                keyword_ability_body("giftACard", &positional(&[]), refused).is_err(),
+                "{refused}"
+            );
+        }
     }
 
     #[test]

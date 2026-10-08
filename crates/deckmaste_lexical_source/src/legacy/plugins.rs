@@ -64,10 +64,12 @@ fn export_metadata(
 ) {
     let provenance = source(SourceKind::Plugin, path, owner);
     let Some(grammar) = authored.grammar else {
-        output.unmapped.push(format!(
-            "plugin {owner}: no declared lexical grammar; spelling {:?}",
-            authored.spelling
-        ));
+        output.unmapped.push(match authored.spelling {
+            Some(spelling) => {
+                format!("plugin {owner}: no declared lexical grammar; spelling {spelling:?}")
+            }
+            None => format!("plugin {owner}: no declared lexical grammar; no spelling"),
+        });
         return;
     };
     let mut lexeme = grammar_lexeme(owner, path, grammar, provenance, normalized, output);
