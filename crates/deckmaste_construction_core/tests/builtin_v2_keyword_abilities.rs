@@ -221,9 +221,12 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
     for name in ["affinity", "landwalk", "offering", "protection"] {
         assert_eq!(parameterized.insert(name, &["Quality"]), None);
     }
-    for name in ["champion", "enchant", "gift"] {
+    for name in ["champion", "enchant"] {
         assert_eq!(parameterized.insert(name, &["Subject"]), None);
     }
+    // Re-spelled for `plugins-v2-gift-variants`: gift takes its effect as an
+    // instruction [CR#702.174b], no longer a noun phrase.
+    assert_eq!(parameterized.insert("gift", &["Instruction"]), None);
     for name in ["awaken", "impending", "reinforce", "suspend"] {
         assert_eq!(parameterized.insert(name, &["Amount", "Cost"]), None);
     }
@@ -335,6 +338,12 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
         // derive, not a bare copy of the surface. The name still derives from
         // the grammar surface.
         assert_eq!(name, &declaration_name(grammar.surfaces()[0].text()));
+        // An unspelled keyword (bare gift, `plugins-v2-gift-variants`) has no
+        // template to derive: it is invoked only by its spelled variants.
+        if declaration.spelling().is_empty() {
+            assert_eq!(name, "gift", "only bare gift is unspelled");
+            continue;
+        }
         assert_eq!(
             render_without_hints(declaration.spelling()),
             derived_template(declaration),
@@ -432,6 +441,16 @@ fn unsupported_keyword_parameter_families_are_explicitly_deferred() {
             UnsupportedKeywordParameterClass::CostPowerToughness
         )),
     );
+    // Bare gift takes its effect as an instruction and has no spelling: only
+    // its spelled variants are printed [CR#702.174a,702.174b].
+    let gift = ability(&declarations, "gift");
+    assert_eq!(
+        gift.keyword_parameter_class(),
+        Some(KeywordParameterClass::Unsupported(
+            UnsupportedKeywordParameterClass::Instruction
+        )),
+    );
+    assert_eq!(gift.spelling(), []);
 }
 
 #[test]

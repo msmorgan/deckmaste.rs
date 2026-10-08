@@ -241,10 +241,18 @@ fn a_keyword_declaration_builds_its_wrapper() {
             .body()
             .to_owned()
     };
-    // Forwarded: `gift` declares a `Subject` and writes no abilities.
+    // Forwarded: `casualty` declares an `Amount` and writes no abilities.
+    // (Re-spelled for `plugins-v2-gift-variants`: gift, which forwarded a
+    // `Subject` here, now takes its effect as an instruction.)
     assert_eq!(
-        body("KeywordAbility", "gift"),
-        r#"Keyword(keyword: Named(name: "gift"), params: [Subject(Param(0))], body: [])"#
+        body("KeywordAbility", "casualty"),
+        r#"Keyword(keyword: Named(name: "casualty"), params: [Number(Param(0))], body: [])"#
+    );
+    // Gift's instruction is forwarded as nothing, and a variant is gift's own
+    // invocation under gift's label [CR#702.174b,702.174e].
+    assert!(
+        body("KeywordAbility", "gift")
+            .starts_with(r#"Keyword(keyword: Named(name: "gift"), params: [], body: ["#)
     );
     // Overridden: `champion` declares a `Subject` it cannot forward.
     assert_eq!(

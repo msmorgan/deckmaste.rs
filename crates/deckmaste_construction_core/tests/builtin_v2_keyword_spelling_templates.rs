@@ -176,7 +176,9 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("freerunning", "freerunning <Param(0)>"),
     ("frenzy", "frenzy <Param(0)>"),
     ("fuse", "fuse"),
-    ("gift", "gift <Param(0)>"),
+    // Unspelled: bare gift is invoked only by its spelled variants
+    // (`plugins-v2-gift-variants`).
+    ("gift", ""),
     ("graft", "graft <Param(0)>"),
     ("gravestorm", "gravestorm"),
     ("harmonize", "harmonize <Param(0)>"),
@@ -348,6 +350,14 @@ fn every_keyword_template_is_consistent_with_its_params_and_grammar() {
         let name = declaration.identity().name();
         let params = declaration.params().unwrap_or_default();
         let spelling = declaration.spelling();
+        if spelling.is_empty() {
+            assert_eq!(
+                (declaration.identity().kind(), name),
+                (DeclarationKind::KeywordAbility, "gift"),
+                "only bare gift is unspelled"
+            );
+            continue;
+        }
 
         // Every hole names a declared parameter, each parameter exactly once,
         // and a hint applies to its parameter's kind.

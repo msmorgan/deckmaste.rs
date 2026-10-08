@@ -93,7 +93,7 @@ keywordFacts =
   , { word := "Casualty", paramShapes := [NumberParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Squad", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, paidCost := True } defaultKeywordFacts
   , { word := "Offspring", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, paidCost := True } defaultKeywordFacts
-  , { word := "Gift", paramShapes := [SubjectParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
+  , { word := "Gift", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Replicate", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Delve", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
   , { word := "Infect", paramShapes := [NoParam], regime := Just AtResolution } defaultKeywordFacts

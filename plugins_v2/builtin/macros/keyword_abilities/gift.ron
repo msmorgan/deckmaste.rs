@@ -1,12 +1,52 @@
 KeywordAbility(
     name: "gift",
-    params: [Subject],
-    spelling: "gift <Param(0)>",
+    params: [Instruction],
     grammar: FixedKeyword(
         surface: "gift",
     ),
-    // STOP. "Gift a [something]" is a fixed additional cost plus a SECOND ability whose
-    // effect "is defined by the [something] listed" and is not quoted
-    // [CR#702.174a,702.174b]. `KeywordParam` has no `Ability` variant (the cause Boast
-    // shares), so the argument cannot supply the second ability.
+    // Gift is two abilities. The first is always "As an additional cost to cast
+    // this spell, you may choose an opponent." The second is "When this permanent
+    // enters, if its gift cost was paid, [effect]" on a permanent and "If this
+    // spell's gift cost was paid, [effect]" on an instant or sorcery spell, the
+    // effect performed by the chosen player [CR#702.174a,702.174b]. The second
+    // reads the opponent back through the paid cost it was chosen as, as the
+    // rules link them [CR#607.2d,607.2i]; each half is guarded by the card's
+    // class (`semantics-v2.md` §7, ruling 2026-10-06). The permanent half's guard
+    // reads the object's types, not `permanentCard`, so it holds of a token that
+    // has gift as well [CR#110.4a].
+    //
+    // No spelling: "Gift a [something]" defines its effect by the [something]
+    // [CR#702.174d..702.174i], so bare gift is unparseable and is invoked by its
+    // six spelled variants. It is what "the gift was promised" names
+    // [CR#702.174k].
+    body: [
+        static(addedCost(perform(choose(a(opponent))), true)),
+        triggeredIf(
+            event: enters(thisPermanent),
+            condition: matches(
+                this,
+                or([
+                    hasType(Artifact),
+                    hasType(Battle),
+                    hasType(Creature),
+                    hasType(Enchantment),
+                    hasType(Land),
+                    hasType(Planeswalker),
+                ]),
+            ),
+            instruction: doIf(
+                keywordCostPaid(gift, this),
+                act(chosenAsPaid(ByKeyword(gift), this), Param(0)),
+            ),
+        ),
+        spell(
+            doIf(
+                matches(this, instantOrSorcery),
+                doIf(
+                    keywordCostPaid(gift, this),
+                    act(chosenAsPaid(ByKeyword(gift), this), Param(0)),
+                ),
+            ),
+        ),
+    ],
 )
