@@ -40,6 +40,8 @@ mod counter_compounds;
 mod degree_quantifiers;
 #[path = "suite/each_of_partitive.rs"]
 mod each_of_partitive;
+#[path = "suite/existential_there.rs"]
+mod existential_there;
 #[path = "suite/fixed_cost_phrases.rs"]
 mod fixed_cost_phrases;
 #[path = "suite/focusing_only.rs"]

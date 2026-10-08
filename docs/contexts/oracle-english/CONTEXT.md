@@ -212,6 +212,31 @@ selected Complement of its host.
 **Clause**:
 A syntactic unit organized around a predication and its dependents.
 
+**Dummy Pronoun**:
+A Pronoun without independent semantic content that fills a syntactic position;
+existential *there* fills Subject position and inherits Agreement features from
+the displaced Subject (CGEL, Ch. 16 §6.1, p. 1391; Ch. 4 §3.2.2, p. 242).
+_Avoid_: locative Adverb for dummy *there*
+
+**Displaced Subject**:
+An internal Complement of a verb corresponding semantically to the Subject of
+a basic counterpart, while the actual Subject position is filled by dummy
+*there* (CGEL, Ch. 16 §6.1, p. 1391).
+_Avoid_: Object, a second Subject
+
+**Existential Clause**:
+A Clause defined syntactically by the combination of dummy *there* and *be*
+(CGEL, Ch. 16 §6.2, p. 1392).
+
+**Existential Use** (project term):
+A Pronoun Lexeme's declared permission to fill the dummy Subject position of
+an Existential Clause.
+
+**Existential Extension**:
+An element outside the displaced Subject that extends an Existential Clause;
+a locative extension is a Complement of *be* (CGEL, Ch. 16 §6.2.1,
+pp. 1393–1394).
+
 **Subordinate Clause**:
 A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.

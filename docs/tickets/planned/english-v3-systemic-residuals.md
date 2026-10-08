@@ -46,11 +46,16 @@ before assigning an implementation owner. Concrete starting points are:
   Superior Spider-Man, Synth Infiltrator, The Fourteenth Doctor, The Master, Formed
   Anew, The Mimeoplasm, Undercover Operative, Vesuvan Doppelganger, Visage Bandit,
   Vizier of Many Faces, Wall of Stolen Identity, Waxen Shapethief.
-- Shadowborn Demon: existential *there are* host; its NP reads after
-  `english-v3-comparative-quantity-determiners`. No implementation ticket owns
-  existential *there*; retain this host obligation here for cause audit and
-  bounded-ticket routing. **Taken over (2026-10-07)** by
-  `english-v3-existential-there`.
+- Shadowborn Demon: existential *there are* host **discharged** by
+  `english-v3-existential-there`; its displaced Subject is *fewer than six
+  creature cards*, with *in your graveyard* licensed as an NP Modifier or
+  existential locative Complement. The landing records the retained Readings.
+- Remaining existential hosts: Baba Lysaga, Night Witch and the Delirium
+  *card types among …* hosts still have the independently blocked *card types*
+  NP (no declared noun-premodifier permission for *card*). Drop of Honey's
+  existential condition reads, while its other clauses remain a separate
+  residual. These pre-existing blockers stay here; their local probes and
+  whole-face counts are recorded by `english-v3-existential-there`.
 - Ashen-Skin Zubera and Boldwyr Heavyweights: finite preterite in relatives,
   with temporal Adjuncts preserved.
 - Aggravate and Ballista Wielder: reduced passive, not finite preterite.

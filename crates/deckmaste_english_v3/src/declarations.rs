@@ -112,6 +112,7 @@ constructions! {
         feature NominalAdjunctDeterminer { None, Demonstrative, Temporal }
         feature BareSingularUse { No, Yes } default No;
         feature RelativeUse { No, Yes } default No;
+        feature ExistentialUse { No, Yes } default No;
         feature KeywordMarker { None, For, From, Onto, To, Into, At, With, Of, On, Under }
         feature KeywordPayloadOrder { AfterHead, BeforeHead, BoundSuffix }
         feature BoundKeyword { No, Yes }
@@ -175,6 +176,7 @@ constructions! {
         category Sentence();
         category Clause(UnmarkedConjunctLicence);
         category FiniteClause();
+        category ExistentialExtension();
         category FinitePredicate(number, person, CliticHost, PurposeAdjunctLicence);
         category ScalarLocationPredicate(number, person, CliticHost, PurposeAdjunctLicence);
         category SecondaryVerbPhrase(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence);
@@ -357,6 +359,7 @@ constructions! {
         frame NominalInfinitive = Nominal(Complement(InfinitiveComplement));
         frame NominalPreposition = Nominal(Marked(Preposition, Of, Complement(NounPhrase)));
         frame Predicative = Predicate(Complement(PredicativeComplement));
+        frame Existential = Existential(Complement(NounPhrase), Optional(Complement(LocativeComplement)));
         frame AdjectivalPrepositionComplement = Adjectival(
             Marked(Preposition, By, Complement(NounPhrase)));
         frame Locative = Predicate(Complement(LocativeComplement));
@@ -1700,6 +1703,30 @@ constructions! {
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
+        // CGEL Ch. 16 §6.1, p. 1391: dummy Subject and displaced Subject
+        // (an internal Complement, not an Object). Agreement inheritance:
+        // Ch. 4 §3.2.2, p. 242. Strict concord also with clitic forms is the
+        // existential-there ticket's Oracle-English requirement.
+        construction ExistentialClause: FiniteClause {
+            form [subject: lexical(Pronoun), " ", head: lexical(Verb), " ",
+                displaced_subject: AccusativePhrase, extension: optional(ExistentialExtension)]
+                require head.Clitic = No;
+            form [subject: lexical(Pronoun), head: lexical(Verb), " ",
+                displaced_subject: AccusativePhrase, extension: optional(ExistentialExtension)]
+                require head.Clitic = Yes;
+            require subject.ExistentialUse = Yes;
+            require head.frame = Existential;
+            require head.finiteness = Finite;
+            agree displaced_subject.number = head.number;
+            agree displaced_subject.person = head.person;
+        }
+
+        // CGEL Ch. 16 §6.2.1, pp. 1393–1394: the locative extension is a
+        // Complement of the existential verb, outside the displaced NP.
+        construction ExistentialExtension: ExistentialExtension {
+            form [" ", complement: LocativeComplement];
+        }
+
         // CGEL Ch. 8 §5.4, p. 693: scalar location with be and an NP
         // predicative Complement. The Subject restriction is this ticket's
         // Oracle-English contract, not a restriction asserted by that passage.
@@ -2285,6 +2312,7 @@ constructions! {
             use PredicateHeadAgreement;
             require head.case = Nominative;
             require head.RelativeUse = No;
+            require head.ExistentialUse = No;
             export CaseUse = Nominative;
         }
         instance CasePhrase<Result, Head: head, Properties>: [
@@ -2306,6 +2334,7 @@ constructions! {
             form [head: lexical(Pronoun)];
             use PredicateHeadAgreement;
             require head.case = Accusative;
+            require head.ExistentialUse = No;
             export CaseUse = Accusative;
         }
 
