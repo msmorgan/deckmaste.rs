@@ -469,6 +469,103 @@ mimicked.
   `semantics-v2-anaphor-resolution-heuristics`. The accessibility and
   clause-mate judgments are provisional: "ok to both I guess. we'll try this
   way for now anyhow". The rules were accepted with "ok".)
+- **The residues landing's general nodes stay; its single-purpose nodes are
+  replaced in place.** `Cost.tapForGeneric`, `NounPhrase.libraryRun`,
+  `TokenRider.faceDown` and the helper `putOntoBattlefieldFaceDown` each
+  stood in for a missing subsystem and are replaced by the four rulings
+  below; the bodies, the twelve canon cards and the pins of
+  `semantics-v2-keyword-action-residues` stay as witnesses and are re-spelled
+  against the new mechanisms, never deleted. Kept as general:
+  `Instruction.procedure` over `Procedure = activate | cast | play`,
+  `TokenSpec.doubleFaced`, `CreationSpec.emblem` with `name : Option String`,
+  and `SliceCount.totalling`, which also writes Crew's cost ("tap any number
+  of other untapped creatures you control with total power N or greater"
+  [CR#702.122a]), so crew becomes `perform(tap(someOf(totalling(…))))`.
+  (Ruling, 2026-10-08, owner, design interview Q1–Q5.)
+- **A cost substitute is one mechanism: an action that pays for mana.**
+  "For each [generic | colored] mana in [this spell's total cost | that
+  cost], you may <act on an object> rather than pay that mana"
+  [CR#702.51a,702.66a,702.126a,701.67a] is `ManaSubstitute (action :
+  Instruction) (pays : List PipPaid)`, `PipPaid = generic | ofColor
+  (color)`, with the action first and the payment reading the acted-on object
+  back by anaphora: convoke is the one row
+  `substitute(tap(an(and([untapped, creature, youControl]))), [generic,
+  ofColor(colorOf(that(Creature)))])`, with no per-colour expansion. It has
+  two carriers: `StaticSpec.paySubstitute (subject) (substitute)` on a spell
+  (convoke, delve, improvise), which is neither an additional nor an
+  alternative cost and applies once the total cost is locked
+  [CR#702.51b,702.66b,702.126b], and `Cost.withSubstitute (cost)
+  (substitute)` for a named cost, which pays only that cost's generic mana
+  (waterbend [CR#701.67b]). `Cost.tapForGeneric` and the RON helper
+  `tapForGeneric` retire into it. Assist stays bodyless: another player pays,
+  no action does [CR#702.132a]. (Ruling, 2026-10-08, owner, Q6, Q7, Q14;
+  `semantics-v2-cost-substitutes`.)
+- **A pile is one ordered shape, and its face, not its zone, decides who may
+  see it.** A pile is not an object [CR#700.3b]; its objects stay in their
+  zone and keep their order [CR#700.3c], and a slice or run of a pile is an
+  ordered object group. The `Pile` noun is a library (face down [CR#401.2]),
+  a graveyard (face up [CR#404.2]), "that pile", or a face-down exile pile
+  [CR#406.4]; the two zones fix their `PileFace`, and a pile an instruction
+  makes takes the face the instruction gives it. Over a pile there are four
+  operations, `slice (end) (amount) (pile)`, `run (end) (stop) (pile)`,
+  `place (end) (pile)` and `shuffle (pile)`, and a bare "shuffle" on a card
+  is `shuffle(library(actor))` [CR#701.24a]. `NounPhrase.librarySlice`,
+  `NounPhrase.libraryRun`, `ZoneExpr.library`, `LibraryPlace`, the library
+  position macros and the operand-less `Instruction.shuffle` retire into
+  them; cascade [CR#702.85a] and ripple [CR#702.60a] get bodies where the
+  anaphora allows "cards exiled this way", and are STOP-noted to
+  `lean-drt-anaphora-refactor` where it does not. (Ruling, 2026-10-08, owner,
+  Q9, Q15; `semantics-v2-piles`.)
+- **Time is three sorts: a Timing says when, a Duration how long, a
+  UsageLimit how often.** They replace the old `Timing`, `PlayTiming`,
+  `PlayLimit`, `UsageLimit`, `Concurrent`, `Duration`, `DurationEnd` and
+  `Lookback`; `Window` is pronoun scope and is untouched. A turn is named by
+  `TurnRef = current | previous | next (player) | each (player) | later |
+  that` (`that` is today's `thatTurn`; there is no `this`, which is "this
+  object"). A Timing is built from `inPart (part) (whose) (which)`,
+  `relativeToEvent (before | after) (event)`, `whileDoing (event)` and
+  `onlyIf (condition)` under `and`, `or` and `not`, and every timing field
+  (activated, triggered, spell, replacement, play permission, special action)
+  takes one: sorcery speed is the macro `asSorcery` over main phase, your
+  turn and an empty stack [CR#307.5], and instant speed is `onlyIf(hasPriority(you))`
+  with a new `Condition.hasPriority`, since a mana ability may otherwise be
+  activated without priority [CR#117.1d]. A Duration is `between (start :
+  Option GameEvent) (end : Option GameEvent)` or `forAsLongAs (condition)`
+  [CR#611.2b], its boundaries `beginningOf` and a new `endOf`, each taking a
+  `TurnRef`, so "on a later turn" is `between(endOf(turn, current), none)`
+  [CR#702.143a,702.170d]; a history window ("this turn", "last turn", "this
+  game") ends at a new `GameEvent.now`, chosen over a `none` end because
+  `none` already means open-ended. A UsageLimit is `(times) (per : Period)`,
+  `Period = turn | yourTurn | game | part (TurnPart)` [CR#602.5b]; an event
+  ordinal ("the second spell each turn", `RankPeriod`) is not a limit and
+  shares only `Period`. The lookback clause becomes `(event) (within :
+  Duration) (timing : Option Timing)`, the timing qualifier living there and
+  on trigger headers, never on `GameEvent` ("cast when a sorcery couldn't
+  have been" [CR#307.5a] is `not(asSorcery)` in that slot); the checker
+  checks only references and kinds, `whose` being player-kinded. Antigravity's
+  read-only review (2026-10-08) contributed the `previous`, `each` and `that`
+  turn references, `hasPriority`, the split of event ordinal from usage limit,
+  and the timing qualifier's home. (Ruling, 2026-10-08, owner, Q18–Q27;
+  `semantics-v2-temporal-suite`.)
+- **Face-down is one spec, and a special action is a cost and an
+  instruction.** `FaceDown (characteristics : Option Characteristics)` is
+  `none` for a card exiled face down, which has no characteristics and no
+  status [CR#406.3a,110.5d], and `some` for a face-down spell or permanent,
+  whose listed characteristics are its copiable values [CR#708.2,613.2b]; it
+  rides `Instruction.turnFaceDown (subject) (spec)` (manifest
+  [CR#701.40a]), a move rider `faceDown (spec)` that replaces
+  `TokenRider.faceDown`, and `PlayPayment.faceDown (spec) (cost)` for morph
+  and disguise [CR#702.37a,702.168a]. Nothing face down is a token, turning
+  face up is `setStatus faceUp` with the values reverting [CR#708.8], and
+  `putOntoBattlefieldFaceDown` retires. A special action is
+  `StaticSpec.specialAction (when : Option Timing) (cost : Cost) (does :
+  Instruction)`, "any time you have priority, restricted by `when`, you may
+  pay this and do this" [CR#116.1,116.2c,116.2h,116.2k]; the `SpecialAction`
+  enum and `CostNamed.ofSpecialAction` retire, a named cost reading
+  `ofKeyword`. Look rights for foretold, hidden-away and face-down permanents
+  use the existing `StaticSpec.visibility` [CR#702.75a,708.5]. (Ruling,
+  2026-10-08, owner, Q12, Q13, Q16, Q17;
+  `semantics-v2-face-down-and-special-actions`.)
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.
