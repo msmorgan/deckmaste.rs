@@ -16,7 +16,6 @@ use xtask::expansions::ExpansionsArgs;
 use xtask::extract::ExtractArgs;
 use xtask::facts::FactsArgs;
 use xtask::fidelity::FidelityArgs;
-use xtask::gate::GateArgs;
 use xtask::generate::GenerateArgs;
 use xtask::graduate::GraduateArgs;
 use xtask::idris_check::IdrisCheckArgs;
@@ -58,8 +57,6 @@ enum Cmd {
     Fidelity(FidelityArgs),
     /// Generate a plugin's cards (stubs -> extract -> resolve -> graduate).
     Generate(GenerateArgs),
-    /// Print or run the reverse-dependency test gate for changed paths.
-    Gate(GateArgs),
     /// Generate a plugin's keyword/subtype macro stubs.
     Stubs(StubsArgs),
     /// Extract cards/*.ron.todo from the pinned Scryfall snapshot.
@@ -108,7 +105,6 @@ fn main() -> anyhow::Result<()> {
         Cmd::Expansions(args) => xtask::expansions::run(&args),
         Cmd::Fidelity(args) => xtask::fidelity::run(args),
         Cmd::Generate(args) => xtask::generate::run(&args),
-        Cmd::Gate(args) => xtask::gate::run(&args),
         Cmd::Stubs(args) => xtask::stubs::run(&args),
         Cmd::Extract(args) => xtask::extract::run(&args),
         Cmd::ScryfallSnapshot(args) => xtask::scryfall_snapshot::run(&args),
@@ -161,27 +157,6 @@ mod tests {
     fn derive_cards_subcommand_parses_with_defaults() {
         let cli = Cli::try_parse_from(["cargo xtask", "derive-cards"]).unwrap();
         assert!(matches!(cli.command, Cmd::DeriveCards(_)));
-    }
-
-    #[test]
-    fn gate_accepts_its_changed_path_flags_and_acts_only_on_changed() {
-        let cli = Cli::try_parse_from([
-            "cargo xtask",
-            "gate",
-            "--changed",
-            "--from",
-            "default@",
-            "--run",
-            "--clippy",
-        ])
-        .expect("gate accepts its changed-path flags");
-        assert!(matches!(cli.command, Cmd::Gate(_)));
-
-        let bare = Cli::try_parse_from(["cargo xtask", "gate"]).expect("gate parses bare");
-        let Cmd::Gate(args) = bare.command else {
-            panic!("`gate` parses as the gate command");
-        };
-        assert!(xtask::gate::run(&args).is_err());
     }
 
     #[test]

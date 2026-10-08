@@ -22,7 +22,6 @@ pub mod expansions;
 pub mod extract;
 pub mod facts;
 pub mod fidelity;
-pub mod gate;
 pub mod generate;
 pub mod graduate;
 pub mod idris_check;
