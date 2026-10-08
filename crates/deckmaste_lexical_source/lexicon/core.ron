@@ -903,7 +903,7 @@
         ),
         (
             id: "vocab:Adverb/Rather", lemma: "rather", category: Adverb,
-            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
+            properties: (countability: [], features: {"MatrixComparisonUse": "Yes", "ComparisonMarker": "Ordering"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Rather"),
             capitalization: Initial, binding: Free, surface_structure: Word,

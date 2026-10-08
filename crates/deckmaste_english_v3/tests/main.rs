@@ -154,3 +154,6 @@ mod gerund_preposition_complements;
 
 #[path = "suite/except_matrix_complements.rs"]
 mod except_matrix_complements;
+
+#[path = "suite/rather_than_complements.rs"]
+mod rather_than_complements;

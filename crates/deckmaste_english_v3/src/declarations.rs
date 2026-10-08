@@ -166,6 +166,14 @@ constructions! {
         feature PropertyValuePosition { None, Single, First, Second, Pair } default None;
         feature CardinalMeasurementUse { No, Yes } default No;
         feature MeasureKind { Scalar, Pair }
+        feature MatrixComparisonUse { No, Yes } default No;
+        feature ComparativeComplementForm { Nominal, BareInfinitival, GerundParticipial }
+        table nonfinite_comparative_form(form) -> ComparativeComplementForm {
+            (Plain) => BareInfinitival, (GerundParticiple) => GerundParticipial,
+        }
+        table matched_nonfinite_comparison(form, ComparativeComplementForm) -> Selection {
+            (Plain, BareInfinitival) => Yes, (GerundParticiple, GerundParticipial) => Yes,
+        }
         feature ComparisonMarker { Equality, Ordering }
         feature ExpandedComparisonMarker { Equality }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
@@ -308,6 +316,8 @@ constructions! {
         category SlashPair();
         category ComparativeGovernorHead();
         category ComparativeComplement();
+        category MatrixComparativeComplement(ComparisonMarker, ComparativeComplementForm);
+        category MatrixComparativePhrase(ComparativeComplementForm);
         category ComparativeAdjectivePhrase();
         category KeywordPhrase();
         category KeywordQuality(KeywordQualityNumber);
@@ -3703,6 +3713,58 @@ constructions! {
             (Equality, Equality) => Yes, (Ordering, Ordering) => Yes,
         }
 
+        // CGEL Ch. 13 §1.3, p. 1104 [15iii]: an Adverb can govern a
+        // comparative Complement. Ch. 14 §8.4(b), p. 1263 [27i] describes
+        // matching infinitival forms in would-rather. The postposed Oracle
+        // nominal and gerund analyses are the rather-than ticket's project
+        // analysis; neither citation asserts those extensions.
+        construction NominalMatrixComparativeComplement: MatrixComparativeComplement {
+            form [head: lexical(Preposition), " ", complement: AccusativePhrase];
+            require licence_comparative_complement(head.PrepositionFunctionLicence) = Yes;
+            export ComparisonMarker = head.ComparisonMarker;
+            export ComparativeComplementForm = Nominal;
+        }
+        construction NonfiniteMatrixComparativeComplement: MatrixComparativeComplement {
+            form [head: lexical(Preposition), " ", complement: SecondaryVerbPhrase];
+            require licence_comparative_complement(head.PrepositionFunctionLicence) = Yes;
+            export ComparisonMarker = head.ComparisonMarker;
+            export ComparativeComplementForm = nonfinite_comparative_form(complement.form);
+        }
+        construction MatrixComparativePhrase: MatrixComparativePhrase {
+            form [governor: lexical(Adverb), " ", complement: MatrixComparativeComplement];
+            require governor.MatrixComparisonUse = Yes;
+            agree governor.ComparisonMarker = complement.ComparisonMarker;
+            export ComparativeComplementForm = complement.ComparativeComplementForm;
+        }
+        schema MatchedComparativeConstituent {
+            form [head: node, " ", comparison: MatrixComparativePhrase];
+        }
+        policy NominalComparisonHost {
+            require comparison.ComparativeComplementForm = Nominal;
+            export number = head.number;
+            export person = head.person;
+            export CaseUse = head.CaseUse;
+            export Targeting = head.Targeting;
+            export BareGenitiveHost = head.BareGenitiveHost;
+            export SubjectStructure = head.SubjectStructure;
+            export BarePrepositionUse = head.BarePrepositionUse;
+            export SelectedPrepositionUse = head.SelectedPrepositionUse;
+            export ScalarDenotation = head.ScalarDenotation;
+            export SourceModifierPresent = head.SourceModifierPresent;
+        }
+        policy NonfiniteComparisonHost {
+            require matched_nonfinite_comparison(head.form, comparison.ComparativeComplementForm) = Yes;
+            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
+            export MatrixComplementLicence = head.MatrixComplementLicence;
+            export InternalisedComplementPresent = head.InternalisedComplementPresent;
+            export ParticipialUse = head.ParticipialUse;
+            export form = head.form;
+        }
+        instance MatchedComparativeConstituent<Result, Head: head, Properties>: [
+            (NounPhrase, Self, NominalComparisonHost),
+            (SecondaryVerbPhrase, Self, NonfiniteComparisonHost),
+        ] { use Properties; }
+
         construction ComparativeGovernorHead: ComparativeGovernorHead {
             form [head: lexical(Adjective), " ", marker: lexical(Preposition)];
             require comparative_marker(head.frame, marker.ComparisonMarker) = Yes;
@@ -3755,6 +3817,7 @@ constructions! {
         }
 
         construction Adverb: AdverbPhrase {
+            require head.MatrixComparisonUse = No;
             export FocusedUse = No;
             form [head: lexical(Adverb)];
             export VPFinalAdjunct = head.VPFinalAdjunct;

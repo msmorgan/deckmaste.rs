@@ -346,6 +346,20 @@ Preposition (CGEL, Ch. 13 §1.3, pp. 1103–1104).
 A phrase containing a Comparative Governor (CGEL, Ch. 13 §1.3, p. 1105).
 An adjectival Comparative Phrase retains Adjective Phrase distribution.
 
+**Comparative Complement Form** (project term):
+The syntactic form of a compared Constituent: nominal, bare infinitival, or
+gerund-participial. Matching these forms in the attested postposed
+*rather than* Construction is the
+[rather-than-complements ticket's project analysis](../../tickets/wip/english-v3-rather-than-complements.md#analysis).
+CGEL, Ch. 14 §8.4(b), p. 1263 describes the matching infinitival form in
+*would rather*; it does not establish the project's NP or gerund analysis.
+
+**Matrix Comparison Use** (project term):
+An Adverb Comparative Governor's declared permission to take an Expanded
+Comparative Complement matched to a preceding matrix Constituent, under the
+[rather-than-complements project analysis](../../tickets/wip/english-v3-rather-than-complements.md#analysis).
+_Avoid_: an unselected Adverb Adjunct for a governor with a required Complement
+
 **Expanded Comparative Complement**:
 A comparative Complement introduced by its own marker, such as the second
 *as* in a scalar equality comparison (CGEL, Ch. 13 §1.3, p. 1104).
