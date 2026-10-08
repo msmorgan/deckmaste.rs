@@ -1,0 +1,29 @@
+KeywordAbility(
+    name: "giftATreasure",
+    params: [],
+    spelling: "gift a Treasure",
+    grammar: FixedKeyword(
+        surface: "gift a Treasure",
+    ),
+    // "Gift a Treasure" means the effect is "The chosen player creates a Treasure
+    // token." [CR#702.174h] A Treasure token is a colorless Treasure artifact
+    // token with "{T}, Sacrifice this token: Add one mana of any color."
+    // [CR#111.10a] It is gift itself, labelled gift.
+    label: gift,
+    body: [
+        gift(
+            createToken((
+                characteristics: (
+                    types: [Artifact],
+                    subtypes: [treasure],
+                    text: [
+                        activated(
+                            cost: compound([tapSymbol, perform(sacrifice(thisArtifact))]),
+                            instruction: addMana(1, AnyColor(SameColor)),
+                        ),
+                    ],
+                ),
+            )),
+        ),
+    ],
+)

@@ -254,6 +254,7 @@ fn a_keyword_declaration_builds_its_wrapper() {
         body("KeywordAbility", "gift")
             .starts_with(r#"Keyword(keyword: Named(name: "gift"), params: [], body: ["#)
     );
+    assert_eq!(body("KeywordAbility", "giftACard"), "gift(draw(1))");
     // Overridden: `champion` declares a `Subject` it cannot forward.
     assert_eq!(
         body("KeywordAbility", "champion"),

@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "giftAnOctopus",
+    params: [],
+    spelling: "gift an Octopus",
+    grammar: FixedKeyword(
+        surface: "gift an Octopus",
+    ),
+    // "Gift an Octopus" means the effect is "The chosen player creates an 8/8
+    // blue Octopus creature token." [CR#702.174i] It is gift itself, labelled
+    // gift.
+    label: gift,
+    body: [gift(createToken(creatureToken(8, 8, [Blue], [octopus])))],
+)

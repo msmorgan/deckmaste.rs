@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "giftAnExtraTurn",
+    params: [],
+    spelling: "gift an extra turn",
+    grammar: FixedKeyword(
+        surface: "gift an extra turn",
+    ),
+    // "Gift an extra turn" means the effect is "The chosen player takes an extra
+    // turn after this one." [CR#702.174g] The chosen player is the actor, who
+    // takes the turn [CR#500.7]. It is gift itself, labelled gift.
+    label: gift,
+    body: [gift(extraTurn(1))],
+)

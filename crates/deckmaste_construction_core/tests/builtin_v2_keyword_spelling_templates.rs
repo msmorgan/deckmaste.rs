@@ -179,6 +179,13 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     // Unspelled: bare gift is invoked only by its spelled variants
     // (`plugins-v2-gift-variants`).
     ("gift", ""),
+    // The six spelled variants, each the printed phrase [CR#702.174d..702.174i].
+    ("giftACard", "gift a card"),
+    ("giftAFood", "gift a Food"),
+    ("giftATappedFish", "gift a tapped Fish"),
+    ("giftATreasure", "gift a Treasure"),
+    ("giftAnExtraTurn", "gift an extra turn"),
+    ("giftAnOctopus", "gift an Octopus"),
     ("graft", "graft <Param(0)>"),
     ("gravestorm", "gravestorm"),
     ("harmonize", "harmonize <Param(0)>"),
@@ -345,7 +352,7 @@ fn every_keyword_declaration_pins_its_template() {
 #[test]
 fn every_keyword_template_is_consistent_with_its_params_and_grammar() {
     let declarations = keyword_declarations();
-    assert_eq!(declarations.len(), 66 + 192);
+    assert_eq!(declarations.len(), 66 + 198);
     for declaration in &declarations {
         let name = declaration.identity().name();
         let params = declaration.params().unwrap_or_default();

@@ -1,0 +1,12 @@
+KeywordAbility(
+    name: "giftACard",
+    params: [],
+    spelling: "gift a card",
+    grammar: FixedKeyword(
+        surface: "gift a card",
+    ),
+    // "Gift a card" means the effect is "The chosen player draws a card."
+    // [CR#702.174e] It is gift itself, labelled gift.
+    label: gift,
+    body: [gift(draw(1))],
+)
