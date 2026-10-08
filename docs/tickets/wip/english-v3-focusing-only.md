@@ -322,6 +322,18 @@ The post-census refresh at review change `kpwzlsustmpunotkvysuouxqnoqmsuuz`
 changed **zero** census snapshot sources (`final-refresh-source-proof.json`);
 imported ticket/context documentation does not alter grammar, lexicon or corpus.
 No post-refresh full census was needed.
+The subsequent refresh imported `nmunomuownlmrlptqmkknwoxstzzztwm` (shared
+spelling-template `:word` hint) and `qrzuzkqwwqpzupkqmuzzmmlvyssnwrwt` (seven
+shared spelling templates). English declarations and plugin `grammar:` fields
+are unchanged; lexical export explicitly ignores shared spelling templates.
+The freshly loaded **complete lexical inventory is identical**, including its
+full census hash and every named spelling/homograph map
+(`lexical-inventory-refreshed.json`, `integration-source-proof.json`).
+`cargo test -p deckmaste_lexical_source` again passes **56** tests, zero failed or
+ignored, and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
+passes (`tests-lexical-refreshed.log`, `clippy-lexical-refreshed.log`). Unchanged
+English grammar/runtime and identical lexical inputs preserve its test and full
+census results; no extra full census or Lean check was run.
 
 ### Complete gained-face inventory
 
