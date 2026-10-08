@@ -587,6 +587,10 @@ impl AdmissionCache {
             return Ok(summary.clone());
         }
         let summary = reading.admit_with_cache(grammar, lexicon, self)?;
+        if self.summaries.len() >= 100_000 {
+            // Bounded cache: admission is pure, so forgetting only costs work.
+            self.summaries.clear();
+        }
         self.summaries.insert(reading.clone(), summary.clone());
         Ok(summary)
     }

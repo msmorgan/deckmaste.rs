@@ -70,6 +70,8 @@ struct Work<V> {
     active: BTreeSet<CompletedId>,
 }
 
+type ReadingDigest<R> = fn(&R) -> [u8; 32];
+
 /// Demand-driven depth-first traversal, with explicit continuations for sibling
 /// alternatives. A cycle reports an error for that path; subsequent requests
 /// still visit finite siblings. It does not silently truncate a cyclic grammar
@@ -80,6 +82,8 @@ pub struct Readings<'a, C, S, T, M: Materializer<S, T>> {
     materializer: M,
     pending: Vec<Work<M::Reading>>,
     seen: BTreeSet<M::Reading>,
+    digest: Option<ReadingDigest<M::Reading>>,
+    seen_digests: BTreeSet<[u8; 32]>,
     metrics: ReadingMetrics,
 }
 
@@ -100,8 +104,29 @@ impl<'a, C, S, T, M: Materializer<S, T>> Readings<'a, C, S, T, M> {
             materializer,
             pending,
             seen: BTreeSet::new(),
+            digest: None,
+            seen_digests: BTreeSet::new(),
             metrics: ReadingMetrics::default(),
         }
+    }
+
+    /// Deduplicate by a collision-resistant digest of the complete Reading
+    /// (value and traces) instead of retaining every Reading. Memory then grows
+    /// by 32 bytes per distinct Reading rather than by the Reading's size.
+    /// The caller must supply a collision-resistant digest covering exactly
+    /// its Reading equality. The default keeps exact equality, including a
+    /// full-value comparison when an ordering fingerprint collides.
+    ///
+    /// # Panics
+    /// Panics if enumeration has already started.
+    #[must_use]
+    pub fn with_digest_dedup(mut self, digest: fn(&M::Reading) -> [u8; 32]) -> Self {
+        assert_eq!(
+            self.metrics.requests, 0,
+            "choose deduplication before enumeration"
+        );
+        self.digest = Some(digest);
+        self
     }
 
     #[must_use]
@@ -215,7 +240,11 @@ impl<C, S, T, M: Materializer<S, T>> Iterator for Readings<'_, C, S, T, M> {
                 .pop()
                 .expect("a completed root constructs one value");
             self.metrics.derivations += 1;
-            if self.seen.insert(value.clone()) {
+            let fresh = match self.digest {
+                Some(digest) => self.seen_digests.insert(digest(&value)),
+                None => self.seen.insert(value.clone()),
+            };
+            if fresh {
                 self.metrics.readings += 1;
                 return Some(Ok(value));
             }

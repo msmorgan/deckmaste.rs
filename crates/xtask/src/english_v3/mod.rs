@@ -216,7 +216,9 @@ fn analyze_face(
             result.chart_wall_ns = started.elapsed().as_nanos();
             result.chart = report::chart_metrics(forest.metrics());
             let started = Instant::now();
-            let mut values = forest.readings(Tracing::new(grammar));
+            let mut values = forest
+                .readings(Tracing::new(grammar))
+                .with_digest_dedup(crate::english_v3::validation::TracedValue::dedup_key);
             let mut checked = BTreeSet::new();
             let context = std::cell::OnceCell::new();
             let mut requested = 0;
@@ -255,10 +257,7 @@ fn analyze_face(
                     }),
                 ) {
                     Ok(reading) => {
-                        if !checked.insert((
-                            value.identity().to_owned(),
-                            std::sync::Arc::clone(&value.value),
-                        )) {
+                        if !checked.insert(value.dedup_key()) {
                             result.issues.push(Issue::DuplicateReading);
                             continue;
                         }

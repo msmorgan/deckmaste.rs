@@ -725,6 +725,7 @@ fn cached_validation_rejects_same_construction_with_different_lexical_identity()
         .next()
         .unwrap()
         .unwrap();
+    let original_digest = traced.dedup_key();
     let expected = Arc::make_mut(&mut traced.nodes).last_mut().unwrap();
     let Value::Reading(mut node) = (**expected).clone() else { unreachable!() };
     assert_eq!(node.construction(), "Noun");
@@ -733,6 +734,7 @@ fn cached_validation_rejects_same_construction_with_different_lexical_identity()
     };
     head.countability = Some(false);
     *expected = Arc::new(Value::Reading(node));
+    assert_ne!(original_digest, traced.dedup_key());
     let context = RealizationContext::new(&grammar, lexicon(), text);
     assert_eq!(
         validate_in_context(&traced, text, Category::Document, &context),
@@ -769,4 +771,41 @@ fn a_fingerprint_collision_keeps_distinct_complete_values() {
     assert_eq!(first.identity(), collision.identity());
     assert_ne!(first, collision);
     assert_eq!(BTreeSet::from([first, collision]).len(), 2);
+}
+
+#[test]
+fn digest_dedup_and_cache_eviction_preserve_all_values_and_traces() {
+    let grammar = Grammar::with_lexicon(lexicon());
+    for text in [
+        // Seedborn Muse, Deep Sight and Revitalize.
+        "Untap all permanents you control during each other player's untap step.",
+        "You draw a card and gain 1 life.",
+        "You gain 3 life.\nDraw a card.",
+    ] {
+        let input = lexicon().analyze(text);
+        let forest = parse(&grammar, lexicon(), &input, &Category::Document).unwrap();
+        let mut expected: Vec<_> = forest
+            .readings(Tracing::new(&grammar))
+            .map(Result::unwrap)
+            .collect();
+        let context = RealizationContext::new(&grammar, lexicon(), text);
+        let mut values = forest
+            .readings(Tracing::new(&grammar).with_memo_cap(1))
+            .with_digest_dedup(TracedValue::dedup_key);
+        let mut actual: Vec<_> = values
+            .by_ref()
+            .map(|value| {
+                let value = value.unwrap();
+                validate_in_context(&value, text, Category::Document, &context).unwrap();
+                value
+            })
+            .collect();
+        actual.sort();
+        expected.sort();
+        assert_eq!(actual, expected, "{text}");
+        assert_eq!(values.metrics().readings, expected.len());
+        assert_eq!(values.metrics().internal_failures, 0);
+        let metrics = values.materializer().metrics();
+        assert_eq!(metrics.unique_builds, metrics.build_requests);
+    }
 }

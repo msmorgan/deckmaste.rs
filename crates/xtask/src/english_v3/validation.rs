@@ -45,6 +45,49 @@ pub(super) struct TracedValue {
 }
 
 impl TracedValue {
+    /// SHA-256 over the value identity and both independent traces, so a
+    /// Reading whose trace differs is never merged with one that matches.
+    pub(super) fn dedup_key(&self) -> [u8; 32] {
+        use sha2::Digest as _;
+        use std::fmt::Write as _;
+        struct HashWriter(sha2::Sha256);
+        impl std::fmt::Write for HashWriter {
+            fn write_str(&mut self, text: &str) -> std::fmt::Result {
+                self.0.update(text.as_bytes());
+                Ok(())
+            }
+        }
+        let mut writer = HashWriter(sha2::Sha256::new());
+        writer
+            .write_str(self.identity())
+            .expect("hashing cannot fail");
+        // A matching independent trace is exactly reconstructible from the
+        // complete root value. Hash a canonical marker only after comparing
+        // every value; retain raw Debug for any mismatch, so a malformed trace
+        // can never disappear behind a valid one during deduplication.
+        let (canonical_nodes, canonical_words) = if let Value::Reading(reading) = &*self.value {
+            (
+                matches_nodes(reading, &self.nodes).unwrap_or(false),
+                matches_words(reading, &self.words).unwrap_or(false),
+            )
+        } else {
+            (false, false)
+        };
+        writer.write_str("|n=").expect("hashing cannot fail");
+        if canonical_nodes {
+            writer.write_str("canonical").expect("hashing cannot fail");
+        } else {
+            write!(writer, "raw{:?}", self.nodes).expect("hashing Debug cannot fail");
+        }
+        writer.write_str("|w=").expect("hashing cannot fail");
+        if canonical_words {
+            writer.write_str("canonical").expect("hashing cannot fail");
+        } else {
+            write!(writer, "raw{:?}", self.words).expect("hashing Debug cannot fail");
+        }
+        writer.0.finalize().into()
+    }
+
     pub(super) fn identity(&self) -> &str {
         self.fingerprint.get_or_init(|| match &*self.value {
             Value::Reading(reading) => NodeIdentity::new(reading).sha256,
@@ -79,6 +122,7 @@ impl PartialEq for TracedValue {
 impl Eq for TracedValue {}
 
 type BuildKey = (usize, Vec<usize>);
+const MEMO_CAP: usize = 100_000;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize)]
 pub(super) struct MaterializationMetrics {
@@ -97,6 +141,7 @@ pub(super) struct Tracing<'a> {
     builds: BTreeMap<BuildKey, TracedValue>,
     next_id: usize,
     metrics: MaterializationMetrics,
+    memo_cap: usize,
 }
 
 impl<'a> Tracing<'a> {
@@ -107,7 +152,14 @@ impl<'a> Tracing<'a> {
             builds: BTreeMap::new(),
             next_id: 0,
             metrics: MaterializationMetrics::default(),
+            memo_cap: MEMO_CAP,
         }
+    }
+
+    #[cfg(test)]
+    pub(super) fn with_memo_cap(mut self, cap: usize) -> Self {
+        self.memo_cap = cap;
+        self
     }
 
     pub(super) const fn metrics(&self) -> MaterializationMetrics {
@@ -152,6 +204,9 @@ impl Materializer<Summary, State> for Tracing<'_> {
         };
         let traced = self.traced(value.clone(), Vec::new(), words);
         self.metrics.unique_leaves += 1;
+        if self.leaves.len() >= self.memo_cap {
+            self.leaves.clear();
+        }
         self.leaves.insert(value, traced.clone());
         Ok(traced)
     }
@@ -167,6 +222,11 @@ impl Materializer<Summary, State> for Tracing<'_> {
         let key = (production, children.iter().map(|child| child.id).collect());
         if let Some(traced) = self.builds.get(&key) {
             return Ok(traced.clone());
+        }
+        if self.builds.len() >= self.memo_cap {
+            // Bounded memo: forgetting entries only costs rebuilds; ids keep
+            // increasing, so no stale key can alias a new value.
+            self.builds.clear();
         }
         let mut nodes = Vec::new();
         let mut words = Vec::new();
@@ -234,25 +294,33 @@ fn validate_using<'a>(
     if realized != raw {
         return Err(Issue::Roundtrip { realized });
     }
-    let mut nodes = traced.nodes.iter();
-    let mut same_nodes = true;
-    reading
-        .visit(&mut |node| {
-            same_nodes &= nodes.next().is_some_and(
-                |expected| matches!(&**expected, Value::Reading(value) if node == value),
-            );
-        })
-        .map_err(|error| Issue::Admission(error.to_string()))?;
-    if !same_nodes || nodes.next().is_some() {
+    if !matches_nodes(reading, &traced.nodes)
+        .map_err(|error| Issue::Admission(error.to_string()))?
+    {
         return Err(Issue::ConstructionTraversal);
     }
-    let mut words = traced.words.iter();
-    let mut same_words = true;
-    reading
-        .visit_words(&mut |word| same_words &= words.next() == Some(word))
-        .map_err(|error| Issue::Admission(error.to_string()))?;
-    if !same_words || words.next().is_some() {
+    if !matches_words(reading, &traced.words)
+        .map_err(|error| Issue::Admission(error.to_string()))?
+    {
         return Err(Issue::LexicalTraversal);
     }
     Ok(reading)
+}
+
+fn matches_nodes(reading: &Reading, expected: &[Arc<Value>]) -> Result<bool, Error> {
+    let mut nodes = expected.iter();
+    let mut same = true;
+    reading.visit(&mut |node| {
+        same &= nodes
+            .next()
+            .is_some_and(|expected| matches!(&**expected, Value::Reading(value) if node == value));
+    })?;
+    Ok(same && nodes.next().is_none())
+}
+
+fn matches_words(reading: &Reading, expected: &[Word]) -> Result<bool, Error> {
+    let mut words = expected.iter();
+    let mut same = true;
+    reading.visit_words(&mut |word| same &= words.next() == Some(word))?;
+    Ok(same && words.next().is_none())
 }
