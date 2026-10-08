@@ -217,3 +217,14 @@ frame. No card behaves differently today: `reads.rs` refuses nothing and no
 lowering reader resolves a `LaterMention` or an `OwnScope` yet, so the gap is a
 mirror gap, not a divergence a card can observe. Item 6 above, which ports this
 refactor's reads to `reads.rs` in the same landing, ports these with them.
+
+## Routed from `semantics-v2-per-member-handoff` (2026-10-08)
+
+Airbend's per-card spelling [CR#701.65a], `doForEach(allFromAmong(card,
+Param(0)), act(ownerOf(it), …))`, checks for several objects and ties for
+one: each "it" in the loop reaches both the loop's card and the exiled
+object, the same object. The nearest-clause rule resolves it to the loop's
+card. Flip the pin `airbendByCardOneTiesUnderStrictRule`
+(`lean/Semantics/Proofs/BindingIdentity.lean`) to `[]`; the airbend body in
+`plugins_v2/builtin/macros/keyword_actions/airbend.ron` can then take the
+per-card spelling (its STOP comment names it).
