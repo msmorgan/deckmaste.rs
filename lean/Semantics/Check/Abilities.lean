@@ -291,6 +291,7 @@ def Instruction.performed : Instruction → Bool
   | .copy _ _ _ _ | .changeLife _ | .addMana _ _ _ | .draw _ | .expose _ _
   | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _ | .rerollStored _ _
   | .createObject _ _ | .enact _ _ | .pay _ _ | .skipPart _ _ | .addTurnPart _ _ _ _
+  | .procedure _ _ _ _
   | .withContinuation .optional _ _ _ => true
   | _ => false
 
@@ -487,6 +488,7 @@ def TokenSpec.headTy (bs : Bindings) : TokenSpec → List CardType
   | .written t => t.characteristics.headTy
   | .asThose => tyOfThoseAny .token bs
   | .copyOf src _ => NounPhrase.ty bs src
+  | .doubleFaced front _ => front.characteristics.headTy
 
 def TokenSpec.introduced (bs : Bindings) : TokenSpec → List Binding
   | .written t => ptDelta bs t.characteristics.pt
@@ -781,7 +783,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
   | .move _ _ _ _ | .expose _ _ | .addMana _ _ _ | .draw _ | .choose _ _ _ _ | .vote _ _ _
   | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _
-  | .rerollStored _ _ => .reflexive
+  | .rerollStored _ _ | .procedure _ _ _ _ => .reflexive
   | .applyResultsTable _ => .notOneAction
   | .withContinuation _ body none _ => body.reflexEncloseUse
   | .withContinuation _ _ _ _ => .notOneAction
@@ -958,7 +960,7 @@ mutual
       let bs' := Amount.intro (nomIntro bs agent) count
       let (mentions, types, zone, origin) := match spec with
         | .token token _ => (token.introduced bs', token.headTy bs', Zone.battlefield, some Origin.token)
-        | .emblem _ => ([], [], Zone.command, none)
+        | .emblem _ _ => ([], [], Zone.command, none)
       sameIntro (mentions ++ bs')
         [⟨.a, outputPlur agent.plur count.plur, .object types (some zone) none origin none none, []⟩]
     | .putCounters amt kind on => sameIntro (nomIntro (kind.intro (Amount.intro bs amt)) on) []
@@ -1039,6 +1041,8 @@ mutual
     | .triggerThisWay body _ _ => Instruction.profileWith bs none body
     | .replace replaced _ => sameIntro (Instruction.profileWith bs none replaced).announced []
     | .holdUntil e _ => sameIntro (Instruction.profileWith bs none e).announced []
+    | .procedure _ subject _ _ => let who := performerOf perf;
+      sameIntro (nomIntro (nomIntro bs who) subject) []
   termination_by structural e => e
 
   def Instruction.profileOpt (bs : Bindings) : Option Instruction → Option InstrProfile
@@ -1316,7 +1320,7 @@ exceptions of `asCopyOf` declare their own. -/
 def TokenRider.numberSlots : TokenRider → List (Amount × NumberRegime)
   | .entersAs _ | .entersAttacking _ | .entersTransformed | .entersMelded _ => []
   | .withCounters amount _ _ => [(amount, .clamped)]
-  | .under _ | .asCopyOf _ _ _ => []
+  | .under _ | .asCopyOf _ _ _ | .faceDown _ => []
 
 def TokenRider.ridersSlots : List TokenRider → List (Amount × NumberRegime)
   | [] => []
@@ -1329,7 +1333,7 @@ def Cost.numberSlots : Cost → List (Amount × NumberRegime)
   | .mana _ => []
   | .scaled _ amount => [(amount, .clamped)]
   | .tapSymbol | .untapSymbol | .loyaltySymbol _ => []
-  | .perform _ | .compound _ | .or _ | .itsManaCost => []
+  | .perform _ | .compound _ | .or _ | .itsManaCost | .tapForGeneric _ _ => []
 
 /-- The static spec's own slots and the regime each is read in [CR#107.1b]. -/
 def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
@@ -1393,7 +1397,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .createObject count spec => (count, .clamped) ::
       (match spec with
        | .token _ riders => TokenRider.ridersSlots riders
-       | .emblem _ => [])
+       | .emblem _ _ => [])
   | .putCounters amount _ _ => [(amount, .clamped)]
   | .distribute _ amount _ => [(amount, .clamped)]
   | .removeCounters _ _ _ => []
@@ -1409,5 +1413,6 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .skipUntap _ steps => [(steps, .clamped)]
   | .skipPart _ count => [(count, .clamped)]
   | .addTurnPart _ _ count _ => [(count, .clamped)]
+  | .procedure _ _ _ _ => []
 
 end Semantics

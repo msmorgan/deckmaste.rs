@@ -182,6 +182,9 @@ mutual
     | and (phrases : List NounPhrase)
     | or (phrases : List NounPhrase)
     | librarySlice (end_ : LibraryEnd) (amount : Amount) (whose : NounPhrase)
+    /-- "Cards from the top of <whose> library until a <stop> card": the run of cards taken one
+    at a time from that end, the last of them the first that matches `stop` [CR#701.57a]. -/
+    | libraryRun (end_ : LibraryEnd) (stop : Predicate) (whose : NounPhrase)
     | someOf (count : SliceCount) (description : Option Predicate) (group : NounPhrase)
     | namesAgree (agreement : NameAgreement) (group : NounPhrase)
     | theRest (kind : Kind) (plurality : Plurality)
@@ -241,6 +244,10 @@ mutual
   inductive SliceCount where
     | counted (quantity : Quantity)
     | whole
+    /-- "Any number of them with total <axis> <comparator> <bound>": as many as the chooser
+    likes, so long as the sum of `axis` over the chosen ones compares to `bound`
+    [CR#701.59a]. -/
+    | totalling (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
   inductive Door where
     | thisDoor
     | doorOf (state : Option LockState) (room : NounPhrase)

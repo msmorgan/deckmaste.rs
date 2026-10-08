@@ -259,6 +259,8 @@ mutual
     | written (characteristics : CharacteristicBundle)
     | asThose
     | copyOf (source : NounPhrase) (exceptions : List CopyExcept)
+    /-- A double-faced token: its front face and its back face [CR#111.10i,701.53b]. -/
+    | doubleFaced (front : CharacteristicBundle) (back : CharacteristicBundle)
 
   inductive StaticSpec where
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : StaticSpec)
@@ -333,6 +335,9 @@ mutual
     | withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark)
     | under (controller : NounPhrase)
     | asCopyOf (optional : Bool) (source : NounPhrase) (exceptions : List CopyExcept)
+    /-- Enters face down with the characteristics the instruction lists, and no others, while it
+    stays face down [CR#708.2,701.40a,701.58a]. -/
+    | faceDown (characteristics : Characteristics)
 
   inductive Cost where
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Cost)
@@ -347,6 +352,9 @@ mutual
     | compound (costs : List Cost)
     | or (costs : List Cost)
     | itsManaCost
+    /-- Pay `cost`, tapping an untapped `tapped` permanent the payer controls rather than paying
+    each generic mana in that cost [CR#701.67a,701.67b]. -/
+    | tapForGeneric (cost : Cost) (tapped : Predicate)
 
   inductive ManaRider where
     | spendOnly (purposes : List SpendPurpose)
@@ -365,8 +373,8 @@ mutual
 
   inductive CreationSpec where
     | token (spec : TokenSpec) (riders : List TokenRider)
-    | emblem (abilities : List Ability)
-
+    /-- An emblem, named where the rules name it ("an emblem named The Ring" [CR#701.54c]). -/
+    | emblem (name : Option String) (abilities : List Ability)
   inductive Instruction where
     /-- Bind ordered typed inputs for the body, without an implicit whole-body precondition. -/
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Instruction)
@@ -459,7 +467,12 @@ mutual
     | skipPart (part : TurnPart) (count : Amount)
     | addTurnPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
         (followedBy : Option TurnPart)
-
+    /-- Carry out a rules procedure on `subject` now, during resolution: activate it, cast it,
+    or play it [CR#701.2a,701.5a,701.18a], paying as `payment` says. `resulting` is what the
+    spell the procedure produces must be ("if the resulting spell's mana value is N or less"
+    [CR#701.57a]). -/
+    | procedure (kind : Procedure) (subject : NounPhrase) (payment : PlayPayment)
+        (resulting : Option Predicate)
   inductive KeywordParam where
     | cost (cost : Cost)
     | quality (predicate : Predicate)
@@ -495,7 +508,8 @@ end
 
 deriving instance Repr, BEq for Characteristics, CharacteristicBundle, CharacteristicEdit, AbilitySelection,
   TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost,
-  ManaRider, CopyExcept, RollRow, Repetition, CreationSpec, Instruction, KeywordParam, AbilityLost, Ability
+  ManaRider, CopyExcept, RollRow, Repetition, CreationSpec, Instruction, KeywordParam,
+  AbilityLost, Ability
 
 end Semantics
 

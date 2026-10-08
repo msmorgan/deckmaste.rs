@@ -985,7 +985,82 @@ semantic_macro amass (subtype : String) (count : Nat) : Instruction :=
           none)
         none ]
 
+/-- "any number of <group> with total <axis> <comparator> <bound>" [CR#701.59a]. -/
+semantic_macro withTotal (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
+    (group : NounPhrase) : NounPhrase :=
+  .someOf (.totalling axis comparator bound) none group
+/-- "<performer> collects evidence N" [CR#701.59a]: exile any number of cards from their
+graveyard with total mana value N or greater. -/
+semantic_macro collectEvidence (amount : Amount) : Instruction :=
+  .enact (.action "collectEvidence")
+    (move (withTotal (.stat .manaValue) .atLeast amount
+      (allOf (.and [.isCard, .inZone (graveyardOf .actor)]))) exileZone)
+/-- "<performer> casts <subject> without paying its mana cost [if the resulting spell is …]"
+[CR#701.5a,601.2]. -/
+semantic_macro castWithoutPaying (subject : NounPhrase) (resulting : Option Predicate) :
+    Instruction :=
+  .enact (.action "cast") (.procedure .cast subject .withoutPaying resulting)
+/-- "<performer> discovers N" [CR#701.57a]: the run exiled from the top of their library, the
+card that stopped it cast or put into their hand, the rest on the bottom at random. -/
+semantic_macro discover (amount : Amount) : Instruction :=
+  let fits : Predicate := .compare [.stat .manaValue] .atMost amount
+  .enact (.action "discover") (.sequentially
+    [ move (.libraryRun .top (.and [.not land, fits]) .actor) exileZone,
+      .withContinuation .optional (castWithoutPaying (that .card) (some fits)) none
+        (some (move (that .card) hand)),
+      move (theRest .object) (onBottomIn .randomOrder) ])
+/-- "<performer> incubates N" [CR#701.53a,701.53b]: an Incubator token with N +1/+1 counters. -/
+semantic_macro incubate (amount : Amount) : Instruction :=
+  .enact (.action "incubate") (.createObject (.lit 1) (.token
+    (.doubleFaced
+      { characteristics :=
+          { types := [.artifact], subtypes := [artifactType "Incubator"],
+            text := [.activated (.mana [generic 2]) (transform .this) none none none none] } }
+      { characteristics :=
+          { name := some "Phyrexian Token", types := [.artifact, .creature],
+            subtypes := [creatureType "Phyrexian"], power := some (.lit 0),
+            toughness := some (.lit 0) } })
+    [.withCounters amount (.printed p1p1Counter) .fresh]))
+/-- "<performer> waterbends <cost>" [CR#701.67a]: tapping an untapped artifact or creature they
+control rather than paying each generic mana in the cost. -/
+semantic_macro waterbend (cost : Cost) : Instruction :=
+  .enact (.action "waterbend")
+    (.pay (.tapForGeneric cost (.and [untapped, .or [artifact, creature], actorControls])) .once)
+/-- "<performer> manifests <subject>" [CR#701.40a]: onto the battlefield face down as a 2/2
+creature with no text, name, subtypes or mana cost [CR#708.2]. -/
+semantic_macro manifest (subject : NounPhrase) : Instruction :=
+  .enact (.action "manifest") (.move subject .wherever battlefield
+    [.faceDown { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }])
+/-- "<performer> cloaks <subject>" [CR#701.58a]: as manifest, with ward {2}. -/
+semantic_macro cloak (subject : NounPhrase) : Instruction :=
+  .enact (.action "cloak") (.move subject .wherever battlefield
+    [.faceDown { types := [.creature], text := [.keyword (.named "ward") [.cost (.mana [generic 2])] []],
+                 power := some (.lit 2), toughness := some (.lit 2) }])
+/-- "<performer> manifests dread" [CR#701.62a]: look at the top two cards of their library,
+manifest one, put the other into their graveyard. -/
+semantic_macro manifestDread : Instruction :=
+  .enact (.action "manifestDread") (.sequentially
+    [ .expose .lookAt (.cards (.librarySlice .top (.lit 2) .actor)),
+      manifest (someOf (exactly 1) them),
+      move (theRest .object) graveyard ])
+/-- "support N" [CR#701.41a]: a +1/+1 counter on each of up to N other target creatures. -/
+semantic_macro support (amount : Amount) : Instruction :=
+  .enact (.action "support") (.putCounters (.lit 1) (.printed p1p1Counter)
+    (.eachOf (.described (.target (.upToOf amount)) (.and [creature, .otherThan .this]))))
+
 end Actor
+
+/-- "double <subject>'s power" [CR#701.10b,701.10c]: it gets +X/+0, X its power. -/
+semantic_macro doublePower (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+  .establish (.ptModification subject (.up (powerOf subject)) (.up (.lit 0))) duration
+/-- "triple <subject>'s power and toughness" [CR#701.11b,701.11c]. -/
+semantic_macro triplePowerAndToughness (subject : NounPhrase) (duration : Option Duration) :
+    Instruction :=
+  .establish (.ptModification subject (.up (times (.lit 2) (powerOf subject)))
+    (.up (times (.lit 2) (toughnessOf subject)))) duration
+/-- "double <performer>'s life total" [CR#701.10d], written as that total's set [CR#119.5]. -/
+semantic_macro doubleLifeTotal : Instruction :=
+  .changeLife (.set (times (.lit 2) (lifeTotalOf .actor)))
 
 /-! ## Events -/
 

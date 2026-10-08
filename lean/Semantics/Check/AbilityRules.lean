@@ -275,7 +275,7 @@ mutual
       NounPhrase.check (some .player) bs agent ++ Amount.check bs' count ++
         (match spec with
          | .token token riders => TokenSpec.check bs'' token ++ TokenRider.checkAll bs'' riders
-         | .emblem abilities => refuse (!abilities.isEmpty) .nonEmpty ++
+         | .emblem _ abilities => refuse (!abilities.isEmpty) .nonEmpty ++
              Ability.checkAll [] abilities)
     | .putCounters amt kind on =>
       let bs' := Amount.intro bs amt
@@ -385,6 +385,10 @@ mutual
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
     | .addTurnPart _ _ count _ => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
+    | .procedure _ subject payment resulting => let who := performerOf perf;
+      let bs' := nomIntro bs who
+      NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' subject ++
+        PlayPayment.check bs' payment ++ OptPredicate.check .object (nomIntro bs' subject) resulting
   termination_by structural e => e
 
   def Repetition.check (bs : Bindings) : Repetition → List Refusal
@@ -436,6 +440,7 @@ mutual
     | .mana c => refuse (!c.isEmpty) .nonEmpty ++ ManaCost.check c
     | .scaled c amt => Cost.check bs c ++ Amount.check bs amt ++ refuse amt.forEach .forEachAmount
     | .tapSymbol | .untapSymbol | .loyaltySymbol _ | .itsManaCost => []
+    | .tapForGeneric c tapped => Cost.check bs c ++ Predicate.check .object bs tapped
     | .perform e => Instruction.checkWith bs none e
     | .compound cs => refuse (!cs.isEmpty) .nonEmpty ++ Cost.checkSeq bs cs
     | .or cs =>
@@ -489,6 +494,7 @@ mutual
     | .withCounters amt kind _ =>
       Amount.check bs amt ++ kind.check (Amount.intro bs amt) ++ refuse (kindAmountOk amt kind) .kindAmountOk
     | .under who => NounPhrase.check (some .player) bs who
+    | .faceDown c => Characteristics.checkWritten bs c
     | .asCopyOf _ src exc =>
       NounPhrase.check (some .object) bs src ++ CopyExcept.checkAll bs exc ++ refuse src.perMemberOk .perMember
   termination_by structural r => r
@@ -550,6 +556,9 @@ mutual
       refuse (n == 1) (.tokenSpecInScope n)
     | .copyOf src exc =>
       NounPhrase.check (some .object) bs src ++ CopyExcept.checkAll bs exc ++ refuse src.perMemberOk .perMember
+    | .doubleFaced front back =>
+      CharacteristicBundle.check bs front ++ refuse front.characteristics.canonical .distinct ++
+        CharacteristicBundle.check bs back ++ refuse back.characteristics.canonical .distinct
   termination_by structural s => s
 
   def CopyExcept.check (bs : Bindings) : CopyExcept → List Refusal

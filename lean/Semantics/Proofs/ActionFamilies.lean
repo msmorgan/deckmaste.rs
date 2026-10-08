@@ -36,10 +36,10 @@ theorem badExtraTurnWithoutPlayer :
 def emblemAbilities : List Ability := [.static (.abilityGrant (allOf creatureYouControl) (keyword (.named "haste")))]
 
 theorem okCreateSeveralEmblems :
-    Instruction.check [] (.createObject (.lit 2) (.emblem emblemAbilities)) = [] := by decide
+    Instruction.check [] (.createObject (.lit 2) (.emblem none emblemAbilities)) = [] := by decide
 
 theorem okEmblemPublication :
-    Instruction.introducedDeeds [] (.createObject (.lit 1) (.emblem emblemAbilities)) =
+    Instruction.introducedDeeds [] (.createObject (.lit 1) (.emblem none emblemAbilities)) =
       [⟨.a, .one, .object [] (some .command) none none none, []⟩] := by rfl
 
 

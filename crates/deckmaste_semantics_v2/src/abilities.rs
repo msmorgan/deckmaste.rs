@@ -63,6 +63,7 @@ use crate::words::OutcomeVerb;
 use crate::words::Parity;
 use crate::words::PayTimes;
 use crate::words::PileFace;
+use crate::words::Procedure;
 use crate::words::ProducedRun;
 use crate::words::QualitySort;
 use crate::words::Role;
@@ -488,6 +489,12 @@ pub enum TokenSpec {
         source: NounPhrase,
         exceptions: Vec<CopyExcept>,
     },
+    /// A double-faced token: its front face and its back face
+    /// [CR#111.10i,701.53b].
+    DoubleFaced {
+        front: Box<CharacteristicBundle>,
+        back: Box<CharacteristicBundle>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -706,6 +713,11 @@ pub enum TokenRider {
         source: NounPhrase,
         exceptions: Vec<CopyExcept>,
     },
+    /// Enters face down with the characteristics the instruction lists, and no
+    /// others, while it stays face down [CR#708.2,701.40a,701.58a].
+    FaceDown {
+        characteristics: Box<Characteristics>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -742,6 +754,12 @@ pub enum Cost {
         costs: Vec<Cost>,
     },
     ItsManaCost,
+    /// Pay `cost`, tapping an untapped `tapped` permanent the payer controls
+    /// rather than paying each generic mana in that cost [CR#701.67a,701.67b].
+    TapForGeneric {
+        cost: Box<Cost>,
+        tapped: Predicate,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -788,7 +806,10 @@ pub enum CreationSpec {
         spec: Box<TokenSpec>,
         riders: Vec<TokenRider>,
     },
+    /// An emblem, named where the rules name it ("an emblem named The Ring"
+    /// [CR#701.54c]).
     Emblem {
+        name: Option<String>,
         abilities: Vec<Ability>,
     },
 }
@@ -1076,6 +1097,16 @@ pub enum Instruction {
         anchor: Option<TurnPart>,
         count: Amount,
         followed_by: Option<TurnPart>,
+    },
+    /// Carry out a rules procedure on `subject` now, during resolution:
+    /// activate it, cast it, or play it [CR#701.2a,701.5a,701.18a], paying as
+    /// `payment` says. `resulting` is what the spell the procedure produces must
+    /// be ("if the resulting spell's mana value is N or less" [CR#701.57a]).
+    Procedure {
+        kind: Procedure,
+        subject: NounPhrase,
+        payment: PlayPayment,
+        resulting: Option<Predicate>,
     },
 }
 

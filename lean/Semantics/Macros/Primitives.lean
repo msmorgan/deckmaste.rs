@@ -112,7 +112,7 @@ semantic_macro create (count : Amount) (token : TokenSpec) (riders : List TokenR
   .createObject count (.token token riders)
 
 semantic_macro getEmblem (abilities : List Ability) : Semantics.Instruction :=
-  .createObject (.lit 1) (.emblem abilities)
+  .createObject (.lit 1) (.emblem none abilities)
 
 end Semantics.Macros.Primitives.Instruction
 

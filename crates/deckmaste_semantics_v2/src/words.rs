@@ -22,6 +22,16 @@ pub enum CardType {
     Kindred,
 }
 
+/// A rules procedure a card can instruct a player to carry out during resolution: activating
+/// an ability [CR#701.2a,602.1], casting a spell [CR#701.5a,601.2], or playing a card as a land
+/// or as a spell [CR#701.18a,701.18b].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Procedure {
+    Activate,
+    Cast,
+    Play,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Stat {
     Power,

@@ -445,6 +445,14 @@ pub enum NounPhrase {
         amount: Box<Amount>,
         whose: Box<NounPhrase>,
     },
+    /// "Cards from the top of <whose> library until a <stop> card": the run of
+    /// cards taken one at a time from that end, the last of them the first that
+    /// matches `stop` [CR#701.57a].
+    LibraryRun {
+        end: LibraryEnd,
+        stop: Box<Predicate>,
+        whose: Box<NounPhrase>,
+    },
     SomeOf {
         count: Box<SliceCount>,
         description: Option<Box<Predicate>>,
@@ -624,8 +632,18 @@ pub enum Quantity {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum SliceCount {
-    Counted { quantity: Box<Quantity> },
+    Counted {
+        quantity: Box<Quantity>,
+    },
     Whole,
+    /// "Any number of them with total <axis> <comparator> <bound>": as many as
+    /// the chooser likes, so long as the sum of `axis` over the chosen ones
+    /// compares to `bound` [CR#701.59a].
+    Totalling {
+        axis: ProjAxis,
+        comparator: Comparator,
+        bound: Box<Amount>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

@@ -979,11 +979,11 @@ def DetPhrase.quant : DetPhrase → Option Quantity
 
 def SliceCount.exact : SliceCount → Option Nat
   | .counted q => q.exact
-  | .whole => none
+  | .whole | .totalling _ _ _ => none
 
 def SliceCount.plur : SliceCount → Plurality
   | .counted q => q.plur
-  | .whole => .many
+  | .whole | .totalling _ _ _ => .many
 
 /-- A definite description re-reads the chosen-player binding [CR#607.2d]. -/
 def Predicate.choiceRead : Predicate → Bool
@@ -1009,6 +1009,7 @@ mutual
     | .and _ => .many
     | .or ns => NounPhrase.commonPlurality ns
     | .librarySlice _ amt whose => outputPlur whose.plur amt.plur
+    | .libraryRun _ _ _ => .many
     | .someOf q _ _ => q.plur
     | .theRest _ pl => pl
     | .pileOf q _ => q.plur
@@ -1029,7 +1030,7 @@ def NounPhrase.det : NounPhrase → Option Determiner
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.det
   | .described d _ => some d.det
   | .eachOf _ => some .each
-  | .librarySlice _ _ _ => some .the
+  | .librarySlice _ _ _ | .libraryRun _ _ _ => some .the
   | .someOf _ _ _ => some .part
   | .namesAgree _ g => g.det
   | .theRest _ _ => some .the
@@ -1055,7 +1056,7 @@ def NounPhrase.groupMention : NounPhrase → Bool
   | .pro (.parameter _) pl _ => !pl.isOne
   | .laterMention _ n => !n.plur.isOne
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.groupMention
-  | .librarySlice _ _ _ => true
+  | .librarySlice _ _ _ | .libraryRun _ _ _ => true
   | .pro _ pl .whole => !pl.isOne
   | .and _ => true
   | .oneEachOf _ _ => true
@@ -1208,7 +1209,7 @@ where
     | .firstMention _ n =>
       nominal n
     | .described .the p => !p.choiceRead
-    | .described _ _ | .librarySlice _ _ _ | .someOf _ _ _ | .pileOf _ _
+    | .described _ _ | .librarySlice _ _ _ | .libraryRun _ _ _ | .someOf _ _ _ | .pileOf _ _
     | .possessorOf _ _ | .oneEachOf _ _ | .paid _ _ => true
     | _ => false
 
@@ -1289,6 +1290,13 @@ mutual
     | .librarySlice _ amt whose =>
       (NounPhrase.result bs whose).prepend [⟨.the, outputPlur whose.plur amt.plur,
         .object [] (some .library) none none amt.exact none, []⟩]
+    /- The run is a group, and the card that stopped it a part of that group, so "that card"
+    reads the one and "the remaining exiled cards" the rest [CR#701.57a]. -/
+    | .libraryRun _ stop whose =>
+      (NounPhrase.result bs whose).prepend (⟨.the, .many,
+        .object [] (some .library) none none none none, []⟩ ::
+        ⟨.part, .one, .object stop.seedTy (some .library) none none (some 1) none, []⟩ ::
+        Predicate.introduced bs stop)
     | .namesAgree _ g => NounPhrase.result bs g
     | .someOf q d g =>
       (NounPhrase.result bs g).prepend (⟨.part, q.plur,
@@ -1600,6 +1608,7 @@ mutual
   def SliceCount.introduced (bs : Bindings) : SliceCount → List Binding
     | .counted q => Quantity.introduced bs q
     | .whole => []
+    | .totalling _ _ bound => Amount.introduced bs bound
 
 
   def NounPhrase.commonZone (bs : Bindings) : List NounPhrase → Option Zone
@@ -1629,7 +1638,7 @@ mutual
     | .eachOf g => NounPhrase.zone bs g
     | .namesAgree _ g => NounPhrase.zone bs g
     | .and ns => NounPhrase.commonZone bs ns
-    | .librarySlice _ _ _ => some .library
+    | .librarySlice _ _ _ | .libraryRun _ _ _ => some .library
     | .someOf _ _ g => NounPhrase.zone bs g
     | .theRest k _ => zoneOfGroup k bs
     | .pileOf _ _ => zoneOfReach (.word .pile) .many bs
@@ -1668,8 +1677,8 @@ mutual
     | .inCaller scope body => body.ty (enterCaller scope bs)
     | .gap _ => []
     | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .playerGroup _
-    | .or _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _
-    | .paid _ _ => []
+    | .or _ | .librarySlice _ _ _ | .libraryRun _ _ _ | .pileOf _ _ | .possessorOf _ _
+    | .designated _ _ | .paid _ _ => []
     | .asType t _ _ => [t]
     | .resolvedPermanent n => NounPhrase.ty bs n
     | .asMarker _ n => NounPhrase.ty bs n
@@ -1779,7 +1788,7 @@ def NounPhrase.testSubjectOk (bs : Bindings) : NounPhrase → Bool
   | .inCaller scope body => body.testSubjectOk (enterCaller scope bs)
   | .firstMention _ body => body.testSubjectOk bs
   | .described .the _ => true
-  | .librarySlice _ _ _ => true
+  | .librarySlice _ _ _ | .libraryRun _ _ _ => true
   | n => (NounPhrase.introduced bs n).isEmpty
 
 def NounPhrase.bindingless (bs : Bindings) (n : NounPhrase) : Bool := (NounPhrase.introduced bs n).isEmpty
@@ -2096,6 +2105,11 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
   | .gap _ => bs
   | .described _ _ | .librarySlice _ _ _ | .someOf _ _ _ | .oneEachOf _ _ | .pileOf _ _ =>
     setZoneHead p z (nomIntro bs n)
+  -- The run and the card that stopped it move together.
+  | .libraryRun _ _ _ =>
+    match nomIntro bs n with
+    | run :: stopped :: rest => setZone p z run :: setZone p z stopped :: rest
+    | other => other
   | .eachOf g => moveIntro bs p g z
   | .namesAgree _ g => moveIntro bs p g z
   | .and _ | .or _ => nomIntro bs n

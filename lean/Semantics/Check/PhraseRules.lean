@@ -303,6 +303,10 @@ mutual
       ctxCheck ctx (some .object) ++ Amount.checkIn gap bs amt ++ NounPhrase.checkIn gap (some
         .player) bs whose ++
         refuse whose.slicePossessorOk .slicePossessor
+    | .libraryRun _ stop whose =>
+      ctxCheck ctx (some .object) ++ Predicate.checkIn gap .object bs stop ++
+        NounPhrase.checkIn gap (some .player) bs whose ++
+        refuse whose.slicePossessorOk .slicePossessor
     | .someOf q d g =>
       ctxCheck ctx (some .object) ++ SliceCount.checkIn gap bs q ++ OptPredicate.checkIn gap .object
         bs d ++
@@ -400,6 +404,7 @@ mutual
     | .counted q => refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++
       Quantity.checkIn gap bs q
     | .whole => (⟨[], false⟩ : CheckResult)
+    | .totalling ax _ bound => Amount.checkIn gap bs bound ++ ax.check
   termination_by structural q => q
 
   def Amount.checkIn (gap : Option Kind) (bs : Bindings) : Amount → CheckResult
