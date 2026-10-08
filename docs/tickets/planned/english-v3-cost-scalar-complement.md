@@ -106,7 +106,7 @@ cite check). Deltas:
 10. A CGEL citation may back only what the cited passage itself says; a project
     or orchestrator ruling is cited as a ruling, never attributed to CGEL.
 11. Timings as integer ns and ns/B, with host load and worker count.
-12. Gate: `cargo xtask gate --changed --from <claim> --run`.
+12. Tests: `cargo test -p <crate>` and clippy for every crate changed; Lean checks only if Lean sources or plugin definitions changed.
 
 ## Out of scope
 

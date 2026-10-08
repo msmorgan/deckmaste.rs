@@ -46,8 +46,7 @@ says never to make. This also removes the only `Action` arm whose resolution
 is a documented no-op, so `resolve/player_action.rs` loses its one
 absent-subsystem branch.
 
-Gate: `cargo xtask gate --changed --run` (the shared `deckmaste_core` change
-fans out to v1, spelling, migrations, lowering, engine and the plugin gate;
-compute the closure, do not hand-list). Assurance: the deleted lowering and
+Tests: `cargo test -p <crate>` and clippy for every crate changed; Lean checks
+only if Lean sources or plugin definitions changed. Assurance: the deleted lowering and
 no-dead-grammar tests have no surviving subject, so they are removed, not
 re-spelled; name each in the landing record's removed count.

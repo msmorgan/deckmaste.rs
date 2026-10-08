@@ -101,12 +101,13 @@ verbatim: no parity copying into v1, no new v1 registries.
   many" replacement, so infect, wither, and doubled mill were all dead on
   trunk until the restoration round.
 
-## Gate scope for compiler changes
+## Tests for a landing
 
-- The test gate for a landing is the reverse-dependency closure of every crate
-  whose code or consumed data changed, including declaration readers. Run
-  `cargo xtask gate --changed`; with `--run`, it runs the derived Cargo test
-  command. State that command and its outcome in the landing record.
+- Run `cargo test -p <crate>` and `cargo clippy -p <crate> --tests -- -D warnings`
+  for every crate whose code or consumed data you changed. Name the commands
+  and their outcome in the landing record.
+- Run `cargo xtask lean check` only when `lean/` sources or plugin definitions
+  changed.
 - `cargo test --workspace` excludes `slow-tests` (the TUI whole-game
   simulations); CI's full job runs them.
 
