@@ -357,6 +357,20 @@ mimicked.
   re-adopted. (Ruling, 2026-10-06, owner,
   `semantics-v2-macro-capture-and-plurality`: "really painted myself into a
   corner here didn't I. I guess B'.")
+- **A moved referent is read back by anaphora.** Once an instruction moves a
+  parameter's referent to another zone it is a new object, which the rest of
+  the effect finds as the object it moved [CR#400.7,400.7j]; every later
+  mention in the body is an anaphor to it (`it`, or "the exiled card(s)"
+  written `theVerbed(exile, …)` or "each card exiled this way"), never the
+  parameter again. The first-mention ruling above still binds the parameter
+  where it is first mentioned; it no longer licenses re-mentioning it after a
+  move. (Ruling, 2026-10-08, owner: "airbend should not be repeating
+  Param(0) beyond the first exile. it should be anaphoric after that, since
+  there was a zone change."; on the anaphor, `it` where the reminder text
+  has it and the strict rule accepts it, else `that(card)`.) Airbend now
+  reads `it` after its exile, the singular reminder's wording; several
+  airbended objects are refused until the per-card loop of
+  `semantics-v2-per-member-handoff` lands.
 - **Deeds and keyword labels are declared names.** A keyword action is
   referenced by its declaration name read bare where a deed is wanted
   (`theVerbed(exile, Many)`, `enact(discard, …)`), and a keyword ability
