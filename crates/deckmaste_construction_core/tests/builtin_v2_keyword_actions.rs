@@ -139,15 +139,29 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
             );
         }
         // Re-spelled for `builtin-v2-keyword-spelling-templates`: the spelling
-        // is the card-usage template, so it opens with the grammar head and
-        // every hole names a declared parameter (the full shape is
-        // `builtin_v2_keyword_spelling_templates.rs`).
-        let Some(SpellingPart::Literal(head)) = declaration.spelling().first() else {
-            panic!(
-                "{} must open its spelling with its head literal",
-                declaration.identity()
-            )
+        // is the card-usage template, so its head literal is the grammar head
+        // and every hole names a declared parameter (the full shape is
+        // `builtin_v2_keyword_spelling_templates.rs`). Re-spelled again for
+        // `builtin-v2-keyword-spelling-templates-residue`: a predicate
+        // modifier the card prints before the verb takes a leading hole
+        // ("<Param(0)> vote for <Param(1)>", "secretly votes for"), so the
+        // head literal is the first literal, separated from that hole.
+        let leading_hole = matches!(
+            declaration.spelling().first(),
+            Some(SpellingPart::Param { .. })
+        );
+        let Some(head) = declaration.spelling().iter().find_map(|part| match part {
+            SpellingPart::Literal(literal) => Some(literal),
+            SpellingPart::Param { .. } => None,
+        }) else {
+            panic!("{} must spell its head literal", declaration.identity())
         };
+        assert!(
+            !leading_hole || head.starts_with(' '),
+            "{} glues its head literal to a leading hole",
+            declaration.identity()
+        );
+        let head = head.trim_start();
         let grammar_head = declaration
             .grammar()
             .map(|grammar| grammar.surfaces()[0].text());

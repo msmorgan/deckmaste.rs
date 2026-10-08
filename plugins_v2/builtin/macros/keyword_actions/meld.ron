@@ -4,7 +4,7 @@
 KeywordAction(
     name: "meld",
     params: [Subject, String],
-    spelling: "meld",
+    spelling: "meld <Param(0)> into <Param(1)>",
     grammar: Verb(
         bare: "meld",
         frame_set: Transitive,

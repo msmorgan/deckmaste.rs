@@ -10,7 +10,7 @@
 KeywordAction(
     name: "faceAVillainousChoice",
     params: [Instruction, Instruction],
-    spelling: "face a villainous choice",
+    spelling: "face a villainous choice — <Param(0)>, or <Param(1)>",
     grammar: Verb(
         bare: "face a villainous choice",
         third_person: "faces a villainous choice",

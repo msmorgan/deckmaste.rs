@@ -7,7 +7,7 @@
 KeywordAction(
     name: "create",
     params: [Amount, TokenSpec],
-    spelling: "create",
+    spelling: "create <Param(0):word> <Param(1)>",
     grammar: Verb(
         bare: "create",
         frame_set: Transitive,

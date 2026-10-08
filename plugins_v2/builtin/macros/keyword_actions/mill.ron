@@ -4,7 +4,7 @@
 KeywordAction(
     name: "mill",
     params: [Amount],
-    spelling: "mill",
+    spelling: "mill <Param(0):word> cards",
     grammar: Verb(
         bare: "mill",
         frame_set: Transitive,

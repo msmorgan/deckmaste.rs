@@ -5,7 +5,7 @@
 KeywordAction(
     name: "search",
     params: [SearchScope, Quantity, Quality],
-    spelling: "search",
+    spelling: "search <Param(0)> for <Param(1)> <Param(2)>",
     grammar: Verb(
         bare: "search",
         third_person: "searches",

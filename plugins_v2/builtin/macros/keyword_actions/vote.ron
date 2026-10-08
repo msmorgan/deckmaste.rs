@@ -5,7 +5,7 @@
 KeywordAction(
     name: "vote",
     params: [Disclosure, Ballot],
-    spelling: "vote",
+    spelling: "<Param(0)> vote for <Param(1)>",
     grammar: Verb(
         bare: "vote",
         frame_set: Custom(

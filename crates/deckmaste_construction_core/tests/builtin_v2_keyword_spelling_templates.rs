@@ -19,16 +19,7 @@ use deckmaste_construction_core::macro_def::read_builtin_v2;
 /// slot. Their spelling stays the bare head until a ruling writes the
 /// template: ticket `builtin-v2-keyword-spelling-templates-residue` names
 /// each one's blocker and the decisions owed.
-const PENDING_RULING: &[&str] = &[
-    "behold",
-    "create",
-    "faceAVillainousChoice",
-    "fight",
-    "meld",
-    "mill",
-    "search",
-    "vote",
-];
+const PENDING_RULING: &[&str] = &["fight"];
 
 const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("activate", "activate"),
@@ -37,7 +28,7 @@ const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("amass", "amass <Param(0):plural> <Param(1)>"),
     ("assemble", "assemble"),
     ("attach", "attach <Param(0)> to <Param(1)>"),
-    ("behold", "behold"),
+    ("behold", "behold a <Param(0)>"),
     ("blight", "blight <Param(0)>"),
     ("bolster", "bolster <Param(0)>"),
     ("cast", "cast"),
@@ -48,7 +39,7 @@ const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("conniveN", "connive <Param(0)>"),
     ("convert", "convert <Param(0)>"),
     ("counter", "counter <Param(0)>"),
-    ("create", "create"),
+    ("create", "create <Param(0):word> <Param(1)>"),
     ("destroy", "destroy <Param(0)>"),
     ("detain", "detain <Param(0)>"),
     ("discard", "discard <Param(0)>"),
@@ -60,7 +51,10 @@ const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("exert", "exert <Param(0)>"),
     ("exile", "exile <Param(0)>"),
     ("explore", "explore"),
-    ("faceAVillainousChoice", "face a villainous choice"),
+    (
+        "faceAVillainousChoice",
+        "face a villainous choice — <Param(0)>, or <Param(1)>",
+    ),
     ("fateseal", "fateseal <Param(0)>"),
     ("fight", "fight"),
     ("forage", "forage"),
@@ -72,8 +66,8 @@ const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("learn", "learn"),
     ("manifest", "manifest"),
     ("manifestDread", "manifest dread"),
-    ("meld", "meld"),
-    ("mill", "mill"),
+    ("meld", "meld <Param(0)> into <Param(1)>"),
+    ("mill", "mill <Param(0):word> cards"),
     ("monstrosity", "monstrosity <Param(0)>"),
     ("play", "play"),
     ("populate", "populate"),
@@ -83,7 +77,7 @@ const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("reveal", "reveal <Param(0)>"),
     ("sacrifice", "sacrifice <Param(0)>"),
     ("scry", "scry <Param(0)>"),
-    ("search", "search"),
+    ("search", "search <Param(0)> for <Param(1)> <Param(2)>"),
     ("shuffle", "shuffle"),
     ("support", "support"),
     ("surveil", "surveil <Param(0)>"),
@@ -95,7 +89,7 @@ const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("triple", "triple"),
     ("untap", "untap <Param(0)>"),
     ("ventureIntoTheDungeon", "venture into the dungeon"),
-    ("vote", "vote"),
+    ("vote", "<Param(0)> vote for <Param(1)>"),
     ("waterbend", "waterbend"),
 ];
 

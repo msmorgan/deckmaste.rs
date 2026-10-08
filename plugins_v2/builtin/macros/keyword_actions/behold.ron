@@ -5,7 +5,7 @@
 KeywordAction(
     name: "behold",
     params: [Quality],
-    spelling: "behold",
+    spelling: "behold a <Param(0)>",
     grammar: Verb(
         bare: "behold",
         // No Oracle or Comprehensive Rules occurrence of "beholds" was found in the 2026-08-18 morphology audit.
