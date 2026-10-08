@@ -1,0 +1,22 @@
+// "Exile the top card of your library. During your next turn, you may play that
+// card. / Storm" The permission lasts from the beginning to the end of your next
+// turn.
+SingleFaced(face: (
+    characteristics: (
+        name: "Galvanic Relay",
+        cost: [2, Red],
+        types: [Sorcery],
+        text: [
+            spell(
+                sequentially([
+                    exile(slice(Top, 1, library(you))),
+                    establish(
+                        mayPlayDeed(play, you, it, Play(None, None, None, false, ItsOwnCost)),
+                        duringNextTurnOf(you),
+                    ),
+                ]),
+            ),
+            storm,
+        ],
+    ),
+))

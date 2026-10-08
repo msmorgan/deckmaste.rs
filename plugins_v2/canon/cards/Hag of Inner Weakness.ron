@@ -1,0 +1,19 @@
+// "At the beginning of your upkeep, target creature an opponent controls gets
+// -2/-1 until your next turn." The duration ends at the beginning of your next
+// turn.
+SingleFaced(face: (
+    characteristics: (
+        name: "Hag of Inner Weakness",
+        cost: [2, Black],
+        types: [Creature],
+        subtypes: [hag, warlock],
+        power: 2,
+        toughness: 2,
+        text: [
+            triggered(
+                beginningOfYour(upkeep),
+                gets(target(and([creature, controlledBy(anOpponent)])), down(2), down(1), untilYourNextTurn),
+            ),
+        ],
+    ),
+))

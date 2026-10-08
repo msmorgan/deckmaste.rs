@@ -1,0 +1,12 @@
+// "Sneak {U} / Draw two cards." [CR#702.190a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Donatello's Technique",
+        cost: [2, Blue],
+        types: [Sorcery],
+        text: [
+            sneak(mana([Blue])),
+            spell(draw(2)),
+        ],
+    ),
+))

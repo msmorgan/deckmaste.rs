@@ -1,0 +1,21 @@
+// "Discard your hand, Sacrifice this artifact: Add three mana of any one color.
+// Activate only as an instant." A mana ability may be activated without
+// priority [CR#117.1d], so "only as an instant" is `onlyIf(hasPriority(you))`
+// [CR#117.1a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Lion's Eye Diamond",
+        cost: [0],
+        types: [Artifact],
+        text: [
+            activatedOnlyDuring(
+                cost: compound([
+                    perform(discard(described(determiner: All, predicate: cardIn(yourHand)))),
+                    perform(sacrifice(this)),
+                ]),
+                instruction: addMana(3, AnyColor(SameColor)),
+                timing: asInstant,
+            ),
+        ],
+    ),
+))
