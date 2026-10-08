@@ -11,8 +11,8 @@ additional-cost keywords) [CR#702.174b]. The instant-or-sorcery half may be a sp
 [CR#113.3a]. Each half is checked as a term on every card, with no class context; against the
 card's class only the half its guard names is checked.
 
-No registry row declares a spell ability in its definition until gift or ascend is bodied, so the
-definition-fit pins hold a row written here, shaped as gift's will be.
+The definition-fit pins hold a row written here, shaped as gift's, from before gift was bodied;
+`Proofs/GiftVariants.lean` checks gift's variants against the registry's own row.
 -/
 
 open Semantics Semantics.Macros

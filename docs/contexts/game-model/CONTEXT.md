@@ -176,7 +176,11 @@ meaning ([CR#702.1]). One keyword name may represent multiple component
 Abilities. A Keyword Ability is named by its declaration's name (`flying`,
 `firstStrike`), never by the phrase a card prints ("first strike"): a card writes
 that name bare wherever a keyword is wanted, and a name no declaration gives is
-refused when the card loads.
+refused when the card loads. Where the printed keyword fixes part of its meaning
+in its own words, each printed form is a declaration of its own that carries the
+keyword's name: "Gift a card" is `giftACard`, which is gift with the effect "the
+chosen player draws a card" ([CR#702.174a,702.174e]). Bare `gift` writes no
+spelling, so no card line reads as it.
 
 **Intrinsic Ability**:
 An Ability that the CR itself calls intrinsic, notably the mana Ability an

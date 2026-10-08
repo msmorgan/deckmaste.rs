@@ -733,9 +733,10 @@ additional-cost keywords share one mechanism"); there is no selector device.
   checks the parts guarded by that class and skips the parts guarded by the
   other one, which never apply to the card. Unguarded parts are not checked
   against the class, as before.
-- Pins: `Semantics/Proofs/KeywordByCardClass.lean`. No row declares `.spell`
-  until gift or ascend is bodied, so the definition-fit pins hold a
-  gift-shaped row of their own.
+- Pins: `Semantics/Proofs/KeywordByCardClass.lean`, whose definition-fit pins
+  hold a gift-shaped row of their own (written before gift was bodied), and
+  `Semantics/Proofs/GiftVariants.lean`, which checks gift's spelled variants
+  against the registry's own gift row on both card classes.
 
 ### Each component of a keyword definition carries its own regime
 

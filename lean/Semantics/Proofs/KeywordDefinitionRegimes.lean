@@ -11,8 +11,9 @@ is exempt. Kicker is the one-component case [CR#702.33a]. Offspring and squad ad
 trigger [CR#702.175a,702.157a], casualty a cast trigger [CR#702.153a], and gift an enters trigger
 on a permanent and a spell ability on an instant or sorcery [CR#702.174a,702.174b].
 
-Offspring, squad, casualty and gift declare no definition yet, so their pins hold rows written
-here, shaped as theirs will be. The effects are stand-ins: the law reads each component's form,
+Offspring, squad and casualty declare no definition yet, so their pins hold rows written here,
+shaped as theirs will be; gift's row here predates its definition, which
+`Proofs/GiftVariants.lean` checks against the registry's own row. The effects are stand-ins: the law reads each component's form,
 not what it does.
 -/
 

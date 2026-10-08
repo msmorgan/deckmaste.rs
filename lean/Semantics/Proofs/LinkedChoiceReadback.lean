@@ -16,8 +16,8 @@ The facet resolves where the named cost chooses a player when it is paid (the ke
 which is a reference refusal [CR#607.2d]. A bare "the chosen player" with no choice in its own
 ability is still refused: it does not reach across to a cost.
 
-No registry row declares gift's definition until gift is bodied, so the definition-fit pins hold
-a row written here, shaped as gift's will be.
+The definition-fit pins hold a row written here, shaped as gift's, from before gift was bodied;
+`Proofs/GiftVariants.lean` checks gift's variants against the registry's own row.
 -/
 
 open Semantics Semantics.Macros
