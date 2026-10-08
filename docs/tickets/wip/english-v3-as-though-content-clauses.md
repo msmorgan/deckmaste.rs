@@ -101,8 +101,76 @@ cite check). Deltas:
 
 ## Landing record
 
-In addition to the standard record: the compound-preposition analysis chosen,
-the Adjunct attachment, the tense/irrealis handling (declared features);
-whether *as if* is attested and added; Reading counts of each witness;
-before/after counts stamped with change ids; timings as integer ns and ns/B
-with host load and worker count.
+1. **Census delta.** Original claim parent `twlvltlw` has the same consumed
+   sources as `zpmurnquqlpkunplvxmymyztmkxlxypw`: **23,005 covered faces /
+   1,131,832 Readings**. Refresh imported `ttztmuyr` (census
+   `wuvkkwmvzsmrokrvssqrltwuzmovqkkz`: **23,117 / 1,144,241**).
+   Finished census `molmsvrpymrqkyqtnpyutyutupxxnnnv`: **23,249 / 1,196,031**,
+   with **132 feature gains** and **112 inherited trunk gains**. Lost faces:
+   **none**. Removed Readings and changed digests on previously covered faces:
+   **none**, against both parents. All **32,828 faces** completed; every
+   enumerated Reading passed exact roundtrip and identity validation, with
+   zero issues, duplicates, cycles, limits or internal failures. Evidence:
+   `target/english-v3/english-v3-as-though-content-clauses/after.json`,
+   `claim-parent-comparison.json`, `feature-comparison.json` and
+   `full-validation.json`. The census is the one full run; iterations used
+   selectors.
+
+2. **Witnesses.** At the finished census above: Vedalken Orrery **3**,
+   High Fae Trickster **3**, Blur of Heroism **3**, Mirror Wall **8**, and
+   Ruxa, Patient Professor **160** full-face Readings. The isolated Ruxa
+   witness has **20** at `tvknqzwq`; Quicken's modal-passive witness has
+   **24**. Cloudspire Captain remains unread, as scoped. The compound
+   preposition takes a finite content-clause Complement; its PP is a final
+   manner Adjunct at clause/VP level. Ordinary modal preterites retain their
+   declared forms without matrix-tense agreement; singular *were/weren't*
+   has declared finite, non-tensed `Irrealis` forms. CGEL Ch. 13 §5.5,
+   pp. 1151–1152 supports the compound analysis and these forms; the final
+   Oracle attachment and lexical licences are project requirements, not a
+   claim that CGEL excludes other functions. *As if* is unattested and was
+   not added. The superseded standalone *though* lexeme and compound licence
+   on *as* are retired. Shared productions remain reachable for other heads.
+
+3. **Spot checks.** Ten newly covered faces, checked in `spotchecks.json`
+   and unchanged by refresh: Vedalken Orrery, High Fae Trickster and Blur of
+   Heroism — compound PP with *they had flash* finite content Complement;
+   Mirror Wall and Bristlepack Sentry — compound PP with *it didn't have
+   defender* finite content Complement; Quicken — compound PP with *it had
+   flash* under a modal-passive predicate; Ruxa, Patient Professor,
+   Indomitable Might and Deathcoil Wurm — compound PP with *it weren't
+   blocked* irrealis content Complement; Mezzio Mugger — compound PP with
+   *it were mana of any color* irrealis content Complement. Each selected
+   Reading attaches the PP as a final manner Adjunct, using one lexical
+   *as though* head, without a separate concessive or relative analysis.
+
+4. **Deviations and STOPs.** Added `IrrealisClause` and
+   `IrrealisClauseComplementPreposition`, two categories, two additional instances of existing
+   schemas and a typed lexical form, to represent irrealis without false past-tense or
+   plural agreement. Reused existing predicate/auxiliary schemas; added no
+   lexical frames. Ten integration tests include an independently constructed
+   value, admission/realization/parse equality, traversal and leaf identity,
+   licence removal, negative distributions and the extra Quicken witness.
+   The existing existential concord test exposed overgeneration from the new
+   form; a general tensed-form requirement fixes it without changing that
+   test. Refresh required the two new matrix-complement PP exports. Defined
+   glossary gaps: Content Clause, Irrealis, Irrealis Clause and Irrealis Clause
+   Complement, with verified CGEL references. No word-naming guards were
+   introduced. **STOP pending:** refresh imported the 2026-10-08 six-item
+   record ruling, while this ticket still asks for ns/B and host-load prose.
+   The format question was reported to the user; telemetry is preserved in
+   `timing.json` pending that ruling.
+
+5. **Tests.** At the finished source tree: `cargo test -p
+   deckmaste_english_v3` passes **472 tests**, and `cargo test -p
+   deckmaste_lexical_source` passes **57 tests**. Both corresponding
+   `cargo clippy -p <crate> --tests -- -D warnings` commands pass. Refreshed
+   grammar/lexicon checks are recorded in `refreshed-checks.json`; formatting
+   passes. Assurance for this feature: restored **0**, re-spelled **0**,
+   ignored **0**, added **10**, removed **0**. No xtask tests or Lean checks
+   ran. Existing regression tests were retained and fixed in code. Citation
+   checking reports zero stale citations and no noncompliant sites.
+
+6. **Timing.** Full census at `molmsvrpymrqkyqtnpyutyutupxxnnnv`
+   (**23,249 covered faces**): **128,340,373,360 ns**, **12 workers**.
+   Integer setup, command-wall, thread-CPU and host-load telemetry remains
+   in `timing.json`; the census record is a full run without incremental reuse.
