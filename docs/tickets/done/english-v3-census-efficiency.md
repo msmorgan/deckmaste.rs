@@ -105,12 +105,13 @@ Implemented as A (`woulmsvmqqkpwlqkprtpqympovupzqtv`), B (`mtyqtmtz`),
 and C (`uxoypzxwqxvnyoxyqltqrnqxvkuwvtns`). A takes only the census-memory
 part of the archived `prkrlprq` reference, not its licence neutralization.
 `declarations.rs`, `core.ron`, `verbs.ron`, and `vocabulary.rs` remain
-byte-identical to the claim baseline. No Construction, schema, lexical frame,
-Lexeme or Word Form was added or removed.
+byte-identical to the claim baseline. A/B/C add or remove no Construction, schema, lexical frame,
+Lexeme or Word Form; the imported connive delta is recorded below.
 
 The user's 2026-10-07 instruction replaces the ticket's 4/12-worker measurement
 request with **6 workers** and limits full corpus runs to the identity proofs.
-There are three full enumerations: A before, A after, and final C authority.
+There are four full enumerations: A before, A after, C before the final
+refresh, and the refreshed-tree D authority needed after the connive import.
 All evidence, temporary fixtures and measurement helpers are in the workspace's
 ignored `target/english-v3/census-efficiency/`; none is tracked. Commands below
 use that directory as `E` for brevity. Each full enumeration uses
@@ -142,7 +143,7 @@ Both A corpora have complete enumeration on all faces, zero issues, zero interna
 failures, zero cycles and zero duplicate-Reading reports. Independent
 construction/realization families in the package gate preserve the second
 roundtrip law; the corpus alone is not an exhaustive proof over constructed
-values. Final C repeats this face-by-face comparison against A after: all 32,828
+values. C before the final refresh repeats this face-by-face comparison against A after: all 32,828
 identities and their checked/exact counts and inventories match, every face has
 a complete 64-character Readings digest, and issues remain zero. Evidence:
 `E/c-identity-proof.json` and `E/c-full.json`.
@@ -226,7 +227,7 @@ adds no ignored tests.
 A before/after stamps are `woulmsvmqqkpwlqkprtpqympovupzqtv`, covered **21,074**;
 "before" is that change's initial baseline tree, and "after" its implemented A
 tree. `E/before-sources.json`, the copied baseline executable, the archived
-reference diff, and the identity proof distinguish those snapshots. Final C
+reference diff, and the identity proof distinguish those snapshots. C before the final refresh
 stamp is `qnsqxnqkpvlrnxnslzzrvzouzouvspzo`, covered **21,074**. These are
 v3 census covered counts; v3 has no legacy lock `covered` field.
 
@@ -234,7 +235,7 @@ v3 census covered counts; v3 has no legacy lock `covered` field.
 |---|---:|---:|---:|---:|---|
 | A baseline | 10,291,988 | 150,344,832,286 | 154,188,731,176 | 295,374 | 6.56591796875 / 12.39306640625 / 10.97705078125 |
 | A bounded/digest | 9,935,008 | 162,209,504,921 | 166,483,046,942 | 341,639 | 18.625 / 17.1298828125 / 16.0068359375 |
-| Final C | 9,383,388 | 156,266,330,688 | 161,077,166,926 | 339,266 | 21.37158203125 / 17.38818359375 / 14.9609375 |
+| C before final refresh | 9,383,388 | 156,266,330,688 | 161,077,166,926 | 339,266 | 21.37158203125 / 17.38818359375 / 14.9609375 |
 
 A reduces peak RSS by 356,980 kB (about 3.5%) on this baseline. Higher-load
 wall time does not demonstrate a speedup. Each corpus exceeds the
@@ -252,7 +253,7 @@ Named inventories with every spelling and its identities are in
 No inventory member changed. Declaration counts are unchanged: **205 ordinary
 Constructions + 45 shared schemas = 250**, **697 compiled productions**,
 **3,328 nonblank declaration lines**. All inventory/count figures share the A
-and final C stamps and covered counts above. Zero Construction/test deletions
+and pre-refresh C stamps and covered counts above. Zero Construction/test deletions
 beyond the counts already disclosed.
 
 ### Verification and coordination
@@ -299,3 +300,86 @@ workspaces advanced. Kata preserved those snapshots and this verified tree;
 review and retry are the resolution. The refresh logs name each competing
 workspace. These are coordination retries, with no source conflict or omitted
 verification.
+
+## Refreshed-tree amendment
+
+Final refresh incorporated `plugins-v2-connive-bare-and-n` (`lwyuqtss`),
+including a new `lexeme:keyword_action/conniveN` and a changed
+`lexeme:keyword_action/connive`. It also imported facts-generation changes
+outside the census path. The first post-refresh source check detected this
+import, but its failure was not propagated before integration. That execution
+mistake is corrected here with a new full identity proof and gate on the
+refreshed tree, followed by integration of this amended record. Prior A/C
+figures above certify their recorded source snapshots, not the changed lexicon.
+
+D is stamped **`sknznupqkroutwuzmtypzzyxonswulku`, covered 21,074**.
+All **32,828** identities retain the same coverage and checked/exact Reading
+counts as C: **685,707 Readings**, **7,464 unique / 13,610 multiple / 11,754 no
+Reading**, zero undetermined. Every face is complete with a digest and zero
+issues; both traversal laws, admission/ownership and byte-exact realization
+remain enforced. There are **zero lost or newly covered identities**.
+
+The digest detects three changed Reading sets despite equal counts:
+
+| Face | Before / after Readings | Current lexical analysis |
+|---|---:|---|
+| Mask of the Schemer | 15 / 15 | Connive with an Amount complement from `lexeme:keyword_action/conniveN` |
+| Spymaster's Vault | 8 / 8 | Connive with an Amount complement from `lexeme:keyword_action/conniveN` |
+| Raffine, Scheming Seer | 1 / 1 | Connive with an Amount complement from `lexeme:keyword_action/conniveN` |
+
+These are attributed to the imported declaration split, not A/B/C. The full
+named identity/digest/source list is `E/d-import-identity-proof.json`; the
+Lexeme and source deltas are `E/imported-lexeme-delta.json` and
+`E/refresh-source-proof.json`. Complete enumeration of these three faces with one retained sample each
+confirms the `conniveN` lexical identity in every sample, and their digests
+match D (`E/d-connive-analyses.json`, `E/d-analysis-proof.json`).
+
+| Refreshed authority (6 workers) | Peak RSS (kB) | Corpus wall (ns) | Process wall (ns) | Checked-text thread CPU (ns/B) | Host load (1/5/15 min) |
+|---|---:|---:|---:|---:|---|
+| D | 10,403,684 | 255,314,203,625 | 263,517,215,902 | 439,930 | 15.27001953125 / 14.8515625 / 16.4443359375 |
+
+D also exceeds the **16,260,000,000 ns** quiet-host advisory ceiling. It ran
+with concurrent compiler work; it is not a speed comparison against A or C.
+New lexical SHA-256:
+`e5631fb2b39207a47675b51a4ca24125c9012e7509e8eccce76341df421812f1`.
+On that D stamp, `E/inventory-refreshed.json` has **38,374 spellings**,
+**1,136 exact homographs**, **1,091 case-folded homographs**, **zero
+form-literal/vocabulary overlaps**, **23 form literals** and **697 compiled
+productions**. Declarations remain **205 + 45 = 250**, **3,328 nonblank lines**.
+Exact homograph additions: `Connived`, `Connives`, `Conniving`, `connive`,
+`connived`, `connives`, `conniving`. Case-folded additions: `connived`,
+`connives`, `conniving`. No spelling, form literal or overlap member is lost.
+The full named inventories retain each spelling's lexical identities.
+
+The same derived reverse-dependency test and Clippy commands are rerun on
+the refreshed tree by `cargo xtask gate --changed --from nkrmyrou --run --clippy`.
+It exits **0**: **834 tests passed, zero failed**, the same one pre-existing
+ignored test, and Clippy passes with `-D warnings`
+(`E/gate-refreshed.log`). Citation checks report zero noncompliant strings and
+**16,156 citations / zero stale** (`E/cite-refreshed*.log`).
+No test or assertion is weakened to accommodate the import. A/B/C still add
+8 unit tests and remove/ignore none. This amendment adds no Construction,
+Lexeme, test, fixture, licensing guard or glossary term.
+
+The last refresh imports `uolxmkns` (derived-gate removal) and `mnvpxwqs`
+(per-crate test contract). The only runtime-source deltas from D are deletion
+of `gate.rs` and removal of its module/CLI command and dedicated tests. The
+English CLI branch, census/grammar/compiler/lexical sources, all data and every
+Lexeme state match D. The direct test and Clippy commands above already ran
+for all four affected packages; `--all-targets` includes their tests. Preserve
+those results under the updated per-crate contract rather than rebuilding to
+retest an unchanged census. The 834 count is stamped before the gate's test
+subjects were retired by that separate landing; A/B/C remove no test. Evidence:
+`E/amendment-refresh-source-proof.json` and `E/amendment-current.json`.
+
+A subsequent integration retry refreshed in `builtin-v2-keyword-spelling-templates`
+(`sxppvxpn`). Its reader and corpus changes are representation-only for this
+census: rebuilding xtask succeeds, the **complete Lexeme snapshot** and lexical
+inventory hash equal D, and fresh full enumeration of the three connive faces
+matches every D payload field except timing. Preserve D's full corpus proof;
+do not spend another full enumeration on an unchanged lexical inventory. The
+owner reports 463 construction-core, 56 lexical-source, 96 semantics-v2 and 366
+English-v3 tests passed, plus construction-core/lexical-source Clippy and the
+plugin Lean checks. No census/compiler-v3/declaration/validation/digest code
+changed. Evidence: `E/current-reader-build.log`, `E/template-current.json`,
+`E/template-source-proof.json`; the owner's completed ticket records its tests.
