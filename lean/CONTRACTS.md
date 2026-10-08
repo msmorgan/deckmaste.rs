@@ -26,9 +26,16 @@ and card types. The timing and window bucket's 10 refusals are retired
 the possessor of a turn part, an added turn part and its anchor, a "while" event,
 the event that ends a duration, a usage limit, the event a replacement or a
 trigger multiplier watches, a held clause, a nested "instead" and a chapter
-ability's header no longer demand when the game can do what they say. For the
-cost and game-rule buckets, until their sweep lands the sections below still
-describe what the checker does. Zone state on bindings stays, because references resolve
+ability's header no longer demand when the game can do what they say. The cost
+and deontic bucket is retired (`lean-checker-sweep-costs`, 2026-10-08): 14 of
+its 15 refusals go, so the checker no longer asks who pays a cost, whether a
+symbol or an instruction can be a cost, whether modes are costed alike, or which
+deeds a permission, a bound, an "as though" or a play rider goes with; an empty
+mana run is refused as an empty list (`nonEmpty`), a term shape. The fifteenth,
+`deonticPatientOk`, stays narrowed to references and kinds: a counterpart is not
+the subject read back, is of a kind the deed's other role takes, and a
+complement names one of the rule's deeds once. For the game-rule bucket, until
+its sweep lands the sections below still describe what the checker does. Zone state on bindings stays, because references resolve
 on it. On the question of
 scope this supersedes "rules correctness" in the paragraph above; the rest of
 that paragraph stands.
@@ -273,11 +280,13 @@ default, and the deed is refused. An event's performer is written in the same
 kind (`deedAgentKind`): "whenever a creature you control explores".
 
 Rules that ask whether a phrase is the controller read `actor` in its handoff:
-`actorView` and `isYouIn` for the payer, self-exchange and opponent's-library
-checks; `Cost.paidByYouAs` for cost payers, where a handoff inside
-`Cost.perform` makes its body that player's payment. A cost may hand its
-instruction to another player (`costActionOk`), and its handoff twin gave the
-same refusals as the explicit-agent spelling while that existed. The actor is
+`actorView` and `isYouIn` for the self-exchange and opponent's-library checks.
+A cost may hand its instruction to another player, and its handoff twin gave the
+same refusals as the explicit-agent spelling while that existed. Who pays a cost
+(the retired `payAgrees`, `costPaidByYou` and `keywordCostPaidByYou`) is not
+checked (`lean-checker-sweep-costs`); the `Proofs/Actor.lean` pins that asserted
+those refusals now read the payer's handoff through `isYouIn` in the context
+the checker builds (`actorCtx`, `ownPerformerCtx`, `captureBindings`). The actor is
 singular, so an `enact`, an `offer` or a choice with no group handed to it takes
 its one-player path; distribution belongs to the handoff. `sameKnownZone` does not equate two
 `actor` zones, since nested handoffs can name different players.
@@ -534,8 +543,8 @@ by exact-refusal theorems; it is not an authorable term.
 | `CounterKindSource` | `CounterKindSource.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `CostShift` | `CostShift.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `CountBound` | `CountBound.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
-| `DeedComplement` | `DeonticPatient.check` checks each counterpart; `deonticPatientOk` checks its deed membership, role and relation to the subject. |
-| `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. `deonticPatientOk` and `deonticRiderOk` at `StaticSpec.deonticRule` enforce their actual relationships; child phrases use `DeonticPatient.check`. |
+| `DeedComplement` | `DeonticPatient.check` checks each counterpart; `deonticPatientOk` checks its deed membership, its kind against the deed's other role, and that it is not the subject read back. |
+| `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. `deonticPatientOk` at `StaticSpec.deonticRule` checks a counterpart's kind and that it is not the subject read back; which deeds a patient form, a bound, an "as though" or a play rider goes with, and a counterpart's class, card types and zone, are not checked (`lean-checker-sweep-costs`). Child phrases use `DeonticPatient.check`. |
 | `DamageScope` | `DamageScope.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageAgent` | `DamageAgent.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Unpreventable` | `Unpreventable.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
@@ -569,7 +578,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `AbilityAt` | `Ability.check` dispatches each ability constructor, its expected phrase kinds, and its explicit local contexts. |
 | `StaticParts` | The actual list supplies length; `conjunction` checks nonemptiness and `checkParts` checks noncoordination and threads `StaticSpec.intro`. |
 | `CostSeq` | The actual list supplies length; `Cost.compound` checks nonemptiness and `Cost.checkSeq` threads `Cost.intro`. |
-| `AddedPayment` | `StaticSpec.addedCost` requires `Cost.offBattlefield`. |
+| `AddedPayment` | Retired by `lean-checker-sweep-costs` (§7 charter ruling 2026-10-06): `StaticSpec.addedCost` and an alternative cost no longer require `Cost.offBattlefield`; the card-class rule (`classAbilityOk`) still reads it. |
 | `AbilitySeq` | `Ability.checkText` threads the choices and letters introduced by earlier lines; nested ability lists use `Ability.checkAll` at their enclosing context. |
 
 ### Events
