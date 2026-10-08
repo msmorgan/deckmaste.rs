@@ -954,11 +954,12 @@ mod tests {
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             path,
-            // The body's cost hole stays a cost: a declaration whose body no
-            // longer fits its signature has no invocation to read.
+            // The body's cost hole is filled with a cost: a declaration whose
+            // body no longer fits its signature has no invocation to read. The
+            // spelling's `<Param(0)>` hole stays, now an amount.
             source
                 .replace("params: [Cost]", "params:\n        [Amount]")
-                .replace("Param(0)", "tapSymbol"),
+                .replace(", Param(0))", ", tapSymbol)"),
         )
         .unwrap();
         let generated = render(temp.path()).unwrap();
