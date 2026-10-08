@@ -563,3 +563,8 @@ tests. `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source --tests
 their consumed grammar/lexicon. `checks.json`, `refreshed-checks.json` and their
 logs retain outcomes and integer command-wall timings. Changed Rust files are
 formatted. No xtask tests or Lean checks ran.
+
+Final refresh imports the ticket-only change `mryyrmzl`; all 1,697 measured
+source hashes remain byte-identical (`final-refresh-proof.json`). No grammar
+or lexicon changed, so the stamped census and verification remain applicable.
+No post-refresh census ran.
