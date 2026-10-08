@@ -153,7 +153,9 @@ _Avoid_: Static Effect
 **Ability Category**:
 Which of the four general kinds an Ability is: Spell Ability, Activated
 Ability, Triggered Ability, or Static Ability ([CR#113.3]). A Keyword Ability's
-definition is written in one of the latter three.
+definition is written in the latter three, and in a Spell Ability where the
+keyword represents one on an instant or sorcery Spell, guarded by that Card
+Class ([CR#702.131a,702.174b]).
 _Avoid_: Ability Class, which names the families a grant or a removal selects
 
 **Keyword Ability**:
@@ -405,6 +407,14 @@ _Avoid_: defining Combatant as a Permanent that currently may attack or block
 **Card Form** (project term):
 The structural arrangement by which a physical card supplies Card Faces and,
 where applicable, Alternative Characteristics.
+
+**Card Class** (project term):
+Whether a card is a Permanent Card or an instant or sorcery card, by its Card
+Types ([CR#110.4,110.4a]). A Keyword Ability that represents different
+abilities "on a permanent" and "on an instant or sorcery spell"
+([CR#702.55a,702.131a,702.131b,702.174b]) guards each half of its one
+definition by the Card Class the half applies to.
+_Avoid_: Ability Category, which sorts abilities, not cards
 
 **Object Class** (project term):
 One of the overlapping ways [CR#109.1] classifies an Object, such as Card,

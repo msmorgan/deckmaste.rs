@@ -122,3 +122,87 @@ model gaps are `semantics-v2-linked-choice-readback` (the chosen player) and
   the new category.
 - Pins: a gift permanent and a gift instant each accepted. Each guarded half
   is checked on both card classes. Ascend is re-checked once it is bodied.
+
+## Landing record
+
+Measured on change `kqnwnynmsqqo` (tip of the claim after `kata refresh`,
+2026-10-07). No English grammar, lexicon or corpus input changed, so the lock
+`covered` count and construction count are not moved by this landing and were
+not re-measured; the lexicon export (`cargo xtask lexical --card-name "Black
+Lotus" --export`) is byte-identical with and without this landing's plugin
+change on the refreshed tree.
+
+### PROVE
+
+- **No silent loss.** Every pin and card that checked before still checks:
+  `lake build --wfail` (85 jobs, all existing `Proofs/*` unchanged and green);
+  `cargo xtask lean check` canon 134/134, testing 7/7; `cargo xtask lean
+  definitions` 553/553 (73 counters, 461 subtypes, 19 designations). No
+  identity stopped being covered.
+- **Structural laws.** `cargo xtask facts check`: `Facts.lean` and
+  `FactsGen.idr` up to date (no row changes: no declaration body holds a spell
+  ability yet). `cargo xtask expansions` `diff -r` before/after: identical.
+  Rust/Lean mirror drift test green.
+- **No word-naming.** The class guard reads declared features only
+  (`CardType.permanent`, `CardType.isInstantOrSorcery` over `.hasType`); no
+  guard names a keyword, card or lexeme.
+
+### DISCLOSE
+
+- **The device, as decided (option 1).** `AbilityCategory.spell` [CR#113.3a];
+  `Ability.category` reads `.spell`; `Ability.classGuard` reads a part's
+  guard from the existing conditional forms (`doIf` with no otherwise-branch,
+  a trigger's intervening condition, a non-`unless` conditional static) whose
+  condition is `.matches .this p`, `p` implying a Card Class
+  (`Predicate.impliedClass`). No new syntax constructor, so no Rust syntax
+  mirror change and no RON helper: a card writes
+  `doIf(matches(this, instantOrSorcery), …)` / `matches(this, permanentCard)`
+  with the existing helpers. The ticket names no `onPermanent`/`onSpell`
+  helper, so none was added.
+- **Definition fit** (`KeywordFacts.bodyPartFits`, per part, row-parametric so
+  `lean-keyword-definition-regimes` can add a per-part regime): a guard must
+  name a class the row admits; a spell part on a keyword that also appears on
+  permanents must be under the instant-or-sorcery guard. Neither is a new
+  game-rule refusal: the second narrows today's blanket refusal of every spell
+  part, and the first is a reference/term-shape check against the row
+  (charter, §7 2026-10-06).
+- **Per-class law** (`classAbilityOk`): now descends into a keyword's
+  definition and checks each part guarded by the card's own class, skipping
+  parts guarded by the other class. Unguarded parts are not checked against the
+  class, as before, so no existing outcome moves. Each half is still checked as
+  a term on every card with no class context (`Ability.checkAll [] body`), as
+  the ticket's decision says.
+- **Deviations and additions.** `CardClass` moved from `Check/Card.lean` to
+  `Check/Keywords.lean` (needed below `Check/Abilities.lean`; not in
+  `FactTypes.lean`, which the drift test mirrors). Added
+  `Proofs/KeywordByCardClass.lean` (10 pins). The definition-fit pins use a
+  gift-shaped row written in the pin file, because no generated row declares
+  `.spell` until gift or ascend is bodied; the card-class pins use the real
+  `gift` and `flying` rows. Added xtask test
+  `a_class_guarded_spell_ability_declares_the_spell_category`. The `ascend.ron`
+  STOP comment was updated (comment only). No testing-plugin card was added:
+  `Card.check` on a gift card cannot pass until gift's row declares `.spell`.
+- **Glossary.** Added **Card Class** (game-model) and amended **Ability
+  Category**'s keyword sentence. `lean/CONTRACTS.md` gains "A keyword
+  definition split by card class".
+- **STOPs.** None.
+
+### Assurance counts
+
+Restored 0, re-spelled 0, ignored 0, added 11 (10 Lean pins, 1 xtask test),
+removed 0.
+
+### Tests
+
+`cargo test -p deckmaste_semantics_v2` (all suites green) and `cargo test -p
+xtask` (371 passed, 1 ignored as before; plus 4 and 14 in the other suites);
+`cargo clippy -p deckmaste_semantics_v2 --tests -- -D warnings` and `cargo
+clippy -p xtask --tests -- -D warnings` clean; cite checks: 0 non-compliant,
+0 stale, the diff from the claim audited by hand, `bless` added nothing;
+`kata kanban check` OK.
+
+### REPORT
+
+`lean check` 108 seconds cold (under 5 seconds warm) on a loaded host (other sessions running
+corpus and test jobs); no coverage command was run, as no English input
+changed.

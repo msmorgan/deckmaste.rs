@@ -706,6 +706,38 @@ contexts. Argument lists do not publish bindings between elements. The registry
 codec still limits declaration combinations; changing that codec is outside
 this fold.
 
+### A keyword definition split by card class
+
+A keyword that means one ability on a permanent and another on an instant or
+sorcery spell [CR#702.55a,702.131a,702.131b,702.174b] writes one definition
+holding both halves, each guarded by the card's class with the ordinary
+conditional forms: a `doIf` with no otherwise-branch, a trigger's intervening
+condition, or a conditional (not `unless`) static ability, whose condition is
+`.matches .this p` with `p` implying a Card Class (`Predicate.impliedClass`:
+an instant or sorcery type implies the instant-or-sorcery class, a permanent
+type the permanent class [CR#110.4a]; `permanentCard` and `instantOrSorcery`
+are the helpers). `semantics-v2.md` §7, ruling 2026-10-06 ("Gift and the
+additional-cost keywords share one mechanism"); there is no selector device.
+
+- A spell ability [CR#113.3a] is a fourth `AbilityCategory` (`.spell`), which a
+  registry row's `definition` may declare; the facts generator reads it off a
+  `spell(…)` body part.
+- `KeywordFacts.bodyPartFits` checks each part against the row: its category
+  is declared; a class guard names a class the row admits
+  (`onPermanentCard` / `onInstantOrSorceryCard`), so a guard on a class the
+  keyword's card can never have is refused; a spell part on a keyword that
+  also appears on permanents is under the instant-or-sorcery guard; a
+  triggered part keys on the row's regime (per part, so
+  `lean-keyword-definition-regimes` can make the regime a per-part fact).
+- Each half is checked as a term on every card, with no class context
+  (`Ability.checkAll [] body`). Against the card's class, `classAbilityOk`
+  checks the parts guarded by that class and skips the parts guarded by the
+  other one, which never apply to the card. Unguarded parts are not checked
+  against the class, as before.
+- Pins: `Semantics/Proofs/KeywordByCardClass.lean`. No row declares `.spell`
+  until gift or ascend is bodied, so the definition-fit pins hold a
+  gift-shaped row of their own.
+
 
 ### Movement destinations
 

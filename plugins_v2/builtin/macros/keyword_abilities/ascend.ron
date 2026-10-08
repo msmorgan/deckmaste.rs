@@ -10,6 +10,7 @@ KeywordAbility(
     // blessing for the rest of the game." [CR#702.131b] No `StaticSpec` performs an
     // instruction when a state holds; `DeonticRider::StateBased` is the only
     // state-checked clause and its `StateBasedCause` has the single value
-    // `NonpositiveLife`. The spell form [CR#702.131a] is a spell ability, which
-    // `Ability.category` leaves categoryless and `keywordBodyFits` refuses.
+    // `NonpositiveLife`. The spell form [CR#702.131a] is a spell ability, which a
+    // definition may hold under an instant-or-sorcery class guard
+    // (`semantics-v2-keyword-definition-by-card-class`).
 )
