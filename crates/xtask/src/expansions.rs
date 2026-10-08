@@ -493,6 +493,8 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "TokenSpec" => render::<abilities::TokenSpec>,
         "CounterKindSource" => render::<abilities::CounterKindSource>,
         "CharacteristicBundle" => render::<abilities::CharacteristicBundle>,
+        "PipPaid" => render::<abilities::PipPaid>,
+        "ManaSubstitute" => render::<abilities::ManaSubstitute>,
         "Window" => render::<words::Window>,
         "ManaSymbol" => render::<words::ManaSymbol>,
         "SimpleManaSymbol" => render::<words::SimpleManaSymbol>,

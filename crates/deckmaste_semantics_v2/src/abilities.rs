@@ -11,6 +11,7 @@ use crate::events::ReplUse;
 use crate::phrase::Amount;
 use crate::phrase::Ballot;
 use crate::phrase::CaptureInput;
+use crate::phrase::ColorTerm;
 use crate::phrase::ChoiceDomain;
 use crate::phrase::Condition;
 use crate::phrase::Door;
@@ -212,6 +213,14 @@ pub enum CostShift {
         rises: bool,
         colored_only: bool,
     },
+}
+
+/// The mana one act of a Mana Substitute pays for: one generic mana, or one
+/// mana of a color [CR#702.51a,702.66a,702.126a,701.67a].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum PipPaid {
+    Generic,
+    OfColor { color: ColorTerm },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -641,6 +650,13 @@ pub enum StaticSpec {
         subject: Option<NounPhrase>,
         parts: Vec<StaticSpec>,
     },
+    /// A Mana Substitute on a spell (convoke, delve, improvise): neither an
+    /// additional nor an alternative cost, applied once the spell's total cost
+    /// is locked [CR#702.51b,702.66b,702.126b].
+    PaySubstitute {
+        subject: NounPhrase,
+        substitute: ManaSubstitute,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -754,12 +770,22 @@ pub enum Cost {
         costs: Vec<Cost>,
     },
     ItsManaCost,
-    /// Pay `cost`, tapping an untapped `tapped` permanent the payer controls
-    /// rather than paying each generic mana in that cost [CR#701.67a,701.67b].
-    TapForGeneric {
+    /// Pay `cost`, `substitute` standing in only for that cost's own generic
+    /// mana (waterbend [CR#701.67b]).
+    WithSubstitute {
         cost: Box<Cost>,
-        tapped: Predicate,
+        substitute: Box<ManaSubstitute>,
     },
+}
+
+/// "For each [generic | colored] mana in the cost, you may <action> rather
+/// than pay that mana" [CR#702.51a,702.66a,702.126a,701.67a]: the action
+/// first, then the mana each act pays, read back from the acted-on object by
+/// anaphora ("that creature's color").
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct ManaSubstitute {
+    pub action: Box<Instruction>,
+    pub pays: Vec<PipPaid>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

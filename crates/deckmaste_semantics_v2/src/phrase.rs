@@ -73,7 +73,8 @@ use macro_ron::SupportsMacros;
 use serde::Deserialize;
 use serde::Serialize;
 
-/// A color, written or "the chosen color".
+/// A color, written, "the chosen color", or an object's color ("that
+/// creature's color").
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum ColorTerm {
     /// Carries only the written colour, so a bare `Green` reads here
@@ -84,6 +85,12 @@ pub enum ColorTerm {
     },
     Chosen {
         r#ref: ChoiceRef,
+    },
+    /// The color of `object` [CR#105.2]: a Mana Substitute's colored pip
+    /// reads the acted-on object back ("mana of that creature's color"
+    /// [CR#702.51a]).
+    ColorOf {
+        object: Box<NounPhrase>,
     },
 }
 

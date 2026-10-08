@@ -78,6 +78,10 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::abilities::Cost::kind());
     kinds.add(crate::abilities::Ability::kind());
     kinds.add(crate::abilities::TokenSpec::kind());
+    // A Mana Substitute's paid pips (`generic`, `ofColor(…)`), and the
+    // substitute itself, a record the `substitute` helper builds.
+    kinds.add(crate::abilities::PipPaid::kind());
+    kinds.add(Kind::new("ManaSubstitute"));
     // `lean/Semantics/Words.lean`
     kinds.add(crate::words::Window::kind());
     // The mana injection chain (§11.1): each of these carries an
@@ -368,6 +372,9 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::words::Lookback>("Lookback");
     types.add_typed::<Vec<crate::words::ManaSymbol>>("ManaCost");
     types.add_typed::<crate::words::ManaMatch>("ManaMatch");
+    types.add_typed::<crate::abilities::ManaSubstitute>("ManaSubstitute");
+    types.add_typed::<crate::abilities::PipPaid>("PipPaid");
+    types.add_typed::<Vec<crate::abilities::PipPaid>>("PipPaids");
     types.add_typed::<u32>("Nat");
     types.add_typed::<crate::words::NounWord>("NounWord");
     types.add_typed::<crate::words::Ordinal>("Ordinal");
