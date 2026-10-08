@@ -1426,6 +1426,19 @@ semantic_macro activatedOnlyOnceIf (cost : Cost) (instruction : Instruction) (li
 [CR#702.29a] -/
 semantic_macro cyclingExpansion (cost : Cost) : Ability :=
   activated (.compound [cost, .perform (discard .this)]) (draw (.lit 1))
+/-- Flash's definition: "You may play this card any time you could cast an instant."
+[CR#702.8a] -/
+semantic_macro flashExpansion : Ability :=
+  .static (mayPlayDeed (.action "play") .you .this none
+    (.play none none (some asInstant) false .itsOwnCost))
+/-- Sneak [cost]'s definition: "Any time you could cast an instant during your declare blockers
+step, you may cast this spell by paying [cost] and returning an unblocked creature you control to
+its owner's hand rather than paying this spell's mana cost." [CR#702.190a] -/
+semantic_macro sneakExpansion (cost : Cost) : Ability :=
+  .static (mayPlayDeed (.action "cast") .you .this none
+    (.play none none (some (.and [asInstant, duringPart .declareBlockers (some .you)])) false
+      (.payingInstead (.compound [cost,
+        .perform (returnTo (a (.and [creature, unblocked, .hasPossessor .controller .you])) hand [])]))))
 /-- "Cycling [cost]" with its definition. -/
 semantic_macro cycling (cost : Cost) : Ability :=
   .keyword (.named "cycling") [.cost cost] [cyclingExpansion cost]

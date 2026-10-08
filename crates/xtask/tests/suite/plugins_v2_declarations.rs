@@ -15,9 +15,10 @@ use deckmaste_construction_core::macro_def::ParameterType;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 use deckmaste_semantics_v2::abilities::Ability;
 use deckmaste_semantics_v2::card::Card;
+use deckmaste_semantics_v2::phrase::Timing;
+use deckmaste_semantics_v2::phrase::TurnRef;
 use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::ron::param_types;
-use deckmaste_semantics_v2::triggers::Timing;
 use deckmaste_semantics_v2::words::ItalicWord;
 use deckmaste_semantics_v2::words::TurnPart;
 
@@ -350,9 +351,10 @@ fn a_turn_part_declaration_may_name_its_own_constructor() {
     };
     assert_eq!(
         timing.as_ref(),
-        Some(&Timing::DuringPart {
+        Some(&Timing::InPart {
             part: TurnPart::Upkeep,
             whose: None,
+            which: TurnRef::Current,
         }),
         "`UpkeepStep` must expand to the turn part its body names"
     );

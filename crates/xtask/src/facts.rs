@@ -337,6 +337,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Flash",
+            // Its permission to play functions in the zone the card is played
+            // from, as the card is cast [CR#702.8a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -558,6 +561,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Sneak",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.190a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,

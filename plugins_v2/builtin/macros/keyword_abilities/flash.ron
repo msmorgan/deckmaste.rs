@@ -5,8 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "flash",
     ),
-    // STOP. "Flash" means "You may play this card any time you could cast an
-    // instant." [CR#702.8a] `PlayTiming` has no value for that window; the grammar
-    // reaches it only as `AsThough::Of` over `hasKeyword "Flash"`, which cannot
-    // define flash itself.
+    // "Flash" means "You may play this card any time you could cast an instant."
+    // [CR#702.8a] Instant speed is the play rider's timing (`asInstant`).
+    body: [
+        static(mayPlayDeed(play, you, this, Play(None, None, asInstant, false, ItsOwnCost))),
+    ],
 )

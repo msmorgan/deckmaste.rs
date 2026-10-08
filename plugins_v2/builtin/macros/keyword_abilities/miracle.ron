@@ -9,8 +9,11 @@ KeywordAbility(
     // DRAW IT if it's the first card you've drawn this turn. When you reveal this
     // card this way, you may cast it by paying [cost] rather than its mana cost."
     // [CR#702.94a] The first half is a permission exercised inside the draw itself.
-    // `StaticSpec::DeonticRule` carries no timing at all — only `DeonticRider::Play`
-    // has a `PlayTiming`, and that governs playing a card, not revealing one — and
-    // writing the reveal as a `Replacement` of the draw would make miracle a
-    // replacement effect, which it is not.
+    // The window is now writable (`whileDoing` the draw, `onlyIf` it is the first
+    // card drawn `soFarThisTurn`), but a `Timing` rides only the play rider of a
+    // deontic rule, and that governs playing a card, not revealing one; no other
+    // deontic rule takes a timing (§7 ruling 2026-10-08 names the timing fields).
+    // Writing the reveal as a `Replacement` of the draw would make miracle a
+    // replacement effect, which it is not. The linked "when you reveal this card
+    // this way" trigger [CR#603.11] also needs a reveal-event `thisWay`.
 )

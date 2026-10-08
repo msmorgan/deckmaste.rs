@@ -563,4 +563,19 @@ theorem okOncePerTurn : UsageLimit.check [] oncePerTurn = [] := by decide
 theorem badNextTurnOfACreature :
     TurnRef.check [] (.next (some thisCreature)) = [.kindMismatch .player .object] := by decide
 
+/-- Flash's definition [CR#702.8a]: a play permission at instant speed. -/
+theorem okFlashExpansion : Ability.check [] flashExpansion = [] := by decide
+
+/-- Sneak {U}'s definition [CR#702.190a]: a cast permission at instant speed in your declare
+blockers step, paying {U} and returning an unblocked creature you control. -/
+theorem okSneakExpansion : Ability.check [] (sneakExpansion (.mana [pip .blue])) = [] := by decide
+
+/-- Mystic Veil: "If you cast it any time a sorcery couldn't have been cast" [CR#307.5a], the
+timing qualifier on a lookback. -/
+theorem okCastWhenASorceryCouldNotHaveBeen :
+    Condition.check []
+      (happened (.casts (relative .player) (some .this) none) .you thisGame (some (.not asSorcery)))
+      = [] := by
+  decide
+
 end Semantics.Proofs.Turn
