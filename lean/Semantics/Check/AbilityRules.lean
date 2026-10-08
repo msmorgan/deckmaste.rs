@@ -272,7 +272,7 @@ mutual
         refuse whose.plur.isOne .singular
     | .establish se span =>
       StaticSpec.check bs se ++ OptDuration.check (StaticSpec.intro bs se) span ++
-        refuse (durationOk span) .durationOk ++ refuse se.clauseOk .clauseStatic
+        refuse se.clauseOk .clauseStatic
     | .createObject count spec => let agent := performerOf perf;
       let bs' := nomIntro bs agent
       let bs'' := Amount.intro bs' count
@@ -374,13 +374,11 @@ mutual
         refuse (modesCostedUniformly modes) .modesCosted ++ Instruction.checkModes bs modes
     | .delay ev alts span body =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptDuration.check bs span ++
-        Instruction.checkWith (delayedCtx bs alts ev) none body ++ refuse (durationOk span) .durationOk
+        Instruction.checkWith (delayedCtx bs alts ev) none body
     | .replace replaced repl =>
-      Instruction.checkWith bs none replaced ++ Instruction.checkWith (replaced.replacedCtx bs) none repl ++
-        refuse (!replaced.isInstead) .notInstead ++ refuse (!repl.isInstead) .notInstead
+      Instruction.checkWith bs none replaced ++ Instruction.checkWith (replaced.replacedCtx bs) none repl
     | .holdUntil e ev =>
-      Instruction.checkWith bs none e ++ GameEvent.check (e.annIntro bs) ev ++
-        refuse e.heldUntilOk .heldClause
+      Instruction.checkWith bs none e ++ GameEvent.check (e.annIntro bs) ev
     | .triggerReflexively body trig =>
       Instruction.checkWith bs none body ++ Instruction.checkWith (reflexCtx bs body) none trig ++
         refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure
@@ -392,11 +390,8 @@ mutual
       NounPhrase.check (some .object) bs n ++ Amount.check (nomIntro bs n) steps
     | .skipPart _ count => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
-    | .addTurnPart part anchor count followedBy => let who := performerOf perf;
-      NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count ++
-        refuse (part.proper || (part == .turn && anchor.isNone && followedBy.isNone))
-          .windowOk ++ refuse (anchor.elim true TurnPart.proper) .windowOk ++
-        refuse (followedBy.elim true TurnPart.proper) .windowOk
+    | .addTurnPart _ _ count _ => let who := performerOf perf;
+      NounPhrase.check (some .player) bs who ++ Amount.check (nomIntro bs who) count
   termination_by structural e => e
 
   def Repetition.check (bs : Bindings) : Repetition → List Refusal
@@ -666,11 +661,9 @@ mutual
     | .controlGrant who what =>
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' what
-    | .replacement ev alts window repl _ limit =>
+    | .replacement ev alts window repl _ _ =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptTiming.check bs window ++
-        Instruction.checkWith (interceptCtx bs alts ev) none repl ++
-        refuse (untriggeredLimitOk limit) .untriggeredLimit ++
-        refuse (interceptOk ev) .interceptable ++ refuse (interceptArmsOk alts) .interceptable
+        Instruction.checkWith (interceptCtx bs alts ev) none repl
     | .damageRule _ src scope op use =>
       let bs' := src.intro bs
       let bs'' := scope.intro bs'
@@ -683,8 +676,7 @@ mutual
       NounPhrase.check (some .player) bs who ++ VisibleThing.check (nomIntro bs who) what
     | .additionalTriggers ev q =>
       GameEvent.check bs ev ++ Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++
-        refuse q.wellFormed .wellFormedQ ++ refuse (Quantity.introduced bs q).isEmpty .quantLiteral ++
-        refuse (triggerCountOk ev) .triggerCountOk
+        refuse q.wellFormed .wellFormedQ ++ refuse (Quantity.introduced bs q).isEmpty .quantLiteral
     | .entryRider n rider =>
       NounPhrase.check (some .object) bs n ++ TokenRider.check (nomIntro bs n) rider
     | .choice _ n q dom _ =>
@@ -736,22 +728,20 @@ mutual
         refuse (keywordParamFits k param) (.keywordParamFits k) ++
         refuse (keywordBodyFits k body) (.keywordBodyFits k) ++
         refuse (keywordCostPaidByYou k param) (.keywordCostPaidByYou k)
-    | .activated cost instr window limit guard activator =>
+    | .activated cost instr window _ guard activator =>
       let bs := ownPerformerCtx bs
       let bsc := dropLetter .x bs
       Cost.check bsc cost ++ Instruction.checkWith (publicOnly (cost.intro bsc)) none instr ++
         refuse cost.tapOnce .costTapOnce ++ refuse cost.paidByYou .costPaidByYou ++
-        OptTiming.check bs window ++ refuse (untriggeredLimitOk limit) .untriggeredLimit ++
-        OptCondition.check bs guard ++ OptNoun.check (some .player) bs activator
-    | .triggered ev alts while_ joins window limit intervening instr =>
+        OptTiming.check bs window ++ OptCondition.check bs guard ++ OptNoun.check (some .player) bs activator
+    | .triggered ev alts while_ joins window _ intervening instr =>
       let bs := ownPerformerCtx bs
       let hctx := headerCtx bs alts ev
       let jctx := joinedCtx bs joins hctx
       headerEventCheck bs ev ++ alts.flatMap (headerEventCheck bs) ++
         OptConcurrent.check hctx while_ ++ joins.flatMap (JoinedHeader.check bs) ++
         OptTiming.check bs window ++ OptCondition.check jctx intervening ++
-        Instruction.checkWith (interveningIntro jctx intervening) none instr ++
-        refuse (chapterDefaultsOk ev alts while_ joins window limit intervening) .chapterDefaults
+        Instruction.checkWith (interveningIntro jctx intervening) none instr
     | .static se =>
       let bs := ownPerformerCtx bs
       StaticSpec.check bs se ++ refuse (!anyTargetedAt (StaticSpec.intro bs se)) .nontarget

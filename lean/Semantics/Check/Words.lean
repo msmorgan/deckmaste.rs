@@ -193,7 +193,6 @@ structure ActFacts where
   keyword action for English realization and is carried by a different five words. -/
   participle : Option String := none
   dest : Option Zone := none
-  stepwise : Bool := false
   loci : List Zone := []
   intransitive : Bool := false
   agentRole : DeedRole := noRole
@@ -331,7 +330,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
         patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
     ("explore", { agentRole := permanentAgent }),
     ("faceAVillainousChoice", { agentRole := playerAgent }),
-    ("fateseal", { stepwise := true, agentRole := playerAgent, opponentsLibrary := true }),
+    ("fateseal", { agentRole := playerAgent, opponentsLibrary := true }),
     ("fight", { agentRole := permanentAgent }),
     ("forage", { agentRole := playerAgent }),
     ("goad", { agentRole := playerAgent }),
@@ -364,13 +363,13 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
       { participle := some "sacrificed", dest := some .graveyard, agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
         feature := some .sacrificing, bounded := true, ownPatient := true }),
-    ("scry", { stepwise := true, agentRole := playerAgent }),
+    ("scry", { agentRole := playerAgent }),
     ("search",
       { loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
         agentRole := playerAgent, feature := some .librarySearch, bounded := true }),
     ("shuffle", { loci := [.library], agentRole := playerAgent }),
     ("support", {}),
-    ("surveil", { stepwise := true, agentRole := playerAgent }),
+    ("surveil", { agentRole := playerAgent }),
     ("suspect", { agentRole := playerAgent }),
     ("tap",
       { participle := some "tapped", agentRole := playerAgent, patientRole := fieldObject,
@@ -415,7 +414,6 @@ def actZoneOf (v : Deed) : Option Zone := deedFacts v >>= (·.patientRole.zone)
 def actDestOf (v : Deed) : Option Zone := deedFacts v >>= (·.dest)
 def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
 def actNamesLocus (v : Deed) : Bool := !(actLociOf v).isEmpty
-def actStepwiseOf (v : Deed) : Bool := (deedFacts v).elim false (·.stepwise)
 def actOpponentsLibrary (v : Deed) : Bool := (deedFacts v).elim false (·.opponentsLibrary)
 def actOwnPatient (v : Deed) : Bool := (deedFacts v).elim false (·.ownPatient)
 def actIntransitiveOf (v : Deed) : Bool := (deedFacts v).elim false (·.intransitive)
@@ -1879,11 +1877,5 @@ def lastType : List CardType → Option CardType
   | [] => none
   | [t] => some t
   | _ :: ts => lastType ts
-
-/-- A phase or step inside the turn: a turn is made of its phases [CR#500.1], so the turn is
-never one of its own parts. -/
-def TurnPart.proper : TurnPart → Bool
-  | .turn => false
-  | _ => true
 
 end Semantics

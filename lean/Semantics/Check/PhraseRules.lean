@@ -535,8 +535,7 @@ mutual
     | .inCaller scope body =>
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         Condition.checkIn gap (enterCaller scope bs) body
-    | .duringPart _ who =>
-      OptNoun.checkIn gap (some .player) bs who ++ refuse (partPossessorOk who) .windowOk
+    | .duringPart _ who => OptNoun.checkIn gap (some .player) bs who
     | .exists_ n => NounPhrase.checkIn gap none bs n ++ refuse n.existentialMention
       .existentialMention
     | .happened who lb =>
@@ -675,8 +674,7 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
       NounPhrase.checkIn gap none bs to ++ objectOrPlayerCheck (to.kindOr .object)
     | .damage _ (some n) to =>
       NounPhrase.checkIn gap (some .object) bs n ++ DamagePatient.checkIn gap (nomIntro bs n) to
-    | .beginningOf _ part whose =>
-      HeaderPossessor.checkIn gap bs whose ++ refuse (part.proper && whose.ok) .windowOk
+    | .beginningOf _ _ whose => HeaderPossessor.checkIn gap bs whose
     | .casts who what from_ =>
       let bs' := nomIntro bs who
       NounPhrase.checkIn gap (some .player) bs who ++ OptNoun.checkIn gap (some .object) bs' what ++

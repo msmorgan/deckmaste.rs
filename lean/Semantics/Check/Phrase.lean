@@ -1194,17 +1194,6 @@ def choiceOrderOk : Option NounPhrase → Option NounPhrase → Bool
   | some _, none => false
   | some _, some by_ => !by_.plur.isOne
 
-/-- A plural possessor must distribute over players [CR#102.1]. -/
-def partPossessorOk : Option NounPhrase → Bool
-  | none => true
-  | some n => n.plur.isOne || n.det == some .each
-
-def windowOk : TurnPart → Option NounPhrase → Bool
-  | .turn, none => false
-  | _, w => partPossessorOk w
-
-def pointWindowOk (w : Option NounPhrase) : Bool := partPossessorOk w
-
 /-- A duration's possessor must be a single definite player. -/
 def durationPossessorOk : Option NounPhrase → Bool
   | none => true

@@ -22,10 +22,7 @@ def OptDuration.check (bs : Bindings) : Option Duration → List Refusal
 
 def Timing.check (bs : Bindings) : Timing → List Refusal
   | .asSorcery | .asInstant => []
-  | .duringPart p w => OptNoun.check (some .player) bs w ++ refuse (windowOk p w) .windowOk
-  | .beforePart p w =>
-    OptNoun.check (some .player) bs w ++ refuse p.proper .windowOk ++
-      refuse (pointWindowOk w) .pointWindowOk
+  | .duringPart _ w | .beforePart _ w => OptNoun.check (some .player) bs w
 
 def OptTiming.check (bs : Bindings) : Option Timing → List Refusal
   | none => []
@@ -33,7 +30,7 @@ def OptTiming.check (bs : Bindings) : Option Timing → List Refusal
 
 def Concurrent.check (bs : Bindings) : Concurrent → List Refusal
   | .whileTrue c => Condition.check bs c
-  | .whileDoing ev => GameEvent.check bs ev ++ refuse (eventUnderwayOk ev) .eventUnderway
+  | .whileDoing ev => GameEvent.check bs ev
 
 def OptConcurrent.check (bs : Bindings) : Option Concurrent → List Refusal
   | none => []

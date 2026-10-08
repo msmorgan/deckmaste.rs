@@ -55,11 +55,6 @@ def HeaderPossessor.intro (bs : Bindings) : HeaderPossessor → Bindings
   | .byPlayer n => NounPhrase.selfSubjIntroduced n ++ agentIntro bs n
   | .byTurn _ => bs
 
-def HeaderPossessor.ok : HeaderPossessor → Bool
-  | .noPossessor => true
-  | .byPlayer n => partPossessorOk (some n)
-  | .byTurn _ => true
-
 
 mutual
 /-- The stack a trigger's body reads while the event is happening. -/
@@ -209,12 +204,6 @@ def interceptCtx (bs : Bindings) (alts : List GameEvent) (ev : GameEvent) : Bind
 def headerCtx (bs : Bindings) (alts : List GameEvent) (ev : GameEvent) : Bindings :=
   sharedCtx bs (GameEvent.after bs) alts ev
 
-def interceptArmsOk (alts : List GameEvent) : Bool := alts.all fun a => interceptOk a
-
-def Duration.ok : Duration → Bool
-  | .untilEvent ev => durationEventOk ev
-  | _ => true
-
 def Duration.intro (bs : Bindings) : Duration → Bindings
   | .thisTurn => bs
   | .restOfGame => bs
@@ -222,14 +211,6 @@ def Duration.intro (bs : Bindings) : Duration → Bindings
   | .forAsLongAs c => c.intro bs
   | .untilEvent ev => GameEvent.intro bs ev
   | .duringNextTurnOf who => nomIntro bs who
-
-def durationOk : Option Duration → Bool
-  | none => true
-  | some d => d.ok
-
-def untriggeredLimitOk : Option UsageLimit → Bool
-  | some .actionOncePerTurn => false
-  | _ => true
 
 def JoinedHeader.after (bs : Bindings) (j : JoinedHeader) : Bindings := headerCtx bs j.alternatives
   j.event
@@ -245,14 +226,6 @@ def Concurrent.namesThisDoor : Option Concurrent → Bool
 def JoinedHeader.namesThisDoor (j : JoinedHeader) : Bool :=
   j.event.namesThisDoor || j.alternatives.any GameEvent.namesThisDoor ||
     Concurrent.namesThisDoor j.while_
-
-def chapterDefaultsOk (ev : GameEvent) (alts : List GameEvent) (wh : Option Concurrent)
-    (joins : List JoinedHeader) (w : Option Timing) (l : Option UsageLimit)
-    (i : Option Condition) : Bool :=
-  match ev.scopeBody with
-  | .chapterMark _ =>
-    alts.isEmpty && wh.isNone && joins.isEmpty && w.isNone && l.isNone && i.isNone
-  | _ => true
 
 def GameEvent.headerNontarget (bs : Bindings) (ev : GameEvent) : Bool :=
   !anyTargetedAt (GameEvent.intro bs ev)

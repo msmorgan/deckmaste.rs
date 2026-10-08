@@ -21,25 +21,17 @@ def LifeMove.outcome : LifeMove → OutcomeSort
 
 structure EventFacts where
   hasMagnitude : Bool := false
-  interceptable : Bool := true
-  countable : Bool := false
-  boundsDuration : Bool := true
-  underway : Bool := false
   deriving Repr, BEq
 
-/-- Event properties used by magnitudes, replacements, counts, durations, and concurrency.
+/-- Event properties: whether the event carries a magnitude a tally can sum.
 Participant and payload obligations are checked directly on the event's fields. -/
 def GameEvent.facts : GameEvent → EventFacts
   | .withBindings _ _ body | .inCaller _ body => body.facts
   | .damage _ _ _ | .lifeChanges _ _ | .paysLife _ =>
     { hasMagnitude := true }
-  | .beginningOf _ _ _ => { boundsDuration := false }
-  | .casts _ _ _ | .activates _ _ => { underway := true }
-  | .chapterMark _ => { interceptable := false }
-  | .triggers _ => { interceptable := false, countable := true }
-  | .verbedEvent _ v _ _ _ => { underway := actStepwiseOf v }
-  | .unlocksDoor _ _ => { underway := actStepwiseOf (.core .unlock) }
   | .nthOccurrence _ _ ev | .causes _ ev => ev.facts
+  | .beginningOf _ _ _ | .casts _ _ _ | .activates _ _ | .chapterMark _ | .triggers _
+  | .verbedEvent _ _ _ _ _ | .unlocksDoor _ _
   | .zoneChange _ _ _ _ | .draws _ | .losesGame _ | .combat _ _ _
   | .attacksWith _ _ _ | .attachment _ _ _ | .becomesTarget _ _ | .statusEvent _ _
   | .gameBecomes _ | .stateHolds _ | .counterEvent _ _ _ _ _ _
@@ -51,10 +43,6 @@ def GameEvent.scopeBody : GameEvent → GameEvent
   | .withBindings _ _ body | .inCaller _ body => body.scopeBody
   | body => body
 
-def interceptOk (ev : GameEvent) : Bool := ev.facts.interceptable
-def triggerCountOk (ev : GameEvent) : Bool := ev.facts.countable
-def durationEventOk (ev : GameEvent) : Bool := ev.facts.boundsDuration
-def eventUnderwayOk (ev : GameEvent) : Bool := ev.facts.underway
 def eventHasMagnitude (ev : GameEvent) : Bool := ev.facts.hasMagnitude
 
 def tallyOk : TallyOp → GameEvent → Bool

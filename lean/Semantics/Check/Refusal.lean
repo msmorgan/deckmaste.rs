@@ -114,8 +114,6 @@ inductive Refusal where
   | lookbackSubject
   | lookbackComplement
   | lookbackLocus
-  | windowOk
-  | pointWindowOk
   | durationPossessor
   | quantLiteral
   | modesFit
@@ -160,10 +158,8 @@ inductive Refusal where
   | counterBatchOk
   | causedByOk
   | tokenPhrase
-  | eventUnderway
   | headerNontarget
   | doorNamesHost
-  | durationOk
   | settableValue
   | selfExchanged
   | numberChoiceInScope
@@ -171,7 +167,6 @@ inductive Refusal where
   | deonticPatientOk
   | asThoughOk
   | deonticRiderOk
-  | triggerCountOk
   | deckReadable
   | deckComparable
   | selfDefinedOk
@@ -183,8 +178,6 @@ inductive Refusal where
   | notCoord
   | clauseStatic
   | becomesOk
-  | untriggeredLimit
-  | interceptable
   | damageOpUse
   | manaRun
   /-- A hybrid or Phyrexian symbol names two different halves [CR#107.4e,107.4f]. -/
@@ -196,10 +189,8 @@ inductive Refusal where
   | payAgrees
   | costTapOnce
   | costPaidByYou
-  | heldClause
   | reflexEnclosure
   | thisWayOutcome
-  | notInstead
   | ifDoneArmed
   | enactKeepsOuter
   | producedRuns
@@ -222,7 +213,6 @@ inductive Refusal where
   | keywordListOk
   | notWordHeaded
   | emblemAbilities
-  | chapterDefaults
   /- rules tables -/
   /-- A predefined token is named, because an effect creates it by that name [CR#111.10]. -/
   | tokenNamed

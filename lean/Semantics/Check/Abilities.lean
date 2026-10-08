@@ -1109,16 +1109,6 @@ def Instruction.unscoped : Instruction → Instruction
   | .ownScope _ body => body.unscoped
   | e => e
 
-def Instruction.heldUntilOk : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.heldUntilOk
-  | .setStatus .phasedOut _ => true
-  | .move _ _ _ _ => true
-  | .enact _ e =>
-    match e.unscoped with
-    | .move _ _ _ _ => true
-    | _ => false
-  | _ => false
-
 inductive EncloseUse where
   /-- No player takes the action, so "you do" has no subject. -/
   | agentless
@@ -1243,11 +1233,6 @@ mutual
     | e :: es => e.costActionOk && Instruction.costStepsOk es
   termination_by structural es => es
 end
-
-def Instruction.isInstead : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.isInstead
-  | .replace _ _ => true
-  | _ => false
 
 def ifDoneArmed : Option Instruction → Option Instruction → Bool
   | none, none => false
