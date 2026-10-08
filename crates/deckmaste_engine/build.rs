@@ -6,10 +6,13 @@
 // as `ignored` on a bare checkout (the corpus is gitignored, built from the
 // ~150 MB mtgjson dump under `data/`).
 //
-// Detection is by directory presence. With no `rerun-if-changed` emitted, cargo
-// re-runs this script whenever a package file changes, so ordinary edits pick
-// up a freshly-generated corpus; a regen with no other change needs `touch
-// build.rs` (CI does exactly that after generating).
+// Detection is by directory presence, and the declared inputs follow it. While
+// the corpus is absent the script watches `plugins/` (cargo scans a directory
+// recursively), so generating the corpus re-runs it. While the corpus is
+// present it watches only `build.rs`: the corpus is ~31k files that every new
+// workspace regenerates, and watching them would rebuild this crate in each
+// one although only presence matters. Removing the corpus therefore needs
+// `touch build.rs`.
 //
 // KEEP IN SYNC: byte-identical copies of this file live in deckmaste_plugin,
 // deckmaste_engine, deckmaste_tui, and deckmaste_noncanon — cfgs don't cross
@@ -18,8 +21,13 @@ use std::path::Path;
 
 fn main() {
     println!("cargo::rustc-check-cfg=cfg(wizards_corpus)");
+    println!("cargo::rerun-if-changed=build.rs");
     let manifest = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR set by cargo");
+    // Relative paths: cargo resolves them against the package root, so a
+    // target/ copied into another workspace watches that workspace's files.
     if Path::new(&manifest).join("../../plugins/wizards").is_dir() {
         println!("cargo::rustc-cfg=wizards_corpus");
+    } else {
+        println!("cargo::rerun-if-changed=../../plugins");
     }
 }
