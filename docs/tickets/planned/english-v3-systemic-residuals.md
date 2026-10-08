@@ -605,3 +605,18 @@ explicit production-cutover prerequisites; the broader audit remains open.
   adjective-complement landing. CGEL Ch. 5 §14.2(a), p. 445 identifies their
   category and post-head distribution; they must not become Adjective
   homographs. The eight supported witnesses and host gaps are named there.
+
+## Once-frequency residue (2026-10-08)
+
+The [once-frequency landing](../done/english-v3-once-frequency.md) at
+`qsrqtwknwxqtrpyrmknwollqqrrnssyo` / covered **21,916** leaves ordinary
+coordination of *only once each turn and only if …* for this ticket's cause
+audit and bounded routing, as the implementation ticket expressly requires.
+Its final full census still reports no Reading for Chronatog Totem
+(`24542d66-e67a-4403-91a8-bb4231ea1f50#card`), Battlefield Scrounger
+(`92ac7531-10bb-47a2-9dd0-378d547b4ed6#card`) and Groundling Pouncer
+(`f695a073-7235-45c8-bc42-f1e29bb086ee#card`). This names a remaining
+coordination obligation, not a sole-cause diagnosis of the complete faces.
+Frequency AdvPs and separate temporal NP Adjuncts now read; this landing does
+not add their coordination with a conditional PP. Preserve that constituency
+and focus attachment when the coordination repair is routed.
