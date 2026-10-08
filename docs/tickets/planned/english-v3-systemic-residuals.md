@@ -25,6 +25,11 @@ obligations, flat serial coordination, within-group Type Line ordering, and
 richer document forms. Test positive/negative structural witnesses for each
 before assigning an implementation owner. Concrete starting points are:
 
+- **as-Clause verbless NP licensing**: route the existing bare-NP-after-*as*
+  licence (no verb) to the named [recon hygiene ticket](english-v3-as-clause-verbless-np-licensing.md).
+  The user ruling of 2026-10-08 retains inherited finite *as*-Clause alternatives;
+  the same-as comparative landing does not change that route.
+
 - **Enter selected predicative-as Complement**: Enter with an *as a copy of <NP>*
   predicative Complement is unread: it is
   verb-selected, a Complement of *enter*, never a trailing Adjunct per the

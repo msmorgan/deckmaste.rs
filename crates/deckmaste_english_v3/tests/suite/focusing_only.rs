@@ -81,9 +81,28 @@ fn bare_as_keeps_its_preposed_licence_without_final_position() {
 #[test]
 fn selected_and_comparative_as_does_not_become_a_comparative_adjunct() {
     // Project ruling: fixed-cost-phrases, comparative-admission STOP,
-    // resolved 2026-10-06. The comparative Complement is still unimplemented.
+    // resolved 2026-10-06. The implemented comparison stays NP-internal.
     let text = "Counter target spell. Search its controller's graveyard, hand, and library for all cards with the same name as that spell and exile them. Then that player shuffles.";
-    assert!(readings(text, Category::Document).is_empty());
+    let values = readings(text, Category::Document);
+    assert!(!values.is_empty());
+    for value in values {
+        let mut comparisons = 0;
+        value
+            .visit(&mut |node| {
+                if let deckmaste_english_v3::grammar::Reading::DiscontinuousComparativeNominal {
+                    ..
+                } = node
+                {
+                    assert_eq!(node.realize(lexicon()).unwrap(), "same name as that spell");
+                    comparisons += 1;
+                }
+                if node.category() == Category::PrepositionPhrase {
+                    assert_ne!(node.realize(lexicon()).unwrap(), "as that spell");
+                }
+            })
+            .unwrap();
+        assert_eq!(comparisons, 1);
+    }
 }
 
 #[test]

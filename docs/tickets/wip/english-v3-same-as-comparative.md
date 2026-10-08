@@ -63,10 +63,11 @@ STRONG bucket (`xnkuznpo`, 0 Readings each):
 Standard constraints apply (CLAUDE.md landing record, assurance, scope).
 Deltas:
 
-1. Verification budget (binding): One full census (`--all --workers 12
-   --samples-per-face 0`) on the finished feature for the record, compared
+1. Verification budget (binding, orchestrator override 2026-10-08): one bounded
+   census of every reachable face plus 300 random covered faces (seed 20261008),
+   `--identity-manifest M --workers 12 --samples-per-face 0`, compared
    face by face (per-face `readings_sha256` and counts) against the claim
-   parent's census; iterate on selector subsets, never on --all. Tests:
+   parent's census; never run `--all`. Tests:
    `cargo test -p` and `cargo clippy -p … --tests -- -D warnings` for every
    crate whose code or consumed data changed (`deckmaste_english_v3` always;
    `deckmaste_lexical_source` if core.ron/verbs.ron/vocabulary.rs changed).
@@ -74,7 +75,9 @@ Deltas:
    touched grammar, lexicon or core. New tests go under tests/suite/
    registered in tests/main.rs. Evidence lives under the workspace's ignored
    `target/english-v3/`, never `/tmp`.
-2. Write each witness as a test first.
+2. Demonstrate each witness failing with `cargo xtask english-v3 probe` before
+   implementation; write the tests once and run them at the end (orchestrator
+   override 2026-10-08).
 3. Zero lost faces. A lost face is a defect: fix it within the ticket first;
    STOP only if the fix fails or needs a ruling.
 4. Compare per-face Reading counts against the claim-parent census. Any
@@ -82,7 +85,10 @@ Deltas:
    the landing record; a decrease inherited from trunk is attributed by change
    id.
 5. Spot-check at least 10 newly covered faces and list them by name with their
-   Reading. An *as* phrase read as a clause Adjunct, or one *same … as* string read both as Complement and as Adjunct, is a defect. A wrong analysis that parses is a defect, not a gain.
+   Reading. No string may receive the same comparative Complement analysis
+   twice. Inherited finite *as*-Clause alternatives are retained under the
+   user ruling of 2026-10-08; their separate licensing hygiene is routed to recon.
+   A wrong analysis introduced here is a defect, not a gain.
 6. No guard may name a lexeme, construction, verb, noun, preposition or card;
    read declared features only. Tests are re-spelled, never deleted. No new
    xtask subcommands, flags, fixtures or tooling.
@@ -107,4 +113,57 @@ Deltas:
 
 ## Landing record
 
-The six items in CLAUDE.md.
+1. **Census delta**: bounded claim-parent grammar `pnrnqolx` (measured on
+   `lqzlkrrp` before implementation; source fingerprints verified) →
+   `lqzlkrrp`: covered faces 334 → 420; Readings 5,619 → 28,414. Gained
+   faces 86; lost faces none; Reading-count decreases none (`lqzlkrrp`).
+   Per-face counts and `readings_sha256` compared; all 300 random faces
+   unchanged. Exact realization, lexical ownership and node/word traversal:
+   0 issues and 0 internal failures (`lqzlkrrp`).
+2. **Witnesses** (`lqzlkrrp`): Wake of Destruction 4; Sever the Bloodline 4;
+   Echoing Truth 2; Circu, Dimir Lobotomist 2,880; Extirpate 112 full-face
+   Readings. Quoted-unit probes: respectively 4, 4, 2, 45, 28. All five
+   quoted units had 0 Readings before implementation on `lqzlkrrp`, each
+   demonstrated with `cargo xtask english-v3 probe` before grammar edits.
+3. **Spot checks** (`lqzlkrrp`): selected Discontinuous Comparative Nominals,
+   with the *as* + NP Complement licensed by the Premodifier: Wake of
+   Destruction — *same name as that land*; Sever the Bloodline, Echoing
+   Courage, Echoing Decay, Bile Blight and Homing Lightning — *same name as
+   that creature*; Echoing Truth and Maelstrom Pulse — *same name as that
+   permanent*; Echoing Calm — *same name as that enchantment*; Echoing Ruin —
+   *same name as that artifact*.
+4. **Deviations and STOPs**: added DiscontinuousEquality and
+   DiscontinuousComparativeNominal because the adjacent governor-marker route
+   cannot enclose a Nominal. Same now declares an empty frame for understood
+   comparisons and a selected comparative frame; its former unframed lexical
+   route is retired, while generic Adjective remains used by other lexemes.
+   No loader change or word-naming guard. Added the missing Discontinuous
+   Comparative Nominal glossary entry, distinguishing CGEL's *as* + NP account
+   from the fixed-cost-phrases licensing ruling. The bounded run replaces
+   Method's full census by the explicit orchestrator ruling of 2026-10-08.
+   **STOP resolved by user ruling 2026-10-08**: retained-Reading contract wins for inherited finite *as*-Clause alternatives; 0 of 86 gained faces carry one beside the Complement Reading (`lqzlkrrp`). Deputy of Detention's *with the same name as that permanent until this creature leaves the battlefield* retains comparative Complement *as [that permanent]* and finite Adjunct *as [[that permanent until this creature] leaves the battlefield]*; no string receives the same-Complement analysis twice.
+   Existing *as*-Clause licensing of a bare NP after *as* (no verb) is routed to recon as [as-Clause verbless NP licensing](../planned/english-v3-as-clause-verbless-np-licensing.md), outside this ticket's scope. Circu's test initially assumed its source PP always fell inside the comparison; corrected it to retain distinct attachments.
+5. **Tests** (`lqzlkrrp`): `cargo test -p deckmaste_english_v3` ran once:
+   520 passed; the new Circu scope assertion failed, was corrected, and
+   `cargo test -p deckmaste_english_v3 --test main
+   same_as_comparative::witnesses_keep_the_complement_inside_the_premodified_nominal`
+   passed (1 test). The remaining `cargo test -p deckmaste_english_v3 --doc`
+   check passed (0 doctests), without rerunning the full suite.
+   `cargo test -p deckmaste_lexical_source`: 23 passed,
+   1 inherited failure, `card_names::tests::generated_nicknames_equal_the_streamed_computation`
+   (Shang-Chi and the Ten Rings), owned by `english-v3-name-lexeme-scope`.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed after
+   correcting the new test's collapsible-if diagnostic;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   `kata kanban check` found the inherited quoted dependency in
+   `english-v3-derived-punctuation-forms`; unchanged from claim parent.
+   Assurance: restored 0, re-spelled 1
+   (`selected_and_comparative_as_does_not_become_a_comparative_adjunct`),
+   added 3, removed 0, newly ignored 0 (`lqzlkrrp`).
+6. **Timing** (`lqzlkrrp`): bounded census wall time 8.132 s including setup,
+   12 workers, 540 faces: every supported face whose raw text contains *same*
+   (240) plus 300 random covered faces, seed 20261008, selected by
+   `target/english-v3/english-v3-same-as-comparative/manifest.json`;
+   `--identity-manifest … --workers 12 --samples-per-face 0`, output
+   `target/english-v3/english-v3-same-as-comparative/after.json`. No full corpus
+   census was run.

@@ -452,6 +452,7 @@ constructions! {
         frame Measure = Predicate(Complement(MeasurePhrase));
         frame SlashMeasure = Predicate(Complement(PowerToughnessAdjustment));
         frame Equality = Predicate(Marked(Preposition, To, Complement(ComparativeComplement)));
+        frame DiscontinuousEquality = Predicate(Marked(Preposition, As, Complement(ComparativeComplement)));
         frame Ordering = Predicate(Marked(Preposition, Than, Complement(ComparativeComplement)));
         frame GrantedAbilityComplement = Predicate(Complement(GrantedAbility));
         frame AmountComplement = Predicate(Complement(Amount));
@@ -2281,6 +2282,23 @@ constructions! {
             export SourceModifierPresent = head.SourceModifierPresent;
             require modifier.AdjectiveStructure = Simple;
             require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
+        }
+
+        // CGEL Ch. 13 §5.1, p. 1139 describes same with an as + NP
+        // comparative Complement. Its discontinuous nominal representation
+        // follows the fixed-cost-phrases project ruling of 2026-10-06.
+        construction DiscontinuousComparativeNominal: Nominal {
+            form [governor: lexical(Adjective), " ", head: Nominal, " ",
+                marker: lexical(Preposition), " ", complement: AccusativePhrase];
+            require governor.frame = DiscontinuousEquality;
+            require marker.ExpandedComparisonMarker = Equality;
+            require licence_comparative_complement(marker.PrepositionFunctionLicence) = Yes;
+            require head.Targeting = No;
+            use NominalHeadFeatures;
+            use NominalHeadProperties;
+            export BareGenitiveHost = head.BareGenitiveHost;
+            export SelectedPrepositionUse = head.SelectedPrepositionUse;
+            export SourceModifierPresent = head.SourceModifierPresent;
         }
 
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under

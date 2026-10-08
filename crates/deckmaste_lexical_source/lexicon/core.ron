@@ -185,7 +185,7 @@
         "vocab:Preposition/Up": {"PrepositionFunctionLicence": "Compound"},
         "vocab:Preposition/If": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "VerblessClauseComplement": "Yes", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/Unless": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
-        "vocab:Preposition/As": {"ExpandedComparisonMarker": "Equality", "PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "PredicativeNounPhrase", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
+        "vocab:Preposition/As": {"ExpandedComparisonMarker": "Equality", "PrepositionFunctionLicence": "Adjunct|PreposedAdjunct|ComparativeComplement", "PrepositionComplement": "PredicativeNounPhrase", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/While": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/Until": {"PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Since": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase"},
@@ -1279,6 +1279,10 @@
         "vocab:ScalarDegree/Greater": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
         "vocab:ScalarDegree/Lesser": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
         "vocab:Adjective/Less": [(kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))])],
+        "vocab:AttributiveAdjective/Same": [
+            (kind: "Predicate", items: []),
+            (kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "As", slot: (relation: Complement, category: "ComparativeComplement"))]),
+        ],
         "vocab:AttributiveAdjective/Other": [
             (kind: "Predicate", items: []),
             (kind: "Predicate", items: [Marked(vocabulary: "Preposition", member: "Than", slot: (relation: Complement, category: "ComparativeComplement"))]),

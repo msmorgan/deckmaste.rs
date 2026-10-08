@@ -374,6 +374,14 @@ Preposition (CGEL, Ch. 13 §1.3, pp. 1103–1104).
 A phrase containing a Comparative Governor (CGEL, Ch. 13 §1.3, p. 1105).
 An adjectival Comparative Phrase retains Adjective Phrase distribution.
 
+**Discontinuous Comparative Nominal** (project term):
+A Nominal whose Comparative Governor premodifies its head while the governor's
+expanded Comparative Complement follows it, as in *same name as that land*
+(CGEL, Ch. 13 §5.1, p. 1139 describes *same* with *as* + NP; the
+[fixed-cost-phrases project ruling of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md#stop--comparative-admission-2026-10-06-resolved-by-orchestrator)
+assigns the Complement to the governor's licence).
+_Avoid_: Adjunct for the governor's selected comparison
+
 **Comparative Complement Form** (project term):
 The syntactic form of a compared Constituent: nominal, bare infinitival, or
 gerund-participial. Matching these forms in the attested postposed
