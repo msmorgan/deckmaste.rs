@@ -479,3 +479,22 @@ also records each durable identity and complete analyzed source.
 | Wrathful Jailbreaker | 4 |
 | Xantcha, Sleeper Agent | 8 |
 | Zurgo Helmsmasher | 128 |
+
+### Review notes (2026-10-08)
+
+- **252 = 181 gained + 71 unread.** Of the 71 *if able* faces still unread,
+  43 have their *if able* sentences reading alone (the face is blocked
+  elsewhere, e.g. Daring Fiendbonder, Bane of Hanweir); 30 fail on host or
+  vocabulary blockers independent of *if able*: loyalty prefixes (`+2:`),
+  "If they don't pay,", "without paying", "enters or is turned face up",
+  "as long as … Ring-bearer", and the vocabulary gaps *active player*,
+  *exactly one*, *Non-Wall* and *magnet*. Loyalty prefixes route to
+  `english-v3-signed-numeral-cost`, "without paying" to
+  `english-v3-gerund-preposition-complements`; the rest stay in
+  `english-v3-systemic-residuals` (its "*If able* residue" bullet).
+- The Reading keeps `frame: Some(0)` for *able*'s unexpressed infinitival.
+  If *able* ever gains a second frame, that retained frame index becomes a
+  source of split Readings; re-check this route then.
+- CGEL, Ch. 14 §10(b), p. 1267, example [2], shows preposed verbless complements, so
+  the clause-final restriction is a project choice, not a CGEL claim:
+  preposed *If able,* is unattested in the corpus.

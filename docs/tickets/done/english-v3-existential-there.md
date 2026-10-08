@@ -154,7 +154,7 @@ singular *there’s* with plural NPs; that informal variation is **not** being
 attributed to CGEL as ungrammatical. Bare vs extended existential structure,
 Case, and agreement inheritance are the claims the cited passages support.
 
-The superseded `vocab:Adverb/There` declaration is removed. Dummy Subject Use
+The never-reading `vocab:Adverb/There` declaration is retired, not superseded (see Review notes). Dummy Subject Use
 is declared on `vocab:DummyPronoun/There`, and both ordinary pronoun NP routes
 exclude that declared Use. The general Adverb construction still serves
 other adverbs; no there-specific grammar declaration remains unreachable.
@@ -573,3 +573,50 @@ fingerprints and source text are in `gain-analysis-ledger.json`.
 | Wretched Camel | `525d1562-4fb6-4df3-ab6d-ab6a94c866e0#card` | 3 | is | a Desert card | in your graveyard |
 | Y'shtola Rhul | `a6a7bf77-0560-4572-a826-3bc9df1f78d1#card` | 444 | is | an additional end step | None |
 | Éomer, Marshal of Rohan | `b2d95950-18b3-463f-94f4-299e420751dc#card` | 8 | is | an additional combat phase | None |
+
+### Review notes (2026-10-08)
+
+- **Locative *there* is retired, not superseded.** CGEL, Ch. 16 §6.1, p. 1391
+  treats locative *there* as a separate word (an intransitive preposition)
+  that can co-occur with dummy *there* (its [1]). The old
+  `vocab:Adverb/There` never read (`VPFinalAdjunct: No`,
+  `ClauseInitialAdjunct: No`), so no Reading was lost, but nothing replaced
+  it either: dummy *there* is a different lexeme. Locative *there* is attested
+  on about 38 sentences among the 254 remaining *there* faces (a regex count
+  over `remaining-there-faces.json` finds 36 sentences on 35 faces whose only
+  *there* is locative), e.g. Wreck Hunter, The Fourteenth Doctor and Bringer
+  of the Last Gift ("…put there from the battlefield"). It is routed to
+  `english-v3-systemic-residuals`; no lexeme declares it today.
+- **219 gained vs the 276 sole-cause estimate.** The 276 figure was the recon
+  bucket's sole-cause estimate; 219 faces were gained and **254** faces
+  containing *there* remain unread (`remaining-there-faces.json`). Named
+  blockers: Drop of Honey — its *If two or more creatures are tied for least
+  power, you choose one of them* clause (0 Readings); Baba Lysaga, Night Witch
+  — *card types* (the *card* noun-premodifier permission gap); World at War —
+  the host outside the existential: *After the second main phase this turn,*
+  and the *followed by an additional main phase* postmodifier each leave the
+  sentence at 0 (with *After this main phase,* and no *followed by* clause the
+  existential sentence reads 4), and its *At the beginning of that combat,
+  untap all creatures that attacked this turn.* sentence reads 0.
+  The remaining-faces file carries no blocker field, so this tally is from
+  probes of a 10-face sample (every 25th face by id), run with the record's
+  `probe-documents` binary against the current lexicon on 2026-10-08
+  (classified by first localized blocker; untracked, not a corpus figure):
+
+  | Blocker class | Faces | Sample |
+  | --- | ---: | --- |
+  | *card types among cards …* (card noun-premodifier, Baba Lysaga's gap) | 4 | Dusk Feaster, Moldgraf Scavenger, Hand That Feeds, Pick the Brain |
+  | Undeclared counter-kind nouns (*ribbon*, *plot*, *tower*); the same sentences read with *depletion* | 3 | Prize Pig, Deadly Designs, Helix Pinnacle (also blocked on its *100 or more … you win the game* host) |
+  | Locative *there* plus host (*extra turn*; *if you cast it from your hand*) | 2 | Gerrard's Hourglass Pendant, Myojin of Grim Betrayal |
+  | Existential host outside the clause (*if it's your main phase, there is … followed by …*) | 1 | All-Out Assault (its bare *There is an additional combat phase after this phase.* reads 2) |
+
+- **Three structures for a locative existential.** *There is a creature on the
+  battlefield.* has three Readings: the PP as extension Complement, as NP
+  Postmodifier, and as the pre-existing ClausalPreposition Adjunct. All three
+  are retained under `docs/decisions/english-lexical-analysis.md`.
+- The `crates/deckmaste_english_v3/src/declarations.rs` comment (now ~:1807)
+  "an internal Complement, not an Object" overstates CGEL p. 1391, which says
+  only that the displaced NP is an internal complement that is not a subject.
+  Code comment left as is (docs-only landing); flagged for the next touch.
+- *There is also me to consider* (CGEL p. 1392) is blocked by the
+  person-agreement equation. Out of scope; no corpus witness requires it.

@@ -357,9 +357,30 @@ is right and this list needs fixing.
   have none. Consume a declared PP argument for From; the current
   PrepositionComplement inventory has only None/NounPhrase. This is the
   inherited PP-complement gap, not a lost face or a verb-frame licence failure.
-  **Taken over (2026-10-07)** by `english-v3-from-preposition-phrase-complement`.
+  **Taken over (2026-10-07)** by `english-v3-from-preposition-phrase-complement`;
+  **re-routed here (2026-10-08)**: that landing discharged Cavalier of Thorns
+  (12), Tracker's Instincts (6) and Pieces of the Puzzle (6). Genesis
+  Ultimatum (0; cause not localized in that record), Kruphix's Insight (0;
+  its source unit reads 2, the source-free whole instruction does not),
+  Midnight Tilling (permanent noun-Premodifier gap), Bag of Devouring, Tayam,
+  Luminous Enigma and about 279 remaining *from among* faces stay here. See the
+  [from-among landing record](../done/english-v3-from-preposition-phrase-complement.md).
 - Reduced if-able hosts. **Taken over (2026-10-07)** by
   `english-v3-verbless-if-complement`.
+- *If able* residue (2026-10-08, after `english-v3-verbless-if-complement`):
+  71 *if able* faces remain unread. On 43 the *if able* sentences read alone
+  and the face is blocked elsewhere (e.g. Daring Fiendbonder, Bane of
+  Hanweir). 30 fail on host or vocabulary blockers independent of *if able*:
+  loyalty prefixes (`+2:`) → `english-v3-signed-numeral-cost`; "without
+  paying" → `english-v3-gerund-preposition-complements`; owned here: "If they
+  don't pay,", "enters or is turned face up", "as long as … Ring-bearer", and
+  the vocabulary gaps *active player*, *exactly one*, *Non-Wall*, *magnet*.
+- Locative *there* (CGEL, Ch. 16 §6, p. 1391: an intransitive preposition,
+  distinct from dummy *there*, that can co-occur with it). About 38 attested
+  sentences among the 254 remaining *there* faces of
+  `english-v3-existential-there`, e.g. Wreck Hunter, The Fourteenth Doctor,
+  Bringer of the Last Gift ("…put there from the battlefield"). No lexeme
+  declares it today; the retired `vocab:Adverb/There` never read.
 - Bound landwalk stems: the suffix keeps its lexical metadata but needs a
   declared compatible stem class before a generic bound-quality consumer can
   admit it.
@@ -533,7 +554,9 @@ is right and this list needs fixing.
   lists every face, its Reading count and the next failing cause. Remaining
   From-among sources on Tracker's Instincts, Pieces of the Puzzle and
   Kruphix's Insight stayed here (**taken over 2026-10-07** by
-  `english-v3-from-preposition-phrase-complement`); Winding Way's bare
+  `english-v3-from-preposition-phrase-complement`; **re-routed here
+  2026-10-08**: Tracker's Instincts and Pieces of the Puzzle discharged,
+  Kruphix's Insight still 0 and owned here); Winding Way's bare
   singular type choice stays here. Comma-then reconciliation (2026-10-06): Organ Hoarder is a
   gain in `english-v3-then-sequencing` (0 → 9 full-face Readings). Vigean
   Intuition's and Tamiyo, Collector of Tales' comma-then links now read as

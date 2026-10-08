@@ -2169,3 +2169,22 @@ the route justification is shared below, and the source text is retained in
 | Zombify | `bb95db4d-5017-4121-bf79-d68476602d8c#card` | 5 → 1 | Wrong analysis retired: duplicate absent-source / source-on-Object Return routes |
 | Zoological Study | `6d4e7943-1fdf-4085-8af0-658badbd0cb8#face:1` | 8 → 4 | Wrong analysis retired: duplicate absent-source / source-on-Object Return routes |
 | Zuko's Conviction | `f034e8a3-82f7-4c70-93ea-0bf2688f66e1#card` | 10 → 2 | Wrong analysis retired: duplicate absent-source / source-on-Object Return routes |
+
+### Review notes (2026-10-08)
+
+- **181 gained vs 268 sole-cause.** All 181 gains contain *from among*. On the
+  claim-parent census **460** unread faces contained *from among*, and **279**
+  of them remain unread after this landing (460 − 181). The record's **284**
+  remaining figure came from the broader 471-face From-among selector, not
+  the 460-face *from among* set. The 268 sole-cause figure was a recon
+  estimate; the gap to 181 is faces whose other blockers surface once the PP
+  reads.
+- **Residue re-routed.** Genesis Ultimatum, Kruphix's Insight (independent
+  residual in its source-free whole instruction; source unit reads 2),
+  Midnight Tilling (permanent noun-Premodifier gap), Bag of Devouring, Tayam,
+  Luminous Enigma and the ~279 remaining *from among* faces go back to
+  `english-v3-systemic-residuals`, whose take-over markers are reversed there.
+- *From under* / *from behind* (CGEL, Ch. 8 §4, p. 687: a locative PP as the
+  complement of *from*) are not licensed, by design: only *among* carries the
+  declared PP-Complement head licence, and no corpus face in this landing
+  required the others.
