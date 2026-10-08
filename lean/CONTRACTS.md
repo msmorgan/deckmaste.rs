@@ -21,9 +21,14 @@ a stack action or a stat change no longer demands where its object is or which
 objects it can reach. Where such a refusal also fixed a kind, the kind is
 checked by `kindMismatch` or `kindLte`. The deed table's role checks
 (`deedFits`, `deedNounOk`) are not in this bucket and still read a deed's zone
-and card types. For the timing, cost
-and game-rule buckets, until their sweep lands the sections below still describe
-what the checker does. Zone state on bindings stays, because references resolve
+and card types. The timing and window bucket's 10 refusals are retired
+(`lean-checker-sweep-timing`, 2026-10-08): an activation, cast or trigger window,
+the possessor of a turn part, an added turn part and its anchor, a "while" event,
+the event that ends a duration, a usage limit, the event a replacement or a
+trigger multiplier watches, a held clause, a nested "instead" and a chapter
+ability's header no longer demand when the game can do what they say. For the
+cost and game-rule buckets, until their sweep lands the sections below still
+describe what the checker does. Zone state on bindings stays, because references resolve
 on it. On the question of
 scope this supersedes "rules correctness" in the paragraph above; the rest of
 that paragraph stands.
@@ -123,8 +128,9 @@ a nested lookback binds its own participant and cannot supply its parent's gap.
 Repeated occurrences may refer to the same participant, but each lookback must
 use its own bound participant at least once.
 
-`GameEvent.facts` supplies magnitude, replacement, counting, duration, and
-concurrency properties directly from the event constructor. Source sets and
+`GameEvent.facts` supplies the magnitude property directly from the event
+constructor; which events a replacement, a trigger multiplier, a duration or a
+"while" clause may watch is not checked (`lean-checker-sweep-timing`). Source sets and
 exclusions use `EventSource`; named actions carry an optional locus checked
 against their declared features. A cast may leave its spell unspecified, which
 introduces no spell reference. Historical-event profiles retain named
@@ -356,7 +362,8 @@ execution proof.
 For `skipUntap`, `skipPart`, and `addTurnPart`, let `bs`
 be the input context. The subject (for `skipPart` and `addTurnPart`, the
 performer in context) is checked in `bs`. Its amount is checked in
-`nomIntro bs subject`. Part, anchor, and following-part fields carry no references.
+`nomIntro bs subject`. Part, anchor, and following-part fields carry no references
+and are not checked (`lean-checker-sweep-timing`).
 No scheduling field introduces an enclosed scope. The output is
 `Amount.intro afterSubject amount`; an added turn additionally puts `turnRefB`
 on the announced/output context, after checking the amount. Its pre-context
@@ -634,7 +641,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `GameEvent` | `GameEvent.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `Causing` | `Causing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `HeaderPossessor` | `HeaderPossessor.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `TriggerWindow` | Merged into `Timing.duringPart`; `Timing.check` checks the possessor and `windowOk`. |
+| `TriggerWindow` | Merged into `Timing.duringPart`; `Timing.check` checks the possessor's references. Which turn parts and possessors a window admits is not checked (`lean-checker-sweep-timing`). |
 | `Timing` | `Timing.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 | `AltEvent` | `headerEventCheck` checks each alternative event for header nontargeting and valid status. The old header-word index is gone; the event determines its own event class. |
 | `Concurrent` | `Concurrent.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
