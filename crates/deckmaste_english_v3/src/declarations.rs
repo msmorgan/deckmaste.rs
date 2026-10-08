@@ -2254,8 +2254,8 @@ constructions! {
 
         // CGEL Ch. 7 §5.1, pp. 636–637: a predicative NP Complement
         // differs from an Object; adjunct use excludes adjective Complements.
-        // The focusing-only ticket's assigned position widening is project
-        // policy; finite-clause Complement permissions remain independent.
+        // The supported predicative-NP licence is preposed; finite-clause
+        // Complement permissions remain independent.
         construction PredicativeComplementPreposition: PrepositionPhrase {
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
@@ -2263,9 +2263,10 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: PredicativeComplement];
             require head.PrepositionComplement = PredicativeNounPhrase;
             require complement.PredicativeKind = Nominal;
+            require licence_preposed_adjunct(head.PrepositionFunctionLicence) = Yes;
             export ObliqueNumber = None;
             export InternalisedComplementMarker = head.InternalisedComplementMarker;
-            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
+            export PrepositionFunctionLicence = PreposedAdjunct;
             export LocativeUse = head.LocativeUse;
         }
 

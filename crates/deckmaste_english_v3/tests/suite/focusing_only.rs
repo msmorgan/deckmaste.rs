@@ -13,16 +13,11 @@ use crate::common::lexicon;
 use crate::common::readings;
 
 #[test]
-fn mind_slash_focuses_the_predicative_as_adjunct() {
-    assert_constituents(
-        "Activate only as a sorcery.",
-        Category::Document,
-        &[
-            (Category::PrepositionPhrase, "only as a sorcery"),
-            (Category::PrepositionPhrase, "as a sorcery"),
-            (Category::PredicativeComplement, "a sorcery"),
-        ],
-    );
+fn mind_slash_predicative_as_remains_deferred() {
+    // Orchestrator ruling, 2026-10-07: final predicative-as remains deferred
+    // until comparative and verb-selected replacement analyses exist.
+    assert!(readings("Activate only as a sorcery.", Category::Document).is_empty());
+    assert!(readings("only as a sorcery", Category::PrepositionPhrase).is_empty());
 }
 
 #[test]
@@ -72,14 +67,14 @@ fn flywheel_racer_focuses_the_conditional_adjunct() {
 }
 
 #[test]
-fn bare_as_position_has_one_reading() {
+fn bare_as_keeps_its_preposed_licence_without_final_position() {
     assert_eq!(
         readings("as a sorcery", Category::PrepositionPhrase).len(),
         1
     );
     assert_eq!(
         readings("Activate as a sorcery.", Category::Document).len(),
-        2
+        0
     );
 }
 
@@ -180,11 +175,11 @@ fn invariant(owner: &str) -> Word {
 
 #[test]
 fn independently_constructed_focus_preserves_structure_and_lexical_identity() {
-    // Mind Slash's clause-final PP, constructed without parsing a template.
+    // A focused temporal PP, constructed without parsing a template.
     let mut article = invariant("vocab:Article/Indefinite");
     let LexicalReading::Word(value) = &mut article.value else { unreachable!() };
     value.features.number = Some(Number::Singular);
-    let mut noun = invariant("lexeme:type/sorcery");
+    let mut noun = invariant("lexeme:CommonNoun/Turn");
     let LexicalReading::Word(value) = &mut noun.value else { unreachable!() };
     value.form = WordForm::Singular;
     value.features.number = Some(Number::Singular);
@@ -200,22 +195,19 @@ fn independently_constructed_focus_preserves_structure_and_lexical_identity() {
     let expected = Reading::FocusedPrepositionPhrase {
         form: 0,
         modifier: invariant("vocab:FocusAdverb/Only"),
-        head: Box::new(Reading::PredicativeComplementPreposition {
+        head: Box::new(Reading::PrepositionPhrase {
             form: 0,
-            head: invariant("vocab:Preposition/As"),
-            complement: Box::new(Reading::NominalComplement {
+            head: invariant("vocab:Preposition/During"),
+            complement: Box::new(Reading::CasePhrase {
+                category: Category::AccusativePhrase,
                 form: 0,
-                phrase: Box::new(Reading::CasePhrase {
-                    category: Category::AccusativePhrase,
-                    form: 0,
-                    head: Box::new(nominal.clone()),
-                }),
+                head: Box::new(nominal.clone()),
             }),
         }),
     };
     expected.admit(lexicon()).unwrap();
-    assert_eq!(expected.realize(lexicon()).unwrap(), "only as a sorcery");
-    let parsed = readings("only as a sorcery", Category::PrepositionPhrase);
+    assert_eq!(expected.realize(lexicon()).unwrap(), "only during a turn");
+    let parsed = readings("only during a turn", Category::PrepositionPhrase);
     assert_eq!(parsed, [expected.clone()].into_iter().collect());
     let parsed = parsed.first().unwrap();
     let mut expected_nodes = Vec::new();
@@ -238,9 +230,9 @@ fn independently_constructed_focus_preserves_structure_and_lexical_identity() {
         words,
         [
             "vocab:FocusAdverb/Only",
-            "vocab:Preposition/As",
+            "vocab:Preposition/During",
             "vocab:Article/Indefinite",
-            "lexeme:type/sorcery"
+            "lexeme:CommonNoun/Turn"
         ]
     );
 

@@ -355,16 +355,9 @@ fn mutated_witnesses_reject_wrong_number_finiteness_and_of_adjuncts() {
 }
 
 #[test]
-fn predicative_preposition_adjuncts_license_final_position_and_preposed_comma() {
-    assert_constituents(
-        "as an additional cost to cast this spell",
-        Category::PrepositionPhrase,
-        &[(
-            Category::PrepositionPhrase,
-            "as an additional cost to cast this spell",
-        )],
-    );
+fn predicative_preposition_adjuncts_require_a_preposed_comma() {
     for text in [
+        "Sacrifice a creature as an additional cost to cast this spell.",
         "Sacrifice as an additional cost to cast this spell a creature.",
         "As an additional cost to cast this spell sacrifice a creature.",
     ] {

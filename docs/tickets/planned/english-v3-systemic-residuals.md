@@ -25,7 +25,8 @@ obligations, flat serial coordination, within-group Type Line ordering, and
 richer document forms. Test positive/negative structural witnesses for each
 before assigning an implementation owner. Concrete starting points are:
 
-- Enter with an *as a copy of <NP>* predicative complement is unread: it is
+- **Enter selected predicative-as Complement**: Enter with an *as a copy of <NP>*
+  predicative Complement is unread: it is
   verb-selected, a Complement of *enter*, never a trailing Adjunct per the
   [predicative-*as* orchestrator ruling of 2026-10-06](../done/english-v3-fixed-cost-phrases.md).
   The causative-have orchestrator ruling of 2026-10-07 defers this repair here.
@@ -228,16 +229,31 @@ its verification belong to the attached feature-economy ticket.
 - `mana of any color/type that <clause>` (for example, "Add one mana of any
   color that land could produce") is not read: 31 faces, 0 covered. The relative
   clause on *color*/*type* inside the add-mana Nominal is owed here.
-- Orchestrator resolution (2026-10-06), fixed-cost phrases: *same … as* remains
+- **Same–as equality comparative Complement**: Orchestrator resolution
+  (2026-10-06), fixed-cost phrases: *same … as* remains
   with the existing comparative residual here. Its landing owns the non-scalar
   equality comparative *as* Complement licensed by *same*, not an Adjunct
   licence (CGEL, Ch. 13 §1.1, p. 1101).
-- Orchestrator resolution (2026-10-06), fixed-cost phrases: *Activate only as a
-  sorcery* remains with the existing only-restriction residual here. Its landing
-  widens the position licence for clause-final predicative *as*, measured; the
-  fixed-cost landing licenses only the preposed, comma-separated Adjunct.
-  **Taken over (2026-10-07)** by `english-v3-focusing-only`, including the
-  deferred clause-final predicative-*as* widening.
+- **Clause-final predicative-as position**: Orchestrator ruling, 2026-10-07,
+  resolves `english-v3-focusing-only`'s STOP by keeping this widening deferred
+  here. It depends on **both named residual items**, **Same–as equality comparative
+  Complement** and **Enter selected predicative-as Complement**, above. The
+  2026-10-06 fixed-cost-phrases deferral stands until replacement analyses exist
+  for the strings a wider Adjunct licence would swallow. Focusing *only* lands
+  for licensed final Adjuncts; *Activate only as a sorcery* and its kin remain
+  unread. This is an orchestrator ruling, not a CGEL position claim.
+  The rejected attempt at `pnqvxvwqwkxqnqzrwsyppzyonqxlunrw` / raw covered **22,124**
+  admitted 638 previously unread faces against claim-parent covered **21,486**;
+  the complete named face inventory and counts are in
+  [rejected-as-comparison.json](../../../target/english-v3/english-v3-focusing-only/rejected-as-comparison.json).
+  This is exposure evidence, **not a gain claim**: Counterbore **0 → 39** and
+  Aven Shrine **0 → 9** misread the comparison's *as* as an Adjunct; Clone
+  **0 → 18** misreads Enter's selected *as a copy* as an Adjunct. All 78 newly
+  admitted faces without focusing are named in
+  [as-without-focus-gains.json](../../../target/english-v3/english-v3-focusing-only/as-without-focus-gains.json).
+  The final focusing-only landing records the remaining gained identities and
+  the attempted-only identities whose admission disappears when the widening
+  is reverted. These counts are stamped to the rejected tree, not today's trunk.
 
 The landing records of the batches run under this ticket (restricted Oracle
 hosts, selected complement coordination and PP licensing, the verified coverage

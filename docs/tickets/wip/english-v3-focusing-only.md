@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-# Read restrictive focusing *only* on clause-final Adjuncts: activate only as a sorcery, cast only during your turn
+# Read restrictive focusing *only* on licensed clause-final Adjuncts
 
 ## Why
 
@@ -29,14 +29,18 @@ licensed only the preposed, comma-separated Adjunct).
 
 ## Goal
 
-*only* reads as a restrictive focusing modifier of the clause-final Adjunct it
-precedes (PP *during your turn*, *as a sorcery*; conditional *if* clause;
-temporal *before* clause), in imperative and finite clauses. Separately and
-measured, the clause-final position is licensed for the predicative *as* PP
-(*Activate as a sorcery.*), reusing the declaration the fixed-cost landing made
-for the preposed position; the bare form gains no second analysis (Method 8).
-Coordinated restrictions (*only once each turn and only if …*) compose through
-ordinary coordination.
+*only* reads as a restrictive focusing modifier of the licensed clause-final
+Adjunct it precedes: temporal *during/before* PPs and conditional *if* clauses,
+in imperative and finite clauses. Coordinated restrictions (*only during …
+and only if …*) compose through ordinary coordination.
+
+Orchestrator ruling, 2026-10-07, resolves the STOP below: **do not widen
+clause-final predicative *as***. The 2026-10-06 deferral stands until both the
+*same … as* equality comparative Complement and Enter's selected *as a copy of*
+Complement have replacement analyses. Restore the preposed licence entirely;
+*Activate only as a sorcery* and its kin remain unread. This supersedes the
+original assignment of that widening to this ticket. The ruling authorizes one
+replacement full census on the reverted feature and landing of focusing alone.
 
 ## Analysis
 
@@ -45,15 +49,15 @@ Focusing modifiers combine with a wide range of constructions, among them PPs
 (*only in America*), declarative content clauses, *to*-infinitivals and
 imperative clauses (p. 587, [42]); the relation between the modifier's linear
 position and its focus is treated at p. 589. The predicative *as* PP is the one
-recorded in the fixed-cost landing; extending its position licence is an
-orchestrator-assigned item, not a CGEL claim.
+recorded in the fixed-cost landing; its clause-final position remains deferred by the
+orchestrator ruling of 2026-10-07, not by a CGEL claim.
 
 ## Witnesses
 
 Each witness's failing units all match this construction and no other recon
 STRONG bucket except the two restriction buckets (`xxknlzypsnwy`):
 
-- Mind Slash: "Activate only as a sorcery."
+- Mind Slash: "Activate only as a sorcery." — retained as a negative deferral witness under the 2026-10-07 ruling.
 - Celestial Enforcer: "Activate only if you control a creature with flying."
 - Hammer of Bogardan: "Activate only during your upkeep."
 - Flywheel Racer: "Activate only if this permanent is a creature."
@@ -68,12 +72,13 @@ claims.
 Standard constraints apply (CLAUDE.md landing record, assurance, gate scope,
 cite check). Deltas:
 
-1. Before: `cargo xtask english-v3 --all --workers 12 --samples-per-face 0
-   --output target/english-v3/english-v3-focusing-only-before.json` on the
-   claim parent, stamped with its change id and covered count; after: the same
-   command to `target/english-v3/english-v3-focusing-only-after.json` on the
-   final tree. Evidence lives under the workspace's ignored
-   `target/english-v3/`, never `/tmp`.
+1. Reuse the source-equivalent claim-parent census in
+   `target/english-v3/english-v3-focusing-only/before.json`. The first full run
+   exposed the STOP; the orchestrator authorizes one replacement full run:
+   `cargo xtask english-v3 --all --workers 12 --samples-per-face 0
+   --output target/english-v3/english-v3-focusing-only/after.json`.
+   Iterate only on selector subsets; evidence stays under `target/`.
+
 2. Write each witness as a test first. Iterate on `--face-id` selectors; verify
    on `--all` at the end.
 3. Zero lost faces. A lost face is a defect: fix it within the ticket first;
@@ -117,66 +122,33 @@ cite check). Deltas:
 
 ## Landing record
 
-In addition to the standard record: the attachment chosen per focus category,
-and the as-position widening reported separately (its own before/after counts
-and Reading counts on the fixed-cost witnesses); the residual items discharged;
-before/after counts stamped with change ids; timings as integer ns and ns/B
-with host load and worker count.
+### STOP and orchestrator resolution (2026-10-07)
 
-### STOP — predicative-as widening revives excluded Readings (2026-10-07)
+The rejected widening at `pnqvxvwqwkxqnqzrwsyppzyonqxlunrw` / raw covered
+**22,124** admitted 638 previously unread faces, including 78 without focusing.
+It also increased Deputy of Detention **96 → 396**, Banishment **96 → 396** and
+Phyrexian Processor **2 → 5**. These are exposure counts, not validated gains.
+The selected Counterbore Reading (**0 → 39**) turns *same name as* into an Adjunct;
+Clone (**0 → 18**) turns Enter's selected *as a copy* into an Adjunct; Aven Shrine
+(**0 → 9**) has the comparative defect. The two new exclusion tests failed on
+that attempt. Evidence: `rejected-as-widening.json`, `rejected-as-comparison.json`,
+`as-without-focus-gains.json`, `as-audit.json`, named `*-as-tree.txt` and
+`as-regressions-red.log`, under `target/english-v3/english-v3-focusing-only/`.
 
-**Unfinished; not integrated.** The focusing implementation and its four required
-witnesses work, but the final full census exposed wrong Readings caused by the
-assigned clause-final predicative-*as* widening. These are defects, not coverage
-gains. No ruling has been superseded and no excluded Reading is accepted here.
+**Orchestrator ruling, 2026-10-07:** do not extend scope to replacement analyses;
+revert clause-final predicative-*as* widening entirely, retain focusing and its
+four witnesses, and land. The 2026-10-06 fixed-cost-phrases deferral stands until
+both **Same–as equality comparative Complement** and **Enter selected
+predicative-as Complement** exist. These named prerequisites and the measured
+attempt are recorded in `english-v3-systemic-residuals`. Mind Slash and other
+*only as a sorcery* faces stay unread. One replacement full census is authorized.
+This is project authority, not a CGEL claim.
 
-The claim parent is `pvmzprsz`; `before.json` reuses the source-equivalent full
-census at `nplzxtwkzkyslwmlysqrnpmmmuvnknxv`, covered **21,486**
-(`baseline-provenance.json`). The one authorized full feature census at
-`pnqvxvwqwkxqnqzrwsyppzyonqxlunrw` reports a raw covered count of **22,124**:
-32,828 faces, 10,704 unread, 7,472 unique and 14,652 multiple; 912,136 Readings.
-Face-by-face comparison finds zero lost faces and zero Reading-count decreases.
-The raw 638 newly admitted faces are **not a validated gain claim**.
-
-| Witness | Claim-parent Readings | Attempt Readings | Defect |
-| --- | ---: | ---: | --- |
-| Counterbore (`1198ec53-9050-417d-812f-692e1378d346#card`) | 0 | 39 | *as that spell* is a predicative PP Adjunct instead of the comparative Complement in *the same name as that spell*. |
-| Clone (`42226b87-0746-4ebf-9fd0-108d508462af#card`) | 0 | 18 | *as a copy of any creature* is an Adjunct instead of Enter's selected Complement. |
-| Aven Shrine (`09c450cf-5f22-45c2-86ed-21b85552a96f#card`) | 0 | 9 | The same comparative-to-Adjunct defect. |
-
-The [fixed-cost-phrases STOP and orchestrator resolution of 2026-10-06](../done/english-v3-fixed-cost-phrases.md#stop--comparative-admission-2026-10-06-resolved-by-orchestrator)
-expressly reject the comparative Adjunct analysis and defer comparative licensing.
-The [systemic-residuals predicative-as ruling](../planned/english-v3-systemic-residuals.md)
-requires Enter's *as a copy* to be a selected Complement, never a trailing Adjunct.
-The ticket's assigned position widening cannot waive either ruling. A declared-feature
-exclusion/selection repair needs a scope ruling; no word-naming guard or preference
-can repair admission. The request to extend scope and authorize one replacement
-full census is pending. The binding one-full-run budget has been exhausted, so
-no additional `--all` run has been performed.
-
-Evidence is under `target/english-v3/english-v3-focusing-only/`: `after.json`,
-`comparison.json`, `as-without-focus-gains.json` (all 78 newly admitted faces
-without focusing), `as-audit.json` (selector-only census), and the three named
-`*-as-tree.txt` extracts. The three previously covered increases are Deputy of
-Detention **96 → 396**, Banishment **96 → 396**, and Phyrexian Processor **2 → 5**;
-their added Readings also require audit before any landing.
-
-The full command was exactly
-`cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/english-v3-focusing-only/after.json`.
-At the measured change / raw covered 22,124, wall time was **183,119,704,184 ns**,
-with 12 workers and host load **[7.3154296875, 5.84033203125, 8.9130859375]**;
-per-byte thread CPU was **501,981 ns/B**. The wall time exceeds the quiet-host
-**16,260,000,000 ns** advisory; it was not a quiet-host measurement. Structural
-validation found zero issues, duplicate Readings, cyclic derivations or internal
-failures; this does not establish that the admitted analyses are correct.
-
-Before these discoveries, `cargo test -p deckmaste_english_v3` passed **381** tests,
-`cargo test -p deckmaste_lexical_source` passed **56**, and
-`cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source --tests -- -D warnings`
-passed. Those green results missed the excluded Readings. Two additional regression
-tests retain the Counterbore and Clone exclusions and currently fail
-(`as-regressions-red.log`); they are not ignored or weakened. No test was removed.
-No xtask tests, Lean checks or derived gate were run. A pre-census Kata refresh
-changed no grammar, lexicon, runtime or census sources (`pre-census-refresh-proof.json`).
-The STOP tests fail as expected: **2 failed, 381 filtered out**, with neither
-ignored. Nightly formatting passes; `cargo xtask cite check` reports **0 stale**.
+`ruling-reversion-source-proof.json` proves the predicative-preposition declaration
+is byte-identical to the claim parent and `core.ron` differs only by Only's
+`FocusingModifierUse` addition. Finite-clause *as* permissions are unchanged.
+No superseded widening declaration or lexical route remains. The existing
+preposed-comma exclusion test is restored in full; the independent focused-PP
+roundtrip test is re-spelled against temporal *during*, retaining exact expected
+values and traversal identities. The required four witnesses remain, with Mind
+Slash now asserting the authorized deferral.
