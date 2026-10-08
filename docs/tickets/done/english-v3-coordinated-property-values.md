@@ -370,3 +370,199 @@ the refreshed parent `vqxrosrx`; the after stamp remains `owmovnyy` / covered
 are no conflicts or ledger residues to route. Per the binding verification
 budget, no post-refresh census, tests or Lean checks are needed for these
 documentation-only imports; all measured results are preserved.
+
+
+### Post-landing fix (2026-10-08)
+
+Follow-up to the post-landing HIGH grammar finding. Orchestrator ruling
+(2026-10-08): only ordinary adjectival Premodification and the already
+licensed ordered additive Coordination preserve Property Value Position.
+Participial and noun Premodification are unattested and remain excluded;
+Postmodification, relative and named Nominals do not preserve this licence.
+This clarifies the project ruling above and is not a CGEL claim.
+
+`NominalHeadProperties` and `PostmodifiedNominalProperties` now export
+`PropertyValuePosition = None`. Ordinary adjectival `PremodifiedNominal`
+exports its Head's position only when the Modifier has ordinary Adjective
+Origin; a participial-origin Modifier clears it. Unmodified lexical Nouns and
+`NominalConcord` retain their existing licensing. Cardinal and targeted
+Nominals also reset the position; their Determiner Requirement and Targeting
+already prevent their direct use by `MeasuredAttribute`.
+
+The compiler requires exactly one export per feature and does not permit
+policy overrides or nested policy uses. Consequently the common exports
+formerly inside `NominalHeadProperties` are factored into
+`NominalHeadFeatures`, used alongside the reset policy by its former consumers.
+Ordinary adjectival Premodification uses those common exports with its own
+position composition. No word-named admission guard, lexical identity, Construction, Category,
+Production, frame or form literal is added or retired. One declared feature,
+Adjective Origin, distinguishes ordinary from participial-origin adjectives.
+The glossary now states the ordinary-adjective restriction explicitly.
+
+The first package run exposes an additional route: the declared participial
+adjective class derives a distinct Adjective for *tapped*, which survives the
+Nominal policy correction. Fix within scope: that class now declares its
+Adjective Origin once in `core.ron`; the lexical-source reader preserves
+class-declared features on each derived adjective. The existing derivation
+unit test is re-spelled to check the complete expected Lexeme including those
+features, preserving its morphology, ownership and absence of verbal features.
+Ordinary Adjective projection exports the origin; Coordination retains a
+participial origin if any Conjunct has it. Nominal Premodification reads that
+feature when composing Property Value Position. This is a grammatical origin
+distinction, not a guard naming a verb or modifier. No predicate body changes.
+
+The new suite test rejects all nine review probes at Noun Phrase root:
+*power with flying 2*; *power of that creature 2*; *power that it has 2*;
+*power named Bob 2*; *power among creatures you control 2*;
+*base power of that creature and toughness 0/2*;
+*power and toughness of it 0/2*; *tapped power 2*; *creature power 2*.
+It also rejects *untapped power 2*, *blocked power 2*, *tapped and base power
+2*, *base tapped power 2*, and *tapped base power 2*. Royal Assassin's attested
+*target tapped creature* stays admitted with its Adjective Phrase.
+These are wrong analyses deliberately retired, rather than corpus coverage
+losses. Existing authentic scalar and slash-pair assertions and independent
+roundtrip comparisons remain intact. The duplicated Reduce in Stature /
+Illusory Wrappings loop now checks their identical sentence once, retaining
+the same complete constituent assertions and both card witnesses.
+Assurance: added **1**, restored **0**, re-spelled **1**, removed **0**, new
+ignores **0**; one existing test's duplicate invocation is removed.
+
+#### Reconciliation of the 178 estimate and 184 gains
+
+The historical wave-3 manifest names **178** sole-cause faces in the
+surface-pattern bucket *base power and toughness*. Its actual census stamp is
+`mlksrxum` / covered **21,486** (the ticket quotes the later `pvmzprsz` claim).
+The pattern is *base power*, not a proof that the following Slash Pair was
+the only grammatical blocker. The copied original bucket report, identity
+manifest, failing units and provenance are in `historical-recon/` under this
+follow-up's target evidence; no historical census is rerun.
+
+Face-by-face reconciliation against `oqrvnvwr` / covered **22,669** and
+`owmovnyy` / covered **22,853** gives **134 gained + 44 still unread = 178**;
+**zero** were already covered at the coordinated-property claim and **zero**
+identities are missing. The original **184** gains comprise those **134**,
+**8** additional target-string gains, and **42** gains outside the target
+selector: **134 + 8 = 142**, then **142 + 42 = 184**. The eight are
+Werewolf Pack Leader; Living Conundrum; Crater Elemental; The Antiquities War; Graaz, Unstoppable Juggernaut; Targ Nar, Demon-Fang Gnoll; Doc Ock, Sinister Scientist; Bramblefort Fink.
+
+The 42 additional gains are **27 total power**, **13 total mana value**,
+**1 total toughness** (Orysa, Tide Choreographer), and **1 base toughness 1**
+(Chariot of the Sun). Scalar *base power N* also belongs to the original
+target selector; it is not an additional selector gain. Complete identity
+lists and sources are in `gain-groups.json` and
+`sole-cause-reconciliation.json`.
+
+All 44 historical sole-cause faces still unread are named here:
+
+Darksteel Mutation; Sovereign Okinec Ahau; Tenth District Hero; Timber Paladin; Honest Work; Aettir and Priwen; Baird, Argivian Recruiter; Eccentric Apprentice; Halfdane; Kutzil, Malamet Exemplar; Candlekeep Inspiration; Goddric, Cloaked Reveler; Mirkwood Meditator; Arni Brokenbrow; Bogardan Dragonheart; Graven Dominator; Opalescence; Figure of Fable; Storvald, Frost Giant Jarl; Inkfathom Witch; Angelic Aberration; Sword of the Squeak; Master of Winds; Creepy Puppeteer; Azure Beastbinder; Katsumasa, the Animator; Vincent's Limit Break; Unruly Krasis; Behind the Mask; Flexible Waterbender; Starfield of Nyx; Wild Shape; Fractalize; Galion, Elvenking's Butler; Trench Gorger; Witness Protection; The Skullspore Nexus; Figure of Destiny; Zur, Eternal Schemer; Brine Hag; Porcelain Gallery; Secret Identity; Sauron, Dino Devotee; Shape Stealer.
+
+All retain their original zero Reading count in the target selector. They
+are existing residuals, not removed Readings or regressions. Remaining cause
+audit and routing belongs to the live
+[systemic-residuals ticket](../planned/english-v3-systemic-residuals.md);
+this follow-up does not infer sole grammatical cause from the surface bucket
+or widen admission to meet its estimate. Candlekeep Inspiration's continuation
+remains explicitly out of scope. Many listed sources include property
+comparisons, *each equal to* values, copular *become* values, mixed property
+and ability coordination, or separate keyword/cost restrictions; the manifest
+records each source and historical failing units for discriminating review.
+
+The **75-row** `coordinated_property_value_position` table is recorded as a
+compaction candidate in the planned
+[licence-plumbing-economy ticket](../planned/english-v3-licence-plumbing-economy.md#compaction-candidate-2026-10-08).
+Its full domain must survive compaction: omitting a default row would reject
+ordinary Nominal Coordination. This fix preserves that table.
+
+#### Verification, evidence and refresh
+
+Verification is restricted to the three requested selectors, compared
+face by face with the original finished census `owmovnyy` / covered **22,853**:
+the **454** raw-source target-string faces, **624** re-spelled retained faces,
+and **184** gained faces. No full census is run. Follow-up evidence lives in
+`target/english-v3/english-v3-coordprop-followup/` and is retained in the
+coordinator before retiring the workspace. The retained and gained manifests form an **808-face** union, exactly all
+covered faces containing `MeasuredAttribute` in the original full census
+(`selector-scope-proof.json`); no previously admitted property-value face
+is omitted. The previous whole-corpus totals are reference measurements,
+not a new census of this follow-up.
+
+Deviations and additions beyond the requested policy fix: a common head
+feature policy and the Adjective Origin feature with two composition tables
+are necessary because policy overrides are unavailable and the first package
+run exposes the participial-adjective route. Cardinal and targeted Nominals
+explicitly clear the unused licence. Five additional negatives and Royal
+Assassin's positive control cover origin propagation. The existing lexical
+class derivation test is re-spelled with complete expected values. No test
+is removed or weakened. Adjective Origin was the glossary gap; it is now
+defined. Declaration lines rise **3,755 → 3,786**, with the inherited final
+breadth ceiling unchanged; **258** Construction/schema names remain. The
+original named spelling, homograph and form-literal inventories remain
+applicable: the class still derives the same three lexical identities and
+Word Forms, now with an additional declared grammatical origin.
+
+An intermediate queued package run uses the old reader after the new class
+data was written and therefore fails at loading the `features` field. That
+stale source/data combination is superseded by a full rebuild of the frozen
+finished feature; its test result is not landing evidence. The tests that
+exposed the original exclusion defect and every existing test remain active.
+Results and refresh provenance follow below.
+
+
+Measured follow-up stamp: **`rwvlplnl`**, compared with the accepted full
+census **`owmovnyy` / covered 22,853**. Runtime differences against that tree
+are limited to `declarations.rs`, `core.ron` and the lexical-source class
+reader `native.rs`; `runtime-source-comparison.json` names them.
+
+All three selectors pass with **zero count changes, zero Reading digest
+changes, zero source digest changes and zero validation issues**. No face or
+Reading is lost, added or altered within the selectors. Each enumeration is
+complete; there are zero duplicate Readings and internal failures. Every
+counted Reading passes declaration admission, lexical ownership, byte-exact
+realization, construction traversal and leaf traversal. The package tests
+retain independent construction checks for both roundtrip laws.
+
+| Selector | Faces | Unread / unique / multiple | Complete Readings |
+|---|---:|---|---:|
+| target-subset | 454 | 294 / 3 / 157 | 44414 |
+| retained | 624 | 0 / 12 / 612 | 108871 |
+| gained | 184 | 0 / 4 / 180 | 43339 |
+
+New Reading removal from covered supported faces: **zero**. The wrong
+fragment analyses retired are the named negative probes above; all 14 have
+zero Readings. Word-named licensing guards added: **zero**. GrammarEnvironment
+loading and its existing error tests pass. No new specificity arbitration or
+Construction Cost changes occur; the original selected analyses are retained
+byte-for-byte by their fingerprints. No STOP requiring a new ruling arose;
+the orchestrator's explicit exclusion resolves the review finding.
+
+Required tests pass: `cargo test -p deckmaste_english_v3` (**444**), and,
+because `core.ron` changed, `cargo test -p deckmaste_lexical_source`
+(**57**, 23 unit + 34 integration). All have zero failures and zero ignores.
+Strict clippy passes:
+`cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source --tests -- -D warnings`.
+Changed Rust files pass nightly rustfmt. No xtask tests, Lean checks, full
+census, derived gate or new xtask tooling is run. No CR citation changes.
+
+Selector commands (all with `--workers 12 --samples-per-face 0`):
+`cargo xtask english-v3 --text-contains 'base power' --text-contains 'power and toughness'`,
+`cargo xtask english-v3 --identity-manifest target/english-v3/english-v3-coordinated-property-values/retained-manifest.json`,
+and `cargo xtask english-v3 --identity-manifest target/english-v3/english-v3-coordprop-followup/gained-manifest.json`.
+Each writes its named JSON report in this follow-up evidence directory;
+`commands-complete.json` retains exact arguments, exit codes and integer ns
+command timings. `selector-comparison.json` retains every aggregate and the
+empty per-face change lists. Original gains, their preferred analyses and
+named lexical inventories remain in the original landing evidence directory.
+
+Performance advisory for `rwvlplnl`, using the reference covered count
+22,853 for provenance (no new whole-corpus timing or count):
+
+| Selector | Workers | Host load | Corpus wall ns | Checked-text thread CPU |
+|---|---:|---|---:|---:|
+| target-subset | 12 | `[7.44873046875, 8.55517578125, 7.09619140625]` | 13,783,623,480 | 1,080,651 ns/B |
+| retained | 12 | `[6.24072265625, 8.2333984375, 7.013671875]` | 40,591,752,271 | 1,285,639 ns/B |
+| gained | 12 | `[15.30517578125, 10.2724609375, 7.75732421875]` | 22,747,021,617 | 1,523,148 ns/B |
+
+These are selector timings, not a new measurement against the full-corpus
+quiet-host ceiling of 16,260,000,000 ns. The previous full-corpus advisory
+remains in the original record. The first selector command includes the
+xtask build; its command wall ns is distinct from the corpus wall ns.

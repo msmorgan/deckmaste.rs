@@ -104,6 +104,7 @@ constructions! {
         feature InternalisedComplementPresent { No, Yes } default No;
         feature ExtentMarker { Yes }
         feature LocativeUse { No, Yes }
+        feature AdjectiveOrigin { Ordinary, Participial } default Ordinary;
         feature AdjectiveStructure { Simple, Complemented }
         feature RelativeSubordinator { Yes }
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
@@ -231,7 +232,7 @@ constructions! {
             BarePrepositionUse, SelectedPrepositionUse, ScalarDenotation, SourceModifierPresent);
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, ScalarDenotation, SourceModifierPresent);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, SourceModifierPresent);
-        category AdjectivePhrase(AdjectiveStructure, TargetingPremodifierUse);
+        category AdjectivePhrase(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse);
         category VerblessClause();
         category Name();
         category NamePredicate();
@@ -321,7 +322,7 @@ constructions! {
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation
         , SourceModifierPresent);
-        category AdjectivePhraseSeries(AdjectiveStructure, TargetingPremodifierUse);
+        category AdjectivePhraseSeries(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
@@ -671,12 +672,11 @@ constructions! {
             export form = secondary_form(head.form);
         }
 
-        policy NominalHeadProperties {
+        policy NominalHeadFeatures {
             export BarePrepositionUse = head.BarePrepositionUse;
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
-            export PropertyValuePosition = head.PropertyValuePosition;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
@@ -688,6 +688,10 @@ constructions! {
             export ObliqueNumber = head.ObliqueNumber;
         }
 
+        policy NominalHeadProperties {
+            export PropertyValuePosition = None;
+        }
+
         policy PostmodifiedNominalProperties {
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = nominal_source_modifier(head.SourceModifierPresent, modifier.SourceMarker);
@@ -695,7 +699,7 @@ constructions! {
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
-            export PropertyValuePosition = head.PropertyValuePosition;
+            export PropertyValuePosition = None;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export number = head.number;
@@ -839,6 +843,7 @@ constructions! {
         }
 
         policy AdjectiveStructureMerge<Right, Source> {
+            export AdjectiveOrigin = coordinated_adjective_origin(left.AdjectiveOrigin, Right.AdjectiveOrigin);
             export AdjectiveStructure = coordinated_adjective_structure(left.AdjectiveStructure,
                 Right.AdjectiveStructure);
             export TargetingPremodifierUse = coordinated_targeting_premodifier(
@@ -937,6 +942,17 @@ constructions! {
             (Adversative, Pair, None) => None, (Adversative, Pair, Single) => None,
             (Adversative, Pair, First) => None, (Adversative, Pair, Second) => None,
             (Adversative, Pair, Pair) => None,
+        }
+        table premodified_property_value_position(AdjectiveOrigin, PropertyValuePosition)
+            -> PropertyValuePosition {
+            (Ordinary, None) => None, (Ordinary, Single) => Single,
+            (Ordinary, First) => First, (Ordinary, Second) => Second, (Ordinary, Pair) => Pair,
+            (Participial, None) => None, (Participial, Single) => None,
+            (Participial, First) => None, (Participial, Second) => None, (Participial, Pair) => None,
+        }
+        table coordinated_adjective_origin(AdjectiveOrigin, AdjectiveOrigin) -> AdjectiveOrigin {
+            (Ordinary, Ordinary) => Ordinary, (Ordinary, Participial) => Participial,
+            (Participial, Ordinary) => Participial, (Participial, Participial) => Participial,
         }
         table property_value_kind(PropertyValuePosition, MeasureKind) -> Selection {
             (Single, Scalar) => Yes, (First, Scalar) => Yes, (Second, Scalar) => Yes,
@@ -2042,6 +2058,7 @@ constructions! {
             form [head: lexical(Adjective)];
             require head.framing = Unframed;
             export AdjectiveStructure = Simple;
+            export AdjectiveOrigin = head.AdjectiveOrigin;
             export TargetingPremodifierUse = head.TargetingPremodifierUse;
         }
 
@@ -2049,6 +2066,7 @@ constructions! {
             form [head: lexical(Adjective)];
             require head.frame = Intransitive;
             export AdjectiveStructure = Simple;
+            export AdjectiveOrigin = head.AdjectiveOrigin;
             export TargetingPremodifierUse = head.TargetingPremodifierUse;
         }
 
@@ -2058,6 +2076,7 @@ constructions! {
             require head.frame = AdjectivalPrepositionComplement;
             require marker.InternalisedComplementMarker = Yes;
             export AdjectiveStructure = Complemented;
+            export AdjectiveOrigin = head.AdjectiveOrigin;
             export TargetingPremodifierUse = No;
         }
 
@@ -2107,6 +2126,7 @@ constructions! {
         construction NounPremodifiedNominal: Nominal {
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: NounPremodifier, " ", head: Nominal];
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = No;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -2116,7 +2136,9 @@ constructions! {
         construction PremodifiedNominal: Nominal {
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: AdjectivePhrase, " ", head: Nominal];
-            use NominalHeadProperties;
+            use NominalHeadFeatures;
+            export PropertyValuePosition = premodified_property_value_position(
+                modifier.AdjectiveOrigin, head.PropertyValuePosition);
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
             require modifier.AdjectiveStructure = Simple;
@@ -2131,7 +2153,7 @@ constructions! {
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
             export MeasurePosition = head.MeasurePosition;
-            export PropertyValuePosition = head.PropertyValuePosition;
+            export PropertyValuePosition = None;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             form [quantity: Cardinal, " ", head: Nominal];
@@ -2198,6 +2220,7 @@ constructions! {
         construction PostpositiveNominal: Nominal {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: AdjectivePhrase];
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -2218,6 +2241,7 @@ constructions! {
         construction ParticipialPremodifier: Nominal {
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: VerbalPremodifier, " ", head: Nominal];
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -2252,6 +2276,7 @@ constructions! {
         construction NamedNominal: Nominal {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: NamePredicate];
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -2264,7 +2289,7 @@ constructions! {
             export NominalComplementMarker = None;
             export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
-            export PropertyValuePosition = head.PropertyValuePosition;
+            export PropertyValuePosition = None;
             export ScalarDenotation = head.ScalarDenotation;
             export CardinalMeasurementUse = head.CardinalMeasurementUse;
             export BareGenitiveHost = head.BareGenitiveHost;
@@ -2871,6 +2896,7 @@ constructions! {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: SecondaryVerbPhrase];
             require participial_postmodifier(modifier.form, modifier.ParticipialUse) = Yes;
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -3066,6 +3092,7 @@ constructions! {
         construction SubjectRelativeNominal: Nominal {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", relative: SubjectRelativeClause];
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -3116,6 +3143,7 @@ constructions! {
         construction ObjectRelativeNominal: Nominal {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", relative: ObjectRelativeClause];
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -3291,6 +3319,7 @@ constructions! {
             form [head: lexical(Numeral)];
             require head.numeral_kind = Ordinal;
             export AdjectiveStructure = Simple;
+            export AdjectiveOrigin = Ordinary;
             export TargetingPremodifierUse = Yes;
         }
 
@@ -3348,6 +3377,7 @@ constructions! {
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: SlashPair, " ", head: Nominal];
             require head.SlashPremodifierUse = Yes;
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -3488,6 +3518,7 @@ constructions! {
         construction ComparativeAdjective: AdjectivePhrase {
             form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
+            export AdjectiveOrigin = Ordinary;
             export TargetingPremodifierUse = No;
         }
 
@@ -4056,6 +4087,7 @@ constructions! {
         construction CorrelativePostpositiveNominal: Nominal {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: CorrelativeAdjectivePhrase];
+            use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;

@@ -5,17 +5,16 @@ use crate::common::readings;
 
 #[test]
 fn reduce_in_stature_and_illusory_wrappings_select_the_pair() {
-    for _card in ["Reduce in Stature", "Illusory Wrappings"] {
-        assert_constituents(
-            "Enchanted creature has base power and toughness 0/2.",
-            Category::Document,
-            &[
-                (Category::NounPhrase, "base power and toughness 0/2"),
-                (Category::Nominal, "base power and toughness"),
-                (Category::SlashPair, "0/2"),
-            ],
-        );
-    }
+    // Both cards have this identical Oracle sentence.
+    assert_constituents(
+        "Enchanted creature has base power and toughness 0/2.",
+        Category::Document,
+        &[
+            (Category::NounPhrase, "base power and toughness 0/2"),
+            (Category::Nominal, "base power and toughness"),
+            (Category::SlashPair, "0/2"),
+        ],
+    );
 }
 
 #[test]
@@ -196,6 +195,34 @@ fn independent_ordered_pair_and_premodification_preserve_both_laws() {
 #[test]
 fn a_property_complement_does_not_supply_a_required_outer_determiner() {
     for text in ["one power 1", "one power and toughness 0/2"] {
+        assert!(readings(text, Category::NounPhrase).is_empty(), "{text}");
+    }
+}
+
+#[test]
+fn only_ordinary_adjectival_premodification_preserves_property_values() {
+    // Royal Assassin: "Destroy target tapped creature."
+    assert_constituents(
+        "target tapped creature",
+        Category::NounPhrase,
+        &[(Category::AdjectivePhrase, "tapped")],
+    );
+    for text in [
+        "power with flying 2",
+        "power of that creature 2",
+        "power that it has 2",
+        "power named Bob 2",
+        "power among creatures you control 2",
+        "base power of that creature and toughness 0/2",
+        "power and toughness of it 0/2",
+        "tapped power 2",
+        "untapped power 2",
+        "blocked power 2",
+        "tapped and base power 2",
+        "base tapped power 2",
+        "tapped base power 2",
+        "creature power 2",
+    ] {
         assert!(readings(text, Category::NounPhrase).is_empty(), "{text}");
     }
 }

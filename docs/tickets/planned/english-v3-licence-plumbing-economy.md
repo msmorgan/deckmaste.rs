@@ -110,3 +110,13 @@ The claimant writes this record before integrate. It must include:
   the claim parent: 0 lost, 0 changed.
 - **Savings by class.** For each of (a) through (e), the lines actually saved
   against the estimate above.
+
+## Compaction candidate (2026-10-08)
+
+The coordinated-property-values landing added a 75-row
+`coordinated_property_value_position` table (three Coordination kinds × five
+left positions × five right positions). Only additive first + second yields
+pair; every other row yields none. Consider wildcard rows in step (e),
+preserving the complete table domain: missing rows must not reject otherwise
+valid Nominal Coordination. The post-landing modifier restriction is recorded
+[in its done ticket](../done/english-v3-coordinated-property-values.md#post-landing-fix-2026-10-08).

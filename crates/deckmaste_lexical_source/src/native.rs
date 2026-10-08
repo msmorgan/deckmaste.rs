@@ -81,6 +81,8 @@ pub(crate) fn compound_noun_declarations(
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct ParticipialAdjectiveClass {
+    #[serde(default)]
+    pub features: BTreeMap<String, String>,
     pub form: deckmaste_lexical::WordForm,
     pub members: Vec<String>,
 }
@@ -159,6 +161,7 @@ pub(crate) fn add_participial_adjectives(
                 Category::Adjective,
                 verb.source.clone(),
             );
+            adjective.properties.features = class.features.clone();
             adjective.forms[0].surfaces = Some(surfaces);
             adjective.capitalization = verb.capitalization;
             adjective.binding = verb.binding;
@@ -1066,7 +1069,6 @@ mod adjective_class_tests {
 #[cfg(test)]
 mod participial_adjective_tests {
     use deckmaste_lexical::Category;
-    use deckmaste_lexical::LexicalProperties;
     use deckmaste_lexical::SourceKind;
     use deckmaste_lexical::WordForm;
 
@@ -1090,6 +1092,7 @@ mod participial_adjective_tests {
             add_participial_adjectives(
                 &mut entries,
                 vec![ParticipialAdjectiveClass {
+                    features: BTreeMap::from([("AdjectiveOrigin".into(), "Participial".into())]),
                     form: WordForm::PastParticiple,
                     members: vec![owner.clone()],
                 }],
@@ -1103,6 +1106,8 @@ mod participial_adjective_tests {
                 Category::Adjective,
                 original.source.clone(),
             );
+            expected.properties.features =
+                BTreeMap::from([("AdjectiveOrigin".into(), "Participial".into())]);
             expected.forms[0].surfaces = Some(vec![spelling.into()]);
             expected.onsets.insert(
                 spelling.into(),
@@ -1113,7 +1118,7 @@ mod participial_adjective_tests {
                 },
             );
             assert_eq!(entries[1], expected);
-            assert_eq!(entries[1].properties, LexicalProperties::default());
+            assert_eq!(entries[1].properties, expected.properties);
         }
     }
 
@@ -1134,6 +1139,7 @@ mod participial_adjective_tests {
                 add_participial_adjectives(
                     &mut vec![invalid],
                     vec![ParticipialAdjectiveClass {
+                        features: BTreeMap::new(),
                         form: WordForm::PastParticiple,
                         members: vec![owner.into()],
                     }]

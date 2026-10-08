@@ -293,6 +293,14 @@ as predicative Complements. A participial spelling can also have a distinct
 Adjective analysis, as with *tapped*; sharing a spelling does not turn every
 Participle into an Adjective (CGEL, Ch. 6 §2.4.3, pp. 540–542).
 
+**Adjective Origin** (project term):
+The distinction between an ordinary Adjective and one formed from a declared
+participial source. An Adjective Phrase containing any participial-origin
+Conjunct retains that origin. Ordinary adjectival Premodification preserves
+Property Value Position; participial-origin modification does not, under the
+[orchestrator ruling (2026-10-08)](../../tickets/done/english-v3-coordinated-property-values.md#post-landing-fix-2026-10-08).
+_Avoid_: treating every Adjective with a participial spelling as an ordinary Adjective
+
 **Duration Adverb**:
 An Adverb expressing temporal extent, as with *long* in *It won't last long*
 (CGEL, Ch. 6 §5.2, p. 569). A duration Adverb Phrase can be a selected
@@ -572,9 +580,11 @@ not an analysis attributed to CGEL.
 **Property Value Position** (project term):
 A property's declared position in a value: a single scalar property, the
 first or second coordinate of a Slash Pair, or their ordered additive pair.
-Premodification preserves the position; additive Coordination of first and
-second positions licenses the pair, in that order. Other Coordinations do
-not license a Property Value. This is the
+Ordinary adjectival Premodification preserves the position; participial and
+noun Premodification and all Postmodification do not. Additive Coordination
+of first and second positions licenses the pair, in that order. Other
+Coordinations do not license a Property Value. The modifier restriction is the
+[orchestrator ruling (2026-10-08)](../../tickets/done/english-v3-coordinated-property-values.md#post-landing-fix-2026-10-08). The position and pair selection are the
 [coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values).
 
 **Scalar Comparative Use** (project term):
