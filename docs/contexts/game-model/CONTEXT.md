@@ -35,6 +35,17 @@ name and may still modify or add to the defined characteristics.
 A marker in the command zone representing an Object that has one or more
 Abilities and usually no other characteristics ([CR#114.1]).
 
+**Double-Faced Token**:
+A Token with a front face and a back face, each a full characteristics set, as
+the Incubator is ([CR#111.10i,701.53b]). It transforms as a double-faced
+permanent does; it is not a Card.
+
+**Face-Down Characteristics**:
+The characteristics an instruction lists for an Object it turns face down
+or puts onto the battlefield face down — for manifest and cloak a 2/2
+creature with no name, subtypes or mana cost ([CR#708.2,701.40a,701.58a]). The
+Object has those and no others while it stays face down.
+
 **Spell**:
 A card, copy of a card, or copy of a spell on the stack as specified by
 [CR#112.1..112.1b]. Spell is a current rules role, not a Card Type.
@@ -249,6 +260,14 @@ Turn-Based Actions ([CR#508.1,509.1]), unlocking and fully unlocking a Room's
 door ([CR#709.5f,709.5i]), and drawing, targeting, copying, spending and the
 rest, each defined in its own rules section. The set is closed — no set release
 adds one — so a rule may match a Core Deed structurally instead of by name.
+
+**Rules Procedure**:
+A procedure the rules define for activating an Ability, casting a Spell or
+playing a card ([CR#601.2,602.1,701.18b]). An instruction may tell a Player to
+carry one out during resolution ("you may cast that card without paying its
+mana cost"); a permission to do so over a duration ("until end of turn, you
+may cast that card") grants the procedure rather than carrying it out.
+_Avoid_: action, for the procedure itself — the Action is the Deed it names
 
 **Special Action**:
 An Action a Player may take while they have priority that does not use the stack

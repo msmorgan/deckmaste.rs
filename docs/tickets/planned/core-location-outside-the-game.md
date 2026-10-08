@@ -102,3 +102,8 @@ and claimable on its own.
   that can be out-of-game use `Location`; guaranteed-in-game APIs keep `Zone`.
 - Standard constraints apply (fmt, clippy, CR citations blessed, wizards regen
   if touched).
+
+Routing (2026-10-08, `semantics-v2-keyword-action-residues`): Learn's second
+option ("a Lesson card you own from outside the game" [CR#701.48a]) and
+Venture into the Dungeon's dungeon card ([CR#701.49a,309.2]) wait on this
+location; both keyword actions stay bodyless until it lands.
