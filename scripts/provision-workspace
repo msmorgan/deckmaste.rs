@@ -53,10 +53,21 @@ end
 # that won't apply to a fresh path and bloats the copy. --reflink=auto is instant
 # and ~zero-space on btrfs (falls back to a plain copy elsewhere); /target/ is
 # gitignored so jj won't snapshot it. A miss here just means a cold first build.
+#
+# lean/.lake is seeded the same way (best-effort CoW reflink, plain-copy fallback,
+# never a symlink: lake writes into it). Without it a fresh workspace's first Lean
+# build is cold (~7 minutes against ~2 s warm). Skipped if default has none.
 if test -d "$default_dir/target"
     if cp --reflink=auto -a "$default_dir/target" "$ws_dir/target"
         rm -rf "$ws_dir/target"/{debug,release}/incremental
     else
         echo >&2 "$(status filename): target/ pre-warm into $ws_dir failed — first build there starts cold (harmless)."
+    end
+end
+if test -d "$default_dir/lean/.lake"
+    if cp --reflink=auto -a "$default_dir/lean/.lake" "$ws_dir/lean/.lake"
+    else
+        rm -rf "$ws_dir/lean/.lake"
+        echo >&2 "$(status filename): lean/.lake seed into $ws_dir failed — first Lean build there starts cold (harmless)."
     end
 end
