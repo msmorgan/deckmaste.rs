@@ -11,10 +11,12 @@ is exempt. Kicker is the one-component case [CR#702.33a]. Offspring and squad ad
 trigger [CR#702.175a,702.157a], casualty a cast trigger [CR#702.153a], and gift an enters trigger
 on a permanent and a spell ability on an instant or sorcery [CR#702.174a,702.174b].
 
-Offspring, squad and casualty declare no definition yet, so their pins hold rows written here,
-shaped as theirs will be; gift's row here predates its definition, which
-`Proofs/GiftVariants.lean` checks against the registry's own row. The effects are stand-ins: the law reads each component's form,
-not what it does.
+Squad and casualty declare no definition yet, so their pins hold rows written here, shaped as
+theirs will be; offspring's row here agrees with the registry's since its definition was declared
+(`okOffspringRegistryRow`), and gift's predates its definition, which `Proofs/GiftVariants.lean`
+checks against the registry's own row. The stand-in effects read each component's form, not what
+it does; offspring's declared definition and squad's second ability are pinned with their real
+effects.
 -/
 
 open Semantics Semantics.Macros
@@ -109,6 +111,49 @@ theorem okOffspringComponents : [costPart, entersPart].all offspringRow.bodyPart
 
 /-- Squad's components are offspring's shape [CR#702.157a]. -/
 theorem okSquadComponents : [costPart, entersPart].all squadRow.bodyPartFits = true := by
+  decide
+
+/-- "create a token that's a copy of it, except it's 1/1" [CR#702.175a] -/
+def offspringCopy : Instruction :=
+  Primitives.Instruction.create (.lit 1)
+    (.copyOf thisPermanent [.edits [.stat .sets .power (.lit 1), .stat .sets .toughness (.lit 1)]])
+    []
+
+/-- Offspring's definition as its declaration builds it: the additional cost, and "When this
+permanent enters, if its offspring cost was paid, create a token that's a copy of it, except it's
+1/1." [CR#702.175a] -/
+def offspringDefinition : List Ability :=
+  [ costPart,
+    triggeredIf (Primitives.GameEvent.enters thisPermanent none)
+      (costWasPaid (.byKeyword (.named "offspring")) none thisPermanent) offspringCopy ]
+
+/-- The registry's offspring row declares the components the pins above were written against. -/
+theorem okOffspringRegistryRow :
+    ((keywordFactsFor (.named "offspring")).map (·.definition),
+      (keywordFactsFor (.named "offspring")).map (·.regime))
+      = (some offspringRow.definition, some offspringRow.regime) := by
+  decide
+
+/-- "Offspring {2}" with its declared definition fits the registry's row and checks
+[CR#702.175a]. -/
+theorem okOffspringDefinition :
+    (keywordBodyFits (.named "offspring") offspringDefinition,
+      Ability.check [] (.keyword (.named "offspring") [.cost two] offspringDefinition))
+      = (true, []) := by
+  decide
+
+/-- Squad's second ability: "When this creature enters, if its squad cost was paid, create a
+token that's a copy of it for each time its squad cost was paid." [CR#702.157a] Its first
+ability, a cost paid any number of times, has no `addedCost` spelling yet, so squad declares no
+definition; this pins the second against squad's components and the checker. -/
+def squadEntersPart : Ability :=
+  triggeredIf (Primitives.GameEvent.enters thisCreature none)
+    (costWasPaid (.byKeyword (.named "squad")) none thisCreature)
+    (Primitives.Instruction.create (timesPaid (.byKeyword (.named "squad")) thisCreature)
+      (.copyOf thisCreature []) [])
+
+theorem okSquadSecondAbility :
+    (squadRow.bodyPartFits squadEntersPart, Ability.check [] squadEntersPart) = (true, []) := by
   decide
 
 /-- Under one regime for the whole keyword the enters trigger is refused, as it was. -/

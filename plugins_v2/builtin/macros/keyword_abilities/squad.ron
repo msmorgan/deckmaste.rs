@@ -10,6 +10,10 @@ KeywordAbility(
     // paid, create a token that's a copy of it for each time its squad cost was paid."
     // [CR#702.157a] `StaticSpec::AddedCost` carries a cost and an `offered` flag and no
     // repetition count, so "any number of times" cannot be written (the cause Replicate
-    // shares). Its second ability, an enters trigger, is checked against its own regime
-    // since `lean-keyword-definition-regimes` and no longer blocks it.
+    // shares). Its second ability is writable and pinned
+    // (`Proofs/KeywordDefinitionRegimes.lean`, `okSquadSecondAbility`):
+    // `triggeredIf(enters(thisCreature), keywordCostPaid(squad, thisCreature),
+    // create(timesPaid(ByKeyword(squad), thisCreature), copyOf(thisCreature)))`. The
+    // definition is not declared without its first ability, since a declared
+    // definition is every ability the keyword represents [CR#702.157a].
 )

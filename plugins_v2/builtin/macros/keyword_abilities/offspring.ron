@@ -5,12 +5,23 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "offspring",
     ),
-    // UNBODIED, not blocked. "Offspring [cost]" means "You may pay an additional
-    // [cost] as you cast this spell" and "When this permanent enters, if its
-    // offspring cost was paid, create a token that's a copy of it, except it's
-    // 1/1." [CR#702.175a] Both halves are writable — `StaticSpec::AddedCost` and an
-    // enters trigger reading `Paid(Readback(ByKeyword("Offspring")))` — and since
-    // `lean-keyword-definition-regimes` each is checked against its own regime (the
-    // cost at casting, the trigger off the stack). The body is owed to
-    // `semantics-v2-keyword-ability-residues`.
+    // "Offspring [cost]" means "You may pay an additional [cost] as you cast this
+    // spell" and "When this permanent enters, if its offspring cost was paid,
+    // create a token that's a copy of it, except it's 1/1." [CR#702.175a] The cost
+    // is paid as the spell is cast and the trigger functions off the stack; each is
+    // checked against its own regime (`semantics-v2.md` §7, ruling 2026-10-06).
+    body: [
+        static(addedCost(Param(0), true)),
+        triggeredIf(
+            enters(thisPermanent),
+            keywordCostPaid(offspring, thisPermanent),
+            create(
+                1,
+                copyOf(
+                    thisPermanent,
+                    [Edits([Stat(Sets, Power, 1), Stat(Sets, Toughness, 1)])],
+                ),
+            ),
+        ),
+    ],
 )
