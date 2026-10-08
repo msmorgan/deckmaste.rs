@@ -1,18 +1,18 @@
 ---
 needs: []
 ---
-# Prune unattested licences and harden two licence bypasses
+# Prune unattested licences and harden two licence bypasses and one separator rule
 
 Priority: medium.
 
 ## Why
 
-Hygiene ticket. It adds no construction. It collects three code findings
+Hygiene ticket. It adds no construction. It collects four code findings
 from the reviews of the except-matrix-complements landing (change `rysrlqry`,
 Opus review 2026-10-08) and the gerund-preposition-complements landing. Each
 item is an overgeneration: a Reading that parses on a string Oracle text does
-not attest. Expected coverage gain: 0. Zero lost faces required. The
-deliverable is Readings that disappear on the negative probes below, with
+not attest. Expected coverage gain: about 8 faces from item 4; 0 from the
+others. Zero lost faces required. The deliverable is Readings that disappear on the negative probes below, with
 every attested Reading kept.
 
 Line numbers are those of the claim parent this ticket was minted on.
@@ -137,6 +137,37 @@ Adjunct nor a compound-PP internal, so a restricted PP cannot fill it.
 `matrix_pp_requirement`, and By's restriction is the default `None`, so no
 bypass is known there. Do not change it in this ticket.
 
+### 4. `LicensedMatrixComplementPredicate` must not key the host class on the separator
+
+`declarations.rs:1301–1308` has two forms: a nominal exception (*except for
+…*) admitted only after `" "`, and a content clause (*except it …*) admitted
+only after `", "`. Oracle attests both separators for both classes (audit
+2026-10-08, counts are matching cards in `data/scryfall/oracle-cards.jsonl`):
+nominal hosts with ", except for" occur 3 times (Season of the Witch, Total
+War, Eye of Singularity), and content hosts with a bare " except it/its" occur
+5 times (Mirrored Lotus, Hosting Season, Faerie Artisans among them) against
+197 with the comma. All eight faces read 0 today. Owner ruling 2026-10-08: a
+construction may use a comma to decide between analyses, but it must not be
+keyed on a comma where Oracle attests both spellings with the same structure.
+
+Fix: let both separators admit both host classes. The host class is already
+fixed by `licensed_matrix_complement(head.MatrixComplementLicence,
+modifier.MatrixComplementRequirement)`, so the separator carries no
+information the licence does not. Do not add a stored punctuation bit beyond
+the form index that already exists; the two forms may stay as `" "` and `", "`
+variants each admitting either requirement, or collapse to one form if the
+construction language allows a separator alternative. No new construction.
+
+- Positive witnesses (0 → ≥1): "Destroy all creatures, except for Walls."
+  (Season of the Witch shape); "Create a token that's a copy of target
+  creature except it isn't legendary." (bare content clause).
+- Controls unchanged: every face the except landing gained (112, listed in
+  `docs/tickets/done/english-v3-except-matrix-complements.md`) keeps its
+  digest; "Draw a card except for three." stays 0 (licence, not separator,
+  rejects it).
+- A new spurious Reading on an already-covered face from the widened
+  separator is a defect; the census per-face diff finds it.
+
 ## Method
 
 Standard constraints apply (CLAUDE.md landing record, assurance, scope).
@@ -175,19 +206,16 @@ marked "rg" were checked on the local MTGJSON snapshot (Vintage-legal names,
 surface match, not unread counts). All other counts are as reported by the
 reviews.
 
-- (a) **", except for"** with a preceding comma is unread, because the
-  nominal-exception schema requires `" "` before *except*. Witnesses: Season
-  of the Witch, Total War, Eye of Singularity (3 cards, rg).
-- (b) **"except it …"**: 115 faces unread (reported by review), mostly on
+- (a) **"except it …"**: 115 faces unread (reported by review), mostly on
   hosts other than Create/Copy/Become, likely *enter as a copy of*.
-- (c) **Matrix *except by*** on hosts outside the passive-blocked route:
+- (b) **Matrix *except by*** on hosts outside the passive-blocked route:
   Island Sanctuary ("can't be attacked except by"), Raging River, Agility
   Bobblehead, Tatsunari, Toad Rider.
-- (d) From the gerund landing: 15 *anywhere else* faces unrouted (listed in
+- (c) From the gerund landing: 15 *anywhere else* faces unrouted (listed in
   `english-v3-gerund-preposition-complements`). Unlicensed gerund
   prepositions: *for having* (8 cards, rg), *after being* (1 card, rg),
   *while -ing* (6 faces, reported).
-- (e) The *instead of* gerund residual: the compound-gerund hosts that stay
+- (d) The *instead of* gerund residual: the compound-gerund hosts that stay
   unread after the gerund landing (its `compound-residuals.json`).
 - Scheming Fence (item 1): blocked on *loyalty abilities*. When that reads,
   re-add the Have Nominal matrix licence with it as witness.
