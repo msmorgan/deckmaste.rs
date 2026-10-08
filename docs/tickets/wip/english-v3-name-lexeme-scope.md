@@ -270,13 +270,17 @@ to recon. Both repairs must preserve the intended analysis.
 
 ## Landing record
 
-1. **Census delta:** claim parent `vnzxpvuk` → feature `zntxxpru`: covered faces
+1. **Census delta:** pre-refresh claim parent `vnzxpvuk` → feature `zntxxpru`: covered faces
    23,658 → 23,658; total Readings 1,672,796 → 1,094,004. Lost faces: none.
    On `zntxxpru`, 578,792 wrong foreign-name Readings are retired across 335
    faces; all decreases are justified face by face in the ignored
    `target/english-v3/english-v3-name-lexeme-scope/decreased-faces.json`.
    Roundtrip/traversal issues, internal failures and unexplained decreases: 0
    (`zntxxpru`). Parent provenance is in `baseline-provenance.json` there.
+   After refresh, the bounded 6,300-face check on `yywzqzyt` has 0 losses,
+   decreases, issues or internal failures; inherited `lzttwzxx`/`vpsommzu`
+   add 407 covered faces and 83,653 Readings. Reconciled totals are 24,065
+   covered faces and 1,177,657 Readings (`yywzqzyt`, `refresh-comparison.json`).
 2. **Witnesses** (`zntxxpru`): the Chandra/Jace/Ajani/Gandalf/Niv-Mizzet
    sentence probes each have 0 unscoped and 1 in their declared card scope;
    the Chandra subtype search control has 4. Jace, the Mind Sculptor and
@@ -286,14 +290,21 @@ to recon. Both repairs must preserve the intended analysis.
    Edgar Markov 8; Niv-Mizzet, Parun 2; the Firemind 1. Repair witnesses:
    Aang and Katara 10 (plural full-name Subject), The Hive 21 (Wasp as the
    Name complement of named), Shang-Chi and the Ten Rings 3 (own Shortened
-   Name). Both Garruk face scopes admit the other face's Shortened Name.
-3. **Spot checks** (`zntxxpru`): no newly covered faces. Ten changed faces
-   checked: Chandra, Pyromaster; Chandra, Flame's Fury; Chandra, Pyrogenius;
-   Chandra, Bold Pyromancer; Chandra, Flame's Catalyst; Chandra Ablaze;
-   Sorin, Vengeful Bloodlord; Edgar Markov; Niv-Mizzet, Parun; Niv-Mizzet,
-   the Firemind. Each selected analysis has its own CatalogName Subject
-   identity and Shortened Name variant, with byte-exact realization and no
-   validation issues (`spot-checks.json`).
+   Name). Either Garruk face scope admits Garruk Relentless's declared
+   Shortened Name.
+3. **Spot checks:** no new faces from this ticket alone (`zntxxpru`);
+   its ten scoped-Name checks remain in `spot-checks.json`. Ten newly covered
+   faces inherited on refresh (`yywzqzyt`) were checked: Dazzling Sphinx
+   (exiled cards, participial Premodifier); Ramosian Commander (Rebel
+   permanent card, noun Premodifier); Unnatural Restoration (permanent card,
+   noun Premodifier); Beluna Grandsquall (Permanent spells, noun Premodifier);
+   Seek Thrills (milled cards, participial Premodifier); Cache Grab (permanent
+   card, noun Premodifier); Genesis Ultimatum (permanent cards, noun
+   Premodifier); Profound Journey (permanent card, noun Premodifier); Nexus
+   of Becoming (exiled card, participial Premodifier); Abstruse Archaic
+   (activated or triggered ability, coordinated participial Premodifiers).
+   Each selected analysis is byte-exact and issue-free (`yywzqzyt`,
+   `refresh-spot-checks.json`).
 4. **Deviations and STOPs:** scoped realization contexts and independent
    lexical boundary validation preserve both roundtrip laws. The generator
    restores Shang-Chi's attested Shortened Name. The outside-ticket STOP was
@@ -311,6 +322,8 @@ to recon. Both repairs must preserve the intended analysis.
    their singular noun routes replace them; no frame was added or deleted.
    Shortened Name and Name Number glossary gaps are filled. CGEL p. 516
    supports NP status only; declared agreement is cited as the owner ruling.
+   Refresh's test-registration conflict was resolved by retaining both the
+   inherited and this ticket's suites; only trailing whitespace was formatted.
 5. **Tests** (`zntxxpru`): `cargo test -p deckmaste_english_v3` passed (508);
    `cargo test -p deckmaste_lexical -p deckmaste_lexical_source -p
    deckmaste_construction_v3_core -p deckmaste_catalogs` passed (59, 59, 27,
@@ -321,13 +334,22 @@ to recon. Both repairs must preserve the intended analysis.
    re-spelled 15, ignored-with-blocker 0, added 7 (the xtask unit test was
    compiled only), removed 0. No assertion was weakened; no xtask tests or
    Lean checks ran. Citation checks: 0 noncompliant and 0 stale (`zntxxpru`).
+   After refresh (`yywzqzyt`), `cargo test -p deckmaste_english_v3 --test main`
+   with filters `name_lexeme_scope`, `noun_premodifier`,
+   `past_participial_premodifiers`, `from_preposition_phrase_complement`
+   passed (4, 20, 7, 9 respectively); `cargo test -p
+   deckmaste_lexical_source` passed (59); `cargo clippy -p
+   deckmaste_english_v3 -p deckmaste_lexical_source --tests -- -D warnings`
+   passed. No full English suite or full census was repeated after refresh.
 6. **Timing** (`zntxxpru`): the one full text census took 193.096144 seconds
    wall time, including setup, with 12 workers.
-7. **Readings total before/after:** text at `vnzxpvuk` → `zntxxpru`:
+7. **Readings total before/after:** the full text census before refresh at `vnzxpvuk` → `zntxxpru`:
    1,672,796 → 1,094,004 Readings; 23,658 → 23,658 covered faces. Type lines:
    32,828 → 32,828 Readings and covered faces. Parent type-line totals are
    projected from one measured representative of each distinct supported
    type line (3,594, source-equivalent to `vnzxpvuk`); feature totals are from
    the full type-line census on `zntxxpru`. Item 1 removes 578,792 Readings;
    item 2 changes no type-line or rules-text count, only subtype identity in
-   Type Lines. Evidence is under the ignored ticket target directory.
+   Type Lines. The bounded reconciliation after inherited changes gives
+   24,065 covered faces and 1,177,657 Readings (`yywzqzyt`), rather than a
+   second full run. Evidence is under the ignored ticket target directory.
