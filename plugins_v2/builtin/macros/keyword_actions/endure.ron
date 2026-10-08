@@ -5,7 +5,9 @@
 // "that permanent's controller" does the rest, so the body hands it on to
 // `controllerOf(actor)`: they create an N/N white Spirit creature token unless
 // they put N +1/+1 counters on "that permanent", the enduring one, still in
-// view. The "unless" is the controller's own choice between the two.
+// view. The "unless" is the controller's own choice between the two. Endure
+// 0 does nothing, neither counters nor a token [CR#701.63b], which is the
+// rules' to apply, as connive 0's is (`conniveN`).
 KeywordAction(
     name: "endure",
     params: [Amount],

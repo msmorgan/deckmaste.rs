@@ -10,8 +10,14 @@
 // "that permanent" is the conniving one. The discarded cards are read back by
 // identity (`discardThenForEachNonland`), so their number is N's; they are
 // cards in hand, written `cardIn(hand)` as the owner settled for Burglar
-// Rat's discard (2026-10-06). The spelling is the bare head until
-// `builtin-v2-keyword-spelling-templates` writes it "connive <Param(0)>".
+// Rat's discard (2026-10-06). `conniveN` names no deed of its own, so it does
+// not read where a deed is wanted; a card names the event `connive`.
+// Connive 0 makes no connive event [CR#701.50e], yet `conniveN(0)` is still
+// enacted as `connive`: the loader wraps every amount alike. That is the
+// rules' to apply, as fight's [CR#701.14b] is, not a guard here: the term is
+// what the card says, and the checker is no rules engine
+// (`docs/decisions/semantics-v2.md` §7, the checker's charter). Scry 0,
+// surveil 0 and endure 0 read the same way.
 KeywordAction(
     name: "conniveN",
     params: [Amount],

@@ -1,7 +1,8 @@
 // "Surveil N" [CR#701.25a]: look at the top N cards of your library, then put
 // any number of them into your graveyard and the rest on top of your library
 // in any order. "Your" is the actor's; the slice is read back as scry's is
-// (`lookAndSortSlice`).
+// (`lookAndSortSlice`). Surveil 0 makes no surveil event [CR#701.25c], which
+// is the rules' to apply, as connive 0's is (`conniveN`).
 KeywordAction(
     name: "surveil",
     params: [Amount],

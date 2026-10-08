@@ -2,7 +2,8 @@
 // number of them on the bottom of your library in any order and the rest on
 // top in any order. "Your" is the actor's. The look reads its slice back by
 // identity, so its number is N's: "that card" for scry 1, "those cards" for
-// scry 2 (`lookAndSortSlice`).
+// scry 2 (`lookAndSortSlice`). Scry 0 makes no scry event [CR#701.22b],
+// which is the rules' to apply, as connive 0's is (`conniveN`).
 KeywordAction(
     name: "scry",
     params: [Amount],
