@@ -739,6 +739,20 @@ Ch. 8 §§5.2–5.3, pp. 691–693).
 An optional dependent that modifies a phrase without being selected as its
 Complement.
 
+**Purpose Infinitival**:
+A *to*-infinitival Clause functioning as a purpose Adjunct; an ungoverned
+Purpose Infinitival is positive, and its missing Subject need not be
+syntactically controlled (CGEL, Ch. 8 §12.2, pp. 728–729).
+_Avoid_: Catenative Complement for an unselected purpose Clause
+
+**Purpose Adjunct Licence**:
+Project term. A verb's declared permission for its predicate to take a Purpose
+Infinitival as an Adjunct. Oracle English may restrict this permission under
+its recorded construction analyses, including the
+[cost-scalar-complement analysis](../../tickets/done/english-v3-cost-scalar-complement.md#project-analysis)
+and the [orchestrator stative-host ruling of 2026-10-08](../../tickets/done/english-v3-purpose-infinitival.md#stop-and-resolution-2026-10-08).
+Auxiliary predicates inherit the licence of their selected predicate.
+
 **Means Adjunct**:
 An Adjunct expressing how a situation is brought about, commonly a *by*
 Preposition Phrase with a nominal or gerund-participial Complement. It can

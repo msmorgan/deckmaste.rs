@@ -135,3 +135,6 @@ mod where_variable_clause;
 
 #[path = "suite/once_frequency.rs"]
 mod once_frequency;
+
+#[path = "suite/purpose_infinitival.rs"]
+mod purpose_infinitival;

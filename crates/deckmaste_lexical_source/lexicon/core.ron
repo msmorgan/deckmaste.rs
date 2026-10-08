@@ -50,6 +50,17 @@
         Pronoun: {"RelativeUse": "No"},
     },
     feature_additions: {
+        // Oracle-register stative exclusion: orchestrator ruling 2026-10-08.
+        "core-verb:Have": {"PurposeAdjunctLicence": "No"},
+        "core-verb:Be": {"PurposeAdjunctLicence": "No"},
+        "core-verb:BeNegative": {"PurposeAdjunctLicence": "No"},
+        "core-verb:BeContracted": {"PurposeAdjunctLicence": "No"},
+        "core-verb:Remain": {"PurposeAdjunctLicence": "No"},
+        "core-verb:Control": {"PurposeAdjunctLicence": "No"},
+        "core-verb:Own": {"PurposeAdjunctLicence": "No"},
+        "core-verb:Share": {"PurposeAdjunctLicence": "No"},
+        // Project analysis: cost-scalar-complement requires its hollow Complement.
+        "core-verb:Cost": {"PurposeAdjunctLicence": "No"},
         "vocab:FocusAdverb/Only": {"FocusingModifierUse": "Restrictive"},
         "vocab:FrequencyAdverb/Once": {"VPFinalAdjunct": "Yes", "ClauseInitialAdjunct": "No"},
         "vocab:FrequencyAdverb/Twice": {"VPFinalAdjunct": "Yes", "ClauseInitialAdjunct": "No"},
