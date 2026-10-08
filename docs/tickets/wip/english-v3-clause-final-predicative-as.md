@@ -29,8 +29,8 @@ this ticket's `needs`.
 ## Goal
 
 A clause-final *as* + NP Adjunct reads after a verb phrase, including under
-focusing *only* and in coordination with another restriction (*only as a
-sorcery and only once*), with byte-exact realisation. Once the prerequisites
+focusing *only*, with byte-exact realisation. Coordination and focused Subjects
+are excluded by the user ruling of 2026-10-08. Once the prerequisites
 have landed, *same … as* and Enter *as a copy of* keep their own Readings and
 gain no Adjunct duplicate.
 
@@ -51,27 +51,28 @@ implicit.
 
 ## Witnesses
 
-Each witness's failing units all match this construction and no other recon
-STRONG bucket (`xnkuznpo`, 0 Readings each):
+The user ruling of 2026-10-08 replaces the three witnesses with independent
+gaps. At the claim-parent bounded baseline `mqrlzszk`, each full face below
+has zero Readings; its body without the final restriction reads (28, 1, 1, 1,
+and 1 Readings respectively). Pre-implementation `english-v3 probe` evidence
+is under `target/english-v3/english-v3-clause-final-predicative-as/`.
 
-- Experimental Synthesizer: "Activate only as a sorcery." (control "Activate
-  only once each turn." 1)
+- Experimental Synthesizer: "Activate only as a sorcery."
 - Lion's Eye Diamond: "Activate only as an instant."
-- In the Trenches: "Activate only as a sorcery and only once."
-- Endbringer's Revel: "Any player may activate this ability but only as a
-  sorcery."
-- Detention Vortex: "Only your opponents may activate this ability and only as
-  a sorcery."
+- Sun-Blessed Guardian: "Activate only as a sorcery."
+- Intrepid Tenderfoot: "Activate only as a sorcery."
+- Cat Burglar: "Activate only as a sorcery."
 
 ## Method
 
 Standard constraints apply (CLAUDE.md landing record, assurance, scope).
 Deltas:
 
-1. Verification budget (binding): One full census (`--all --workers 12
-   --samples-per-face 0`) on the finished feature for the record, compared
-   face by face (per-face `readings_sha256` and counts) against the claim
-   parent's census; iterate on selector subsets, never on --all. Tests:
+1. Verification budget (user ruling, 2026-10-08): one bounded census of
+   every supported face containing case-insensitive " as " plus 300 random
+   covered faces (seed 20261008), using the identity manifest and 12 workers,
+   with `--samples-per-face 0`; compare against the claim-parent bounded
+   baseline with `cargo xtask english-v3 diff`. Never run `--all`. Tests:
    `cargo test -p` and `cargo clippy -p … --tests -- -D warnings` for every
    crate whose code or consumed data changed (`deckmaste_english_v3` always;
    `deckmaste_lexical_source` if core.ron/verbs.ron/vocabulary.rs changed).
@@ -108,11 +109,20 @@ Deltas:
 
 - *any time you could cast a sorcery* (separate bucket, 44 sole faces).
 - Ability bodies that fail on their own.
+- Mixed PP/AdvP coordination under *only*, *but only …*, and focused Subjects
+  (user scope ruling, 2026-10-08); the three original blocked witnesses return
+  to `english-v3-systemic-residuals` recon.
 - Re-opening the 2026-10-07 ruling: if the prerequisites have not landed,
   STOP rather than widen.
 
 ## Landing record
 
-The six items in CLAUDE.md. Also report, for each of Counterbore, Aven Shrine
-and Clone, its Reading count and whether any Reading attaches *as* as this
-Adjunct (expected: none).
+1. **Census delta.** Bounded claim-parent baseline `mqrlzszk`: 2,123 covered faces / 145,758 Readings → `noppnrqz`: 2,488 / 295,566 (+365 faces / +149,808 Readings). At `noppnrqz`, lost faces none; removed Readings none; decreases, increases on previously covered faces, digest-only changes, validation issues and internal failures all zero. Every counted Reading passed admission, byte-exact realization and node/word traversal checks. Official comparison: `target/english-v3/english-v3-clause-final-predicative-as/diff.json`.
+2. **Witnesses.** All five full faces failed pre-implementation probes with zero Readings (`mqrlzszk`); their bodies without the restriction read, confirming the only failing unit. After (`noppnrqz`): Experimental Synthesizer 56; Lion's Eye Diamond 2; Sun-Blessed Guardian 2; Intrepid Tenderfoot 2; Cat Burglar 2. Each final *as* phrase has retained VP and Clause Adjunct attachments. Counterbore 28, Aven Shrine 9 and Clone 6 (`noppnrqz`), identical to baseline; no Reading makes their *as* phrase an Adjunct.
+3. **Spot checks.** Ten newly covered faces at `noppnrqz`: Experimental Synthesizer, Lion's Eye Diamond, Sun-Blessed Guardian, Intrepid Tenderfoot, Cat Burglar, Seeker of Sunlight, Harried Artisan, Concealing Curtains, Ravenous Demon and Vodalian Hypnotist. All select a focused nominal predicative *as* PP as a final VP or Clause Adjunct, with no NP attachment; *instant* on Lion's Eye Diamond and *sorcery* on the other nine. Exhaustive probes completed without issues (`noppnrqz`).
+4. **Deviations and STOPs.** The scope STOP was resolved by the user ruling of 2026-10-08: replace three witnesses and exclude their independent repairs. The existing nominal-as Construction was refined in place, with declared Predicative Adjunct Use on the two attested timing nouns and general feature projection; no frame or Construction was added or deleted, and no duplicate or superseded route remains. The owning glossary defines the new licence; its final-position authority is the orchestrator ruling, while CGEL p. 263 backs the predicative function only. No word-naming guard or unresolved glossary gap.
+   In the Trenches — residual routed to `english-v3-systemic-residuals` recon: mixed PP/AdvP coordination under *only*.
+   Endbringer's Revel — residual routed to `english-v3-systemic-residuals` recon: *but only …*.
+   Detention Vortex — residual routed to `english-v3-systemic-residuals` recon: focused Subject *Only your opponents may …*.
+5. **Tests.** `cargo test -p deckmaste_english_v3`: 540 passed; `cargo test -p deckmaste_lexical_source`: 59 passed; `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source --tests -- -D warnings` passed; formatting check passed (all at `noppnrqz`). Assurance counts at `noppnrqz`: restored 0; re-spelled 3 (Mind Slash's deferred-as exclusion, bare-as final-position exclusion, and Enter's sorcery control); ignored with blocker 0; added 7; removed 0. All original surfaces and the copy/comparison exclusions remain asserted. No xtask tests or Lean checks.
+6. **Timing.** One finished-feature bounded census: 68.480 s including setup, 12 workers (`noppnrqz`). Manifest: 4,253 faces (`mqrlzszk` selector), comprising all 3,976 supported faces whose raw text contains case-insensitive " as " plus 300 random covered controls, seed 20261008, with 23 overlapping identities. Commands: `cargo xtask english-v3 --identity-manifest target/english-v3/english-v3-clause-final-predicative-as/manifest.json --workers 12 --samples-per-face 0 --output target/english-v3/english-v3-clause-final-predicative-as/after.json`; `cargo xtask english-v3 diff BEFORE.json AFTER.json --json target/english-v3/english-v3-clause-final-predicative-as/diff.json`. Evidence stays under that ignored target directory. No full corpus census was run.

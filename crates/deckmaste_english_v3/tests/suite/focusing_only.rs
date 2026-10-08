@@ -13,11 +13,19 @@ use crate::common::lexicon;
 use crate::common::readings;
 
 #[test]
-fn mind_slash_predicative_as_remains_deferred() {
-    // Orchestrator ruling, 2026-10-07: final predicative-as remains deferred
-    // until comparative and verb-selected replacement analyses exist.
-    assert!(readings("Activate only as a sorcery.", Category::Document).is_empty());
-    assert!(readings("only as a sorcery", Category::PrepositionPhrase).is_empty());
+fn mind_slash_predicative_as_now_reads() {
+    assert_constituents(
+        "Activate only as a sorcery.",
+        Category::Document,
+        &[
+            (Category::PrepositionPhrase, "only as a sorcery"),
+            (Category::PrepositionPhrase, "as a sorcery"),
+        ],
+    );
+    assert_eq!(
+        readings("only as a sorcery", Category::PrepositionPhrase).len(),
+        1
+    );
 }
 
 #[test]
@@ -67,14 +75,14 @@ fn flywheel_racer_focuses_the_conditional_adjunct() {
 }
 
 #[test]
-fn bare_as_keeps_its_preposed_licence_without_final_position() {
+fn bare_as_keeps_its_preposed_licence_and_gains_final_position() {
     assert_eq!(
         readings("as a sorcery", Category::PrepositionPhrase).len(),
         1
     );
     assert_eq!(
         readings("Activate as a sorcery.", Category::Document).len(),
-        0
+        2
     );
 }
 

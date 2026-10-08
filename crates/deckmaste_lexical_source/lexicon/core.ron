@@ -101,6 +101,8 @@
         "lexeme:CommonNoun/Card": {"BareGenitiveHost": "Yes"},
         "lexeme:CommonNoun/Permanent": {"BareGenitiveHost": "Yes", "NounPremodifier": "Yes"},
         "lexeme:type/creature": {"BareGenitiveHost": "Yes"},
+        "lexeme:type/sorcery": {"PredicativeAdjunctUse": "Yes"},
+        "lexeme:type/instant": {"PredicativeAdjunctUse": "Yes"},
         "lexeme:type/planeswalker": {"BareGenitiveHost": "Yes"},
         "lexeme:turn_part/combat": {"NounPremodifier": "Yes", "NominalBareClass": "Interval", "NominalAdjunctClass": "Temporal"},
         "lexeme:Verb/Defend": {"BareSingularUse": "Yes"},

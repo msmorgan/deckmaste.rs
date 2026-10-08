@@ -216,15 +216,15 @@ fn existing_enter_frames_and_adjunct_exclusion_survive() {
     ] {
         assert_eq!(common::readings(text, Category::Document).len(), 1);
     }
-    for text in [
-        "Creatures you control die as a copy of this creature.",
-        "Activate as a sorcery.",
-    ] {
-        assert!(
-            common::readings(text, Category::Document).is_empty(),
-            "{text}"
-        );
-    }
+    assert_eq!(
+        common::readings("Activate as a sorcery.", Category::Document).len(),
+        2
+    );
+    let text = "Creatures you control die as a copy of this creature.";
+    assert!(
+        common::readings(text, Category::Document).is_empty(),
+        "{text}"
+    );
 }
 
 #[test]

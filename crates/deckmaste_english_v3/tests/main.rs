@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "suite/clause_final_predicative_as.rs"]
+mod clause_final_predicative_as;
+
 #[path = "suite/amount_complements.rs"]
 mod amount_complements;
 #[path = "suite/articles.rs"]

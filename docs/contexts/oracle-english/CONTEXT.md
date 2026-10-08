@@ -965,6 +965,19 @@ Ch. 8 §§5.2–5.3, pp. 691–693).
 An optional dependent that modifies a phrase without being selected as its
 Complement.
 
+**Predicative Adjunct**:
+An optional predicative dependent describing a pragmatically appropriate
+predicand; an *as* phrase takes a nominal Complement in this function
+(CGEL, Ch. 4 §5.3, p. 263).
+
+**Predicative Adjunct Use** (project term):
+A nominal head's declared permission to occur in an *as* Preposition Phrase
+functioning as a final Adjunct. Final position follows the orchestrator ruling
+of 2026-10-07 recorded in the
+[clause-final predicative-as ticket](../../tickets/done/english-v3-clause-final-predicative-as.md#analysis);
+the declared availability is based on attested Oracle usage, independently of
+selected predicative and preposed uses.
+
 **Purpose Infinitival**:
 A *to*-infinitival Clause functioning as a purpose Adjunct; an ungoverned
 Purpose Infinitival is positive, and its missing Subject need not be
