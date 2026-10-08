@@ -170,7 +170,10 @@ fn lexicalized_orientation_prepositions_own_exact_invariant_multiword_forms() {
             entry.properties.countability,
             [] as [deckmaste_lexical::Countability; 0]
         );
-        assert_eq!(entry.properties.features["PrepositionComplement"], "None");
+        assert_eq!(
+            entry.properties.features["PrepositionComplement"],
+            "Intransitive"
+        );
         let mut expected_values = BTreeSet::new();
         for casing in [SurfaceCase::Declared, SurfaceCase::Initial] {
             let expected = LexicalReading::Word(LexicalValue {

@@ -129,7 +129,7 @@
         Predicate([ObjectNounPhrase, Lex("Preposition", "Onto"), ObjectNounPhrase]),
     ]),
     (identity: Remove, bare: "remove", third_person: "removes", preterite: Some("removed"), frames: [
-        Predicate([ObjectNounPhrase, MarkedRole("Preposition", "From", "NounPhrase")]),
+        Predicate([ObjectNounPhrase, Role("SourceComplement")]),
     ]),
     (identity: Assign, bare: "assign", third_person: "assigns", frames: [
         Predicate([ObjectNounPhrase]),
@@ -156,13 +156,19 @@
     ]),
     (identity: Return, bare: "return", third_person: "returns", preterite: Some("returned"), frames: [
         Predicate([
-            ObjectNounPhrase,
-            OptionalMarkedRole("Preposition", "From", "NounPhrase"),
+            Argument((relation: Object, category: "SourceFreeObject")),
+            Role("SourceComplement"),
             Lex("Preposition", "To"),
             ObjectNounPhrase,
             OptionalMarkedRole("Preposition", "Under", "NounPhrase"),
         ]),
-        Predicate([ObjectNounPhrase, Lex("Preposition", "To"), ObjectNounPhrase]),
+        Predicate([Argument((relation: Object, category: "SourceFreeObject")), Lex("Preposition", "To"), ObjectNounPhrase]),
+        Predicate([
+            Argument((relation: Object, category: "SourceFreeObject")),
+            Lex("Preposition", "To"),
+            ObjectNounPhrase,
+            MarkedRole("Preposition", "Under", "NounPhrase"),
+        ]),
     ]),
     (identity: Roll, bare: "roll", third_person: "rolls", preterite: Some("rolled"), frames: [
         Predicate([ObjectNounPhrase]),

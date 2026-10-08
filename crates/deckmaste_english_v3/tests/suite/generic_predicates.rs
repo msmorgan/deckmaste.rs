@@ -407,10 +407,14 @@ fn sun_droplet_remove_retains_object_and_marked_source_roundtrip() {
         0,
         vec![
             argument(object),
-            FrameValue::Marked {
-                marker: word("vocab:Preposition/From", WordForm::Invariant, None, None),
-                argument: Box::new(source),
-            },
+            argument(Reading::SourceComplement {
+                form: 0,
+                phrase: Box::new(Reading::PrepositionPhrase {
+                    form: 0,
+                    head: word("vocab:Preposition/From", WordForm::Invariant, None, None),
+                    complement: Box::new(source),
+                }),
+            }),
         ],
     );
     laws("remove a charge counter from this artifact", &expected);
@@ -435,7 +439,11 @@ fn sun_droplet_remove_retains_object_and_marked_source_roundtrip() {
     let Reading::SelectedPredicate { complements, .. } = &mut wrong else {
         unreachable!()
     };
-    let FrameValue::Marked { marker, .. } = &mut complements[1] else {
+    let FrameValue::Argument(source) = &mut complements[1] else { unreachable!() };
+    let Reading::SourceComplement { phrase, .. } = source.as_mut() else {
+        unreachable!()
+    };
+    let Reading::PrepositionPhrase { head: marker, .. } = phrase.as_mut() else {
         unreachable!()
     };
     *marker = word("vocab:Preposition/To", WordForm::Invariant, None, None);

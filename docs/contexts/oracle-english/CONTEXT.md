@@ -343,6 +343,51 @@ A phrase headed by a Preposition, with any selected Complements. Lexicalized
 *face down* and *face up* have no overt Complement and function as adjuncts or
 predicative complements (CGEL, pp. 633, 1268).
 
+**Intransitive Preposition**:
+A Preposition used without a Complement. Such a use can constitute a complete
+Preposition Phrase; it does not change the head's lexical Category into Adverb
+(CGEL, Ch. 7 §2.4, pp. 612–613).
+_Avoid_: adverb for a complementless Preposition
+
+**Preposition Phrase Complement Licence** (project term):
+A preposition's declared restriction on the heads of its PP Complements,
+independent of its permission to take an NP Complement. Prepositions can take
+PP Complements (CGEL, Ch. 7 §2.4, p. 617); source-marking *from* takes locative
+PPs (Ch. 8 §4.3, p. 687). The inclusion of *among* in the supported source
+class is a [project decision](../../tickets/done/english-v3-from-preposition-phrase-complement.md#project-analysis),
+not an example or classification supplied by those passages.
+
+**Source Complement Use** (project term):
+The declared availability of a PP as the internal Complement of a
+source-marking preposition. Its head licenses this distribution independently
+of the outer preposition's Complement licence. This does not by itself give
+the phrase verb-selected Complement or Adjunct function.
+
+**Source Marker** (project term):
+A declared property of a preposition that marks the starting location in a
+source PP. It is distinct from a PP head's eligibility as the internal
+Complement of that preposition, and from the grammatical function licence
+of the complete PP (CGEL, Ch. 8 §4.3, p. 687).
+
+**Source Complement**:
+A Locative Complement expressing the starting location. Its PP form retains
+the governing preposition and that preposition's internal Complement
+(CGEL, Ch. 8 §4.3, p. 687).
+
+**Source Modifier Present** (project term):
+Whether a nominal head has a source-marked PP Postmodifier. A source inside
+a distinct embedded Noun Phrase or Clause is not a Postmodifier of this head.
+
+**Source-free Object** (project term):
+An Object Noun Phrase whose own nominal head has no source-marked PP
+Postmodifier. A Verb Frame that selects its source separately can require
+this distribution. Other hosts retain the source PP's licensed nominal
+function; this is a [project constraint](../../tickets/done/english-v3-from-preposition-phrase-complement.md#project-analysis).
+
+**Frame Category Projection** (project term):
+The correspondence between a lexical Frame Slot's Category and the grammar
+Category that fills it, including any declared feature requirements of the slot.
+
 **Preposition Function Licence**:
 Project term. The declared set of grammatical functions a Preposition's
 phrase may take in Oracle English: Adjunct, Modifier or Complement of a noun,

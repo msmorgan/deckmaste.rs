@@ -174,7 +174,7 @@ fn hurricane_keyword_pp_remains_a_nominal_modifier() {
     );
 }
 #[test]
-fn raise_dead_keeps_its_selected_source_while_nominal_exclusion_is_deferred() {
+fn raise_dead_keeps_its_selected_source_without_object_attachment() {
     let text = "Return target creature card from your graveyard to your hand.";
     let values = readings(text, Category::Document);
     assert!(!values.is_empty());
@@ -188,24 +188,22 @@ fn raise_dead_keeps_its_selected_source_while_nominal_exclusion_is_deferred() {
                     && let LexicalReading::Word(word) = &head.value
                     && word.lexeme == "core-verb:Return"
                     && head.frame == Some(0)
-                    && let FrameValue::Optional(Some(_)) = &complements[1]
+                    && let FrameValue::Argument(source) = &complements[1]
+                    && source.category() == Category::SourceComplement
                 {
                     sources.push(complements[1].clone());
                 }
             })
             .unwrap();
     }
-    assert!(
-        !sources.is_empty(),
-        "Return's declared optional source must survive"
-    );
+    assert!(!sources.is_empty(), "Return's declared source must survive");
     for source in sources {
         assert_eq!(
             source,
-            FrameValue::Optional(Some(Box::new(FrameValue::Marked {
-                marker: invariant("vocab:Preposition/From"),
-                argument: Box::new(acc(graveyard())),
-            })))
+            FrameValue::Argument(Box::new(Reading::SourceComplement {
+                form: 0,
+                phrase: Box::new(pp("vocab:Preposition/From", graveyard())),
+            }))
         );
     }
 }

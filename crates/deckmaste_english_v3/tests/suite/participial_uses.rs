@@ -718,34 +718,36 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
             head: Box::new(noun("lexeme:CommonNoun/Graveyard")),
         })),
     };
-    let postmodify = |head: Reading| Reading::PostmodifiedNominal {
+    let object = accusative(Reading::TargetNounPhrase {
         form: 0,
-        head: Box::new(head),
-        modifier: Box::new(from_graveyard.clone()),
-    };
-    let card = noun("lexeme:CommonNoun/Card");
-    let nominals = [
-        premodify("lexeme:type/creature", postmodify(card.clone())),
-        postmodify(premodify("lexeme:type/creature", card)),
-    ];
-    let expected: BTreeSet<_> = nominals
-        .into_iter()
-        .map(|head| {
-            let object = accusative(Reading::TargetNounPhrase {
-                form: 0,
-                marker: word("vocab:TargetingMarker/Target"),
-                head: Box::new(head),
-            });
-            movement(
-                "core-verb:Return",
-                1,
-                WordForm::Plain,
-                object,
-                "vocab:Preposition/To",
-                true,
-            )
-        })
-        .collect();
+        marker: word("vocab:TargetingMarker/Target"),
+        head: Box::new(premodify(
+            "lexeme:type/creature",
+            noun("lexeme:CommonNoun/Card"),
+        )),
+    });
+    let expected = BTreeSet::from([Reading::ComplementedDepictivePredicate {
+        form: 0,
+        category: Category::SecondaryVerbPhrase,
+        head: Box::new(Reading::SelectedSourceDepictivePredicate {
+            form: 0,
+            category: Category::SecondaryDepictiveHost,
+            head: verb("core-verb:Return", WordForm::Plain, 0),
+            complements: vec![
+                deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(object)),
+                deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(
+                    Reading::SourceComplement {
+                        form: 0,
+                        phrase: Box::new(from_graveyard),
+                    },
+                )),
+                deckmaste_english_v3::grammar::FrameValue::Marker(word("vocab:Preposition/To")),
+                deckmaste_english_v3::grammar::FrameValue::Argument(Box::new(battlefield())),
+                deckmaste_english_v3::grammar::FrameValue::Optional(None),
+            ],
+        }),
+        modifier: Box::new(depictive(true)),
+    }]);
     exact_alternatives(
         "return target creature card from your graveyard to the battlefield tapped and attacking",
         &expected,

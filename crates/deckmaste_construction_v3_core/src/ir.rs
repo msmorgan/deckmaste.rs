@@ -21,6 +21,7 @@ pub(crate) struct Ir {
     pub features: Vec<Domain>,
     pub frames: Vec<(Ident, Frame)>,
     pub frame_categories: Vec<(Ident, usize)>,
+    pub frame_category_requirements: Vec<(Ident, usize, TokenStream)>,
     pub tables: Vec<FeatureTable>,
     pub frame_marker_licences: Vec<(String, String, usize, TokenStream, TokenStream)>,
     pub categories: Vec<Ident>,
@@ -296,6 +297,36 @@ fn validate_frames(declared: &[(Ident, Frame)]) -> syn::Result<Vec<(Ident, Frame
     Ok(frames)
 }
 
+fn validate_frame_category_requirements(
+    ir: &mut Ir,
+    interfaces: &[BTreeSet<usize>],
+    requirements: Vec<(Ident, Ident, Ident)>,
+) -> syn::Result<()> {
+    let mut constrained = BTreeSet::new();
+    for (alias, feature, expected) in requirements {
+        let target = ir
+            .frame_categories
+            .iter()
+            .find(|(name, _)| name == &alias)
+            .unwrap()
+            .1;
+        let index = feature_index(&ir.features, &feature)?;
+        if !interfaces[target].contains(&index) {
+            return Err(error(
+                &feature,
+                "frame category requirement needs an exported Category feature",
+            ));
+        }
+        if !constrained.insert((alias.to_string(), index)) {
+            return Err(error(&feature, "duplicate frame category requirement"));
+        }
+        let expected = value(ir, index, &expected)?;
+        ir.frame_category_requirements
+            .push((alias, index, expected));
+    }
+    Ok(())
+}
+
 pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     let mut features = validate_features(&declaration.features)?;
     let frames = validate_frames(&declaration.frames)?;
@@ -420,6 +451,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         features,
         frames,
         frame_categories,
+        frame_category_requirements: vec![],
         tables: vec![],
         frame_marker_licences: vec![],
         categories,
@@ -427,6 +459,11 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         constructors,
         rules: vec![],
     };
+    validate_frame_category_requirements(
+        &mut ir,
+        &interfaces,
+        declaration.frame_category_requirements,
+    )?;
     validate_tables(&mut ir, declaration.tables)?;
     validate_marker_licences(&mut ir, declaration.frame_marker_licences)?;
     normalize(&mut ir, &declaration.constructions, &interfaces)?;

@@ -330,20 +330,8 @@ struct Rule {
 impl Rule {
     fn advance(&self, dot: usize, state: &State, child: Option<&Summary>) -> Option<State> {
         let checks = self.checks.get(dot)?;
-        match self.guards.get(dot)? {
-            FrameGuard::Any => {}
-            FrameGuard::Head(frame)
-                if child?.values.get(7)?.as_ref() == Some(&FeatureValue::Frame(*frame)) => {}
-            FrameGuard::Marker(class, licence) if child?.marker_class == Some(*class) => {
-                if let Some((feature, operation, expected)) = licence {
-                    if operation.apply(&[child?.values.get(*feature)?.as_ref()?.clone()])?
-                        != *expected
-                    {
-                        return None;
-                    }
-                }
-            }
-            _ => return None,
+        if !self.guards.get(dot)?.admits(child) {
+            return None;
         }
         let mut next = state.clone();
         self.segments.advance(dot, &mut next, child)?;

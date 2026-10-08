@@ -21,15 +21,51 @@ enum FrameHead<'a> {
 #[derive(Clone)]
 enum FrameGuard {
     Any,
+    Features(Vec<(usize, FeatureValue)>),
     Head(usize),
     Marker(usize, Option<(usize, TableOperation, FeatureValue)>),
 }
 
+impl FrameGuard {
+    fn admits(&self, child: Option<&Summary>) -> bool {
+        match self {
+            Self::Any => true,
+            Self::Features(requirements) => child.is_some_and(|summary| {
+                requirements.iter().all(|(feature, expected)| {
+                    summary.values.get(*feature).and_then(Option::as_ref) == Some(expected)
+                })
+            }),
+            Self::Head(frame) => child.is_some_and(|summary| {
+                summary.values.get(7).and_then(Option::as_ref) == Some(&FeatureValue::Frame(*frame))
+            }),
+            Self::Marker(class, licence) => child.is_some_and(|summary| {
+                summary.marker_class == Some(*class)
+                    && licence
+                        .as_ref()
+                        .is_none_or(|(feature, operation, expected)| {
+                            summary
+                                .values
+                                .get(*feature)
+                                .and_then(Option::as_ref)
+                                .and_then(|value| operation.apply(::std::slice::from_ref(value)))
+                                .as_ref()
+                                == Some(expected)
+                        })
+            }),
+        }
+    }
+}
+
 #[derive(Clone)]
 enum FrameLayout {
-    Argument(Category),
+    Argument(Category, Vec<(usize, FeatureValue)>),
     Marker(usize, ::deckmaste_lexical::Category),
-    Marked(usize, ::deckmaste_lexical::Category, Category),
+    Marked(
+        usize,
+        ::deckmaste_lexical::Category,
+        Category,
+        Vec<(usize, FeatureValue)>,
+    ),
     Optional(Option<Box<FrameLayout>>),
 }
 
@@ -41,7 +77,7 @@ enum SegmentRule {
     None,
     Build {
         kind: String,
-        candidates: Vec<(usize, Vec<(usize, usize)>)>,
+        candidates: Vec<(usize, Vec<(usize, FrameGuard)>)>,
     },
     Share(usize, usize),
     Discharge(usize, usize),
@@ -64,9 +100,8 @@ impl SegmentRule {
                     state.segment_candidates = (0..candidates.len()).collect();
                 }
                 state.segment_candidates.retain(|&index| {
-                    candidates[index].1.iter().all(|&(slot, class)| {
-                        slot != dot
-                            || child.is_some_and(|summary| summary.marker_class == Some(class))
+                    candidates[index].1.iter().all(|(slot, guard)| {
+                        *slot != dot || guard.admits(child)
                     })
                 });
                 if state.segment_candidates.is_empty() {
@@ -412,7 +447,7 @@ impl Grammar {
         use ::deckmaste_lexical::FrameItem;
         match item {
             FrameItem::Argument(slot) => Self::frame_category(&slot.category)
-                .map(|category| vec![FrameLayout::Argument(category)])
+                .map(|category| vec![FrameLayout::Argument(category, frame_argument_requirements(&slot.category))])
                 .ok_or_else(|| {
                     format!(
                         "unsupported slot category {} ({:?})",
@@ -435,7 +470,7 @@ impl Grammar {
                     )
                 })?;
                 let (class, pos) = self.marker_class(vocabulary, member)?;
-                Ok(vec![FrameLayout::Marked(class, pos, category)])
+                Ok(vec![FrameLayout::Marked(class, pos, category, frame_argument_requirements(&slot.category))])
             }
             FrameItem::Optional(item) => {
                 let mut layouts = vec![FrameLayout::Optional(None)];
@@ -573,15 +608,15 @@ impl Grammar {
                             .iter()
                             .position(|frame| frame == &self.programs[program])
                             .unwrap();
-                        let markers = rule
+                        let requirements = rule
                             .guards
                             .iter()
                             .enumerate()
                             .filter_map(|(slot, guard)| {
-                                if let FrameGuard::Marker(class, _) = guard {
-                                    Some((slot, *class))
-                                } else {
+                                if matches!(guard, FrameGuard::Any) {
                                     None
+                                } else {
+                                    Some((slot, guard.clone()))
                                 }
                             })
                             .collect();
@@ -589,7 +624,7 @@ impl Grammar {
                         else {
                             unreachable!()
                         };
-                        candidates.push((canonical, markers));
+                        candidates.push((canonical, requirements));
                     }
                 }
             }
@@ -792,11 +827,11 @@ impl FrameLayout {
             rule.release.push(vec![]);
         }
         match self {
-            Self::Argument(category) => append(
+            Self::Argument(category, requirements) => append(
                 symbols,
                 rule,
                 ::deckmaste_english_v3::Symbol::Nonterminal(*category),
-                FrameGuard::Any,
+                FrameGuard::Features(requirements.clone()),
             ),
             Self::Marker(class, pos) => append(
                 symbols,
@@ -804,9 +839,9 @@ impl FrameLayout {
                 ::deckmaste_english_v3::Symbol::Lexical(*pos),
                 FrameGuard::Marker(*class, frame_marker_licence(kind, *pos)),
             ),
-            Self::Marked(class, pos, category) => {
+            Self::Marked(class, pos, category, requirements) => {
                 Self::Marker(*class, *pos).symbols(symbols, rule, kind);
-                Self::Argument(*category).symbols(symbols, rule, kind);
+                Self::Argument(*category, requirements.clone()).symbols(symbols, rule, kind);
             }
             Self::Optional(Some(item)) => item.symbols(symbols, rule, kind),
             Self::Optional(None) => {}
@@ -821,7 +856,7 @@ impl FrameLayout {
         cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
         match (self, value) {
-            (Self::Argument(category), FrameValue::Argument(reading))
+            (Self::Argument(category, _), FrameValue::Argument(reading))
                 if reading.category() == *category =>
             {
                 output.push(None);
@@ -837,7 +872,7 @@ impl FrameLayout {
                 output.push(Some(summary));
                 Ok(())
             }
-            (Self::Marked(class, pos, category), FrameValue::Marked { marker, argument }) => {
+            (Self::Marked(class, pos, category, _), FrameValue::Marked { marker, argument }) => {
                 let summary = cache.word(marker, grammar, lexicon, *pos)?;
                 if summary.marker_class != Some(*class) {
                     return Err(Error::Invalid("selected_frame", "declared marker class"));
@@ -873,7 +908,7 @@ impl FrameLayout {
         cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
         match (self, value) {
-            (Self::Argument(_), FrameValue::Argument(reading)) => {
+            (Self::Argument(_, _), FrameValue::Argument(reading)) => {
                 output.push_str(" ");
                 reading.write(grammar, lexicon, output, cache)
             }
@@ -881,7 +916,7 @@ impl FrameLayout {
                 output.push_str(" ");
                 output.word(word, lexicon)
             }
-            (Self::Marked(_, _, _), FrameValue::Marked { marker, argument }) => {
+            (Self::Marked(_, _, _, _), FrameValue::Marked { marker, argument }) => {
                 output.push_str(" ");
                 output.word(marker, lexicon)?;
                 output.push_str(" ");
@@ -902,9 +937,9 @@ impl FrameLayout {
             children.next().ok_or(Error::Internal)
         }
         match self {
-            Self::Argument(_) => Ok(FrameValue::Argument(Box::new(next(children)?.node()?))),
+            Self::Argument(_, _) => Ok(FrameValue::Argument(Box::new(next(children)?.node()?))),
             Self::Marker(_, _) => Ok(FrameValue::Marker(next(children)?.word()?)),
-            Self::Marked(_, _, _) => Ok(FrameValue::Marked {
+            Self::Marked(_, _, _, _) => Ok(FrameValue::Marked {
                 marker: next(children)?.word()?,
                 argument: Box::new(next(children)?.node()?),
             }),

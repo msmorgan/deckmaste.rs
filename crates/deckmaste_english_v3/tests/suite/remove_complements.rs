@@ -22,12 +22,27 @@ fn source_complement(text: &str, category: Category, object: &str, source: &str)
                 {
                     let [
                         FrameValue::Argument(theme),
-                        FrameValue::Marked { marker, argument },
+                        FrameValue::Argument(selected_source),
                     ] = complements.as_slice()
                     else {
                         panic!("Remove must retain its Object and selected source: {node:?}");
                     };
                     assert_eq!(theme.realize(lexicon()).unwrap(), object);
+                    let Reading::SourceComplement { phrase, .. } = selected_source.as_ref() else {
+                        panic!("selected source must retain its complete PP");
+                    };
+                    let Reading::PrepositionPhrase {
+                        head: marker,
+                        complement: argument,
+                        ..
+                    } = phrase.as_ref()
+                    else {
+                        panic!("source PP must retain its NP Complement");
+                    };
+                    assert_eq!(
+                        selected_source.realize(lexicon()).unwrap(),
+                        format!("from {source}")
+                    );
                     assert_eq!(lexicon().realize(&marker.value).unwrap(), "from");
                     assert_eq!(argument.realize(lexicon()).unwrap(), source);
                     sources.push(node.clone());

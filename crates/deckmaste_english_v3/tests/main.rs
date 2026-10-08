@@ -48,6 +48,8 @@ mod fixed_cost_phrases;
 mod focusing_only;
 #[path = "suite/frequency.rs"]
 mod frequency;
+#[path = "suite/from_preposition_phrase_complement.rs"]
+mod from_preposition_phrase_complement;
 #[path = "suite/functions_coordination.rs"]
 mod functions_coordination;
 #[path = "suite/generic_predicates.rs"]

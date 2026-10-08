@@ -44,6 +44,23 @@ pub(crate) fn emit(ir: &Ir) -> syn::Result<TokenStream> {
     })
 }
 
+fn frame_argument_requirements(ir: &Ir) -> TokenStream {
+    let argument_requirements = ir.frame_categories.iter().map(|(name, _)| {
+        let text = name.to_string();
+        let constraints = ir
+            .frame_category_requirements
+            .iter()
+            .filter(|(alias, _, _)| alias == name)
+            .map(|(_, feature, value)| quote!((#feature, #value)));
+        quote!(#text => vec![#(#constraints),*])
+    });
+    quote! {
+        fn frame_argument_requirements(name: &str) -> Vec<(usize, FeatureValue)> {
+            match name { #(#argument_requirements,)* _ => vec![] }
+        }
+    }
+}
+
 fn grammar(ir: &Ir) -> TokenStream {
     let productions = ir.rules.iter().map(|rule| {
         let category = &ir.categories[rule.category];
@@ -168,6 +185,7 @@ fn grammar(ir: &Ir) -> TokenStream {
                     quote!(#text => Some(Category::#name))
                 }),
         );
+    let argument_requirements = frame_argument_requirements(ir);
     let marker_licences = ir.frame_marker_licences.iter().map(|(kind, pos, feature, operation, expected)|{
         let pos = format_ident!("{pos}");
         quote!((#kind, ::deckmaste_lexical::Category::#pos) => Some((#feature, #operation, #expected)))
@@ -176,6 +194,7 @@ fn grammar(ir: &Ir) -> TokenStream {
         fn frame_marker_licence(kind: &str, pos: ::deckmaste_lexical::Category) -> Option<(usize, TableOperation, FeatureValue)> {
             match (kind, pos) { #(#marker_licences,)* _ => None }
         }
+        #argument_requirements
         const SELECTED_FRAME_TEMPLATES: &[(usize, &str)] = &[#(#templates),*];
         const REQUIRES_ENVIRONMENT: bool = #required;
         impl Default for Grammar {
