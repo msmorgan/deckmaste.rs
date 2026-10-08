@@ -28,6 +28,31 @@ once. Standard constraints apply.
   completely. maybe can be unified later but that's not what I'm asking you
   for." `bare`, `frame_set`, `FixedKeyword`'s fields and the inflections all
   stay.
+- **Default realizations (decided by this landing, 2026-10-07).** A slot
+  with no hint realizes its argument as:
+
+  | Kind | Default realization | Example |
+  |---|---|---|
+  | Amount | arabic numeral (or `X`) | "scry 2", "crew 3" |
+  | Cost | mana symbols | "kicker {2}{R}" |
+  | Subtype | singular | "Goblin" |
+  | Quality | bare singular (an adjectival quality is numberless) | "Goblin offering", "Swampwalk", "splice onto Arcane", "protection from red" |
+  | Subject | the argument's own noun phrase, determiner and all as the argument carries it; on a keyword line a determinerless nominal | "destroy target creature", "enchant creature" |
+  | Ability | the ability's own text | "boast — {1}{R}: …" |
+  | Condition | a declarative sentence | "companion — Each nonland card …" |
+  | Power, Toughness | arabic numeral | "prototype {1}{R} — 2/1" |
+
+  TokenSpec, Instruction, Disclosure, Ballot, SearchScope, Quantity and
+  String occur only in the eight declarations the survey could not derive
+  (below); their defaults are decided with those templates, not here.
+- **Hint vocabulary: `plural`**, three slots: amass's subtype
+  (`amass <Param(0):plural> <Param(1)>`, the owner's example), affinity's
+  quality (`affinity for <Param(0):plural>`, which the grammar already
+  declares as `nominal_number: Plural`) and protection's quality
+  (`protection from <Param(0):plural>`: a bare nominal there is plural,
+  "protection from creatures", while an adjectival quality is numberless,
+  "protection from red"; the grammar leaves that slot's number open). `plural`
+  is valid only on a nominal kind (Subtype, Quality).
 - All declarations at once ("yes please"): 65 keyword actions
   (`plugins_v2/builtin/macros/keyword_actions/`, plus `conniveN`) and 192
   keyword abilities (`keyword_abilities/`).
@@ -75,6 +100,48 @@ once. Standard constraints apply.
    Decision's `scry <Param(0)>` example and that `<Param(n):hint>` is added;
    it is still not v1's `template:` language (no `${n:card|cards}`-style
    codec per site, no `kinds:` registry).
+
+## Survey (2026-10-07)
+
+Derived mechanically (scratchpad script `templates.py`, named in the
+landing record) from the grammar head, `params`, the verb `frame_set` or
+`FixedKeyword` parameter class, and `keyword_syntax`:
+
+- **Keyword abilities, 192:** 87 nullary (template = head), 105
+  parameterized. After-head payloads join with `head_separator` then
+  `parameter_separator` written literally (Space " ", Dash "—", SpacedDash
+  " — "): "boast — <Param(0)>", "suspend <Param(0)>—<Param(1)>". A
+  `parameter: Quality(preposition: …)` writes its preposition:
+  "protection from <Param(0):plural>", "splice onto <Param(0)> <Param(1)>".
+  `BeforeHead` is "<Param(0)> offering"; `BoundSuffix` glues the slot to
+  the bound suffix: "<Param(0)>walk". The CostPowerToughness class writes
+  its size as a slash pair (the v3 `CostPowerToughnessKeyword`
+  construction's `SlashPair`): "prototype <Param(0)> — <Param(1)>/<Param(2)>".
+- **Keyword actions, 66 (65 plus `conniveN`):** 28 with no or empty
+  `params` keep the head; 30 map their `params` slot for slot onto one
+  frame of their `frame_set` (an object-noun-phrase slot takes a Subject
+  or Subtype, an Amount slot an Amount, a `Lex` preposition is written):
+  "scry <Param(0)>", "connive <Param(0)>", "attach <Param(0)> to <Param(1)>",
+  "amass <Param(0):plural> <Param(1)>".
+- **Not derivable, STOP (8):** no frame realizes the params slot for slot,
+  so any template would be a guess. `behold` [Quality] (Transitive; CR
+  writes "behold a [quality]", the article is in no frame), `create`
+  [Amount, TokenSpec] (one object slot, two params; the count is a number
+  word), `faceAVillainousChoice` [Instruction, Instruction] (Intransitive),
+  `fight` [Subject, Subject] (the first is the clause subject, not a frame
+  slot), `meld` [Subject, String] (no "into" slot), `mill` [Amount] (the
+  object is "N cards"; "cards" is in no frame and the count is a number
+  word), `search` [SearchScope, Quantity, Quality] (two slots, three
+  params), `vote` [Disclosure, Ballot] (no slot for the disclosure). Their
+  spellings stay the bare head pending a ruling.
+- **Hints:** the three `plural` slots above; no other derived slot's
+  default misrenders a card.
+- **`keyword_syntax` stays** as the lexicon's parse hint: the v3 keyword
+  constructions select on the `KeywordSeparator`, `KeywordParameterSeparator`
+  and `KeywordPayloadOrder` features the lexicon exports from it, and
+  nothing reads a template yet. The keyword-ability consistency test
+  re-derives each template from `keyword_syntax` and fails on any
+  disagreement, so the two cannot drift.
 
 ## Hands to `builtin-v2-spelling-frame-consumer`
 

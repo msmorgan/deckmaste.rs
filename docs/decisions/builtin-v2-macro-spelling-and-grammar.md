@@ -509,6 +509,19 @@ grammar is the word's own definition; hints override per-kind defaults.**
   macros are probably necessary because connive would be spelled 'connive'
   with no number."
 
+The default realizations, decided by the
+`builtin-v2-keyword-spelling-templates` landing: an Amount is an arabic
+numeral (or `X`); a Cost is mana symbols; a Subtype is singular; a Quality
+is bare and singular (an adjectival quality is numberless); a Subject is
+the argument's own noun phrase as the argument carries it (a determinerless
+nominal on a keyword line, "enchant creature"); an Ability is the ability's
+own text; a Condition is a declarative sentence; a Power or Toughness is an
+arabic numeral. The one hint is `plural` (a Subtype or Quality slot whose
+bare nominal prints plural: amass, affinity, protection). The kinds used
+only by the declarations whose template no frame derives (TokenSpec,
+Instruction, Disclosure, Ballot, SearchScope, Quantity, String) get their
+defaults with those templates.
+
 This still does not reinstate v1's `template:` language: no per-site codec
 such as `${n:card|cards}`, no text offsets, no `kinds:` registry. Work:
 `plugins-v2-connive-bare-and-n`, then `builtin-v2-keyword-spelling-templates`.
