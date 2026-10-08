@@ -1,0 +1,9 @@
+// "double <performer>'s life total": the performer gains or loses life so that
+// the new total is twice the current one [CR#701.10d], written as the set of
+// that total [CR#119.5]. One expansion of the "double" keyword action.
+(
+    name: "doubleLifeTotal",
+    kinds: [Instruction],
+    params: [],
+    body: ChangeLife(delta: Set(times(2, lifeTotalOf(actor)))),
+)

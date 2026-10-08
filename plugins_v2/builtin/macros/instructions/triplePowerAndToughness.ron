@@ -1,0 +1,9 @@
+// "triple <subject>'s power and toughness [<duration>]": Tripling a creature's power and toughness gives it +X/+Y, X twice its power and Y twice its toughness [CR#701.11b,701.11c]. One expansion of the
+// "triple" keyword action, which has several, chosen by what is tripled
+// [CR#701.10a,701.11a].
+(
+    name: "triplePowerAndToughness",
+    kinds: [Instruction],
+    params: {"subject": Subject, "duration": Default(Any, None)},
+    body: Establish(PtModification(Param(subject), up(times(2, powerOf(Param(subject)))), up(times(2, toughnessOf(Param(subject))))), Param(duration)),
+)

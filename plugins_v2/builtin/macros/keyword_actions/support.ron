@@ -1,10 +1,17 @@
+// "Support N" [CR#701.41a]: on a permanent, "put a +1/+1 counter on each of up
+// to N other target creatures"; on an instant or sorcery spell, "… on each of
+// up to N target creatures". One body serves both: "other" excludes the
+// source, and an instant or sorcery spell is never a target creature, so on a
+// spell it excludes nothing.
 KeywordAction(
     name: "support",
-    spelling: "support",
+    params: [Amount],
+    spelling: "support <Param(0)>",
     grammar: Verb(
         bare: "support",
         // No Oracle or Comprehensive Rules occurrence of "supports" was found in the 2026-08-18 morphology audit.
         third_person: Unavailable,
         frame_set: MeasureComplement,
     ),
+    body: putCounters(1, p1p1Counter, eachOf(described(Target(upToOf(Param(0))), and([creature, otherThan(this)])))),
 )

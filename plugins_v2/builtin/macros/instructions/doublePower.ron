@@ -1,0 +1,9 @@
+// "double <subject>'s power [<duration>]": To double a creature's power, it gets +X/+0, where X is its power as the doubling resolves [CR#701.10b]. Adding a negative power doubles it as [CR#701.10c] says. One expansion of the
+// "double" keyword action, which has several, chosen by what is doubled
+// [CR#701.10a,701.11a].
+(
+    name: "doublePower",
+    kinds: [Instruction],
+    params: {"subject": Subject, "duration": Default(Any, None)},
+    body: Establish(PtModification(Param(subject), up(powerOf(Param(subject))), up(0)), Param(duration)),
+)

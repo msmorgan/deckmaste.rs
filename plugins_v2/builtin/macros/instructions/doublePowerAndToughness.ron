@@ -1,0 +1,9 @@
+// "double <subject>'s power and toughness [<duration>]": Doubling a creature's power and toughness gives it +X/+Y, X its power and Y its toughness [CR#701.10b,701.10c]. One expansion of the
+// "double" keyword action, which has several, chosen by what is doubled
+// [CR#701.10a,701.11a].
+(
+    name: "doublePowerAndToughness",
+    kinds: [Instruction],
+    params: {"subject": Subject, "duration": Default(Any, None)},
+    body: Establish(PtModification(Param(subject), up(powerOf(Param(subject))), up(toughnessOf(Param(subject)))), Param(duration)),
+)

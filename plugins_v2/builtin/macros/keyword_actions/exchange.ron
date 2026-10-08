@@ -1,3 +1,9 @@
+// "Exchange" [CR#701.12a]: one phrase, an expansion per thing exchanged, so
+// each is a helper over one `Exchange` node: `exchangeControl`,
+// `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues`,
+// `exchangeTextBoxes` [CR#701.12b..701.12h]. Life totals stay their own
+// operand rather than two values: "two target players" is one group whose
+// members are exchanged, which two `Amount` operands cannot select.
 KeywordAction(
     name: "exchange",
     spelling: "exchange",

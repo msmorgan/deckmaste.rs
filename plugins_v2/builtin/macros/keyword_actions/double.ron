@@ -1,3 +1,10 @@
+// "Double" [CR#701.10a]: one phrase, several expansions, chosen by what is
+// doubled, so the declaration has no single body. Each expansion is a helper
+// (`instructions/`): `doublePower`, `doubleToughness`,
+// `doublePowerAndToughness` [CR#701.10b,701.10c], `doubleLifeTotal`
+// [CR#701.10d] and `doubleCounters` [CR#701.10e]; doubled damage is a damage
+// rule's scale [CR#701.10g]. Doubling mana [CR#701.10f] has no helper: no
+// amount reads the mana a player holds.
 KeywordAction(
     name: "double",
     spelling: "double",

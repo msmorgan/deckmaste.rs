@@ -1,0 +1,9 @@
+// "Support 2." on an instant [CR#701.41a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Lead by Example",
+        cost: [1, Green],
+        types: [Instant],
+        text: [spell(support(2))],
+    ),
+))

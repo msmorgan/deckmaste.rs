@@ -1,3 +1,6 @@
+// "Triple" [CR#701.11a]: as "double", one phrase whose expansion is chosen
+// by what is tripled, so each is a helper: `triplePower`, `tripleToughness`,
+// `triplePowerAndToughness` [CR#701.11b,701.11c].
 KeywordAction(
     name: "triple",
     spelling: "triple",

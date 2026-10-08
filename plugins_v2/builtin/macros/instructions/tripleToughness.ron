@@ -1,0 +1,9 @@
+// "triple <subject>'s toughness [<duration>]": To triple a creature's toughness, it gets +0/+X, where X is twice its toughness [CR#701.11b,701.11c]. One expansion of the
+// "triple" keyword action, which has several, chosen by what is tripled
+// [CR#701.10a,701.11a].
+(
+    name: "tripleToughness",
+    kinds: [Instruction],
+    params: {"subject": Subject, "duration": Default(Any, None)},
+    body: Establish(PtModification(Param(subject), up(0), up(times(2, toughnessOf(Param(subject))))), Param(duration)),
+)

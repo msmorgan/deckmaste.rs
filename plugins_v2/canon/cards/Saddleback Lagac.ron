@@ -1,0 +1,12 @@
+// "When this creature enters, support 2." on a permanent [CR#701.41a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Saddleback Lagac",
+        cost: [3, Green],
+        types: [Creature],
+        subtypes: [lizard],
+        power: 3,
+        toughness: 1,
+        text: [triggered(enters(asType(type: Creature, subject: this, subtype: None)), support(2))],
+    ),
+))

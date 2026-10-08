@@ -1,0 +1,9 @@
+// "Double the power of target creature until end of turn." [CR#701.10b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Unleash Fury",
+        cost: [1, Red],
+        types: [Instant],
+        text: [spell(doublePower(target(creature), untilEndOfTurn))],
+    ),
+))
