@@ -128,8 +128,13 @@ Mechanism:
   card, and that card is "that card" in [CR#201.5c]. Text granted to another
   object (a quoted token ability) is still printed on this card
   [CR#201.5a,201.5c], so it is covered by the same scope.
-- **The probe stays unscoped.** It admits full names only. Use the census
-  `--card-name` selector to witness a scoped face. No new flag is needed.
+- **The probe takes a scope flag.** `cargo xtask english-v3 probe --as-card
+  <card name> --text …` analyses the text as if printed on that card: the
+  scope is built exactly as `analyze_face` builds it (every oracle unit
+  sharing that card's `oracle_id`). Without the flag the probe is the
+  empty-scope case and admits full names only. The value follows the spelling
+  of the census `--card-name` selector (`SelectedFace` card names in
+  `crates/xtask/src/raw_corpus.rs`).
 - No guard names a card, lexeme or construction. `CatalogName` is unchanged.
 
 A Reading that used another card's short name is a wrong analysis and may be
@@ -168,11 +173,11 @@ face's only multiplier at that span. The census decides.
 
 | Witness | Now | Lexical alternatives at the name | Expected after |
 | --- | ---: | --- | ---: |
-| "Chandra deals 2 damage to any target." (probe) | 19 | 19 card-name + PW-type catalog + PW subtype noun | 0 (probe is unscoped) |
-| "Jace draws two cards." (probe) | 4 | 4 card-name + PW-type catalog + PW subtype noun | 0 |
-| "Ajani deals 2 damage to any target." (probe) | 7 | 7 card-name + PW-type catalog + PW subtype noun | 0 |
-| "Gandalf deals 2 damage to any target." (probe, legendary creatures) | 7 | 7 card-name | 0 |
-| "Niv-Mizzet deals 1 damage to any target." (probe) | 5 | 5 card-name | 0 |
+| "Chandra deals 2 damage to any target." (probe) | 19 | 19 card-name + PW-type catalog + PW subtype noun | 0 unscoped; 1 with `--as-card "Chandra, Pyromaster"` |
+| "Jace draws two cards." (probe) | 4 | 4 card-name + PW-type catalog + PW subtype noun | 0 unscoped; 1 with `--as-card "Jace, the Mind Sculptor"` |
+| "Ajani deals 2 damage to any target." (probe) | 7 | 7 card-name + PW-type catalog + PW subtype noun | 0 unscoped; 1 with `--as-card "Ajani Goldmane"` |
+| "Gandalf deals 2 damage to any target." (probe, legendary creatures) | 7 | 7 card-name | 0 unscoped; 1 with `--as-card "Gandalf the Grey"` |
+| "Niv-Mizzet deals 1 damage to any target." (probe) | 5 | 5 card-name | 0 unscoped; 1 with `--as-card "Niv-Mizzet, Parun"` |
 | "Search your library for a Chandra planeswalker card." (probe, control) | 4 | PW subtype noun selected; catalog lexeme admitted, unused | 4 |
 | Chandra, Pyromaster (face) | 246,240 | 19 per mention | 12,960 |
 | Chandra, Flame's Fury | 6,859 | 19³ | 1 |
@@ -182,6 +187,9 @@ face's only multiplier at that span. The census decides.
 | Sorin, Vengeful Bloodlord | 168 | 7 × 24 | 24 |
 | Edgar Markov | 288 | 6 × 48 | 48 |
 | Niv-Mizzet, Parun / Niv-Mizzet, the Firemind | 10 / 5 | 5 per mention | 2 / 1 |
+
+For the probe rows, the scoped count of 1 (one name alternative, so one
+Reading for the simple sentence) assumes no other multiplier in the sentence.
 
 The type-line census (`--field type-line`) is the control for item 2. Every
 face keeps its count and digest. The only change is the selected lexeme
@@ -207,13 +215,17 @@ Deltas:
    `legendary_nicknames_are_reversible_variants_of_the_full_name`
    (`lib.rs:201`) against the scoped entry point. It keeps the same four
    cards and the same asserted spellings. Then add the negative: another
-   card's scope admits no short name.
+   card's scope admits no short name. Add a probe test or xtask unit test
+   that `--as-card` scopes exactly as `analyze_face` does, i.e. the two paths
+   share one scope-building function; a second copy of the scope logic is a
+   review finding.
 3. Zero lost faces. A Reading count may fall only on a face whose analysed
    text contains a short name with more than one card-name alternative, or a
    foreign short name. Name each face with a nonzero drop in the census delta
    by count, not by list.
 4. No guard may name a lexeme, construction, card or word. Scope is lexical
-   data plus face identity. No new xtask subcommands, flags or fixtures.
+   data plus face identity. No new xtask subcommands or fixtures; the one new flag is the probe scope
+   flag in item 1 (owner decision 2026-10-08).
 5. CR citations are already in this ticket. Re-run
    `cargo xtask cite check --list-noncompliant` on anything added.
 6. Record the owner ruling as an amendment in
