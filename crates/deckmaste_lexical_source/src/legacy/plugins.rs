@@ -84,18 +84,11 @@ fn export_metadata(
             type_word.negative_prefix_join,
         ));
     }
-    // Parameterized spelling remains a grammar recipe, not guessed ordinary
-    // words.
-    if normalized
-        .spelling()
-        .iter()
-        .any(|part| matches!(part, metadata::SpellingPart::Param { .. }))
-    {
-        output.unmapped.push(format!(
-            "parameterized-spelling {owner}: {:?}",
-            authored.spelling
-        ));
-    }
+    // A keyword spelling is a card-usage template (`scry <Param(0)>`): its
+    // holes and literals are a frame for the semantic spelling match, not
+    // lexical data. Every word the template prints is owned by `grammar` or
+    // by its own vocabulary declaration, so the export reads the grammar
+    // alone and records nothing for the template.
     output.lexemes.push(lexeme);
 }
 

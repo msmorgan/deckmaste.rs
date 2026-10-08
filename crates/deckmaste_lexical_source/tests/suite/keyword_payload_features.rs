@@ -234,3 +234,20 @@ fn complete_put_and_look_frames_preserve_their_typed_np_slots() {
         }
     );
 }
+
+#[test]
+fn keyword_spelling_templates_record_no_unmapped_source() {
+    // Keyword spellings are card-usage templates ("scry <Param(0)>",
+    // "affinity for <Param(0):plural>"); the export reads their grammar and
+    // treats the template as a semantic frame, never as an unmapped source.
+    let template_entries = SOURCES
+        .unmapped
+        .iter()
+        .filter(|entry| entry.contains("<Param("))
+        .collect::<Vec<_>>();
+    assert!(template_entries.is_empty(), "{template_entries:#?}");
+    assert!(
+        SOURCES.lexemes.iter().any(|entry| entry.lemma == "amass"),
+        "the templated amass still exports its grammar lexeme"
+    );
+}
