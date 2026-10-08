@@ -797,18 +797,118 @@ def Ability.category : Ability → Option AbilityCategory
   | .static _ => some .static
   | .triggered _ _ _ _ _ _ _ _ => some .triggered
   | .activated _ _ _ _ _ _ => some .activated
+  | .spell _ _ => some .spell
   | _ => none
 
-/-- One ability of a keyword's definition: its category is one the keyword's registry row
-declares, and a triggered one keys on the same stack regime the row declares. -/
-def keywordBodyPartFits (k : KeywordLabel) (ab : Ability) : Bool :=
+/-! ## Card-class guards
+
+A keyword that means one ability on a permanent and another on an instant or sorcery spell
+[CR#702.55a,702.131a,702.131b,702.174b] writes one definition holding both halves, each guarded
+by the card's class with the ordinary conditional forms: a `doIf`, a trigger's intervening
+condition or a conditional static ability whose condition is that this object matches a
+predicate implying the class (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06 on gift and
+the additional-cost keywords). The class a guard implies is read off the card types its
+predicate demands: an instant or sorcery is never a permanent card [CR#110.4,110.4a]. -/
+
+mutual
+  /-- The card class every object the predicate holds of has, where its types settle it
+  [CR#110.4a]. -/
+  def Predicate.impliedClass : Predicate → Option CardClass
+    | .withBindings _ _ body | .inCaller _ body => body.impliedClass
+    | .hasType t =>
+      if t.isInstantOrSorcery then some .instantOrSorceryCard
+      else if t.permanent then some .permanentCard
+      else none
+    | .or ps => Predicate.disjunctsClass ps
+    | .and ps => Predicate.conjunctsClass ps
+    | _ => none
+  termination_by structural p => p
+
+  /-- The class every disjunct implies, when they all imply the same one. -/
+  def Predicate.disjunctsClass : List Predicate → Option CardClass
+    | [] => none
+    | p :: ps =>
+      match p.impliedClass, ps with
+      | some a, [] => some a
+      | some a, _ :: _ => if Predicate.disjunctsClass ps == some a then some a else none
+      | none, _ => none
+  termination_by structural ps => ps
+
+  /-- The class the conjuncts imply, when those that imply one agree. -/
+  def Predicate.conjunctsClass : List Predicate → Option CardClass
+    | [] => none
+    | p :: ps =>
+      match p.impliedClass, Predicate.conjunctsClass ps with
+      | some a, some b => if a == b then some a else none
+      | some a, none => some a
+      | none, rest => rest
+  termination_by structural ps => ps
+end
+
+mutual
+  /-- The card class a condition demands of this object. -/
+  def Condition.impliedClass : Condition → Option CardClass
+    | .withBindings _ _ body | .inCaller _ body => body.impliedClass
+    | .matches .this p => p.impliedClass
+    | .and cs => Condition.conjunctsClass cs
+    | _ => none
+  termination_by structural c => c
+
+  def Condition.conjunctsClass : List Condition → Option CardClass
+    | [] => none
+    | c :: cs =>
+      match c.impliedClass, Condition.conjunctsClass cs with
+      | some a, some b => if a == b then some a else none
+      | some a, none => some a
+      | none, rest => rest
+  termination_by structural cs => cs
+end
+
+/-- The class guarding a whole instruction: a `doIf` with no otherwise-branch. -/
+def Instruction.classGuard : Instruction → Option CardClass
+  | .withBindings _ _ body | .inCaller _ body => body.classGuard
+  | .doIf cond _ none => cond.impliedClass
+  | _ => none
+
+def StaticSpec.classGuard : StaticSpec → Option CardClass
+  | .withBindings _ _ body | .inCaller _ body => body.classGuard
+  | .conditional _ _ .unless_ => none
+  | .conditional _ cond _ => cond.impliedClass
+  | _ => none
+
+/-- The card class an ability of a keyword's definition is guarded by, if any: the half of the
+definition that applies only on that class of card. -/
+def Ability.classGuard : Ability → Option CardClass
+  | .spell _ instr => instr.classGuard
+  | .activated _ instr _ _ _ _ => instr.classGuard
+  | .triggered _ _ _ _ _ _ intervening instr =>
+    (intervening >>= Condition.impliedClass) <|> instr.classGuard
+  | .static se => se.classGuard
+  | _ => none
+
+/-- A guard names a class the keyword's card may have: one its registry row puts it on. -/
+def KeywordFacts.admitsClass (row : KeywordFacts) : CardClass → Bool
+  | .permanentCard => row.onPermanentCard
+  | .instantOrSorceryCard => row.onInstantOrSorceryCard
+
+/-- One ability of a keyword's definition against the keyword's registry row: its category is
+one the row declares; a class guard names a class the row admits; a spell ability is the
+instant-or-sorcery half [CR#113.3a], so where the keyword also appears on permanents it is
+guarded by that class; and a triggered one keys on the same stack regime the row declares. -/
+def KeywordFacts.bodyPartFits (row : KeywordFacts) (ab : Ability) : Bool :=
   match ab.category with
   | none => false
   | some c =>
-    (keywordDefinition k).elem c &&
+    row.definition.elem c &&
+      ab.classGuard.all row.admitsClass &&
+      (c != .spell || !row.onPermanentCard || ab.classGuard == some .instantOrSorceryCard) &&
       match ab with
-      | .triggered ev _ _ _ _ _ _ _ => keywordStackRegime k == bodyEventRegime ev
+      | .triggered ev _ _ _ _ _ _ _ => row.regime == bodyEventRegime ev
       | _ => true
+
+/-- One ability of a keyword's definition, against the keyword's registry row. -/
+def keywordBodyPartFits (k : KeywordLabel) (ab : Ability) : Bool :=
+  (keywordFactsFor k).elim false (·.bodyPartFits ab)
 
 /-- A keyword ability's definition [CR#702.1]. A card may write the keyword bare, leaving the
 definition empty; a written one is the abilities the keyword represents, each of a declared

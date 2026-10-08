@@ -15,11 +15,6 @@ inductive FaceSide where
   | front | back
   deriving DecidableEq, Repr
 
-/-- A card is a permanent card or an instant or sorcery card by its types [CR#110.4a]. -/
-inductive CardClass where
-  | permanentCard | instantOrSorceryCard
-  deriving DecidableEq, Repr
-
 def cardClassOf : List CardType → CardClass
   | [] => .permanentCard
   | t :: ts => if t.isInstantOrSorcery then .instantOrSorceryCard else cardClassOf ts
@@ -45,21 +40,32 @@ def StaticSpec.onInstantOrSorceryCardOk : StaticSpec → Bool
   | .conditional se _ _ => se.onInstantOrSorceryCardOk
   | _ => false
 
-def classAbilityOk : CardClass → Ability → Bool
-  | .permanentCard, .keyword k _ _ => keywordCardOk .permanentCard k
-  | .permanentCard, .spell _ _ => false
-  | .permanentCard, .alsoForKeywords ab _ => classAbilityOk .permanentCard ab
-  | .permanentCard, .italicHead _ ab => classAbilityOk .permanentCard ab
-  | .permanentCard, _ => true
-  | .instantOrSorceryCard, .keyword k _ _ => keywordCardOk .instantOrSorceryCard k
-  | .instantOrSorceryCard, .activated c _ _ _ _ _ => c.offBattlefield
-  | .instantOrSorceryCard, .triggered _ _ _ _ _ _ _ _ => true
-  | .instantOrSorceryCard, .static se => se.onInstantOrSorceryCardOk
-  | .instantOrSorceryCard, .alsoForKeywords ab _ => classAbilityOk .instantOrSorceryCard ab
-  | .instantOrSorceryCard, .spell _ _ => true
-  | .instantOrSorceryCard, .italicHead _ ab => classAbilityOk .instantOrSorceryCard ab
-  | .instantOrSorceryCard, .mayBeginOnBattlefield => false
-  | _, .thatAbility _ => false
+mutual
+  /-- An ability against the class of the card it is printed on. A keyword is checked against its
+  registry row, and each class-guarded part of its written definition against the card's class
+  when the guard is that class: the half guarded by the other class never applies to this card
+  and is not checked against it [CR#702.174b]. -/
+  def classAbilityOk : CardClass → Ability → Bool
+    | c, .keyword k _ body => keywordCardOk c k && classPartsOk c body
+    | c, .alsoForKeywords ab _ => classAbilityOk c ab
+    | c, .italicHead _ ab => classAbilityOk c ab
+    | .permanentCard, .spell _ _ => false
+    | .permanentCard, _ => true
+    | .instantOrSorceryCard, .activated c _ _ _ _ _ => c.offBattlefield
+    | .instantOrSorceryCard, .triggered _ _ _ _ _ _ _ _ => true
+    | .instantOrSorceryCard, .static se => se.onInstantOrSorceryCardOk
+    | .instantOrSorceryCard, .spell _ _ => true
+    | .instantOrSorceryCard, .mayBeginOnBattlefield => false
+    | .instantOrSorceryCard, .thatAbility _ => false
+  termination_by structural _ ab => ab
+
+  /-- The parts of a keyword's definition guarded by the card's class, each against it. -/
+  def classPartsOk (c : CardClass) : List Ability → Bool
+    | [] => true
+    | ab :: rest =>
+      (ab.classGuard.all (· != c) || classAbilityOk c ab) && classPartsOk c rest
+  termination_by structural abs => abs
+end
 
 def cardTextOk (tys : List CardType) (text : List Ability) : Bool :=
   text.all (classAbilityOk (cardClassOf tys))
