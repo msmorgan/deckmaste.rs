@@ -1,0 +1,20 @@
+// "Impending 4—{2}{R}{R} / Whenever this permanent enters or attacks, it deals
+// 4 damage to any target." [CR#702.176a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Overlord of the Boilerbilges",
+        cost: [4, Red, Red],
+        types: [Enchantment, Creature],
+        subtypes: [avatar, horror],
+        power: 5,
+        toughness: 5,
+        text: [
+            impending(4, mana([2, Red, Red])),
+            triggeredOr(
+                event: enters(thisPermanent),
+                alternatives: [attacks(thisPermanent)],
+                instruction: dealDamage(thisPermanent, 4, target(anyTarget)),
+            ),
+        ],
+    ),
+))

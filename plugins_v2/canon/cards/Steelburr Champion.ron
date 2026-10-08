@@ -1,0 +1,20 @@
+// "Offspring {1}{W} / Vigilance / Whenever an opponent casts a noncreature
+// spell, put a +1/+1 counter on this creature." [CR#702.175a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Steelburr Champion",
+        cost: [2, White],
+        types: [Creature],
+        subtypes: [mouse, soldier],
+        power: 1,
+        toughness: 1,
+        text: [
+            offspring(mana([1, White])),
+            vigilance,
+            triggered(
+                casts(anOpponent, a(and([spell, not(creature)]))),
+                putCounters(1, p1p1Counter, thisCreature),
+            ),
+        ],
+    ),
+))
