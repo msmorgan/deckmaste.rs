@@ -387,3 +387,5 @@ changed. Evidence: `E/current-reader-build.log`, `E/template-current.json`,
 ### Review notes (2026-10-07)
 
 The incremental mode here is lexicon-only; grammar-change-aware reuse is `english-v3-census-face-reuse`.
+
+That ticket was measured and deleted unbuilt on 2026-10-08; see the census face reuse bullet in [english-v3-systemic-residuals](../planned/english-v3-systemic-residuals.md#batch-records-and-what-they-leave-open).

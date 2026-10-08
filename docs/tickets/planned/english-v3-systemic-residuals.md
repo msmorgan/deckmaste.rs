@@ -245,6 +245,19 @@ its verification belong to the attached feature-economy ticket.
   residual host causes remain here; this exclusion closes the old full-form
   stranding review rather than deferring its wrong Readings again.
 
+- Census face reuse retired (2026-10-08, user decision): the deleted
+  `english-v3-census-face-reuse` ticket stopped after its step-1 measurement.
+  Per-face construction-set recording worked (census-identical, zero digest
+  differences) but landed only in the archived line. Predicted-category sets
+  reach 32,828/32,828 faces for the two grammar landings measured
+  (cost-scalar-complement, copular-scalar-location) and 2,638/32,828 for the
+  lexicon landing (combat-interval-noun), so grammar-aware reuse as designed
+  would not pay back; steps 2–5 were not built. Evidence line: bookmark
+  `archive-english-v3-census-face-reuse` (`yvolnstu` measurement above its
+  copied claim `pmnyztuz`). Possible follow-on, not scheduled:
+  lookahead-filtered prediction in the chart parser, which would shrink
+  predicted sets and is also a parse speedup.
+
 - `mana of any color/type that <clause>` (for example, "Add one mana of any
   color that land could produce") is not read: 31 faces, 0 covered. The relative
   clause on *color*/*type* inside the add-mana Nominal is owed here.
