@@ -698,3 +698,25 @@ Both wall measurements exceed the **16260000000 ns** quiet-host ceiling;
 the measurement remains an advisory, not a gate. The original pre-refresh
 measurements above retain their own change/count stamps rather than being
 relabeled as timings for this refreshed tree.
+
+### Review notes (2026-10-08)
+
+- Orchestrator resolution (2026-10-08), recorded as a project ruling: the
+  stative-host exclusion is ratified as extended beyond possessive *have* to
+  *be*, *remain*, *control*, *own*, *share* and *cost*. The corpus attests 0
+  stative purpose hosts, and the extension loses 0 faces and 0 Readings.
+  *control* blocks attachment inside "… you control to …" relatives (231
+  candidates).
+- Gain reconciliation. The 172 gains against the 287 sole estimate:
+  *spent to cast* occurs on 267 faces, 37 covered before and 104 after; 163
+  remain unread, of which 90 contain *was/were spent to cast*. 36 of those
+  are the measured-mass passive *If three or more mana was/were spent to
+  cast it*; the rest are owed a survey. *only to* occurs on 163 faces, 92
+  covered; 71 remain unread without a stated blocker.
+- For the six *Enter* faces and Unified Front, the representative analysis
+  shown in this record is the higher-host attachment; the bare-passive
+  *spent* attachment is also retained, as the retain-all contract requires.
+- Residuals routed to `english-v3-systemic-residuals` (2026-10-08 bullets):
+  the measured-mass passive faces and the unread *only to* faces; the seven
+  dual-attachment faces above; and the auxiliary-scope / higher-attachment
+  multiplicity of purpose Adjuncts.

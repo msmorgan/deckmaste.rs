@@ -581,3 +581,21 @@ Evidence remains under `target/english-v3/english-v3-once-frequency/`; no
 process evidence or helper code is tracked in crates. Coordination of
 *only once each turn and only if …* remains with the live
 `english-v3-systemic-residuals` ticket for cause audit and bounded routing.
+
+### Review notes (2026-10-08)
+
+- Constituency support (hedged). CGEL p. 715, on the frequency expressions
+  in its [9iii] list: "In the *on three occasions each year* type, *each
+  year* is probably a separate adjunct rather than a postmodifier (as
+  suggested by its position in *Each year we had lunch together on about
+  three occasions*), but it still serves to cancel the bounding effect". The
+  same page names "NPs introduced by *a* or else PPs with *per* as head" as
+  "the clear postmodifiers". This supports the two-Adjunct constituency for
+  *only once each turn*, with the hedge CGEL itself gives ("probably").
+- Gain reconciliation. The 215 gained identities against the 80 sole / 281
+  touched estimate: 186 frequency gains (non-sole faces whose other blockers
+  had already been read) plus 29 host-only gains (19 fused-*this*, 10
+  Repeat). 129 uncovered faces still contain *only once* or *only twice*.
+- The `require head.DeterminerUse = Singular` in `declarations.rs` (about
+  line 2135) is redundant with the other constraints on that construction
+  and is harmless; no change owed.

@@ -767,3 +767,16 @@ selected analyses defined above.
 | Wrath of the Bloodmane (`c1994d6a-984d-4b75-9198-1f1822eab6eb#card`) | 3 | C |
 | Writhing Necromass (`7f6505a1-ab8b-468b-a5de-33451598b464#card`) | 12 | C |
 | Yavimaya Sojourner (`b3e9917e-1bcf-4e8e-9550-7f5897dcb433#card`) | 54 | C |
+
+### Review notes (2026-10-08)
+
+- Gain reconciliation. The 412 gained identities against the pre-landing
+  estimate of 654 touched / 351 sole: route C contributes 358 cost gains
+  against the 351 sole estimate (+7); route A contributes 51 from the
+  disclosed Activate `PastParticipialPremodifier` addition; route F
+  contributes 3 from Foretell. About 296–310 touched faces remain unread on
+  other clauses: 310 faces still contain *cost(s) … less/more* ({1} 142,
+  {2} 79). "costs 3 life more" is attested once and is unsupported.
+- Style only: the `use` placement in
+  `tests/suite/cost_scalar_complement.rs` (about lines 34–45) sits below
+  code rather than at the head of the module. No behavioural consequence.

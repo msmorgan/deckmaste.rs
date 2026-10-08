@@ -188,6 +188,20 @@ its verification belong to the attached feature-economy ticket.
   "is removed from" (Protean Hydra; Chandra, Fire Artisan; Benalish
   Commander; Magma Pummeler; Immard; Jinxed Choker) and the pro-form
   "remove one from it" stay unread. Owned here.
+- Purpose-infinitival residue (2026-10-08, from the
+  [english-v3-purpose-infinitival](../done/english-v3-purpose-infinitival.md)
+  review):
+  - 36 measured-mass passive faces, *If three or more mana was/were spent to
+    cast it*, stay unread: the finite passive with a measured mass Subject is
+    unread independently of the infinitival. The 71 *only to* faces still
+    unread have no stated blocker and are owed a blocker survey.
+  - Seven faces (six *Enter* faces and Unified Front) show the higher host as
+    the representative analysis in that record while the bare-passive
+    *spent* attachment is also retained. Owned here for review against the
+    preference work.
+  - Auxiliary-scope and higher-attachment multiplicity of purpose Adjuncts
+    (about +4.4% Readings) is retained under the retain-all contract; it is a
+    scope-duplicate review candidate for the preference work.
 - Unattested measured-amount `ScalarDenotation` exports (2026-10-07, from the
   `english-v3-copular-scalar-location` review): `CardinalMeasuredNominal`,
   `CardinalMeasuredNounPhrase` and `MeasuredNounPhrase` export
@@ -387,7 +401,8 @@ is right and this list needs fixing.
   (its `MassNoun`/`DistributionPhrase` slots stay here).
   Taken over 2026-10-07 by wave-2 owners: the Cost row
   (`ManaAmount`/`ComparisonDirection`/`ControlledCostAction`) by
-  `english-v3-cost-scalar-complement`; the Remove row's `FrameComplement` slot
+  `english-v3-cost-scalar-complement` (discharged 2026-10-07 by that
+  landing); the Remove row's `FrameComplement` slot
   by `english-v3-remove-from-complement` (discharged 2026-10-07 by that
   landing; see the Remove batch record above); the Have
   `Complement(Object), Complement(VerbPhrase)` row by
@@ -506,7 +521,8 @@ is right and this list needs fixing.
   Brothers' War, Trick Shot, Self-Destruct, Tropical Storm, Judgment Bolt and
   Sparksmith fail on Deal's ordered amount/recipient segments; Neonate's Rush
   fails on cost reduction (**taken over 2026-10-07** by
-  `english-v3-cost-scalar-complement`). The earlier attribution of no `, then` failures
+  `english-v3-cost-scalar-complement`; discharged 2026-10-07 by that
+  landing). The earlier attribution of no `, then` failures
   among these 42 is superseded by the library-position landing's current
   discriminating probes, as reconciled below.
 
