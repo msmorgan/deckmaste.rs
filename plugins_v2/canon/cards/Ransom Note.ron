@@ -12,7 +12,7 @@ SingleFaced(face: (
             activated(
                 compound([mana([2]), perform(sacrifice(this))]),
                 chooseModes(exactly(1), [
-                    (None, cloak(librarySlice(Top, 1, you))),
+                    (None, cloak(slice(Top, 1, library(you)))),
                     (None, goad(target(creature))),
                     (None, draw(1)),
                 ]),

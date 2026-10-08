@@ -13,7 +13,7 @@ SingleFaced(face: (
             triggered(
                 beginningOfYour(upkeep),
                 sequentially([
-                    may(lookAt(librarySlice(Top, 1, you))),
+                    may(lookAt(slice(Top, 1, library(you)))),
                     may(castWithoutPaying(it, instantOrSorcery)),
                 ]),
             ),

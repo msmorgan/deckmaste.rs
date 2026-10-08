@@ -4,6 +4,6 @@ SingleFaced(face: (
         name: "Soul Summons",
         cost: [1, White],
         types: [Sorcery],
-        text: [spell(manifest(librarySlice(Top, 1, you)))],
+        text: [spell(manifest(slice(Top, 1, library(you))))],
     ),
 ))
