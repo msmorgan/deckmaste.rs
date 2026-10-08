@@ -141,7 +141,7 @@ it does not back Oracle's exclusion. No test was removed or re-spelled.
 ### Provenance and census
 
 Measured feature change **`zxumsproyqltrnoqxvxwkqzruxyzturu`, covered 22,087**.
-Claim parent: `ttkxuvuouuospwttspkrzvulrkrvnrqq`. Its grammar, runtime and
+Original claim parent, before refresh: `ttkxuvuouuospwttspkrzvulrkrvnrqq`. Its grammar, runtime and
 lexical sources match the complete census measured on
 **`qsrqtwknwxqtrpyrmknwollqqrrnssyo`, covered 21,916**;
 `baseline-source-proof.json` records zero source-hash differences. The
@@ -150,7 +150,7 @@ Why section. Both censuses use the same pinned input SHA-256
 `49dc966bda6ef588fc68e8d6972de25df1b660ed2ea654904584698263007ebb`
 and the same 32,828 supported face identities and analyzed source bytes.
 
-The finished feature's **one full run**, without incremental reuse:
+The finished feature's **budgeted pre-refresh full run**, without incremental reuse:
 
 ```sh
 cargo xtask english-v3 --all --workers 12 --samples-per-face 0 --output target/english-v3/english-v3-purpose-infinitival/after.json
@@ -605,3 +605,96 @@ predicate rather than an infinitival relative modifier of its noun.
 | Woodland Weavemaster — `28ffddca-a3c4-467d-a2dc-2c5e62393e11#card` | 9 | Purpose Adjunct of SelectedPredicate lexeme:Verb/Spend; only focuses the Purpose Infinitival |
 | Wurmquake — `0eeb9a62-1b36-42f5-8820-3331fa5ca3a6#card` | 16 | Purpose Adjunct of bare passive lexeme:Verb/Spend, in the NP Postmodifier |
 | Yasharn, Implacable Earth — `6dc23410-4d8f-4c8a-92b4-a8b3fae1af4e#card` | 345 | Purpose Adjunct of Coordination core-verb:Pay |
+
+### Refresh boundary (2026-10-08)
+
+The unconditional Kata refresh succeeded after closing zxumspro. It imported
+Gift's optional spelling/label reader work (`wynnlnqx`), its unspelled
+Instruction definition (`zrxurruq`) and final Instruction parameter handling
+(`vqozzpsk`), plus the Fight actor handoff (`oxnomykx`). The English declaration
+delta is KeywordParameterClass::Instruction; Fight retains its transitive
+English frame. The purpose implementation and its declared permissions are
+unchanged. `trunk-refresh-english.diff`, `gift-instruction-provenance.diff`
+and `refresh-source-proof.json` name the imported source differences.
+
+Because refresh touched grammar and lexical-source handling, the user's
+explicit post-refresh exception authorizes a fresh full census. The original
+run and face comparison are preserved as pre-refresh-after.json and
+pre-refresh-comparison.json. The authoritative after.json and comparison.json
+describe the refreshed tree; no full run was used for iteration.
+
+Refreshed affected-crate checks pass: English **406 integration tests**;
+lexical_source **23 unit + 34 integration tests** (the extra test is Gift's
+inherited Instruction-parameter test); clippy for both crates with tests and
+-D warnings passes. Logs: tests-refreshed.log, lexical-refreshed.log and
+clippy-refreshed.log. No additional xtask tests or Lean checks were run.
+
+### Authoritative refreshed census and inventory
+
+Final measured tree **`rtrzusnnwovvsvqynnsywtqxmmrmqwlu`, covered 22,088**.
+The post-refresh full run uses the same command, all 32,828 identities,
+12 workers, zero samples and no incremental reuse. Its log is
+full-census-refreshed.log. The source hashes match the final measured tree
+with **zero differences** (final-source-proof.json).
+
+| Census on rtrzusnn, covered 22,088 | Result |
+| --- | ---: |
+| No / one / multiple Readings | 10,740 / 7,540 / 14,548 |
+| Complete / limited / failed / undetermined faces | 32,828 / 0 / 0 / 0 |
+| Exact validated Readings | 984,393 |
+| Issues / internal failures / duplicate Readings | 0 / 0 / 0 |
+| Gains from original claim parent | 172 |
+| Purpose-feature gains / inherited Gift gain | 171 / 1 |
+| Lost faces / Reading-count decreases / equal-count changed digests | 0 / 0 / 0 |
+
+Every originally covered face still has its exact count and digest. Every
+one of the 171 purpose gains also has its **pre-refresh count and digest**;
+the thirteen reviewed witness trees therefore remain applicable. Selection
+is 24 new unique faces and 148 new multiple-Reading faces, with zero existing
+unique faces becoming multiple. The stative exclusions still lose zero faces
+and zero parent Readings. The inherited source diagnostics remain the same
+87 strings. No refreshed Reading decrease needs retirement or justification.
+
+The sole imported census change, **0 → 17**, is:
+
+| Newly covered imported identity | Readings | Reviewed retained analysis / provenance |
+| --- | ---: | --- |
+| Octomancer — `1cf7e5a0-cc8f-4bf7-9767-2f3bcae26339#card` | 17 | BareKeyword owned by `lexeme:keyword_ability/giftAnOctopus`, followed by the end-step create-a-copy trigger. Imported from `urlynppv` (the six spelled Gift variants), with `vqozzpsk` parameter handling. |
+
+`octomancer-refreshed.json` checks that tree; its sample fingerprint is
+`049158edfe37629b83cbdacc80be44e2025fcf74e3f26ba02daf9bfe112d8abb`.
+It contains no Purpose Infinitival and is **not a gain credited to this
+feature**. refresh-comparison.json records this sole change between the two
+feature censuses. Together with the 171-row table above this names every
+newly covered identity against the original claim-parent census.
+
+Final rtrzusnn, covered 22,088 inventories: **38,404 spellings**, **1,139
+named homographs**, **1,092 case-folded homographs**, **23 form literals**,
+**0 overlaps** (the overlap list remains **[]**), **712 productions**.
+Construction/Category/line counts and the 212 observed construction names are
+unchanged by refresh. inventory-refreshed.json contains all named lists;
+refresh-inventory-comparison.json records the delta from the pre-refresh
+feature. The imported twelve added spellings, all owned by the six Gift
+variants from urlynppv, are:
+
+- `Gift a Food`, `gift a Food` — `lexeme:keyword_ability/giftAFood`.
+- `Gift a Treasure`, `gift a Treasure` — `lexeme:keyword_ability/giftATreasure`.
+- `Gift a card`, `gift a card` — `lexeme:keyword_ability/giftACard`.
+- `Gift a tapped Fish`, `gift a tapped Fish` — `lexeme:keyword_ability/giftATappedFish`.
+- `Gift an Octopus`, `gift an Octopus` — `lexeme:keyword_ability/giftAnOctopus`.
+- `Gift an extra turn`, `gift an extra turn` — `lexeme:keyword_ability/giftAnExtraTurn`.
+
+No spelling was removed or reassigned; the homograph and form-literal lists
+are unchanged. Final lexical inventory SHA-256:
+`c520c5696203ea03e3834162c4e3c5f18694f624f8a04926cc68b26928c21ff7`.
+These additions are imported provenance, beyond this feature's deviations;
+this feature itself added no vocabulary or surface forms.
+
+Final performance advisory, **rtrzusnn, covered 22,088**, **12 workers**:
+setup **2382352480 ns**, corpus wall **146674736352 ns**, command wall
+including setup **149057088832 ns**, checked-text thread CPU
+**428533 ns/B**, host load **[7.890625, 9.90087890625, 8.96240234375]**.
+Both wall measurements exceed the **16260000000 ns** quiet-host ceiling;
+the measurement remains an advisory, not a gate. The original pre-refresh
+measurements above retain their own change/count stamps rather than being
+relabeled as timings for this refreshed tree.
