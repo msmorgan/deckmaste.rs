@@ -16,7 +16,7 @@ open Semantics Semantics.Macros
 namespace Semantics.Cards
 
 def gracefulReprieve : Instruction :=
-  delayWithin (Primitives.GameEvent.dies (target creature)) Primitives.Duration.thisTurn (move (that .card) battlefield)
+  delayWithin (Primitives.GameEvent.dies (target creature)) thisTurn (move (that .card) battlefield)
 theorem okGracefulReprieve : Instruction.check [] gracefulReprieve = [] := by decide
 
 def cloudkinSeer : Ability := when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.draw (.lit 1))
@@ -104,24 +104,24 @@ def incisorGlider : Ability :=
 theorem okIncisorGlider : Ability.check [] incisorGlider = [] := by decide
 def stormFleetSpy : Ability :=
   triggeredIf (Primitives.GameEvent.enters thisCreature none) (happened (Primitives.GameEvent.combat
-    .attackerOf (relative .player) none) Primitives.NounPhrase.you .thisTurn)
+    .attackerOf (relative .player) none) Primitives.NounPhrase.you soFarThisTurn)
     (Primitives.Instruction.draw (.lit 1))
 theorem okStormFleetSpy : Ability.check [] stormFleetSpy = [] := by decide
 def loanShark : Ability :=
   triggeredIf (Primitives.GameEvent.enters thisCreature none)
     (Primitives.Condition.compareAmt (eventCount (Primitives.GameEvent.casts (relative .player) none
-      none) Primitives.NounPhrase.you .thisTurn) .atLeast (.lit 2)) (Primitives.Instruction.draw
+      none) Primitives.NounPhrase.you soFarThisTurn) .atLeast (.lit 2)) (Primitives.Instruction.draw
       (.lit 1))
 theorem okLoanShark : Ability.check [] loanShark = [] := by decide
 
 def forceOfDespair : Instruction :=
   destroy (allOf (Primitives.Predicate.and [creature, happenedTo (Primitives.GameEvent.enters
-    (relative .object) none) .thisTurn]))
+    (relative .object) none) soFarThisTurn]))
 theorem okForceOfDespair : Instruction.check [] forceOfDespair = [] := by decide
 def cradleToGrave : Instruction :=
   destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.not
     (Primitives.Predicate.colorIs .black), happenedTo (Primitives.GameEvent.enters (relative
-    .object) none) .thisTurn]))
+    .object) none) soFarThisTurn]))
 theorem okCradleToGrave : Instruction.check [] cradleToGrave = [] := by decide
 
 def aragornKingOfGondor : Ability :=
@@ -166,7 +166,7 @@ def carrionGrub : Spelled := spelled <| .singleFaced
       power := stat 0, toughness := stat 5 } }
 
 /-- Once Upon a Time -/
-def onceUponATimeFirstCast : Predicate := nthCastBy (.nth 1) Primitives.NounPhrase.you (.within .thisGame)
+def onceUponATimeFirstCast : Predicate := nthCastBy (.nth 1) Primitives.NounPhrase.you .game
 theorem okOnceUponATimeFirstCast : Predicate.check .object [] onceUponATimeFirstCast = [] := by
   decide
 
@@ -259,7 +259,7 @@ theorem okStalwartSuccessorHeader : GameEvent.check [] stalwartSuccessorHeader =
 
 /-- Hollowmurk Siege -/
 def hollowmurkSiegeSultai : Ability :=
-  triggeredOnlyOnce (bareCounterEvent .put .one (a creatureYouControl)) Primitives.UsageLimit.oncePerTurn
+  triggeredOnlyOnce (bareCounterEvent .put .one (a creatureYouControl)) oncePerTurn
     (Primitives.Instruction.draw (.lit 1))
 theorem okHollowmurkSiegeSultai : Ability.check [] hollowmurkSiegeSultai = [] := by decide
 
@@ -424,7 +424,7 @@ def admiralsOrder : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (Primitives.Cost.mana [pip .blue])))
             (happened (Primitives.GameEvent.combat .attackerOf (relative .player) none)
-              Primitives.NounPhrase.you .thisTurn)),
+              Primitives.NounPhrase.you soFarThisTurn)),
           Primitives.Ability.spell none (Primitives.Instruction.counterSpell (target spell)) ] } }
 
 def fyndhornDruid : Spelled := spelled <| .singleFaced
@@ -434,7 +434,7 @@ def fyndhornDruid : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredIf (Primitives.GameEvent.dies thisCreature) (happened
           (Primitives.GameEvent.combat .blockedBy (Primitives.NounPhrase.asMarker .permanent
-          (relative .object)) none) it .thisTurn)
+          (relative .object)) none) it soFarThisTurn)
             (gainLife (.lit 4)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -457,7 +457,7 @@ def dreadSlaver : Spelled := spelled <| .singleFaced
         [ whenever
             (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, happenedTo
               (Primitives.GameEvent.dealsDamage .any thisCreature (some
-              (Primitives.NounPhrase.asMarker .permanent (relative .object)))) .thisTurn])))
+              (Primitives.NounPhrase.asMarker .permanent (relative .object)))) soFarThisTurn])))
             (Primitives.Instruction.sequentially
               [ putOntoBattlefieldUnderYourControl it,
                 become (that (.type .creature))
@@ -500,7 +500,7 @@ def defilingDaemogothDrain : Instruction :=
   Primitives.Instruction.sequentially
     [act (each Primitives.Predicate.opponent) (loseLife (Primitives.Amount.letter .x)),
       Primitives.Instruction.define .x (eventSum (Primitives.GameEvent.lifeChanges (relative
-      .player) .up) Primitives.NounPhrase.you .thisTurn)]
+      .player) .up) Primitives.NounPhrase.you soFarThisTurn)]
 theorem okDefilingDaemogothDrain : Instruction.check [] defilingDaemogothDrain = [] := by decide
 def skullsporeNexusTrigger : Ability :=
   whenever (Primitives.GameEvent.dies (counted (atLeast 1) (Primitives.Predicate.and [nontoken, creatureYouControl])))
@@ -513,7 +513,7 @@ theorem okSkullsporeNexusTrigger : Ability.check [] skullsporeNexusTrigger = [] 
 def wavebreakHippocamp : Ability :=
   triggeredOnlyDuring (Primitives.GameEvent.nthOccurrence (.nth 1) none (Primitives.GameEvent.casts
     Primitives.NounPhrase.you (some (a spell)) none))
-    (Primitives.Timing.duringPart .turn (some (each Primitives.Predicate.opponent))) (Primitives.Instruction.draw (.lit 1))
+    (duringPart .turn (some (each Primitives.Predicate.opponent))) (Primitives.Instruction.draw (.lit 1))
 theorem okWavebreakHippocamp : Ability.check [] wavebreakHippocamp = [] := by decide
 /-- Midnight Clock -/
 def midnightClockHeader : GameEvent :=
@@ -575,7 +575,7 @@ def reciprocate : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (exile
             (target (Primitives.Predicate.and [creature, happenedTo
               (Primitives.GameEvent.dealsDamage .any (relative .object) (some
-              Primitives.NounPhrase.you)) .thisTurn]))) ] } }
+              Primitives.NounPhrase.you)) soFarThisTurn]))) ] } }
 
 /-- Tahngarth, First Mate -/
 def tahngarthHeader : GameEvent := Primitives.GameEvent.attacksWith anOpponent none (counted (atLeast 1) creature)
@@ -594,10 +594,10 @@ def commandersInsignia : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (getsPt (allOf creatureYouControl)
             (Primitives.Delta.up (eventCount (Primitives.GameEvent.casts (relative .player) (some
               (Primitives.NounPhrase.asMarker .spell yourCommander)) (some
-              (Primitives.EventSource.zones [commandZone]))) Primitives.NounPhrase.you .thisGame))
+              (Primitives.EventSource.zones [commandZone]))) Primitives.NounPhrase.you thisGame))
             (Primitives.Delta.up (eventCount (Primitives.GameEvent.casts (relative .player) (some
               (Primitives.NounPhrase.asMarker .spell yourCommander)) (some
-              (Primitives.EventSource.zones [commandZone]))) Primitives.NounPhrase.you .thisGame)))
+              (Primitives.EventSource.zones [commandZone]))) Primitives.NounPhrase.you thisGame)))
               ] } }
 
 /-- Faith's Reward -/
@@ -607,10 +607,9 @@ def faithsReward : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (move
             (allOf (Primitives.Predicate.and [ permanentCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you),
-                           Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
-                             (Primitives.GameEvent.putInto (relative .object) (graveyardOf
+                           Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk (Primitives.GameEvent.putInto (relative .object) (graveyardOf
                              Primitives.NounPhrase.you) (some (Primitives.EventSource.zones
-                             [battlefield]))) .thisTurn) ]))
+                             [battlefield]))) soFarThisTurn none) ]))
             battlefield) ] } }
 
 /-- Oscorp Industries -/
@@ -636,9 +635,8 @@ def fblthp : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters Primitives.NounPhrase.this none)
             (Primitives.Instruction.replace (Primitives.Instruction.draw (.lit 1))
               (Primitives.Instruction.doIf (Primitives.Condition.or
-                  [ Primitives.Condition.happened it (Primitives.LookbackClause.mk
-                    (Primitives.GameEvent.enters (relative .object) (some
-                    (Primitives.EventSource.zones [yourLibrary]))) .triggering),
+                  [ Primitives.Condition.happened it (Primitives.LookbackClause.triggering (Primitives.GameEvent.enters (relative .object) (some
+                    (Primitives.EventSource.zones [yourLibrary])))),
                     Primitives.Condition.matches it (Primitives.Predicate.castFrom yourLibrary) ])
                 (Primitives.Instruction.draw (.lit 2)) none)),
           when (Primitives.GameEvent.becomesTarget Primitives.NounPhrase.this (a spell)) (shuffleInto Primitives.NounPhrase.this) ],
@@ -702,9 +700,8 @@ def agencyOutfitterSearch : Instruction :=
           [ searchZonesOf Primitives.NounPhrase.you (exactly 1)
               (Primitives.Predicate.or [Primitives.Predicate.named (Primitives.NameSource.printed "Magnifying Glass"), Primitives.Predicate.named (Primitives.NameSource.printed "Thinking Cap")]),
             putOntoBattlefield (theVerbed (.action "search") .one) ]),
-      Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some (relative
-        .player)) (.action "search") none none (some yourLibrary)) Primitives.NounPhrase.you
-        .thisWay) shuffle none ]
+      Primitives.Instruction.doIf (happenedThisWay (Primitives.GameEvent.verbedEvent (some (relative
+        .player)) (.action "search") none none (some yourLibrary)) Primitives.NounPhrase.you) shuffle none ]
 theorem okAgencyOutfitterSearch : Instruction.check [] agencyOutfitterSearch = [] := by decide
 
 /-- Trouble in Pairs' -/
@@ -730,7 +727,7 @@ def bioplasm : Spelled := spelled <| .singleFaced
                     (Primitives.Delta.up (Primitives.Amount.statOf (.stat .power)
                       (theVerbed (.action "exile") .one (some (.ofType .card .creature)))))
                     (Primitives.Delta.up (Primitives.Amount.statOf (.stat .toughness) (theVerbed (.action "exile") .one)))
-                    (some Primitives.Duration.thisTurn))
+                    (some thisTurn))
                   none ]) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -758,7 +755,7 @@ def gatherSpecimens : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.establish
             (Primitives.StaticSpec.entryRider (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent])) (Primitives.TokenRider.under Primitives.NounPhrase.you))
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 /-- Don't Blink's replacement, without its written agent -/
 def dontBlinkReplacement : Instruction :=
@@ -776,7 +773,7 @@ def seasonedWarrenguard : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Rabbit", creatureType "Warrior"],
       text :=
         [ triggeredWhile (attacks thisCreature)
-            (Primitives.Concurrent.whileTrue (exists_ (Primitives.Predicate.and [Primitives.Predicate.isToken, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
+            (whileTrue (exists_ (Primitives.Predicate.and [Primitives.Predicate.isToken, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
             (get thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn)) ],
       power := stat 1, toughness := stat 2 } }
 
@@ -787,7 +784,7 @@ def brazenBlademaster : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Orc", creatureType "Pirate"],
       text :=
         [ triggeredWhile (attacks thisCreature)
-            (Primitives.Concurrent.whileTrue
+            (whileTrue
               (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .atLeast
                 (.lit 2)))
             (get it (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn)) ],
@@ -797,7 +794,7 @@ def brazenBlademaster : Spelled := spelled <| .singleFaced
 def autarchMammothLine : Ability :=
   triggeredJoined (Primitives.GameEvent.enters thisCreature none)
     [ joinedHeadWhile (attacks thisCreature)
-        (Primitives.Concurrent.whileTrue (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "saddled") none))) ]
+        (whileTrue (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "saddled") none))) ]
     (create (.lit 1) (creatureToken 3 3 [.green] [creatureType "Elephant"]))
 theorem okAutarchMammothLine : Ability.check [] autarchMammothLine = [] := by decide
 /-- Altar of the Brood -/
@@ -809,7 +806,7 @@ theorem okAltarOfTheBrood : Ability.check [] altarOfTheBrood = [] := by decide
 def foulEmissaryLine : Ability :=
   triggeredWhile (Primitives.GameEvent.verbedEvent (some Primitives.NounPhrase.you) (.action
     "sacrifice") (some thisCreature) none none)
-    (Primitives.Concurrent.whileDoing (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
+    (whileDoing (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
       (Primitives.Predicate.and [spell, Primitives.Predicate.hasKeyword (.the (.named "emerge"))]))) none))
     (create (.lit 1) (creatureToken 3 2 [] [creatureType "Eldrazi", creatureType "Horror"]))
 theorem okFoulEmissaryLine : Ability.check [] foulEmissaryLine = [] := by decide

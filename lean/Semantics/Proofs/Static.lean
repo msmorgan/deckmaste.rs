@@ -183,25 +183,28 @@ theorem okAddPtUpward :
 
 /-- "During target opponent's next turn, …" -/
 theorem okSingularNextTurnDuration :
-    Duration.check [] (.duringNextTurnOf (target .opponent)) = [] := by decide
+    Duration.check [] (duringNextTurnOf (target .opponent)) = [] := by decide
 
-/-- "During each opponent's next turn, ..." -/
+/-- "During each opponent's next turn, ...": the boundaries name whose turn, so a plural possessor
+is the duration-possessor refusal of the unified boundary (was `.singular` on the retired
+`Duration.duringNextTurnOf`). -/
 theorem badPluralNextTurnDuration :
-    Duration.check [] (.duringNextTurnOf (each .opponent)) = [.singular] := by decide
+    Duration.check [] (duringNextTurnOf (each .opponent)) = [.durationPossessor] := by decide
 
 /-- "Target opponent skips all combat phases of their next turn." -/
 theorem okSkipDuringTheirNextTurn :
     Instruction.check []
-      (establishThroughout (.partSkip (target .opponent) .combat) (.duringNextTurnOf (that
+      (establishThroughout (.partSkip (target .opponent) .combat) (duringNextTurnOf (that
           .player)))
       = [] := by
   decide
 
-/-- "You skip all combat phases of their next turn." -/
+/-- "You skip all combat phases of their next turn.": the unbound "their" is read at both of
+the turn's boundaries, its beginning and its end, and refused at each. -/
 theorem badSkipDuringUnboundNextTurn :
-    Instruction.check [] (establishThroughout (.partSkip .you .combat) (.duringNextTurnOf (that
+    Instruction.check [] (establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that
         .player)))
-      = [.anaphor (.word .player) .one 0] := by
+      = [.anaphor (.word .player) .one 0, .anaphor (.word .player) .one 0] := by
   decide
 
 /-- "Your opponents can't gain life." A rules-meaningful sentence with no printed card on the

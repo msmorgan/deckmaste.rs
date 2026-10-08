@@ -23,8 +23,8 @@ theorem okDetachWithoutKnowingOldHost :
     Instruction.check [] (.attachment .unattached thisArtifact none) = [] := by decide
 
 theorem okExtraTurnPublishesTurnReference :
-    NounPhrase.check none
-      (Instruction.intro [] (.addTurnPart .turn none (.lit 1) none)) thatTurn = [] := by decide
+    TurnRef.check (Instruction.intro [] (.addTurnPart .turn none (.lit 1) none)) .that = [] := by
+  decide
 
 /-- "Target creature takes an extra turn after this one." An extra turn is taken by a player
 [CR#500.7]: the turn's taker is the player the instruction is handed to, and a permanent is

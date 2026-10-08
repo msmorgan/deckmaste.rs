@@ -471,13 +471,14 @@ theorem okExileTopThenPutFromAmong : Instruction.check [] exileTopThenPutFromAmo
 /-- Thought Sponge -/
 def greatestCardsAnOpponentDrew : Amount :=
   Primitives.Amount.aggregateOver .max Primitives.Predicate.opponent (eventCount
-    (Primitives.GameEvent.draws (relative .player)) they .thisTurn)
+    (Primitives.GameEvent.draws (relative .player)) they soFarThisTurn)
 theorem okGreatestCardsAnOpponentDrew : Amount.check [] greatestCardsAnOpponentDrew = [] := by
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   Primitives.Amount.aggregateOver .max Primitives.Predicate.anyPlayer
-    (eventCount (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "discard")
-      (some (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))) none none) they .thisWay)
+    (Primitives.Amount.eventTally .count they (Primitives.LookbackClause.thisWay
+      (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "discard")
+        (some (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))) none none)))
 theorem okGreatestCardsAPlayerDiscardedThisWay :
     Amount.check [] greatestCardsAPlayerDiscardedThisWay = [] := by decide
 
@@ -666,9 +667,8 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                 act (those .player) (sacrifice (those .permanent)),
                 Primitives.Instruction.doForEach
                   (each (Primitives.Predicate.and [ Primitives.Predicate.anyPlayer,
-                                Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
-                                  (Primitives.GameEvent.verbedEvent (some (relative .player))
-                                  (.action "sacrifice") (some (a permanent)) none none) .thisWay)
+                                Primitives.Predicate.happenedTo (Primitives.LookbackClause.thisWay (Primitives.GameEvent.verbedEvent (some (relative .player))
+                                  (.action "sacrifice") (some (a permanent)) none none))
                                   ]))
                   (Primitives.Instruction.sequentially
                     [ act they (Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.slice .top (.lit 1) (library they)))),

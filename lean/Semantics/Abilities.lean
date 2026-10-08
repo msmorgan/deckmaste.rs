@@ -90,11 +90,6 @@ inductive PipPaid where
   | ofColor (color : ColorTerm)
   deriving Repr, BEq
 
-inductive CountBound where
-  | moreThan (amount : Amount)
-  | additional (quantity : Quantity)
-  deriving Repr, BEq
-
 structure DeedComplement where
   deed : Deed
   counterpart : NounPhrase
@@ -330,7 +325,7 @@ mutual
   inductive DeonticRider where
     | stateBased (cause : StateBasedCause)
     | noRider
-    | play (from_ : Option ZoneExpr) (limit : Option PlayLimit) (timing : Option PlayTiming)
+    | play (from_ : Option ZoneExpr) (limit : Option UsageLimit) (timing : Option Timing)
         (exclusive : Bool) (payment : PlayPayment)
 
   inductive DamageOp where
@@ -430,7 +425,7 @@ mutual
     /-- The `when` rider is the printed "as you activate this ability": the announcement's
     timing, not a condition on what may be chosen. -/
     | choose (first : Option NounPhrase) (chosen : NounPhrase) (disclosure : Disclosure)
-        (when : Option Concurrent)
+        (when : Option Timing)
     | revealChoices (sort : HiddenSort)
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
     | move (subject : NounPhrase) (from_ : ZoneExpr) (to : ZoneExpr) (riders : List TokenRider)
@@ -518,7 +513,7 @@ mutual
     | activated (cost : Cost) (instruction : Instruction) (timing : Option Timing)
         (limit : Option UsageLimit) (guard : Option Condition) (activator : Option NounPhrase)
     | triggered (event : GameEvent) (alternatives : List GameEvent)
-        (while_ : Option Concurrent) (joins : List JoinedHeader) (timing : Option Timing)
+        (while_ : Option Timing) (joins : List JoinedHeader) (timing : Option Timing)
         (limit : Option UsageLimit) (intervening : Option Condition) (instruction : Instruction)
     | static (spec : StaticSpec)
     | spell (timing : Option Timing) (instruction : Instruction)

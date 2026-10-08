@@ -30,7 +30,7 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
           activated
             (Primitives.Cost.compound [Primitives.Cost.mana [generic 5, pip .blue], Primitives.Cost.tapSymbol,
                         Primitives.Cost.perform (sacrifice thisArtifact)])
-            (forbidBeingBlocked (allOf creatureYouControl) (some Primitives.Duration.thisTurn)) ] } }
+            (forbidBeingBlocked (allOf creatureYouControl) (some thisTurn)) ] } }
 
 /-- "two cards at random" from a hand. -/
 def twoCardsAtRandom : NounPhrase := countedAtRandom (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])
@@ -101,7 +101,7 @@ def coercivePortal : Spelled := spelled <| .singleFaced
     { name := "Coercive Portal", cost := some [generic 4], types := [.artifact],
       text :=
         [ abilityWord "will of the council"
-            (at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+            (at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
               (Primitives.Instruction.sequentially
                 [ act (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly
                     (Primitives.Ballot.byLabel ["carnage", "homage"])),

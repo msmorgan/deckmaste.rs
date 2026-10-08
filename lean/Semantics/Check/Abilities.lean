@@ -1165,7 +1165,7 @@ def Instruction.namesThisDoor : Instruction → Bool
 def Ability.namesThisDoor : Ability → Bool
   | .activated _ instr _ _ _ _ => instr.namesThisDoor
   | .triggered ev alts while_ joins _ _ _ instr =>
-    ev.namesThisDoor || alts.any GameEvent.namesThisDoor || Concurrent.namesThisDoor while_ ||
+    ev.namesThisDoor || alts.any GameEvent.namesThisDoor || Timing.namesThisDoor while_ ||
       joins.any JoinedHeader.namesThisDoor || instr.namesThisDoor
   | .spell _ instr => instr.namesThisDoor
   | .italicHead _ ab => ab.namesThisDoor

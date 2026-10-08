@@ -466,11 +466,11 @@ theorem badCardCopyOfACard :
 
 /-- "Target creature can't attack this turn." -/
 theorem okCantAttackCreature :
-    Instruction.check [] (forbidAttack (target creature) (some .thisTurn)) = [] := by decide
+    Instruction.check [] (forbidAttack (target creature) (some thisTurn)) = [] := by decide
 
 /-- "Target land can't attack this turn." [CR#508.1a,205.1b,208.3a] -/
 theorem okCantAttackLand :
-    Instruction.check [] (forbidAttack (target land) (some .thisTurn)) = [] := by decide
+    Instruction.check [] (forbidAttack (target land) (some thisTurn)) = [] := by decide
 
 /-- "Target land can't attack." -/
 theorem okCantAttackLandNoSpan : Instruction.check [] (forbidAttack (target land) none) = [] := by
@@ -478,11 +478,11 @@ theorem okCantAttackLandNoSpan : Instruction.check [] (forbidAttack (target land
 
 /-- "Target creature can't block this turn." -/
 theorem okCantBlockCreature :
-    Instruction.check [] (forbidBlock (target creature) (some .thisTurn)) = [] := by decide
+    Instruction.check [] (forbidBlock (target creature) (some thisTurn)) = [] := by decide
 
 /-- "Target creature or land can't block this turn." [CR#205.1b,208.3a] -/
 theorem okCantDisjunctSubject :
-    Instruction.check [] (forbidBlock (target (.or [creature, land])) (some .thisTurn)) = [] := by
+    Instruction.check [] (forbidBlock (target (.or [creature, land])) (some thisTurn)) = [] := by
         decide
 
 /-- "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8]. -/

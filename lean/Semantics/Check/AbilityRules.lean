@@ -207,7 +207,7 @@ mutual
     | .choose first n _ when => let by_ := performerOf perf;
       OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs by_ ++
         NounPhrase.check none (agentIntro bs by_) n ++ refuse (choiceOrderOk first (some by_)) .choiceOrder ++
-        refuse n.agentChoosable .choiceClause ++ OptConcurrent.check bs when
+        refuse n.agentChoosable .choiceClause ++ OptTiming.check bs when
     | .vote first _ ballot => let voters := performerOf perf;
       let bs' := optAgentIntro bs first
       OptNoun.check (some .player) bs first ++ NounPhrase.check (some .player) bs' voters ++
@@ -492,7 +492,9 @@ mutual
 
   def DeonticRider.check (bs : Bindings) : DeonticRider → List Refusal
     | .noRider | .stateBased _ => []
-    | .play from_ _ _ _ payment => OptZoneExpr.check bs from_ ++ PlayPayment.check bs payment
+    | .play from_ limit timing _ payment =>
+      OptZoneExpr.check bs from_ ++ OptUsageLimit.check bs limit ++ OptTiming.check bs timing ++
+        PlayPayment.check bs payment
   termination_by structural r => r
 
   def DamageOp.check (bs : Bindings) : DamageOp → List Refusal
@@ -673,8 +675,9 @@ mutual
     | .controlGrant who what =>
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' what
-    | .replacement ev alts window repl _ _ =>
+    | .replacement ev alts window repl _ limit =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptTiming.check bs window ++
+        OptUsageLimit.check bs limit ++
         Instruction.checkWith (interceptCtx bs alts ev) none repl
     | .damageRule _ src scope op _ =>
       let bs' := src.intro bs
@@ -739,18 +742,20 @@ mutual
         Ability.checkAll [] body ++
         refuse (keywordParamFits k param) (.keywordParamFits k) ++
         refuse (keywordBodyFits k body) (.keywordBodyFits k)
-    | .activated cost instr window _ guard activator =>
+    | .activated cost instr window limit guard activator =>
       let bs := ownPerformerCtx bs
       let bsc := dropLetter .x bs
       Cost.check bsc cost ++ Instruction.checkWith (publicOnly (cost.intro bsc)) none instr ++
-        OptTiming.check bs window ++ OptCondition.check bs guard ++ OptNoun.check (some .player) bs activator
-    | .triggered ev alts while_ joins window _ intervening instr =>
+        OptTiming.check bs window ++ OptUsageLimit.check bs limit ++ OptCondition.check bs guard ++
+        OptNoun.check (some .player) bs activator
+    | .triggered ev alts while_ joins window limit intervening instr =>
       let bs := ownPerformerCtx bs
       let hctx := headerCtx bs alts ev
       let jctx := joinedCtx bs joins hctx
       GameEvent.check bs ev ++ alts.flatMap (GameEvent.check bs) ++
-        OptConcurrent.check hctx while_ ++ joins.flatMap (JoinedHeader.check bs) ++
-        OptTiming.check bs window ++ OptCondition.check jctx intervening ++
+        OptTiming.check hctx while_ ++ joins.flatMap (JoinedHeader.check bs) ++
+        OptTiming.check bs window ++ OptUsageLimit.check bs limit ++
+        OptCondition.check jctx intervening ++
         Instruction.checkWith (interveningIntro jctx intervening) none instr
     | .static se =>
       let bs := ownPerformerCtx bs

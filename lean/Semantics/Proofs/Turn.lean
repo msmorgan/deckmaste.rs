@@ -17,7 +17,7 @@ def act (cost : Cost) (instruction : Instruction) (timing : Option Timing := non
   .activated cost instruction timing none none none
 
 /-- "at the beginning of the end step" -/
-def atTheEndStep : GameEvent := .beginningOf .the .endStep .noPossessor
+def atTheEndStep : GameEvent := .beginningOf .endStep none (.each none)
 
 /-- "Sacrifice a creature." -/
 theorem okSacrificeBattlefield : Instruction.check [] (sacrifice (a creature)) = []
@@ -69,7 +69,7 @@ theorem okSacrificeOnBattlefield :
 
 theorem badDeadCreatureRead :
     Instruction.check []
-      (.delay (Primitives.GameEvent.dies (target creature)) [] (some .thisTurn)
+      (.delay (Primitives.GameEvent.dies (target creature)) [] (some thisTurn)
         (move (that (.type .creature)) battlefield))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -121,7 +121,7 @@ theorem okTapOnBattlefield : Instruction.check [] (.setStatus .tapped (target cr
 /-- "At the beginning of your upkeep, draw a card." -/
 theorem okTriggerAtYourUpkeep :
     Ability.check []
-      (at_ (.beginningOf .the .upkeep (.byPlayer .you)) (draw (.lit 1))) = [] := by
+      (at_ (.beginningOf .upkeep (some .you) (.each none)) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Target creature gets +3/+3 until end of turn." -/
@@ -159,7 +159,7 @@ theorem badReflexiveOnSequence :
 
 theorem badReflexiveOnDelayed :
     Instruction.check []
-      (.triggerReflexively (delay (.beginningOf .the .endStep (.byPlayer .you)) (draw (.lit 1)))
+      (.triggerReflexively (delay (.beginningOf .endStep (some .you) (.next none)) (draw (.lit 1)))
         (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
@@ -172,7 +172,7 @@ theorem okThisWayOnRegenerate :
 
 theorem badThisWayOnDelayed :
     Instruction.check []
-      (.triggerThisWay (delay (.beginningOf .the .endStep (.byPlayer .you)) (draw (.lit 1)))
+      (.triggerThisWay (delay (.beginningOf .endStep (some .you) (.next none)) (draw (.lit 1)))
         (.draws .you) (draw (.lit 1))) = [.thisWayOutcome] := by
   decide
 
@@ -202,32 +202,33 @@ theorem okBlockingThisCreature :
 theorem okDistributivePartWindow :
     Ability.check []
       (act (.mana [generic 2]) (draw (.lit 1))
-        (some (.duringPart .endStep (some (each .anyPlayer))))) = [] := by
+        (some (duringPart .endStep (some (each .anyPlayer))))) = [] := by
   decide
 
 /-- "until the beginning of your next upkeep" -/
 theorem okDurationEndYourUpkeep :
-    DurationEnd.check [] (.startOf .upkeep (some .you)) = [] := by decide
+    Duration.check [] (untilEvent (.beginningOf .upkeep (some .you) (.next none))) = [] := by decide
 
 /-- "until the beginning of each player's next upkeep" -/
 theorem badDurationEndEachPlayers :
-    DurationEnd.check [] (.startOf .upkeep (some (each .anyPlayer)))
+    Duration.check [] (untilEvent (.beginningOf .upkeep (some (each .anyPlayer)) (.next none)))
       = [.durationPossessor] := by
   decide
 
 /-- "until the end of your next combat" -/
 theorem okDurationEndYourCombat :
-    DurationEnd.check [] (.endOf .combat (some .you)) = [] := by decide
+    Duration.check [] (untilEvent (.endOf .combat (some .you) (.next none))) = [] := by decide
 
 /-- "until the end of an opponent's combat" -/
 theorem badDurationEndAnOpponent :
-    DurationEnd.check [] (.endOf .combat (some anOpponent)) = [.durationPossessor] := by decide
+    Duration.check [] (untilEvent (.endOf .combat (some anOpponent) (.next none)))
+      = [.durationPossessor] := by decide
 
 /-- "You get an emblem with 'At the beginning of your end step, draw a card.'" -/
 theorem okTriggeredEmblem :
     Instruction.check []
       (Primitives.Instruction.getEmblem
-        [at_ (.beginningOf .the .endStep (.byPlayer .you)) (draw (.lit 1))])
+        [at_ (.beginningOf .endStep (some .you) (.each none)) (draw (.lit 1))])
       = [] := by
   decide
 
@@ -240,7 +241,7 @@ theorem okDeicticTurnAfterExtraTurn :
     Instruction.check []
       (.sequentially
         [ extraTurn (.lit 1),
-          delay (.beginningOf .the .endStep (byTurn thatTurn)) (.conclude .loseGame) ])
+          delay (.beginningOf .endStep none .that) (.conclude .loseGame) ])
       = [] := by
   decide
 
@@ -249,8 +250,8 @@ theorem badDeicticTurnWithoutIntroducer :
     Instruction.check []
       (.sequentially
         [ draw (.lit 1),
-          delay (.beginningOf .the .endStep (byTurn thatTurn)) (.conclude .loseGame) ])
-      = [.anaphor .thatTurn .one 0] := by
+          delay (.beginningOf .endStep none .that) (.conclude .loseGame) ])
+      = [.turnAntecedent 0] := by
   decide
 
 /-- "After this combat phase, there is an additional upkeep step." -/
@@ -299,14 +300,14 @@ theorem badMixedDisjunctionActivated :
 /-- "At the beginning of your upkeep, draw a card." -/
 theorem okSingularPartPossessor :
     Ability.check []
-      (at_ (.beginningOf .the .upkeep (.byPlayer .you)) (draw (.lit 1))) = [] := by
+      (at_ (.beginningOf .upkeep (some .you) (.each none)) (draw (.lit 1))) = [] := by
   decide
 
 /-- "At the beginning of combat on your turn, draw a card." The beginning of combat step is
 its own part of the combat phase [CR#506.1]. -/
 theorem okBeginningOfCombatPossessor :
     Ability.check []
-      (at_ (.beginningOf .the .beginningOfCombat (.byPlayer .you)) (draw (.lit 1)))
+      (at_ (.beginningOf .beginningOfCombat (some .you) (.each none)) (draw (.lit 1)))
       = [] := by
   decide
 
@@ -315,7 +316,7 @@ last of the turn's five phases [CR#500.1]. -/
 theorem okEndingPhaseWindow :
     Ability.check []
       (act (.mana [generic 2]) (draw (.lit 1))
-        (some (.duringPart .endingPhase (some (each .anyPlayer))))) = [] := by
+        (some (duringPart .endingPhase (some (each .anyPlayer))))) = [] := by
   decide
 
 /-- "After this postcombat main phase, there is an additional ending phase." [CR#500.1] -/
@@ -364,12 +365,12 @@ def oneExtraTurn : Bindings := Instruction.intro [] (extraTurn (.lit 1))
 
 /-- "Take an extra turn after this one. Skip the draw step of that turn." -/
 theorem okThatTurnAfterASingleTurn :
-    NounPhrase.check (some .turnRef) oneExtraTurn thatTurn = [] := by decide
+    TurnRef.check oneExtraTurn .that = [] := by decide
 
 def twoExtraTurns : Bindings := Instruction.intro oneExtraTurn (extraTurn (.lit 1))
 
 theorem badThatTurnAfterTwoTurns :
-    NounPhrase.check (some .turnRef) twoExtraTurns thatTurn = [.anaphor .thatTurn .one 2] := by
+    TurnRef.check twoExtraTurns .that = [.turnAntecedent 2] := by
   decide
 
 /-- "create a legendary 20/20 black Avatar creature token named Marit Lage" -/
@@ -521,5 +522,45 @@ theorem okUntapNestedAmountOrder :
         (plus (powerOf (target creature)) (lifeTotalOf (target .opponent)))))
       = [⟨.target, .one, .player false, []⟩,
          ⟨.target, .one, .object [.creature] (some .battlefield) none none (some 1), []⟩] := by rfl
+
+/-! ## The temporal sorts (`semantics-v2-temporal-suite`)
+
+A timing, a duration and a usage limit are checked for references and kinds only (§7 ruling
+2026-10-08, "Time is three sorts"). -/
+
+/-- "Activate only during this creature's upkeep": whose turn it is must be a player's. -/
+theorem badTimingWhoseNotAPlayer :
+    Timing.check [] (duringPart .upkeep (some thisCreature)) = [.kindMismatch .player .object] := by
+  decide
+
+/-- "Activate only during that turn's end step", with no turn introduced before it. -/
+theorem badTimingThatTurnWithoutAntecedent :
+    Timing.check [] (.inPart .endStep none .that) = [.turnAntecedent 0] := by decide
+
+/-- "… during that turn's end step" after "take an extra turn after this one". -/
+theorem okTimingThatTurnAfterExtraTurn :
+    Timing.check oneExtraTurn (.inPart .endStep none .that) = [] := by decide
+
+/-- "Activate only as a sorcery" [CR#307.5] and "only as an instant" [CR#117.1a]. -/
+theorem okSorceryAndInstantSpeed :
+    Timing.check [] asSorcery ++ Timing.check [] asInstant = [] := by decide
+
+/-- "Until your next turn": the end is the beginning of your next turn. -/
+theorem okUntilYourNextTurn : Duration.check [] untilYourNextTurn = [] := by decide
+
+/-- "During your next turn": both boundaries are your next turn's. -/
+theorem okDuringYourNextTurn : Duration.check [] (duringNextTurnOf .you) = [] := by decide
+
+/-- "On a later turn" [CR#702.170d] and the history windows. -/
+theorem okLaterTurnAndHistoryWindows :
+    Duration.check [] onALaterTurn ++ Duration.check [] soFarThisTurn ++
+      Duration.check [] lastTurn ++ Duration.check [] thisGame = [] := by decide
+
+/-- "Activate only once each turn" [CR#602.5b]. -/
+theorem okOncePerTurn : UsageLimit.check [] oncePerTurn = [] := by decide
+
+/-- "the next turn of this creature": a turn reference names a player's turns. -/
+theorem badNextTurnOfACreature :
+    TurnRef.check [] (.next (some thisCreature)) = [.kindMismatch .player .object] := by decide
 
 end Semantics.Proofs.Turn

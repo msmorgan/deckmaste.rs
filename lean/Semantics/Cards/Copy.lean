@@ -31,7 +31,7 @@ def repeatedReverberation : Spelled := spelled <| .singleFaced
             [ Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
               (Primitives.Predicate.and [sorcery, spell]))) none,
               Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead .loyalty)) ]
-            (some Primitives.Duration.thisTurn)
+            (some thisTurn)
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.copy .fromStack (that .stack) (.lit 2) [],
                 offer (Primitives.Instruction.chooseNewTargets (those .copy)) ])) ] } }
@@ -160,7 +160,7 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           triggeredOnlyOnce (Primitives.GameEvent.casts Primitives.NounPhrase.you (some (a
             (Primitives.Predicate.and [artifact, spell]))) none)
-            Primitives.UsageLimit.actionOncePerTurn
+            oncePerTurn
             (offer (Primitives.Instruction.copy .fromStack it (.lit 1) [Primitives.CopyExcept.nonlegendary]))
                 ],
       power := stat 3, toughness := stat 5 } }
@@ -178,7 +178,7 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
                 (Primitives.Predicate.hasSupertype .legendary),
                          Primitives.Predicate.hasKeyword (.the (.named "flying")) ])))
               none)
-            Primitives.UsageLimit.actionOncePerTurn
+            oncePerTurn
             (offer
               (Primitives.Instruction.copy .fromStack it (.lit 1)
                 (copyCharacteristics {

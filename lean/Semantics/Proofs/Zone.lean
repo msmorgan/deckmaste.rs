@@ -107,7 +107,7 @@ theorem badDistributedZoneMoveRead :
 /-- "When target creature dies this turn, return that card to the battlefield." -/
 theorem okDiesBattlefield :
     Instruction.check []
-      (.delay (Primitives.GameEvent.dies (target creature)) [] (some .thisTurn) (.move (that .card) .wherever battlefield []))
+      (.delay (Primitives.GameEvent.dies (target creature)) [] (some thisTurn) (.move (that .card) .wherever battlefield []))
       = [] := by
   decide
 
@@ -388,7 +388,7 @@ theorem badEachOfTheRest :
 /-- "If a creature you control would die this turn, exile it instead." -/
 theorem okWouldDieOnBattlefield :
     Instruction.check []
-      (replaceEvent (Primitives.GameEvent.dies (target creatureYouControl)) (exile it) (some .thisTurn)) = [] := by
+      (replaceEvent (Primitives.GameEvent.dies (target creatureYouControl)) (exile it) (some thisTurn)) = [] := by
   decide
 
 /-- "Reveal the top card of your library. Put that card into your hand." -/
@@ -606,7 +606,7 @@ theorem badInterceptReplacementAntecedent :
       (.sequentially
         [ replaceNextEvent (.draws .you)
             (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Soldier"]))
-            (some .thisTurn),
+            (some thisTurn),
           sacrifice it ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -621,8 +621,7 @@ theorem okUntapInstruction :
 
 /-- "… if a creature died this turn, …" -/
 theorem okDeathLookback :
-    Condition.check [] (.happened (a creature) (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object)))
-      .thisTurn)) = [] := by decide
+    Condition.check [] (.happened (a creature) (.mk (Primitives.GameEvent.dies (.asMarker .permanent (.gap .object))) soFarThisTurn none)) = [] := by decide
 
 /-- "Counter target activated ability." -/
 theorem okCounterAbility :

@@ -44,11 +44,11 @@ def erebos : Ability :=
 theorem okErebos : Ability.check [] erebos = [] := by decide
 def baskingRootwalla : Ability :=
   activatedOnlyOnce (Primitives.Cost.mana [generic 1, pip .green])
-    (get thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2)) (some untilEndOfTurn)) Primitives.UsageLimit.oncePerTurn
+    (get thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2)) (some untilEndOfTurn)) oncePerTurn
 theorem okBaskingRootwalla : Ability.check [] baskingRootwalla = [] := by decide
 def securityDetail : Ability :=
   activatedOnlyOnceIf (Primitives.Cost.mana [pip .white, pip .white])
-    (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])) Primitives.UsageLimit.oncePerTurn
+    (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])) oncePerTurn
     (Primitives.Condition.not (exists_ (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
 theorem okSecurityDetail : Ability.check [] securityDetail = [] := by decide
 def aphettoAlchemist : Ability :=
@@ -95,7 +95,7 @@ def witchsMist : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2, pip .black], Primitives.Cost.tapSymbol])
     (destroy (target (Primitives.Predicate.and [creature, happenedTo
       (Primitives.GameEvent.isDealtDamage .any (Primitives.NounPhrase.asMarker .permanent (relative
-      .object))) .thisTurn])))
+      .object))) soFarThisTurn])))
 theorem okWitchsMist : Ability.check [] witchsMist = [] := by decide
 def goadTargetCreature : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.tapSymbol])
@@ -162,7 +162,7 @@ def highspireBellRinger : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Djinn", creatureType "Monk"],
       text :=
         [ keyword (.named "flying"),
-          Primitives.Ability.static (Primitives.StaticSpec.costShift (the (Primitives.Predicate.and [spell, nthCastBy (.nth 2) Primitives.NounPhrase.you (.each .turn)])) (Primitives.CostShift.less
+          Primitives.Ability.static (Primitives.StaticSpec.costShift (the (Primitives.Predicate.and [spell, nthCastBy (.nth 2) Primitives.NounPhrase.you .turn])) (Primitives.CostShift.less
               (.lit 1) none)) ],
       power := stat 1, toughness := stat 4 } }
 
@@ -303,7 +303,7 @@ def angusMackenzie : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Cleric"],
       text :=
         [ activatedOnlyDuring (Primitives.Cost.compound [Primitives.Cost.mana [pip .green, pip .white, pip .blue], Primitives.Cost.tapSymbol])
-            (preventAll .combatOnly Primitives.DamageScope.everywhere (some Primitives.Duration.thisTurn)) (Primitives.Timing.beforePart .combatDamage none) ],
+            (preventAll .combatOnly Primitives.DamageScope.everywhere (some thisTurn)) (beforePart .combatDamage none) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Vampire Hexmage -/
@@ -338,7 +338,7 @@ def aggressiveMining : Spelled := spelled <| .singleFaced
     { name := "Aggressive Mining", cost := some [generic 3, pip .red], types := [.enchantment],
       text :=
         [ Primitives.Ability.static (cantDoTo (.action "play") Primitives.NounPhrase.you (allOf land)),
-          activatedOnlyOnce (Primitives.Cost.perform (sacrifice (a land))) (Primitives.Instruction.draw (.lit 2)) Primitives.UsageLimit.oncePerTurn ] } }
+          activatedOnlyOnce (Primitives.Cost.perform (sacrifice (a land))) (Primitives.Instruction.draw (.lit 2)) oncePerTurn ] } }
 
 def rootGreevil : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -657,7 +657,7 @@ def asphodelWanderer : Spelled := spelled <| .singleFaced
 
 def hurrJackalAbility : Ability :=
   activated Primitives.Cost.tapSymbol
-    (Primitives.Instruction.establish (objectCant (.action "regenerate") (target creature)) (some Primitives.Duration.thisTurn))
+    (Primitives.Instruction.establish (objectCant (.action "regenerate") (target creature)) (some thisTurn))
 theorem okHurrJackalAbility : Ability.check [] hurrJackalAbility = [] := by decide
 
 def wickedAkuba : Spelled := spelled <| .singleFaced
@@ -666,7 +666,7 @@ def wickedAkuba : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Spirit"],
       text :=
         [ activated (Primitives.Cost.mana [pip .black])
-            (act (target (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, happenedTo (Primitives.GameEvent.dealsDamage .any thisCreature (some (relative .player))) .thisTurn])) (loseLife
+            (act (target (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, happenedTo (Primitives.GameEvent.dealsDamage .any thisCreature (some (relative .player))) soFarThisTurn])) (loseLife
               (.lit 1))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -676,7 +676,7 @@ def idolOfOblivion : Spelled := spelled <| .singleFaced
       text :=
         [ activatedOnlyIf Primitives.Cost.tapSymbol (Primitives.Instruction.draw (.lit 1))
             (happened (Primitives.GameEvent.tokensCreated (a Primitives.Predicate.isToken) false
-              (some (relative .player)) none) Primitives.NounPhrase.you .thisTurn),
+              (some (relative .player)) none) Primitives.NounPhrase.you soFarThisTurn),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 8], Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice thisArtifact)])
             (create (.lit 1) (creatureToken 10 10 [] [creatureType "Eldrazi"])) ] } }
 
@@ -706,7 +706,7 @@ def shuFarmer : Spelled := spelled <| .singleFaced
     { name := "Shu Farmer", cost := some [generic 1, pip .white], types := [.creature],
       subtypes := [creatureType "Human"],
       text :=
-        [ activatedOnlyDuring Primitives.Cost.tapSymbol (gainLife (.lit 1)) (Primitives.Timing.beforePart
+        [ activatedOnlyDuring Primitives.Cost.tapSymbol (gainLife (.lit 1)) (beforePart
             .declareAttackers (some Primitives.NounPhrase.you)) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -758,7 +758,7 @@ def bamboozlingBeebleIgnore : Ability :=
       (Primitives.Instruction.sequentially
         [ act they (Primitives.Instruction.rollDice (plus Primitives.Amount.thatMuch (.lit 1)) .thoseDice),
           Primitives.Instruction.ignoreOutcomes (Primitives.IgnoredOutcomes.chosen (some Primitives.NounPhrase.you) (.lit 1)) ])
-      (some Primitives.Duration.thisTurn))
+      (some thisTurn))
 theorem okBamboozlingBeebleIgnore : Ability.check [] bamboozlingBeebleIgnore = [] := by decide
 /-- General Tazri's pump -/
 def generalTazriPump : Ability :=

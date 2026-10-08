@@ -360,7 +360,7 @@ theorem okPreventedFromSourceAnnounced :
 /-- "Prevent all damage that would be dealt to you this turn. If damage from a red source is
 prevented this way, you gain 3 life." -/
 theorem okPreventedFromSourceInAClause :
-    Instruction.check [] (.establish preventedFromSourceAnnounced (some .thisTurn)) = [] := by
+    Instruction.check [] (.establish preventedFromSourceAnnounced (some thisTurn)) = [] := by
   decide
 
 /-- "If damage from a red source is prevented this way, you gain 3 life." -/
@@ -381,7 +381,7 @@ theorem okPreventedThisWayAnnounced : StaticSpec.check [] preventedThisWayAnnoun
 /-- "Prevent all damage that would be dealt to you this turn. You gain life equal to the damage
 prevented this way." -/
 theorem okPreventedThisWayInAClause :
-    Instruction.check [] (.establish preventedThisWayAnnounced (some .thisTurn)) = [] := by
+    Instruction.check [] (.establish preventedThisWayAnnounced (some thisTurn)) = [] := by
   decide
 
 theorem badPreventedThisWayAfterDamage :
@@ -632,14 +632,14 @@ theorem okDestroyCreature : Instruction.check [] (destroy (target creature)) = [
 theorem okCombatDamageComplement :
     Predicate.check .object []
       (.happenedTo (.mk (Primitives.GameEvent.dealsDamage .combatOnly thisCreature (some (.asMarker .permanent (.gap
-        .object)))) .thisTurn)) = [] := by
+        .object)))) soFarThisTurn none)) = [] := by
   decide
 
 /-- "creature that was dealt combat damage by a color this turn" -/
 theorem badCombatDamageComplement :
     Predicate.check .object []
       (.happenedTo (.mk (Primitives.GameEvent.dealsDamage .combatOnly (a (quality .color)) (some (.asMarker .permanent
-        (.gap .object)))) .thisTurn))
+        (.gap .object)))) soFarThisTurn none))
       = [.kindMismatch .object (.quality .color)] := by
   decide
 

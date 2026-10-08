@@ -180,7 +180,7 @@ theorem badAscribedQualityBeforeChoice :
 
 /-- "{T}: Draw a card. Activate only once each turn." -/
 theorem okActivatedTurnLimit :
-    Ability.check [] (.activated .tapSymbol (draw (.lit 1)) none (some .oncePerTurn)
+    Ability.check [] (.activated .tapSymbol (draw (.lit 1)) none (some oncePerTurn)
         none none)
       = [] := by
   decide

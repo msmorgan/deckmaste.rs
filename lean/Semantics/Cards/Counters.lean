@@ -87,7 +87,7 @@ def armamentCorps : Instruction :=
 theorem okArmamentCorps : Instruction.check [] armamentCorps = [] := by decide
 def savagebornHydra : Ability :=
   activatedOnlyDuring (Primitives.Cost.mana [generic 1, hybridPip .red .green])
-    (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) Primitives.Timing.asSorcery
+    (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) asSorcery
 theorem okSavagebornHydra : Ability.check [] savagebornHydra = [] := by decide
 def woeleecher : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .white], Primitives.Cost.tapSymbol])
@@ -123,31 +123,31 @@ def merenOfClanNelToth : Ability :=
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "experience")) Primitives.NounPhrase.you)
 theorem okMerenOfClanNelToth : Ability.check [] merenOfClanNelToth = [] := by decide
 def kratosStoicFather : Ability :=
-  at_ (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  at_ (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Instruction.putCounters (countersOn (.named "experience") Primitives.NounPhrase.you) (Primitives.CounterKindSource.printed p1p1Counter)
       (target creature))
 theorem okKratosStoicFather : Ability.check [] kratosStoicFather = [] := by decide
 def vashtaNerada : Ability :=
-  triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
+  triggeredIf (Primitives.GameEvent.beginningOf .endStep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
     (happened (Primitives.GameEvent.dies (Primitives.NounPhrase.asMarker .permanent (relative
-      .object))) (a creature) .thisTurn)
+      .object))) (a creature) soFarThisTurn)
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature)
 theorem okVashtaNerada : Ability.check [] vashtaNerada = [] := by decide
 def furiousSpinesplitter : Ability :=
-  at_ (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  at_ (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Instruction.putCounters (forEach 1 (Primitives.Predicate.and
       [Primitives.Predicate.opponent, happenedTo (Primitives.GameEvent.isDealtDamage .any (relative
-      .player)) .thisTurn]))
+      .player)) soFarThisTurn]))
       (Primitives.CounterKindSource.printed p1p1Counter) thisCreature)
 theorem okFuriousSpinesplitter : Ability.check [] furiousSpinesplitter = [] := by decide
 def paladinOfAtonement : Ability :=
-  triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
+  triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
     (happened (Primitives.GameEvent.lifeChanges (relative .player) .down) Primitives.NounPhrase.you
-      .lastTurn) (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed
+      lastTurn) (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed
       p1p1Counter) thisCreature)
 theorem okPaladinOfAtonement : Ability.check [] paladinOfAtonement = [] := by decide
 def throneWarden : Ability :=
-  triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  triggeredIf (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation (.named "monarch") none))
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature)
 theorem okThroneWarden : Ability.check [] throneWarden = [] := by decide
@@ -188,7 +188,7 @@ def divineIntervention : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ Primitives.Ability.static (entersWithCounters thisEnchantment (.lit 2) (.named "interventionCounter")),
-          at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "interventionCounter")))
               thisEnchantment),
           when (lastCounterRemovedBy (.named "interventionCounter") thisEnchantment Primitives.NounPhrase.you) Primitives.Instruction.drawGame ] } }
@@ -199,7 +199,7 @@ def celestialConvergence : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ Primitives.Ability.static (entersWithCounters thisEnchantment (.lit 7) (.named "omenCounter")),
-          at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "omenCounter"))) thisEnchantment,
                 Primitives.Instruction.doIf (Primitives.Condition.compareAmt (countersOn (.named "omenCounter") thisEnchantment) .atMost (.lit 0))
@@ -231,7 +231,7 @@ def passagewaySeer : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "lifelink"),
           when (Primitives.GameEvent.enters thisCreature none) (Primitives.Instruction.gainDesignation Primitives.NounPhrase.you (.named "initiative") none),
-          triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          triggeredIf (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Condition.matches Primitives.NounPhrase.you (Primitives.Predicate.hasDesignation (.named "initiative") none))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
       power := stat 2, toughness := stat 2 } }
@@ -314,7 +314,7 @@ def foeLiage : Spelled := spelled <| .singleFaced
     { name := "Foe-liage", cost := some [generic 3, pip .green], types := [.creature],
       subtypes := [creatureType "Plant", creatureType "Mutant"],
       text :=
-        [ triggeredOnlyDuring (Primitives.GameEvent.enters (a land) none) (Primitives.Timing.duringPart .turn (some Primitives.NounPhrase.you))
+        [ triggeredOnlyDuring (Primitives.GameEvent.enters (a land) none) (duringPart .turn (some Primitives.NounPhrase.you))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -407,7 +407,7 @@ def denryKlin : Spelled := spelled <| .singleFaced
 
 /-- Me, the Immortal -/
 def meTheImmortalCounterMenu : Ability :=
-  at_ (Primitives.GameEvent.beginningOf .the .combat (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  at_ (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Instruction.putCounters (.lit 1)
       (Primitives.CounterKindSource.chosen [p1p1Counter, .named "firstStrikeCounter", .named "vigilanceCounter", .named "menaceCounter"])
       thisCreature)
@@ -438,9 +438,7 @@ def tromell : Spelled := spelled <| .singleFaced
               [ Primitives.Instruction.repeatTimes (Primitives.Amount.letter .x) proliferate,
                 Primitives.Instruction.define .x
                   (countOf (Primitives.Predicate.and [ nontoken, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
-                                   Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
-                                     (Primitives.GameEvent.enters (relative .object) none)
-                                     .thisTurn) ])) ]) ],
+                                   Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk (Primitives.GameEvent.enters (relative .object) none) soFarThisTurn none) ])) ]) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Runadi, Behemoth Caller -/
@@ -532,7 +530,7 @@ def novijenSagesDraw : Ability :=
 theorem okNovijenSagesDraw : Ability.check [] novijenSagesDraw = [] := by decide
 /-- Cyclone -/
 def cycloneUpkeepPayment : Ability :=
-  at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Instruction.sequentially
       [ Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "windCounter")) thisEnchantment,
         doUnless (sacrifice thisEnchantment)
@@ -561,7 +559,7 @@ def testOfFaith : Spelled := spelled <| .singleFaced
               (Primitives.DamageOp.prevent (Primitives.PreventCut.shield (.lit 3))
                 (some (Primitives.Instruction.putCounters preventedThisWay (Primitives.CounterKindSource.printed p1p1Counter) (that (.type .creature)))))
               .repeatedly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def temper : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -572,7 +570,7 @@ def temper : Spelled := spelled <| .singleFaced
               (Primitives.DamageOp.prevent (Primitives.PreventCut.shield (Primitives.Amount.letter .x))
                 (some (Primitives.Instruction.putCounters preventedThisWay (Primitives.CounterKindSource.printed p1p1Counter) (that (.type .creature)))))
               .repeatedly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def phytohydra : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -680,7 +678,7 @@ def entDraughtBasinAbility : Ability :=
   activatedOnlyDuring (Primitives.Cost.compound [Primitives.Cost.mana [.variable], Primitives.Cost.tapSymbol])
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter)
       (target (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .power] .eq (Primitives.Amount.letter .x)])))
-    Primitives.Timing.asSorcery
+    asSorcery
 theorem okEntDraughtBasinAbility : Ability.check [] entDraughtBasinAbility = [] := by decide
 
 def matopiGolem : Spelled := spelled <| .singleFaced
@@ -728,7 +726,7 @@ def crumblingAshes : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Crumbling Ashes", cost := some [generic 1, pip .black], types := [.enchantment],
       text :=
-        [ at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+        [ at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasCounters (some m1m1Counter)]))) ] } }
 
 def hunterOfEyeblights : Spelled := spelled <| .singleFaced
@@ -801,7 +799,7 @@ def sengirVampire : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, happenedTo
             (Primitives.GameEvent.dealsDamage .any thisCreature (some
-            (Primitives.NounPhrase.asMarker .permanent (relative .object)))) .thisTurn])))
+            (Primitives.NounPhrase.asMarker .permanent (relative .object)))) soFarThisTurn])))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -818,7 +816,7 @@ def mildManneredLibrarian : Spelled := spelled <| .singleFaced
                   none,
                 Primitives.Instruction.putCounters (.lit 2) (Primitives.CounterKindSource.printed p1p1Counter) it,
                 Primitives.Instruction.draw (.lit 1) ])
-            Primitives.UsageLimit.oncePerGame ],
+            oncePerGame ],
       power := stat 1, toughness := stat 1 } }
 
 def infernalVessel : Spelled := spelled <| .singleFaced
@@ -904,7 +902,7 @@ def mirelurkQueenTrigger : Ability :=
     (Primitives.GameEvent.verbedEvent none (.action "mill")
       (some (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.not land,
         Primitives.Predicate.inZone (Primitives.ZoneExpr.zone .library .bare)]))) none none)
-    Primitives.UsageLimit.oncePerTurn
+    oncePerTurn
     (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 1), Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter)
         thisCreature])
 theorem okMirelurkQueenTrigger : Ability.check [] mirelurkQueenTrigger = [] := by decide
@@ -916,9 +914,9 @@ def whirlingDervish : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Monk"],
       text :=
         [ keywordQuality (.named "protection") (Primitives.Predicate.colorIs .black),
-          triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
+          triggeredIf (Primitives.GameEvent.beginningOf .endStep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
             (happened (Primitives.GameEvent.dealsDamage .any (relative .object) (some anOpponent))
-              thisCreature .thisTurn)
+              thisCreature soFarThisTurn)
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) it) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -928,10 +926,10 @@ def ichorShade : Spelled := spelled <| .singleFaced
     { name := "Ichor Shade", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [creatureType "Phyrexian", creatureType "Shade"],
       text :=
-        [ triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+        [ triggeredIf (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Condition.happened (a (Primitives.Predicate.or [artifact, creature]))
               (Primitives.LookbackClause.mk (Primitives.GameEvent.putInto (relative .object)
-                graveyard (some (Primitives.EventSource.zones [battlefield]))) .thisTurn))
+                graveyard (some (Primitives.EventSource.zones [battlefield]))) soFarThisTurn none))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -943,12 +941,12 @@ def asmiraHolyAvenger : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Cleric"],
       text :=
         [ keyword (.named "flying"),
-          at_ (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer (each Primitives.Predicate.anyPlayer)))
+          at_ (Primitives.GameEvent.beginningOf .endStep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
             (Primitives.Instruction.putCounters
               (Primitives.Amount.eventTally .count (a creature)
                 (Primitives.LookbackClause.mk (Primitives.GameEvent.putInto (relative .object)
                   (graveyardOf Primitives.NounPhrase.you) (some (Primitives.EventSource.zones
-                  [battlefield]))) .thisTurn))
+                  [battlefield]))) soFarThisTurn none))
               (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -990,7 +988,7 @@ def feralContest : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) (target creatureYouControl),
-              requireBlockIt (target (Primitives.Predicate.and [creature, Primitives.Predicate.other])) (some Primitives.Duration.thisTurn) ]) ] } }
+              requireBlockIt (target (Primitives.Predicate.and [creature, Primitives.Predicate.other])) (some thisTurn) ]) ] } }
 
 /-- Thranduil's Company -/
 def thranduilsCompany : Spelled := spelled <| .singleFaced
@@ -1031,7 +1029,7 @@ def stonebindersFamiliar : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Spirit", creatureType "Dog"],
       text :=
         [ Primitives.Ability.triggered (Primitives.GameEvent.putInto (counted (atLeast 1) Primitives.Predicate.isCard) exileZone none) [] none []
-            (some (Primitives.Timing.duringPart .turn (some Primitives.NounPhrase.you))) (some Primitives.UsageLimit.oncePerTurn) none
+            (some (duringPart .turn (some Primitives.NounPhrase.you))) (some oncePerTurn) none
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -1085,7 +1083,7 @@ def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisAura none) (tap (Primitives.NounPhrase.attachHost .enchanted (.type .creature))),
           Primitives.Ability.static (Primitives.StaticSpec.abilityGrant (Primitives.NounPhrase.attachHost .enchanted (.type .creature))
             (Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.statusEvent thisCreature .untapped) []
-              (some (Primitives.Timing.duringPart .untapStep (some Primitives.NounPhrase.you)))
+              (some (duringPart .untapStep (some Primitives.NounPhrase.you)))
               (Primitives.Instruction.doIfDone
                 (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed p1p1Counter)) thisCreature)
                 (some (untap thisCreature)) none)
@@ -1147,7 +1145,7 @@ def charnelTroll : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Troll"],
       text :=
         [ keyword (.named "trample"),
-          at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Instruction.doIfDone (exile (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))
               (some (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature))
               (some (sacrifice thisCreature))),
@@ -1164,7 +1162,7 @@ def mistbreathElder : Spelled := spelled <| .singleFaced
     { name := "Mistbreath Elder", cost := some [pip .green], types := [.creature],
       subtypes := [creatureType "Frog", creatureType "Warrior"],
       text :=
-        [ at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+        [ at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Instruction.doIfDone (returnTo (a (otherCreatureYouControl thisCreature)) hand [])
               (some (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature))
               (some (offer (returnTo thisCreature hand [])))) ],
@@ -1188,7 +1186,7 @@ def thallid : Spelled := spelled <| .singleFaced
     { name := "Thallid", cost := some [pip .green], types := [.creature],
       subtypes := [creatureType "Fungus"],
       text :=
-        [ at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+        [ at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "sporeCounter")) thisCreature),
           activated
             (Primitives.Cost.perform (Primitives.Instruction.removeCounters (some (exactly 3)) (some (Primitives.CounterKindSource.printed (.named "sporeCounter"))) thisCreature))
@@ -1206,7 +1204,7 @@ theorem okArchfiendOfTheDrossEntersOiled :
     StaticSpec.check [] archfiendOfTheDrossEntersOiled = [] := by decide
 /-- Archfiend of the Dross -/
 def archfiendOfTheDrossOilUpkeep : Ability :=
-  at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Instruction.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "oilCounter"))) thisCreature)
 theorem okArchfiendOfTheDrossOilUpkeep : Ability.check [] archfiendOfTheDrossOilUpkeep = [] := by
   decide

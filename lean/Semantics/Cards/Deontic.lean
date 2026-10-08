@@ -14,21 +14,21 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Cards
 
-def infiltrate : Instruction := forbidBeingBlocked (target creature) (some Primitives.Duration.thisTurn)
+def infiltrate : Instruction := forbidBeingBlocked (target creature) (some thisTurn)
 theorem okInfiltrate : Instruction.check [] infiltrate = [] := by decide
-def changeOfHeart : Instruction := forbidAttack (target creature) (some Primitives.Duration.thisTurn)
+def changeOfHeart : Instruction := forbidAttack (target creature) (some thisTurn)
 theorem okChangeOfHeart : Instruction.check [] changeOfHeart = [] := by decide
 def blindblast : Instruction :=
   Primitives.Instruction.sequentially
     [Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (target creature), forbidBlock (that (.type .creature)) (some
-        Primitives.Duration.thisTurn)]
+        thisTurn)]
 theorem okBlindblast : Instruction.check [] blindblast = [] := by decide
 def blindingFlare : Instruction :=
-  forbidBlock (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) creature) (some Primitives.Duration.thisTurn)
+  forbidBlock (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) creature) (some thisTurn)
 theorem okBlindingFlare : Instruction.check [] blindingFlare = [] := by decide
 def cowardKiller : Instruction :=
   Primitives.Instruction.sequentially
-    [ forbidBlock (target creature) (some Primitives.Duration.thisTurn),
+    [ forbidBlock (target creature) (some thisTurn),
       become (that (.type .creature)) { characteristics := { subtypes := [creatureType "Coward"] } }
         (some untilEndOfTurn) ]
 theorem okCowardKiller : Instruction.check [] cowardKiller = [] := by decide
@@ -37,21 +37,21 @@ theorem okCowardKiller : Instruction.check [] cowardKiller = [] := by decide
 def auriokSiegeSledDenial : Ability :=
   activated (Primitives.Cost.mana [generic 1])
     (Primitives.Instruction.establish (cantDoTo (.core .block) (target (Primitives.Predicate.and [artifact, creature])) thisCreature)
-      (some Primitives.Duration.thisTurn))
+      (some thisTurn))
 theorem okAuriokSiegeSledDenial : Ability.check [] auriokSiegeSledDenial = [] := by decide
 
 /-- Blindblast -/
 def blindblastWhole : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (target creature), forbidBlock (that (.type .creature)) (some
-        Primitives.Duration.thisTurn),
+        thisTurn),
       Primitives.Instruction.draw (.lit 1) ]
 theorem okBlindblastWhole : Instruction.check [] blindblastWhole = [] := by decide
 
 def sparkmagesGambit : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 1) (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) creature)),
-      forbidBlock (those (.type .creature)) (some Primitives.Duration.thisTurn) ]
+      forbidBlock (those (.type .creature)) (some thisTurn) ]
 theorem okSparkmagesGambit : Instruction.check [] sparkmagesGambit = [] := by decide
 
 /-- Glacial Chasm -/
@@ -104,7 +104,7 @@ def leitmotifComposer : Ability :=
     (Primitives.Instruction.establish
       (deontic (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.named (Primitives.NameSource.printed "Leitmotif Composer")])) Primitives.Compulsion.forbid
         [.core .block] .patient Primitives.DeonticPatient.noPatient)
-      (some Primitives.Duration.thisTurn))
+      (some thisTurn))
 theorem okLeitmotifComposer : Ability.check [] leitmotifComposer = [] := by decide
 
 def berserkersOfBloodRidge : Ability :=
@@ -115,13 +115,13 @@ def trumpetingArmodon : Ability :=
   activated (Primitives.Cost.mana [generic 1, pip .green])
     (Primitives.Instruction.establish
       (deontic (target creature) Primitives.Compulsion.require [.core .block] .agent (Primitives.DeonticPatient.counterpart thisCreature))
-      (some Primitives.Duration.thisTurn))
+      (some thisTurn))
 theorem okTrumpetingArmodon : Ability.check [] trumpetingArmodon = [] := by decide
 
 def loathsomeCatoblepas : Ability :=
   activated (Primitives.Cost.mana [generic 2, pip .green])
     (Primitives.Instruction.establish (deontic thisCreature Primitives.Compulsion.require [.core .block] .patient Primitives.DeonticPatient.noPatient)
-      (some Primitives.Duration.thisTurn))
+      (some thisTurn))
 theorem okLoathsomeCatoblepas : Ability.check [] loathsomeCatoblepas = [] := by decide
 
 def hipparion : Ability :=
@@ -157,7 +157,7 @@ def pacifism : Spelled := spelled <| .singleFaced
 def everybodyLivesGateLine : Instruction :=
   Primitives.Instruction.establish
     (deontic (Primitives.NounPhrase.playerGroup .allPlayers) Primitives.Compulsion.forbid [.core .loseGame, .core .winGame] .agent Primitives.DeonticPatient.noPatient)
-    (some Primitives.Duration.thisTurn)
+    (some thisTurn)
 theorem okEverybodyLivesGateLine : Instruction.check [] everybodyLivesGateLine = [] := by decide
 
 /-- Gaea's Revenge -/
@@ -225,7 +225,7 @@ def undercoverButler : Spelled := spelled <| .singleFaced
             (attacksPlayer thisCreature
               (the (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.superlative .max (.playerStat .lifeTotal) Primitives.Predicate.anyPlayer])))
             (Primitives.Instruction.establish (deontic it Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
-              (some Primitives.Duration.thisTurn)) ],
+              (some thisTurn)) ],
       power := stat 2, toughness := stat 3 } }
 
 def aetherTunnel : Spelled := spelled <| .singleFaced
@@ -256,7 +256,7 @@ def flaringPain : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none
             (Primitives.Instruction.establish (Primitives.StaticSpec.preventionBan .any (Primitives.Unpreventable.described Primitives.DamageAgent.unattributed Primitives.DamageScope.everywhere)
                 .noPreventionOnly)
-              (some Primitives.Duration.thisTurn)),
+              (some thisTurn)),
           keywordCosting (.named "flashback") (Primitives.Cost.mana [pip .red]) ] } }
 
 def gideonJura : Spelled := spelled <| .singleFaced
@@ -268,7 +268,7 @@ def gideonJura : Spelled := spelled <| .singleFaced
             (establishThroughout
               (deontic (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (target Primitives.Predicate.opponent)]))
                 Primitives.Compulsion.require [.core .attack] .agent (Primitives.DeonticPatient.defendingPlayer thisPlaneswalker))
-              (Primitives.Duration.duringNextTurnOf (that .player))),
+              (duringNextTurnOf (that .player))),
           activated (Primitives.Cost.loyaltySymbol (.down 2)) (destroy (target (Primitives.Predicate.and [creature, tapped]))),
           activated (Primitives.Cost.loyaltySymbol .zero)
             (Primitives.Instruction.sequentially
@@ -281,7 +281,7 @@ def gideonJura : Spelled := spelled <| .singleFaced
                           power := stat 6, toughness := stat 6 } }
                       (some .planeswalker)))
                   (some untilEndOfTurn),
-                preventAll .any (Primitives.DamageScope.toRecipient it) (some Primitives.Duration.thisTurn) ]) ],
+                preventAll .any (Primitives.DamageScope.toRecipient it) (some thisTurn) ]) ],
       loyalty := stat 6 } }
 
 def pinpointAvalanche : Spelled := spelled <| .singleFaced
@@ -295,11 +295,11 @@ def pinpointAvalanche : Spelled := spelled <| .singleFaced
 
 def whippoorwillImmunity : Instruction :=
   Primitives.Instruction.sequentially
-    [ Primitives.Instruction.establish (objectCant (.action "regenerate") (target creature)) (some Primitives.Duration.thisTurn),
+    [ Primitives.Instruction.establish (objectCant (.action "regenerate") (target creature)) (some thisTurn),
       Primitives.Instruction.establish
         (Primitives.StaticSpec.preventionBan .any
           (Primitives.Unpreventable.described Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (that (.type .creature)))) .noRedirectEither)
-        (some Primitives.Duration.thisTurn) ]
+        (some thisTurn) ]
 theorem okWhippoorwillImmunity : Instruction.check [] whippoorwillImmunity = [] := by decide
 
 def callInAProfessional : Spelled := spelled <| .singleFaced
@@ -308,10 +308,10 @@ def callInAProfessional : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish (playerCant (.core .gainLife) (Primitives.NounPhrase.playerGroup .allPlayers))
-                (some Primitives.Duration.thisTurn),
+                (some thisTurn),
               Primitives.Instruction.establish
                 (Primitives.StaticSpec.preventionBan .any (Primitives.Unpreventable.described Primitives.DamageAgent.unattributed Primitives.DamageScope.everywhere) .noPreventionOnly)
-                (some Primitives.Duration.thisTurn),
+                (some thisTurn),
               Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) (target anyTarget) ]) ] } }
 
 /-- Council of the Absolute -/
@@ -395,7 +395,7 @@ def stasis : Spelled := spelled <| .singleFaced
     { name := "Stasis", cost := some [generic 1, pip .blue], types := [.enchantment],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.partSkip (Primitives.NounPhrase.playerGroup .allPlayers) .untapStep),
-          at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (doUnless (sacrifice thisEnchantment) (Primitives.Cost.mana [pip .blue])) ] } }
 
 def yawgmothsBargain : Spelled := spelled <| .singleFaced
@@ -432,7 +432,7 @@ def emptyCityRuse : Spelled := spelled <| .singleFaced
     { name := "Empty City Ruse", cost := some [pip .white], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none
-            (establishThroughout (Primitives.StaticSpec.partSkip (target Primitives.Predicate.opponent) .combat) (Primitives.Duration.duringNextTurnOf (that
+            (establishThroughout (Primitives.StaticSpec.partSkip (target Primitives.Predicate.opponent) .combat) (duringNextTurnOf (that
                 .player))) ] } }
 
 /-- False Peace -/
@@ -441,7 +441,7 @@ def falsePeace : Spelled := spelled <| .singleFaced
     { name := "False Peace", cost := some [pip .white], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none
-            (establishThroughout (Primitives.StaticSpec.partSkip (target Primitives.Predicate.anyPlayer) .combat) (Primitives.Duration.duringNextTurnOf (that
+            (establishThroughout (Primitives.StaticSpec.partSkip (target Primitives.Predicate.anyPlayer) .combat) (duringNextTurnOf (that
                 .player))) ] } }
 
 /-- Battlefront Krushok -/
@@ -469,8 +469,8 @@ def festival : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Festival", cost := some [pip .white], types := [.instant],
       text :=
-        [ Primitives.Ability.spell (some (Primitives.Timing.duringPart .upkeep (some anOpponent)))
-            (forbidAttack (allOf creature) (some Primitives.Duration.thisTurn)) ] } }
+        [ Primitives.Ability.spell (some (duringPart .upkeep (some anOpponent)))
+            (forbidAttack (allOf creature) (some thisTurn)) ] } }
 
 def demotion : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -537,7 +537,7 @@ def cullingMark : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none
             (Primitives.Instruction.establish (deontic (target creature) Primitives.Compulsion.require [.core .block] .agent Primitives.DeonticPatient.noPatient)
-              (some Primitives.Duration.thisTurn)) ] } }
+              (some thisTurn)) ] } }
 
 /-- Blazing Archon -/
 def blazingArchonCant : Ability :=
@@ -559,7 +559,7 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
               [ gain (allOf creatureYouControl) (keyword (.named "hexproof")) (some untilEndOfTurn),
                 Primitives.Instruction.establish
                   (deontic (allOf creatureYouControl) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
-                  (some Primitives.Duration.thisTurn) ]) ] } }
+                  (some thisTurn) ]) ] } }
 
 /-- Canoptek Wraith -/
 def canoptekWraith : Ability :=
@@ -578,7 +578,7 @@ theorem okGadrakCantAttack : Ability.check [] gadrakCantAttack = [] := by decide
 def berserkersFrenzyLowRoll : Instruction :=
   Primitives.Instruction.sequentially
     [ choose (counted anyNumber creature),
-      Primitives.Instruction.establish (deontic them Primitives.Compulsion.require [.core .block] .agent Primitives.DeonticPatient.noPatient) (some Primitives.Duration.thisTurn) ]
+      Primitives.Instruction.establish (deontic them Primitives.Compulsion.require [.core .block] .agent Primitives.DeonticPatient.noPatient) (some thisTurn) ]
 theorem okBerserkersFrenzyLowRoll : Instruction.check [] berserkersFrenzyLowRoll = [] := by decide
 
 /-- Damn -/
@@ -608,7 +608,7 @@ def concussiveBolt : Instruction :=
         (Primitives.Instruction.establish
           (deontic (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller splitOverPlaneswalker]))
             Primitives.Compulsion.forbid [.core .block] .agent Primitives.DeonticPatient.noPatient)
-          (some Primitives.Duration.thisTurn))
+          (some thisTurn))
         none ]
 theorem okConcussiveBolt : Instruction.check [] concussiveBolt = [] := by decide
 
@@ -680,7 +680,7 @@ def myrPrototype : Spelled := spelled <| .singleFaced
     { name := "Myr Prototype", cost := some [generic 5], types := [.artifact, .creature],
       subtypes := [creatureType "Myr"],
       text :=
-        [ at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+        [ at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature),
           Primitives.Ability.static (deontic thisCreature
             (Primitives.Compulsion.gatedBy (scaledMana .generic (times (.lit 1) (countersOn p1p1Counter it))))
@@ -733,7 +733,7 @@ def distortionStrikeLine : Instruction :=
   Primitives.Instruction.sequentially
     [ get (target creature) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn),
       Primitives.Instruction.establish (deontic (that (.type .creature)) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
-        (some Primitives.Duration.thisTurn) ]
+        (some thisTurn) ]
 theorem okDistortionStrikeLine : Instruction.check [] distortionStrikeLine = [] := by decide
 
 /-- Retro-Mutation -/

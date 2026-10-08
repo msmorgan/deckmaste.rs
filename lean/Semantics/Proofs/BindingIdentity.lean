@@ -253,7 +253,7 @@ private def regenerateBy (permanent : NounPhrase) : Instruction :=
   .establish (.replacement
     (.verbedEvent none (.action "destroy") (some (.firstMention "regenerate.0" permanent)) none none)
     [] none (regenerationApplicationBy (.laterMention "regenerate.0" permanent)) .nextTimeOnly none)
-    (some .thisTurn)
+    (some thisTurn)
 
 /-- "Regenerate target creature." -/
 theorem okRegenerateTarget : Instruction.check [] (regenerateBy (target creature)) = [] := by decide
@@ -307,7 +307,7 @@ theorem airbendItRefusesSeveral :
 /-- "each card exiled this way": a description, so its number is not fixed. -/
 private def cardsExiledThisWay : NounPhrase :=
   allOf (.and [.isCard,
-    happenedTo (.verbedEvent none (.action "exile") (some (.gap .object)) none none) .thisWay])
+    .happenedTo (.thisWay (.verbedEvent none (.action "exile") (some (.gap .object)) none none))])
 
 /-- The per-card airbend body as the loader would write it. -/
 private def airbendByCard (objects : NounPhrase) : Instruction :=

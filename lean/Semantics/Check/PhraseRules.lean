@@ -427,6 +427,7 @@ mutual
         refuse (g.plur == .many) .plural
     | .paid f n =>
       refuse f.named .paidFacetNamed ++ refuse (!f.readsPlayer) .paidFacetKind ++
+        PaidFacet.checkIn gap bs f ++
         NounPhrase.checkIn gap (some .object) bs n ++ refuse n.plur.isOne .singular
     | .eventTally op who lb =>
       NounPhrase.checkIn gap none bs who ++ LookbackClause.checkIn gap (who.kindOr .object)
@@ -524,10 +525,69 @@ mutual
 
   def LookbackClause.checkIn (_gap : Option Kind) (k : Kind) (bs : Bindings) : LookbackClause →
     CheckResult
-    | .mk ev _ =>
+    | .mk ev within timing =>
+      let checked := GameEvent.checkIn (some k) bs ev
+      ⟨checked.refusals ++ refuse checked.usedGap .lookbackSubject ++
+        (Duration.checkIn none bs within).refusals ++ (OptTiming.checkIn none bs timing).refusals,
+        false⟩
+    | .thisWay ev | .triggering ev =>
       let checked := GameEvent.checkIn (some k) bs ev
       ⟨checked.refusals ++ refuse checked.usedGap .lookbackSubject, false⟩
   termination_by structural lb => lb
+
+  /-- "that turn" reads back exactly one turn an earlier phrase introduced; a player a turn
+  reference names is a player. -/
+  def TurnRef.checkIn (gap : Option Kind) (bs : Bindings) : TurnRef → CheckResult
+    | .next p | .each p => OptNoun.checkIn gap (some .player) bs p
+    | .that =>
+      let n := countTurns bs
+      refuse (n == 1) (.turnAntecedent n)
+    | .current | .previous | .later => (⟨[], false⟩ : CheckResult)
+  termination_by structural t => t
+
+  /-- References and kinds only: whose turn is a player's. -/
+  def Timing.checkIn (gap : Option Kind) (bs : Bindings) : Timing → CheckResult
+    | .inPart _ whose which =>
+      OptNoun.checkIn gap (some .player) bs whose ++ TurnRef.checkIn gap bs which
+    | .relativeToEvent _ ev | .whileDoing ev => GameEvent.checkIn gap bs ev
+    | .onlyIf c => Condition.checkIn gap bs c
+    | .and ts | .or ts => Timing.checkAllIn gap bs ts
+    | .not t => Timing.checkIn gap bs t
+  termination_by structural t => t
+
+  def Timing.checkAllIn (gap : Option Kind) (bs : Bindings) : List Timing → CheckResult
+    | [] => (⟨[], false⟩ : CheckResult)
+    | t :: ts => Timing.checkIn gap bs t ++ Timing.checkAllIn gap bs ts
+  termination_by structural ts => ts
+
+  def OptTiming.checkIn (gap : Option Kind) (bs : Bindings) : Option Timing → CheckResult
+    | none => (⟨[], false⟩ : CheckResult)
+    | some t => Timing.checkIn gap bs t
+  termination_by structural t => t
+
+  /-- A duration's boundary that names whose turn names one definite player. -/
+  def Duration.checkIn (gap : Option Kind) (bs : Bindings) : Duration → CheckResult
+    | .between start end_ =>
+      OptGameEvent.checkIn gap bs start ++ OptGameEvent.checkIn gap bs end_ ++
+        refuse (boundaryPossessorOk start && boundaryPossessorOk end_) .durationPossessor
+    | .forAsLongAs c => Condition.checkIn gap bs c
+  termination_by structural d => d
+
+  def OptDuration.checkIn (gap : Option Kind) (bs : Bindings) : Option Duration → CheckResult
+    | none => (⟨[], false⟩ : CheckResult)
+    | some d => Duration.checkIn gap bs d
+  termination_by structural d => d
+
+  def PaidFacet.checkIn (gap : Option Kind) (bs : Bindings) : PaidFacet → CheckResult
+    | .readback _ within => OptDuration.checkIn gap bs within
+    | .colorsSpent | .manaValueSpent | .timesPaid _ | .chosenPlayer _ =>
+      (⟨[], false⟩ : CheckResult)
+  termination_by structural f => f
+
+  def OptGameEvent.checkIn (gap : Option Kind) (bs : Bindings) : Option GameEvent → CheckResult
+    | none => (⟨[], false⟩ : CheckResult)
+    | some ev => GameEvent.checkIn gap bs ev
+  termination_by structural ev => ev
 
 
   def Condition.checkIn (gap : Option Kind) (bs : Bindings) : Condition → CheckResult
@@ -538,6 +598,7 @@ mutual
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         Condition.checkIn gap (enterCaller scope bs) body
     | .duringPart _ who => OptNoun.checkIn gap (some .player) bs who
+    | .hasPriority who => NounPhrase.checkIn gap (some .player) bs who
     | .exists_ n => NounPhrase.checkIn gap none bs n ++ refuse n.existentialMention
       .existentialMention
     | .happened who lb =>
@@ -614,11 +675,6 @@ def RollWatch.checkIn (gap : Option Kind) (bs : Bindings) : RollWatch → CheckR
       Quantity.checkIn gap bs q
   | _ => (⟨[], false⟩ : CheckResult)
 
-def HeaderPossessor.checkIn (gap : Option Kind) (bs : Bindings) : HeaderPossessor → CheckResult
-  | .noPossessor => (⟨[], false⟩ : CheckResult)
-  | .byPlayer n => NounPhrase.checkIn gap (some .player) bs n
-  | .byTurn n => NounPhrase.checkIn gap (some .turnRef) bs n
-
   /-- An object's color reads one object [CR#105.2]. -/
   def ColorTerm.checkIn (gap : Option Kind) (bs : Bindings) : ColorTerm → CheckResult
     | .lit _ => (⟨[], false⟩ : CheckResult)
@@ -683,7 +739,9 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr �
       NounPhrase.checkIn gap none bs to ++ objectOrPlayerCheck (to.kindOr .object)
     | .damage _ (some n) to =>
       NounPhrase.checkIn gap (some .object) bs n ++ DamagePatient.checkIn gap (nomIntro bs n) to
-    | .beginningOf _ _ whose => HeaderPossessor.checkIn gap bs whose
+    | .beginningOf _ whose which | .endOf _ whose which =>
+      OptNoun.checkIn gap (some .player) bs whose ++ TurnRef.checkIn gap bs which
+    | .now => (⟨[], false⟩ : CheckResult)
     | .casts who what from_ =>
       let bs' := nomIntro bs who
       NounPhrase.checkIn gap (some .player) bs who ++ OptNoun.checkIn gap (some .object) bs' what ++
@@ -787,8 +845,13 @@ abbrev AttackDefender.check := fun bs value => (AttackDefender.checkIn none bs v
 abbrev DamagePatient.check := fun bs value => (DamagePatient.checkIn none bs value).refusals
 abbrev Door.check := fun bs value => (Door.checkIn none bs value).refusals
 abbrev RollWatch.check := fun bs value => (RollWatch.checkIn none bs value).refusals
-abbrev HeaderPossessor.check := fun bs value => (HeaderPossessor.checkIn none bs value).refusals
 abbrev ColorTerm.check := fun bs value => (ColorTerm.checkIn none bs value).refusals
+abbrev TurnRef.check := fun bs value => (TurnRef.checkIn none bs value).refusals
+abbrev Timing.check := fun bs value => (Timing.checkIn none bs value).refusals
+abbrev OptTiming.check := fun bs value => (OptTiming.checkIn none bs value).refusals
+abbrev Duration.check := fun bs value => (Duration.checkIn none bs value).refusals
+abbrev OptDuration.check := fun bs value => (OptDuration.checkIn none bs value).refusals
+abbrev OptGameEvent.check := fun bs value => (OptGameEvent.checkIn none bs value).refusals
 abbrev ManaTypeTerm.check := fun bs value => (ManaTypeTerm.checkIn none bs value).refusals
 abbrev OptManaTypeTerm.check := fun bs value => (OptManaTypeTerm.checkIn none bs value).refusals
 abbrev OptEventSource.check := fun bs value => (OptEventSource.checkIn none bs value).refusals

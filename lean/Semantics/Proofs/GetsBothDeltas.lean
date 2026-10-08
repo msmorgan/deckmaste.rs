@@ -255,8 +255,8 @@ theorem okUntilEndOfTurnDurationTwin :
 /-- "Until the beginning of your next upkeep" (the pin `Turn.badUntilBeginningOfUpkeep` retired
 with `durationOk` by `lean-checker-sweep-timing`): the same refusals in both spellings. -/
 theorem badUntilBeginningOfUpkeepTwin :
-    Instruction.check [] (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some (.untilEvent (.beginningOf .the .upkeep (.byPlayer .you))))) =
-      Instruction.check [] (getTwoHalves (target creature) (.up (.lit 3)) (.up (.lit 3)) (some (.untilEvent (.beginningOf .the .upkeep (.byPlayer .you))))) := by
+    Instruction.check [] (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some (untilEvent (.beginningOf .upkeep (some .you) (.next none))))) =
+      Instruction.check [] (getTwoHalves (target creature) (.up (.lit 3)) (.up (.lit 3)) (some (untilEvent (.beginningOf .upkeep (some .you) (.next none))))) := by
   decide
 
 /-- `Faces.okBushidoWithBushidoDefinition`: "it gets +2/+2" inside the keyword's definition. -/
@@ -492,10 +492,10 @@ your next upkeep." -/
 theorem cycleOfLifeTwin :
     Instruction.check []
       (.establish (getsBase (target (.and [creature, castBy .you])) (.lit 0) (.lit 1))
-        (some (.until_ (.startOf .upkeep (some .you))))) =
+        (some (untilEvent (.beginningOf .upkeep (some .you) (.next none))))) =
       Instruction.check []
         (.establish (getsBaseTwoHalves (target (.and [creature, castBy .you])) (.lit 0) (.lit 1))
-          (some (.until_ (.startOf .upkeep (some .you))))) := by
+          (some (untilEvent (.beginningOf .upkeep (some .you) (.next none))))) := by
   decide
 
 /-- Bonds of Faith: "Enchanted creature gets +2/+2 as long as it's a Human." The condition
@@ -570,12 +570,12 @@ theorem nyxathidTwin :
 under a full-party intervening if. -/
 theorem archpriestOfIonaFullPartyTwin :
     Ability.check []
-      (triggeredIf (.beginningOf .the .combat (.byPlayer .you)) fullParty
+      (triggeredIf (.beginningOf .combat (some .you) (.each none)) fullParty
         (.sequentially
           [ get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
             gain it (keyword (.named "flying")) (some untilEndOfTurn) ])) =
       Ability.check []
-        (triggeredIf (.beginningOf .the .combat (.byPlayer .you)) fullParty
+        (triggeredIf (.beginningOf .combat (some .you) (.each none)) fullParty
           (.sequentially
             [ getTwoHalves (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
               gain it (keyword (.named "flying")) (some untilEndOfTurn) ])) := by
@@ -602,12 +602,12 @@ theorem distortionStrikeLineTwin :
       (.sequentially
         [ get (target creature) (.up (.lit 1)) (.up (.lit 0)) (some untilEndOfTurn),
           .establish (deontic (that (.type .creature)) .forbid [.core .block] .patient .noPatient)
-            (some .thisTurn) ]) =
+            (some thisTurn) ]) =
       Instruction.check []
         (.sequentially
           [ getTwoHalves (target creature) (.up (.lit 1)) (.up (.lit 0)) (some untilEndOfTurn),
             .establish (deontic (that (.type .creature)) .forbid [.core .block] .patient .noPatient)
-              (some .thisTurn) ]) := by
+              (some thisTurn) ]) := by
   decide
 
 /-- "Equipped creature gets +2/+1." -/

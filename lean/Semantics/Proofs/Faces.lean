@@ -71,7 +71,7 @@ theorem okCastWindowOnSpell :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.instant],
-          text := [.spell (some (.duringPart .declareAttackers none)) (draw (.lit 1))] })
+          text := [.spell (some (duringPart .declareAttackers none)) (draw (.lit 1))] })
       = [] := by
   decide
 
@@ -921,7 +921,7 @@ theorem stormCountsEarlierThisTurn :
         (.sequentially
           [ .copy .fromStack thisSpell
               (eventCount (.casts (.gap .player) (some (a (.and [spell, .otherThan thisSpell])))
-                none) (a .anyPlayer) .earlierThisTurn)
+                none) (a .anyPlayer) earlierThisTurn)
               [],
             offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) ]) := by
   rfl

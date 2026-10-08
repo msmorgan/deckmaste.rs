@@ -40,7 +40,7 @@ theorem badStateBasedLossOnCreature :
 theorem okTargetedContinuousStateBasedLossGate :
     Instruction.check [] (.establish
       (.deonticRule (target .anyPlayer) .forbid [.core .loseGame] .agent none .noPatient none
-        (.stateBased .nonpositiveLife)) (some .thisTurn)) = [] := by decide
+        (.stateBased .nonpositiveLife)) (some thisTurn)) = [] := by decide
 
 theorem badStateBasedCauseWithoutDeed :
     Ability.check [] (.static
@@ -56,20 +56,20 @@ theorem badStateBasedLossPatientRole :
 theorem okCantBeBlocked :
     Instruction.check []
       (.establish (deontic (target creature) .forbid [.core .block] .patient .noPatient)
-        (some .thisTurn)) = [] := by
+        (some thisTurn)) = [] := by
   decide
 
 /-- "Target creature can't be attacked this turn." -/
 theorem badCantBeAttacked :
     Instruction.check []
       (.establish (deontic (target creature) .forbid [.core .attack] .patient .noPatient)
-        (some .thisTurn)) = [.deedFits] := by
+        (some thisTurn)) = [.deedFits] := by
   decide
 
 /-- "Target creature card in a graveyard can't block this turn." -/
 theorem badCantInGraveyard :
     Instruction.check [] (forbidBlock (target (.and [creature, .inZone graveyard])) (some
-        .thisTurn))
+        soFarThisTurn))
       = [.deedFits] := by
   decide
 
@@ -149,7 +149,7 @@ theorem okPlayFromGraveyard :
     Instruction.check []
       (.establish
         (.deonticRule .you .permit [.action "play"] .agent none
-          (.counterpart (a (.and [.isCard, .inZone graveyard]))) none playRider) (some .thisTurn)) = [] := by
+          (.counterpart (a (.and [.isCard, .inZone graveyard]))) none playRider) (some thisTurn)) = [] := by
   decide
 
 /-- "You may play a land card from your graveyard this turn." -/
@@ -158,7 +158,7 @@ theorem okPlayLandFromGraveyard :
       (.establish
         (.deonticRule .you .permit [.action "play"] .agent none
           (.counterpart (a (.and [land, .inZone (graveyardOf .you)]))) none
-          (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some .thisTurn))
+          (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some thisTurn))
       = [] := by
   decide
 
@@ -168,7 +168,7 @@ theorem okCastCreatureFromGraveyard :
       (.establish
         (.deonticRule .you .permit [.action "cast"] .agent none
           (.counterpart (a (.and [creature, .inZone (graveyardOf .you)]))) none
-          (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some .thisTurn))
+          (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some thisTurn))
       = [] := by
   decide
 
@@ -193,7 +193,7 @@ theorem badUnlessOnPositive :
 theorem okMustAttackCreature :
     Instruction.check []
       (.establish (deontic (target creature) .require [.core .attack] .agent .noPatient)
-        (some .thisTurn)) = [] := by
+        (some thisTurn)) = [] := by
   decide
 
 /-- "Target land attacks each combat if able.": a land an effect has made a creature can attack
@@ -201,7 +201,7 @@ theorem okMustAttackCreature :
 theorem okMustAttackLand :
     Instruction.check []
       (.establish (deontic (target land) .require [.core .attack] .agent .noPatient)
-        (some .thisTurn)) = [] := by
+        (some thisTurn)) = [] := by
   decide
 
 /-- "your Ring-bearer": a creature holds the Ring-bearer designation for a player, so the
@@ -227,14 +227,14 @@ theorem okForbidAttackPlaneswalker :
     Instruction.check []
       (.establish
         (deontic thisCreature .forbid [.core .attack] .agent
-          (.counterpart (target (.hasType .planeswalker)))) (some .thisTurn)) = [] := by
+          (.counterpart (target (.hasType .planeswalker)))) (some thisTurn)) = [] := by
   decide
 
 /-- "Target creature blocks it this turn" -/
 theorem badBlocksItself :
     Instruction.check []
       (.establish (deontic (target creature) .require [.core .block] .agent (.counterpart it))
-        (some .thisTurn)) = [.deonticPatientOk] := by
+        (some thisTurn)) = [.deonticPatientOk] := by
   decide
 
 /-- "Enchanted creature can't block." -/
@@ -355,7 +355,7 @@ theorem goadedAttacksOther :
 
 /-- "as you scry": a concurrent window with no printed card on the bench. -/
 theorem whileScrying :
-    Concurrent.check [] (.whileDoing (.verbedEvent (some .you) (.action "scry") none none none))
+    Timing.check [] (.whileDoing (.verbedEvent (some .you) (.action "scry") none none none))
       = [] := by
   decide
 

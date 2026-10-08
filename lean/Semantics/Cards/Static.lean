@@ -70,7 +70,7 @@ def stunningReversal : Ability :=
     (Primitives.StaticSpec.replacement (Primitives.GameEvent.losesGame Primitives.NounPhrase.you) [] none
       (Primitives.Instruction.sequentially [Primitives.Instruction.draw (.lit 7), setLife (.lit 1)]) .nextTimeOnly
           none)
-    (some Primitives.Duration.thisTurn))
+    (some thisTurn))
 theorem okStunningReversal : Ability.check [] stunningReversal = [] := by decide
 def pathOfBravery : Ability :=
   Primitives.Ability.static (onlyWhile (getsPt (allOf creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)))
@@ -130,7 +130,7 @@ def diminish : Spelled := spelled <| .singleFaced
 
 def cycleOfLife : Instruction :=
   Primitives.Instruction.establish (getsBase (target (Primitives.Predicate.and [creature, castBy Primitives.NounPhrase.you])) (.lit 0) (.lit 1))
-    (some (Primitives.Duration.until_ (Primitives.DurationEnd.startOf .upkeep (some Primitives.NounPhrase.you))))
+    (some (untilEvent (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none))))
 theorem okCycleOfLife : Instruction.check [] cycleOfLife = [] := by decide
 
 def aboutFace : Spelled := spelled <| .singleFaced
@@ -233,7 +233,7 @@ def silence : Spelled := spelled <| .singleFaced
     { name := "Silence", cost := some [pip .white], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.establish (playerCant (.action "cast") (Primitives.NounPhrase.playerGroup .yourOpponents))
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def shadowOfDoubt : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -242,13 +242,13 @@ def shadowOfDoubt : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.establish (playerCant (.action "search") (Primitives.NounPhrase.playerGroup .allPlayers))
-                (some Primitives.Duration.thisTurn),
+                (some thisTurn),
               Primitives.Instruction.draw (.lit 1) ]) ] } }
 
 def omenMachineDraw : Ability := Primitives.Ability.static (playerCant (.core .draw) (Primitives.NounPhrase.playerGroup .allPlayers))
 theorem okOmenMachineDraw : Ability.check [] omenMachineDraw = [] := by decide
 def solfataraLandLock : Instruction :=
-  Primitives.Instruction.establish (playerCant (.action "play") (target Primitives.Predicate.anyPlayer)) (some Primitives.Duration.thisTurn)
+  Primitives.Instruction.establish (playerCant (.action "play") (target Primitives.Predicate.anyPlayer)) (some thisTurn)
 theorem okSolfataraLandLock : Instruction.check [] solfataraLandLock = [] := by decide
 
 /-- "each nonbasic land is a <type>": a moon effect. -/
@@ -673,9 +673,9 @@ theorem okClergyOfTheHolyNimbus : Ability.check [] clergyOfTheHolyNimbus = [] :=
 def rampantFrogantuaPump : Ability :=
   Primitives.Ability.static (getsPt thisCreature
     (Primitives.Delta.up (forEach 10 (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
-      happenedTo (Primitives.GameEvent.losesGame (relative .player)) .thisGame])))
+      happenedTo (Primitives.GameEvent.losesGame (relative .player)) thisGame])))
     (Primitives.Delta.up (forEach 10 (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
-      happenedTo (Primitives.GameEvent.losesGame (relative .player)) .thisGame]))))
+      happenedTo (Primitives.GameEvent.losesGame (relative .player)) thisGame]))))
 theorem okRampantFrogantuaPump : Ability.check [] rampantFrogantuaPump = [] := by decide
 /-- Maskwood Nexus -/
 def maskwoodNexusTypes : Ability :=

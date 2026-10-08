@@ -42,7 +42,7 @@ def immersturmSkullcairn : Ability :=
     (Primitives.Instruction.sequentially
       [ Primitives.Instruction.dealDamage it (.lit 3) (target Primitives.Predicate.anyPlayer), discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that
           .player))])) ])
-    Primitives.Timing.asSorcery
+    asSorcery
 theorem okImmersturmSkullcairn : Ability.check [] immersturmSkullcairn = [] := by decide
 def pyriteSpellbomb : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .red], Primitives.Cost.perform (sacrifice thisArtifact)])
@@ -100,10 +100,10 @@ theorem okUlvenwaldTracker : Instruction.check [] ulvenwaldTracker = [] := by de
 def botBashingTime : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 6) (target creature),
-      replaceEvent (Primitives.GameEvent.dies (that (.type .creature))) (exile it) (some Primitives.Duration.thisTurn) ]
+      replaceEvent (Primitives.GameEvent.dies (that (.type .creature))) (exile it) (some thisTurn) ]
 theorem okBotBashingTime : Instruction.check [] botBashingTime = [] := by decide
 def wordsOfWar : Instruction :=
-  replaceNextEvent (Primitives.GameEvent.draws Primitives.NounPhrase.you) (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (target anyTarget)) (some Primitives.Duration.thisTurn)
+  replaceNextEvent (Primitives.GameEvent.draws Primitives.NounPhrase.you) (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 2) (target anyTarget)) (some thisTurn)
 theorem okWordsOfWar : Instruction.check [] wordsOfWar = [] := by decide
 
 /-- Thunderwave -/
@@ -124,14 +124,14 @@ def thunderwave : Spelled := spelled <| .singleFaced
                       (each (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup .yourOpponents)]))) ] ]) ] } }
 
 /-- Fog, Holy Day, Darkness, Root Snare -/
-def fog : Instruction := preventAll .combatOnly Primitives.DamageScope.everywhere (some Primitives.Duration.thisTurn)
+def fog : Instruction := preventAll .combatOnly Primitives.DamageScope.everywhere (some thisTurn)
 theorem okFog : Instruction.check [] fog = [] := by decide
 /-- Indestructible Aura, Shielded Passage -/
 def indestructibleAura : Instruction :=
-  preventAll .any (Primitives.DamageScope.toRecipient (target creature)) (some Primitives.Duration.thisTurn)
+  preventAll .any (Primitives.DamageScope.toRecipient (target creature)) (some thisTurn)
 theorem okIndestructibleAura : Instruction.check [] indestructibleAura = [] := by decide
 def shieldmatesBlessing : Instruction :=
-  preventNext .any (Primitives.DamageScope.toRecipient (target anyTarget)) (.lit 3) (some Primitives.Duration.thisTurn)
+  preventNext .any (Primitives.DamageScope.toRecipient (target anyTarget)) (.lit 3) (some thisTurn)
 theorem okShieldmatesBlessing : Instruction.check [] shieldmatesBlessing = [] := by decide
 def moonlitWake : Ability := whenever (Primitives.GameEvent.dies (a creature)) (gainLife (.lit 1))
 theorem okMoonlitWake : Ability.check [] moonlitWake = [] := by decide
@@ -169,7 +169,7 @@ theorem okArbalestElite : Ability.check [] arbalestElite = [] := by decide
 def sizzlingBarrage : Instruction :=
   Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 4) (target
     (Primitives.Predicate.and [creature, happenedTo (Primitives.GameEvent.combat .blockerOf
-    (Primitives.NounPhrase.asMarker .permanent (relative .object)) none) .thisTurn]))
+    (Primitives.NounPhrase.asMarker .permanent (relative .object)) none) soFarThisTurn]))
 theorem okSizzlingBarrage : Instruction.check [] sizzlingBarrage = [] := by decide
 def goadedAttackTrigger : Ability :=
   whenever (attacks (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasDesignation (.named "goaded") none])))
@@ -198,7 +198,7 @@ def blackVise : Spelled := spelled <| .singleFaced
     { name := "Black Vise", cost := some [generic 1], types := [.artifact],
       text :=
         [ Primitives.Ability.static (entersChoosingPlayer thisArtifact (some (Primitives.ChoiceDomain.players Primitives.Predicate.opponent))),
-          at_ (beginningOfPossessed .the .upkeep (the chosenPlayer))
+          at_ (beginningOfPossessed .upkeep (the chosenPlayer))
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage thisArtifact (Primitives.Amount.letter .x) (that .player),
                 Primitives.Instruction.define .x (Primitives.Amount.arith .minus (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)])) (.lit 4)) ]) ] } }
@@ -214,7 +214,7 @@ def harshSustenance : Spelled := spelled <| .singleFaced
 
 /-- Purging Scythe -/
 def purgingScythe : Ability :=
-  at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Instruction.sequentially
       [ Primitives.Instruction.dealDamage thisArtifact (.lit 2)
           (the (Primitives.Predicate.and [creature, Primitives.Predicate.superlative .min (.stat .toughness) creature])),
@@ -285,7 +285,7 @@ def etherealHaze : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Ethereal Haze", cost := some [pip .white], types := [.instant],
       subtypes := [spellType "Arcane"],
-      text := [Primitives.Ability.spell none (preventAllBy .any (allOf creature) Primitives.DamageScope.everywhere (some Primitives.Duration.thisTurn))] } }
+      text := [Primitives.Ability.spell none (preventAllBy .any (allOf creature) Primitives.DamageScope.everywhere (some thisTurn))] } }
 
 def defang : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -312,7 +312,7 @@ def dazzlingReflection : Spelled := spelled <| .singleFaced
               Primitives.Instruction.establish
                 (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (that (.type .creature))) Primitives.DamageScope.everywhere (Primitives.DamageOp.prevent Primitives.PreventCut.all none)
                   .nextTimeOnly)
-                (some Primitives.Duration.thisTurn) ]) ] } }
+                (some thisTurn) ]) ] } }
 
 def thunderstaff : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -342,7 +342,7 @@ def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
                           text := [keyword (.named "indestructible")], power := stat 5, toughness := stat 5 } }
                       (some .planeswalker)))
                   (some untilEndOfTurn),
-                preventAll .any (Primitives.DamageScope.toRecipient it) (some Primitives.Duration.thisTurn) ]),
+                preventAll .any (Primitives.DamageScope.toRecipient it) (some thisTurn) ]),
           activated (Primitives.Cost.loyaltySymbol .zero)
             (create (.lit 1) (creatureToken 2 2 [.white] [creatureType "Knight", creatureType "Ally"])),
           activated (Primitives.Cost.loyaltySymbol (.down 4))
@@ -357,7 +357,7 @@ def turnTheTables : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.establish
             (Primitives.StaticSpec.damageRule .combatOnly Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you)
               (Primitives.DamageOp.redirect Primitives.PreventCut.all (target (Primitives.Predicate.and [creature, attacking]))) .repeatedly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def pariah : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -389,7 +389,7 @@ def wardOfPiety : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (Primitives.NounPhrase.attachHost .enchanted (.type .creature)))
                 (Primitives.DamageOp.redirect (Primitives.PreventCut.shield (.lit 1)) (target anyTarget)) .repeatedly)
-              (some Primitives.Duration.thisTurn)) ] } }
+              (some thisTurn)) ] } }
 
 def mirrorwoodTreefolk : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -400,7 +400,7 @@ def mirrorwoodTreefolk : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient thisCreature)
                 (Primitives.DamageOp.redirect Primitives.PreventCut.all (target anyTarget)) .nextTimeOnly)
-              (some Primitives.Duration.thisTurn)) ],
+              (some thisTurn)) ],
       power := stat 2, toughness := stat 4 } }
 
 def carom : Spelled := spelled <| .singleFaced
@@ -411,7 +411,7 @@ def carom : Spelled := spelled <| .singleFaced
             [ Primitives.Instruction.establish
                 (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (target creature))
                   (Primitives.DamageOp.redirect (Primitives.PreventCut.shield (.lit 1)) (target (Primitives.Predicate.and [creature, Primitives.Predicate.other]))) .repeatedly)
-                (some Primitives.Duration.thisTurn),
+                (some thisTurn),
               Primitives.Instruction.draw (.lit 1) ]) ] } }
 
 def daughterOfAutumn : Spelled := spelled <| .singleFaced
@@ -423,7 +423,7 @@ def daughterOfAutumn : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (target (Primitives.Predicate.and [creature, Primitives.Predicate.colorIs .white])))
                 (Primitives.DamageOp.redirect (Primitives.PreventCut.shield (.lit 1)) thisCreature) .repeatedly)
-              (some Primitives.Duration.thisTurn)) ],
+              (some thisTurn)) ],
       power := stat 2, toughness := stat 4 } }
 
 def aegisOfHonor : Spelled := spelled <| .singleFaced
@@ -434,7 +434,7 @@ def aegisOfHonor : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (a instantOrSorcery)) (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you)
                 (Primitives.DamageOp.redirect Primitives.PreventCut.all (controllerOf it)) .nextTimeOnly)
-              (some Primitives.Duration.thisTurn)) ] } }
+              (some thisTurn)) ] } }
 
 def candlesGlow : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -445,7 +445,7 @@ def candlesGlow : Spelled := spelled <| .singleFaced
             (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (target anyTarget))
               (Primitives.DamageOp.prevent (Primitives.PreventCut.shield (.lit 3)) (some (gainLife preventedThisWay)))
                   .repeatedly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 /-- Inkshield -/
 def inkshieldRider : Instruction :=
@@ -453,7 +453,7 @@ def inkshieldRider : Instruction :=
     (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you)
       (Primitives.DamageOp.prevent Primitives.PreventCut.all (some (create preventedThisWay (creatureToken 2 1 [.white, .black] []))))
       .repeatedly)
-    (some Primitives.Duration.thisTurn)
+    (some thisTurn)
 theorem okInkshieldRider : Instruction.check [] inkshieldRider = [] := by decide
 
 def urzasArmor : Spelled := spelled <| .singleFaced
@@ -471,7 +471,7 @@ def circleOfProtectionRed : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice (Primitives.Predicate.and [source, Primitives.Predicate.colorIs .red]))) (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you)
                 (Primitives.DamageOp.prevent Primitives.PreventCut.all none) .nextTimeOnly)
-              (some Primitives.Duration.thisTurn)) ] } }
+              (some thisTurn)) ] } }
 
 def healingGrace : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -481,7 +481,7 @@ def healingGrace : Spelled := spelled <| .singleFaced
             [ Primitives.Instruction.establish
                 (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice source)) (Primitives.DamageScope.toRecipient (target anyTarget))
                   (Primitives.DamageOp.prevent (Primitives.PreventCut.shield (.lit 3)) none) .repeatedly)
-                (some Primitives.Duration.thisTurn),
+                (some thisTurn),
               gainLife (.lit 3) ]) ] } }
 
 def reverseDamage : Spelled := spelled <| .singleFaced
@@ -491,7 +491,7 @@ def reverseDamage : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.establish
             (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice source)) (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you)
               (Primitives.DamageOp.prevent Primitives.PreventCut.all (some (gainLife preventedThisWay))) .nextTimeOnly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def deflectingPalm : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -500,7 +500,7 @@ def deflectingPalm : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.establish
             (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice source)) (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you)
               (Primitives.DamageOp.prevent Primitives.PreventCut.all (some (Primitives.Instruction.dealDamage Primitives.NounPhrase.this Primitives.Amount.thatMuch (controllerOf it)))) .nextTimeOnly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def templeAltisaur : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -520,7 +520,7 @@ def darkSphere : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice source)) (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you)
                 (Primitives.DamageOp.prevent (Primitives.PreventCut.half .down) none) .nextTimeOnly)
-              (some Primitives.Duration.thisTurn)) ] } }
+              (some thisTurn)) ] } }
 
 def shadowbane : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -533,7 +533,7 @@ def shadowbane : Spelled := spelled <| .singleFaced
                 (some (Primitives.Instruction.doIf (Primitives.Condition.preventedFromSource (Primitives.Predicate.and [source, Primitives.Predicate.colorIs .black]))
                   (gainLife preventedThisWay) none)))
               .nextTimeOnly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def sphereOfLaw : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -575,7 +575,7 @@ def forcefield : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.establish
               (Primitives.StaticSpec.damageRule .combatOnly (Primitives.DamageAgent.dealtBy (aYourChoice (Primitives.Predicate.and [creature, unblocked])))
                 (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you) (Primitives.DamageOp.prevent (Primitives.PreventCut.allBut (.lit 1)) none) .nextTimeOnly)
-              (some Primitives.Duration.thisTurn)) ] } }
+              (some thisTurn)) ] } }
 
 def endure : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -584,7 +584,7 @@ def endure : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none
             (preventAll .any
               (Primitives.DamageScope.toRecipient (youAnd (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))))
-              (some Primitives.Duration.thisTurn)) ] } }
+              (some thisTurn)) ] } }
 
 def harmsWay : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -594,7 +594,7 @@ def harmsWay : Spelled := spelled <| .singleFaced
             (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice source))
               (Primitives.DamageScope.toRecipient (youAnd (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))))
               (Primitives.DamageOp.redirect (Primitives.PreventCut.shield (.lit 2)) (target anyTarget)) .repeatedly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def divineDeflection : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -605,14 +605,14 @@ def divineDeflection : Spelled := spelled <| .singleFaced
               (Primitives.DamageScope.toRecipient (youAnd (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))))
               (Primitives.DamageOp.prevent (Primitives.PreventCut.shield (Primitives.Amount.letter .x)) (some (Primitives.Instruction.dealDamage Primitives.NounPhrase.this Primitives.Amount.thatMuch (target anyTarget))))
               .repeatedly)
-            (some Primitives.Duration.thisTurn)) ] } }
+            (some thisTurn)) ] } }
 
 def glarecasterShield : Ability :=
   activated (Primitives.Cost.mana [generic 5, pip .white])
     (Primitives.Instruction.establish
       (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (youAnd thisCreature))
         (Primitives.DamageOp.redirect Primitives.PreventCut.all (target anyTarget)) .nextTimeOnly)
-      (some Primitives.Duration.thisTurn))
+      (some thisTurn))
 theorem okGlarecasterShield : Ability.check [] glarecasterShield = [] := by decide
 
 def furnaceOfRath : Spelled := spelled <| .singleFaced
@@ -757,7 +757,7 @@ def screamingNemesis : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ Primitives.Instruction.dealDamage it Primitives.Amount.thatMuch (target (Primitives.Predicate.and [anyTarget, Primitives.Predicate.otherThan Primitives.NounPhrase.this])),
                 Primitives.Instruction.doIf (Primitives.Condition.dealtThisWay Primitives.Predicate.anyPlayer)
-                  (Primitives.Instruction.establish (playerCant (.core .gainLife) they) (some Primitives.Duration.restOfGame)) none ]) ],
+                  (Primitives.Instruction.establish (playerCant (.core .gainLife) they) (some restOfGame)) none ]) ],
       power := stat 3, toughness := stat 3 } }
 
 def sonicShrieker : Spelled := spelled <| .singleFaced
@@ -864,9 +864,9 @@ def incinerate : Spelled := spelled <| .singleFaced
               Primitives.Instruction.establish
                 (objectCant (.action "regenerate")
                   (a (Primitives.Predicate.and [creature, Primitives.Predicate.happenedTo
-                    (Primitives.LookbackClause.mk (Primitives.GameEvent.isDealtDamage .any
-                    (Primitives.NounPhrase.asMarker .permanent (relative .object))) .thisWay)])))
-                (some Primitives.Duration.thisTurn) ]) ] } }
+                    (Primitives.LookbackClause.thisWay (Primitives.GameEvent.isDealtDamage .any
+                    (Primitives.NounPhrase.asMarker .permanent (relative .object))))])))
+                (some thisTurn) ]) ] } }
 
 def ashZealot : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -913,7 +913,7 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
 
 /-- Quakebringer -/
 def quakebringerDamage : Ability :=
-  triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Condition.or [ Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.inZone battlefield),
            Primitives.Condition.and [ Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]),
                   exists_ (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Giant"),
@@ -1055,7 +1055,7 @@ theorem okGoblinLyreLoseFlip : Instruction.check [] goblinLyreLoseFlip = [] := b
 def quenchableFire : Instruction :=
   Primitives.Instruction.sequentially
     [ Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) targetPlayerOrPlaneswalker,
-      delay (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+      delay (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none))
         (act splitOverPlaneswalker (doUnless (Primitives.Instruction.dealDamage Primitives.NounPhrase.this (.lit 3) thatJoin) (Primitives.Cost.mana [pip .blue]))) ]
 theorem okQuenchableFire : Instruction.check [] quenchableFire = [] := by decide
 /-- Searing Blaze, both sentences -/
@@ -1250,9 +1250,8 @@ def frostwielder : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement
             (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature,
-              Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
-                (Primitives.GameEvent.dealsDamage .any thisCreature (some
-                (Primitives.NounPhrase.asMarker .permanent (relative .object)))) .thisTurn)])))
+              Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk (Primitives.GameEvent.dealsDamage .any thisCreature (some
+                (Primitives.NounPhrase.asMarker .permanent (relative .object)))) soFarThisTurn none)])))
             [] none (exile it) .repeatedly none),
           activated Primitives.Cost.tapSymbol (Primitives.Instruction.dealDamage thisCreature (.lit 1) (target anyTarget)) ],
       power := stat 1, toughness := stat 2 } }
@@ -1267,11 +1266,11 @@ def cracklingDoom : Instruction :=
                     (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (that .player)])]))) ]
 theorem okCracklingDoom : Instruction.check [] cracklingDoom = [] := by decide
 def theFallen : Ability :=
-  at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Instruction.dealDamage thisCreature (.lit 1)
       (each (Primitives.Predicate.and [Primitives.Predicate.or [Primitives.Predicate.opponent, Primitives.Predicate.hasType .planeswalker],
                    happenedTo (Primitives.GameEvent.dealsDamage .any thisCreature (some
-                     (relative (.join .player .object)))) .thisGame])))
+                     (relative (.join .player .object)))) thisGame])))
 theorem okTheFallen : Ability.check [] theFallen = [] := by decide
 /-- Cavalcade of Calamity -/
 def cavalcadeOfCalamity : Ability :=
@@ -1293,12 +1292,12 @@ def blindFury : Spelled := spelled <| .singleFaced
               Primitives.Instruction.establish
                 (Primitives.StaticSpec.damageRule .combatOnly (Primitives.DamageAgent.dealtBy (a creature)) (Primitives.DamageScope.toRecipient (a creature))
                   (Primitives.DamageOp.scale (Primitives.DamageScale.multiplied .doubled)) .repeatedly)
-                (some Primitives.Duration.thisTurn) ]) ] } }
+                (some thisTurn) ]) ] } }
 
 /-- Chandra, Awakened Inferno's emblem -/
 def chandraAwakenedInfernoEmblem : Instruction :=
   Primitives.Instruction.getEmblem
-    [ at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+    [ at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
         (Primitives.Instruction.dealDamage (Primitives.NounPhrase.asMarker .emblem Primitives.NounPhrase.this) (.lit 1) Primitives.NounPhrase.you) ]
 theorem okChandraAwakenedInfernoEmblem :
     Instruction.check [] chandraAwakenedInfernoEmblem = [] := by decide
@@ -1313,7 +1312,7 @@ def keeperOfTheFlame : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ chooseWhile
                   (target (Primitives.Predicate.and [Primitives.Predicate.opponent, Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you)]))
-                  (Primitives.Concurrent.whileDoing (Primitives.GameEvent.activates Primitives.NounPhrase.you thisAbility)),
+                  (whileDoing (Primitives.GameEvent.activates Primitives.NounPhrase.you thisAbility)),
                 Primitives.Instruction.dealDamage thisCreature (.lit 2) (that .player) ]) ],
       power := stat 1, toughness := stat 2 } }
 
@@ -1332,7 +1331,7 @@ def actOfTreason : Instruction := gainControl (target creature) (some untilEndOf
     Primitives.NounPhrase.you)
 theorem okActOfTreason : Instruction.check [] actOfTreason = [] := by decide
 def wordsOfWorship : Instruction :=
-  replaceNextEvent (Primitives.GameEvent.draws Primitives.NounPhrase.you) (gainLife (.lit 5)) (some Primitives.Duration.thisTurn)
+  replaceNextEvent (Primitives.GameEvent.draws Primitives.NounPhrase.you) (gainLife (.lit 5)) (some thisTurn)
 theorem okWordsOfWorship : Instruction.check [] wordsOfWorship = [] := by decide
 def theLastRoninII : Instruction :=
   Primitives.Instruction.triggerReflexively (mill (.lit 4) Primitives.NounPhrase.you)
@@ -1387,7 +1386,7 @@ def terminationFacilitator : Spelled := spelled <| .singleFaced
         [ activatedOnlyDuring Primitives.Cost.tapSymbol
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "bountyCounter"))
               (target (Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker])))
-            Primitives.Timing.asSorcery,
+            asSorcery,
           whenever
             (Primitives.GameEvent.isDealtDamage .any
               (a (Primitives.Predicate.and [Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker], Primitives.Predicate.hasPossessor .controller anOpponent,

@@ -30,7 +30,7 @@ def GameEvent.facts : GameEvent → EventFacts
   | .damage _ _ _ | .lifeChanges _ _ | .paysLife _ =>
     { hasMagnitude := true }
   | .nthOccurrence _ _ ev | .causes _ ev => ev.facts
-  | .beginningOf _ _ _ | .casts _ _ _ | .activates _ _ | .chapterMark _ | .triggers _
+  | .beginningOf _ _ _ | .endOf _ _ _ | .now | .casts _ _ _ | .activates _ _ | .chapterMark _ | .triggers _
   | .verbedEvent _ _ _ _ _ | .unlocksDoor _ _
   | .zoneChange _ _ _ _ | .draws _ | .losesGame _ | .combat _ _ _
   | .attacksWith _ _ _ | .attachment _ _ _ | .becomesTarget _ _ | .statusEvent _ _

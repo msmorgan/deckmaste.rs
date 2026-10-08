@@ -89,7 +89,7 @@ theorem okUnlessManaCost :
 /-- "Activate only before the combat damage step." -/
 theorem okBeforeCombatDamage :
     Ability.check []
-      (act (.mana [generic 2]) (draw (.lit 1)) (some (.beforePart .combatDamage
+      (act (.mana [generic 2]) (draw (.lit 1)) (some (beforePart .combatDamage
           none)))
       = [] := by
   decide
@@ -98,12 +98,12 @@ theorem okBeforeCombatDamage :
 theorem okDistributiveAttackWindow :
     Ability.check []
       (act (.mana [generic 2]) (draw (.lit 1))
-        (some (.beforePart .declareAttackers (some (each .anyPlayer))))) = [] := by
+        (some (beforePart .declareAttackers (some (each .anyPlayer))))) = [] := by
   decide
 
 /-- "Cast this spell only before the combat damage step." -/
 theorem okCastBeforeCombatDamage :
-    Ability.check [] (.spell (some (.beforePart .combatDamage none)) (draw (.lit 1)))
+    Ability.check [] (.spell (some (beforePart .combatDamage none)) (draw (.lit 1)))
       = [] := by
   decide
 

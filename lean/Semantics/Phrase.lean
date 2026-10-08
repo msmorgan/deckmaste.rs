@@ -84,7 +84,63 @@ mutual
 
   /-- A historical event whose gap denotes the entity being described. -/
   inductive LookbackClause where
-    | mk (event : GameEvent) (lookback : Lookback)
+    /-- The event, within a span of the game ("this turn", "last turn", "this game"), and
+    optionally only when a timing held as it happened ("cast when a sorcery couldn't have
+    been" [CR#307.5a]). -/
+    | mk (event : GameEvent) (within : Duration) (timing : Option Timing)
+    /-- The event the enclosing instruction caused: "the cards discarded this way". It names
+    an occurrence, not a span. -/
+    | thisWay (event : GameEvent)
+    /-- The event that triggered the enclosing ability [CR#603.2]. It names an occurrence, not
+    a span. -/
+    | triggering (event : GameEvent)
+
+  /-- Which turn a timing or duration names. `that` reads back the turn an earlier phrase
+  named ("that turn"); there is no "this", which names an object. -/
+  inductive TurnRef where
+    | current
+    | previous
+    /-- The next turn, or the next of `player`'s turns. -/
+    | next (player : Option NounPhrase)
+    /-- Each turn, or each of `player`'s turns. -/
+    | each (player : Option NounPhrase)
+    /-- A turn after the current one [CR#702.170d]. -/
+    | later
+    | that
+
+  /-- When a player may act, or when a trigger or replacement applies. With no timing written,
+  a player may act any time they have priority [CR#117.1a]. -/
+  inductive Timing where
+    /-- During `part` of the turn `which` names, whose turn it is being `whose`'s. -/
+    | inPart (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
+    | relativeToEvent (side : EventSide) (event : GameEvent)
+    /-- "while …": an event underway. -/
+    | whileDoing (event : GameEvent)
+    | onlyIf (condition : Condition)
+    | and (conjuncts : List Timing)
+    | or (disjuncts : List Timing)
+    | not (timing : Timing)
+
+  /-- How long an effect lasts, or the span a lookback reads. With no duration stated, an
+  effect lasts until the game ends [CR#611.2a]. -/
+  inductive Duration where
+    /-- Bounded by two optional events: "until end of turn" has only an end, "on a later turn"
+    only a start [CR#702.170d]. A history window ends at `GameEvent.now`. -/
+    | between (start : Option GameEvent) (end_ : Option GameEvent)
+    | forAsLongAs (condition : Condition) -- [CR#611.2b]
+
+  inductive PaidFacet where
+    /-- colors of mana spent to cast it [CR#702.44a] -/
+    | colorsSpent
+    /-- mana spent to pay the total cost [CR#601.2h] -/
+    | manaValueSpent
+    /-- [CR#702.33c..702.33d] -/
+    | timesPaid (which : PaidCostName)
+    /-- "was kicked" [CR#702.33d], optionally within a span ("this turn") -/
+    | readback (which : PaidCostName) (within : Option Duration)
+    /-- "the player chosen as [which] was paid": the choice an additional cost makes, read
+    back by the ability linked to it [CR#702.174a,607.2d,607.2i] -/
+    | chosenPlayer (which : PaidCostName)
 
   inductive Predicate where
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Predicate)
@@ -101,7 +157,7 @@ mutual
     | ofYourChoice (sort : QualitySort) (domain : Option ChoiceDomain)
     | hasKeyword (keyword : KeywordTerm)
     | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
-    | castBy (caster : NounPhrase) (rank : Option (Ordinal × RankPeriod))
+    | castBy (caster : NounPhrase) (rank : Option (Ordinal × Period))
     | castFrom (zone : ZoneExpr)
     | wasCast
     | inCombat (relation : CombatRelation) (counterpart : Option NounPhrase)
@@ -271,12 +327,6 @@ mutual
     | resultIn (quantity : Quantity)
     | highestNatural
 
-  /-- Whose turn part a "beginning of" header names. -/
-  inductive HeaderPossessor where
-    | noPossessor
-    | byPlayer (player : NounPhrase)
-    | byTurn (turn : NounPhrase)
-
 
   inductive Condition where
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Condition)
@@ -297,6 +347,9 @@ mutual
     | voteLead (label : VoteLabel) (orTied : Bool)
     | anyResultIs (comparator : Comparator) (bound : Amount)
     | rolledDoubles
+    /-- `player` has priority [CR#117.1a]. A mana ability may be activated without it
+    [CR#117.1d], so instant speed is written with this condition. -/
+    | hasPriority (player : NounPhrase)
     | not (condition : Condition)
     | and (conjuncts : List Condition)
     | or (disjuncts : List Condition)
@@ -315,7 +368,11 @@ mutual
     | attacksWith (player : NounPhrase) (defender : Option NounPhrase) (attackers : NounPhrase)
     | attachment (move : AttachMove) (subject : NounPhrase) (host : NounPhrase)
     | damage (kind : DamageKind) (source : Option NounPhrase) (patient : Option NounPhrase)
-    | beginningOf (quantifier : PartQuant) (part : TurnPart) (whose : HeaderPossessor)
+    /-- The beginning of `part` of the turn `which` names, whose turn it is being `whose`'s. -/
+    | beginningOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
+    | endOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
+    /-- The present moment, where a history window ends. -/
+    | now
     | casts (player : NounPhrase) (spell : Option NounPhrase) (from_ : Option EventSource)
     | becomesTarget (subject : NounPhrase) (by_ : NounPhrase)
     | statusEvent (subject : NounPhrase) (status : Status)
@@ -354,9 +411,10 @@ mutual
 end
 
 /-! `DecidableEq` does not derive for a nested mutual block; `BEq` and `Repr` do. -/
-deriving instance Repr, BEq for ColorTerm, ManaTypeTerm, CaptureInput, ZoneScope, Pile, ZoneExpr, NameSource, ChoiceDomain,
-  EventSource, LookbackClause, Predicate, DetPhrase, NounPhrase, Amount,
-  Quantity, SliceCount, Door, RollWatch, HeaderPossessor, Condition, GameEvent, Causing
+deriving instance Repr, BEq for ColorTerm, ManaTypeTerm, CaptureInput, ZoneScope, Pile, ZoneExpr,
+  NameSource, ChoiceDomain, EventSource, LookbackClause, TurnRef, Timing, Duration, PaidFacet,
+  Predicate, DetPhrase, NounPhrase, Amount, Quantity, SliceCount, Door, RollWatch, Condition,
+  GameEvent, Causing
 
 inductive SearchScope where
   | oneZone (zone : ZoneExpr)
@@ -391,15 +449,11 @@ inductive VisibleThing where
   | objects (objects : NounPhrase)
   deriving Repr, BEq
 
-inductive DurationEnd where
-  | startOf (part : TurnPart) (whose : Option NounPhrase)
-  | endOf (part : TurnPart) (whose : Option NounPhrase)
-  deriving Repr, BEq
-
 end Semantics
 
 attribute [semantic_expression] Semantics.GameEvent Semantics.NounPhrase Semantics.Predicate
-  Semantics.Amount Semantics.Quantity Semantics.ZoneExpr Semantics.Condition
+  Semantics.Amount Semantics.Quantity Semantics.ZoneExpr Semantics.Condition Semantics.Duration
+  Semantics.Timing
 
 classify_semantic_syntax
 

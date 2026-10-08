@@ -22,7 +22,7 @@ def gabrielAngelfire : Instruction :=
   Primitives.Instruction.sequentially
     [ choose (a (qualityFrom .ability
         (Primitives.ChoiceDomain.abilitiesAmong [.the (.named "flying"), .the (.named "firstStrike"), .the (.named "trample"), .theWith (.named "rampage") 3]))),
-      gain thisCreature (Primitives.Ability.thatAbility .theChoice) (some (Primitives.Duration.until_ (Primitives.DurationEnd.startOf .upkeep (some Primitives.NounPhrase.you)))) ]
+      gain thisCreature (Primitives.Ability.thatAbility .theChoice) (some (untilEvent (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none)))) ]
 theorem okGabrielAngelfire : Instruction.check [] gabrielAngelfire = [] := by decide
 def builtToSmash : Instruction :=
   Primitives.Instruction.sequentially
@@ -64,7 +64,7 @@ def pymParticlesGrant : Instruction :=
   Primitives.Instruction.sequentially
     [ gain (target creature) (keyword (.named "vigilance")) (some untilEndOfTurn),
       Primitives.Instruction.establish (deontic (that (.type .creature)) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
-        (some Primitives.Duration.thisTurn) ]
+        (some thisTurn) ]
 theorem okPymParticlesGrant : Instruction.check [] pymParticlesGrant = [] := by decide
 def bladebrand : Instruction := gain (target creature) (keyword (.named "deathtouch")) (some untilEndOfTurn)
 theorem okBladebrand : Instruction.check [] bladebrand = [] := by decide
@@ -885,7 +885,7 @@ def dreamThief : Spelled := spelled <| .singleFaced
               (happened (Primitives.GameEvent.casts (relative .player) (some (a
                 (Primitives.Predicate.and [spell, Primitives.Predicate.colorIs .blue,
                 Primitives.Predicate.otherThan Primitives.NounPhrase.this]))) none)
-                Primitives.NounPhrase.you .thisTurn)
+                Primitives.NounPhrase.you soFarThisTurn)
               none) ],
       power := stat 2, toughness := stat 1 } }
 
@@ -897,7 +897,7 @@ def brightspearZealot : Spelled := spelled <| .singleFaced
         [ keyword (.named "vigilance"),
           Primitives.Ability.static (onlyWhile (getsPt thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 0)))
             (Primitives.Condition.compareAmt (eventCount (Primitives.GameEvent.casts (relative
-              .player) (some (a spell)) none) Primitives.NounPhrase.you .thisTurn) .atLeast (.lit
+              .player) (some (a spell)) none) Primitives.NounPhrase.you soFarThisTurn) .atLeast (.lit
               2))) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -916,7 +916,7 @@ def deepwayNavigator : Spelled := spelled <| .singleFaced
               (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)))
             (happened (Primitives.GameEvent.attacksWith (relative .player) none (counted (atLeast 3)
               (Primitives.Predicate.hasSubtype (creatureType "Merfolk")))) Primitives.NounPhrase.you
-              .thisTurn)) ],
+              soFarThisTurn)) ],
       power := stat 2, toughness := stat 2 } }
 
 def bloodfireEnforcers : Spelled := spelled <| .singleFaced
@@ -1155,7 +1155,7 @@ def shimmeringGlasskite : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           triggeredOnlyOnce
-            (Primitives.GameEvent.becomesTarget thisCreature (a (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack]))) Primitives.UsageLimit.oncePerTurn
+            (Primitives.GameEvent.becomesTarget thisCreature (a (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack]))) oncePerTurn
             (Primitives.Instruction.counterSpell (that .stack)) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -1229,9 +1229,8 @@ def towerWinder : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Command Tower")),
                 revealCards (theVerbed (.action "search") .one), move (theVerbed (.action "search") .one) hand,
-                Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
-                  (relative .player)) (.action "search") none none (some yourLibrary))
-                  Primitives.NounPhrase.you .thisWay) shuffle
+                Primitives.Instruction.doIf (happenedThisWay (Primitives.GameEvent.verbedEvent (some
+                  (relative .player)) (.action "search") none none (some yourLibrary)) Primitives.NounPhrase.you) shuffle
                   none ]) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -1263,9 +1262,8 @@ def archfiendsVessel : Spelled := spelled <| .singleFaced
         [ keyword (.named "lifelink"),
           triggeredIf (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Condition.or
-              [ Primitives.Condition.happened it (Primitives.LookbackClause.mk
-                (Primitives.GameEvent.enters (relative .object) (some (Primitives.EventSource.zones
-                [graveyardOf Primitives.NounPhrase.you]))) .triggering),
+              [ Primitives.Condition.happened it (Primitives.LookbackClause.triggering (Primitives.GameEvent.enters (relative .object) (some (Primitives.EventSource.zones
+                [graveyardOf Primitives.NounPhrase.you])))),
                 Primitives.Condition.matches it (Primitives.Predicate.and [castBy Primitives.NounPhrase.you, Primitives.Predicate.castFrom (graveyardOf Primitives.NounPhrase.you)]) ])
             (Primitives.Instruction.triggerReflexively (exile it)
               (create (.lit 1)
@@ -1289,9 +1287,9 @@ def containmentPriest : Spelled := spelled <| .singleFaced
 /-- Veiling Oddity -/
 def veilingOddityLine : Ability :=
   triggeredWhile (lastCounterRemoved (.named "timeCounter") Primitives.NounPhrase.this)
-    (Primitives.Concurrent.whileTrue (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone exileZone])))
+    (whileTrue (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone exileZone])))
     (Primitives.Instruction.establish (deontic (allOf creature) Primitives.Compulsion.forbid [.core .block] .patient Primitives.DeonticPatient.noPatient)
-      (some Primitives.Duration.thisTurn))
+      (some thisTurn))
 theorem okVeilingOddityLine : Ability.check [] veilingOddityLine = [] := by decide
 
 def wizenedSnitches : Spelled := spelled <| .singleFaced
@@ -1309,7 +1307,7 @@ def darkbladeAgentGrants : Ability :=
         Primitives.StaticSpec.abilityGrant thisCreature
           (whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer)) (Primitives.Instruction.draw (.lit 1))) ])
     (happened (Primitives.GameEvent.verbedEvent (some (relative .player)) (.action "surveil") none
-      none none) Primitives.NounPhrase.you .thisTurn) .asLongAs)
+      none none) Primitives.NounPhrase.you soFarThisTurn) .asLongAs)
 theorem okDarkbladeAgentGrants : Ability.check [] darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
 def frenziedGorespawnMenaceTrigger : Ability :=
@@ -1411,7 +1409,7 @@ def marketGnome : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.sequentially [gainLife (.lit 1), Primitives.Instruction.draw (.lit 1)]),
           triggeredWhile (Primitives.GameEvent.verbedEvent none (.action "exile") (some
             thisCreature) none none)
-            (Primitives.Concurrent.whileDoing (Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead (.keyword (.named "craft"))))))
+            (whileDoing (Primitives.GameEvent.activates Primitives.NounPhrase.you (a (Primitives.Predicate.abilityHead (.keyword (.named "craft"))))))
             (Primitives.Instruction.sequentially [gainLife (.lit 1), Primitives.Instruction.draw (.lit 1)]) ],
       power := stat 0, toughness := stat 3 } }
 
@@ -1782,7 +1780,7 @@ def deadpoolTradingCard : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.enters thisCreature none) [] none
             (offer (Primitives.Instruction.exchange (Primitives.Exchanged.textBoxes thisCreature (a (Primitives.Predicate.and [creature, Primitives.Predicate.otherThan Primitives.NounPhrase.this])))))
             .nextTimeOnly none),
-          at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you)) (loseLife (.lit 3)),
+          at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none)) (loseLife (.lit 3)),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (sacrifice thisCreature)])
             (act (each otherPlayer) (Primitives.Instruction.draw (.lit 1))) ],
       power := stat 5, toughness := stat 3 } }

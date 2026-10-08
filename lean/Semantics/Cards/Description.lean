@@ -180,7 +180,7 @@ def warTaxScaledPayment : Instruction :=
         (Primitives.Amount.arith .times (Primitives.Amount.letter .x)
           (countOf (Primitives.Predicate.and [creature, attacking, Primitives.Predicate.hasPossessor .controller they])))))
       [.core .attack] .agent Primitives.DeonticPatient.noPatient)
-    (some Primitives.Duration.thisTurn)
+    (some thisTurn)
 theorem okWarTaxScaledPayment : Instruction.check [letterB .x] warTaxScaledPayment = [] := by
   decide
 
@@ -273,7 +273,7 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
                   Primitives.NounPhrase.this,
                              Primitives.Predicate.named (Primitives.NameSource.printed
                                "Approach of the Second Sun") ]))) none) Primitives.NounPhrase.you
-                               .thisGame ])
+                               thisGame ])
             (Primitives.Instruction.conclude .winGame)
             (some (Primitives.Instruction.sequentially
               [ Primitives.Instruction.move Primitives.NounPhrase.this Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 7)], gainLife (.lit 7) ]))) ] } }
@@ -334,7 +334,7 @@ def balefulMasteryPaidRead : Ability :=
 theorem okBalefulMasteryPaidRead : Ability.check [] balefulMasteryPaidRead = [] := by decide
 
 /-- Karai, Future of the Foot -/
-def karaiSneakPaidThisTurn : Amount := paidCostRead (.byKeyword (.named "sneak")) (some .thisTurn) Primitives.NounPhrase.this
+def karaiSneakPaidThisTurn : Amount := paidCostRead (.byKeyword (.named "sneak")) (some thisTurn) Primitives.NounPhrase.this
 theorem okKaraiSneakPaidThisTurn : Amount.check [] karaiSneakPaidThisTurn = [] := by decide
 
 /-- Requiting Hex's read -/
@@ -402,7 +402,7 @@ theorem okNongreenSpellsOrAbilities :
 def twoOrMorePlayersHaveLost : Condition :=
   Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and
     [Primitives.Predicate.anyPlayer, happenedTo (Primitives.GameEvent.losesGame (relative .player))
-    .thisGame])) .atLeast (.lit 2)
+    thisGame])) .atLeast (.lit 2)
 theorem okTwoOrMorePlayersHaveLost : Condition.check [] twoOrMorePlayersHaveLost = [] := by decide
 
 def commanderCreaturesYouOwn : Predicate :=
@@ -418,7 +418,7 @@ theorem okCreatureSpellFromAmongExiled :
 
 def ringHasTemptedYouTwiceThisGame : Condition :=
   Primitives.Condition.compareAmt (eventCount (Primitives.GameEvent.verbedEvent (some (relative
-    .player)) (.action "theRingTemptsYou") none none none) Primitives.NounPhrase.you .thisGame)
+    .player)) (.action "theRingTemptsYou") none none none) Primitives.NounPhrase.you thisGame)
     .atLeast (.lit 2)
 theorem okRingHasTemptedYouTwiceThisGame :
     Condition.check [] ringHasTemptedYouTwiceThisGame = [] := by decide
@@ -523,7 +523,7 @@ theorem permanentCardIsPlaceless : permanentCardPhrase.phraseZone .object = none
 def archpriestOfIonaPower : Ability := Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .powerAlone partySize)
 theorem okArchpriestOfIonaPower : Ability.check [] archpriestOfIonaPower = [] := by decide
 def archpriestOfIonaFullParty : Ability :=
-  triggeredIf (Primitives.GameEvent.beginningOf .the .combat (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you)) fullParty
+  triggeredIf (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none)) fullParty
     (Primitives.Instruction.sequentially
       [ get (target creature) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn),
         gain it (keyword (.named "flying")) (some untilEndOfTurn) ])
@@ -540,7 +540,7 @@ def atKnifepointOutlaws : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.partScope .turn (some Primitives.NounPhrase.you) (Primitives.StaticSpec.abilityGrant (allOf outlawYouControl) (keyword
       (.named "firstStrike"))))
 def atKnifepointCrime : Ability :=
-  Primitives.Ability.triggered (Primitives.GameEvent.commitsCrime Primitives.NounPhrase.you) [] none [] none (some Primitives.UsageLimit.oncePerTurn) none
+  Primitives.Ability.triggered (Primitives.GameEvent.commitsCrime Primitives.NounPhrase.you) [] none [] none (some oncePerTurn) none
     (create (.lit 1)
       { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [creatureType "Mercenary"],
@@ -548,7 +548,7 @@ def atKnifepointCrime : Ability :=
             [ activatedOnlyDuring Primitives.Cost.tapSymbol
                 (get (target creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0))
                   (some untilEndOfTurn))
-                Primitives.Timing.asSorcery ],
+                asSorcery ],
           power := stat 1, toughness := stat 1 } })
 def atKnifepoint : Spelled := spelled <| .singleFaced
   { characteristics :=

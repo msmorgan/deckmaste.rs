@@ -116,7 +116,7 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
       text :=
         [ whenever (Primitives.GameEvent.flipsCoin Primitives.NounPhrase.you (some .wins))
             (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "luckCounter")) thisEnchantment),
-          triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Condition.compareAmt (countersOn (.named "luckCounter") thisEnchantment) .atLeast (.lit 10))
             (Primitives.Instruction.conclude .winGame) ] } }
 
@@ -228,10 +228,8 @@ def bushiTenderfoot : Spelled := spelled <| .flip
       text :=
         [ when
             (Primitives.GameEvent.dies (a (Primitives.Predicate.and [ creature,
-                              Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk
-                                (Primitives.GameEvent.dealsDamage .any thisCreature (some
-                                (Primitives.NounPhrase.asMarker .permanent (relative .object))))
-                                .thisTurn) ])))
+                              Primitives.Predicate.happenedTo (Primitives.LookbackClause.mk (Primitives.GameEvent.dealsDamage .any thisCreature (some
+                                (Primitives.NounPhrase.asMarker .permanent (relative .object)))) soFarThisTurn none) ])))
             (Primitives.Instruction.setStatus .flipped thisCreature) ],
       power := stat 1, toughness := stat 1 } }
   { characteristics :=
@@ -242,7 +240,7 @@ def bushiTenderfoot : Spelled := spelled <| .flip
 
 /-- Kitsune Mystic -/
 def kitsuneMysticFlip : Ability :=
-  triggeredIf (Primitives.GameEvent.beginningOf .the .endStep Primitives.HeaderPossessor.noPossessor)
+  triggeredIf (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.each none))
     (Primitives.Condition.matches thisCreature
       (Primitives.Predicate.attachedBy (some .enchanted)
         (counted (atLeast 2) (Primitives.Predicate.hasSubtype (enchantmentType "Aura")))))
@@ -290,9 +288,9 @@ def vesuvanShapeshifterCopyDuration : Instruction :=
   Primitives.Instruction.establish
     (Primitives.StaticSpec.copyChange thisCreature (that (.type .creature))
       [ Primitives.CopyExcept.ability
-          (at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          (at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (offer (Primitives.Instruction.setStatus .faceDown thisCreature))) ])
-    (some (Primitives.Duration.untilEvent (Primitives.GameEvent.statusEvent thisCreature .faceDown)))
+    (some (untilEvent (Primitives.GameEvent.statusEvent thisCreature .faceDown)))
 theorem okVesuvanShapeshifterCopyDuration :
     Instruction.check [⟨.a, .one, .object [.creature] (some .battlefield) none none none, []⟩]
       vesuvanShapeshifterCopyDuration = [] := by
@@ -467,7 +465,7 @@ def glassworksShatteredYard : Spelled := spelled <| .sharedLineSplit
             (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent]))) ] }
   { name := "Shattered Yard", cost := some [generic 4, pip .red],
     text :=
-      [ at_ (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+      [ at_ (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
           (Primitives.Instruction.dealDamage thisRoom (.lit 1) (each Primitives.Predicate.opponent)) ] }
 
 /-- Balemurk Leech -/

@@ -84,7 +84,7 @@ theorem okPlayerAttacksHeader : GameEvent.check [] (attacks .you) = [] := by dec
 theorem okHeaderOwnTurnWindow :
     Ability.check []
       (.triggered (Primitives.GameEvent.enters (a creature) none) [] none []
-        (some (.duringPart .turn (some .you))) none none (draw (.lit 1))) = [] := by
+        (some (duringPart .turn (some .you))) none none (draw (.lit 1))) = [] := by
   decide
 
 /-- "If one or more tokens would be created under your control, …" -/
@@ -102,7 +102,7 @@ theorem badNonTokenCreationSubject :
 /-- "Whenever you draw a card, draw a card. This triggers only once each turn." -/
 theorem okTriggerLimitOffChapter :
     Ability.check []
-      (.triggered (.draws .you) [] none [] none (some .oncePerTurn) none
+      (.triggered (.draws .you) [] none [] none (some oncePerTurn) none
         (draw (.lit 1))) = [] := by
   decide
 

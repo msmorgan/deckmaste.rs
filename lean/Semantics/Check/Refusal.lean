@@ -53,6 +53,8 @@ inductive Refusal where
   | counterMemory
   /- anaphora and scope: what the read found -/
   | anaphor (r : Reach) (pl : Plurality) (found : Nat)
+  /-- "that turn" reads back the one turn an earlier phrase introduced; it found `found`. -/
+  | turnAntecedent (found : Nat)
   /-- A macro body's later mention of a referent parameter finds no binding recorded under its
   Binding Identity, and its phrase would introduce one: reading it again would select anew. -/
   | bindingIdentity (id : BindingId)

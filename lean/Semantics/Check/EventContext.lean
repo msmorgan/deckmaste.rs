@@ -46,10 +46,10 @@ def verbedVoiceOk (v : Deed) : Option NounPhrase → Option NounPhrase → Bool
   | some _, _ => true
   | none, what => what.isSome && (actNamesParticiple v || actIntransitiveOf v)
 
-def HeaderPossessor.intro (bs : Bindings) : HeaderPossessor → Bindings
-  | .noPossessor => bs
-  | .byPlayer n => NounPhrase.selfSubjIntroduced n ++ agentIntro bs n
-  | .byTurn _ => bs
+/-- Whose turn a "beginning of" or "end of" event names, as the header's body reads it. -/
+def turnOwnerIntro (bs : Bindings) : Option NounPhrase → Bindings
+  | none => bs
+  | some n => NounPhrase.selfSubjIntroduced n ++ agentIntro bs n
 
 
 mutual
@@ -73,7 +73,7 @@ def GameEvent.intro (bs : Bindings) : GameEvent → Bindings
   | .attachment _ n host => selfSubjIntro (nomIntro bs n) host
   | .damage _ (some n) none => outcomeB .damageDealt :: selfSubjIntro bs n
   | .damage _ (some n) (some m) => outcomeB .damageDealt :: selfSubjIntro (nomIntro bs n) m
-  | .beginningOf _ _ _ => bs
+  | .beginningOf _ _ _ | .endOf _ _ _ | .now => bs
   | .casts who none _ => selfSubjIntro bs who
   | .casts who (some what) _ => selfSubjIntro (nomIntro bs who) what
   | .becomesTarget n by_ => selfSubjIntro (nomIntro bs n) by_
@@ -126,7 +126,8 @@ def GameEvent.after (bs : Bindings) : GameEvent → Bindings
   | .casts who none _ => nomIntro bs who
   | .casts who (some what) _ => nomIntro (nomIntro bs who) what
   | .becomesTarget n by_ => NounPhrase.introduced (nomIntro bs n) by_ ++ selfSubjIntro bs n
-  | .beginningOf _ _ whose => whose.intro bs
+  | .beginningOf _ whose _ | .endOf _ whose _ => turnOwnerIntro bs whose
+  | .now => bs
   | .statusEvent n _ => selfSubjIntro bs n
   | .gameBecomes _ => bs
   | .stateHolds _ => bs
@@ -201,12 +202,10 @@ def headerCtx (bs : Bindings) (alts : List GameEvent) (ev : GameEvent) : Binding
   sharedCtx bs (GameEvent.after bs) alts ev
 
 def Duration.intro (bs : Bindings) : Duration → Bindings
-  | .thisTurn => bs
-  | .restOfGame => bs
-  | .until_ _ => bs
+  | .between start end_ =>
+    let bs' := start.elim bs (GameEvent.intro bs)
+    end_.elim bs' (GameEvent.intro bs')
   | .forAsLongAs c => c.intro bs
-  | .untilEvent ev => GameEvent.intro bs ev
-  | .duringNextTurnOf who => nomIntro bs who
 
 def JoinedHeader.after (bs : Bindings) (j : JoinedHeader) : Bindings := headerCtx bs j.alternatives
   j.event
@@ -215,13 +214,13 @@ def joinedCtx (bs : Bindings) : List JoinedHeader → Bindings → Bindings
   | [], ds => ds
   | j :: js, ds => if ds == j.after bs then joinedCtx bs js ds else bs
 
-def Concurrent.namesThisDoor : Option Concurrent → Bool
+def Timing.namesThisDoor : Option Timing → Bool
   | some (.whileDoing ev) => ev.namesThisDoor
   | _ => false
 
 def JoinedHeader.namesThisDoor (j : JoinedHeader) : Bool :=
   j.event.namesThisDoor || j.alternatives.any GameEvent.namesThisDoor ||
-    Concurrent.namesThisDoor j.while_
+    Timing.namesThisDoor j.while_
 
 /-! ## Number slots
 
@@ -236,7 +235,8 @@ def GameEvent.numberSlots : GameEvent → List (Amount × NumberRegime)
   | .withBindings _ _ body | .inCaller _ body => body.numberSlots
   | .zoneChange _ _ _ _ | .draws _ | .losesGame _ => []
   | .combat _ _ _ | .attacksWith _ _ _ | .attachment _ _ _ | .damage _ _ _ => []
-  | .beginningOf _ _ _ | .casts _ _ _ | .becomesTarget _ _ | .statusEvent _ _ => []
+  | .beginningOf _ _ _ | .endOf _ _ _ | .now | .casts _ _ _ | .becomesTarget _ _
+  | .statusEvent _ _ => []
   | .gameBecomes _ | .stateHolds _ => []
   | .counterEvent _ _ _ _ _ _ | .tokensCreated _ _ _ _ | .chapterMark _ | .activates _ _ => []
   -- A game value, not the result of an effect: it reads below zero [CR#107.1b].

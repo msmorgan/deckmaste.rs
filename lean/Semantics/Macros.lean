@@ -36,8 +36,6 @@ semantic_macro itAsToken : NounPhrase := .pro .tokenBorn .one .whole
 what that instruction announced. -/
 semantic_macro itPrior (prev : Instruction) : NounPhrase :=
   .pro .bare .one (.introduced ((Instruction.intro [] prev).map Binding.kind))
-/-- "that turn" -/
-semantic_macro thatTurn : NounPhrase := .pro .thatTurn .one .whole
 /-- "it", read as the subject of the condition just stated. -/
 semantic_macro itCondSubject (condition : Condition) : NounPhrase :=
   .pro .bare .one (.introduced ((Condition.introduced [] condition).map Binding.kind))
@@ -222,7 +220,7 @@ semantic_macro anyTarget : Predicate :=
 /-- "cast by <player>" -/
 semantic_macro castBy (player : NounPhrase) : Predicate := .castBy player none
 /-- "the Nth spell <player> cast <period>" -/
-semantic_macro nthCastBy (ordinal : Ordinal) (player : NounPhrase) (period : RankPeriod) : Predicate :=
+semantic_macro nthCastBy (ordinal : Ordinal) (player : NounPhrase) (period : Period) : Predicate :=
   .castBy player (some (ordinal, period))
 /-- "any other target" -/
 semantic_macro anyOtherTarget : Predicate := .and [anyTarget, .other]
@@ -350,10 +348,80 @@ semantic_macro scaledMana (unit : ManaUnit) (amount : Amount) : Cost :=
 
 /-! ## Durations -/
 
-semantic_macro untilEndOfTurn : Duration := .until_ (.endOf .turn none)
-semantic_macro untilYourNextTurn : Duration := .until_ (.startOf .turn (some .you))
-semantic_macro untilEndOfCombat : Duration := .until_ (.endOf .combat none)
-semantic_macro untilYourNextEndStep : Duration := .until_ (.startOf .endStep (some .you))
+/-- "until end of turn" -/
+semantic_macro untilEndOfTurn : Duration := .between none (some (.endOf .turn none .current))
+/-- "this turn", as an effect lasts: until the turn ends. -/
+semantic_macro thisTurn : Duration := .between none (some (.endOf .turn none .current))
+/-- "until your next turn" -/
+semantic_macro untilYourNextTurn : Duration :=
+  .between none (some (.beginningOf .turn (some .you) (.next none)))
+/-- "until end of combat" -/
+semantic_macro untilEndOfCombat : Duration := .between none (some (.endOf .combat none .current))
+/-- "until your next end step" -/
+semantic_macro untilYourNextEndStep : Duration :=
+  .between none (some (.beginningOf .endStep (some .you) (.next none)))
+/-- "until <player>'s next turn" -/
+semantic_macro untilNextTurnOf (player : NounPhrase) : Duration :=
+  .between none (some (.beginningOf .turn (some player) (.next none)))
+/-- "until <event>" -/
+semantic_macro untilEvent (event : GameEvent) : Duration := .between none (some event)
+/-- "for the rest of the game" -/
+semantic_macro restOfGame : Duration := .between none none
+/-- "during <player>'s next turn" -/
+semantic_macro duringNextTurnOf (player : NounPhrase) : Duration :=
+  .between (some (.beginningOf .turn (some player) (.next none)))
+    (some (.endOf .turn (some player) (.next none)))
+/-- "on a later turn": from the end of this turn on [CR#702.143a,702.170d]. -/
+semantic_macro onALaterTurn : Duration := .between (some (.endOf .turn none .current)) none
+
+/-! ## History windows
+
+A lookback's span ends at `now` ("this turn" so far), except "last turn", which ended. -/
+
+/-- "this turn", as a lookback reads it: from the turn's beginning to now. -/
+semantic_macro soFarThisTurn : Duration := .between (some (.beginningOf .turn none .current)) (some .now)
+/-- "earlier this turn" -/
+semantic_macro earlierThisTurn : Duration :=
+  .between (some (.beginningOf .turn none .current)) (some .now)
+/-- "this combat" -/
+semantic_macro thisCombat : Duration := .between (some (.beginningOf .combat none .current)) (some .now)
+/-- "last turn" -/
+semantic_macro lastTurn : Duration :=
+  .between (some (.beginningOf .turn none .previous)) (some (.endOf .turn none .previous))
+/-- "this game" -/
+semantic_macro thisGame : Duration := .between none (some .now)
+
+/-! ## Timings -/
+
+/-- "only as a sorcery": during your main phase, while the stack is empty [CR#307.5]. -/
+semantic_macro asSorcery : Timing :=
+  .and [.inPart .mainPhase (some .you) .current, .onlyIf (.not (exists_ (.inZone stack)))]
+/-- "only as an instant": any time you have priority [CR#117.1a,117.1d]. -/
+semantic_macro asInstant : Timing := .onlyIf (.hasPriority .you)
+/-- "during <whose> <part>" -/
+semantic_macro duringPart (part : TurnPart) (whose : Option NounPhrase := none) : Timing :=
+  .inPart part whose .current
+/-- "before <whose> <part>" -/
+semantic_macro beforePart (part : TurnPart) (whose : Option NounPhrase := none) : Timing :=
+  .relativeToEvent .before (.beginningOf part whose .current)
+/-- "during each of your turns" -/
+semantic_macro duringEachOfYourTurns : Timing := .inPart .turn (some .you) (.each none)
+/-- "while you're searching your library" -/
+semantic_macro whileSearchingYourLibrary : Timing :=
+  .whileDoing (.verbedEvent (some .you) (.action "search") none none (some yourLibrary))
+/-- "while <event>" -/
+semantic_macro whileDoing (event : GameEvent) : Timing := .whileDoing event
+/-- "while <condition>" -/
+semantic_macro whileTrue (condition : Condition) : Timing := .onlyIf condition
+
+/-! ## Usage limits -/
+
+/-- "only once each turn" [CR#602.5b] -/
+semantic_macro oncePerTurn : UsageLimit := ⟨.moreThan (.lit 1), .turn⟩
+/-- "only once each game" -/
+semantic_macro oncePerGame : UsageLimit := ⟨.moreThan (.lit 1), .game⟩
+/-- "only once during each of your turns" -/
+semantic_macro onceEachYourTurn : UsageLimit := ⟨.moreThan (.lit 1), .yourTurn⟩
 
 /-! ## Amounts -/
 
@@ -496,7 +564,7 @@ only its eventual application carries the Regenerate label [CR#701.19a,701.19c].
 semantic_macro regenerate (subject : capture NounPhrase) : Instruction :=
   .establish (.replacement
     (.verbedEvent none (.action "destroy") (some subject) none none)
-    [] none (regenerationApplication subject) .nextTimeOnly none) (some .thisTurn)
+    [] none (regenerationApplication subject) .nextTimeOnly none) (some thisTurn)
 
 /-- Losing counters is removal from the named player. Capturing that player first keeps
 amount references in the order the sentence introduces them. -/
@@ -529,7 +597,7 @@ semantic_macro doIf (condition : Condition) (instruction : Instruction) : Instru
 semantic_macro choose (subject : NounPhrase) (disclosure : Disclosure := .openly) : Instruction :=
   .choose none subject disclosure none
 /-- "choose <subject> as you <event>" -/
-semantic_macro chooseWhile (subject : NounPhrase) (while_ : Concurrent) : Instruction :=
+semantic_macro chooseWhile (subject : NounPhrase) (while_ : Timing) : Instruction :=
   .choose none subject .openly (some while_)
 semantic_macro rollDice (count : Nat) (sides : Nat) : Instruction :=
   .rollDice (.lit count) (.sides sides)
@@ -601,21 +669,29 @@ semantic_macro fromTo (low high : Nat) : Quantity := .range (some low) (some hig
 /-- The participant described by the nearest enclosing lookback. -/
 semantic_macro relative (kind : Kind) : NounPhrase := .gap kind
 /-- The number of occurrences of a historical event involving the subject. -/
-semantic_macro eventCount (event : GameEvent) (who : NounPhrase) (lookback : Lookback) : Amount :=
-  .eventTally .count who (.mk event lookback)
+semantic_macro eventCount (event : GameEvent) (who : NounPhrase) (within : Duration)
+    (timing : Option Timing := none) : Amount :=
+  .eventTally .count who (.mk event within timing)
 /-- A historical event involving the subject. -/
-semantic_macro happened (event : GameEvent) (who : NounPhrase) (lookback : Lookback) : Condition :=
-  .happened who (.mk event lookback)
+semantic_macro happened (event : GameEvent) (who : NounPhrase) (within : Duration)
+    (timing : Option Timing := none) : Condition :=
+  .happened who (.mk event within timing)
+/-- The event the enclosing instruction caused, involving the subject: "if you searched your
+library this way". -/
+semantic_macro happenedThisWay (event : GameEvent) (who : NounPhrase) : Condition :=
+  .happened who (.thisWay event)
 /-- A historical event whose gap stands for the entity being described. -/
-semantic_macro happenedTo (event : GameEvent) (lookback : Lookback) : Predicate :=
-  .happenedTo (.mk event lookback)
+semantic_macro happenedTo (event : GameEvent) (within : Duration) (timing : Option Timing := none) :
+    Predicate :=
+  .happenedTo (.mk event within timing)
 /-- The accumulated magnitude of historical events involving the subject. -/
-semantic_macro eventSum (event : GameEvent) (who : NounPhrase) (lookback : Lookback) : Amount :=
-  .eventTally .sum who (.mk event lookback)
+semantic_macro eventSum (event : GameEvent) (who : NounPhrase) (within : Duration)
+    (timing : Option Timing := none) : Amount :=
+  .eventTally .sum who (.mk event within timing)
 /-- "if there is no <designation>" -/
 semantic_macro thereIsNo (designation : DesignationLabel) : Condition := .noHolder designation
 /-- "<subject>'s <keyword> cost was paid", read back. -/
-semantic_macro paidCostRead (which : PaidCostName) (window : Option Lookback) (subject : NounPhrase) :
+semantic_macro paidCostRead (which : PaidCostName) (window : Option Duration) (subject : NounPhrase) :
     Amount :=
   .paid (.readback which window) subject
 /-- "the number of times <subject>'s <keyword> cost was paid" -/
@@ -626,7 +702,7 @@ semantic_macro timesPaid (which : PaidCostName) (subject : NounPhrase) : Amount 
 semantic_macro chosenAsPaid (label : KeywordLabel) (subject : NounPhrase) : NounPhrase :=
   .paid (.chosenPlayer (.byKeyword label)) subject
 /-- "if <subject>'s <cost> was paid" -/
-semantic_macro costWasPaid (which : PaidCostName) (window : Option Lookback) (subject : NounPhrase) :
+semantic_macro costWasPaid (which : PaidCostName) (window : Option Duration) (subject : NounPhrase) :
     Condition :=
   .compareAmt (paidCostRead which window subject) .atLeast (.lit 1)
 /-- "the last chosen color" -/
@@ -1073,12 +1149,17 @@ semantic_macro leavesBattlefield (subject : NounPhrase) : GameEvent :=
 /-- "<subject> leaves <zone>" -/
 semantic_macro leavesZone (subject : NounPhrase) (zone : ZoneExpr) : GameEvent :=
   Primitives.GameEvent.leaves subject (some (.zones [zone]))
-/-- "at the beginning of <possessor>'s <part>" -/
-semantic_macro beginningOfPossessed (quantifier : PartQuant) (part : TurnPart) (possessor : NounPhrase) :
-    GameEvent :=
-  .beginningOf quantifier part (.byPlayer possessor)
-/-- "<turn>'s", as a header possessor: "that turn's end step". -/
-semantic_macro byTurn (turn : NounPhrase) : HeaderPossessor := .byTurn turn
+/-- "at the beginning of <possessor>'s <part>", each time it comes -/
+semantic_macro beginningOfPossessed (part : TurnPart) (possessor : NounPhrase) : GameEvent :=
+  .beginningOf part (some possessor) (.each none)
+/-- "at the beginning of your <part>", each time it comes -/
+semantic_macro beginningOfYour (part : TurnPart) : GameEvent := .beginningOf part (some .you) (.each none)
+/-- "at the beginning of each <part>" -/
+semantic_macro beginningOfEach (part : TurnPart) : GameEvent := .beginningOf part none (.each none)
+/-- "at the beginning of the next <part>": a delayed trigger's moment. -/
+semantic_macro beginningOfNext (part : TurnPart) : GameEvent := .beginningOf part none (.next none)
+/-- "at the beginning of that turn's <part>" -/
+semantic_macro beginningOfThatTurns (part : TurnPart) : GameEvent := .beginningOf part none .that
 semantic_macro dealsCombatDamage (source : NounPhrase) (patient : NounPhrase) : GameEvent :=
   Primitives.GameEvent.dealsDamage .combatOnly source (some patient)
 semantic_macro attacks (subject : NounPhrase) : GameEvent := .combat .attackerOf subject none
@@ -1223,7 +1304,7 @@ semantic_macro triggeredOr (event : GameEvent) (alternatives : List GameEvent) (
     Ability :=
   .triggered event alternatives none [] none none none instruction
 /-- "Whenever <event> while <concurrent>, <instruction>" -/
-semantic_macro triggeredWhile (event : GameEvent) (while_ : Concurrent) (instruction : Instruction) :
+semantic_macro triggeredWhile (event : GameEvent) (while_ : Timing) (instruction : Instruction) :
     Ability :=
   .triggered event [] (some while_) [] none none none instruction
 /-- "Whenever <event> during <timing>, <instruction>" -/
@@ -1231,7 +1312,7 @@ semantic_macro triggeredOnlyDuring (event : GameEvent) (timing : Timing) (instru
     Ability :=
   .triggered event [] none [] (some timing) none none instruction
 /-- A joined "whenever <event> while <concurrent>" header. -/
-semantic_macro joinedHeadWhile (event : GameEvent) (while_ : Concurrent) : JoinedHeader :=
+semantic_macro joinedHeadWhile (event : GameEvent) (while_ : Timing) : JoinedHeader :=
   ⟨event, [], some while_, none⟩
 /-- "When <event>, <instruction>" -/
 semantic_macro when (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
@@ -1257,7 +1338,7 @@ semantic_macro stormExpansion : Ability :=
   when (.casts .you (some thisSpell) none)
     (.sequentially
       [ .copy .fromStack thisSpell (eventCount (.casts (relative .player) (some (a (.and [spell,
-        .otherThan thisSpell]))) none) (a .anyPlayer) .earlierThisTurn) [],
+        .otherThan thisSpell]))) none) (a .anyPlayer) earlierThisTurn) [],
         offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
 /-- "Storm" with its reminder text. -/
 semantic_macro storm : Ability := .keyword (.named "storm") [] [stormExpansion]
@@ -1285,7 +1366,7 @@ semantic_macro renown (count : Nat) : Ability :=
 on the battlefield, put an age counter on it. Then you may pay [cost] for each age counter on
 it. If you don't, sacrifice it." [CR#702.24a] -/
 semantic_macro cumulativeUpkeepExpansion (cost : Cost) : Ability :=
-  triggeredIf (.beginningOf .the .upkeep (.byPlayer .you))
+  triggeredIf (.beginningOf .upkeep (some .you) (.each none))
     (.matches thisPermanent (.inZone battlefield))
     (.sequentially
       [ .putCounters (.lit 1) (.printed (.named "ageCounter")) thisPermanent,

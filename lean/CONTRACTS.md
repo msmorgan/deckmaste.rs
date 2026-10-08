@@ -146,7 +146,10 @@ remains Rust's responsibility. The fold does not claim an execution proof.
 
 ## Historical events
 
-`LookbackClause` contains a `GameEvent` and a time window. The `relative` macro
+`LookbackClause` contains a `GameEvent` and either a span (`mk`: a `Duration`, with an
+optional `Timing` the event happened under) or an occurrence (`thisWay`, the event the
+enclosing instruction caused; `triggering`, the event that triggered the ability), which name no
+span (`semantics-v2-temporal-suite`). The `relative` macro
 marks the participant described by the enclosing predicate or condition.
 That participant is checked against the host kind by the same recursive checker
 that validates ordinary event participants. A gap outside a lookback is refused;
@@ -654,14 +657,15 @@ by exact-refusal theorems; it is not an authorable term.
 | `NotAnAbility` | Retired at movement: the action-fold ticket explicitly corrects this false blanket prohibition; ending a turn or combat can exile stack abilities [CR#724.1b,724.2b]. |
 | `DiscardOk` | Discard is an enacted move. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): its source zone is not checked. The macro authoring boundary above excludes arbitrary authored tag/body combinations. |
 | `Movable` | `Instruction.move` checks the moved kind against `object ∨ pile` (`kindLte`), so objects (including abilities) and piles move and players and quality values are refused. The destination's riders, arrangement and card types are not checked (`lean-checker-sweep-zone`). |
-| `DurationEnd` | `DurationEnd.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 
 ### Triggers
 
 | Reference datatype | Lean duty |
 |---|---|
 | `ManaTypeTerm` | `ManaTypeTerm.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `Duration` | `Duration.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
+| `Duration` | `Duration.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks its boundary events and condition; a boundary that names whose turn names one definite player (`durationPossessor`). |
+| `TurnRef` | `TurnRef.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean): a named player is a player, and `that` reads back exactly one turn an earlier phrase introduced (`turnAntecedent`). |
+| `UsageLimit` | `UsageLimit.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks the count's amount; its period names no referent. |
 | `AttackDefender` | `AttackDefender.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamagePatient` | `DamagePatient.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `Door` | `Door.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
@@ -669,11 +673,9 @@ by exact-refusal theorems; it is not an authorable term.
 | `CrimeSubject` | `GameEvent.commitsCrime` checks a player subject and singularity. |
 | `GameEvent` | `GameEvent.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `Causing` | `Causing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `HeaderPossessor` | `HeaderPossessor.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `TriggerWindow` | Merged into `Timing.duringPart`; `Timing.check` checks the possessor's references. Which turn parts and possessors a window admits is not checked (`lean-checker-sweep-timing`). |
-| `Timing` | `Timing.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
+| `TriggerWindow` | Merged into `Timing.inPart`; `Timing.check` checks the possessor's references. Which turn parts and possessors a window admits is not checked (`lean-checker-sweep-timing`). |
+| `Timing` | `Timing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and kinds only: whose turn is a player's, and the events, conditions and turn references it names. |
 | `AltEvent` | `GameEvent.check` checks each alternative event. The old header-word index is gone; the event determines its own event class. Header nontargeting is retired by `lean-checker-sweep-game-rules` (§7 charter ruling 2026-10-06). |
-| `Concurrent` | `Concurrent.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 | `JoinedHeader` | `JoinedHeader.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 
 ### Words

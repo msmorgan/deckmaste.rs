@@ -223,10 +223,7 @@ def sourceZone : Option EventSource → Option Zone
   | _ => none
 
 def LookbackClause.event : LookbackClause → GameEvent
-  | .mk ev _ => ev
-
-def LookbackClause.window : LookbackClause → Lookback
-  | .mk _ w => w
+  | .mk ev _ _ | .thisWay ev | .triggering ev => ev
 
 /-! ## What a predicate seeds -/
 
@@ -1177,10 +1174,39 @@ def choiceOrderOk : Option NounPhrase → Option NounPhrase → Bool
   | some _, none => false
   | some _, some by_ => !by_.plur.isOne
 
-/-- A duration's possessor must be a single definite player. -/
+/-- A duration's possessor must be a single definite player: "your", "that player's", or a
+target's, never "an opponent's" or "each player's". -/
 def durationPossessorOk : Option NounPhrase → Bool
   | none => true
-  | some n => n.plur.isOne && n.det.elim true (· == .the)
+  | some n => n.plur.isOne && n.det.elim true (fun d => d == .the || d == .target)
+
+def PaidFacet.named : PaidFacet → Bool
+  | .colorsSpent => true
+  | .manaValueSpent => true
+  | .timesPaid which => which.named
+  | .readback which _ => which.named
+  | .chosenPlayer which => which.named
+
+/-- The cost a chosen-player facet names chooses a player when it is paid; a facet naming no
+registered cost is refused by `PaidFacet.named` alone. -/
+def PaidFacet.choiceFound : PaidFacet → Bool
+  | .chosenPlayer which => !which.named || which.choosesPlayer
+  | _ => true
+
+/-- What a facet reads: a player, or an amount. -/
+def PaidFacet.readsPlayer : PaidFacet → Bool
+  | .chosenPlayer _ => true
+  | _ => false
+
+/-- A duration boundary that names whose turn names one definite player. -/
+def boundaryPossessorOk : Option GameEvent → Bool
+  | some (.beginningOf _ w _) | some (.endOf _ w _) => durationPossessorOk w
+  | _ => true
+
+/-- The turns an earlier phrase introduced ("take an extra turn after this one"), which "that
+turn" reads back. -/
+def countTurns (bs : Bindings) : Nat :=
+  (bs.filter fun b => Kind.lte .turnRef b.kind && b.plur.isOne).length
 
 /-! ## What a phrase introduces -/
 
@@ -1373,7 +1399,8 @@ mutual
     | .inCombat _ none => []
     | .inCombat _ (some m) => (NounPhrase.result bs m).introduced bs
     | .counterKindOn n => (NounPhrase.result bs n).introduced bs
-    | .happenedTo (.mk ev _) => GameEvent.mentioned bs ev
+    | .happenedTo (.mk ev _ _) | .happenedTo (.thisWay ev) | .happenedTo (.triggering ev) =>
+      GameEvent.mentioned bs ev
     | .castFrom z => ZoneExpr.introduced bs z
     | .named src => NameSource.introduced bs src
     | .hasDesignation _ none => []
@@ -1493,8 +1520,8 @@ mutual
     | .attachment _ n host | .becomesTarget n host | .activates n host =>
       let ns := (NounPhrase.result bs n).introduced bs
       (NounPhrase.result (ns ++ bs) host).introduced (ns ++ bs) ++ ns
-    | .beginningOf _ _ .noPossessor | .beginningOf _ _ (.byTurn _) => []
-    | .beginningOf _ _ (.byPlayer n) => (NounPhrase.result bs n).introduced bs
+    | .beginningOf _ whose _ | .endOf _ whose _ => OptNoun.introduced bs whose
+    | .now => []
     | .casts who what src =>
       let ws := (NounPhrase.result bs who).introduced bs
       let ns := OptNoun.introduced (ws ++ bs) what
@@ -1553,7 +1580,8 @@ mutual
     | .lit _ => []
     | .statOf _ nom => (NounPhrase.result bs nom).introduced bs
     | .paid _ n => (NounPhrase.result bs n).introduced bs
-    | .eventTally _ who (.mk ev _) =>
+    | .eventTally _ who (.mk ev _ _) | .eventTally _ who (.thisWay ev)
+    | .eventTally _ who (.triggering ev) =>
       (NounPhrase.result bs who).introduced bs ++ GameEvent.mentioned ((NounPhrase.result bs who).introduced bs ++ bs) ev
     | .countOf g => (NounPhrase.result bs g).introduced bs
     | .aggregate _ _ g => (NounPhrase.result bs g).introduced bs
@@ -1578,7 +1606,8 @@ mutual
     | .lit _ => bs
     | .statOf _ nom => (NounPhrase.result bs nom).context
     | .paid _ n => (NounPhrase.result bs n).context
-    | .eventTally _ who (.mk ev _) =>
+    | .eventTally _ who (.mk ev _ _) | .eventTally _ who (.thisWay ev)
+    | .eventTally _ who (.triggering ev) =>
       GameEvent.mentioned ((NounPhrase.result bs who).context) ev ++ (NounPhrase.result bs who).introduced bs ++
         bs
     | .countOf g => (NounPhrase.result bs g).context
@@ -2011,6 +2040,7 @@ mutual
     | .voteLead _ _ => []
     | .anyResultIs _ _ => []
     | .rolledDoubles => []
+    | .hasPriority _ => []
     | .not (.compareAmt subj _ bound) =>
       Amount.introduced (Amount.intro bs subj) bound ++ Amount.introduced bs subj
     | .not c => dropGaps (Condition.introduced bs c)

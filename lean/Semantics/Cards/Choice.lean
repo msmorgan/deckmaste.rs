@@ -72,7 +72,7 @@ def cheeringFanatic : Spelled := spelled <| .singleFaced
               [ choose (a (quality .cardName)),
                 Primitives.Instruction.establish
                   (Primitives.StaticSpec.costShift (allOf (Primitives.Predicate.and [spell, ofChosen .cardName])) (Primitives.CostShift.less (.lit 1) none))
-                  (some Primitives.Duration.thisTurn) ]) ],
+                  (some thisTurn) ]) ],
       power := stat 2, toughness := stat 2 } }
 
 def rainOfThorns : Instruction :=
@@ -114,7 +114,7 @@ def brazenCannonadePermission : Instruction :=
     [ exile (topSlice (.lit 1)),
       Primitives.Instruction.establish
         (mayPlayDeed (.action "play") Primitives.NounPhrase.you it none (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
-        (some (Primitives.Duration.until_ (Primitives.DurationEnd.endOf .combat (some Primitives.NounPhrase.you)))) ]
+        (some (untilEvent (Primitives.GameEvent.endOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none)))) ]
 theorem okBrazenCannonadePermission : Instruction.check [] brazenCannonadePermission = [] := by
   decide
 
@@ -172,7 +172,7 @@ def escapeToTheWilds : Instruction :=
       Primitives.Instruction.establish
         (mayPlayDeed (.action "play") Primitives.NounPhrase.you (theVerbed (.action "exile") .many (some .card) .thisWay) none
           (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
-        (some (Primitives.Duration.until_ (Primitives.DurationEnd.endOf .turn (some Primitives.NounPhrase.you)))) ]
+        (some (untilEvent (Primitives.GameEvent.endOf .turn (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none)))) ]
 theorem okEscapeToTheWilds : Instruction.check [] escapeToTheWilds = [] := by decide
 
 /-- Muse Vessel -/
@@ -183,7 +183,7 @@ def museVesselPlay : Ability :=
         Primitives.Instruction.establish
           (mayPlayDeed (.action "play") Primitives.NounPhrase.you (that .card) none
             (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
-          (some Primitives.Duration.thisTurn) ])
+          (some thisTurn) ])
 theorem okMuseVesselPlay : Ability.check [] museVesselPlay = [] := by decide
 
 def demonicConsultationChoice : Instruction := choose (a (quality .cardName))
@@ -593,7 +593,7 @@ def borneUponAWind : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Instruction.establish
             (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf spell) asThoughFlash
               (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
-            (some Primitives.Duration.thisTurn)),
+            (some thisTurn)),
           Primitives.Ability.spell none (Primitives.Instruction.draw (.lit 1)) ] } }
 
 def gisaAndGeralf : Spelled := spelled <| .singleFaced
@@ -605,7 +605,7 @@ def gisaAndGeralf : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters thisCreature none) (mill (.lit 4) Primitives.NounPhrase.you),
           Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you
             (a (Primitives.Predicate.and [spell, creature, Primitives.Predicate.hasSubtype (creatureType "Zombie")])) none
-            (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) (some .onceEachYourTurn) none false Primitives.PlayPayment.itsOwnCost)) ],
+            (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) (some onceEachYourTurn) none false Primitives.PlayPayment.itsOwnCost)) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- "play lands from the top of your library" -/
@@ -624,7 +624,7 @@ theorem okPlayLandsAndCastSpellsFromTop :
 def castSmallCreatureFromTopOnceEachTurn : StaticSpec :=
   mayPlayDeed (.action "cast") Primitives.NounPhrase.you
     (a (Primitives.Predicate.and [spell, creature, Primitives.Predicate.compare [.stat .power] .atMost (.lit 2)])) none
-    (Primitives.DeonticRider.play (some onTop) (some .onceEachTurn) none false Primitives.PlayPayment.itsOwnCost)
+    (Primitives.DeonticRider.play (some onTop) (some oncePerTurn) none false Primitives.PlayPayment.itsOwnCost)
 theorem okCastSmallCreatureFromTopOnceEachTurn :
     StaticSpec.check [] castSmallCreatureFromTopOnceEachTurn = [] := by decide
 
@@ -692,14 +692,14 @@ def azusaLostButSeeking : Spelled := spelled <| .singleFaced
 def summerBloom : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Summer Bloom", cost := some [generic 1, pip .green], types := [.sorcery],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (upTo 3)) (some Primitives.Duration.thisTurn))] } }
+      text := [Primitives.Ability.spell none (Primitives.Instruction.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (upTo 3)) (some thisTurn))] } }
 
 def explore : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Explore", cost := some [generic 1, pip .green], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)) (some Primitives.Duration.thisTurn),
+            [ Primitives.Instruction.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)) (some thisTurn),
               Primitives.Instruction.draw (.lit 1) ]) ] } }
 
 def urbanEvolution : Spelled := spelled <| .singleFaced
@@ -709,7 +709,7 @@ def urbanEvolution : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ Primitives.Instruction.draw (.lit 3),
-              Primitives.Instruction.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)) (some Primitives.Duration.thisTurn) ]) ] } }
+              Primitives.Instruction.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)) (some thisTurn) ]) ] } }
 
 def dryadOfTheIlysianGrove : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -986,7 +986,7 @@ theorem okFastbondLands : Ability.check [] fastbondLands = [] := by decide
 /-- Panglacial Wurm -/
 def panglacialWurmCast : Ability :=
   Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-    (Primitives.DeonticRider.play (some yourLibrary) none (some .whileSearchingLibrary) false Primitives.PlayPayment.itsOwnCost))
+    (Primitives.DeonticRider.play (some yourLibrary) none (some whileSearchingYourLibrary) false Primitives.PlayPayment.itsOwnCost))
 theorem okPanglacialWurmCast : Ability.check [] panglacialWurmCast = [] := by decide
 
 /-- Shah of Naar Isle -/
@@ -1107,7 +1107,7 @@ def moonlitMeditation : Spelled := spelled <| .singleFaced
               none)
             [] none
             (offer (Primitives.Instruction.create Primitives.Amount.groupSize (Primitives.TokenSpec.copyOf (Primitives.NounPhrase.attachHost .enchanted .permanent) []) []))
-            .repeatedly (some Primitives.UsageLimit.oncePerTurn)) ] } }
+            .repeatedly (some oncePerTurn)) ] } }
 
 def discardUpToTwoThenDrawThatMany : Instruction :=
   Primitives.Instruction.sequentially [discard (counted (upTo 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])), Primitives.Instruction.draw Primitives.Amount.groupSize]
@@ -1179,9 +1179,8 @@ def vraskasScorn : Spelled := spelled <| .singleFaced
                 (Primitives.Instruction.sequentially
                   [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Vraska, Scheming Gorgon")),
                     revealCards it, move it hand ]),
-              Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
-                (relative .player)) (.action "search") none none (some yourLibrary))
-                Primitives.NounPhrase.you .thisWay) shuffle
+              Primitives.Instruction.doIf (happenedThisWay (Primitives.GameEvent.verbedEvent (some
+                (relative .player)) (.action "search") none none (some yourLibrary)) Primitives.NounPhrase.you) shuffle
                 none ]) ] } }
 
 /-- Old-Growth Dryads -/
@@ -1221,13 +1220,13 @@ def danithaNewBenaliasLight : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you
             (a (Primitives.Predicate.and [ spell, Primitives.Predicate.or [ Primitives.Predicate.hasSubtype (enchantmentType "Aura"),
                                     Primitives.Predicate.hasSubtype (artifactType "Equipment") ] ]))
-            none (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) (some .onceEachYourTurn) none false Primitives.PlayPayment.itsOwnCost)) ],
+            none (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) (some onceEachYourTurn) none false Primitives.PlayPayment.itsOwnCost)) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Muldrotha, the Gravetide -/
 def muldrothaLandWindow : StaticSpec :=
   mayPlayDeed (.action "play") Primitives.NounPhrase.you (a land) none
-    (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) none (some .duringEachOfYourTurns) false Primitives.PlayPayment.itsOwnCost)
+    (Primitives.DeonticRider.play (some (graveyardOf Primitives.NounPhrase.you)) none (some duringEachOfYourTurns) false Primitives.PlayPayment.itsOwnCost)
 theorem okMuldrothaLandWindow : StaticSpec.check [] muldrothaLandWindow = [] := by decide
 /-- Nahiri's Lithoforming -/
 def nahiriExtraLands : StaticSpec := mayPlayAdditionalLands Primitives.NounPhrase.you (Primitives.Quantity.exactlyOf (Primitives.Amount.letter .x))
@@ -1257,7 +1256,7 @@ def apexOfPowerCast : Instruction :=
       Primitives.Instruction.establish
         (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (fromAmong anyNumber spell them) none
           (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
-        (some Primitives.Duration.thisTurn) ]
+        (some thisTurn) ]
 theorem okApexOfPowerCast : Instruction.check [] apexOfPowerCast = [] := by decide
 /-- Blight Herder -/
 def blightHerderCast : Instruction :=
@@ -1328,7 +1327,7 @@ def emissaryOfGrudgesReveal : Ability :=
           Primitives.Condition.matches it
             (Primitives.Predicate.targets (youOr (a (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))) .someTarget) ])
       none)
-    Primitives.UsageLimit.oncePerGame
+    oncePerGame
 theorem okEmissaryOfGrudgesReveal :
     Ability.check [ChoiceSort.binding .player] emissaryOfGrudgesReveal = [] := by decide
 

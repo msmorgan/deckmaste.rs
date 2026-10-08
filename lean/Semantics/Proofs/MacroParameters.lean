@@ -402,14 +402,14 @@ theorem scopedDefinitionRetainsNumberRegime :
 
 theorem scopedCounterpartCannotConcealSelfReference :
     (Instruction.establish (deontic (target creature) .require [.core .block] .agent
-      (.counterpart (.withBindings 5 [] it))) (some .thisTurn)).check [] =
+      (.counterpart (.withBindings 5 [] it))) (some thisTurn)).check [] =
         [.deonticPatientOk] := by decide
 
 private semantic_macro capturedCounterpart (subject : capture NounPhrase) : NounPhrase := subject
 
 theorem capturedCounterpartCannotConcealSelfReference :
     (Instruction.establish (deontic (target creature) .require [.core .block] .agent
-      (.counterpart (capturedCounterpart it))) (some .thisTurn)).check [] =
+      (.counterpart (capturedCounterpart it))) (some thisTurn)).check [] =
         [.deonticPatientOk] := by decide
 
 theorem independentCounterpartDoesNotBecomeSelfByPayloadEquality :
@@ -475,10 +475,10 @@ theorem independentValueSubjectsRemainIndependent :
 theorem callerCounterpartCannotConcealSelfReference :
     (Instruction.establish (deontic (target creature) .require [.core .block] .agent
       (.counterpart (.withBindings 5 [.subject (target creature)] (.inCaller 5 it))))
-      (some .thisTurn)).check [] = [.deonticPatientOk] := by decide
+      (some thisTurn)).check [] = [.deonticPatientOk] := by decide
 
 private semantic_macro selfBlocking (subject : capture NounPhrase) : Instruction :=
-  .establish (deontic subject .require [.core .block] .agent (.counterpart subject)) (some .thisTurn)
+  .establish (deontic subject .require [.core .block] .agent (.counterpart subject)) (some thisTurn)
 
 theorem capturedSubjectAndCounterpartStillShareIdentity :
     (selfBlocking (target creature)).check [] = [.deonticPatientOk] := by decide

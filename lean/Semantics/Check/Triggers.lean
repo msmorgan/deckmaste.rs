@@ -5,40 +5,19 @@ namespace Semantics
 def GameEvent.checkAll (bs : Bindings) (evs : List GameEvent) : List Refusal :=
   evs.flatMap (GameEvent.check bs)
 
-def DurationEnd.check (bs : Bindings) : DurationEnd → List Refusal
-  | .startOf _ w => OptNoun.check (some .player) bs w ++ refuse (durationPossessorOk w) .durationPossessor
-  | .endOf _ w => OptNoun.check (some .player) bs w ++ refuse (durationPossessorOk w) .durationPossessor
+/-- A usage limit's count is an amount; its period names no referent. -/
+def UsageLimit.check (bs : Bindings) (l : UsageLimit) : List Refusal :=
+  match l.times with
+  | .moreThan a => Amount.check bs a
+  | .additional q => Quantity.check bs q
 
-def Duration.check (bs : Bindings) : Duration → List Refusal
-  | .thisTurn | .restOfGame => []
-  | .until_ e => DurationEnd.check bs e
-  | .forAsLongAs c => Condition.check bs c
-  | .untilEvent ev => GameEvent.check bs ev
-  | .duringNextTurnOf who => NounPhrase.check (some .player) bs who ++ refuse who.plur.isOne .singular
-
-def OptDuration.check (bs : Bindings) : Option Duration → List Refusal
+def OptUsageLimit.check (bs : Bindings) : Option UsageLimit → List Refusal
   | none => []
-  | some d => Duration.check bs d
-
-def Timing.check (bs : Bindings) : Timing → List Refusal
-  | .asSorcery | .asInstant => []
-  | .duringPart _ w | .beforePart _ w => OptNoun.check (some .player) bs w
-
-def OptTiming.check (bs : Bindings) : Option Timing → List Refusal
-  | none => []
-  | some t => Timing.check bs t
-
-def Concurrent.check (bs : Bindings) : Concurrent → List Refusal
-  | .whileTrue c => Condition.check bs c
-  | .whileDoing ev => GameEvent.check bs ev
-
-def OptConcurrent.check (bs : Bindings) : Option Concurrent → List Refusal
-  | none => []
-  | some c => Concurrent.check bs c
+  | some l => UsageLimit.check bs l
 
 def JoinedHeader.check (bs : Bindings) (j : JoinedHeader) : List Refusal :=
   GameEvent.check bs j.event ++ j.alternatives.flatMap (GameEvent.check bs) ++
-    OptConcurrent.check (headerCtx bs j.alternatives j.event) j.while_ ++
+    OptTiming.check (headerCtx bs j.alternatives j.event) j.while_ ++
     OptTiming.check bs j.timing
 
 end Semantics

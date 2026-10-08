@@ -53,15 +53,6 @@ inductive CondMarking where
   | asLongAs | unless_ | ifSo
   deriving DecidableEq, Repr
 
-inductive PlayLimit where
-  | onceEachYourTurn | onceEachTurn
-  deriving DecidableEq, Repr
-
-/-- When a play permission applies. -/
-inductive PlayTiming where
-  | whileSearchingLibrary | duringEachOfYourTurns
-  deriving DecidableEq, Repr
-
 /-- How "a …" chooses. -/
 inductive ChoiceMode where
   | unmarked

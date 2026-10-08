@@ -312,7 +312,6 @@ inductive Reach where
   /-- "the exiled card" names its noun word; "it", stamped by the deed that produced it, names
   none. -/
   | verbed (verb : Deed) (word : Option NounWord) (marking : VerbedMarking)
-  | thatTurn
   deriving DecidableEq, Repr
 
 /-- A Binding Identity: the name under which a macro body's first mention of a referent
@@ -352,10 +351,6 @@ inductive ShiftDir where
   | up | down
   deriving DecidableEq, Repr
 
-inductive Lookback where
-  | thisTurn | earlierThisTurn | thisCombat | lastTurn | thisGame | thisWay | triggering
-  deriving DecidableEq, Repr
-
 inductive TargetExtent where
   | someTarget | soleTarget
   deriving DecidableEq, Repr
@@ -382,20 +377,6 @@ inductive PaidCostName where
   | byNthKeyword (ordinal : Ordinal) (keyword : KeywordLabel)
   | theAlternative
   | theAdditional
-  deriving DecidableEq, Repr
-
-inductive PaidFacet where
-  /-- colors of mana spent to cast it [CR#702.44a] -/
-  | colorsSpent
-  /-- mana spent to pay the total cost [CR#601.2h] -/
-  | manaValueSpent
-  /-- [CR#702.33c..702.33d] -/
-  | timesPaid (which : PaidCostName)
-  /-- "was kicked" [CR#702.33d] -/
-  | readback (which : PaidCostName) (lookback : Option Lookback)
-  /-- "the player chosen as [which] was paid": the choice an additional cost makes, read back by
-  the ability linked to it [CR#702.174a,607.2d,607.2i] -/
-  | chosenPlayer (which : PaidCostName)
   deriving DecidableEq, Repr
 
 inductive AbilityClass where
@@ -602,13 +583,16 @@ inductive TurnPart where
   | endStep | cleanup
   deriving DecidableEq, Repr
 
-inductive RankPeriod where
-  | within (lookback : Lookback)
-  | each (part : TurnPart)
+/-- What a usage limit or an event ordinal counts within: each turn, each of its player's turns,
+each game, or each occurrence of a phase or step [CR#602.5b]. -/
+inductive Period where
+  | turn | yourTurn | game
+  | part (part : TurnPart)
   deriving DecidableEq, Repr
 
-inductive PartQuant where
-  | the | each
+/-- Which side of an event a timing names: "before attackers are declared", "after combat". -/
+inductive EventSide where
+  | before | after
   deriving DecidableEq, Repr
 
 end Semantics

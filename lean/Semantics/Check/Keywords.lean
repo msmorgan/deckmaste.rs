@@ -70,30 +70,12 @@ def PaidCostName.named : PaidCostName → Bool
   | .theAlternative => true
   | .theAdditional => true
 
-def PaidFacet.named : PaidFacet → Bool
-  | .colorsSpent => true
-  | .manaValueSpent => true
-  | .timesPaid which => which.named
-  | .readback which _ => which.named
-  | .chosenPlayer which => which.named
-
 /-- Whether paying the named cost chooses a player for the linked ability to read back
 [CR#607.2d,702.174a]. Only a keyword's cost declares one; "the additional cost" and "the
 alternative cost" name no declared choice. -/
 def PaidCostName.choosesPlayer : PaidCostName → Bool
   | .byKeyword kw | .byNthKeyword _ kw => (keywordFactsFor kw).elim false (·.costChoosesPlayer)
   | .theAlternative | .theAdditional => false
-
-/-- The cost a chosen-player facet names chooses a player when it is paid; a facet naming no
-registered cost is refused by `PaidFacet.named` alone. -/
-def PaidFacet.choiceFound : PaidFacet → Bool
-  | .chosenPlayer which => !which.named || which.choosesPlayer
-  | _ => true
-
-/-- What a facet reads: a player, or an amount. -/
-def PaidFacet.readsPlayer : PaidFacet → Bool
-  | .chosenPlayer _ => true
-  | _ => false
 
 def AbilityClass.known : AbilityClass → Bool
   | .keyword k => knownKeyword k

@@ -1053,7 +1053,6 @@ def Reach.kind : Reach → Kind
   | .word w => w.kind
   | .unionHalf w => w.kind
   | .verbed _ (some w) _ => w.kind
-  | .thatTurn => .turnRef
   | _ => .object
 
 def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb
@@ -1109,7 +1108,6 @@ def reaches (r : Reach) (pl : Plurality) (b : Binding) : Bool :=
     | .object ty zn (some st) og _ _ =>
       pl.isOne == b.plur.isOne && stampWordOk v w st ty zn og
     | _ => false
-  | .thatTurn => Kind.lte .turnRef b.kind && pl.isOne == b.plur.isOne
 
 /-- How many antecedents a read resolves to; a read is sound at exactly one. -/
 def countReach (r : Reach) (pl : Plurality) : Bindings → Nat

@@ -38,7 +38,7 @@ def castPart : Ability := when (.casts .you (some thisSpell) none) (draw (.lit 1
 
 /-- "At the beginning of your end step, draw a card." -/
 def endStepPart : Ability :=
-  when (.beginningOf .the .endStep (.byPlayer .you)) (draw (.lit 1))
+  when (.beginningOf .endStep (some .you) (.each none)) (draw (.lit 1))
 
 /-- "You may cast this card by paying {2} rather than its mana cost." -/
 def castPermission : Ability :=

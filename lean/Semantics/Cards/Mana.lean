@@ -87,7 +87,7 @@ def cullingScales : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Culling Scales", cost := some [generic 3], types := [.artifact],
       text :=
-        [ at_ (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+        [ at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (destroy (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land,
               Primitives.Predicate.superlative .min (.stat .manaValue) (Primitives.Predicate.and [permanent, Primitives.Predicate.not land])]))) ] } }
 
@@ -119,7 +119,7 @@ def tocasiasWelcome : Spelled := spelled <| .singleFaced
         [ triggeredOnlyOnce
             (Primitives.GameEvent.enters (counted (atLeast 1) (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
                                                  Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)])) none)
-            Primitives.UsageLimit.oncePerTurn (Primitives.Instruction.draw (.lit 1)) ] } }
+            oncePerTurn (Primitives.Instruction.draw (.lit 1)) ] } }
 
 def duskLegionDuelist : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -127,7 +127,7 @@ def duskLegionDuelist : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Vampire", creatureType "Soldier"],
       text :=
         [ keyword (.named "vigilance"),
-          triggeredOnlyOnce (counterEvent .put p1p1Counter .many thisCreature) Primitives.UsageLimit.oncePerTurn
+          triggeredOnlyOnce (counterEvent .put p1p1Counter .many thisCreature) oncePerTurn
             (Primitives.Instruction.draw (.lit 1)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -356,7 +356,7 @@ def elementalResonance : Spelled := spelled <| .singleFaced
       types := [.enchantment], subtypes := [enchantmentType "Aura"],
       text :=
         [ keywordSubject (.named "enchant") permanent,
-          at_ (Primitives.GameEvent.beginningOf .the .firstMain (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          at_ (Primitives.GameEvent.beginningOf .firstMain (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.asPrintedCost (Primitives.NounPhrase.attachHost .enchanted .permanent)) []) ] } }
 
 /-- Steelswarm Operator -/
@@ -445,7 +445,7 @@ def theFlux : Spelled := spelled <| .singleFaced
                 Primitives.Instruction.establish
                   (mayPlayDeed (.action "play") Primitives.NounPhrase.you (that .card) none
                     (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
-                  (some Primitives.Duration.thisTurn) ]),
+                  (some thisTurn) ]),
           when (Primitives.GameEvent.chapterMark [6]) (Primitives.Instruction.addMana (.lit 6) (Primitives.ProducedMana.runs [[.of .red]]) []) ] } }
 
 def dragonstormGlobe : Spelled := spelled <| .singleFaced
@@ -499,7 +499,7 @@ def shiningShoal : Spelled := spelled <| .singleFaced
               (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice source))
                 (Primitives.DamageScope.toRecipient (youAnd (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))))
                 (Primitives.DamageOp.redirect (Primitives.PreventCut.shield (Primitives.Amount.letter .x)) (target anyTarget)) .repeatedly)
-              (some Primitives.Duration.thisTurn)) ] } }
+              (some thisTurn)) ] } }
 
 def disruptingShoal : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -705,7 +705,7 @@ theorem okCausticBroncoLoss : Instruction.check [] causticBroncoLoss = [] := by 
 def darkFortressMana : Ability :=
   activatedOnlyIf Primitives.Cost.tapSymbol (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .black], [.of .red]]) [])
     (Primitives.Condition.or [ happened (Primitives.GameEvent.enters (relative .object) none)
-      thisLand .thisTurn,
+      thisLand soFarThisTurn,
            exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]) ])
 theorem okDarkFortressMana : Ability.check [] darkFortressMana = [] := by decide
 
@@ -834,10 +834,10 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           keyword (.named "vigilance"),
-          triggeredIf (Primitives.GameEvent.beginningOf .the .endStep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          triggeredIf (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Condition.not (happened (Primitives.GameEvent.casts (relative .player) (some
               (a spell)) (some (Primitives.EventSource.zones [handOf Primitives.NounPhrase.you])))
-              Primitives.NounPhrase.you .thisTurn))
+              Primitives.NounPhrase.you soFarThisTurn))
             (Primitives.Instruction.draw (.lit 1)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -905,9 +905,8 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
                 revealCards (theVerbed (.action "search") .one),
                 move (theVerbed (.action "search") .one) hand,
-                Primitives.Instruction.doIf (happened (Primitives.GameEvent.verbedEvent (some
-                  (relative .player)) (.action "search") none none (some yourLibrary))
-                  Primitives.NounPhrase.you .thisWay) shuffle
+                Primitives.Instruction.doIf (happenedThisWay (Primitives.GameEvent.verbedEvent (some
+                  (relative .player)) (.action "search") none none (some yourLibrary)) Primitives.NounPhrase.you) shuffle
                     none ]) ],
       power := stat 3, toughness := stat 2 } }
 
@@ -958,7 +957,7 @@ def shelteredValley : Spelled := spelled <| .singleFaced
                                Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])),
                 putOntoBattlefield Primitives.NounPhrase.this ])
             .repeatedly none),
-          triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+          triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .atMost (.lit 3))
             (gainLife (.lit 1)),
           activated Primitives.Cost.tapSymbol (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.colorless]]) []) ] } }
@@ -973,7 +972,7 @@ theorem okSoulShatter : Instruction.check [] soulShatter = [] := by decide
 
 /-- Padeem, Consul of Innovation -/
 def padeemConsulOfInnovation : Ability :=
-  triggeredIf (Primitives.GameEvent.beginningOf .the .upkeep (Primitives.HeaderPossessor.byPlayer Primitives.NounPhrase.you))
+  triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Condition.matches
       (the (Primitives.Predicate.and [artifact,
                   Primitives.Predicate.superlative .max (.stat .manaValue) (Primitives.Predicate.and [artifact, Primitives.Predicate.inZone battlefield])]))
@@ -1156,7 +1155,7 @@ def tolaria : Spelled := spelled <| .singleFaced
               (Primitives.StaticSpec.abilityLoss (target creature)
                 [Primitives.AbilityLost.written (keyword (.named "banding")), Primitives.AbilityLost.term bandsWithOtherAbilities])
               (some untilEndOfTurn))
-            (Primitives.Timing.duringPart .upkeep none) ] } }
+            (duringPart .upkeep none) ] } }
 
 /-- Psychic Vortex -/
 def psychicVortexUpkeep : Ability := cumulativeUpkeep (Primitives.Cost.perform (Primitives.Instruction.draw (.lit 1)))
