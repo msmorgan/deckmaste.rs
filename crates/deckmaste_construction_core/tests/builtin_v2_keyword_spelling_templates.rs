@@ -15,11 +15,10 @@ use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 
-/// Keyword actions that still spell only their bare head. Fight waits until
-/// its first creature becomes the performer (`actor`) instead of a
-/// parameter. That needs a performer row for the fight deed in the Lean
-/// checker: ticket `semantics-v2-fight-is-performed-by-the-creature`.
-const PENDING_RULING: &[&str] = &["fight"];
+/// Keyword actions that still spell only their bare head: none. Fight, the
+/// last, spells its parameter now that its first creature is the performer
+/// (`actor`): ticket `semantics-v2-fight-is-performed-by-the-creature`.
+const PENDING_RULING: &[&str] = &[];
 
 const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
     ("activate", "activate"),
@@ -56,7 +55,7 @@ const KEYWORD_ACTION_TEMPLATES: &[(&str, &str)] = &[
         "face a villainous choice — <Param(0)>, or <Param(1)>",
     ),
     ("fateseal", "fateseal <Param(0)>"),
-    ("fight", "fight"),
+    ("fight", "fight <Param(0)>"),
     ("forage", "forage"),
     ("goad", "goad <Param(0)>"),
     ("harness", "harness <Param(0)>"),

@@ -574,3 +574,9 @@ whose facts row names no performer ("fight" [CR#701.14a]) records none, and
 is refused when a handoff names one" (semantics-v2 ADR §7, amendment
 2026-10-06). Reconciling that with the handoff ruling is owed before fight's
 template.
+Resolved 2026-10-08 (`semantics-v2-fight-is-performed-by-the-creature`):
+fight's facts row names a permanent performer, as the rule instructs "a
+creature to fight another creature" [CR#701.14a]; fight is
+`params: [Subject]` with an `actor` body, its template is
+`fight <Param(0)>`, and Prey Upon is
+`act(target(creatureYouControl), fight(target(creatureYouDontControl)))`.

@@ -1,6 +1,7 @@
 // "Target creature you control fights target creature you don't control."
-// [CR#701.14a]: each target is selected once, though the fight body mentions
-// each creature three times.
+// [CR#701.14a]: the rules instruct the first creature, so the spell hands it
+// the action; each target is selected once, though the fight body mentions
+// the other creature three times.
 SingleFaced(face: (
     characteristics: (
         name: "Prey Upon",
@@ -8,7 +9,7 @@ SingleFaced(face: (
         types: [Sorcery],
         text: [
             spell(
-                fight(target(creatureYouControl), target(creatureYouDontControl)),
+                act(target(creatureYouControl), fight(target(creatureYouDontControl))),
             ),
         ],
     ),
