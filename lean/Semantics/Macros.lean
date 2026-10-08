@@ -473,14 +473,15 @@ semantic_macro searchLibraryOrGraveyard (p : Predicate) : Instruction :=
   .search (.someZones (some .you) [.library, .graveyard]) (exactly 1) p
 /-- "reveal their hand" -/
 semantic_macro revealTheirHand : Instruction := .expose .reveal (.zone (handOf they))
-/-- Fight captures each selected creature once and guards the whole simultaneous event
-[CR#701.14a..701.14c]. -/
-semantic_macro fight (left right : capture NounPhrase) : Instruction :=
-  .doIf (.and [.matches left (.and [creature, permanent]),
-              .matches right (.and [creature, permanent])])
-    (.enact (.action "fight") (.simultaneously [
-      .dealDamage left (.statOf (.stat .power) left) right,
-      .dealDamage right (.statOf (.stat .power) right) left])) none
+/-- "<creature> fights <creature>" [CR#701.14a]: the rules instruct the first creature, so a card
+hands the deed to it (`act <first> (fight <second>)`) and `actor` in the body is the fighting
+permanent; the other creature is the parameter, captured once. Mirrors `fight.ron`: that a
+creature no longer on the battlefield deals no fight damage [CR#701.14b] is the rules' to apply,
+not a guard here. -/
+semantic_macro fight (other : capture NounPhrase) : Instruction :=
+  .enact (.action "fight") (.simultaneously [
+    .dealDamage .actor (.statOf (.stat .power) .actor) other,
+    .dealDamage other (.statOf (.stat .power) other) .actor])
 
 /-- The replacement's application, rather than installation of a new shield
 [CR#701.19b,701.19c]. -/

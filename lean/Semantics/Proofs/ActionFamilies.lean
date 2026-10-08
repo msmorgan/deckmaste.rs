@@ -183,10 +183,10 @@ theorem nestedCaptureUpdatesAnInlineOuterOperand :
 
 theorem fightAcceptsAnExistingReference :
     Instruction.check (nomIntro [] (target creature))
-      (fight it (target creature)) = [] := by decide
+      (act it (fight (target creature))) = [] := by decide
 
 theorem fightAcceptsItsOwnSource :
-    Instruction.check [] (fight thisCreature thisCreature) = [] := by decide
+    Instruction.check [] (act thisCreature (fight thisCreature)) = [] := by decide
 
 theorem regenerationApplicationChecks :
     Instruction.check [] (regenerationApplication thisCreature) = [] := by decide
@@ -262,8 +262,8 @@ theorem conditionalForgettingKeepsTheOperandScope :
       .move (operand 0) .wherever graveyard []])) = [] := by decide
 
 theorem capturePreservesTheResolvedPermanentView :
-    Instruction.check [] (fight
-      (.resolvedPermanent (target (.and [spell, creature]))) (target creature)) = [] := by decide
+    Instruction.check [] (act
+      (.resolvedPermanent (target (.and [spell, creature]))) (fight (target creature))) = [] := by decide
 
 
 theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :

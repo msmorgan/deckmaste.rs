@@ -54,7 +54,7 @@ theorem nestedMacrosForwardTheCapturedValue :
     (nestedDamage .thatMuch).check [outcomeB .damageDealt] = [] := by decide
 
 theorem identicalArgumentsRemainSeparateSelections :
-    countOnes .object ((fight (target creature) (target creature)).intro []) = 2 := by decide
+    countOnes .object ((act (target creature) (fight (target creature))).intro []) = 2 := by decide
 
 private semantic_macro unusedSubject (chosen : capture NounPhrase) : Instruction :=
   .draw (.lit 1)
@@ -323,7 +323,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Forged context witness", types := [.sorcery],
       text := [Primitives.Ability.spell none
-        (@fight ⟨1⟩ (target creature) (target creature))] } }
+        (act (target creature) (@fight ⟨1⟩ (target creature)))] } }
 
 /-- error: Semantic parameter outside has no macro-authoring evidence -/
 #guard_msgs in
@@ -450,8 +450,8 @@ example : Spelled := spelled <| .singleFaced
       text := [Primitives.Ability.spell none (ordinaryFunctionConfig ordinarySubjectIdentity)] } }
 
 private def applyWithForgedContext
-    (body : MacroContext → NounPhrase → NounPhrase → Instruction)
-    (left right : NounPhrase) : Instruction := body ⟨999⟩ left right
+    (body : MacroContext → NounPhrase → Instruction)
+    (left right : NounPhrase) : Instruction := act left (body ⟨999⟩ right)
 
 /-- error: Macro Semantics.Macros.fight uses a lexical context outside its authoring scope -/
 #guard_msgs in

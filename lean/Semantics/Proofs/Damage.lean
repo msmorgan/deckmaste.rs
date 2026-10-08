@@ -14,12 +14,14 @@ namespace Semantics.Proofs.Damage
 
 /-- "Target creature fights target creature." -/
 theorem okFightCreatures :
-    Instruction.check [] (fight (target creature) (target creature)) = [] := by decide
+    Instruction.check [] (act (target creature) (fight (target creature))) = [] := by decide
 
-/-- "Two target creatures fight target creature." -/
+/-- "Target creature fights two target creatures.": the group is the other creature, refused by
+the singular power read and the per-member damage check. Handed the deed, a group performer
+distributes it instead (`BindingIdentity.okFightHandedToEachOfAGroup`). -/
 theorem badFightGroup :
-    Instruction.check [] (fight (.described (.target (exactly 2)) creature) (target creature))
-      = [.singular, .perMember] := by
+    Instruction.check [] (act (target creature) (fight (.described (.target (exactly 2)) creature)))
+      = [.perMember, .singular] := by
   decide
 
 /-- "This deals 2 damage to any target and 1 damage to any other target." -/
@@ -49,7 +51,7 @@ theorem okIt :
 /-- "Target creature fights target creature. Tap it." -/
 theorem badIt :
     Instruction.check []
-      (.sequentially [fight (target creature) (target creature), .setStatus .tapped it])
+      (.sequentially [act (target creature) (fight (target creature)), .setStatus .tapped it])
       = [.anaphor .bare .one 2] := by
   decide
 
@@ -84,8 +86,8 @@ theorem badThemAmbig :
 theorem badInnerAmbig :
     Instruction.check []
       (.sequentially
-        [ fight (target (.and [creature, .hasPossessor .controller anOpponent]))
-            (target (.and [creature, .hasPossessor .controller anOpponent])),
+        [ act (target (.and [creature, .hasPossessor .controller anOpponent]))
+            (fight (target (.and [creature, .hasPossessor .controller anOpponent]))),
           act (that .player) (loseLife (.lit 1)) ]) = [.anaphor (.word .player) .one 2] := by
   decide
 
@@ -101,26 +103,28 @@ theorem badUntapLockGraveyard :
 
 /-- "Target creature you control fights target creature you don't control." -/
 theorem okFightControlledCreatures :
-    Instruction.check [] (fight (target creatureYouControl) (target creatureYouDontControl))
+    Instruction.check [] (act (target creatureYouControl) (fight (target creatureYouDontControl)))
       = [] := by
   decide
 
-/-- "Target creature card in your graveyard fights target creature." -/
+/-- "Target creature card in your graveyard fights target creature.": a card in a graveyard is
+not a permanent and is never handed an instruction [CR#110.1], so the handoff that names the
+fighting creature is refused. -/
 theorem badFightGraveyard :
     Instruction.check []
-      (fight (target (.and [creature, .inZone (graveyardOf .you)])) (target creature))
-      = [.zoneFits, .damageRecipient] := by
+      (act (target (.and [creature, .inZone (graveyardOf .you)])) (fight (target creature)))
+      = [.handoffPerformer] := by
   decide
 
 /-- "Target land fights target creature you don't control.": a land an effect has made a
 creature fights, and one that is no longer a creature simply does not [CR#205.1b,701.14b]. -/
 theorem okFightLand :
-    Instruction.check [] (fight (target land) (target creatureYouDontControl)) = [] := by
+    Instruction.check [] (act (target land) (fight (target creatureYouDontControl))) = [] := by
   decide
 
 /-- "Target permanent fights target creature." [CR#701.14a] -/
 theorem okFightPermanentUnderCreatureGuard :
-    Instruction.check [] (fight (target permanent) (target creature))
+    Instruction.check [] (act (target permanent) (fight (target creature)))
       = [] := by
   decide
 
@@ -346,7 +350,7 @@ theorem badRestDisposedTwice :
 theorem badRestOverTwoAnnouncements :
     Instruction.check []
       (.sequentially
-        [ fight (target creatureYouControl) (target creatureYouDontControl),
+        [ act (target creatureYouControl) (fight (target creatureYouDontControl)),
           move (theRest .object) graveyard ]) = [.theRestFits .object] := by
   decide
 
