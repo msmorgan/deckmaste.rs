@@ -333,7 +333,12 @@ mimicked.
   `definitionNamed`, `definitionScoped`, `amountParameter`, `lexicalScope`
   and `bindingless`. (Ruling, 2026-10-06, owner: "what I truly care about is
   that anaphora and other backreferences resolve; other concerns keep
-  accruing by accident".)
+  accruing by accident".) (Note, 2026-10-08, `lean-checker-sweep-game-rules`:
+  consequence (d) was put to the owner as Q42 when the last bucket was swept.
+  No answer had arrived when the sweep landed, so the fourteen card-frame
+  rules, `cardLine` through `prototypeFrame`, stay under the default "may
+  survive", pending that call. Of the bucket's other 29 refusals the sweep
+  retired 21 and kept 8 as kind, plurality or term shape.)
 - **A macro's referent parameter is bound at its first mention; later
   mentions refer back.** A referent parameter (`Subject`, `NounPhrase`) of a
   registry macro is introduced by the body's first mention of it; every later

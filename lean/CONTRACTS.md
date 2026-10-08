@@ -34,8 +34,26 @@ deeds a permission, a bound, an "as though" or a play rider goes with; an empty
 mana run is refused as an empty list (`nonEmpty`), a term shape. The fifteenth,
 `deonticPatientOk`, stays narrowed to references and kinds: a counterpart is not
 the subject read back, is of a kind the deed's other role takes, and a
-complement names one of the rule's deeds once. For the game-rule bucket, until
-its sweep lands the sections below still describe what the checker does. Zone state on bindings stays, because references resolve
+complement names one of the rule's deeds once. The other game-rule bucket is
+retired (`lean-checker-sweep-game-rules`, 2026-10-08): 21 of its 43 refusals go,
+so the checker no longer asks whether a deed rides, whether fateseal opens an
+opponent's library, whether a deed's row admits the handed performer (the
+handoff's kind is still checked, `kindMismatch`), whether a static ability, a
+trigger header, an event or a rules row targets, whether a door is unlocked by
+name, whether an exchange names one value twice, whether an ability can be
+granted, granted to that subject, carved out of a retention or established as a
+clause, whether a characteristic edit fits its subject, op and zone, whether a
+shield's use fits, whether a designation is one an instruction confers, or what
+a token's or an emblem's types, power and toughness, subtypes, abilities and
+qualities must be. Their term shapes stay under existing constructors: an empty
+edit list, emblem or color list is `nonEmpty`, an edit that adds or removes an
+empty type line is `lineNonEmpty`, a list naming a value twice is `distinct`, and
+an edit's chosen quality is `qualityRead`. Eight stay as kind, plurality or term
+shape: `designationScope` (a designation's holder sort), `facesFit`,
+`manaSymbolOk`, `twoParties`, and the registry and table shape checks
+`tokenNamed`, `definitionHolder`, `definitionNamed` and `definitionScoped`. The
+fourteen card-frame rules (`cardLine` through `prototypeFrame`) are kept pending
+the owner's call (§7 ruling 2026-10-06, consequence (d)). Zone state on bindings stays, because references resolve
 on it. On the question of
 scope this supersedes "rules correctness" in the paragraph above; the rest of
 that paragraph stands.
@@ -265,22 +283,23 @@ drops that binding with the frame (`leaveHandoff`), so a handoff to `this`
 publishes what a handoff to `you` does: only the body's mentions.
 
 An enacted deed's performer (`enactPerformer`: the group a handoff hands it,
-else the actor where its row names a performer) is checked against its row's
-agent kind (`enactAgentOk`, `deedAgentKind`). A deed whose row names no
-performer ("fight" [CR#701.14a]) records none written with no handoff, and is
-refused `enactAgentOk` as the one instruction a handoff hands (`handedOne`), to
-"you" included: explore, endure, adapt, harness and
+else the actor where its row names a performer) is checked at its row's agent
+kind (`deedAgentKind`, refused `kindMismatch`). A deed whose row names no
+performer ("fight" [CR#701.14a]) records none written with no handoff; that a
+handoff may not hand it one is a game rule the checker no longer asserts
+(`enactAgentOk`, retired by `lean-checker-sweep-game-rules`). Explore, endure, adapt, harness and
 monstrosity are performed by a permanent [CR#701.44a,701.63a], the other
 wrapped keyword actions by a player. A permanent-performed deed whose
 performer is the controller, written with no handoff to a permanent (printed
 "Adapt N" [CR#701.46a]), is performed by the source permanent
 (`enactDefaultsToThis`): its body is checked in a handoff to it, so `actor`
 there is "this permanent". Inside a handoff to another player there is no such
-default, and the deed is refused. An event's performer is written in the same
+default, and the player is refused at the deed's agent kind. An event's performer is written in the same
 kind (`deedAgentKind`): "whenever a creature you control explores".
 
-Rules that ask whether a phrase is the controller read `actor` in its handoff:
-`actorView` and `isYouIn` for the self-exchange and opponent's-library checks.
+Rules that ask whether a phrase is the controller read `actor` in its handoff
+(`actorView`, `isYouIn`). The self-exchange and opponent's-library checks that
+read them are retired (`lean-checker-sweep-game-rules`).
 A cost may hand its instruction to another player, and its handoff twin gave the
 same refusals as the explicit-agent spelling while that existed. Who pays a cost
 (the retired `payAgrees`, `costPaidByYou` and `keywordCostPaidByYou`) is not
@@ -652,7 +671,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `HeaderPossessor` | `HeaderPossessor.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `TriggerWindow` | Merged into `Timing.duringPart`; `Timing.check` checks the possessor's references. Which turn parts and possessors a window admits is not checked (`lean-checker-sweep-timing`). |
 | `Timing` | `Timing.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
-| `AltEvent` | `headerEventCheck` checks each alternative event for header nontargeting and valid status. The old header-word index is gone; the event determines its own event class. |
+| `AltEvent` | `GameEvent.check` checks each alternative event. The old header-word index is gone; the event determines its own event class. Header nontargeting is retired by `lean-checker-sweep-game-rules` (§7 charter ruling 2026-10-06). |
 | `Concurrent` | `Concurrent.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 | `JoinedHeader` | `JoinedHeader.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 
@@ -671,9 +690,9 @@ by exact-refusal theorems; it is not an authorable term.
 | `Phrasal` | `Kind.phrasal` at copying, iteration and noun consumers. |
 | `KnownKeyword` | `knownKeyword`, `KeywordTerm.known`, and `keywordParamFits` at keyword consumers. |
 | `BasicLandType` | The old `basicLandLine` macro has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
-| `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; ordinary characteristic subtype validation remains `subsFitLine`. |
+| `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; a printed face's subtype validation remains `subsFitLine` (the card frame). A token's or an edit's subtypes are not checked against its types (`lean-checker-sweep-game-rules`). |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `Delta Amount` consumers check the carried amount. |
-| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Instruction.gainDesignation` checks the designation's own row — `DesignationLabel.checked` for an effectful designation, plus its scope and holder. |
+| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Instruction.gainDesignation` checks the designation's own row: its scope and holder. Whether an instruction may confer it (the row's `effectful`) is not checked (`lean-checker-sweep-game-rules`). |
 | `DesignationHolder` | `designationHolderOk` and the declared designation scope/holder checks at designation consumers. |
 | `AxesAt` | `axesAt` in `Predicate.check` requires a nonempty list whose axes all have the expected scope. |
 | `StatusVal` | `Status.category` derives the category from the status. No separate category argument can disagree; consumers retain `Status.markable` and status-holder checks. |
@@ -700,11 +719,17 @@ by exact-refusal theorems; it is not an authorable term.
 `StaticSpec.characteristicChange` and `CopyExcept.edits` carry the same typed
 `CharacteristicEdit` list. `TypeLineChanges` uses optional axes: `none` leaves
 an axis unchanged, while `some []` explicitly clears it under `sets`. Add and
-remove operations require values. Type and subtype writes in one ordinary
-edit block share host evidence, independent of their order. Ordinary edit
-validity still reports the aggregate `becomesOk` refusal; copy edits retain
-their separate nonempty-line and canonicality checks. No edit requires its
-subject or source to be on the battlefield (`lean-checker-sweep-zone`).
+remove operations require values. Both lists are checked for term shape only
+(`CharacteristicEdit.shape`): an empty list is `nonEmpty`, a type line that
+writes nothing or adds or removes no value is `lineNonEmpty`, an added or
+removed empty color list is `nonEmpty`, a list naming a value twice is
+`distinct`, and a chosen quality is read as a chosen one (`qualityRead`). Which
+edits fit their subject, op and zone (subtype hosting, a type already held,
+"still a" retention, a name or base stat added or removed, a granted spell
+ability) are game rules the checker does not assert
+(`lean-checker-sweep-game-rules`); the aggregate `becomesOk` refusal is retired.
+No edit requires its subject or source to be on the battlefield
+(`lean-checker-sweep-zone`).
 
 Numeric edits thread a scope local to their block. Other edit payloads read
 the incoming scope; nested written abilities remain closed. The subject of
@@ -793,8 +818,9 @@ must be a declared component of its category whose regime its form admits
   web-slinging and impending declare at casting
   [CR#702.117a,702.137a,702.188a,702.176a]; the rest default off the stack)
   and refuses an entry for a component whose form determines its regime.
-- **The row's `regime`** stays the keyword's own regime, read where it is
-  granted to a spell (`grantSubjectFits`) [CR#113.6]. For a keyword whose
+- **The row's `regime`** stays the keyword's own regime. Where it is granted
+  to a spell [CR#113.6] it was read by `grantSubjectFits`, retired with
+  `grantSubject` by `lean-checker-sweep-game-rules`. For a keyword whose
   definition is declared it is the summary of the components (the first
   stack regime among them, `ComponentFacts.summary`); the generator refuses a
   disagreeing overlay value and `Proofs/Tables`
@@ -949,15 +975,14 @@ Room operations, and exchange remain unchanged in this pass.
 
 A rules table's row supplies its own subject: the scope predicate binds `this`,
 so the row's condition, effect and conferred ability are checked in the empty
-binding context, exactly as a printed face's text is. The scope is not a
-targeting device — a state-based action does not use the stack [CR#704.1] — so
-the state-based row carries the same `nontarget` refusal a static ability
-carries.
+binding context, exactly as a printed face's text is. That a state-based row
+targets nothing [CR#704.1,601.2c] is a game rule the checker no longer asserts:
+the `nontarget` refusal is retired here as on a static ability
+(`lean-checker-sweep-game-rules`).
 
 Two representation boundaries are named rather than hidden. A conferral confers
-an `Ability`, not a separate property type: the grantability read is the one
-`CopyExcept.ability` uses, so a spell ability is refused for a conferral for the
-same reason it is refused for a grant. A damage result names a `CounterKind`,
+an `Ability`, not a separate property type; whether it is one an effect could
+grant (`grantable`) is retired with the grant rules. A damage result names a `CounterKind`,
 and the counter registry's declared holder is what fixes the recipient's kind;
 there is no second registry lookup.
 
