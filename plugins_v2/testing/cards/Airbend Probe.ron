@@ -1,0 +1,13 @@
+// A probe for airbend, quoting no real card: "Airbend target creature." The
+// body's own exile stamps the creature, and its owner may cast it from exile
+// by paying {2} rather than its mana cost [CR#701.65a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Airbend Probe",
+        cost: [1, Blue],
+        types: [Instant],
+        text: [
+            spell(airbend(target(creature))),
+        ],
+    ),
+))

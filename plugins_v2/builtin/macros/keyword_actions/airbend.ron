@@ -1,7 +1,10 @@
 // "Airbend [objects]" [CR#701.65a]: the actor exiles them, and for as
 // long as each exiled card remains exiled its owner may cast it by paying {2}
-// rather than its mana cost. The permission is a continuous deontic clause
-// scoped to the exile, read back off the airbending stamp.
+// rather than its mana cost. The body's own exile moves them, and each later
+// mention reads back by Binding Identity the objects that exile moved (§12.2,
+// first mention binds), with the phrase's own number: "it" for one object,
+// "them" for several. The permission is handed to their owner and lasts while
+// they stay exiled.
 KeywordAction(
     name: "airbend",
     params: [Subject],
@@ -11,15 +14,13 @@ KeywordAction(
         frame_set: Transitive,
     ),
     body: sequentially([
-        move(Param(0), wherever, exileZone),
-        establish(
-            mayPlayDeed(
-                cast,
-                ownerOf(theVerbed(airbend, Many)),
-                theVerbed(airbend, Many),
-                Play(exileZone, None, None, false, PayingInstead(mana([2]))),
+        exile(Param(0)),
+        act(
+            ownerOf(Param(0)),
+            establish(
+                mayCastFrom(Param(0), exileZone, PayingInstead(mana([2]))),
+                forAsLongAs(matches(Param(0), inZone(exileZone))),
             ),
-            forAsLongAs(matches(theVerbed(airbend, Many), inZone(exileZone))),
         ),
     ]),
 )
