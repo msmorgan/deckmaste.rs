@@ -14,22 +14,23 @@ use deckmaste_english_v3::grammar::Summary;
 use deckmaste_english_v3::grammar::Value;
 use deckmaste_english_v3::grammar::Word;
 use deckmaste_lexical::Lexicon;
+use serde::Deserialize;
 use serde::Serialize;
 
 use crate::raw_corpus::digest;
 
 /// Fingerprints include the complete grammatical value, not just its variant.
 /// Debug encoding is diagnostic and versioned by the report's tree identity.
-#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Ord, PartialOrd, Deserialize, Serialize)]
 pub(super) struct NodeIdentity {
-    pub construction: &'static str,
+    pub construction: String,
     pub sha256: String,
 }
 
 impl NodeIdentity {
     pub(super) fn new(reading: &Reading) -> Self {
         Self {
-            construction: reading.construction(),
+            construction: reading.construction().to_owned(),
             sha256: digest(format!("{reading:?}").as_bytes()),
         }
     }
@@ -124,7 +125,7 @@ impl Eq for TracedValue {}
 type BuildKey = (usize, Vec<usize>);
 const MEMO_CAP: usize = 100_000;
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 pub(super) struct MaterializationMetrics {
     pub leaf_requests: usize,
     pub unique_leaves: usize,
@@ -244,7 +245,7 @@ impl Materializer<Summary, State> for Tracing<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(tag = "kind", content = "detail", rename_all = "snake_case")]
 pub(super) enum Issue {
     Parser(String),

@@ -50,6 +50,7 @@ fn args(limit: Option<usize>) -> EnglishV3Args {
         data: "unused.json".into(),
         selection: CorpusSelectionArgs::default(),
         output: Some("unused-report.json".into()),
+        incremental_from: None,
         reading_limit: limit.map(|n| NonZeroUsize::new(n).unwrap()),
         samples_per_face: 2,
         workers: NonZeroUsize::new(2).unwrap(),
@@ -891,4 +892,282 @@ fn readings_digests_are_stable_and_change_only_on_affected_analyses() {
             .chain(&before)
             .all(|face| face.issues.is_empty() && face.readings_sha256.is_some())
     );
+}
+
+fn comparable_faces(faces: &[crate::english_v3::report::FaceReport]) -> serde_json::Value {
+    let mut json = serde_json::to_value(faces).unwrap();
+    for face in json.as_array_mut().unwrap() {
+        for key in [
+            "lexical_wall_ns",
+            "chart_wall_ns",
+            "validation_wall_ns",
+            "thread_cpu_ns",
+        ] {
+            face.as_object_mut().unwrap().remove(key);
+        }
+    }
+    json
+}
+
+fn incremental_snapshot(lexicon: &Lexicon, core: &str) -> super::incremental::Snapshot {
+    super::incremental::Snapshot {
+        sources: std::collections::BTreeMap::from([
+            (
+                "crates/deckmaste_english_v3/src/declarations.rs".into(),
+                "same grammar".into(),
+            ),
+            (
+                "crates/deckmaste_lexical_source/lexicon/core.ron".into(),
+                core.into(),
+            ),
+        ]),
+        lexemes: super::incremental::Snapshot::lexemes(lexicon).unwrap(),
+    }
+}
+
+fn incremental_base(
+    corpus: &SelectedCorpus,
+    lexicon: &Lexicon,
+    args: &EnglishV3Args,
+    snapshot: super::incremental::Snapshot,
+) -> super::incremental::Base {
+    let faces = analyze_cards(
+        &corpus.faces,
+        lexicon,
+        &Grammar::with_lexicon(lexicon),
+        args,
+    )
+    .unwrap();
+    super::incremental::Base {
+        schema_version: super::report::SCHEMA_VERSION,
+        readings_digest_version: super::report::READINGS_DIGEST_VERSION,
+        field: args.field,
+        input_sha256: corpus.snapshot_sha256.clone(),
+        support_filter: crate::raw_corpus::SUPPORT_FILTER.into(),
+        reading_limit: args.reading_limit.map(NonZeroUsize::get),
+        samples_per_face: args.samples_per_face,
+        incremental_snapshot: snapshot,
+        faces,
+    }
+}
+
+#[test]
+fn incremental_combat_landing_equals_full_census_in_both_directions() {
+    let corpus = combat_corpus();
+    let before_lexicon = combat_lexicon_before_landing();
+    let before_snapshot = incremental_snapshot(&before_lexicon, "before combat landing");
+    let after_snapshot = incremental_snapshot(lexicon(), "after combat landing");
+    let mut args = args(None);
+    args.incremental_from = Some("target/english-v3/base.json".into());
+    for (old, current, old_snapshot, current_snapshot) in [
+        (
+            &before_lexicon,
+            lexicon(),
+            &before_snapshot,
+            &after_snapshot,
+        ),
+        (
+            lexicon(),
+            &before_lexicon,
+            &after_snapshot,
+            &before_snapshot,
+        ),
+    ] {
+        let base = incremental_base(&corpus, old, &args, old_snapshot.clone());
+        let grammar = Grammar::with_lexicon(current);
+        let (incremental, mode) = super::incremental::analyze(
+            &corpus,
+            current,
+            &grammar,
+            &args,
+            current_snapshot,
+            Some(base),
+        )
+        .unwrap();
+        let full = analyze_cards(&corpus.faces, current, &grammar, &args).unwrap();
+        assert_eq!(comparable_faces(&incremental), comparable_faces(&full));
+        assert!(mode.used);
+        assert_eq!(
+            mode.affected_lexemes,
+            ["lexeme:turn_part/combat", "vocab:Preposition/During"]
+        );
+        assert_eq!(mode.rechecked_faces.len(), 5);
+        let reused: Vec<_> = incremental
+            .iter()
+            .filter(|face| mode.reused_faces.contains(&face.id))
+            .map(|face| face.name.as_str())
+            .collect();
+        assert_eq!(reused, ["Deep Sight", "Reach Through Mists"]);
+    }
+}
+
+#[test]
+fn grammar_policy_and_incomplete_base_changes_disable_incremental_reuse() {
+    let corpus = combat_corpus();
+    let snapshot = incremental_snapshot(lexicon(), "same lexicon");
+    let mut args = args(None);
+    args.incremental_from = Some("target/english-v3/base.json".into());
+    let grammar = Grammar::with_lexicon(lexicon());
+    let expected = analyze_cards(&corpus.faces, lexicon(), &grammar, &args).unwrap();
+    for scenario in [
+        "grammar", "input", "samples", "limited", "missing", "invalid",
+    ] {
+        let mut base = incremental_base(&corpus, lexicon(), &args, snapshot.clone());
+        match scenario {
+            "grammar" => {
+                base.incremental_snapshot.sources.insert(
+                    "crates/deckmaste_english_v3/src/declarations.rs".into(),
+                    "old grammar".into(),
+                );
+            }
+            "input" => base.input_sha256 = "different snapshot".into(),
+            "samples" => base.samples_per_face += 1,
+            "limited" => base.faces[0].enumeration = Enumeration::Limited,
+            "missing" => {
+                base.faces.pop();
+            }
+            "invalid" => base.faces[0].issues.push(Issue::ConstructionTraversal),
+            _ => unreachable!(),
+        }
+        let (actual, mode) =
+            super::incremental::analyze(&corpus, lexicon(), &grammar, &args, &snapshot, Some(base))
+                .unwrap();
+        assert!(!mode.used, "{scenario}");
+        assert!(mode.fallback_reason.is_some(), "{scenario}");
+        assert!(mode.reused_faces.is_empty(), "{scenario}");
+        assert_eq!(
+            comparable_faces(&actual),
+            comparable_faces(&expected),
+            "{scenario}"
+        );
+    }
+}
+
+#[test]
+fn base_json_roundtrip_and_old_schema_fallback_preserve_the_face_digests() {
+    let corpus = combat_corpus();
+    let mut args = args(None);
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target/english-v3/census-efficiency/tests");
+    std::fs::create_dir_all(&root).unwrap();
+    let directory = tempfile::tempdir_in(root).unwrap();
+    args.output = Some(directory.path().join("base.json"));
+    let grammar = Grammar::with_lexicon(lexicon());
+    let faces = analyze_cards(&corpus.faces, lexicon(), &grammar, &args).unwrap();
+    let expected = comparable_faces(&faces);
+    let snapshot = incremental_snapshot(lexicon(), "same lexicon");
+    let mut report = Report::new(
+        &args,
+        &corpus,
+        "inventory".into(),
+        vec![],
+        faces,
+        Measurements {
+            setup_wall_ns: 0,
+            corpus_wall_ns: 0,
+            host_load: None,
+        },
+    );
+    report.incremental_snapshot = Some(snapshot.clone());
+    write_report(&args, &report, &mut Vec::new()).unwrap();
+    args.incremental_from = args.output.clone();
+    let base = super::incremental::Base::load(args.output.as_ref().unwrap()).unwrap();
+    let (copied, mode) =
+        super::incremental::analyze(&corpus, lexicon(), &grammar, &args, &snapshot, base).unwrap();
+    assert!(mode.used);
+    assert_eq!(mode.reused_faces.len(), corpus.faces.len());
+    assert_eq!(mode.rechecked_faces, Vec::<String>::new());
+    assert_eq!(comparable_faces(&copied), expected);
+    std::fs::write(args.output.as_ref().unwrap(), "{\"schema_version\":5}").unwrap();
+    let old = super::incremental::Base::load(args.output.as_ref().unwrap()).unwrap();
+    let (full, mode) =
+        super::incremental::analyze(&corpus, lexicon(), &grammar, &args, &snapshot, old).unwrap();
+    assert!(!mode.used);
+    assert!(mode.fallback_reason.is_some());
+    assert_eq!(comparable_faces(&full), expected);
+}
+
+#[test]
+fn removed_irregular_forms_recheck_faces_that_have_no_remaining_form() {
+    // Barbarian Class's first sentence, without its reminder text.
+    let text = "If you would roll one or more dice, instead roll that many dice plus one and ignore the lowest roll.";
+    let corpus = selected_corpus(
+        &serde_json::to_vec(&json!({"data": {
+            "Barbarian Class": [card(Some(text), "Legal")],
+            "Reach Through Mists": [card(Some("Draw a card."), "Legal")]
+        }}))
+        .unwrap(),
+    );
+    let mut entries: Vec<_> = lexicon().lexemes().values().cloned().collect();
+    entries
+        .iter_mut()
+        .find(|entry| entry.id == "lexeme:CommonNoun/Die")
+        .unwrap()
+        .forms
+        .retain(|slot| slot.form != deckmaste_lexical::WordForm::Plural);
+    let current = Lexicon::new(entries).unwrap();
+    let old_snapshot = incremental_snapshot(lexicon(), "before irregular form removal");
+    let snapshot = incremental_snapshot(&current, "after irregular form removal");
+    assert!(
+        snapshot.lexemes["lexeme:CommonNoun/Die"]
+            .surfaces
+            .iter()
+            .all(|surface| !text.to_lowercase().contains(&surface.to_lowercase()))
+    );
+    let mut args = args(None);
+    args.incremental_from = Some("target/english-v3/base.json".into());
+    let base = incremental_base(&corpus, lexicon(), &args, old_snapshot);
+    let grammar = Grammar::with_lexicon(&current);
+    let (actual, mode) =
+        super::incremental::analyze(&corpus, &current, &grammar, &args, &snapshot, Some(base))
+            .unwrap();
+    let full = analyze_cards(&corpus.faces, &current, &grammar, &args).unwrap();
+    assert_eq!(comparable_faces(&actual), comparable_faces(&full));
+    assert!(mode.used);
+    assert_eq!(mode.rechecked_faces, [corpus.faces[0].identity.clone()]);
+    assert_eq!(mode.reused_faces, [corpus.faces[1].identity.clone()]);
+    assert!(
+        actual[0]
+            .unknown_words
+            .iter()
+            .any(|word| word.text == "dice")
+    );
+}
+
+#[test]
+fn incremental_form_matching_uses_parser_input_after_reminder_removal() {
+    // Disdainful Stroke, with an inserted reminder as a normalization probe.
+    // The parser input remains its authentic complete Oracle sentence.
+    let text = "Counter target spell with mana (reminder) value 4 or greater.";
+    let corpus = selected_corpus(
+        &serde_json::to_vec(&json!({"data": {
+            "Disdainful Stroke": [card(Some(text), "Legal")],
+            "Reach Through Mists": [card(Some("Draw a card."), "Legal")]
+        }}))
+        .unwrap(),
+    );
+    let entries = lexicon()
+        .lexemes()
+        .values()
+        .filter(|entry| entry.id != "lexeme:CommonNoun/ManaValue")
+        .cloned();
+    let current = Lexicon::new(entries).unwrap();
+    let old_snapshot = incremental_snapshot(lexicon(), "before multiword form removal");
+    let snapshot = incremental_snapshot(&current, "after multiword form removal");
+    let mut args = args(None);
+    args.incremental_from = Some("target/english-v3/base.json".into());
+    let base = incremental_base(&corpus, lexicon(), &args, old_snapshot);
+    assert_eq!(
+        base.faces[0].analyzed_source,
+        "Counter target spell with mana value 4 or greater."
+    );
+    let grammar = Grammar::with_lexicon(&current);
+    let (actual, mode) =
+        super::incremental::analyze(&corpus, &current, &grammar, &args, &snapshot, Some(base))
+            .unwrap();
+    let full = analyze_cards(&corpus.faces, &current, &grammar, &args).unwrap();
+    assert_eq!(comparable_faces(&actual), comparable_faces(&full));
+    assert!(mode.used);
+    assert_eq!(mode.rechecked_faces, [corpus.faces[0].identity.clone()]);
+    assert_eq!(mode.reused_faces, [corpus.faces[1].identity.clone()]);
 }

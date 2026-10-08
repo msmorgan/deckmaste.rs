@@ -89,7 +89,7 @@ struct ProbeReport {
     readings: Vec<InspectedReading>,
     issues: Vec<Issue>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    metrics: Option<BTreeMap<&'static str, usize>>,
+    metrics: Option<BTreeMap<String, usize>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     packed: Option<String>,
 }

@@ -9,6 +9,7 @@ use deckmaste_english_v3::grammar::Reading;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Source;
+use serde::Deserialize;
 use serde::Serialize;
 use sha2::Digest as _;
 
@@ -26,7 +27,7 @@ use crate::raw_corpus::SelectionRequest;
 use crate::raw_corpus::SelectionStatus;
 use crate::raw_corpus::digest;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum Census {
     No,
@@ -35,7 +36,7 @@ pub(super) enum Census {
     Undetermined,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(super) enum Enumeration {
     Complete,
@@ -43,14 +44,14 @@ pub(super) enum Enumeration {
     Failed,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(super) struct UnknownWord {
     pub text: String,
     pub start: usize,
     pub end: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct WordSample {
     value: LexicalReading,
     frame: Option<usize>,
@@ -58,7 +59,7 @@ struct WordSample {
     provenance: Option<Source>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(super) struct Sample {
     total_cost: u64,
     id: String,
@@ -110,7 +111,7 @@ impl Sample {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub(super) struct FaceReport {
     pub id: String,
     pub oracle_id: String,
@@ -132,10 +133,10 @@ pub(super) struct FaceReport {
     pub checked_readings: usize,
     pub exact_readings: Option<usize>,
     pub readings_sha256: Option<String>,
-    pub chart: BTreeMap<&'static str, usize>,
-    pub readings: BTreeMap<&'static str, usize>,
+    pub chart: BTreeMap<String, usize>,
+    pub readings: BTreeMap<String, usize>,
     pub materializations: MaterializationMetrics,
-    pub constructions: BTreeMap<&'static str, usize>,
+    pub constructions: BTreeMap<String, usize>,
     pub issues: Vec<Issue>,
     pub samples: Vec<Sample>,
     pub lexical_wall_ns: u128,
@@ -205,9 +206,9 @@ pub(super) struct Totals {
     exact_readings: Option<usize>,
     thread_cpu_ns: Option<u128>,
     pub checked_text_cpu_ns_per_byte: Option<u128>,
-    chart: BTreeMap<&'static str, usize>,
-    readings: BTreeMap<&'static str, usize>,
-    constructions: BTreeMap<&'static str, usize>,
+    chart: BTreeMap<String, usize>,
+    readings: BTreeMap<String, usize>,
+    constructions: BTreeMap<String, usize>,
 }
 
 impl Totals {
@@ -284,6 +285,10 @@ pub(super) struct Report {
     samples_per_face: usize,
     unmapped_sources: Vec<String>,
     pub workers: usize,
+    pub incremental_snapshot: Option<super::incremental::Snapshot>,
+    #[serde(flatten)]
+    pub incremental: super::incremental::Incremental,
+    measurement_scope: &'static str,
     #[serde(flatten)]
     pub measurements: Measurements,
     pub totals: Totals,
@@ -349,7 +354,7 @@ impl Report {
             .and_then(|out| String::from_utf8(out.stdout).ok())
             .map(|text| text.trim().to_owned());
         Self {
-            schema_version: 6,
+            schema_version: SCHEMA_VERSION,
             field: args.field,
             input: args.data.clone(),
             input_sha256: corpus.snapshot_sha256.clone(),
@@ -371,12 +376,15 @@ impl Report {
             input_policy: "Strip balanced parenthesized reminder text before analyzing rules text as a Document; Type Lines are unchanged. Reminder contents are not parsed. Missing fields are analyzed as empty with null retained in metadata. raw_text, type_line and source_sha256 retain the original selected field. analyzed_source and analyzed_source_sha256 identify the parser input; lexical offsets and roundtrip validation refer to analyzed_source. source_bytes counts original bytes; checked_text_bytes counts analyzed bytes.",
             validation_scope: "Every counted Reading passes declaration admission, lexical ownership/context, byte-exact realization, and node/word traversal comparison against materialization traces. Independent linguistic correctness and the independently constructed-value roundtrip law are NOT checked by this corpus command.",
             fingerprint_encoding: "SHA-256 of generated Reading Debug; diagnostic identity within this source tree, not a stable serialization contract. Node fingerprints include complete subtrees.",
-            readings_digest_version: 1,
+            readings_digest_version: READINGS_DIGEST_VERSION,
             readings_digest_encoding: "Version 1: each validated Reading key is SHA-256 of its value fingerprint (64 lowercase ASCII hex bytes), followed by ASCII |n= and its node trace encoding, then ASCII |w= and its Word trace encoding. A trace encoding is ASCII canonical if the complete ordered independent trace equals the generated visitor sequence of the root value; otherwise it is ASCII raw followed by the Rust Debug encoding of that complete trace. Canonical traces are completely reconstructible from the root value; mismatching traces remain distinct. The value fingerprint is SHA-256 of generated Reading Debug. Sort unique 32-byte Reading keys lexicographically by unsigned byte; concatenate them as fixed-width raw bytes, with no separators, and SHA-256 the concatenation. Encode the face digest as 64 lowercase ASCII hex characters. The empty set hashes zero bytes. Only complete, issue-free enumeration has a face digest; limited or failed enumeration has null. Debug is diagnostic within the recorded source tree, not a cross-version grammatical serialization contract.",
             reading_limit: args.reading_limit.map(std::num::NonZeroUsize::get),
             samples_per_face: args.samples_per_face,
             unmapped_sources,
             workers: args.workers.get(),
+            incremental_snapshot: None,
+            incremental: super::incremental::Incremental::default(),
+            measurement_scope: "setup_wall_ns and corpus_wall_ns measure this invocation. In incremental output, per-face chart/enumeration/materialization counters and timing/CPU telemetry for reused_faces are copied from the base census; aggregate face counters and CPU totals combine those historical observations with rechecked_faces. They are not measurements of this invocation's work.",
             measurements,
             totals: Totals::new(&faces, args.field),
             residual_groups,
@@ -386,8 +394,11 @@ impl Report {
     }
 }
 
-pub(super) fn chart_metrics(m: Metrics) -> BTreeMap<&'static str, usize> {
-    BTreeMap::from([
+pub(super) const SCHEMA_VERSION: usize = 7;
+pub(super) const READINGS_DIGEST_VERSION: usize = 1;
+
+pub(super) fn chart_metrics(m: Metrics) -> BTreeMap<String, usize> {
+    [
         ("lexical_alternatives", m.lexical_alternatives),
         ("lexical_projections", m.lexical_projections),
         ("items", m.items),
@@ -398,11 +409,14 @@ pub(super) fn chart_metrics(m: Metrics) -> BTreeMap<&'static str, usize> {
         ("families", m.families),
         ("completion_work", m.completion_work),
         ("scan_work", m.scan_work),
-    ])
+    ]
+    .into_iter()
+    .map(|(key, count)| (key.to_owned(), count))
+    .collect()
 }
 
-pub(super) fn reading_metrics(m: ReadingMetrics) -> BTreeMap<&'static str, usize> {
-    BTreeMap::from([
+pub(super) fn reading_metrics(m: ReadingMetrics) -> BTreeMap<String, usize> {
+    [
         ("requests", m.requests),
         ("derivations", m.derivations),
         ("readings", m.readings),
@@ -410,7 +424,10 @@ pub(super) fn reading_metrics(m: ReadingMetrics) -> BTreeMap<&'static str, usize
         ("cyclic_derivations", m.cyclic_derivations),
         ("internal_failures", m.internal_failures),
         ("builds", m.builds),
-    ])
+    ]
+    .into_iter()
+    .map(|(key, count)| (key.to_owned(), count))
+    .collect()
 }
 
 pub(super) fn host_load() -> Option<[f64; 3]> {

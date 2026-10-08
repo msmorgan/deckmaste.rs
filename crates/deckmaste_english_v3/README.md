@@ -35,8 +35,8 @@ reporting them.
 
 ```sh
 cargo xtask english-v3 --data data/scryfall/oracle-cards.jsonl \
-  --card-name "Lightning Bolt" --export-subset /tmp/oracle-subset.jsonl \
-  --output /tmp/english-v3-report.json --workers 1
+  --card-name "Lightning Bolt" --export-subset target/english-v3/oracle-subset.jsonl \
+  --output target/english-v3/report.json --workers 6
 ```
 
 The command requires an explicit face selector or `--all`, applies that
@@ -54,12 +54,17 @@ claiming uniqueness or an exact total before exhaustion. `--samples-per-face N`
 limits stored trees without limiting validation. Each counted Reading passes
 admission, exact realization and both traversal checks against materialization
 traces. Construction traversal compares complete structural values directly;
-SHA-256 fingerprints are diagnostic sample identities, not the traversal gate.
+SHA-256 fingerprints identify samples and census Reading sets; traversal still
+compares complete values. Census enumeration deduplicates by a 32-byte digest
+instead of retaining every AST and trace. The ordinary parser API retains exact
+value equality. Materialization and declaration-admission memos clear at
+100,000 entries; eviction only causes recomputation.
 Pure materializations share immutable values for an identical production,
 ordered child tuple. Generated materialization consumes no Summary or State;
 the lexical leaf key retains the complete Word, including frame and countability
 choices. The per-face `materializations` counters
-separate requests from unique leaves/builds; the ordinary `readings.builds`
+separate requests from memo misses (the `unique_leaves`/`unique_builds` fields,
+which may count a value again after eviction); the ordinary `readings.builds`
 counter still counts all build requests. Every enumerated Reading is checked,
 including roots combining shared children. This does not count forest paths in
 place of enumerating them.
@@ -77,6 +82,27 @@ The JSON report includes provenance, lexical gaps, census, samples,
 parser metrics, selection provenance, snapshot hashes and timings, and is written before validation errors fail the
 command. Linguistic correctness and independently constructed-value roundtrips
 require separate evidence.
+
+Each face's `readings_sha256` hashes its sorted, unique, fixed-width Reading
+keys. `readings_digest_version` and `readings_digest_encoding` specify the exact
+encoding. Complete, issue-free faces have a digest, including the empty Reading
+set; limited or failed enumeration has null. The digest is diagnostic under the
+recorded tree's generated Debug encoding.
+
+For lexical edits, add `--incremental-from target/english-v3/base.json` to the
+same census command. A compatible schema-7 base records source hashes plus each
+Lexeme's fingerprint and complete Word Forms. Changes to `core.ron`,
+`verbs.ron` or `vocabulary.rs` select faces containing old or new affected forms,
+using conservative case-folded substrings of the recorded parser input so bound
+and multiword forms, including those joined by reminder removal, are included. Every selected face is fully checked; other face results are copied.
+The output records `incremental`, `base_census`, affected Lexemes/forms, and
+rechecked/reused identities. Copied counters and timing/CPU telemetry retain
+their base provenance; `measurement_scope` distinguishes them from this run's
+wall time. Changes to `declarations.rs`, runtime sources, dependencies, input,
+field, support filter or enumeration policy disable reuse. Old, incomplete or
+invalid bases also fall back to checking all selected faces. An incremental
+report supports iteration; the landing authority remains one complete `--all`
+census.
 
 Stored samples rank by total Construction Cost, then by their fingerprint for
 deterministic ties. Each Construction defaults to cost 1; a declaration can

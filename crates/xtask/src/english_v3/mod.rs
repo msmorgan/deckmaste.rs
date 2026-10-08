@@ -1,5 +1,6 @@
 //! Raw supported-corpus census for the generated v3 grammar.
 
+mod incremental;
 mod probe;
 mod report;
 mod validation;
@@ -26,6 +27,7 @@ use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_english_v3::parse;
 use deckmaste_lexical::Lexicon;
 use rayon::prelude::*;
+use serde::Deserialize;
 use serde::Serialize;
 
 use crate::english_v3::report::Census;
@@ -42,7 +44,7 @@ use crate::raw_corpus::CorpusSelectionArgs;
 use crate::raw_corpus::SelectedFace;
 use crate::raw_corpus::digest;
 
-#[derive(Debug, Clone, Copy, Serialize, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceField {
     Text,
@@ -81,6 +83,10 @@ pub struct EnglishV3Args {
     /// Destination for the reproducible face census and diagnostics.
     #[arg(long, required = true)]
     pub output: Option<PathBuf>,
+    /// Reuse a complete census for lexicon-only changes; incompatible bases
+    /// or changes to grammar/runtime sources fall back to checking all selected faces.
+    #[arg(long)]
+    pub incremental_from: Option<PathBuf>,
     /// Cap candidate requests per face. Omit for a complete census.
     #[arg(long)]
     pub reading_limit: Option<NonZeroUsize>,
@@ -107,13 +113,21 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
     let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;
     let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&lexicon);
     let grammar = environment.grammar();
-    let setup_ns = started.elapsed().as_nanos();
     let inventory_sha256 = digest(&serde_json::to_vec(lexicon.lexemes())?);
+    let snapshot = incremental::Snapshot::capture(&root, &lexicon)?;
+    let base = args
+        .incremental_from
+        .as_deref()
+        .map(incremental::Base::load)
+        .transpose()?
+        .flatten();
+    let setup_ns = started.elapsed().as_nanos();
     let load = report::host_load();
     let started = Instant::now();
-    let faces = analyze_cards(&corpus.faces, &lexicon, grammar, args)?;
+    let (faces, incremental) =
+        incremental::analyze(&corpus, &lexicon, grammar, args, &snapshot, base)?;
     let corpus_ns = started.elapsed().as_nanos();
-    let report = Report::new(
+    let mut report = Report::new(
         args,
         &corpus,
         inventory_sha256,
@@ -125,6 +139,8 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
             host_load: load,
         },
     );
+    report.incremental_snapshot = Some(snapshot);
+    report.incremental = incremental;
     write_report(args, &report, output)
 }
 
@@ -160,6 +176,25 @@ fn write_report(args: &EnglishV3Args, report: &Report, output: &mut dyn Write) -
             .checked_text_cpu_ns_per_byte
             .map_or_else(|| "unavailable".into(), |n| n.to_string())
     )?;
+    if report.incremental.used {
+        writeln!(
+            output,
+            "Incremental: {} reused, {} rechecked; base {}",
+            report.incremental.reused_faces.len(),
+            report.incremental.rechecked_faces.len(),
+            report
+                .incremental
+                .base_census
+                .as_ref()
+                .context("incremental base path")?
+                .display()
+        )?;
+    } else if let Some(reason) = &report.incremental.fallback_reason {
+        writeln!(
+            output,
+            "Incremental disabled: {reason}; checked all selected faces"
+        )?;
+    }
     writeln!(output, "Report: {}", destination.display())?;
     ensure!(
         report.totals.issues == 0,
@@ -263,7 +298,10 @@ fn analyze_face(
                         }
                         for node in value.nodes.iter() {
                             if let deckmaste_english_v3::grammar::Value::Reading(node) = &**node {
-                                *result.constructions.entry(node.construction()).or_default() += 1;
+                                *result
+                                    .constructions
+                                    .entry(node.construction().to_owned())
+                                    .or_default() += 1;
                             }
                         }
                         if args.samples_per_face != 0 {
@@ -325,12 +363,12 @@ fn analyze_face(
 }
 
 fn sum_metrics<'a>(
-    maps: impl Iterator<Item = &'a BTreeMap<&'static str, usize>>,
-) -> BTreeMap<&'static str, usize> {
+    maps: impl Iterator<Item = &'a BTreeMap<String, usize>>,
+) -> BTreeMap<String, usize> {
     let mut result = BTreeMap::new();
     for map in maps {
-        for (&key, &count) in map {
-            *result.entry(key).or_default() += count;
+        for (key, &count) in map {
+            *result.entry(key.clone()).or_default() += count;
         }
     }
     result
