@@ -111,7 +111,6 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
         }
         Some(probe::Command::Diff(diff_args)) => return diff::run(diff_args, output),
         None => {}
-
     }
     let started = Instant::now();
     let corpus = args.selection.load(&args.data)?;

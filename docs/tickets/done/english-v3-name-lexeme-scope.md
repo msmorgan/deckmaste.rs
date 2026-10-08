@@ -332,7 +332,11 @@ to recon. Both repairs must preserve the intended analysis.
    deckmaste_construction_v3_core -p deckmaste_catalogs -p xtask --tests -- -D
    warnings` passed. Test-function counts (`zntxxpru`): restored 0,
    re-spelled 15, ignored-with-blocker 0, added 7 (the xtask unit test was
-   compiled only), removed 0. No assertion was weakened; no xtask tests or
+   compiled only), removed 0. The Vampire case moved out of
+   `grammatical_type_nouns_remain_distinct_from_exact_catalog_atoms` was
+   re-spelled into
+   `subtype_nouns_are_the_single_owner_for_type_line_and_rules_text`.
+   No assertion was weakened; no xtask tests or
    Lean checks ran. Citation checks: 0 noncompliant and 0 stale (`zntxxpru`).
    After refresh (`yywzqzyt`), `cargo test -p deckmaste_english_v3 --test main`
    with filters `name_lexeme_scope`, `noun_premodifier`,
@@ -340,7 +344,11 @@ to recon. Both repairs must preserve the intended analysis.
    passed (4, 20, 7, 9 respectively); `cargo test -p
    deckmaste_lexical_source` passed (59); `cargo clippy -p
    deckmaste_english_v3 -p deckmaste_lexical_source --tests -- -D warnings`
-   passed. No full English suite or full census was repeated after refresh.
+   passed. These filtered post-refresh English test runs missed the same-as
+   Circu witness, now re-spelled by that ticket's follow-up. No full English
+   suite or full census was repeated after refresh. Formatting and record
+   follow-up (`pqqywyqz`): `cargo fmt -p xtask` completed and
+   `cargo clippy -p xtask --tests -- -D warnings` passed; no census ran.
 6. **Timing** (`zntxxpru`): the one full text census took 193.096144 seconds
    wall time, including setup, with 12 workers.
 7. **Readings total before/after:** the full text census before refresh at `vnzxpvuk` → `zntxxpru`:
