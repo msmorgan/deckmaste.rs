@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-comparative-quantity-determiners, english-v3-comparative-complements, english-v3-postpositive-comparative-determinatives, english-v3-scalar-property-values, english-v3-copular-scalar-location, english-v3-as-long-as, english-v3-instead-replacement, english-v3-cost-scalar-complement, english-v3-remove-from-complement, english-v3-that-degree-quantifiers, english-v3-combat-interval-noun, english-v3-where-variable-clause, english-v3-each-of-partitive, english-v3-causative-have, english-v3-focusing-only, english-v3-once-frequency, english-v3-become-adjectival-passive]
+needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-comparative-quantity-determiners, english-v3-comparative-complements, english-v3-postpositive-comparative-determinatives, english-v3-scalar-property-values, english-v3-copular-scalar-location, english-v3-as-long-as, english-v3-instead-replacement, english-v3-cost-scalar-complement, english-v3-remove-from-complement, english-v3-that-degree-quantifiers, english-v3-combat-interval-noun, english-v3-where-variable-clause, english-v3-each-of-partitive, english-v3-causative-have, english-v3-focusing-only, english-v3-once-frequency, english-v3-become-adjectival-passive, english-v3-existential-there, english-v3-from-preposition-phrase-complement, english-v3-verbless-if-complement, english-v3-purpose-infinitival, english-v3-coordinated-property-values, english-v3-gerund-preposition-complements, english-v3-except-matrix-complements, english-v3-as-though-content-clauses, english-v3-rather-than-complements, english-v3-signed-numeral-cost]
 ---
 # Reconcile systemic residuals before production cutover
 
@@ -48,7 +48,8 @@ before assigning an implementation owner. Concrete starting points are:
 - Shadowborn Demon: existential *there are* host; its NP reads after
   `english-v3-comparative-quantity-determiners`. No implementation ticket owns
   existential *there*; retain this host obligation here for cause audit and
-  bounded-ticket routing.
+  bounded-ticket routing. **Taken over (2026-10-07)** by
+  `english-v3-existential-there`.
 - Ashen-Skin Zubera and Boldwyr Heavyweights: finite preterite in relatives,
   with temporal Adjuncts preserved.
 - Aggravate and Ballista Wielder: reduced passive, not finite preterite.
@@ -201,6 +202,7 @@ its verification belong to the attached feature-economy ticket.
   the missing selected gerund-participial Complement beneath *of* inside the
   compound PP; the nominal Complement route is insufficient. The named census
   is retained with the [Instead post-landing fix](../done/english-v3-instead-replacement.md#post-landing-fix-2026-10-07).
+  **Taken over (2026-10-07)** by `english-v3-gerund-preposition-complements`.
 - Clitic landing follow-up (2026-10-06): perfect *have* with an Object Gap in
   relative clauses ("each spell you've/you have cast this turn", about **56**
   unread faces) is not read as the perfect. Murmuration's clitic sentence has
@@ -313,7 +315,9 @@ is right and this list needs fixing.
   have none. Consume a declared PP argument for From; the current
   PrepositionComplement inventory has only None/NounPhrase. This is the
   inherited PP-complement gap, not a lost face or a verb-frame licence failure.
-- Reduced if-able hosts.
+  **Taken over (2026-10-07)** by `english-v3-from-preposition-phrase-complement`.
+- Reduced if-able hosts. **Taken over (2026-10-07)** by
+  `english-v3-verbless-if-complement`.
 - Bound landwalk stems: the suffix keeps its lexical metadata but needs a
   declared compatible stem class before a generic bound-quality consumer can
   admit it.
@@ -483,8 +487,9 @@ is right and this list needs fixing.
   [landing record](../done/english-v3-library-position.md#landing-record)
   lists every face, its Reading count and the next failing cause. Remaining
   From-among sources on Tracker's Instincts, Pieces of the Puzzle and
-  Kruphix's Insight stay here, along with Winding Way's bare singular type
-  choice. Comma-then reconciliation (2026-10-06): Organ Hoarder is a
+  Kruphix's Insight stayed here (**taken over 2026-10-07** by
+  `english-v3-from-preposition-phrase-complement`); Winding Way's bare
+  singular type choice stays here. Comma-then reconciliation (2026-10-06): Organ Hoarder is a
   gain in `english-v3-then-sequencing` (0 → 9 full-face Readings). Vigean
   Intuition's and Tamiyo, Collector of Tales' comma-then links now read as
   well, but each face remains unread on its bare *Choose a card type.* /
