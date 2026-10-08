@@ -184,7 +184,9 @@ so no lock count was measured.
   faceAVillainousChoice, fight, meld, mill, search, vote). Their params
   match no grammar frame slot for slot (reasons in the Survey). They keep
   the bare head, and the consistency test lists them by name in
-  `PENDING_RULING`. That list fails once any of them is templated.
+  `PENDING_RULING`. That list fails once any of them is templated. Routed
+  to `builtin-v2-keyword-spelling-templates-residue` (planned): it holds
+  each action's target card text and four numbered decisions.
 - **Lexicon export.** The "parameterized-spelling" unmapped marking is
   gone. The export reads `grammar` alone and records nothing for a
   template. `keyword_syntax` stays as the lexicon's parse hint. Proof:

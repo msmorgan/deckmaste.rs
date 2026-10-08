@@ -17,8 +17,8 @@ use deckmaste_construction_core::macro_def::read_builtin_v2;
 
 /// Keyword actions whose template no frame of their grammar derives slot for
 /// slot. Their spelling stays the bare head until a ruling writes the
-/// template (survey, `builtin-v2-keyword-spelling-templates`): the blocker for
-/// each is named in that ticket's Survey section.
+/// template: ticket `builtin-v2-keyword-spelling-templates-residue` names
+/// each one's blocker and the decisions owed.
 const PENDING_RULING: &[&str] = &[
     "behold",
     "create",
