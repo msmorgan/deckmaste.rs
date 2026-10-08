@@ -32,6 +32,7 @@ import Semantics.Proofs.Zone
 import Semantics.Proofs.Actor
 import Semantics.Proofs.GetsBothDeltas
 import Semantics.Proofs.BindingIdentity
+import Semantics.Proofs.Possessor
 
 /-!
 # Semantics.Proofs

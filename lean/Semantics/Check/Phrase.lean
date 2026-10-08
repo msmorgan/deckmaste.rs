@@ -154,8 +154,8 @@ def zoneOr (z : Zone) : Option Zone → Zone
 
 /-- The binding payload for a phrase at kind `k` seeding `ty`. -/
 def joinHalfPayload : Kind → HeadTy → Payload
-  | .object, .sole ty => .object ty none none none none
-  | .object, .join _ _ => .object [] none none none none
+  | .object, .sole ty => .object ty none none none none none
+  | .object, .join _ _ => .object [] none none none none none
   | .player, _ => .player false
   | .quality q, _ => .quality q
   | .join l r, .join a b => .join (joinHalfPayload l a) (joinHalfPayload r b)
@@ -164,7 +164,7 @@ def joinHalfPayload : Kind → HeadTy → Payload
 
 def elemPayload : Kind → Bool → List CardType → Option Zone → Option Stamp → Payload
   | .object, true, _, zn, _ => .ability none zn
-  | .object, false, ty, zn, pv => .object ty zn pv none (some 1)
+  | .object, false, ty, zn, pv => .object ty zn pv none (some 1) none
   | .player, _, _, _, _ => .player false
   | .quality q, _, _, _, _ => .quality q
   | .join l r, ab, ty, zn, pv => .join (elemPayload l ab ty zn pv) (elemPayload r ab ty zn pv)
@@ -774,13 +774,110 @@ def Predicate.negatable : Predicate → Bool
   | .isSource => false
   | _ => true
 
-/-- The binding a described phrase introduces, at kind `k`. -/
-def bindFor (det : Determiner) (plur : Plurality) : Kind → Predicate → Binding
+/-- Whether the phrase is the controller. `actor` is read outside every handoff here; a rule
+that may sit inside a handoff asks `isYouIn`. -/
+def NounPhrase.isYou : NounPhrase → Bool
+  | .pro (.parameter shape) _ _ => shape.isYou
+  | .laterMention _ n => n.isYou
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.isYou
+  | .you | .actor => true
+  | _ => false
+
+/-- `actor` as the player or permanent it denotes at this point, for the context-free structural
+readers (`isYou`, `opponentOnly`, `kind?`): "you" outside every handoff and in `act you`,
+otherwise a parameter view carrying the facts the innermost handoff recorded, its kind among
+them. Other phrases are unchanged. The view
+is for those readers only; it is never checked or resolved against the context. -/
+def NounPhrase.actorView (bs : Bindings) : NounPhrase → NounPhrase
+  | .withBindings scope inputs body => .withBindings scope inputs (body.actorView bs)
+  | .inCaller scope body => .inCaller scope (body.actorView bs)
+  | .firstMention id body => .firstMention id (body.actorView bs)
+  | .laterMention id body => .laterMention id (body.actorView bs)
+  | .actor =>
+    match actorShape? bs with
+    | some shape => if shape.isYou then .you else .pro (.parameter shape) .one .whole
+    | none => .you
+  | n => n
+
+/-- `isYou` with `actor` read in its handoff. -/
+def NounPhrase.isYouIn (bs : Bindings) (n : NounPhrase) : Bool := (n.actorView bs).isYou
+
+mutual
+  /-- Whether a player phrase can only name opponents: "an opponent", "your opponents", "each
+  opponent". -/
+  def Predicate.opponentOnly : Predicate → Bool
+    | .withBindings _ _ body | .inCaller _ body => body.opponentOnly
+    | .opponent => true
+    | .and ps => Predicate.anyOpponentOnly ps
+    | _ => false
+  def Predicate.anyOpponentOnly : List Predicate → Bool
+    | [] => false
+    | p :: ps => p.opponentOnly || Predicate.anyOpponentOnly ps
+end
+
+def NounPhrase.opponentOnly : NounPhrase → Bool
+  | .pro (.parameter shape) _ _ => shape.opponentOnly
+  | .laterMention _ body => body.opponentOnly
+  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.opponentOnly
+  | .described _ p => p.opponentOnly
+  | .playerGroup .yourOpponents => true
+  | .eachOf g => g.opponentOnly
+  | _ => false
+
+/-- The possessor a player phrase fixes, relative to the controller [CR#109.5], with `actor` read
+in its handoff: "you" is the controller, and a phrase that can only name opponents is another
+player. Any other player phrase fixes none. -/
+def NounPhrase.possessorSide (bs : Bindings) (who : NounPhrase) : Option Possessor :=
+  let who := who.actorView bs
+  if who.isYou then some .you else if who.opponentOnly then some .other else none
+
+/-- The possessor a zone expression names: the player whose hand, graveyard or library it is
+[CR#400.1,400.3]. A shared zone has no possessor. -/
+def ZoneExpr.seedPossessor (bs : Bindings) : ZoneExpr → Option Possessor
+  | .withBindings _ _ body | .inCaller _ body => body.seedPossessor bs
+  | .zone z (.possessedBy who) => if z.possessable then who.possessorSide bs else none
+  | .library _ _ _ (.possessedBy who) => who.possessorSide bs
+  | _ => none
+
+mutual
+  /-- The possessor a description fixes for the object it describes: the possessor of the hand,
+  graveyard or library it is in [CR#400.1,400.3], or its controller [CR#108.4]; "you don't control"
+  fixes another player. A conjunction takes the first conjunct that fixes one, and the arms of
+  a disjunction must agree. -/
+  def Predicate.seedPossessor (bs : Bindings) : Predicate → Option Possessor
+    | .withBindings _ _ body | .inCaller _ body => body.seedPossessor bs
+    | .inZone z => z.seedPossessor bs
+    | .hasPossessor .controller who => who.possessorSide bs
+    | .not (.hasPossessor .controller who) =>
+      if (who.actorView bs).isYou then some .other else none
+    | .and ps => Predicate.seedPossessorAll bs ps
+    | .or ps => Predicate.seedPossessorJoin bs ps
+    | _ => none
+
+  def Predicate.seedPossessorAll (bs : Bindings) : List Predicate → Option Possessor
+    | [] => none
+    | p :: ps =>
+      match p.seedPossessor bs with
+      | some o => some o
+      | none => Predicate.seedPossessorAll bs ps
+
+  def Predicate.seedPossessorJoin (bs : Bindings) : List Predicate → Option Possessor
+    | [] => none
+    | [p] => p.seedPossessor bs
+    | p :: ps =>
+      match p.seedPossessor bs, Predicate.seedPossessorJoin bs ps with
+      | some o, some q => if o == q then some o else none
+      | _, _ => none
+end
+
+/-- The binding a described phrase introduces, at kind `k`, with the possessor its description
+fixes (`Predicate.seedPossessor`). -/
+def bindFor (bs : Bindings) (det : Determiner) (plur : Plurality) : Kind → Predicate → Binding
   | .object, p =>
     if p.seedsAbility then ⟨det, plur, .ability none, []⟩
     else ⟨det, plur,
       .object p.seedTy (p.phraseZone .object) none
-        (if p.seedsToken then some .token else none) none, []⟩
+        (if p.seedsToken then some .token else none) none (p.seedPossessor bs), []⟩
   | .player, _ => ⟨det, plur, .player false, []⟩
   | .quality q, _ => ⟨det, plur, .quality q, []⟩
   | k@(.join _ _), p => ⟨det, plur, joinHalfPayload k p.seedTys, []⟩
@@ -791,9 +888,9 @@ def bindFor (det : Determiner) (plur : Plurality) : Kind → Predicate → Bindi
   -- bind; keep it a gap, same as the truly kindless case.
   | .outcome, _ | .gap, _ => ⟨det, plur, .gap, []⟩
 
-def chosenBind (det : Determiner) (plur : Plurality) : Kind → Predicate → Binding
+def chosenBind (bs : Bindings) (det : Determiner) (plur : Plurality) : Kind → Predicate → Binding
   | .player, _ => ⟨det, plur, .player true, []⟩
-  | k, p => bindFor det plur k p
+  | k, p => bindFor bs det plur k p
 
 def Predicate.qualityReadOk : Predicate → Bool
   | .withBindings _ _ body | .inCaller _ body => body.qualityReadOk
@@ -1065,34 +1162,6 @@ def NounPhrase.ascribable : NounPhrase → Bool
   | .this | .designated _ _ => true
   | _ => false
 
-/-- Whether the phrase is the controller. `actor` is read outside every handoff here; a rule
-that may sit inside a handoff asks `isYouIn`. -/
-def NounPhrase.isYou : NounPhrase → Bool
-  | .pro (.parameter shape) _ _ => shape.isYou
-  | .laterMention _ n => n.isYou
-  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.isYou
-  | .you | .actor => true
-  | _ => false
-
-/-- `actor` as the player or permanent it denotes at this point, for the context-free structural
-readers (`isYou`, `opponentOnly`, `kind?`): "you" outside every handoff and in `act you`,
-otherwise a parameter view carrying the facts the innermost handoff recorded, its kind among
-them. Other phrases are unchanged. The view
-is for those readers only; it is never checked or resolved against the context. -/
-def NounPhrase.actorView (bs : Bindings) : NounPhrase → NounPhrase
-  | .withBindings scope inputs body => .withBindings scope inputs (body.actorView bs)
-  | .inCaller scope body => .inCaller scope (body.actorView bs)
-  | .firstMention id body => .firstMention id (body.actorView bs)
-  | .laterMention id body => .laterMention id (body.actorView bs)
-  | .actor =>
-    match actorShape? bs with
-    | some shape => if shape.isYou then .you else .pro (.parameter shape) .one .whole
-    | none => .you
-  | n => n
-
-/-- `isYou` with `actor` read in its handoff. -/
-def NounPhrase.isYouIn (bs : Bindings) (n : NounPhrase) : Bool := (n.actorView bs).isYou
-
 mutual
   def NounPhrase.targeted : NounPhrase → Bool
     | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.targeted
@@ -1233,11 +1302,11 @@ def sliceTyOf : Option Predicate → List CardType → List CardType
 def NounPhrase.selfSubjIntroduced : NounPhrase → List Binding
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.selfSubjIntroduced
   | .asType t .this _ =>
-    [⟨.self, .one, .object [t] (some .battlefield) none none none, []⟩]
+    [⟨.self, .one, .object [t] (some .battlefield) none none none none, []⟩]
   | .attachHost _ word =>
     match word.base with
     | .type _ | .permanent =>
-      [⟨.the, .one, .object word.attachHostTy (some .battlefield) none none none, []⟩]
+      [⟨.the, .one, .object word.attachHostTy (some .battlefield) none none none none, []⟩]
     | .player => [⟨.the, .one, .player false, []⟩]
     | _ => []
   | _ => []
@@ -1265,7 +1334,7 @@ def NounPhrase.captureView (subject : NounPhrase) (value : Binding)
   match subject with
   | .asType _ _ _ | .asMarker _ _ | .resolvedPermanent _ =>
     let payload := match value.payload with
-      | .object _ _ prov origin size => .object types zone prov origin size
+      | .object _ _ prov origin size ps => .object types zone prov origin size ps
       | .ability origin _ => .ability origin zone
       | p => p
     { value with payload }
@@ -1314,11 +1383,11 @@ mutual
     | .theRest _ _ | .attachHost _ _ | .designated _ _ => ⟨bs, none, none, []⟩
     | .asType t n _ =>
       (NounPhrase.result bs n).withValue
-        ⟨.the, n.plur, .object [t] (some .battlefield) none none none, []⟩
+        ⟨.the, n.plur, .object [t] (some .battlefield) none none none none, []⟩
         (fun value => NounPhrase.captureView (.asType t n none) value [t] (some .battlefield))
     | .resolvedPermanent n =>
       (NounPhrase.result bs n).withValue
-        ⟨.the, n.plur, .object (n.ty bs) (some .battlefield) none none none, []⟩
+        ⟨.the, n.plur, .object (n.ty bs) (some .battlefield) none none none none, []⟩
         (fun value => NounPhrase.captureView (.resolvedPermanent n) value (n.ty bs) (some .battlefield))
     | .asMarker m n =>
       (NounPhrase.result bs n).withValue
@@ -1333,11 +1402,12 @@ mutual
     | .or ns => introducedNounResult bs (NounPhrase.introducedAlternatives bs ns) false
     | .librarySlice _ amt whose =>
       (NounPhrase.result bs whose).prepend [⟨.the, outputPlur whose.plur amt.plur,
-        .object [] (some .library) none none amt.exact, []⟩]
+        .object [] (some .library) none none amt.exact none, []⟩]
     | .namesAgree _ g => NounPhrase.result bs g
     | .someOf q d g =>
       (NounPhrase.result bs g).prepend (⟨.part, q.plur,
-        .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact, []⟩ ::
+        .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact
+          (NounPhrase.possessor bs g), []⟩ ::
         (SliceCount.introduced bs q ++ OptPredicate.introduced bs d))
     | .pileOf q none => introducedNounResult bs (⟨.part, q.plur,
         .pile (zoneOfReach (.word .pile) .many bs) q.exact (faceOfReach (.word .pile) .many bs), []⟩
@@ -1351,7 +1421,8 @@ mutual
         (⟨.the, n.plur, .player false, []⟩ :: NounPhrase.selfSubjIntroduced n)
     | .oneEachOf roles pool =>
       (NounPhrase.result bs pool).prepend (⟨.bare, .many,
-        .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none, []⟩ ::
+        .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none
+          (NounPhrase.possessor bs pool), []⟩ ::
         Predicate.introducedAll bs roles)
     | .pro reach plurality window =>
       let address := (windowAddresses window bs).find? fun address =>
@@ -1431,10 +1502,10 @@ mutual
   def DetPhrase.introduced (bs : Bindings) (d : DetPhrase) (k : Kind) (p : Predicate)
       (pd : List Binding) : List Binding :=
     match d with
-    | .target q => sized q.exact (bindFor .target q.plur k p) :: (Quantity.introduced bs q ++ pd)
-    | .count q _ => sized q.exact (bindFor .count q.plur k p) :: (Quantity.introduced bs q ++ pd)
-    | .the => if p.choiceRead then pd else bindFor .the .one k p :: pd
-    | d => bindFor d.det d.plur k p :: pd
+    | .target q => sized q.exact (bindFor bs .target q.plur k p) :: (Quantity.introduced bs q ++ pd)
+    | .count q _ => sized q.exact (bindFor bs .count q.plur k p) :: (Quantity.introduced bs q ++ pd)
+    | .the => if p.choiceRead then pd else bindFor bs .the .one k p :: pd
+    | d => bindFor bs d.det d.plur k p :: pd
 
   def LibraryPlace.introduced (bs : Bindings) : LibraryPlace → List Binding
     | .oneEnd _ => []
@@ -1683,6 +1754,26 @@ mutual
       | none => NounPhrase.zone bs body
     | .attachHost _ h => h.attachHostZone
     | .oneEachOf _ pool => NounPhrase.zone bs pool
+  termination_by structural x => x
+
+  /-- The possessor a phrase's referent has, where the text fixes it: a description's own
+  (`Predicate.seedPossessor`), the binding a pronoun or a later mention reads, and a group's for
+  a part of it. -/
+  def NounPhrase.possessor (bs : Bindings) : NounPhrase → Option Possessor
+    | .withBindings scope inputs body => body.possessor (captureBindings bs scope inputs)
+    | .inCaller scope body => body.possessor (enterCaller scope bs)
+    | .described _ p => p.seedPossessor bs
+    | .eachOf g => NounPhrase.possessor bs g
+    | .namesAgree _ g => NounPhrase.possessor bs g
+    | .someOf _ _ g => NounPhrase.possessor bs g
+    | .oneEachOf _ pool => NounPhrase.possessor bs pool
+    | .pro r pl w => possessorOfReach r pl (view w bs)
+    | .firstMention _ body => NounPhrase.possessor bs body
+    | .laterMention id body =>
+      match identityBinding id bs with
+      | some b => b.possessor
+      | none => NounPhrase.possessor bs body
+    | _ => none
   termination_by structural x => x
 
   def NounPhrase.ty (bs : Bindings) : NounPhrase → List CardType
@@ -1959,7 +2050,7 @@ def NounPhrase.agentIntroduced (bs : Bindings) : NounPhrase → List Binding
     let caller := enterCaller scope bs
     let result := leaveCaller bs (body.agentIntroduced caller ++ caller)
     result.take (result.length - bs.length)
-  | .described .each p => bindFor .the .one (p.kindOr .object) p :: Predicate.introduced bs p
+  | .described .each p => bindFor bs .the .one (p.kindOr .object) p :: Predicate.introduced bs p
   | n@(.firstMention id body) =>
     if body.introducesOwnReferent then recordHead id (body.agentIntroduced bs)
     else NounPhrase.introduced bs n
@@ -1986,10 +2077,10 @@ def NounPhrase.chosenIntroduced (bs : Bindings) : NounPhrase → List Binding
     result.take (result.length - bs.length)
   | .described (.a _) p =>
     let k := p.kindOr .object
-    chosenBind (chosenDet k .a) .one k p :: Predicate.introduced bs p
+    chosenBind bs (chosenDet k .a) .one k p :: Predicate.introduced bs p
   | .described (.count q _) p =>
     let k := p.kindOr .object
-    chosenBind (chosenDet k .count) q.plur k p :: (Quantity.introduced bs q ++ Predicate.introduced bs p)
+    chosenBind bs (chosenDet k .count) q.plur k p :: (Quantity.introduced bs q ++ Predicate.introduced bs p)
   | .namesAgree _ g => NounPhrase.chosenIntroduced bs g
   | n@(.firstMention id body) =>
     if body.introducesOwnReferent then recordHead id (body.chosenIntroduced bs)
@@ -2209,10 +2300,23 @@ def atLeastTwoCs : List Condition → Bool
 
 /-! ## Moving a binding -/
 
+/-- What a move or a stamp leaves of a binding's possessor. A deed that leaves the object where it
+is keeps it, and so does a move between a player's own zones, whose owner it names [CR#400.1,400.3].
+A move to or from a shared zone leaves it unknown: a permanent's possessor is its controller
+[CR#108.4], which a move does not carry [CR#110.2]. Gaining control leaves it unknown too. -/
+def keptPossessor (p : Option Deed) (oldZn z : Option Zone) (ps : Option Possessor) :
+    Option Possessor :=
+  match p with
+  | some (.core .gainControl) => none
+  | _ =>
+    if oldZn == z || (oldZn.elim false Zone.possessable && z.elim false Zone.possessable) then ps
+    else none
+
 def setZone (p : Option Deed) (z : Option Zone) (b : Binding) : Binding :=
   match b.payload with
-  | .object ty oldZn _ og sz =>
-    { b with payload := .object ty z (mkStamp p oldZn (oldZn != z)) og sz }
+  | .object ty oldZn _ og sz ps =>
+    { b with
+      payload := .object ty z (mkStamp p oldZn (oldZn != z)) og sz (keptPossessor p oldZn z ps) }
   | .pile _ sz fc => { b with payload := .pile z sz fc }
   | .ability og _ => { b with payload := .ability og z }
   | _ => b
@@ -2245,34 +2349,34 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
     if (identityAddress id bs).isSome then overIdentity (·.map (setZone p z)) id bs
     else if (NounPhrase.result bs body).additions.isEmpty then moveIntro bs p body z
     else bs
-  | .this => ⟨.self, .one, .object [] z (mkStamp p none z.isSome) none none, []⟩ :: bs
+  | .this => ⟨.self, .one, .object [] z (mkStamp p none z.isSome) none none none, []⟩ :: bs
   | .attachHost _ word =>
     match word.base with
     | .type _ | .permanent =>
       ⟨.the, .one,
         .object word.attachHostTy z (mkStamp p (some .battlefield) (z != some .battlefield))
-          none none, []⟩ :: bs
+          none none none, []⟩ :: bs
     | .player => ⟨.the, .one, .player false, []⟩ :: bs
     | _ => bs
   | .asType t .this _ =>
     ⟨.self, .one,
-      .object [t] z (mkStamp p none (z != some .battlefield)) none none, []⟩ :: bs
+      .object [t] z (mkStamp p none (z != some .battlefield)) none none none, []⟩ :: bs
   | .asType t _ _ =>
     ⟨.the, .one,
-      .object [t] z (mkStamp p none (z != some .battlefield)) none none, []⟩ :: bs
+      .object [t] z (mkStamp p none (z != some .battlefield)) none none none, []⟩ :: bs
   | .resolvedPermanent m =>
     ⟨.the, m.plur,
-      .object (NounPhrase.ty bs m) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none, []⟩
+      .object (NounPhrase.ty bs m) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none none, []⟩
       :: bs
   | .asMarker .ability .this => ⟨.self, .one, .ability none z, []⟩ :: bs
   | .asMarker .ability _ => ⟨.the, .one, .ability none z, []⟩ :: bs
   | .asMarker _ .this =>
-    ⟨.self, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none, []⟩ :: bs
+    ⟨.self, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none none, []⟩ :: bs
   | .asMarker _ _ =>
-    ⟨.the, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none, []⟩ :: bs
+    ⟨.the, .one, .object [] z (mkStamp p none (z != some .battlefield)) none none none, []⟩ :: bs
   | .theGrantor m =>
     ⟨.the, .one,
-      .object [] z (mkStamp p m.grantorOrigin (z != some m.zone)) none none, []⟩ :: bs
+      .object [] z (mkStamp p m.grantorOrigin (z != some m.zone)) none none none, []⟩ :: bs
   | .you | .actor | .combatPlayer _ | .playerGroup _ | .designated _ _ => bs
   | .possessorOf ax m => nomIntro bs (.possessorOf ax m)
 termination_by structural n

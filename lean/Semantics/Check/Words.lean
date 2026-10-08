@@ -206,6 +206,9 @@ structure ActFacts where
   /-- The deed opens an opponent's library ("fateseal" [CR#701.29a]); the same look over one's
   own library is a different deed. -/
   opponentsLibrary : Bool := false
+  /-- The patient is the performer's own: a permanent the performer controls ("sacrifice"
+  [CR#701.21a]) or a card in the performer's own hand ("discard" [CR#701.9a]). -/
+  ownPatient : Bool := false
   deriving Repr, BEq
 
 def permanentTypes : List CardType :=
@@ -316,7 +319,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("detain", { agentRole := playerAgent }),
     ("discard",
       { participle := some "discarded", dest := some .graveyard, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, false, some .hand⟩ }),
+        patientRole := ⟨some ⟨.object, [], []⟩, false, some .hand⟩, ownPatient := true }),
     ("discover", { agentRole := playerAgent }),
     ("double", {}),
     ("earthbend", { agentRole := playerAgent }),
@@ -360,7 +363,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("sacrifice",
       { participle := some "sacrificed", dest := some .graveyard, agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        feature := some .sacrificing, bounded := true }),
+        feature := some .sacrificing, bounded := true, ownPatient := true }),
     ("scry", { stepwise := true, agentRole := playerAgent }),
     ("search",
       { loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
@@ -414,6 +417,7 @@ def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
 def actNamesLocus (v : Deed) : Bool := !(actLociOf v).isEmpty
 def actStepwiseOf (v : Deed) : Bool := (deedFacts v).elim false (·.stepwise)
 def actOpponentsLibrary (v : Deed) : Bool := (deedFacts v).elim false (·.opponentsLibrary)
+def actOwnPatient (v : Deed) : Bool := (deedFacts v).elim false (·.ownPatient)
 def actIntransitiveOf (v : Deed) : Bool := (deedFacts v).elim false (·.intransitive)
 def actNamesParticiple (v : Deed) : Bool := (participleOf v).isSome
 
@@ -447,11 +451,27 @@ def pileMentionFace : List PileFace → Option PileFace
   | [] => none
   | f :: fs => if fs.all (· == f) then some f else none
 
+/-- Whose an object binding's referent is, as far as the text fixes it, relative to the
+controller of the text ("you" [CR#109.5]): the player in whose hand, graveyard or library the
+card is [CR#400.3], or the player who controls the permanent [CR#108.4]. `other` is a player
+other than the controller ("an opponent", "you don't control"), not one particular player, so
+two `other`s may be different players. A binding whose text fixes neither records none. -/
+inductive Possessor where
+  | you | other
+  deriving DecidableEq, Repr
+
+/-- Two possessors are known to differ only when one is the controller and the other is not. -/
+def Possessor.differs : Option Possessor → Option Possessor → Bool
+  | some .you, some .other | some .other, some .you => true
+  | _, _ => false
+
 /-- What a binding knows about its referent. The Idris indexes this by `Kind`; here the kind
-is derived from the payload by `Payload.kind`. -/
+is derived from the payload by `Payload.kind`. An object binding's possessor is unknown unless
+written: every pattern over `object` names it, since a pattern that leaves it out matches only
+the unknown possessor. -/
 inductive Payload where
   | object (ty : List CardType) (zone : Option Zone) (prov : Option Stamp) (orig : Option Origin)
-      (size : Option Nat)
+      (size : Option Nat) (possessor : Option Possessor := none)
   | player (chosen : Bool)
   | quality (q : QualitySort)
   | outcome (sort : OutcomeSort)
@@ -481,7 +501,8 @@ inductive Payload where
 
 mutual
   def Payload.same : Payload → Payload → Bool
-    | .object a b c d e, .object f g h i j => a == f && b == g && c == h && d == i && e == j
+    | .object a b c d e o, .object f g h i j q =>
+      a == f && b == g && c == h && d == i && e == j && o == q
     | .player a, .player b => a == b
     | .quality a, .quality b => a == b
     | .outcome a, .outcome b => a == b
@@ -575,7 +596,7 @@ abbrev Bindings := List Binding
 namespace Payload
 
 def zone : Payload → Option Zone
-  | .object _ zn _ _ _ => zn
+  | .object _ zn _ _ _ _ => zn
   | .ability _ zn => zn
   | .pile zn _ _ => zn
   | .join l r => (l.zone).elim r.zone some
@@ -587,12 +608,12 @@ def joinSeed : List CardType → List CardType → List CardType
   | t, u => commonTypes t u
 
 def ty : Payload → List CardType
-  | .object t _ _ _ _ => t
+  | .object t _ _ _ _ _ => t
   | .join l r => joinSeed l.ty r.ty
   | _ => []
 
 def size : Payload → Option Nat
-  | .object _ _ _ _ sz => sz
+  | .object _ _ _ _ sz _ => sz
   | .pile _ sz _ => sz
   | .join l r => (l.size).elim r.size some
   | _ => none
@@ -602,12 +623,12 @@ def face : Payload → Option PileFace
   | _ => none
 
 def prov : Payload → Option Stamp
-  | .object _ _ pv _ _ => pv
+  | .object _ _ pv _ _ _ => pv
   | .join l r => (l.prov).elim r.prov some
   | _ => none
 
 def orig : Payload → Option Origin
-  | .object _ _ _ og _ => og
+  | .object _ _ _ og _ _ => og
   | .ability og _ => og
   | .join l r => (l.orig).elim r.orig some
   | _ => none
@@ -616,16 +637,23 @@ def joined : Payload → Bool
   | .join _ _ => true
   | _ => false
 
+/-- An object's possessor, where the text fixed it; a join's object half. -/
+def possessor : Payload → Option Possessor
+  | .object _ _ _ _ _ ps => ps
+  | .join l r => (l.possessor).elim r.possessor some
+  | _ => none
+
 end Payload
 
 def Binding.zone (b : Binding) : Option Zone := b.payload.zone
 def Binding.ty (b : Binding) : List CardType := b.payload.ty
 def Binding.size (b : Binding) : Option Nat := b.payload.size
 def Binding.face (b : Binding) : Option PileFace := b.payload.face
+def Binding.possessor (b : Binding) : Option Possessor := b.payload.possessor
 
 /-- Re-size an object or pile binding; any other binding is returned unchanged. -/
 def sized (sz : Option Nat) : Binding → Binding
-  | ⟨det, pl, .object ty zn pv og _, ids⟩ => ⟨det, pl, .object ty zn pv og sz, ids⟩
+  | ⟨det, pl, .object ty zn pv og _ ps, ids⟩ => ⟨det, pl, .object ty zn pv og sz ps, ids⟩
   | ⟨det, pl, .pile zn _ fc, ids⟩ => ⟨det, pl, .pile zn sz fc, ids⟩
   | b => b
 
@@ -853,18 +881,19 @@ def agreedField {α : Type} (f : α → α → Bool) : Option α → Option α �
 mutual
   /-- The binding two arms of a choice agree on, if any: the union of their payloads. -/
   def unionPayload : Payload → Payload → Option (Kind × Payload)
-    | .object t1 z1 v1 o1 s1, .object t2 z2 v2 o2 s2 =>
+    | .object t1 z1 v1 o1 s1 p1, .object t2 z2 v2 o2 s2 p2 =>
       some (.object, .object (commonTypes t1 t2) (agreedField (· == ·) z1 z2)
-        (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2))
+        (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2)
+        (agreedField (· == ·) p1 p2))
     | .ability o1 z1, .ability o2 z2 =>
       some (.object, .ability (agreedField (· == ·) o1 o2) (agreedField (· == ·) z1 z2))
     | .player a, .player b => if a == b then some (.player, .player a) else none
-    | .object _ z1 _ o1 _, .ability o2 z2 =>
-      some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
-    | .ability o1 z1, .object _ z2 _ o2 _ =>
-      some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
-    | p@(.object _ _ _ _ _), .player false => some (.join .object .player, .join p (.player false))
-    | .player false, q@(.object _ _ _ _ _) => some (.join .object .player, .join q (.player false))
+    | .object _ z1 _ o1 _ _, .ability o2 z2 =>
+      some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none none)
+    | .ability o1 z1, .object _ z2 _ o2 _ _ =>
+      some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none none)
+    | p@(.object ..), .player false => some (.join .object .player, .join p (.player false))
+    | .player false, q@(.object ..) => some (.join .object .player, .join q (.player false))
     | .amount a, .amount b => if a == b then some (.quality .number, .amount a) else none
     | .parameterFrame s w a, .parameterFrame t v b =>
       if s == t && w == v then
@@ -918,7 +947,7 @@ def Zone.exposable : Zone → Bool
 
 def Binding.isPublic (b : Binding) : Bool :=
   match b.payload with
-  | .object _ (some z) _ _ _ => z.isPublic
+  | .object _ (some z) _ _ _ _ => z.isPublic
   | .pile _ _ (some .faceDown) => false
   | .pile (some z) _ _ => z.isPublic
   | _ => true
@@ -971,12 +1000,12 @@ def mkStamp : Option Deed → Option Zone → Bool → Option Stamp
 
 /-- A type refinement reads one object's evidence, never a different half of a join. -/
 def payloadHasType (t : CardType) : Payload → Bool
-  | .object ty _ _ _ _ => tyIs t ty
+  | .object ty _ _ _ _ _ => tyIs t ty
   | _ => false
 
 /-- Copy origin belongs to the same object or ability that the word selects. -/
 def payloadIsCopy : Payload → Bool
-  | .object _ _ _ og _ | .ability og _ => isCopyOrigin og
+  | .object _ _ _ og _ _ | .ability og _ => isCopyOrigin og
   | _ => false
 
 def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
@@ -985,7 +1014,7 @@ def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
   | .copied word => halfWordReaches word pl && payloadIsCopy pl
   | word =>
     match pl with
-    | .object ty _ _ _ _ =>
+    | .object ty _ _ _ _ _ =>
       match word with
       | .type t => tyIs t ty
       | .permanent => ty.isEmpty
@@ -1004,7 +1033,7 @@ def wordReaches (w : NounWord) (b : Binding) : Bool :=
   | .copied word => wordReaches word b && payloadIsCopy b.payload
   | w =>
     match b.payload with
-    | .object ty zn pv og _ =>
+    | .object ty zn pv og _ _ =>
       match w with
       | .type t => onFieldZone zn && tyIs t ty
       | .card => isCardZone zn
@@ -1073,8 +1102,8 @@ def stampIs (v : Deed) : Option Stamp → Bool
   | some st => stampedBy v st
 
 def markTy (ty : List CardType) : Binding → Binding
-  | ⟨det, plur, .object old zn st og sz, ids⟩ =>
-    ⟨det, plur, .object (mergeTypes old ty) zn st og sz, ids⟩
+  | ⟨det, plur, .object old zn st og sz ps, ids⟩ =>
+    ⟨det, plur, .object (mergeTypes old ty) zn st og sz ps, ids⟩
   | b => b
 
 def markFirst (q : Binding → Bool) (ty : List CardType) : Bindings → Bindings
@@ -1083,8 +1112,8 @@ def markFirst (q : Binding → Bool) (ty : List CardType) : Bindings → Binding
 
 def survivesShuffle (b : Binding) : Bool :=
   match b.payload with
-  | .object _ (some .library) (some st) _ _ => st.feature == some .librarySearch
-  | .object _ (some .library) none _ _ => false
+  | .object _ (some .library) (some st) _ _ _ => st.feature == some .librarySearch
+  | .object _ (some .library) none _ _ _ => false
   | _ => true
 
 
@@ -1106,7 +1135,7 @@ def reaches (r : Reach) (pl : Plurality) (b : Binding) : Bool :=
   | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
   | .verbed v (some w) _ =>
     match b.payload with
-    | .object ty zn (some st) og _ =>
+    | .object ty zn (some st) og _ _ =>
       pl.isOne == b.plur.isOne && stampWordOk v w st ty zn og
     | _ => false
   | .thatTurn => Kind.lte .turnRef b.kind && pl.isOne == b.plur.isOne
@@ -1124,6 +1153,8 @@ def provOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option Stamp :=
   firstReach r pl bs >>= (·.payload.prov)
 def zoneOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option Zone :=
   firstReach r pl bs >>= (·.zone)
+def possessorOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option Possessor :=
+  firstReach r pl bs >>= (·.possessor)
 def tyOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : List CardType :=
   (firstReach r pl bs).elim [] (·.ty)
 def faceOfReach (r : Reach) (pl : Plurality) (bs : Bindings) : Option PileFace :=
@@ -1451,7 +1482,7 @@ def groupSpent (k : Kind) (bs : Bindings) : Bindings :=
 def countTokenSpecs : Bindings → Nat
   | [] => 0
   | ⟨.self, _, _, _⟩ :: bs => countTokenSpecs bs
-  | ⟨_, _, .object _ _ _ og _, _⟩ :: bs =>
+  | ⟨_, _, .object _ _ _ og _ _, _⟩ :: bs =>
     if isTokenOrigin og then countTokenSpecs bs + 1 else countTokenSpecs bs
   | _ :: bs => countTokenSpecs bs
 
@@ -1499,7 +1530,7 @@ def damageableHeadTysOk (alts : List (List CardType)) : Bool :=
 kind, decides which object the copy is. -/
 def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
   | .object, true, _, z => .ability (some .copy) z
-  | .object, false, ty, z => .object ty z none (some .copy) none
+  | .object, false, ty, z => .object ty z none (some .copy) none none
   | .join l r, ab, ty, z => .join (copyPayloadIn l ab ty z) (copyPayloadIn r ab ty z)
   | .player, _, _, _ => .player false
   | .quality q, _, _, _ => .quality q

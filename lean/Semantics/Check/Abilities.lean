@@ -270,28 +270,6 @@ def Instruction.enactPatient : Instruction → Option NounPhrase
   | .move n _ _ _ => some n
   | _ => none
 
-mutual
-  /-- Whether a player phrase can only name opponents: "an opponent", "your opponents", "each
-  opponent". -/
-  def Predicate.opponentOnly : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.opponentOnly
-    | .opponent => true
-    | .and ps => Predicate.anyOpponentOnly ps
-    | _ => false
-  def Predicate.anyOpponentOnly : List Predicate → Bool
-    | [] => false
-    | p :: ps => p.opponentOnly || Predicate.anyOpponentOnly ps
-end
-
-def NounPhrase.opponentOnly : NounPhrase → Bool
-  | .pro (.parameter shape) _ _ => shape.opponentOnly
-  | .laterMention _ body => body.opponentOnly
-  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.opponentOnly
-  | .described _ p => p.opponentOnly
-  | .playerGroup .yourOpponents => true
-  | .eachOf g => g.opponentOnly
-  | _ => false
-
 def NounPhrase.libraryOwner : NounPhrase → Option NounPhrase
   | .withBindings scope inputs body => body.libraryOwner.map (.withBindings scope inputs)
   | .inCaller scope body => body.libraryOwner.map (.inCaller scope)
@@ -339,6 +317,18 @@ def enactPatientZoneOk (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
     | some z =>
       let written := NounPhrase.zone bs n
       zoneIsB written z || (written.isNone && (n.det == some .a || n.det == some .count))
+
+/-- A deed whose patient is the performer's own (`ActFacts.ownPatient`): a permanent the performer
+controls [CR#701.21a], a card in the performer's own hand [CR#701.9a]. Both forms read the same
+possessor (`NounPhrase.possessor`): the conjunct an indefinite patient's description writes
+("sacrifice a creature you don't control") and the binding a definite referent reads ("discard
+that card"). It refuses only a possessor known to be a different player than the performer. -/
+def enactPatientPossessorOk (bs : Bindings) (v : Deed) (perf : Option NounPhrase)
+    (e : Instruction) : Bool :=
+  !actOwnPatient v ||
+    match e.enactPatient, perf with
+    | some n, some who => !Possessor.differs (NounPhrase.possessor bs n) (who.possessorSide bs)
+    | _, _ => true
 
 /-- Idris `CtrlOverrideOk`: a single controller, or one per member of a group. -/
 def NounPhrase.ctrlOverrideOk : NounPhrase → Bool
@@ -399,7 +389,7 @@ without it the body's "that permanent" would have none. A player or any other pe
 nothing. -/
 def NounPhrase.performerInView (bs : Bindings) (who : NounPhrase) : List Binding :=
   if who.namesThis then
-    [⟨.the, .one, .object (NounPhrase.ty bs who) (some .battlefield) none none none, []⟩]
+    [⟨.the, .one, .object (NounPhrase.ty bs who) (some .battlefield) none none none none, []⟩]
   else []
 
 /-- The body context of `act who`: the performer's own introduction, as an `enact` agent's or an
@@ -1301,7 +1291,7 @@ mutual
       sameIntro (Quantity.introduced bs' q ++ Predicate.introduced bs' p ++ sc.introduced bs' ++ bs')
         [⟨.a, q.plur,
           .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
-            none, []⟩]
+            none none, []⟩]
     | .shuffle => let whose := performerOf perf; ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
     | .flipCoins count => let who := performerOf perf; sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
     | .rollDice count _ => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB
@@ -1318,7 +1308,7 @@ mutual
         | .token token _ => (token.introduced bs', token.headTy bs', Zone.battlefield, some Origin.token)
         | .emblem _ => ([], [], Zone.command, none)
       sameIntro (mentions ++ bs')
-        [⟨.a, outputPlur agent.plur count.plur, .object types (some zone) none origin none, []⟩]
+        [⟨.a, outputPlur agent.plur count.plur, .object types (some zone) none origin none none, []⟩]
     | .putCounters amt kind on => sameIntro (nomIntro (kind.intro (Amount.intro bs amt)) on) []
     | .removeCounters q _ from_ => sameIntro (nomIntro (optQuantIntro bs q) from_) [outcomeB .countersRemoved]
     | .moveCounters amt _ src dst => sameIntro (nomIntro (nomIntro (Amount.intro bs amt) src) dst) []

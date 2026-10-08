@@ -334,6 +334,7 @@ mutual
       OptNoun.check (some (enactAgentKind bs v subj)) bs subj ++ Instruction.checkWith inner none e ++
         refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk bs subj v) .enactAgentOk ++
         refuse (enactPatientZoneOk inner v e) .zoneFits ++
+        refuse (enactPatientPossessorOk inner v subj e) .patientPossessor ++
         refuse (enactLibraryOwnerOkIn inner v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
     | .pay c _ => let who := performerOf perf;

@@ -178,7 +178,7 @@ mutual
         refuse (countManys (.quality .number) bs != 0) .numberChoiceInScope
     | .compareOver dom measure _ bound =>
       refuse k.phrasal (.phrasal k) ++ Predicate.checkIn gap k bs dom ++
-        Amount.checkIn gap (bindFor .the .one k dom :: (Predicate.introduced bs dom ++ bs)) measure
+        Amount.checkIn gap (bindFor bs .the .one k dom :: (Predicate.introduced bs dom ++ bs)) measure
           ++
         Amount.checkIn gap bs bound
     | .inZone z => kindCheck k (some .object) ++ ZoneExpr.checkIn gap bs z
@@ -451,7 +451,7 @@ mutual
     | .aggregateOver _ dom body =>
       let k := dom.kindOr .object
       refuse k.phrasal (.phrasal k) ++ Predicate.checkIn gap k bs dom ++
-        Amount.checkIn gap (bindFor .the .one k dom :: (Predicate.introduced bs dom ++ bs)) body
+        Amount.checkIn gap (bindFor bs .the .one k dom :: (Predicate.introduced bs dom ++ bs)) body
     | .distinctCount ax dom =>
       refuse ax.ok .kindAxisSort ++ NounPhrase.checkIn gap (some .object) bs dom
     | .upTo b => Amount.checkIn gap bs b
