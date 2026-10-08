@@ -16,8 +16,10 @@ KeywordAction(
     body: sequentially([
         exile(Param(0)),
         act(
-            // STOP: one performer for the whole group; per-card owners wait on
-            // `semantics-v2-per-member-handoff`.
+            // STOP: one performer for the whole group. The per-card spelling,
+            // `doForEach(allFromAmong(card, Param(0)), act(ownerOf(it), …))`,
+            // waits on `lean-drt-anaphora-refactor`: for one object each "it"
+            // ties between the loop's card and the exiled object.
             ownerOf(Param(0)),
             establish(
                 mayCastFrom(Param(0), exileZone, PayingInstead(mana([2]))),

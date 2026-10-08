@@ -265,4 +265,43 @@ theorem regenerateTargetsOnce :
 /-- The application alone, as a static regeneration ability applies it [CR#701.19b]. -/
 theorem okRegenerationApplication :
     Instruction.check [] (regenerationApplicationBy (target creature)) = [] := by decide
+/-! ## Airbend, card by card
+
+"Airbend [objects]" [CR#701.65a]: the performer exiles them, and for each card exiled this way,
+for as long as it remains exiled, its owner may cast it by paying {2} rather than its mana cost.
+The per-card spelling binds the objects where it exiles them and loops over the cards among
+them, read back by identity, handing each card's permission to that card's own owner. The
+`plugins_v2` body keeps one handoff to the owner of the whole group until the singular case
+below checks (`semantics-v2-per-member-handoff`). -/
+
+/-- The permission one exiled card's owner is handed. -/
+private def airbendPermission : Instruction :=
+  act (ownerOf it)
+    (.establish
+      (mayPlayDeed (.action "cast") .actor it none
+        (.play (some exileZone) none none false (.payingInstead (.mana [generic 2]))))
+      (some (.forAsLongAs (.matches it (.inZone exileZone)))))
+
+/-- The per-card airbend body as the loader would write it. -/
+private def airbendByCard (objects : NounPhrase) : Instruction :=
+  .enact (.action "airbend") (.ownScope 0 (.sequentially
+    [ exile (.firstMention "airbend.0" (.inCaller 0 objects)),
+      .doForEach (allFromAmong .isCard (.laterMention "airbend.0" (.inCaller 0 objects)))
+        airbendPermission ]))
+
+/-- "Airbend up to two target creatures.": each exiled card's own owner is handed the
+permission for that card, one handoff per card. -/
+theorem okAirbendByCardUpToTwo :
+    Instruction.check [] (airbendByCard (.described (.target (upTo 2)) creature)) = [] := by
+  decide
+
+/-- "Airbend target creature.": under the strict rule each "it" in the loop ties between the
+loop's card and the one exiled creature, the same object. The nearest-clause rule of the
+2026-10-07 ruling (`docs/decisions/semantics-v2.md` §7) resolves each to the loop's card;
+`lean-drt-anaphora-refactor` flips this pin to `[]`. -/
+theorem airbendByCardOneTiesUnderStrictRule :
+    Instruction.check [] (airbendByCard (target creature))
+      = [.anaphor .bare .one 2, .anaphor .bare .one 2, .anaphor .bare .one 2] := by
+  decide
+
 end Semantics.Proofs.BindingIdentity
