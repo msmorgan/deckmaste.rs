@@ -1,0 +1,9 @@
+// "Manifest the top card of your library." [CR#701.40a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Soul Summons",
+        cost: [1, White],
+        types: [Sorcery],
+        text: [spell(manifest(librarySlice(Top, 1, you)))],
+    ),
+))

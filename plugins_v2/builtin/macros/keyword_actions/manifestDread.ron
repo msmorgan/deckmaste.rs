@@ -1,9 +1,19 @@
+// "Manifest dread" [CR#701.62a]: look at the top two cards of your library.
+// Manifest one of them, then put the cards you looked at that were not
+// manifested this way into your graveyard. "Your" is the actor's; the
+// manifested card is a part of the looked-at slice, so `theRest` is the other.
 KeywordAction(
     name: "manifestDread",
+    params: [],
     spelling: "manifest dread",
     grammar: Verb(
         bare: "manifest dread",
         third_person: "manifests dread",
         frame_set: Intransitive,
     ),
+    body: sequentially([
+        lookAt(librarySlice(Top, 2, actor)),
+        manifest(someOf(exactly(1), them)),
+        move(theRest(Object), wherever, graveyard),
+    ]),
 )

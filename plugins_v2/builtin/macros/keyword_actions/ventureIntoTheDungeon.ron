@@ -1,3 +1,6 @@
+// "Venture into the dungeon" [CR#701.49a..701.49c]. Bodyless: the dungeon
+// card comes from outside the game [CR#309.2,400.11], which has no place in
+// the model yet; the body waits on `core-location-outside-the-game`.
 KeywordAction(
     name: "ventureIntoTheDungeon",
     spelling: "venture into the dungeon",

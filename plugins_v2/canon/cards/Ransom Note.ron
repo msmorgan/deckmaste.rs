@@ -1,0 +1,22 @@
+// "When this artifact enters, surveil 1. {2}, Sacrifice this artifact: Choose
+// one — Cloak the top card of your library; Goad target creature; Draw a card."
+// [CR#701.58a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Ransom Note",
+        cost: [1],
+        types: [Artifact],
+        subtypes: [clue],
+        text: [
+            triggered(enters(asType(type: Artifact, subject: this, subtype: None)), surveil(1)),
+            activated(
+                compound([mana([2]), perform(sacrifice(this))]),
+                chooseModes(exactly(1), [
+                    (None, cloak(librarySlice(Top, 1, you))),
+                    (None, goad(target(creature))),
+                    (None, draw(1)),
+                ]),
+            ),
+        ],
+    ),
+))

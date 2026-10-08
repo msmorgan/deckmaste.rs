@@ -1,5 +1,55 @@
+// "The Ring tempts you" [CR#701.54a,701.54c]: if you don't have an emblem named
+// The Ring, you get one; then choose a creature you control, which becomes
+// your Ring-bearer [CR#701.54b]. The Ring's abilities grow with how many times
+// the Ring has tempted you this game: "Your Ring-bearer is legendary and can't
+// be blocked by creatures with greater power"; at two or more, "Whenever your
+// Ring-bearer attacks, draw a card, then discard a card"; at three or more,
+// "Whenever your Ring-bearer becomes blocked by a creature, that creature's
+// controller sacrifices it at end of combat"; at four or more, "Whenever your
+// Ring-bearer deals combat damage to a player, each opponent loses 3 life".
+// "You" is the actor; inside the emblem, "you" is the emblem's owner. The
+// deed's facts row names no performer, so a card writes it with no handoff.
 KeywordAction(
     name: "theRingTemptsYou",
+    params: [],
     spelling: "the Ring tempts you",
     grammar: FixedClause(surface: "the Ring tempts you"),
+    body: sequentially([
+        doIf(
+            not(exists(and([isEmblem, named(Printed("The Ring")), ownedBy(actor)]))),
+            getNamedEmblem("The Ring", [
+                static(characteristicChange(
+                    allOf(and([hasDesignation(ringBearer), youControl])),
+                    [TypeLine(Adds, (supertypes: [Legendary]))],
+                )),
+                static(cantBeBlockedBy(
+                    allOf(and([creature, hasDesignation(ringBearer), youControl])),
+                    and([creature, compare(Greater, powerOf(a(and([creature, hasDesignation(ringBearer), youControl]))), [Stat(Power)])]),
+                )),
+                static(conditional(
+                    abilityGrant(this, triggered(attacks(a(and([hasDesignation(ringBearer), youControl]))), sequentially([draw(1), discard(a(cardIn(hand)))]))),
+                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), ThisGame)), AtLeast, 2),
+                    AsLongAs,
+                )),
+                static(conditional(
+                    abilityGrant(this, triggered(
+                        becomesBlocked(a(and([hasDesignation(ringBearer), youControl])), Some(a(creature))),
+                        atNext(endOfCombatStep, act(controllerOf(that(Creature)), sacrifice(that(Creature)))),
+                    )),
+                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), ThisGame)), AtLeast, 3),
+                    AsLongAs,
+                )),
+                static(conditional(
+                    abilityGrant(this, triggered(
+                        dealsCombatDamage(a(and([hasDesignation(ringBearer), youControl])), a(anyPlayer)),
+                        act(each(opponent), loseLife(3)),
+                    )),
+                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), ThisGame)), AtLeast, 4),
+                    AsLongAs,
+                )),
+            ]),
+        ),
+        choose(a(and([creature, actorControls]))),
+        gainDesignation(that(Creature), ringBearer),
+    ]),
 )

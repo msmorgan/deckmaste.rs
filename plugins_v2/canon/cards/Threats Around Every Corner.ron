@@ -1,0 +1,21 @@
+// "When this enchantment enters, manifest dread. Whenever a face-down permanent
+// you control enters, search your library for a basic land card, put it onto
+// the battlefield tapped, then shuffle." [CR#701.62a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Threats Around Every Corner",
+        cost: [3, Green],
+        types: [Enchantment],
+        text: [
+            triggered(enters(asType(type: Enchantment, subject: this, subtype: None)), manifestDread),
+            triggered(
+                enters(a(and([permanent, faceDown, youControl]))),
+                sequentially([
+                    searchLibraryFor(exactly(1), and([card, land, hasSupertype(Basic)])),
+                    putOntoBattlefieldTapped(itCard),
+                    shuffle,
+                ]),
+            ),
+        ],
+    ),
+))

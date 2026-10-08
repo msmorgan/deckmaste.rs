@@ -1,0 +1,7 @@
+// "<performer> gets an emblem named <name> with <abilities>" [CR#114.1,701.54c].
+(
+    name: "getNamedEmblem",
+    kinds: [Instruction],
+    params: {"name": Any, "abilities": Any},
+    body: CreateObject(count: 1, spec: Emblem(name: Some(Param(name)), abilities: Param(abilities))),
+)

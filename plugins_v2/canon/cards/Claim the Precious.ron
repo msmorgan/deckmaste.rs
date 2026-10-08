@@ -1,0 +1,9 @@
+// "Destroy target creature. The Ring tempts you." [CR#701.54a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Claim the Precious",
+        cost: [1, Black, Black],
+        types: [Sorcery],
+        text: [spell(sequentially([destroy(target(creature)), theRingTemptsYou]))],
+    ),
+))
