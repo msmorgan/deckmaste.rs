@@ -571,7 +571,11 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
             if !seen.insert(
                 arguments
                     .iter()
-                    .map(ToString::to_string)
+                    .map(|pattern| match pattern {
+                        crate::parse::TablePattern::Exact(name) => name.to_string(),
+                        crate::parse::TablePattern::Contains(name) => format!("contains {name}"),
+                        crate::parse::TablePattern::Any => "_".into(),
+                    })
                     .collect::<Vec<_>>(),
             ) {
                 return Err(error(&table.name, "duplicate feature table input tuple"));
@@ -579,7 +583,20 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
             let arguments = inputs
                 .iter()
                 .zip(arguments.iter())
-                .map(|(&domain, name)| value(ir, domain, name))
+                .map(|(&domain, pattern)| match pattern {
+                    crate::parse::TablePattern::Exact(name) => {
+                        let value = value(ir, domain, name)?;
+                        Ok(quote!(FeaturePattern::Exact(#value)))
+                    }
+                    crate::parse::TablePattern::Contains(name) => {
+                        if !matches!(ir.features[domain].kind, DomainKind::Set) {
+                            return Err(error(name, "membership pattern requires a set feature"));
+                        }
+                        let value = value(ir, domain, name)?;
+                        Ok(quote!(FeaturePattern::Contains(#value)))
+                    }
+                    crate::parse::TablePattern::Any => Ok(quote!(FeaturePattern::Any)),
+                })
                 .collect::<syn::Result<_>>()?;
             let result = match result {
                 crate::parse::TableResult::Feature(result) => value(ir, output.unwrap(), &result)?,

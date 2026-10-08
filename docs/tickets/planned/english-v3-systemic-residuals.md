@@ -682,3 +682,16 @@ coordination obligation, not a sole-cause diagnosis of the complete faces.
 Frequency AdvPs and separate temporal NP Adjuncts now read; this landing does
 not add their coordination with a conditional PP. Preserve that constituency
 and focus attachment when the coordination repair is routed.
+
+## Unlike-function complement coordination licensing (2026-10-08)
+
+The Enter-copy review exposed a shared-head licensing gap in unlike-function
+PP coordination. The bounded fix gates the coordinated predicative slot by
+each coordinate's declared Preposition Function Licence: the unrestricted
+coordinate must admit a verb Complement and the predicative coordinate a
+predicative Complement. This preserves Master Biomancer and rejects an
+Adjunct-only *during* coordinate, per the owner's 2026-10-08 ruling. A full
+per-coordinate frame check remains for recon: coordination must retain each
+coordinate's frame signature for the shared head, rather than discharge only
+corresponding frame shapes. See the
+[Enter-copy landing record](../done/english-v3-enter-as-copy-complement.md#landing-record).

@@ -244,3 +244,27 @@ fn geths_summons_keeps_finite_as_as_an_adjunct() {
         assert_eq!(selected_predicatives, 0);
     }
 }
+
+#[test]
+fn master_biomancer_keeps_licensed_unlike_complement_coordination() {
+    let text = "Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types.";
+    let values = common::readings(text, Category::Document);
+    assert_eq!(values.len(), 96);
+    for value in values {
+        value.admit(common::lexicon()).unwrap();
+        assert_eq!(value.realize(common::lexicon()).unwrap(), text);
+    }
+}
+
+#[test]
+fn adjunct_only_coordinate_cannot_fill_the_predicative_complement() {
+    for text in [
+        "This creature enters during your turn and as a Mutant.",
+        "This creature enters as a Mutant and during your turn.",
+    ] {
+        assert!(
+            common::readings(text, Category::Document).is_empty(),
+            "{text}"
+        );
+    }
+}

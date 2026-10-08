@@ -246,14 +246,14 @@ struct TableExport {
     operation: Option<TableOperation>,
     feature: usize,
     registers: Vec<usize>,
-    rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
+    rows: Vec<(Vec<FeaturePattern>, FeatureValue)>,
 }
 
 #[derive(Clone)]
 struct TableRequirement {
     operation: Option<TableOperation>,
     registers: Vec<usize>,
-    rows: Vec<(Vec<FeatureValue>, FeatureValue)>,
+    rows: Vec<(Vec<FeaturePattern>, FeatureValue)>,
     expected: FeatureValue,
 }
 
@@ -283,9 +283,28 @@ impl TableOperation {
         }
     }
 }
+#[derive(Clone)]
+enum FeaturePattern {
+    Exact(FeatureValue),
+    Contains(FeatureValue),
+    Any,
+}
+impl FeaturePattern {
+    fn admits(&self, value: &FeatureValue) -> bool {
+        match (self, value) {
+            (Self::Exact(expected), value) => expected == value,
+            (Self::Contains(FeatureValue::Set(domain, member)), FeatureValue::Set(actual, mask)) => {
+                domain == actual && mask & member == *member
+            }
+            (Self::Any, _) => true,
+            _ => false,
+        }
+    }
+}
+
 fn table_value(
     registers: &[usize],
-    rows: &[(Vec<FeatureValue>, FeatureValue)],
+    rows: &[(Vec<FeaturePattern>, FeatureValue)],
     operation: &Option<TableOperation>,
     state: &State,
 ) -> Option<FeatureValue> {
@@ -301,7 +320,8 @@ fn table_value(
             .iter()
             .zip(inputs)
             .all(|(&register, value)| {
-                state.registers.get(register).and_then(Option::as_ref) == Some(value)
+                state.registers.get(register).and_then(Option::as_ref)
+                    .is_some_and(|actual| value.admits(actual))
             })
             .then(|| output.clone())
     })

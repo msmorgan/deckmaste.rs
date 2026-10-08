@@ -945,6 +945,50 @@ fn set_features_validate_members_operations_and_frame_marker_licences() {
 }
 
 #[test]
+fn feature_table_rows_match_set_membership_and_unrestricted_inputs() {
+    compile(quote! {
+        mod valid {
+            feature Licence { Adjunct, VerbComplement, PredicativeComplement } set;
+            feature Restriction { None, Predicative }
+            category Phrase(Restriction, Licence);
+            table concord(Restriction, Restriction, Licence, Licence) -> Restriction {
+                (None, None, _, _) => None,
+                (None, Predicative, contains VerbComplement, contains PredicativeComplement) => Predicative,
+            }
+            construction Pair: Phrase {
+                form [left: Phrase, " and ", right: Phrase];
+                export Restriction = concord(left.Restriction, right.Restriction, left.Licence, right.Licence);
+                export Licence = left.Licence;
+            }
+        }
+    }).unwrap();
+    rejects(
+        quote! {
+            mod bad {
+                feature Licence { Adjunct, Complement }
+                feature Selection { Yes }
+                category Phrase();
+                table licence(Licence) -> Selection { (contains Complement) => Yes }
+                construction Phrase: Phrase { form [word: lexical(Noun)]; }
+            }
+        },
+        "membership pattern requires a set feature",
+    );
+    rejects(
+        quote! {
+            mod bad {
+                feature Licence { Adjunct } set;
+                feature Selection { Yes }
+                category Phrase();
+                table licence(Licence) -> Selection { (contains Missing) => Yes }
+                construction Phrase: Phrase { form [word: lexical(Noun)]; }
+            }
+        },
+        "not a value of feature Licence",
+    );
+}
+
+#[test]
 fn selected_literals_share_one_form_and_expand_only_distinct_surfaces() {
     let declaration = quote! { mod valid {
         category Atom();

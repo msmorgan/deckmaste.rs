@@ -43,8 +43,14 @@ pub(crate) struct FeatureTable {
     pub name: Ident,
     pub inputs: Vec<Ident>,
     pub output: Option<Ident>,
-    pub rows: Vec<(Vec<Ident>, TableResult)>,
+    pub rows: Vec<(Vec<TablePattern>, TableResult)>,
     pub operation: Option<(Ident, Option<(Ident, Ident)>)>,
+}
+
+pub(crate) enum TablePattern {
+    Exact(Ident),
+    Contains(Ident),
+    Any,
 }
 
 pub(crate) enum TableResult {
@@ -321,10 +327,26 @@ fn parse_table(input: ParseStream<'_>, name: Ident, separator: bool) -> syn::Res
     while !rows.is_empty() {
         let arguments;
         parenthesized!(arguments in rows);
-        let arguments = names(&arguments)?;
+        let mut patterns = vec![];
+        while !arguments.is_empty() {
+            patterns.push(if arguments.peek(Token![_]) {
+                arguments.parse::<Token![_]>()?;
+                TablePattern::Any
+            } else {
+                let name: Ident = arguments.parse()?;
+                if name == "contains" {
+                    TablePattern::Contains(arguments.parse()?)
+                } else {
+                    TablePattern::Exact(name)
+                }
+            });
+            if !arguments.is_empty() {
+                arguments.parse::<Token![,]>()?;
+            }
+        }
         rows.parse::<Token![=>]>()?;
         values.push((
-            arguments,
+            patterns,
             if separator {
                 TableResult::Literal(rows.parse()?)
             } else {

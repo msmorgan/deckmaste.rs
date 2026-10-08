@@ -132,14 +132,16 @@ constructions! {
         feature VerblessPredicateUse { No, Yes } default No;
         feature GerundClauseComplement { Yes }
         feature ComplementFunctionRestriction { None, Adjunct, Compound, PreposedOrPredicative } default None;
-        table coordinated_complement_function_restriction(ComplementFunctionRestriction, ComplementFunctionRestriction)
+        table coordinated_complement_function_restriction(ComplementFunctionRestriction, ComplementFunctionRestriction,
+            PrepositionFunctionLicence, PrepositionFunctionLicence)
             -> ComplementFunctionRestriction {
-            (None, None) => None, (None, Adjunct) => Adjunct, (Adjunct, None) => Adjunct,
-            (None, Compound) => Compound, (Compound, None) => Compound,
-            (Adjunct, Adjunct) => Adjunct, (Compound, Compound) => Compound,
-            (None, PreposedOrPredicative) => PreposedOrPredicative,
-            (PreposedOrPredicative, None) => PreposedOrPredicative,
-            (PreposedOrPredicative, PreposedOrPredicative) => PreposedOrPredicative,
+            (None, None, _, _) => None, (None, Adjunct, _, _) => Adjunct,
+            (Adjunct, None, _, _) => Adjunct,
+            (None, Compound, _, _) => Compound, (Compound, None, _, _) => Compound,
+            (Adjunct, Adjunct, _, _) => Adjunct, (Compound, Compound, _, _) => Compound,
+            (None, PreposedOrPredicative, contains VerbComplement, contains PredicativeComplement) => PreposedOrPredicative,
+            (PreposedOrPredicative, None, contains PredicativeComplement, contains VerbComplement) => PreposedOrPredicative,
+            (PreposedOrPredicative, PreposedOrPredicative, contains PredicativeComplement, contains PredicativeComplement) => PreposedOrPredicative,
         }
         table adjunct_complement_function(ComplementFunctionRestriction, PredicativeAdjunctUse)
             -> PredicativeAdjunctUse {
@@ -1220,7 +1222,8 @@ constructions! {
             export MatrixComplementRequirement = matrix_complement_concord(
                 left.MatrixComplementRequirement, Right.MatrixComplementRequirement);
             export ComplementFunctionRestriction = coordinated_complement_function_restriction(
-                left.ComplementFunctionRestriction, Right.ComplementFunctionRestriction);
+                left.ComplementFunctionRestriction, Right.ComplementFunctionRestriction,
+                left.PrepositionFunctionLicence, Right.PrepositionFunctionLicence);
             export SourceMarker = coordinated_source_marker(left.SourceMarker, Right.SourceMarker);
             export SourceComplementUse = coordinated_source_complement_use(
                 left.SourceComplementUse, Right.SourceComplementUse);

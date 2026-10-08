@@ -380,7 +380,7 @@ fn form_pieces(
                     quote!(#summary.values[#feature].clone().ok_or(Error::Invalid(#owner, "selected literal argument"))?)
                 });
                 let rows = ir.tables[*table].rows.iter().zip(&ir.tables[*table].literals).map(|((inputs, _), text)| {
-                    quote!(if inputs == vec![#(#inputs),*] { return Ok(#text); })
+                    quote!(if [#(#inputs),*].iter().zip(&inputs).all(|(pattern, value)| pattern.admits(value)) { return Ok(#text); })
                 });
                 write.push(quote!({
                     let text = (|| -> Result<&'static str, Error> {
