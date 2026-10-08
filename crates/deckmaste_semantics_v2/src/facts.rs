@@ -106,15 +106,19 @@ pub enum StackRegime {
     AtResolution,
 }
 
-/// The general category an ability belongs to [CR#113.3]: a statement that is
+/// The general category an ability belongs to [CR#113.3]: instructions
+/// followed while an instant or sorcery spell resolves, a statement that is
 /// simply true, a trigger condition with an effect, or a cost with an effect
-/// [CR#113.3b,113.3c,113.3d]. A keyword ability's definition is written in one
-/// of these three [CR#702.1].
+/// [CR#113.3a,113.3b,113.3c,113.3d]. A keyword ability's definition is written
+/// in these [CR#702.1]; a spell ability in one is the half a keyword represents
+/// on an instant or sorcery spell, guarded by that class
+/// [CR#702.131a,702.174b].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub enum AbilityCategory {
     Static,
     Triggered,
     Activated,
+    Spell,
 }
 
 /// One keyword ability's columns.
