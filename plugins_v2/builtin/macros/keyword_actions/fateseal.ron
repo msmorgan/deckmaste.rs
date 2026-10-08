@@ -5,7 +5,7 @@
 KeywordAction(
     name: "fateseal",
     params: [Amount],
-    spelling: "fateseal",
+    spelling: "fateseal <Param(0)>",
     grammar: Verb(
         bare: "fateseal",
         // No Oracle or Comprehensive Rules occurrence of "fateseals" was found in the 2026-08-18 morphology audit.

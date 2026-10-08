@@ -3,7 +3,7 @@
 KeywordAction(
     name: "tap",
     params: [Subject],
-    spelling: "tap",
+    spelling: "tap <Param(0)>",
     grammar: Verb(
         bare: "tap",
         participle: "tapped",

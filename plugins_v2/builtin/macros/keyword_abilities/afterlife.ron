@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "afterlife",
     params: [Amount],
-    spelling: "afterlife",
+    spelling: "afterlife <Param(0)>",
     grammar: FixedKeyword(
         surface: "afterlife",
     ),

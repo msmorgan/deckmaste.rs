@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "landwalk",
     params: [Quality],
-    spelling: "landwalk",
+    spelling: "<Param(0)>walk",
     keyword_syntax: (payload_order: BoundSuffix),
     grammar: FixedKeyword(
         surface: "landwalk",

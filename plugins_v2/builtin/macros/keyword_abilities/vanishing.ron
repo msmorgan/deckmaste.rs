@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "vanishing",
     params: [Amount],
-    spelling: "vanishing",
+    spelling: "vanishing <Param(0)>",
     grammar: FixedKeyword(
         surface: "vanishing",
     ),

@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "splice",
     params: [Quality, Cost],
-    spelling: "splice",
+    spelling: "splice onto <Param(0)> <Param(1)>",
     grammar: FixedKeyword(
         surface: "splice",
         parameter: Quality(preposition: ("Preposition", "Onto")),

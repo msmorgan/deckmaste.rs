@@ -6,7 +6,7 @@
 KeywordAction(
     name: "adapt",
     params: [Amount],
-    spelling: "adapt",
+    spelling: "adapt <Param(0)>",
     grammar: Verb(
         bare: "adapt",
         frame_set: MeasureComplement,

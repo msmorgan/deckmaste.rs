@@ -6,7 +6,7 @@
 KeywordAction(
     name: "scry",
     params: [Amount],
-    spelling: "scry",
+    spelling: "scry <Param(0)>",
     grammar: Verb(
         bare: "scry",
         third_person: "scries",

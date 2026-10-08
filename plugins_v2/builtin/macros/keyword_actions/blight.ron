@@ -4,7 +4,7 @@
 KeywordAction(
     name: "blight",
     params: [Amount],
-    spelling: "blight",
+    spelling: "blight <Param(0)>",
     grammar: Verb(
         bare: "blight",
         frame_set: MeasureComplement,

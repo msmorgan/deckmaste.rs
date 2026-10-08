@@ -4,7 +4,7 @@
 KeywordAction(
     name: "exile",
     params: [Subject],
-    spelling: "exile",
+    spelling: "exile <Param(0)>",
     grammar: Verb(
         bare: "exile",
         frame_set: Custom(frames: [

@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "reconfigure",
     params: [Cost],
-    spelling: "reconfigure",
+    spelling: "reconfigure <Param(0)>",
     grammar: FixedKeyword(
         surface: "reconfigure",
     ),

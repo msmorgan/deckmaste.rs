@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "firebending",
     params: [Amount],
-    spelling: "firebending",
+    spelling: "firebending <Param(0)>",
     grammar: FixedKeyword(
         surface: "firebending",
     ),

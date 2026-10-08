@@ -13,7 +13,7 @@
 KeywordAction(
     name: "amass",
     params: [Subtype, Amount],
-    spelling: "amass",
+    spelling: "amass <Param(0):plural> <Param(1)>",
     grammar: Verb(
         bare: "amass",
         third_person: "amasses",

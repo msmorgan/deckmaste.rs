@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "fading",
     params: [Amount],
-    spelling: "fading",
+    spelling: "fading <Param(0)>",
     grammar: FixedKeyword(
         surface: "fading",
     ),

@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "dredge",
     params: [Amount],
-    spelling: "dredge",
+    spelling: "dredge <Param(0)>",
     grammar: FixedKeyword(
         surface: "dredge",
     ),

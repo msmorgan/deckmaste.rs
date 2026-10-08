@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "graft",
     params: [Amount],
-    spelling: "graft",
+    spelling: "graft <Param(0)>",
     grammar: FixedKeyword(
         surface: "graft",
     ),

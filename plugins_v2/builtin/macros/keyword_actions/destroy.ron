@@ -5,7 +5,7 @@
 KeywordAction(
     name: "destroy",
     params: [Subject],
-    spelling: "destroy",
+    spelling: "destroy <Param(0)>",
     grammar: Verb(
         bare: "destroy",
         frame_set: Transitive,

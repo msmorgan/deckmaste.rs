@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "afflict",
     params: [Amount],
-    spelling: "afflict",
+    spelling: "afflict <Param(0)>",
     grammar: FixedKeyword(
         surface: "afflict",
     ),

@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "dash",
     params: [Cost],
-    spelling: "dash",
+    spelling: "dash <Param(0)>",
     grammar: FixedKeyword(
         surface: "dash",
     ),

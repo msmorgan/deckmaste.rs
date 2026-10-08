@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "offspring",
     params: [Cost],
-    spelling: "offspring",
+    spelling: "offspring <Param(0)>",
     grammar: FixedKeyword(
         surface: "offspring",
     ),

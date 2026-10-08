@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "impending",
     params: [Amount, Cost],
-    spelling: "impending",
+    spelling: "impending <Param(0)>—<Param(1)>",
     keyword_syntax: (parameter_separator: Dash),
     grammar: FixedKeyword(
         surface: "impending",

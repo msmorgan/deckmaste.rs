@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "levelUp",
     params: [Cost],
-    spelling: "level up",
+    spelling: "level up <Param(0)>",
     grammar: FixedKeyword(
         surface: "level up",
         block_label: (surface: "LEVEL"),

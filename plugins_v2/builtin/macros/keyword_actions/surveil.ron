@@ -5,7 +5,7 @@
 KeywordAction(
     name: "surveil",
     params: [Amount],
-    spelling: "surveil",
+    spelling: "surveil <Param(0)>",
     grammar: Verb(
         bare: "surveil",
         frame_set: MeasureComplement,

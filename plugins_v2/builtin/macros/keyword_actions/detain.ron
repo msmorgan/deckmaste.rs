@@ -4,7 +4,7 @@
 KeywordAction(
     name: "detain",
     params: [Subject],
-    spelling: "detain",
+    spelling: "detain <Param(0)>",
     grammar: Verb(
         bare: "detain",
         // No Oracle or Comprehensive Rules occurrence of "detains" was found in the 2026-08-18 morphology audit.

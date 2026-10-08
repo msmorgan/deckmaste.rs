@@ -138,9 +138,34 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
                 declaration.identity()
             );
         }
+        // Re-spelled for `builtin-v2-keyword-spelling-templates`: the spelling
+        // is the card-usage template, so it opens with the grammar head and
+        // every hole names a declared parameter (the full shape is
+        // `builtin_v2_keyword_spelling_templates.rs`).
+        let Some(SpellingPart::Literal(head)) = declaration.spelling().first() else {
+            panic!(
+                "{} must open its spelling with its head literal",
+                declaration.identity()
+            )
+        };
+        let grammar_head = declaration
+            .grammar()
+            .map(|grammar| grammar.surfaces()[0].text());
         assert!(
-            matches!(declaration.spelling(), [SpellingPart::Literal(_)]),
-            "{} must have one literal spelling part",
+            grammar_head.is_some_and(|grammar_head| head
+                .trim_end()
+                .strip_prefix(grammar_head)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with(' '))),
+            "{} spelling head `{head}` is not its grammar head",
+            declaration.identity()
+        );
+        let len = declaration.params().map_or(0, <[_]>::len);
+        assert!(
+            declaration
+                .spelling()
+                .iter()
+                .all(|part| !matches!(part, SpellingPart::Param { index, .. } if *index >= len)),
+            "{} spelling names a parameter it does not declare",
             declaration.identity()
         );
         assert!(
@@ -157,7 +182,13 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     let destroy = action(&declarations, "destroy");
     assert_eq!(
         destroy.spelling(),
-        [SpellingPart::Literal("destroy".to_owned())]
+        [
+            SpellingPart::Literal("destroy ".to_owned()),
+            SpellingPart::Param {
+                index: 0,
+                hint: None,
+            },
+        ]
     );
     assert_eq!(
         destroy.grammar().unwrap().recipe(),

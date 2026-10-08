@@ -3,7 +3,7 @@
 KeywordAction(
     name: "untap",
     params: [Subject],
-    spelling: "untap",
+    spelling: "untap <Param(0)>",
     grammar: Verb(
         bare: "untap",
         participle: "untapped",

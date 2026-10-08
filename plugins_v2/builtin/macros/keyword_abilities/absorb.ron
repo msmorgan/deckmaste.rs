@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "absorb",
     params: [Amount],
-    spelling: "absorb",
+    spelling: "absorb <Param(0)>",
     grammar: FixedKeyword(
         surface: "absorb",
     ),

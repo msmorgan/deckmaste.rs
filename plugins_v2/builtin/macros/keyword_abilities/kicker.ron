@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "kicker",
     params: [Cost],
-    spelling: "kicker",
+    spelling: "kicker <Param(0)>",
     grammar: FixedKeyword(
         surface: "kicker",
         participial_adjective: (surface: "kicked",),

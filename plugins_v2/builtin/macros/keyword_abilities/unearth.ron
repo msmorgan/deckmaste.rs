@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "unearth",
     params: [Cost],
-    spelling: "unearth",
+    spelling: "unearth <Param(0)>",
     grammar: FixedKeyword(
         surface: "unearth",
     ),

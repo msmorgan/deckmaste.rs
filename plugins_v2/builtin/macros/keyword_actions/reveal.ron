@@ -5,7 +5,7 @@
 KeywordAction(
     name: "reveal",
     params: [Subject],
-    spelling: "reveal",
+    spelling: "reveal <Param(0)>",
     grammar: Verb(
         bare: "reveal",
         frame_set: Transitive,

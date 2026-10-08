@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "morph",
     params: [Cost],
-    spelling: "morph",
+    spelling: "morph <Param(0)>",
     grammar: FixedKeyword(
         surface: "morph",
     ),

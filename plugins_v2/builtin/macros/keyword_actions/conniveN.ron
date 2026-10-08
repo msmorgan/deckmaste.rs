@@ -15,7 +15,7 @@
 KeywordAction(
     name: "conniveN",
     params: [Amount],
-    spelling: "connive",
+    spelling: "connive <Param(0)>",
     grammar: Verb(
         bare: "connive",
         frame_set: MeasureComplement,

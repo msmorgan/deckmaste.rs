@@ -5,7 +5,7 @@
 KeywordAction(
     name: "airbend",
     params: [Subject],
-    spelling: "airbend",
+    spelling: "airbend <Param(0)>",
     grammar: Verb(
         bare: "airbend",
         frame_set: Transitive,

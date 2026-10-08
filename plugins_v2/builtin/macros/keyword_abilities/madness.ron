@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "madness",
     params: [Cost],
-    spelling: "madness",
+    spelling: "madness <Param(0)>",
     grammar: FixedKeyword(
         surface: "madness",
     ),

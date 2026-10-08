@@ -4,7 +4,7 @@
 KeywordAction(
     name: "exert",
     params: [Subject],
-    spelling: "exert",
+    spelling: "exert <Param(0)>",
     grammar: Verb(
         bare: "exert",
         // No Oracle or Comprehensive Rules occurrence of "exerts" was found in the 2026-08-18 morphology audit.

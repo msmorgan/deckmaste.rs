@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "outlast",
     params: [Cost],
-    spelling: "outlast",
+    spelling: "outlast <Param(0)>",
     grammar: FixedKeyword(
         surface: "outlast",
     ),

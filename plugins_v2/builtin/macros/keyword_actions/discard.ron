@@ -6,7 +6,7 @@
 KeywordAction(
     name: "discard",
     params: [Subject],
-    spelling: "discard",
+    spelling: "discard <Param(0)>",
     grammar: Verb(
         bare: "discard",
         frame_set: Transitive,

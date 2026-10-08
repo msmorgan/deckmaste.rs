@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "prowl",
     params: [Cost],
-    spelling: "prowl",
+    spelling: "prowl <Param(0)>",
     grammar: FixedKeyword(
         surface: "prowl",
     ),

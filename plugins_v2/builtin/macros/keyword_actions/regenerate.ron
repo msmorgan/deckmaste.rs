@@ -9,7 +9,7 @@
 KeywordAction(
     name: "regenerate",
     params: [Subject],
-    spelling: "regenerate",
+    spelling: "regenerate <Param(0)>",
     grammar: Verb(
         bare: "regenerate",
         frame_set: Transitive,

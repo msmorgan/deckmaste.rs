@@ -5,7 +5,7 @@
 KeywordAction(
     name: "earthbend",
     params: [Amount],
-    spelling: "earthbend",
+    spelling: "earthbend <Param(0)>",
     grammar: Verb(
         bare: "earthbend",
         frame_set: MeasureComplement,

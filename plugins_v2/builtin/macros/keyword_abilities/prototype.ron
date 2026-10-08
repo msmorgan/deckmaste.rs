@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "prototype",
     params: [Cost, Power, Toughness],
-    spelling: "prototype",
+    spelling: "prototype <Param(0)> — <Param(1)>/<Param(2)>",
     keyword_syntax: (parameter_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "prototype",

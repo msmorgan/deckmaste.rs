@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "companion",
     params: [Condition],
-    spelling: "companion",
+    spelling: "companion — <Param(0)>",
     keyword_syntax: (head_separator: SpacedDash),
     grammar: FixedKeyword(
         surface: "companion",

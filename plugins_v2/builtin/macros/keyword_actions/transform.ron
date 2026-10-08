@@ -4,7 +4,7 @@
 KeywordAction(
     name: "transform",
     params: [Subject],
-    spelling: "transform",
+    spelling: "transform <Param(0)>",
     grammar: Verb(
         bare: "transform",
         frame_set: Transitive,

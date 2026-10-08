@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "evoke",
     params: [Cost],
-    spelling: "evoke",
+    spelling: "evoke <Param(0)>",
     grammar: FixedKeyword(
         surface: "evoke",
     ),

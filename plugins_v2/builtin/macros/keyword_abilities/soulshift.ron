@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "soulshift",
     params: [Amount],
-    spelling: "soulshift",
+    spelling: "soulshift <Param(0)>",
     grammar: FixedKeyword(
         surface: "soulshift",
     ),

@@ -9,7 +9,7 @@
 KeywordAction(
     name: "endure",
     params: [Amount],
-    spelling: "endure",
+    spelling: "endure <Param(0)>",
     grammar: Verb(
         bare: "endure",
         frame_set: MeasureComplement,

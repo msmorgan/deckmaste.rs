@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "gift",
     params: [Subject],
-    spelling: "gift",
+    spelling: "gift <Param(0)>",
     grammar: FixedKeyword(
         surface: "gift",
     ),

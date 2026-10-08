@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "reinforce",
     params: [Amount, Cost],
-    spelling: "reinforce",
+    spelling: "reinforce <Param(0)>—<Param(1)>",
     keyword_syntax: (parameter_separator: Dash),
     grammar: FixedKeyword(
         surface: "reinforce",

@@ -4,7 +4,7 @@
 KeywordAction(
     name: "attach",
     params: [Subject, Subject],
-    spelling: "attach",
+    spelling: "attach <Param(0)> to <Param(1)>",
     grammar: Verb(
         bare: "attach",
         third_person: "attaches",

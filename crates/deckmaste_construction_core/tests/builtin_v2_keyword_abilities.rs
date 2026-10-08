@@ -7,6 +7,8 @@ use deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar;
 use deckmaste_construction_core::macro_def::FixedLexeme;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::KeywordParameterClass;
+use deckmaste_construction_core::macro_def::KeywordPayloadOrder;
+use deckmaste_construction_core::macro_def::KeywordSeparator;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
 use deckmaste_construction_core::macro_def::ParameterType;
 use deckmaste_construction_core::macro_def::SpellingPart;
@@ -39,6 +41,77 @@ fn declaration_name(head: &str) -> String {
         .flat_map(char::to_lowercase)
         .chain(chars)
         .collect()
+}
+
+fn render_without_hints(spelling: &[SpellingPart]) -> String {
+    spelling
+        .iter()
+        .map(|part| match part {
+            SpellingPart::Literal(text) => text.clone(),
+            SpellingPart::Param { index, .. } => format!("<Param({index})>"),
+        })
+        .collect()
+}
+
+fn separator(separator: KeywordSeparator) -> &'static str {
+    match separator {
+        KeywordSeparator::Space => " ",
+        KeywordSeparator::Dash => "—",
+        KeywordSeparator::SpacedDash => " — ",
+    }
+}
+
+/// The keyword-line template the grammar surface, params and keyword syntax
+/// derive: payload before the head, glued to a bound suffix, or after the
+/// head joined by the declared separators, with a fixed quality preposition
+/// written out and a power/toughness pair joined by a slash.
+fn derived_template(declaration: &NormalizedDeclaration) -> String {
+    let grammar = declaration
+        .grammar()
+        .expect("keyword abilities carry grammar");
+    let head = grammar.surfaces()[0].text();
+    let params = declaration.params().unwrap_or_default();
+    if params.is_empty() {
+        return head.to_owned();
+    }
+    let syntax = declaration.keyword_syntax().unwrap_or_default();
+    match syntax.payload_order {
+        KeywordPayloadOrder::BeforeHead => return format!("<Param(0)> {head}"),
+        KeywordPayloadOrder::BoundSuffix => {
+            let suffix = grammar
+                .surfaces()
+                .iter()
+                .find(|surface| surface.feature() == SurfaceFeature::BoundSuffix)
+                .expect("a bound-suffix payload has a bound suffix surface");
+            return format!("<Param(0)>{}", suffix.text());
+        }
+        KeywordPayloadOrder::AfterHead => {}
+    }
+    let mut slots = (0..params.len())
+        .map(|index| format!("<Param({index})>"))
+        .collect::<Vec<_>>();
+    if let GrammarRecipe::FixedKeyword {
+        parameter:
+            Some(FixedKeywordParameterGrammar::Quality {
+                preposition: FixedLexeme(_, member),
+                ..
+            }),
+    } = grammar.recipe()
+    {
+        slots[0] = format!("{} {}", member.to_lowercase(), slots[0]);
+    }
+    let parameter_separator = separator(syntax.parameter_separator);
+    let payload = if params
+        == [
+            ParameterType::Cost,
+            ParameterType::Power,
+            ParameterType::Toughness,
+        ] {
+        format!("{}{parameter_separator}{}/{}", slots[0], slots[1], slots[2])
+    } else {
+        slots.join(parameter_separator)
+    };
+    format!("{head}{}{payload}", separator(syntax.head_separator))
 }
 
 fn ability<'a>(declarations: &'a [NormalizedDeclaration], name: &str) -> &'a NormalizedDeclaration {
@@ -257,27 +330,37 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
                 "{name}"
             );
         }
-        let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
-            panic!("keyword {name} declares compiler-owned layout in its spelling")
-        };
-        assert_eq!(name, &declaration_name(spelling));
-        assert_eq!(grammar.surfaces()[0].text(), spelling, "{name}");
+        // Re-spelled for `builtin-v2-keyword-spelling-templates`: the spelling
+        // is the card-usage template the grammar, params and keyword syntax
+        // derive, not a bare copy of the surface. The name still derives from
+        // the grammar surface.
+        assert_eq!(name, &declaration_name(grammar.surfaces()[0].text()));
+        assert_eq!(
+            render_without_hints(declaration.spelling()),
+            derived_template(declaration),
+            "{name}",
+        );
     }
 
-    for (name, surface) in [
-        ("flying", "flying"),
-        ("doubleStrike", "double strike"),
-        ("forMirrodin", "for Mirrodin!"),
-        ("moreThanMeetsTheEye", "More Than Meets the Eye"),
-        ("startYourEngines", "start your engines!"),
-        ("webSlinging", "web-slinging"),
-        ("infinity", "∞"),
+    for (name, surface, template) in [
+        ("flying", "flying", "flying"),
+        ("doubleStrike", "double strike", "double strike"),
+        ("forMirrodin", "for Mirrodin!", "for Mirrodin!"),
+        (
+            "moreThanMeetsTheEye",
+            "More Than Meets the Eye",
+            "More Than Meets the Eye <Param(0)>",
+        ),
+        (
+            "startYourEngines",
+            "start your engines!",
+            "start your engines!",
+        ),
+        ("webSlinging", "web-slinging", "web-slinging <Param(0)>"),
+        ("infinity", "∞", "∞ — <Param(0)>"),
     ] {
         let declaration = ability(&declarations, name);
-        assert_eq!(
-            declaration.spelling(),
-            [SpellingPart::Literal(surface.to_owned())]
-        );
+        assert_eq!(render_without_hints(declaration.spelling()), template);
         assert_eq!(declaration.grammar().unwrap().surfaces()[0].text(), surface);
     }
 }

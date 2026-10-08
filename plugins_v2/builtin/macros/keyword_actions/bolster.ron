@@ -6,7 +6,7 @@
 KeywordAction(
     name: "bolster",
     params: [Amount],
-    spelling: "bolster",
+    spelling: "bolster <Param(0)>",
     grammar: Verb(
         bare: "bolster",
         // No Oracle or Comprehensive Rules occurrence of "bolsters" was found in the 2026-08-18 morphology audit.

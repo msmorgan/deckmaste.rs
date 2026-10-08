@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "transmute",
     params: [Cost],
-    spelling: "transmute",
+    spelling: "transmute <Param(0)>",
     grammar: FixedKeyword(
         surface: "transmute",
     ),

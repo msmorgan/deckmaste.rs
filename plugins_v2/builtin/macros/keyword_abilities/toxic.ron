@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "toxic",
     params: [Amount],
-    spelling: "toxic",
+    spelling: "toxic <Param(0)>",
     grammar: FixedKeyword(
         surface: "toxic",
     ),

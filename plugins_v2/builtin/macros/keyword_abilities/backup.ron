@@ -1,7 +1,7 @@
 KeywordAbility(
     name: "backup",
     params: [Amount],
-    spelling: "backup",
+    spelling: "backup <Param(0)>",
     grammar: FixedKeyword(
         surface: "backup",
     ),
