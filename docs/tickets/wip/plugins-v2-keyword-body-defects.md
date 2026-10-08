@@ -71,3 +71,74 @@ card asking for it yet. Standard constraints apply.
   counter and type raw-conferral re-spells this item was holding can go
   ahead. They are Sonnet-mechanical.
 - **Helper macros' own bodies** were left for a later pass.
+
+## Landing record
+
+The series: `qqowuxzv` (routing: the type half and the helper bodies) and
+this record. No RON, Rust or Lean file changed: every re-spell this ticket
+held had already landed or is blocked. Measured on the tree at `qqowuxzv`
+over claim `szzporps`; `kata refresh` was a no-op.
+
+**Survey (2026-10-08).** `keyword_actions/` and `keyword_abilities/` grepped
+for `Printed(`, `Boost(`, `Conferral`, `CounterKind(`, `Named(`,
+`Action("`, `keyword("`, `PtModification`, `AbilityGrant`, `Property(` and
+`TypeDef` outside comments: 0 sites. Every keyword body is already over
+helpers or bodyless.
+
+- **(a) Counter conferrals: 0 to re-spell.** The 73 `counter_kinds/`
+  declarations already write the general helper forms
+  (`semantics-v2-counter-kind-is-a-name`, `pxvxllnp`): 2
+  `boost(up(1), up(1))` / `boost(down(1), down(1))`, 15
+  `grants(<keyword>)`, 56 confer nothing. 0 raw.
+- **(b) Type conferrals: STOP, routed.** `creature`, `land` and `instant`
+  write raw v1-shaped conferrals inside `TypeDef(…)`. `types/` has no
+  expansion coverage: `cargo xtask expansions` skips all ten ("no kind of
+  [Type] is a v2 syntax type, and the body (`TypeDef`) is not a registry
+  node"), and coverage cannot be added in xtask alone, because v2 does not
+  read a `Type` body at all (a loader tag, `ron.rs` `DECLARATION_KINDS`;
+  Lean `Definition` has no type constructor). Giving it coverage is a
+  Lean-first model change, so the half is routed whole to the new
+  `semantics-v2-type-definitions`. No helper was invented.
+- **(c) `returnToBattlefieldWithCounters`: already done**
+  (`plugins-v2-keyword-helper-additions`, S2). The Lean bench macro of the
+  same name stays by that ticket's decision (two bench uses in
+  `lean/Semantics/Cards/Counters.lean`).
+
+**Stays as it is, on purpose** (the section above, unchanged): sequenced
+costs refused; `champion`, `enchant`, `companion`, `foretell` deferred;
+`prototype` forwards nothing; `demonstrate` raw with no `latest` helper.
+
+**Routed residue.**
+- The type half: `semantics-v2-type-definitions` (new, planned).
+- The 21 bodyless keyword actions keep their STOP comments; their live owner
+  is `semantics-v2-keyword-action-residues`.
+- Helper macros' own bodies: appended to `plugins-v2-bodies-through-helpers`,
+  with the one instance found (`Printed(Param(kind))` in
+  `entersWithCounters`, `entersWithAdditionalCounters`,
+  `entersWithFewerCounters`, `exileWithCounters`).
+
+**Proof.**
+- `cargo xtask expansions` on the claim and on `qqowuxzv`: 1509
+  declarations, 1467 printed, 42 skipped, 0 failed; `diff -r` identical.
+- `cargo xtask lean check`: canon 134/134, testing 7/7 (2.0s).
+- `cargo test -p deckmaste_construction_core -p deckmaste_semantics_v2 -p
+  xtask --no-fail-fast`: 24 binaries, 952 passed, 0 failed, 1 ignored.
+  Clippy on the same crates `--tests -- -D warnings`: clean.
+- `cargo xtask cite check`: 0 stale; `--list-noncompliant`: 0; the audit of
+  the diff from the claim read 3 sites (`semantics-v2-type-definitions`),
+  each checked against its rule text.
+- `kata kanban check`: OK.
+- `cargo xtask lexical --card-name "Black Lotus" --export` on the claim and
+  on `qqowuxzv`: byte-identical.
+
+**Tests.** Restored 0, re-spelled 0, ignored 0, added 0, removed 0.
+
+**Deviations and additions.** New ticket `semantics-v2-type-definitions`;
+a paragraph appended to `plugins-v2-bodies-through-helpers`. No commit for
+stages (a) and (c): nothing was left to change.
+
+**STOPs.** The type half (above): coverage needs a v2 type Definition.
+
+**Not applicable.** Coverage lock, selection census, licensing-checker
+totals, homograph and form-literal inventories and the performance advisory:
+no English grammar, lexicon or corpus input changed.
