@@ -117,7 +117,7 @@ impl Shape {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Regime {
+pub(super) enum Regime {
     AtCasting,
     AtResolution,
 }
@@ -127,6 +127,13 @@ impl Regime {
         match self {
             Regime::AtCasting => "AtCasting",
             Regime::AtResolution => "AtResolution",
+        }
+    }
+
+    pub(super) fn lean(self) -> &'static str {
+        match self {
+            Regime::AtCasting => ".atCasting",
+            Regime::AtResolution => ".atResolution",
         }
     }
 }
@@ -169,6 +176,10 @@ impl Category {
 struct Row {
     label: &'static str,
     extra: &'static [Shape],
+    /// The keyword's own stack regime, read where it is granted to a spell
+    /// [CR#113.6]. For a keyword whose definition is declared it is the
+    /// summary of its components' regimes (the first stack regime among
+    /// them), and the generator refuses a value that disagrees.
     regime: Option<Regime>,
     functions_on_stack: bool,
     on_permanent_card: bool,
@@ -178,10 +189,18 @@ struct Row {
     /// cost reads back (gift's "you may choose an opponent" [CR#702.174a]).
     /// Lean only: the Idris reference table has no such column.
     cost_chooses_player: bool,
-    /// The categories this keyword's definition is written in, from its own
-    /// [CR#702] entry. Empty is a keyword whose definition the workbench has
-    /// not declared yet, and whose term therefore carries no body.
-    definition: &'static [Category],
+    /// The components this keyword's definition is written in, each with
+    /// its category and its own stack regime, from its own [CR#702] entry.
+    /// Empty is a keyword whose definition the workbench has not declared
+    /// yet, and whose term therefore carries no body.
+    definition: &'static [(Category, Option<Regime>)],
+    /// The stack regime of each component of the WRITTEN definition whose
+    /// form leaves it open, by position: a permission to cast the card
+    /// functions on the stack as the spell is cast for some keywords
+    /// [CR#702.117a] and in the zone the card is cast from for others
+    /// [CR#702.34a]. A component left out here functions off the stack. A
+    /// component whose form determines its regime takes no entry.
+    open_regimes: &'static [(usize, Regime)],
     wants_modes: bool,
 }
 
@@ -197,6 +216,7 @@ const D: Row = Row {
     paid_cost: false,
     cost_chooses_player: false,
     definition: &[],
+    open_regimes: &[],
     wants_modes: false,
 };
 
@@ -346,7 +366,7 @@ fn overlay() -> Vec<Row> {
             label: "Echo",
             // The workbench cannot spell this definition, so the declaration
             // writes none and the [CR#702.30a] entry is what names its category.
-            definition: &[Category::Triggered],
+            definition: &[(Category::Triggered, None)],
             paid_cost: true,
             ..D
         },
@@ -506,6 +526,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Surge",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.117a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -514,6 +537,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Spectacle",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.137a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -655,6 +681,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Impending",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.176a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
@@ -748,7 +777,7 @@ fn overlay() -> Vec<Row> {
             label: "Cascade",
             // The workbench cannot spell this definition, so the declaration
             // writes none and the [CR#702.85a] entry is what names its category.
-            definition: &[Category::Triggered],
+            definition: &[(Category::Triggered, Some(Regime::AtCasting))],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -831,7 +860,7 @@ fn overlay() -> Vec<Row> {
             label: "Backup",
             // The workbench cannot spell this definition, so the declaration
             // writes none and the [CR#702.165a] entry is what names its category.
-            definition: &[Category::Triggered],
+            definition: &[(Category::Triggered, None)],
             ..D
         },
         Row {
@@ -1262,6 +1291,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "WebSlinging",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.188a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
@@ -1395,7 +1427,7 @@ fn render(root: &Path) -> anyhow::Result<String> {
         let categories = declared
             .map(|declared| declared.categories.clone())
             .filter(|categories| !categories.is_empty())
-            .unwrap_or_else(|| row.definition.iter().map(|c| c.lean()).collect());
+            .unwrap_or_else(|| row.definition.iter().map(|(c, _)| c.lean()).collect());
         if categories == [Category::Triggered.lean()] {
             fields.push("bodied := True".to_owned());
         }
