@@ -738,6 +738,35 @@ additional-cost keywords share one mechanism"); there is no selector device.
   until gift or ascend is bodied, so the definition-fit pins hold a
   gift-shaped row of their own.
 
+### The player chosen as a cost was paid
+
+Gift's first ability is a cost, "As an additional cost to cast this spell, you
+may choose an opponent" [CR#702.174a], and its second hands the effect to the
+chosen player [CR#702.174b,702.174d..702.174i]. The two are linked
+[CR#607.2d,607.2i], as kicker's cost and its "was kicked" readback are
+[CR#702.33e], and the second
+reads the first through the same paid-cost facets: `PaidFacet.chosenPlayer
+which`, "the player chosen as [which] was paid", keyed by `PaidCostName` and
+written `.byKeyword (.named "gift")` (`semantics-v2.md` §7, ruling 2026-10-06,
+"Gift and the additional-cost keywords share one mechanism"). There is no
+general linked-ability binding.
+
+- The facet is a player, so it is read by `NounPhrase.paid facet subject`
+  (`chosenAsPaid`); `Amount.paid` reads the amount facets. Each refuses the
+  other's facet (`paidFacetKind`): a term-shape check.
+- It resolves as kicker's readback does: the cost is named in the registry
+  (`paidFacetNamed`), and the subject is the source or a spell on the stack
+  (`paidSubject`). It adds one reference check: paying the named cost chooses
+  a player, the row's `costChoosesPlayer` column (gift's alone), else
+  `paidChoiceInScope which`, since the linked ability has no choice to read
+  [CR#607.2d]. "The additional cost" and "the alternative cost" declare no
+  choice. Neither check asserts a game rule (§7, "The checker's charter").
+- A bare "the chosen player" (`chosenPlayer`, `.chosenPlayer .theChoice`) still
+  reads only a choice in its own ability, and is refused with
+  `choiceRef theChoice player 0` where there is none.
+- Pins: `Semantics/Proofs/LinkedChoiceReadback.lean`, including both
+  class-guarded halves of a gift-shaped definition.
+
 
 ### Movement destinations
 

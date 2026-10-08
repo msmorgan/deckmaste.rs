@@ -65,3 +65,88 @@ the additional-cost keywords). Owner: "idk do what the CR says."
 - Pins as above: gift's second ability reads the chosen opponent through the
   facet, and an unlinked `chosenPlayer` with no choice in scope is still
   refused.
+
+## Landing record
+
+Measured on change `uxtzyuul` (tip of the claim after `kata refresh`,
+2026-10-07; the refresh brought ticket files only). No English grammar,
+lexicon or corpus input changed, so the lock `covered` count and construction
+count are not moved and were not re-measured; the lexicon export (`cargo
+xtask lexical --output … --card-name "Black Lotus" --export …`) is
+byte-identical with and without this landing's plugin change.
+
+### PROVE
+
+- **No silent loss.** `lake build --wfail` (86 jobs; every existing
+  `Proofs/*` pin unchanged and green); `cargo xtask lean check` canon
+  134/134, testing 7/7; `cargo xtask lean definitions` 553/553 (73 counters,
+  461 subtypes, 19 designations). No identity stopped being covered; no pin
+  outside the new file changed outcome.
+- **Structural laws.** `cargo xtask facts check`: `Facts.lean` and
+  `FactsGen.idr` up to date (one row changed: gift gains
+  `costChoosesPlayer := true`; the Idris table has no such column).
+  `cargo xtask expansions` `diff -r` before/after for builtin, canon and
+  testing: identical except the new `nouns/chosenAsPaid.expanded` and its
+  `_index.txt` line (1508 → 1509 declarations). Rust/Lean mirror drift test
+  green.
+- **No word-naming.** The new check reads a declared registry column
+  (`costChoosesPlayer`), never a keyword, card or lexeme.
+
+### DISCLOSE
+
+- **The device, as decided (option 1).** `PaidFacet.chosenPlayer which`, "the
+  player chosen as [which] was paid" [CR#702.174a,607.2d,607.2i], keyed by
+  `PaidCostName` and written `.byKeyword (.named "gift")`. Helper
+  `chosenAsPaid(which, subject)` (Lean `semantic_macro` and
+  `plugins_v2/builtin/macros/nouns/chosenAsPaid.ron`, same name; it reads as
+  the CR's "chosen as … was paid"). Gift's second ability will write
+  `act(chosenAsPaid(gift, this), effect)`.
+- **Scope rule.** As kicker's readback: the cost is registry-named
+  (`paidFacetNamed`) and the subject is the source or a spell on the stack
+  (`paidSubject`). Kicker's readback has no per-card "is this keyword printed
+  here" check, so neither does this one. Added: the named cost must choose a
+  player when paid (`costChoosesPlayer`, gift's row only), else
+  `paidChoiceInScope which` — a reference refusal (§7, "The checker's
+  charter"); `.theAdditional` / `.theAlternative` declare no choice and are
+  refused likewise. No game-rule refusal added.
+- **Deviations and additions.**
+  - `NounPhrase.paid facet subject` (Lean, Rust `NounPhrase::Paid`): a
+    `PaidFacet` was read only by `Amount.paid`, and the chosen player is a
+    noun phrase. Each reader refuses the other's facets (`paidFacetKind`, term
+    shape). Its kind is player, singular, no zone, and it introduces a player
+    binding, as `possessorOf` does.
+  - New `KeywordFacts` column `costChoosesPlayer` (xtask overlay `Row`, Lean
+    `FactTypes.lean`, Rust `facts.rs` mirror, `GATE_COLUMNS` text). Lean only.
+  - Refusals `paidChoiceInScope` (anaphora and scope) and `paidFacetKind`
+    (tables), not mirrored in Rust (`Refusal` has no mirror).
+  - `Proofs/LinkedChoiceReadback.lean`, 11 pins. The two required: gift reads
+    the chosen opponent (`okGiftReadsChosenPlayer`); a bare `chosenPlayer` with
+    no choice in scope is refused `choiceRef theChoice player 0`
+    (`badUnlinkedChosenPlayer`). Twins: kicker (no choice), flying (no cost),
+    the additional cost, kind cross-reads, object context; both class-guarded
+    halves check class-blind, fit a gift-shaped row, and pass `cardTextOk` on a
+    creature and an instant.
+  - ADR §12.1 recount: 413 = 313 declarations + 2 + 98.
+- **Glossary.** Added **Linked Abilities** and **Paid-Cost Facet**
+  (game-model). `lean/CONTRACTS.md` gains "The player chosen as a cost was
+  paid".
+- **STOPs.** None.
+
+### Assurance counts
+
+Restored 0, re-spelled 0, ignored 0, added 11 (Lean pins), removed 0.
+
+### Tests
+
+`cargo test -p deckmaste_semantics_v2` (43 + 7 + 1 + 4 + 41 passed);
+`cargo test -p xtask` (371 passed, 1 ignored as before; 4 and 14 in the other
+suites); `cargo clippy -p deckmaste_semantics_v2 --tests -- -D warnings` and
+`cargo clippy -p xtask --tests -- -D warnings` clean; cite checks: 0
+non-compliant, 0 stale, `bless` changed nothing, audit of the diff from the
+claim commit read (29 sites); `kata kanban check` OK.
+
+### REPORT
+
+Performance advisory: `cargo xtask lean check` 1m47s wall on a host
+running other sessions' workspaces. No coverage command was run (no English
+input changed).

@@ -284,6 +284,22 @@ all Players pass in succession ([CR#500.2]).
 A rules procedure in which an allowed option or value is selected. Choice names
 the rules-level selection, not the engine boundary that waits for an agent.
 
+**Linked Abilities**:
+Two abilities printed on one Object where the second refers only to what the
+first did, chose, or allowed to be paid, and not to any other ability's
+([CR#607.1,607.2d,607.2i]). Kicker's cost and its "if it was kicked" ability are
+linked ([CR#702.33e]), as are gift's "you may choose an opponent" cost and the
+ability that hands its effect to the chosen Player ([CR#702.174a,702.174b]).
+_Avoid_: reading "the chosen player" as any Choice in scope
+
+**Paid-Cost Facet** (project term):
+What a Linked Ability reads back about a named cost of its source: the colors
+or amount of mana spent, the number of times the cost was paid, whether it was
+paid ([CR#702.33d,702.44a,601.2h]), or the Player chosen as it was paid
+([CR#702.174a,607.2d]). The cost is named by its Keyword Ability, or as "the
+additional" or "the alternative" cost.
+_Avoid_: payment record (the engine's store, not the reference)
+
 **Target**:
 An Object or Player a Spell or Ability has identified to affect as a Target.
 Targets are initially chosen while putting that Spell or Ability on the stack
