@@ -59,7 +59,7 @@
         "lexeme:keyword_action/destroy": {"MatrixComplementLicence": "Nominal"},
         "core-verb:Return": {"MatrixComplementLicence": "Nominal"},
         "core-verb:Deal": {"MatrixComplementLicence": "Nominal"},
-        "core-verb:Have": {"MatrixComplementLicence": "Nominal", "PurposeAdjunctLicence": "No"},
+        "core-verb:Have": {"PurposeAdjunctLicence": "No"},
         // Oracle-register stative exclusion: orchestrator ruling 2026-10-08.
         "core-verb:Be": {"PurposeAdjunctLicence": "No"},
         "core-verb:BeNegative": {"PurposeAdjunctLicence": "No"},

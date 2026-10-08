@@ -545,6 +545,10 @@ constructions! {
             InternalisedComplementPresent) -> InternalisedComplementPresent {
             (Yes, Yes) => Yes, (No, Yes) => Yes, (Yes, No) => Yes, (No, No) => No,
         }
+        table internalised_complement_presence(InternalisedComplementPresent,
+            InternalisedComplementMarker) -> InternalisedComplementPresent {
+            (Yes, Yes) => Yes, (No, Yes) => Yes, (Yes, No) => Yes, (No, No) => No,
+        }
         table coordinated_participial_use(ParticipialUse, ParticipialUse) -> ParticipialUse {
             (Ordinary, Ordinary) => Ordinary,
             (BarePassive, BarePassive) => BarePassive,
@@ -843,6 +847,15 @@ constructions! {
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export InternalisedComplementPresent = head.InternalisedComplementPresent;
+            export ParticipialUse = head.ParticipialUse;
+            export form = secondary_form(head.form);
+        }
+
+        policy SecondaryPrepositionProjection {
+            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
+            export MatrixComplementLicence = head.MatrixComplementLicence;
+            export InternalisedComplementPresent = internalised_complement_presence(
+                head.InternalisedComplementPresent, modifier.InternalisedComplementMarker);
             export ParticipialUse = head.ParticipialUse;
             export form = secondary_form(head.form);
         }
@@ -1326,10 +1339,10 @@ constructions! {
         // nominal and copy-description exceptions use declared host licences.
         // CGEL's matrix account alone does not establish these Oracle uses.
         schema LicensedMatrixComplementPredicate {
-            form [head: node, " ", modifier: PrepositionPhrase]
-                require modifier.MatrixComplementRequirement = Nominal;
-            form [head: node, ", ", modifier: PrepositionPhrase]
-                require modifier.MatrixComplementRequirement = Content;
+            // Owner ruling, 2026-10-08 (licence-hygiene ticket): both
+            // separators occur with each licensed exception Complement shape.
+            form [head: node, " ", modifier: PrepositionPhrase];
+            form [head: node, ", ", modifier: PrepositionPhrase];
             require licensed_matrix_complement(head.MatrixComplementLicence,
                 modifier.MatrixComplementRequirement) = Yes;
         }
@@ -2975,6 +2988,7 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require preposition_phrase_complement(head.PrepositionComplement) = Yes;
             require complement.MatrixComplementRequirement = None;
+            require complement.ComplementFunctionRestriction = None;
             require licensed_preposition_phrase_complement(head.PrepositionPhraseComplementLicence,
                 complement.SourceComplementUse) = Yes;
             export ObliqueNumber = None;
@@ -3285,7 +3299,7 @@ constructions! {
 
         instance PrepositionPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, PrepositionPhrase, PredicateHostAgreement),
-            (SecondaryVerbPhrase, Self, PrepositionPhrase, SecondaryProjection),
+            (SecondaryVerbPhrase, Self, PrepositionPhrase, SecondaryPrepositionProjection),
             (FiniteObjectGap, Self, PrepositionPhrase, PredicateHostAgreement),
             (BareObjectGap, Self, PrepositionPhrase, PurposeHostProjection),
         ] {

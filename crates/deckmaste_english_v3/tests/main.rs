@@ -162,3 +162,6 @@ mod rather_than_complements;
 
 #[path = "suite/signed_numeral_cost.rs"]
 mod signed_numeral_cost;
+
+#[path = "suite/licence_hygiene.rs"]
+mod licence_hygiene;
