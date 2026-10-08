@@ -174,10 +174,11 @@ fn every_builtin_registry_definition_proves() {
         .expect("every registry definition in plugins_v2/builtin proves `Definition.check = []`");
 }
 
-/// A counter that confers a spell ability breaks the conferral law
-/// (`Conferral.check`'s `.grantable`: a spell ability is followed while a spell
-/// resolves [CR#113.3a], so nothing can confer one). The gate must single that
-/// definition out of a copy of the whole registry and fail outright.
+/// A designation a player holds that writes a zone breaks the scope law
+/// (`Definition.check`'s `.definitionScoped`: a zone says what the object
+/// holding a designation is, so a designation a player holds writes none
+/// [CR#725.1]). The gate must single that definition out of a copy of the
+/// whole registry and fail outright.
 #[test]
 fn a_definition_that_breaks_a_definition_law_is_singled_out_and_the_gate_fails() {
     if skip("a_definition_that_breaks_a_definition_law_is_singled_out_and_the_gate_fails") {
@@ -190,12 +191,12 @@ fn a_definition_that_breaks_a_definition_law_is_singled_out_and_the_gate_fails()
     let plugin = temp.path().join("builtin");
     copy_tree(&workspace_root().join("plugins_v2/builtin"), &plugin);
     std::fs::write(
-        plugin.join("macros/counter_kinds/lawlessCounter.ron"),
-        "CounterKind(\n    name: \"lawlessCounter\",\n    params: [],\n    spelling: \"lawless\",\n    \
-         grammar: FixedTerm(surface: \"lawless\"),\n    holder: Object,\n    \
-         confers: [Ability(confer: Spell(timing: None, instruction: Shuffle))],\n)\n",
+        plugin.join("macros/designations/lawlessDesignation.ron"),
+        "Designation(\n    name: \"lawlessDesignation\",\n    params: [],\n    \
+         spelling: \"lawless\",\n    grammar: FixedTerm(surface: \"lawless\"),\n    \
+         scope: HeldBy(Player),\n    effectful: true,\n    zone: Battlefield,\n)\n",
     )
-    .expect("the lawless counter writes");
+    .expect("the lawless designation writes");
 
     let error = xtask::definition_check::run(&DefinitionCheckArgs::new(Some(plugin)))
         .expect_err("a definition that breaks a Lean law fails the gate");
