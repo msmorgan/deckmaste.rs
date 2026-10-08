@@ -2829,6 +2829,8 @@ constructions! {
 
         // CGEL Ch. 13 §5.5, p. 1152: irrealis content-clause Complement.
         construction IrrealisClauseComplementPreposition: PrepositionPhrase {
+            export MatrixComplementRequirement = head.MatrixComplementRequirement;
+            export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
