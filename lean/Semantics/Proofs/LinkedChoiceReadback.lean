@@ -37,7 +37,7 @@ def onPermanentCard : Condition := .matches .this permanentCard
 def onInstantOrSorcery : Condition := .matches .this instantOrSorcery
 
 /-- "the chosen player draws a card", the player read back from gift's cost. -/
-def chosenDraws : Instruction := act (chosenAsPaid gift .this) (draw (.lit 1))
+def chosenDraws : Instruction := act (chosenAsPaid (.named "gift") .this) (draw (.lit 1))
 
 /-- Gift's permanent half: "When this permanent enters, if this is a permanent card, if its gift
 cost was paid, the chosen player draws a card." [CR#702.174b,702.174e] -/
@@ -58,7 +58,7 @@ def giftShapedRow : KeywordFacts :=
 
 /-- Required pin: gift's second ability reads the opponent chosen as its gift cost was paid. -/
 theorem okGiftReadsChosenPlayer :
-    NounPhrase.check (some .player) [] (chosenAsPaid gift .this) = [] := by
+    NounPhrase.check (some .player) [] (chosenAsPaid (.named "gift") .this) = [] := by
   decide
 
 /-- Required pin: "the chosen player draws a card" in an ability that chose no player is refused;
@@ -70,19 +70,19 @@ theorem badUnlinkedChosenPlayer :
 
 /-- Kicker's cost chooses no player, so there is none to read back [CR#702.33a,607.2d]. -/
 theorem badKickerChoosesNoPlayer :
-    NounPhrase.check (some .player) [] (chosenAsPaid kicker .this)
+    NounPhrase.check (some .player) [] (chosenAsPaid (.named "kicker") .this)
       = [.paidChoiceInScope kicker] := by
   decide
 
 /-- Flying has no cost at all: the facet names nothing. -/
 theorem badCostlessKeywordChoosesNoPlayer :
-    NounPhrase.check (some .player) [] (chosenAsPaid (.byKeyword (.named "flying")) .this)
+    NounPhrase.check (some .player) [] (chosenAsPaid (.named "flying") .this)
       = [.paidFacetNamed] := by
   decide
 
 /-- "The additional cost" names no declared choice. -/
 theorem badTheAdditionalChoosesNoPlayer :
-    NounPhrase.check (some .player) [] (chosenAsPaid .theAdditional .this)
+    NounPhrase.check (some .player) [] (.paid (.chosenPlayer .theAdditional) .this)
       = [.paidChoiceInScope .theAdditional] := by
   decide
 
@@ -95,7 +95,7 @@ theorem badFacetReadAsTheOtherKind :
 
 /-- The chosen player is a player: an object context refuses it. -/
 theorem badChosenPlayerAsObject :
-    NounPhrase.check (some .object) [] (chosenAsPaid gift .this)
+    NounPhrase.check (some .object) [] (chosenAsPaid (.named "gift") .this)
       = [.kindMismatch .object .player] := by
   decide
 

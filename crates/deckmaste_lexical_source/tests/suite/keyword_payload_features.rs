@@ -22,6 +22,22 @@ fn feature(entry: &Lexeme, name: &str, expected: &str) {
     );
 }
 
+/// Bare gift takes its effect as an instruction, which no keyword line prints:
+/// only its spelled forms ("Gift a card") are read [CR#702.174a,702.174e].
+#[test]
+fn bare_gift_declares_the_instruction_parameter_class() {
+    feature(
+        entry("gift", Category::Keyword),
+        "KeywordParameterClass",
+        "Instruction",
+    );
+    feature(
+        entry("gift a card", Category::Keyword),
+        "KeywordParameterClass",
+        "Nullary",
+    );
+}
+
 #[test]
 fn authored_keyword_payload_contracts_preserve_separators_and_markers() {
     // Oracle witnesses: Myr Enforcer, Pacifism, Rift Bolt, Kodama's Might,

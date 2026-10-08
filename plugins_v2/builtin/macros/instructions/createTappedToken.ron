@@ -1,0 +1,11 @@
+// "<performer> creates <count> tapped <characteristics> token(s)": a token whose
+// characteristics the creating instruction writes, entering tapped [CR#111.2].
+(
+    name: "createTappedToken",
+    kinds: [Instruction],
+    params: {"characteristics": CharacteristicBundle, "count": Default(Amount, 1)},
+    body: CreateObject(
+        count: Param(count),
+        spec: Token(spec: Written(characteristics: Param(characteristics)), riders: [EntersAs(Tapped)]),
+    ),
+)

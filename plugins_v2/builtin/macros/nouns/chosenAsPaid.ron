@@ -1,7 +1,8 @@
-// "the player chosen as <subject>'s <cost> was paid", read back by the linked ability
+// "the player chosen as <subject>'s <label> cost was paid", read back by the
+// linked ability [CR#607.2d,702.174a]
 (
     name: "chosenAsPaid",
     kinds: [NounPhrase],
-    params: {"which": PaidCostName, "subject": NounPhrase},
-    body: Paid(ChosenPlayer(Param(which)), Param(subject)),
+    params: {"label": KeywordLabel, "subject": NounPhrase},
+    body: Paid(ChosenPlayer(ByKeyword(Param(label))), Param(subject)),
 )

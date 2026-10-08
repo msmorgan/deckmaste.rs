@@ -96,7 +96,7 @@ constructions! {
         feature ComparisonMarker { Equality, Ordering }
         feature ExpandedComparisonMarker { Equality }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
-            QualityCost, Ability, Condition, CostPowerToughness }
+            QualityCost, Ability, Condition, CostPowerToughness, Instruction }
         feature NominalBareClass { None, Interval, Boundary }
         feature NominalAdjunctClass { None, Temporal, Manner } default None;
         feature SlashPremodifierUse { No, Yes } default Yes;

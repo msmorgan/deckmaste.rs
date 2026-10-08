@@ -21,19 +21,16 @@ namespace Semantics.Proofs.GiftVariants
 /-- "its gift cost" -/
 def giftCost : PaidCostName := .byKeyword (.named "gift")
 
-/-- "if this has a permanent's type": read off the types, so it holds of a token with gift as
-well as a card [CR#110.4a]. -/
-def onPermanent : Condition :=
-  .matches .this
-    (.or [ .hasType .artifact, .hasType .battle, .hasType .creature, .hasType .enchantment,
-           .hasType .land, .hasType .planeswalker ])
+/-- "if this has a permanent type": read off the types, so it holds of a token with gift as
+well as a card [CR#110.4]. -/
+def onPermanent : Condition := .matches .this permanentType
 
 /-- "if this is an instant or sorcery" -/
 def onInstantOrSorcery : Condition := .matches .this instantOrSorcery
 
 /-- "if its gift cost was paid, the chosen player <effect>" -/
 def handed (effect : Instruction) : Instruction :=
-  doIf (costWasPaid giftCost none .this) (act (chosenAsPaid giftCost .this) effect)
+  doIf (costWasPaid giftCost none .this) (act (chosenAsPaid (.named "gift") .this) effect)
 
 /-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
 def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true)
@@ -51,8 +48,7 @@ def giftACard : Ability := gift (draw (.lit 1))
 /-- "Gift a tapped Fish": the chosen player creates a tapped 1/1 blue Fish creature token
 [CR#702.174f]. -/
 def giftATappedFish : Ability :=
-  gift (Primitives.Instruction.create (.lit 1)
-    (.written (creatureToken 1 1 [.blue] [creatureType "Fish"])) [.entersAs .tapped])
+  gift (createTappedToken (creatureToken 1 1 [.blue] [creatureType "Fish"]))
 
 /-- Both variants fit the registry's gift row and check with no class context. -/
 theorem okVariantsFitGiftRow :

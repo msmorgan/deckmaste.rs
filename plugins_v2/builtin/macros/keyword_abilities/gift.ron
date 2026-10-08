@@ -12,8 +12,8 @@ KeywordAbility(
     // reads the opponent back through the paid cost it was chosen as, as the
     // rules link them [CR#607.2d,607.2i]; each half is guarded by the card's
     // class (`semantics-v2.md` §7, ruling 2026-10-06). The permanent half's guard
-    // reads the object's types, not `permanentCard`, so it holds of a token that
-    // has gift as well [CR#110.4a].
+    // reads the object's types (`permanentType`), not `permanentCard`, so it
+    // holds of a token that has gift as well [CR#110.4].
     //
     // No spelling: "Gift a [something]" defines its effect by the [something]
     // [CR#702.174d..702.174i], so bare gift is unparseable and is invoked by its
@@ -23,20 +23,10 @@ KeywordAbility(
         static(addedCost(perform(choose(a(opponent))), true)),
         triggeredIf(
             event: enters(thisPermanent),
-            condition: matches(
-                this,
-                or([
-                    hasType(Artifact),
-                    hasType(Battle),
-                    hasType(Creature),
-                    hasType(Enchantment),
-                    hasType(Land),
-                    hasType(Planeswalker),
-                ]),
-            ),
+            condition: matches(this, permanentType),
             instruction: doIf(
                 keywordCostPaid(gift, this),
-                act(chosenAsPaid(ByKeyword(gift), this), Param(0)),
+                act(chosenAsPaid(gift, this), Param(0)),
             ),
         ),
         spell(
@@ -44,7 +34,7 @@ KeywordAbility(
                 matches(this, instantOrSorcery),
                 doIf(
                     keywordCostPaid(gift, this),
-                    act(chosenAsPaid(ByKeyword(gift), this), Param(0)),
+                    act(chosenAsPaid(gift, this), Param(0)),
                 ),
             ),
         ),

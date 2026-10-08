@@ -163,6 +163,11 @@ semantic_macro land : Predicate := .hasType .land
 semantic_macro instant : Predicate := .hasType .instant
 semantic_macro sorcery : Predicate := .hasType .sorcery
 semantic_macro instantOrSorcery : Predicate := .or [instant, sorcery]
+/-- "has a permanent type": an artifact, battle, creature, enchantment, land, or planeswalker
+[CR#110.4]; read off the types, so it holds of a card or a token. -/
+semantic_macro permanentType : Predicate :=
+  .or [ .hasType .artifact, .hasType .battle, .hasType .creature, .hasType .enchantment,
+        .hasType .land, .hasType .planeswalker ]
 semantic_macro tapped : Predicate := .hasStatus .tapped
 semantic_macro faceDown : Predicate := .hasStatus .faceDown
 /-- "another player": any player other than you. -/
@@ -620,10 +625,10 @@ semantic_macro paidCostRead (which : PaidCostName) (window : Option Lookback) (s
 /-- "the number of times <subject>'s <keyword> cost was paid" -/
 semantic_macro timesPaid (which : PaidCostName) (subject : NounPhrase) : Amount :=
   .paid (.timesPaid which) subject
-/-- "the player chosen as <subject>'s <cost> was paid", read back by the linked ability
+/-- "the player chosen as <subject>'s <label> cost was paid", read back by the linked ability
 [CR#607.2d,702.174a] -/
-semantic_macro chosenAsPaid (which : PaidCostName) (subject : NounPhrase) : NounPhrase :=
-  .paid (.chosenPlayer which) subject
+semantic_macro chosenAsPaid (label : KeywordLabel) (subject : NounPhrase) : NounPhrase :=
+  .paid (.chosenPlayer (.byKeyword label)) subject
 /-- "if <subject>'s <cost> was paid" -/
 semantic_macro costWasPaid (which : PaidCostName) (window : Option Lookback) (subject : NounPhrase) :
     Condition :=
@@ -1259,5 +1264,25 @@ semantic_macro levelBand (range : LevelRange) (power toughness : Nat) (text : Li
 semantic_macro prototypeAlt (cost : ManaCost) (power toughness : Nat) : PrototypeFrame :=
   { cost := some cost, power := stat power, toughness := stat toughness }
 
+/-- A Food token's characteristics: "a colorless Food artifact token with '{2}, {T}, Sacrifice
+this token: You gain 3 life.'" [CR#111.10b] -/
+semantic_macro foodToken : CharacteristicBundle :=
+  { characteristics :=
+      { types := [.artifact], subtypes := [artifactType "Food"],
+        text :=
+          [ activated (.compound [.mana [generic 2], .tapSymbol, .perform (sacrifice thisArtifact)])
+              (gainLife (.lit 3)) ] } }
+/-- A Treasure token's characteristics: "a colorless Treasure artifact token with '{T},
+Sacrifice this token: Add one mana of any color.'" [CR#111.10a] -/
+semantic_macro treasureToken : CharacteristicBundle :=
+  { characteristics :=
+      { types := [.artifact], subtypes := [artifactType "Treasure"],
+        text :=
+          [ activated (.compound [.tapSymbol, .perform (sacrifice thisArtifact)])
+              (.addMana (.lit 1) (.anyColor .sameColor) []) ] } }
+/-- "create N tapped <token>" [CR#111.2] -/
+semantic_macro createTappedToken (token : CharacteristicBundle) (count : Amount := .lit 1) :
+    Instruction :=
+  Primitives.Instruction.create count (.written token) [.entersAs .tapped]
 
 end Semantics.Macros

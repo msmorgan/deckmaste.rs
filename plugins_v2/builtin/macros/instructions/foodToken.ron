@@ -1,0 +1,8 @@
+// A Food token's characteristics: "a colorless Food artifact token with '{2},
+// {T}, Sacrifice this token: You gain 3 life.'" [CR#111.10b]
+(
+    name: "foodToken",
+    kinds: [CharacteristicBundle],
+    params: [],
+    body: (characteristics: (types: [Artifact], subtypes: [food], text: [activated(cost: compound([mana([2]), tapSymbol, perform(sacrifice(thisArtifact))]), instruction: gainLife(3))])),
+)

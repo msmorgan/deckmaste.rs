@@ -235,3 +235,23 @@ diff from the claim audited (36 sites). `kata kanban check` OK.
 `cargo xtask english-v3 --all` (dev profile, 8 workers): 147,611 ms corpus wall at
 host load 8.4, 423,723 ns/B, against the 16.26-second ceiling; the base measured
 159,159 ms, 447,168 ns/B at load 4.0. `lean check` 132 seconds.
+
+### Amendment: bodies through helpers (2026-10-08)
+
+Re-spelled under the authoring rule, each expansion byte-identical (`cargo
+xtask expansions` `diff -r`: gift and the six variants unchanged; the four new
+helpers appear; `chosenAsPaid`'s own sample changes with its signature; the
+generated Lean card terms of all 138 canon and 7 testing cards identical, 138/138
+and 7/7). `chosenAsPaid(label, subject)` now takes a keyword label and wraps
+`ByKeyword` itself, as `keywordCostPaid` does (Lean twin likewise;
+`LinkedChoiceReadback` pins re-spelled, outcomes kept, its `theAdditional` pin
+written with the raw facet). New declared helpers, each with a same-named Lean
+macro: `permanentType` (predicate, [CR#110.4]), `foodToken` [CR#111.10b],
+`treasureToken` [CR#111.10a] (no predefined-token creation form exists in the
+model: `PredefinedToken` is a catalog no instruction names), `createTappedToken`.
+ADR §12.1 recount 413 → 417. English v3's `KeywordParameterClass` feature now
+declares `Instruction`, with the lexical_source test
+`bare_gift_declares_the_instruction_parameter_class` (added; assurance added 9).
+`cargo test -p` for semantics_v2, lexical_source and english_v3 pass; clippy
+clean for lexical_source and english_v3; `english-v3 --text-contains "Gift a"`
+unchanged (25 no, 1 multiple, 0 issues); `lake build --wfail` 88 jobs.

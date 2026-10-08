@@ -9,15 +9,5 @@ KeywordAbility(
     // tapped 1/1 blue Fish creature token." [CR#702.174f] It is gift itself,
     // labelled gift.
     label: gift,
-    body: [
-        gift(
-            createObject(
-                1,
-                Token(
-                    spec: written(creatureToken(1, 1, [Blue], [fish])),
-                    riders: [EntersAs(Tapped)],
-                ),
-            ),
-        ),
-    ],
+    body: [gift(createTappedToken(creatureToken(1, 1, [Blue], [fish])))],
 )

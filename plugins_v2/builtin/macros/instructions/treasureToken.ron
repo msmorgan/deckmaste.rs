@@ -1,0 +1,8 @@
+// A Treasure token's characteristics: "a colorless Treasure artifact token with
+// '{T}, Sacrifice this token: Add one mana of any color.'" [CR#111.10a]
+(
+    name: "treasureToken",
+    kinds: [CharacteristicBundle],
+    params: [],
+    body: (characteristics: (types: [Artifact], subtypes: [treasure], text: [activated(cost: compound([tapSymbol, perform(sacrifice(thisArtifact))]), instruction: addMana(1, AnyColor(SameColor)))])),
+)

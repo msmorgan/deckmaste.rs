@@ -809,7 +809,10 @@ at `semantics-v2-deed-is-a-name`, which retired the declared `itVerbed` and
 `themVerbed` into `theVerbed`'s optional word: 412 = 312 declarations + the two
 `counters` macros + 98. Recounted 2026-10-07 at
 `semantics-v2-linked-choice-readback`, which added the declared `chosenAsPaid`:
-413 = 313 declarations + the two `counters` macros + 98.)
+413 = 313 declarations + the two `counters` macros + 98. Recounted 2026-10-08 at
+`plugins-v2-gift-variants`, which added the declared `permanentType`,
+`foodToken`, `treasureToken` and `createTappedToken`: 417 = 317 declarations +
+the two `counters` macros + 98.)
 
 - **A spelled declaration already owns the identity (17).** The keyword
   families keep their own declarations: `companion`, `destroy`, `discard`,

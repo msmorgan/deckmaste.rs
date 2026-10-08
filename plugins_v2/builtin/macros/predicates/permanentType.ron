@@ -1,0 +1,8 @@
+// "has a permanent type": an artifact, battle, creature, enchantment, land, or
+// planeswalker [CR#110.4]; read off the types, so it holds of a card or a token.
+(
+    name: "permanentType",
+    kinds: [Predicate],
+    params: [],
+    body: Or([HasType(Artifact), HasType(Battle), HasType(Creature), HasType(Enchantment), HasType(Land), HasType(Planeswalker)]),
+)
