@@ -554,7 +554,8 @@ empty per-face change lists. Original gains, their preferred analyses and
 named lexical inventories remain in the original landing evidence directory.
 
 Performance advisory for `rwvlplnl`, using the reference covered count
-22,853 for provenance (no new whole-corpus timing or count):
+22,853 for provenance (no new whole-corpus timing or count). Host load is
+one/five/fifteen minutes:
 
 | Selector | Workers | Host load | Corpus wall ns | Checked-text thread CPU |
 |---|---:|---|---:|---:|
@@ -566,3 +567,13 @@ These are selector timings, not a new measurement against the full-corpus
 quiet-host ceiling of 16,260,000,000 ns. The previous full-corpus advisory
 remains in the original record. The first selector command includes the
 xtask build; its command wall ns is distinct from the corpus wall ns.
+
+
+Kata refresh succeeds without conflicts onto **`wvsqvplp`**. It imports the
+`uyuykrtn` landing-record hygiene change and a separate gerund-complement
+claim. All **1,697** recorded runtime source hashes still agree with the
+measured follow-up (`refresh-source-comparison.json`); no grammar, lexicon
+or class-reader change is imported. Trunk-attributed face or Reading-count
+changes: **none**. No conflict-triggered retest or selector rerun is needed;
+no post-refresh census is run. The source and subset results above are
+preserved. The feature is closed and reviewed before integration.
