@@ -836,6 +836,9 @@ pub enum SpellingHint {
     /// A nominal argument prints plural ("amass Orcs 1", "affinity for
     /// artifacts").
     Plural,
+    /// A count prints as a number word rather than the Amount default's
+    /// arabic numeral ("mill two cards", "create two 1/1 … tokens").
+    Word,
 }
 
 impl SpellingHint {
@@ -844,18 +847,20 @@ impl SpellingHint {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Plural => "plural",
+            Self::Word => "word",
         }
     }
 
     fn parse(text: &str) -> Option<Self> {
         match text {
             "plural" => Some(Self::Plural),
+            "word" => Some(Self::Word),
             _ => None,
         }
     }
 
     /// Whether this hint can apply to an argument of `kind`: `plural` needs a
-    /// nominal kind.
+    /// nominal kind, `word` an Amount.
     #[must_use]
     pub fn applies_to(self, kind: &ParameterType) -> bool {
         match self {
@@ -863,6 +868,7 @@ impl SpellingHint {
                 matches!(kind, ParameterType::Quality)
                     || matches!(kind, ParameterType::Other(name) if name == "Subtype")
             }
+            Self::Word => matches!(kind, ParameterType::Amount),
         }
     }
 }
@@ -3087,7 +3093,7 @@ fn parse_spelling(spelling: &str) -> Result<Vec<SpellingPart>, String> {
                     return Err("holes must use the exact spelling `<Param(n)>`".to_owned());
                 };
                 Some(SpellingHint::parse(name).ok_or_else(|| {
-                    format!("unknown spelling hint `{name}`; the hints are `plural`")
+                    format!("unknown spelling hint `{name}`; the hints are `plural` and `word`")
                 })?)
             }
         };

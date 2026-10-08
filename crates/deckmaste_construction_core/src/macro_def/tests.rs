@@ -1584,6 +1584,50 @@ fn spelling_holes_carry_an_optional_hint_checked_against_the_parameter_kind() {
 }
 
 #[test]
+fn word_hint_prints_an_amount_as_a_number_word_and_applies_only_to_amounts() {
+    // "Mill two cards" [CR#701.17a]: the count prints as a word, not the
+    // Amount default's arabic numeral.
+    let source = r#"KeywordAction(
+        name: "mill", params: [Amount],
+        spelling: "mill <Param(0):word> cards",
+        grammar: Verb(bare: "mill",
+            frame_set: Custom(frames: [[ObjectNounPhrase]])),
+    )"#;
+    let declaration = read_str(source_path("mill.ron"), source).unwrap();
+    assert_eq!(
+        declaration.spelling(),
+        [
+            SpellingPart::Literal("mill ".to_owned()),
+            SpellingPart::Param {
+                index: 0,
+                hint: Some(SpellingHint::Word),
+            },
+            SpellingPart::Literal(" cards".to_owned()),
+        ]
+    );
+    assert_eq!(SpellingHint::Word.as_str(), "word");
+
+    let on_subtype = source.replace("params: [Amount]", "params: [Subtype]");
+    assert_eq!(
+        validation(&on_subtype),
+        ValidationError::SpellingHintKindMismatch {
+            index: 0,
+            hint: "word",
+            kind: "Subtype".to_owned(),
+        }
+    );
+    let on_quality = source.replace("params: [Amount]", "params: [Quality]");
+    assert_eq!(
+        validation(&on_quality),
+        ValidationError::SpellingHintKindMismatch {
+            index: 0,
+            hint: "word",
+            kind: "Quality".to_owned(),
+        }
+    );
+}
+
+#[test]
 fn template_head_is_the_grammar_head_at_a_word_boundary_or_its_bound_suffix() {
     let read = |name: &str, params: &str, spelling: &str, grammar: &str| {
         read_str(
