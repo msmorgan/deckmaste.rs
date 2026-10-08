@@ -50,34 +50,8 @@ inductive Refusal where
   | choiceOrder
   | testSubject
   /- zones -/
-  | zoneIs (z : Zone)
-  | zoneFits
-  | zoneCoherent
-  | possessable (z : Zone)
-  | playableFrom
-  | placeArrangementFits
-  | placeOrdinalFits
   | ordinalNonZero
-  | exposableZone (z : Zone)
-  | costSubject
-  | paidSubject
-  | stackActOn
-  | copySourceOk
-  | movable
-  | destOk
-  | arrangementOk
-  | placeable
-  | ridersFit
-  | discardOk
-  | moveDestination
   | counterMemory
-  | attachHeadOk
-  | attachFits
-  | combatRelOk
-  | damageRecipient
-  | attackable
-  | statusHolder
-  | statusMarkable
   /- anaphora and scope: what the read found -/
   | anaphor (r : Reach) (pl : Plurality) (found : Nat)
   /-- A macro body's later mention of a referent parameter finds no binding recorded under its
@@ -140,7 +114,6 @@ inductive Refusal where
   | lookbackSubject
   | lookbackComplement
   | lookbackLocus
-  | visibilityOk
   | windowOk
   | pointWindowOk
   | durationPossessor
@@ -193,7 +166,6 @@ inductive Refusal where
   | durationOk
   | settableValue
   | selfExchanged
-  | attacker
   | numberChoiceInScope
   | deonticBoundOk
   | deonticPatientOk
@@ -202,7 +174,6 @@ inductive Refusal where
   | triggerCountOk
   | deckReadable
   | deckComparable
-  | modifyStat
   | selfDefinedOk
   | grantSubject
   | grantable
@@ -215,7 +186,6 @@ inductive Refusal where
   | untriggeredLimit
   | interceptable
   | damageOpUse
-  | ctrlOverride
   | manaRun
   /-- A hybrid or Phyrexian symbol names two different halves [CR#107.4e,107.4f]. -/
   | manaSymbolOk
@@ -235,9 +205,6 @@ inductive Refusal where
   | producedRuns
   | colorCountOk
   | twoParties
-  | controlExchangeZone
-  | cardSwapZones
-  | zoneSwap
   | tokenTyped
   | tokenPtOk
   | subsFitLine
