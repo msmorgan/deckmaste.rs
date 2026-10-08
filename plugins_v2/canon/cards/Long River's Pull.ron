@@ -1,0 +1,19 @@
+// "Gift a card / Counter target creature spell. If the gift was promised,
+// instead counter target spell." [CR#702.174e,702.174k,702.174m,701.6a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Long River's Pull",
+        cost: [Blue, Blue],
+        types: [Instant],
+        text: [
+            giftACard,
+            spell(
+                doIf(
+                    condition: keywordCostPaid(gift, this),
+                    instruction: counter(target(spell)),
+                    otherwise: counter(target(and([creature, spell]))),
+                ),
+            ),
+        ],
+    ),
+))

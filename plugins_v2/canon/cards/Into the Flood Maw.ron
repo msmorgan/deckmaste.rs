@@ -1,0 +1,21 @@
+// "Gift a tapped Fish / Return target creature an opponent controls to its
+// owner's hand. If the gift was promised, instead return target nonland
+// permanent an opponent controls to its owner's hand."
+// [CR#702.174f,702.174k,702.174m]
+SingleFaced(face: (
+    characteristics: (
+        name: "Into the Flood Maw",
+        cost: [Blue],
+        types: [Instant],
+        text: [
+            giftATappedFish,
+            spell(
+                doIf(
+                    condition: keywordCostPaid(gift, this),
+                    instruction: returnToHand(target(and([permanent, not(land), controlledBy(anOpponent)]))),
+                    otherwise: returnToHand(target(and([creature, controlledBy(anOpponent)]))),
+                ),
+            ),
+        ],
+    ),
+))

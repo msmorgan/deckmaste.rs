@@ -1,0 +1,41 @@
+// "Gift a tapped Fish / When this Equipment enters, if the gift was promised,
+// attach this Equipment to target creature you control. / Equipped creature
+// gets +3/+3 and loses flying. / Equip {3}" [CR#702.174f,702.174k,702.6a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Starforged Sword",
+        cost: [4],
+        types: [Artifact],
+        subtypes: [equipment],
+        text: [
+            giftATappedFish,
+            triggeredIf(
+                event: enters(thisEquipment),
+                condition: keywordCostPaid(gift, this),
+                instruction: attach(thisEquipment, target(creatureYouControl)),
+            ),
+            static(
+                conjunction(
+                    subject: None,
+                    parts: [
+                        modification(
+                            subject: attachHost(word: Equipped, head: Type(Creature)),
+                            stat: Power,
+                            delta: up(3),
+                        ),
+                        modification(
+                            subject: attachHost(word: Equipped, head: Type(Creature)),
+                            stat: Toughness,
+                            delta: up(3),
+                        ),
+                        characteristicChange(
+                            subject: attachHost(word: Equipped, head: Type(Creature)),
+                            edits: [RemovedAbilities(Specified([Written(flying)]))],
+                        ),
+                    ],
+                ),
+            ),
+            equip(mana([3])),
+        ],
+    ),
+))

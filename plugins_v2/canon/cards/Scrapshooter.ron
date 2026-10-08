@@ -1,0 +1,22 @@
+// "Gift a card / Reach / When this creature enters, if the gift was promised,
+// destroy target artifact or enchantment an opponent controls."
+// [CR#702.174e,702.174k,702.17a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Scrapshooter",
+        cost: [1, Green, Green],
+        types: [Creature],
+        subtypes: [raccoon, archer],
+        power: 4,
+        toughness: 4,
+        text: [
+            giftACard,
+            reach,
+            triggeredIf(
+                event: enters(thisCreature),
+                condition: keywordCostPaid(gift, this),
+                instruction: destroy(target(and([or([artifact, enchantment]), controlledBy(anOpponent)]))),
+            ),
+        ],
+    ),
+))
