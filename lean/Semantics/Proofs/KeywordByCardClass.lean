@@ -43,7 +43,7 @@ def permanentGuardedSpell : Ability := .spell none (doIf onPermanentCard (draw (
 half, as gift's [CR#702.174a,702.174b]. -/
 def bothClassesRow : KeywordFacts :=
   { word := .named "gift", argumentSchemas := [[]], onInstantOrSorceryCard := true,
-    definition := [.triggered, .spell] }
+    definition := [⟨.triggered, none⟩, ⟨.spell, some .atResolution⟩] }
 
 /-- The same definition on a keyword only permanents carry. -/
 def permanentOnlyRow : KeywordFacts :=

@@ -53,7 +53,8 @@ def spellHalf : Ability :=
 /-- A definition on both classes, as gift's will be [CR#702.174a,702.174b]. -/
 def giftShapedRow : KeywordFacts :=
   { word := .named "gift", argumentSchemas := [[]], onInstantOrSorceryCard := true,
-    paidCost := true, costChoosesPlayer := true, definition := [.triggered, .spell] }
+    paidCost := true, costChoosesPlayer := true,
+    definition := [⟨.triggered, none⟩, ⟨.spell, some .atResolution⟩] }
 
 /-- Required pin: gift's second ability reads the opponent chosen as its gift cost was paid. -/
 theorem okGiftReadsChosenPlayer :

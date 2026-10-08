@@ -28,7 +28,7 @@ def keywordCosts (k : KeywordLabel) : Bool :=
   (keywordSchemas k).any (fun schema => schema.any (·.shape == .cost))
 /-- The ability categories the keyword's definition may be written in [CR#702.1]. -/
 def keywordDefinition (k : KeywordLabel) : List AbilityCategory :=
-  (keywordFactsFor k).elim [] (·.definition)
+  (keywordFactsFor k).elim [] (·.definition.map (·.category))
 def keywordParamless (k : KeywordLabel) : Bool :=
   (keywordSchemas k).any List.isEmpty
 
@@ -53,6 +53,14 @@ def KeywordTerm.bare : KeywordTerm → Bool
 def allKnownKeywordTerms : List KeywordTerm → Bool
   | [] => true
   | k :: ks => k.known && allKnownKeywordTerms ks
+
+/-- The keyword-wide summary of a definition's components: the first stack regime among them. -/
+def ComponentFacts.summary : List ComponentFacts → Option StackRegime
+  | [] => none
+  | c :: cs =>
+    match c.regime with
+    | some r => some r
+    | none => ComponentFacts.summary cs
 
 def keywordStackRegime (k : KeywordLabel) : Option StackRegime := keywordFactsFor k >>= (·.regime)
 def keywordFunctionsOnStack (k : KeywordLabel) : Bool :=

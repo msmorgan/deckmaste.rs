@@ -71,11 +71,25 @@ inductive AbilityCategory where
   | static | triggered | activated | spell
   deriving DecidableEq, Repr
 
+/-- One ability of a keyword's definition as the registry declares it [CR#702.1]: its category
+and the stack regime the rules give it, `none` where it functions off the stack. A keyword's
+abilities need not share one regime: offspring pays its cost as the spell is cast and its
+second ability triggers as the permanent enters [CR#702.175a], casualty's second ability
+triggers as the spell is cast [CR#702.153a], and an instant or sorcery's spell ability is
+followed as the spell resolves [CR#113.3a,702.174b]. -/
+structure ComponentFacts where
+  category : AbilityCategory
+  regime : Option StackRegime := none
+  deriving DecidableEq, Repr
+
 structure KeywordFacts where
   word : KeywordLabel
   /-- Ordered argument schemas admitted by the keyword declaration and its variants. -/
   argumentSchemas : List KeywordSchema := []
   counterEligible : Bool := false
+  /-- The keyword's own stack regime, read where it is granted to a spell
+  [CR#113.6]. A keyword whose definition is declared has the summary of its components': the
+  first stack regime among them (`ComponentFacts.summary`, pinned in `Proofs/Tables`). -/
   regime : Option StackRegime := none
   /-- True where the ability is the spell's own, so no permanent holds it [CR#113.6]. -/
   functionsOnStack : Bool := false
@@ -85,11 +99,12 @@ structure KeywordFacts where
   /-- True where paying the keyword's cost chooses a player, whom the ability linked to that cost
   reads back, as gift's "you may choose an opponent" [CR#702.174a,607.2d]. -/
   costChoosesPlayer : Bool := false
-  /-- The categories the keyword's definition is written in [CR#702.1]. A card may leave the
-  definition unwritten; a written one is an ability of one of these categories
+  /-- The abilities the keyword's definition is written in [CR#702.1], each with its category
+  and its own stack regime. A card may leave the definition unwritten; a written one is an
+  ability of one of these components
   [CR#702.9b,702.21a,702.24a,702.29a,702.30a,702.40a,702.45a,702.86a,702.112a,702.135a]. An
   empty list is a keyword whose definition the workbench has not yet declared. -/
-  definition : List AbilityCategory := []
+  definition : List ComponentFacts := []
   wantsModes : Bool := false
   deriving Repr, BEq
 

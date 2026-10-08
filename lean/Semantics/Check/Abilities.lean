@@ -800,6 +800,38 @@ def Ability.category : Ability → Option AbilityCategory
   | .spell _ _ => some .spell
   | _ => none
 
+/-! ## A definition component's regime
+
+Each ability of a keyword's definition carries the stack regime the rules give it
+(`ComponentFacts.regime`, `docs/decisions/semantics-v2.md` §7, ruling 2026-10-06 on gift and the
+additional-cost keywords), and its form is checked against that regime. Where the form
+determines the regime the declared one must be it: a triggered ability keys on its event's
+regime (a cast trigger at casting, an enters trigger off the stack) [CR#702.153a,702.175a]; a
+spell ability is followed as the spell resolves [CR#113.3a]; an additional cost or a change to
+the cost is determined as the spell is cast [CR#601.2f,702.33a]; an activated ability and any
+other static ability function off the stack. A permission to cast the card leaves it open: such
+an ability functions on the stack unless it states its zones, and the keyword's own rule says
+which [CR#113.6b,113.6d,702.34a,702.117a], so either is admitted, and never the resolution
+regime. -/
+
+/-- Whether a static ability's form admits the stack regime declared for it. -/
+def StaticSpec.regimeFits (r : Option StackRegime) : StaticSpec → Bool
+  | .withBindings _ _ body | .inCaller _ body => body.regimeFits r
+  | .conditional se _ _ => se.regimeFits r
+  | .addedCost _ _ | .costShift _ _ => r == some .atCasting
+  | .altCost _ _ | .deonticRule _ .permit _ _ _ _ _ (.play _ _ _ _ _) => r != some .atResolution
+  | _ => r == none
+termination_by structural se => se
+
+/-- Whether an ability's form admits the stack regime declared for it as a component of a
+keyword's definition. -/
+def Ability.regimeFits (r : Option StackRegime) : Ability → Bool
+  | .static se => se.regimeFits r
+  | .triggered ev _ _ _ _ _ _ _ => bodyEventRegime ev == r
+  | .activated _ _ _ _ _ _ => r == none
+  | .spell _ _ => r == some .atResolution
+  | _ => false
+
 /-! ## Card-class guards
 
 A keyword that means one ability on a permanent and another on an instant or sorcery spell
@@ -891,20 +923,18 @@ def KeywordFacts.admitsClass (row : KeywordFacts) : CardClass → Bool
   | .permanentCard => row.onPermanentCard
   | .instantOrSorceryCard => row.onInstantOrSorceryCard
 
-/-- One ability of a keyword's definition against the keyword's registry row: its category is
-one the row declares; a class guard names a class the row admits; a spell ability is the
+/-- One ability of a keyword's definition against the keyword's registry row: it is a
+component the row declares, of its category and with a stack regime its form admits
+(`Ability.regimeFits`); a class guard names a class the row admits; and a spell ability is the
 instant-or-sorcery half [CR#113.3a], so where the keyword also appears on permanents it is
-guarded by that class; and a triggered one keys on the same stack regime the row declares. -/
+guarded by that class. -/
 def KeywordFacts.bodyPartFits (row : KeywordFacts) (ab : Ability) : Bool :=
   match ab.category with
   | none => false
   | some c =>
-    row.definition.elem c &&
+    row.definition.any (fun part => part.category == c && ab.regimeFits part.regime) &&
       ab.classGuard.all row.admitsClass &&
-      (c != .spell || !row.onPermanentCard || ab.classGuard == some .instantOrSorceryCard) &&
-      match ab with
-      | .triggered ev _ _ _ _ _ _ _ => row.regime == bodyEventRegime ev
-      | _ => true
+      (c != .spell || !row.onPermanentCard || ab.classGuard == some .instantOrSorceryCard)
 
 /-- One ability of a keyword's definition, against the keyword's registry row. -/
 def keywordBodyPartFits (k : KeywordLabel) (ab : Ability) : Bool :=
