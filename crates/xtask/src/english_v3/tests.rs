@@ -809,3 +809,86 @@ fn digest_dedup_and_cache_eviction_preserve_all_values_and_traces() {
         assert_eq!(metrics.unique_builds, metrics.build_requests);
     }
 }
+
+fn combat_lexicon_before_landing() -> Lexicon {
+    // Replay precisely the three feature assignments from the real
+    // english-v3-combat-interval-noun landing. Category defaults supply None
+    // before the explicit features are assigned; provenance is unchanged.
+    let mut entries: Vec<_> = lexicon().lexemes().values().cloned().collect();
+    for entry in &mut entries {
+        if entry.id == "lexeme:turn_part/combat" {
+            entry
+                .properties
+                .features
+                .insert("NominalBareClass".into(), "None".into());
+            entry
+                .properties
+                .features
+                .insert("NominalAdjunctClass".into(), "None".into());
+        }
+        if entry.id == "vocab:Preposition/During" {
+            entry
+                .properties
+                .features
+                .insert("NominalBareClass".into(), "None".into());
+        }
+    }
+    Lexicon::new(entries).unwrap()
+}
+
+fn combat_corpus() -> SelectedCorpus {
+    selected_corpus(&serde_json::to_vec(&json!({"data": {
+        "Dire Fleet Warmonger": [card(Some("At the beginning of combat on your turn, you may sacrifice another creature."), "Legal")],
+        "Glyph of Destruction": [card(Some("Target blocking Wall you control gets +10/+0 until end of combat."), "Legal")],
+        "Echo Circlet": [card(Some("Equipped creature can block an additional creature each combat."), "Legal")],
+        "Basandra, Battle Seraph": [card(Some("Players can't cast spells during combat."), "Legal")],
+        "Fog": [card(Some("Prevent all combat damage that would be dealt this turn."), "Legal")],
+        "Deep Sight": [card(Some("You draw a card and gain 1 life."), "Legal")],
+        "Reach Through Mists": [card(Some("Draw a card."), "Legal")]
+    }})).unwrap())
+}
+
+#[test]
+fn readings_digests_are_stable_and_change_only_on_affected_analyses() {
+    let corpus = combat_corpus();
+    let args = args(None);
+    let grammar = Grammar::with_lexicon(lexicon());
+    let first = analyze_cards(&corpus.faces, lexicon(), &grammar, &args).unwrap();
+    let second = analyze_cards(&corpus.faces, lexicon(), &grammar, &args).unwrap();
+    let digest_rows = |faces: &[crate::english_v3::report::FaceReport]| {
+        faces
+            .iter()
+            .map(|face| (face.id.clone(), face.readings_sha256.clone()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(digest_rows(&first), digest_rows(&second));
+    let before_lexicon = combat_lexicon_before_landing();
+    let before = analyze_cards(
+        &corpus.faces,
+        &before_lexicon,
+        &Grammar::with_lexicon(&before_lexicon),
+        &args,
+    )
+    .unwrap();
+    let changed: Vec<_> = before
+        .iter()
+        .zip(&first)
+        .filter(|(before, after)| before.readings_sha256 != after.readings_sha256)
+        .map(|(_, after)| after.name.as_str())
+        .collect();
+    assert_eq!(
+        changed,
+        [
+            "Basandra, Battle Seraph",
+            "Dire Fleet Warmonger",
+            "Echo Circlet",
+            "Glyph of Destruction"
+        ]
+    );
+    assert!(
+        first
+            .iter()
+            .chain(&before)
+            .all(|face| face.issues.is_empty() && face.readings_sha256.is_some())
+    );
+}

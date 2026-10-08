@@ -10,6 +10,7 @@ use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::Source;
 use serde::Serialize;
+use sha2::Digest as _;
 
 use crate::english_v3::EnglishV3Args;
 use crate::english_v3::SourceField;
@@ -130,6 +131,7 @@ pub(super) struct FaceReport {
     pub census: Census,
     pub checked_readings: usize,
     pub exact_readings: Option<usize>,
+    pub readings_sha256: Option<String>,
     pub chart: BTreeMap<&'static str, usize>,
     pub readings: BTreeMap<&'static str, usize>,
     pub materializations: MaterializationMetrics,
@@ -170,6 +172,7 @@ impl FaceReport {
             census: Census::Undetermined,
             checked_readings: 0,
             exact_readings: None,
+            readings_sha256: None,
             chart: chart_metrics(Metrics::default()),
             readings: reading_metrics(ReadingMetrics::default()),
             materializations: MaterializationMetrics::default(),
@@ -275,6 +278,8 @@ pub(super) struct Report {
     input_policy: &'static str,
     validation_scope: &'static str,
     fingerprint_encoding: &'static str,
+    readings_digest_version: usize,
+    readings_digest_encoding: &'static str,
     reading_limit: Option<usize>,
     samples_per_face: usize,
     unmapped_sources: Vec<String>,
@@ -344,7 +349,7 @@ impl Report {
             .and_then(|out| String::from_utf8(out.stdout).ok())
             .map(|text| text.trim().to_owned());
         Self {
-            schema_version: 5,
+            schema_version: 6,
             field: args.field,
             input: args.data.clone(),
             input_sha256: corpus.snapshot_sha256.clone(),
@@ -366,6 +371,8 @@ impl Report {
             input_policy: "Strip balanced parenthesized reminder text before analyzing rules text as a Document; Type Lines are unchanged. Reminder contents are not parsed. Missing fields are analyzed as empty with null retained in metadata. raw_text, type_line and source_sha256 retain the original selected field. analyzed_source and analyzed_source_sha256 identify the parser input; lexical offsets and roundtrip validation refer to analyzed_source. source_bytes counts original bytes; checked_text_bytes counts analyzed bytes.",
             validation_scope: "Every counted Reading passes declaration admission, lexical ownership/context, byte-exact realization, and node/word traversal comparison against materialization traces. Independent linguistic correctness and the independently constructed-value roundtrip law are NOT checked by this corpus command.",
             fingerprint_encoding: "SHA-256 of generated Reading Debug; diagnostic identity within this source tree, not a stable serialization contract. Node fingerprints include complete subtrees.",
+            readings_digest_version: 1,
+            readings_digest_encoding: "Version 1: each validated Reading key is SHA-256 of its value fingerprint (64 lowercase ASCII hex bytes), followed by ASCII |n= and its node trace encoding, then ASCII |w= and its Word trace encoding. A trace encoding is ASCII canonical if the complete ordered independent trace equals the generated visitor sequence of the root value; otherwise it is ASCII raw followed by the Rust Debug encoding of that complete trace. Canonical traces are completely reconstructible from the root value; mismatching traces remain distinct. The value fingerprint is SHA-256 of generated Reading Debug. Sort unique 32-byte Reading keys lexicographically by unsigned byte; concatenate them as fixed-width raw bytes, with no separators, and SHA-256 the concatenation. Encode the face digest as 64 lowercase ASCII hex characters. The empty set hashes zero bytes. Only complete, issue-free enumeration has a face digest; limited or failed enumeration has null. Debug is diagnostic within the recorded source tree, not a cross-version grammatical serialization contract.",
             reading_limit: args.reading_limit.map(std::num::NonZeroUsize::get),
             samples_per_face: args.samples_per_face,
             unmapped_sources,
@@ -510,5 +517,40 @@ mod sample_tests {
         );
         retain_sample(&mut samples, sample(0, "discard"), 0);
         assert_eq!(samples.len(), 0);
+    }
+}
+
+/// Fixed-width keys make concatenation unambiguous, including the empty set.
+pub(super) fn readings_digest(keys: &BTreeSet<[u8; 32]>) -> String {
+    use std::fmt::Write as _;
+    let mut hasher = sha2::Sha256::new();
+    for key in keys {
+        hasher.update(key);
+    }
+    let mut digest = String::with_capacity(64);
+    for byte in hasher.finalize() {
+        write!(digest, "{byte:02x}").expect("writing to a String is infallible");
+    }
+    digest
+}
+
+#[cfg(test)]
+mod digest_tests {
+    use super::readings_digest;
+    use std::collections::BTreeSet;
+
+    #[test]
+    fn face_digest_is_order_independent_and_distinguishes_equal_sized_sets() {
+        let left = BTreeSet::from([[1; 32], [2; 32]]);
+        let reordered = BTreeSet::from([[2; 32], [1; 32]]);
+        let changed = BTreeSet::from([[1; 32], [3; 32]]);
+        assert_eq!(readings_digest(&left), readings_digest(&reordered));
+        assert_ne!(readings_digest(&left), readings_digest(&changed));
+        assert_eq!(
+            readings_digest(&BTreeSet::new()),
+            crate::raw_corpus::digest(b"")
+        );
+        let bytes: Vec<_> = left.iter().flatten().copied().collect();
+        assert_eq!(readings_digest(&left), crate::raw_corpus::digest(&bytes));
     }
 }

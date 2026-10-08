@@ -297,6 +297,9 @@ fn analyze_face(
             result.readings = report::reading_metrics(values.metrics());
             result.materializations = values.materializer().metrics();
             result.checked_readings = checked.len();
+            if result.enumeration == Enumeration::Complete && result.issues.is_empty() {
+                result.readings_sha256 = Some(report::readings_digest(&checked));
+            }
             result.validation_wall_ns = started.elapsed().as_nanos();
         }
         Err(error) => {
