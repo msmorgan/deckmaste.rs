@@ -42,9 +42,8 @@ theorem badThirdCompoundCostAlternative :
       [.notCompound] := by decide
 
 theorem okCostAlternativeKeepsSymbolProperties :
-    Cost.payable (.or [.mana [generic 1], .mana [generic 2], .tapSymbol]) = false ∧
-    Cost.offBattlefield (.or [.mana [generic 1], .mana [generic 2], .untapSymbol]) = false ∧
-    Cost.selfTapUses (.or [.tapSymbol, .untapSymbol, .mana [generic 1]]) = 1 := by decide
+    Cost.offBattlefield (.or [.mana [generic 1], .mana [generic 2], .untapSymbol]) = false := by
+  decide
 
 theorem okOptionalSuccessReadsBody :
     Instruction.check [] (.withContinuation .optional (exile (a creatureYouControl))
@@ -65,10 +64,6 @@ theorem badRequiredFailureReadsBody :
 theorem okNumericDefinitionAsCost :
     Cost.check [letterB .x] (.perform (.establish (.letterDefinition .x (.lit 2)) none)) = [] := by decide
 
-theorem badContinuousSpecAsCost :
-    Cost.check [] (.perform (.establish (.modification thisCreature .power (.up (.lit 1))) none)) =
-      [.costAction] := by decide
-
 theorem badDefinitionWithoutEarlierUse :
     Instruction.check [] (.establish (.letterDefinition .x (.lit 2)) none) = [.openLetter .x] := by decide
 
@@ -84,11 +79,6 @@ theorem badEmptySequentialComposition :
 
 theorem badEmptySimultaneousComposition :
     Instruction.check [] (.simultaneously []) = [.nonEmpty] := by decide
-
-theorem badDurationBearingDefinitionAsCost :
-    Cost.check [letterB .x]
-      (.perform (.establish (.letterDefinition .x (.lit 2)) (some untilEndOfTurn))) =
-      [.costAction] := by decide
 
 theorem okThreeDamageRecipientAlternatives :
     Instruction.check [] (.dealDamage .this (.lit 1) (.or [thisCreature, .you, thisCreature])) =

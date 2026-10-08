@@ -312,11 +312,6 @@ theorem okPlaneswalkerAttacks :
 theorem okPayMana : Instruction.check [] (.pay (.mana [generic 2]) .once) = [] := by
     decide
 
-/-- "you pay [+1]" -/
-theorem badPayLoyalty :
-    Instruction.check [] (.pay (.loyaltySymbol (.up 1)) .once) = [.payable] := by
-        decide
-
 /-- A legendary Jace planeswalker face with no text or loyalty yet. -/
 def jace : Characteristics :=
   { name := some "", cost := some [pip .blue], supertypes := [.legendary], types := [.planeswalker],
@@ -411,15 +406,6 @@ theorem okAltCostSacrifice :
       (.altCost .this
         (some (.perform (sacrifice (a (.and [land, .hasSubtype (landType "Mountain")]))))))
       = [] := by
-  decide
-
-/-- "You may {T} rather than pay this spell's mana cost." -/
-theorem badAltCostTapSymbol :
-    StaticSpec.check [] (.altCost .this (some .tapSymbol)) = [.altPayment] := by decide
-
-/-- "You may [+1] rather than pay this spell's mana cost." -/
-theorem badAltCostLoyaltySymbol :
-    StaticSpec.check [] (.altCost .this (some (.loyaltySymbol (.up 1)))) = [.altPayment] := by
   decide
 
 /-- "Escalate {2}. Choose one or both —" -/
@@ -920,7 +906,7 @@ spell is cast using only that one [CR#702.160a,718.3a] -/
 theorem badPrototypeWithoutAltCost :
     Card.check
       (.prototype artifactCreature { cost := some [], power := stat 1, toughness := stat 1 })
-      = [.manaRun] := by
+      = [.nonEmpty] := by
   decide
 
 /-- "Prototype {1}{R} — loyalty 3": the inset frame's second set is power and toughness

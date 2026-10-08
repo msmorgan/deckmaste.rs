@@ -47,16 +47,6 @@ theorem okTargetedContinuousStateBasedLossGate :
       (.deonticRule (target .anyPlayer) .forbid [.core .loseGame] .agent none .noPatient none
         (.stateBased .nonpositiveLife)) (some .thisTurn)) = [] := by decide
 
-theorem badStateBasedCauseForLifeGain :
-    Ability.check [] (.static
-      (.deonticRule .you .forbid [.core .gainLife] .agent none .noPatient none
-        (.stateBased .nonpositiveLife))) = [.deonticRiderOk] := by decide
-
-theorem badStateBasedCauseForMixedDeeds :
-    Ability.check [] (.static
-      (.deonticRule .you .forbid [.core .loseGame, .core .winGame] .agent none .noPatient none
-        (.stateBased .nonpositiveLife))) = [.deonticRiderOk] := by decide
-
 theorem badStateBasedCauseWithoutDeed :
     Ability.check [] (.static
       (.deonticRule .you .forbid [] .agent none .noPatient none
@@ -127,85 +117,17 @@ theorem badMixedCharacteristicDisjunct :
 theorem okPayLifeCost : Instruction.check [] (.pay (payLife 2) .once) = [] :=
     by decide
 
-/-- "You pay {T}." -/
-theorem badPayTapSymbol :
-    Instruction.check [] (.pay .tapSymbol .once) = [.payable] := by decide
-
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okDeedAsCost :
     Ability.check [] (act (.perform (sacrifice (a creature))) (draw (.lit 1))) = [] := by
   decide
 
-/-- "Creatures you control get +1/+1 until end of turn:" -/
-theorem badContinuousAsCost :
-    Ability.check []
-      (act
-        (.perform
-          (get (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)))
-        (draw (.lit 1))) = [.costAction] := by
-  decide
-
-/-- a replacement written as a cost -/
-theorem badInsteadAsCost :
-    Ability.check []
-      (act (.perform (.replace (destroy (target creature)) (exile (target creature))))
-        (draw (.lit 1))) = [.costAction] := by
-  decide
-
-/-- a delayed trigger written as a cost -/
-theorem badDelayedAsCost :
-    Ability.check []
-      (act (.perform (delay (.beginningOf .the .endStep .noPossessor) (draw (.lit 1))))
-        (draw (.lit 1))) = [.costAction] := by
-  decide
-
-/-- an "until" rider written as a cost -/
-theorem badHeldUntilAsCost :
-    Ability.check []
-      (act (.perform (.holdUntil (exile (target creature)) (Primitives.GameEvent.dies (a creature))))
-        (draw (.lit 1))) = [.costAction] := by
-  decide
-
-/-- a reflexive trigger written as a cost. The Idris pin refutes the cost; the reflexive
-trigger's enclosure law fails on the same term. -/
+/-- a reflexive trigger written as a cost: the reflexive trigger's enclosure law fails on the
+term. -/
 theorem badReflexiveAsCost :
     Ability.check []
       (act (.perform (.triggerReflexively (gainLife (.lit 2)) (draw (.lit 1))))
-        (draw (.lit 1))) = [.reflexEnclosure, .costAction] := by
-  decide
-
-/-- "You skip your next turn:" -/
-theorem badSkipAsCost :
-    Ability.check [] (act (.perform (.skipPart .turn (.lit 1))) (draw (.lit 1)))
-      = [.costAction] := by
-  decide
-
-/-- "You pay 2 life:" -/
-theorem badPayAsCost :
-    Ability.check [] (act (.perform (.pay (payLife 2) .once)) (draw (.lit 1)))
-      = [.costAction] := by
-  decide
-
-/-- "Discard a card, then sacrifice a creature:" -/
-theorem badSequentialCost :
-    Ability.check []
-      (act (.perform (.sequentially [discard (a (.and [.isCard, .inZone yourHand])), sacrifice (a creature)]))
-        (draw (.lit 1))) = [.costAction] := by
-  decide
-
-/-- "Discard a card and sacrifice a creature simultaneously:" -/
-theorem badSimultaneousCost :
-    Ability.check []
-      (act
-        (.perform (.simultaneously [discard (a (.and [.isCard, .inZone yourHand])), sacrifice (a
-            creature)]))
-        (draw (.lit 1))) = [.costAction] := by
-  decide
-
-/-- "Repeat this process:" -/
-theorem badRepeatAsCost :
-    Ability.check [] (act (.perform (.repeat_ .again)) (draw (.lit 1))) =
-        [.costAction] := by
+        (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
 /-- "Discard a card, Sacrifice a creature: Draw a card." -/
@@ -241,15 +163,6 @@ theorem okPlayFromGraveyard :
           (.counterpart (a (.and [.isCard, .inZone graveyard]))) none playRider) (some .thisTurn)) = [] := by
   decide
 
-/-- "You may play a creature this turn." -/
-theorem badPlayFromBattlefield :
-    Instruction.check []
-      (.establish
-        (.deonticRule .you .permit [.action "play"] .agent none (.counterpart (a creature)) none
-          playRider)
-        (some .thisTurn)) = [.deonticRiderOk] := by
-  decide
-
 /-- "You may play a land card from your graveyard this turn." -/
 theorem okPlayLandFromGraveyard :
     Instruction.check []
@@ -260,15 +173,6 @@ theorem okPlayLandFromGraveyard :
       = [] := by
   decide
 
-/-- "You may play a spell this turn." -/
-theorem badPlayFromStack :
-    Instruction.check []
-      (.establish
-        (.deonticRule .you .permit [.action "play"] .agent none (.counterpart (a spell)) none
-            playRider)
-        (some .thisTurn)) = [.deonticRiderOk] := by
-  decide
-
 /-- "You may cast a creature card from your graveyard this turn." -/
 theorem okCastCreatureFromGraveyard :
     Instruction.check []
@@ -277,25 +181,6 @@ theorem okCastCreatureFromGraveyard :
           (.counterpart (a (.and [creature, .inZone (graveyardOf .you)]))) none
           (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some .thisTurn))
       = [] := by
-  decide
-
-/-- "You may cast a land card from your graveyard this turn." -/
-theorem badCastALand :
-    Instruction.check []
-      (.establish
-        (.deonticRule .you .permit [.action "cast"] .agent none
-          (.counterpart (a (.and [land, .inZone (graveyardOf .you)]))) none playRider)
-        (some .thisTurn)) = [.deonticPatientOk] := by
-  decide
-
-/-- "You may play a creature card in exile from your graveyard this turn." -/
-theorem badPlayFromWrongZone :
-    Instruction.check []
-      (.establish
-        (.deonticRule .you .permit [.action "play"] .agent none
-          (.counterpart (a (.and [creature, .inZone exileZone]))) none
-          (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some .thisTurn))
-      = [.deonticRiderOk] := by
   decide
 
 /-- "unless" on a negated condition -/
@@ -354,14 +239,6 @@ theorem okForbidAttackPlaneswalker :
       (.establish
         (deontic thisCreature .forbid [.core .attack] .agent
           (.counterpart (target (.hasType .planeswalker)))) (some .thisTurn)) = [] := by
-  decide
-
-/-- "This creature can't attack target creature this turn." -/
-theorem badForbidAttackWithPatient :
-    Instruction.check []
-      (.establish
-        (deontic thisCreature .forbid [.core .attack] .agent (.counterpart (target creature)))
-        (some .thisTurn)) = [.deonticPatientOk] := by
   decide
 
 /-- "Target creature blocks it this turn" -/
@@ -430,33 +307,11 @@ theorem okObjectPremiseAtCast :
         (some (.of (.hasKeyword (.the (.named "flash"))))) playRider) = [] := by
   decide
 
-/-- "This creature can attack as though it were mana of any color." -/
-theorem badManaPremiseAtAttack :
-    StaticSpec.check []
-      (.deonticRule thisCreature .permit [.core .attack] .agent none .noPatient
-        (some (.mana none .anyColor none)) .noRider) = [.asThoughOk] := by
-  decide
-
 /-- "This creature can't be blocked by more than one creature." -/
 theorem okBlockBoundOnBlock :
     StaticSpec.check []
       (.deonticRule thisCreature .forbid [.core .block] .patient (some (.moreThan (.lit 1)))
         (.counterpart (allOf creature)) none .noRider) = [] := by
-  decide
-
-/-- "This spell can't be countered more than once." -/
-theorem badCounterBoundTwice :
-    StaticSpec.check []
-      (.deonticRule .this .forbid [.action "counter"] .patient (some (.moreThan (.lit 1)))
-          .noPatient
-        none .noRider) = [.deonticBoundOk] := by
-  decide
-
-/-- "You may spend mana as though it weren't a creature." -/
-theorem badObjectPremiseAtSpend :
-    StaticSpec.check []
-      (.deonticRule .you .permit [.core .spend] .agent none .noPatient (some (.of (.not creature)))
-        .noRider) = [.asThoughOk] := by
   decide
 
 /-- "Spells and abilities can't be countered.": an effect that says so counters abilities

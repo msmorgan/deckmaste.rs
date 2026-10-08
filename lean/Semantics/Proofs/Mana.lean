@@ -39,32 +39,19 @@ theorem badDiscardedCreatureWord :
       = [.anaphor (.verbed (.action "discard") (some (.type .creature)) .attributive) .one 0] := by
   decide
 
-/-- "{1}, {T}, {T}: Draw a card." written with the second {T} a nesting level down. -/
-theorem nestedCompoundCost :
-    Ability.check []
-      (act (.compound [.compound [.mana [generic 1], .tapSymbol], .tapSymbol]) (draw (.lit 1)))
-      = [.costTapOnce] := by
-  decide
-
 /-- "{1}, {T}: Draw a card." -/
 theorem okSingleTapCost :
     Ability.check [] (act (.compound [.mana [generic 1], .tapSymbol]) (draw (.lit 1)))
       = [] := by
   decide
 
-/-- "{T}, {T}: Draw a card." -/
-theorem badDoubleTapCost :
-    Ability.check [] (act (.compound [.tapSymbol, .tapSymbol]) (draw (.lit 1)))
-      = [.costTapOnce] := by
-  decide
-
 /-- "{1}: Draw a card." -/
 theorem okNonEmptyManaCost :
     Ability.check [] (act (.mana [generic 1]) (draw (.lit 1))) = [] := by decide
 
-/-- ": Draw a card." -/
+/-- ": Draw a card.": an empty mana run is no cost at all, refused as an empty list is. -/
 theorem badEmptyManaCost :
-    Ability.check [] (act (.mana []) (draw (.lit 1))) = [.manaRun] := by decide
+    Ability.check [] (act (.mana []) (draw (.lit 1))) = [.nonEmpty] := by decide
 
 /-- "{W/U/P}" -/
 theorem okDistinctPhyrexian : ManaSymbol.check (.phyrexian .white (some .blue)) = [] := by decide
@@ -97,12 +84,6 @@ theorem okUnlessManaCost :
     Instruction.check []
       (Macros.act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) (.mana [generic 3]))) =
           [] := by
-  decide
-
-/-- "Counter target spell unless its controller taps." -/
-theorem badUnlessTapSymbol :
-    Instruction.check [] (Macros.act (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) .tapSymbol))
-      = [.payable] := by
   decide
 
 /-- "Activate only before the combat damage step." -/
@@ -214,22 +195,10 @@ theorem badNameMatchWrongSort :
 theorem okPlayPaymentMana : PlayPayment.check [] (.payingInstead (.mana [generic 2])) = [] := by
   decide
 
-theorem badPlayPaymentTapSymbol :
-    PlayPayment.check [] (.payingInstead .tapSymbol) = [.altPayment] := by decide
-
 /-- "As an additional cost to cast this spell, sacrifice an artifact." -/
 theorem okAddedCostSacrifice :
     StaticSpec.check [] (.addedCost (.perform (sacrifice (a artifact))) false) = []
         := by
-  decide
-
-/-- "As an additional cost to cast this spell, {T}." -/
-theorem badAddedCostTapSymbol :
-    StaticSpec.check [] (.addedCost .tapSymbol false) = [.addedPayment] := by decide
-
-/-- "As an additional cost to cast this spell, [+1]." -/
-theorem badAddedCostLoyaltySymbol :
-    StaticSpec.check [] (.addedCost (.loyaltySymbol (.up 1)) false) = [.addedPayment] := by
   decide
 
 /-- "Creatures you control get +1/+1 until end of turn." -/
@@ -345,13 +314,6 @@ theorem badDomainlessOpenAxis :
 keyword line carries the law directly. -/
 theorem okManaCumulativeUpkeep :
     Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])) = [] := by decide
-
-/-- "Cumulative upkeep — an opponent loses 1 life." -/
-theorem badOpponentPaysYourCost :
-    Ability.check []
-      (keywordCosting (.named "cumulativeUpkeep") (.perform (Macros.act anOpponent (loseLife (.lit 1)))))
-      = [.keywordCostPaidByYou (.named "cumulativeUpkeep")] := by
-  decide
 
 /-- "Whenever a player taps a land for mana, …" -/
 theorem okTappedForMana :

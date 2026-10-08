@@ -206,27 +206,21 @@ theorem okActorMatchedPayer :
         (some (draw (.lit 1)))) = [] := by
   decide
 
-/-- "You pay an opponent's 1 life" (`Choice.badMismatchedPayer` with the actor): the payer is the
-controller, so the payment must be theirs. -/
-theorem badActorMismatchedPayer :
-    Instruction.check []
-      (Primitives.Instruction.offer (.pay (.perform (act anOpponent (loseLife (.lit 1)))) .once) none
-        (some (draw (.lit 1))))
-      = [.payAgrees] := by
-  decide
-
 /-- "Pay 2 life: Draw a card." (`Keyword.okOwnPayerCost` with the actor) -/
 theorem okActorOwnPayerCost :
     Ability.check [] (.activated (payLife 2) (draw (.lit 1)) none none none none) = [] := by
   decide
 
 /-- "Target opponent loses 2 life: Draw a card.": a cost may hand its instruction to another
-player, and a life payment inside the handoff is that player's, not the controller's. -/
+player, and a life payment inside the handoff is that player's, not the controller's. Who pays a
+cost is not checked (`lean-checker-sweep-costs`); the cost's performer is still the handed
+player, read in the context the cost's handoff builds. -/
 theorem badHandedOffLifeCost :
     Ability.check []
       (.activated (.perform (act (target .opponent) (loseLife (.lit 2)))) (draw (.lit 1))
         none none none none)
-      = [.costPaidByYou] := by
+      = [] ∧
+      NounPhrase.actor.isYouIn (actorCtx [] (target .opponent)) = false := by
   decide
 
 /-! ## Costs: each handoff twin judged as its explicit-agent form
@@ -312,39 +306,43 @@ theorem killingWaveHandoffTwin :
               (doUnless (act they (sacrifice it)) (.perform (act they (loseLife (.letter .x))))))) := by
   decide
 
-/-- "An opponent sacrifices a creature: Draw a card." (`Keyword.badForeignSacrificeCost`) -/
+/-- "An opponent sacrifices a creature: Draw a card." (the pin
+`Keyword.badForeignSacrificeCost`, retired with `costPaidByYou` by `lean-checker-sweep-costs`) -/
 theorem foreignSacrificeCostHandoffTwin :
     Ability.check [] (.activated (.perform (act anOpponent (sacrifice (a creature)))) drawOne
-        none none none none) = [.costPaidByYou] ∧
+        none none none none) = [] ∧
       Ability.check [] (.activated (.perform (act anOpponent (sacrifice (a creature)))) drawOne
           none none none none) =
         Ability.check [] (.activated (.perform (act anOpponent (sacrifice (a creature)))) drawOne
           none none none none) := by
   decide
 
-/-- "An opponent pays 2 life: Draw a card." (`Keyword.badForeignPayerCost`) -/
+/-- "An opponent pays 2 life: Draw a card." (the pin `Keyword.badForeignPayerCost`,
+retired with `costPaidByYou` by `lean-checker-sweep-costs`) -/
 theorem foreignPayerCostHandoffTwin :
     Ability.check [] (.activated (.perform (act anOpponent (loseLife (.lit 2)))) drawOne
-        none none none none) = [.costPaidByYou] ∧
+        none none none none) = [] ∧
       Ability.check [] (.activated (.perform (act anOpponent (loseLife (.lit 2)))) drawOne
           none none none none) =
         Ability.check [] (.activated (.perform (act anOpponent (loseLife (.lit 2)))) drawOne none none none
           none) := by
   decide
 
-/-- "Cumulative upkeep—An opponent loses 1 life." (`Mana.badOpponentPaysYourCost`) -/
+/-- "Cumulative upkeep—An opponent loses 1 life." (the pin
+`Mana.badOpponentPaysYourCost`, retired with `keywordCostPaidByYou` by `lean-checker-sweep-costs`) -/
 theorem opponentPaysYourCostHandoffTwin :
     Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.perform (act anOpponent (loseLife (.lit 1)))))
-        = [.keywordCostPaidByYou (.named "cumulativeUpkeep")] ∧
+        = [] ∧
       Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.perform (act anOpponent (loseLife (.lit 1))))) =
         Ability.check [] (keywordCosting (.named "cumulativeUpkeep") (.perform (act anOpponent (loseLife (.lit 1))))) := by
   decide
 
-/-- "You may pay an opponent's 1 life. If you do, draw a card." (`Choice.badMismatchedPayer`) -/
+/-- "You may pay an opponent's 1 life. If you do, draw a card." (the pin
+`Choice.badMismatchedPayer`, retired with `payAgrees` by `lean-checker-sweep-costs`) -/
 theorem mismatchedPayerHandoffTwin :
     Instruction.check []
         (Primitives.Instruction.offer (.pay (.perform (act anOpponent (loseLife (.lit 1)))) .once)
-          none (some drawOne)) = [.payAgrees] ∧
+          none (some drawOne)) = [] ∧
       Instruction.check []
           (Primitives.Instruction.offer (.pay (.perform (act anOpponent (loseLife (.lit 1)))) .once)
             none (some drawOne)) =
@@ -377,25 +375,32 @@ theorem okCapturedActorIsYou :
     Instruction.check [] (youPayWith (.perform (capturedLifeLoss actor))) = [] := by
   decide
 
-/-- Inside "target opponent …", "you may pay that player's 1 life": the controller paying the
-opponent's life is refused, captured or not. The payer "you" is a handoff back to the controller,
-inside which `actor` is the controller again, so the opponent is named "that player"
-(`capturedActorIsTheHandedPlayer` captures `actor` itself inside the opponent's handoff). -/
+/-- Inside "target opponent …", "you may pay that player's 1 life", captured or not. The payer
+"you" is a handoff back to the controller, inside which `actor` is the controller again, so the
+opponent is named "that player" (`capturedActorIsTheHandedPlayer` captures `actor` itself inside
+the opponent's handoff). Who pays a cost is not checked (`lean-checker-sweep-costs`); the actor
+inside the inner handoff, past the capture, is still "you". -/
 theorem badCapturedActorIsTheHandedPlayer :
     Instruction.check [] (act (target .opponent) (youPayWith (.perform (capturedLifeLoss they))))
-        = [.payAgrees] ∧
+        = [] ∧
       Instruction.check [] (act (target .opponent) (youPayWith (.perform (act they (loseLife (.lit 1))))))
-        = [.payAgrees] := by
+        = [] ∧
+      NounPhrase.actor.isYouIn
+        (captureBindings (actorCtx (actorCtx [] (target .opponent)) .you) 0 [.subject they]) =
+        true := by
   decide
 
 /-- Inside "target opponent …", `actor` passed through a `capture` parameter is the opponent:
-"Target opponent loses 1 life: Draw a card." through the captured performer is refused as the
-uncaptured handoff is (`badHandedOffLifeCost`). -/
+"Target opponent loses 1 life: Draw a card." through the captured performer is admitted as the
+uncaptured handoff is (`badHandedOffLifeCost`), and the captured `actor` still reads as the
+handed player, not "you". -/
 theorem capturedActorIsTheHandedPlayer :
     Ability.check []
       (.activated (.perform (act (target .opponent) (capturedLifeLoss actor))) (draw (.lit 1))
         none none none none)
-      = [.costPaidByYou] := by
+      = [] ∧
+      NounPhrase.actor.isYouIn (captureBindings (actorCtx [] (target .opponent)) 0 [.subject .actor]) =
+        false := by
   decide
 
 /-! ## Handoffs -/
@@ -436,8 +441,7 @@ theorem badHandedToYouTheyControl :
   decide
 
 /-- "Target opponent may pay an opponent's 1 life. If they do, they draw a card.": inside the
-handoff the payer is the opponent, so the payer rule reads them, as it reads any non-controller
-payer (`badActorMismatchedPayer` is the same body with no handoff). -/
+handoff the payer is the opponent. Who pays a cost is not checked (`lean-checker-sweep-costs`). -/
 theorem okHandedPayerIsTheTarget :
     Instruction.check []
       (act (target .opponent)
@@ -446,20 +450,24 @@ theorem okHandedPayerIsTheTarget :
   decide
 
 /-- Nested handoffs: the innermost one names the performer, so `act you` inside an opponent's
-handoff makes the actor the controller again. -/
+handoff makes the actor the controller again. Who pays a cost is not checked
+(`lean-checker-sweep-costs`); the innermost handoff's actor is "you". -/
 theorem badNestedHandoffInnermost :
     Instruction.check []
       (act (target .opponent)
         (act .you
           (Primitives.Instruction.offer (.pay (.perform (act anOpponent (loseLife (.lit 1)))) .once) none
             (some (draw (.lit 1))))))
-      = [.payAgrees] := by
+      = [] ∧
+      NounPhrase.actor.isYouIn (actorCtx (actorCtx [] (target .opponent)) .you) = true ∧
+      NounPhrase.actor.isYouIn (actorCtx [] (target .opponent)) = false := by
   decide
 
 /-- "Target opponent … Until end of turn, target creature gains '{T}: You may pay an
 opponent's 1 life. If you do, draw a card.'": a granted ability is performed by its own
 controller, so the handoff around the grant does not reach the payer inside it
-(`okHandedPayerIsTheTarget` is the same body handed off directly). -/
+(`okHandedPayerIsTheTarget` is the same body handed off directly). Who pays a cost is not checked
+(`lean-checker-sweep-costs`); the granted ability's actor is its own controller, "you". -/
 theorem badGrantedAbilityKeepsItsOwnPerformer :
     Instruction.check []
       (act (target .opponent)
@@ -470,7 +478,8 @@ theorem badGrantedAbilityKeepsItsOwnPerformer :
                 (some (draw (.lit 1))))
               none none none none))
           (some untilEndOfTurn)))
-      = [.payAgrees] := by
+      = [] ∧
+      NounPhrase.actor.isYouIn (ownPerformerCtx (actorCtx [] (target .opponent))) = true := by
   decide
 
 /-! ## Statics -/

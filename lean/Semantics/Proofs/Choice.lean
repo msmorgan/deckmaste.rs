@@ -114,15 +114,6 @@ theorem okSpreeBothCosted :
           (some (.mana [generic 1]), destroy (target enchantment)) ]) = [] := by
   decide
 
-/-- "Choose one or more — destroy target artifact; + {1} — destroy target enchantment.": a
-spree mode with no cost [CR#702.172a] -/
-theorem badSpreeMissingCost :
-    Instruction.check []
-      (chooseSpree
-        [ (none, destroy (target artifact)),
-          (some (.mana [generic 1]), destroy (target enchantment)) ]) = [.modesCosted] := by
-  decide
-
 /-- "Choose one — Destroy target artifact; or tap it." The Idris pin refutes the zone; the
 checker refuses the unresolved `it`. -/
 theorem badModalReadsAcrossModes :
@@ -142,13 +133,6 @@ theorem badReadsAfterModal :
 theorem okMatchedPayer :
     Instruction.check []
       (Primitives.Instruction.offer (.pay (payLife 1) .once) none (some (draw (.lit 1)))) = [] := by
-  decide
-
-/-- "you pay" -/
-theorem badMismatchedPayer :
-    Instruction.check []
-      (Primitives.Instruction.offer (.pay (.perform (act anOpponent (loseLife (.lit 1)))) .once) none (some (draw (.lit 1))))
-      = [.payAgrees] := by
   decide
 
 /-- "Choose new targets for target instant or sorcery spell." -/

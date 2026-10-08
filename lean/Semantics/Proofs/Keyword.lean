@@ -21,16 +21,6 @@ theorem okSacrificeAsCost :
     Ability.check [] (act (.perform (sacrifice (a creature))) (draw (.lit 1))) = [] := by
   decide
 
-/-- "Sacrifice a creature, Exile the sacrificed card: Draw a card." -/
-theorem badCostReadsSiblingDeed :
-    Ability.check []
-      (act
-        (.compound
-          [ .perform (sacrifice (a creature)),
-            .perform (exile (theVerbed (.action "sacrifice") .one (some .card))) ])
-        (draw (.lit 1))) = [.costAction] := by
-  decide
-
 /-- "Target creature gains flying." -/
 theorem okGainsKeyword :
     Instruction.check [] (gain (target creature) (keyword (.named "flying")) none) = [] := by decide
@@ -324,18 +314,6 @@ theorem badSharedSubjectEmptyDelta :
 /-- "Pay 2 life: Draw a card." -/
 theorem okOwnPayerCost : Ability.check [] (act (payLife 2) (draw (.lit 1))) =
     [] := by
-  decide
-
-/-- "An opponent pays 2 life: Draw a card." -/
-theorem badForeignPayerCost :
-    Ability.check [] (act (.perform (Macros.act anOpponent (loseLife (.lit 2)))) (draw (.lit 1))) = [.costPaidByYou]
-        := by
-  decide
-
-/-- "An opponent sacrifices a creature: Draw a card." -/
-theorem badForeignSacrificeCost :
-    Ability.check [] (act (.perform (Macros.act anOpponent (sacrifice (a creature)))) (draw (.lit 1)))
-      = [.costPaidByYou] := by
   decide
 
 /-- "Counter target spell." -/

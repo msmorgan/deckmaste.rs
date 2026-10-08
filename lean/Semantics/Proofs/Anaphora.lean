@@ -558,12 +558,6 @@ theorem okPayKeywordWithACost :
       = [] := by
   decide
 
-/-- "When a player doesn't pay this creature's flying, …" -/
-theorem badPayCostlessKeyword :
-    GameEvent.check [] (.paysCost (some (a .anyPlayer)) .unpaid thisCreature (.named "flying"))
-      = [.keywordCost (.named "flying")] := by
-  decide
-
 /-- "if you paid life this turn" -/
 theorem youPaidLifeThisTurn :
     Condition.check [] (.happened .you (.mk (.paysLife (.gap .player)) .thisTurn)) = [] := by decide

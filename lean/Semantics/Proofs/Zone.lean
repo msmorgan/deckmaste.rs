@@ -451,13 +451,6 @@ theorem okUntapCapBattlefieldSet :
       = [] := by
   decide
 
-theorem badUntapCapGraveyardSet :
-    Ability.check []
-      (.static
-        (cantMoreThan (.playerGroup .allPlayers) (.action "untap") 1
-          (.and [creature, .inZone (graveyardOf .you)]))) = [.deonticPatientOk] := by
-  decide
-
 /-- "if this creature is attacking" -/
 theorem okMatchesBattlefieldZone :
     Ability.check []

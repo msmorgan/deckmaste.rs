@@ -95,10 +95,6 @@ private semantic_macro capturedLifeCost (amount : capture Amount) : Cost :=
 
 theorem costsAcceptTypedCaptures : (capturedLifeCost (.lit 1)).check [] = [] := by decide
 
-theorem capturedCostsPreservePaymentClassifiers :
-    let cost := capturedLifeCost (.lit 1)
-    (cost.paidByYou, cost.tapOnce, cost.payable) = (true, true, true) := by decide
-
 private semantic_macro capturedBoost (subject : capture NounPhrase) (amount : capture Amount) :
     StaticSpec := .modification subject .power (.up amount)
 
@@ -271,14 +267,12 @@ theorem capturesStayInsideTheirRepetition :
 
 private semantic_macro capturedCount (subject : capture NounPhrase) : Amount := .countOf subject
 
-private semantic_macro capturedPayment (payer : capture NounPhrase) : Cost :=
-  .perform (.act payer (.changeLife (.down (.lit 1))))
-
 theorem capturedGroupsRemainCountable :
     (capturedCount (.described (.target (exactly 2)) creature)).check [] = [] := by decide
 
+/-- A captured "you" is still "you" when read back as the payer. -/
 theorem capturedYouRemainsThePayer :
-    (capturedPayment Primitives.NounPhrase.you).paidByYou = true := by decide
+    (MacroCapture.read 0 0 Primitives.NounPhrase.you).isYou = true := by decide
 
 theorem capturedSourceRetainsItsSelfDefinitionRole :
     (MacroCapture.read 0 0 (NounPhrase.asType .creature .this none)).selfDefinedOk = true := by decide
@@ -343,11 +337,9 @@ example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
       text := [Primitives.Ability.spell none
         (onChosen (target creature) (fun _ => moveSubject outside))] } }
 
-private semantic_macro capturedLifePayment (payer : capture NounPhrase) : Instruction :=
-  .act payer (.changeLife (.down (.lit 1)))
-
+/-- A captured opponent read back as the payer is not "you". -/
 theorem instructionScopesDoNotHideAnIncorrectPayer :
-    (Cost.perform (capturedLifePayment anOpponent)).paidByYou = false := by decide
+    (MacroCapture.read 0 0 anOpponent).isYou = false := by decide
 
 private semantic_macro definedPower (subject : capture NounPhrase) : StaticSpec :=
   .ptDefinition subject .powerAlone (.lit 1)
@@ -412,10 +404,6 @@ theorem capturedCoordinationRetainsTwoParties :
 theorem scopedAmountCannotConcealSelfExchange :
     (Instruction.exchange (.values (.withBindings 5 [] (powerOf thisCreature))
       (powerOf thisCreature))).check [] = [.selfExchanged] := by decide
-
-theorem scopedDefinitionRemainsAdmissibleAsCost :
-    (Instruction.establish (.withBindings 5 [] (.letterDefinition .x (.lit 2))) none).costActionOk =
-      true := by decide
 
 theorem scopedDefinitionRetainsNumberRegime :
     (Instruction.establish (.withBindings 5 [] (.letterDefinition .x (.lit 2))) none).numberSlots =
@@ -511,11 +499,6 @@ private semantic_macro selfBlocking (subject : capture NounPhrase) : Instruction
 
 theorem capturedSubjectAndCounterpartStillShareIdentity :
     (selfBlocking (target creature)).check [] = [.deonticPatientOk] := by decide
-
-theorem scopedDefinitionCannotConcealInvalidCostCapture :
-    (Instruction.establish
-      (.withBindings 5 [.subject (.and [.you, anOpponent])] (.letterDefinition .x (.lit 2)))
-      none).costActionOk = false := by decide
 
 theorem possessorQueriesPreserveScopedSubjectUpdates :
     (nomIntro callerCreatureSpell (.possessorOf .controller (resolvedSubject it))).map Binding.zone =

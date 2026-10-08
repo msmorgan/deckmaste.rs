@@ -164,7 +164,9 @@ theorem okGetsCreatureTwin :
       Instruction.check [] (getTwoHalves (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) := by
   decide
 
-/-- `Deontic.badContinuousAsCost`: the same refusals in both spellings. -/
+/-- "Creatures you control get +1/+1 until end of turn:" as a cost (the pin
+`Deontic.badContinuousAsCost` retired with `costAction` by `lean-checker-sweep-costs`): the same
+refusals in both spellings. -/
 theorem badContinuousAsCostTwin :
     Ability.check [] (activatedAbility (.perform (get (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))) (draw (.lit 1))) =
       Ability.check [] (activatedAbility (.perform (getTwoHalves (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))) (draw (.lit 1))) := by
