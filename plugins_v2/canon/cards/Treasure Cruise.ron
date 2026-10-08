@@ -1,0 +1,15 @@
+// "Delve / Draw three cards." [CR#702.66a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Treasure Cruise",
+        cost: [
+            7,
+            Blue,
+        ],
+        types: [Sorcery],
+        text: [
+            delve,
+            spell(draw(3)),
+        ],
+    ),
+))

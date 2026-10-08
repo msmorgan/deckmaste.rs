@@ -1,0 +1,16 @@
+// "Convoke / Stoke the Flames deals 4 damage to any target." [CR#702.51a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Stoke the Flames",
+        cost: [
+            2,
+            Red,
+            Red,
+        ],
+        types: [Instant],
+        text: [
+            convoke,
+            spell(dealDamage(this, 4, target(anyTarget))),
+        ],
+    ),
+))

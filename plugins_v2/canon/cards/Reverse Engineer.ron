@@ -1,0 +1,16 @@
+// "Improvise / Draw three cards." [CR#702.126a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Reverse Engineer",
+        cost: [
+            3,
+            Blue,
+            Blue,
+        ],
+        types: [Sorcery],
+        text: [
+            improvise,
+            spell(draw(3)),
+        ],
+    ),
+))
