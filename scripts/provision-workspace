@@ -15,12 +15,20 @@ or begin
     echo >&2 "$(status filename): could not resolve the default workspace root."
     exit 1
 end
+# Absolute from here on: the script changes directory below.
+set ws_dir (path resolve "$ws_dir")
 # cwd-independent from here: cargo xtask needs the workspace root.
 cd "$default_dir"
 or exit 1
 
+# Phase timing: one stderr line per phase, so a slow provision names its cause.
+function phase_done --argument-names name start
+    set -l ms (math --scale=0 "($(date +%s%N) - $start) / 1000000")
+    echo >&2 "provision-workspace: $name "(math --scale=1 "$ms / 1000")"s"
+end
 
 # Link the ignored data dir into the workspace instead of re-downloading it.
+set t (date +%s%N)
 ln -sfn "$default_dir/data" "$ws_dir/data"
 
 # If the user has any globally-ignored directories under docs (like the default
@@ -35,9 +43,12 @@ and begin
     end
     not set -q failures[1]
 end
+and phase_done symlinks $t
 
 # Re-generate cards from Oracle text.
+and set t (date +%s%N)
 and cargo xtask generate "$ws_dir/plugins/wizards"
+and phase_done "wizards generate" $t
 
 or begin
     echo >&2 "$(status filename): $ws_dir's jj structure is set, but shared-dir provisioning failed — check symlinks and run 'cargo xtask generate $ws_dir/plugins/wizards' by hand."
@@ -45,29 +56,68 @@ or begin
 end
 
 # Pre-warm the build cache (best-effort): CoW-reflink default's target/ into the
-# new workspace so registry/git deps — the bulk of a clean build — are reused on
-# the first compile. Those are keyed on source-in-~/.cargo + rustc + features +
-# profile, NOT the workspace path, so they're reused as-is with no path rewriting.
-# Workspace-local crates carry a path-dependent metadata hash and recompile
-# regardless, so there's nothing to "fix". Skip incremental/: per-build scratch
-# that won't apply to a fresh path and bloats the copy. --reflink=auto is instant
-# and ~zero-space on btrfs (falls back to a plain copy elsewhere); /target/ is
-# gitignored so jj won't snapshot it. A miss here just means a cold first build.
+# new workspace. Cargo's unit metadata hashes are path-independent, so every
+# unit — registry/git deps and workspace crates alike — keeps its hash in the
+# new workspace. What would still force workspace crates to rebuild is mtimes:
+# the jj checkout stamps every tracked file with the checkout time, newer than
+# the reflinked fingerprints. The mtime sync below fixes that. Skip
+# incremental/: rustc keys incremental state on the session's working
+# directory, so it won't apply at a fresh path and only bloats the copy.
+# --reflink=auto is instant and ~zero-space on btrfs (falls back to a plain copy
+# elsewhere); /target/ is gitignored so jj won't snapshot it. A miss here just
+# means a cold first build.
 #
 # lean/.lake is seeded the same way (best-effort CoW reflink, plain-copy fallback,
 # never a symlink: lake writes into it). Without it a fresh workspace's first Lean
 # build is cold (~7 minutes against ~2 s warm). Skipped if default has none.
+set -l target_warm 0
 if test -d "$default_dir/target"
+    set t (date +%s%N)
     if cp --reflink=auto -a "$default_dir/target" "$ws_dir/target"
         rm -rf "$ws_dir/target"/{debug,release}/incremental
+        set target_warm 1
+        phase_done "target reflink" $t
     else
         echo >&2 "$(status filename): target/ pre-warm into $ws_dir failed — first build there starts cold (harmless)."
     end
 end
+
+# Sync mtimes (best-effort, only after a successful target pre-warm): give
+# every tracked file whose bytes equal default's copy default's mtime, so cargo
+# sees exactly the files that truly differ as changed and rebuilds only the
+# crates that own them. Symlinked and missing paths are skipped. jj tracks
+# content, not mtimes, so this leaves the working copy clean. A failure here
+# only costs the cold rebuild the sync would have avoided.
+if test $target_warm -eq 1
+    set t (date +%s%N)
+    set -l results (sh -c '
+        cd "$1" && jj --no-pager --ignore-working-copy file list | xargs -d "\n" -r -P "$(nproc)" -n 256 sh -c '"'"'
+            d=$1; shift
+            for f; do
+                if [ -f "$f" ] && [ ! -L "$f" ] && [ -f "$d/$f" ] && [ ! -L "$d/$f" ] \
+                    && cmp -s "$d/$f" "$f" && touch -r "$d/$f" "$f"; then
+                    echo S
+                else
+                    echo D
+                fi
+            done'"'"' sh "$2"' sh "$ws_dir" "$default_dir" 2>/dev/null)
+    if set -q results[1]
+        set -l synced (string match -- S $results | count)
+        set -l differing (string match -- D $results | count)
+        echo >&2 "provision-workspace: mtime sync: $synced synced, $differing differing"
+        phase_done "mtime sync" $t
+    else
+        echo >&2 "$(status filename): mtime sync into $ws_dir failed — workspace crates rebuild cold (harmless)."
+    end
+end
+
 if test -d "$default_dir/lean/.lake"
+    set t (date +%s%N)
     if cp --reflink=auto -a "$default_dir/lean/.lake" "$ws_dir/lean/.lake"
+        phase_done "lean/.lake reflink" $t
     else
         rm -rf "$ws_dir/lean/.lake"
         echo >&2 "$(status filename): lean/.lake seed into $ws_dir failed — first Lean build there starts cold (harmless)."
     end
 end
+exit 0

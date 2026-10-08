@@ -176,7 +176,9 @@ symlink: the deckmaste_plugin suite loads it, and a symlink would make generate
 write into the main checkout). The workspaces share the repository and global
 ignore configuration, so there is no per-workspace exclude step. Provisioning
 also CoW-reflinks `default`'s `target/` into the new workspace as a build-cache
-pre-warm (best-effort); `lean/.lake` is CoW-reflinked the same way, so the
+pre-warm (best-effort), then gives every tracked file whose bytes match
+`default`'s copy `default`'s mtime, so only crates whose sources truly differ
+rebuild; `lean/.lake` is CoW-reflinked the same way, so the
 first Lean build there is warm (the seed is only as fresh as `default`'s last
 `lake build`).
 
