@@ -1,0 +1,8 @@
+// "this turn", as a lookback reads it: from the turn's beginning to now. A
+// history window ends at `Now` (§7 ruling 2026-10-08, "Time is three sorts").
+(
+    name: "soFarThisTurn",
+    kinds: [Duration],
+    params: [],
+    body: Between(BeginningOf(Turn, None, Current), Now),
+)

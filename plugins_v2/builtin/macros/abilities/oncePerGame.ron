@@ -1,9 +1,7 @@
-// `UsageLimit.OncePerGame` under Lean's own name for it: the alias
-// `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// "only once each game": no more than one per game [CR#602.5b].
 (
     name: "oncePerGame",
     kinds: [UsageLimit],
     params: [],
-    body: OncePerGame,
+    body: Mk(MoreThan(1), Game),
 )

@@ -1,0 +1,8 @@
+// "last turn", as a lookback reads it: the whole of the previous turn, which
+// has ended, so its end and not `Now` bounds it.
+(
+    name: "lastTurn",
+    kinds: [Duration],
+    params: [],
+    body: Between(BeginningOf(Turn, None, Previous), EndOf(Turn, None, Previous)),
+)

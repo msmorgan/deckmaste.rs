@@ -1,0 +1,8 @@
+// "<who> <event> this way": the event the enclosing instruction caused, as a
+// condition. It names an occurrence, not a span.
+(
+    name: "happenedThisWay",
+    kinds: [Condition],
+    params: {"event": GameEvent, "who": NounPhrase},
+    body: Happened(Param(who), ThisWay(Param(event))),
+)

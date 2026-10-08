@@ -19,6 +19,6 @@ KeywordAction(
                 allOf(and([abilityHead(AnyActivated), abilityOf(Param(0))])),
             ),
         ],
-        until(StartOf(Turn, controllerOf(this))),
+        untilNextTurnOf(controllerOf(this)),
     ),
 )

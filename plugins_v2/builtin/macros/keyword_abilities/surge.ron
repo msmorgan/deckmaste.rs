@@ -13,7 +13,7 @@ KeywordAbility(
         static(
             onlyWhile(
                 mayCastFor(you, Param(0)),
-                happened(casts(gap(Player), a(anotherSpell)), playerGroup(YourTeam), ThisTurn),
+                happened(casts(gap(Player), a(anotherSpell)), playerGroup(YourTeam), soFarThisTurn),
             ),
         ),
     ],

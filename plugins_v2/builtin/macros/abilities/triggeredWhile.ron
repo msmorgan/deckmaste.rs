@@ -2,6 +2,6 @@
 (
     name: "triggeredWhile",
     kinds: [Ability],
-    params: {"event": GameEvent, "while": Concurrent, "instruction": Instruction},
+    params: {"event": GameEvent, "while": Timing, "instruction": Instruction},
     body: Triggered(Param(event), [], Param(while), [], None, None, None, Param(instruction)),
 )

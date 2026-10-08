@@ -1,9 +1,7 @@
-// `UsageLimit.OncePerTurn` under Lean's own name for it: the alias
-// `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// "only once each turn": no more than one per turn [CR#602.5b].
 (
     name: "oncePerTurn",
     kinds: [UsageLimit],
     params: [],
-    body: OncePerTurn,
+    body: Mk(MoreThan(1), Turn),
 )

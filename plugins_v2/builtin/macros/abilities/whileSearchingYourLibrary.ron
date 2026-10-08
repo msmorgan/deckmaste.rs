@@ -1,0 +1,7 @@
+// "while you're searching your library"
+(
+    name: "whileSearchingYourLibrary",
+    kinds: [Timing],
+    params: [],
+    body: WhileDoing(verbedEvent(search, None, You, None, yourLibrary)),
+)

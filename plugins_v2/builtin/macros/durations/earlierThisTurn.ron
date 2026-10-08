@@ -1,0 +1,7 @@
+// "earlier this turn", as a lookback reads it.
+(
+    name: "earlierThisTurn",
+    kinds: [Duration],
+    params: [],
+    body: Between(BeginningOf(Turn, None, Current), Now),
+)

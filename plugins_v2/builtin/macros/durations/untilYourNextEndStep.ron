@@ -2,5 +2,5 @@
     name: "untilYourNextEndStep",
     kinds: [Duration],
     params: [],
-    body: Until(StartOf(EndStep, You)),
+    body: Between(None, BeginningOf(EndStep, You, Next(None))),
 )

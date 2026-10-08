@@ -1,7 +1,7 @@
-// "the beginning of your <part>"
+// "the beginning of your <part>", each time it comes
 (
     name: "beginningOfYour",
     kinds: [GameEvent],
     params: {"part": TurnPart},
-    body: BeginningOf(The, Param(part), ByPlayer(You)),
+    body: BeginningOf(Param(part), You, Each(None)),
 )

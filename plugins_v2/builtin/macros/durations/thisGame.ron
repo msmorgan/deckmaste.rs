@@ -1,0 +1,7 @@
+// "this game", as a lookback reads it.
+(
+    name: "thisGame",
+    kinds: [Duration],
+    params: [],
+    body: Between(None, Now),
+)

@@ -2,6 +2,6 @@
 (
     name: "happenedTo",
     kinds: [Predicate],
-    params: {"event": GameEvent, "lookback": Lookback},
-    body: HappenedTo(Mk(Param(event), Param(lookback))),
+    params: {"event": GameEvent, "within": Duration, "timing": Default(Any, None)},
+    body: HappenedTo(Mk(Param(event), Param(within), Param(timing))),
 )

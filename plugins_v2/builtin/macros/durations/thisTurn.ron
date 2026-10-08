@@ -1,9 +1,8 @@
-// `Duration.ThisTurn` under Lean's own name for it: the alias
-// `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// "this turn", as an effect lasts: until the turn ends [CR#514.2]. A lookback's
+// "this turn" is `soFarThisTurn`.
 (
     name: "thisTurn",
     kinds: [Duration],
     params: [],
-    body: ThisTurn,
+    body: Between(None, EndOf(Turn, None, Current)),
 )

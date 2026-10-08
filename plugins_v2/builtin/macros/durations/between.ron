@@ -1,0 +1,9 @@
+// `Duration.Between` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1).
+(
+    name: "between",
+    kinds: [Duration],
+    params: {"start": Any, "end": Any},
+    body: Between(start: Param(start), end: Param(end)),
+)

@@ -1,9 +1,8 @@
-// `Timing.AsInstant` under Lean's own name for it: the alias
-// `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// "only as an instant": any time you have priority [CR#117.1a]. A mana ability
+// may be activated without priority [CR#117.1d], so this is written.
 (
     name: "asInstant",
     kinds: [Timing],
     params: [],
-    body: AsInstant,
+    body: OnlyIf(HasPriority(You)),
 )

@@ -2,6 +2,6 @@
 (
     name: "happened",
     kinds: [Condition],
-    params: {"event": GameEvent, "who": NounPhrase, "lookback": Lookback},
-    body: Happened(Param(who), Mk(Param(event), Param(lookback))),
+    params: {"event": GameEvent, "who": NounPhrase, "within": Duration, "timing": Default(Any, None)},
+    body: Happened(Param(who), Mk(Param(event), Param(within), Param(timing))),
 )

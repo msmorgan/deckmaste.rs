@@ -1,0 +1,7 @@
+// "the beginning of that turn's <part>": the turn an earlier phrase introduced.
+(
+    name: "beginningOfThatTurns",
+    kinds: [GameEvent],
+    params: {"part": TurnPart},
+    body: BeginningOf(Param(part), None, That),
+)

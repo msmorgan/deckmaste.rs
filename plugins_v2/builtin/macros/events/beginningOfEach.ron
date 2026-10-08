@@ -1,0 +1,7 @@
+// "the beginning of each <part>"
+(
+    name: "beginningOfEach",
+    kinds: [GameEvent],
+    params: {"part": TurnPart},
+    body: BeginningOf(Param(part), None, Each(None)),
+)

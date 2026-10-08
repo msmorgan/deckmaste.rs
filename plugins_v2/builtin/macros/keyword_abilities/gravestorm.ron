@@ -12,7 +12,7 @@ KeywordAbility(
         triggered(
             casts(you, thisSpell),
             sequentially([
-                copySpell(thisSpell, eventCount(dies(gap(Object)), bare(permanent), ThisTurn)),
+                copySpell(thisSpell, eventCount(dies(gap(Object)), bare(permanent), soFarThisTurn)),
                 doIf(
                     matches(thisSpell, targets(a(isSource), SomeTarget)),
                     may(chooseNewTargets(those(Copy))),

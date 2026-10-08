@@ -14,7 +14,7 @@ KeywordAbility(
             sequentially([
                 copySpell(
                     thisSpell,
-                    eventCount(casts(gap(Player), a(anotherSpell)), a(anyPlayer), EarlierThisTurn),
+                    eventCount(casts(gap(Player), a(anotherSpell)), a(anyPlayer), earlierThisTurn),
                 ),
                 may(chooseNewTargets(those(Copy))),
             ]),

@@ -1,9 +1,7 @@
-// `Timing.DuringPart` under Lean's own name for it: the alias
-// `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// "during <whose> <part>": during that part of the current turn.
 (
     name: "duringPart",
     kinds: [Timing],
     params: {"part": TurnPart, "whose": Default(Any, None)},
-    body: DuringPart(part: Param(part), whose: Param(whose)),
+    body: InPart(Param(part), Param(whose), Current),
 )

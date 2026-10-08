@@ -1,0 +1,7 @@
+// "while <condition>": a timing that holds only while the condition does.
+(
+    name: "whileTrue",
+    kinds: [Timing],
+    params: {"condition": Condition},
+    body: OnlyIf(Param(condition)),
+)

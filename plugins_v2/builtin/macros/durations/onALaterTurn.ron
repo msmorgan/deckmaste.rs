@@ -1,0 +1,7 @@
+// "on a later turn": from the end of this turn on [CR#702.143a,702.170d].
+(
+    name: "onALaterTurn",
+    kinds: [Duration],
+    params: [],
+    body: Between(EndOf(Turn, None, Current), None),
+)

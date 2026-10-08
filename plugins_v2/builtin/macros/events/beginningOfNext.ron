@@ -1,0 +1,7 @@
+// "the beginning of the next <part>": a delayed trigger's moment.
+(
+    name: "beginningOfNext",
+    kinds: [GameEvent],
+    params: {"part": TurnPart},
+    body: BeginningOf(Param(part), None, Next(None)),
+)

@@ -20,7 +20,7 @@ SingleFaced(face: (
                     condition: happened(
                         event: combat(relation: AttackerOf, subject: gap(Player), counterpart: None),
                         who: you,
-                        lookback: ThisTurn,
+                        within: soFarThisTurn,
                     ),
                     instruction: draw(1),
                 )

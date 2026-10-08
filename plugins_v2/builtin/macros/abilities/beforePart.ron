@@ -1,9 +1,7 @@
-// `Timing.BeforePart` under Lean's own name for it: the alias
-// `declare_semantic_primitives` generates, so a card writes a macro where the
-// basis has a constructor (ADR 12.1).
+// "before <whose> <part>": before the part of the current turn begins.
 (
     name: "beforePart",
     kinds: [Timing],
     params: {"part": TurnPart, "whose": Default(Any, None)},
-    body: BeforePart(part: Param(part), whose: Param(whose)),
+    body: RelativeToEvent(Before, BeginningOf(Param(part), Param(whose), Current)),
 )

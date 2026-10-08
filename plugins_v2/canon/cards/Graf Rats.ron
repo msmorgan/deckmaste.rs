@@ -10,7 +10,7 @@ SingleFaced(face: (
         power: 2,
         toughness: 1,
         text: [
-            triggeredIf(event: beginningOf(quantifier: The, part: Combat, whose: ByPlayer(you)), condition: and([
+            triggeredIf(event: beginningOfYour(Combat), condition: and([
                     matches(
                         subject: asType(type: Creature, subject: this, subtype: None),
                         predicate: and([

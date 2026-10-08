@@ -28,7 +28,7 @@ KeywordAction(
                 )),
                 static(conditional(
                     abilityGrant(this, triggered(attacks(a(and([hasDesignation(ringBearer), youControl]))), sequentially([draw(1), discard(a(cardIn(hand)))]))),
-                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), ThisGame)), AtLeast, 2),
+                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), thisGame, None)), AtLeast, 2),
                     AsLongAs,
                 )),
                 static(conditional(
@@ -36,7 +36,7 @@ KeywordAction(
                         becomesBlocked(a(and([hasDesignation(ringBearer), youControl])), Some(a(creature))),
                         atNext(endOfCombatStep, act(controllerOf(that(Creature)), sacrifice(that(Creature)))),
                     )),
-                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), ThisGame)), AtLeast, 3),
+                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), thisGame, None)), AtLeast, 3),
                     AsLongAs,
                 )),
                 static(conditional(
@@ -44,7 +44,7 @@ KeywordAction(
                         dealsCombatDamage(a(and([hasDesignation(ringBearer), youControl])), a(anyPlayer)),
                         act(each(opponent), loseLife(3)),
                     )),
-                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), ThisGame)), AtLeast, 4),
+                    compareAmt(eventTally(Count, you, Mk(verbedEvent(theRingTemptsYou, None, Some(gap(Player))), thisGame, None)), AtLeast, 4),
                     AsLongAs,
                 )),
             ]),

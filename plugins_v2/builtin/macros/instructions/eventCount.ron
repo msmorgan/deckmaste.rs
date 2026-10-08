@@ -2,6 +2,6 @@
 (
     name: "eventCount",
     kinds: [Amount],
-    params: {"event": GameEvent, "who": NounPhrase, "lookback": Lookback},
-    body: EventTally(Count, Param(who), Mk(Param(event), Param(lookback))),
+    params: {"event": GameEvent, "who": NounPhrase, "within": Duration, "timing": Default(Any, None)},
+    body: EventTally(Count, Param(who), Mk(Param(event), Param(within), Param(timing))),
 )

@@ -199,8 +199,9 @@ theorem okSkipDuringTheirNextTurn :
       = [] := by
   decide
 
-/-- "You skip all combat phases of their next turn.": the unbound "their" is read at both of
-the turn's boundaries, its beginning and its end, and refused at each. -/
+/-- "You skip all combat phases of their next turn.": the bench macro writes the unbound
+"their" at both of the turn's boundaries, its beginning and its end, and each is refused (the
+RON helper captures it once; a `Duration` has no binding scope to capture it in Lean). -/
 theorem badSkipDuringUnboundNextTurn :
     Instruction.check [] (establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that
         .player)))

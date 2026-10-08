@@ -1,0 +1,7 @@
+// "during each of your turns"
+(
+    name: "duringEachOfYourTurns",
+    kinds: [Timing],
+    params: [],
+    body: InPart(Turn, You, Each(None)),
+)

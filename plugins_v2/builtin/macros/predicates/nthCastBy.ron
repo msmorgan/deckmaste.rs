@@ -2,6 +2,6 @@
 (
     name: "nthCastBy",
     kinds: [Predicate],
-    params: {"ordinal": Ordinal, "player": NounPhrase, "period": RankPeriod},
+    params: {"ordinal": Ordinal, "player": NounPhrase, "period": Period},
     body: CastBy(Param(player), (Param(ordinal), Param(period))),
 )

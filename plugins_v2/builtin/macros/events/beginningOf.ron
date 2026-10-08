@@ -4,6 +4,6 @@
 (
     name: "beginningOf",
     kinds: [GameEvent],
-    params: {"quantifier": PartQuant, "part": TurnPart, "whose": Any},
-    body: BeginningOf(quantifier: Param(quantifier), part: Param(part), whose: Param(whose)),
+    params: {"part": TurnPart, "whose": Any, "which": Any},
+    body: BeginningOf(part: Param(part), whose: Param(whose), which: Param(which)),
 )

@@ -2,5 +2,5 @@
     name: "untilEndOfTurn",
     kinds: [Duration],
     params: [],
-    body: Until(EndOf(Turn, None)),
+    body: Between(None, EndOf(Turn, None, Current)),
 )

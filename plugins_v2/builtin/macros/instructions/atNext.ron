@@ -3,5 +3,5 @@
     name: "atNext",
     kinds: [Instruction],
     params: {"part": TurnPart, "instruction": Instruction},
-    body: Delay(BeginningOf(The, Param(part), NoPossessor), [], None, Param(instruction)),
+    body: Delay(beginningOfNext(Param(part)), [], None, Param(instruction)),
 )
