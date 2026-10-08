@@ -495,6 +495,13 @@ pub enum NounPhrase {
         designation: DesignationLabel,
         whose: Box<NounPhrase>,
     },
+    /// What a cost of the subject's records about a player, read back by the
+    /// ability linked to it: "the player chosen as its gift cost was paid"
+    /// [CR#607.2d,607.2i].
+    Paid {
+        facet: PaidFacet,
+        subject: Box<NounPhrase>,
+    },
     OneEachOf {
         roles: Vec<Predicate>,
         pool: Box<NounPhrase>,

@@ -1,0 +1,7 @@
+// "the player chosen as <subject>'s <cost> was paid", read back by the linked ability
+(
+    name: "chosenAsPaid",
+    kinds: [NounPhrase],
+    params: {"which": PaidCostName, "subject": NounPhrase},
+    body: Paid(ChosenPlayer(Param(which)), Param(subject)),
+)

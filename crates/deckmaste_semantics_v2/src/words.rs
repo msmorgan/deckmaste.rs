@@ -657,6 +657,9 @@ pub enum PaidFacet {
         which: PaidCostName,
         lookback: Option<Lookback>,
     },
+    /// "the player chosen as [which] was paid": the choice an additional cost
+    /// makes, read back by the ability linked to it [CR#702.174a,607.2d,607.2i]
+    ChosenPlayer { which: PaidCostName },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
