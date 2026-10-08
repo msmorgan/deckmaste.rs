@@ -127,6 +127,8 @@ cite check). Deltas:
    was interrupted during compilation after the refresh source gate failed;
    the census had not started. The landing measurement is the single completed
    full run. No CGEL claim was added for this Oracle notation.
+   Unrelated residual: Elspeth, Sun's Champion's emblem instruction still
+   fails as a standalone Document (probe `rymrokon`), outside this Cost fix.
 5. **Tests** (`xnkuznpo`): `cargo test -p deckmaste_english_v3` passed
    (486 integration tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. Refresh changed `core.ron`, so `cargo test -p deckmaste_lexical_source`
