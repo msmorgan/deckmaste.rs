@@ -44,7 +44,7 @@ use crate::lean_check::workspace_root;
 
 /// The generated library's root module and directory, relative to `lean/`,
 /// beside `lean check`'s `Generated` so the two gates never clear each
-/// other's tree. Untracked (`.gitignore`), and outside `lakefile.toml`'s
+/// other's sources. Untracked (`.gitignore`), and outside `lakefile.toml`'s
 /// `defaultTargets` for the same reason `Generated` is.
 const GENERATED_ROOT: &str = "GeneratedDefinitions.lean";
 const GENERATED_DIR: &str = "GeneratedDefinitions";
@@ -168,9 +168,12 @@ pub fn run(args: &DefinitionCheckArgs) -> anyhow::Result<()> {
 }
 
 /// Writes one Lean module per family plus the root that imports them, having
-/// first cleared whatever a previous run left — the generated sources and
-/// their build outputs, so a stale `.olean` can never stand as the evidence
-/// [`attribute`] reads.
+/// first cleared the generated sources a previous run left. The build outputs
+/// stay: `lake`'s traces rebuild exactly the modules whose source changed, and
+/// `lake` removes a module's `.olean` before recompiling it, so a module that
+/// fails to elaborate has none; an orphan `.olean` from a module no longer
+/// emitted is never read, because [`attribute`] looks only at this run's
+/// modules. A stale `.olean` therefore cannot stand as its evidence.
 fn emit(
     lean_dir: &Path,
     plugin_dir: &Path,
@@ -180,12 +183,6 @@ fn emit(
     if generated.exists() {
         fs::remove_dir_all(&generated)
             .with_context(|| format!("clearing {}", generated.display()))?;
-    }
-    for build_dir in BUILD_DIRS {
-        let stale = lean_dir.join(build_dir).join(GENERATED_DIR);
-        if stale.exists() {
-            fs::remove_dir_all(&stale).with_context(|| format!("clearing {}", stale.display()))?;
-        }
     }
     fs::create_dir_all(&generated).with_context(|| format!("creating {}", generated.display()))?;
 
@@ -259,5 +256,48 @@ fn print_report(family: Family, report: &PluginReport) {
         for line in lines {
             println!("    {line}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A run rewrites the generated sources but leaves every build output in
+    /// place, its own included: `lake`'s traces decide what to recompile, so
+    /// an unchanged module is never recompiled.
+    #[test]
+    fn emit_keeps_the_build_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let lib = dir.path().join(BUILD_DIRS[0]);
+        let ir = dir.path().join(BUILD_DIRS[1]);
+        let outputs = [
+            lib.join("Semantics.olean"),
+            lib.join(GENERATED_DIR).join("Counters.olean"),
+            ir.join("Semantics.c"),
+            ir.join(GENERATED_DIR).join("Counters.c"),
+        ];
+        for output in &outputs {
+            fs::create_dir_all(output.parent().unwrap()).unwrap();
+            fs::write(output, b"cached").unwrap();
+        }
+        let stale_source = dir.path().join(GENERATED_DIR).join("Orphan.lean");
+        fs::create_dir_all(stale_source.parent().unwrap()).unwrap();
+        fs::write(&stale_source, b"-- left by an earlier run").unwrap();
+
+        let modules = emit(dir.path(), dir.path(), &[]).unwrap();
+
+        assert!(modules.is_empty());
+        for output in &outputs {
+            assert!(output.is_file(), "{} was cleared", output.display());
+        }
+        assert!(
+            !stale_source.exists(),
+            "the stale generated source survived"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.path().join(GENERATED_ROOT)).unwrap(),
+            ""
+        );
     }
 }

@@ -38,8 +38,8 @@ use deckmaste_semantics_v2::reader::Plugin;
 const GENERATED_ROOT: &str = "Generated.lean";
 const GENERATED_DIR: &str = "Generated";
 /// Where `lake` puts the generated library's build output, relative to
-/// `lean/`. A run clears both, because a stale `.olean` left by an earlier
-/// successful run is exactly the false evidence [`attribute`] must not accept.
+/// `lean/`. Used only to locate each emitted module's `.olean`; nothing here is
+/// cleared, since `lake`'s traces decide what to rebuild.
 pub(crate) const BUILD_DIRS: &[&str] = &[".lake/build/lib/lean", ".lake/build/ir"];
 /// The `lake` target the generated library builds under. It is deliberately
 /// absent from `lakefile.toml`'s `defaultTargets`, so `lean/scripts/build`
