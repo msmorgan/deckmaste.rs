@@ -105,6 +105,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     native::add_features(&mut output.lexemes, native.feature_additions)?;
     compound::add_compound_nouns(&mut output, compounds)?;
     native::add_adjective_classes(&mut output.lexemes, native.adjective_classes)?;
+    native::add_negative_noun_formations(&mut output.lexemes, native.negative_noun_formations)?;
     native::add_participial_adjectives(&mut output.lexemes, native.participial_adjective_classes)?;
     native::add_frames(&mut output.lexemes, native.frame_additions)?;
     native::add_category_feature_defaults(&mut output.lexemes, &native.category_feature_defaults)?;
@@ -149,6 +150,50 @@ mod tests {
     use deckmaste_lexical::Lexicon;
 
     use super::load_workspace;
+
+    #[test]
+    fn common_noun_negative_formation_retains_noun_paradigm_and_provenance() {
+        use deckmaste_lexical::Category;
+        use deckmaste_lexical::Number;
+        use deckmaste_lexical::WordForm;
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let sources = load_workspace(&root).unwrap();
+        let parent = sources
+            .lexemes
+            .iter()
+            .find(|entry| entry.id == "lexeme:CommonNoun/Token")
+            .unwrap();
+        let negative = sources
+            .lexemes
+            .iter()
+            .find(|entry| entry.id == "lexeme:CommonNoun/Token/non")
+            .unwrap();
+        assert_eq!(negative.category, Category::Noun);
+        assert_eq!(negative.source, parent.source);
+        assert_eq!(negative.properties.features["NounPremodifier"], "Yes");
+        assert!(!parent.properties.features.contains_key("NounPremodifier"));
+        let lexicon = Lexicon::new([negative.clone()]).unwrap();
+        for (surface, form, number) in [
+            ("nontoken", WordForm::Singular, Number::Singular),
+            ("nontokens", WordForm::Plural, Number::Plural),
+        ] {
+            let analyzed = lexicon.analyze(surface);
+            let values: Vec<_> = analyzed
+                .matches
+                .iter()
+                .filter(|entry| entry.start == 0 && entry.end == analyzed.tokens.len())
+                .map(|entry| &entry.reading)
+                .collect();
+            assert_eq!(values.len(), 1, "{surface}");
+            let LexicalReading::Word(value) = values[0] else {
+                panic!("expected a noun Word Form")
+            };
+            assert_eq!(value.lexeme, "lexeme:CommonNoun/Token/non");
+            assert_eq!(value.form, form);
+            assert_eq!(value.features.number, Some(number));
+            assert_eq!(lexicon.realize(values[0]).unwrap(), surface);
+        }
+    }
 
     fn contains_marked(item: &FrameItem) -> bool {
         match item {

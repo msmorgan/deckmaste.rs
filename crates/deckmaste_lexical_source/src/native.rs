@@ -18,6 +18,9 @@ pub(crate) struct Inventory {
     #[serde(default)]
     pub adjective_classes: Vec<AdjectiveClass>,
     #[serde(default)]
+    pub negative_noun_formations:
+        BTreeMap<String, deckmaste_construction_core::macro_def::NegativePrefixJoin>,
+    #[serde(default)]
     pub participial_adjective_classes: Vec<ParticipialAdjectiveClass>,
     #[serde(default)]
     pub compound_noun_classes: Vec<CompoundNounClass>,
@@ -225,6 +228,38 @@ pub(crate) fn add_adjective_classes(
             let negative = negative_lexeme(lexeme, class.negative_prefix_join);
             lexemes.push(negative);
         }
+    }
+    Ok(())
+}
+
+/// Form negative noun Lexemes from declared hosts, licensing their premodifier
+/// use.
+pub(crate) fn add_negative_noun_formations(
+    lexemes: &mut Vec<Lexeme>,
+    formations: BTreeMap<String, deckmaste_construction_core::macro_def::NegativePrefixJoin>,
+) -> Result<(), LoadError> {
+    for (owner, join) in formations {
+        let parent = lexemes
+            .iter()
+            .find(|lexeme| lexeme.id == owner.as_str())
+            .ok_or_else(|| LoadError::UnknownOwner {
+                property: "negative noun formation",
+                owner: owner.clone(),
+            })?;
+        if parent.category != deckmaste_lexical::Category::Noun
+            || !parent
+                .forms
+                .iter()
+                .any(|slot| slot.form == deckmaste_lexical::WordForm::Singular)
+        {
+            return Err(LoadError::InvalidNegativeNounFormation { owner });
+        }
+        let mut negative = negative_lexeme(parent, join);
+        negative
+            .properties
+            .features
+            .insert("NounPremodifier".into(), "Yes".into());
+        lexemes.push(negative);
     }
     Ok(())
 }

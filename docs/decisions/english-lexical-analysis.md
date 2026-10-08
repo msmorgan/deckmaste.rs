@@ -89,6 +89,7 @@ types (*nonartifact*) and hyphenated forms for subtypes (*non-Vampire*).
 Supertypes have a declared adjective-class recipe with joined negatives
 (*nonlegendary*); its members retain their existing positive lexical owners.
 These are lexical formation declarations, not spelling-based admission guards.
+Ruling (orchestrator, 2026-10-08, `english-v3-negative-common-noun-premodifier`): a common noun may declare the negative formation when the corpus attests the negative form.
 
 ## Source and roundtripping
 

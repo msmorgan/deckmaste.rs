@@ -168,3 +168,6 @@ mod licence_hygiene;
 
 #[path = "suite/derived_punctuation.rs"]
 mod derived_punctuation;
+
+#[path = "suite/negative_common_noun_premodifier.rs"]
+mod negative_common_noun_premodifier;

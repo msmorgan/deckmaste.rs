@@ -13,6 +13,8 @@
             "vocab:ColorWord/Green", "vocab:ColorWord/Blue",
         ],
     )],
+    // Attested common nouns declare their own negative formation.
+    negative_noun_formations: {"lexeme:CommonNoun/Token": Joined},
     participial_adjective_classes: [(
         features: {"AdjectiveOrigin": "Participial"},
         form: PastParticiple,
