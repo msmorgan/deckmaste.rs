@@ -277,7 +277,7 @@ fn a_keyword_declaration_builds_its_wrapper() {
     // `semantics-v2-macro-capture-and-plurality` gave it one).
     assert_eq!(body("KeywordAction", "exchange"), "()");
     // `deed: None` leaves the instruction unwrapped.
-    assert_eq!(body("KeywordAction", "shuffle"), "Shuffle");
+    assert_eq!(body("KeywordAction", "shuffle"), "Shuffle(library(actor))");
 }
 
 /// A turn-part declaration whose body is the constructor of the same name

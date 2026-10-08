@@ -67,6 +67,9 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::phrase::Amount::kind());
     kinds.add(crate::phrase::Quantity::kind());
     kinds.add(crate::phrase::ZoneExpr::kind());
+    // A pile is no `semantic_expression`, so its constructors stay natively
+    // spellable, but its helpers (`library(player)`) need the position.
+    kinds.add(crate::phrase::Pile::kind());
     kinds.add(crate::phrase::Condition::kind());
     // `lean/Semantics/Triggers.lean`
     kinds.add(crate::triggers::Duration::kind());
@@ -306,6 +309,7 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::phrase::GameEvent>("GameEvent");
     types.add_typed::<crate::phrase::Quantity>("Quantity");
     types.add_typed::<crate::phrase::ZoneExpr>("ZoneExpr");
+    types.add_typed::<crate::phrase::Pile>("Pile");
     types.add_typed::<crate::triggers::Duration>("Duration");
     types.add_typed::<crate::triggers::Timing>("Timing");
     types.add_typed::<crate::triggers::UsageLimit>("UsageLimit");

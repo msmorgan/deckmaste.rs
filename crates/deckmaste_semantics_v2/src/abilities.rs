@@ -20,6 +20,7 @@ use crate::phrase::FlipScope;
 use crate::phrase::GameEvent;
 use crate::phrase::IgnoredOutcomes;
 use crate::phrase::NounPhrase;
+use crate::phrase::Pile;
 use crate::phrase::Predicate;
 use crate::phrase::Quantity;
 use crate::phrase::SearchScope;
@@ -31,6 +32,7 @@ use crate::triggers::JoinedHeader;
 use crate::triggers::Timing;
 use crate::triggers::UsageLimit;
 use crate::words::AbilityClass;
+use crate::words::Arrangement;
 use crate::words::AttachMove;
 use crate::words::CardType;
 use crate::words::ChoiceOccasion;
@@ -60,6 +62,7 @@ use crate::words::Letter;
 use crate::words::LoyaltyCost;
 use crate::words::ManaCost;
 use crate::words::ManaMatch;
+use crate::words::Ordinal;
 use crate::words::OutcomeVerb;
 use crate::words::Parity;
 use crate::words::PayTimes;
@@ -734,6 +737,19 @@ pub enum TokenRider {
     FaceDown {
         characteristics: Box<Characteristics>,
     },
+    /// "In any order", "in a random order": how the objects moved to one
+    /// place are ordered there [CR#401.4].
+    InOrder {
+        arrangement: Arrangement,
+    },
+    /// "Nth from the top": that many objects in from the place's end
+    /// [CR#401.7].
+    NthFromEnd {
+        ordinal: Ordinal,
+    },
+    /// "On the top or bottom": the performer may choose the place's other end
+    /// instead.
+    OrOtherEnd,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -970,7 +986,11 @@ pub enum Instruction {
         quantity: Quantity,
         predicate: Predicate,
     },
-    Shuffle,
+    /// Randomize the objects in a pile so no player knows their order
+    /// [CR#701.24a].
+    Shuffle {
+        pile: Pile,
+    },
     FlipCoins {
         count: FlipScope,
     },

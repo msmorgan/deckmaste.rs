@@ -174,8 +174,12 @@ fn every_ported_alias_expands() {
         NounPhrase: "someOf(quantity: Range(low: 1, high: 1), group: You)",
         ManaSymbol: "generic(amount: 2)",
         Instruction: "move(subject: You, from: wherever, to: graveyard)",
+        Instruction: "move(subject: You, from: wherever, to: onBottom, riders: [InOrder(RandomOrder)])",
+        NounPhrase: "slice(end: Top, amount: 1, pile: library(player: You))",
+        NounPhrase: "run(end: Top, stop: HasType(Land), pile: Graveyard(whose: Bare))",
+        deckmaste_semantics_v2::phrase::ZoneExpr: "place(end: Bottom, pile: That)",
         Instruction: "draw(amount: Lit(value: 1))",
-        Instruction: "doIf(condition: Exists(subject: You), instruction: Shuffle)",
+        Instruction: "doIf(condition: Exists(subject: You), instruction: Shuffle(pile: Library(whose: Bare)))",
         Instruction: "choose(subject: You)",
         Instruction: "rollDice(count: 1, sides: 20)",
         Instruction: "flipCoins(count: 1)",
@@ -183,7 +187,7 @@ fn every_ported_alias_expands() {
         Condition: "happened(event: FlipsCoin(player: You, call: None), who: You, lookback: ThisTurn)",
         Predicate: "happenedTo(event: FlipsCoin(player: You, call: None), lookback: ThisTurn)",
         Instruction: "shiftResult(amount: Lit(value: 1))",
-        Instruction: "delay(event: FlipsCoin(player: You, call: None), instruction: Shuffle)",
+        Instruction: "delay(event: FlipsCoin(player: You, call: None), instruction: Shuffle(pile: Library(whose: Bare)))",
         Instruction: "removeCounters(quantity: Range(low: 1, high: 1), kind: Printed(kind: Named(name: \"chargeCounter\")), from: You)",
         GameEvent: "counterEvent(move: Put, kind: Named(name: \"chargeCounter\"), batch: One, subject: You)",
         GameEvent: "tokensCreated(tokens: You)",
@@ -192,8 +196,8 @@ fn every_ported_alias_expands() {
         Instruction: "putCounters(amount: 1, kind: p1p1Counter, on: You)",
         StaticSpec: "addSubtype(subject: You, subtype: army)",
         Ability: "keyword(label: flying)",
-        Ability: "triggered(event: FlipsCoin(player: You, call: None), instruction: Shuffle)",
-        Ability: "activated(cost: TapSymbol, instruction: Shuffle)",
+        Ability: "triggered(event: FlipsCoin(player: You, call: None), instruction: Shuffle(pile: Library(whose: Bare)))",
+        Ability: "activated(cost: TapSymbol, instruction: Shuffle(pile: Library(whose: Bare)))",
     }
 }
 

@@ -105,7 +105,7 @@ pub const SAMPLES: &[&str] = &[
     "MayBeginOnBattlefield",
     "Keyword(keyword: Named(name: \"Sample\"), params: [], body: [])",
     // Instruction.
-    "Shuffle",
+    "Shuffle(pile: That)",
     "DrawGame",
     "RestartGame",
     // Condition.
@@ -218,6 +218,8 @@ pub const SAMPLES: &[&str] = &[
     "[Core(deed: Draw)]",
     "[Draws(player: You)]",
     "[]",
+    // Pile.
+    "Library(whose: Bare)",
     // Last: the absent value, which hides the hole it fills. No param type
     // reads it; it is here for an `Any` hole at an `Option` position.
     "None",
@@ -479,6 +481,7 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "Amount" => render::<phrase::Amount>,
         "Quantity" => render::<phrase::Quantity>,
         "ZoneExpr" => render::<phrase::ZoneExpr>,
+        "Pile" => render::<phrase::Pile>,
         "Condition" => render::<phrase::Condition>,
         "ColorTerm" => render::<phrase::ColorTerm>,
         "Ballot" => render::<phrase::Ballot>,

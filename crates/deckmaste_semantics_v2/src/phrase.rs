@@ -15,7 +15,6 @@ use crate::words::AbilityClass;
 use crate::words::AggregateOp;
 use crate::words::AmountShape;
 use crate::words::ArithOp;
-use crate::words::Arrangement;
 use crate::words::AttachMove;
 use crate::words::AttachWord;
 use crate::words::AttachmentSide;
@@ -124,12 +123,24 @@ pub enum ZoneScope {
     PossessedBy { possessor: Box<NounPhrase> },
 }
 
-/// Where in a library.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum LibraryPlace {
-    OneEnd { end: LibraryEnd },
-    EitherEnd { chooser: Option<Box<NounPhrase>> },
-    Shuffled,
+/// A pile: objects grouped in a zone, in order, the pile itself not an
+/// object [CR#700.3,700.3b]. Grouping neither moves its objects nor reorders
+/// them [CR#700.3c]. Its face, not its zone, decides who may look at it: the
+/// two zone piles fix theirs, and a pile an instruction makes takes the face
+/// that instruction gives it.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Pile {
+    /// "<whose> library", kept face down [CR#401.2].
+    Library { whose: Box<ZoneScope> },
+    /// "<whose> graveyard", kept face up and still ordered
+    /// [CR#404.2,700.3c].
+    Graveyard { whose: Box<ZoneScope> },
+    /// "that pile": the pile an instruction just made, with the face it was
+    /// given.
+    That,
+    /// The face-down cards exiled with `source`, kept as their own pile
+    /// [CR#406.4].
+    ExiledWith { source: Box<NounPhrase> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -147,11 +158,13 @@ pub enum ZoneExpr {
         zone: Zone,
         scope: Box<ZoneScope>,
     },
-    Library {
-        place: Box<LibraryPlace>,
-        order: Option<Arrangement>,
-        offset: Option<Ordinal>,
-        scope: Box<ZoneScope>,
+    /// "On top of <pile>", "on the bottom of <pile>": a move destination at
+    /// one end of a pile. The move's riders say how the moved objects are
+    /// ordered there, how deep, and whether the other end may be chosen
+    /// instead.
+    Place {
+        end: LibraryEnd,
+        pile: Box<Pile>,
     },
     /// "From wherever it is": a move's origin that names no zone, as exile's
     /// is [CR#701.13a].
@@ -447,18 +460,20 @@ pub enum NounPhrase {
     Or {
         phrases: Vec<NounPhrase>,
     },
-    LibrarySlice {
+    /// "The top N cards of <pile>": `amount` objects from one end of a pile,
+    /// an ordered group [CR#700.3c].
+    Slice {
         end: LibraryEnd,
         amount: Box<Amount>,
-        whose: Box<NounPhrase>,
+        pile: Box<Pile>,
     },
-    /// "Cards from the top of <whose> library until a <stop> card": the run of
-    /// cards taken one at a time from that end, the last of them the first that
+    /// "Cards from the top of <pile> until a <stop> card": the run of objects
+    /// taken one at a time from that end, the last of them the first that
     /// matches `stop` [CR#701.57a].
-    LibraryRun {
+    Run {
         end: LibraryEnd,
         stop: Box<Predicate>,
-        whose: Box<NounPhrase>,
+        pile: Box<Pile>,
     },
     SomeOf {
         count: Box<SliceCount>,
