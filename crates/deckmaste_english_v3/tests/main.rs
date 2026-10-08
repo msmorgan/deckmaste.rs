@@ -171,3 +171,6 @@ mod derived_punctuation;
 
 #[path = "suite/negative_common_noun_premodifier.rs"]
 mod negative_common_noun_premodifier;
+
+#[path = "suite/past_participial_premodifiers.rs"]
+mod past_participial_premodifiers;
