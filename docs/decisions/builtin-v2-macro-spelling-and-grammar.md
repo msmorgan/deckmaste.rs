@@ -538,3 +538,39 @@ pending a ruling.
 This still does not reinstate v1's `template:` language: no per-site codec
 such as `${n:card|cards}`, no text offsets, no `kinds:` registry. Work:
 `plugins-v2-connive-bare-and-n`, then `builtin-v2-keyword-spelling-templates`.
+
+Owner rulings, 2026-10-07 (`builtin-v2-keyword-spelling-templates-residue`),
+for the eight pending keyword actions:
+
+- **`word`, the second and last hint.** An Amount stays an arabic numeral by
+  default; `<Param(n):word>` prints the count as a number word ("mill two
+  cards", "create two 1/1 white Soldier creature tokens"). It applies to an
+  Amount only.
+- **The subject is never a slot.** A template is the predicate only; the
+  clause supplies the subject, as for every verb. The performer is `actor`,
+  never a parameter (the 2026-10-05 actor-handoff ruling).
+- **Literal words that no grammar frame has are free in a template**
+  ("behold a <Param(0)>", "mill <Param(0):word> cards", "meld <Param(0)> into
+  <Param(1)>", "search <Param(0)> for <Param(1)> <Param(2)>"). The check
+  between template and grammar stays the head rule and the slots naming the
+  params; grammar is the word's definition, the template its card usage.
+- **One slot per parameter, in the order the card prints them, literals
+  between.** There is no combined-slot syntax: the realizer carries number
+  from a count slot into the noun slot after it (create's token spec, mill's
+  "cards"). A predicate modifier the card prints before the verb comes
+  first: "<Param(0)> vote for <Param(1)>" ("each player secretly votes for
+  …", the Disclosure realizing as "secretly" or as nothing).
+- **The remaining defaults.** A TokenSpec, Instruction, Disclosure, Ballot,
+  SearchScope, Quantity or String slot realizes its argument's own
+  realization, as a Subject or Ability slot does.
+
+Landed the same day for seven of the eight (behold, create,
+faceAVillainousChoice, meld, mill, search, vote). Fight keeps the bare head:
+dropping its first creature for `actor` and re-spelling Prey Upon as
+`act(target(creatureYouControl), fight(target(creatureYouDontControl)))` is
+refused by the Lean checker (`enactAgentOk`, and a player/object
+`kindMismatch`), because fight's facts row names no performer and "a deed
+whose facts row names no performer ("fight" [CR#701.14a]) records none, and
+is refused when a handoff names one" (semantics-v2 ADR §7, amendment
+2026-10-06). Reconciling that with the handoff ruling is owed before fight's
+template.
