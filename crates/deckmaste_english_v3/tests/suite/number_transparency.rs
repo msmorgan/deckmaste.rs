@@ -72,7 +72,7 @@ fn determined(id: &str, head: Reading) -> Reading {
 }
 
 fn targets() -> Reading {
-    Reading::BarePlural {
+    Reading::BareNounPhrase {
         form: 0,
         head: Box::new(Reading::TargetedNominal {
             form: 0,
@@ -274,7 +274,7 @@ fn eerie_interlude_keeps_both_relative_clause_scopes_and_plural_concord() {
     let Reading::DeterminedNounPhrase { head, .. } = subject() else {
         unreachable!()
     };
-    let low = Reading::BarePlural {
+    let low = Reading::BareNounPhrase {
         form: 0,
         head: Box::new(Reading::TargetedNominal {
             form: 0,
@@ -282,7 +282,7 @@ fn eerie_interlude_keeps_both_relative_clause_scopes_and_plural_concord() {
             head: Box::new(relative(noun("lexeme:type/creature", Number::Plural))),
         }),
     };
-    let high = Reading::BarePlural {
+    let high = Reading::BareNounPhrase {
         form: 0,
         head: Box::new(relative(Reading::TargetedNominal {
             form: 0,
@@ -336,7 +336,7 @@ fn attested_ordinary_number_constituents_keep_singular_concord() {
         "vocab:DefiniteMarker/The",
         of(
             noun("lexeme:CommonNoun/Number", Number::Singular),
-            Reading::BarePlural {
+            Reading::BareNounPhrase {
                 form: 0,
                 head: Box::new(noun("lexeme:creature_subtype/sliver", Number::Plural)),
             },
@@ -403,7 +403,7 @@ fn transparent_quantification_rejects_singular_obliques_and_preserves_other_head
 #[test]
 fn a_later_of_modifier_keeps_the_first_oblique_and_both_attachment_scopes() {
     // Grave Sifter: "returns any number of cards of that type ...".
-    let cards = Reading::BarePlural {
+    let cards = Reading::BareNounPhrase {
         form: 0,
         head: Box::new(noun("lexeme:CommonNoun/Card", Number::Plural)),
     };

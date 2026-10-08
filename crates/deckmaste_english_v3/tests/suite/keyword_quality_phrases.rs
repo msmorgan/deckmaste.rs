@@ -140,7 +140,7 @@ fn authentic_coordinated_qualities_preserve_determined_noun_phrase_structure() {
             }),
             protection(Reading::NounPhraseKeywordQuality {
                 form: 0,
-                phrase: Box::new(Reading::BarePlural {
+                phrase: Box::new(Reading::BareNounPhrase {
                     form: 0,
                     head: Box::new(artifacts),
                 }),

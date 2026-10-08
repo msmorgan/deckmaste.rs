@@ -73,7 +73,7 @@ fn grammar_consumes_noun_number_and_countability_without_decomposing_the_lexeme(
             form: 0,
             head: noun_word(owner, Number::Plural, SurfaceCase::Declared),
         };
-        let expected = Reading::BarePlural {
+        let expected = Reading::BareNounPhrase {
             form: 0,
             head: Box::new(head),
         };

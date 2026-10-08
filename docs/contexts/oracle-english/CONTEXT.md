@@ -328,9 +328,11 @@ this is project policy, not a claim that CGEL treats a Supplement as a syntactic
 dependent. The licence is a set of functions, not a kind of Preposition
 Phrase (CGEL, Ch. 7 §2.2, p. 617, n. 3), and may be narrower than in general
 English. CGEL licenses predicative-*as* phrases in Adjunct function generally
-(Ch. 7 §5.1, p. 637). Their licence in Oracle English admits only the preposed,
-comma-separated, clause-initial position, under the
-[orchestrator resolution of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md).
+(Ch. 7 §5.1, p. 637). Their licence in Oracle English admits the preposed,
+comma-separated, clause-initial position under the
+[orchestrator resolution of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md),
+and the clause-final position under the assigned widening in
+[focusing-only](../../tickets/done/english-v3-focusing-only.md).
 _Avoid_: adverbial PP, adjectival PP, AdverbialUse
 
 **Predicative Complement of a Preposition**:
@@ -371,6 +373,11 @@ The grammatical distinction between positive and negative expressions.
 **Countability**:
 The distinction between count and mass uses of a noun. A Lexeme may license
 both uses; Number and choice of Determiner constrain which use is available.
+
+**Bare Noun Phrase**:
+A Noun Phrase formed from a Nominal without a Determiner. Plural count and
+non-count Nominals can form bare indefinite Noun Phrases; bare singular count
+uses require more restricted licensing (CGEL, Ch. 5 §4, p. 355).
 
 **Number Transparency**:
 The property of a quantificational noun use in which the Number of its Oblique
@@ -506,6 +513,16 @@ to alternatives.
 
 **Focus Adverb**:
 An Adverb that associates with a Focus, such as restrictive *only*.
+
+**Focusing Modifier**:
+A Modifier that associates with a scopal Focus. Restrictive focusing Adverbs
+include *only* and can modify a Preposition Phrase (CGEL, Ch. 6 §7.3.1,
+p. 587, [41–42]); their position relative to the Focus is a separate
+distinction (p. 589).
+
+**Focusing Modifier Use** (project term):
+A Lexeme's declared permission to function as a Focusing Modifier, with its
+restrictive or additive interpretation kept distinct.
 
 **Predicate**:
 The grammatical function in a Clause that predicates something of the Subject.

@@ -102,7 +102,7 @@ fn authentic_counter_compounds_preserve_macro_owner_and_noun_inflection() {
     exact(
         "charge counters",
         Category::NounPhrase,
-        &Reading::BarePlural {
+        &Reading::BareNounPhrase {
             form: 0,
             head: Box::new(counters),
         },

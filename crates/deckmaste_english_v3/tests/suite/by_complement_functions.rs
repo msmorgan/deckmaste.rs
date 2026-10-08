@@ -179,7 +179,7 @@ fn avacyn_by() -> Reading {
     );
     pp(
         "vocab:Preposition/By",
-        Reading::BarePlural {
+        Reading::BareNounPhrase {
             form: 0,
             head: Box::new(Reading::PostmodifiedNominal {
                 form: 0,
@@ -221,10 +221,12 @@ fn avacyn_internalised_complement_belongs_to_the_bare_passive() {
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: word("core-verb:Prevent", WordForm::Plain, Some(0), None),
-            complements: vec![FrameValue::Argument(Box::new(acc(Reading::BareMass {
-                form: 0,
-                head: Box::new(noun("lexeme:CommonNoun/Damage", WordForm::Singular, false)),
-            })))],
+            complements: vec![FrameValue::Argument(Box::new(acc(
+                Reading::BareNounPhrase {
+                    form: 0,
+                    head: Box::new(noun("lexeme:CommonNoun/Damage", WordForm::Singular, false)),
+                },
+            )))],
         }),
         modifier: Box::new(avacyn_by()),
     };
@@ -412,7 +414,7 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
         head: word("core-verb:Pay", WordForm::GerundParticiple, Some(0), None),
         complements: vec![FrameValue::Argument(Box::new(acc(other_costs)))],
     };
-    let addition = Reading::BareMass {
+    let addition = Reading::BareNounPhrase {
         form: 0,
         head: Box::new(Reading::PostmodifiedNominal {
             form: 0,
@@ -467,17 +469,19 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: word("lexeme:keyword_action/cast", WordForm::Plain, Some(0), None),
-        complements: vec![FrameValue::Argument(Box::new(acc(Reading::BarePlural {
-            form: 0,
-            head: Box::new(Reading::NounPremodifiedNominal {
+        complements: vec![FrameValue::Argument(Box::new(acc(
+            Reading::BareNounPhrase {
                 form: 0,
-                modifier: Box::new(Reading::NounPremodifier {
+                head: Box::new(Reading::NounPremodifiedNominal {
                     form: 0,
-                    head: word("lexeme:type/artifact", WordForm::Singular, None, Some(true)),
+                    modifier: Box::new(Reading::NounPremodifier {
+                        form: 0,
+                        head: word("lexeme:type/artifact", WordForm::Singular, None, Some(true)),
+                    }),
+                    head: Box::new(noun("lexeme:CommonNoun/Spell", WordForm::Plural, true)),
                 }),
-                head: Box::new(noun("lexeme:CommonNoun/Spell", WordForm::Plural, true)),
-            }),
-        })))],
+            },
+        )))],
     };
     let graveyard = noun("lexeme:CommonNoun/Graveyard", WordForm::Singular, true);
     let intended = Reading::PrepositionPredicate {

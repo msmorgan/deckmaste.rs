@@ -33,6 +33,7 @@ constructions! {
         feature AdjectiveComplementClass { Manner }
         feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No;
+        feature FocusingModifierUse { Restrictive }
         feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
         feature ComparativeQuantityUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
@@ -2150,22 +2151,14 @@ constructions! {
             use NounPhraseHeadAgreement;
         }
 
-        construction BarePlural: NounPhrase {
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export BarePrepositionUse = No;
-            form [head: Nominal];
-            require head.number = Plural;
-            require head.countability = Count;
-            require head.DeterminerRequirement = No;
-            use NounPhraseHeadAgreement;
+        table bare_noun_phrase_license(number, countability) -> Selection {
+            (Plural, Count) => Yes, (Singular, Mass) => Yes,
         }
-
-        construction BareMass: NounPhrase {
+        construction BareNounPhrase: NounPhrase {
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export BarePrepositionUse = No;
             form [head: Nominal];
-            require head.number = Singular;
-            require head.countability = Mass;
+            require bare_noun_phrase_license(head.number, head.countability) = Yes;
             require head.DeterminerRequirement = No;
             use NounPhraseHeadAgreement;
         }
@@ -2261,8 +2254,8 @@ constructions! {
 
         // CGEL Ch. 7 §5.1, pp. 636–637: a predicative NP Complement
         // differs from an Object; adjunct use excludes adjective Complements.
-        // The supported predicative-NP licence is preposed; finite-clause
-        // Complement permissions remain independent.
+        // The focusing-only ticket's assigned position widening is project
+        // policy; finite-clause Complement permissions remain independent.
         construction PredicativeComplementPreposition: PrepositionPhrase {
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
@@ -2270,11 +2263,26 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: PredicativeComplement];
             require head.PrepositionComplement = PredicativeNounPhrase;
             require complement.PredicativeKind = Nominal;
-            require licence_preposed_adjunct(head.PrepositionFunctionLicence) = Yes;
             export ObliqueNumber = None;
             export InternalisedComplementMarker = head.InternalisedComplementMarker;
-            export PrepositionFunctionLicence = PreposedAdjunct;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
             export LocativeUse = head.LocativeUse;
+        }
+
+        // CGEL Ch. 6 §7.3.1, p. 587, [41–42]: restrictive focusing
+        // Adverbs can modify PPs. Clause-final Adjunct use is this ticket's scope.
+        construction FocusedPrepositionPhrase: PrepositionPhrase {
+            form [modifier: lexical(Adverb), " ", head: PrepositionPhrase];
+            require modifier.FocusingModifierUse = Restrictive;
+            require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
+            require head.SelectedPrepositionUse = No;
+            export PrepositionFunctionLicence = Adjunct;
+            export ClauseInitialAdjunct = No;
+            export SelectedPrepositionUse = No;
+            export LocativeUse = No;
+            export NominalComplementMarker = None;
+            export InternalisedComplementMarker = No;
+            export ObliqueNumber = None;
         }
 
         construction IntransitivePreposition: PrepositionPhrase {

@@ -33,7 +33,7 @@ fn clause(verb: &str) -> Reading {
         subject: Box::new(Reading::CasePhrase {
             category: Category::NominativePhrase,
             form: 0,
-            head: Box::new(Reading::BarePlural {
+            head: Box::new(Reading::BareNounPhrase {
                 form: 0,
                 head: Box::new(Reading::Noun {
                     form: 0,

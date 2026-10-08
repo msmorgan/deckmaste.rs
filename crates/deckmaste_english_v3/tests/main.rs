@@ -42,6 +42,8 @@ mod degree_quantifiers;
 mod each_of_partitive;
 #[path = "suite/fixed_cost_phrases.rs"]
 mod fixed_cost_phrases;
+#[path = "suite/focusing_only.rs"]
+mod focusing_only;
 #[path = "suite/frequency.rs"]
 mod frequency;
 #[path = "suite/functions_coordination.rs"]

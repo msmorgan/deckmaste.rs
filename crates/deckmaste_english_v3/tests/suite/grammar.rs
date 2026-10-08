@@ -1377,7 +1377,7 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
         WordForm::Invariant,
         FeatureBundle::default(),
     );
-    let bare = |head| Reading::BarePlural {
+    let bare = |head| Reading::BareNounPhrase {
         form: 0,
         head: Box::new(head),
     };

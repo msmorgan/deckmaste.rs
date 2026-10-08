@@ -50,6 +50,7 @@
         Pronoun: {"RelativeUse": "No"},
     },
     feature_additions: {
+        "vocab:FocusAdverb/Only": {"FocusingModifierUse": "Restrictive"},
         "vocab:AttributiveAdjective/Other": {"TargetingPremodifierUse": "Yes"},
         "core-verb:Do": {"AuxiliaryEllipsisLicence": "Yes"},
         "vocab:FixedCostSymbol/HybridWhiteBlue": {"SymbolUse": "Cost", "ManaSymbolUse": "Yes"},

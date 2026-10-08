@@ -73,7 +73,7 @@ fn np() -> Reading {
         value.features.number = Some(Number::Plural);
     }
     head.countability = Some(true);
-    Reading::BarePlural {
+    Reading::BareNounPhrase {
         form: 0,
         head: Box::new(Reading::Noun { form: 0, head }),
     }

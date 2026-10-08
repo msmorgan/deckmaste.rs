@@ -79,7 +79,7 @@ fn independent_uncoordinated_phrase_primitives_roundtrip() {
         form: 0,
         head: creature,
     };
-    let np = Reading::BarePlural {
+    let np = Reading::BareNounPhrase {
         form: 0,
         head: Box::new(nominal.clone()),
     };

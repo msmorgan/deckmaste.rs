@@ -99,7 +99,7 @@ fn laws(text: &str, expected: &Reading) {
 #[test]
 fn authentic_amass_consumes_declared_frame_without_shape_aliases() {
     // Orcish Bowmasters: "Then amass Orcs 1."
-    let orcs = accusative(Reading::BarePlural {
+    let orcs = accusative(Reading::BareNounPhrase {
         form: 0,
         head: Box::new(noun("lexeme:creature_subtype/orc", WordForm::Plural)),
     });

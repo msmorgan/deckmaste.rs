@@ -206,7 +206,7 @@ fn plural_bare_genitives_preserve_possessor_number_and_the_apostrophe() {
             complement: Box::new(Reading::CasePhrase {
                 category: Category::AccusativePhrase,
                 form: 0,
-                head: Box::new(Reading::BarePlural {
+                head: Box::new(Reading::BareNounPhrase {
                     form: 0,
                     head: Box::new(Reading::Noun {
                         form: 0,

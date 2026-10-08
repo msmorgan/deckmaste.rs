@@ -95,7 +95,7 @@ fn cards() -> Reading {
     Reading::CasePhrase {
         category: Category::AccusativePhrase,
         form: 0,
-        head: Box::new(Reading::BarePlural {
+        head: Box::new(Reading::BareNounPhrase {
             form: 0,
             head: Box::new(Reading::Noun { form: 0, head }),
         }),

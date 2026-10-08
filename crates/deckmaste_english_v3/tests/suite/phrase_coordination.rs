@@ -119,7 +119,7 @@ fn independent_phrase_coordinations_preserve_structure_and_oxford_commas() {
         complement: Box::new(Reading::CasePhrase {
             category: Category::AccusativePhrase,
             form: 0,
-            head: Box::new(Reading::BarePlural {
+            head: Box::new(Reading::BareNounPhrase {
                 form: 0,
                 head: Box::new(nominal.clone()),
             }),

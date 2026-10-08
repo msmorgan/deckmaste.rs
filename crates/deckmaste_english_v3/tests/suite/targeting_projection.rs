@@ -56,7 +56,7 @@ fn direct(head: Reading) -> Reading {
     }
 }
 fn bare(head: Reading) -> Reading {
-    Reading::BarePlural {
+    Reading::BareNounPhrase {
         form: 0,
         head: Box::new(head),
     }
@@ -167,7 +167,7 @@ fn bare_target_projection_uses_the_declared_number_boundary() {
     let Reading::TargetNounPhrase { marker, head, .. } = &duplicate else {
         unreachable!()
     };
-    let Reading::BarePlural { head: nominal, .. } = &retained else {
+    let Reading::BareNounPhrase { head: nominal, .. } = &retained else {
         unreachable!()
     };
     let Reading::TargetedNominal {
