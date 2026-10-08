@@ -39,21 +39,34 @@ Each exiled card's own owner gets a permission for that card.
 
 ## Until it lands
 
-Airbend's body (`keyword_actions/airbend.ron`) is exact for one exiled
-object, and for several with one owner, and approximate for several exiled
-objects with different owners.
+Airbend's body (`keyword_actions/airbend.ron`) is the singular reminder's,
+"Exile it. While it's exiled, its owner may cast it for {2} rather than its
+mana cost.": since the 2026-10-08 ruling its later mentions are `it`, so it is
+exact for one exiled object and refused for several (`it` agrees with one;
+pin `airbendItRefusesSeveral`). The per-card loop is the plural reminder's,
+"Exile them. While each one is exiled, its owner may cast it …", and serves
+both numbers once it checks.
 
 ## STOP (2026-10-08): the singular case waits on anaphora resolution
 
 The shape needs no new node. The per-member handoff is the existing loop
-`doForEach` (Lean `Instruction.doForEach`) over the cards among the read-back
-objects, `allFromAmong(card, Param(0))`, with the handoff inside it:
-`doForEach(allFromAmong(card, Param(0)), act(ownerOf(it), establish(…it…)))`.
-This is connive's device for "for each nonland card discarded this way"
-(`instructions/discardThenForEachNonland.ron`). Its group is plural whatever
-the parameter's number, so the `.plural` refusal that stops `eachOf` and a
-loop over the bare parameter does not arise, and "for each card exiled this
-way" is the rule's own wording [CR#701.65a].
+`doForEach` (Lean `Instruction.doForEach`) over the cards exiled this way,
+with the handoff inside it. Since the 2026-10-08 ruling (§7, "A moved
+referent is read back by anaphora") the loop's group is the exiled cards, not
+the parameter: the exile makes them new objects [CR#400.7,400.7j], so nothing
+after it mentions `Param(0)`. The group is the description "each card exiled
+this way", `allOf(and([card, happenedTo(verbedEvent(exile, relative(Object)),
+ThisWay)]))`, which is the rule's own wording [CR#701.65a]:
+`doForEach(allOf(and([card, happenedTo(verbedEvent(exile, relative(Object)),
+ThisWay)])), act(ownerOf(it), establish(…it…)))`. A description has no fixed
+number, so neither the `.plural` refusal that stops `eachOf` nor the number
+agreement that stops `theVerbed(exile, Many, card)` ("the exiled cards") for
+one object arises: measured, that group is refused `[anaphor (verbed (action
+"exile")) many 0]` for "Airbend target creature." whatever the resolution
+rule, since a stamped pronoun fixes its number.
+(The 2026-10-08 first draft looped over `allFromAmong(card, Param(0))`,
+connive's device in `instructions/discardThenForEachNonland.ron`; the ruling
+retires that read of a moved parameter.)
 
 It checks for several objects (pin 1). For one object it is refused
 `[anaphor bare one 2]` three times: every "it" in the loop reaches both the

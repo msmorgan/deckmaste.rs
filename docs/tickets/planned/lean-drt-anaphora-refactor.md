@@ -173,6 +173,28 @@ general rule or stays, with a sentence saying what else it encodes:
 6. `crates/deckmaste_semantics_v2/src/reads.rs` ports the same reads in the
    same landing.
 
+### Macro bodies that re-mention a moved parameter (ruling 2026-10-08)
+
+A body that moves a parameter's referent to another zone reads it back
+afterwards by anaphora, never by the parameter [CR#400.7,400.7j]
+(`docs/decisions/semantics-v2.md` §7, "A moved referent is read back by
+anaphora"). Swept 2026-10-08 over `plugins_v2/`:
+
+- `keyword_actions/airbend.ron` [CR#701.65a]: re-spelled; its later mentions
+  are `it`. "It" agrees with one object, so several airbended objects are
+  refused (`[anaphor bare one 0]` ×3, pinned `airbendItRefusesSeveral` in
+  `lean/Semantics/Proofs/BindingIdentity.lean`) until the per-card loop in
+  "Routed from `semantics-v2-per-member-handoff`" below replaces the one
+  handoff. No anaphor checks for both numbers under the strict rule: `them`,
+  `that(card)` and `theVerbed(exile, …)` each fix a number.
+- `instructions/discardThenForEachNonland.ron` (connive's discard, `discard`
+  then a loop over `allFromAmong(not(land), Param(discarded))`
+  [CR#701.50a]): not re-spelled, connive being another landing's. The
+  description "each nonland card discarded this way", `allOf(and([not(land),
+  card, happenedTo(verbedEvent(discard, relative(Object)), ThisWay)]))`,
+  checks for connive 1 and connive 2 alike (measured in a scratch Lean file,
+  `[]` for both).
+
 ## Proof
 
 - The refused-reference counts from the measurement, re-run on the landed
@@ -220,11 +242,21 @@ refactor's reads to `reads.rs` in the same landing, ports these with them.
 
 ## Routed from `semantics-v2-per-member-handoff` (2026-10-08)
 
-Airbend's per-card spelling [CR#701.65a], `doForEach(allFromAmong(card,
-Param(0)), act(ownerOf(it), …))`, checks for several objects and ties for
-one: each "it" in the loop reaches both the loop's card and the exiled
-object, the same object. The nearest-clause rule resolves it to the loop's
-card. Flip the pin `airbendByCardOneTiesUnderStrictRule`
+Airbend's per-card spelling [CR#701.65a], the plural reminder's "while each
+one is exiled, its owner may cast it", loops over the cards exiled this way,
+not over `Param(0)` (ruling 2026-10-08: the exiled cards are new objects
+[CR#400.7,400.7j]): `sequentially([exile(Param(0)), doForEach(allOf(and([card,
+happenedTo(verbedEvent(exile, relative(Object)), ThisWay)])), act(ownerOf(it),
+establish(mayCastFrom(it, exileZone, PayingInstead(mana([2]))),
+forAsLongAs(matches(it, inZone(exileZone))))))])`. The description has no
+fixed number, so it checks for several objects; for one, each "it" in the loop
+reaches both the loop's card and the exiled object, the same object, and ties.
+The nearest-clause rule resolves it to the loop's card. Flip the pin
+`airbendByCardOneTiesUnderStrictRule`
 (`lean/Semantics/Proofs/BindingIdentity.lean`) to `[]`; the airbend body in
-`plugins_v2/builtin/macros/keyword_actions/airbend.ron` can then take the
-per-card spelling (its STOP comment names it).
+`plugins_v2/builtin/macros/keyword_actions/airbend.ron` then takes this
+spelling in place of its one handoff, and `airbendItRefusesSeveral` is
+re-spelled against it. The group `theVerbed(exile, Many, card)` ("the exiled
+cards") was measured and does not serve: a stamped pronoun fixes its number,
+so for one exiled object it is refused `[anaphor (verbed (action "exile"))
+many 0]` by number agreement, which no resolution rule here lifts.

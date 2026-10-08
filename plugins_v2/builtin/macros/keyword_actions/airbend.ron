@@ -1,10 +1,17 @@
-// "Airbend [objects]" [CR#701.65a]: the actor exiles them, and for as
-// long as each exiled card remains exiled its owner may cast it by paying {2}
-// rather than its mana cost. The body's own exile moves them, and each later
-// mention reads back by Binding Identity the objects that exile moved (§12.2,
-// first mention binds), with the phrase's own number: "it" for one object,
-// "them" for several. The permission is handed to their owner and lasts while
-// they stay exiled.
+// "Airbend [objects]" [CR#701.65a]: the actor exiles them, and "for each card
+// exiled this way, for as long as it remains exiled, its owner may cast it by
+// paying {2} rather than paying its mana cost." The reminder text reads
+// "Exile it. While it's exiled, its owner may cast it for {2} rather than its
+// mana cost." for one object and "Exile them. While each one is exiled, its
+// owner may cast it for {2} rather than its mana cost." for several.
+//
+// Only the exile mentions the parameter: the exile makes the objects new
+// objects, which the rest of the effect finds as what it moved
+// [CR#400.7,400.7j], so every later mention is the anaphor `it` (§7, ruling
+// 2026-10-08, "A moved referent is read back by anaphora"). The body is the
+// singular reminder's. "It" agrees with one object only, so several airbended
+// objects ("airbend up to two target creatures") are refused until the
+// per-card loop below lands (`semantics-v2-per-member-handoff`).
 KeywordAction(
     name: "airbend",
     params: [Subject],
@@ -16,14 +23,17 @@ KeywordAction(
     body: sequentially([
         exile(Param(0)),
         act(
-            // STOP: one performer for the whole group. The per-card spelling,
-            // `doForEach(allFromAmong(card, Param(0)), act(ownerOf(it), …))`,
+            // STOP: one performer, the singular reminder's. The per-card
+            // spelling, the plural reminder's "while each one is exiled",
+            // loops over the cards exiled this way with `it` inside:
+            // `doForEach(allOf(and([card, happenedTo(verbedEvent(exile,
+            // relative(Object)), ThisWay)])), act(ownerOf(it), …it…))`. It
             // waits on `lean-drt-anaphora-refactor`: for one object each "it"
             // ties between the loop's card and the exiled object.
-            ownerOf(Param(0)),
+            ownerOf(it),
             establish(
-                mayCastFrom(Param(0), exileZone, PayingInstead(mana([2]))),
-                forAsLongAs(matches(Param(0), inZone(exileZone))),
+                mayCastFrom(it, exileZone, PayingInstead(mana([2]))),
+                forAsLongAs(matches(it, inZone(exileZone))),
             ),
         ),
     ]),

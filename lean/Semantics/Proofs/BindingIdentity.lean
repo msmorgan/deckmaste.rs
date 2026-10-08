@@ -269,10 +269,12 @@ theorem okRegenerationApplication :
 
 "Airbend [objects]" [CR#701.65a]: the performer exiles them, and for each card exiled this way,
 for as long as it remains exiled, its owner may cast it by paying {2} rather than its mana cost.
-The per-card spelling binds the objects where it exiles them and loops over the cards among
-them, read back by identity, handing each card's permission to that card's own owner. The
-`plugins_v2` body keeps one handoff to the owner of the whole group until the singular case
-below checks (`semantics-v2-per-member-handoff`). -/
+The per-card spelling binds the objects where it exiles them and loops over each card exiled
+this way, handing each card's permission to that card's own owner. The exile makes them new
+objects [CR#400.7,400.7j], so the loop reads them back by anaphora, never by the parameter
+(`docs/decisions/semantics-v2.md` §7, ruling 2026-10-08). The `plugins_v2` body keeps one
+handoff to the owner of the whole group until the singular case below checks
+(`semantics-v2-per-member-handoff`), whose later mentions are `it`. -/
 
 /-- The permission one exiled card's owner is handed. -/
 private def airbendPermission : Instruction :=
@@ -282,12 +284,33 @@ private def airbendPermission : Instruction :=
         (.play (some exileZone) none none false (.payingInstead (.mana [generic 2]))))
       (some (.forAsLongAs (.matches it (.inZone exileZone)))))
 
+/-- The shipped airbend body as the loader writes it: the parameter is mentioned once, by the
+exile, and the one handoff reads the exiled object back as `it`. -/
+private def airbendByIt (objects : NounPhrase) : Instruction :=
+  .enact (.action "airbend") (.ownScope 0 (.sequentially
+    [ exile (.inCaller 0 objects), airbendPermission ]))
+
+/-- "Airbend target creature.": "Exile it. While it's exiled, its owner may cast it …". -/
+theorem okAirbendItOne :
+    Instruction.check [] (airbendByIt (target creature)) = [] := by decide
+
+/-- "Airbend up to two target creatures.": `it` agrees with one object only, so each of the
+three is refused until the per-card loop replaces the one handoff. -/
+theorem airbendItRefusesSeveral :
+    Instruction.check [] (airbendByIt (.described (.target (upTo 2)) creature))
+      = [.anaphor .bare .one 0, .anaphor .bare .one 0, .anaphor .bare .one 0] := by
+  decide
+
+/-- "each card exiled this way": a description, so its number is not fixed. -/
+private def cardsExiledThisWay : NounPhrase :=
+  allOf (.and [.isCard,
+    happenedTo (.verbedEvent none (.action "exile") (some (.gap .object)) none none) .thisWay])
+
 /-- The per-card airbend body as the loader would write it. -/
 private def airbendByCard (objects : NounPhrase) : Instruction :=
   .enact (.action "airbend") (.ownScope 0 (.sequentially
     [ exile (.firstMention "airbend.0" (.inCaller 0 objects)),
-      .doForEach (allFromAmong .isCard (.laterMention "airbend.0" (.inCaller 0 objects)))
-        airbendPermission ]))
+      .doForEach cardsExiledThisWay airbendPermission ]))
 
 /-- "Airbend up to two target creatures.": each exiled card's own owner is handed the
 permission for that card, one handoff per card. -/
