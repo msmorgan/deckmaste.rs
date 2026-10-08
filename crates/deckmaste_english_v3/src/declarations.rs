@@ -246,6 +246,8 @@ constructions! {
         feature NounPremodifier { Yes }
         feature VPFinalAdjunct { Yes, No }
         feature ClauseInitialAdjunct { Yes, No } default No;
+        feature CentralAdjunctLicence { No, Yes } default No;
+        feature CentralAdjunctPosition { Preverbal, PostAuxiliary } default Preverbal;
         feature InfinitivalMarker { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
@@ -277,6 +279,7 @@ constructions! {
         category FiniteClause();
         category IrrealisClause();
         category IrrealisPredicate(number, person);
+        category CentralAdverbSelectedHead(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, frame);
         category ExistentialExtension();
         category FinitePredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category QuantifiedAuxiliaryHead(number, person, frame, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
@@ -454,6 +457,25 @@ constructions! {
         ] {
             use Properties;
         }
+        // The ticket's central-position analysis: the lexical declaration
+        // chooses the site; the Adverb is an Adjunct of the predicate head.
+        schema CentralAdverbHead {
+            form [modifier: lexical(Adverb), " ", head: lexical(Verb)]
+                require head.CentralAdjunctPosition = Preverbal;
+            form [head: lexical(Verb), " ", modifier: lexical(Adverb)]
+                require head.CentralAdjunctPosition = PostAuxiliary;
+            require modifier.CentralAdjunctLicence = Yes;
+            require head.PredicateFrameUse = Yes;
+            export frame = head.frame;
+        }
+        instance CentralAdverbHead<Result, Properties>: [
+            (CentralAdverbSelectedHead, FiniteHeadAgreement),
+        ] { use Properties; }
+        construction CentralAdverbPredicate: FinitePredicate {
+            form [head: CentralAdverbSelectedHead, complements: selected_frame(head, Predicate)];
+            use PredicateHostAgreement;
+        }
+
         construction ScalarMeasurePhrase: ScalarMeasurePhrase {
             form [head: MeasurePhrase];
             require head.MeasureKind = Scalar;
@@ -1400,6 +1422,23 @@ constructions! {
             require head.frame = PerfectAuxiliary;
         }
 
+        // The adjunct precedes the overt auxiliary Complement's predicate,
+        // rather than modifying a following NP or predicative Complement.
+        schema CentralAdverbComplement {
+            form [" ", modifier: lexical(Adverb), " ", predicate: node];
+            require modifier.CentralAdjunctLicence = Yes;
+        }
+        instance CentralAdverbComplement<Result, Predicate: predicate,
+            Properties = NoComplementProperties>: [
+            (BareComplement, BarePredicate, OvertComplementRealization),
+            (ParticipialComplement, ParticipialPredicate),
+            (PerfectComplement, PastParticiplePredicate),
+        ] {
+            use Properties;
+            export PurposeAdjunctLicence = predicate.PurposeAdjunctLicence;
+            export MatrixComplementLicence = predicate.MatrixComplementLicence;
+        }
+
         schema NominalAdjunctPredicate {
             form [head: node, " ", modifier: NominalAdjunctPhrase];
         }
@@ -2041,6 +2080,16 @@ constructions! {
             form [predicate: BarePredicate];
             export UnmarkedConjunctLicence = Yes;
         }
+
+        // CGEL Ch. 8 §20.1, p. 781: without a Subject, front and
+        // pre-verbal central position are not overtly distinct. The licensed
+        // central analysis of Oracle imperative also is the project application.
+        construction CentralAdverbImperative: Clause {
+            form [modifier: lexical(Adverb), " ", predicate: BarePredicate];
+            require modifier.CentralAdjunctLicence = Yes;
+            export UnmarkedConjunctLicence = Yes;
+        }
+
 
         construction FiniteClause: FiniteClause {
             form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),

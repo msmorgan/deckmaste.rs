@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "suite/central_adverb_position.rs"]
+mod central_adverb_position;
+
 #[path = "suite/clause_final_predicative_as.rs"]
 mod clause_final_predicative_as;
 

@@ -965,6 +965,15 @@ Ch. 8 §§5.2–5.3, pp. 691–693).
 An optional dependent that modifies a phrase without being selected as its
 Complement.
 
+**Central Adjunct Licence** (project term):
+An Adverb's declared permission to function as an Adjunct in central position,
+under the [central-adverb-position project analysis](../../tickets/done/english-v3-central-adverb-position.md#analysis).
+
+**Central Adjunct Position** (project term):
+The declared central Adjunct site of a lexical predicate: before a lexical
+verb or after a copula. Auxiliary predicates admit the post-auxiliary site
+under the [central-adverb-position project analysis](../../tickets/done/english-v3-central-adverb-position.md#analysis).
+
 **Predicative Adjunct**:
 An optional predicative dependent describing a pragmatically appropriate
 predicand; an *as* phrase takes a nominal Complement in this function
