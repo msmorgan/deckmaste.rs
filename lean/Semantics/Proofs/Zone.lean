@@ -253,13 +253,18 @@ theorem okAgentedDestroy :
       = [] := by
   decide
 
-/-- "You fight target creature." A spell or ability instructs a CREATURE to fight
-[CR#701.14a], so `"Fight"`'s facts row gives its agent role no player and the agented voice
-is refused; the printed sentence names the fighting creatures, `Instruction.fights`. -/
+/-- "Target opponent fights target creature." A spell or ability instructs a CREATURE to fight
+[CR#701.14a], so `"Fight"`'s facts row gives its agent role a permanent and no player, and a
+player handed the deed is refused; the printed sentence hands it the first fighting creature,
+`act(<first>, fight(<second>))`. -/
 theorem badAgentedAgentlessAct :
     Instruction.check []
-      (act .you (.enact (.action "fight") (fight (target creature) (target creature))))
-      = [.enactAgentOk] := by
+      (act (target .opponent) (.enact (.action "fight") (.simultaneously [
+        .dealDamage actor (.statOf (.stat .power) actor) (.firstMention "fight.0" (target creature)),
+        .dealDamage (.laterMention "fight.0" (target creature))
+          (.statOf (.stat .power) (.laterMention "fight.0" (target creature))) actor])))
+      = [.kindMismatch .object .player, .kindMismatch .object .player,
+         .kindMismatch .object .player, .enactAgentOk] := by
   decide
 
 /-- "1 life for each creature" -/

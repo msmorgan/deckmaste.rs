@@ -210,8 +210,12 @@ mimicked.
   actor, or, for the one instruction a handoff to a group hands each member,
   that group, so "each player votes" and "each opponent sacrifices a
   creature" are judged as the deleted plural agent judged them. A deed whose
-  facts row names no performer ("fight" [CR#701.14a]) records none, and is
-  refused when a handoff names one. Core constructors still take every field
+  facts row names no performer ("the Ring tempts you" [CR#701.54a]) records
+  none, and is refused when a handoff names one. (Reworded 2026-10-08,
+  `semantics-v2-fight-is-performed-by-the-creature`: fight, this sentence's
+  first example, is performed by a creature [CR#701.14a]; its row names a
+  permanent performer, and a card hands it the first creature,
+  `act(<first>, fight(<second>))`.) Core constructors still take every field
   required: a field was removed, no default was added.
 - Agentive verbs — those the CR gives a player actor — put that performer
   in clause position, the factored form of the real macros' agent

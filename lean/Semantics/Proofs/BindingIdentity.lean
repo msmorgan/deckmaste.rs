@@ -31,17 +31,17 @@ private def tapThenUntap (x : NounPhrase) : Instruction :=
 private def tapThenUntapCopied (x : NounPhrase) : Instruction :=
   .sequentially [tap x, untap x]
 
-/-- Fight as the loader writes the `plugins_v2` body: each subject bound where the first damage
-event first mentions it, and read back by identity everywhere after [CR#701.14a]. The rule that
-a creature no longer on the battlefield deals no fight damage [CR#701.14b] is the rules' to
-apply, not a guard in the text: a guard's condition may not introduce its subject (`testSubject`),
-so it cannot carry a first mention. -/
+/-- Fight as the loader writes the `plugins_v2` body: the first creature is the performer, handed
+the deed (`act(<first>, fight(<second>))`), and is `actor` inside it; the second, the parameter,
+is bound where the first damage event first mentions it and read back by identity after
+[CR#701.14a]. The rule that a creature no longer on the battlefield deals no fight damage
+[CR#701.14b] is the rules' to apply, not a guard in the text: a guard's condition may not
+introduce its subject (`testSubject`), so it cannot carry a first mention. -/
 private def fightByIdentity (l r : NounPhrase) : Instruction :=
-  let left := NounPhrase.laterMention "fight.0" l
-  let right := NounPhrase.laterMention "fight.1" r
-  .enact (.action "fight") (.simultaneously [
-    .dealDamage (.firstMention "fight.0" l) (.statOf (.stat .power) left) (.firstMention "fight.1" r),
-    .dealDamage right (.statOf (.stat .power) right) left])
+  let right := NounPhrase.laterMention "fight.0" r
+  act l (.enact (.action "fight") (.simultaneously [
+    .dealDamage actor (.statOf (.stat .power) actor) (.firstMention "fight.0" r),
+    .dealDamage right (.statOf (.stat .power) right) actor]))
 
 /-! ## Two mentions, one binding -/
 
@@ -100,12 +100,14 @@ theorem existingReferenceIsRecorded :
 
 /-! ## Fight -/
 
-/-- "Target creature fights target creature." by identity checks. -/
+/-- "Target creature fights target creature." by identity checks: the first creature handed the
+deed, `act(target(creature), fight(target(creature)))`. -/
 theorem okFightByIdentity :
     Instruction.check [] (fightByIdentity (target creature) (target creature)) = [] := by
   decide
 
-/-- Each `target creature` argument is one targeting, though the body mentions it four times. -/
+/-- Each `target creature` is one targeting: the handoff selects the first once, and the body
+mentions the second three times. -/
 theorem fightTargetsEachArgumentOnce :
     targets ((fightByIdentity (target creature) (target creature)).intro []) = 2 := by
   decide
@@ -115,12 +117,20 @@ theorem okFightByIdentityThisCreature :
     Instruction.check [] (fightByIdentity thisCreature (target creatureYouDontControl)) = [] := by
   decide
 
-/-- A group subject is refused by the singular power read and the per-member damage check, as
-the bench's captured `fight` refuses it (`Damage.badFightGroup`). -/
+/-- A group fighting creature is refused by the singular power read and the per-member damage
+check, as the bench's captured `fight` refuses it (`Damage.badFightGroup`). Handed the deed,
+the first creature is the performer, so the group is the parameter. -/
 theorem badFightByIdentityGroup :
     Instruction.check []
-      (fightByIdentity (.described (.target (exactly 2)) creature) (target creature)) =
-      [.singular, .perMember] := by
+      (fightByIdentity (target creature) (.described (.target (exactly 2)) creature)) =
+      [.perMember, .singular] := by
+  decide
+
+/-- A group handed the deed distributes it, each member performing it in turn and `actor` that
+member, as every group handoff does: "two target creatures each fight target creature". -/
+theorem okFightHandedToEachOfAGroup :
+    Instruction.check []
+      (fightByIdentity (.described (.target (exactly 2)) creature) (target creature)) = [] := by
   decide
 
 /-! ## A group handoff still distributes -/

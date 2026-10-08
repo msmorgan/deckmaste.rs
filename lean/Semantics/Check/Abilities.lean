@@ -417,8 +417,8 @@ otherwise the actor in context, the controller unless an enclosing handoff names
 def performerOf (perf : Option NounPhrase) : NounPhrase := perf.getD .actor
 
 /-- What a handoff to one performer hands the instruction it wraps: the actor, so that a deed
-whose facts row names no performer ("fight" [CR#701.14a]) refuses being handed to anyone; every
-other rule reads the actor in context either way. -/
+whose facts row names no performer ("the Ring tempts you" [CR#701.54a]) refuses being handed to
+anyone; every other rule reads the actor in context either way. -/
 def handedOne (body : Instruction) : Option NounPhrase :=
   match body with
   | .enact _ _ => some .actor

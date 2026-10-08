@@ -332,7 +332,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("explore", { agentRole := permanentAgent }),
     ("faceAVillainousChoice", { agentRole := playerAgent }),
     ("fateseal", { stepwise := true, agentRole := playerAgent, opponentsLibrary := true }),
-    ("fight", {}),
+    ("fight", { agentRole := permanentAgent }),
     ("forage", { agentRole := playerAgent }),
     ("goad", { agentRole := playerAgent }),
     ("harness", { agentRole := permanentAgent }),
