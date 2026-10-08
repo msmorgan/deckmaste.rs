@@ -15,3 +15,10 @@ helper exists (list them; each is an embed or helper candidate). Oracles:
 `facts check` byte-identical (the facts reader must read the result:
 `facts-reader-reads-the-dialect` first if it does not). Standard
 constraints apply.
+
+Also the helper macros' own bodies (routed 2026-10-08 from
+`plugins-v2-keyword-body-defects`, which left them for a later pass). One
+known instance: `entersWithCounters`, `entersWithAdditionalCounters`,
+`entersWithFewerCounters` and `exileWithCounters` write
+`Printed(Param(kind))` where `Printed` is an injection (`semantics-v2.md`
+§11.1); check that the elided form expands identically before re-spelling.
