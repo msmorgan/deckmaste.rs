@@ -816,10 +816,55 @@ impl NormalizedDeclaration {
 }
 
 /// One literal or positional hole in a checked semantic spelling frame.
+///
+/// A keyword spelling is the uninflected template a card prints. A hole
+/// realizes its argument by the parameter kind's default unless it carries a
+/// [`SpellingHint`] naming the surface form that default gets wrong.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SpellingPart {
     Literal(String),
-    Param(usize),
+    Param {
+        index: usize,
+        hint: Option<SpellingHint>,
+    },
+}
+
+/// An override of a parameter kind's default realization, written
+/// `<Param(n):hint>`. The vocabulary is the minimum the builtin corpus needs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SpellingHint {
+    /// A nominal argument prints plural ("amass Orcs 1", "affinity for
+    /// artifacts").
+    Plural,
+}
+
+impl SpellingHint {
+    /// The hint's spelling after the colon in `<Param(n):hint>`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Plural => "plural",
+        }
+    }
+
+    fn parse(text: &str) -> Option<Self> {
+        match text {
+            "plural" => Some(Self::Plural),
+            _ => None,
+        }
+    }
+
+    /// Whether this hint can apply to an argument of `kind`: `plural` needs a
+    /// nominal kind.
+    #[must_use]
+    pub fn applies_to(self, kind: &ParameterType) -> bool {
+        match self {
+            Self::Plural => {
+                matches!(kind, ParameterType::Quality)
+                    || matches!(kind, ParameterType::Other(name) if name == "Subtype")
+            }
+        }
+    }
 }
 
 /// The parser-facing normalized grammar contract.
@@ -1485,6 +1530,12 @@ pub enum ValidationError {
     UnsupportedKeywordParameterSignature { signature: String },
     #[error("invalid spelling: {reason}")]
     InvalidSpelling { reason: String },
+    #[error("spelling hint `{hint}` on Param({index}) does not apply to parameter kind `{kind}`")]
+    SpellingHintKindMismatch {
+        index: usize,
+        hint: &'static str,
+        kind: String,
+    },
     #[error("{location} references Param({index}), but the positional signature has length {len}")]
     ParamOutOfRange {
         location: &'static str,
@@ -2711,8 +2762,8 @@ fn finish_grammar_normalization(
     normalized: NormalizedGrammarParts,
 ) -> Result<GrammarRow, ReadError> {
     let (grammar_head, recipe, surfaces, participial_adjective, block_label) = normalized;
-    let spelling_head = spelling_head(spelling);
-    if spelling_head != grammar_head {
+    let (spelling_head, glued) = spelling_head(spelling);
+    if !spelling_head_matches(&spelling_head, glued, &grammar_head, &surfaces) {
         return Err(validation_error_at(
             path,
             spelling_position,
@@ -3011,13 +3062,12 @@ fn parse_spelling(spelling: &str) -> Result<Vec<SpellingPart>, String> {
             parts.push(SpellingPart::Literal(spelling[cursor..open].to_owned()));
         }
         let suffix = &spelling[open..];
-        let Some(close) = suffix.find(")>") else {
+        let Some(close) = suffix.find('>') else {
             return Err("an opening `<` must begin a complete `<Param(n)>` hole".to_owned());
         };
-        let hole = &suffix[..close + 2];
-        let Some(digits) = hole
+        let Some((digits, hint)) = suffix[..close]
             .strip_prefix("<Param(")
-            .and_then(|inner| inner.strip_suffix(")>"))
+            .and_then(|inner| inner.split_once(')'))
         else {
             return Err("holes must use the exact spelling `<Param(n)>`".to_owned());
         };
@@ -3030,8 +3080,19 @@ fn parse_spelling(spelling: &str) -> Result<Vec<SpellingPart>, String> {
         let index = digits
             .parse::<usize>()
             .map_err(|_| "Param index is too large".to_owned())?;
-        parts.push(SpellingPart::Param(index));
-        cursor = open + close + 2;
+        let hint = match hint {
+            "" => None,
+            hint => {
+                let Some(name) = hint.strip_prefix(':') else {
+                    return Err("holes must use the exact spelling `<Param(n)>`".to_owned());
+                };
+                Some(SpellingHint::parse(name).ok_or_else(|| {
+                    format!("unknown spelling hint `{name}`; the hints are `plural`")
+                })?)
+            }
+        };
+        parts.push(SpellingPart::Param { index, hint });
+        cursor = open + close + 1;
     }
     if spelling[cursor..].contains(['<', '>']) {
         return Err("angle brackets may appear only in `<Param(n)>` holes".to_owned());
@@ -3049,11 +3110,11 @@ fn validate_spelling_params(
     params: Option<&[ParameterType]>,
 ) -> Result<(), ReadError> {
     for part in spelling {
-        let SpellingPart::Param(index) = part else {
+        let SpellingPart::Param { index, hint } = part else {
             continue;
         };
         let len = params.map_or(0, <[ParameterType]>::len);
-        if params.is_none() || *index >= len {
+        let Some(kind) = params.and_then(|params| params.get(*index)) else {
             return Err(validation_error_at(
                 path,
                 position,
@@ -3061,6 +3122,19 @@ fn validate_spelling_params(
                     location: "spelling",
                     index: *index,
                     len,
+                },
+            ));
+        };
+        if let Some(hint) = hint
+            && !hint.applies_to(kind)
+        {
+            return Err(validation_error_at(
+                path,
+                position,
+                ValidationError::SpellingHintKindMismatch {
+                    index: *index,
+                    hint: hint.as_str(),
+                    kind: kind.as_str().to_owned(),
                 },
             ));
         }
@@ -3112,11 +3186,40 @@ fn validate_body_params(
     Ok(())
 }
 
-fn spelling_head(spelling: &[SpellingPart]) -> String {
-    match spelling.first() {
-        Some(SpellingPart::Literal(literal)) => literal.trim_end().to_owned(),
-        Some(SpellingPart::Param(_)) | None => String::new(),
+/// The template's head literal: its first literal part, and whether a hole
+/// glues onto it with no word boundary (a bound suffix, "<Param(0)>walk").
+fn spelling_head(spelling: &[SpellingPart]) -> (String, bool) {
+    let leading_hole = matches!(spelling.first(), Some(SpellingPart::Param { .. }));
+    spelling
+        .iter()
+        .find_map(|part| match part {
+            SpellingPart::Literal(literal) => Some((
+                literal.trim().to_owned(),
+                leading_hole && !literal.starts_with(' '),
+            )),
+            SpellingPart::Param { .. } => None,
+        })
+        .unwrap_or_default()
+}
+
+/// Whether a template's head literal is the grammar head: the head literal
+/// is the grammar head, or begins with it at a word boundary (a separator,
+/// preposition, or payload follows: "boast — <Param(0)>", "splice onto
+/// <Param(0)> <Param(1)>"). A head glued after a hole is the grammar's own
+/// bound suffix.
+fn spelling_head_matches(
+    head: &str,
+    glued: bool,
+    grammar_head: &str,
+    surfaces: &[RealizedSurface],
+) -> bool {
+    if glued {
+        return surfaces
+            .iter()
+            .any(|surface| surface.feature == SurfaceFeature::BoundSuffix && surface.text == head);
     }
+    head.strip_prefix(grammar_head)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with(' '))
 }
 
 fn is_bare_ident(name: &str) -> bool {

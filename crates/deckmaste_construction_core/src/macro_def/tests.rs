@@ -366,7 +366,10 @@ fn graduated_declaration_expands_and_normalizes() {
         declaration.spelling,
         vec![
             SpellingPart::Literal("scry ".to_owned()),
-            SpellingPart::Param(0),
+            SpellingPart::Param {
+                index: 0,
+                hint: None,
+            },
         ]
     );
     let row = declaration.grammar.unwrap();
@@ -1528,6 +1531,117 @@ fn keyword_syntax_is_typed_and_requires_a_fixed_keyword_recipe() {
     );
     let unknown = source.replace("SpacedDash", "Unknown");
     assert!(read_str(source_path("boast.ron"), &unknown).is_err());
+}
+
+#[test]
+fn spelling_holes_carry_an_optional_hint_checked_against_the_parameter_kind() {
+    // "Amass [subtype] N" [CR#701.47a] prints its subtype plural: "Amass Orcs 1".
+    let source = r#"KeywordAction(
+        name: "amass", params: [Subtype, Amount],
+        spelling: "amass <Param(0):plural> <Param(1)>",
+        grammar: Verb(bare: "amass", third_person: "amasses",
+            frame_set: Custom(frames: [[ObjectNounPhrase, Amount]])),
+    )"#;
+    let declaration = read_str(source_path("amass.ron"), source).unwrap();
+    assert_eq!(
+        declaration.spelling(),
+        [
+            SpellingPart::Literal("amass ".to_owned()),
+            SpellingPart::Param {
+                index: 0,
+                hint: Some(SpellingHint::Plural),
+            },
+            SpellingPart::Literal(" ".to_owned()),
+            SpellingPart::Param {
+                index: 1,
+                hint: None,
+            },
+        ]
+    );
+
+    let unknown = source.replace(":plural", ":loud");
+    assert!(matches!(
+        validation(&unknown),
+        ValidationError::InvalidSpelling { reason } if reason.contains("unknown spelling hint `loud`")
+    ));
+    for malformed in ["<Param(0)plural>", "<Param(0):>", "<Param(0):plural"] {
+        let source = source.replace("<Param(0):plural>", malformed);
+        assert!(
+            matches!(validation(&source), ValidationError::InvalidSpelling { .. }),
+            "{malformed} must not read"
+        );
+    }
+
+    let wrong_kind = source.replace("<Param(1)>", "<Param(1):plural>");
+    assert_eq!(
+        validation(&wrong_kind),
+        ValidationError::SpellingHintKindMismatch {
+            index: 1,
+            hint: "plural",
+            kind: "Amount".to_owned(),
+        }
+    );
+}
+
+#[test]
+fn template_head_is_the_grammar_head_at_a_word_boundary_or_its_bound_suffix() {
+    let read = |name: &str, params: &str, spelling: &str, grammar: &str| {
+        read_str(
+            source_path(&format!("{name}.ron")),
+            &format!(
+                r#"KeywordAbility(name: "{name}", params: [{params}], spelling: "{spelling}", grammar: {grammar})"#
+            ),
+        )
+    };
+    // Separators and prepositions follow the head: "Boast — {1}{R}: ..."
+    // [CR#702.142a], "Splice onto Arcane {1}{R}" [CR#702.47a].
+    read(
+        "boast",
+        "Ability",
+        "boast — <Param(0)>",
+        r#"FixedKeyword(surface: "boast")"#,
+    )
+    .unwrap();
+    read(
+        "splice",
+        "Quality, Cost",
+        "splice onto <Param(0)> <Param(1)>",
+        r#"FixedKeyword(surface: "splice", parameter: Quality(preposition: ("Preposition", "Onto")))"#,
+    )
+    .unwrap();
+    // A payload before the head: "Goblin offering" [CR#702.48a].
+    read(
+        "offering",
+        "Quality",
+        "<Param(0)> offering",
+        r#"FixedKeyword(surface: "offering")"#,
+    )
+    .unwrap();
+    // A slot glued to the bound suffix: "swampwalk" [CR#702.14a].
+    read(
+        "landwalk",
+        "Quality",
+        "<Param(0)>walk",
+        r#"FixedKeyword(surface: "landwalk", bound_suffix: (surface: "walk"))"#,
+    )
+    .unwrap();
+
+    for (spelling, grammar) in [
+        // A head must end at a word boundary.
+        ("boasts <Param(0)>", r#"FixedKeyword(surface: "boast")"#),
+        // A glued literal must be the declared bound suffix.
+        ("<Param(0)>walk", r#"FixedKeyword(surface: "boast")"#),
+        ("<Param(0)>boast", r#"FixedKeyword(surface: "boast")"#),
+    ] {
+        let error = read("boast", "Quality", spelling, grammar).unwrap_err();
+        assert!(
+            matches!(
+                error.validation(),
+                Some(ValidationError::GrammarSpellingMismatch { .. })
+            ),
+            "{spelling} must not match its grammar head"
+        );
+    }
 }
 
 #[test]

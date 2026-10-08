@@ -89,7 +89,7 @@ fn export_metadata(
     if normalized
         .spelling()
         .iter()
-        .any(|part| matches!(part, metadata::SpellingPart::Param(_)))
+        .any(|part| matches!(part, metadata::SpellingPart::Param { .. }))
     {
         output.unmapped.push(format!(
             "parameterized-spelling {owner}: {:?}",
