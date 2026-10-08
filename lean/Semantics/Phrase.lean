@@ -200,6 +200,9 @@ mutual
     | attachHost (word : AttachWord) (head : NounWord)
     | possessorOf (axis : PossessorAxis) (subject : NounPhrase)
     | designated (designation : DesignationLabel) (whose : NounPhrase)
+    /-- What a cost of the subject's records about a player, read back by the ability linked to
+    it: "the player chosen as its gift cost was paid" [CR#607.2d,607.2i]. -/
+    | paid (facet : PaidFacet) (subject : NounPhrase)
     | oneEachOf (roles : List Predicate) (pool : NounPhrase)
 
   inductive Amount where

@@ -82,6 +82,9 @@ structure KeywordFacts where
   onPermanentCard : Bool := true
   onInstantOrSorceryCard : Bool := false
   paidCost : Bool := false
+  /-- True where paying the keyword's cost chooses a player, whom the ability linked to that cost
+  reads back, as gift's "you may choose an opponent" [CR#702.174a,607.2d]. -/
+  costChoosesPlayer : Bool := false
   /-- The categories the keyword's definition is written in [CR#702.1]. A card may leave the
   definition unwritten; a written one is an ability of one of these categories
   [CR#702.9b,702.21a,702.24a,702.29a,702.30a,702.40a,702.45a,702.86a,702.112a,702.135a]. An

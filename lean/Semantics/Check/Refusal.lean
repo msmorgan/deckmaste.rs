@@ -85,6 +85,9 @@ inductive Refusal where
   | bindingIdentity (id : BindingId)
   | choiceRef (ref : ChoiceRef) (sort : ChoiceSort) (found : Nat)
   | choiceInScope (k : Kind)
+  /-- "The player chosen as [cost] was paid" names a cost whose payment chooses no player, so
+  there is no choice for the linked ability to read back [CR#607.2d,607.2i]. -/
+  | paidChoiceInScope (which : PaidCostName)
   | outcomeInScope (s : OutcomeSort) (found : Nat)
   | quantOutcomeInScope (found : Nat)
   | coinFlipInScope
@@ -156,6 +159,9 @@ inductive Refusal where
   | knownKeywordTerm
   | knownCounter
   | paidFacetNamed
+  /-- A facet is read as what it records: an amount as an amount, the chosen player as a noun
+  phrase. -/
+  | paidFacetKind
   | costNameable
   | keywordParamFits (k : KeywordLabel)
   | keywordBodyFits (k : KeywordLabel)

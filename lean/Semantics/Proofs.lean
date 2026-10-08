@@ -19,6 +19,7 @@ import Semantics.Proofs.Faces
 import Semantics.Proofs.InstructionForms
 import Semantics.Proofs.Keyword
 import Semantics.Proofs.KeywordByCardClass
+import Semantics.Proofs.LinkedChoiceReadback
 import Semantics.Proofs.Mana
 import Semantics.Proofs.Numbers
 import Semantics.Proofs.NounWords

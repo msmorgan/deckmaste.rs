@@ -619,6 +619,10 @@ semantic_macro paidCostRead (which : PaidCostName) (window : Option Lookback) (s
 /-- "the number of times <subject>'s <keyword> cost was paid" -/
 semantic_macro timesPaid (which : PaidCostName) (subject : NounPhrase) : Amount :=
   .paid (.timesPaid which) subject
+/-- "the player chosen as <subject>'s <cost> was paid", read back by the linked ability
+[CR#607.2d,702.174a] -/
+semantic_macro chosenAsPaid (which : PaidCostName) (subject : NounPhrase) : NounPhrase :=
+  .paid (.chosenPlayer which) subject
 /-- "if <subject>'s <cost> was paid" -/
 semantic_macro costWasPaid (which : PaidCostName) (window : Option Lookback) (subject : NounPhrase) :
     Condition :=

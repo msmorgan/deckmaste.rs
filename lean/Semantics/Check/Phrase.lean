@@ -95,7 +95,7 @@ mutual
   def NounPhrase.kind? : NounPhrase → Option Kind
     | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.kind?
     | .gap k => some k
-    | .you | .actor | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
+    | .you | .actor | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ | .paid _ _ => some .player
     | .described _ p => p.kind?
     | .eachOf g => g.kind?
     | .and ns | .or ns => some (NounPhrase.kindOfAll ns)
@@ -1073,8 +1073,8 @@ mutual
   def NounPhrase.plur : NounPhrase → Plurality
     | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.plur
     | .gap _ => .one
-    | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .attachHost _ _ | .designated _ _ =>
-      .one
+    | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .attachHost _ _ | .designated _ _
+    | .paid _ _ => .one
     | .asType _ n _ => n.plur
     | .resolvedPermanent n => n.plur
     | .asMarker _ n => n.plur
@@ -1323,7 +1323,7 @@ where
       nominal n
     | .described .the p => !p.choiceRead
     | .described _ _ | .librarySlice _ _ _ | .someOf _ _ _ | .pileOf _ _
-    | .possessorOf _ _ | .oneEachOf _ _ => true
+    | .possessorOf _ _ | .oneEachOf _ _ | .paid _ _ => true
     | _ => false
 
 abbrev OperandSlot := Option (List Nat) × Determiner × Plurality × Payload
@@ -1419,6 +1419,7 @@ mutual
     | .possessorOf _ n =>
       (NounPhrase.result bs n).prepend
         (⟨.the, n.plur, .player false, []⟩ :: NounPhrase.selfSubjIntroduced n)
+    | .paid _ n => (NounPhrase.result bs n).prepend [⟨.the, .one, .player false, []⟩]
     | .oneEachOf roles pool =>
       (NounPhrase.result bs pool).prepend (⟨.bare, .many,
         .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none
@@ -1733,7 +1734,7 @@ mutual
     | .inCaller scope body => body.zone (enterCaller scope bs)
     | .gap _ => none
     | .this | .combatPlayer _ | .you | .actor | .playerGroup _ | .or _
-    | .possessorOf _ _ | .designated _ _ => none
+    | .possessorOf _ _ | .designated _ _ | .paid _ _ => none
     | .asType _ _ _ => some .battlefield
     | .resolvedPermanent _ => some .battlefield
     | .asMarker m _ => some m.zone
@@ -1781,7 +1782,8 @@ mutual
     | .inCaller scope body => body.ty (enterCaller scope bs)
     | .gap _ => []
     | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .playerGroup _
-    | .or _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _ => []
+    | .or _ | .librarySlice _ _ _ | .pileOf _ _ | .possessorOf _ _ | .designated _ _
+    | .paid _ _ => []
     | .asType t _ _ => [t]
     | .resolvedPermanent n => NounPhrase.ty bs n
     | .asMarker _ n => NounPhrase.ty bs n
@@ -2379,6 +2381,7 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
       .object [] z (mkStamp p m.grantorOrigin (z != some m.zone)) none none none, []⟩ :: bs
   | .you | .actor | .combatPlayer _ | .playerGroup _ | .designated _ _ => bs
   | .possessorOf ax m => nomIntro bs (.possessorOf ax m)
+  | .paid f m => nomIntro bs (.paid f m)
 termination_by structural n
 
 def stampIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) : Bindings :=

@@ -386,6 +386,9 @@ inductive PaidFacet where
   | timesPaid (which : PaidCostName)
   /-- "was kicked" [CR#702.33d] -/
   | readback (which : PaidCostName) (lookback : Option Lookback)
+  /-- "the player chosen as [which] was paid": the choice an additional cost makes, read back by
+  the ability linked to it [CR#702.174a,607.2d,607.2i] -/
+  | chosenPlayer (which : PaidCostName)
   deriving DecidableEq, Repr
 
 inductive AbilityClass where

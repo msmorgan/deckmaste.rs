@@ -324,6 +324,14 @@ mutual
     | .designated d whose =>
       ctxCheck ctx (some .object) ++ NounPhrase.checkIn gap (some .player) bs whose ++
         refuse d.heldByItsCard (.designationScope d)
+    | .paid f n =>
+      ctxCheck ctx (some .player) ++ refuse f.named .paidFacetNamed ++
+        refuse f.readsPlayer .paidFacetKind ++
+        (match f with
+         | .chosenPlayer which => refuse f.choiceFound (.paidChoiceInScope which)
+         | _ => (⟨[], false⟩ : CheckResult)) ++
+        NounPhrase.checkIn gap (some .object) bs n ++ refuse (n.paidSubjectOk bs) .paidSubject ++
+        refuse n.plur.isOne .singular
     | .oneEachOf roles pool =>
       ctxCheck ctx (some .object) ++ Predicate.checkAllIn gap .object bs roles ++
         NounPhrase.checkIn gap (some .object) bs pool ++ refuse (pool.plur == .many) .plural ++
@@ -411,7 +419,8 @@ mutual
       NounPhrase.checkIn gap none bs g ++ ax.check ++ refuse (ax.scope == k) (.projScope k) ++
         refuse (g.plur == .many) .plural
     | .paid f n =>
-      refuse f.named .paidFacetNamed ++ NounPhrase.checkIn gap (some .object) bs n ++
+      refuse f.named .paidFacetNamed ++ refuse (!f.readsPlayer) .paidFacetKind ++
+        NounPhrase.checkIn gap (some .object) bs n ++
         refuse (n.paidSubjectOk bs) .paidSubject ++ refuse n.plur.isOne .singular
     | .eventTally op who lb =>
       NounPhrase.checkIn gap none bs who ++ LookbackClause.checkIn gap (who.kindOr .object)

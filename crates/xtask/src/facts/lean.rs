@@ -529,6 +529,7 @@ fn keyword_rows(
                 (row.functions_on_stack, "functionsOnStack"),
                 (row.on_spell_card, "onInstantOrSorceryCard"),
                 (row.paid_cost, "paidCost"),
+                (row.cost_chooses_player, "costChoosesPlayer"),
                 (row.wants_modes, "wantsModes"),
             ] {
                 if set {
