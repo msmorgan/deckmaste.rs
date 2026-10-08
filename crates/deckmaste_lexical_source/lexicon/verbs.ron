@@ -32,10 +32,12 @@
     ]),
     (identity: Cost, bare: "cost", third_person: "costs", preterite: Some("cost"), frames: [
         Predicate([
-            Role("ManaAmount"),
-            Role("ComparisonDirection"),
-            Role("ControlledCostAction"),
+            Argument((relation: Complement, category: "ScalarLocationComplement")),
+            Optional(Argument((relation: Complement, category: "HollowInfinitivalComplement"))),
         ]),
+    ]),
+    (identity: Foretell, bare: "foretell", third_person: "foretells", preterite: Some("foretold"), participle: Some("foretold"), frames: [
+        Predicate([ObjectNounPhrase]),
     ]),
     (identity: Cycle, bare: "cycle", third_person: "cycles", preterite: Some("cycled"), frames: [Predicate([]), Predicate([ObjectNounPhrase])]),
     (identity: Deal, bare: "deal", third_person: "deals", participle: Some("dealt"), frames: [

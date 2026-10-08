@@ -192,8 +192,10 @@ mod tests {
 
 #[cfg(test)]
 mod card_name_tests {
+    use deckmaste_lexical::LexicalReading;
+    use deckmaste_lexical::Lexicon;
+
     use super::*;
-    use deckmaste_lexical::{LexicalReading, Lexicon};
 
     #[test]
     fn legendary_nicknames_are_reversible_variants_of_the_full_name() {

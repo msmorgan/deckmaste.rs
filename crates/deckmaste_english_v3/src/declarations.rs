@@ -37,6 +37,7 @@ constructions! {
         feature ComparativeQuantityUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
+        feature MeasureModifierUse { No, Yes } default No;
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct, Supplement } set;
         feature CompoundComplementMarker { Of }
@@ -212,6 +213,8 @@ constructions! {
         category ComparativePrepositionPhrase(number);
         category QuantityConjunct(number);
         category ComparativeQuantity(number, ComparativeQuantityStructure);
+        category ScalarLocationComplement();
+        category HollowInfinitivalComplement();
         category ScalarValue();
         category Amount();
         category MeasurePhrase(MeasureKind);
@@ -1372,13 +1375,13 @@ constructions! {
             form [symbols: CostSymbols];
         }
 
-        construction CostSymbols: CostSymbols {
-            form [first: CostSymbol, rest: repeat(CostSymbol, "")];
+        schema SymbolSequence {
+            form [first: node, rest: repeat(node, "")];
         }
-
-        construction ManaPhrase: ManaPhrase {
-            form [first: ManaSymbol, rest: repeat(ManaSymbol, "")];
-        }
+        instance SymbolSequence<Result, First: first, Rest: rest>: [
+            (CostSymbols, CostSymbol, CostSymbol),
+            (ManaPhrase, ManaSymbol, ManaSymbol),
+        ] {}
 
         construction NamedManaSymbol: ManaSymbol {
             form ["{", symbol: lexical(Symbol), "}"];
@@ -3009,10 +3012,18 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
-        construction ScalarPropertyMeasure: ScalarValue {
-            cost 0;
-            form [value: MeasurePhrase];
+        policy ScalarValueMeasure {
             require value.MeasureKind = Scalar;
+        }
+        schema ScalarMeasureValue {
+            cost 0;
+            form [value: node];
+        }
+        instance ScalarMeasureValue<Result, Value: value, Properties>: [
+            (ScalarValue, MeasurePhrase, ScalarValueMeasure),
+            (ScalarLocationComplement, CostSymbols, NoFeatures),
+        ] {
+            use Properties;
         }
 
         construction ScalarCardinalValue: ScalarValue {
@@ -3143,10 +3154,22 @@ constructions! {
             export UnmarkedConjunctLicence = modifier.UnmarkedConjunctLicence;
         }
 
-        construction ToInfinitive: InfinitiveComplement {
-            form [marker: lexical(Subordinator), " ", predicate: BarePredicate];
+        // Project analysis: a mana measure modifies the comparative determinative.
+        construction MeasuredScalarLocation: ScalarLocationComplement {
+            form [modifier: CostSymbols, " ", head: lexical(Determinative)];
+            require head.MeasureModifierUse = Yes;
+        }
+
+        // A selected hollow internal Complement links its Object Gap to the Subject
+        // (CGEL Ch. 14 §6.3(c), p. 1250); ordinary infinitivals keep a full predicate.
+        schema ToInfinitive {
+            form [marker: lexical(Subordinator), " ", predicate: node];
             require marker.InfinitivalMarker = Yes;
         }
+        instance ToInfinitive<Result, Predicate: predicate>: [
+            (InfinitiveComplement, BarePredicate),
+            (HollowInfinitivalComplement, BareObjectGap),
+        ] {}
 
         // Shared head primitives: exact selected signatures; no complement or coordination yet.
 

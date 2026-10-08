@@ -168,7 +168,8 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
         (
             "ManaValue",
             "mana value X",
-            Reading::ScalarPropertyMeasure {
+            Reading::ScalarMeasureValue {
+                category: Category::ScalarValue,
                 form: 0,
                 value: Box::new(Reading::ScalarVariable {
                     category: Category::MeasurePhrase,
@@ -180,7 +181,8 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
         (
             "ManaValue",
             "mana value 1",
-            Reading::ScalarPropertyMeasure {
+            Reading::ScalarMeasureValue {
+                category: Category::ScalarValue,
                 form: 0,
                 value: Box::new(Reading::UngroupedScalarNumeral {
                     form: 0,
@@ -191,7 +193,8 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
         (
             "Power",
             "power 3",
-            Reading::ScalarPropertyMeasure {
+            Reading::ScalarMeasureValue {
+                category: Category::ScalarValue,
                 form: 0,
                 value: Box::new(Reading::UngroupedScalarNumeral {
                     form: 0,

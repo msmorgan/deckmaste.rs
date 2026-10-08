@@ -43,7 +43,8 @@ fn symbol(name: &str) -> Reading {
 }
 
 fn mana(first: &str, rest: &[&str]) -> Reading {
-    Reading::ManaPhrase {
+    Reading::SymbolSequence {
+        category: Category::ManaPhrase,
         form: 0,
         first: Box::new(symbol(first)),
         rest: rest.iter().map(|name| symbol(name)).collect(),
@@ -51,7 +52,8 @@ fn mana(first: &str, rest: &[&str]) -> Reading {
 }
 
 fn payment_symbol(name: &str) -> Reading {
-    Reading::CostSymbols {
+    Reading::SymbolSequence {
+        category: Category::CostSymbols,
         form: 0,
         first: Box::new(Reading::NamedCostSymbol {
             form: 0,

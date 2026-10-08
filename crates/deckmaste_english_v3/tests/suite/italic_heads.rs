@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 
 use common::LEXICON;
 use common::ability_readings as readings;
+use deckmaste_english_v3::grammar::Category;
 use deckmaste_english_v3::grammar::Reading;
 use deckmaste_english_v3::grammar::Word;
 use deckmaste_lexical::FeatureBundle;
@@ -43,7 +44,8 @@ fn equip() -> Reading {
                 frame: None,
                 countability: None,
             },
-            cost: Box::new(Reading::CostSymbols {
+            cost: Box::new(Reading::SymbolSequence {
+                category: Category::CostSymbols,
                 form: 0,
                 first: Box::new(Reading::NumericCostSymbol {
                     form: 0,

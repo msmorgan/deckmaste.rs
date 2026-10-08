@@ -121,7 +121,8 @@ fn independent_grant_preserves_the_nested_ability_frame_and_traversal() {
                     form: 0,
                     first: Box::new(Reading::SymbolCost {
                         form: 0,
-                        symbols: Box::new(Reading::CostSymbols {
+                        symbols: Box::new(Reading::SymbolSequence {
+                            category: Category::CostSymbols,
                             form: 0,
                             first: Box::new(Reading::NamedCostSymbol {
                                 form: 0,
@@ -157,7 +158,8 @@ fn independent_grant_preserves_the_nested_ability_frame_and_traversal() {
                                             Some(1),
                                         ),
                                         complements: vec![FrameValue::Argument(Box::new(
-                                            Reading::ManaPhrase {
+                                            Reading::SymbolSequence {
+                                                category: Category::ManaPhrase,
                                                 form: 0,
                                                 first: Box::new(Reading::NamedManaSymbol {
                                                     form: 0,

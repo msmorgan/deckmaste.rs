@@ -287,7 +287,8 @@ fn attested_hybrid_and_phyrexian_symbols_retain_cost_and_mana_identity() {
         exact(
             text,
             Category::CostSymbols,
-            Reading::CostSymbols {
+            Reading::SymbolSequence {
+                category: Category::CostSymbols,
                 form: 0,
                 first: Box::new(Reading::NamedCostSymbol {
                     form: 0,
@@ -299,7 +300,8 @@ fn attested_hybrid_and_phyrexian_symbols_retain_cost_and_mana_identity() {
         exact(
             text,
             Category::ManaPhrase,
-            Reading::ManaPhrase {
+            Reading::SymbolSequence {
+                category: Category::ManaPhrase,
                 form: 0,
                 first: Box::new(Reading::NamedManaSymbol { form: 0, symbol }),
                 rest: vec![],

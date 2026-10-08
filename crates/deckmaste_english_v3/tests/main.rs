@@ -32,6 +32,8 @@ mod correlative_finite_complements;
 mod correlative_gaps;
 #[path = "suite/correlatives.rs"]
 mod correlatives;
+#[path = "suite/cost_scalar_complement.rs"]
+mod cost_scalar_complement;
 #[path = "suite/counter_compounds.rs"]
 mod counter_compounds;
 #[path = "suite/degree_quantifiers.rs"]

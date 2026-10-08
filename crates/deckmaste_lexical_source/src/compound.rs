@@ -1,8 +1,11 @@
 //! Declaration-owned supplemental compound nouns share their head paradigm.
 
-use crate::{LexicalSources, LoadError};
 use deckmaste_construction_core::macro_def as metadata;
-use deckmaste_lexical::{Category, Source};
+use deckmaste_lexical::Category;
+use deckmaste_lexical::Source;
+
+use crate::LexicalSources;
+use crate::LoadError;
 
 pub(crate) struct Declaration {
     pub source: Source,

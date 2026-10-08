@@ -1,7 +1,6 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use crate::LoadError;
 use deckmaste_lexical::Lexeme;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
@@ -9,6 +8,7 @@ use deckmaste_lexical::WordForm;
 use serde::Deserialize;
 
 use crate::LexicalSources;
+use crate::LoadError;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

@@ -1,12 +1,13 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::LoadError;
 use deckmaste_lexical::FormDeclaration;
 use deckmaste_lexical::Frame;
 use deckmaste_lexical::FrameItem;
 use deckmaste_lexical::Lexeme;
 use serde::Deserialize;
+
+use crate::LoadError;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -88,7 +89,11 @@ pub(crate) fn add_participial_adjectives(
     lexemes: &mut Vec<Lexeme>,
     classes: Vec<ParticipialAdjectiveClass>,
 ) -> Result<(), LoadError> {
-    use deckmaste_lexical::{Category, LexicalReading, Lexicon, SurfaceCase, WordForm};
+    use deckmaste_lexical::Category;
+    use deckmaste_lexical::LexicalReading;
+    use deckmaste_lexical::Lexicon;
+    use deckmaste_lexical::SurfaceCase;
+    use deckmaste_lexical::WordForm;
     for class in classes {
         if class.members.is_empty()
             || !matches!(
@@ -334,7 +339,8 @@ pub(crate) fn reconcile_frames(
         collect_frame_markers(item, &mut references);
     }
     for (vocabulary, member) in references {
-        // reconcile_item already established that exactly one declared owner exists.
+        // reconcile_item already established that exactly one declared owner
+        // exists.
         let candidates = [
             format!("vocab:{vocabulary}/{member}"),
             format!("lexeme:{vocabulary}/{member}"),
@@ -414,7 +420,8 @@ pub(crate) fn replace_forms(
     Ok(())
 }
 
-/// Apply authored category defaults only where an individual declaration is silent.
+/// Apply authored category defaults only where an individual declaration is
+/// silent.
 pub(crate) fn add_category_feature_defaults(
     lexemes: &mut [Lexeme],
     defaults: &BTreeMap<deckmaste_lexical::Category, BTreeMap<String, String>>,
@@ -963,9 +970,15 @@ mod tests {
 
 #[cfg(test)]
 mod adjective_class_tests {
-    use super::*;
     use deckmaste_construction_core::macro_def::NegativePrefixJoin;
-    use deckmaste_lexical::{Category, Countability, Onset, Source, SourceKind, SurfaceStructure};
+    use deckmaste_lexical::Category;
+    use deckmaste_lexical::Countability;
+    use deckmaste_lexical::Onset;
+    use deckmaste_lexical::Source;
+    use deckmaste_lexical::SourceKind;
+    use deckmaste_lexical::SurfaceStructure;
+
+    use super::*;
 
     fn source() -> Source {
         Source {
@@ -1052,8 +1065,12 @@ mod adjective_class_tests {
 
 #[cfg(test)]
 mod participial_adjective_tests {
+    use deckmaste_lexical::Category;
+    use deckmaste_lexical::LexicalProperties;
+    use deckmaste_lexical::SourceKind;
+    use deckmaste_lexical::WordForm;
+
     use super::*;
-    use deckmaste_lexical::{Category, LexicalProperties, SourceKind, WordForm};
 
     #[test]
     fn final_verb_forms_supply_adjectives_without_verbal_features() {

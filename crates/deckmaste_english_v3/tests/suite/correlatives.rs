@@ -108,7 +108,8 @@ fn imperative(owner: &str) -> Reading {
 }
 
 fn mana(name: &str) -> Reading {
-    Reading::ManaPhrase {
+    Reading::SymbolSequence {
+        category: Category::ManaPhrase,
         form: 0,
         first: Box::new(Reading::NamedManaSymbol {
             form: 0,
@@ -127,6 +128,7 @@ fn keyword(name: &str) -> Reading {
 
 fn infinitive(owner: &str) -> Reading {
     Reading::ToInfinitive {
+        category: Category::InfinitiveComplement,
         form: 0,
         marker: word("vocab:InfinitivalMarker/To"),
         predicate: Box::new(Reading::BarePredicate {

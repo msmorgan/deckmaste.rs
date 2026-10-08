@@ -221,6 +221,17 @@ A nonfinite Clause with a plain-form verb and without the infinitival
 Subordinator *to* (CGEL, Ch. 14 §1.1, pp. 1173–1174).
 _Avoid_: treating the plain Word Form alone as evidence of Finiteness
 
+**Hollow Infinitival**:
+A nonfinite Clause with a non-Subject Gap linked to an Antecedent outside it;
+a hollow *to*-infinitival can be an internal Complement whose Object Gap is
+linked to the matrix Subject (CGEL, Ch. 14 §6.3(c), p. 1250).
+
+**Measure Modifier Use** (project term):
+A comparative head's declared permission to take a measure as a degree Modifier.
+Its application to mana notation is the
+[cost-scalar-complement project analysis](../../tickets/done/english-v3-cost-scalar-complement.md#project-analysis),
+not a mana-symbol analysis supplied by CGEL.
+
 **Catenative Construction**:
 A Construction in which a verb selects a nonfinite internal Complement.
 The complex Construction contains an intervening Noun Phrase between the

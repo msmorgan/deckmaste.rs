@@ -107,7 +107,8 @@ fn independent_uncoordinated_phrase_primitives_roundtrip() {
         form: 0,
         head: numeral(3, Numeral::Arabic(false)),
     };
-    let mana = Reading::ManaPhrase {
+    let mana = Reading::SymbolSequence {
+        category: Category::ManaPhrase,
         form: 0,
         first: Box::new(Reading::NamedManaSymbol {
             form: 0,
@@ -148,6 +149,7 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
     let mut attack = word("core-verb:Attack", WordForm::Plain, None);
     attack.frame = Some(0);
     let infinitive = Reading::ToInfinitive {
+        category: Category::InfinitiveComplement,
         form: 0,
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant, None),
         predicate: Box::new(Reading::BarePredicate {

@@ -52,6 +52,28 @@ expressions, including comparatives (*a great deal smaller*; Ch. 6, §3.2, p.
 settle from the declarations and to record; CGEL does not analyse this
 mana-symbol string.
 
+## Project analysis
+
+The mana phrase in *{1} less/more* is a degree Modifier of the comparative
+Determinative; the whole phrase supplies one Scalar Location Complement.
+This uses the existing Determinative identities for *less* and *more*, retaining
+the independently licensed Adjective *less* for its other uses. CGEL, Ch. 13
+§4.1.2, pp. 1126–1127 distinguishes comparative degree Determinatives from
+adjectival *less*. CGEL, Ch. 5 §11(c), p. 431 describes degree modification
+of Determinatives, and Ch. 6 §3.2, p. 549 describes measure/degree NP Modifiers
+of Adjectives. Applying that distribution to the mana notation in this
+Complement is this project's analysis; none of those passages analyses *{1} less*.
+The plain mana phrase is also a Scalar Location Complement. The existing
+CostSymbols notation supplies these measures, including generic, variable,
+colored and mixed-symbol amounts; the narrower ManaPhrase notation used for
+mana production is unchanged.
+
+The optional hollow infinitival is a selected internal Complement, with its
+Object Gap linked to the matrix Subject by the selected frame. It contains the
+existing plain-form Object-Gap predicate; it neither supplies a purpose Adjunct
+nor inserts an ordinary Object into the infinitival. CGEL, Ch. 14 §6.3(c),
+p. 1250 supports the hollow Complement of *cost* and the Subject linkage.
+
 ## Witnesses
 
 Each witness's failing units all match this construction and no other recon

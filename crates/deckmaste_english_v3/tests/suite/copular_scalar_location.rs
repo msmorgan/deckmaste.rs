@@ -149,7 +149,8 @@ fn scalar_location(possessor: &str, value: Reading) -> Reading {
 }
 
 fn scalar(value: i32) -> Reading {
-    Reading::ScalarPropertyMeasure {
+    Reading::ScalarMeasureValue {
+        category: Category::ScalarValue,
         form: 0,
         value: Box::new(Reading::UngroupedScalarNumeral {
             form: 0,

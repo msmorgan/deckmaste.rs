@@ -261,7 +261,8 @@ fn authentic_recipient_clusters_keep_independent_complete_sentence_structures() 
             form: 0,
             first: Box::new(Reading::SymbolCost {
                 form: 0,
-                symbols: Box::new(Reading::CostSymbols {
+                symbols: Box::new(Reading::SymbolSequence {
+                    category: Category::CostSymbols,
                     form: 0,
                     first: Box::new(Reading::NamedCostSymbol {
                         form: 0,
@@ -473,7 +474,8 @@ fn symbol_cost(symbols: Vec<Reading>) -> Reading {
     let mut symbols = symbols.into_iter();
     Reading::SymbolCost {
         form: 0,
-        symbols: Box::new(Reading::CostSymbols {
+        symbols: Box::new(Reading::SymbolSequence {
+            category: Category::CostSymbols,
             form: 0,
             first: Box::new(symbols.next().unwrap()),
             rest: symbols.collect(),

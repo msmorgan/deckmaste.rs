@@ -300,7 +300,8 @@ fn independent_amount_complement_consumes_its_frame_without_losing_countability(
         WordForm::Invariant,
         FeatureBundle::default(),
     );
-    let symbols = Reading::CostSymbols {
+    let symbols = Reading::SymbolSequence {
+        category: Category::CostSymbols,
         form: 0,
         first: Box::new(Reading::NamedCostSymbol {
             form: 0,
@@ -879,7 +880,8 @@ fn independent_keyword_collection_preserves_parameters_separators_and_leaf_ident
     value.capitalization = SurfaceCase::Initial;
     let ward = head("lexeme:keyword_ability/ward");
     let tap = head("vocab:FixedCostSymbol/Tap");
-    let symbols = Reading::CostSymbols {
+    let symbols = Reading::SymbolSequence {
+        category: Category::CostSymbols,
         form: 0,
         first: Box::new(Reading::NumericCostSymbol {
             form: 0,

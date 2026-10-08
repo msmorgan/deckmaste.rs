@@ -55,7 +55,8 @@ fn cardinal(value: i32) -> Reading {
 }
 
 fn mana(owner: &str) -> Reading {
-    Reading::ManaPhrase {
+    Reading::SymbolSequence {
+        category: Category::ManaPhrase,
         form: 0,
         first: Box::new(Reading::NamedManaSymbol {
             form: 0,

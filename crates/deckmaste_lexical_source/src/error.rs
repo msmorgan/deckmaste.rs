@@ -1,5 +1,6 @@
-use deckmaste_lexical::WordForm;
 use std::path::PathBuf;
+
+use deckmaste_lexical::WordForm;
 
 /// Failure to load or reconcile authored lexical declarations.
 #[derive(Debug, thiserror::Error)]

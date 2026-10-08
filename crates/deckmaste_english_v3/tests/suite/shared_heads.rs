@@ -521,6 +521,7 @@ fn independent_shared_cardinal_and_infinitive_complements_preserve_selected_cate
         form: 0,
         head: Box::new(coordinate(head.clone(), head)),
         complement: Box::new(Reading::ToInfinitive {
+            category: Category::InfinitiveComplement,
             form: 0,
             marker: word(
                 "vocab:InfinitivalMarker/To",

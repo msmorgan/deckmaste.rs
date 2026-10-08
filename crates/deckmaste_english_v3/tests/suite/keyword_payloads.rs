@@ -92,7 +92,8 @@ fn scalar(value: i32) -> Reading {
     }
 }
 fn cost(first: Reading, rest: Vec<Reading>) -> Reading {
-    Reading::CostSymbols {
+    Reading::SymbolSequence {
+        category: Category::CostSymbols,
         form: 0,
         first: Box::new(first),
         rest,

@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use crate::LoadError;
 use deckmaste_construction_core::macro_def as metadata;
 use deckmaste_lexical::Binding;
 use deckmaste_lexical::Capitalization;
@@ -19,6 +18,7 @@ use deckmaste_lexical::SourceKind;
 use deckmaste_lexical::WordForm;
 
 use crate::LexicalSources;
+use crate::LoadError;
 use crate::compound::Declaration as PendingCompoundNoun;
 use crate::source;
 
