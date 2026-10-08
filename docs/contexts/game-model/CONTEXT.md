@@ -158,6 +158,18 @@ keyword represents one on an instant or sorcery Spell, guarded by that Card
 Class ([CR#702.131a,702.174b]).
 _Avoid_: Ability Class, which names the families a grant or a removal selects
 
+**Stack Regime** (project term):
+When an Ability matters relative to a Spell on the stack: as the Spell is
+cast, or as it resolves; an Ability with neither functions off the stack. Each
+component Ability of a Keyword Ability's definition carries its own, the one
+its keyword's rule gives it: kicker's additional cost is cast-time
+([CR#702.33a]), offspring's second Ability triggers on the battlefield
+([CR#702.175a]), casualty's on the stack ([CR#702.153a]), and an instant or
+sorcery Spell's Spell Ability is followed as it resolves ([CR#113.3a]). A
+keyword's own regime, read where it is granted to a Spell, is the first among
+its components'.
+_Avoid_: Regime alone where a number's clamped/signed regime could be meant
+
 **Keyword Ability**:
 An Ability represented in rules text by a keyword whose game rule supplies its
 meaning ([CR#702.1]). One keyword name may represent multiple component

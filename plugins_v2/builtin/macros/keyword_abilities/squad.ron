@@ -10,7 +10,6 @@ KeywordAbility(
     // paid, create a token that's a copy of it for each time its squad cost was paid."
     // [CR#702.157a] `StaticSpec::AddedCost` carries a cost and an `offered` flag and no
     // repetition count, so "any number of times" cannot be written (the cause Replicate
-    // shares). Its second ability is separately blocked the way Offspring's is: it is a
-    // triggered ability keyed on entering the battlefield while the keyword's registry
-    // row is `regime: AtCasting`, and `keywordBodyPartFits` requires the two to agree.
+    // shares). Its second ability, an enters trigger, is checked against its own regime
+    // since `lean-keyword-definition-regimes` and no longer blocks it.
 )

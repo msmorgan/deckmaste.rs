@@ -726,9 +726,8 @@ additional-cost keywords share one mechanism"); there is no selector device.
   is declared; a class guard names a class the row admits
   (`onPermanentCard` / `onInstantOrSorceryCard`), so a guard on a class the
   keyword's card can never have is refused; a spell part on a keyword that
-  also appears on permanents is under the instant-or-sorcery guard; a
-  triggered part keys on the row's regime (per part, so
-  `lean-keyword-definition-regimes` can make the regime a per-part fact).
+  also appears on permanents is under the instant-or-sorcery guard; and the
+  part's form admits its own declared regime (below).
 - Each half is checked as a term on every card, with no class context
   (`Ability.checkAll [] body`). Against the card's class, `classAbilityOk`
   checks the parts guarded by that class and skips the parts guarded by the
@@ -737,6 +736,47 @@ additional-cost keywords share one mechanism"); there is no selector device.
 - Pins: `Semantics/Proofs/KeywordByCardClass.lean`. No row declares `.spell`
   until gift or ascend is bodied, so the definition-fit pins hold a
   gift-shaped row of their own.
+
+### Each component of a keyword definition carries its own regime
+
+A keyword definition is a list of components, each carrying the stack regime
+the rules give it (`ComponentFacts`: a category and an `Option StackRegime`,
+`none` where it functions off the stack); `semantics-v2.md` §7, ruling
+2026-10-06 ("Gift and the additional-cost keywords share one mechanism").
+Kicker is the one-component case [CR#702.33a]; offspring and squad pair a
+cost at casting with an enters trigger [CR#702.175a,702.157a]; casualty's
+second ability is a cast trigger [CR#702.153a]; gift's is an enters trigger on
+a permanent and a spell ability on an instant or sorcery
+[CR#702.174a,702.174b]. Nothing is exempt: every part of a written definition
+must be a declared component of its category whose regime its form admits
+(`Ability.regimeFits`).
+
+- **Form-determined.** A triggered ability keys on its event's regime
+  (`bodyEventRegime`: a cast event at casting, any other off the stack); a
+  spell ability is at resolution [CR#113.3a]; an additional cost or a cost
+  change is at casting [CR#601.2f]; an activated ability and any other static
+  ability are off the stack.
+- **Open, declared.** A permission to cast the card (`altCost`, or a
+  `deonticRule` permitting with a `play` rider) admits either at casting or off
+  the stack, never at resolution: such an ability functions on the stack
+  unless it states its zones, and the keyword's own rule says which
+  [CR#113.6b,113.6d,702.34a,702.117a]. The facts generator takes such a
+  component's regime from the overlay's `open_regimes` (surge, spectacle,
+  web-slinging and impending declare at casting
+  [CR#702.117a,702.137a,702.188a,702.176a]; the rest default off the stack)
+  and refuses an entry for a component whose form determines its regime.
+- **The row's `regime`** stays the keyword's own regime, read where it is
+  granted to a spell (`grantSubjectFits`) [CR#113.6]. For a keyword whose
+  definition is declared it is the summary of the components (the first
+  stack regime among them, `ComponentFacts.summary`); the generator refuses a
+  disagreeing overlay value and `Proofs/Tables`
+  (`everyDefinedKeywordRegimeIsItsComponentsSummary`) pins it.
+- A part whose declared regime does not fit its form is a term-shape matter
+  (charter, §7 2026-10-06), not a game-rule refusal: it is refused as
+  `keywordBodyFits`, as before.
+- Pins: `Semantics/Proofs/KeywordDefinitionRegimes.lean`. Impending's
+  end-step trigger now fits its own component; its twin under the old single
+  casting regime is refused.
 
 ### The player chosen as a cost was paid
 
