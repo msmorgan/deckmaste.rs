@@ -1134,6 +1134,19 @@ referents.
 The grammatical feature distinguishing singular and plural values where
 English grammar requires the distinction.
 
+**Determiner Agreement Number** (project term):
+The Number a singular-selecting Determiner fixes for its Noun Phrase even
+when its Nominal head is coordinated. Other Determiners allow Nominal
+Agreement Number through ([owner ruling, 2026-10-08](../../tickets/done/english-v3-coordinated-subject-agreement.md#analysis));
+CGEL, Ch. 5 §18.4(a), p. 508 [28] describes singular agreement for
+coordinated NPs containing distributive *each* or *every*.
+
+**Nominal Agreement Number** (project term):
+The Number a Nominal contributes to its containing Noun Phrase's Agreement,
+which can differ from the coordinates' Number used for shared Determiner
+selection. The additive plural restriction in Oracle English is the
+[coordinated-subject project analysis](../../tickets/done/english-v3-coordinated-subject-agreement.md#analysis).
+
 **Concord Class** (project term):
 A derived morphological equivalence class used to choose a finite agreeing
 form, initially third-person singular versus other.

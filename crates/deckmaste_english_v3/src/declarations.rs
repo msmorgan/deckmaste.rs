@@ -15,6 +15,8 @@ constructions! {
         feature DegreeUse { Head, Modifier }
         feature DeterminerRequirement { No, Yes } default No;
         feature NumberTransparency { No, Yes } default No;
+        feature NominalAgreementNumber { Head, Plural } default Head;
+        feature DeterminerAgreementNumber { Nominal, Singular } default Nominal;
         feature QuantificationalDeterminer { No, Yes } default No;
         feature ObliqueMarker { No, Yes } default No;
         feature ObliqueNumber { None, Singular, Plural } default None;
@@ -278,7 +280,7 @@ constructions! {
         category BareComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence);
         category ParticipialComplement(PurposeAdjunctLicence, MatrixComplementLicence);
         category PerfectComplement(PurposeAdjunctLicence, MatrixComplementLicence);
-        category Nominal(number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
+        category Nominal(number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation, SourceModifierPresent);
         category VerbalPremodifier();
@@ -377,7 +379,7 @@ constructions! {
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
-            number, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
+            number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation
         , SourceModifierPresent);
@@ -507,6 +509,23 @@ constructions! {
             (Alternative, Plural, Plural) => Plural,
         }
 
+        // The ticket's corpus restriction retires single-referent additive
+        // Subject agreement; each coordinate keeps its determiner-selection Number.
+        table coordinated_nominal_agreement(CoordinationKind, NominalAgreementNumber)
+            -> NominalAgreementNumber {
+            (Additive, Head) => Plural, (Additive, Plural) => Plural,
+            (Alternative, Head) => Head, (Alternative, Plural) => Plural,
+        }
+        table nominal_agreement_number(NominalAgreementNumber, number) -> number {
+            (Head, Singular) => Singular, (Head, Plural) => Plural,
+            (Plural, Singular) => Plural, (Plural, Plural) => Plural,
+        }
+
+        table nominal_relative_agreement(NominalAgreementNumber, number, number) -> Selection {
+            (Head, Singular, Singular) => Yes, (Head, Plural, Plural) => Yes,
+            (Plural, Singular, Plural) => Yes, (Plural, Plural, Plural) => Yes,
+        }
+
         table coordinate_person(CoordinationKind, person, person) -> person {
             (Additive, First, First) => First,
             (Additive, First, Second) => First,
@@ -589,29 +608,50 @@ constructions! {
         // CGEL Ch. 5 §§3.3, 18.2: the oblique controls concord only in the
         // declared quantificational use; the syntactic head keeps its Number.
         table quantificational_number(QuantificationalDeterminer, NumberTransparency,
-            ObliqueNumber, number) -> number {
-            (No, No, None, Singular) => Singular,
-            (No, No, None, Plural) => Plural,
-            (No, No, Singular, Singular) => Singular,
-            (No, No, Singular, Plural) => Plural,
-            (No, No, Plural, Singular) => Singular,
-            (No, No, Plural, Plural) => Plural,
-            (No, Yes, None, Singular) => Singular,
-            (No, Yes, None, Plural) => Plural,
-            (No, Yes, Singular, Singular) => Singular,
-            (No, Yes, Singular, Plural) => Plural,
-            (No, Yes, Plural, Singular) => Singular,
-            (No, Yes, Plural, Plural) => Plural,
-            (Yes, No, None, Singular) => Singular,
-            (Yes, No, None, Plural) => Plural,
-            (Yes, No, Singular, Singular) => Singular,
-            (Yes, No, Singular, Plural) => Plural,
-            (Yes, No, Plural, Singular) => Singular,
-            (Yes, No, Plural, Plural) => Plural,
-            (Yes, Yes, None, Singular) => Singular,
-            (Yes, Yes, None, Plural) => Plural,
-            (Yes, Yes, Plural, Singular) => Plural,
-            (Yes, Yes, Plural, Plural) => Plural,
+            ObliqueNumber, number, NominalAgreementNumber, DeterminerAgreementNumber) -> number {
+            (No, No, None, Singular, Head, Nominal) => Singular,
+            (No, No, None, Plural, Head, Nominal) => Plural,
+            (No, No, Singular, Singular, Head, Nominal) => Singular,
+            (No, No, Singular, Plural, Head, Nominal) => Plural,
+            (No, No, Plural, Singular, Head, Nominal) => Singular,
+            (No, No, Plural, Plural, Head, Nominal) => Plural,
+            (No, Yes, None, Singular, Head, Nominal) => Singular,
+            (No, Yes, None, Plural, Head, Nominal) => Plural,
+            (No, Yes, Singular, Singular, Head, Nominal) => Singular,
+            (No, Yes, Singular, Plural, Head, Nominal) => Plural,
+            (No, Yes, Plural, Singular, Head, Nominal) => Singular,
+            (No, Yes, Plural, Plural, Head, Nominal) => Plural,
+            (Yes, No, None, Singular, Head, Nominal) => Singular,
+            (Yes, No, None, Plural, Head, Nominal) => Plural,
+            (Yes, No, Singular, Singular, Head, Nominal) => Singular,
+            (Yes, No, Singular, Plural, Head, Nominal) => Plural,
+            (Yes, No, Plural, Singular, Head, Nominal) => Singular,
+            (Yes, No, Plural, Plural, Head, Nominal) => Plural,
+            (Yes, Yes, None, Singular, Head, Nominal) => Singular,
+            (Yes, Yes, None, Plural, Head, Nominal) => Plural,
+            (Yes, Yes, Plural, Singular, Head, Nominal) => Plural,
+            (Yes, Yes, Plural, Plural, Head, Nominal) => Plural,
+            (No, No, None, Singular, Plural, Nominal) => Plural, (No, No, None, Plural, Plural, Nominal) => Plural,
+            (No, No, Singular, Singular, Plural, Nominal) => Plural, (No, No, Singular, Plural, Plural, Nominal) => Plural,
+            (No, No, Plural, Singular, Plural, Nominal) => Plural, (No, No, Plural, Plural, Plural, Nominal) => Plural,
+            (No, Yes, None, Singular, Plural, Nominal) => Plural, (No, Yes, None, Plural, Plural, Nominal) => Plural,
+            (No, Yes, Singular, Singular, Plural, Nominal) => Plural, (No, Yes, Singular, Plural, Plural, Nominal) => Plural,
+            (No, Yes, Plural, Singular, Plural, Nominal) => Plural, (No, Yes, Plural, Plural, Plural, Nominal) => Plural,
+            (Yes, No, None, Singular, Plural, Nominal) => Plural, (Yes, No, None, Plural, Plural, Nominal) => Plural,
+            (Yes, No, Singular, Singular, Plural, Nominal) => Plural, (Yes, No, Singular, Plural, Plural, Nominal) => Plural,
+            (Yes, No, Plural, Singular, Plural, Nominal) => Plural, (Yes, No, Plural, Plural, Plural, Nominal) => Plural,
+            (Yes, Yes, None, Singular, Plural, Nominal) => Plural, (Yes, Yes, None, Plural, Plural, Nominal) => Plural,
+            (Yes, Yes, Singular, Singular, Plural, Nominal) => Plural, (Yes, Yes, Singular, Plural, Plural, Nominal) => Plural,
+            (Yes, Yes, Plural, Singular, Plural, Nominal) => Plural, (Yes, Yes, Plural, Plural, Plural, Nominal) => Plural,
+            // Owner ruling (2026-10-08): singular-selecting Determiners fix
+            // Agreement across Nominal coordination. CGEL p. 508 [28] supports
+            // singular agreement for coordinated NPs containing each/every.
+            (No, No, None, Singular, Head, Singular) => Singular, (No, No, None, Singular, Plural, Singular) => Singular,
+            (No, No, Singular, Singular, Head, Singular) => Singular, (No, No, Singular, Singular, Plural, Singular) => Singular,
+            (No, No, Plural, Singular, Head, Singular) => Singular, (No, No, Plural, Singular, Plural, Singular) => Singular,
+            (No, Yes, None, Singular, Head, Singular) => Singular, (No, Yes, None, Singular, Plural, Singular) => Singular,
+            (No, Yes, Singular, Singular, Head, Singular) => Singular, (No, Yes, Singular, Singular, Plural, Singular) => Singular,
+            (No, Yes, Plural, Singular, Head, Singular) => Singular, (No, Yes, Plural, Singular, Plural, Singular) => Singular,
         }
 
         table quantificational_scalar_denotation(QuantificationalDeterminer,
@@ -757,6 +797,7 @@ constructions! {
         }
 
         policy NominalHeadFeatures {
+            export NominalAgreementNumber = head.NominalAgreementNumber;
             export BarePrepositionUse = head.BarePrepositionUse;
             export NominalComplementMarker = head.NominalComplementMarker;
             export DeterminerRequirement = head.DeterminerRequirement;
@@ -777,6 +818,7 @@ constructions! {
         }
 
         policy PostmodifiedNominalProperties {
+            export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = nominal_source_modifier(head.SourceModifierPresent, modifier.SourceMarker);
             export BarePrepositionUse = head.BarePrepositionUse;
@@ -904,7 +946,7 @@ constructions! {
             export SubjectStructure = Phrase;
             export BareGenitiveHost = head.BareGenitiveHost;
             export Targeting = head.Targeting;
-            export number = head.number;
+            export number = nominal_agreement_number(head.NominalAgreementNumber, head.number);
             export person = Third;
             export CaseUse = Common;
         }
@@ -916,6 +958,7 @@ constructions! {
         }
 
         policy UnmodifiedNominalProperties {
+            export NominalAgreementNumber = Head;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
             export BarePrepositionUse = head.BarePrepositionUse;
@@ -1068,6 +1111,8 @@ constructions! {
             (Yes, Yes) => Yes, (No, No) => No, (No, Yes) => No, (Yes, No) => No,
         }
         policy NominalConcord<Right, Source> {
+            export NominalAgreementNumber = coordinated_nominal_agreement(
+                Source.CoordinationKind, Right.NominalAgreementNumber);
             export ScalarDenotation = coordinated_scalar_denotation(left.ScalarDenotation, Right.ScalarDenotation);
             export SelectedPrepositionUse = selected_preposition_concord(left.SelectedPrepositionUse,
                 Right.SelectedPrepositionUse);
@@ -2318,6 +2363,7 @@ constructions! {
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
         // an outer Determiner; without it the cardinal is the Determiner.
         construction CardinalPremodifiedNominal: Nominal {
+            export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
             export BarePrepositionUse = No;
@@ -2345,6 +2391,7 @@ constructions! {
         // not acquire a bare count-plural use. CGEL Ch. 5 §3.4, p. 354
         // distinguishes the singular conceptualization of a measured quantity.
         construction CardinalMeasuredNominal: Nominal {
+            export NominalAgreementNumber = Head;
             export ScalarDenotation = Yes;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
@@ -2455,6 +2502,7 @@ constructions! {
         }
 
         construction TargetedNominal: Nominal {
+            export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
             export BarePrepositionUse = No;
@@ -2564,7 +2612,8 @@ constructions! {
             require determiner_license(determiner.DeterminerUse, head.number,
                 head.countability) = Yes;
             export number = quantificational_number(determiner.QuantificationalDeterminer,
-                head.NumberTransparency, head.ObliqueNumber, head.number);
+                head.NumberTransparency, head.ObliqueNumber, head.number, head.NominalAgreementNumber,
+                determiner.DeterminerAgreementNumber);
             use ThirdPersonCommonCase;
         }
 
@@ -2578,7 +2627,11 @@ constructions! {
             require head.number = Singular;
             require head.countability = Count;
             agree determiner.article_onset = head.onset;
-            use NounPhraseHeadAgreement;
+            export number = determiner.number;
+            export ScalarDenotation = head.ScalarDenotation;
+            export Targeting = head.Targeting;
+            export BareGenitiveHost = head.BareGenitiveHost;
+            use ThirdPersonCommonCase;
         }
 
         table bare_noun_phrase_license(number, countability) -> Selection {
@@ -2618,7 +2671,7 @@ constructions! {
             require head.Targeting = No;
             require head.number = Singular;
             require head.DeterminerRequirement = No;
-            export number = head.number;
+            export number = nominal_agreement_number(head.NominalAgreementNumber, head.number);
             use ThirdPersonCommonCase;
             export Targeting = Yes;
         }
@@ -3404,7 +3457,7 @@ constructions! {
             use NominalHeadProperties;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export SourceModifierPresent = head.SourceModifierPresent;
-            agree head.number = relative.number;
+            require nominal_relative_agreement(head.NominalAgreementNumber, head.number, relative.number) = Yes;
         }
 
         construction FiniteObjectGap: FiniteObjectGap {
@@ -3794,7 +3847,7 @@ constructions! {
             require head.DeterminerRequirement = No;
             require head.Targeting = No;
             require head.number = Singular;
-            export number = Singular;
+            export number = nominal_agreement_number(head.NominalAgreementNumber, head.number);
             use ThirdPersonCommonCase;
         }
 

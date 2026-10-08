@@ -24,6 +24,8 @@ mod combat_intervals;
 mod comparative_complements;
 #[path = "suite/comparative_quantities.rs"]
 mod comparative_quantities;
+#[path = "suite/coordinated_subject_agreement.rs"]
+mod coordinated_subject_agreement;
 #[path = "suite/copular_scalar_location.rs"]
 mod copular_scalar_location;
 #[path = "suite/correlative_adjectives.rs"]
