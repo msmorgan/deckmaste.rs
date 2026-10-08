@@ -40,11 +40,15 @@ A Token with a front face and a back face, each a full characteristics set, as
 the Incubator is ([CR#111.10i,701.53b]). It transforms as a double-faced
 permanent does; it is not a Card.
 
-**Face-Down Characteristics**:
-The characteristics an instruction lists for an Object it turns face down
-or puts onto the battlefield face down — for manifest and cloak a 2/2
-creature with no name, subtypes or mana cost ([CR#708.2,701.40a,701.58a]). The
-Object has those and no others while it stays face down.
+**Face-Down**:
+The state of a card or Object turned face down, given by an optional set of
+characteristics. With none, it is a card exiled face down, which has no
+characteristics and no status ([CR#406.3a,110.5d]). With a set, it is a
+face-down Spell or Permanent whose listed characteristics are its copiable
+values — for manifest and cloak a 2/2 creature with no name, subtypes or mana
+cost ([CR#708.2,701.40a,701.58a]). Turning it face up restores its normal
+copiable values ([CR#708.8]). A face-down Object is never a Token.
+_Avoid_: Face-Down Characteristics, for the state; face-down token
 
 **Spell**:
 A card, copy of a card, or copy of a spell on the stack as specified by
@@ -272,7 +276,10 @@ _Avoid_: action, for the procedure itself — the Action is the Deed it names
 **Special Action**:
 An Action a Player may take while they have priority that does not use the stack
 ([CR#116.1]). The game does not generate it, which is what separates it from a
-Turn-Based Action and a State-Based Action.
+Turn-Based Action and a State-Based Action. One that an ability or effect
+grants is a cost paid and an instruction carried out, any time its Player has
+priority within an optional Timing — foretell's is paying {2} and exiling the
+card face down during its owner's turn ([CR#116.2c,116.2h]).
 
 **Turn-Based Action**:
 An Action that happens automatically when a Step or Phase begins, or when one
@@ -344,6 +351,15 @@ Targets are initially chosen while putting that Spell or Ability on the stack
 A rules-defined place where Objects can be during a game ([CR#400.1]). Players
 are not in Zones.
 
+**Pile**:
+An ordered group of cards grouped together in a zone, never itself an Object
+([CR#700.3,700.3b]): a library (face down, [CR#401.2]), a graveyard (face up,
+[CR#404.2]), or a pile an effect makes, such as face-down cards in exile
+([CR#406.4]). Grouping does not move the cards or change their order
+([CR#700.3c]). A Pile is face down or face up, and that face, not the zone,
+decides who may look at it.
+_Avoid_: Object, for the pile itself
+
 **Owner**:
 The Player determined for a card by [CR#108.3] and for other Objects by the
 applicable CR rules. Ownership is not a Characteristic.
@@ -394,6 +410,15 @@ five colors of Mana and six types of it, colorless included
 **Cost**:
 An action or payment necessary to take another action, or to stop another action
 from taking place ([CR#118.1]).
+
+**Mana Substitute**:
+An action on an Object a Player may take rather than pay one generic or colored
+mana of a cost, the paid mana read from the acted-on Object — convoke, delve,
+improvise and waterbend ([CR#702.51a,702.66a,702.126a,701.67a]). On a Spell it
+applies after the total cost is locked and is neither an additional nor an
+alternative cost ([CR#702.51b]); on a named cost it pays only that cost's
+generic mana ([CR#701.67b]).
+_Avoid_: alternative cost, additional cost
 
 **Card Face**:
 A set of printed characteristics that the CR calls a card face. Split cards
@@ -586,8 +611,32 @@ _Avoid_: separate gain/lose and raise/lower vocabularies per property
 **Duration** (project term):
 The span a Continuous Effect created by a one-shot lasts, and the span for which
 a Static Spec is put in force. A stated Duration is what ends the Effect; with
-none stated it lasts until the game ends ([CR#611.2a]).
+none stated it lasts until the game ends ([CR#611.2a]). It is either bounded by
+two optional Events — "until end of turn" has only an end, "on a later turn"
+only a start ([CR#702.170d]) — or lasts for as long as a condition holds
+([CR#611.2b]). A history window ("this turn", "last turn") is a Duration that
+ends now.
 _Avoid_: span, window
+
+**Timing** (project term):
+When a Player may act, or when a trigger or replacement applies: during a Phase
+or Step of a Turn named by a Turn Reference, before or after an Event, while an
+Event is underway, or only if a condition holds, combined with and, or and not.
+"Only as a sorcery" is a Timing ([CR#307.5]); with no Timing written, a Player
+may act any time they have priority ([CR#117.1a]).
+_Avoid_: window
+
+**Turn Reference** (project term):
+Which Turn a Timing or Duration names: the current Turn, the previous one, a
+Player's next Turn, each of a Player's Turns, a later Turn ([CR#702.170d]), or
+the Turn an earlier phrase named.
+_Avoid_: this turn, as a reference — "this" names an Object
+
+**Usage Limit** (project term):
+How many times something may be done per Turn, per one of its Player's Turns,
+per Phase or Step, or per game ([CR#602.5b]). An Event's ordinal ("the second
+spell each turn") is not a Usage Limit.
+_Avoid_: rank, ordinal
 
 **Decision Point** (project term):
 An engine boundary at which progress waits for an external agent to supply a
