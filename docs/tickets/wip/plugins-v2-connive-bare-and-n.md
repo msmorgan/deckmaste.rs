@@ -73,3 +73,57 @@ it to a live ticket rather than widening this one.
 `cargo xtask expansions`: the diff is limited to the two declarations and
 the re-spelled canon cards. The facts check passes with one `connive` row.
 `cargo xtask gate --changed --run` passes; state the command.
+
+## Landing record
+
+Series on claim `twnmsonp`, oldest first: `lwyuqtss` (the two declarations,
+the facts generator reading deeds, Unstable Experiment, the pins), then this
+record with the residue routing. Stage (b) has no commit of its own: changing
+`connive` to take no parameters makes `connive(1)` fail to load, so the one
+canon site (Unstable Experiment, now `connive`) moved with stage (a).
+`plugins_v2/testing` and every other canon card write no connive.
+
+**Shape.** `conniveN` (`params: [Amount]`, `MeasureComplement`) carries the
+body [CR#701.50d] and writes `deed: connive`. `connive` (`params: []`,
+`Intransitive`) writes `deed: None` and body `conniveN(1)` [CR#701.50a]. Both
+forms enact one `Deed.action "connive"` [CR#701.50f]: bare connive expands to
+a single `Enact` (checked in its expansion and in Unstable Experiment's
+generated Lean term). The facts table keeps one `connive` row:
+`keywordActionLabels` is now built from the deed each declaration enacts
+(`facts/lean.rs` `keyword_action_deeds`, reading the loaded `Enact` verb;
+a declaration with no `Enact` wrapper keeps its own name), so it is byte
+identical, with no `conniveN` row. `cargo xtask facts labels` reads the same
+list (it had read the stub file names and failed on `conniveN`).
+
+**Spelling, owed.** `conniveN`'s spelling is the bare head `"connive"`:
+`builtin_v2_keyword_actions.rs` demands one literal spelling part. Writing
+`"connive <Param(0)>"` is owed to `builtin-v2-keyword-spelling-templates`.
+
+**Connive 0.** `conniveN(0)` still enacts the `connive` deed (the loader
+wraps every amount), against [CR#701.50e]. Routed to
+`semantics-v2-keyword-action-residues`, together with the `conniveN` name
+read at `Deed` (an `Action("conniveN")` nothing enacts, refused only by
+`knownAct`).
+
+**PROVE** (on `lwyuqtss`, refreshed). `cargo xtask lean check`: canon 134/134,
+testing 7/7. Lean build: 83 jobs, no errors. `cargo xtask lean definitions`:
+553/553. `facts generate` changes nothing, and `facts check` passes. `cargo
+xtask gate --changed --run` runs `cargo test -p deckmaste_construction_core
+-p deckmaste_lexical_source -p deckmaste_semantics_v2 -p
+deckmaste_construction_v3 -p deckmaste_english_v3 -p xtask`: 1411 passed, 0
+failed, 1 ignored (pre-existing). Clippy `-D warnings` is clean on xtask,
+construction_core and english_v3. Cite checks: 0 non-compliant, 0 stale, and
+the audit diff was read rule by rule. `kanban check` is OK.
+
+**DISCLOSE.** Expansions (`diff -r`): builtin adds `conniveN.expanded`;
+`connive.expanded` changes only in its sample invocation and amount (3 to 1);
+the index goes from 1507 to 1508 declarations. The canon and testing
+expansions are identical. Lexicon export (`lexical --card-name "Black Lotus"
+--export`): `lexeme:keyword_action/connive` goes from `Custom [[], [Amount]]`
+to `Intransitive`; the new `lexeme:keyword_action/conniveN` (lemma `connive`)
+carries the `MeasureComplement` frame (`MeasurePhrase` where it was
+`Amount`). Nothing else changes, and the export accepts the shared head.
+Assurance counts: 0 restored, 1 re-spelled (the connive frame pin, now an
+`Intransitive` pin), 0 ignored, 0 removed. Added: the `conniveN`
+`MeasureComplement` pin, `conniveN` in `EXPECTED_NAMES`, and the English
+pins "Connive." and "This creature connives." No STOPs.

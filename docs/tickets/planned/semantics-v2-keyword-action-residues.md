@@ -23,6 +23,15 @@ mirrored, then the declaration gets its body.
   in), Support.
 - Assemble is Un-set only and stays bodyless permanently; delete the
   declaration if english_v3 does not need its spelling.
+- Connive 0 makes no connive event [CR#701.50e], but `conniveN(0)` still
+  enacts the `connive` deed: the loader wraps the body in `Enact` whatever
+  the amount, and no body can say "only if N is greater than 0" around its
+  own wrapper (`plugins-v2-connive-bare-and-n` landing record). The same
+  shape holds for any keyword action whose rule withholds the event at 0.
+  Also from that landing: `conniveN`, like every keyword action, is
+  registered at the `Deed` position as `Action("conniveN")`, a deed nothing
+  enacts and the facts table does not list, so a card writing it loads and
+  is refused only at check (`knownAct`).
 
 `semantics-v1-cutover` deletes `plugins/builtin/macros/action/` wholesale;
 any of the 30 still bodyless at parity is a named loss in that record.
