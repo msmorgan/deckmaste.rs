@@ -1,8 +1,13 @@
+// "Play <card>" [CR#701.18a,701.18b]: play it as a land or cast it as a
+// spell, whichever is appropriate, carried out during resolution as the
+// instruction says (`Procedure`).
 KeywordAction(
     name: "play",
-    spelling: "play",
+    params: [Subject],
+    spelling: "play <Param(0)>",
     grammar: Verb(
         bare: "play",
         frame_set: Transitive,
     ),
+    body: procedure(Play, Param(0), ItsOwnCost),
 )

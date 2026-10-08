@@ -1,10 +1,17 @@
+// "Cast <spell>" [CR#701.5a,701.5b]: take it from the zone it's in, put it on
+// the stack and pay its costs [CR#601.2]. As an instruction it is that
+// procedure carried out during resolution (`Procedure`), paying its own costs;
+// "without paying its mana cost" is `castWithoutPaying`. A permission to cast
+// ("you may cast …" for a duration) is a deontic rule, not this.
 KeywordAction(
     name: "cast",
-    spelling: "cast",
+    params: [Subject],
+    spelling: "cast <Param(0)>",
     grammar: Verb(
         bare: "cast",
         preterite: "cast",
         participle: "cast",
         frame_set: Transitive,
     ),
+    body: procedure(Cast, Param(0), ItsOwnCost),
 )

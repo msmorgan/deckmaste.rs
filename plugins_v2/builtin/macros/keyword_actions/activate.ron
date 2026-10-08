@@ -1,8 +1,13 @@
+// "Activate <ability>" [CR#701.2a]: put it on the stack and pay its costs
+// [CR#602.1], carried out during resolution as the instruction says
+// (`Procedure`).
 KeywordAction(
     name: "activate",
-    spelling: "activate",
+    params: [Subject],
+    spelling: "activate <Param(0)>",
     grammar: Verb(
         bare: "activate",
         frame_set: Custom(frames: [[], [ObjectNounPhrase]]),
     ),
+    body: procedure(Activate, Param(0), ItsOwnCost),
 )

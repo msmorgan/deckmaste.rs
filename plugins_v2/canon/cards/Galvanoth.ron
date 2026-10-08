@@ -1,0 +1,22 @@
+// "At the beginning of your upkeep, you may look at the top card of your
+// library. You may cast it without paying its mana cost if it's an instant or
+// sorcery spell." [CR#701.5a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Galvanoth",
+        cost: [3, Red, Red],
+        types: [Creature],
+        subtypes: [beast],
+        power: 3,
+        toughness: 3,
+        text: [
+            triggered(
+                beginningOfYour(upkeep),
+                sequentially([
+                    may(lookAt(librarySlice(Top, 1, you))),
+                    may(castWithoutPaying(it, instantOrSorcery)),
+                ]),
+            ),
+        ],
+    ),
+))
