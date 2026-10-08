@@ -52,5 +52,45 @@ increases, 0 lost) and the derived-punctuation-forms pair (1,981 digest-only,
 
 ## Landing record
 
-The six items of `CLAUDE.md` (Feature workflow). No grammar change, so the
-census delta and witness items are the two acceptance comparisons.
+Measured on change `tvyrmynw` (tooling only; no grammar or lexicon change).
+
+1. **Census delta**: none; no corpus input changed. Acceptance comparisons,
+   category counts identical to the reviewers' Python and face-id sets equal:
+   - `negative-common-noun-premodifier/final-faces.json` ->
+     `past-participial-premodifier/after.json` (`ootnvmslqozx`): 32,828
+     compared, 0 lost, 210 gained, 0 decreases, 2 increases (Dream Harvest
+     1584 -> 3168, Tasha's Hideous Laughter 89 -> 178), 0 digest-only;
+     covered 23,658 -> 23,868, Readings 1,672,796 -> 1,840,929. The 210
+     gained ids equal `review-pastpart/gained.json`. Manifest with
+     `--random 50 --seed 20261008`: 262 identities.
+   - `derived-punctuation-forms/before.json` (`oxvkxppy`) ->
+     `derived-punctuation-forms/after.json` (`xtxrnswzolym`): 32,828
+     compared, 0 count changes, 1,981 digest-only; covered 23,460, Readings
+     1,605,559 both sides. Digest-only ids equal that ticket's
+     `comparison.json` change list.
+2. **Witnesses**: the two comparisons above.
+3. **Spot checks**: not applicable (no newly covered faces).
+4. **Deviations and STOPs**: (a) the per-face input is a field projection
+   (`CensusFace`: id, name, face name, analysed-source hash, checked
+   Readings, Readings digest) rather than `report::FaceReport`, because
+   `FaceReport` deserialisation requires every field and stitched reports
+   such as `final-faces.json` carry no run metadata; the manifest reuses
+   `raw_corpus::SelectionRequest`. (b) The 1,981 digest-only pair is the
+   punctuation ticket's own `before.json` (the refreshed base, `oxvkxppy`),
+   not `licence-hygiene/after.json` (that pair gives 107 gained, 1,952
+   digest-only) or `licence-hygiene/refreshed-subset.json` (853 faces, 81
+   digest-only). (c) Source-hash change compares `analyzed_source_sha256`
+   and is reported beside, not instead of, the count category. (d) Seeded
+   sampling uses an in-module SplitMix64 rather than a new dependency. No
+   STOPs; no glossary gap.
+5. **Tests**: `cargo test -p xtask --lib`: 381 passed, 1 ignored
+   (pre-existing). `cargo test -p xtask --tests`: integration
+   `card_names::nickname_catalog_preserves_the_complete_lexical_inventory`
+   fails because the shared `data/gen/catalogs` nickname cache differs from
+   the generated catalog; it reads only `data/` and the lexical sources,
+   neither touched here, so it is environment state, not this landing.
+   `cargo clippy -p xtask --tests -- -D warnings`: clean. Counts: 7 added
+   (`english_v3::diff::tests`), 0 restored, 0 re-spelled, 0 ignored, 0
+   removed.
+6. **Timing**: no census run. One diff of two full 32,828-face reports
+   (punctuation pair): 0.3 s wall, debug build, single thread.

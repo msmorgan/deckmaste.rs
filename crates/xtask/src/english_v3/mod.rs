@@ -1,5 +1,6 @@
 //! Raw supported-corpus census for the generated v3 grammar.
 
+mod diff;
 mod incremental;
 mod probe;
 mod report;
@@ -103,8 +104,10 @@ pub struct EnglishV3Args {
 /// Reports input/output failures and any internal or validation issue, after
 /// writing the report when analysis completed. No Reading is a census result.
 pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
-    if let Some(probe::Command::Probe(args)) = &args.command {
-        return probe::run(args, output);
+    match &args.command {
+        Some(probe::Command::Probe(args)) => return probe::run(args, output),
+        Some(probe::Command::Diff(args)) => return diff::run(args, output),
+        None => {}
     }
     let started = Instant::now();
     let corpus = args.selection.load(&args.data)?;

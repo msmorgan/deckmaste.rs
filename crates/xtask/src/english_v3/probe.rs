@@ -19,6 +19,8 @@ use super::validation::{Issue, Tracing, validate};
 pub enum Command {
     /// Inspect lexical alternatives and retained grammatical readings of a fragment.
     Probe(ProbeArgs),
+    /// Compare two census reports face by face.
+    Diff(super::diff::DiffArgs),
 }
 
 #[derive(Debug, Args)]

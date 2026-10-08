@@ -31,6 +31,23 @@ packed-node/family dump to either format. Missing vocabulary and no readings
 are diagnostic results; internal or validation failures fail the command after
 reporting them.
 
+## Census diff
+
+```sh
+cargo xtask english-v3 diff BEFORE.json AFTER.json [--json OUT] \
+  [--manifest OUT --random N --seed S]
+```
+
+`diff` compares two census reports face by face over the faces present in
+both, so a bounded census diffs against a full one; faces present in only one
+report are counted. It prints analysed-source hash changes, lost (covered to
+no Reading), gained, decreases, increases, digest-only changes (same count,
+different `readings_sha256`), unchanged, and covered faces and total Readings
+before and after, then capped face lists with counts. `--json` writes every
+list uncapped. `--manifest` writes an identity manifest of every count-changed
+face plus `--random N` unchanged covered faces chosen by `--seed`, ready for
+`--identity-manifest`. It always exits 0: a report, not a gate.
+
 ## Raw corpus census
 
 ```sh
