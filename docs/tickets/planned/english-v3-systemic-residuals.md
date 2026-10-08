@@ -468,9 +468,10 @@ is right and this list needs fixing.
   less*, *with mana value X*) by `english-v3-scalar-property-values`; copular
   scalar location by `english-v3-copular-scalar-location`. Spikeshell
   Harrier's *below 1* sentence is not a comparative and stays here. Only-if/only-during
-  is **taken over (2026-10-07)** by `english-v3-focusing-only` (focusing *only* on
-  the clause-final Adjunct); its *only once each turn* frequency case by
-  `english-v3-once-frequency`.
+  is **discharged on licensed hosts (2026-10-07)** by `english-v3-focusing-only`
+  (focusing *only* on the clause-final Adjunct). Independent host failures remain
+  with their owners; final predicative As remains deferred as recorded above.
+  Its *only once each turn* frequency case belongs to `english-v3-once-frequency`.
 
 - Frame-coordination reconciliation (2026-10-06): 42 inherited no-Reading faces
   remain owned here for exact structural cause discrimination: Commune with

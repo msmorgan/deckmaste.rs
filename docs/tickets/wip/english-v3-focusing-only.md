@@ -255,7 +255,9 @@ Manual spot-checks at `urxxrvzrurrtxvvqpmotlxvvtoyvwsrw` / covered **21,701**
   assertion was replaced by a discriminant check.
 - Only-if/only-during/only-before restrictions on already licensed hosts are
   discharged here. Frequency *only once each turn* remains with
-  `english-v3-once-frequency`; missing *declared*, purpose infinitivals,
+  `english-v3-once-frequency`; purpose infinitivals now have the named live owner
+  `english-v3-purpose-infinitival`, minted by the imported wave-3 ticket batch.
+  Missing *declared*,
   possessive *own* and the remaining bare-combat boundary mismatch remain
   residuals, not additions in this ticket. Dosan and Maddening Imp retain
   negative whole-face diagnostics for those independent gaps. Final predicative
@@ -289,7 +291,9 @@ Passed on the reverted feature:
 
 At `urxxrvzrurrtxvvqpmotlxvvtoyvwsrw` / covered **21,701**: **202 constructions
 + 48 shared schemas = 250** before and after; **704 compiled productions** before
-and after. Nonblank declaration lines **3,351 → 3,360**, disclosed rather than
+and after; **327 schema category instances** and **146 declared Categories**
+before and after (`schema-instance-counts.json`). Nonblank declaration lines
+**3,351 → 3,360**, disclosed rather than
 fitted to the final-breadth target. Named inventories in `inventory-before.json`
 and `inventory-reverted.json` are identical: **38,380** spellings, **1,139**
 homographs, **1,092** case-folded homographs, **23** form literals, and **zero**
@@ -314,6 +318,10 @@ Ascend's comment-only change `kqnwnynmsqqollmookxrzwysmurxvzns`; spelling and
 lexical declarations are unchanged (`reverted-refresh-source-proof.json`).
 The measured numbers remain stamped to their measured tree. Evidence is retained
 under `target/english-v3/english-v3-focusing-only/` in default before drop.
+The post-census refresh at review change `kpwzlsustmpunotkvysuouxqnoqmsuuz`
+changed **zero** census snapshot sources (`final-refresh-source-proof.json`);
+imported ticket/context documentation does not alter grammar, lexicon or corpus.
+No post-refresh full census was needed.
 
 ### Complete gained-face inventory
 
