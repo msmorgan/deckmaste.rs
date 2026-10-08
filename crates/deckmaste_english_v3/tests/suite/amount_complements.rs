@@ -171,6 +171,9 @@ fn oracle_numeric_complements_and_agreement() {
         "You scry 3.",
         "This creature scries 3.",
         "Connive 2.",
+        // Bare "connive" is its own declaration, read intransitively.
+        "Connive.",
+        "This creature connives.",
     ] {
         assert!(
             !readings(text, Category::Document).is_empty(),

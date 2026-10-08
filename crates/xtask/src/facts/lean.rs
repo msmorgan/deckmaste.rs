@@ -40,6 +40,7 @@ use deckmaste_semantics_v2::ron::macro_set;
 use deckmaste_semantics_v2::rules::Conferral;
 use deckmaste_semantics_v2::rules::Definition;
 use deckmaste_semantics_v2::words::CardType;
+use deckmaste_semantics_v2::words::Deed;
 use deckmaste_semantics_v2::words::DesignationScope;
 use deckmaste_semantics_v2::words::KeywordLabel;
 use deckmaste_semantics_v2::words::Kind;
@@ -558,33 +559,91 @@ fn keyword_rows(
         .collect()
 }
 
-/// Every keyword-action declaration's checker label, in declaration order.
+/// Every deed a keyword-action declaration enacts, in declaration order: the
+/// checker's keyword action labels.
 ///
-/// The label is the one the declaration's own `Enact` deed carries, which is
-/// the declaration's name verbatim (`collectEvidence`): a keyword action is
-/// named by its declaration name wherever a deed is wanted
-/// (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06).
+/// A declaration's deed is the one its own `Enact` wrapper carries: its name
+/// verbatim (`collectEvidence`), since a keyword action is named by its
+/// declaration name wherever a deed is wanted (`docs/decisions/semantics-v2.md`
+/// §7, ruling 2026-10-06), unless the file names another declaration's deed
+/// (`conniveN` writes `deed: connive`, one event for both forms
+/// [CR#701.50f]), which is then listed once, under that name. A declaration
+/// that names no deed (`deed: None`) or has no body is still named by its
+/// declaration name where a deed is written (`theVerbed(search, One)`), so it
+/// keeps its own label.
 ///
 /// The columns themselves are the checker's own data, hand-written as
 /// `actFacts` in `Check/Words.lean`; this list is what `Proofs/Tables.lean`
 /// pins that table against in both directions, so a declaration added without
 /// a row (or a row left behind by a retired declaration) fails the Lean build.
-fn action_labels(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
+fn action_labels(
+    declarations: &[NormalizedDeclaration],
+    plugin_dir: &Path,
+) -> anyhow::Result<Vec<String>> {
+    Ok(keyword_action_deeds(declarations, plugin_dir)?
+        .iter()
+        .map(|label| quoted(label))
+        .collect())
+}
+
+/// [`action_labels`] unquoted: every deed a keyword-action declaration
+/// enacts, once each, in declaration order.
+pub(super) fn keyword_action_deeds(
+    declarations: &[NormalizedDeclaration],
+    plugin_dir: &Path,
+) -> anyhow::Result<Vec<String>> {
+    let plugin =
+        Plugin::load(plugin_dir).with_context(|| format!("loading {}", plugin_dir.display()))?;
     let mut seen = BTreeSet::new();
     let mut result = Vec::new();
     for declared in declarations
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::KeywordAction)
     {
-        let label = declared.identity().name().to_owned();
-        anyhow::ensure!(
-            seen.insert(label.clone()),
-            "{}: two keyword actions share the checker label {label}",
-            declared.identity().name()
-        );
-        result.push(quoted(&label));
+        let name = declared.identity().name();
+        let label = enacted_deed(&plugin, name)?.unwrap_or_else(|| name.to_owned());
+        if seen.insert(label.clone()) {
+            result.push(label);
+        }
     }
     Ok(result)
+}
+
+/// A keyword action's built definition, read for the deed alone. The
+/// instruction may hold `Param(n)` holes, so it goes past unread here.
+#[derive(Deserialize)]
+#[expect(
+    dead_code,
+    reason = "a field is declared so the reader accepts it and skips its value"
+)]
+enum EnactShape {
+    Enact { verb: Deed, instruction: IgnoredAny },
+}
+
+/// The label of the deed keyword action `name`'s definition enacts, through
+/// `plugin`'s own macros (so a written `deed: connive` resolves to the deed
+/// that name denotes); `None` when the definition is not an `Enact` wrapper
+/// (`deed: None`, or no body).
+fn enacted_deed(plugin: &Plugin, name: &str) -> anyhow::Result<Option<String>> {
+    let declaration = plugin
+        .declarations
+        .get(&(
+            macro_ron::Ident::from(keywords::KEYWORD_ACTION),
+            macro_ron::Ident::from(name),
+        ))
+        .with_context(|| format!("{name}: the plugin registers no such keyword action"))?;
+    let body = declaration.definition.body();
+    if !body.trim_start().starts_with("Enact(") {
+        return Ok(None);
+    }
+    let EnactShape::Enact { verb, .. } = plugin
+        .macros
+        .read_str(body)
+        .with_context(|| format!("reading keyword action {name}'s deed"))?;
+    match verb {
+        Deed::Action { label } => Ok(Some(label)),
+        other => anyhow::bail!("{name}: a keyword action enacts a keyword action deed: {other:?}"),
+    }
 }
 
 fn counter_rows(
@@ -802,7 +861,7 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
         &mut out,
         "keywordActionLabels",
         "KeywordActionLabel",
-        &action_labels(&declarations)?,
+        &action_labels(&declarations, &root.join("plugins_v2/builtin"))?,
     );
     table(
         &mut out,

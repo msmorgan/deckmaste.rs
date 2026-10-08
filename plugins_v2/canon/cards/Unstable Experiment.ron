@@ -12,7 +12,7 @@ SingleFaced(face: (
                     act(target(anyPlayer), draw(1)),
                     act(
                         described(determiner: Target(upTo(1)), predicate: creatureYouControl),
-                        connive(1),
+                        connive,
                     ),
                 ]),
             ),

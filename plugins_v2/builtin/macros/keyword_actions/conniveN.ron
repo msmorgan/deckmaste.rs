@@ -1,0 +1,34 @@
+// "[Permanent] connives N" [CR#701.50d]: connive N is a variant of connive;
+// that permanent's controller draws N cards, discards N cards, then puts a
+// +1/+1 counter on the conniving permanent for each nonland card discarded
+// this way. Bare "connive" is its own declaration (`connive`), whose body is
+// `conniveN(1)`. The permanent "connives" when either process is complete
+// [CR#701.50f], so both forms are one deed: this body is enacted as
+// `connive`'s (`deed: connive`), and `connive` itself names none. The rules
+// instruct the permanent, so, as explore does, a card hands the action to it
+// and the body hands the steps on to `controllerOf(actor)`, inside which
+// "that permanent" is the conniving one. The discarded cards are read back by
+// identity (`discardThenForEachNonland`), so their number is N's; they are
+// cards in hand, written `cardIn(hand)` as the owner settled for Burglar
+// Rat's discard (2026-10-06). The spelling is the bare head until
+// `builtin-v2-keyword-spelling-templates` writes it "connive <Param(0)>".
+KeywordAction(
+    name: "conniveN",
+    params: [Amount],
+    spelling: "connive",
+    grammar: Verb(
+        bare: "connive",
+        frame_set: MeasureComplement,
+    ),
+    deed: connive,
+    body: act(
+        controllerOf(actor),
+        sequentially([
+            draw(Param(0)),
+            discardThenForEachNonland(
+                counted(exactlyOf(Param(0)), cardIn(hand)),
+                putCounters(1, p1p1Counter, that(Permanent)),
+            ),
+        ]),
+    ),
+)

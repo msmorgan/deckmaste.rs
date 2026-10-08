@@ -26,6 +26,7 @@ const EXPECTED_NAMES: &[&str] = &[
     "cloak",
     "collectEvidence",
     "connive",
+    "conniveN",
     "convert",
     "counter",
     "create",
@@ -238,12 +239,21 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
             .all(|surface| surface.text() != "scrys")
     );
 
+    // Bare "connive" [CR#701.50a] and "connive N" [CR#701.50d] are two
+    // declarations sharing the head; the frame selects between them.
     assert_eq!(
         action(&declarations, "connive").grammar().unwrap().recipe(),
         &GrammarRecipe::Verb {
-            frame_set: VerbFrameSet::Custom {
-                frames: vec![vec![], vec![CustomTailAtom::Amount]],
-            },
+            frame_set: VerbFrameSet::Intransitive,
+        }
+    );
+    assert_eq!(
+        action(&declarations, "conniveN")
+            .grammar()
+            .unwrap()
+            .recipe(),
+        &GrammarRecipe::Verb {
+            frame_set: VerbFrameSet::MeasureComplement,
         }
     );
 

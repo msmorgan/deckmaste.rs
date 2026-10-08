@@ -1,29 +1,18 @@
-// "[Permanent] connives N" [CR#701.50a,701.50d]: that permanent's controller
-// draws N cards, discards N cards, then puts a +1/+1 counter on the conniving
-// permanent for each nonland card discarded this way. "Connive" is connive 1,
-// written `connive(1)`, for which this is the rule's own wording
-// [CR#701.50a]. The rules instruct the permanent, so, as explore does, a card
-// hands the action to it and the body hands the steps on to
-// `controllerOf(actor)`, inside which "that permanent" is the conniving one.
-// The discarded cards are read back by identity (`discardThenForEachNonland`),
-// so their number is N's; they are cards in hand, written `cardIn(hand)` as the
-// owner settled for Burglar Rat's discard (2026-10-06).
+// "[Permanent] connives" [CR#701.50a]: that permanent's controller draws a
+// card, then discards a card, and puts a +1/+1 counter on the conniving
+// permanent if a nonland card is discarded this way. That is connive N's
+// process for one card (`conniveN(1)`, [CR#701.50d]), so the body is that
+// declaration's, and its deed is the one event either form makes
+// [CR#701.50f]: `connive` names no deed of its own (`deed: None`), or bare
+// connive would enact twice.
 KeywordAction(
     name: "connive",
-    params: [Amount],
+    params: [],
     spelling: "connive",
     grammar: Verb(
         bare: "connive",
-        frame_set: Custom(frames: [[], [Amount]]),
+        frame_set: Intransitive,
     ),
-    body: act(
-        controllerOf(actor),
-        sequentially([
-            draw(Param(0)),
-            discardThenForEachNonland(
-                counted(exactlyOf(Param(0)), cardIn(hand)),
-                putCounters(1, p1p1Counter, that(Permanent)),
-            ),
-        ]),
-    ),
+    deed: None,
+    body: conniveN(1),
 )

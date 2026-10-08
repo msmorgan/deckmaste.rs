@@ -61,7 +61,6 @@ fn repo_root(args: &PathArgs) -> PathBuf {
 }
 
 const KEYWORD_STUBS: &str = "plugins_v2/builtin/macros/keyword_abilities";
-const ACTION_STUBS: &str = "plugins_v2/builtin/macros/keyword_actions";
 const COUNTER_STUBS: &str = "plugins_v2/builtin/macros/counter_kinds";
 const WORDS: &str = "idris/src/Experimental/Words.idr";
 const GENERATED: &str = "idris/src/Experimental/FactsGen.idr";
@@ -1459,10 +1458,10 @@ struct Exempt {
 const KEYWORD_SCOPE: &str = "both directions bind — every keyword-ability stub [CR#702] wants a \
                              `keywordFacts` row and every row wants a stub.";
 
-const ACT_SCOPE: &str = "every keyword-action stub [CR#701] wants an `actFacts` row; a row need \
-                         not have a stub — `actFacts` also carries the turn-and-game deed \
-                         vocabulary (attack, block, draw, …), which is wider than [CR#701], so \
-                         the row-without-a-stub direction is informational.";
+const ACT_SCOPE: &str = "every deed a keyword-action stub [CR#701] enacts wants an `actFacts` \
+                         row; a row need not have a stub — `actFacts` also carries the \
+                         turn-and-game deed vocabulary (attack, block, draw, …), which is wider \
+                         than [CR#701], so the row-without-a-stub direction is informational.";
 
 const COUNTER_SCOPE: &str = "every counter-kind stub wants a `counterFacts` row; a row need not \
                              have a stub — `counterFacts` carries the counter kinds the CR names \
@@ -1817,7 +1816,7 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
         Table {
             name: "keyword actions",
             scope: ACT_SCOPE,
-            stubs: stub_names(&root.join(ACTION_STUBS))?,
+            stubs: lean::keyword_action_deeds(&declarations, &root.join("plugins_v2/builtin"))?,
             rows: act_rows(&words).into_iter().map(|r| r.label).collect(),
             stub_exempt: &[],
             row_exempt: &[],
