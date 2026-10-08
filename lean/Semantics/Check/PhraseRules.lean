@@ -293,14 +293,11 @@ mutual
     | .or ns =>
       ctxCheck ctx (some (NounPhrase.kindOfAll ns)) ++
         refuse (atLeastTwo ns.length) .atLeastTwo ++ NounPhrase.checkCoordIn false gap bs ns
-    | .librarySlice _ amt whose =>
-      ctxCheck ctx (some .object) ++ Amount.checkIn gap bs amt ++ NounPhrase.checkIn gap (some
-        .player) bs whose ++
-        refuse whose.slicePossessorOk .slicePossessor
-    | .libraryRun _ stop whose =>
+    | .slice _ amt pile =>
+      ctxCheck ctx (some .object) ++ Amount.checkIn gap bs amt ++ Pile.checkIn gap bs pile
+    | .run _ stop pile =>
       ctxCheck ctx (some .object) ++ Predicate.checkIn gap .object bs stop ++
-        NounPhrase.checkIn gap (some .player) bs whose ++
-        refuse whose.slicePossessorOk .slicePossessor
+        Pile.checkIn gap bs pile
     | .someOf q d g =>
       ctxCheck ctx (some .object) ++ SliceCount.checkIn gap bs q ++ OptPredicate.checkIn gap .object
         bs d ++
@@ -480,10 +477,18 @@ mutual
     | .possessedBy n => NounPhrase.checkIn gap (some .player) bs n
   termination_by structural s => s
 
-  def LibraryPlace.checkIn (gap : Option Kind) (bs : Bindings) : LibraryPlace → CheckResult
-    | .eitherEnd chooser =>
-      OptNoun.checkIn gap (some .player) bs chooser ++ refuse (eventAgentOk bs chooser) .eventAgent
-    | _ => (⟨[], false⟩ : CheckResult)
+  /-- A pile resolves and is well-kinded: a zone pile's possessor is a player, one at a time
+  unless distributed ("each player's library"); "that pile" reads a pile an instruction made; a
+  face-down exile pile names its source. -/
+  def Pile.checkIn (gap : Option Kind) (bs : Bindings) : Pile → CheckResult
+    | .library .bare | .graveyard .bare => (⟨[], false⟩ : CheckResult)
+    | .library (.possessedBy whose) | .graveyard (.possessedBy whose) =>
+      NounPhrase.checkIn gap (some .player) bs whose ++
+        refuse whose.slicePossessorOk .slicePossessor
+    | .that =>
+      let n := countReach (.word .pile) .one bs
+      (⟨[], false⟩ : CheckResult) ++ refuse (n == 1) (.anaphor (.word .pile) .one n)
+    | .exiledWith source => NounPhrase.checkIn gap (some .object) bs source
   termination_by structural p => p
 
   def ZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : ZoneExpr → CheckResult
@@ -494,9 +499,7 @@ mutual
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         ZoneExpr.checkIn gap (enterCaller scope bs) body
     | .zone _ scope => ZoneScope.checkIn gap bs scope
-    | .library place _ off scope =>
-      LibraryPlace.checkIn gap bs place ++ refuse (OptOrdinal.ok off) .ordinalNonZero ++
-        ZoneScope.checkIn gap bs scope
+    | .place _ pile => Pile.checkIn gap bs pile
     | .wherever => (⟨[], false⟩ : CheckResult)
   termination_by structural z => z
 
@@ -772,7 +775,7 @@ abbrev Quantity.check := fun bs value => (Quantity.checkIn none bs value).refusa
 abbrev SliceCount.check := fun bs value => (SliceCount.checkIn none bs value).refusals
 abbrev Amount.check := fun bs value => (Amount.checkIn none bs value).refusals
 abbrev ZoneScope.check := fun bs value => (ZoneScope.checkIn none bs value).refusals
-abbrev LibraryPlace.check := fun bs value => (LibraryPlace.checkIn none bs value).refusals
+abbrev Pile.check := fun bs value => (Pile.checkIn none bs value).refusals
 abbrev ZoneExpr.check := fun bs value => (ZoneExpr.checkIn none bs value).refusals
 abbrev ZoneExpr.checkAll := fun bs value => (ZoneExpr.checkAllIn none bs value).refusals
 abbrev NameSource.check := fun bs value => (NameSource.checkIn none bs value).refusals

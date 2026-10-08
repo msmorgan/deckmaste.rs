@@ -193,13 +193,6 @@ def Instruction.enactPatient : Instruction → Option NounPhrase
   | .move n _ _ _ => some n
   | _ => none
 
-def NounPhrase.libraryOwner : NounPhrase → Option NounPhrase
-  | .withBindings scope inputs body => body.libraryOwner.map (.withBindings scope inputs)
-  | .inCaller scope body => body.libraryOwner.map (.inCaller scope)
-  | .firstMention _ body => body.libraryOwner
-  | .librarySlice _ _ whose => some whose
-  | _ => none
-
 def NounPhrase.bareThis : NounPhrase → Bool
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.bareThis
   | .pro (.parameter shape) _ _ => shape.bareThis
@@ -289,7 +282,7 @@ each member, as its performer. -/
 def Instruction.performed : Instruction → Bool
   | .conclude _ | .separateIntoPiles _ _ _ | .choose _ _ _ _ | .vote _ _ _
   | .copy _ _ _ _ | .changeLife _ | .addMana _ _ _ | .draw _ | .expose _ _
-  | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _ | .rerollStored _ _
+  | .search _ _ _ | .shuffle _ | .flipCoins _ | .rollDice _ _ | .rerollStored _ _
   | .createObject _ _ | .enact _ _ | .pay _ _ | .skipPart _ _ | .addTurnPart _ _ _ _
   | .procedure _ _ _ _
   | .withContinuation .optional _ _ _ => true
@@ -783,7 +776,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .pay _ _ | .enact _ _ | .separateIntoPiles _ _ _ | .chooseNewTargets _ | .createObject _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
   | .move _ _ _ _ | .expose _ _ | .addMana _ _ _ | .draw _ | .choose _ _ _ _ | .vote _ _ _
-  | .search _ _ _ | .shuffle | .flipCoins _ | .rollDice _ _
+  | .search _ _ _ | .shuffle _ | .flipCoins _ | .rollDice _ _
   | .rerollStored _ _ | .procedure _ _ _ _ => .reflexive
   | .applyResultsTable _ => .notOneAction
   | .withContinuation _ body none _ => body.reflexEncloseUse
@@ -826,19 +819,19 @@ def doesProfile (bs : Bindings) (pl : Plurality) (s : NounPhrase) (v : Deed) (e 
     (ep : InstrProfile) : InstrProfile :=
   let bs' := agentIntro bs s
   match pl, e with
-  | .many, .move what@(.theRest _ _) _ to _ =>
+  | .many, .move what@(.theRest _ _) _ _ _ =>
     ⟨distributedDelta bs s (nomIntro bs' what) ++ nomIntro bs s,
-     afterMoveTo to (partsClosed (nomIntro bs s)),
+     partsClosed (nomIntro bs s),
      some (distributedDelta bs s (stampIntro bs' (some v) what) ++ nomIntro bs s), []⟩
   | .many, .move what _ to _ =>
     ⟨distributedDelta bs s (nomIntro bs' what) ++ nomIntro bs s,
-     afterMoveTo to (distributedDelta bs s (moveIntro bs' (some v) what to.sort) ++ nomIntro bs s),
+     distributedDelta bs s (moveIntro bs' (some v) what to.sort) ++ nomIntro bs s,
      some (distributedDelta bs s (stampIntro bs' (some v) what) ++ nomIntro bs s), []⟩
   | .many, .setStatus _ n =>
     ⟨nomIntro bs s, distributedDelta bs s (stampIntro bs' (some v) n) ++ nomIntro bs s, none, []⟩
   | .many, _ => ⟨nomIntro bs s, nomIntro bs s, none, ep.deed⟩
   | .one, .move what _ to _ =>
-    ⟨nomIntro bs' what, afterMoveTo to (moveIntro bs' (some v) what to.sort),
+    ⟨nomIntro bs' what, moveIntro bs' (some v) what to.sort,
      some (stampIntro bs' (some v) what), []⟩
   | .one, .setStatus _ n => ⟨nomIntro bs' n, stampIntro bs' (some v) n, none, []⟩
   | .one, _ => ep
@@ -931,7 +924,7 @@ mutual
     | .revealChoices _ => sameIntro bs []
     | .vote _ _ _ => sameIntro bs [outcomeB .voteHeld]
     | .move what _ to _ =>
-      ⟨nomIntro bs what, afterMoveTo to (moveIntro bs none what to.sort), none, []⟩
+      ⟨nomIntro bs what, moveIntro bs none what to.sort, none, []⟩
     | .exchange what => sameIntro (what.intro bs) what.deed
     /- "Gains"/"loses" name the event outright [CR#119.3]; a set total leaves the gain or loss
     to follow from the new total [CR#119.5]. -/
@@ -947,7 +940,9 @@ mutual
         [⟨.a, q.plur,
           .object p.seedTy sc.zone (mkStamp (some (deedLabel .librarySearch)) none false) none
             none none, []⟩]
-    | .shuffle => let whose := performerOf perf; ⟨nomIntro bs whose, afterShuffle (nomIntro bs whose), none, []⟩
+    | .shuffle pile => let whose := performerOf perf;
+      let bs' := nomIntro bs whose
+      ⟨bs', afterShuffle (Pile.introduced bs' pile ++ bs'), none, []⟩
     | .flipCoins count => let who := performerOf perf; sameIntro (count.intro (nomIntro bs who)) [outcomeB .coinFlipped]
     | .rollDice count _ => let who := performerOf perf; sameIntro (Amount.intro (nomIntro bs who) count) [outcomeB
         .rollResult]
@@ -971,7 +966,7 @@ mutual
     | .enact v e =>
       match enactPerformer v perf, e.unscoped with
       | none, .move what _ to _ =>
-        ⟨nomIntro bs what, afterMoveTo to (moveIntro bs (some v) what to.sort),
+        ⟨nomIntro bs what, moveIntro bs (some v) what to.sort,
          some (stampIntro bs (some v) what), []⟩
       | none, .setStatus _ n => ⟨nomIntro bs n, stampIntro bs (some v) n, none, []⟩
       | none, _ => Instruction.profileWith bs none e
@@ -1323,7 +1318,7 @@ exceptions of `asCopyOf` declare their own. -/
 def TokenRider.numberSlots : TokenRider → List (Amount × NumberRegime)
   | .entersAs _ | .entersAttacking _ | .entersTransformed | .entersMelded _ => []
   | .withCounters amount _ _ => [(amount, .clamped)]
-  | .under _ | .asCopyOf _ _ _ | .faceDown _ => []
+  | .under _ | .asCopyOf _ _ _ | .faceDown _ | .inOrder _ | .nthFromEnd _ | .orOtherEnd => []
 
 def TokenRider.ridersSlots : List TokenRider → List (Amount × NumberRegime)
   | [] => []
@@ -1385,7 +1380,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .exchange exchanged => exchanged.numberSlots
   | .addMana amount _ _ => [(amount, .clamped)]
   | .draw amount => [(amount, .clamped)]
-  | .expose _ _ | .search _ _ _ | .shuffle => []
+  | .expose _ _ | .search _ _ _ | .shuffle _ => []
   | .flipCoins count => count.numberSlots
   | .rollDice count _ => [(count, .clamped)]
   | .applyResultsTable _ => []

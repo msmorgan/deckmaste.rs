@@ -349,6 +349,13 @@ mutual
     /-- Enters face down with the characteristics the instruction lists, and no others, while it
     stays face down [CR#708.2,701.40a,701.58a]. -/
     | faceDown (characteristics : Characteristics)
+    /-- "In any order", "in a random order": how the objects moved to one place are ordered
+    there [CR#401.4]. -/
+    | inOrder (arrangement : Arrangement)
+    /-- "Nth from the top": that many objects in from the place's end [CR#401.7]. -/
+    | nthFromEnd (ordinal : Ordinal)
+    /-- "On the top or bottom": the performer may choose the place's other end instead. -/
+    | orOtherEnd
 
   inductive Cost where
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Cost)
@@ -436,7 +443,8 @@ mutual
     | draw (amount : Amount)
     | expose (verb : ExposeVerb) (exposed : Exposed)
     | search (scope : SearchScope) (quantity : Quantity) (predicate : Predicate)
-    | shuffle
+    /-- Randomize the objects in a pile so no player knows their order [CR#701.24a]. -/
+    | shuffle (pile : Pile)
     | flipCoins (count : FlipScope)
     | rollDice (count : Amount) (sides : DieSides)
     | applyResultsTable (rows : List RollRow)

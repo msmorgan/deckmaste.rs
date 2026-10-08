@@ -917,8 +917,10 @@ def Zone.isPublic : Zone → Bool
 def Binding.isPublic (b : Binding) : Bool :=
   match b.payload with
   | .object _ (some z) _ _ _ _ => z.isPublic
-  | .pile _ _ (some .faceDown) => false
-  | .pile (some z) _ _ => z.isPublic
+  -- A pile's face, not its zone, decides who may look at it; a zone answers only for a pile
+  -- whose piles were given different faces.
+  | .pile _ _ (some face) => face == .faceUp
+  | .pile (some z) _ none => z.isPublic
   | _ => true
 
 

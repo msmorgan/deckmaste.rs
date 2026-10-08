@@ -248,7 +248,8 @@ mutual
       NounPhrase.check (some .player) bs who ++ sc.check bs' ++ Quantity.check bs' q ++
         Predicate.check .object bs' p ++ refuse q.nonZero .nonZeroQ ++
         refuse q.wellFormed .wellFormedQ
-    | .shuffle => let whose := performerOf perf; NounPhrase.check (some .player) bs whose
+    | .shuffle pile => let whose := performerOf perf;
+      NounPhrase.check (some .player) bs whose ++ Pile.check (nomIntro bs whose) pile
     | .flipCoins count => let who := performerOf perf; NounPhrase.check (some .player) bs who ++ count.check (nomIntro bs
         who)
     | .rollDice count sides => let who := performerOf perf;
@@ -511,6 +512,8 @@ mutual
       Amount.check bs amt ++ kind.check (Amount.intro bs amt) ++ refuse (kindAmountOk amt kind) .kindAmountOk
     | .under who => NounPhrase.check (some .player) bs who
     | .faceDown c => Characteristics.checkWritten bs c
+    | .inOrder _ | .orOtherEnd => []
+    | .nthFromEnd ordinal => refuse ordinal.ok .ordinalNonZero
     | .asCopyOf _ src exc =>
       NounPhrase.check (some .object) bs src ++ CopyExcept.checkAll bs exc ++ refuse src.perMemberOk .perMember
   termination_by structural r => r

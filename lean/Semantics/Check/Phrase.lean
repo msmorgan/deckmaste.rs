@@ -189,34 +189,34 @@ def possessorKind : PossessorAxis → Kind → Bool
 
 /-! ## Zones and places -/
 
-def LibraryPlace.shuffles : LibraryPlace → Bool
-  | .shuffled => true
-  | _ => false
+/-- The zone a pile is in, where the pile names it: a library, a graveyard, or exile for the
+face-down cards an effect exiled [CR#406.4]. "That pile" is in the zone its binding records. -/
+def Pile.sort : Pile → Option Zone
+  | .library _ => some .library
+  | .graveyard _ => some .graveyard
+  | .exiledWith _ => some .exile
+  | .that => none
+
+/-- The face a pile shows. The two zone piles fix theirs, a library face down [CR#401.2] and a
+graveyard face up [CR#404.2]; a pile exiled face down is face down [CR#406.4]; "that pile" has
+the face the instruction that made it gave it. -/
+def Pile.face (bs : Bindings) : Pile → Option PileFace
+  | .library _ => some .faceDown
+  | .graveyard _ => some .faceUp
+  | .exiledWith _ => some .faceDown
+  | .that => faceOfReach (.word .pile) .one bs
+
+/-- The zone a pile is in, "that pile" included. -/
+def Pile.zone (bs : Bindings) : Pile → Option Zone
+  | .that => zoneOfReach (.word .pile) .one bs
+  | p => p.sort
 
 /-- The zone an expression names; "wherever it is" names none. -/
 def ZoneExpr.sort : ZoneExpr → Option Zone
   | .withBindings _ _ body | .inCaller _ body => body.sort
   | .zone z _ => some z
-  | .library _ _ _ _ => some .library
+  | .place _ pile => pile.sort
   | .wherever => none
-
-def ZoneExpr.arrangement : ZoneExpr → Option Arrangement
-  | .withBindings _ _ body | .inCaller _ body => body.arrangement
-  | .zone _ _ | .wherever => none
-  | .library _ ord _ _ => ord
-
-def ZoneExpr.ordinal : ZoneExpr → Option Ordinal
-  | .withBindings _ _ body | .inCaller _ body => body.ordinal
-  | .zone _ _ | .wherever => none
-  | .library _ _ off _ => off
-
-def ZoneExpr.shuffles : ZoneExpr → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.shuffles
-  | .zone _ _ | .wherever => false
-  | .library place _ _ _ => place.shuffles
-
-def afterMoveTo (to : ZoneExpr) (out : Bindings) : Bindings :=
-  if to.shuffles then afterShuffle out else out
 
 def sourceZone : Option EventSource → Option Zone
   | some (.zones [z]) => z.sort
@@ -760,7 +760,8 @@ def NounPhrase.possessorSide (bs : Bindings) (who : NounPhrase) : Option Possess
 def ZoneExpr.seedPossessor (bs : Bindings) : ZoneExpr → Option Possessor
   | .withBindings _ _ body | .inCaller _ body => body.seedPossessor bs
   | .zone z (.possessedBy who) => if z.possessable then who.possessorSide bs else none
-  | .library _ _ _ (.possessedBy who) => who.possessorSide bs
+  | .place _ (.library (.possessedBy who)) | .place _ (.graveyard (.possessedBy who)) =>
+    who.possessorSide bs
   | _ => none
 
 mutual
@@ -1008,8 +1009,10 @@ mutual
     | .namesAgree _ g => g.plur
     | .and _ => .many
     | .or ns => NounPhrase.commonPlurality ns
-    | .librarySlice _ amt whose => outputPlur whose.plur amt.plur
-    | .libraryRun _ _ _ => .many
+    | .slice _ amt (.library (.possessedBy whose)) | .slice _ amt (.graveyard (.possessedBy whose)) =>
+      outputPlur whose.plur amt.plur
+    | .slice _ amt _ => outputPlur .one amt.plur
+    | .run _ _ _ => .many
     | .someOf q _ _ => q.plur
     | .theRest _ pl => pl
     | .pileOf q _ => q.plur
@@ -1030,7 +1033,7 @@ def NounPhrase.det : NounPhrase → Option Determiner
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.det
   | .described d _ => some d.det
   | .eachOf _ => some .each
-  | .librarySlice _ _ _ | .libraryRun _ _ _ => some .the
+  | .slice _ _ _ | .run _ _ _ => some .the
   | .someOf _ _ _ => some .part
   | .namesAgree _ g => g.det
   | .theRest _ _ => some .the
@@ -1056,7 +1059,7 @@ def NounPhrase.groupMention : NounPhrase → Bool
   | .pro (.parameter _) pl _ => !pl.isOne
   | .laterMention _ n => !n.plur.isOne
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.groupMention
-  | .librarySlice _ _ _ | .libraryRun _ _ _ => true
+  | .slice _ _ _ | .run _ _ _ => true
   | .pro _ pl .whole => !pl.isOne
   | .and _ => true
   | .oneEachOf _ _ => true
@@ -1209,7 +1212,7 @@ where
     | .firstMention _ n =>
       nominal n
     | .described .the p => !p.choiceRead
-    | .described _ _ | .librarySlice _ _ _ | .libraryRun _ _ _ | .someOf _ _ _ | .pileOf _ _
+    | .described _ _ | .slice _ _ _ | .run _ _ _ | .someOf _ _ _ | .pileOf _ _
     | .possessorOf _ _ | .oneEachOf _ _ | .paid _ _ => true
     | _ => false
 
@@ -1287,15 +1290,16 @@ mutual
     | .eachOf g => NounPhrase.result bs g
     | .and ns => NounPhrase.resultsSeq bs ns
     | .or ns => introducedNounResult bs (NounPhrase.introducedAlternatives bs ns) false
-    | .librarySlice _ amt whose =>
-      (NounPhrase.result bs whose).prepend [⟨.the, outputPlur whose.plur amt.plur,
-        .object [] (some .library) none none amt.exact none, []⟩]
+    /- A slice is an ordered group of the pile's objects, in the pile's zone [CR#700.3c]. -/
+    | .slice e amt pile =>
+      (Pile.result bs pile).prepend [⟨.the, (NounPhrase.slice e amt pile).plur,
+        .object [] (pile.zone bs) none none amt.exact none, []⟩]
     /- The run is a group, and the card that stopped it a part of that group, so "that card"
     reads the one and "the remaining exiled cards" the rest [CR#701.57a]. -/
-    | .libraryRun _ stop whose =>
-      (NounPhrase.result bs whose).prepend (⟨.the, .many,
-        .object [] (some .library) none none none none, []⟩ ::
-        ⟨.part, .one, .object stop.seedTy (some .library) none none (some 1) none, []⟩ ::
+    | .run _ stop pile =>
+      (Pile.result bs pile).prepend (⟨.the, .many,
+        .object [] (pile.zone bs) none none none none, []⟩ ::
+        ⟨.part, .one, .object stop.seedTy (pile.zone bs) none none (some 1) none, []⟩ ::
         Predicate.introduced bs stop)
     | .namesAgree _ g => NounPhrase.result bs g
     | .someOf q d g =>
@@ -1402,11 +1406,19 @@ mutual
     | .the => if p.choiceRead then pd else bindFor bs .the .one k p :: pd
     | d => bindFor bs d.det d.plur k p :: pd
 
-  def LibraryPlace.introduced (bs : Bindings) : LibraryPlace → List Binding
-    | .oneEnd _ => []
-    | .eitherEnd none => []
-    | .eitherEnd (some n) => (NounPhrase.result bs n).introduced bs
-    | .shuffled => []
+  /-- What naming a pile returns: its possessor's result, or the source a face-down pile was
+  exiled with. -/
+  def Pile.result (bs : Bindings) : Pile → NounResult
+    | .library (.possessedBy n) | .graveyard (.possessedBy n) | .exiledWith n =>
+      NounPhrase.result bs n
+    | .library .bare | .graveyard .bare | .that => ⟨bs, none, none, []⟩
+
+  /-- What naming a pile introduces: its possessor, or the source a face-down pile was exiled
+  with. -/
+  def Pile.introduced (bs : Bindings) : Pile → List Binding
+    | .library (.possessedBy n) | .graveyard (.possessedBy n) | .exiledWith n =>
+      (NounPhrase.result bs n).introduced bs
+    | .library .bare | .graveyard .bare | .that => []
 
 
   def ZoneExpr.introduced (bs : Bindings) : ZoneExpr → List Binding
@@ -1420,8 +1432,7 @@ mutual
       result.take (result.length - bs.length)
     | .zone _ (.possessedBy n) => (NounPhrase.result bs n).introduced bs
     | .zone _ .bare => []
-    | .library pl _ _ (.possessedBy n) => LibraryPlace.introduced bs pl ++ (NounPhrase.result bs n).introduced bs
-    | .library pl _ _ .bare => LibraryPlace.introduced bs pl
+    | .place _ pile => Pile.introduced bs pile
     | .wherever => []
   termination_by structural x => x
 
@@ -1638,7 +1649,7 @@ mutual
     | .eachOf g => NounPhrase.zone bs g
     | .namesAgree _ g => NounPhrase.zone bs g
     | .and ns => NounPhrase.commonZone bs ns
-    | .librarySlice _ _ _ | .libraryRun _ _ _ => some .library
+    | .slice _ _ pile | .run _ _ pile => pile.zone bs
     | .someOf _ _ g => NounPhrase.zone bs g
     | .theRest k _ => zoneOfGroup k bs
     | .pileOf _ _ => zoneOfReach (.word .pile) .many bs
@@ -1677,7 +1688,7 @@ mutual
     | .inCaller scope body => body.ty (enterCaller scope bs)
     | .gap _ => []
     | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .playerGroup _
-    | .or _ | .librarySlice _ _ _ | .libraryRun _ _ _ | .pileOf _ _ | .possessorOf _ _
+    | .or _ | .slice _ _ _ | .run _ _ _ | .pileOf _ _ | .possessorOf _ _
     | .designated _ _ | .paid _ _ => []
     | .asType t _ _ => [t]
     | .resolvedPermanent n => NounPhrase.ty bs n
@@ -1788,7 +1799,7 @@ def NounPhrase.testSubjectOk (bs : Bindings) : NounPhrase → Bool
   | .inCaller scope body => body.testSubjectOk (enterCaller scope bs)
   | .firstMention _ body => body.testSubjectOk bs
   | .described .the _ => true
-  | .librarySlice _ _ _ | .libraryRun _ _ _ => true
+  | .slice _ _ _ | .run _ _ _ => true
   | n => (NounPhrase.introduced bs n).isEmpty
 
 def NounPhrase.bindingless (bs : Bindings) (n : NounPhrase) : Bool := (NounPhrase.introduced bs n).isEmpty
@@ -2103,10 +2114,10 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
     closeOperands (moveIntro (captureBindings bs scope inputs) p body z)
   | .inCaller scope body => leaveCaller bs (moveIntro (enterCaller scope bs) p body z)
   | .gap _ => bs
-  | .described _ _ | .librarySlice _ _ _ | .someOf _ _ _ | .oneEachOf _ _ | .pileOf _ _ =>
+  | .described _ _ | .slice _ _ _ | .someOf _ _ _ | .oneEachOf _ _ | .pileOf _ _ =>
     setZoneHead p z (nomIntro bs n)
   -- The run and the card that stopped it move together.
-  | .libraryRun _ _ _ =>
+  | .run _ _ _ =>
     match nomIntro bs n with
     | run :: stopped :: rest => setZone p z run :: setZone p z stopped :: rest
     | other => other

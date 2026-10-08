@@ -33,18 +33,28 @@ mutual
     | bare
     | possessedBy (possessor : NounPhrase)
 
-  /-- Where in a library. -/
-  inductive LibraryPlace where
-    | oneEnd (end_ : LibraryEnd)
-    | eitherEnd (chooser : Option NounPhrase)
-    | shuffled
+  /-- A pile: objects grouped in a zone, in order, the pile itself not an object
+  [CR#700.3,700.3b]. Grouping neither moves its objects nor reorders them [CR#700.3c]. Its face,
+  not its zone, decides who may look at it: the two zone piles fix theirs, and a pile an
+  instruction makes takes the face that instruction gives it. -/
+  inductive Pile where
+    /-- "<whose> library", kept face down [CR#401.2]. -/
+    | library (whose : ZoneScope)
+    /-- "<whose> graveyard", kept face up and still ordered [CR#404.2,700.3c]. -/
+    | graveyard (whose : ZoneScope)
+    /-- "that pile": the pile an instruction just made, with the face it was given. -/
+    | that
+    /-- The face-down cards exiled with `source`, kept as their own pile [CR#406.4]. -/
+    | exiledWith (source : NounPhrase)
 
   inductive ZoneExpr where
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : ZoneExpr)
     | inCaller (scope : Nat) (body : ZoneExpr)
     | zone (zone : Zone) (scope : ZoneScope)
-    | library (place : LibraryPlace) (order : Option Arrangement) (offset : Option Ordinal)
-        (scope : ZoneScope)
+    /-- "On top of <pile>", "on the bottom of <pile>": a move destination at one end of a pile.
+    The move's riders say how the moved objects are ordered there, how deep, and whether the
+    other end may be chosen instead. -/
+    | place (end_ : LibraryEnd) (pile : Pile)
     /-- "From wherever it is": a move's origin that names no zone, as exile's is
     [CR#701.13a]. -/
     | wherever
@@ -182,10 +192,12 @@ mutual
     | eachOf (group : NounPhrase)
     | and (phrases : List NounPhrase)
     | or (phrases : List NounPhrase)
-    | librarySlice (end_ : LibraryEnd) (amount : Amount) (whose : NounPhrase)
-    /-- "Cards from the top of <whose> library until a <stop> card": the run of cards taken one
-    at a time from that end, the last of them the first that matches `stop` [CR#701.57a]. -/
-    | libraryRun (end_ : LibraryEnd) (stop : Predicate) (whose : NounPhrase)
+    /-- "The top N cards of <pile>": `amount` objects from one end of a pile, an ordered group
+    [CR#700.3c]. -/
+    | slice (end_ : LibraryEnd) (amount : Amount) (pile : Pile)
+    /-- "Cards from the top of <pile> until a <stop> card": the run of objects taken one at a
+    time from that end, the last of them the first that matches `stop` [CR#701.57a]. -/
+    | run (end_ : LibraryEnd) (stop : Predicate) (pile : Pile)
     | someOf (count : SliceCount) (description : Option Predicate) (group : NounPhrase)
     | namesAgree (agreement : NameAgreement) (group : NounPhrase)
     | theRest (kind : Kind) (plurality : Plurality)
@@ -342,7 +354,7 @@ mutual
 end
 
 /-! `DecidableEq` does not derive for a nested mutual block; `BEq` and `Repr` do. -/
-deriving instance Repr, BEq for ColorTerm, ManaTypeTerm, CaptureInput, ZoneScope, LibraryPlace, ZoneExpr, NameSource, ChoiceDomain,
+deriving instance Repr, BEq for ColorTerm, ManaTypeTerm, CaptureInput, ZoneScope, Pile, ZoneExpr, NameSource, ChoiceDomain,
   EventSource, LookbackClause, Predicate, DetPhrase, NounPhrase, Amount,
   Quantity, SliceCount, Door, RollWatch, HeaderPossessor, Condition, GameEvent, Causing
 
