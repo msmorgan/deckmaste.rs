@@ -145,7 +145,7 @@ impl AnalyzedText {
 #[derive(Debug, Default)]
 struct TrieNode {
     children: BTreeMap<char, usize>,
-    values: Vec<(LexicalValue, Binding)>,
+    values: Vec<(LexicalValue, Binding, bool)>,
 }
 
 /// An immutable index built from declared forms and shared realization rules.
@@ -262,7 +262,8 @@ impl Lexicon {
                         interior: true,
                     };
                     result.surface_features.insert(value.clone(), features);
-                    result.insert(value.clone(), surface.clone(), lexeme.binding);
+                    let card_scoped = lexeme.card_scoped_surfaces.contains(&surface);
+                    result.insert(value.clone(), surface.clone(), lexeme.binding, card_scoped);
                     if lexeme.capitalization == Capitalization::Initial {
                         let initial = initial_surface(&surface);
                         if initial != surface {
@@ -284,10 +285,14 @@ impl Lexicon {
                                 },
                                 initial,
                                 lexeme.binding,
+                                card_scoped,
                             );
                         }
                     }
                 }
+            }
+            if !lexeme.card_scoped_surfaces.is_subset(&realized_surfaces) {
+                return Err(error("card scope has no declared spelling"));
             }
             if lexeme
                 .onsets
@@ -312,7 +317,13 @@ impl Lexicon {
         Ok(result)
     }
 
-    fn insert(&mut self, value: LexicalValue, surface: String, binding: Binding) {
+    fn insert(
+        &mut self,
+        value: LexicalValue,
+        surface: String,
+        binding: Binding,
+        card_scoped: bool,
+    ) {
         let mut node = 0;
         for ch in surface.chars() {
             node = if let Some(next) = self.trie[node].children.get(&ch) {
@@ -324,7 +335,9 @@ impl Lexicon {
                 next
             };
         }
-        self.trie[node].values.push((value.clone(), binding));
+        self.trie[node]
+            .values
+            .push((value.clone(), binding, card_scoped));
         self.surfaces.insert(value, surface);
     }
 
@@ -458,6 +471,18 @@ impl Lexicon {
 
     #[must_use]
     pub fn analyze_source(&self, raw: &str, normalized: Option<&str>) -> AnalyzedText {
+        self.analyze_source_scoped(raw, normalized, &BTreeSet::new())
+    }
+
+    /// Analyzes declared forms with card-scoped variants admitted only for
+    /// the lexical identities in `scope`. Full-name forms remain available.
+    #[must_use]
+    pub fn analyze_source_scoped(
+        &self,
+        raw: &str,
+        normalized: Option<&str>,
+        scope: &BTreeSet<crate::LexemeId>,
+    ) -> AnalyzedText {
         let tokens: Vec<char> = normalized.unwrap_or(raw).chars().collect();
         let mut candidates = Vec::new();
         for start in 0..tokens.len() {
@@ -467,7 +492,10 @@ impl Lexicon {
                     break;
                 };
                 node = *next;
-                for (value, binding) in &self.trie[node].values {
+                for (value, binding, card_scoped) in &self.trie[node].values {
+                    if *card_scoped && !scope.contains(&value.lexeme) {
+                        continue;
+                    }
                     candidates.push((
                         LexicalMatch {
                             start,

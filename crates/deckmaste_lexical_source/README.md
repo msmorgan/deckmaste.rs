@@ -34,8 +34,9 @@ properties so one owner can participate in several clause roles.
 
 Type Line distribution uses the same feature mechanism. `TypeLineRole` marks
 the supported card-type and supertype catalog owners in `core.ron`; subtype
-catalog membership supplies the subtype role. Catalog spelling and lexical
-identity stay unchanged. The generated grammar consumes those roles for its
+plugin subtype declarations supply the subtype role on their single noun
+Lexemes. Type Lines consume those nouns' singular forms. Generated subtype
+catalogs remain CR membership authorities without exporting lexical duplicates. The generated grammar consumes those roles for its
 ordered groups rather than comparing names or reclassifying ordinary nouns.
 
 Frame literals are reconciled through an explicit declaration table to fixed

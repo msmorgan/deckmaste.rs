@@ -46,9 +46,21 @@ Modifiers (CGEL, Ch. 5 §14.4, pp. 448–451).
 
 **Type Word** (project term):
 A Lexeme sourced from a declared card-type, subtype or supertype inventory for
-ordinary noun or adjective use in Oracle text. It is distinct from an exact
-Catalog atom used in a Type Line. Noun uses retain their Part of Speech when
-functioning as Premodifiers.
+ordinary noun or adjective use in Oracle text. Subtype nouns also serve in a
+Type Line; card types and supertypes retain separate exact Catalog atoms for
+that use. Noun uses retain their Part of Speech when functioning as
+Premodifiers.
+
+**Shortened Name**:
+A shortened spelling printed on a card in place of its full name that refers
+to that same card [CR#201.5c].
+_Avoid_: nickname
+
+**Name Number** (project term):
+The declared grammatical Number of a full Name for Agreement. It describes
+agreement in the attested wording, independently of how many game objects the
+Name refers to (owner ruling, 2026-10-08).
+_Avoid_: object count
 
 **Lemma**:
 The conventional citation form used to identify a Lexeme.

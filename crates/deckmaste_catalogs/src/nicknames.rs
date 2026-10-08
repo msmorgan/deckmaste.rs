@@ -225,7 +225,7 @@ fn short_name(name: &str) -> Option<&str> {
         && Numeral::Roman.parse(last).is_ok()
     {
         prefix.trim_end()
-    } else if let Some(index) = [" the ", " of "]
+    } else if let Some(index) = [" and the ", " the ", " of "]
         .into_iter()
         .filter_map(|separator| name.find(separator))
         .min()
@@ -262,6 +262,7 @@ mod tests {
             ("Tor Wauki the Younger", Some("Tor Wauki")),
             ("Sidar Jabari of Zhalfir", Some("Sidar Jabari")),
             ("Nissa Revane", Some("Nissa")),
+            ("Shang-Chi and the Ten Rings", Some("Shang-Chi")),
             ("Progenitus", None),
         ] {
             assert_eq!(short_name(name), expected, "{name}");
@@ -279,6 +280,7 @@ mod tests {
         let file = File::open(root.join("data/scryfall/oracle-cards.jsonl")).unwrap();
         let expected = BTreeMap::from([
             ("Captain Sisay", None),
+            ("Shang-Chi and the Ten Rings", Some("Shang-Chi")),
             ("Captain Lannery Storm", None),
             ("Brothers Yamazaki", None),
             ("Gut, True Soul Zealot", None),

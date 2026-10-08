@@ -201,6 +201,10 @@ constructions! {
         feature SymbolUse { Cost }
         feature ManaSymbolUse { Yes }
         feature TypeLineRole { Supertype, CardType, Subtype }
+        feature NameNumber { Singular, Plural } default Singular;
+        table name_number(NameNumber) -> number {
+            (Singular) => Singular, (Plural) => Plural,
+        }
         feature IdentityUse { Name }
         feature NominalComplementMarker { None, Of } default None;
         feature BarePrepositionUse { No, Yes } default No;
@@ -282,7 +286,7 @@ constructions! {
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, SourceModifierPresent);
         category AdjectivePhrase(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse);
         category VerblessClause();
-        category Name();
+        category Name(number);
         category NamePredicate();
         category PrepositionPhrase(LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse,
@@ -1573,13 +1577,15 @@ constructions! {
         }
 
         construction Subtypes: Subtypes {
-            form [head: lexical(Catalog), rest: repeat(SubtypeContinuation, "")];
+            form [head: lexical(Noun), rest: repeat(SubtypeContinuation, "")];
             require head.TypeLineRole = Subtype;
+            require head.form = Singular;
         }
 
         construction SubtypeContinuation: SubtypeContinuation {
-            form [" ", head: lexical(Catalog)];
+            form [" ", head: lexical(Noun)];
             require head.TypeLineRole = Subtype;
+            require head.form = Singular;
         }
 
         construction Document: Document {
@@ -2405,12 +2411,14 @@ constructions! {
         }
 
         construction CatalogName: Name {
+            export number = name_number(head.NameNumber);
             form [head: lexical(Catalog)];
             require head.IdentityUse = Name;
         }
 
-        // CGEL p. 516: a referential proper name has NP status. Oracle names
-        // refer to one card even when the written title contains plural nouns.
+        // CGEL p. 516: a referential proper name has NP status.
+        // Owner ruling (2026-10-08): Oracle names carry the grammatical
+        // agreement declared on their lexeme.
         construction ProperNameNounPhrase: NounPhrase {
             export ScalarDenotation = No;
             export SelectedPrepositionUse = No;
@@ -2419,7 +2427,7 @@ constructions! {
             export BareGenitiveHost = No;
             export Targeting = No;
             form [head: Name];
-            export number = Singular;
+            export number = head.number;
             use ThirdPersonCommonCase;
         }
 

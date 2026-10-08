@@ -120,7 +120,7 @@ Remove balanced parenthesized reminder text before lexical analysis; reminder
 contents are outside the current parsing scope. Retain the original Oracle
 text as source metadata, record the stripped parser input separately, and apply
 both roundtrip laws to that input. Preserve card-name spellings; legendary
-permanent nicknames are reversible lexical variants of the full name.
+permanent Shortened Names are reversible lexical variants of the full name.
 Tests starting from independently constructed values remain required alongside
 corpus parse/render checks.
 
@@ -344,3 +344,25 @@ Rationale: the per-face digest census already proves what the prose
 attestation restated, so the attestation added nothing checkable. Name dumps
 made tickets unreadable (done tickets reached hundreds of KB, the largest
 about 350 KB) and burned implementer turns writing them.
+
+## Amendment: Shortened names are card-scoped (2026-10-08)
+
+Ruling (user, 2026-10-08): cards have only their own Shortened Names in scope;
+full names remain available everywhere. A Shortened Name is a reversible
+surface variant admitted only when analyzing text printed on its card,
+including the other oracle units sharing that card's Oracle ID. This implements
+self-reference by shortened spelling [CR#201.5c]; text granting an ability to
+another object retains the printed card's scope [CR#201.5a,201.5c]. Analysis
+without a card context admits full names only.
+
+The same ruling requires one lexical owner per subtype. Plugin subtype nouns
+serve both rules text and Type Lines, with the latter consuming their singular
+forms. Generated CR subtype catalogs remain membership authorities; they no
+longer export duplicate lexical owners. Planeswalker types are subtypes
+[CR#205.3j], as are the other card-type subtype lists [CR#205.3].
+
+Owner ruling (2026-10-08, name-lexeme-scope repair): grammatical name agreement
+may be declared as NameNumber and read through a table. Aang and Katara takes
+plural agreement in its attested full-name Subject. Token names must be declared
+as full Names; Wasp on The Hive receives a lexical declaration, with a generated
+token-name catalog routed to recon. Neither repair is a scope exception.

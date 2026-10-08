@@ -179,3 +179,8 @@ mod past_participial_premodifiers;
 
 #[path = "suite/same_as_comparative.rs"]
 mod same_as_comparative;
+
+#[path = "suite/name_lexeme_scope.rs"]
+mod name_lexeme_scope;
+
+

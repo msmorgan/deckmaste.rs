@@ -592,6 +592,7 @@ pub struct RealizationContext<'a> {
     lexicon: &'a ::deckmaste_lexical::Lexicon,
     cache: ::std::cell::RefCell<AdmissionCache>,
     analyzed: ::deckmaste_lexical::AnalyzedText,
+    scope: ::std::collections::BTreeSet<::deckmaste_lexical::LexemeId>,
 }
 
 impl<'a> RealizationContext<'a> {
@@ -600,11 +601,22 @@ impl<'a> RealizationContext<'a> {
         lexicon: &'a ::deckmaste_lexical::Lexicon,
         text: &str,
     ) -> Self {
+        Self::new_scoped(grammar, lexicon, text, &::std::collections::BTreeSet::new())
+    }
+
+    /// Reuse lexical analysis in the same card scope as the parsed text.
+    pub fn new_scoped(
+        grammar: &'a Grammar,
+        lexicon: &'a ::deckmaste_lexical::Lexicon,
+        text: &str,
+        scope: &::std::collections::BTreeSet<::deckmaste_lexical::LexemeId>,
+    ) -> Self {
         Self {
             grammar,
             lexicon,
             cache: ::std::cell::RefCell::new(AdmissionCache::default()),
-            analyzed: lexicon.analyze(text),
+            analyzed: lexicon.analyze_source_scoped(text, None, scope),
+            scope: scope.clone(),
         }
     }
 
@@ -619,7 +631,9 @@ impl<'a> RealizationContext<'a> {
         if output.text == self.analyzed.text() {
             output.check_analyzed(&self.analyzed)?;
         } else {
-            output.check_context(self.lexicon)?;
+            output.check_analyzed(&self.lexicon.analyze_source_scoped(
+                &output.text, None, &self.scope,
+            ))?;
         }
         Ok(output.finish())
     }
@@ -660,7 +674,13 @@ impl Realization {
     fn check_context(&self, lexicon: &::deckmaste_lexical::Lexicon) -> Result<(), Error> {
         // Contextual binding belongs to independent lexical analysis. This is
         // neither grammar recognition nor a construction-directed scanner.
-        let analyzed = lexicon.analyze(&self.text);
+        // An independently realized value supplies its declared lexical
+        // owners; this check verifies their boundaries, not card admission.
+        let scope = self.words.iter().filter_map(|word| match &word.reading {
+            ::deckmaste_lexical::LexicalReading::Word(value) => Some(value.lexeme),
+            _ => None,
+        }).collect();
+        let analyzed = lexicon.analyze_source_scoped(&self.text, None, &scope);
         self.check_analyzed(&analyzed)
     }
     fn check_analyzed(&self, analyzed: &::deckmaste_lexical::AnalyzedText) -> Result<(), Error> {

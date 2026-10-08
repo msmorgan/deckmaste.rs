@@ -28,6 +28,9 @@ pub struct ProbeArgs {
     /// Exact input; no reminder stripping or other normalization is applied.
     #[arg(long)]
     text: String,
+    /// Analyze as text printed on this supported card (full card or face name).
+    #[arg(long)]
+    as_card: Option<String>,
     /// Case-insensitive kebab-case grammatical start Category.
     #[arg(long, default_value = "document")]
     category: String,
@@ -96,14 +99,20 @@ struct ProbeReport {
     packed: Option<String>,
 }
 
-pub(super) fn run(args: &ProbeArgs, output: &mut dyn Write) -> Result<()> {
+pub(super) fn run(args: &ProbeArgs, data: &Path, output: &mut dyn Write) -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let sources = deckmaste_lexical_source::load_workspace(&root)?;
     let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;
     let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&lexicon);
     let grammar = environment.grammar();
     let category = resolve_category(grammar, &args.category)?;
-    inspect(args, &lexicon, grammar, category, output)
+    let scope = args
+        .as_card
+        .as_deref()
+        .map(|name| super::card_scope::for_card(data, name))
+        .transpose()?
+        .unwrap_or_default();
+    inspect(args, &lexicon, grammar, category, &scope, output)
 }
 
 fn inspect(
@@ -111,9 +120,10 @@ fn inspect(
     lexicon: &Lexicon,
     grammar: &Grammar,
     category: Category,
+    scope: &std::collections::BTreeSet<deckmaste_lexical::LexemeId>,
     output: &mut dyn Write,
 ) -> Result<()> {
-    let analyzed = lexicon.analyze(&args.text);
+    let analyzed = lexicon.analyze_source_scoped(&args.text, None, scope);
     let vocabulary_gaps = analyzed
         .unknown_words()
         .into_iter()
@@ -292,13 +302,22 @@ mod tests {
         ] {
             let mut args = ProbeArgs {
                 text: text.into(),
+                as_card: None,
                 category: category_name(category),
                 readings: 4,
                 packed: true,
                 json: true,
             };
             let mut output = Vec::new();
-            inspect(&args, &lexicon, &grammar, category, &mut output).unwrap();
+            inspect(
+                &args,
+                &lexicon,
+                &grammar,
+                category,
+                &std::collections::BTreeSet::new(),
+                &mut output,
+            )
+            .unwrap();
             let report: serde_json::Value = serde_json::from_slice(&output).unwrap();
             assert!(report["admitted_root_count"].as_u64().unwrap() > 0);
             assert!(report["reading_count"].as_u64().unwrap() > 0);
@@ -312,7 +331,15 @@ mod tests {
             }
             args.readings = 0;
             output.clear();
-            inspect(&args, &lexicon, &grammar, category, &mut output).unwrap();
+            inspect(
+                &args,
+                &lexicon,
+                &grammar,
+                category,
+                &std::collections::BTreeSet::new(),
+                &mut output,
+            )
+            .unwrap();
             let report: serde_json::Value = serde_json::from_slice(&output).unwrap();
             assert_eq!(report["reading_count"], 0);
             assert_eq!(report["enumeration_complete"], false);
@@ -320,13 +347,22 @@ mod tests {
         }
         let args = ProbeArgs {
             text: "🦇 glorpword".into(),
+            as_card: None,
             category: "noun-phrase".into(),
             readings: 4,
             packed: false,
             json: true,
         };
         let mut output = Vec::new();
-        inspect(&args, &lexicon, &grammar, Category::NounPhrase, &mut output).unwrap();
+        inspect(
+            &args,
+            &lexicon,
+            &grammar,
+            Category::NounPhrase,
+            &std::collections::BTreeSet::new(),
+            &mut output,
+        )
+        .unwrap();
         let report: serde_json::Value = serde_json::from_slice(&output).unwrap();
         assert_eq!(report["admitted_root_count"], 0);
         assert_eq!(report["vocabulary_gaps"][0]["text"], "glorpword");

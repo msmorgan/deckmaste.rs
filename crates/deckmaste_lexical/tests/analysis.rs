@@ -1096,3 +1096,54 @@ fn lexical_ids_are_interned_across_declarations_values_and_wire_formats() {
         Err(LexicalError::Declaration { .. })
     ));
 }
+
+#[test]
+fn serialized_surface_scope_filters_matching_and_keeps_realization() {
+    let mut card = invariant(
+        "card:Chandra, Pyromaster",
+        "Chandra, Pyromaster",
+        Category::Catalog,
+    );
+    card.capitalization = Capitalization::Exact;
+    card.forms[0].surfaces = Some(vec!["Chandra, Pyromaster".into(), "Chandra".into()]);
+    card.card_scoped_surfaces.insert("Chandra".into());
+    let decoded: Lexeme = ron::from_str(&ron::to_string(&card).unwrap()).unwrap();
+    assert_eq!(decoded, card);
+    let lexicon = Lexicon::new([decoded, noun("subtype:Chandra", "Chandra")]).unwrap();
+    let scope = BTreeSet::from([card.id]);
+    for (scope, expected) in [
+        (BTreeSet::new(), 0),
+        (BTreeSet::from([LexemeId::new("another-card")]), 0),
+        (scope, 1),
+    ] {
+        let input = lexicon.analyze_source_scoped("raw metadata", Some("Chandra"), &scope);
+        assert_eq!(input.raw, "raw metadata");
+        assert_eq!(input.text(), "Chandra");
+        let words: Vec<_> = input
+            .matches
+            .iter()
+            .filter_map(|m| match &m.reading {
+                LexicalReading::Word(v) if v.lexeme == card.id => Some(v),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(words.len(), expected);
+        for value in words {
+            assert_eq!(value.variant, 1);
+            assert_eq!(
+                lexicon
+                    .realize(&LexicalReading::Word(value.clone()))
+                    .unwrap(),
+                "Chandra"
+            );
+        }
+        assert!(input.matches.iter().any(
+            |m| matches!(&m.reading, LexicalReading::Word(v) if v.lexeme == "subtype:Chandra")
+        ));
+        let full = lexicon.analyze_source_scoped("Chandra, Pyromaster", None, &scope);
+        assert!(full.matches.iter().any(|m| matches!(&m.reading, LexicalReading::Word(v) if v.lexeme == card.id && v.variant == 0)));
+    }
+    card.card_scoped_surfaces
+        .insert("undeclared spelling".into());
+    assert!(Lexicon::new([card]).is_err());
+}

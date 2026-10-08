@@ -4,7 +4,8 @@ use deckmaste_english_v3::grammar::Category;
 
 use crate::common;
 
-fn witness(text: &str, host: &str, definition: &str) {
+fn witness(card: &str, text: &str, host: &str, definition: &str) {
+    let readings = |text: &str, category| common::readings_on_card(card, text, category);
     let values = readings(text, Category::Document);
     assert!(!values.is_empty(), "no Reading for {text:?}");
     let host_sentence = format!("{host}.");
@@ -42,7 +43,8 @@ fn witness(text: &str, host: &str, definition: &str) {
             )]
         );
     }
-    assert_constituents(
+    common::assert_constituents_on_card(
+        card,
         text,
         Category::Document,
         &[
@@ -51,7 +53,8 @@ fn witness(text: &str, host: &str, definition: &str) {
             (Category::FiniteClause, definition),
         ],
     );
-    common::assert_constituent_occurrences(
+    common::assert_constituent_occurrences_on_card(
+        card,
         text,
         Category::Document,
         &[(
@@ -65,6 +68,7 @@ fn witness(text: &str, host: &str, definition: &str) {
 #[test]
 fn chameleon_colossus_defines_its_adjustment() {
     witness(
+        "Chameleon Colossus",
         "This creature gets +X/+X until end of turn, where X is its power.",
         "This creature gets +X/+X until end of turn",
         "X is its power",
@@ -74,6 +78,7 @@ fn chameleon_colossus_defines_its_adjustment() {
 #[test]
 fn wild_beastmaster_retains_the_trigger_and_effect_clause() {
     witness(
+        "Wild Beastmaster",
         "Whenever this creature attacks, each other creature you control gets +X/+X until end of turn, where X is this creature's power.",
         "Whenever this creature attacks, each other creature you control gets +X/+X until end of turn",
         "X is this creature's power",
@@ -83,6 +88,7 @@ fn wild_beastmaster_retains_the_trigger_and_effect_clause() {
 #[test]
 fn hemosymbic_mite_defines_a_targeted_adjustment() {
     witness(
+        "Hemosymbic Mite",
         "Whenever this creature becomes tapped, another target creature you control gets +X/+X until end of turn, where X is this creature's power.",
         "Whenever this creature becomes tapped, another target creature you control gets +X/+X until end of turn",
         "X is this creature's power",
@@ -92,6 +98,7 @@ fn hemosymbic_mite_defines_a_targeted_adjustment() {
 #[test]
 fn elenda_retains_the_variable_token_quantity() {
     witness(
+        "Elenda, the Dusk Rose",
         "When Elenda dies, create X 1/1 white Vampire creature tokens with lifelink, where X is Elenda's power.",
         "When Elenda dies, create X 1/1 white Vampire creature tokens with lifelink",
         "X is Elenda's power",
@@ -101,6 +108,7 @@ fn elenda_retains_the_variable_token_quantity() {
 #[test]
 fn tip_the_scales_defines_a_negative_adjustment() {
     witness(
+        "Tip the Scales",
         "When you do, all creatures get -X/-X until end of turn, where X is the sacrificed creature's toughness.",
         "When you do, all creatures get -X/-X until end of turn",
         "X is the sacrificed creature's toughness",

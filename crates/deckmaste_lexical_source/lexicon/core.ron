@@ -53,6 +53,8 @@
         Pronoun: {"RelativeUse": "No"},
     },
     feature_additions: {
+        // Corpus agreement: the full-name Subject takes “enter or attack”.
+        "catalog:card-names.txt/Aang and Katara": {"NameNumber": "Plural"},
         // Project analysis: declared exception distributions in Oracle English.
         "lexeme:keyword_action/create": {"MatrixComplementLicence": "Content"},
         "core-verb:Copy": {"MatrixComplementLicence": "Content"},
@@ -216,6 +218,14 @@
         "vocab:Preposition/Without": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
+        // The Hive explicitly names its token Wasp; this is its full name.
+        (
+            id: "lexeme:Name/Wasp", lemma: "Wasp", category: Catalog,
+            properties: (countability: [], features: {"IdentityUse": "Name"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:Name/Wasp"),
+            capitalization: Exact, binding: Free, surface_structure: Opaque,
+        ),
         (
             id: "vocab:Preposition/AsLongAs", lemma: "as long as", category: Preposition,
             properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"}, frames: []),

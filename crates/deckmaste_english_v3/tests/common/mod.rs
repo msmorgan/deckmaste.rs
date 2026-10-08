@@ -51,7 +51,27 @@ fn readings_with_grammar(
     text: &str,
     category: Category,
 ) -> BTreeSet<Reading> {
-    let input = lexicon.analyze(text);
+    readings_in_scope(grammar, lexicon, text, category, None)
+}
+
+pub fn readings_on_card(card: &str, text: &str, category: Category) -> BTreeSet<Reading> {
+    readings_in_scope(ENVIRONMENT.grammar(), lexicon(), text, category, Some(card))
+}
+
+fn scope(card: Option<&str>) -> BTreeSet<deckmaste_lexical::LexemeId> {
+    card.into_iter()
+        .map(|name| deckmaste_lexical::LexemeId::new(&format!("catalog:card-names.txt/{name}")))
+        .collect()
+}
+
+fn readings_in_scope(
+    grammar: &Grammar,
+    lexicon: &Lexicon,
+    text: &str,
+    category: Category,
+    card: Option<&str>,
+) -> BTreeSet<Reading> {
+    let input = lexicon.analyze_source_scoped(text, None, &scope(card));
     let forest = parse(grammar, lexicon, &input, &category).unwrap();
     let mut values = BTreeSet::new();
     for value in grammar.readings(&forest) {
@@ -79,7 +99,7 @@ pub fn assert_constituents(text: &str, category: Category, expected: &[(Category
         .iter()
         .map(|&(category, surface)| (category, surface, None))
         .collect();
-    assert_expected_constituents(text, category, &expected);
+    assert_expected_constituents(text, category, &expected, None);
 }
 
 /// Choose each exact constituent surface's zero-based occurrence in the source.
@@ -94,13 +114,40 @@ pub fn assert_constituent_occurrences(
         .iter()
         .map(|&(category, surface, occurrence)| (category, surface, Some(occurrence)))
         .collect();
-    assert_expected_constituents(text, category, &expected);
+    assert_expected_constituents(text, category, &expected, None);
+}
+
+pub fn assert_constituents_on_card(
+    card: &str,
+    text: &str,
+    category: Category,
+    expected: &[(Category, &str)],
+) {
+    let expected: Vec<_> = expected
+        .iter()
+        .map(|&(category, surface)| (category, surface, None))
+        .collect();
+    assert_expected_constituents(text, category, &expected, Some(card));
+}
+
+pub fn assert_constituent_occurrences_on_card(
+    card: &str,
+    text: &str,
+    category: Category,
+    expected: &[(Category, &str, usize)],
+) {
+    let expected: Vec<_> = expected
+        .iter()
+        .map(|&(category, surface, occurrence)| (category, surface, Some(occurrence)))
+        .collect();
+    assert_expected_constituents(text, category, &expected, Some(card));
 }
 
 fn assert_expected_constituents(
     text: &str,
     category: Category,
     expected: &[(Category, &str, Option<usize>)],
+    card: Option<&str>,
 ) {
     let expected: BTreeSet<_> = expected
         .iter()
@@ -128,7 +175,11 @@ fn assert_expected_constituents(
             (category, start, start + surface.len())
         })
         .collect();
-    let observed = constituent_positions(text, category);
+    let observed = if card.is_some() {
+        constituent_positions_in_scope(text, category, card)
+    } else {
+        constituent_positions(text, category)
+    };
     if observed.iter().any(|nodes| expected.is_subset(nodes)) {
         return;
     }
@@ -203,8 +254,16 @@ pub fn constituent_positions(
     text: &str,
     category: Category,
 ) -> Vec<BTreeSet<(Category, usize, usize)>> {
+    constituent_positions_in_scope(text, category, None)
+}
+
+fn constituent_positions_in_scope(
+    text: &str,
+    category: Category,
+    card: Option<&str>,
+) -> Vec<BTreeSet<(Category, usize, usize)>> {
     let grammar = ENVIRONMENT.grammar();
-    let input = lexicon().analyze(text);
+    let input = lexicon().analyze_source_scoped(text, None, &scope(card));
     let forest = parse(grammar, lexicon(), &input, &category).unwrap();
     // The parser's coordinates count Unicode scalars; assertion spans count
     // bytes.

@@ -1065,8 +1065,20 @@ fn independent_type_line_retains_flat_groups_and_lexical_identity() {
     let legendary = catalog_word("catalog:supertypes.txt/Legendary");
     let artifact = catalog_word("catalog:card-types.txt/Artifact");
     let creature = catalog_word("catalog:card-types.txt/Creature");
-    let human = catalog_word("catalog:creature-types.txt/Human");
-    let wizard = catalog_word("catalog:creature-types.txt/Wizard");
+    let subtype_word = |id| {
+        let mut value = word(
+            id,
+            WordForm::Singular,
+            FeatureBundle {
+                number: Some(Number::Singular),
+                ..FeatureBundle::default()
+            },
+        );
+        value.countability = Some(true);
+        value
+    };
+    let human = subtype_word("lexeme:creature_subtype/human");
+    let wizard = subtype_word("lexeme:creature_subtype/wizard");
     let value = Reading::SubtypedLine {
         form: 0,
         supertypes: vec![Reading::SupertypePrefix {

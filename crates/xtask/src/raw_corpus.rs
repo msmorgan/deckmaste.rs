@@ -144,6 +144,9 @@ pub(crate) struct SelectedFace {
     pub group_name: String,
     pub face_index: Option<usize>,
     pub name: String,
+    /// Display names of all oracle units belonging to this card, before selection.
+    #[serde(skip)]
+    pub card_names: BTreeSet<String>,
     pub face_name: Option<String>,
     pub side: Option<String>,
     pub layout: String,
@@ -284,6 +287,10 @@ fn load_selected_reader(
             continue;
         }
         let mut selected_from_card = Vec::new();
+        let card_names = card
+            .oracle_units()
+            .map(|unit| unit.display_name().to_owned())
+            .collect();
         for unit in card.oracle_units() {
             supported_faces_examined += 1;
             let identity = unit.identity();
@@ -318,7 +325,7 @@ fn load_selected_reader(
                             .is_some_and(|type_line| type_line.contains(needle))
                     }));
             if request.all || explicit_match || predicate_match {
-                selected_from_card.push(selected_face(unit));
+                selected_from_card.push(selected_face(unit, &card_names));
             }
         }
         if !selected_from_card.is_empty() {
@@ -377,7 +384,10 @@ fn ensure_found(
     Ok(())
 }
 
-fn selected_face(unit: deckmaste_data::scryfall::OracleUnit<'_>) -> SelectedFace {
+fn selected_face(
+    unit: deckmaste_data::scryfall::OracleUnit<'_>,
+    card_names: &BTreeSet<String>,
+) -> SelectedFace {
     let identity = unit.identity();
     SelectedFace {
         identity: identity.to_string(),
@@ -387,6 +397,7 @@ fn selected_face(unit: deckmaste_data::scryfall::OracleUnit<'_>) -> SelectedFace
         group_name: unit.group_name().to_owned(),
         face_index: unit.face_index(),
         name: unit.display_name().to_owned(),
+        card_names: card_names.clone(),
         face_name: unit.face_index().map(|_| unit.display_name().to_owned()),
         side: unit.face_index().map(face_side),
         layout: unit.layout().to_owned(),

@@ -86,6 +86,15 @@ fn export_metadata(
             type_word.negative_prefix_join,
         ));
     }
+    if matches!(
+        normalized.identity().kind(),
+        metadata::DeclarationKind::Subtype(_)
+    ) {
+        lexeme
+            .properties
+            .features
+            .insert("TypeLineRole".into(), "Subtype".into());
+    }
     // A keyword spelling is a card-usage template (`scry <Param(0)>`): its
     // holes and literals are a frame for the semantic spelling match, not
     // lexical data. Every word the template prints is owned by `grammar` or

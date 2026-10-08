@@ -759,7 +759,11 @@ mod tests {
         for value in lexicon.values() {
             let reading = LexicalReading::Word(value.clone());
             let surface = lexicon.realize(&reading).unwrap();
-            let analyzed = lexicon.analyze(&surface);
+            let analyzed = lexicon.analyze_source_scoped(
+                &surface,
+                None,
+                &std::collections::BTreeSet::from([value.lexeme]),
+            );
             assert!(
                 analyzed.matches.iter().any(|found| found.start == 0
                     && found.end == analyzed.tokens.len()

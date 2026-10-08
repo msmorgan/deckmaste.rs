@@ -50,8 +50,20 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     )?);
     let directory = root.join("data/gen/catalogs");
     let catalogs = deckmaste_catalogs::CatalogSet::load(&directory)?;
-    let nicknames = card_names::load(root)?;
+    let shortened_names = card_names::load(root)?;
     for kind in catalogs.kinds() {
+        if matches!(
+            kind,
+            deckmaste_catalogs::CatalogKind::ArtifactTypes
+                | deckmaste_catalogs::CatalogKind::BattleTypes
+                | deckmaste_catalogs::CatalogKind::CreatureTypes
+                | deckmaste_catalogs::CatalogKind::EnchantmentTypes
+                | deckmaste_catalogs::CatalogKind::LandTypes
+                | deckmaste_catalogs::CatalogKind::PlaneswalkerTypes
+                | deckmaste_catalogs::CatalogKind::SpellTypes
+        ) {
+            continue;
+        }
         for surface in catalogs.get(kind) {
             let owner = format!("catalog:{}/{}", kind.filename(), surface);
             let source = source(
@@ -68,8 +80,9 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
             let mut lexeme = Lexeme::invariant(&owner, surface, category, source);
             lexeme.capitalization = Capitalization::Exact;
             if kind == deckmaste_catalogs::CatalogKind::CardNames {
-                if let Some(nickname) = nicknames.get(surface) {
-                    lexeme.forms[0].surfaces = Some(vec![surface.clone(), nickname.clone()]);
+                if let Some(shortened_name) = shortened_names.get(surface) {
+                    lexeme.forms[0].surfaces = Some(vec![surface.clone(), shortened_name.clone()]);
+                    lexeme.card_scoped_surfaces.insert(shortened_name.clone());
                 }
                 lexeme
                     .properties
@@ -81,21 +94,6 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
                     .properties
                     .features
                     .insert("LabelKind".into(), "AbilityWord".into());
-            }
-            if matches!(
-                kind,
-                deckmaste_catalogs::CatalogKind::ArtifactTypes
-                    | deckmaste_catalogs::CatalogKind::BattleTypes
-                    | deckmaste_catalogs::CatalogKind::CreatureTypes
-                    | deckmaste_catalogs::CatalogKind::EnchantmentTypes
-                    | deckmaste_catalogs::CatalogKind::LandTypes
-                    | deckmaste_catalogs::CatalogKind::PlaneswalkerTypes
-                    | deckmaste_catalogs::CatalogKind::SpellTypes
-            ) {
-                lexeme
-                    .properties
-                    .features
-                    .insert("TypeLineRole".into(), "Subtype".into());
             }
             output.lexemes.push(lexeme);
         }
@@ -243,7 +241,7 @@ mod card_name_tests {
     use super::*;
 
     #[test]
-    fn legendary_nicknames_are_reversible_variants_of_the_full_name() {
+    fn legendary_shortened_names_are_reversible_scoped_variants_of_the_full_name() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let sources = load_workspace(&root).unwrap();
         for (full, short) in [
@@ -266,13 +264,38 @@ mod card_name_tests {
             for value in lexicon.values() {
                 let reading = LexicalReading::Word(value.clone());
                 let text = lexicon.realize(&reading).unwrap();
-                let analyzed = lexicon.analyze_source(&text, None);
+                let analyzed = lexicon.analyze_source_scoped(
+                    &text,
+                    None,
+                    &std::collections::BTreeSet::from([lexeme.id]),
+                );
                 assert!(analyzed.matches.iter().any(|found| found.start == 0
                     && found.end == analyzed.tokens.len()
                     && found.reading == reading));
                 spelled.push(text);
             }
             assert_eq!(spelled, [full, short]);
+            for scope in [
+                std::collections::BTreeSet::new(),
+                std::collections::BTreeSet::from([deckmaste_lexical::LexemeId::new(
+                    "catalog:card-names.txt/Chandra, Pyromaster",
+                )]),
+            ] {
+                let input = lexicon.analyze_source_scoped(short, None, &scope);
+                assert!(
+                    !input
+                        .matches
+                        .iter()
+                        .any(|m| m.start == 0 && m.end == input.tokens.len())
+                );
+                let input = lexicon.analyze_source_scoped(full, None, &scope);
+                assert!(
+                    input
+                        .matches
+                        .iter()
+                        .any(|m| m.start == 0 && m.end == input.tokens.len())
+                );
+            }
         }
     }
 }

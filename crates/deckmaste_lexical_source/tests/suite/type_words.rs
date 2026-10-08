@@ -231,18 +231,12 @@ fn negative_prefix_recipe_matches_whole_owner_and_rejects_malformed_spellings() 
 
 #[test]
 fn grammatical_type_nouns_remain_distinct_from_exact_catalog_atoms() {
-    for (noun, catalog, text) in [
-        (
-            "lexeme:type/artifact",
-            "catalog:card-types.txt/Artifact",
-            "Artifact",
-        ),
-        (
-            "lexeme:creature_subtype/vampire",
-            "catalog:creature-types.txt/Vampire",
-            "Vampire",
-        ),
-    ] {
+    let (noun, catalog, text) = (
+        "lexeme:type/artifact",
+        "catalog:card-types.txt/Artifact",
+        "Artifact",
+    );
+    {
         assert_eq!(LEXICON.lexemes()[catalog].category, Category::Catalog);
         assert_eq!(LEXICON.lexemes()[noun].category, Category::Noun);
         let owners: BTreeSet<_> = LEXICON
@@ -258,5 +252,57 @@ fn grammatical_type_nouns_remain_distinct_from_exact_catalog_atoms() {
             .collect();
         assert!(owners.contains(noun));
         assert!(owners.contains(catalog));
+    }
+}
+
+#[test]
+fn subtype_nouns_are_the_single_owner_for_type_line_and_rules_text() {
+    for (owner, text) in [
+        ("lexeme:planeswalker_subtype/chandra", "Chandra"),
+        ("lexeme:creature_subtype/vampire", "Vampire"),
+        ("lexeme:artifact_subtype/junk", "Junk"),
+        ("lexeme:battle_subtype/siege", "Siege"),
+        ("lexeme:enchantment_subtype/aura", "Aura"),
+        ("lexeme:land_subtype/forest", "Forest"),
+        ("lexeme:spell_subtype/arcane", "Arcane"),
+    ] {
+        let lexeme = &LEXICON.lexemes()[owner];
+        assert_eq!(lexeme.category, Category::Noun);
+        assert_eq!(lexeme.properties.features["TypeLineRole"], "Subtype");
+        let owners: BTreeSet<_> = LEXICON
+            .analyze(text)
+            .matches
+            .into_iter()
+            .filter_map(|m| match m.reading {
+                LexicalReading::Word(v)
+                    if m.start == 0
+                        && m.end == text.chars().count()
+                        && LEXICON.lexemes()[&v.lexeme]
+                            .properties
+                            .features
+                            .get("TypeLineRole")
+                            .map(String::as_str)
+                            == Some("Subtype") =>
+                {
+                    Some(v.lexeme)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(owners, BTreeSet::from([lexeme.id]));
+    }
+    for lexeme in LEXICON.lexemes().values() {
+        assert!(
+            !(lexeme.source.kind == SourceKind::Catalog
+                && lexeme
+                    .properties
+                    .features
+                    .get("TypeLineRole")
+                    .map(String::as_str)
+                    == Some("Subtype"))
+        );
+        if lexeme.id.as_str().ends_with("/non") {
+            assert!(!lexeme.properties.features.contains_key("TypeLineRole"));
+        }
     }
 }

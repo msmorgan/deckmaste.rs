@@ -1,5 +1,6 @@
 //! Raw supported-corpus census for the generated v3 grammar.
 
+mod card_scope;
 mod diff;
 mod incremental;
 mod probe;
@@ -105,9 +106,12 @@ pub struct EnglishV3Args {
 /// writing the report when analysis completed. No Reading is a census result.
 pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
     match &args.command {
-        Some(probe::Command::Probe(args)) => return probe::run(args, output),
-        Some(probe::Command::Diff(args)) => return diff::run(args, output),
+        Some(probe::Command::Probe(probe_args)) => {
+            return probe::run(probe_args, &args.data, output);
+        }
+        Some(probe::Command::Diff(diff_args)) => return diff::run(diff_args, output),
         None => {}
+
     }
     let started = Instant::now();
     let corpus = args.selection.load(&args.data)?;
@@ -233,9 +237,11 @@ fn analyze_face(
     let cpu_start = report::thread_cpu_ns();
     let started = Instant::now();
     let mut result = FaceReport::new(face, args.field);
-    let analyzed = lexicon.analyze_source(
+    let scope = card_scope::for_face(face);
+    let analyzed = lexicon.analyze_source_scoped(
         args.field.source(face).unwrap_or(""),
         Some(&result.analyzed_source),
+        &scope,
     );
     for range in analyzed.unknown_words() {
         let bytes = analyzed
@@ -287,10 +293,11 @@ fn analyze_face(
                     &result.analyzed_source,
                     args.field.category(),
                     context.get_or_init(|| {
-                        deckmaste_english_v3::grammar::RealizationContext::new(
+                        deckmaste_english_v3::grammar::RealizationContext::new_scoped(
                             grammar,
                             lexicon,
                             &result.analyzed_source,
+                            &scope,
                         )
                     }),
                 ) {

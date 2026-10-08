@@ -2,8 +2,8 @@ use crate::common;
 use deckmaste_english_v3::grammar::{Category, Reading, Word};
 use std::collections::BTreeSet;
 
-fn witness(text: &str) {
-    let values = common::readings(text, Category::Document);
+fn witness(card: &str, text: &str) {
+    let values = common::readings_on_card(card, text, Category::Document);
     assert!(!values.is_empty(), "missing Reading of {text:?}");
     eprintln!("{text:?}: {} Readings", values.len());
     for value in values {
@@ -22,7 +22,8 @@ fn witness(text: &str) {
             "wrong Complement in {value:?}"
         );
     }
-    common::assert_constituents(
+    common::assert_constituents_on_card(
+        card,
         text,
         Category::Document,
         &[
@@ -34,27 +35,39 @@ fn witness(text: &str) {
 
 #[test]
 fn ares_active_finite_predicate() {
-    witness("Ares attacks each combat if able.");
+    witness("Ares, God of War", "Ares attacks each combat if able.");
 }
 
 #[test]
 fn jurin_passive_modal_predicate() {
-    witness("Jurin must be blocked if able.");
+    witness(
+        "Jurin, Leading the Charge",
+        "Jurin must be blocked if able.",
+    );
 }
 
 #[test]
 fn tangle_angler_activated_ability() {
-    witness("{G}: Target creature blocks this creature this turn if able.");
+    witness(
+        "Tangle Angler",
+        "{G}: Target creature blocks this creature this turn if able.",
+    );
 }
 
 #[test]
 fn alluring_siren_selected_object() {
-    witness("{T}: Target creature an opponent controls attacks you this turn if able.");
+    witness(
+        "Alluring Siren",
+        "{T}: Target creature an opponent controls attacks you this turn if able.",
+    );
 }
 
 #[test]
 fn hustle_coordinated_predicates() {
-    witness("Target creature attacks or blocks this turn if able.");
+    witness(
+        "Hustle",
+        "Target creature attacks or blocks this turn if able.",
+    );
 }
 
 fn word(id: &str) -> Word {
@@ -143,10 +156,14 @@ fn verbless_complement_does_not_supply_nominal_or_generic_adjective_use() {
     assert!(common::readings("if able", Category::LocativeComplement).is_empty());
     assert!(common::readings("when able", Category::PrepositionPhrase).is_empty());
     assert!(common::readings("if possible", Category::PrepositionPhrase).is_empty());
-    let clause = common::readings("Ares attacks each combat", Category::Clause)
-        .into_iter()
-        .next()
-        .unwrap();
+    let clause = common::readings_on_card(
+        "Ares, God of War",
+        "Ares attacks each combat",
+        Category::Clause,
+    )
+    .into_iter()
+    .next()
+    .unwrap();
     let preposed = Reading::InitialPreposition {
         form: 0,
         dependent: Box::new(conditional()),
