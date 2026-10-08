@@ -254,6 +254,13 @@ its verification belong to the attached feature-economy ticket.
   The final focusing-only landing records the remaining gained identities and
   the attempted-only identities whose admission disappears when the widening
   is reverted. These counts are stamped to the rejected tree, not today's trunk.
+  The authorized reversion at `urxxrvzrurrtxvvqpmotlxvvtoyvwsrw` / covered
+  **21,701** leaves **215** focusing gains and returns Counterbore, Clone and
+  Aven Shrine to **0**. All **423** attempted-only faces and the three reductions
+  on still-covered faces are named and routed here in
+  [ruling-reversion-ledger.json](../../../target/english-v3/english-v3-focusing-only/ruling-reversion-ledger.json);
+  the rejected attempt introduced **129,921** Readings that the ruling retires.
+  No claim-parent face or Reading is lost.
 
 The landing records of the batches run under this ticket (restricted Oracle
 hosts, selected complement coordination and PP licensing, the verified coverage
