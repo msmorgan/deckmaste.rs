@@ -117,6 +117,13 @@ Deltas:
    `lqzlkrrp` before implementation; source fingerprints verified) →
    `lqzlkrrp`: covered faces 334 → 420; Readings 5,619 → 28,414. Gained
    faces 86; lost faces none; Reading-count decreases none (`lqzlkrrp`).
+   Increases 2: Banishment 96→296, Deputy of Detention 96→296 (`lqzlkrrp`).
+   Digest-only 12: “the same” faces without *as*, counts unchanged; cause:
+   the *Same* leaf now records `frame: Some(0)` because *Same* declares frames;
+   no new Readings (`lqzlkrrp`): Bazaar of Wonders, Boxing Ring, Cultural
+   Exchange, Endless Atlas, Fear Fire Foes!, Kitesail Skirmisher, Mimeofacture,
+   Powerbalance, Sceptre of Eternal Glory, Sphinx of the Chimes, Wild Pair,
+   Winnow.
    Per-face counts and `readings_sha256` compared; all 300 random faces
    unchanged. Exact realization, lexical ownership and node/word traversal:
    0 issues and 0 internal failures (`lqzlkrrp`).
@@ -141,7 +148,7 @@ Deltas:
    Comparative Nominal glossary entry, distinguishing CGEL's *as* + NP account
    from the fixed-cost-phrases licensing ruling. The bounded run replaces
    Method's full census by the explicit orchestrator ruling of 2026-10-08.
-   **STOP resolved by user ruling 2026-10-08**: retained-Reading contract wins for inherited finite *as*-Clause alternatives; 0 of 86 gained faces carry one beside the Complement Reading (`lqzlkrrp`). Deputy of Detention's *with the same name as that permanent until this creature leaves the battlefield* retains comparative Complement *as [that permanent]* and finite Adjunct *as [[that permanent until this creature] leaves the battlefield]*; no string receives the same-Complement analysis twice.
+   **STOP resolved by user ruling 2026-10-08**: retained-Reading contract wins for inherited finite *as*-Clause alternatives; 2 previously covered faces (Banishment, Deputy of Detention) carry inherited finite as-Clause Readings beside the new Complement Readings; on Deputy’s unit 30 of 106 Readings are as-Clause only and 0 carry both; 0 of 86 gained faces (`lqzlkrrp`). Deputy of Detention's *with the same name as that permanent until this creature leaves the battlefield* retains comparative Complement *as [that permanent]* and finite Adjunct *as [[that permanent until this creature] leaves the battlefield]*; no string receives the same-Complement analysis twice.
    Existing *as*-Clause licensing of a bare NP after *as* (no verb) is routed to recon as [as-Clause verbless NP licensing](../planned/english-v3-as-clause-verbless-np-licensing.md), outside this ticket's scope. Circu's test initially assumed its source PP always fell inside the comparison; corrected it to retain distinct attachments.
 5. **Tests** (`lqzlkrrp`): `cargo test -p deckmaste_english_v3` ran once:
    520 passed; the new Circu scope assertion failed, was corrected, and
@@ -159,7 +166,14 @@ Deltas:
    `english-v3-derived-punctuation-forms`; unchanged from claim parent.
    Assurance: restored 0, re-spelled 1
    (`selected_and_comparative_as_does_not_become_a_comparative_adjunct`),
-   added 3, removed 0, newly ignored 0 (`lqzlkrrp`).
+   added 3, removed 0, newly ignored 0 (`lqzlkrrp`). Review amendment
+   (`rturkpmo`): Circu's witness uses `readings_on_card` with
+   *Circu, Dimir Lobotomist* after `english-v3-name-lexeme-scope`, preserving
+   every assertion; re-spelled 1, restored 0, added 0, removed 0, ignored 0.
+   `cargo test -p deckmaste_english_v3` ran once: 525 passed, 0 failed,
+   0 ignored; 0 doctests.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed
+   (`rturkpmo`). No census rerun.
 6. **Timing** (`lqzlkrrp`): bounded census wall time 8.132 s including setup,
    12 workers, 540 faces: every supported face whose raw text contains *same*
    (240) plus 300 random covered faces, seed 20261008, selected by

@@ -10,6 +10,7 @@ use deckmaste_lexical::WordForm;
 
 use crate::common::lexicon;
 use crate::common::readings;
+use crate::common::readings_on_card;
 
 #[test]
 fn witnesses_keep_the_complement_inside_the_premodified_nominal() {
@@ -45,7 +46,11 @@ fn witnesses_keep_the_complement_inside_the_premodified_nominal() {
             "that card",
         ),
     ] {
-        let values = readings(text, Category::Document);
+        let values = if complement == "a card exiled with Circu" {
+            readings_on_card("Circu, Dimir Lobotomist", text, Category::Document)
+        } else {
+            readings(text, Category::Document)
+        };
         assert!(!values.is_empty(), "no Reading for {text}");
         for value in values {
             let mut comparisons = 0;
