@@ -1240,6 +1240,39 @@ fn a_keyword_action_name_denotes_its_deed() {
     );
 }
 
+/// A keyword action enacting another declaration's deed names none of its
+/// own: `conniveN` writes `deed: connive`, one event for both forms
+/// [CR#701.50f], so `connive` reads as that deed and `conniveN` is refused at
+/// a deed position when the card loads, rather than read as a deed nothing
+/// enacts and refused only at check.
+#[test]
+fn a_keyword_action_enacting_another_deed_names_none_of_its_own() {
+    let builtin = builtin_plugin();
+    assert_eq!(
+        builtin
+            .macros
+            .read_str_restricted::<Deed>("connive")
+            .expect("connive reads at a `Deed` position"),
+        Deed::Action {
+            label: "connive".to_owned()
+        }
+    );
+    assert!(
+        builtin
+            .macros
+            .read_str_restricted::<Deed>("conniveN")
+            .is_err(),
+        "`conniveN` enacts `connive`'s deed and names none of its own"
+    );
+    assert!(
+        builtin
+            .macros
+            .read_str_restricted::<NounPhrase>("theVerbed(conniveN, One)")
+            .is_err(),
+        "nor inside a helper's argument"
+    );
+}
+
 /// A name no keyword action declares is refused when the card loads, not when
 /// it is checked, and the `Action` constructor is not author vocabulary, so a
 /// card cannot spell an undeclared deed around the name either.

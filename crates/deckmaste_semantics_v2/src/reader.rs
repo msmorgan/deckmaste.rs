@@ -264,7 +264,13 @@ fn read_macros(
                             Err(reason) => return Err(LoadError::Definition { path, reason }),
                         }
                     } else if family == crate::keywords::KEYWORD_ACTION {
-                        vec![crate::keywords::deed_macro(&definition)]
+                        // A declaration enacting another's deed (`conniveN`'s
+                        // `deed: connive`) names none of its own.
+                        match crate::keywords::enacts_another_deed(&produced) {
+                            Ok(true) => Vec::new(),
+                            Ok(false) => vec![crate::keywords::deed_macro(&definition)],
+                            Err(reason) => return Err(LoadError::Definition { path, reason }),
+                        }
                     } else if family == crate::keywords::KEYWORD_ABILITY {
                         let label = match crate::keywords::carried_label(
                             definition.name.as_str(),

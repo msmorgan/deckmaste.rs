@@ -97,6 +97,22 @@ pub fn deed_macro(declaration: &macro_ron::MacroDef) -> macro_ron::MacroDef {
     )
 }
 
+/// Whether a keyword action's declaration, given the body its meta-macro
+/// produced, enacts another declaration's deed (`deed: <name>`): it then names
+/// no deed of its own, so its name has no [`deed_macro`]. `conniveN` writes
+/// `deed: connive`, one event for both forms [CR#701.50f]; a card names that
+/// event `connive`, and `conniveN` read where a deed is wanted is refused at
+/// load, as any undeclared deed is. `deed: None` is no other deed: such a
+/// declaration (`search`) keeps its own name [CR#701.1].
+///
+/// # Errors
+/// If the produced body is not the record the meta-macro writes.
+pub fn enacts_another_deed(body: &str) -> Result<bool, String> {
+    Ok(Record::read(body, &["deed", "instruction"])?
+        .get("deed")
+        .is_some_and(|deed| deed != "None"))
+}
+
 /// The definition a declaration of family `family` registers, given the body
 /// its meta-macro produced: `Some` for the two keyword families, whose
 /// declaration builds the wrapper, and for the designation family, whose
