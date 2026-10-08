@@ -97,6 +97,8 @@ constructions! {
         table finite_clause_complement(FiniteClauseComplement) -> Selection {
             (Yes) => Yes, (Nonsequencing) => Yes,
         }
+        feature VerblessClauseComplement { No, Yes } default No;
+        feature VerblessPredicateUse { No, Yes } default No;
         feature GerundClauseComplement { Yes }
         feature InternalisedComplementMarker { No, Yes } default No;
         feature InternalisedComplementPresent { No, Yes } default No;
@@ -229,6 +231,7 @@ constructions! {
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, ScalarDenotation, SourceModifierPresent);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, SourceModifierPresent);
         category AdjectivePhrase(AdjectiveStructure, TargetingPremodifierUse);
+        category VerblessClause();
         category Name();
         category NamePredicate();
         category PrepositionPhrase(LocativeUse, PrepositionFunctionLicence, ObliqueNumber,
@@ -2533,6 +2536,31 @@ constructions! {
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
+        }
+
+        // CGEL Ch. 14 §10(b), p. 1267: reducible Clause Complements.
+        // The lexical permission for an unrealized infinitival Complement
+        // and the clause-final distribution are declared project decisions.
+        construction VerblessClause: VerblessClause {
+            form [predicate: lexical(Adjective)];
+            require predicate.VerblessPredicateUse = Yes;
+        }
+
+        construction VerblessClauseComplementPreposition: PrepositionPhrase {
+            form [head: lexical(Preposition), " ", complement: VerblessClause];
+            require head.VerblessClauseComplement = Yes;
+            require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
+            export SourceComplementUse = No;
+            export SourceMarker = No;
+            export FocusedUse = No;
+            export ClauseInitialAdjunct = No;
+            export SelectedPrepositionUse = No;
+            export SourceModifierPresent = No;
+            export NominalComplementMarker = None;
+            export ObliqueNumber = None;
+            export LocativeUse = No;
+            export InternalisedComplementMarker = No;
+            export PrepositionFunctionLicence = Adjunct;
         }
 
         construction ClauseComplementPreposition: PrepositionPhrase {

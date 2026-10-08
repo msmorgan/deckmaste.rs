@@ -142,3 +142,6 @@ mod once_frequency;
 
 #[path = "suite/purpose_infinitival.rs"]
 mod purpose_infinitival;
+
+#[path = "suite/verbless_if_complement.rs"]
+mod verbless_if_complement;

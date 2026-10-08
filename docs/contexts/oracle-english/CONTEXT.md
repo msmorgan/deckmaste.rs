@@ -241,6 +241,21 @@ pp. 1393–1394).
 A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.
 
+**Verbless Clause**:
+A Clause whose Predicate contains no verb. A reducible Clause Complement of a
+Preposition may also omit its Subject (CGEL, Ch. 14 §10(b), p. 1267).
+
+**Verbless Predicate Use** (project term):
+An Adjective's declared permission to realize a Verbless Clause's Predicate
+with its selected infinitival Complement unexpressed. The licence for *able*
+is the [attestation-based project decision](../../tickets/done/english-v3-verbless-if-complement.md#analysis),
+not an example supplied by CGEL's account of *necessary* and *possible*.
+
+**Verbless Clause Complement** (project term):
+A Preposition's declared permission to take a Verbless Clause as its
+Complement. This permission does not by itself license a grammatical function
+or an attachment position for the resulting Preposition Phrase.
+
 **Bare Infinitival**:
 A nonfinite Clause with a plain-form verb and without the infinitival
 Subordinator *to* (CGEL, Ch. 14 §1.1, pp. 1173–1174).
