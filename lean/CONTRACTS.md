@@ -275,9 +275,26 @@ deed, as the explicit plural agent leaves it, so "each opponent loses 1 life
 and you gain life equal to the total life lost this way" [CR#702.101a] reads
 it through `thatMuch`. `doForEach` keeps every outcome plural.
 
-A handoff does not record the possessor of the hand or battlefield its body
-draws on: object bindings carry no possessor, so a discard by a player other
-than the hand's owner is not refused. `Proofs/Actor.lean` pins the handoff
+An object binding records its Binding Possessor (`Payload.object`'s last field,
+`Possessor`): "you" or another player, relative to the controller [CR#109.5],
+or unknown. A description seeds it (`Predicate.seedPossessor`) from a
+possessed hand, graveyard or library (`.inZone (handOf p)` [CR#400.1,400.3]) and from
+a controller predicate (`.hasPossessor .controller p`, and its negation on
+`you` [CR#108.4]), with `actor` read in its handoff
+(`NounPhrase.possessorSide`), so a binding made inside a handoff keeps its
+meaning outside it. A move between one player's own zones keeps it; a move to
+or from a shared zone and a gain of control leave it unknown
+(`keptPossessor` [CR#110.2]). A deed whose facts row marks its patient as the
+performer's own (`ActFacts.ownPatient`: sacrifice [CR#701.21a], discard
+[CR#701.9a]) reads the patient's possessor (`NounPhrase.possessor`), the
+conjunct of an indefinite patient and the binding of a definite referent
+alike, and is refused `patientPossessor` only when that possessor is known to
+be another player than the performer (`enactPatientPossessorOk`); an unknown
+possessor is not refused. This is a reference agreement, not a game rule about
+zones. `Proofs/Possessor.lean` pins both deeds in both forms with their
+passing twins. Every pattern over `Payload.object` names the possessor: the
+field defaults to unknown, and a pattern that leaves it out matches only the
+unknown possessor. `Proofs/Actor.lean` pins the handoff
 cards, the bindings each kind of performer leaves, nested handoffs, nested
 abilities, captured `actor`, every cost the bench hands to another player, the
 group handoff's totals, and the handoff to a permanent with the default to the

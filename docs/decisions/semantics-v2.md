@@ -234,9 +234,9 @@ mimicked.
   cannot take both forms is un-de-macroed verb structure hiding in a filter.
   An indefinite patient that names no zone ("discard a card") is selected
   where the deed's patient lives, so the verb supplies its zone (ruling,
-  2026-10-05); the controller or possessor half is not yet checked, because
-  an object binding records no possessor
-  (`semantics-v2-bindings-carry-no-possessor`).
+  2026-10-05). The controller or possessor half is checked on the object
+  binding's possessor, in both forms, since
+  `semantics-v2-bindings-carry-no-possessor` (2026-10-07, `lean/CONTRACTS.md`).
 - **One stat change carries both deltas.** "<subject> gets +P/+T" and
   "<subject> has base power and toughness P/T" are one node,
   `StaticSpec.ptModification subject power toughness` (mirror
