@@ -128,3 +128,110 @@ expansions` shows `gift` and the six new declarations and nothing else.
 
 The "gives a gift" trigger [CR#702.174c] beyond what the bare declaration
 needs to be nameable.
+
+## Landing record
+
+Measured on change `untszuxmsxvn` (tip of the claim after `kata refresh`,
+2026-10-08), over base `qxwvqpox`. No coverage lock is in play (the English
+census below is the evidence); construction count unchanged (no grammar
+construction added).
+
+### PROVE
+
+- **No silent loss.** `cargo xtask lean check`: canon 134 → 138/138, testing
+  7/7 (132 seconds). `cargo xtask lean definitions` 553/553 (73 counters, 461
+  subtypes, 19 designations). `lake build --wfail` 88 jobs, every existing pin
+  keeps its outcome. `cargo xtask english-v3 --all` before (base) and after:
+  32,828 faces, 0 issues, 0 internal failures both times; no face lost or
+  changed its readings digest; one gained (below).
+- **Structural laws.** `cargo xtask facts check`: up to date. Gift's row now
+  declares `definition := [⟨.static, some .atCasting⟩, ⟨.triggered, none⟩,
+  ⟨.spell, some .atResolution⟩]` and `argumentSchemas := [[]]` (was
+  `[[⟨.subject, none⟩]]`), regime summary `.atCasting` unchanged; the Idris row's
+  `SubjectParam` became `NoParam`. `cargo xtask expansions` `diff -r`
+  before/after: builtin gains `gift` (was skipped) and the six variants (1509 →
+  1515 declarations), nothing else; canon and testing identical.
+- **No word-naming.** The class guards read card types; the variant label is a
+  declared field; the facts generator skips a declaration by its declared
+  `label`, never by name.
+- **No new game-rule refusal** (charter, §7): the only checks added are
+  load-time shape checks on the new `label` field.
+
+### DISCLOSE
+
+- **Gift** (`keyword_abilities/gift.ron`): `params: [Instruction]`, no
+  spelling, grammar kept for the keyword and "the gift was promised". Body:
+  `static(addedCost(perform(choose(a(opponent))), true))`; an enters trigger
+  `triggeredIf(enters(thisPermanent), matches(this, or([hasType(Artifact), …
+  hasType(Planeswalker)])), doIf(keywordCostPaid(gift, this),
+  act(chosenAsPaid(ByKeyword(gift), this), Param(0))))`; and
+  `spell(doIf(matches(this, instantOrSorcery), <same doIf>))`. The choice cost
+  is the existing `Cost.perform(choose(…))` form (Lean bench precedent in
+  `Cards/Choice.lean`). The permanent guard is the permanent-type disjunction,
+  not `permanentCard`, so it holds of a token copy.
+- **Variants**: `giftACard` = `gift(draw(1))`; `giftAnExtraTurn` =
+  `gift(extraTurn(1))`; `giftAnOctopus` =
+  `gift(createToken(creatureToken(8, 8, [Blue], [octopus])))`;
+  `giftATappedFish` = `gift(createObject(1, Token(spec:
+  written(creatureToken(1, 1, [Blue], [fish])), riders: [EntersAs(Tapped)])))`;
+  `giftAFood` and `giftATreasure` = `gift(createToken(…))` with the Food
+  [CR#111.10b] and Treasure [CR#111.10a] characteristics written inline. Each
+  writes `label: gift`; spellings "gift a card", "gift a Food", "gift a tapped
+  Fish", "gift a Treasure", "gift an extra turn", "gift an Octopus".
+- **Cards** (canon): Scrapshooter (creature, Gift a card), Long River's Pull
+  (instant, Gift a card), Starforged Sword (artifact, Gift a tapped Fish), Into
+  the Flood Maw (instant, Gift a tapped Fish). Lean pins
+  `Proofs/GiftVariants.lean` (5): both variants fit the registry gift row; each
+  on a permanent card and an instant; twins refused (spell half under the
+  permanent guard; an unlinked chosen player).
+- **English, newly covered**: Octomancer, no → multiple (17 readings); its
+  keyword line reads as `BareKeyword` over the new `giftAnOctopus` lexeme, a
+  correct analysis; the multiplicity is the existing second line's.
+- **Lexicon**: six new keyword lexemes (`lexeme:keyword_ability/giftACard`,
+  `giftAFood`, `giftATappedFish`, `giftATreasure`, `giftAnExtraTurn`,
+  `giftAnOctopus`, each `KeywordParameterClass` Nullary), and gift's
+  `KeywordParameterClass` Subject → Instruction. The Black Lotus and
+  Scrapshooter exports differ from the base by exactly those lines.
+- **Findings.** F1, F2, F3: answered by their done tickets and used as decided.
+  F4: answered here by the `label` field (meta `KeywordAbility.ron`): a
+  variant's term is its one invocation of the labelled keyword, its label macro
+  reads `Named("gift")`, and the facts generator and `facts labels` skip it.
+  F5: answered here: an `Instruction` parameter forwards as nothing,
+  `Shape::from_params(["Instruction"])` is `Nothing`, the Lean schema drops it,
+  and construction_core classes it `Unsupported(Instruction)`.
+- **Deviations and additions.** `Metadata.spelling` is `Option<String>`; only a
+  keyword ability may omit it. `UnsupportedKeywordParameterClass::Instruction`
+  is new, and the English v3 `KeywordParameterClass` feature declaration does
+  not list it: no construction requires it, so bare gift heads no keyword
+  payload (it never covered a face as `Subject`); the census reports 0 issues.
+  Spellings take the lowercase keyword head ("gift a card"), not the table's
+  capitalized line form. "Sacrifice this token" is written `thisArtifact`. No
+  token or extra-turn helper was added. Glossary: **Keyword Ability** amended
+  (spelled forms carry the keyword's name). `lean/CONTRACTS.md` and three pin
+  file headers updated (comments). ADR §12 count unchanged.
+- **STOPs.** None.
+
+### Assurance counts
+
+Restored 0; re-spelled 5 (`nursery_and_graduated_sources_use_the_ordinary_macro_reader`,
+`builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`,
+`every_keyword_declaration_pins_its_template`,
+`every_keyword_template_is_consistent_with_its_params_and_grammar`, and
+`a_keyword_declaration_builds_its_wrapper`, whose gift `Subject` forwarding
+became casualty's `Amount`); ignored 0; added 8 (3 Rust tests, 5 Lean pins;
+three existing tests gained gift assertions); removed 0.
+
+### Tests
+
+`cargo test -p` and `cargo clippy -p <crate> --tests -- -D warnings` for
+deckmaste_semantics_v2, deckmaste_construction_core, xtask and
+deckmaste_lexical_source: all pass, clippy clean; `cargo test -p
+deckmaste_english_v3` passes (it reads the changed lexicon). Cite checks: 0
+non-compliant, 0 stale after `bless` registered [CR#702.174m,702.17a], and the
+diff from the claim audited (36 sites). `kata kanban check` OK.
+
+### REPORT
+
+`cargo xtask english-v3 --all` (dev profile, 8 workers): 147,611 ms corpus wall at
+host load 8.4, 423,723 ns/B, against the 16.26-second ceiling; the base measured
+159,159 ms, 447,168 ns/B at load 4.0. `lean check` 132 seconds.
