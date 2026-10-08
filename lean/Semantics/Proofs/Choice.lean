@@ -124,18 +124,18 @@ theorem badSpreeMissingCost :
   decide
 
 /-- "Choose one — Destroy target artifact; or tap it." The Idris pin refutes the zone; the
-unresolved `it` is refused first. -/
+checker refuses the unresolved `it`. -/
 theorem badModalReadsAcrossModes :
     Instruction.check []
       (chooseModes (exactly 1) [destroy (target artifact), .setStatus .tapped it])
-      = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
+      = [.anaphor .bare .one 0] := by
   decide
 
 theorem badReadsAfterModal :
     Instruction.check []
       (.sequentially
         [ chooseModes (exactly 1) [destroy (target artifact), destroy (target enchantment)],
-          .setStatus .tapped it ]) = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
+          .setStatus .tapped it ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "you pay 1 life" -/
@@ -155,10 +155,6 @@ theorem badMismatchedPayer :
 theorem okRetargetStackSpell :
     Instruction.check [] (.chooseNewTargets (target (.and [instantOrSorcery, spell]))) = [] := by
   decide
-
-/-- "Choose new targets for target creature." -/
-theorem badRetargetPermanent :
-    Instruction.check [] (.chooseNewTargets (target creature)) = [.stackActOn] := by decide
 
 /-- "Your opponents can't gain life." -/
 theorem okStaticPlayerCant :
@@ -380,16 +376,6 @@ theorem badMemberInComparisonBound :
 theorem okGetsBattlefield :
     Instruction.check []
       (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
-  decide
-
-/-- "Destroy target creature. It gets +3/+3 until end of turn." The boost reads the destroyed
-creature, refused once (the two-modification spelling, whose halves each read it, is
-`GetsBothDeltas.badGetsGraveyardTwoHalves`). -/
-theorem badGetsGraveyard :
-    Instruction.check []
-      (.sequentially
-        [destroy (target creature), get it (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)])
-      = [.zoneIs .battlefield] := by
   decide
 
 /-- "Choose a creature. This deals 3 damage to each creature not chosen this way." -/

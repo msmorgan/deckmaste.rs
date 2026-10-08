@@ -21,15 +21,14 @@ theorem okGetsBattlefieldSubject :
   decide
 
 /-- "That creature gets +2/+0 as long as this creature is attacking." The Idris pin refutes
-the anaphor; unresolved, the subject has no zone. The subject is written once, so each is
-refused once (the two-modification spelling, which re-read it, is
+the anaphor. The subject is written once, so it is refused once (the two-modification spelling, which re-read it, is
 `GetsBothDeltas.badThatCreatureIsCondSubjectTwoHalves`). -/
 theorem badThatCreatureIsCondSubject :
     Ability.check []
       (.static
         (onlyWhile (getsPt (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)))
           (.matches thisCreature attacking)))
-      = [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by
+      = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
 /-- "Equipped creature gets +1/+1." -/
@@ -37,20 +36,6 @@ theorem okEquippedCreature :
     Ability.check []
       (.static (getsPt (.attachHost .equipped (.type .creature)) (.up (.lit 1)) (.up (.lit 1))))
       = [] := by
-  decide
-
-/-- "Equipped land gets +1/+1." -/
-theorem badEquippedLand :
-    Ability.check []
-      (.static (getsPt (.attachHost .equipped (.type .land)) (.up (.lit 1)) (.up (.lit 1))))
-      = [.attachHeadOk] := by
-  decide
-
-/-- "Fortified creature gets +1/+1." -/
-theorem badFortifiedCreature :
-    Ability.check []
-      (.static (getsPt (.attachHost .fortified (.type .creature)) (.up (.lit 1)) (.up (.lit 1))))
-      = [.attachHeadOk] := by
   decide
 
 /-- "You can't lose the game." -/
@@ -177,14 +162,6 @@ theorem okSingleExtension :
               allOf (Primitives.Predicate.and [creature, spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
               allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .adds (.everyTypeOf .creature)) = [] := by decide
 
-/-- An explicit zone and its negation cannot describe the affected collection. -/
-theorem badContradictoryOutsideSelection :
-    StaticSpec.check []
-      (Primitives.StaticSpec.qualityChange
-        (allOf (.and [.isCard, creature, .inZone battlefield, .not (.inZone battlefield)]))
-        .adds (.bundle { characteristics := { types := [.artifact] } } none)) =
-      [.zoneCoherent] := by decide
-
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okDrawReplacement :
     StaticSpec.check [] (.replacement (.draws .you) [] none (draw (.lit 2))
@@ -237,19 +214,6 @@ theorem badBecomesBlockingPlaneswalker :
 /-- "this creature gets +1/+0" -/
 theorem okAddPtUpward :
     StaticSpec.check [] (.modification thisCreature .power (.up (.lit 1))) = [] := by decide
-
-/-- "this creature's mana value is 2 more than it was"; a mana value is read off the mana cost
-[CR#202.3], not modified in the layer that spells "gets". -/
-theorem badModifyManaValue :
-    StaticSpec.check [] (.modification thisCreature .manaValue (.up (.lit 2))) = [.modifyStat] := by
-  decide
-
-/-- "this planeswalker's loyalty becomes 3"; loyalty is the number of loyalty counters on it
-[CR#306.5c], so a loyalty change belongs to the counter lane. -/
-theorem badSetLoyalty :
-    StaticSpec.check [] (.modification thisPlaneswalker .loyalty (.set (.lit 3))) = [.modifyStat] :=
-        by
-  decide
 
 /-- "During target opponent's next turn, …" -/
 theorem okSingularNextTurnDuration :

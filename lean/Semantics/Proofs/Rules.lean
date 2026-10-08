@@ -107,13 +107,6 @@ def battleDefenseDamage : DamageResultRule :=
   { recipient := .hasType .battle, remove := .named "defenseCounter" }
 theorem okBattleDefenseDamage : DamageResultRule.check battleDefenseDamage = [] := by decide
 
-/-- Damage can't be dealt to an object that isn't a battle, a creature, or a planeswalker
-[CR#120.1a]. -/
-theorem badDamageResultRecipient :
-    DamageResultRule.check { recipient := enchantment, remove := .named "loyaltyCounter" }
-      = [.damageRecipient] := by
-  decide
-
 /-- The counter registry declares who holds each counter [CR#122.1]: an energy counter is a
 player's, so no damage to a permanent removes one. -/
 theorem badDamageResultCounterHolder :
@@ -154,8 +147,8 @@ object's toughness." The definition states what ONE counter confers, "+1/+1" in 
 [CR#613.4c], and the model applies it once per counter held, so the conferral reads no count.
 
 The conferral is about its bearer wherever the bearer is: a +1/+1 counter also counts "on a
-creature card in a zone other than the battlefield" [CR#122.1a], so the definition is not
-refused for leaving its bearer's zone open (`Conferral.checkProperty`). -/
+creature card in a zone other than the battlefield" [CR#122.1a], and the checker asserts no zone
+for the bearer of a stat change, a definition's or a card's (`lean-checker-sweep-zone`). -/
 def p1p1CounterDefinition : Definition :=
   .counter (.named "p1p1Counter") .object [boost (.up (.lit 1)) (.up (.lit 1))]
 theorem p1p1CounterDefinitionZone :
@@ -168,27 +161,17 @@ def m1m1CounterDefinition : Definition :=
 theorem m1m1CounterDefinitionZone :
     Definition.check m1m1CounterDefinition = [] := by decide
 
-/-- The narrowing is the definition's alone: the same stat change on the same unplaced subject,
-checked as a card's static ability is, still demands the battlefield, because a card's "gets
-+1/+1" changes a permanent [CR#613.4c,110.1]. -/
-theorem cardStatChangeOffBattlefieldZone :
-    StaticSpec.check [] (.ptModification .this (.up (.lit 1)) (.up (.lit 1)))
-      = [.zoneIs .battlefield] := by decide
-
 /-- The retired spelling of `p1p1Counter`'s conferral, which multiplied each stat by the count of
-its own kind on the bearer, in two single-stat changes. Each single-stat change keeps the zone
-check (`Conferral.checkProperty` narrows the one stat change `boost` writes, which carries both
-deltas), so it is refused once per change; nothing is refused for reading its own count or for
-not reading it, because multiplicity is the model's reading of a counter definition and the
-checker computes none. -/
+its own kind on the bearer, in two single-stat changes. Nothing is refused for reading its own
+count or for not reading it, because multiplicity is the model's reading of a counter definition
+and the checker computes none. -/
 def ownCount : Amount := .statOf (.counter (.named "p1p1Counter")) .this
 def p1p1CounterCountMultiplied : Definition :=
   .counter (.named "p1p1Counter") .object
     [ .property (.modification .this .power (.up ownCount)),
       .property (.modification .this .toughness (.up ownCount)) ]
 theorem p1p1CounterCountMultipliedTwin :
-    Definition.check p1p1CounterCountMultiplied =
-      [.zoneIs .battlefield, .zoneIs .battlefield] := by decide
+    Definition.check p1p1CounterCountMultiplied = [] := by decide
 
 /-- [CR#122.1f] "If a player has ten or more poison counters, that player loses the game." A
 poison counter is a player's. -/

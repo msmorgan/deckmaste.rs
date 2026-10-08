@@ -133,10 +133,6 @@ theorem unrelatedTypeRefinementsDoNotDescribeEquipmentHost :
 theorem damageAcceptsArtifactCreature :
     Instruction.check [] (.dealDamage .this (.lit 1) (target artifactCreature)) = [] := by decide
 
-theorem damageRejectsArtifactAlternative :
-    Instruction.check [] (.dealDamage .this (.lit 1) (target (.or [artifact, creature]))) =
-      [.damageRecipient] := by decide
-
 private def equipmentHost : NounPhrase :=
   .attachHost .equipped (.ofType (.type .artifact) .creature)
 

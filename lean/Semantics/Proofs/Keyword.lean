@@ -47,12 +47,6 @@ theorem okCostSubjectOnStack :
         by
   decide
 
-/-- "Creatures you control cost {1} less to cast." -/
-theorem badCostSubjectOnBattlefield :
-    StaticSpec.check [] (.costShift (allOf creatureYouControl) (.less (.lit 1) none))
-      = [.costSubject] := by
-  decide
-
 /-- "Creatures you control have flying." -/
 theorem okBattlefieldFlying :
     StaticSpec.check [] (.abilityGrant (allOf creatureYouControl) (keyword (.named "flying"))) = [] := by
@@ -370,13 +364,11 @@ theorem badForeignSacrificeCost :
 /-- "Counter target spell." -/
 theorem okCounterSpell : Instruction.check [] (Primitives.Instruction.counterSpell (target spell)) = [] := by decide
 
-/-- "Counter target creature." -/
-theorem badCounterPermanent :
-    Instruction.check [] (Primitives.Instruction.counterSpell (target creature)) = [.zoneFits] := by decide
-
 /-- "Counter target creature or player." -/
 theorem badCounterJoinedPlayer :
-    Instruction.check [] (Primitives.Instruction.counterSpell (target anyTarget)) = [.movable, .zoneFits] := by decide
+    Instruction.check [] (Primitives.Instruction.counterSpell (target anyTarget))
+      = [.kindLte (.join .object (.join .object (.join .object .player))) (.join .object .pile)] := by
+  decide
 
 /-- "Companion — Each permanent card in your starting deck has mana value 2 or less." -/
 theorem okCompanionCharacteristicRead :

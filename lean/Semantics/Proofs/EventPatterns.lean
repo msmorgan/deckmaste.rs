@@ -20,7 +20,7 @@ theorem sourcePrecedesRecipientReference :
 
 theorem absentSourceCannotSupplyReference :
     GameEvent.check [] (.damage .any none (some it)) =
-      [.anaphor .bare .one 0, .damageRecipient] := by decide
+      [.anaphor .bare .one 0] := by decide
 
 theorem damageIntroducesOutcomeBeforeParticipants (bs : Bindings) (kind : DamageKind)
     (source patient : NounPhrase) :
@@ -71,20 +71,10 @@ theorem deathInterceptionKeepsDeparture :
 theorem unknownDepartureCanBeConstrained :
     GameEvent.check [] (Primitives.GameEvent.dies (a .isCard)) = [] := by decide
 
-theorem excludedDepartureIsRefused :
-    GameEvent.check []
-      (.zoneChange (a creature) (some (.anywhereBut [battlefield])) (some graveyard) .before) =
-      [.zoneFits] := by decide
-
 theorem excludingOnePlayersZoneDoesNotExcludeEveryPlayersZone :
     GameEvent.check []
       (.zoneChange (a (.and [.isCard, .inZone (graveyardOf (a .opponent))]))
         (some (.anywhereBut [graveyardOf .you])) (some exileZone) .before) = [] := by decide
-
-theorem arrivalCannotBeDescribedInTheOrigin :
-    GameEvent.check []
-      (.zoneChange (a (.and [creature, .inZone library]))
-        (some (.zones [library])) (some graveyard) .after) = [.zoneFits] := by decide
 
 theorem arrivalCanBeDescribedAsCard :
     GameEvent.check []
@@ -107,10 +97,6 @@ theorem anyZoneChangeIsMeaningful :
 theorem playerIsNotAChangingObject :
     GameEvent.check [] (.zoneChange .you none none .after) =
       [.kindMismatch .object .player] := by decide
-
-theorem sharedZoneCannotBeItsOwnDestination :
-    GameEvent.check [] (.zoneChange (a creature) (some (.zones [battlefield]))
-      (some battlefield) .before) = [.zoneCoherent] := by decide
 
 theorem explicitCardLocationIsRetained :
     NounPhrase.zone [] (a (.and [.isCard, creature, .inZone graveyard])) =
@@ -138,11 +124,6 @@ theorem ownedOutsideCardsAreAdmitted :
       (allOf (.and [.isCard, creature, .hasPossessor .owner .you, .not (.inZone battlefield)])) =
       [] := by decide
 
-theorem controlledGraveyardCardsAreRefused :
-    NounPhrase.check (some .object) []
-      (allOf (.and [.isCard, creature, .hasPossessor .controller .you, .inZone graveyard])) =
-      [.zoneCoherent] := by decide
-
 theorem controlledCreatureSpellsRemainIncluded :
     StaticSpec.check [] (.characteristicChange
       (allOf (.and [creature, spell, .hasPossessor .controller .you]))
@@ -151,15 +132,6 @@ theorem controlledCreatureSpellsRemainIncluded :
 theorem beforeObservationRetainsKnownUnspecifiedOrigin :
     NounPhrase.zone (GameEvent.intro [] (Primitives.GameEvent.leaves (a creature) none)) it =
       some .battlefield := by decide
-
-theorem emptyOriginIsNotAZoneChange :
-    GameEvent.check [] (.zoneChange (a .isCard) (some (.zones [])) none .before) =
-      [.zoneCoherent] := by decide
-
-theorem excludingEveryOriginIsImpossible :
-    GameEvent.check [] (.zoneChange (a .isCard)
-      (some (.anywhereBut [battlefield, graveyard, exileZone, hand, library, stack, commandZone]))
-      none .before) = [.zoneCoherent] := by decide
 
 theorem placelessCardsDoNotAcquireBattlefieldEvidence :
     NounPhrase.zone (nomIntro []
@@ -180,10 +152,5 @@ theorem excludingYourGraveyardAllowsAnOpponentsGraveyard :
     NounPhrase.check (some .object) []
       (a (.and [.isCard, .inZone (graveyardOf (a .opponent)),
         .not (.inZone (graveyardOf .you))])) = [] := by decide
-
-theorem identicalQualifiedZoneAndItsNegationConflict :
-    NounPhrase.check (some .object) []
-      (a (.and [.isCard, .inZone (graveyardOf .you),
-        .not (.inZone (graveyardOf .you))])) = [.zoneCoherent] := by decide
 
 end Semantics.Proofs.EventPatterns

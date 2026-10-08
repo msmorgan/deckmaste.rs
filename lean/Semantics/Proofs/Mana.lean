@@ -19,11 +19,6 @@ def act (cost : Cost) (instruction : Instruction) (timing : Option Timing := non
 /-- "your hand" -/
 theorem okOwnedHand : ZoneExpr.check [] (.zone .hand (.possessedBy .you)) = [] := by decide
 
-/-- "your battlefield" -/
-theorem badOwnedBattlefield :
-    ZoneExpr.check [] (.zone .battlefield (.possessedBy .you)) = [.possessable .battlefield] := by
-  decide
-
 /-- "Discard a card at random. This deals damage equal to the discarded card's mana value to any
 target." -/
 theorem okDiscardedCardWord :
@@ -386,13 +381,6 @@ theorem badOpponentPaysYourCost :
 /-- "Whenever a player taps a land for mana, …" -/
 theorem okTappedForMana :
     GameEvent.check [] (.tappedForMana (some (a .anyPlayer)) (a land) none) = [] := by decide
-
-/-- "Whenever a card in a graveyard is tapped for mana, …": only a permanent is tapped for mana
-[CR#106.12]. -/
-theorem badTappedForManaOffField :
-    GameEvent.check [] (.tappedForMana (some .you) (a (.and [.isCard, .inZone graveyard])) none)
-      = [.zoneFits] := by
-  decide
 
 /-- An artifact with the given text. -/
 def artifactWith (text : List Ability) : Card :=

@@ -94,8 +94,4 @@ theorem okThreeDamageRecipientAlternatives :
     Instruction.check [] (.dealDamage .this (.lit 1) (.or [thisCreature, .you, thisCreature])) =
       [] := by decide
 
-theorem badThirdDamageRecipientAlternative :
-    Instruction.check [] (.dealDamage .this (.lit 1) (.or [thisCreature, .you, thisLand])) =
-      [.damageRecipient] := by decide
-
 end Semantics.Proofs.Composition

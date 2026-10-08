@@ -18,10 +18,11 @@ theorem okEnchantedPlayerHasNoZone :
 
 theorem badEquippedPlayer :
     Condition.check [] (.matches .you (.attachment .host (some .equipped) none)) =
-      [.attachFits] := by decide
+      [.kindLte .player .object] := by decide
 
 theorem badFortifiedPlayer :
-    Predicate.check .player [] (.attachment .host (some .fortified) none) = [.attachFits] := by decide
+    Predicate.check .player [] (.attachment .host (some .fortified) none) =
+      [.kindLte .player .object] := by decide
 
 theorem okPlayerHostWithNoWord :
     Predicate.check .player [] (.attachment .host none none) = [] := by decide
@@ -36,11 +37,7 @@ theorem okAuraAttachedToPlayer :
 
 theorem badEquipmentAttachedToPlayer :
     Predicate.check .object [] (.attachment .attachment (some .equipped) (some .you)) =
-      [.attachFits] := by decide
-
-theorem badEquipmentAttachedToLand :
-    Predicate.check .object [] (.attachment .attachment (some .equipped) (some thisLand)) =
-      [.attachFits] := by decide
+      [.kindLte .player .object] := by decide
 
 theorem okCountedAuraAttachments :
     Condition.check [] (.matches thisCreature (.attachment .host (some .enchanted)
@@ -63,7 +60,7 @@ theorem badAbsentCounterpartTarget :
     Instruction.check [] (.sequentially [
       exile (target (.and [artifact, .attachment .attachment none (some thisCreature)])),
       .setStatus .tapped (that (.type .creature))]) =
-      [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by decide
+      [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 theorem transformedMacroReadsWholeBackFace :
     Primitives.Predicate.isTransformed = Predicate.currentFace .back := by rfl

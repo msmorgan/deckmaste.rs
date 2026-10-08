@@ -138,14 +138,6 @@ theorem okGetsBattlefieldTwin :
       Instruction.check [] (getTwoHalves (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) := by
   decide
 
-/-- `Choice.badGetsGraveyard` in the retired two-modification spelling, whose toughness half
-re-reads the subject: each of the subject's failures is refused twice. The one-node spelling
-refuses each once (`Choice.badGetsGraveyard`). -/
-theorem badGetsGraveyardTwoHalves :
-    Instruction.check [] (.sequentially [destroy (target creature), getTwoHalves it (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)])
-      = [.zoneIs .battlefield, .zoneIs .battlefield] := by
-  decide
-
 /-- `Counters.okAltHeaderAgreeingReadback`: the same refusals in both spellings. -/
 theorem okAltHeaderAgreeingReadbackTwin :
     Ability.check [] (.triggered (blocks thisCreature (some (a creature))) [becomesBlocked thisCreature (some (a creature))] none [] none none none (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn))) =
@@ -157,8 +149,7 @@ re-reads the subject: each of the subject's failures is refused twice. The one-n
 refuses each once (`Counters.badAltHeaderMixedReadback`). -/
 theorem badAltHeaderMixedReadbackTwoHalves :
     Ability.check [] (.triggered (blocks thisCreature none) [becomesBlocked thisCreature (some (a creature))] none [] none none none (getTwoHalves (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
-      = [ .anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield,
-          .anaphor .bare .one 0, .zoneIs .battlefield ] := by
+      = [.anaphor (.word (.type .creature)) .one 0, .anaphor .bare .one 0] := by
   decide
 
 /-- `Damage.okIt`: the same refusals in both spellings. -/
@@ -171,14 +162,6 @@ theorem okItTwin :
 theorem okGetsCreatureTwin :
     Instruction.check [] (get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) =
       Instruction.check [] (getTwoHalves (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) := by
-  decide
-
-/-- `Damage.badGetsSource` in the retired two-modification spelling, whose toughness half
-re-reads the subject: each of the subject's failures is refused twice. The one-node spelling
-refuses each once (`Damage.badGetsSource`). -/
-theorem badGetsSourceTwoHalves :
-    Instruction.check [] (getTwoHalves (target source) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))
-      = [.zoneIs .battlefield, .zoneIs .battlefield] := by
   decide
 
 /-- `Deontic.badContinuousAsCost`: the same refusals in both spellings. -/
@@ -222,8 +205,7 @@ re-reads the subject: each of the subject's failures is refused twice. The one-n
 refuses each once (`Static.badThatCreatureIsCondSubject`). -/
 theorem badThatCreatureIsCondSubjectTwoHalves :
     Ability.check [] (.static (onlyWhile (getsPtTwoHalves (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0))) (.matches thisCreature attacking)))
-      = [ .anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield,
-          .anaphor .bare .one 0, .zoneIs .battlefield ] := by
+      = [.anaphor (.word (.type .creature)) .one 0, .anaphor .bare .one 0] := by
   decide
 
 /-- `Static.okEquippedCreature`: the same refusals in both spellings. -/

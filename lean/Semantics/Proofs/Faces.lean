@@ -154,28 +154,9 @@ theorem turnedFaceDownHeader :
 theorem okDoesntUntapNextOnBattlefield :
     Instruction.check [] (.skipUntap (target creature) (.lit 1)) = [] := by decide
 
-theorem badUntapNextGraveyard :
-    Instruction.check []
-      (.skipUntap (target (.and [creature, .inZone (graveyardOf .you)])) (.lit 1))
-      = [.zoneIs .battlefield] := by
-  decide
-
 /-- "Turn target creature face down." -/
 theorem okTurnFaceDownOnBattlefield :
     Instruction.check [] (.setStatus .faceDown (target creature)) = [] := by decide
-
-/-- "Turn target creature card in your graveyard face down." -/
-theorem badTurnFaceDownGraveyard :
-    Instruction.check []
-      (.setStatus .faceDown (target (.and [creature, .inZone (graveyardOf .you)])))
-      = [.zoneIs .battlefield] := by
-  decide
-
-/-- "Target creature card in your hand phases out." -/
-theorem badPhasesOutInHand :
-    Instruction.check [] (.setStatus .phasedOut (target (.and [creature, .inZone (handOf .you)])))
-      = [.zoneIs .battlefield] := by
-  decide
 
 /-- a white creature face reading "Protection from red" -/
 theorem okProtectionOnCreature :
@@ -265,13 +246,8 @@ theorem okEnchantedPlayer :
 
 /-- "equipped player" -/
 theorem badEquippedPlayer :
-    NounPhrase.check (some .player) [] (.attachHost .equipped .player) = [.attachHeadOk] := by
-  decide
-
-/-- "fortified creature" -/
-theorem badFortifiedCreatureNoun :
-    NounPhrase.check (some .object) [] (.attachHost .fortified (.type .creature))
-      = [.attachHeadOk] := by
+    NounPhrase.check (some .player) [] (.attachHost .equipped .player) =
+      [.kindLte .player .object] := by
   decide
 
 /-- "Target creature gains indestructible." -/
@@ -382,12 +358,6 @@ theorem okCopyStackSpell :
           := by
   decide
 
-/-- "Copy target creature." -/
-theorem badCopyPermanent :
-    Instruction.check [] (.copy .fromStack (target creature) (.lit 1) [])
-      = [.copySourceOk] := by
-  decide
-
 /-- "Create a token that's a copy of target creature. Untap that token." -/
 theorem okSetStatusOnBattlefield :
     Instruction.check []
@@ -397,13 +367,13 @@ theorem okSetStatusOnBattlefield :
   decide
 
 /-- "Copy target instant or sorcery spell. Untap that token." The Idris pin refutes the
-anaphor; the unresolved "that token" has no zone either. -/
+anaphor. -/
 theorem badStackCopyAsToken :
     Instruction.check []
       (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
           .setStatus .untapped (that .token) ])
-      = [.anaphor (.word .token) .one 0, .zoneIs .battlefield] := by
+      = [.anaphor (.word .token) .one 0] := by
   decide
 
 /-- "Create a token that's a copy of target creature. Untap that copy." -/
@@ -412,7 +382,7 @@ theorem badTokenCopyAsCopyMention :
       (.sequentially
         [ Primitives.Instruction.create (.lit 1) (.copyOf (target creature) []) [],
           .setStatus .untapped (that .copy) ])
-      = [.anaphor (.word .copy) .one 0, .zoneIs .battlefield] := by
+      = [.anaphor (.word .copy) .one 0] := by
   decide
 
 /-- "Saga — I, II, III — Draw a card." -/
@@ -772,12 +742,6 @@ theorem badCoinsShowingWithoutFlip :
 /-- "Transform target creature." -/
 theorem okTurnOverOnField : Instruction.check [] (.turnOver (target creature)) = [] := by decide
 
-/-- "Transform target creature card in your graveyard." -/
-theorem badTurnOverOffField :
-    Instruction.check [] (.turnOver (target (.and [creature, .inZone (graveyardOf .you)])))
-      = [.zoneIs .battlefield] := by
-  decide
-
 /-- "Room" -/
 def room : Predicate := .hasSubtype (enchantmentType "Room")
 
@@ -792,16 +756,6 @@ theorem okUnlockRoomDoor :
 
 /-- "unlock this door" -/
 theorem badUnlockThisDoor : Instruction.check [] (.unlock .thisDoor) = [.doorNamesHost] := by
-  decide
-
-/-- "unlock a locked door of a Room card in your graveyard" -/
-theorem badUnlockDoorOffBattlefield :
-    Instruction.check [] (.unlock (.doorOf (some .locked) (a (.and [room, .inZone graveyard]))))
-      = [.zoneIs .battlefield] := by
-  decide
-
-theorem badDoorOfBareThis :
-    Instruction.check [] (.unlock (.doorOf (some .locked) .this)) = [.zoneIs .battlefield] := by
   decide
 
 /-- "When you unlock this door, this Room deals N damage to each opponent." -/

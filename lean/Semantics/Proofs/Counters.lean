@@ -72,15 +72,15 @@ theorem okAltHeaderAgreeingReadback :
       = [] := by
   decide
 
-/-- The Idris pin refutes the anaphor; unresolved, the subject has no zone. The subject is
-written once, so each is refused once (the two-modification spelling, which re-read it, is
+/-- The Idris pin refutes the anaphor. The subject is written once, so it is refused once (the
+two-modification spelling, which re-read it, is
 `GetsBothDeltas.badAltHeaderMixedReadbackTwoHalves`). -/
 theorem badAltHeaderMixedReadback :
     Ability.check []
       (.triggered (blocks thisCreature none)
         [becomesBlocked thisCreature (some (a creature))] none [] none none none
         (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
-      = [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by
+      = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
 theorem badThreeArmHeaderReadback :
@@ -115,12 +115,6 @@ theorem badRemoveCountersDead :
 /-- "Move a counter from target creature onto this creature." -/
 theorem okMoveCounterOntoThis :
     Instruction.check [] (.moveCounters (.lit 1) none (target creature) thisCreature) = [] := by
-  decide
-
-/-- "Move a counter from target creature onto it." -/
-theorem badMoveCountersSelf :
-    Instruction.check [] (.moveCounters (.lit 1) none (target creature) it)
-      = [.moveDestination] := by
   decide
 
 /-- "Create a 1/1 creature creature token." -/
@@ -240,13 +234,6 @@ theorem okExileWithCounterRider :
       (.enact (.action "exile")
         (.move (target creature) .wherever exileZone [.withCounters (.lit 1) p11 .fresh])) =
             [] := by
-  decide
-
-/-- "Exile target creature tapped." -/
-theorem badExileTapped :
-    Instruction.check []
-      (.enact (.action "exile") (.move (target creature) .wherever exileZone [.entersAs .tapped]))
-      = [.ridersFit] := by
   decide
 
 /-- "Put a +1/+1 counter on target creature." -/
@@ -478,11 +465,11 @@ theorem badBecomesOwnType :
       = [.becomesOk] := by
   decide
 
-/-- The Idris pin refutes the anaphor; the unresolved `it` has no zone either. -/
+/-- The Idris pin refutes the anaphor. -/
 theorem badOtherwiseReadsIfArm :
     Instruction.check []
       (.doOnlyIf (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
-        (exists_ creatureYouControl) (some (.setStatus .tapped it))) = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
+        (exists_ creatureYouControl) (some (.setStatus .tapped it))) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Create a 1/1 black Zombie creature token. Create two of those tokens." -/

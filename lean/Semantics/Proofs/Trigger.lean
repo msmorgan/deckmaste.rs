@@ -58,12 +58,12 @@ theorem okThatCreatureAfterAttack :
       = [] := by
   decide
 
-/-- The Idris pin refutes the anaphor; the unresolved "that creature" has no zone either. -/
+/-- The Idris pin refutes the anaphor. -/
 theorem badThatCreatureIsSelf :
     Ability.check []
       (whenever (attacks thisCreature)
         (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
-      = [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by
+      = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
 /-- "the last Intervention counter is removed from this enchantment by you" -/
@@ -92,12 +92,6 @@ theorem badPluralAttackDefender :
 /-- "Whenever you attack, …": the active player declares the attack [CR#508.1], and the ability
 triggers on the creatures they control being declared [CR#508.3d]. -/
 theorem okPlayerAttacksHeader : GameEvent.check [] (attacks .you) = [] := by decide
-
-/-- "Whenever target creature card in your graveyard attacks, …" -/
-theorem badGraveyardAttacker :
-    GameEvent.check [] (attacks (target (.and [creature, .inZone (graveyardOf .you)])))
-      = [.attacker] := by
-  decide
 
 /-- "Whenever a creature enters during your turn, draw a card." -/
 theorem okHeaderOwnTurnWindow :
@@ -151,13 +145,6 @@ theorem badChapterIntervening :
 /-- "Whenever a creature attacks a player" -/
 theorem okPlayerAttackDefender :
     GameEvent.check [] (.combat .attackerOf (a creature) (some (a .anyPlayer))) = [] := by decide
-
-/-- "Whenever a creature attacks a planeswalker or a creature" -/
-theorem badMixedAttackDefenderHalves :
-    GameEvent.check []
-      (.combat .attackerOf (a creature)
-        (some (a (.or [.hasType .planeswalker, .hasType .creature])))) = [.attackable] := by
-  decide
 
 def afterLifePayment : Bindings := GameEvent.after [] (.paysLife (a .anyPlayer))
 

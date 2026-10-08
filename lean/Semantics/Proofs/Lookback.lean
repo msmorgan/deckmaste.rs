@@ -71,12 +71,6 @@ theorem castCanCarryExcludedOrigins :
         (.casts (.gap .player) (some (.described (.a .unmarked) (.and [.isCard, .inZone (.zone .stack .bare)])))
           (some (.anywhereBut [.zone .hand (.possessedBy .you)]))) .thisTurn) = [] := by decide
 
-theorem castRejectsEmptyOriginExclusion :
-    LookbackClause.check .player []
-      (.mk
-        (.casts (.gap .player) (some (.described (.a .unmarked) (.and [.isCard, .inZone (.zone .stack .bare)])))
-          (some (.anywhereBut []))) .thisTurn) = [.playableFrom] := by decide
-
 theorem namedActionCanCarryItsLocus :
     LookbackClause.check .player []
       (.mk

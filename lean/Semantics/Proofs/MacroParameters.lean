@@ -163,11 +163,6 @@ theorem predicateScopesDoNotConcealContradictions :
       announceThenDescribe (target creature) (.hasStatus .untapped)]).check .object [] =
         [.contradictionFree] := by decide
 
-theorem predicateScopesDoNotConcealNegatedZones :
-    (Predicate.and [.inZone battlefield,
-      .not (announceThenDescribe (target creature) (.inZone battlefield))]).check .object [] =
-        [.zoneCoherent] := by decide
-
 private semantic_macro secondSubject (left right : capture NounPhrase) : NounPhrase := right
 
 private semantic_macro moveSubject (subject : capture NounPhrase) : Instruction :=
@@ -186,13 +181,6 @@ theorem movingAScopedNounUpdatesItsReturnedSubject :
     after.map Binding.zone = [some .graveyard, some .battlefield] := by decide
 
 private semantic_macro forwardedSubject (subject : capture NounPhrase) : NounPhrase := subject
-
-private semantic_macro moveThroughNestedAlias (subject : capture NounPhrase) : Instruction :=
-  .sequentially [.move (forwardedSubject subject) .wherever graveyard [], .setStatus .tapped subject]
-
-theorem nestedNounResultsKeepOuterInlineAliasesLive :
-    (moveThroughNestedAlias (.asType .creature .this none)).check [] = [.zoneIs .battlefield] :=
-  by decide
 
 theorem closingAFrameRelocatesAddressesPastForgottenRows :
     let rows : Bindings := [⟨.the, .one, .parameterFrame 0 0 [], []⟩,
@@ -302,12 +290,6 @@ private def discardedInstruction (_ : Instruction) : Flag := ⟨true⟩
 
 private semantic_macro configuredDraw (_flag : Bool) : Instruction := .draw (.lit 1)
 
-private semantic_macro dependentSubjects (first second : capture NounPhrase) : Instruction :=
-  .sequentially [.move second .wherever graveyard [], .setStatus .tapped first]
-
-theorem dependentCapturesFollowDeclarationOrderRatherThanBodyUse :
-    (dependentSubjects (target creature) it).check [] = [.zoneIs .battlefield] := by decide
-
 private def nestedBodyCapture : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Nested body capture witness", types := [.sorcery],
@@ -377,11 +359,6 @@ example : Spelled := spelled <| .singleFaced
 
 private semantic_macro scopedMove (subject : capture NounPhrase) : Instruction :=
   .move subject .wherever graveyard []
-
-theorem scopedEnactedMoveRetainsSourceZoneCheck :
-    (Instruction.enact (.action "destroy")
-      (scopedMove (target (.and [creature, .inZone graveyard])))).check [] = [.zoneFits] := by
-  decide
 
 theorem capturedBareThisRetainsEnactedZoneExemption :
     (Instruction.enact (.action "destroy") (scopedMove .this)).check [] = [] := by decide

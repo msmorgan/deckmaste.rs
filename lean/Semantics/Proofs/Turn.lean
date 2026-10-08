@@ -24,13 +24,6 @@ theorem okSacrificeBattlefield : Instruction.check [] (sacrifice (a creature)) =
     := by
   decide
 
-/-- "Destroy target creature. At the beginning of the end step, sacrifice it." -/
-theorem badStale :
-    Instruction.check []
-      (.sequentially [destroy (target creature), delay atTheEndStep (sacrifice it)])
-      = [.zoneFits] := by
-  decide
-
 /-- The Idris pin refutes the "other" anchor; the targeting law the delayed clause loses is
 listed too. -/
 theorem badDelayedOther :
@@ -52,11 +45,10 @@ theorem okActivatedCostAndEffect :
     Ability.check [] (act (.perform (sacrifice (a creature))) (draw (.lit 1))) = [] := by
   decide
 
-/-- "Return a creature to its owner's hand: Tap it." The Idris pin refutes the anaphor; the
-unresolved `it` has no zone either. -/
+/-- "Return a creature to its owner's hand: Tap it." The Idris pin refutes the anaphor. -/
 theorem badHiddenCost :
     Ability.check [] (act (.perform (move (a creature) hand)) (.setStatus .tapped it))
-      = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
+      = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Discard a card, Sacrifice a creature: Exile it." -/
@@ -73,12 +65,6 @@ theorem okSacrificeOnBattlefield :
     Instruction.check []
       (.sequentially [.setStatus .tapped (target creatureYouControl), sacrifice it])
       = [] := by
-  decide
-
-/-- "Exile target creature. Sacrifice it." -/
-theorem badSacrificeExiled :
-    Instruction.check [] (.sequentially [exile (target creature), sacrifice it])
-      = [.zoneFits] := by
   decide
 
 theorem badDeadCreatureRead :
@@ -132,13 +118,6 @@ theorem badBareCardRead :
 theorem okTapOnBattlefield : Instruction.check [] (.setStatus .tapped (target creature)) = [] := by
   decide
 
-/-- "Tap target creature card in your graveyard." -/
-theorem badTapGraveyard :
-    Instruction.check []
-      (.setStatus .tapped (target (.and [creature, .inZone (graveyardOf .you)])))
-      = [.zoneIs .battlefield] := by
-  decide
-
 /-- "At the beginning of your upkeep, draw a card." -/
 theorem okTriggerAtYourUpkeep :
     Ability.check []
@@ -150,18 +129,6 @@ theorem badTriggerAtYourTurn :
     Ability.check []
       (at_ (.beginningOf .the .turn (.byPlayer .you)) (draw (.lit 1)))
       = [.windowOk] := by
-  decide
-
-/-- "Whenever a creature dies, tap it." -/
-theorem badTriggerTapsDeadCreature :
-    Ability.check [] (whenever (Primitives.GameEvent.dies (a creature)) (.setStatus .tapped it))
-      = [.zoneIs .battlefield] := by
-  decide
-
-/-- "Whenever a creature leaves the battlefield, tap it." -/
-theorem badLeavesThenTap :
-    Ability.check [] (whenever (leavesBattlefield (a creature)) (.setStatus .tapped it))
-      = [.zoneIs .battlefield] := by
   decide
 
 /-- "Target creature gets +3/+3 until end of turn." -/
@@ -229,38 +196,20 @@ theorem badReflexiveOnBranchedMay :
         (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
-/-- The Idris pin refutes the anaphor; the unresolved "that creature" has no zone either. -/
+/-- The Idris pin refutes the anaphor. -/
 theorem badAfterReflexiveReadsTrigger :
     Instruction.check []
       (.sequentially
         [ .triggerReflexively (mill (.lit 4) .you)
             (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])),
           .setStatus .tapped (that (.type .creature)) ])
-      = [.anaphor (.word (.type .creature)) .one 0, .zoneIs .battlefield] := by
-  decide
-
-/-- "Sacrifice a creature. When you do, tap it." -/
-theorem badReflexiveTapsSacrificed :
-    Instruction.check [] (.triggerReflexively (sacrifice (a creature)) (.setStatus
-        .tapped it))
-      = [.zoneIs .battlefield] := by
+      = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
 /-- "target creature blocking this creature" -/
 theorem okBlockingThisCreature :
     NounPhrase.check (some .object) []
       (target (.and [creature, .inCombat .blockerOf (some thisCreature)])) = [] := by
-  decide
-
-/-- "target creature blocking target creature card in your graveyard" -/
-theorem badBlockingGraveyardRelatum :
-    NounPhrase.check (some .object) []
-      (target
-        (.and
-          [ creature,
-            .inCombat .blockerOf
-              (some (target (.and [creature, .inZone (graveyardOf .you)]))) ]))
-      = [.combatRelOk] := by
   decide
 
 /-- "Activate only during each player's end step." -/
@@ -446,20 +395,6 @@ theorem okCouldBlockAttacker :
 [CR#506.2]. -/
 theorem okAttackedByPlayer :
     Predicate.check .player [] (.inCombat .attackedBy (some anOpponent)) = [] := by decide
-
-/-- "player attacked by target creature card in your graveyard" -/
-theorem badAttackedByGraveyardRelatum :
-    Predicate.check .player []
-      (.inCombat .attackedBy (some (target (.and [creature, .inZone (graveyardOf .you)]))))
-      = [.combatRelOk] := by
-  decide
-
-/-- "creature that could block target creature card in your graveyard" -/
-theorem badCouldBlockGraveyardRelatum :
-    Predicate.check .object []
-      (.inCombat .couldBlock (some (target (.and [creature, .inZone (graveyardOf .you)]))))
-      = [.combatRelOk] := by
-  decide
 
 /-- "Sacrifice a creature. If you do, draw a card." -/
 theorem okIfDoneWithArm :

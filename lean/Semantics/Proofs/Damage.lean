@@ -59,12 +59,11 @@ theorem badIt :
 theorem okTapBattlefield :
     Instruction.check [] (.setStatus .tapped (target creature)) = [] := by decide
 
-/-- "This deals 3 damage to each creature. Tap it." The Idris pin refutes the anaphor; an
-unresolved `it` has no zone either, so the status law cascades. -/
+/-- "This deals 3 damage to each creature. Tap it." The Idris pin refutes the anaphor. -/
 theorem badTheyIt :
     Instruction.check []
       (.sequentially [.dealDamage .this (.lit 3) (each creature), .setStatus .tapped it])
-      = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
+      = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Choose two target creatures. Tap them." -/
@@ -132,22 +131,10 @@ theorem okFightPermanentUnderCreatureGuard :
 theorem okDamageCreature :
     Instruction.check [] (.dealDamage .this (.lit 3) (target creature)) = [] := by decide
 
-/-- "Destroy target creature. This deals 3 damage to it." -/
-theorem badDamageGraveyardCard :
-    Instruction.check []
-      (.sequentially [destroy (target creature), .dealDamage .this (.lit 3) it])
-      = [.damageRecipient] := by
-  decide
-
 /-- "This deals 1 damage to a color." -/
 theorem badDamageToColor :
     Instruction.check [] (.dealDamage .this (.lit 1) (a (quality .color)))
-      = [.damageRecipient] := by
-  decide
-
-/-- "This deals 1 damage to target artifact." -/
-theorem badDamageArtifact :
-    Instruction.check [] (.dealDamage .this (.lit 1) (target artifact)) = [.damageRecipient] := by
+      = [.kindLte (.quality .color) (.join .object .player)] := by
   decide
 
 /-- "... loses 1 life for each attacking creature. You gain that much life." -/
@@ -179,20 +166,9 @@ theorem okDestroyDamagedCreature :
       (.sequentially [.dealDamage .this (.lit 3) (target creature), destroy it]) = [] := by
   decide
 
-/-- "This deals 3 damage to any target. Destroy it." -/
-theorem badDestroyAnyTargetRemention :
-    Instruction.check []
-      (.sequentially [.dealDamage .this (.lit 3) (target anyTarget), destroy it])
-      = [.zoneFits] := by
-  decide
-
 /-- "This deals 1 damage to target creature." -/
 theorem okDamageOneToCreature :
     Instruction.check [] (.dealDamage .this (.lit 1) (target creature)) = [] := by decide
-
-/-- "This deals 1 damage to this spell." -/
-theorem badDamageThis :
-    Instruction.check [] (.dealDamage .this (.lit 1) .this) = [.damageRecipient] := by decide
 
 /-- "creature you control or artifact you control" -/
 theorem okStructuredDisjunction :
@@ -214,22 +190,10 @@ theorem okDamageDisjunctHead :
       (.dealDamage .this (.lit 2) (target (.or [creature, .hasType .planeswalker]))) = [] := by
   decide
 
-/-- "This deals 2 damage to target artifact or enchantment." -/
-theorem badDamageDisjunctHead :
-    Instruction.check [] (.dealDamage .this (.lit 2) (target (.or [artifact, enchantment])))
-      = [.damageRecipient] := by
-  decide
-
 /-- "attacking or blocking creature on the battlefield" -/
 theorem okAttackingOrBlockingOnBattlefield :
     Predicate.check .object [] (.and [creature, .or [attacking, blocking], .inZone battlefield])
       = [] := by
-  decide
-
-/-- "attacking or blocking creature in your graveyard" -/
-theorem badAttackingOrBlockingInGraveyard :
-    Predicate.check .object [] (.and [creature, .or [attacking, blocking], .inZone graveyard])
-      = [.zoneCoherent] := by
   decide
 
 /-- "This deals 2 damage to target creature. Tap it." -/
@@ -239,13 +203,12 @@ theorem okTapDamagedCreature :
       = [] := by
   decide
 
-/-- "You gain 2 life if you control a creature. Tap it." The Idris pin refutes the anaphor;
-the unresolved `it` has no zone either. -/
+/-- "You gain 2 life if you control a creature. Tap it." The Idris pin refutes the anaphor. -/
 theorem badConditionAntecedent :
     Instruction.check []
       (.sequentially
         [ .doOnlyIf (gainLife (.lit 2)) (exists_ creatureYouControl) none,
-          .setStatus .tapped it ]) = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
+          .setStatus .tapped it ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "You may sacrifice a creature. If you don't, exile it." -/
@@ -371,32 +334,11 @@ theorem okPreventDealtToPermanent :
         (.prevent .all none) .repeatedly) = [] := by
   decide
 
-/-- "Prevent all damage that would be dealt to this this turn." -/
-theorem badPreventedBareThis :
-    StaticSpec.check []
-      (.damageRule .any .unattributed (.toRecipient .this) (.prevent .all none) .repeatedly)
-      = [.damageRecipient] := by
-  decide
-
-/-- "Prevent all damage that would be dealt to target artifact this turn." -/
-theorem badPreventDealtToArtifact :
-    StaticSpec.check []
-      (.damageRule .any .unattributed (.toRecipient (target artifact)) (.prevent .all none)
-        .repeatedly) = [.damageRecipient] := by
-  decide
-
 /-- "… is dealt to target attacking creature instead." -/
 theorem okRedirectToSingleCreature :
     StaticSpec.check []
       (.damageRule .any .unattributed (.toRecipient .you)
         (.redirect .all (target (.and [creature, attacking]))) .repeatedly) = [] := by
-  decide
-
-/-- "All damage that would be dealt to you is dealt to target artifact instead." -/
-theorem badRedirectToArtifact :
-    StaticSpec.check []
-      (.damageRule .any .unattributed (.toRecipient .you) (.redirect .all (target artifact))
-        .repeatedly) = [.damageRecipient] := by
   decide
 
 theorem badRedirectToPlural :
@@ -494,11 +436,6 @@ theorem badShieldSizedByItsOwnPrevention :
 theorem okDamageToCreature :
     Instruction.check [] (.dealDamage .this (.lit 3) (target creature)) = [] := by decide
 
-/-- "This creature deals 3 damage to target source." -/
-theorem badDamageToSource :
-    Instruction.check [] (.dealDamage .this (.lit 3) (target source)) = [.damageRecipient] := by
-  decide
-
 /-- "…target nonartifact…" -/
 theorem okNonartifact : Predicate.check .object [] (.not artifact) = [] := by decide
 
@@ -538,12 +475,6 @@ theorem badScaleShiftByThatMuch :
     StaticSpec.check []
       (.damageRule .any (.dealtBy (a source)) (.toRecipient (a (.or [permanent, .anyPlayer])))
         (.scale (.shifted .up .thatMuch)) .repeatedly) = [.quantOutcomeInScope 0] := by
-  decide
-
-theorem badScaleToArtifact :
-    StaticSpec.check []
-      (.damageRule .any (.dealtBy (a source)) (.toRecipient (target artifact))
-        (.scale (.multiplied .doubled)) .repeatedly) = [.damageRecipient] := by
   decide
 
 /-- "Whenever this creature is dealt damage, it deals that much damage to any target." -/
@@ -683,12 +614,6 @@ theorem badCreatureHalfRead :
 theorem okJoinDamageRecipient :
     Instruction.check [] (.dealDamage .this (.lit 3) (target anyTarget)) = [] := by decide
 
-/-- "This deals 3 damage to a land or a land." -/
-theorem badSameKindJoinDamage :
-    Instruction.check [] (.dealDamage .this (.lit 3) (a (.or [land, land])))
-      = [.damageRecipient] := by
-  decide
-
 /-- "Create a 1/1 white Soldier creature token." -/
 theorem okSoldierToken :
     Instruction.check [] (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]))
@@ -739,10 +664,6 @@ theorem badDistributiveLifeTotalRead :
 /-- "Destroy target creature." -/
 theorem okDestroyCreature : Instruction.check [] (destroy (target creature)) = [] := by decide
 
-/-- "Destroy target source." -/
-theorem badDestroySource : Instruction.check [] (destroy (target source)) = [.zoneFits] := by
-  decide
-
 /-- "creature that was dealt combat damage by this creature this turn" [CR#120.1] -/
 theorem okCombatDamageComplement :
     Predicate.check .object []
@@ -762,15 +683,6 @@ theorem badCombatDamageComplement :
 theorem okGetsCreature :
     Instruction.check []
       (get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) = [] := by
-  decide
-
-/-- "Target source gets +1/+1 until end of turn." [CR#609.7a] The subject is written once,
-so its zone is refused once (the two-modification spelling is
-`GetsBothDeltas.badGetsSourceTwoHalves`). -/
-theorem badGetsSource :
-    Instruction.check []
-      (get (target source) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))
-      = [.zoneIs .battlefield] := by
   decide
 
 end Semantics.Proofs.Damage

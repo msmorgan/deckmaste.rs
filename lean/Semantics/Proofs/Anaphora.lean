@@ -52,10 +52,6 @@ theorem badBothArmsAntecedent :
 theorem okMoveToBattlefield :
     Instruction.check [] (.move (target creature) .wherever battlefield []) = [] := by decide
 
-/-- "Put target creature into your library." -/
-theorem badMoveToBareLibrary :
-    Instruction.check [] (.move (target creature) .wherever library []) = [.destOk] := by decide
-
 /-- "Look at the top four cards of your library. You choose one of them." -/
 theorem okAgentChoiceOfSome :
     Instruction.check []
@@ -76,10 +72,6 @@ theorem okChooseSomeOf :
 /-- "Exile target creature." -/
 theorem okMoveToExile :
     Instruction.check [] (.move (target creature) .wherever exileZone []) = [] := by decide
-
-/-- "Put target creature onto the stack." -/
-theorem badMoveToStack :
-    Instruction.check [] (.move (target creature) .wherever stack []) = [.destOk] := by decide
 
 /-- "When this creature enters, if a creature died this turn, draw a card." -/
 theorem okLookbackObjectDied :
@@ -168,7 +160,7 @@ theorem badStackAnaphorAfterCounteringAbility :
     Instruction.check []
       (.sequentially
         [ Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated)), Primitives.Instruction.counterSpell (that .stack) ])
-      = [.anaphor (.word .stack) .one 0, .zoneFits] := by
+      = [.anaphor (.word .stack) .one 0] := by
   decide
 
 def afterAnyTargetDamage : Bindings :=
@@ -216,14 +208,6 @@ theorem okDamageTakenComplement :
         .object)))) .thisTurn)) = [] := by
   decide
 
-/-- "Destroy target creature that attacked with this creature this turn." -/
-theorem badAttackerComplementOnObject :
-    Predicate.check .object []
-      (.happenedTo (.mk (.combat .attackerOf (.asMarker .permanent (.gap .object)) (some
-        thisCreature)) .thisTurn))
-      = [.attackable] := by
-  decide
-
 /-- "if you've cast a creature spell this turn" -/
 theorem okCastComplementOnObject :
     Condition.check [] (.happened .you (.mk (.casts (.gap .player) (some (a (.and [creature,
@@ -234,16 +218,12 @@ theorem okCastComplementOnObject :
 theorem badPlayerCastComplement :
     Condition.check [] (.happened .you (.mk (.casts (.gap .player) (some anOpponent) none)
       .thisTurn))
-      = [.kindMismatch .object .player, .zoneIs .stack] := by
+      = [.kindMismatch .object .player] := by
   decide
 
 /-- "target spell cast from your graveyard" -/
 theorem okCastFromGraveyard :
     Predicate.check .object [] (.castFrom (graveyardOf .you)) = [] := by decide
-
-/-- "Counter target spell cast from the stack." -/
-theorem badCastFromStack :
-    Predicate.check .object [] (.castFrom stack) = [.playableFrom] := by decide
 
 /-- "… that was put somewhere from the battlefield this turn." -/
 theorem okPlacementOriginBattlefield :
@@ -259,33 +239,12 @@ theorem okCastOriginFromHand :
         = [] := by
   decide
 
-/-- "if you've cast a spell from the stack this turn" -/
-theorem badCastOriginFromStack :
-    Condition.check []
-      (.happened .you (.mk (.casts (.gap .player) none (some (.zones [stack]))) .thisTurn))
-      = [.playableFrom] := by
-  decide
-
-/-- "if you've cast a spell from this turn" -/
-theorem badEmptyOriginCoordination :
-    Condition.check []
-      (.happened .you (.mk (.casts (.gap .player) none (some (.zones []))) .thisTurn))
-      = [.playableFrom] := by
-  decide
-
 /-- "if you've cast a creature spell from your hand this turn" -/
 theorem okOriginPayloadInvolving :
     Condition.check []
       (.happened .you
         (.mk (.casts (.gap .player) (some (a (.and [creature, spell]))) (some (.zones [hand])))
           .thisTurn)) = [] := by
-  decide
-
-/-- "if you've cast a spell from anywhere other than this turn" -/
-theorem badEmptyOriginExclusion :
-    Condition.check []
-      (.happened .you (.mk (.casts (.gap .player) none (some (.anywhereBut []))) .thisTurn))
-      = [.playableFrom] := by
   decide
 
 /-- "… that died this turn." -/
@@ -344,22 +303,10 @@ theorem badResolvedInstant :
       = [.permanentSpellType] := by
   decide
 
-/-- "this creature, once it resolves" -/
-theorem badResolvedOnBattlefield :
-    NounPhrase.check (some .object) [] (.resolvedPermanent thisCreature) = [.zoneIs .stack] := by
-  decide
-
 /-- "if it entered this turn" -/
 theorem okEntryLookbackWithoutOrigin :
     Predicate.check .object [] (.happenedTo (.mk (Primitives.GameEvent.enters (.gap .object) none) .thisTurn)) = [] :=
       by decide
-
-/-- "if it entered from the battlefield" -/
-theorem badEntryOriginBattlefield :
-    Predicate.check .object []
-      (.happenedTo (.mk (Primitives.GameEvent.enters (.gap .object) (some (.zones [battlefield]))) .thisTurn))
-      = [.zoneCoherent] := by
-  decide
 
 /-- "For each opponent, you draw a card." -/
 theorem okPluralForEach :
@@ -405,26 +352,9 @@ theorem okOneEndArrangedOrdinal :
     ZoneExpr.check [] (.library (.oneEnd .top) (some .anyOrder) (some (.nth 3)) .bare) = [] := by
   decide
 
-/-- "Put those cards on the top or bottom of your library in any order." -/
-theorem badDisjunctionOrdered :
-    ZoneExpr.check [] (.library (.eitherEnd none) (some .anyOrder) none .bare)
-      = [.placeArrangementFits] := by
-  decide
-
 /-- "Shuffle those cards into your library." -/
 theorem okShuffledPlain :
     ZoneExpr.check [] (.library .shuffled none none .bare) = [] := by decide
-
-/-- "Shuffle those cards into your library in any order." -/
-theorem badShuffledArranged :
-    ZoneExpr.check [] (.library .shuffled (some .anyOrder) none .bare)
-      = [.placeArrangementFits] := by
-  decide
-
-/-- "Shuffle it into its owner's library third from the top." -/
-theorem badShuffledOrdinal :
-    ZoneExpr.check [] (.library .shuffled none (some (.nth 3)) .bare) = [.placeOrdinalFits] := by
-  decide
 
 /-- "third from the top" -/
 theorem okThirdFromTop :
@@ -506,7 +436,7 @@ theorem joinedCreatureTy :
 
 theorem anyTargetIsPlaceless : NounPhrase.zone [] (target anyTarget) = none := by decide
 
-theorem anyTargetTakesDamage : (target anyTarget).damageRecipient [] = true := by decide
+theorem anyTargetTakesDamage : objectOrPlayerCheck ((target anyTarget).kindOr .object) = [] := by decide
 
 theorem youAndBindsNothing : NounPhrase.introduced [] (youAnd thisCreature) = [] := by decide
 
@@ -524,17 +454,6 @@ theorem badDealtThisWayNoDamage :
       (.sequentially
         [ draw (.lit 1), .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1)) none ])
       = [.damageDealtInScope] := by
-  decide
-
-/-- "This deals 2 damage to any target. If a mana ability is dealt damage this way, draw a
-card." Refused: what the description seeds is on the stack, and nothing on the stack is dealt
-damage. `.dealtThisWay .anyPlayer` spells the recipient read (`okDealtThisWayAfterDamage`). -/
-theorem badDealtThisWayAbility :
-    Instruction.check []
-      (.sequentially
-        [ .dealDamage .this (.lit 2) (target anyTarget),
-          .doIf (.dealtThisWay .isManaAbility) (draw (.lit 1)) none ])
-      = [.zoneIs .stack] := by
   decide
 
 /-- "the number of creatures that died this turn" -/
@@ -728,20 +647,6 @@ theorem okDiscardFromHand :
     GameEvent.check [] (.verbedEvent (some .you) (.action "discard") (some (a (.and [.isCard, .inZone hand]))) none
       none)
       = [] := by
-  decide
-
-/-- "Whenever a card in a graveyard is destroyed, …" -/
-theorem badDestroyInGraveyard :
-    GameEvent.check [] (.verbedEvent none (.action "destroy") (some (a (.and [.isCard, .inZone graveyard]))) none
-      none)
-      = [.zoneFits] := by
-  decide
-
-/-- "Whenever you discard a permanent you control, …" -/
-theorem badDiscardFromBattlefield :
-    GameEvent.check []
-      (.verbedEvent (some .you) (.action "discard") (some (a (.inZone battlefield))) none none)
-      = [.zoneFits] := by
   decide
 
 /-- "if you drew a card this turn" -/
@@ -948,11 +853,6 @@ theorem badDistributedDiscardSingular :
 /-- "Tap target creature." -/
 theorem okTapBattlefieldPermanent :
     Instruction.check [] (.setStatus .tapped (target creature)) = [] := by decide
-
-/-- "Tap the top card of your library." -/
-theorem badTapLibraryTop :
-    Instruction.check [] (.setStatus .tapped (topSlice (.lit 1)))
-      = [.zoneIs .battlefield] := by decide
 
 /-- "if there is no monarch" -/
 theorem okNoHolderOnPlayer : Condition.check [] (.noHolder (.named "monarch")) = [] := by decide

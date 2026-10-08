@@ -38,13 +38,6 @@ theorem okTransformedArrivalOnField :
         [.entersTransformed]) = [] := by
   decide
 
-/-- "Return target creature card from your graveyard to your hand transformed." -/
-theorem badTransformedArrivalOffField :
-    Instruction.check []
-      (.move (target (.and [creature, .inZone (graveyardOf .you)])) .wherever hand [.entersTransformed])
-      = [.ridersFit] := by
-  decide
-
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles." -/
 def revealAndSplit : List Instruction :=
@@ -79,7 +72,8 @@ theorem okOnePileAfterPartition :
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
 theorem badPlayerMovedToAZone :
-    Instruction.check [] (.move (target .anyPlayer) .wherever hand []) = [.movable] := by decide
+    Instruction.check [] (.move (target .anyPlayer) .wherever hand [])
+      = [.kindLte .player (.join .object .pile)] := by decide
 
 /-- "Put one pile into your hand." -/
 theorem badPilePartitiveWithoutAPartition :
@@ -126,7 +120,7 @@ theorem badPileFaceAsAStatus :
       (instantSaying
         (.sequentially
           [ act anOpponent (.separateIntoPiles (allOf creature) 2 []),
-            .setStatus .faceDown (those .pile) ])) = [.statusHolder] := by
+            .setStatus .faceDown (those .pile) ])) = [.kindMismatch .object .pile] := by
   decide
 
 theorem nestedStaticConditionals :

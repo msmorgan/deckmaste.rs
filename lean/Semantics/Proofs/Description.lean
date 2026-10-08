@@ -322,7 +322,7 @@ theorem badOtherwiseReadsLeadingArm :
       (.doIf (exists_ creatureYouControl)
         (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
         (some (.setStatus .tapped it)))
-      = [.anaphor .bare .one 0, .zoneIs .battlefield] := by
+      = [.anaphor .bare .one 0] := by
   decide
 
 theorem badLeadingConditionAntecedent :
@@ -415,10 +415,6 @@ theorem badTimesPaidUnknownKeyword :
 /-- "for each color of mana spent to cast this spell" -/
 theorem okColorsSpentOnThis : Amount.check [] (colorsSpentToCast .this) = [] := by decide
 
-/-- "for each color of mana spent to cast a creature on the battlefield" -/
-theorem badPaidReadOffStack :
-    Amount.check [] (.paid .colorsSpent (a creature)) = [.paidSubject] := by decide
-
 /-- "if colored mana was spent to cast it" is a read of `paid colorsSpent` -/
 theorem coloredManaSpentIsPaidColorsSpent :
     coloredManaSpentToCast .this = .compareAmt (.paid .colorsSpent .this) .atLeast (.lit 1) := rfl
@@ -463,10 +459,6 @@ theorem okTokenAndPermanent : Predicate.check .object [] tokenOnTheBattlefield =
 /-- "a card token" -/
 theorem badCardToken :
     Predicate.check .object [] (.and [.isCard, .isToken]) = [.contradictionFree] := by decide
-
-/-- "an emblem permanent" -/
-theorem badEmblemPermanent :
-    Predicate.check .object [] (.and [emblem, permanent]) = [.zoneCoherent] := by decide
 
 /-- "a card that is a copy of a card" -/
 theorem badCardCopyOfACard :

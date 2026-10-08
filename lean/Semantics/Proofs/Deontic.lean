@@ -315,14 +315,6 @@ theorem badUnlessOnPositive :
       = [.markingOk] := by
   decide
 
-/-- a trigger header watching a permanent become unflipped. The status law fails for the header
-and again for the event it is read as. -/
-theorem badUnflipEvent :
-    Ability.check []
-      (whenever (.statusEvent (a permanent) .unflipped) (draw (.lit 1)))
-      = [.statusMarkable, .statusMarkable] := by
-  decide
-
 /-- "Target creature attacks each combat if able." -/
 theorem okMustAttackCreature :
     Instruction.check []
@@ -354,13 +346,6 @@ theorem badMonarchHolder :
 theorem okRingBearerOnBattlefield :
     Predicate.check .object []
       (.and [creature, .hasDesignation (.named "ringBearer") (some .you), .inZone battlefield]) = [] := by
-  decide
-
-/-- "target creature card in your graveyard that is your Ring-bearer" -/
-theorem badRingBearerInGraveyard :
-    Predicate.check .object []
-      (.and [creature, .hasDesignation (.named "ringBearer") (some .you), .inZone (graveyardOf .you)])
-      = [.zoneCoherent] := by
   decide
 
 /-- "This creature can't attack target planeswalker this turn." -/

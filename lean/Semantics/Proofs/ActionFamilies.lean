@@ -19,9 +19,6 @@ theorem okRemoveAttackedBattleFromCombat :
 theorem okAttachToPlayer :
     Instruction.check [] (.attachment .attached thisAura (some .you)) = [] := by decide
 
-theorem badAttachmentWithoutHost :
-    Instruction.check [] (.attachment .attached thisAura none) = [.attachFits] := by decide
-
 theorem okDetachWithoutKnowingOldHost :
     Instruction.check [] (.attachment .unattached thisArtifact none) = [] := by decide
 
@@ -69,18 +66,11 @@ theorem exiledAbilityIsNotASpellOrCard :
     NounPhrase.check none exiledAbility (that .spell) = [.anaphor (.word .spell) .one 0] ∧
     NounPhrase.check none exiledAbility (that .card) = [.anaphor (.word .card) .one 0] := by decide
 
-theorem exiledAbilityCannotBeCountered :
-    Instruction.check exiledAbility (Primitives.Instruction.counterSpell (that .ability)) = [.zoneFits] := by decide
-
 theorem movementPublishesItsRequiredDestination :
     NounPhrase.zone graveyardAbility (that .ability) = some .graveyard := by decide
 
 theorem movementAcceptsAnAbilitySubject :
     Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard []) = [] := by decide
-
-theorem graveyardDestinationRejectsEntryRiders :
-    Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard [.entersAs .tapped]) =
-      [.ridersFit] := by decide
 
 theorem graveyardDestinationAcceptsCounterRiders :
     Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard
@@ -112,22 +102,14 @@ theorem abilityElementRetainsItsLocation :
 theorem clearDamageAdmitsALand :
     Instruction.check [] (.clearDamage (target land)) = [] := by decide
 
-theorem clearDamageRequiresBattlefield :
-    Instruction.check [] (.clearDamage (target (.and [creature, .inZone graveyard]))) =
-      [.zoneIs .battlefield] := by decide
-
 theorem clearDamageRejectsAPlayer :
     Instruction.check [] (.clearDamage .you) =
-      [.kindMismatch .object .player, .zoneIs .battlefield] := by decide
+      [.kindMismatch .object .player] := by decide
 
 theorem clearDamagePublishesItsSubject :
     NounPhrase.check (some .object) (Instruction.intro [] (.clearDamage (target creature))) it =
       [] := by decide
 
-
-theorem exiledAbilityCannotBeCopiedOnStack :
-    Instruction.check exiledAbility
-      (.copy .fromStack (that .ability) (.lit 1) []) = [.copySourceOk] := by decide
 
 theorem clearDamageDoesNotPublishDamageDealt :
     Instruction.introducedDeeds [] (.clearDamage (target creature)) = [] := by rfl
