@@ -14,9 +14,17 @@ reading, since the impossible part is ignored and the rest is done
 [CR#101.3,609.3]. The game-rule refusals below (zones, timing windows, costs
 and deontics, tokens, grants, the card frame) are frozen: no new one lands
 without a dated ruling, and the existing ones are retired bucket by bucket by
-the `lean-checker-sweep-*` tickets, which update the sections they touch. Until
-a sweep lands, the sections below still describe what the checker does. Zone
-state on bindings stays, because references resolve on it. On the question of
+the `lean-checker-sweep-*` tickets, which update the sections they touch. The
+zone and object-state bucket's 33 refusals are retired (`lean-checker-sweep-zone`,
+2026-10-08): a status, damage, an attack, a move, an attachment, an exchange,
+a stack action or a stat change no longer demands where its object is or which
+objects it can reach. Where such a refusal also fixed a kind, the kind is
+checked by `kindMismatch` or `kindLte`. The deed table's role checks
+(`deedFits`, `deedNounOk`) are not in this bucket and still read a deed's zone
+and card types. For the timing, cost
+and game-rule buckets, until their sweep lands the sections below still describe
+what the checker does. Zone state on bindings stays, because references resolve
+on it. On the question of
 scope this supersedes "rules correctness" in the paragraph above; the rest of
 that paragraph stands.
 
@@ -89,9 +97,12 @@ mentions, including nested targets, into the surrounding phrase.
 
 Host predicates admit object and player domains. Enchanted-player predicates
 are accepted, consistent with the existing enchanted-player noun and
-[CR#303.4b]. Equipped or fortified player hosts are refused. Existing host
-card-type restrictions, quantified attachment counts, and counterpart target
-publication remain checked. The old `isAttached`, `attachedBy`, and `attachedTo`
+[CR#303.4b]. Equipped or fortified player hosts are refused (`kindLte`: an
+Equipment's or Fortification's host is an object [CR#301.5,301.6]). Host
+card-type restrictions written in one description remain a contradiction
+(`contradictionFree`); a counterpart's or a host word's card types are no longer
+checked against the attachment word (`lean-checker-sweep-zone`). Quantified
+attachment counts and counterpart target publication remain checked. The old `isAttached`, `attachedBy`, and `attachedTo`
 names are trusted macros over the shared predicate.
 
 `currentFace` describes a single double-faced permanent as a whole. Its front
@@ -99,7 +110,7 @@ and back alternatives are distinct from face-up and face-down Status. The
 `isTransformed` macro expands to the back alternative: prior transformation,
 copying back-face characteristics, or a back-face-up component in a merged or
 melded object is insufficient [CR#701.27g]. The checker validates the predicate's
-object domain and battlefield context; runtime evaluation of current game state
+object domain; runtime evaluation of current game state
 remains Rust's responsibility. The fold does not claim an execution proof.
 
 ## Historical events
@@ -467,8 +478,8 @@ remarking a tested referent adds facts to that referent.
 Type alternatives retain conjunction/disjunction structure for role checks:
 conjunction combines facts, disjunction requires each alternative to support the
 role. An entirely unknown description retains the previous no-evidence behavior
-for stat and deed checks. Damage and attachment checks can use any supporting
-type within one conjunctive alternative. Attachment profiles collect every type
+for stat and deed checks. Contradiction checks over attachment words can use
+any supporting type within one conjunctive alternative. Attachment profiles collect every type
 refinement, including when seeding or moving their referent.
 
 Movement retains the remembered facts and changes the carrier separately.
@@ -479,7 +490,7 @@ for reference resolution, not a simulation of continuous characteristic changes.
 `Proofs/TypeEvidence.lean` proves `pureTypePermutation` for arbitrary lists of
 pure card-type modifiers, including duplicates and the empty list. Its concrete
 pins cover both type words, missing types, common versus alternative evidence,
-joined halves, damage, attachment profiles, and movement. This does not assert
+joined halves, attachment profiles, and movement. This does not assert
 that arbitrary modifiers with binding effects commute.
 
 
@@ -524,8 +535,8 @@ by exact-refusal theorems; it is not an authorable term.
 | `PreventCut` | `PreventCut.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageScale` | `DamageScale.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DividedVerb` | `DividedVerb.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
-| `DividedTakes` | `Instruction.distribute` checks damage-recipient suitability or object kind according to the closed `DividedVerb` constructor. |
-| `CtrlOverrideOk` | `TokenRider.under` checks player kind and `NounPhrase.ctrlOverrideOk`. |
+| `DividedTakes` | `Instruction.distribute` checks the recipient kind (`objectOrPlayerCheck`) or object kind according to the closed `DividedVerb` constructor; which objects damage reaches is not checked (`lean-checker-sweep-zone`). |
+| `CtrlOverrideOk` | `TokenRider.under` checks player kind. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the single-controller demand is not checked. |
 | `ProducedMana` | `ProducedMana.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Repetition` | `Repetition.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `EachStackOk` | `eachStackOk`, used by `enactKeepsOuter`, accepts preserved outer bindings or closure of the distributive agent’s own parts. |
@@ -561,7 +572,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `LookbackSubject` | `LookbackClause.check` binds the described participant, and the shared event checker validates each use. |
 | `LookbackComplement` | Ordinary `GameEvent` participant checks; there is no separate complement-kind table. |
 | `ChoiceMode` | `ChoiceMode.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `Possessable` | `Zone.possessable` in `ZoneScope.check`. |
+| `Possessable` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a possessed shared zone is not refused. `Zone.possessable` still decides which moves keep a binding's possessor. |
 
 ### Phrase
 
@@ -569,8 +580,8 @@ by exact-refusal theorems; it is not an authorable term.
 |---|---|
 | `ChoiceInScope` | `countParts` in `Predicate.notChosen` and `Condition.choseThisWay` requires a compatible standing choice. |
 | `ColorTerm` | `ColorTerm.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `ZoneScope` | `ZoneScope.check` receives the containing zone and checks `Zone.possessable` plus the player kind. |
-| `LibPlace` | `LibraryPlace.check`, plus `placeArrangementOk` and `placeOrdinalOk` in `ZoneExpr.check`. |
+| `ZoneScope` | `ZoneScope.check` checks the possessor's player kind. |
+| `LibPlace` | `LibraryPlace.check`; the place's arrangement and ordinal fit are retired by `lean-checker-sweep-zone`. |
 | `ZoneExpr` | `ZoneExpr.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `NameSource` | `NameSource.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `ChoiceDomain` | `sortedDomainCheck` checks both domain contents and `ChoiceDomain.sort` at `qualityNoun`, `ofYourChoice`, `entersChoice`, and `attachChoice`. |
@@ -589,24 +600,24 @@ by exact-refusal theorems; it is not an authorable term.
 | `ComplementAnchor` | `NounPhrase.anchorPhrase` and singularity in `Predicate.otherThan`. |
 | `LinkSource` | `NounPhrase.linkSource` in `Predicate.exiledWith`. |
 | `PileMention` | `NounPhrase.pileMention` plus noun checking in `Predicate.inPile`. |
-| `PaidSubject` | `NounPhrase.paidSubjectOk` and object-kind checking in `Amount.paid`. |
-| `DestOk` | `ZoneExpr.destOk` in `Instruction.move`. |
+| `PaidSubject` | Object-kind checking in `Amount.paid`. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the stack-zone demand is not checked. |
+| `DestOk` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a move's destination shape is not checked. |
 | `SearchScope` | `SearchScope.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `FlipScope` | `FlipScope.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `IgnoredOutcomes` | `IgnoredOutcomes.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `Ballot` | `Ballot.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `CostSubject` | `NounPhrase.costSubjectOk` in `StaticSpec.costShift` and `altCost`. |
-| `StackActOn` | `NounPhrase.counterable`/`copiable` at `chooseNewTargets` and copying consumers. Counter expands to enacted moves, whose source-zone checks report `ZoneFits`. |
+| `CostSubject` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a cost change's subject is not required to be on the stack. |
+| `StackActOn` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): retargeting and copying do not demand a stack object, and counter's enacted move checks no source zone. |
 | `Condition` | `Condition.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `MarkingOk` | `markingOk` in `StaticSpec.conditional`. |
 | `TokenPhrase` | `NounPhrase.tokenPhrase` plus object-kind checking in the token-creation event. |
 | `Exposed` | `Exposed.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `VisibleThing` | `VisibleThing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `DamageRecipient` | `NounPhrase.damageRecipient` in damage instructions and `DamagePatient.check`. |
-| `StatusHolder` | `Instruction.setStatus` requires the object kind and battlefield zone. |
+| `DamageRecipient` | `objectOrPlayerCheck` in damage instructions, `DamagePatient.check` and the damage-result rule: the recipient's kind alone. Which objects can be dealt damage [CR#120.1a] and where they are are not checked (`lean-checker-sweep-zone`). |
+| `StatusHolder` | `Instruction.setStatus` requires the object kind; the battlefield zone and the settable status value are not checked (`lean-checker-sweep-zone`). |
 | `NotAnAbility` | Retired at movement: the action-fold ticket explicitly corrects this false blanket prohibition; ending a turn or combat can exile stack abilities [CR#724.1b,724.2b]. |
-| `DiscardOk` | Discard is an enacted move; the deed facts and `enactPatientZoneOk` check its source. The macro authoring boundary above excludes arbitrary authored tag/body combinations. |
-| `Movable` | `NounPhrase.movable` at `Instruction.move` admits objects (including abilities) and piles, and excludes players and quality values. |
+| `DiscardOk` | Discard is an enacted move. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): its source zone is not checked. The macro authoring boundary above excludes arbitrary authored tag/body combinations. |
+| `Movable` | `Instruction.move` checks the moved kind against `object ∨ pile` (`kindLte`), so objects (including abilities) and piles move and players and quality values are refused. The destination's riders, arrangement and card types are not checked (`lean-checker-sweep-zone`). |
 | `DurationEnd` | `DurationEnd.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
 
 ### Triggers
@@ -676,13 +687,13 @@ an axis unchanged, while `some []` explicitly clears it under `sets`. Add and
 remove operations require values. Type and subtype writes in one ordinary
 edit block share host evidence, independent of their order. Ordinary edit
 validity still reports the aggregate `becomesOk` refusal; copy edits retain
-their separate nonempty-line and canonicality checks and validate operations
-without requiring the source to be on the battlefield.
+their separate nonempty-line and canonicality checks. No edit requires its
+subject or source to be on the battlefield (`lean-checker-sweep-zone`).
 
 Numeric edits thread a scope local to their block. Other edit payloads read
 the incoming scope; nested written abilities remain closed. The subject of
 an ordinary change is not published before its edits. Ability-removal
-selectors retain the subject's battlefield check: specified written abilities
+selectors check no zone for their subject: specified written abilities
 read the incoming scope, while an all-except predicate reads the subject's
 self context. Separate copy exceptions each read the incoming scope.
 `CopyExcept.ability`, `thisAbility`, and `entersWithCounters` retain the copy
@@ -796,8 +807,8 @@ general linked-ability binding.
   (`chosenAsPaid`); `Amount.paid` reads the amount facets. Each refuses the
   other's facet (`paidFacetKind`): a term-shape check.
 - It resolves as kicker's readback does: the cost is named in the registry
-  (`paidFacetNamed`), and the subject is the source or a spell on the stack
-  (`paidSubject`). It adds one reference check: paying the named cost chooses
+  (`paidFacetNamed`); where the subject is (the `paidSubject` stack demand) is
+  no longer checked (`lean-checker-sweep-zone`). It adds one reference check: paying the named cost chooses
   a player, the row's `costChoosesPlayer` column (gift's alone), else
   `paidChoiceInScope which`, since the linked ability has no choice to read
   [CR#607.2d]. "The additional cost" and "the alternative cost" declare no
@@ -811,26 +822,29 @@ general linked-ability binding.
 
 ### Movement destinations
 
-`Instruction.move` requires a destination. Every move checks its destination,
-arrangement, subject types, and riders, and publishes the stated destination.
-There is no destinationless movement instruction.
+`Instruction.move` requires a destination. Every move checks its destination's
+references and the moved kind (an object or a pile), and publishes the stated
+destination. The destination's shape, the arrangement's fit to the moved
+plurality, the subject's card types and the riders' fit to the destination are
+game rules the checker does not assert (`lean-checker-sweep-zone`). There is
+no destinationless movement instruction.
 
 User ruling (2026-09-06): Counter is one enactment of the Counter label around
 stack-to-graveyard movement, uniformly for its spell or ability subject. This
 supersedes the prior optional-destination design and its ability-specific branch.
-The enacted movement retains the stack-source obligation. The rule defining
+The enacted movement no longer checks its stack source (`lean-checker-sweep-zone`). The rule defining
 Counter supplies stack removal and a spell's graveyard destination [CR#701.6a];
 this uniform expansion is the workbench's chosen representation, not an added
 runtime lifetime model.
 
 An ability binding stores its zone, initially the stack. Movement updates that
 zone while retaining its ability identity and copy origin. A stack reference
-and counter/copy checks require actual stack evidence. Element bindings and
+resolves on actual stack evidence; counter and copy check no zone. Element bindings and
 unions retain location evidence rather than restoring a hardcoded stack location.
 
 `Instruction.clearDamage` removes all marked damage from a permanent. Its
-subject must be an object on the battlefield, but need not currently be a
-creature [CR#120.6]. It publishes the ordinary subject reference and no damage
+subject must be an object; where it is is not checked, and it need not
+currently be a creature [CR#120.6]. It publishes the ordinary subject reference and no damage
 outcome. Regeneration composes this primitive with tapping and conditional
 removal from combat inside a destruction replacement.
 
@@ -945,19 +959,14 @@ model applies it once per counter held: the +1/+1 counter's conferral is
 (`grants`). No conferral reads the count of its own kind. That reading is the
 model's: `Definition.check` checks each conferral once in the empty binding
 context and computes no multiplicity, so nothing in the checker depends on it
-(`Proofs/Rules.lean`, `p1p1CounterCountMultipliedTwin`).
+(`Proofs/Rules.lean`, `p1p1CounterCountMultipliedTwin`, which checks clean).
 
-A definition's conferral is about its bearer wherever the bearer is
-(`Conferral.checkProperty`, `Check/Rules.lean`): a stat change on the bearer,
-`ptModification this`, is checked as a card's stat change is, less the demand
-that its subject be on the battlefield. A +X/+Y counter counts on a creature
-card in any zone [CR#122.1a], counters sit on exiled cards [CR#702.62b] and on
-players [CR#122.1], and the battlefield matters where counters are PUT
-[CR#122.6], which is the instruction's check. Nothing else is narrowed: a
-card's own "gets +1/+1" keeps the demand (`cardStatChangeOffBattlefieldZone`),
-and so does a definition's single-stat `modification` and a stat change on any
-other subject (`p1p1CounterCountMultipliedTwin` keeps its two refusals). The
-+1/+1 and -1/-1 definitions check clean (`p1p1CounterDefinitionZone`,
+A definition's conferral is checked as the same syntax is inside a card
+(`Conferral.check`, `Check/Rules.lean`). There is no bearer exemption: since
+`lean-checker-sweep-zone` no stat change, a card's or a definition's, demands
+that its subject be on the battlefield, so a +X/+Y counter's conferral needs no
+narrowing to count on a creature card in any zone [CR#122.1a]. The +1/+1 and
+-1/-1 definitions check clean (`p1p1CounterDefinitionZone`,
 `m1m1CounterDefinitionZone`).
 
 Every Registry Definition is gated: `cargo xtask lean definitions` re-emits

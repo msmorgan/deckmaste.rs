@@ -403,6 +403,10 @@ mimicked.
   retires the battlefield demand altogether. No counter kind needs a wider
   rule: of 73 counter declarations only `p1p1Counter` and `m1m1Counter`
   confer a stat change, both through `boost`. (Ruling, 2026-10-06.)
+  (Superseded 2026-10-08 by `lean-checker-sweep-zone`, as this ruling
+  foresaw: the battlefield demand is retired for every stat change, so the
+  exemption had nothing left to exempt and is deleted; `Conferral.check`
+  checks a property as `StaticSpec.check` does.)
 - **Anaphor resolution: measured rules replace the strict rule as the
   target.** Accessibility comes first. A mention is inaccessible to a read
   when the consuming verb cannot apply to it by zone or kind: a creature that
