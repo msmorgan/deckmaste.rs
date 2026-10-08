@@ -41,6 +41,10 @@ atomically publishes `data/scryfall/oracle-cards.jsonl` with metadata and
 content hashes. Ordinary catalog, analysis, extraction, and generation commands
 read that pinned local snapshot offline.
 
+The generated catalogs under `data/gen/catalogs/` are keyed to the Oracle snapshot's
+hash, so the last step of `scripts/fetch_data` runs `cargo xtask catalogs generate`.
+If a lexicon load reports a stale catalog, run that command by hand.
+
 Rationale: game rules and mechanics are not copyrightable; card names, text,
 and art are WOTC's. A small, purposeful slice of name+behavior encodings
 (cf. XMage, Forge) is the deliberate trade.

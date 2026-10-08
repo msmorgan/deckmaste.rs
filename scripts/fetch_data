@@ -71,3 +71,22 @@ or return
 fetch_rules
 or return
 fetch_scryfall_catalogs
+or return
+
+# The generated catalogs under data/gen/catalogs are keyed to the Oracle
+# snapshot's hash, so regenerate them now that the snapshot files are in place.
+# They also need cr.txt, which a --minimal download omits without --cr.
+function regenerate_catalogs
+    if not test -f $rules_dir/cr.txt
+        echo >&2 "fetch_data: no $rules_dir/cr.txt; skipping catalog generation (use --cr)"
+        return 0
+    end
+    echo "Regenerating catalogs (cargo xtask catalogs generate)"
+    pushd $project_dir; or return
+    cargo xtask catalogs generate
+    set -l status_code $status
+    popd
+    return $status_code
+end
+
+regenerate_catalogs
