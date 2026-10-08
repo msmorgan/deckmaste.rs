@@ -198,10 +198,6 @@ structure ActFacts where
   agentRole : DeedRole := noRole
   patientRole : DeedRole := noRole
   feature : Option DeedFeature := none
-  rides : Bool := false
-  /-- The deed opens an opponent's library ("fateseal" [CR#701.29a]); the same look over one's
-  own library is a different deed. -/
-  opponentsLibrary : Bool := false
   /-- The patient is the performer's own: a permanent the performer controls ("sacrifice"
   [CR#701.21a]) or a card in the performer's own hand ("discard" [CR#701.9a]). -/
   ownPatient : Bool := false
@@ -291,8 +287,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("bolster", { agentRole := playerAgent }),
     ("cast",
       { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], spellTypes⟩, true, some .stack⟩,
-        rides := true }),
+        patientRole := ⟨some ⟨.object, [], spellTypes⟩, true, some .stack⟩ }),
     ("clash", { agentRole := playerAgent }),
     ("cloak", { dest := some .battlefield, agentRole := playerAgent }),
     ("collectEvidence", { dest := some .exile, agentRole := playerAgent }),
@@ -300,8 +295,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("convert", { intransitive := true, agentRole := playerAgent, patientRole := fieldObject }),
     ("counter",
       { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩,
-        rides := true }),
+        patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩ }),
     ("create", { dest := some .battlefield, agentRole := playerAgent }),
     ("destroy",
       { participle := some "destroyed", dest := some .graveyard, agentRole := playerAgent,
@@ -321,7 +315,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
         patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
     ("explore", { agentRole := permanentAgent }),
     ("faceAVillainousChoice", { agentRole := playerAgent }),
-    ("fateseal", { agentRole := playerAgent, opponentsLibrary := true }),
+    ("fateseal", { agentRole := playerAgent }),
     ("fight", { agentRole := permanentAgent }),
     ("forage", { agentRole := playerAgent }),
     ("goad", { agentRole := playerAgent }),
@@ -340,14 +334,13 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
         patientRole := ⟨some ⟨.object, [], []⟩, false, some .library⟩ }),
     ("monstrosity", { agentRole := permanentAgent }),
     ("play",
-      { agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], allTypes⟩, true, none⟩,
-        rides := true }),
+      { agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], allTypes⟩, true, none⟩ }),
     ("populate", { agentRole := playerAgent }),
     ("proliferate", { agentRole := playerAgent }),
     ("recruit", { agentRole := playerAgent }),
     ("regenerate",
       { participle := some "regenerated", agentRole := ⟨none, true, none⟩,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩, rides := true }),
+        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
     ("reveal", { agentRole := playerAgent }),
     ("sacrifice",
       { participle := some "sacrificed", dest := some .graveyard, agentRole := playerAgent,
@@ -403,7 +396,6 @@ def actZoneOf (v : Deed) : Option Zone := deedFacts v >>= (·.patientRole.zone)
 def actDestOf (v : Deed) : Option Zone := deedFacts v >>= (·.dest)
 def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
 def actNamesLocus (v : Deed) : Bool := !(actLociOf v).isEmpty
-def actOpponentsLibrary (v : Deed) : Bool := (deedFacts v).elim false (·.opponentsLibrary)
 def actOwnPatient (v : Deed) : Bool := (deedFacts v).elim false (·.ownPatient)
 def actIntransitiveOf (v : Deed) : Bool := (deedFacts v).elim false (·.intransitive)
 def actNamesParticiple (v : Deed) : Bool := (participleOf v).isSome
@@ -845,11 +837,6 @@ def anyTargeted (k : Kind) : Bindings → Bool
 def anchorTyOk (t : CardType) : List CardType → Bool
   | [] => true
   | ts => ts.contains t
-
-def anyTargetedAt : Bindings → Bool
-  | [] => false
-  | ⟨.target, _, _, _⟩ :: _ => true
-  | _ :: bs => anyTargetedAt bs
 
 def settleTargets : Bindings → Bindings
   | [] => []
@@ -1575,11 +1562,6 @@ def distinctSubtypeFacts : List SubtypeFacts → Bool
   | [] => true
   | f :: fs => !(fs.map (·.subtype)).elem f.subtype && distinctSubtypeFacts fs
 
-def spaceHosted : SubtypeSpace → List CardType → Bool
-  | .basicLand, ty => tyIs .land ty
-  | .land, ty => tyIs .land ty
-  | .creature, ty => tyIs .creature ty || tyIs .kindred ty
-
 def CardType.ascribesAs : CardType → Bool
   | .kindred | .instant | .sorcery => false
   | _ => true
@@ -1643,8 +1625,6 @@ def DesignationLabel.known (label : DesignationLabel) : Bool := label.facts.isSo
 
 def DesignationLabel.scope (label : DesignationLabel) : Option DesignationScope :=
   label.facts.map (·.scope)
-def DesignationLabel.checked (label : DesignationLabel) : Bool :=
-  (label.facts.map (·.effectful)).getD false
 def DesignationLabel.seedZone (label : DesignationLabel) : Option Zone := label.facts.bind (·.zone)
 def DesignationLabel.seedType (label : DesignationLabel) : Option CardType :=
   label.facts.bind (·.type)
@@ -1830,30 +1810,6 @@ def ColorSpec.ok : ColorSpec → Bool
 def typesDistinct : List CardType → Bool
   | [] => true
   | t :: ts => !ts.elem t && typesDistinct ts
-
-def addedFits (subj : List CardType) (types : List CardType) (subtypes : List Subtype) : Bool :=
-  subtypes.all fun s =>
-    types.any s.fits || subj.any s.fits
-
-def anyNewType (subj : List CardType) : List CardType → Bool
-  | [] => false
-  | t :: ts => !tyIs t subj || anyNewType subj ts
-
-def addsSomething (subj : List CardType) (types : List CardType) (subtypes : List Subtype) :
-    Bool :=
-  match subtypes with
-  | [] => anyNewType subj types
-  | _ :: _ => true
-
-def CardType.retainable : CardType → Bool
-  | .instant | .sorcery => false
-  | _ => true
-
-def retentionOk (types : List CardType) : Option CardType → Bool
-  | none => true
-  | some t => match types with
-    | [] => false
-    | _ :: _ => t.retainable
 
 def lastType : List CardType → Option CardType
   | [] => none

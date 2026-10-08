@@ -541,11 +541,8 @@ mutual
     | .happened who lb =>
       NounPhrase.checkIn gap none bs who ++ LookbackClause.checkIn gap (who.kindOr .object)
         (nomIntro bs who) lb
-    | .gameIs d =>
-      refuse d.gameWide (.designationScope d) ++ refuse d.checked (.designationChecked d)
-    | .noHolder d =>
-      refuse (d.scope == some (.heldBy .player)) (.designationScope d) ++
-        refuse d.checked (.designationChecked d)
+    | .gameIs d => refuse d.gameWide (.designationScope d)
+    | .noHolder d => refuse (d.scope == some (.heldBy .player)) (.designationScope d)
     | .matches n p =>
       let k := n.kindOr .object
       NounPhrase.checkIn gap none bs n ++ Predicate.checkIn gap k bs p ++ refuse (n.testSubjectOk
@@ -682,7 +679,7 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
         (match what with
          | none => (âŸ¨[], falseâŸ© : CheckResult)
          | some n =>
-           refuse n.plur.isOne .singular ++ refuse (!n.targeted) .nontarget)
+           refuse n.plur.isOne .singular)
     | .becomesTarget n by_ =>
       let kn := n.kindOr .object
       let kb := by_.kindOr .object
@@ -706,7 +703,7 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
     | .activates who what =>
       NounPhrase.checkIn gap (some .player) bs who ++ NounPhrase.checkIn gap (some .object)
         (nomIntro bs who) what ++
-        refuse what.plur.isOne .singular ++ refuse (!what.targeted) .nontarget
+        refuse what.plur.isOne .singular
     | .statBecomes n _ v =>
       NounPhrase.checkIn gap (some .object) bs n ++ Amount.checkIn gap (nomIntro bs n) v
     | .flipsCoin who _ => NounPhrase.checkIn gap (some .player) bs who
@@ -740,8 +737,7 @@ def OptZoneExpr.checkIn (gap : Option Kind) (bs : Bindings) : Option ZoneExpr â†
     | .nthOccurrence ordinal _ ev =>
       refuse ordinal.ok .ordinalNonZero ++ GameEvent.checkIn gap bs ev
     | .triggers what =>
-      NounPhrase.checkIn gap (some .object) bs what ++ refuse what.plur.isOne .singular ++
-        refuse (!what.targeted) .nontarget
+      NounPhrase.checkIn gap (some .object) bs what ++ refuse what.plur.isOne .singular
     | .commitsCrime who => NounPhrase.checkIn gap (some .player) bs who ++ refuse who.plur.isOne
       .singular
     | .causes by_ what => Causing.checkIn gap bs by_ ++ GameEvent.checkIn gap (by_.intro bs) what

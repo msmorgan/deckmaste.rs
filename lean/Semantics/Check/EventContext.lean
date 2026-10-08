@@ -14,10 +14,6 @@ def Door.intro (bs : Bindings) : Door → Bindings
   | .thisDoor => bs
   | .doorOf _ room => nomIntro bs room
 
-def Door.namesHost : Door → Bool
-  | .thisDoor => false
-  | .doorOf _ _ => true
-
 def creationVoiceOk (bs : Bindings) (byEffect : Bool) (by_ under : Option NounPhrase) : Bool :=
   (match by_ with
    | none => true
@@ -226,9 +222,6 @@ def Concurrent.namesThisDoor : Option Concurrent → Bool
 def JoinedHeader.namesThisDoor (j : JoinedHeader) : Bool :=
   j.event.namesThisDoor || j.alternatives.any GameEvent.namesThisDoor ||
     Concurrent.namesThisDoor j.while_
-
-def GameEvent.headerNontarget (bs : Bindings) (ev : GameEvent) : Bool :=
-  !anyTargetedAt (GameEvent.intro bs ev)
 
 /-! ## Number slots
 

@@ -53,7 +53,7 @@ def Exchanged.check (bs : Bindings) : Exchanged → List Refusal
   | .values a b =>
     let bs' := Amount.intro bs a
     Amount.check bs a ++ Amount.check bs' b ++ refuse a.settableValue .settableValue ++
-      refuse b.settableValue .settableValue ++ refuse (!selfExchanged bs a b) .selfExchanged
+      refuse b.settableValue .settableValue
   | .textBoxes a b =>
     let bs' := nomIntro bs a
     NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b
@@ -184,18 +184,15 @@ mutual
       let bs' := e.riderIntro bs
       let k := what.kindOr .object
       Instruction.checkWith bs none e ++ NounPhrase.check none bs' what ++ refuse (knownAct deed) (.knownAct deed) ++
-        refuse (deedRidesOk deed) .deedRides ++
         refuse (deedFits [deed] .patient k what.isAbility (NounPhrase.headTys bs' what) (NounPhrase.zone bs' what))
           .deedFits
     | .gainDesignation n d span =>
       let k := n.kindOr .object
       NounPhrase.check none bs n ++ OptDuration.check (nomIntro bs n) span ++
         refuse (d.scope == some (.heldBy k)) (.designationScope d) ++
-        refuse (designationHolderOk d (NounPhrase.zone bs n)) (.designationHolder d k) ++
-        refuse d.checked (.designationChecked d)
-    | .unlock door => Door.check bs door ++ refuse door.namesHost .doorNamesHost
-    | .setGameDesignation d =>
-      refuse d.gameWide (.designationScope d) ++ refuse d.checked (.designationChecked d)
+        refuse (designationHolderOk d (NounPhrase.zone bs n)) (.designationHolder d k)
+    | .unlock door => Door.check bs door
+    | .setGameDesignation d => refuse d.gameWide (.designationScope d)
     | .conclude _ => NounPhrase.check (some .player) bs (performerOf perf)
     | .drawGame | .restartGame | .revealChoices _ => []
     | .separateIntoPiles grp piles faces => let who := performerOf perf;
@@ -271,15 +268,14 @@ mutual
         refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++
         refuse whose.plur.isOne .singular
     | .establish se span =>
-      StaticSpec.check bs se ++ OptDuration.check (StaticSpec.intro bs se) span ++
-        refuse se.clauseOk .clauseStatic
+      StaticSpec.check bs se ++ OptDuration.check (StaticSpec.intro bs se) span
     | .createObject count spec => let agent := performerOf perf;
       let bs' := nomIntro bs agent
       let bs'' := Amount.intro bs' count
       NounPhrase.check (some .player) bs agent ++ Amount.check bs' count ++
         (match spec with
          | .token token riders => TokenSpec.check bs'' token ++ TokenRider.checkAll bs'' riders
-         | .emblem abilities => refuse (emblemAbilitiesOk abilities) .emblemAbilities ++
+         | .emblem abilities => refuse (!abilities.isEmpty) .nonEmpty ++
              Ability.checkAll [] abilities)
     | .putCounters amt kind on =>
       let bs' := Amount.intro bs amt
@@ -320,9 +316,8 @@ mutual
     | .enact v e => let subj := enactPerformer v perf;
       let inner := enactCtx bs v subj
       OptNoun.check (some (enactAgentKind bs v subj)) bs subj ++ Instruction.checkWith inner none e ++
-        refuse (knownAct v) (.knownAct v) ++ refuse (enactAgentOk bs subj v) .enactAgentOk ++
+        refuse (knownAct v) (.knownAct v) ++
         refuse (enactPatientPossessorOk inner v subj e) .patientPossessor ++
-        refuse (enactLibraryOwnerOkIn inner v e) .opponentsLibrary ++
         refuse (enactKeepsOuter bs subj e) .enactKeepsOuter
     | .pay c _ => let who := performerOf perf;
       NounPhrase.check (some .player) bs who ++ Cost.check (nomIntro bs who) c
@@ -549,10 +544,7 @@ mutual
   def TokenSpec.check (bs : Bindings) : TokenSpec → List Refusal
     | .written t =>
       let c := t.characteristics
-      CharacteristicBundle.check bs t ++ refuse c.typed .tokenTyped ++ refuse c.ptOk .tokenPtOk ++
-        refuse (subsFitLine c.subtypes c.types) .subsFitLine ++
-        refuse c.abilitiesOk .tokenAbilities ++ refuse c.canonical .tokenCanonical ++
-        refuse t.qualsFit .tokenQualsFit
+      CharacteristicBundle.check bs t ++ refuse c.canonical .distinct
     | .asThose =>
       let n := countTokenSpecs bs
       refuse (n == 1) (.tokenSpecInScope n)
@@ -567,10 +559,9 @@ mutual
           match edit with
           | .typeLine _ c => c.hasWrites
           | _ => true)) .lineNonEmpty ++
-        refuse (edits.all CharacteristicEdit.canonical) .tokenCanonical ++
-        refuse (edits.all CharacteristicEdit.copyFits) .becomesOk
+        CharacteristicEdit.shapeAll edits
     | .thisAbility => []
-    | .ability ab => Ability.check [] ab ++ refuse ab.grantable .grantable
+    | .ability ab => Ability.check [] ab
     | .entersWithCounters amt kind _ => Amount.check bs amt ++ kind.check
   termination_by structural e => e
 
@@ -615,8 +606,7 @@ mutual
     | .addedCost c _ => Cost.check bs c
     | .letterDefinition l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .abilityGrant n ab =>
-      NounPhrase.check (some .object) bs n ++ Ability.check bs ab ++
-        refuse (grantSubjectOk bs ab n) .grantSubject ++ refuse ab.grantable .grantable
+      NounPhrase.check (some .object) bs n ++ Ability.check bs ab
     | .abilityGrantFrom n cls src except =>
       let bs' := nomIntro bs n
       NounPhrase.check (some .object) bs n ++ NounPhrase.check (some .object) bs' src ++
@@ -643,10 +633,10 @@ mutual
     | .partSkip who _ => NounPhrase.check (some .player) bs who
     | .characteristicChange n edits =>
       NounPhrase.check (some .object) bs n ++ CharacteristicEdit.checkAll bs bs (some n) edits ++
-        refuse (CharacteristicEdit.fitsAll bs n edits) .becomesOk
+        refuse (!edits.isEmpty) .nonEmpty ++ refuse (edits.all CharacteristicEdit.writesLine) .lineNonEmpty ++
+        CharacteristicEdit.shapeAll edits
     | .retention se n =>
-      StaticSpec.check bs se ++ NounPhrase.check (some .object) (StaticSpec.intro bs se) n ++
-        refuse se.notCarvedOut .notCarvedOut
+      StaticSpec.check bs se ++ NounPhrase.check (some .object) (StaticSpec.intro bs se) n
     | .copyChange n src exc =>
       let bs' := nomIntro bs n
       NounPhrase.check (some .object) bs n ++ NounPhrase.check (some .object) bs' src ++
@@ -657,10 +647,10 @@ mutual
     | .replacement ev alts window repl _ _ =>
       GameEvent.check bs ev ++ GameEvent.checkAll bs alts ++ OptTiming.check bs window ++
         Instruction.checkWith (interceptCtx bs alts ev) none repl
-    | .damageRule _ src scope op use =>
+    | .damageRule _ src scope op _ =>
       let bs' := src.intro bs
       let bs'' := scope.intro bs'
-      src.check bs ++ scope.check bs' ++ op.check bs'' ++ refuse (op.useOk use) .damageOpUse
+      src.check bs ++ scope.check bs' ++ op.check bs''
     | .preventionBan _ what _ => what.check bs
     | .conditional se c marking =>
       StaticSpec.check bs se ++ Condition.check (StaticSpec.intro bs se) c ++
@@ -688,7 +678,7 @@ mutual
 
   def AbilityLost.checkAll (bs : Bindings) : List AbilityLost → List Refusal
     | [] => []
-    | .written ab :: rest => Ability.check bs ab ++ refuse ab.grantable .grantable ++ AbilityLost.checkAll bs rest
+    | .written ab :: rest => Ability.check bs ab ++ AbilityLost.checkAll bs rest
     | .term t :: rest => refuse t.known .knownKeywordTerm ++ AbilityLost.checkAll bs rest
   termination_by structural abl => abl
 
@@ -729,13 +719,13 @@ mutual
       let bs := ownPerformerCtx bs
       let hctx := headerCtx bs alts ev
       let jctx := joinedCtx bs joins hctx
-      headerEventCheck bs ev ++ alts.flatMap (headerEventCheck bs) ++
+      GameEvent.check bs ev ++ alts.flatMap (GameEvent.check bs) ++
         OptConcurrent.check hctx while_ ++ joins.flatMap (JoinedHeader.check bs) ++
         OptTiming.check bs window ++ OptCondition.check jctx intervening ++
         Instruction.checkWith (interveningIntro jctx intervening) none instr
     | .static se =>
       let bs := ownPerformerCtx bs
-      StaticSpec.check bs se ++ refuse (!anyTargetedAt (StaticSpec.intro bs se)) .nontarget
+      StaticSpec.check bs se
     | .spell window instr =>
       let bs := ownPerformerCtx bs
       OptTiming.check bs window ++ Instruction.checkWith bs none instr

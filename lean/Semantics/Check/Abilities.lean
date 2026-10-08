@@ -58,41 +58,6 @@ def Amount.settableValue : Amount → Bool
   | .theOutcome .rollResult => true
   | _ => false
 
-/-- Two halves naming one value: each would become equal to its own previous value, so the
-sentence states nothing. -/
-def Amount.scopeBody : Amount → Amount
-  | .withBindings _ _ body | .inCaller _ body => body.scopeBody
-  | body => body
-
-def Amount.exchangedSubject : Amount → Option (ProjAxis × NounPhrase)
-  | .withBindings scope inputs body =>
-    body.exchangedSubject.map fun (axis, subject) => (axis, .withBindings scope inputs subject)
-  | .inCaller scope body =>
-    body.exchangedSubject.map fun (axis, subject) => (axis, .inCaller scope subject)
-  | .statOf axis subject => some (axis, subject)
-  | _ => none
-
-def selfExchanged (bs : Bindings) (left right : Amount) : Bool :=
-  match left.exchangedSubject, right.exchangedSubject with
-  | some (axis, a), some (otherAxis, b) =>
-    let first := a.result bs
-    let second := b.result first.context
-    let sameAddress := match first.address, second.address with
-      | some a, some b => shiftAddress (second.introduced first.context).length a == b
-      | _, _ => false
-    axis == otherAxis && (sameAddress || (a.isYouIn bs && b.isYouIn first.context) ||
-      (a.selfDefinedOk && b.selfDefinedOk && a.ty bs == b.ty first.context))
-  | _, _ => match left.scopeBody, right.scopeBody with
-    | .theOutcome a, .theOutcome b => a == b
-    | _, _ => false
-
-def TokenQuality.hosted (tys : List CardType) : TokenQuality → Bool
-  | .withEveryType space => tys.any fun t => spaceHosted space [t]
-  | .withQuality q =>
-    match q.qualityReadHost with
-    | none => true
-    | some h => tys.elem h
-
 def counterHolderKind (k : Kind) : Bool := Kind.lte k (.join .object .player)
 
 def CounterKindSource.scope : CounterKindSource → Kind → Bool
@@ -148,10 +113,6 @@ def InstrProfile.simCons (d : List Binding) (p : InstrProfile) : InstrProfile :=
 def InstrProfile.offer (p : InstrProfile) : InstrProfile := ⟨p.intro, p.announced, none, p.deed⟩
 def InstrProfile.simLast (p : InstrProfile) : InstrProfile := ⟨p.pre, p.intro, none, []⟩
 def sameIntro (b : Bindings) (d : List Binding) : InstrProfile := ⟨b, b, none, d⟩
-
-def ptWritten : Option (Amount × Amount) → Bool
-  | none => false
-  | some _ => true
 
 def colorOpOk : QualityOp → ColorSpec → Bool
   | .sets, _ => true
@@ -216,12 +177,6 @@ def PreventCut.intro (bs : Bindings) : PreventCut → Bindings
   | .allBut amt => Amount.intro bs amt
   | .half _ => bs
 
-/-- [CR#615.7] A shield counts damage across events until its amount is spent. -/
-def PreventCut.shieldUseOk : PreventCut → ReplUse → Bool
-  | .shield _, .repeatedly => true
-  | .shield _, .nextTimeOnly => false
-  | _, _ => true
-
 def DamageScale.intro (bs : Bindings) : DamageScale → Bindings
   | .shifted _ amt => Amount.intro bs amt
   | _ => bs
@@ -244,25 +199,6 @@ def NounPhrase.libraryOwner : NounPhrase → Option NounPhrase
   | .firstMention _ body => body.libraryOwner
   | .librarySlice _ _ whose => some whose
   | _ => none
-
-/-- The library a look opens: the possessor of the slice looked at. -/
-def Instruction.lookedLibraryOwner : Instruction → Option NounPhrase
-  | .withBindings scope inputs body => body.lookedLibraryOwner.map (.withBindings scope inputs)
-  | .inCaller scope body => body.lookedLibraryOwner.map (.inCaller scope)
-  | .ownScope _ body => body.lookedLibraryOwner
-  | .sequentially (first :: _) => first.lookedLibraryOwner
-  | .expose .lookAt (.cards subject) => subject.libraryOwner
-  | _ => none
-
-/-- A deed the table marks as opening an opponent's library looks at one [CR#701.29a]. -/
-def enactLibraryOwnerOk (v : Deed) (e : Instruction) : Bool :=
-  !actOpponentsLibrary v || e.lookedLibraryOwner.elim true NounPhrase.opponentOnly
-
-/-- `enactLibraryOwnerOk` with a library possessed by `actor` read in its handoff: inside
-`act (each opponent) …`, "their library" is an opponent's. -/
-def enactLibraryOwnerOkIn (bs : Bindings) (v : Deed) (e : Instruction) : Bool :=
-  !actOpponentsLibrary v ||
-    e.lookedLibraryOwner.elim true fun owner => (owner.actorView bs).opponentOnly
 
 def NounPhrase.bareThis : NounPhrase → Bool
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.bareThis
@@ -405,15 +341,6 @@ controller [CR#109.5]. -/
 def enactDefaultsToThis (bs : Bindings) (v : Deed) (s : NounPhrase) : Bool :=
   s.isYouIn bs && !deedKindOk v .agent .player && deedKindOk v .agent .object
 
-/-- An enacted act's performer (`enactPerformer`) is of a kind its deed's row admits: a player
-for a deed a player performs, a permanent for one a permanent performs, with the source permanent
-standing in for the controller (`enactDefaultsToThis`). The kind is read in the handoff, so
-`actor` inside a handoff to a permanent is that permanent. A deed the rules give no performer
-records none, and refuses one a handoff names. -/
-def enactAgentOk (bs : Bindings) : Option NounPhrase → Deed → Bool
-  | none, _ => true
-  | some s, v => enactDefaultsToThis bs v s || deedKindOk v .agent ((s.actorView bs).kindOr .player)
-
 /-- The kind an enacted act's performer is checked as: the deed's `deedAgentKind`, or a
 player where the performer is the controller defaulted to the source permanent. -/
 def enactAgentKind (bs : Bindings) (v : Deed) : Option NounPhrase → Kind
@@ -514,35 +441,6 @@ def distinctTerms : List KeywordTerm → Bool
   | [] => true
   | k :: ks => !ks.elem k && distinctTerms ks
 
-mutual
-  def Predicate.regime : Predicate → Option StackRegime
-    | .withBindings _ _ body | .inCaller _ body => body.regime
-    | .castBy _ _ | .castFrom _ | .wasCast => some .atCasting
-    | .hasPossessor .controller _ => some .atResolution
-    | .and ps => Predicate.regimeAll ps
-    | .or ps => Predicate.regimeAll ps
-    | _ => none
-  termination_by structural p => p
-
-  def Predicate.regimeAll : List Predicate → Option StackRegime
-    | [] => none
-    | p :: ps =>
-      match p.regime with
-      | some r => some r
-      | none => Predicate.regimeAll ps
-  termination_by structural ps => ps
-end
-
-def NounPhrase.regime : NounPhrase → Option StackRegime
-  | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.regime
-  | .described _ p => p.regime
-  | .namesAgree _ g => g.regime
-  | _ => none
-
-def regimeMatches : Option StackRegime → Option StackRegime → Bool
-  | some a, some b => a == b
-  | _, _ => false
-
 /-! ## Tokens -/
 
 /-- A token's power and toughness together, when both are written. -/
@@ -551,25 +449,11 @@ def Characteristics.pt (c : Characteristics) : Option (Amount × Amount) :=
   | some p, some t => some (p, t)
   | _, _ => none
 
-def Characteristics.typed (c : Characteristics) : Bool := !c.types.isEmpty
-def Characteristics.ptOk (c : Characteristics) : Bool := !c.types.elem .creature || ptWritten c.pt
 def Characteristics.lineNonEmpty (c : Characteristics) : Bool :=
   hasAnyTypeCharacteristic c.supertypes c.types c.subtypes
 def Characteristics.canonical (c : Characteristics) : Bool :=
   colorsDistinct c.colors && typesDistinct c.types && supersDistinct c.supertypes
 def Characteristics.headTy (c : Characteristics) : List CardType := normalizeTypes c.types
-
-def Ability.grantable : Ability → Bool
-  | .keyword _ _ _ | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ | .static _ => true
-  | .italicHead _ ab => ab.grantable
-  | .thatAbility _ => true
-  | _ => false
-
-def Characteristics.abilitiesOk (c : Characteristics) : Bool := c.text.all Ability.grantable
-
-/-- Every quality an effect adds is hosted by a type the set writes. -/
-def CharacteristicBundle.qualsFit (b : CharacteristicBundle) : Bool :=
-  b.qualities.all (TokenQuality.hosted b.characteristics.types)
 
 def TypeLineChanges.hasWrites (c : TypeLineChanges) : Bool :=
   c.supertypes.isSome || c.types.isSome || c.subtypes.isSome
@@ -580,60 +464,24 @@ def TypeLineChanges.hasValues (c : TypeLineChanges) : Bool :=
 def TypeLineChanges.canonical (c : TypeLineChanges) : Bool :=
   supersDistinct (c.supertypes.getD []) && typesDistinct (c.types.getD [])
 
-/-- All type writes in one block participate in hosting its subtype writes. -/
-def CharacteristicEdit.writtenTypes : List CharacteristicEdit → List CardType
-  | [] => []
-  | .typeLine op c :: rest =>
-    (if op == .loses then [] else c.types.getD []) ++ CharacteristicEdit.writtenTypes rest
-  | _ :: rest => CharacteristicEdit.writtenTypes rest
-
-def TypeLineChanges.fits (op : QualityOp) (ty written : List CardType) (z : Option Zone)
-    (c : TypeLineChanges) : Bool :=
-  let ts := c.types.getD []
-  let subs := c.subtypes.getD []
-  c.hasWrites && c.canonical &&
-    match op with
-    | .adds =>
-      (addsSomething ty ts subs || !(c.supertypes.getD []).isEmpty) &&
-        addedFits ty written subs && c.retained.isNone
-    | .sets =>
-      zoneIsB z .battlefield && addedFits ty written subs && retentionOk ts c.retained
-    | .loses => zoneIsB z .battlefield && c.retained.isNone && c.hasValues
-
-def CharacteristicEdit.fits (bs : Bindings) (subject : NounPhrase)
-    (written : List CardType) : CharacteristicEdit → Bool
-  | .typeLine op c => c.fits op (NounPhrase.ty bs subject) written (NounPhrase.zone bs subject)
-  | .name op _ => op == .sets
-  | .manaCost _ => true
-  | .colors op cs => cs.ok && colorOpOk op cs
-  | .stat op _ _ => op == .sets
-  | .everyTypeOf _ space =>
-    spaceHosted space (written ++ NounPhrase.ty bs subject)
-  | .chosenQuality _ q =>
-    q.qualityReadOk && q.qualityReadHost.elim true (fun host =>
-      tyIs host (written ++ NounPhrase.ty bs subject))
-  | .addedAbilities abilities => abilities.all Ability.grantable
-  | .removedAbilities _ => true
-
-def CharacteristicEdit.fitsAll (bs : Bindings) (subject : NounPhrase)
-    (edits : List CharacteristicEdit) : Bool :=
-  !edits.isEmpty && edits.all (CharacteristicEdit.fits bs subject (CharacteristicEdit.writtenTypes edits))
-
-def CharacteristicEdit.canonical : CharacteristicEdit → Bool
-  | .typeLine _ c => c.canonical
-  | .colors _ (.some cs) => colorsDistinct cs
+/-- An edit that writes the type line writes something on it, as a copy exception's does. -/
+def CharacteristicEdit.writesLine : CharacteristicEdit → Bool
+  | .typeLine _ c => c.hasWrites
   | _ => true
 
-/-- Copy exceptions validate the edit without borrowing a later effect's subject or zone. -/
-def CharacteristicEdit.copyFits : CharacteristicEdit → Bool
+/-- The term shape of one characteristic edit: a type-line write that adds or removes writes a
+value, an added or removed color list is not empty, no list names a value twice, and a chosen
+quality is read as a chosen one. Which edits fit which subject, op and zone are game rules the
+checker does not assert (`lean-checker-sweep-game-rules`). -/
+def CharacteristicEdit.shape : CharacteristicEdit → List Refusal
   | .typeLine op c =>
-    (op == .sets || !c.hasWrites || c.hasValues) &&
-      (if op == .sets then retentionOk (c.types.getD []) c.retained else c.retained.isNone)
-  | .name op _ | .stat op _ _ => op == .sets
-  | .colors op cs => cs.ok && colorOpOk op cs
-  | .chosenQuality _ q => q.qualityReadOk
-  | .addedAbilities abilities => abilities.all Ability.grantable
-  | _ => true
+    refuse (op == .sets || !c.hasWrites || c.hasValues) .lineNonEmpty ++ refuse c.canonical .distinct
+  | .colors op cs => refuse cs.ok .distinct ++ refuse (colorOpOk op cs) .nonEmpty
+  | .chosenQuality _ q => refuse q.qualityReadOk .qualityRead
+  | _ => []
+
+def CharacteristicEdit.shapeAll (edits : List CharacteristicEdit) : List Refusal :=
+  edits.flatMap CharacteristicEdit.shape
 
 def TokenSpec.headTy (bs : Bindings) : TokenSpec → List CardType
   | .written t => t.characteristics.headTy
@@ -656,11 +504,6 @@ def StaticSpec.isCoord : StaticSpec → Bool
   | .conjunction _ _ => true
   | _ => false
 
-def StaticSpec.notCarvedOut : StaticSpec → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.notCarvedOut
-  | .retention _ _ => false
-  | _ => true
-
 /-- A deontic rule's counterparts, read as references and kinds: each counterpart is of a kind
 the deed's other role takes, a complement names one of the rule's own deeds and no deed twice,
 and a counterpart named after the subject is not the subject read back (`counterpartNotSelf`).
@@ -677,11 +520,6 @@ def DamageOp.intro (bs : Bindings) : DamageOp → Bindings
   | .prevent cut _ => cut.intro bs
   | .redirect cut to => nomIntro (cut.intro bs) to
   | .scale sc => sc.intro bs
-
-def DamageOp.useOk : DamageOp → ReplUse → Bool
-  | .prevent cut _, use => cut.shieldUseOk use
-  | .redirect cut _, use => cut.shieldUseOk use
-  | .scale _, _ => true
 
 def Cost.isCompound : Cost → Bool
   | .withBindings _ _ body | .inCaller _ body => body.isCompound
@@ -890,51 +728,9 @@ def keywordListOk (ab : Ability) (ks : List KeywordTerm) : Bool :=
   | none => false
   | some base => !ks.isEmpty && allTermsBare ks && distinctTerms ks && !ks.elem (.the base)
 
-def Ability.emblemOk : Ability → Bool
-  | .activated _ _ _ _ _ _ | .triggered _ _ _ _ _ _ _ _ | .static _ => true
-  | .italicHead _ ab => ab.emblemOk
-  | _ => false
-
-def emblemAbilitiesOk : List Ability → Bool
-  | [] => false
-  | abl => abl.all Ability.emblemOk
-
-def Ability.regime : Ability → Option StackRegime
-  | .keyword k _ _ => keywordStackRegime k
-  | .alsoForKeywords ab _ => ab.regime
-  | .italicHead _ ab => ab.regime
-  | _ => none
-
-def Ability.functionsOnStack : Ability → Bool
-  | .keyword k _ _ => keywordFunctionsOnStack k
-  | .alsoForKeywords ab _ => ab.functionsOnStack
-  | .italicHead _ ab => ab.functionsOnStack
-  | _ => false
-
-def grantSubjectFits (zn : Option Zone) (reg : Option StackRegime) (ab : Ability) : Bool :=
-  if onStackZone zn then regimeMatches ab.regime reg else !ab.functionsOnStack
-
-def grantSubjectOk (bs : Bindings) (ab : Ability) (n : NounPhrase) : Bool :=
-  grantSubjectFits (NounPhrase.zone bs n) n.regime ab
-
 def Ability.introducedLetters : Ability → List Binding
   | .keyword _ [.number (.letter l)] _ => [letterB l]
   | _ => []
-
-mutual
-  def StaticSpec.clauseOk : StaticSpec → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.clauseOk
-    | .ptDefinition _ _ _ => false
-    | .altCost _ _ => false
-    | .conjunction _ parts => StaticSpec.partsClauseOk parts
-    | _ => true
-  termination_by structural se => se
-
-  def StaticSpec.partsClauseOk : List StaticSpec → Bool
-    | [] => true
-    | se :: rest => se.clauseOk && StaticSpec.partsClauseOk rest
-  termination_by structural parts => parts
-end
 
 mutual
   def Cost.offBattlefield : Cost → Bool

@@ -87,8 +87,6 @@ def deedHeadTysOk (v : Deed) (r : Role) : List (List CardType) → Bool
   | alts => alts.all (deedAltOk v r)
 
 def deedZoneOf (v : Deed) (r : Role) : Option Zone := (deedRoleOf v r).zone
-def deedRidesOk (v : Deed) : Bool := (deedFacts v).elim false (·.rides)
-
 def knownActs (ds : Deeds) : Bool := ds.all knownAct
 
 def distinctDeeds : Deeds → Bool

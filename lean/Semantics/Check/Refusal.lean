@@ -31,7 +31,6 @@ inductive Refusal where
   | counterKindNamed (k : Kind)
   | designationHolder (designation : DesignationLabel) (k : Kind)
   | designationScope (designation : DesignationLabel)
-  | designationChecked (designation : DesignationLabel)
   | designationPossessorFits (designation : DesignationLabel)
   /- number -/
   | soleHolder
@@ -135,13 +134,9 @@ inductive Refusal where
   | keywordParamFits (k : KeywordLabel)
   | keywordBodyFits (k : KeywordLabel)
   | deedFits
-  /-- The deed opens an opponent's library [CR#701.29a]. -/
-  | opponentsLibrary
-  | deedRides
   | verbPatientOk
   | verbedVoiceOk
   | verbBecomesOk
-  | enactAgentOk
   /-- A handoff names neither a player nor a permanent [CR#110.1]. -/
   | handoffPerformer
   /-- A deed whose patient is the performer's own is done to an object whose possessor is known to
@@ -149,14 +144,10 @@ inductive Refusal where
   | patientPossessor
   /-- A noun in a deed's agent or patient role does not fit what that deed takes there. -/
   | deedNounOk (d : Deed)
-  | nontarget
   | counterBatchOk
   | causedByOk
   | tokenPhrase
-  | headerNontarget
-  | doorNamesHost
   | settableValue
-  | selfExchanged
   | numberChoiceInScope
   /-- A deontic rule's counterpart is the subject read back, is of a kind the deed's other role
   does not take, or a complement names a deed outside the rule or twice. -/
@@ -164,13 +155,7 @@ inductive Refusal where
   | deckReadable
   | deckComparable
   | selfDefinedOk
-  | grantSubject
-  | grantable
-  | notCarvedOut
   | notCoord
-  | clauseStatic
-  | becomesOk
-  | damageOpUse
   /-- A hybrid or Phyrexian symbol names two different halves [CR#107.4e,107.4f]. -/
   | manaSymbolOk
   | forEachAmount
@@ -182,12 +167,6 @@ inductive Refusal where
   | producedRuns
   | colorCountOk
   | twoParties
-  | tokenTyped
-  | tokenPtOk
-  | subsFitLine
-  | tokenAbilities
-  | tokenCanonical
-  | tokenQualsFit
   | additionUnnamed
   | copyBundle
   | lineNonEmpty
@@ -198,7 +177,6 @@ inductive Refusal where
   | keywordExtendable
   | keywordListOk
   | notWordHeaded
-  | emblemAbilities
   /- rules tables -/
   /-- A predefined token is named, because an effect creates it by that name [CR#111.10]. -/
   | tokenNamed

@@ -63,8 +63,6 @@ def ComponentFacts.summary : List ComponentFacts → Option StackRegime
     | none => ComponentFacts.summary cs
 
 def keywordStackRegime (k : KeywordLabel) : Option StackRegime := keywordFactsFor k >>= (·.regime)
-def keywordFunctionsOnStack (k : KeywordLabel) : Bool :=
-  (keywordFactsFor k).elim false (·.functionsOnStack)
 
 def PaidCostName.named : PaidCostName → Bool
   | .byKeyword kw => (keywordFactsFor kw).elim false (·.paidCost)

@@ -24,21 +24,21 @@ and while an ability is normally a characteristic of an object, a player can be 
 [CR#113.1a,113.1b], so a conferral takes the same bound. -/
 def ruleScopeBound : Kind := .join .object .player
 
-/-- A state-based action doesn't use the stack [CR#704.1], and a target is chosen as a spell or
-ability is put on the stack [CR#601.2c], so nothing a row does is targeted. -/
+/-- A state-based action row: its scope, condition and effect obey the laws they obey inside a
+card. That nothing a row does is targeted [CR#704.1,601.2c] is a game rule the checker does not
+assert (`lean-checker-sweep-game-rules`). -/
 def SbaRule.check (r : SbaRule) : List Refusal :=
   let k := ruleScopeKind r.scope
   Predicate.check k [] r.scope ++ refuse (Kind.lte k ruleScopeBound) (.kindLte k ruleScopeBound) ++
-    Condition.check [] r.when ++ Instruction.check [] r.then_ ++
-    refuse (!anyTargetedAt (Instruction.intro [] r.then_)) .nontarget
+    Condition.check [] r.when ++ Instruction.check [] r.then_
 
-/-- What a conferral gives is an ordinary ability, so it obeys the ability laws and must be one
-an effect could grant at all: a spell ability is followed while a spell resolves [CR#113.3a] and
-belongs to no permanent a rule could confer it onto. -/
+/-- What a conferral gives is an ordinary ability, so it obeys the ability laws. Whether an
+effect could grant it at all [CR#113.3a] is a game rule the checker does not assert
+(`lean-checker-sweep-game-rules`). -/
 def ConferralRule.check (r : ConferralRule) : List Refusal :=
   let k := ruleScopeKind r.scope
   Predicate.check k [] r.scope ++ refuse (Kind.lte k ruleScopeBound) (.kindLte k ruleScopeBound) ++
-    Ability.check [] r.confer ++ refuse r.confer.grantable .grantable
+    Ability.check [] r.confer
 
 /-- Damage is dealt to a player or an object [CR#120.1], and the counters it removes must be
 counters that recipient can hold — the counter registry declares the holder, so the two reads
@@ -64,18 +64,14 @@ def distinctPredefinedTokens : List PredefinedToken → Bool
 
 /-- What a definition confers obeys the laws its syntax obeys inside a card, in the empty
 binding context: the definition supplies no binding, exactly as a rules table's scope supplies
-only `this`. A conferred ability must be one an effect could grant at all [CR#113.3a], and
-neither a state-based action [CR#704.1] nor a turn-based action [CR#703.1] uses the stack, so
-neither can target [CR#601.2c]. -/
+only `this`. Whether an effect could grant a conferred ability [CR#113.3a], and that a state-based
+or turn-based action targets nothing [CR#704.1,703.1,601.2c], are game rules the checker does not
+assert (`lean-checker-sweep-game-rules`). -/
 def Conferral.check : Conferral → List Refusal
-  | .ability a => Ability.check [] a ++ refuse a.grantable .grantable
+  | .ability a => Ability.check [] a
   | .property spec => StaticSpec.check [] spec
-  | .stateBased when then_ =>
-      Condition.check [] when ++ Instruction.check [] then_ ++
-        refuse (!anyTargetedAt (Instruction.intro [] then_)) .nontarget
-  | .turnBased _ then_ =>
-      Instruction.check [] then_ ++
-        refuse (!anyTargetedAt (Instruction.intro [] then_)) .nontarget
+  | .stateBased when then_ => Condition.check [] when ++ Instruction.check [] then_
+  | .turnBased _ then_ => Instruction.check [] then_
 
 /-- A designation's zone, card type and room half say what the object holding it is, so a
 designation a player, a card or the game holds [CR#701.15b,725.1,731.1,903.3] writes none of
