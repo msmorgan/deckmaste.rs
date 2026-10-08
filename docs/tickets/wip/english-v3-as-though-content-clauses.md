@@ -91,7 +91,6 @@ cite check). Deltas:
    leave unreachable declarations.
 10. A CGEL citation may back only what the cited passage itself says; a project
     or orchestrator ruling is cited as a ruling, never attributed to CGEL.
-11. Timings as integer ns and ns/B, with host load and worker count.
 
 ## Out of scope
 
@@ -101,85 +100,14 @@ cite check). Deltas:
 
 ## Landing record
 
-1. **Census delta.** Original claim parent `twlvltlw` has the same consumed
-   sources as `zpmurnquqlpkunplvxmymyztmkxlxypw`: **23,005 covered faces /
-   1,131,832 Readings**. Refresh imported `ttztmuyr` (census
-   `wuvkkwmvzsmrokrvssqrltwuzmovqkkz`: **23,117 / 1,144,241**). Refresh also
-   imported `zysnxlnk` (census `pvmvwtuqnywqnvvnppssxyqwlwxvunqp`: **23,216 /
-   1,147,462**). Finished census `qxqootwzmkwutouxysnuyzlqxupuxrtn`: **23,352
-   / 1,199,416**, with **136 feature gains** and **211 inherited trunk
-   gains**. Lost faces: **none**. Removed Readings and changed digests on
-   previously covered faces: **none**, against both parents. All **32,828
-   faces** completed; every enumerated Reading passed exact roundtrip and
-   identity validation, with zero issues, duplicates, cycles, limits or
-   internal failures. Evidence:
-   `target/english-v3/english-v3-as-though-content-clauses/after.json`,
-   `claim-parent-comparison.json`, `feature-comparison.json` and
-   `full-validation.json`. Iterations used selectors. The initial full census
-   is preserved as `pre-rather-after.json`; final refresh changed grammar and
-   lexicon, so the finished full census uses the user's post-refresh
-   exception.
+1. **Census delta.** Claim-parent sources match `zpmurnqu`: **23,005 covered / 1,131,832 Readings**. Refreshed parent `pvmvwtuq`: **23,216 / 1,147,462**. Finished `qxqootwz`: **23,352 / 1,199,416** (**136 feature gains**). Lost faces and removed Readings: **none**; previously covered digests match both parents. A grammar/lexicon-changing refresh required the permitted final full re-census.
 
-2. **Witnesses.** At the finished census above: Vedalken Orrery **3**, High
-   Fae Trickster **3**, Blur of Heroism **3**, Mirror Wall **8**, and Ruxa,
-   Patient Professor **160** full-face Readings. The isolated Ruxa witness has
-   **20** at `tvknqzwq`; Quicken's modal-passive witness has **24**.
-   Cloudspire Captain remains unread, as scoped. The compound preposition
-   takes a finite content-clause Complement; its PP is a final manner Adjunct
-   at clause/VP level. Ordinary modal preterites retain their declared forms
-   without matrix-tense agreement; singular *were/weren't* has declared
-   finite, non-tensed `Irrealis` forms. CGEL Ch. 13 §5.5, pp. 1151–1152
-   supports the compound analysis and these forms; the final Oracle attachment
-   and lexical licences are project requirements, not a claim that CGEL
-   excludes other functions. *As if* is unattested and was not added. The
-   superseded standalone *though* lexeme and compound licence on *as* are
-   retired. Shared productions remain reachable for other heads.
+2. **Witnesses.** At `qxqootwz`: Vedalken Orrery **3**, High Fae Trickster **3**, Blur of Heroism **3**, Mirror Wall **8**, Ruxa, Patient Professor **160** full-face Readings. Ruxa's isolated witness at `tvknqzwq` has **20**. The compound head takes a finite content-clause Complement; the final manner Adjunct admits modal preterites and declared non-tensed irrealis forms. Unattested *as if* was omitted; Cloudspire Captain remains out of scope.
 
-3. **Spot checks.** Ten newly covered faces, checked in `spotchecks.json` and
-   unchanged by refresh: Vedalken Orrery, High Fae Trickster and Blur of
-   Heroism — compound PP with *they had flash* finite content Complement;
-   Mirror Wall and Bristlepack Sentry — compound PP with *it didn't have
-   defender* finite content Complement; Quicken — compound PP with *it had
-   flash* under a modal-passive predicate; Ruxa, Patient Professor,
-   Indomitable Might and Deathcoil Wurm — compound PP with *it weren't
-   blocked* irrealis content Complement; Mezzio Mugger — compound PP with *it
-   were mana of any color* irrealis content Complement. Each selected Reading
-   attaches the PP as a final manner Adjunct, using one lexical *as though*
-   head, without a separate concessive or relative analysis. Four additional
-   gains need both this feature and trunk's nominal comparison: Felothar the
-   Steadfast, Assault Formation, High Alert and Arcades, the Strategist. Their
-   selected nominal comparisons and compound content-clause PPs are checked in
-   `rather-synergy-spotchecks.json`.
+3. **Spot checks.** At `qxqootwz`: Vedalken Orrery, High Fae Trickster and Blur of Heroism — compound PP with *they had flash*; Mirror Wall and Bristlepack Sentry — *it didn't have defender*; Quicken — *it had flash* under a modal passive; Ruxa, Indomitable Might and Deathcoil Wurm — irrealis *it weren't blocked*; Mezzio Mugger — irrealis *it were mana of any color*. Each selected Reading has a finite content-clause Complement and final manner Adjunct. Four further gains need trunk's nominal comparison as well: Felothar, Assault Formation, High Alert and Arcades.
 
-4. **Deviations and STOPs.** Added `IrrealisClause` and
-   `IrrealisClauseComplementPreposition`, two categories, two additional
-   instances of existing schemas and a typed lexical form, to represent
-   irrealis without false past-tense or plural agreement. Reused existing
-   predicate/auxiliary schemas; added no lexical frames. Ten integration tests
-   include an independently constructed value, admission/realization/parse
-   equality, traversal and leaf identity, licence removal, negative
-   distributions and the extra Quicken witness. The existing existential
-   concord test exposed overgeneration from the new form; a general
-   tensed-form requirement fixes it without changing that test. Refresh
-   required the two new matrix-complement PP exports. Defined glossary gaps:
-   Content Clause, Irrealis, Irrealis Clause and Irrealis Clause Complement,
-   with verified CGEL references. No word-naming guards were introduced.
-   **STOP pending:** refresh imported the 2026-10-08 six-item record ruling,
-   while this ticket still asks for ns/B and host-load prose. The format
-   question was reported to the user; telemetry is preserved in `timing.json`
-   pending that ruling.
+4. **Deviations and STOPs.** At `qxqootwz`, added **2 constructions**, **2 categories**, **2 existing-schema instances**, a typed irrealis form and **10 tests**, including independent construction, admission/roundtrip/traversal, licence removal, negatives and Quicken. No frames added. Retired standalone *though* and the compound licence on *as*. Fixed the existing existential-concord regression through a general tensed-form requirement; adapted PP exports after refresh. Defined glossary gaps: Content Clause, Irrealis, Irrealis Clause and Irrealis Clause Complement, using verified CGEL passages. Record-format STOP resolved by the user's ruling: the 2026-10-08 amendment supersedes the ticket wording.
 
-5. **Tests.** At the finished source tree: `cargo test -p
-   deckmaste_english_v3` passes **478 tests**, and `cargo test -p
-   deckmaste_lexical_source` passes **57 tests**. Both corresponding `cargo
-   clippy -p <crate> --tests -- -D warnings` commands pass. Refreshed
-   grammar/lexicon checks are recorded in `rather-refreshed-checks.json`;
-   formatting passes. Assurance for this feature: restored **0**, re-spelled
-   **0**, ignored **0**, added **10**, removed **0**. No xtask tests or Lean
-   checks ran. Existing regression tests were retained and fixed in code.
-   Citation checking reports zero stale citations and no noncompliant sites.
+5. **Tests.** At `qxqootwz`: `cargo test -p deckmaste_english_v3` — **478 passed**; `cargo test -p deckmaste_lexical_source` — **57 passed**. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` pass. Assurance: restored **0**, re-spelled **0**, ignored **0**, added **10**, removed **0**. Formatting and citation checks pass. No xtask tests or Lean checks ran.
 
-6. **Timing.** Full census at `qxqootwzmkwutouxysnuyzlqxupuxrtn` (**23,352
-   covered faces**): **141,507,921,517 ns**, **12 workers**. Integer setup,
-   command-wall, thread-CPU and host-load telemetry remains in `timing.json`;
-   the census record is a full run without incremental reuse.
+6. **Timing.** Full census at `qxqootwz`: **141,507,921,517 ns**, **12 workers**.
