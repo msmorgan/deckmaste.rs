@@ -40,21 +40,20 @@ use crate::words::KindAxis;
 use crate::words::Letter;
 use crate::words::LibraryEnd;
 use crate::words::LockState;
-use crate::words::Lookback;
 use crate::words::ManaSymbol;
 use crate::words::MarkerWord;
 use crate::words::NameAgreement;
 use crate::words::NounWord;
 use crate::words::Ordinal;
 use crate::words::OutcomeSort;
-use crate::words::PaidFacet;
-use crate::words::PartQuant;
+use crate::words::EventSide;
+use crate::words::PaidCostName;
 use crate::words::PlayerGroupWord;
 use crate::words::Plurality;
 use crate::words::PossessorAxis;
 use crate::words::ProjAxis;
 use crate::words::QualitySort;
-use crate::words::RankPeriod;
+use crate::words::Period;
 use crate::words::Reach;
 use crate::words::RollExtreme;
 use crate::words::RoundMode;
@@ -215,10 +214,92 @@ pub enum EventSource {
 /// A historical event whose gap denotes the entity being described.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum LookbackClause {
+    /// The event, within a span of the game ("this turn", "last turn", "this
+    /// game"), and optionally only when a timing held as it happened ("cast
+    /// when a sorcery couldn't have been" [CR#307.5a]).
     Mk {
         event: Box<GameEvent>,
-        lookback: Lookback,
+        within: Box<Duration>,
+        timing: Option<Box<Timing>>,
     },
+    /// The event the enclosing instruction caused: "the cards discarded this
+    /// way". It names an occurrence, not a span.
+    ThisWay { event: Box<GameEvent> },
+    /// The event that triggered the enclosing ability [CR#603.2]. It names an
+    /// occurrence, not a span.
+    Triggering { event: Box<GameEvent> },
+}
+
+/// Which turn a timing or duration names. `That` reads back the turn an
+/// earlier phrase named ("that turn"); there is no "this", which names an
+/// object.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum TurnRef {
+    Current,
+    Previous,
+    /// The next turn, or the next of `player`'s turns.
+    Next { player: Option<Box<NounPhrase>> },
+    /// Each turn, or each of `player`'s turns.
+    Each { player: Option<Box<NounPhrase>> },
+    /// A turn after the current one [CR#702.170d].
+    Later,
+    That,
+}
+
+/// When a player may act, or when a trigger or replacement applies. With no
+/// timing written, a player may act any time they have priority [CR#117.1a].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Timing {
+    /// During `part` of the turn `which` names, whose turn it is being
+    /// `whose`'s.
+    InPart {
+        part: TurnPart,
+        whose: Option<Box<NounPhrase>>,
+        which: TurnRef,
+    },
+    RelativeToEvent {
+        side: EventSide,
+        event: Box<GameEvent>,
+    },
+    /// "while …": an event underway.
+    WhileDoing { event: Box<GameEvent> },
+    OnlyIf { condition: Box<Condition> },
+    And { conjuncts: Vec<Timing> },
+    Or { disjuncts: Vec<Timing> },
+    Not { timing: Box<Timing> },
+}
+
+/// How long an effect lasts, or the span a lookback reads. With no duration
+/// stated, an effect lasts until the game ends [CR#611.2a].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Duration {
+    /// Bounded by two optional events: "until end of turn" has only an end,
+    /// "on a later turn" only a start [CR#702.170d]. A history window ends at
+    /// `GameEvent::Now`.
+    Between {
+        start: Option<Box<GameEvent>>,
+        end: Option<Box<GameEvent>>,
+    },
+    /// [CR#611.2b]
+    ForAsLongAs { condition: Box<Condition> },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PaidFacet {
+    /// colors of mana spent to cast it [CR#702.44a]
+    ColorsSpent,
+    /// mana spent to pay the total cost [CR#601.2h]
+    ManaValueSpent,
+    /// [CR#702.33c..702.33d]
+    TimesPaid { which: PaidCostName },
+    /// "was kicked" [CR#702.33d], optionally within a span ("this turn")
+    Readback {
+        which: PaidCostName,
+        within: Option<Box<Duration>>,
+    },
+    /// "the player chosen as [which] was paid": the choice an additional cost
+    /// makes, read back by the ability linked to it [CR#702.174a,607.2d,607.2i]
+    ChosenPlayer { which: PaidCostName },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -270,7 +351,7 @@ pub enum Predicate {
     },
     CastBy {
         caster: Box<NounPhrase>,
-        rank: Option<(Ordinal, RankPeriod)>,
+        rank: Option<(Ordinal, Period)>,
     },
     CastFrom {
         zone: Box<ZoneExpr>,
@@ -685,14 +766,6 @@ pub enum RollWatch {
     HighestNatural,
 }
 
-/// Whose turn part a "beginning of" header names.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum HeaderPossessor {
-    NoPossessor,
-    ByPlayer { player: Box<NounPhrase> },
-    ByTurn { turn: Box<NounPhrase> },
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Condition {
     WithBindings {
@@ -757,6 +830,12 @@ pub enum Condition {
         bound: Box<Amount>,
     },
     RolledDoubles,
+    /// `player` has priority [CR#117.1a]. A mana ability may be activated
+    /// without it [CR#117.1d], so instant speed is written with this
+    /// condition.
+    HasPriority {
+        player: Box<NounPhrase>,
+    },
     Not {
         condition: Box<Condition>,
     },
@@ -814,11 +893,20 @@ pub enum GameEvent {
         source: Option<Box<NounPhrase>>,
         patient: Option<Box<NounPhrase>>,
     },
+    /// The beginning of `part` of the turn `which` names, whose turn it is
+    /// being `whose`'s.
     BeginningOf {
-        quantifier: PartQuant,
         part: TurnPart,
-        whose: Box<HeaderPossessor>,
+        whose: Option<Box<NounPhrase>>,
+        which: TurnRef,
     },
+    EndOf {
+        part: TurnPart,
+        whose: Option<Box<NounPhrase>>,
+        which: TurnRef,
+    },
+    /// The present moment, where a history window ends.
+    Now,
     Casts {
         player: Box<NounPhrase>,
         spell: Option<Box<NounPhrase>>,
@@ -981,16 +1069,4 @@ pub enum VisibleThing {
     TopOfLibrary,
     WholeHand,
     Objects { objects: NounPhrase },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum DurationEnd {
-    StartOf {
-        part: TurnPart,
-        whose: Option<NounPhrase>,
-    },
-    EndOf {
-        part: TurnPart,
-        whose: Option<NounPhrase>,
-    },
 }

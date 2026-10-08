@@ -71,9 +71,9 @@ pub fn kinds() -> KindSet {
     // spellable, but its helpers (`library(player)`) need the position.
     kinds.add(crate::phrase::Pile::kind());
     kinds.add(crate::phrase::Condition::kind());
+    kinds.add(crate::phrase::Duration::kind());
+    kinds.add(crate::phrase::Timing::kind());
     // `lean/Semantics/Triggers.lean`
-    kinds.add(crate::triggers::Duration::kind());
-    kinds.add(crate::triggers::Timing::kind());
     kinds.add(crate::triggers::UsageLimit::kind());
     // `lean/Semantics/Abilities.lean`
     kinds.add(crate::abilities::Instruction::kind());
@@ -146,7 +146,6 @@ pub fn kinds() -> KindSet {
     // registering, and the dispatch set a derive would carry is either
     // unavailable (a struct) or unused here.
     kinds.add(Kind::new("CharacteristicBundle"));
-    kinds.add(Kind::new("HeaderPossessor"));
     kinds.add(Kind::new("LevelBand"));
     kinds.add(Kind::new("PrototypeFrame"));
     // A registry definition's conferral (`crate::rules::Conferral`), where a
@@ -212,8 +211,9 @@ pub const EXPRESSION_KINDS: &[&str] = &[
 /// `CounterKind` was the other: it now derives `SupportsMacros` (it is the
 /// payload of `CounterKindSource::Printed`), and its derived kind's
 /// dispatch set is the same three constructors, so its row went with it.
-const HAND_BUILT_NATIVE: &[(&str, &[&str])] =
-    &[("HeaderPossessor", &["NoPossessor", "ByPlayer", "ByTurn"])];
+/// `HeaderPossessor` was the last entry; it retired into a `GameEvent`
+/// boundary's optional `whose` and its `TurnRef` (`semantics-v2-temporal-suite`).
+const HAND_BUILT_NATIVE: &[(&str, &[&str])] = &[];
 
 /// The variants of a word type that are NOT author vocabulary even though the
 /// type is no `semantic_expression`: a card names them by a declared name
@@ -310,8 +310,8 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::phrase::Quantity>("Quantity");
     types.add_typed::<crate::phrase::ZoneExpr>("ZoneExpr");
     types.add_typed::<crate::phrase::Pile>("Pile");
-    types.add_typed::<crate::triggers::Duration>("Duration");
-    types.add_typed::<crate::triggers::Timing>("Timing");
+    types.add_typed::<crate::phrase::Duration>("Duration");
+    types.add_typed::<crate::phrase::Timing>("Timing");
     types.add_typed::<crate::triggers::UsageLimit>("UsageLimit");
     types.add_typed::<crate::abilities::Instruction>("Instruction");
     types.add_typed::<crate::abilities::StaticSpec>("StaticSpec");
@@ -352,7 +352,6 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<Vec<crate::words::Color>>("Colors");
     types.add_typed::<crate::words::Comparator>("Comparator");
     types.add_typed::<crate::abilities::Compulsion>("Compulsion");
-    types.add_typed::<crate::triggers::Concurrent>("Concurrent");
     types.add_typed::<crate::events::CounterBatch>("CounterBatch");
     types.add_typed::<crate::words::CounterKind>("CounterKind");
     types.add_typed::<crate::abilities::CounterKindSource>("CounterKindSource");
@@ -373,7 +372,8 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::words::KeywordLabel>("KeywordLabel");
     types.add_typed::<crate::words::Kind>("Kind");
     types.add_typed::<crate::card::LevelRange>("LevelRange");
-    types.add_typed::<crate::words::Lookback>("Lookback");
+    types.add_typed::<crate::phrase::TurnRef>("TurnRef");
+    types.add_typed::<crate::words::EventSide>("EventSide");
     types.add_typed::<Vec<crate::words::ManaSymbol>>("ManaCost");
     types.add_typed::<crate::words::ManaMatch>("ManaMatch");
     types.add_typed::<crate::abilities::ManaSubstitute>("ManaSubstitute");
@@ -383,11 +383,11 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::words::NounWord>("NounWord");
     types.add_typed::<crate::words::Ordinal>("Ordinal");
     types.add_typed::<crate::words::PaidCostName>("PaidCostName");
-    types.add_typed::<crate::words::PartQuant>("PartQuant");
     types.add_typed::<crate::words::Plurality>("Plurality");
     types.add_typed::<crate::words::ProjAxis>("ProjAxis");
     types.add_typed::<crate::words::QualitySort>("QualitySort");
-    types.add_typed::<crate::words::RankPeriod>("RankPeriod");
+    types.add_typed::<crate::words::Period>("Period");
+    types.add_typed::<crate::triggers::CountBound>("CountBound");
     types.add_typed::<crate::words::Role>("Role");
     types.add_typed::<crate::abilities::SpendPurpose>("SpendPurpose");
     types.add_typed::<crate::words::Stat>("Stat");

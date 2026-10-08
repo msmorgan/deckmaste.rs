@@ -16,9 +16,8 @@ inductive CountBound where
 
 /-- How often something may be done: no more than `times` per `per` [CR#602.5b]. An event's
 ordinal ("the second spell each turn") is not a usage limit. -/
-structure UsageLimit where
-  times : CountBound
-  per : Period
+inductive UsageLimit where
+  | mk (times : CountBound) (per : Period)
   deriving Repr, BEq
 
 /-- A second trigger header joined to the first with "or". -/

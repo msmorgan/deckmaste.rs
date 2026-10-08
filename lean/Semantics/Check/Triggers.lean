@@ -6,10 +6,9 @@ def GameEvent.checkAll (bs : Bindings) (evs : List GameEvent) : List Refusal :=
   evs.flatMap (GameEvent.check bs)
 
 /-- A usage limit's count is an amount; its period names no referent. -/
-def UsageLimit.check (bs : Bindings) (l : UsageLimit) : List Refusal :=
-  match l.times with
-  | .moreThan a => Amount.check bs a
-  | .additional q => Quantity.check bs q
+def UsageLimit.check (bs : Bindings) : UsageLimit → List Refusal
+  | .mk (.moreThan a) _ => Amount.check bs a
+  | .mk (.additional q) _ => Quantity.check bs q
 
 def OptUsageLimit.check (bs : Bindings) : Option UsageLimit → List Refusal
   | none => []

@@ -1,54 +1,29 @@
-//! Game events, durations, and trigger headers. Mirrors
-//! `lean/Semantics/Triggers.lean`.
+//! Usage limits and trigger headers. Mirrors `lean/Semantics/Triggers.lean`.
+//! `Timing` and `Duration` live in [`crate::phrase`], as they do in Lean's
+//! phrase block.
 
-use crate::phrase::Condition;
-use crate::phrase::DurationEnd;
+use crate::phrase::Amount;
 use crate::phrase::GameEvent;
-use crate::phrase::NounPhrase;
-use crate::words::TurnPart;
+use crate::phrase::Quantity;
+use crate::phrase::Timing;
+use crate::words::Period;
 use macro_ron::Expand;
 use macro_ron::SupportsMacros;
 use serde::Deserialize;
 use serde::Serialize;
 
-/// When an ability may be used or a trigger fires: "any time you could cast a sorcery",
-/// "during your turn", "before attackers are declared".
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum Timing {
-    AsSorcery,
-    AsInstant,
-    DuringPart {
-        part: TurnPart,
-        whose: Option<NounPhrase>,
-    },
-    BeforePart {
-        part: TurnPart,
-        whose: Option<NounPhrase>,
-    },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum Duration {
-    ThisTurn,
-    RestOfGame,
-    Until { end: DurationEnd },
-    ForAsLongAs { condition: Condition },
-    UntilEvent { event: GameEvent },
-    DuringNextTurnOf { player: NounPhrase },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
-pub enum UsageLimit {
-    OncePerTurn,
-    OncePerGame,
-    ActionOncePerTurn,
-}
-
-/// "while …": a condition or an event underway.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum Concurrent {
-    WhileTrue { condition: Condition },
-    WhileDoing { event: GameEvent },
+pub enum CountBound {
+    MoreThan { amount: Amount },
+    Additional { quantity: Quantity },
+}
+
+/// How often something may be done: no more than `times` per `per`
+/// [CR#602.5b]. An event's ordinal ("the second spell each turn") is not a
+/// usage limit.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum UsageLimit {
+    Mk { times: CountBound, per: Period },
 }
 
 /// A second trigger header joined to the first with "or".
@@ -56,6 +31,6 @@ pub enum Concurrent {
 pub struct JoinedHeader {
     pub event: GameEvent,
     pub alternatives: Vec<GameEvent>,
-    pub r#while: Option<Concurrent>,
+    pub r#while: Option<Timing>,
     pub timing: Option<Timing>,
 }

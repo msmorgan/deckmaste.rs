@@ -114,7 +114,7 @@ fn every_nullary_helper_expands() {
             "ZoneExpr" => deckmaste_semantics_v2::phrase::ZoneExpr,
             "Condition" => deckmaste_semantics_v2::phrase::Condition,
             "GameEvent" => deckmaste_semantics_v2::phrase::GameEvent,
-            "Duration" => deckmaste_semantics_v2::triggers::Duration,
+            "Duration" => deckmaste_semantics_v2::phrase::Duration,
             "Ability" => deckmaste_semantics_v2::abilities::Ability,
             "Instruction" => deckmaste_semantics_v2::abilities::Instruction,
             "StaticSpec" => deckmaste_semantics_v2::abilities::StaticSpec,

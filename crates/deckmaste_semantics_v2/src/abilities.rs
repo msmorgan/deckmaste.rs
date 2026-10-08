@@ -5,8 +5,6 @@
 use crate::events::CondMarking;
 use crate::events::DamageKind;
 use crate::events::Deeds;
-use crate::events::PlayLimit;
-use crate::events::PlayTiming;
 use crate::events::ReplUse;
 use crate::phrase::Amount;
 use crate::phrase::Ballot;
@@ -15,6 +13,7 @@ use crate::phrase::ColorTerm;
 use crate::phrase::ChoiceDomain;
 use crate::phrase::Condition;
 use crate::phrase::Door;
+use crate::phrase::Duration;
 use crate::phrase::Exposed;
 use crate::phrase::FlipScope;
 use crate::phrase::GameEvent;
@@ -24,12 +23,11 @@ use crate::phrase::Pile;
 use crate::phrase::Predicate;
 use crate::phrase::Quantity;
 use crate::phrase::SearchScope;
+use crate::phrase::Timing;
 use crate::phrase::VisibleThing;
 use crate::phrase::ZoneExpr;
-use crate::triggers::Concurrent;
-use crate::triggers::Duration;
+use crate::triggers::CountBound;
 use crate::triggers::JoinedHeader;
-use crate::triggers::Timing;
 use crate::triggers::UsageLimit;
 use crate::words::AbilityClass;
 use crate::words::Arrangement;
@@ -224,12 +222,6 @@ pub enum CostShift {
 pub enum PipPaid {
     Generic,
     OfColor { color: ColorTerm },
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum CountBound {
-    MoreThan { amount: Amount },
-    Additional { quantity: Quantity },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -685,8 +677,8 @@ pub enum DeonticRider {
     NoRider,
     Play {
         from: Option<ZoneExpr>,
-        limit: Option<PlayLimit>,
-        timing: Option<PlayTiming>,
+        limit: Option<UsageLimit>,
+        timing: Option<Timing>,
         exclusive: bool,
         payment: Box<PlayPayment>,
     },
@@ -934,7 +926,7 @@ pub enum Instruction {
         first: Option<NounPhrase>,
         chosen: NounPhrase,
         disclosure: Disclosure,
-        when: Option<Concurrent>,
+        when: Option<Timing>,
     },
     RevealChoices {
         sort: HiddenSort,
@@ -1189,7 +1181,7 @@ pub enum Ability {
     Triggered {
         event: GameEvent,
         alternatives: Vec<GameEvent>,
-        r#while: Option<Concurrent>,
+        r#while: Option<Timing>,
         joins: Vec<JoinedHeader>,
         timing: Option<Timing>,
         limit: Option<UsageLimit>,

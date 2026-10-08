@@ -71,19 +71,6 @@ pub enum CondMarking {
     IfSo,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum PlayLimit {
-    OnceEachYourTurn,
-    OnceEachTurn,
-}
-
-/// When a play permission applies.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum PlayTiming {
-    WhileSearchingLibrary,
-    DuringEachOfYourTurns,
-}
-
 /// How "a …" chooses.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ChoiceMode {

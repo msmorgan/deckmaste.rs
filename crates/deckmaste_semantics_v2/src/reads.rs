@@ -196,7 +196,6 @@ pub fn kind_of_reach(reach: &Reach) -> Kind {
         | Reach::Verbed {
             word: Some(word), ..
         } => kind_of_noun_word(word),
-        Reach::ThatTurn => Kind::TurnRef,
         _ => Kind::Object,
     }
 }

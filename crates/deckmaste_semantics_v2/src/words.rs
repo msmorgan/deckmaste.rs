@@ -532,7 +532,6 @@ pub enum Reach {
         word: Option<NounWord>,
         marking: VerbedMarking,
     },
-    ThatTurn,
 }
 
 /// A Binding Identity: the name under which a macro body's first mention of a
@@ -597,17 +596,6 @@ pub enum ShiftDir {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum Lookback {
-    ThisTurn,
-    EarlierThisTurn,
-    ThisCombat,
-    LastTurn,
-    ThisGame,
-    ThisWay,
-    Triggering,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum TargetExtent {
     SomeTarget,
     SoleTarget,
@@ -652,24 +640,6 @@ pub enum PaidCostName {
     },
     TheAlternative,
     TheAdditional,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum PaidFacet {
-    /// colors of mana spent to cast it [CR#702.44a]
-    ColorsSpent,
-    /// mana spent to pay the total cost [CR#601.2h]
-    ManaValueSpent,
-    /// [CR#702.33c..702.33d]
-    TimesPaid { which: PaidCostName },
-    /// "was kicked" [CR#702.33d]
-    Readback {
-        which: PaidCostName,
-        lookback: Option<Lookback>,
-    },
-    /// "the player chosen as [which] was paid": the choice an additional cost
-    /// makes, read back by the ability linked to it [CR#702.174a,607.2d,607.2i]
-    ChosenPlayer { which: PaidCostName },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -1014,16 +984,22 @@ pub enum TurnPart {
     Cleanup,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum RankPeriod {
-    Within { lookback: Lookback },
-    Each { part: TurnPart },
+/// What a usage limit or an event ordinal counts within: each turn, each of
+/// its player's turns, each game, or each occurrence of a phase or step
+/// [CR#602.5b].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum Period {
+    Turn,
+    YourTurn,
+    Game,
+    Part { part: TurnPart },
 }
 
+/// Which side of an event a timing names: "before attackers are declared".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum PartQuant {
-    The,
-    Each,
+pub enum EventSide {
+    Before,
+    After,
 }
 
 /// The event at which a static choice is made.
