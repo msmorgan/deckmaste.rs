@@ -102,7 +102,7 @@ constructions! {
         feature SlashPremodifierUse { No, Yes } default Yes;
         feature NominalAdjunctDeterminer { None, Demonstrative, Temporal }
         feature BareSingularUse { No, Yes } default No;
-        feature RelativeUse { Yes }
+        feature RelativeUse { No, Yes } default No;
         feature KeywordMarker { None, For, From, Onto, To, Into, At, With, Of, On, Under }
         feature KeywordPayloadOrder { AfterHead, BeforeHead, BoundSuffix }
         feature BoundKeyword { No, Yes }
@@ -2219,6 +2219,7 @@ constructions! {
             form [head: lexical(Pronoun)];
             use PredicateHeadAgreement;
             require head.case = Nominative;
+            require head.RelativeUse = No;
             export CaseUse = Nominative;
         }
         instance CasePhrase<Result, Head: head, Properties>: [

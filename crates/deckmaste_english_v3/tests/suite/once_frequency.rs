@@ -254,3 +254,65 @@ fn independent_fused_determiner_head_and_transitive_do_preserve_lexical_identity
         assert!(readings(text, Category::NounPhrase).is_empty(), "{text}");
     }
 }
+
+#[test]
+fn each_player_who_does_has_one_subject_relative_with_auxiliary_ellipsis() {
+    use deckmaste_english_v3::grammar::Reading;
+    use deckmaste_lexical::Case;
+    use deckmaste_lexical::Finiteness;
+    use deckmaste_lexical::LexicalReading;
+    use deckmaste_lexical::Number;
+    use deckmaste_lexical::Person;
+    use deckmaste_lexical::Tense;
+    use deckmaste_lexical::WordForm;
+
+    use crate::common::lexicon;
+
+    let mut marker = invariant("vocab:RelativePronoun/Who");
+    let LexicalReading::Word(value) = &mut marker.value else { unreachable!() };
+    value.features.number = Some(Number::Singular);
+    value.features.person = Some(Person::Third);
+    value.features.case = Some(Case::Nominative);
+    let mut auxiliary = invariant("core-verb:Do");
+    let LexicalReading::Word(value) = &mut auxiliary.value else { unreachable!() };
+    value.form = WordForm::Present;
+    value.features.number = Some(Number::Singular);
+    value.features.person = Some(Person::Third);
+    value.features.tense = Some(Tense::Present);
+    value.features.finiteness = Some(Finiteness::Finite);
+    auxiliary.frame = Some(1);
+    let expected = Reading::PronounSubjectRelative {
+        form: 0,
+        marker,
+        predicate: Box::new(Reading::BareAuxiliaryPredicate {
+            category: Category::FinitePredicate,
+            form: 0,
+            head: auxiliary,
+            complement: Box::new(Reading::BareEllipsis {
+                form: 0,
+                omission: Box::new(Reading::OmittedPlain { form: 0 }),
+            }),
+        }),
+    };
+    expected.admit(lexicon()).unwrap();
+    assert_eq!(expected.realize(lexicon()).unwrap(), "who does");
+    assert_eq!(
+        readings("who does", Category::SubjectRelativeClause),
+        [expected.clone()].into_iter().collect()
+    );
+    let values = readings("each player who does", Category::NounPhrase);
+    assert_eq!(values.len(), 1);
+    let mut relatives = Vec::new();
+    values
+        .first()
+        .unwrap()
+        .visit(&mut |node| {
+            if node.category() == Category::SubjectRelativeClause {
+                relatives.push(node.clone());
+            }
+        })
+        .unwrap();
+    assert_eq!(relatives, [expected]);
+    assert!(readings("who", Category::NominativePhrase).is_empty());
+    assert!(readings("who does", Category::ObjectRelativeClause).is_empty());
+}

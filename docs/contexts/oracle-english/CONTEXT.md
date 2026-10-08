@@ -404,6 +404,13 @@ as in *owners’* (CGEL, Ch. 18 §4.2, p. 1595).
 A dependent Clause that modifies a nominal expression or supplements another
 expression, with a relative element connected to a position in the Clause.
 
+**Relative Use** (project term):
+A Pronoun's declared permission to function as the relative marker of a
+Relative Clause. A Pronoun in Relative Use does not head an ordinary
+nominative pronoun Noun Phrase; that distribution is the
+[orchestrator ruling of 2026-10-08](../../tickets/done/english-v3-once-frequency.md#stop-and-resolution),
+represented by the declared permission rather than by lexical identity.
+
 **Extraction**:
 A grammatical dependency between a displaced expression and its Gap, subject
 to constraints on the intervening constituent boundaries.
@@ -528,7 +535,8 @@ restrictive or additive interpretation kept distinct.
 **Focused Use** (project term):
 A phrase's having a Focusing Modifier of its own. In this project's restrictive
 PP and Adverb Phrase analysis, a phrase already in Focused Use cannot itself be the head of another
-restrictive Focusing Modifier (post-landing review, 2026-10-08).
+restrictive Focusing Modifier (post-landing review, 2026-10-08, extended to
+Adverb Phrases by the [once-frequency landing](../../tickets/done/english-v3-once-frequency.md#landing-record)).
 
 **Predicate**:
 The grammatical function in a Clause that predicates something of the Subject.
