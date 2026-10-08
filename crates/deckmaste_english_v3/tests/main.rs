@@ -148,3 +148,6 @@ mod verbless_if_complement;
 
 #[path = "suite/coordinated_property_values.rs"]
 mod coordinated_property_values;
+
+#[path = "suite/gerund_preposition_complements.rs"]
+mod gerund_preposition_complements;

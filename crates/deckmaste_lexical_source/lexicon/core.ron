@@ -192,7 +192,7 @@
         "vocab:Preposition/From": {"SourceMarker": "Yes", "PrepositionPhraseComplementLicence": "Source", "PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Modifier|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "KeywordMarker": "From"},
         "vocab:Preposition/In": {"SelectedPrepositionUse": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|PredicativeComplement|Compound|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Into": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Into"},
-        "vocab:Preposition/Of": {"PrepositionPhraseComplementLicence": "Unrestricted", "PrepositionFunctionLicence": "NounComplement|Modifier|PredicativeComplement", "ObliqueMarker": "Yes", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "NominalComplementMarker": "Of", "NominalBareClass": "Interval", "KeywordMarker": "Of"},
+        "vocab:Preposition/Of": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Compound", "PrepositionPhraseComplementLicence": "Unrestricted", "PrepositionFunctionLicence": "NounComplement|Modifier|PredicativeComplement", "ObliqueMarker": "Yes", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "NominalComplementMarker": "Of", "NominalBareClass": "Interval", "KeywordMarker": "Of"},
         "vocab:Preposition/On": {"BareNominalComplement": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "On"},
         "vocab:Preposition/Onto": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Onto"},
         "vocab:Preposition/Outside": {"PrepositionFunctionLicence": "Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
@@ -200,7 +200,7 @@
         "vocab:Preposition/To": {"PrepositionFunctionLicence": "VerbComplement|ComparativeComplement|NounComplement|Compound|Modifier", "GerundClauseComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "ComparisonMarker": "Equality", "KeywordMarker": "To", "QuantitativeComplement": "Cardinal"},
         "vocab:Preposition/Under": {"PrepositionFunctionLicence": "VerbComplement|Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "Under"},
         "vocab:Preposition/With": {"PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PreposedAdjunct", "KeywordComplement": "Yes", "QuotedComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
-        "vocab:Preposition/Without": {"PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
+        "vocab:Preposition/Without": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
         (

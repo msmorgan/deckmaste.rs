@@ -256,6 +256,26 @@ A Preposition's declared permission to take a Verbless Clause as its
 Complement. This permission does not by itself license a grammatical function
 or an attachment position for the resulting Preposition Phrase.
 
+**Gerund-participial Clause**:
+A nonfinite Clause headed by a verb in its gerund-participle Word Form. Such
+Clauses occur freely as Complements of Prepositions (CGEL, Ch. 14 §8.3,
+p. 1262).
+
+**Gerund Clause Complement** (project term):
+A Preposition's declared permission to take a Gerund-participial Clause as
+Complement. Availability of that Complement does not itself license a
+function for the resulting Preposition Phrase.
+
+**Complement Function Restriction** (project term):
+A restriction on the grammatical functions of a Preposition Phrase associated
+with a particular Complement shape, in addition to its head's Preposition
+Function Licence. The gerund-complemented *without* phrase has Adjunct use;
+the gerund-complemented *of* phrase is internal to its selecting Compound
+Preposition Phrase. These are the
+[gerund-preposition-complements project requirements](../../tickets/done/english-v3-gerund-preposition-complements.md#goal),
+not restrictions supplied by CGEL's general account of complementation.
+Coordination retains only the functions permitted for every conjunct.
+
 **Bare Infinitival**:
 A nonfinite Clause with a plain-form verb and without the infinitival
 Subordinator *to* (CGEL, Ch. 14 §1.1, pp. 1173–1174).

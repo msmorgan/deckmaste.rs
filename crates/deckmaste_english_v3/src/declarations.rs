@@ -100,6 +100,19 @@ constructions! {
         feature VerblessClauseComplement { No, Yes } default No;
         feature VerblessPredicateUse { No, Yes } default No;
         feature GerundClauseComplement { Yes }
+        feature ComplementFunctionRestriction { None, Adjunct, Compound } default None;
+        table coordinated_complement_function_restriction(ComplementFunctionRestriction, ComplementFunctionRestriction)
+            -> ComplementFunctionRestriction {
+            (None, None) => None, (None, Adjunct) => Adjunct, (Adjunct, None) => Adjunct,
+            (None, Compound) => Compound, (Compound, None) => Compound,
+            (Adjunct, Adjunct) => Adjunct, (Compound, Compound) => Compound,
+        }
+        table adjunct_complement_function(ComplementFunctionRestriction) -> Selection {
+            (None) => Yes, (Adjunct) => Yes,
+        }
+        table compound_complement_function(ComplementFunctionRestriction) -> Selection {
+            (None) => Yes, (Compound) => Yes,
+        }
         feature InternalisedComplementMarker { No, Yes } default No;
         feature InternalisedComplementPresent { No, Yes } default No;
         feature ExtentMarker { Yes }
@@ -236,7 +249,7 @@ constructions! {
         category VerblessClause();
         category Name();
         category NamePredicate();
-        category PrepositionPhrase(LocativeUse, PrepositionFunctionLicence, ObliqueNumber,
+        category PrepositionPhrase(LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse,
             ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker);
         category SourceComplement();
@@ -323,7 +336,7 @@ constructions! {
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, ScalarDenotation
         , SourceModifierPresent);
         category AdjectivePhraseSeries(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse);
-        category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
+        category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplementSeries();
@@ -339,7 +352,7 @@ constructions! {
             InternalisedComplementPresent, PurposeAdjunctLicence);
         category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, ScalarDenotation, SourceModifierPresent);
-        category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ObliqueNumber, CoordinationKind,
+        category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
             DurationUse, CorrelativeCoordinator, FocusedUse);
@@ -1039,6 +1052,8 @@ constructions! {
         }
 
         policy ObliquePrepositionConcord<Right, Source> {
+            export ComplementFunctionRestriction = coordinated_complement_function_restriction(
+                left.ComplementFunctionRestriction, Right.ComplementFunctionRestriction);
             export SourceMarker = coordinated_source_marker(left.SourceMarker, Right.SourceMarker);
             export SourceComplementUse = coordinated_source_complement_use(
                 left.SourceComplementUse, Right.SourceComplementUse);
@@ -1221,6 +1236,7 @@ constructions! {
         schema PrepositionPredicate {
             form [head: node, " ", modifier: node];
             require licence_adjunct(modifier.PrepositionFunctionLicence) = Yes;
+            require adjunct_complement_function(modifier.ComplementFunctionRestriction) = Yes;
             require modifier.SelectedPrepositionUse = No;
         }
 
@@ -1867,6 +1883,7 @@ constructions! {
             form [dependent: PrepositionPhrase, " ", clause: Clause]
                 require dependent.ClauseInitialAdjunct = Yes;
             require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes;
+            require adjunct_complement_function(dependent.ComplementFunctionRestriction) = Yes;
             require dependent.SelectedPrepositionUse = No;
             export UnmarkedConjunctLicence = Yes;
         }
@@ -1874,6 +1891,7 @@ constructions! {
         construction ClausalPreposition: Clause {
             form [clause: Clause, " ", dependent: PrepositionPhrase];
             require licence_adjunct(dependent.PrepositionFunctionLicence) = Yes;
+            require adjunct_complement_function(dependent.ComplementFunctionRestriction) = Yes;
             require dependent.SelectedPrepositionUse = No;
             export UnmarkedConjunctLicence = clause.UnmarkedConjunctLicence;
         }
@@ -2309,6 +2327,7 @@ constructions! {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: PrepositionPhrase];
             require licence_modifier(modifier.PrepositionFunctionLicence) = Yes;
+            require modifier.ComplementFunctionRestriction = None;
             require modifier.SelectedPrepositionUse = No;
             require nominal_postmodifier_licence(head.NominalComplementMarker,
                 modifier.NominalComplementMarker) = Yes;
@@ -2322,6 +2341,7 @@ constructions! {
         construction PartitiveModifier: PartitiveModifier {
             form [" ", phrase: PrepositionPhrase];
             require licence_modifier(phrase.PrepositionFunctionLicence) = Yes;
+            require phrase.ComplementFunctionRestriction = None;
             require phrase.SelectedPrepositionUse = No;
         }
         construction PartitiveNounPhrase: NounPhrase {
@@ -2334,6 +2354,7 @@ constructions! {
                 modifiers: repeat(PartitiveModifier, "")];
             require partitive_oblique(complement.ObliqueNumber) = Yes;
             require licence_noun_complement(complement.PrepositionFunctionLicence) = Yes;
+            require complement.ComplementFunctionRestriction = None;
             export number = quantity.number;
             export Targeting = No;
             use ThirdPersonCommonCase;
@@ -2348,6 +2369,7 @@ constructions! {
             agree head.NominalComplementMarker = complement.NominalComplementMarker;
             require complement.ObliqueNumber = Plural;
             require licence_noun_complement(complement.PrepositionFunctionLicence) = Yes;
+            require complement.ComplementFunctionRestriction = None;
             require head.DeterminerUse = SingularCount;
             export number = Singular;
             export Targeting = No;
@@ -2488,6 +2510,7 @@ constructions! {
         }
 
         construction PrepositionPhrase: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -2505,6 +2528,7 @@ constructions! {
         }
 
         construction BareNominalPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -2528,6 +2552,7 @@ constructions! {
         // The supported predicative-NP licence is preposed; finite-clause
         // Complement permissions remain independent.
         construction PredicativeComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -2553,6 +2578,8 @@ constructions! {
             require head.FocusedUse = No;
         }
         policy FocusedPrepositionPermissions {
+            export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
+            require adjunct_complement_function(head.ComplementFunctionRestriction) = Yes;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
@@ -2589,6 +2616,7 @@ constructions! {
         }
 
         construction IntransitivePreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
@@ -2599,6 +2627,7 @@ constructions! {
 
         // CGEL Ch. 7 §3.2, p. 626: preposition + adjective idioms.
         construction AdjectiveComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -2625,6 +2654,7 @@ constructions! {
         }
 
         construction VerblessClauseComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             form [head: lexical(Preposition), " ", complement: VerblessClause];
             require head.VerblessClauseComplement = Yes;
             require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
@@ -2642,6 +2672,7 @@ constructions! {
         }
 
         construction ClauseComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -2661,6 +2692,7 @@ constructions! {
         // include duration use. The lexical licence and its application to
         // the Oracle equative duration are declared project analyses.
         construction AdverbComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -2677,9 +2709,11 @@ constructions! {
             export PrepositionFunctionLicence = Adjunct;
         }
 
-        // CGEL Ch. 8 §2.2: gerund-participials occur under means By independently
-        // of passive voice; the same complementation shape also occurs under To.
+        // CGEL Ch. 14 §8.3, p. 1262: gerund-participials freely complement
+        // prepositions. Complement-specific function restriction is project policy,
+        // declared by the lexicon, independently of Complement availability.
         construction GerundComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
             export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: SecondaryVerbPhrase];
@@ -2692,18 +2726,21 @@ constructions! {
         construction PredicativePreposition: PredicativeComplement {
             form [phrase: PrepositionPhrase];
             require licence_predicative_complement(phrase.PrepositionFunctionLicence) = Yes;
+            require phrase.ComplementFunctionRestriction = None;
             require phrase.LocativeUse = No;
             export PredicativeKind = Prepositional;
         }
         // CGEL Ch. 7 §2.4, pp. 616–617: the selected PP is a constituent;
         // omission removes its head together with its internal Complement.
         construction CompoundPrepositionPhrase: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export FocusedUse = No;
             export ClauseInitialAdjunct = No;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require selected_compound_complement(head.CompoundComplementMarker,
                 complement.NominalComplementMarker) = Yes;
             require licence_compound(head.PrepositionFunctionLicence) = Yes;
+            require compound_complement_function(complement.ComplementFunctionRestriction) = Yes;
             export ObliqueNumber = None;
             use PrepositionHeadPermissions;
         }
@@ -2712,6 +2749,7 @@ constructions! {
         // p. 687 describes locative PP Complements to a source preposition.
         // The supported source-head eligibility is a declared project decision.
         construction PrepositionComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
@@ -2727,6 +2765,7 @@ constructions! {
             form [phrase: PrepositionPhrase];
             require phrase.SourceMarker = Yes;
             require licence_verb_complement(phrase.PrepositionFunctionLicence) = Yes;
+            require phrase.ComplementFunctionRestriction = None;
         }
 
         construction LocativeComplement: LocativeComplement {
@@ -2734,6 +2773,7 @@ constructions! {
             require phrase.LocativeUse = Yes;
             require phrase.SelectedPrepositionUse = No;
             require licence_predicative_complement(phrase.PrepositionFunctionLicence) = Yes;
+            require phrase.ComplementFunctionRestriction = None;
         }
 
         construction MannerComplement: MannerComplement {
@@ -2956,6 +2996,7 @@ constructions! {
             export NominalBareClass = Boundary;
         }
         construction BareTemporalPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
@@ -3750,6 +3791,7 @@ constructions! {
         }
 
         construction CoordinatedClauseComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4039,6 +4081,7 @@ constructions! {
         }
 
         construction KeywordComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
@@ -4047,6 +4090,7 @@ constructions! {
             use PrepositionHeadPermissions;
         }
         construction QuotedComplementPreposition: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4101,6 +4145,7 @@ constructions! {
         }
 
         construction SharedPrepositionComplement: PrepositionPhrase {
+            export ComplementFunctionRestriction = None;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
