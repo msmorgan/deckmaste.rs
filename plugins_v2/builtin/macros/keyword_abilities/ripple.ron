@@ -5,18 +5,16 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "ripple",
     ),
-    // STOP. "Ripple N" means "When you cast this spell, you may reveal the top N cards
-    // of your library… you may cast any of those cards with the same name as this
-    // spell without paying their mana costs, THEN PUT ALL REVEALED CARDS NOT CAST THIS
-    // WAY on the bottom of your library in any order." [CR#702.60a] The trigger, the
-    // reveal and the permission all write — the permission is an `Establish` of a
-    // `DeonticRule` whose patient is `SomeOf` the revealed cards `Named(SameAs(this
-    // spell))` — but the final clause has no subject. `TheRest` refuses with
-    // `[Semantics.Refusal.theRestFits (Semantics.Kind.object)]`: the partition the
-    // permission took lives inside a `StaticSpec`'s patient and never reaches the next
-    // step's bindings, so `partsTaken` is zero. Naming the complement directly is
-    // blocked too: "revealed this way" would be a `VerbedEvent` over the `Reveal` deed,
-    // whose registry row gives it an agent role and NO patient role, so
-    // `verbPatientOk` refuses every noun phrase there — the shape Protection's `Attach`
-    // row and Indestructible's `Destroy` row already carry.
+    // STOP (routed to `lean-drt-anaphora-refactor`, 2026-10-08). "Ripple N" means
+    // "When you cast this spell, you may reveal the top N cards of your library… you
+    // may cast any of those cards with the same name as this spell without paying
+    // their mana costs, then put all revealed cards not cast this way on the bottom
+    // of your library in any order." [CR#702.60a] The reveal of the library slice
+    // and the cast write; the final clause's subject does not. "Revealed cards" as
+    // `theVerbed(reveal, Many)` is refused `[anaphor (verbed (action "reveal") none
+    // attributive) many 0]`: the reveal deed stamps no patient. "Those cards" is
+    // refused `[anaphor (word card) many 2]`: the slice and the cast cards both
+    // reach. Re-mentioning the slice by identity checks, but the cast has moved part
+    // of it, which the 2026-10-08 ruling "A moved referent is read back by anaphora"
+    // forbids.
 )

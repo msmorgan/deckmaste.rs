@@ -21,7 +21,7 @@ KeywordAction(
     body: act(
         controllerOf(actor),
         sequentially([
-            reveal(librarySlice(Top, 1, actor)),
+            reveal(slice(Top, 1, library(actor))),
             doIf(
                 matches(that(Card), land),
                 move(that(Card), wherever, hand),

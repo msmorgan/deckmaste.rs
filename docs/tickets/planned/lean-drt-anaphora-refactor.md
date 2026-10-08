@@ -260,3 +260,25 @@ re-spelled against it. The group `theVerbed(exile, Many, card)` ("the exiled
 cards") was measured and does not serve: a stamped pronoun fixes its number,
 so for one exiled object it is refused `[anaphor (verbed (action "exile"))
 many 0]` by number agreement, which no resolution rule here lifts.
+
+## Routed from `semantics-v2-piles` (2026-10-08)
+
+Ripple [CR#702.60a] stays bodyless; cascade [CR#702.85a] got its body
+("cards exiled this way that weren't cast" is `allFromAmong(not(wasCast),
+theVerbed(exile, Many))` and checks clean). Ripple's last clause, "put all
+revealed cards not cast this way on the bottom of your library in any order",
+has no reading the checker accepts. Measured on the body `may(reveal(slice(Top,
+N, library(you))), then: cast someOf(anyNumber, named(sameAs(this)), them)
+without paying, then move <the rest> onto the bottom in any order)`:
+
+- "revealed cards" as `theVerbed(reveal, Many)`: refused `[anaphor (verbed
+  (action "reveal") none attributive) many 0]`. The reveal deed stamps no
+  patient, as Protection's `Attach` and Indestructible's `Destroy` rows do not.
+- "those cards": refused `[anaphor (word card) many 2]`, the revealed slice
+  and the cards cast both in reach.
+- The slice re-mentioned by Binding Identity checks clean, but the cast has
+  moved part of it, so the ruling "A moved referent is read back by anaphora"
+  (2026-10-08) bars it.
+
+The resolution rules here may settle the second; the first needs the reveal
+row to stamp what it reveals. Either one gives ripple its body.

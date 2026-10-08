@@ -4,7 +4,7 @@
 // than or equal to N. If you don't cast it, put that card into your hand. Put
 // the remaining exiled cards on the bottom of your library in a random order.
 // The run is one group and the card that stopped it a part of it
-// (`libraryRun`), so "that card" reads the one and `theRest` the others.
+// (`run`), so "that card" reads the one and `theRest` the others.
 KeywordAction(
     name: "discover",
     params: [Amount],
@@ -15,7 +15,7 @@ KeywordAction(
     ),
     body: sequentially([
         move(
-            libraryRun(Top, and([not(land), compare(AtMost, Param(0), [Stat(ManaValue)])]), actor),
+            run(Top, and([not(land), compare(AtMost, Param(0), [Stat(ManaValue)])]), library(actor)),
             wherever,
             exileZone,
         ),
@@ -24,6 +24,6 @@ KeywordAction(
             None,
             move(that(Card), wherever, hand),
         ),
-        move(theRest(Object), wherever, onBottomIn(RandomOrder)),
+        move(theRest(Object), wherever, onBottom, [InOrder(RandomOrder)]),
     ]),
 )

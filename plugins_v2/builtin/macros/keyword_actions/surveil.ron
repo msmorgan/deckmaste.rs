@@ -11,5 +11,5 @@ KeywordAction(
         bare: "surveil",
         frame_set: MeasureComplement,
     ),
-    body: lookAndSortSlice(librarySlice(Top, Param(0), actor), graveyard),
+    body: lookAndSortSlice(slice(Top, Param(0), library(actor)), graveyard, []),
 )

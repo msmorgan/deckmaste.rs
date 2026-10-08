@@ -123,6 +123,63 @@ theorem badPileFaceAsAStatus :
             .setStatus .faceDown (those .pile) ])) = [.kindMismatch .object .pile] := by
   decide
 
+/-! ## One ordered pile shape
+
+A library, a graveyard, "that pile" and a face-down exile pile are one `Pile`; a slice or a run
+of one is an ordered group of its objects, which stay in their zone [CR#700.3c]. -/
+
+/-- A library is kept face down [CR#401.2], a graveyard face up [CR#404.2], and face-down
+exiled cards in their own face-down pile [CR#406.4]. -/
+theorem zonePilesFixTheirFaces :
+    [Pile.face [] (.library .bare), Pile.face [] (.graveyard .bare), Pile.face [] (.exiledWith .this)]
+      = [some .faceDown, some .faceUp, some .faceDown] := by decide
+
+/-- "Exile the top card of your graveyard.": a graveyard is ordered too [CR#404.2]. -/
+theorem okSliceOfAGraveyard :
+    Instruction.check [] (exile (.slice .top (.lit 1) (.graveyard (.possessedBy .you)))) = [] := by
+  decide
+
+/-- The slice of a graveyard is a group in that graveyard: grouping moves nothing, and the order
+it is read in is the graveyard's [CR#700.3c]. -/
+theorem sliceOfAGraveyardStaysInIt :
+    (NounPhrase.introduced [] (.slice .top (.lit 1) (.graveyard (.possessedBy .you)))).map
+      Binding.zone = [some .graveyard] := by decide
+
+/-- "Shuffle": the performer's own library [CR#701.24a]. -/
+theorem okBareShuffle : Instruction.check [] shuffle = [] := by decide
+
+/-- "Shuffle that pile.": no instruction made a pile. -/
+theorem badThatPileWithoutAPile :
+    Instruction.check [] (.shuffle .that) = [.anaphor (.word .pile) .one 0] := by decide
+
+/-- "An opponent separates all creatures into two face-down piles. Choose one pile. Shuffle that
+pile." -/
+theorem okShuffleTheChosenPile :
+    Instruction.check []
+      (.sequentially
+        [ act anOpponent (.separateIntoPiles (allOf creature) 2 [.faceDown, .faceDown]),
+          choose onePile, .shuffle .that ]) = [] := by
+  decide
+
+/-- Cascade [CR#702.85a]: "cards exiled this way that weren't cast" reads the exiled run. -/
+theorem okCascade : Ability.check [] cascadeExpansion = [] := by decide
+
+/-- Ripple [CR#702.60a]: "you may reveal the top four cards of your library … you may cast any of
+those cards with the same name as this spell without paying their mana costs, then put all
+revealed cards not cast this way on the bottom of your library in any order." The reveal deed
+stamps nothing it revealed, so "revealed cards" reads nothing; ripple stays bodyless until
+`lean-drt-anaphora-refactor`. -/
+theorem badRippleRevealedCards :
+    Instruction.check []
+      (Primitives.Instruction.offer (revealCards (.slice .top (.lit 4) (library .actor)))
+        (some (.sequentially
+          [ Actor.castWithoutPaying
+              (.someOf (.counted anyNumber) (some (.named (.sameAs .this))) them) none,
+            .move (allFromAmong (.not .wasCast) (theVerbed (.action "reveal") .many)) .wherever
+              onBottom [.inOrder .anyOrder] ])) none)
+      = [.anaphor (.verbed (.action "reveal") none .attributive) .many 0] := by
+  decide
+
 theorem nestedStaticConditionals :
     StaticSpec.check []
       (.conditional

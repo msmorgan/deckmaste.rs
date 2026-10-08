@@ -12,7 +12,7 @@ KeywordAction(
         frame_set: Intransitive,
     ),
     body: sequentially([
-        lookAt(librarySlice(Top, 2, actor)),
+        lookAt(slice(Top, 2, library(actor))),
         manifest(someOf(exactly(1), them)),
         move(theRest(Object), wherever, graveyard),
     ]),

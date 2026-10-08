@@ -1261,6 +1261,23 @@ semantic_macro stormExpansion : Ability :=
         offer (.chooseNewTargets (.pro (.word .copy) .many .whole)) ])
 /-- "Storm" with its reminder text. -/
 semantic_macro storm : Ability := .keyword (.named "storm") [] [stormExpansion]
+/-- Cascade's reminder text [CR#702.85a]: "When you cast this spell, exile cards from the top of
+your library until you exile a nonland card whose mana value is less than this spell's mana value.
+You may cast that card without paying its mana cost if the resulting spell's mana value is less
+than this spell's mana value. Then put all cards exiled this way that weren't cast on the bottom of
+your library in a random order." The run is exiled from the library pile; "that card" reads the
+card that stopped it, and the cards put back are the exiled ones that were not cast. -/
+semantic_macro cascadeExpansion : Ability :=
+  let cheaper : Predicate :=
+    .compare [.stat .manaValue] .less (.statOf (.stat .manaValue) thisSpell)
+  when (.casts .you (some thisSpell) none)
+    (.sequentially
+      [ exile (.run .top (.and [.not land, cheaper]) (library .you)),
+        offer (Actor.castWithoutPaying (that .card) (some cheaper)),
+        .move (allFromAmong (.not .wasCast) (theVerbed (.action "exile") .many)) .wherever onBottom
+          [.inOrder .randomOrder] ])
+/-- "Cascade" with its reminder text. -/
+semantic_macro cascade : Ability := .keyword (.named "cascade") [] [cascadeExpansion]
 /-- "Renown N" with its reminder text. -/
 semantic_macro renown (count : Nat) : Ability :=
   .keyword (.named "renown") [.number (.lit count)] [renownExpansion count]

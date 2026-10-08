@@ -15,7 +15,7 @@ KeywordAction(
         ),
     ),
     body: sequentially([
-        reveal(librarySlice(Top, 1, actor)),
+        reveal(slice(Top, 1, library(actor))),
         may(move(that(Card), wherever, onBottom)),
     ]),
 )

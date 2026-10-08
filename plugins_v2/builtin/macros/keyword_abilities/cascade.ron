@@ -5,8 +5,29 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "cascade",
     ),
-    // STOP. Cascade's expansion says "You may cast that card without paying its
-    // mana cost if the resulting spell's mana value is less than this spell's mana
-    // value" [CR#702.85a]. No `NounPhrase` denotes the spell a permitted cast would
-    // produce, so its mana value cannot be compared.
+    // "Cascade" means "When you cast this spell, exile cards from the top of your
+    // library until you exile a nonland card whose mana value is less than this
+    // spell's mana value. You may cast that card without paying its mana cost if the
+    // resulting spell's mana value is less than this spell's mana value. Then put all
+    // cards exiled this way that weren't cast on the bottom of your library in a
+    // random order." [CR#702.85a] The run is exiled from the library pile; "that card"
+    // reads the card that stopped it, and the cards put back are the exiled ones that
+    // were not cast. `lean/Semantics/Macros.lean`'s `cascadeExpansion` is the
+    // reference.
+    body: [
+        triggered(
+            casts(you, thisSpell),
+            sequentially([
+                exile(
+                    run(
+                        Top,
+                        and([not(land), compare(Less, statOf(Stat(ManaValue), thisSpell), [Stat(ManaValue)])]),
+                        library(you),
+                    ),
+                ),
+                may(castWithoutPaying(that(Card), compare(Less, statOf(Stat(ManaValue), thisSpell), [Stat(ManaValue)]))),
+                move(allFromAmong(not(wasCast), theVerbed(exile, Many)), wherever, onBottom, [InOrder(RandomOrder)]),
+            ]),
+        ),
+    ],
 )

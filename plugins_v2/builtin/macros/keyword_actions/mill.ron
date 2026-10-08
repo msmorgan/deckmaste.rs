@@ -9,5 +9,5 @@ KeywordAction(
         bare: "mill",
         frame_set: Transitive,
     ),
-    body: move(librarySlice(Top, Param(0), actor), library, graveyard),
+    body: move(slice(Top, Param(0), library(actor)), zone(Library, Bare), graveyard),
 )
