@@ -5,8 +5,25 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "crew",
     ),
-    // STOP. "Crew N" taps "any number of other untapped creatures you control with
-    // total power N or greater" [CR#702.122a]. No `NounPhrase` selects an
-    // unbounded group by an aggregate bound on a stat of the whole group;
-    // `Predicate::CompareOver` compares each member.
+    // "Crew N" means "Tap any number of other untapped creatures you control with
+    // total power N or greater: This permanent becomes an artifact creature until
+    // end of turn." [CR#702.122a]
+    body: [
+        activated(
+            perform(
+                tap(
+                    withTotal(
+                        Stat(Power),
+                        AtLeast,
+                        Param(0),
+                        allOf(and([untapped, otherCreatureYouControl(thisPermanent)])),
+                    ),
+                ),
+            ),
+            establish(
+                characteristicChange(thisPermanent, [TypeLine(Adds, (types: [Artifact, Creature]))]),
+                untilEndOfTurn,
+            ),
+        ),
+    ],
 )

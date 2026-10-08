@@ -5,7 +5,15 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "delve",
     ),
-    // STOP. Delve exiles a graveyard card in place of one generic mana of the total
-    // cost [CR#702.66a]; as with convoke, `Cost` has no per-symbol payment
-    // alternative.
+    // "Delve" means "For each generic mana in this spell's total cost, you may
+    // exile a card from your graveyard rather than pay that mana." [CR#702.66a]
+    // It is neither an additional nor an alternative cost [CR#702.66b].
+    body: [
+        static(
+            paySubstitute(
+                thisSpell,
+                substitute(exile(a(cardIn(graveyardOf(you)))), [generic]),
+            ),
+        ),
+    ],
 )

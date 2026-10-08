@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use deckmaste_semantics_v2::abilities::Ability;
 use deckmaste_semantics_v2::abilities::CounterKindSource;
 use deckmaste_semantics_v2::abilities::Instruction;
+use deckmaste_semantics_v2::abilities::PipPaid;
 use deckmaste_semantics_v2::abilities::StaticSpec;
 use deckmaste_semantics_v2::card::Card;
 use deckmaste_semantics_v2::events::ReplUse;
@@ -1384,5 +1385,33 @@ fn a_keyword_ability_name_denotes_its_label() {
             params: vec![],
             body: vec![],
         }
+    );
+}
+
+/// A Mana Substitute's pips read at their own kind: `generic` there is the
+/// pip, not the `{N}` mana symbol of the same name, and convoke's colored pip
+/// reads the tapped creature's color back [CR#702.51a].
+#[test]
+fn a_substitutes_pips_read_at_their_own_kind() {
+    let builtin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin");
+    let prelude = Plugin::load(builtin).expect("the builtin declarations load");
+    let that_creature: NounPhrase = prelude
+        .macros
+        .read_str("that(Creature)")
+        .expect("\"that creature\" reads");
+    let pays: Vec<PipPaid> = prelude
+        .macros
+        .read_str("[generic, ofColor(colorOf(that(Creature)))]")
+        .expect("convoke's pips read");
+    assert_eq!(
+        pays,
+        [
+            PipPaid::Generic,
+            PipPaid::OfColor {
+                color: ColorTerm::ColorOf {
+                    object: Box::new(that_creature),
+                },
+            },
+        ]
     );
 }

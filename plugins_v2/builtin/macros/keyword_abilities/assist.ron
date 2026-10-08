@@ -5,7 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "assist",
     ),
-    // STOP. Assist "modifies the rules of paying for the spell with assist"
-    // [CR#702.132a] — another player may pay part of the generic mana component. No
-    // constructor divides a cost's payment between players; `Cost` has no payer.
+    // Deliberate residue (ruling 2026-10-08, "A cost substitute is one
+    // mechanism"). Assist "modifies the rules of paying for the spell with
+    // assist" [CR#702.132a]: another player may pay part of the generic mana
+    // component. No action stands in for the mana, so it is no Mana Substitute,
+    // and no constructor divides a cost's payment between players.
 )

@@ -45,10 +45,34 @@ theorem badDoubleFacedRepeatedType :
 /-- "Waterbend {4}" [CR#701.67a]. -/
 theorem okWaterbend : Instruction.check [] (Actor.waterbend (.mana [generic 4])) = [] := by decide
 
-/-- What tapping pays with is a permanent, not a player. -/
-theorem badTapForGenericWithPlayers :
-    Instruction.check [] (.pay (.tapForGeneric (.mana [generic 4]) .anyPlayer) .once) =
+/-- What tapping pays with is a permanent, not a player: a substitute whose action names
+players. -/
+theorem badSubstituteWithPlayers :
+    Instruction.check [] (.pay (.withSubstitute (.mana [generic 4])
+      (substitute (tap (a .anyPlayer)) [.generic])) .once) =
       [.kindMismatch .object .player] := by decide
+
+/-- Convoke [CR#702.51a]: "mana of that creature's color" reads back the creature the action
+tapped. -/
+theorem okConvokeColorReadback :
+    StaticSpec.check [] (.paySubstitute thisSpell
+      (substitute (tap (a (.and [untapped, creature, .hasPossessor .controller .you])))
+        [.generic, .ofColor (.colorOf (that (.type .creature)))])) = [] := by decide
+
+/-- The mana a substitute pays reads only what its action acted on: after exiling a card,
+"that creature's color" has no antecedent, even with a creature in scope outside. -/
+theorem badSubstitutePaysWithoutAntecedent :
+    StaticSpec.check [] (.paySubstitute thisSpell
+      (substitute (exile (a (.and [.isCard, .inZone (graveyardOf .you)])))
+        [.ofColor (.colorOf (that (.type .creature)))])) =
+      [.anaphor (.word (.type .creature)) .one 0] := by decide
+
+/-- Crew 3's cost [CR#702.122a]: "tap any number of other untapped creatures you control with
+total power 3 or greater". -/
+theorem okCrewCost :
+    Cost.check [] (.perform (tap (Actor.withTotal (.stat .power) .atLeast (.lit 3)
+      (allOf (.and [untapped, creature, .hasPossessor .controller .you, .otherThan .this]))))) =
+      [] := by decide
 
 /-- "Manifest the top card of your library" [CR#701.40a]. -/
 theorem okManifest :
