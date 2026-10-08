@@ -73,7 +73,7 @@ Bare kinds after "from among", 3 cards:
 ### What is not attested
 
 Coordination by "and" under one head: 0 cards. "charge and loyalty counters"
-is never written, and `crates/deckmaste_english_v3/tests/counter_compounds.rs`
+is never written, and `crates/deckmaste_english_v3/tests/suite/counter_compounds.rs`
 already rejects it (the negative shared-modifier probe). The owner, 2026-10-05:
 "counter kinds can be coordinated via disjunction (and plausibly, conjunction,
 although unattested)".

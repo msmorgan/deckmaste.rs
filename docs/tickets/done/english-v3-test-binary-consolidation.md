@@ -107,3 +107,9 @@ No original `where` test body changed and none disappeared. `where.refresh-compa
 | After, `ttqknvrvqstvszoqnnqwvynswyultwlo` | 194,703,838,209 ns | 18.78 / 14.77 / 13.62 | 10.54 / 13.39 / 13.36 | 24 |
 
 All evidence, measurement scripts and source snapshots were written under this workspace's ignored `target/test-binary-consolidation/`, never `/tmp` and never a tracked source directory. The evidence directory will be retained in default's ignored `target/test-binary-consolidation/` when retiring the feature workspace.
+
+### Review notes (2026-10-07)
+
+- `docs/tickets/wip/plugins-v2-connive-bare-and-n.md:67` still names the old
+  path `tests/amount_complements.rs` (now under `tests/suite/`); that ticket
+  is owned by another workspace and should be updated by its owner.

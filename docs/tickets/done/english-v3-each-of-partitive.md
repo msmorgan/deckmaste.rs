@@ -557,3 +557,23 @@ A local plugin-cache replacement removed the previously resolved launcher and
 status hook. The current Kata skill and launcher were resolved again; command
 output and exit statuses are retained in the ignored evidence directory despite
 the failing post-command status hook. Repository protection is unchanged.
+
+### Review notes (2026-10-07)
+
+- Orchestrator resolution (2026-10-07): the `TargetingPremodifierUse` licence
+  (a declared feature on *other* and the Ordinal class, admitting a premodifier
+  above a targeted nominal: "up to one other target creature", "a third target
+  creature"; attested on 156 faces, 64 of this landing's 204 gains) is ratified
+  as a disclosed scope widening and accepted as a project ruling, not a CGEL
+  claim. It is listed as a candidate register restriction for the user to
+  decide: which premodifiers may precede *target*.
+- Gain versus estimate: 204 gained against the 146 sole-cause estimate
+  (`xxknlzypsnwy`, 17,322 covered) reconciles as 140 faces with the new
+  partitive fused-head analysis plus 64 premodifier gains through the widening
+  above.
+- Routed to `english-v3-systemic-residuals`: explicit partitives *any of / all
+  of / none of* and coordinated targeted obliques under *each of*; and the
+  unification candidate for the two partitive constructions (Cardinal-headed
+  `PartitiveNounPhrase` vs Determinative-headed
+  `DeterminerHeadPartitiveNounPhrase`), which check their obliques
+  differently, for `english-v3-licence-plumbing-economy`.

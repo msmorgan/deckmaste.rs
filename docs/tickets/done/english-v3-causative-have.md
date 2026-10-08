@@ -554,3 +554,16 @@ Eye`; `Mount`; `Mountain`; `Mouse`; `Mutagen`; `Mutant`; `Myr`; `Mystic`; `Nahir
 `indestructible`; `it`; `legendary`; `less`; `lifelink`; `menace`; `name`; `names`; `one`; `reach`;
 `shadow`; `solved`; `suspected`; `tapped`; `target`; `targets`; `that`; `then`; `time`; `to`; `top`;
 `trample`; `turn`; `turns`; `untap`; `untapped`; `up`; `vigilance`; `you`; `’s`; `∞`.
+
+### Review notes (2026-10-07)
+
+- Gain versus estimate: 144 gained against this ticket's 101 sole / 253
+  touched estimate (stamped `xxknlzypsnwy`, 17,322 covered). Landings between
+  the estimate and the claim cleared co-blockers, so part of the touched set
+  became readable; the gain lies within the touched bound.
+- The pre-existing questionable Reading of "You may have target opponent drawn
+  a card." (one Reading through Have's Object + Predicative Complement frame:
+  a passive postmodifier on the NP, *a card* as Nominal Complement) is routed
+  to `english-v3-systemic-residuals`, owed a judgment.
+- The frame-index-positional test assertion (`frames[2]`) is brittle against
+  frame reordering in the lexicon; accepted as is.

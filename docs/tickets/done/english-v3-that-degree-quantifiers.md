@@ -297,3 +297,18 @@ passes with warnings denied. Formatting passes for every changed Rust file.
 Citation checks report zero noncompliant strings and zero stale sites among
 16,112 citations; the piped whole-feature diff audit selects zero new
 Comprehensive Rules sites. No citation blessing is needed.
+
+### Review notes (2026-10-07)
+
+- Gain versus estimate: the landing gained 250 faces against this ticket's
+  228 sole-cause estimate (stamped `xxknlzypsnwy`, 17,322 covered). The excess
+  is expected: landings between the estimate and the claim cleared co-blockers,
+  so faces counted as touched-but-not-sole became readable. The 250 split as
+  144 *that many* + 111 *that much* − 5 faces containing both.
+- The degree reading on the constructed string "a creature that many players
+  control" (zero relative clause whose Subject is *that many players*) is a
+  genuine general-English ambiguity beside the demonstrative-relative reading,
+  and is retained. No attested covered face changed analysis.
+- The 38 *twice/times that many/much* faces (25 *that many*, 13 *that much*)
+  remain unread; the multiplier phrase is routed to
+  `english-v3-systemic-residuals` ("Batch records and what they leave open").

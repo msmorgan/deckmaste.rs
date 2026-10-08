@@ -525,6 +525,22 @@ is right and this list needs fixing.
 - The 738 *as long as* faces still unread after `english-v3-as-long-as` are
   owed to their other blockers, routed here; that landing's record lists
   samples. They are not claimed as covered.
+- Multiplier phrases *twice/times that many/much* (2026-10-07, from the
+  `english-v3-that-degree-quantifiers` review): 38 supported faces (25 *that
+  many*, 13 *that much*) stay unread; the multiplier dependent above the degree
+  DP has no live owner (`english-v3-once-frequency` lists them out of scope).
+- Explicit partitives *any of / all of / none of* (0 covered) and coordinated
+  targeted obliques under *each of* (2026-10-07, left by the
+  `english-v3-each-of-partitive` landing) stay unread and are owned here.
+- Partitive unification candidate (2026-10-07, from the each-of review): the
+  Cardinal-headed `PartitiveNounPhrase` and the Determinative-headed
+  `DeterminerHeadPartitiveNounPhrase` check their obliques differently; route
+  their unification to `english-v3-licence-plumbing-economy`.
+- Questionable Reading (2026-10-07, from the `english-v3-causative-have`
+  review, pre-existing): "You may have target opponent drawn a card." reads
+  once through Have's Object + Predicative Complement frame (a passive
+  postmodifier on the NP, *a card* as Nominal Complement). It is owed a
+  judgment: retain as a genuine reading or retire as a wrong analysis.
 
 The records also name two cutover blockers that now have their own owners: the
 cost of the complete corpus run (english-v3-census-tractability) and the Avacyn
