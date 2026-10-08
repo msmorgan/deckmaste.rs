@@ -638,6 +638,10 @@ A value expression realized by a scalar Measure Phrase, a Cardinal Numeral or
 a numeral Coordination, usable in a scalar property dependent or a scalar
 location predicative Complement.
 
+**Scalar Sign** (project term):
+The presence or absence of an explicit sign in scalar Notation. A present sign
+retains its positive or negative meaning and its exact spelling.
+
 **Scalar Property Value** (project term):
 A Scalar Value selected as a dependent by a scalar property Nominal; its
 treatment as a Complement in

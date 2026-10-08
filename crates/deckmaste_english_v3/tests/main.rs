@@ -159,3 +159,6 @@ mod except_matrix_complements;
 
 #[path = "suite/rather_than_complements.rs"]
 mod rather_than_complements;
+
+#[path = "suite/signed_numeral_cost.rs"]
+mod signed_numeral_cost;

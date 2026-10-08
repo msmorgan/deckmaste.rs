@@ -161,6 +161,7 @@ constructions! {
         feature SubjectStructure { Phrase, Pronoun }
         feature PredicateFrameUse { No, Yes } default Yes;
         feature ScalarVariable { Yes }
+        feature ScalarSign { Absent, Present } default Absent;
         feature MeasureOperator { Yes }
         feature ScalarDenotation { No, Yes } default No;
         feature MeasurePosition { None, Before } default None;
@@ -315,7 +316,7 @@ constructions! {
         category ScalarExtentComplement();
         category ScalarExtentMeasure();
         category UnsignedScalar();
-        category ScalarComponent();
+        category ScalarComponent(ScalarSign);
         category SlashPair();
         category ComparativeGovernorHead();
         category ComparativeComplement();
@@ -1687,6 +1688,16 @@ constructions! {
 
         construction SymbolCost: CostComponent {
             form [symbols: CostSymbols];
+        }
+
+        // Oracle document notation, under the signed-numeral-cost project analysis.
+        construction SignedScalarCost: CostComponent {
+            form [value: ScalarComponent];
+            require value.ScalarSign = Present;
+        }
+
+        construction ZeroScalarCost: CostComponent {
+            form ["0"];
         }
 
         schema SymbolSequence {
@@ -3610,17 +3621,21 @@ constructions! {
         }
 
         construction UnsignedScalar: ScalarComponent {
+            export ScalarSign = Absent;
             form [value: UnsignedScalar];
         }
 
         construction PositiveScalar: ScalarComponent {
+            export ScalarSign = Present;
             onset Consonant;
             form ["+", value: UnsignedScalar];
         }
 
         construction NegativeScalar: ScalarComponent {
+            export ScalarSign = Present;
             onset Consonant;
             form ["-", value: UnsignedScalar];
+            form ["−", value: UnsignedScalar];
         }
 
         construction SlashPair: SlashPair {
