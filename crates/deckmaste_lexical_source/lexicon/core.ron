@@ -65,9 +65,9 @@
         "core-verb:Deal": {"MatrixComplementLicence": "Nominal"},
         "core-verb:Have": {"PurposeAdjunctLicence": "No"},
         // Oracle-register stative exclusion: orchestrator ruling 2026-10-08.
-        "core-verb:Be": {"PurposeAdjunctLicence": "No"},
-        "core-verb:BeNegative": {"PurposeAdjunctLicence": "No"},
-        "core-verb:BeContracted": {"PurposeAdjunctLicence": "No"},
+        "core-verb:Be": {"PurposeAdjunctLicence": "No", "AuxiliaryUse": "Yes"},
+        "core-verb:BeNegative": {"PurposeAdjunctLicence": "No", "AuxiliaryUse": "Yes"},
+        "core-verb:BeContracted": {"PurposeAdjunctLicence": "No", "AuxiliaryUse": "Yes"},
         "core-verb:Remain": {"PurposeAdjunctLicence": "No"},
         "core-verb:Control": {"PurposeAdjunctLicence": "No"},
         "core-verb:Own": {"PurposeAdjunctLicence": "No"},
@@ -181,7 +181,7 @@
         "vocab:Determinative/Which": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/All": {"DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/Both": {"CorrelativeKind": "Both", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
-        "vocab:FloatedQuantifier/Each": {"NominalComplementMarker": "Of", "NominalAdjunctDeterminer": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
+        "vocab:FloatedQuantifier/Each": {"QuantificationalAdjunctUse": "Yes", "NominalComplementMarker": "Of", "NominalAdjunctDeterminer": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
 
         "vocab:Coordinator/And": {"NoncorrelativeCoordination": "Yes", "CorrelativeCoordinator": "And", "CoordinationKind": "Additive"},
         "vocab:Coordinator/Or": {"NoncorrelativeCoordination": "Yes", "CorrelativeCoordinator": "Or", "CoordinationKind": "Alternative"},

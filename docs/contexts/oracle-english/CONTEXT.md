@@ -978,6 +978,19 @@ of 2026-10-07 recorded in the
 the declared availability is based on attested Oracle usage, independently of
 selected predicative and preposed uses.
 
+**Quantificational Adjunct**:
+A fused-head partitive functioning in Clause structure to quantify the Subject;
+implicit partitives include *all*, *both* and *each* (CGEL, Ch. 5 §9.2, p. 413).
+
+**Quantificational Adjunct Use** (project term):
+A Determinative's declared permission to function as an implicit-partitive
+Quantificational Adjunct (CGEL, Ch. 5 §9.2, p. 413 describes the function).
+
+**Auxiliary Use** (project term):
+A verb's declared permission for auxiliary positioning, including post-auxiliary
+Quantificational Adjuncts (CGEL, Ch. 3 §2.1.5, p. 102). Copular *be* retains
+auxiliary distribution (CGEL, Ch. 2 §3, p. 51).
+
 **Purpose Infinitival**:
 A *to*-infinitival Clause functioning as a purpose Adjunct; an ungoverned
 Purpose Infinitival is positive, and its missing Subject need not be

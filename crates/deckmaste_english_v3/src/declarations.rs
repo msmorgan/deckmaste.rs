@@ -18,6 +18,8 @@ constructions! {
         feature NominalAgreementNumber { Head, Plural } default Head;
         feature DeterminerAgreementNumber { Nominal, Singular } default Nominal;
         feature QuantificationalDeterminer { No, Yes } default No;
+        feature QuantificationalAdjunctUse { No, Yes } default No;
+        feature AuxiliaryUse { No, Yes } default No;
         feature ObliqueMarker { No, Yes } default No;
         feature ObliqueNumber { None, Singular, Plural } default None;
         feature CaseUse { Common, Nominative, Accusative }
@@ -277,6 +279,7 @@ constructions! {
         category IrrealisPredicate(number, person);
         category ExistentialExtension();
         category FinitePredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
+        category QuantifiedAuxiliaryHead(number, person, frame, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category ScalarLocationPredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category SecondaryVerbPhrase(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category FiniteDepictiveHost(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
@@ -2037,6 +2040,66 @@ constructions! {
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
+        // CGEL Ch. 5 §9.2, p. 413: implicit-partitive adjuncts quantify
+        // the Subject. Clause attachment scopes over the whole Predicate.
+        construction QuantifiedClause: FiniteClause {
+            form [subject: NominativePhrase, " ", quantifier: lexical(Determinative),
+                " ", predicate: FinitePredicate];
+            require quantifier.QuantificationalAdjunctUse = Yes;
+            require subject.number = Plural;
+            require predicate.CliticHost = Free;
+            agree subject.number = predicate.number;
+            agree subject.person = predicate.person;
+        }
+
+        // CGEL Ch. 3 §2.1.5, p. 102: the adjunct can follow an auxiliary,
+        // never a lexical verb. Copular be is auxiliary (Ch. 2 §3, p. 51).
+        construction QuantifiedAuxiliaryHead: QuantifiedAuxiliaryHead {
+            form [head: lexical(Verb), " ", quantifier: lexical(Determinative)];
+            require quantifier.QuantificationalAdjunctUse = Yes;
+            require head.AuxiliaryUse = Yes;
+            require head.number = Plural;
+            export frame = head.frame;
+            use FiniteHeadAgreement;
+        }
+        construction PostAuxiliaryQuantification: FinitePredicate {
+            form [head: QuantifiedAuxiliaryHead, complements: selected_frame(head, Predicate)];
+            use PredicateHostAgreement;
+        }
+        construction QuantifiedScalarLocation: ScalarLocationPredicate {
+            form [head: QuantifiedAuxiliaryHead, complements: selected_frame(head, ScalarLocation)];
+            use PredicateHostAgreement;
+        }
+
+        construction QuantifiedBareAuxiliaryPredicate: FinitePredicate {
+            form [head: lexical(Verb), " ", quantifier: lexical(Determinative),
+                complement: BareComplement];
+            require quantifier.QuantificationalAdjunctUse = Yes;
+            require head.frame = BareAuxiliary;
+            require head.number = Plural;
+            require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
+            require clitic_complement(head.Clitic, complement.AuxiliaryComplementRealization) = Yes;
+            require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization) = Yes;
+            use FiniteAuxiliaryAgreement;
+        }
+        construction QuantifiedParticipialAuxiliaryPredicate: FinitePredicate {
+            form [head: lexical(Verb), " ", quantifier: lexical(Determinative),
+                complement: ParticipialComplement];
+            require quantifier.QuantificationalAdjunctUse = Yes;
+            require head.frame = ParticipialAuxiliary;
+            require head.number = Plural;
+            use FiniteAuxiliaryAgreement;
+        }
+        construction QuantifiedPerfectAuxiliaryPredicate: FinitePredicate {
+            form [head: lexical(Verb), " ", quantifier: lexical(Determinative),
+                complement: PerfectComplement];
+            require quantifier.QuantificationalAdjunctUse = Yes;
+            require head.frame = PerfectAuxiliary;
+            require head.number = Plural;
+            use FiniteAuxiliaryAgreement;
+        }
+
         // CGEL Ch. 3 §§1.7–1.8.1, pp. 86–88: finite irrealis is non-tensed
         // and distinct from the ordinary agreeing preterite.
         construction IrrealisClause: IrrealisClause {
@@ -3427,6 +3490,17 @@ constructions! {
             require marker.case = Nominative;
             agree marker.person = predicate.person;
             agree marker.number = predicate.number;
+            export number = predicate.number;
+        }
+
+        construction QuantifiedSubjectRelative: SubjectRelativeClause {
+            form [marker: lexical(Subordinator), " ", quantifier: lexical(Determinative),
+                " ", predicate: FinitePredicate];
+            require marker.RelativeSubordinator = Yes;
+            require quantifier.QuantificationalAdjunctUse = Yes;
+            require predicate.CliticHost = Free;
+            require predicate.number = Plural;
+            require predicate.person = Third;
             export number = predicate.number;
         }
 

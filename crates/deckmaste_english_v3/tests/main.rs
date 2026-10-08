@@ -190,3 +190,6 @@ mod name_lexeme_scope;
 
 #[path = "suite/enter_as_copy_complement.rs"]
 mod enter_as_copy_complement;
+
+#[path = "suite/floated_each_quantifier.rs"]
+mod floated_each_quantifier;
