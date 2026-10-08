@@ -108,9 +108,16 @@ fn selected_and_comparative_as_does_not_become_a_comparative_adjunct() {
 #[test]
 fn selected_and_comparative_as_does_not_become_an_enter_adjunct() {
     // Project ruling: systemic-residuals, predicative-as, 2026-10-06.
-    // Enter's selected predicative Complement is still unimplemented.
+    // The selected replacement now reads; it must never be a final Adjunct.
     let text = "You may have this creature enter as a copy of any creature on the battlefield.";
-    assert!(readings(text, Category::Document).is_empty());
+    crate::enter_as_copy_complement::selected_copy(
+        text,
+        &[
+            "as a copy of any creature",
+            "as a copy of any creature on the battlefield",
+        ],
+        false,
+    );
 }
 
 #[test]

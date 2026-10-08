@@ -182,3 +182,6 @@ mod same_as_comparative;
 
 #[path = "suite/name_lexeme_scope.rs"]
 mod name_lexeme_scope;
+
+#[path = "suite/enter_as_copy_complement.rs"]
+mod enter_as_copy_complement;

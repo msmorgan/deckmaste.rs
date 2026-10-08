@@ -124,15 +124,21 @@ constructions! {
         feature VerblessClauseComplement { No, Yes } default No;
         feature VerblessPredicateUse { No, Yes } default No;
         feature GerundClauseComplement { Yes }
-        feature ComplementFunctionRestriction { None, Adjunct, Compound } default None;
+        feature ComplementFunctionRestriction { None, Adjunct, Compound, PreposedOrPredicative } default None;
         table coordinated_complement_function_restriction(ComplementFunctionRestriction, ComplementFunctionRestriction)
             -> ComplementFunctionRestriction {
             (None, None) => None, (None, Adjunct) => Adjunct, (Adjunct, None) => Adjunct,
             (None, Compound) => Compound, (Compound, None) => Compound,
             (Adjunct, Adjunct) => Adjunct, (Compound, Compound) => Compound,
+            (None, PreposedOrPredicative) => PreposedOrPredicative,
+            (PreposedOrPredicative, None) => PreposedOrPredicative,
+            (PreposedOrPredicative, PreposedOrPredicative) => PreposedOrPredicative,
         }
         table adjunct_complement_function(ComplementFunctionRestriction) -> Selection {
             (None) => Yes, (Adjunct) => Yes,
+        }
+        table preposed_complement_function(ComplementFunctionRestriction) -> Selection {
+            (None) => Yes, (Adjunct) => Yes, (PreposedOrPredicative) => Yes,
         }
         table compound_complement_function(ComplementFunctionRestriction) -> Selection {
             (None) => Yes, (Compound) => Yes,
@@ -417,6 +423,7 @@ constructions! {
 
         frame_category NounPhrase = AccusativePhrase;
         frame_category SourceFreeObject = AccusativePhrase where SourceModifierPresent = No;
+        frame_category NominalPredicativePreposition = PrepositionPhrase where ComplementFunctionRestriction = PreposedOrPredicative;
         frame_category PowerToughnessAdjustment = SlashPair;
         frame_category MeasurePhrase = ScalarMeasurePhrase;
 
@@ -445,6 +452,7 @@ constructions! {
         frame NominalInfinitive = Nominal(Complement(InfinitiveComplement));
         frame NominalPreposition = Nominal(Marked(Preposition, Of, Complement(NounPhrase)));
         frame Predicative = Predicate(Complement(PredicativeComplement));
+        frame NominalPredicativePreposition = Predicate(Complement(NominalPredicativePreposition));
         frame Existential = Existential(Complement(NounPhrase), Optional(Complement(LocativeComplement)));
         frame AdjectivalPrepositionComplement = Adjectival(
             Marked(Preposition, By, Complement(NounPhrase)));
@@ -2008,7 +2016,7 @@ constructions! {
             form [dependent: PrepositionPhrase, " ", clause: Clause]
                 require dependent.ClauseInitialAdjunct = Yes;
             require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes;
-            require adjunct_complement_function(dependent.ComplementFunctionRestriction) = Yes;
+            require preposed_complement_function(dependent.ComplementFunctionRestriction) = Yes;
             require dependent.MatrixComplementRequirement = None;
             require dependent.SelectedPrepositionUse = No;
             export UnmarkedConjunctLicence = Yes;
@@ -2699,12 +2707,13 @@ constructions! {
 
         // CGEL Ch. 7 §5.1, pp. 636–637: a predicative NP Complement
         // differs from an Object; adjunct use excludes adjective Complements.
-        // The supported predicative-NP licence is preposed; finite-clause
-        // Complement permissions remain independent.
+        // Enter selects this PP by the project ruling of 2026-10-06.
+        // Nominal Complements retain preposed use without final Adjunct use;
+        // finite-clause Complement permissions remain independent.
         construction PredicativeComplementPreposition: PrepositionPhrase {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
-            export ComplementFunctionRestriction = None;
+            export ComplementFunctionRestriction = PreposedOrPredicative;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -2716,9 +2725,10 @@ constructions! {
             require predicative_noun_phrase_complement(head.PrepositionComplement) = Yes;
             require complement.PredicativeKind = Nominal;
             require licence_preposed_adjunct(head.PrepositionFunctionLicence) = Yes;
+            require licence_predicative_complement(head.PrepositionFunctionLicence) = Yes;
             export ObliqueNumber = None;
             export InternalisedComplementMarker = head.InternalisedComplementMarker;
-            export PrepositionFunctionLicence = PreposedAdjunct;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
             export LocativeUse = head.LocativeUse;
         }
 
@@ -2837,7 +2847,7 @@ constructions! {
         construction ClauseComplementPreposition: PrepositionPhrase {
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
-            export ComplementFunctionRestriction = None;
+            export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -2857,7 +2867,7 @@ constructions! {
         construction IrrealisClauseComplementPreposition: PrepositionPhrase {
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
-            export ComplementFunctionRestriction = None;
+            export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -3097,6 +3107,19 @@ constructions! {
         ] {
             use Properties;
         }
+        // The depictive precedes the selected predicative PP (Vesuva).
+        schema DepictiveSelectedPredicativePredicate {
+            form [head: lexical(Verb), " ", modifier: DepictivePhrase, " ",
+                complement: PrepositionPhrase];
+            require head.frame = NominalPredicativePreposition;
+            require complement.ComplementFunctionRestriction = PreposedOrPredicative;
+            require licence_predicative_complement(complement.PrepositionFunctionLicence) = Yes;
+        }
+        instance DepictiveSelectedPredicativePredicate<Result, Properties>: [
+            (FinitePredicate, FiniteHeadAgreement),
+            (SecondaryVerbPhrase, OrdinarySecondaryHead),
+        ] { use Properties; }
+
         schema SelectedSourceDepictivePredicate {
             form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
             require head.frame = SourceFreeObjectSourceToObject;

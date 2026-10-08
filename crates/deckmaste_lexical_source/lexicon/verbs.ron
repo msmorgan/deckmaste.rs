@@ -66,6 +66,7 @@
         Predicate([Lex("Preposition", "With"), ObjectNounPhrase, Lex("Preposition", "On"), Role("FrameComplement")]),
         Predicate([Role("Object"), OptionalMarkedRole("Preposition", "Under", "Object")]),
         Predicate([MarkedRole("Preposition", "Under", "Object")]),
+        Predicate([Role("NominalPredicativePreposition")]),
     ]),
     (identity: Flip, bare: "flip", third_person: "flips", preterite: Some("flipped"), frames: [
         Predicate([ObjectNounPhrase]),
