@@ -1,0 +1,10 @@
+// "For each [generic | colored] mana in the cost, you may <action> rather
+// than pay that mana" [CR#702.51a,702.66a,702.126a,701.67a]: a Mana
+// Substitute, the action first and the mana each act pays after it, read
+// back from the acted-on object by anaphora.
+(
+    name: "substitute",
+    kinds: [ManaSubstitute],
+    params: {"action": Instruction, "pays": PipPaids},
+    body: (action: Param(action), pays: Param(pays)),
+)

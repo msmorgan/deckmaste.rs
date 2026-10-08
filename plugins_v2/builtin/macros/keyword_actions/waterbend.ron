@@ -1,11 +1,17 @@
 // "Waterbend [cost]" [CR#701.67a]: pay the cost; for each generic mana in it,
 // you may tap an untapped artifact or creature you control rather than pay
 // that mana. The tapping stands in only for the waterbend cost's own generic
-// mana [CR#701.67b] (`TapForGeneric`). "You" is the actor.
+// mana [CR#701.67b] (`withSubstitute`). "You" is the actor.
 KeywordAction(
     name: "waterbend",
     params: [Cost],
     spelling: "waterbend <Param(0)>",
     grammar: FixedTerm(surface: "waterbend"),
-    body: pay(tapForGeneric(Param(0), and([untapped, or([artifact, creature]), actorControls])), Once),
+    body: pay(
+        withSubstitute(
+            Param(0),
+            substitute(tap(a(and([untapped, or([artifact, creature]), actorControls]))), [generic]),
+        ),
+        Once,
+    ),
 )

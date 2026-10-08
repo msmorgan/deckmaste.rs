@@ -1,0 +1,8 @@
+// A Mana Substitute's act pays one mana of a color: convoke's "colored mana
+// … tap an untapped creature of that color" [CR#702.51a].
+(
+    name: "ofColor",
+    kinds: [PipPaid],
+    params: {"color": ColorTerm},
+    body: OfColor(Param(color)),
+)

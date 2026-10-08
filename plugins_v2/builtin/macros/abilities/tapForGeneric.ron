@@ -1,9 +1,0 @@
-// `Cost.TapForGeneric` under Lean's own name for it: pay the cost, tapping an
-// untapped permanent the payer controls of the kind written rather than paying
-// each generic mana in it [CR#701.67a].
-(
-    name: "tapForGeneric",
-    kinds: [Cost],
-    params: {"cost": Cost, "tapped": Predicate},
-    body: TapForGeneric(cost: Param(cost), tapped: Param(tapped)),
-)

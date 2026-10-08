@@ -1,0 +1,9 @@
+// `StaticSpec.PaySubstitute` under Lean's own name for it: a Mana Substitute
+// on a spell, neither an additional nor an alternative cost, applied once the
+// total cost is locked [CR#702.51b,702.66b,702.126b].
+(
+    name: "paySubstitute",
+    kinds: [StaticSpec],
+    params: {"subject": NounPhrase, "substitute": ManaSubstitute},
+    body: PaySubstitute(subject: Param(subject), substitute: Param(substitute)),
+)

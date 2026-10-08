@@ -1,0 +1,9 @@
+// `Cost.WithSubstitute` under Lean's own name for it: pay the cost, the
+// substitute standing in only for that cost's own generic mana (waterbend
+// [CR#701.67b]).
+(
+    name: "withSubstitute",
+    kinds: [Cost],
+    params: {"cost": Cost, "substitute": ManaSubstitute},
+    body: WithSubstitute(cost: Param(cost), substitute: Param(substitute)),
+)

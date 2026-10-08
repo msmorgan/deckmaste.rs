@@ -952,6 +952,11 @@ semantic_macro act (performer : NounPhrase) (body : Instruction) : Instruction :
 /-- "… <performer> controls" -/
 semantic_macro actorControls : Predicate := .hasPossessor .controller .actor
 
+/-- "For each <pip> mana …, you may <action> rather than pay that mana": a Mana Substitute
+[CR#702.51a,702.66a,702.126a,701.67a], spelled as the RON helper `substitute`. -/
+semantic_macro substitute (action : Instruction) (pays : List PipPaid) : ManaSubstitute :=
+  { action, pays }
+
 namespace Actor
 
 /-- "<performer> reveals their hand" -/
@@ -1022,10 +1027,13 @@ semantic_macro incubate (amount : Amount) : Instruction :=
             toughness := some (.lit 0) } })
     [.withCounters amount (.printed p1p1Counter) .fresh]))
 /-- "<performer> waterbends <cost>" [CR#701.67a]: tapping an untapped artifact or creature they
-control rather than paying each generic mana in the cost. -/
+control rather than paying each generic mana in the cost, that cost's own generic mana only
+[CR#701.67b]. -/
 semantic_macro waterbend (cost : Cost) : Instruction :=
   .enact (.action "waterbend")
-    (.pay (.tapForGeneric cost (.and [untapped, .or [artifact, creature], actorControls])) .once)
+    (.pay (.withSubstitute cost
+      (substitute (tap (a (.and [untapped, .or [artifact, creature], actorControls]))) [.generic]))
+      .once)
 /-- "<performer> manifests <subject>" [CR#701.40a]: onto the battlefield face down as a 2/2
 creature with no text, name, subtypes or mana cost [CR#708.2]. -/
 semantic_macro manifest (subject : NounPhrase) : Instruction :=
