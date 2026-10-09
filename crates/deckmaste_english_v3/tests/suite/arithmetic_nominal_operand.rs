@@ -130,6 +130,10 @@ fn torbrans_quantified_damage_is_a_scalar_nominal_operand() {
 
 #[test]
 fn unlicensed_operands_and_preposition_functions_stay_excluded() {
+    assert_eq!(
+        common::readings("2 life plus 2 life", Category::NounPhrase).len(),
+        0
+    );
     for text in [
         "a creature plus 1",
         "2 plus a creature",

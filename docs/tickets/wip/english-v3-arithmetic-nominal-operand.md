@@ -199,7 +199,7 @@ Deltas:
    identifies its first Ability line changing 6 → 3, while Equip stays 1.
    That trunk landing retires the wrong lexical-*have* Object-gap / Bare
    Passive *resolved* analysis in favour of the perfect adverbial-gap relative
-   (its landing's ruling R1). This ticket removes no Reading. Refresh-only
+   (its landing's ruling R1). The pre-review candidate removes no Reading. Refresh-only
    digests reflect imported cardinal modifier fields and temporal-relative
    analysis; the 18 retained R10e gains are distinct from those trunk gains.
 
@@ -213,6 +213,20 @@ Deltas:
    Bronze Cudgels, attributed above. The prebuilt grammar binary remains
    source-equivalent because this refresh changes consumed data and tests,
    not grammar or forest code.
+
+
+   Method 5 review correction on `wnmmonzs`: the unchanged 1,614-face
+   manifest now has **1,144 covered, 58,823 Readings**, zero issues.
+   `diff-review-fix.json` against `svonuzor` has exactly one loss:
+   **Devouring Greed 4 → 0**, classified **wrong analysis retired**;
+   all other 1,613 faces preserve both count and digest. Zero gains,
+   decreases, increases, digest-only or source changes. The noun-phrase
+   probe *2 life plus 2 life* changes 1 → 0 by excluding the nested-unit
+   quantity, not by a card/noun/construction guard. Against the original
+   claim parent, `diff-final-review-fix.json` reports **88 gained, zero
+   lost, one decrease, zero increases, 263 digest-only, 1,262 unchanged**.
+   Bronze Cudgels remains the sole decrease inherited from `yppxtnmu`;
+   the three refresh gains and all 18 R10e-only gains remain.
 
 2. **Witnesses** (`lrolnmwo`). Each quoted witness failed before implementation
    on the claim parent (zero Readings); its control yielded a Reading.
@@ -248,6 +262,18 @@ Deltas:
    the integration test asserts all three constituents through the existing
    helper, with no Debug-tree substring assertions.
 
+
+   Method 5 spot checks on `wnmmonzs`: *2 life plus 2 life* and
+   *that much damage plus 2 damage* each have zero Noun Phrase Readings.
+   *that much damage plus 1*, *2 plus 3*, *X plus 1*,
+   *its power plus its toughness*, and *that number plus 1* each retain
+   exactly one Measure Phrase Reading with the shared ArithmeticMeasure
+   analysis. Quantified damage remains a nominal operand; property and
+   number operands remain unit-free. Phthisis and Predator's Rapport,
+   every *that number plus 1* face, and all five witnesses are unchanged
+   in count and digest in the official review diff. Both *that much damage
+   is 2* and *2 damage is 2* select a unique scalar-copular finite clause.
+
 4. **Deviations and STOPs**. Two Arithmetic Operand projections are added:
    scalar Measure Phrase and scalar Noun Phrase. The macro rejects differently
    typed fields in forms of one Construction and duplicate Result categories
@@ -256,11 +282,24 @@ Deltas:
    numeral operands are retired; the existing operator lexical declarations
    remain consumed by the replacement and free *plus* remains unlicensed.
    Quantified noun phrases propagate scalar denotation from declared measure
-   position so *that much damage* is admitted. Arithmetic Operand is added
+   position so *that much damage* is admitted. `quantified_scalar_denotation`
+   also admits *that much damage is 2* as a finite clause, consistent with
+   trunk's *2 damage is 2*; this produces no face changes. Three of the 89
+   gains before the review fix are inherited through refresh: Liliana,
+   Untouched by Death; Paladin Elizabeth Taggerdy; Cactus Preserve. Arithmetic Operand is added
    to the glossary. No verb frames are added. The ten equality-governor
    faces found by corpus grep remain unread on `lrolnmwo`; Torbran's arithmetic
    constituent reads, but its full replacement clause still needs its existing
    amount position extended by another ticket.
+
+   The orchestrator's Method 5 review (2026-10-09) requires retiring
+   Devouring Greed's wrong nested-unit analysis, `[[2 life] plus 2] life`.
+   The exported Unit Bearing feature distinguishes measured/quantified amounts
+   from unit-free scalar values, propagates through operands and arithmetic,
+   and excludes unit-bearing arithmetic from a measured noun's quantity.
+   No Construction or frame is added. Unit Bearing is defined in the glossary
+   under this project review, without a CGEL attribution. The required negative
+   is added to `unlicensed_operands_and_preposition_functions_stay_excluded`.
 
    The earlier STOP over the two `X is 2` exclusions is resolved by
    **orchestrator ruling R10e (2026-10-09)**: scalar variables may generally
@@ -331,6 +370,17 @@ Deltas:
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` — passed.
    Logs have the `after-refresh-2` suffix in the evidence directory.
 
+
+   After the Method 5 fix on `wnmmonzs`, both full suites and both clippy
+   commands pass again: `cargo test -p deckmaste_english_v3` — **687 passed**;
+   `cargo test -p deckmaste_lexical_source` — **64 passed** (28 unit + 36
+   integration); zero failed, ignored or filtered tests, zero doctests.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` — passed.
+   Logs have the `review-fix` suffix in the evidence directory. The existing
+   exclusion test gains the required negative assertion; test-function totals
+   remain restored 0, re-spelled 3, ignored 0, added 11, removed 0.
+
 6. **Timing** (`lrolnmwo`). The widened bounded candidate census took
    **15.53 s wall**, 6 workers, zero samples per face, peak RSS
    **3,118,080 KiB**, measured by `/usr/bin/time -v` with a prebuilt
@@ -343,3 +393,7 @@ Deltas:
    6 workers, zero samples, peak RSS **2,847,384 KiB**, with the prebuilt
    binary under `/usr/bin/time -v` (`after-refresh-2.time`); no compilation
    or full corpus run is included.
+
+   The Method 5 bounded re-run on `wnmmonzs` took **32.66 s wall**,
+   6 workers, zero samples, peak RSS **2,905,768 KiB**, with the prebuilt
+   binary under `/usr/bin/time -v` (`after-review-fix.time`).

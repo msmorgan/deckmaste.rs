@@ -664,6 +664,12 @@ Phrase. A scalar Measure Phrase or a Noun Phrase with Scalar Denotation can
 fill this role under ticket `english-v3-arithmetic-nominal-operand` rulings
 R10a–R10d (2026-10-09).
 
+**Unit Bearing** (project term):
+The presence of a measurement unit in an amount, as in *2 life* or *that much
+damage*, including an arithmetic expression containing such an amount.
+An amount with this property cannot quantify a further measured noun under
+[the orchestrator's Method 5 review ruling, 2026-10-09](../../tickets/done/english-v3-arithmetic-nominal-operand.md#landing-record).
+
 **Scalar Location**:
 The expression of a position on a scale, commonly with *be* and an NP as
 predicative Complement (CGEL, Ch. 8 §5.4, p. 693).

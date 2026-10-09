@@ -227,6 +227,13 @@ constructions! {
         feature MeasureOperator { Yes }
         feature ScalarDenotation { No, Yes } default No;
         feature MeasurePosition { None, Before } default None;
+        feature UnitBearing { No, Yes } default No;
+        table nominal_unit_bearing(MeasurePosition) -> UnitBearing {
+            (None) => No, (Before) => Yes,
+        }
+        table arithmetic_unit_bearing(UnitBearing, UnitBearing) -> UnitBearing {
+            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+        }
         feature PropertyValuePosition { None, Single, First, Second, Pair } default None;
         feature CardinalMeasurementUse { No, DeterminerRequired, DeterminerProjection, Yes } default No;
         feature MeasureKind { Scalar, Pair }
@@ -380,7 +387,7 @@ constructions! {
         category NounPremodifier(NounPremodifier);
         category NounPremodifierSeries(NounPremodifier);
         category PartitiveModifier();
-        category NounPhrase(number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure,
+        category NounPhrase(UnitBearing, number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure,
             BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent);
@@ -417,8 +424,8 @@ constructions! {
         category ScalarValue(PredicativeKind);
         category PropertyValue(MeasureKind);
         category Amount();
-        category MeasurePhrase(MeasureKind);
-        category ArithmeticOperand();
+        category MeasurePhrase(MeasureKind, UnitBearing);
+        category ArithmeticOperand(UnitBearing);
         category ScalarMeasurePhrase();
         category ScalarExtentComplement();
         category ScalarExtentMeasure();
@@ -460,7 +467,7 @@ constructions! {
         category ClauseSeries(UnmarkedConjunctLicence);
         category FinitePredicateSeries(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
-        category NounPhraseSeries(number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
+        category NounPhraseSeries(UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, PurposeAdjunctLicence, MatrixComplementLicence);
@@ -470,7 +477,7 @@ constructions! {
         category ManaPhraseSeries();
         category CardinalSeries(number, CoordinationKind);
         category AmountSeries();
-        category MeasurePhraseSeries(MeasureKind);
+        category MeasurePhraseSeries(MeasureKind, UnitBearing);
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
@@ -494,7 +501,7 @@ constructions! {
         category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
-        category CorrelativeNounPhraseSeries(number, person, CaseUse, Targeting,
+        category CorrelativeNounPhraseSeries(UnitBearing, number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
         category CorrelativePrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
@@ -503,7 +510,7 @@ constructions! {
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
         category CorrelativeCardinalSeries(number, CorrelativeCoordinator, CoordinationKind);
         category CorrelativeAmountSeries(CorrelativeCoordinator);
-        category CorrelativeMeasurePhraseSeries(MeasureKind, CorrelativeCoordinator);
+        category CorrelativeMeasurePhraseSeries(UnitBearing, MeasureKind, CorrelativeCoordinator);
         category CorrelativeKeywordPhraseSeries(CorrelativeCoordinator);
         category CorrelativeQuotedTextSeries(CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(CorrelativeCoordinator);
@@ -1152,6 +1159,7 @@ constructions! {
         }
 
         policy CoordinatedMeasureKind<Right, Source> {
+            export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, Right.UnitBearing);
             agree left.MeasureKind = Right.MeasureKind;
             export MeasureKind = left.MeasureKind;
         }
@@ -1340,6 +1348,7 @@ constructions! {
             (Alternative, Plural, Plural, Singular, Singular) => Singular,
         }
         policy NounCoordinationAgreement<Right, Source> {
+            export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, Right.UnitBearing);
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = coordinated_determiner_agreement(
                 left.DeterminerAgreementNumber, Right.DeterminerAgreementNumber);
@@ -2764,6 +2773,7 @@ constructions! {
         }
 
         construction CardinalMeasuredNounPhrase: NounPhrase {
+            export UnitBearing = Yes;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = Yes;
@@ -2798,6 +2808,7 @@ constructions! {
         // Pre-integrate review ruling (2026-10-09): a declared fused-head NP
         // licence admits the comparative Postmodifier without pruning nominal scope.
         policy PostpositiveNounPhraseProperties {
+            export UnitBearing = head.UnitBearing;
             require head.ComparativePostmodifierUse = Yes;
             export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
             export number = head.number;
@@ -2854,6 +2865,7 @@ constructions! {
         // Owner ruling (2026-10-08): Oracle names carry the grammatical
         // agreement declared on their lexeme.
         construction ProperNameNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = No;
@@ -2936,6 +2948,7 @@ constructions! {
             require phrase.SelectedPrepositionUse = No;
         }
         construction PartitiveNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = No;
@@ -2957,6 +2970,7 @@ constructions! {
         // CGEL Ch. 5 §§9.1–9.2, pp. 411–413: explicitly partitive determiner-head.
         // Targeted obliques are the each-of ticket's Oracle-English decision.
         construction DeterminerHeadPartitiveNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             form [head: lexical(Determinative), " ", complement: PrepositionPhrase,
@@ -2981,6 +2995,7 @@ constructions! {
         // CGEL Ch. 5 §9.2(c), pp. 414–415: a singular demonstrative
         // can fuse Determiner and Head without an overt nominal.
         construction FusedDeterminerHeadNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = head.ComparativePostmodifierUse;
             export DeterminerAgreementNumber = Nominal;
             form [head: lexical(Determinative)];
@@ -2998,6 +3013,7 @@ constructions! {
         }
 
         construction DeterminedNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = determiner.DeterminerAgreementNumber;
             export ScalarDenotation = quantificational_scalar_denotation(
@@ -3020,6 +3036,7 @@ constructions! {
         }
 
         construction IndefiniteNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -3044,6 +3061,7 @@ constructions! {
             (Plural, Count) => Yes, (Singular, Mass) => Yes,
         }
         construction BareNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -3059,6 +3077,7 @@ constructions! {
 
         // CGEL Ch. 7 §3.1, pp. 620–623: the bare NP is internal to the PP.
         construction BarePrepositionNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -3075,6 +3094,7 @@ constructions! {
         }
 
         construction TargetNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = head.ScalarDenotation;
@@ -3095,6 +3115,7 @@ constructions! {
         }
 
         construction NominativePronoun: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = No;
@@ -3124,6 +3145,7 @@ constructions! {
         }
 
         construction AccusativePronoun: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = No;
@@ -3782,6 +3804,7 @@ constructions! {
 
         // The declared modifier licenses this Oracle-register bare singular NP.
         construction BareStatusNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -3799,6 +3822,7 @@ constructions! {
         }
 
         construction BareParticipialStatusNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -4062,6 +4086,7 @@ constructions! {
             export number = Plural;
         }
         policy ScalarVariableProperties {
+            export UnitBearing = No;
             export MeasureKind = Scalar;
         }
         policy VariableSubjectProperties {
@@ -4206,6 +4231,7 @@ constructions! {
         }
 
         construction QuantifiedNounPhrase: NounPhrase {
+            export UnitBearing = nominal_unit_bearing(head.MeasurePosition);
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = quantity.DeterminerAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -4235,6 +4261,7 @@ constructions! {
         }
 
         construction GroupedScalarNumeral: MeasurePhrase {
+            export UnitBearing = No;
             form [modifier: optional(CardinalModifier), head: lexical(Numeral)];
             require head.numeral_kind = GroupedArabic;
             require head.numeral_size = Large;
@@ -4276,11 +4303,16 @@ constructions! {
             form [left: ScalarComponent, "/", right: ScalarComponent];
         }
 
+        policy UnitFreeMeasure {
+            export UnitBearing = No;
+        }
         schema SlashMeasure {
             form [pair: SlashPair];
             export MeasureKind = Pair;
         }
-        instance SlashMeasure<Result>: [(MeasurePhrase), (PropertyValue)] {}
+        instance SlashMeasure<Result, Properties = NoFeatures>: [
+            (MeasurePhrase, UnitFreeMeasure), (PropertyValue),
+        ] { use Properties; }
 
         table slash_premodifier_concord(SlashPremodifierUse, SlashPremodifierUse)
             -> SlashPremodifierUse {
@@ -4302,6 +4334,7 @@ constructions! {
         }
 
         construction UngroupedScalarNumeral: MeasurePhrase {
+            export UnitBearing = No;
             form [modifier: optional(CardinalModifier), head: lexical(Numeral)];
             require head.numeral_kind = Arabic;
             require head.numeral_size = Small;
@@ -4309,10 +4342,12 @@ constructions! {
         }
 
         construction ScalarMeasureOperand: ArithmeticOperand {
+            export UnitBearing = value.UnitBearing;
             form [value: MeasurePhrase];
             require value.MeasureKind = Scalar;
         }
         construction ScalarNominalOperand: ArithmeticOperand {
+            export UnitBearing = value.UnitBearing;
             form [value: NounPhrase];
             require value.ScalarDenotation = Yes;
         }
@@ -4320,6 +4355,7 @@ constructions! {
         // Arithmetic nominal operands follow ticket rulings R10a–R10d
         // (2026-10-09). CGEL's PP complementation does not supply this route.
         construction ArithmeticMeasure: MeasurePhrase {
+            export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, right.UnitBearing);
             form [left: ArithmeticOperand, " ", operator: lexical(Preposition), " ",
                 right: ArithmeticOperand];
             require operator.MeasureOperator = Yes;
@@ -4339,6 +4375,7 @@ constructions! {
         }
 
         construction MeasuredNounPhrase: NounPhrase {
+            export UnitBearing = Yes;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = Yes;
@@ -4351,6 +4388,7 @@ constructions! {
             form [quantity: MeasurePhrase, " ", head: lexical(Noun)];
             require head.MeasurePosition = Before;
             require quantity.MeasureKind = Scalar;
+            require quantity.UnitBearing = No;
             require head.number = Singular;
             require head.countability = Mass;
             export number = Singular;
@@ -4414,6 +4452,7 @@ constructions! {
         // coordinated-property-values (2026-10-08). A property Nominal selects
         // its following value Complement through declared position and kind.
         construction MeasuredAttribute: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = head.ScalarDenotation;
@@ -4470,6 +4509,7 @@ constructions! {
             form [head: node, " ", comparison: MatrixComparativePhrase];
         }
         policy NominalComparisonHost {
+            export UnitBearing = head.UnitBearing;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
             require comparison.ComparativeComplementForm = Nominal;
@@ -5034,6 +5074,7 @@ constructions! {
             (Plural, Yes, PluralS) => Yes,
         }
         construction GenitiveNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             require possessor.BarePrepositionUse = No;
@@ -5051,6 +5092,7 @@ constructions! {
         }
 
         construction PossessiveNounPhrase: NounPhrase {
+            export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
