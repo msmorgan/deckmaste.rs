@@ -64,7 +64,6 @@
         "lexeme:designation/commander": {"NounPremodifier": "Yes"},
         "lexeme:keyword_action/goad": {"PastParticipialPremodifier": "Yes"},
         "lexeme:keyword_action/suspect": {"PastParticipialPremodifier": "Yes"},
-        "lexeme:keyword_action/harness": {"PastParticipialPremodifier": "Yes"},
         // Corpus agreement: the full-name Subject takes “enter or attack”.
         "catalog:card-names.txt/Aang and Katara": {"NameNumber": "Plural"},
         // Project analysis: declared exception distributions in Oracle English.
