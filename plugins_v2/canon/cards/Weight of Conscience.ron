@@ -1,0 +1,22 @@
+// "Enchant creature / Enchanted creature can't attack. / Tap two untapped
+// creatures you control that share a creature type: Exile enchanted
+// creature." An Agreement over the two tapped creatures [CR#205.3m].
+SingleFaced(face: (
+    characteristics: (
+        name: "Weight of Conscience",
+        cost: [
+            1,
+            White,
+        ],
+        types: [Enchantment],
+        subtypes: [aura],
+        text: [
+            keywordSubject(label: enchant, subject: hasType(Creature)),
+            static(deonticRule(attachHost(word: Enchanted, head: Type(Creature)), Forbid, [Core(Attack)], Agent, NoPatient, NoRider)),
+            activated(
+                cost: perform(tap(agree(Subtype(Creature), Share, counted(exactly(2), and([untapped, creature, youControl]))))),
+                instruction: exile(attachHost(word: Enchanted, head: Type(Creature))),
+            ),
+        ],
+    ),
+))

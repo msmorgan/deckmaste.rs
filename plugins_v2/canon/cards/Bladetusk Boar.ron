@@ -1,0 +1,15 @@
+// "Intimidate" [CR#702.13b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Bladetusk Boar",
+        cost: [
+            3,
+            Red,
+        ],
+        types: [Creature],
+        subtypes: [boar],
+        power: 3,
+        toughness: 2,
+        text: [intimidate],
+    ),
+))

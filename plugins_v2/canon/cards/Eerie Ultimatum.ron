@@ -1,0 +1,30 @@
+// "Return any number of permanent cards with different names from your
+// graveyard to the battlefield." An Agreement that the returned cards have no
+// name in common [CR#201.2b].
+SingleFaced(face: (
+    characteristics: (
+        name: "Eerie Ultimatum",
+        cost: [
+            White,
+            White,
+            Black,
+            Black,
+            Black,
+            Green,
+            Green,
+        ],
+        types: [Sorcery],
+        text: [
+            spell(
+                enact(
+                    verb: Core(Return),
+                    instruction: move(
+                        subject: withDifferentNames(counted(anyNumber, and([permanentCard, inZone(zone(zone: Graveyard, scope: PossessedBy(you)))]))),
+                        from: zone(zone: Graveyard, scope: PossessedBy(you)),
+                        to: zone(zone: Battlefield, scope: Bare),
+                    ),
+                ),
+            ),
+        ],
+    ),
+))

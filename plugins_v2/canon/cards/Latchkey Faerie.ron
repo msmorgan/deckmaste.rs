@@ -1,0 +1,27 @@
+// "Flying / Prowl {2}{U} / When this creature enters, if its prowl cost was
+// paid, draw a card." [CR#702.76a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Latchkey Faerie",
+        cost: [
+            3,
+            Blue,
+        ],
+        types: [Creature],
+        subtypes: [faerie, rogue],
+        power: 3,
+        toughness: 1,
+        text: [
+            flying,
+            prowl(mana([
+                2,
+                Blue,
+            ])),
+            triggeredIf(
+                event: enters(thisCreature),
+                condition: keywordCostPaid(prowl, this),
+                instruction: draw(1),
+            ),
+        ],
+    ),
+))

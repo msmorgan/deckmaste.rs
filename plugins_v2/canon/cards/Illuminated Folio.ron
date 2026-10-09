@@ -1,0 +1,19 @@
+// "{1}, {T}, Reveal two cards from your hand that share a color: Draw a
+// card." An Agreement over the two revealed cards [CR#105.2].
+SingleFaced(face: (
+    characteristics: (
+        name: "Illuminated Folio",
+        cost: [5],
+        types: [Artifact],
+        text: [
+            activated(
+                cost: compound([
+                    mana([1]),
+                    tapSymbol,
+                    perform(reveal(agree(Color, Share, counted(exactly(2), cardIn(yourHand))))),
+                ]),
+                instruction: draw(1),
+            ),
+        ],
+    ),
+))

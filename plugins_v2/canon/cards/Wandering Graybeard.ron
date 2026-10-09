@@ -1,0 +1,32 @@
+// "Kinship — At the beginning of your upkeep, you may look at the top card of
+// your library. If it shares a creature type with this creature, you may
+// reveal it. If you do, you gain 4 life." Sharing on the creature-type axis
+// [CR#205.3m].
+SingleFaced(face: (
+    characteristics: (
+        name: "Wandering Graybeard",
+        cost: [
+            3,
+            Green,
+            Green,
+        ],
+        types: [Creature],
+        subtypes: [giant, wizard],
+        power: 4,
+        toughness: 4,
+        text: [
+            kinship(
+                triggered(
+                    beginningOfYour(Upkeep),
+                    may(
+                        lookAt(topSlice(1)),
+                        doIf(
+                            matches(it, shares(Subtype(Creature), Share, thisCreature)),
+                            may(reveal(it), gainLife(4)),
+                        ),
+                    ),
+                ),
+            ),
+        ],
+    ),
+))
