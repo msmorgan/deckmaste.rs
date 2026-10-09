@@ -2668,6 +2668,10 @@ semantic_macro transmute (arg0 : Semantics.Cost) : Semantics.Ability :=
 semantic_macro tribute (arg0 : Semantics.Amount) : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "tribute") [(Semantics.KeywordParam.number arg0)] [])
 
+/-- `keyword_abilities/typecycling.ron` -/
+semantic_macro typecycling (arg0 : Semantics.Predicate) (arg1 : Semantics.Cost) : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "typecycling") [(Semantics.KeywordParam.quality arg0), (Semantics.KeywordParam.cost arg1)] [])
+
 /-- `keyword_abilities/umbraArmor.ron` -/
 semantic_macro umbraArmor : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "umbraArmor") [] [(Semantics.Ability.static (Semantics.StaticSpec.replacement (Semantics.GameEvent.verbedEvent none (Semantics.Deed.action "destroy") (some (Semantics.NounPhrase.attachHost Semantics.AttachWord.enchanted Semantics.NounWord.permanent)) none none) [] none (Semantics.Instruction.sequentially [(Semantics.Instruction.clearDamage (Semantics.NounPhrase.attachHost Semantics.AttachWord.enchanted Semantics.NounWord.permanent)), (Semantics.Instruction.enact (Semantics.Deed.action "destroy") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.move (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Aura")))) (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare) (Semantics.ZoneExpr.zone Semantics.Zone.graveyard Semantics.ZoneScope.bare) [])))]) Semantics.ReplUse.repeatedly none))])
