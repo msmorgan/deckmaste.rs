@@ -119,71 +119,63 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta** (`zwkyqqyvxool`): bounded 360-face manifest, covered
-   300 → 343; total per-line Readings 10,356 → 13,683. Lost faces: none;
-   decreases, increases and digest-only changes: zero; gained: 43; validation
-   issues: zero. Before is the claim-line baseline at `nlvnvwnwovxs`, assembled
-   from the full `yntwupzymxxl` census and its landed *until* subset refresh
-   for trunk `lztruvkmznnx` (Exclude nominal Until attachments);
-   grammar and lexicon are unchanged between that refresh and claim `pvpozqvw`.
-   Selector: supported analysed text matching case-insensitive
-   `\bproduc(e|es|ed|ing)\b` (60 faces), plus 300 covered controls selected
-   by the existing diff command with seed 20261008. Evidence:
-   `target/english-v3/english-v3-produce-verb/{manifest,before,after,diff}.json`.
-   Post-refresh bounded recheck (`lrvlypxrqqrl`): same 360 faces, covered
-   343 and Readings 13,683; zero lost/gained/decreased/increased faces or
-   validation issues versus the pre-refresh after census. One digest-only
-   change: Sizzling Soloist, 1,728 → 1,728, inherited from trunk `yppxtnmu`.
-   Its wrong lexical-*have* Object-gap / Bare Passive *resolved* analysis is
-   replaced by the perfect adverbial-gap relative, under that ticket's
-   [orchestrator ruling R1](../done/english-v3-perfect-relative-adverbial-gap.md#landing-record).
-   Final baseline diff: gained 43, lost/decreased/increased 0, digest-only 1;
-   `refresh-diff.json` and `final-diff.json` hold the stock line-level diffs.
-2. **Witnesses** (`zwkyqqyvxool`): every ticket passage probed at zero before
-   implementation; each matching *add* control admitted a Reading with the
-   one-Reading probe cap. Complete after probes: Incubation Druid 2;
-   Break the Ice 1; Dictate of Karametra 4; Pale Moon 12; Mirari's Wake 4.
-   Tests retain these complete counts and select the relative, finite predicate
-   or declared ManaPhrase analysis through the existing helper.
-3. **Spot checks** (`zwkyqqyvxool`): Exotic Orchard, Reflecting Pool,
+1. **Census delta** (`kztqlmwwqpxw`): 360-face bounded manifest; covered
+   300 → 343, total per-line Readings 10,356 → 13,683. Gained 43; lost,
+   decreases and increases 0; digest-only 93; unchanged 224; validation
+   issues 0. Lost faces: none. Selector: supported analysed text matching
+   case-insensitive `\bproduc(e|es|ed|ing)\b` (60 faces), plus 300 covered
+   controls from the stock diff command, seed 20261008. Before is the
+   claim-line baseline at `nlvnvwnwovxs`, assembled from full `yntwupzymxxl`
+   and its landed *until* subset refresh for trunk `lztruvkmznnx`; no grammar
+   or lexical changes intervened before claim `pvpozqvw`. The original
+   Produce delta (`zwkyqqyvxool`) gained the same 43 faces with zero losses,
+   count decreases or digest-only changes. Refresh `yppxtnmu` corrected
+   Sizzling Soloist's lexical-*have* Object-gap / Bare Passive *resolved*
+   analysis to a perfect adverbial-gap relative, at unchanged count 1,728
+   ([project ruling R1](../done/english-v3-perfect-relative-adverbial-gap.md#landing-record)).
+   Refresh `ouzqotlx` brought 124 digest-only changes versus the preceding
+   recheck: its added absent cardinal-modifier field, documented in the
+   [cardinal landing](../done/english-v3-at-least-cardinal.md#landing-record).
+   Neither refresh changed any selected face's coverage or Reading count.
+   Stock evidence under `target/english-v3/english-v3-produce-verb/`:
+   `manifest.json`, `before.json`, `after.json`, `diff.json`,
+   `after-refresh.json`, `refresh-diff.json`, `after-cardinal-refresh.json`,
+   `cardinal-refresh-diff.json`, `cardinal-final-diff.json`.
+2. **Witnesses**: before implementation (`zwkyqqyvxool`), each ticket passage
+   probed at 0; each matching *add* control admitted a Reading with the
+   one-Reading cap. Complete after counts, retained by the final suite
+   (`kztqlmwwqpxw`): Incubation Druid 2; Break the Ice 1; Dictate of Karametra
+   4; Pale Moon 12; Mirari's Wake 4. Existing helpers select the Object-gap
+   Relative Clause, Finite Predicate or declared ManaPhrase analysis.
+3. **Spot checks** (`kztqlmwwqpxw`): Exotic Orchard, Reflecting Pool,
    Quirion Explorer, Fellwar Stone, Naga Vitalist, Harvester Druid and
    Sylvok Explorer each have 2 Readings; Mana Flare, Heartbeat of Spring and
-   Zhur-Taa Ancient each have 4. Selected analysis: Object-gap Relative Clause,
-   *could produce* (bare) or *land produced* (preterite), using Add's existing
-   noun-phrase Object frame. One table-driven test checks the ten complete
-   passages' counts and selected constituent spans.
-4. **Deviations and STOPs** (`zwkyqqyvxool`): one native `core.ron` verb
-   declaration rather than `verbs.ron`, whose loader would generate the
-   unattested gerund. *Producing* attestation: zero supported faces; the native
-   declaration omits that form and copies Add's two frames exactly. No grammar,
-   loader, frame inventory or glossary changes in this ticket; no superseded
-   route or ruling STOP. Refresh incorporated trunk `yppxtnmu` (grammar and
-   lexical data); its test-registration conflict was resolved by retaining
-   both modules. The bounded recheck and checks of the two affected crates
-   follow the user's refresh budget.
-   The six *mana produced by …* faces remain unread (0/6), and the three
-   multiplier faces remain unread (0/3), as scoped by rulings R16c–R16d.
-   The inherited schema-v7 binary's preliminary bounded baseline was discarded;
-   schema-v8 diff uses the archived landed baseline above. The extra lexical
-   regression and table-driven spot-check test enforce the ticket's pruning
-   and spot-check requirements. Ticket seed corrected to the user's 20261008.
-5. **Tests** (`zwkyqqyvxool`): `cargo test -p deckmaste_english_v3` passed (663 tests);
-   `cargo test -p deckmaste_lexical_source` passed (64 tests, both runs).
+   Zhur-Taa Ancient each have 4. Selected analysis: Object-gap Relative
+   Clause with bare *could produce* or preterite *land produced*, using
+   Add's noun-phrase Object frame. One table-driven test checks all ten
+   complete passages' counts and constituent spans.
+4. **Deviations and STOPs** (`kztqlmwwqpxw`): one native `core.ron` declaration
+   instead of `verbs.ron`, whose loader would generate the unattested gerund.
+   *Producing* attestation 0; its form is omitted, and Add's two frames are
+   copied exactly. No grammar, loader, frame-inventory or glossary changes
+   in this ticket; no superseded route or ruling STOP. The extra lexical
+   and ten-face tests enforce pruning and spot checks. The inherited
+   schema-v7 binary's preliminary bounded baseline was discarded. Seed
+   corrected to the user's 20261008. Refresh's test-registration conflict
+   was resolved by retaining both modules; grammar/lexical refreshes required
+   only bounded rechecks and checks of the two affected crates. R16c's six
+   *mana produced by …* faces remain unread (0/6); R16d's three multiplier
+   faces remain unread (0/3).
+5. **Tests** (`kztqlmwwqpxw`): `cargo test -p deckmaste_english_v3` passed
+   (676); `cargo test -p deckmaste_lexical_source` passed (64);
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed;
-   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed
-   after replacing the new empty-result assertion with a value comparison
-   (`assert_is_empty` lint); the full lexical-source test command was rerun
-   after that assertion fix and passed. All tests have zero failed/ignored.
-   Post-refresh (`lrvlypxrqqrl`): the same four commands passed: English tests
-   667, lexical-source tests 64, both clippy commands clean with warnings
-   denied; zero failed/ignored. The five witness and ten spot-check counts
-   and selected analyses remain unchanged in the refreshed English suite.
-   Restored 0; re-spelled 0; ignored-with-blocker 0; added 7 (five witness tests,
-   one ten-face spot-check test, one exact lexical paradigm/frame test);
-   removed 0. Citation checks: zero noncompliant and stale citations; diff audit
-   selects no new citation sites.
-6. **Timing** (`zwkyqqyvxool`): one bounded after census, 6.24 seconds wall
-   time, six workers, zero samples per face; peak RSS 1,370,520 KiB under
-   `/usr/bin/time -v`. Prebuilt schema-v8 binary; compilation excluded.
-   Post-refresh bounded recheck (`lrvlypxrqqrl`): 5.69 seconds, six workers,
-   zero samples per face, peak RSS 1,390,956 KiB; compilation excluded.
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Zero failed/ignored. Earlier lexical clippy found `assert_is_empty` in
+   the new test; replaced it with a value comparison and reran the full
+   lexical-source suite successfully. Restored 0 / re-spelled 0 /
+   ignored-with-blocker 0 / added 7 / removed 0: five witness tests, one
+   ten-face test, one exact lexical paradigm/frame test. No removals.
+   Citation checks: 0 noncompliant, 0 stale; diff audit selects no new sites.
+6. **Timing** (`kztqlmwwqpxw`): final bounded census, 11.74 seconds wall time,
+   six workers, zero samples per face, peak RSS 1,384,808 KiB under
+   `/usr/bin/time -v`; prebuilt schema-v8 binary, compilation excluded.
