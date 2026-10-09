@@ -194,9 +194,17 @@ the census. They share the segment walk; whichever lands second reuses it.
    a synthetic nested quoted Document checks structural segmentation and
    Unicode byte spans, without claiming an unattested Magic wording. The
    dated ADR amendment cites owner direction, not CGEL. No glossary gap or
-   unresolved STOP. User verification override omits xtask test execution
-   despite the ticket's Method; those tests are checked by clippy, and CLI
-   checks exercise limit, schema fallback, Type Lines and line diff.
+   Resolved STOP: sample cost expectation, described in item 5. The
+   orchestrator's standard brief initially omitted xtask
+   test execution; that template was not a user override of this ticket's
+   Method. Review requires `cargo test -p xtask english_v3`, recorded below.
+   CLI checks exercise limit, schema fallback, Type Lines and line diff.
+   Unparsed faces carry `lines: []`, without partial line records; this
+   deviates from the ticket's wording about displaying an unread line.
+   The largest single line in the full census is 43,560 Readings
+   (Necromentia, `yntwupzymxxl`), not 3,028. `census: one` means that every
+   line has exactly one Reading; consequently a face may be `one` while
+   `checked_readings` is greater than one (Revitalize has two).
 5. **Tests.** At `yntwupzymxxl`: `cargo test -p deckmaste_english_v3`
    passed (653 tests, zero failed/ignored);
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed;
@@ -204,18 +212,37 @@ the census. They share the segment walk; whichever lands second reuses it.
    four style errors (borrowed segment, explicit cycle arm, import placement,
    fixed-size byte chunks). No full test/census rerun after these equivalent
    style changes. At `yntwupzymxxl`: restored
-   0, re-spelled 3 (per-line cap/count assertions, line-digest terminology,
-   schema-7 fallback), ignored-with-blocker 0, added 10 (four English
+   0, re-spelled 3 before review (per-line cap/count assertions, line-digest
+   terminology, schema-7 fallback), ignored-with-blocker 0, added 10 (four English
    integration tests and six xtask tests), removed 0. Five CLI checks passed;
    three probe outputs unchanged; full census roundtrip/traversal issues 0.
    After the lexical dependency changed during refresh, bounded census
    issues remain 0 at `nlvnvwnwovxs`; the same English test and two clippy
    commands passed at `nlvnvwnwovxs`: English tests 657 passed, zero
    failed/ignored; both clippy commands passed with warnings denied.
+   Review verification at `tmupwxzuslok`: `cargo test -p xtask english_v3`
+   failed (46 passed, 1 failed, 0 ignored, 352 filtered out).
+   `cheapest_frequency_sample_preserves_all_readings_in_census` retains its
+   two Readings and selected FinitePredicate, but expects Document sample
+   cost 20; the sampled Ability has actual cost 19 after removing the
+   Document node. STOP resolved by orchestrator ruling (2026-10-09):
+   re-spell the sample cost assertion to 19 because the per-line Reading
+   no longer includes the Document node's cost of one; retain the
+   Reading-count and selected-analysis value comparisons. At `tmupwxzuslok`,
+   one additional test re-spelled for that reason (total re-spelled 4);
+   restored/ignored/added/removed counts unchanged. At `tmupwxzuslok`,
+   the one rerun of `cargo test -p xtask english_v3` passed: 47 passed,
+   0 failed, 0 ignored, 352 filtered out in the library; other test binaries
+   ran zero matching tests. The re-spelled sample-cost test passed.
 6. **Timing.** `yntwupzymxxl` after: one full census, 241.000 seconds,
    six workers. GNU `/usr/bin/time -v` maximum resident set size:
    `yntwupzymxxl` before 22,357,172 KiB → `yntwupzymxxl` after
-   17,215,724 KiB (23.0% reduction), identical worker count. Selector was
+   17,215,724 KiB, identical worker count. The before command includes a
+   cold cargo build (29:08 elapsed versus 724 seconds corpus wall): its
+   22,357,172 KiB maximum covers rustc, linker and census, so it is an
+   upper bound on census peak RSS. The earlier 23% reduction claim is
+   withdrawn; these measurements do not establish a census-only percentage.
+   The before census was not rerun. Selector was
    `--all --workers 6 --samples-per-face 0`; 32,828 faces. Iteration used
    the five witness names; the product proof used 300 seeded covered
    identities. Timing evidence: `before.time`, `after.time`, and report

@@ -523,7 +523,7 @@ fn cheapest_frequency_sample_preserves_all_readings_in_census() {
             .take(4)
             .any(|line| line.trim() == "category: FinitePredicate,")
     );
-    assert_eq!(serialized["samples"][0]["total_cost"], 20);
+    assert_eq!(serialized["samples"][0]["total_cost"], 19);
 }
 
 fn trace_card_draw(grammar: &Grammar) -> TracedValue {
