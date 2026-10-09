@@ -119,23 +119,29 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta**: bounded `before.json` → `after.json`, both measured on
-   `xrmmlsot` (before edits: claim-parent source `tzkmtpuw`; after: final feature
-   source): 568 → 670 covered faces; 81,933 → 335,418 Readings. `english-v3 diff`:
-   102 gained, 0 lost, 0 decreases, 0 increases on previously covered faces,
-   0 digest-only, 0 source changes; 1,041 unchanged. Lost faces: none.
-   Manifest: all 846 supported faces matching case-insensitive `" than "` plus
-   300 random covered controls (seed 20261008), 1,143 distinct faces; all
-   controls remained covered on the measured claim-parent source. Roundtrip,
-   lexical-identity and structural-traversal validation: 335,418 exact Readings,
-   0 issues on `xrmmlsot`.
+1. **Census delta**: bounded baseline on `xrmmlsot` before edits (original
+   claim-parent source `tzkmtpuw`), feature on `xrmmlsot` before refresh,
+   refreshed source on `kmzxuqpl`: 568 → 670 → 678 covered faces;
+   81,933 → 335,418 → 337,982 Readings. Final `english-v3 diff`: 110 gained,
+   0 lost, 0 decreases, 0 increases on previously covered faces, 0 digest-only,
+   0 source changes; 1,033 unchanged. Lost faces: none. The feature's 102 gains
+   are unchanged by refresh; the additional 8 gains come with trunk changes
+   `plkpqnqw` (bare-zone noun complements) and `spmtqknq` (get-object frames).
+   Refresh diff: 8 gained, 0 lost/decreases/increases/digest-only, 1,135
+   unchanged. Manifest: all 846 supported faces matching case-insensitive
+   `" than "` plus 300 random covered controls (seed 20261008), 1,143 distinct
+   faces; all controls were covered on the measured original claim-parent
+   source. Roundtrip, lexical-identity and structural-traversal validation:
+   337,982 exact Readings, 0 issues on `kmzxuqpl`.
 2. **Witnesses**: each before count is 0 on `xrmmlsot` before edits
-   (claim-parent source `tzkmtpuw`); after counts on `xrmmlsot`: Howlgeist 2;
-   Unliving Psychopath 7; Ensnaring Bridge 5; Immobilizer Eldrazi 3;
-   Kiora, Sovereign of the Deep 19. Every probe enumerated completely.
-   Controls on `xrmmlsot` before → after: “Destroy target creature with power
-   3 or less.” 3 → 3; “Its power is less than 3.” 1 → 1.
-3. **Spot checks** (`xrmmlsot`; full-face Reading counts): Ancient Lumberknot
+   (original claim-parent source `tzkmtpuw`); after counts on `xrmmlsot`,
+   unchanged on `kmzxuqpl` after refresh: Howlgeist 2; Unliving Psychopath 7;
+   Ensnaring Bridge 5; Immobilizer Eldrazi 3; Kiora, Sovereign of the Deep 19.
+   Every probe enumerated completely. Controls on `xrmmlsot` before → after,
+   unchanged on `kmzxuqpl`: “Destroy target creature with power 3 or less.”
+   3 → 3; “Its power is less than 3.” 1 → 1.
+3. **Spot checks** (`xrmmlsot`; full-face Reading counts unchanged on
+   `kmzxuqpl` after refresh): Ancient Lumberknot
    8 — toughness / greater than its power; Arni Metalbrow 12 — mana value /
    less than that creature's mana value; Aura Gnarlid 10 — power / less than
    this creature's power; Baird, Argivian Recruiter 2 — power / greater than
@@ -163,9 +169,12 @@ Deltas:
    require the ordinary full-complement Reading. Updated the existing Scalar
    Value glossary definition for orchestrator ruling R5a; no remaining glossary
    gap. CGEL is cited only for postpositive function.
-5. **Tests** (`xrmmlsot`): `cargo test -p deckmaste_english_v3` passed
-   (601 passed, 0 failed, 0 ignored); `cargo clippy -p deckmaste_english_v3
-   --tests -- -D warnings` passed. `cargo fmt -p deckmaste_english_v3` completed.
-   Assurance counts on `xrmmlsot`: restored 0, re-spelled 0, ignored-with-blocker
-   0, added 8, removed 0.
-6. **Timing**: final bounded census on `xrmmlsot`: 66.25 seconds, 12 workers.
+5. **Tests**: `cargo test -p deckmaste_english_v3` passed on `xrmmlsot`
+   before refresh (601 passed, 0 failed, 0 ignored) and on `kmzxuqpl` after
+   refresh (616 passed, 0 failed, 0 ignored). `cargo clippy -p
+   deckmaste_english_v3 --tests -- -D warnings` passed before and after refresh
+   on those same sources. `cargo fmt -p deckmaste_english_v3` completed on
+   `xrmmlsot`. Feature assurance counts on `xrmmlsot`, unchanged on `kmzxuqpl`:
+   restored 0, re-spelled 0, ignored-with-blocker 0, added 8, removed 0.
+6. **Timing**: final bounded refresh census on `kmzxuqpl`: 49.06 seconds,
+   12 workers.
