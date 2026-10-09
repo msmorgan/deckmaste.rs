@@ -256,8 +256,14 @@ constructions! {
         }
         feature IdentityUse { Name }
         feature NominalComplementMarker { None, Of } default None;
-        feature BarePrepositionUse { No, Yes } default No;
-        feature BareNominalComplement { No, Yes } default No;
+        feature BarePrepositionUse { No, Location, SpatialEdge } default No;
+        feature BareNominalComplement { No, Location, SpatialEdge } default No;
+        table bare_preposition_use(BarePrepositionUse) -> Selection {
+            (Location) => Yes, (SpatialEdge) => Yes,
+        }
+        table bare_nominal_complement(BareNominalComplement, BarePrepositionUse) -> Selection {
+            (Location, Location) => Yes, (SpatialEdge, SpatialEdge) => Yes,
+        }
         feature SelectedPrepositionUse { No, Yes } default No;
         table selected_preposition_concord(SelectedPrepositionUse, SelectedPrepositionUse)
             -> SelectedPrepositionUse {
@@ -2958,11 +2964,11 @@ constructions! {
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
             export SourceModifierPresent = head.SourceModifierPresent;
             form [head: Nominal];
-            require head.BarePrepositionUse = Yes;
+            require bare_preposition_use(head.BarePrepositionUse) = Yes;
             require head.number = Singular;
             require head.countability = Count;
             require head.DeterminerRequirement = No;
-            export BarePrepositionUse = Yes;
+            export BarePrepositionUse = head.BarePrepositionUse;
             use NounPhraseHeadAgreement;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
         }
@@ -3061,8 +3067,8 @@ constructions! {
             export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: NounPhrase];
-            require complement.BarePrepositionUse = Yes;
-            require head.BareNominalComplement = Yes;
+            require bare_nominal_complement(head.BareNominalComplement,
+                complement.BarePrepositionUse) = Yes;
             require noun_phrase_complement(head.PrepositionComplement) = Yes;
             export ObliqueNumber = oblique_number(head.ObliqueMarker, complement.number);
             export NominalComplementMarker = head.NominalComplementMarker;
@@ -3553,6 +3559,16 @@ constructions! {
         ] {
             use Properties;
         }
+        construction BareNominalPrepositionPassive: SecondaryVerbPhrase {
+            form [head: lexical(Verb), " ", marker: lexical(Preposition), " ",
+                complement: NounPhrase];
+            require selected_object_marker(head.frame, marker.KeywordMarker) = Yes;
+            require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
+            require bare_nominal_complement(marker.BareNominalComplement,
+                complement.BarePrepositionUse) = Yes;
+            use BarePassiveHead;
+        }
+
         schema SelectedGapLocativePredicate {
             form [head: lexical(Verb), " ", complement: LocativeComplement];
             require head.frame = ObjectLocative;

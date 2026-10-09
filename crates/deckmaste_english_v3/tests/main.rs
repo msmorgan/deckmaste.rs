@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "suite/bare_zone_noun_complement.rs"]
+mod bare_zone_noun_complement;
+
 #[path = "suite/central_adverb_position.rs"]
 mod central_adverb_position;
 

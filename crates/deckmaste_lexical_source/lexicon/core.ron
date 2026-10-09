@@ -119,6 +119,8 @@
         "vocab:SingularDemonstrative/That": {"NominalAdjunctDeterminer": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary", "DegreeUse": "Modifier"},
         "vocab:SingularDemonstrative/This": {"FusedHeadUse": "Yes", "NominalAdjunctDeterminer": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:RelativePronoun/Who": {"RelativeUse": "Yes"},
+        "lexeme:CommonNoun/Exile": {"BarePrepositionUse": "Location"},
+        "lexeme:CommonNoun/Hand": {"BarePrepositionUse": "Location"},
         "lexeme:CommonNoun/End": {"NominalBareClass": "Boundary"},
         "core-verb:Choose": {"PastParticipialPremodifier": "Yes"},
         "lexeme:keyword_action/exile": {"PastParticipialPremodifier": "Yes"},
@@ -211,11 +213,11 @@
         "vocab:Preposition/During": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "NominalBareClass": "Interval"},
         "vocab:Preposition/Except": {"MatrixComplementGovernor": "Yes", "MatrixComplementRequirement": "Content", "FiniteClauseComplement": "Nonsequencing", "PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
         "vocab:Preposition/For": {"NominalExceptionComplementUse": "Yes","AdverbComplementClass": "Duration", "PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Adjunct|Modifier|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "For"},
-        "vocab:Preposition/From": {"SourceMarker": "Yes", "PrepositionPhraseComplementLicence": "Source", "PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Modifier|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "KeywordMarker": "From"},
-        "vocab:Preposition/In": {"SelectedPrepositionUse": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|PredicativeComplement|Compound|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
-        "vocab:Preposition/Into": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Into"},
+        "vocab:Preposition/From": {"BareNominalComplement": "Location", "SourceMarker": "Yes", "PrepositionPhraseComplementLicence": "Source", "PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Modifier|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "KeywordMarker": "From"},
+        "vocab:Preposition/In": {"BareNominalComplement": "Location", "SelectedPrepositionUse": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|PredicativeComplement|Compound|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
+        "vocab:Preposition/Into": {"BareNominalComplement": "Location", "PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Into"},
         "vocab:Preposition/Of": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Compound", "PrepositionPhraseComplementLicence": "Unrestricted", "PrepositionFunctionLicence": "NounComplement|Modifier|PredicativeComplement", "ObliqueMarker": "Yes", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "NominalComplementMarker": "Of", "NominalBareClass": "Interval", "KeywordMarker": "Of"},
-        "vocab:Preposition/On": {"BareNominalComplement": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "On"},
+        "vocab:Preposition/On": {"BareNominalComplement": "SpatialEdge", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "On"},
         "vocab:Preposition/Onto": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Onto"},
         "vocab:Preposition/Outside": {"PrepositionFunctionLicence": "Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Over": {"PrepositionFunctionLicence": "Adjunct|Modifier|VerbComplement|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
@@ -1046,7 +1048,7 @@
         ),
         (
             id: "lexeme:CommonNoun/Top", lemma: "top", category: Noun,
-            properties: (countability: [Count], features: {"BarePrepositionUse": "Yes", "NominalComplementMarker": "Of"}, frames: [
+            properties: (countability: [Count], features: {"BarePrepositionUse": "SpatialEdge", "NominalComplementMarker": "Of"}, frames: [
                 (kind: "Nominal", items: []),
                 (kind: "Nominal", items: [Marked(vocabulary: "Preposition", member: "Of", slot: (relation: Complement, category: "NounPhrase"))]),
             ]),

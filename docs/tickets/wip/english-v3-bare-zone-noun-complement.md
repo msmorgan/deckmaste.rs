@@ -123,13 +123,76 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta**: bounded before → after (covered faces, Readings); lost
-   faces classified by name; decreases, increases, digest-only changes.
-2. **Witnesses**: each witness's Reading count before and after.
-3. **Spot checks**: ten newly covered faces with their selected Reading.
-4. **Deviations and STOPs**: constructions or tests added or removed beyond
-   the ticket's letter, with justification; every STOP and its resolution;
-   any glossary gap.
-5. **Tests**: commands and outcomes; restored, re-spelled, ignored with
-   blockers, added, removed.
-6. **Timing**: one bounded census wall time with worker count.
+1. **Census delta**: bounded `mqrlzszk` census snapshot (source-equivalent to
+   `qsupksky` and `vltmyvrw` at claim time) → `plkpqnqw`: 4,456 → 4,615
+   covered faces; 653,907 → 2,364,419 Readings. Gained 159; lost none;
+   decreases 0, increases 0, digest-only 0. Selector: supported analysed text
+   matching case-insensitive `exile| hand|on top` (6,185 faces), unioned with
+   300 covered controls selected by `english-v3 diff`, seed 20261008:
+   6,424 identities in `target/english-v3/english-v3-bare-zone-noun-complement/manifest.json`.
+   `diff.json` compares that identical manifest; no identity or source-hash
+   differences. All 6,424 faces completely enumerated at `plkpqnqw`, with
+   exact realization and structural traversal checked: 0 issues, internal
+   failures, duplicate Readings, limited or undetermined faces. The required
+   post-refresh bounded recheck at `uwtynnll` retained exactly those totals:
+   `diff-trunk.json` reports all 6,424 faces unchanged, including digests;
+   lost/gained/decreases/increases/digest-only/source changes all 0.
+   The final integration refresh recheck at `pxnrzlqm` again enumerated all
+   6,424 faces with 0 issues: covered 4,615 and Readings 2,364,419 unchanged;
+   lost/gained/decreases/increases/source changes 0, digest-only 50, unchanged
+   6,374 (`diff-integrate-refresh.json`). The 50 planeswalker digest changes
+   come from the incoming loyalty-sign analysis in `okwzvwqr`.
+2. **Witnesses**: probes before implementation at the `vltmyvrw` source all
+   had 0 admitted roots/Readings; each control admitted a Reading. Complete
+   witness-unit counts at `plkpqnqw`: Sea Gate Wreckage 7; Norin, Swift
+   Survivalist 5; Wild-Magic Sorcerer 8; Umbris, Fear Manifest 7; Ennis,
+   Debate Moderator 2. Full-face counts at `plkpqnqw`: respectively 7, 5,
+   8, 322, 54. R1b's attested constituent *the first spell you cast from
+   exile* retains both VP and NP attachment among 20 Readings at `plkpqnqw`.
+3. **Spot checks**: ten newly covered faces at `plkpqnqw`, each with an
+   inspected byte-exact Reading: Sea Gate Wreckage (7), Akki Underling (2)
+   and Barren Glory (3): *in* + bare count NP *hand*; Norin, Swift Survivalist
+   (5), Wild-Magic Sorcerer (8) and Appa, Steadfast Guardian (20): *from* +
+   bare count NP *exile*; Umbris, Fear Manifest (322) and Goliath Daydreamer
+   (1,253,700): *in* + bare count NP *exile*; Ennis, Debate Moderator (54)
+   and Ashnod's Intervention (4): passive *put* + *into* + bare count NP
+   *exile*. Each bare NP has its declared noun owner and no elided possessor.
+4. **Deviations and STOPs**: at `plkpqnqw`, refined the existing Boolean
+   licences to matching Location/SpatialEdge permissions on both grammar
+   and lexicon sides: the data-only experiment admitted unattested *on exile*.
+   Added 1 Construction, `BareNominalPrepositionPassive`, because the
+   existing selected passive requires an AccusativePhrase, excluding bare
+   NPs; the compiler requires every form to retain the same field Categories.
+   The new route admits only licensed bare complements and is disjoint from
+   the existing determined route. No frames or existing Constructions added
+   or retired beyond that addition; obsolete Boolean values removed on both
+   sides, legacy BareLocative declarations retained as scoped. Added control,
+   exclusion, R1b and independent-value assertions alongside the required
+   witnesses. An initial test build was queued prematurely and failed before
+   test execution because updated tests saw the older grammar artifact; the
+   completed source's final build passed. No STOPs. No glossary gaps remain:
+   updated Bare Preposition Use and Bare Nominal Complement; the spatial-edge
+   analysis remains attributed to its project ruling. Refresh brought in
+   landwalk derivation (`wtnuopxm`) and the face-down semantics landing
+   (`qnqztyrl`); the required bounded recheck at `uwtynnll` found no inherited
+   Reading decreases or other per-face changes. The integration refresh
+   brought pruning changes `okwzvwqr` and `uppoqxqy`; the bounded recheck
+   at `pxnrzlqm` found no inherited Reading decreases, only the 50 attributed
+   loyalty-sign digest changes.
+5. **Tests**: at `plkpqnqw`, `cargo test -p deckmaste_english_v3` passed
+   (588 tests; initial premature build failed as disclosed above);
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed;
+   `cargo test -p deckmaste_lexical_source` passed (61 tests);
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Assurance counts at `plkpqnqw`: restored 0, re-spelled 0, ignored with
+   blockers 0, added 8, removed 0. The same four commands passed again after
+   dependency changes from refresh, at `uwtynnll`: English-v3 588 tests;
+   lexical-source 62 tests, including the incoming class-selection test from
+   `wtnuopxm`. All four commands passed again after the final integration
+   refresh, at `pxnrzlqm`: English-v3 593 tests; lexical-source 62 tests;
+   both clippy runs passed with warnings denied. Independently constructed
+   PPs and the passive retain both
+   roundtrip laws. No xtask tests or Lean checks run.
+6. **Timing**: the landing's bounded census before refresh, at `plkpqnqw`,
+   took 609.01 seconds
+   wall time with 12 workers and `--samples-per-face 0`.

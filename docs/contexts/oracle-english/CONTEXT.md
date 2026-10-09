@@ -821,8 +821,9 @@ as Subject, Object, or Complement of a preposition.
 
 **Bare Preposition Use** (project term):
 The declared availability of a singular count Noun Phrase without a Determiner
-as the internal Complement of a preposition. The noun retains its Countability;
-this use does not license a bare count Subject or Object. In the right-branching
+as the internal Complement of a preposition, distinguishing a bare location
+from a spatial edge. The noun retains its Countability; this use does not
+license a bare count Subject or Object. In the right-branching
 analysis of *on top of the library*, *top of the library* is the Noun Phrase
 Complement of *on*. This is a [project ruling (2026-10-06)](../../tickets/done/english-v3-library-position.md#post-landing-fix-2026-10-06),
 grounded in *top of X* outside the idiom; CGEL, Ch. 7 §3.1, pp. 620–623 supplies
@@ -830,9 +831,8 @@ the competing analyses and diagnostics, not a decision for *on top of*.
 
 **Bare Nominal Complement** (project term):
 A preposition's declared permission to take a singular count Noun Phrase with
-Bare Preposition Use. Both the preposition and the nominal must license this
-distribution; the noun's permission alone does not make it a Complement of
-every preposition ([project ruling, 2026-10-06](../../tickets/done/english-v3-library-position.md#post-landing-fix-2026-10-06)).
+Bare Preposition Use, matched to the location or spatial-edge distribution.
+The noun's permission alone does not make it a Complement of every preposition ([project ruling, 2026-10-06](../../tickets/done/english-v3-library-position.md#post-landing-fix-2026-10-06)).
 
 **Nominal Complement Marker** (project term):
 A declared marker of a nominal head's selected Complement, such as *of* in
