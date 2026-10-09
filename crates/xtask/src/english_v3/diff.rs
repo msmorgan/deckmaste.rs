@@ -10,6 +10,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::ensure;
 use clap::Args;
 use serde::Deserialize;
 use serde::Serialize;
@@ -38,6 +39,10 @@ pub struct DiffArgs {
     /// Seed for choosing the `--random` controls.
     #[arg(long, value_name = "S", default_value_t = 0, requires = "manifest")]
     seed: u64,
+    /// Also list changed line counts and digests. Both reports must have line
+    /// arrays.
+    #[arg(long)]
+    lines: bool,
 }
 
 /// The per-face fields of a census report that the comparison reads. Unknown
@@ -51,6 +56,28 @@ pub(super) struct CensusFace {
     pub analyzed_source_sha256: String,
     pub checked_readings: usize,
     pub readings_sha256: Option<String>,
+    #[serde(default)]
+    pub lines: Option<Vec<CensusLine>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub(super) struct CensusLine {
+    pub span: (usize, usize),
+    pub checked_readings: usize,
+    pub readings_sha256: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct LineEntry {
+    id: String,
+    name: String,
+    line_index: usize,
+    before_span: Option<(usize, usize)>,
+    after_span: Option<(usize, usize)>,
+    before: Option<usize>,
+    after: Option<usize>,
+    before_digest: Option<String>,
+    after_digest: Option<String>,
 }
 
 impl CensusFace {
@@ -133,6 +160,8 @@ pub(super) struct Comparison {
     /// Faces covered in BEFORE and unchanged, eligible as manifest controls.
     #[serde(skip)]
     pub unchanged_covered: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    line_changes: Option<Vec<LineEntry>>,
 }
 
 pub(super) fn compare(
@@ -173,6 +202,7 @@ pub(super) fn compare(
         increases: Vec::new(),
         digest_only: Vec::new(),
         unchanged_covered: Vec::new(),
+        line_changes: None,
     };
     for b in &before.faces {
         let Some(a) = after_faces.get(b.id.as_str()) else {
@@ -281,6 +311,53 @@ fn write_text(result: &Comparison, out: &mut dyn Write) -> std::io::Result<()> {
     Ok(())
 }
 
+fn compare_lines(before: &CensusFile, after: &CensusFile) -> Result<Vec<LineEntry>> {
+    ensure!(
+        before
+            .faces
+            .iter()
+            .chain(&after.faces)
+            .all(|face| face.lines.is_some()),
+        "--lines requires line arrays on every face in both reports"
+    );
+    let after_faces: BTreeMap<_, _> = after.faces.iter().map(|face| (&face.id, face)).collect();
+    let mut result = Vec::new();
+    for b in &before.faces {
+        let Some(a) = after_faces.get(&b.id) else {
+            continue;
+        };
+        let b_lines = b.lines.as_ref().expect("line arrays checked");
+        let a_lines = a.lines.as_ref().expect("line arrays checked");
+        for index in 0..b_lines.len().max(a_lines.len()) {
+            let b_line = b_lines.get(index);
+            let a_line = a_lines.get(index);
+            if b_line.map(|line| (line.checked_readings, &line.readings_sha256))
+                == a_line.map(|line| (line.checked_readings, &line.readings_sha256))
+            {
+                continue;
+            }
+            result.push(LineEntry {
+                id: b.id.clone(),
+                name: a.display_name().to_owned(),
+                line_index: index,
+                before_span: b_line.map(|line| line.span),
+                after_span: a_line.map(|line| line.span),
+                before: b_line.map(|line| line.checked_readings),
+                after: a_line.map(|line| line.checked_readings),
+                before_digest: b_line.and_then(|line| line.readings_sha256.clone()),
+                after_digest: a_line.and_then(|line| line.readings_sha256.clone()),
+            });
+        }
+    }
+    result.sort_by(|a, b| {
+        a.name
+            .cmp(&b.name)
+            .then_with(|| a.id.cmp(&b.id))
+            .then_with(|| a.line_index.cmp(&b.line_index))
+    });
+    Ok(result)
+}
+
 fn short(change: &str) -> &str {
     change.get(..12).unwrap_or(change)
 }
@@ -333,8 +410,29 @@ pub(super) fn manifest(result: &Comparison, random: usize, seed: u64) -> Selecti
 pub fn run(args: &DiffArgs, out: &mut dyn Write) -> Result<()> {
     let before = load(&args.before)?;
     let after = load(&args.after)?;
-    let result = compare(&args.before, &before, &args.after, &after);
+    let mut result = compare(&args.before, &before, &args.after, &after);
+    if args.lines {
+        result.line_changes = Some(compare_lines(&before, &after)?);
+    }
     write_text(&result, out)?;
+    if let Some(lines) = &result.line_changes {
+        writeln!(out, "\nchanged lines ({}):", lines.len())?;
+        for line in lines.iter().take(LIST_CAP) {
+            writeln!(
+                out,
+                "  {} line {} {:?} -> {:?}: {:?} -> {:?}",
+                line.name,
+                line.line_index,
+                line.before_span,
+                line.after_span,
+                line.before,
+                line.after
+            )?;
+        }
+        if lines.len() > LIST_CAP {
+            writeln!(out, "  … and {} more", lines.len() - LIST_CAP)?;
+        }
+    }
     if let Some(path) = &args.json {
         std::fs::write(path, serde_json::to_vec_pretty(&result)?)
             .with_context(|| format!("writing {}", path.display()))?;
@@ -365,6 +463,7 @@ mod tests {
             analyzed_source_sha256: source.to_owned(),
             checked_readings: readings,
             readings_sha256: digest.map(str::to_owned),
+            lines: None,
         }
     }
 
@@ -537,5 +636,64 @@ mod tests {
         .unwrap();
         assert_eq!(file.change_id, None);
         assert_eq!(file.faces.len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod line_tests {
+    use super::*;
+
+    fn census(count: usize, digest: &str) -> CensusFile {
+        CensusFile {
+            change_id: None,
+            faces: vec![CensusFace {
+                id: "x".into(),
+                name: "X".into(),
+                face_name: None,
+                analyzed_source_sha256: "source".into(),
+                checked_readings: count,
+                readings_sha256: Some(digest.into()),
+                lines: Some(vec![CensusLine {
+                    span: (0, 4),
+                    checked_readings: count,
+                    readings_sha256: Some(digest.into()),
+                }]),
+            }],
+        }
+    }
+
+    #[test]
+    fn line_diff_reports_counts_digests_and_added_lines() {
+        let before = census(2, "a");
+        let count_change = compare_lines(&before, &census(3, "b")).unwrap();
+        assert_eq!(
+            (count_change[0].before, count_change[0].after),
+            (Some(2), Some(3))
+        );
+        let digest_change = compare_lines(&before, &census(2, "b")).unwrap();
+        assert_eq!(digest_change.len(), 1);
+        assert_eq!(digest_change[0].before_digest.as_deref(), Some("a"));
+        assert_eq!(digest_change[0].after_digest.as_deref(), Some("b"));
+        assert!(compare_lines(&before, &census(2, "a")).unwrap().is_empty());
+        let mut after = census(2, "a");
+        after.faces[0].lines.as_mut().unwrap().push(CensusLine {
+            span: (5, 9),
+            checked_readings: 1,
+            readings_sha256: Some("c".into()),
+        });
+        let added = compare_lines(&before, &after).unwrap();
+        assert_eq!(
+            (added[0].line_index, added[0].before, added[0].after),
+            (1, None, Some(1))
+        );
+    }
+
+    #[test]
+    fn line_diff_rejects_a_report_without_line_arrays() {
+        let mut before = census(2, "a");
+        before.faces[0].lines = None;
+        let after = census(2, "b");
+        assert!(compare_lines(&before, &after).is_err());
+        assert!(compare_lines(&after, &before).is_err());
     }
 }

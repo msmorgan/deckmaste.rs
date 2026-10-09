@@ -144,3 +144,68 @@ Reducing ambiguity itself (attachment policy). Packed / preferred-Reading
 selection is `english-v3-packed-preferred-readings`: that ticket avoids the
 same document cross product on the presentation path; this one removes it from
 the census. They share the segment walk; whichever lands second reuses it.
+
+## Landing record
+
+1. **Census delta.** `yntwupzymxxl` before (schema 7, unchanged claim-parent
+   grammar at launch) → `yntwupzymxxl` after (schema 8): 32,828 supported faces
+   and 26,536 covered faces on each side; checked Readings 3,725,990 document
+   combinations → 967,276 line Readings. Native `english-v3 diff` reports
+   lost 0, gained 0, decreases 2,547, increases 12,056, digest-only 11,933,
+   unchanged 6,292; identity-only and source-hash changes 0. Lost faces: none.
+   Decreases are the prescribed product-to-sum representation change; no
+   grammatical Reading was retired. The 300 covered identities selected by
+   native diff with seed 20261008 have zero u128 product mismatches against
+   the before counts (`yntwupzymxxl`, both phases). Evidence: `target/english-v3/
+   english-v3-per-line-readings/{before,after,diff,product-proof}.json` and
+   `product-table.tsv`; the before provenance records claim parent
+   `wnrmklzsqrwv` and claim `nxzntorpvzvo`.
+2. **Witnesses.** `yntwupzymxxl` after: Goliath Daydreamer 2,244
+   (lines 1,050 + 1,194; product 1,253,700); Chandra, Pyromaster 286
+   (12 + 4 + 270; product 12,960); Shadow Puppeteers 3,038
+   (1 + 9 + 3,028; product 27,252). Revitalize 2 (1 + 1); Forest 1
+   (empty Document). Before implementing, the three ticket probes exhibited
+   the old whole-Document enumeration; their capped outputs remain
+   byte-identical after. This ticket addresses representation and work, so
+   these witnesses have no admission failure.
+3. **Spot checks.** No newly covered faces by design. Ten covered names
+   checked at `yntwupzymxxl` after, with selected analysis and line-sum count:
+   Lightning Bolt 1 (proper-name Subject in a Declarative; both ordinary and
+   adventure faces); Seedborn Muse 6 (Imperative with clausal Preposition);
+   Serra Angel 2 (Flying and Vigilance Keyword Lines); Giant Growth 2
+   (Declarative with target Subject and duration); Llanowar Elves 1
+   (Activated Ability, tap Symbol Cost); Opt 2 (Scry and Draw Imperatives);
+   Abundant Growth 3 (Enchant Keyword Line, triggered clause, quoted
+   Activated Ability grant); Ajani's Pridemate 1 (Whenever initial
+   Preposition with clause complement); Revitalize 2 (gain-life Declarative
+   and Draw Imperative); Forest 1 (EmptyDocument). `spot-checks.json` holds
+   the selected samples for 11 faces under these ten names.
+4. **Deviations and STOPs.** No grammar construction, lexical frame,
+   admission guard or route added/deleted. EmptyDocument is represented by
+   one empty segment to preserve its existing coverage and single Reading.
+   Cycle and missing-segment diagnostics accompany ambiguous segmentation;
+   a synthetic nested quoted Document checks structural segmentation and
+   Unicode byte spans, without claiming an unattested Magic wording. The
+   dated ADR amendment cites owner direction, not CGEL. No glossary gap or
+   unresolved STOP. User verification override omits xtask test execution
+   despite the ticket's Method; those tests are checked by clippy, and CLI
+   checks exercise limit, schema fallback, Type Lines and line diff.
+5. **Tests.** At `yntwupzymxxl`: `cargo test -p deckmaste_english_v3`
+   passed (653 tests, zero failed/ignored);
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed;
+   `cargo clippy -p xtask --tests -- -D warnings` passed after correcting
+   four style errors (borrowed segment, explicit cycle arm, import placement,
+   fixed-size byte chunks). No full test/census rerun after these equivalent
+   style changes. At `yntwupzymxxl`: restored
+   0, re-spelled 3 (per-line cap/count assertions, line-digest terminology,
+   schema-7 fallback), ignored-with-blocker 0, added 10 (four English
+   integration tests and six xtask tests), removed 0. Five CLI checks passed;
+   three probe outputs unchanged; full census roundtrip/traversal issues 0.
+6. **Timing.** `yntwupzymxxl` after: one full census, 241.000 seconds,
+   six workers. GNU `/usr/bin/time -v` maximum resident set size:
+   `yntwupzymxxl` before 22,357,172 KiB → `yntwupzymxxl` after
+   17,215,724 KiB (23.0% reduction), identical worker count. Selector was
+   `--all --workers 6 --samples-per-face 0`; 32,828 faces. Iteration used
+   the five witness names; the product proof used 300 seeded covered
+   identities. Timing evidence: `before.time`, `after.time`, and report
+   `wall_ns`, under the ticket's target directory.

@@ -49,8 +49,9 @@ impl TracedValue {
     /// SHA-256 over the value identity and both independent traces, so a
     /// Reading whose trace differs is never merged with one that matches.
     pub(super) fn dedup_key(&self) -> [u8; 32] {
-        use sha2::Digest as _;
         use std::fmt::Write as _;
+
+        use sha2::Digest as _;
         struct HashWriter(sha2::Sha256);
         impl std::fmt::Write for HashWriter {
             fn write_str(&mut self, text: &str) -> std::fmt::Result {
@@ -256,6 +257,7 @@ pub(super) enum Issue {
     ConstructionTraversal,
     LexicalTraversal,
     DuplicateReading,
+    AmbiguousSegmentation,
 }
 
 pub(super) fn validate<'a>(

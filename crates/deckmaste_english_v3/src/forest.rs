@@ -1,4 +1,6 @@
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::ops::Range;
 
 use deckmaste_lexical::LexicalMatch;
 use deckmaste_lexical::Source;
@@ -9,6 +11,22 @@ use crate::Readings;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub struct CompletedId(pub(crate) usize);
+
+/// A constituent span and the packed completed nodes contributing its Readings.
+/// Coordinates are half-open Unicode-scalar offsets, as in the chart.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Segment {
+    pub span: Range<usize>,
+    pub nodes: BTreeSet<CompletedId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum SegmentationError {
+    #[error("root derivations disagree on constituent spans")]
+    Ambiguous,
+    #[error("cyclic derivation outside the requested segment Category")]
+    Cycle,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub(crate) struct IntermediateId(pub usize);
@@ -113,6 +131,121 @@ impl<C, S, T> Forest<C, S, T> {
     /// materializer's value identifies duplicate derivations, not admission.
     pub fn readings<M: Materializer<S, T>>(&self, materializer: M) -> Readings<'_, C, S, T, M> {
         Readings::new(self, materializer)
+    }
+
+    /// Enumerate the union of Readings of completed nodes from this forest.
+    /// Nodes obtained from a segment share its Category and span. Nested
+    /// constituents still materialize normally; no parent combinations are
+    /// built.
+    pub fn readings_from<M: Materializer<S, T>>(
+        &self,
+        nodes: &[CompletedId],
+        materializer: M,
+    ) -> Readings<'_, C, S, T, M> {
+        Readings::from_nodes(self, nodes, materializer)
+    }
+}
+
+impl<C: PartialEq, S, T> Forest<C, S, T> {
+    /// Walk packed root derivations, stopping at the first constituent of the
+    /// requested Category on each path. Its descendants are not segmented.
+    /// Alternative summaries at the same span contribute to the same segment.
+    /// No roots, or a root with no such constituents, yields no segments.
+    ///
+    /// # Errors
+    /// Reports disagreeing segment spans or a cycle outside a segment. It
+    /// never enumerates the Cartesian product of constituent Readings.
+    pub fn segments(&self, category: &C) -> Result<Vec<Segment>, SegmentationError> {
+        let mut walk = SegmentWalk {
+            forest: self,
+            category,
+            completed: BTreeMap::new(),
+            intermediate: BTreeMap::new(),
+            active: BTreeSet::new(),
+        };
+        let mut result = None;
+        for &root in &self.roots {
+            merge_segments(&mut result, walk.completed(root)?)?;
+        }
+        Ok(result.unwrap_or_default())
+    }
+}
+
+/// Alternatives must have identical ordered spans. Union only the completed
+/// nodes at corresponding spans, retaining every grammatical summary.
+fn merge_segments(
+    result: &mut Option<Vec<Segment>>,
+    alternative: Vec<Segment>,
+) -> Result<(), SegmentationError> {
+    let Some(current) = result else {
+        *result = Some(alternative);
+        return Ok(());
+    };
+    if current.len() != alternative.len()
+        || current
+            .iter()
+            .zip(&alternative)
+            .any(|(a, b)| a.span != b.span)
+    {
+        return Err(SegmentationError::Ambiguous);
+    }
+    for (current, alternative) in current.iter_mut().zip(alternative) {
+        current.nodes.extend(alternative.nodes);
+    }
+    Ok(())
+}
+
+struct SegmentWalk<'a, C, S, T> {
+    forest: &'a Forest<C, S, T>,
+    category: &'a C,
+    completed: BTreeMap<CompletedId, Vec<Segment>>,
+    intermediate: BTreeMap<IntermediateId, Vec<Segment>>,
+    active: BTreeSet<CompletedId>,
+}
+
+impl<C: PartialEq, S, T> SegmentWalk<'_, C, S, T> {
+    fn completed(&mut self, id: CompletedId) -> Result<Vec<Segment>, SegmentationError> {
+        if let Some(segments) = self.completed.get(&id) {
+            return Ok(segments.clone());
+        }
+        let node = &self.forest.completed[id.0];
+        if &node.category == self.category {
+            return Ok(vec![Segment {
+                span: node.start..node.end,
+                nodes: BTreeSet::from([id]),
+            }]);
+        }
+        if !self.active.insert(id) {
+            return Err(SegmentationError::Cycle);
+        }
+        let mut result = None;
+        for family in &node.families {
+            merge_segments(&mut result, self.intermediate(family.prefix)?)?;
+        }
+        self.active.remove(&id);
+        let result = result.unwrap_or_default();
+        self.completed.insert(id, result.clone());
+        Ok(result)
+    }
+
+    fn intermediate(&mut self, id: IntermediateId) -> Result<Vec<Segment>, SegmentationError> {
+        if let Some(segments) = self.intermediate.get(&id) {
+            return Ok(segments.clone());
+        }
+        let mut result = None;
+        for edge in &self.forest.intermediate[id.0].edges {
+            let mut alternative = Vec::new();
+            if let Edge::Append { prefix, child } = *edge {
+                alternative = self.intermediate(prefix)?;
+                if let Child::Completed(child) = child {
+                    alternative.extend(self.completed(child)?);
+                }
+            }
+            merge_segments(&mut result, alternative)?;
+        }
+        let result = result.unwrap_or_default();
+        self.intermediate.insert(id, result.clone());
+        Ok(result)
     }
 }
 

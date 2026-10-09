@@ -1006,3 +1006,169 @@ fn materializer_errors_are_visible_as_internal_failures() {
         Some(Err(MaterializeError::Build("broken construction")))
     );
 }
+
+#[test]
+fn packed_segments_union_summaries_without_expanding_the_document_product() {
+    let alternate = Summary {
+        count_use: Some(true),
+        ..Summary::default()
+    };
+    let fixture = Fixture::new(vec![
+        (
+            "D",
+            vec![nt("L"), lit("\n"), nt("L"), lit("\n"), nt("L")],
+            Action::Erase,
+            "document",
+        ),
+        ("L", vec![lit("a")], Action::Erase, "first reading"),
+        (
+            "L",
+            vec![lit("a")],
+            Action::Open(alternate),
+            "second reading",
+        ),
+    ]);
+    let lexicon = Lexicon::new([]).unwrap();
+    let input = lexicon.analyze_source("a\na\na", None);
+    let forest = parse(&fixture, &lexicon, &input, &"D").unwrap();
+    let segments = forest.segments(&"L").unwrap();
+    assert_eq!(
+        segments
+            .iter()
+            .map(|segment| segment.span.clone())
+            .collect::<Vec<_>>(),
+        [0..1, 2..3, 4..5]
+    );
+    assert!(segments.iter().all(|segment| segment.nodes.len() == 2));
+    let counts: Vec<_> = segments
+        .iter()
+        .map(|segment| {
+            let nodes: Vec<_> = segment.nodes.iter().copied().collect();
+            forest
+                .readings_from(&nodes, &fixture)
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap()
+                .len()
+        })
+        .collect();
+    assert_eq!(counts, [2, 2, 2]);
+    assert_eq!(counts.iter().sum::<usize>(), 6);
+    assert_eq!(
+        forest
+            .readings(&fixture)
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+            .len(),
+        counts.iter().product::<usize>()
+    );
+}
+
+#[test]
+fn packed_segments_stop_before_a_quoted_nested_document() {
+    let fixture = Fixture::new(vec![
+        (
+            "D",
+            vec![nt("L"), lit("\n"), nt("L")],
+            Action::Erase,
+            "two lines",
+        ),
+        ("D", vec![nt("L")], Action::Erase, "one line"),
+        ("L", vec![lit("é")], Action::Erase, "unicode line"),
+        ("L", vec![lit("b")], Action::Erase, "second line"),
+        (
+            "L",
+            vec![lit("\""), nt("D"), lit("\"")],
+            Action::Erase,
+            "quoted document",
+        ),
+    ]);
+    let lexicon = Lexicon::new([]).unwrap();
+    let input = lexicon.analyze_source("\"é\nb\"\né", None);
+    let forest = parse(&fixture, &lexicon, &input, &"D").unwrap();
+    let segments = forest.segments(&"L").unwrap();
+    assert_eq!(
+        segments
+            .iter()
+            .map(|segment| segment.span.clone())
+            .collect::<Vec<_>>(),
+        [0..5, 6..7]
+    );
+    assert_eq!(
+        input.byte_range(segments[0].span.start, segments[0].span.end),
+        Some(0..6)
+    );
+    let nodes: Vec<_> = segments[0].nodes.iter().copied().collect();
+    let line = forest
+        .readings_from(&nodes, &fixture)
+        .next()
+        .unwrap()
+        .unwrap();
+    let expected = Reading::Construction(
+        "quoted document",
+        Summary::default(),
+        None,
+        vec![
+            Reading::Literal("\"".into()),
+            Reading::Construction(
+                "two lines",
+                Summary::default(),
+                None,
+                vec![
+                    Reading::Construction(
+                        "unicode line",
+                        Summary::default(),
+                        None,
+                        vec![Reading::Literal("é".into())],
+                    ),
+                    Reading::Literal("\n".into()),
+                    Reading::Construction(
+                        "second line",
+                        Summary::default(),
+                        None,
+                        vec![Reading::Literal("b".into())],
+                    ),
+                ],
+            ),
+            Reading::Literal("\"".into()),
+        ],
+    );
+    assert_eq!(line, expected);
+}
+
+#[test]
+fn packed_segments_report_conflicting_root_segmentations() {
+    let fixture = Fixture::new(vec![
+        (
+            "D",
+            vec![nt("L"), lit("\n"), nt("L")],
+            Action::Erase,
+            "two lines",
+        ),
+        ("D", vec![nt("L")], Action::Erase, "one line"),
+        ("L", vec![lit("a")], Action::Erase, "first line"),
+        ("L", vec![lit("b")], Action::Erase, "second line"),
+        ("L", vec![lit("a\nb")], Action::Erase, "whole surface"),
+    ]);
+    let lexicon = Lexicon::new([]).unwrap();
+    let input = lexicon.analyze_source("a\nb", None);
+    let forest = parse(&fixture, &lexicon, &input, &"D").unwrap();
+    assert_eq!(
+        forest.segments(&"L"),
+        Err(deckmaste_english_v3::SegmentationError::Ambiguous)
+    );
+}
+
+#[test]
+fn packed_segments_report_cycles_outside_the_segment_category() {
+    let fixture = Fixture::new(vec![
+        ("D", vec![nt("D")], Action::Erase, "cycle"),
+        ("D", vec![], Action::Erase, "empty"),
+    ]);
+    let lexicon = Lexicon::new([]).unwrap();
+    let input = lexicon.analyze_source("", None);
+    let forest = parse(&fixture, &lexicon, &input, &"D").unwrap();
+    assert_eq!(
+        forest.segments(&"L"),
+        Err(deckmaste_english_v3::SegmentationError::Cycle)
+    );
+}

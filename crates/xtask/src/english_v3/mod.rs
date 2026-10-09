@@ -33,9 +33,9 @@ use rayon::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::english_v3::report::Census;
 use crate::english_v3::report::Enumeration;
 use crate::english_v3::report::FaceReport;
+use crate::english_v3::report::LineReport;
 use crate::english_v3::report::Measurements;
 use crate::english_v3::report::Report;
 use crate::english_v3::report::Sample;
@@ -87,10 +87,11 @@ pub struct EnglishV3Args {
     #[arg(long, required = true)]
     pub output: Option<PathBuf>,
     /// Reuse a complete census for lexicon-only changes; incompatible bases
-    /// or changes to grammar/runtime sources fall back to checking all selected faces.
+    /// or changes to grammar/runtime sources fall back to checking all selected
+    /// faces.
     #[arg(long)]
     pub incremental_from: Option<PathBuf>,
-    /// Cap candidate requests per face. Omit for a complete census.
+    /// Cap candidate requests per top-level line. Omit for a complete census.
     #[arg(long)]
     pub reading_limit: Option<NonZeroUsize>,
     /// Retain this many checked grammatical trees per face.
@@ -263,93 +264,40 @@ fn analyze_face(
             result.chart_wall_ns = started.elapsed().as_nanos();
             result.chart = report::chart_metrics(forest.metrics());
             let started = Instant::now();
-            let mut values = forest
-                .readings(Tracing::new(grammar))
-                .with_digest_dedup(crate::english_v3::validation::TracedValue::dedup_key);
-            let mut checked = BTreeSet::new();
-            let context = std::cell::OnceCell::new();
-            let mut requested = 0;
-            loop {
-                if args
-                    .reading_limit
-                    .is_some_and(|limit| requested >= limit.get())
-                {
-                    result.enumeration = Enumeration::Limited;
-                    break;
-                }
-                let Some(value) = values.next() else {
-                    result.enumeration = Enumeration::Complete;
-                    break;
-                };
-                requested += 1;
-                let value = match value {
-                    Ok(value) => value,
-                    Err(error) => {
-                        result
-                            .issues
-                            .push(Issue::Materialization(error.to_string()));
-                        continue;
+            let (segments, category) =
+                match census_segments(&forest, args.field.category(), analyzed.tokens.len()) {
+                    Ok(segments) => segments,
+                    Err(issue) => {
+                        result.issues.push(issue);
+                        (Vec::new(), args.field.category())
                     }
                 };
-                match validate_in_context(
-                    &value,
-                    &result.analyzed_source,
-                    args.field.category(),
+            let context = std::cell::OnceCell::new();
+            for segment in segments {
+                let span = analyzed
+                    .byte_range(segment.span.start, segment.span.end)
+                    .context("segment has invalid chart coordinates")?;
+                let line = analyze_line(
+                    &forest,
+                    &CensusSegment {
+                        span,
+                        nodes: segment.nodes.into_iter().collect(),
+                        category,
+                    },
+                    grammar,
+                    lexicon,
+                    args,
+                    &mut result,
                     context.get_or_init(|| {
                         deckmaste_english_v3::grammar::RealizationContext::new_scoped(
                             grammar,
                             lexicon,
-                            &result.analyzed_source,
+                            analyzed.text(),
                             &scope,
                         )
                     }),
-                ) {
-                    Ok(reading) => {
-                        if !checked.insert(value.dedup_key()) {
-                            result.issues.push(Issue::DuplicateReading);
-                            continue;
-                        }
-                        for node in value.nodes.iter() {
-                            if let deckmaste_english_v3::grammar::Value::Reading(node) = &**node {
-                                *result
-                                    .constructions
-                                    .entry(node.construction().to_owned())
-                                    .or_default() += 1;
-                            }
-                        }
-                        if args.samples_per_face != 0 {
-                            let total_cost =
-                                reading.total_cost().context("validated reading cost")?;
-                            if !report::sample_cost_would_be_retained(
-                                &result.samples,
-                                total_cost,
-                                args.samples_per_face,
-                            ) {
-                                continue;
-                            }
-                            let id = value.identity();
-                            if report::sample_would_be_retained(
-                                &result.samples,
-                                total_cost,
-                                id,
-                                args.samples_per_face,
-                            ) {
-                                report::retain_sample(
-                                    &mut result.samples,
-                                    Sample::new(reading, &value, lexicon, total_cost),
-                                    args.samples_per_face,
-                                );
-                            }
-                        }
-                    }
-                    Err(issue) => result.issues.push(issue),
-                }
-            }
-            result.readings = report::reading_metrics(values.metrics());
-            result.materializations = values.materializer().metrics();
-            result.checked_readings = checked.len();
-            if result.enumeration == Enumeration::Complete && result.issues.is_empty() {
-                result.readings_sha256 = Some(report::readings_digest(&checked));
+                )?;
+                result.lines.push(line);
             }
             result.validation_wall_ns = started.elapsed().as_nanos();
         }
@@ -358,21 +306,156 @@ fn analyze_face(
             result.issues.push(Issue::Parser(error.to_string()));
         }
     }
-    if !result.issues.is_empty() {
-        result.enumeration = Enumeration::Failed;
-    }
-    result.exact_readings =
-        (result.enumeration == Enumeration::Complete).then_some(result.checked_readings);
-    result.census = match (result.checked_readings, result.enumeration) {
-        (0, Enumeration::Complete) => Census::No,
-        (1, Enumeration::Complete) => Census::One,
-        (2.., _) => Census::Multiple,
-        _ => Census::Undetermined,
-    };
+    result.finish_readings();
     result.thread_cpu_ns = cpu_start
         .zip(report::thread_cpu_ns())
         .map(|(start, end)| end - start);
     Ok(result)
+}
+
+fn census_segments(
+    forest: &deckmaste_english_v3::GrammarForest<Grammar>,
+    category: Category,
+    length: usize,
+) -> Result<(Vec<deckmaste_english_v3::Segment>, Category), Issue> {
+    let whole = || {
+        vec![deckmaste_english_v3::Segment {
+            span: 0..length,
+            nodes: forest.roots().iter().copied().collect(),
+        }]
+    };
+    if category != Category::Document {
+        return Ok((whole(), category));
+    }
+    let segments = forest
+        .segments(&Category::Ability)
+        .map_err(|error| match error {
+            deckmaste_english_v3::SegmentationError::Ambiguous => Issue::AmbiguousSegmentation,
+            error @ deckmaste_english_v3::SegmentationError::Cycle => {
+                Issue::Materialization(error.to_string())
+            }
+        })?;
+    if segments.is_empty() && !forest.roots().is_empty() {
+        if length == 0 {
+            return Ok((whole(), Category::Document));
+        }
+        return Err(Issue::Materialization(
+            "nonempty Document has no top-level Ability segments".into(),
+        ));
+    }
+    Ok((segments, Category::Ability))
+}
+
+struct CensusSegment {
+    span: std::ops::Range<usize>,
+    nodes: Vec<deckmaste_english_v3::CompletedId>,
+    category: Category,
+}
+
+fn analyze_line(
+    forest: &deckmaste_english_v3::GrammarForest<Grammar>,
+    segment: &CensusSegment,
+    grammar: &Grammar,
+    lexicon: &Lexicon,
+    args: &EnglishV3Args,
+    result: &mut FaceReport,
+    context: &deckmaste_english_v3::grammar::RealizationContext<'_>,
+) -> Result<LineReport> {
+    let surface = &result.analyzed_source[segment.span.clone()];
+    let mut line = LineReport {
+        span: (segment.span.start, segment.span.end),
+        text_sha256: digest(surface.as_bytes()),
+        checked_readings: 0,
+        readings_sha256: None,
+        enumeration: Enumeration::Complete,
+    };
+    let issues_before = result.issues.len();
+    let mut values = forest
+        .readings_from(&segment.nodes, Tracing::new(grammar))
+        .with_digest_dedup(crate::english_v3::validation::TracedValue::dedup_key);
+    let mut checked = BTreeSet::new();
+    let mut requested = 0;
+    loop {
+        if args
+            .reading_limit
+            .is_some_and(|limit| requested >= limit.get())
+        {
+            line.enumeration = Enumeration::Limited;
+            break;
+        }
+        let Some(value) = values.next() else {
+            line.enumeration = Enumeration::Complete;
+            break;
+        };
+        requested += 1;
+        let value = match value {
+            Ok(value) => value,
+            Err(error) => {
+                result
+                    .issues
+                    .push(Issue::Materialization(error.to_string()));
+                continue;
+            }
+        };
+        match validate_in_context(&value, surface, segment.category, context) {
+            Ok(reading) => {
+                if !checked.insert(value.dedup_key()) {
+                    result.issues.push(Issue::DuplicateReading);
+                    continue;
+                }
+                for node in value.nodes.iter() {
+                    if let deckmaste_english_v3::grammar::Value::Reading(node) = &**node {
+                        *result
+                            .constructions
+                            .entry(node.construction().to_owned())
+                            .or_default() += 1;
+                    }
+                }
+                sample_line_reading(
+                    reading,
+                    &value,
+                    lexicon,
+                    &mut result.samples,
+                    args.samples_per_face,
+                )?;
+            }
+            Err(issue) => result.issues.push(issue),
+        }
+    }
+    for (key, count) in report::reading_metrics(values.metrics()) {
+        *result.readings.entry(key).or_default() += count;
+    }
+    let metrics = values.materializer().metrics();
+    result.materializations.leaf_requests += metrics.leaf_requests;
+    result.materializations.unique_leaves += metrics.unique_leaves;
+    result.materializations.build_requests += metrics.build_requests;
+    result.materializations.unique_builds += metrics.unique_builds;
+    line.checked_readings = checked.len();
+    if result.issues.len() != issues_before {
+        line.enumeration = Enumeration::Failed;
+    } else if line.enumeration == Enumeration::Complete {
+        line.readings_sha256 = Some(report::readings_digest(&checked));
+    }
+    Ok(line)
+}
+
+fn sample_line_reading(
+    reading: &deckmaste_english_v3::grammar::Reading,
+    value: &crate::english_v3::validation::TracedValue,
+    lexicon: &Lexicon,
+    samples: &mut Vec<Sample>,
+    limit: usize,
+) -> Result<()> {
+    if limit == 0 {
+        return Ok(());
+    }
+    let cost = reading.total_cost().context("validated reading cost")?;
+    if report::sample_cost_would_be_retained(samples, cost, limit)
+        && report::sample_would_be_retained(samples, cost, value.identity(), limit)
+    {
+        report::retain_sample(samples, Sample::new(reading, value, lexicon, cost), limit);
+    }
+    Ok(())
 }
 
 fn sum_metrics<'a>(

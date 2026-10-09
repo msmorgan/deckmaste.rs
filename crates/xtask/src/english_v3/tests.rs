@@ -215,30 +215,30 @@ fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
     let corpus = selected_corpus(&bytes);
     let grammar = Grammar::with_lexicon(lexicon());
     let one = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(Some(1))).unwrap();
-    for face in &one {
-        assert_eq!(face.checked_readings, 1);
+    for (face, expected) in one.iter().zip([1, 1, 2]) {
+        assert_eq!(face.checked_readings, expected);
         assert_eq!(face.exact_readings, None);
         assert_eq!(face.enumeration, Enumeration::Limited);
         assert_eq!(face.census, Census::Undetermined);
-        assert_eq!(face.readings["requests"], 1);
+        assert_eq!(face.readings["requests"], expected);
     }
     let two = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(Some(2))).unwrap();
     assert_eq!(two[0].checked_readings, 2);
     assert_eq!(two[0].census, Census::Multiple);
     assert_eq!(two[0].enumeration, Enumeration::Limited);
     assert_eq!(two[0].exact_readings, None);
-    for face in &two[1..] {
+    for (face, expected) in two[1..].iter().zip([1, 2]) {
         assert_eq!(face.census, Census::One);
-        assert_eq!(face.exact_readings, Some(1));
+        assert_eq!(face.exact_readings, Some(expected));
     }
     let all = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(None)).unwrap();
     assert_eq!(all[0].census, Census::Multiple);
     assert_eq!(all[0].enumeration, Enumeration::Complete);
     assert_eq!(all[0].exact_readings, Some(all[0].checked_readings));
-    for face in &all[1..] {
+    for (face, expected) in all[1..].iter().zip([1, 2]) {
         assert_eq!(face.census, Census::One);
         assert_eq!(face.enumeration, Enumeration::Complete);
-        assert_eq!(face.exact_readings, Some(1));
+        assert_eq!(face.exact_readings, Some(expected));
     }
     assert!(all.iter().all(|face| face.issues.is_empty()));
 }
@@ -670,8 +670,9 @@ fn cached_materializations_preserve_complete_values_and_independent_traces() {
     use std::collections::BTreeSet;
     use std::sync::Arc;
 
-    use crate::english_v3::validation::validate_in_context;
     use deckmaste_english_v3::grammar::RealizationContext;
+
+    use crate::english_v3::validation::validate_in_context;
 
     let grammar = Grammar::with_lexicon(lexicon());
     for text in [
@@ -711,9 +712,12 @@ fn cached_materializations_preserve_complete_values_and_independent_traces() {
 
 #[test]
 fn cached_validation_rejects_same_construction_with_different_lexical_identity() {
-    use crate::english_v3::validation::validate_in_context;
-    use deckmaste_english_v3::grammar::{RealizationContext, Value};
     use std::sync::Arc;
+
+    use deckmaste_english_v3::grammar::RealizationContext;
+    use deckmaste_english_v3::grammar::Value;
+
+    use crate::english_v3::validation::validate_in_context;
 
     let grammar = Grammar::with_lexicon(lexicon());
     // Reach Through Mists supplies the sentence; changing just a lexical leaf
@@ -1078,7 +1082,7 @@ fn base_json_roundtrip_and_old_schema_fallback_preserve_the_face_digests() {
     assert_eq!(mode.reused_faces.len(), corpus.faces.len());
     assert_eq!(mode.rechecked_faces, Vec::<String>::new());
     assert_eq!(comparable_faces(&copied), expected);
-    std::fs::write(args.output.as_ref().unwrap(), "{\"schema_version\":5}").unwrap();
+    std::fs::write(args.output.as_ref().unwrap(), "{\"schema_version\":7}").unwrap();
     let old = super::incremental::Base::load(args.output.as_ref().unwrap()).unwrap();
     let (full, mode) =
         super::incremental::analyze(&corpus, lexicon(), &grammar, &args, &snapshot, old).unwrap();
@@ -1170,4 +1174,32 @@ fn incremental_form_matching_uses_parser_input_after_reminder_removal() {
     assert!(mode.used);
     assert_eq!(mode.rechecked_faces, [corpus.faces[0].identity.clone()]);
     assert_eq!(mode.reused_faces, [corpus.faces[1].identity.clone()]);
+}
+
+#[test]
+fn census_segments_revitalize_and_realizes_each_line_in_the_whole_context() {
+    let bytes = serde_json::to_vec(&json!({"data": {
+        "Revitalize": [card(Some("You gain 3 life.\nDraw a card."), "Legal")]
+    }}))
+    .unwrap();
+    let corpus = selected_corpus(&bytes);
+    let grammar = Grammar::with_lexicon(lexicon());
+    let faces = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(None)).unwrap();
+    let face = &faces[0];
+    assert_eq!(face.checked_readings, 2);
+    assert_eq!(face.exact_readings, Some(2));
+    assert_eq!(face.census, Census::One);
+    assert_eq!(
+        face.lines
+            .iter()
+            .map(|line| (line.span, line.checked_readings))
+            .collect::<Vec<_>>(),
+        [((0, 16), 1), ((17, 29), 1)]
+    );
+    assert_eq!(
+        face.lines[0].text_sha256,
+        crate::raw_corpus::digest(b"You gain 3 life.")
+    );
+    assert!(face.issues.is_empty(), "{:?}", face.issues);
+    assert!(!face.constructions.contains_key("Document"));
 }

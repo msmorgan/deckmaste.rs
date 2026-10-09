@@ -18,6 +18,8 @@ pub use forest::CompletedId;
 pub use forest::Forest;
 pub use forest::Leaf;
 pub use forest::Metrics;
+pub use forest::Segment;
+pub use forest::SegmentationError;
 pub use readings::MaterializeError;
 pub use readings::Materializer;
 pub use readings::ReadingMetrics;

@@ -89,8 +89,15 @@ pub struct Readings<'a, C, S, T, M: Materializer<S, T>> {
 
 impl<'a, C, S, T, M: Materializer<S, T>> Readings<'a, C, S, T, M> {
     pub(crate) fn new(forest: &'a Forest<C, S, T>, materializer: M) -> Self {
-        let pending = forest
-            .roots
+        Self::from_nodes(forest, &forest.roots, materializer)
+    }
+
+    pub(crate) fn from_nodes(
+        forest: &'a Forest<C, S, T>,
+        nodes: &[CompletedId],
+        materializer: M,
+    ) -> Self {
+        let pending = nodes
             .iter()
             .rev()
             .map(|&id| Work {

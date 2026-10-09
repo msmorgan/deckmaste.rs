@@ -369,3 +369,19 @@ may be declared as NameNumber and read through a table. Aang and Katara takes
 plural agreement in its attested full-name Subject. Token names must be declared
 as full Names; Wasp on The Hive receives a lexical declaration, with a generated
 token-name catalog routed to recon. Neither repair is a scope exception.
+
+
+## Amendment: census Readings per top-level line (2026-10-09)
+
+Owner direction (2026-10-09), implemented by `english-v3-per-line-readings`:
+the census enumerates, validates, counts and digests Readings per top-level
+Ability constituent of a Document's packed forest. Nested quoted Documents
+remain within their containing line. A face's Reading set remains the product
+of its line sets; its reported count is their sum, with zero reported if any
+line is unread. EmptyDocument retains its one Reading as an empty segment.
+Type Lines are single segments. Conflicting root segmentations are issues.
+
+The per-face digest used in landing records is SHA-256 of the ordered raw
+32-byte line digests. Each line digest still hashes its complete validated
+Reading set. Every grammatical Reading remains retained: this changes census
+representation and enumeration work, not admission or either roundtrip law.
