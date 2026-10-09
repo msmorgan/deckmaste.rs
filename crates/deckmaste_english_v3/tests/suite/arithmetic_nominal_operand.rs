@@ -155,6 +155,7 @@ fn unlicensed_operands_and_preposition_functions_stay_excluded() {
 fn numeral(value: i32) -> Reading {
     Reading::UngroupedScalarNumeral {
         form: 0,
+        modifier: None,
         head: Word {
             value: LexicalReading::Numeral {
                 value,

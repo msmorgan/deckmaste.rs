@@ -155,7 +155,7 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta** (candidate `lrolnmwo`, claim parent `lvnyoktx`). The
+1. **Census delta**, pre-refresh (candidate `lrolnmwo`, claim parent `lvnyoktx`). The
    widened identity manifest contains 1,614 faces: 235 supported faces matching
    case-insensitive `\b(plus|minus)\b`, 1,157 matching `\bX is\b` (67
    overlap), plus 300 covered random faces selected by the built-in diff with
@@ -185,6 +185,23 @@ Deltas:
    faces all preserve both counts and digests, satisfying R10e condition 3
    as clarified by R10f; the 18 newly covered faces are retained. There are no
    outside-surface losses, decreases, increases or digest-only changes.
+
+   Post-refresh on `tyqmlwll` (source includes the rebased `lrolnmwo`): same
+   1,614-face manifest, 1,144 covered and 58,810 Readings. Official
+   `diff-final.json` against the original claim-parent report: 88 gained,
+   zero lost, one decrease, zero increases, 263 digest-only, 1,262 unchanged;
+   no source changes or unmatched faces. The refresh-only `diff-refresh.json`
+   (`lrolnmwo` pre-refresh → `tyqmlwll`) has two gained, zero lost, one
+   decrease, zero increases, 323 digest-only, 1,288 unchanged. Refresh gains
+   Liliana, Untouched by Death (15) and Paladin Elizabeth Taggerdy (12) are
+   attributed to `ouzqotlx`'s bounded cardinal modifier. The sole decrease,
+   **Bronze Cudgels 7 → 4**, is inherited from `yppxtnmu`: the stock line diff
+   identifies its first Ability line changing 6 → 3, while Equip stays 1.
+   That trunk landing retires the wrong lexical-*have* Object-gap / Bare
+   Passive *resolved* analysis in favour of the perfect adverbial-gap relative
+   (its landing's ruling R1). This ticket removes no Reading. Refresh-only
+   digests reflect imported cardinal modifier fields and temporal-relative
+   analysis; the 18 retained R10e gains are distinct from those trunk gains.
 
 2. **Witnesses** (`lrolnmwo`). Each quoted witness failed before implementation
    on the claim parent (zero Readings); its control yielded a Reading.
@@ -255,6 +272,14 @@ Deltas:
    guard or test weakening is needed. Five of the 18 gains are checked in
    item 3 and the full-suite test.
 
+   Refresh imported grammar and lexicon from `yppxtnmu` and `ouzqotlx`.
+   The registration conflict was resolved in `lrolnmwo` by retaining both
+   arithmetic and at-least test modules; no test was dropped. The new
+   independent numeral builder supplies the imported optional Cardinal
+   Modifier's `None`, preserving its full-value and roundtrip assertions.
+   The unchanged bounded manifest and full changed-crate suites are rechecked
+   after refresh under the orchestrator's R10f verification instruction.
+
 5. **Tests** (`lrolnmwo`, after R10e/R10f). Full suites and clippy passed:
    `cargo test -p deckmaste_english_v3` — 668 passed, zero failed/ignored;
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` — passed;
@@ -268,9 +293,22 @@ Deltas:
    No xtask tests or Lean checks. Logs: `tests-r10f.log`, `clippy-r10f.log`,
    `lexical-tests-r10f.log`, `lexical-clippy-r10f.log` in the evidence directory.
 
+   After grammar/lexicon refresh, on `tyqmlwll`, the same commands were run
+   again with full suites: `cargo test -p deckmaste_english_v3` passed 681
+   tests; `cargo test -p deckmaste_lexical_source` passed 63 (28 unit + 35
+   integration). Both runs have zero failed, ignored or filtered tests and
+   zero doctests. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` both
+   passed. Logs: `tests-after-refresh.log`, `lexical-tests-after-refresh.log`,
+   `clippy-after-refresh.log`, `lexical-clippy-after-refresh.log`.
+   Citation checks report zero noncompliant and zero stale citations; the
+   diff audit selects zero new CR citation sites, so no bless is needed.
+
 6. **Timing** (`lrolnmwo`). The widened bounded candidate census took
    **15.53 s wall**, 6 workers, zero samples per face, peak RSS
    **3,118,080 KiB**, measured by `/usr/bin/time -v` with a prebuilt
    `target/debug/cargo-xtask`; compilation is excluded. The matching
    claim-parent run (`ynwyqszn`, empty child of `lvnyoktx`) took 15.58 s,
-   peak RSS 3,062,196 KiB. Neither run used `--all`.
+   peak RSS 3,062,196 KiB. The post-refresh bounded run on `tyqmlwll` took
+   **37.39 s wall**, 6 workers, zero samples, peak RSS **2,687,612 KiB**,
+   again with a prebuilt binary under `/usr/bin/time -v`. No run used `--all`.
