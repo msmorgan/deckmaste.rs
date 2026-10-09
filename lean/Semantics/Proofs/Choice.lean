@@ -81,12 +81,12 @@ theorem badZeroGroup :
 theorem okModalTwoModes :
     Instruction.check []
       (.chooseModes (upTo 1)
-        [(none, destroy (target artifact)), (none, destroy (target enchantment))]) = [] := by
+        [(none, none, destroy (target artifact)), (none, none, destroy (target enchantment))]) = [] := by
   decide
 
 /-- "Choose one — Destroy target artifact." -/
 theorem badModalOneMode :
-    Instruction.check [] (.chooseModes (upTo 1) [(none, destroy (target artifact))])
+    Instruction.check [] (.chooseModes (upTo 1) [(none, none, destroy (target artifact))])
       = [.atLeastTwo] := by
   decide
 
@@ -94,14 +94,14 @@ theorem badModalOneMode :
 theorem okModalTwoOfTwo :
     Instruction.check []
       (.chooseModes (exactly 2)
-        [(none, destroy (target artifact)), (none, destroy (target enchantment))]) = [] := by
+        [(none, none, destroy (target artifact)), (none, none, destroy (target enchantment))]) = [] := by
   decide
 
 /-- "Choose three — Destroy target artifact; or destroy target enchantment." -/
 theorem badModalOverreach :
     Instruction.check []
       (.chooseModes (exactly 3)
-        [(none, destroy (target artifact)), (none, destroy (target enchantment))])
+        [(none, none, destroy (target artifact)), (none, none, destroy (target enchantment))])
       = [.modesFit] := by
   decide
 
@@ -580,5 +580,64 @@ theorem badDomainContentsAndSort :
 theorem okAbilityDomainContentsAndSort :
     Predicate.check (.quality .ability) []
       (.qualityNoun .ability (some (.abilitiesAmong [.the (.named "flying")]))) = [] := by decide
+
+/-! ## Mode Changes (`semantics-v2-modal-choice`) -/
+
+/-- Entwine {1}: "you may choose all modes instead … pay an additional {1}" [CR#702.42a]. -/
+theorem okModeChoiceEntwine :
+    StaticSpec.check [] (.modeChoice (.allInstead (some (.mana [generic 1])) none)) = [] := by
+  decide
+
+/-- "If you control an artifact, you may choose both instead." -/
+theorem okModeChoiceConditionalBoth :
+    StaticSpec.check []
+      (.modeChoice (.allInstead none
+        (some (.exists_ (.described .bare (.and [artifact, .hasPossessor .controller .you]))))))
+      = [] := by
+  decide
+
+/-- Escalate {2} [CR#702.120a]. -/
+theorem okModeChoiceEscalate :
+    StaticSpec.check [] (.modeChoice (.extraModesCost (.mana [generic 2]))) = [] := by decide
+
+/-- Escalate's payments are counted by the existing paid facet: "the number of times its
+escalate cost was paid" [CR#702.120a]. -/
+theorem okEscalateTimesPaid :
+    Amount.check [] (timesPaid (.byKeyword (.named "escalate")) thisSpell) = [] := by decide
+
+/-- Spree: one or more [CR#702.172a]. -/
+theorem okModeChoiceSpree :
+    StaticSpec.check [] (.modeChoice (.setQuantity (atLeast 1))) = [] := by decide
+
+/-- Tiered: exactly one [CR#702.183a]. -/
+theorem okModeChoiceTiered :
+    StaticSpec.check [] (.modeChoice (.setQuantity (exactly 1))) = [] := by decide
+
+/-- A mode count of zero is no choice. -/
+theorem badModeChoiceZero :
+    StaticSpec.check [] (.modeChoice (.setQuantity (upTo 0))) = [.nonZeroQ] := by decide
+
+/-- "You may choose the same mode more than once" [CR#700.2d]. -/
+theorem okModeChoiceRepeatable : StaticSpec.check [] (.modeChoice .repeatable) = [] := by decide
+
+/-- "Choose one that hasn't been chosen this turn". -/
+theorem okModeChoiceNotChosenThisTurn :
+    StaticSpec.check [] (.modeChoice (.notChosenBefore soFarThisTurn)) = [] := by decide
+
+/-- "Choose up to five {P} worth of modes. {P} — Draw a card. {P}{P} — Destroy target
+artifact." [CR#700.2i] -/
+theorem okModalWorth :
+    Instruction.check []
+      (.chooseModes (.worth 5)
+        [(none, some 1, draw (.lit 1)), (none, some 2, destroy (target artifact))]) = [] := by
+  decide
+
+/-- "Choose up to zero {P} worth of modes" chooses nothing. -/
+theorem badModalWorthZero :
+    Instruction.check []
+      (.chooseModes (.worth 0)
+        [(none, some 1, draw (.lit 1)), (none, some 2, destroy (target artifact))])
+      = [.nonZeroQ] := by
+  decide
 
 end Semantics.Proofs.Choice

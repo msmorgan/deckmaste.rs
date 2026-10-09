@@ -427,6 +427,27 @@ theorem badEntwineWithoutModes :
           text := [keywordCosting (.named "entwine") (.mana [generic 2])] }) = [.modalFrame] := by
   decide
 
+/-- "You may choose the same mode more than once", with no modes to change: a Mode Change
+needs a modal ability on the same text. -/
+theorem badModeChoiceWithoutModes :
+    Card.check
+      (one
+        { name := some "", cost := some [pip .red], types := [.sorcery],
+          text := [.static (.modeChoice .repeatable)] }) = [.modalFrame] := by
+  decide
+
+/-- "Whenever you draw a card, choose one that hasn't been chosen this turn — Draw a card; or
+destroy target artifact.": a Mode Change over a triggered ability's modes [CR#700.2b]. -/
+theorem okModeChoiceOnTriggeredModes :
+    Card.check
+      (one
+        { name := some "", cost := some [generic 3], types := [.artifact],
+          text :=
+            [ .triggered (.draws .you) [] none [] none none none
+                (chooseModes (exactly 1) [draw (.lit 1), destroy (target artifact)]),
+              .static (.modeChoice (.notChosenBefore soFarThisTurn)) ] }) = [] := by
+  decide
+
 theorem jointCrossAbilityChoice :
     Card.check
       (.singleFaced

@@ -8,8 +8,10 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use deckmaste_semantics_v2::abilities::Ability;
+use deckmaste_semantics_v2::abilities::Cost;
 use deckmaste_semantics_v2::abilities::CounterKindSource;
 use deckmaste_semantics_v2::abilities::Instruction;
+use deckmaste_semantics_v2::abilities::ModeChange;
 use deckmaste_semantics_v2::abilities::PipPaid;
 use deckmaste_semantics_v2::abilities::StaticSpec;
 use deckmaste_semantics_v2::card::Card;
@@ -1413,5 +1415,43 @@ fn a_substitutes_pips_read_at_their_own_kind() {
                 },
             },
         ]
+    );
+}
+
+/// A mode is its cost, its weight and its instruction [CR#700.2h,700.2i], and
+/// a Mode Change reads at its own kind: entwine's "choose all modes instead"
+/// for a cost [CR#702.42a].
+#[test]
+fn a_mode_carries_its_weight_and_a_mode_change_reads() {
+    let builtin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin");
+    let prelude = Plugin::load(builtin).expect("the builtin declarations load");
+    let draw: Instruction = prelude
+        .macros
+        .read_str("draw(1)")
+        .expect("\"draw a card\" reads");
+    let modal: Instruction = prelude
+        .macros
+        .read_str("chooseModes(worth(5), [(None, Some(1), draw(1)), (None, Some(2), draw(1))])")
+        .expect("a pawprint choice reads");
+    assert_eq!(
+        modal,
+        Instruction::ChooseModes {
+            quantity: Quantity::Worth { n: 5 },
+            modes: vec![(None, Some(1), draw.clone()), (None, Some(2), draw)],
+        }
+    );
+    let cost: Cost = prelude.macros.read_str("mana([1])").expect("{1} reads");
+    let entwine: StaticSpec = prelude
+        .macros
+        .read_str("modeChoice(allInstead(Some(mana([1])), None))")
+        .expect("entwine's Mode Change reads");
+    assert_eq!(
+        entwine,
+        StaticSpec::ModeChoice {
+            change: ModeChange::AllInstead {
+                cost: Some(cost),
+                condition: None,
+            },
+        }
     );
 }
