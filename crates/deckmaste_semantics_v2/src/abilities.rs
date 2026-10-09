@@ -679,7 +679,36 @@ pub enum StaticSpec {
     /// "<subject> is a Combatant": the creature-like combat rules apply to it
     /// [CR#120.3e,302.6,508.1a,509.1a,701.14a]. A quality of a permanent, not
     /// an ability [CR#113.12]; the creature type definition confers it.
-    Combatant { subject: NounPhrase },
+    Combatant {
+        subject: NounPhrase,
+    },
+    /// A Mode Change: modifies how the modes of the spell or ability it is
+    /// printed with are chosen [CR#700.2,702.42a,702.120a].
+    ModeChoice {
+        change: ModeChange,
+    },
+}
+
+/// How a Mode Change modifies its own spell's `chooseModes`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum ModeChange {
+    /// "You may choose all modes instead": for `cost` (entwine
+    /// [CR#702.42a]), or when `condition` holds ("if COND, you may choose
+    /// both instead").
+    AllInstead {
+        cost: Option<Cost>,
+        condition: Option<Condition>,
+    },
+    /// "For each mode you choose beyond the first, you pay an additional
+    /// [cost]" (escalate [CR#702.120a]).
+    ExtraModesCost { cost: Cost },
+    /// The number of modes chosen: spree's one or more, tiered's one
+    /// [CR#702.172a,702.183a].
+    SetQuantity { quantity: Quantity },
+    /// "You may choose the same mode more than once" [CR#700.2d].
+    Repeatable,
+    /// "Choose one that hasn't been chosen [within]".
+    NotChosenBefore { within: Duration },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -1176,7 +1205,8 @@ pub enum Instruction {
     },
     ChooseModes {
         quantity: Quantity,
-        modes: Vec<(Option<Cost>, Instruction)>,
+        /// Each mode's cost [CR#700.2h], weight [CR#700.2i] and instruction.
+        modes: Vec<(Option<Cost>, Option<u32>, Instruction)>,
     },
     Delay {
         event: GameEvent,

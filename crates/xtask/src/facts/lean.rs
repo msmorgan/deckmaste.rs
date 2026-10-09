@@ -253,7 +253,8 @@ fn event_regime(event: &GameEvent) -> Option<Regime> {
 /// A static component's regime (Lean `StaticSpec.regimeFits`): an
 /// additional cost or a cost change is determined as the spell is cast
 /// [CR#601.2f], and a Mana Substitute applies as its total cost is paid
-/// [CR#702.51b,601.2h]; a permission to cast the card is open; any other static
+/// [CR#702.51b,601.2h], and a Mode Change as its modes are chosen
+/// [CR#601.2b,700.2a]; a permission to cast the card is open; any other static
 /// ability functions off the stack.
 fn static_regime(spec: &StaticSpec) -> FormRegime {
     match spec {
@@ -263,9 +264,8 @@ fn static_regime(spec: &StaticSpec) -> FormRegime {
         StaticSpec::Conditional { spec, .. } => static_regime(spec),
         StaticSpec::AddedCost { .. }
         | StaticSpec::CostShift { .. }
-        | StaticSpec::PaySubstitute { .. } => {
-            FormRegime::Determined(Some(Regime::AtCasting))
-        }
+        | StaticSpec::PaySubstitute { .. }
+        | StaticSpec::ModeChoice { .. } => FormRegime::Determined(Some(Regime::AtCasting)),
         StaticSpec::AltCost { .. } => FormRegime::Open,
         StaticSpec::DeonticRule {
             compulsion, rider, ..

@@ -224,6 +224,9 @@ pub const SAMPLES: &[&str] = &[
     // ManaSubstitute.
     "(action: Shuffle(pile: That), pays: [Generic])",
     "(action: DrawGame, pays: [Generic])",
+    // ModeChange.
+    "Repeatable",
+    "ExtraModesCost(cost: ItsManaCost)",
     // Last: the absent value, which hides the hole it fills. No param type
     // reads it; it is here for an `Any` hole at an `Option` position.
     "None",
@@ -501,6 +504,7 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "CharacteristicBundle" => render::<abilities::CharacteristicBundle>,
         "PipPaid" => render::<abilities::PipPaid>,
         "ManaSubstitute" => render::<abilities::ManaSubstitute>,
+        "ModeChange" => render::<abilities::ModeChange>,
         "FaceDown" => render::<abilities::FaceDown>,
         "MoveRider" => render::<abilities::MoveRider>,
         "EntryRider" => render::<abilities::EntryRider>,

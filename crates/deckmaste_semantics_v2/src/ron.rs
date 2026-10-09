@@ -86,6 +86,9 @@ pub fn kinds() -> KindSet {
     // substitute itself, a record the `substitute` helper builds.
     kinds.add(crate::abilities::PipPaid::kind());
     kinds.add(Kind::new("ManaSubstitute"));
+    // A Mode Change's rows (`allInstead(…)`, `setQuantity(…)`), which the
+    // `modeChoice` static carries.
+    kinds.add(crate::abilities::ModeChange::kind());
     // The face-down spec, a record the `exiledFaceDown`/`faceDownCreature`
     // helpers build.
     kinds.add(Kind::new("FaceDown"));
@@ -392,6 +395,7 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::abilities::ManaSubstitute>("ManaSubstitute");
     types.add_typed::<crate::abilities::PipPaid>("PipPaid");
     types.add_typed::<Vec<crate::abilities::PipPaid>>("PipPaids");
+    types.add_typed::<crate::abilities::ModeChange>("ModeChange");
     types.add_typed::<u32>("Nat");
     types.add_typed::<crate::words::NounWord>("NounWord");
     types.add_typed::<crate::words::Ordinal>("Ordinal");

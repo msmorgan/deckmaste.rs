@@ -32,6 +32,7 @@ use crate::words::Comparator;
 use crate::words::CounterKind;
 use crate::words::Deed;
 use crate::words::DesignationLabel;
+use crate::words::EventSide;
 use crate::words::FlipCall;
 use crate::words::KeywordLabel;
 use crate::words::KeywordTerm;
@@ -46,14 +47,13 @@ use crate::words::NameAgreement;
 use crate::words::NounWord;
 use crate::words::Ordinal;
 use crate::words::OutcomeSort;
-use crate::words::EventSide;
 use crate::words::PaidCostName;
+use crate::words::Period;
 use crate::words::PlayerGroupWord;
 use crate::words::Plurality;
 use crate::words::PossessorAxis;
 use crate::words::ProjAxis;
 use crate::words::QualitySort;
-use crate::words::Period;
 use crate::words::Reach;
 use crate::words::RollExtreme;
 use crate::words::RoundMode;
@@ -238,9 +238,13 @@ pub enum TurnRef {
     Current,
     Previous,
     /// The next turn, or the next of `player`'s turns.
-    Next { player: Option<Box<NounPhrase>> },
+    Next {
+        player: Option<Box<NounPhrase>>,
+    },
     /// Each turn, or each of `player`'s turns.
-    Each { player: Option<Box<NounPhrase>> },
+    Each {
+        player: Option<Box<NounPhrase>>,
+    },
     /// A turn after the current one [CR#702.170d].
     Later,
     That,
@@ -262,11 +266,21 @@ pub enum Timing {
         event: Box<GameEvent>,
     },
     /// "while …": an event underway.
-    WhileDoing { event: Box<GameEvent> },
-    OnlyIf { condition: Box<Condition> },
-    And { conjuncts: Vec<Timing> },
-    Or { disjuncts: Vec<Timing> },
-    Not { timing: Box<Timing> },
+    WhileDoing {
+        event: Box<GameEvent>,
+    },
+    OnlyIf {
+        condition: Box<Condition>,
+    },
+    And {
+        conjuncts: Vec<Timing>,
+    },
+    Or {
+        disjuncts: Vec<Timing>,
+    },
+    Not {
+        timing: Box<Timing>,
+    },
 }
 
 /// How long an effect lasts, or the span a lookback reads. With no duration
@@ -730,6 +744,11 @@ pub enum Quantity {
     },
     ExactlyOf {
         amount: Box<Amount>,
+    },
+    /// "Up to N {P} worth of modes": any modes whose weights total at most
+    /// `n` [CR#700.2i].
+    Worth {
+        n: u32,
     },
 }
 
