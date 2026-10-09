@@ -579,6 +579,12 @@ mimicked.
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.
+- **The Idris counter table is no longer a test subject (2026-10-09).** The
+  counter-kind arm of `every_stub_has_a_row_or_a_recorded_reason` (`facts
+  labels`) stops reading `MkCounterFacts` rows from the deletion-bound
+  `idris/src/Experimental/Words.idr`. Every counter-kind stub must instead
+  have a row in the generated Lean `counterFacts` table, which `cargo xtask
+  facts check` keeps current with the stubs. (Ruling, 2026-10-09, owner.)
 
 ## 8. Process
 

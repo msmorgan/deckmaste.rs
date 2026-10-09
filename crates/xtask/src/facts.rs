@@ -5,7 +5,8 @@
 //!
 //! `facts generate` writes both modules; `facts check` rejects drift in either
 //! one. `facts labels` retains the reference Idris label-set audit and its
-//! scope exceptions.
+//! scope exceptions, except for counter kinds, whose stubs it checks against
+//! the generated Lean `counterFacts` table (ruling 2026-10-09).
 
 mod lean;
 
@@ -1544,11 +1545,11 @@ const ACT_SCOPE: &str = "every deed a keyword-action stub [CR#701] enacts wants 
                          turn-and-game deed vocabulary (attack, block, draw, …), which is wider \
                          than [CR#701], so the row-without-a-stub direction is informational.";
 
-const COUNTER_SCOPE: &str = "every counter-kind stub wants a `counterFacts` row; a row need not \
-                             have a stub — `counterFacts` carries the counter kinds the CR names \
-                             [CR#122.1] and the printed ones the corpus attests, which is wider \
-                             than the RON counter-kind macros, so the row-without-a-stub \
-                             direction is informational.";
+const COUNTER_SCOPE: &str = "every counter-kind stub wants a row labelled with its declared name \
+                             in the generated Lean `counterFacts` table, so a stale generated \
+                             table fails here; the Idris counter table is no longer a subject \
+                             (ruling 2026-10-09). The row-without-a-stub direction is \
+                             informational.";
 
 const DESIGNATION_SCOPE: &str = "both directions bind, over the labels the declarations \
                                  declare, through the Idris alias list below for the four whose \
@@ -1664,18 +1665,6 @@ fn normalize(label: &str) -> String {
         .chars()
         .filter(char::is_ascii_alphanumeric)
         .flat_map(char::to_lowercase)
-        .collect()
-}
-
-/// Every label captured by `MkCounterFacts "…"`-style positional rows.
-fn table_labels(src: &str, ctor: &str) -> Vec<String> {
-    let head = format!("{ctor} \"");
-    src.lines()
-        .filter_map(|line| {
-            let rest = line.split_once(&head)?.1;
-            let (label, _) = rest.split_once('"')?;
-            Some(label.to_owned())
-        })
         .collect()
 }
 
@@ -1853,23 +1842,31 @@ fn report(t: &Table) -> bool {
         && (!t.rows_bind || missing_stubs.is_empty())
 }
 
-/// The counter stubs' printed spellings. The workbench spells the +1/+1 and
-/// -1/-1 counters as `BoostCounter`, not as a label, and a keyword counter
-/// [CR#122.1b] as the eligible keyword's own row.
-fn counter_stub_spellings(dir: &Path) -> anyhow::Result<Vec<String>> {
-    let mut spellings = Vec::new();
-    for name in stub_names(dir)? {
-        if name == "p1p1Counter" || name == "m1m1Counter" {
-            continue;
-        }
-        let path = dir.join(format!("{name}.ron"));
+/// The counter stubs' declared names, read off each stub's `name` field.
+fn counter_stub_names(dir: &Path) -> anyhow::Result<Vec<String>> {
+    let mut names = Vec::new();
+    for stem in stub_names(dir)? {
+        let path = dir.join(format!("{stem}.ron"));
         let src =
             fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-        let spelling =
-            stub_field(&src, "spelling").with_context(|| format!("{name}: no `spelling` field"))?;
-        spellings.push(spelling.trim_matches('"').to_owned());
+        let name = stub_field(&src, "name").with_context(|| format!("{stem}: no `name` field"))?;
+        names.push(name.trim_matches('"').to_owned());
     }
-    Ok(spellings)
+    Ok(names)
+}
+
+/// The labels of the generated Lean `counterFacts` table, read off its
+/// `⟨"label", holder⟩` rows.
+fn lean_counter_labels(src: &str) -> anyhow::Result<Vec<String>> {
+    let (_, rest) = src
+        .split_once("def counterFacts : List CounterFacts :=")
+        .context("no `counterFacts` table in the Lean facts module")?;
+    let body = rest.split("\ndef ").next().unwrap_or(rest);
+    Ok(body
+        .split("⟨\"")
+        .skip(1)
+        .filter_map(|row| row.split_once('"').map(|(label, _)| label.to_owned()))
+        .collect())
 }
 
 fn run_labels(root: &Path) -> anyhow::Result<()> {
@@ -1877,13 +1874,12 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
     let words = fs::read_to_string(&words_path)
         .with_context(|| format!("reading {}", words_path.display()))?;
 
-    let mut counter_rows = table_labels(&words, "MkCounterFacts");
+    let lean_path = root.join(lean::GENERATED);
+    let lean_facts = fs::read_to_string(&lean_path)
+        .with_context(|| format!("reading {}", lean_path.display()))?;
+    let counter_rows = lean_counter_labels(&lean_facts)?;
     let declarations =
         deckmaste_construction_core::macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
-    counter_rows.extend(lean::counter_eligible_keywords(
-        &declarations,
-        &root.join("plugins_v2/builtin"),
-    )?);
 
     let tables = [
         Table {
@@ -1907,7 +1903,7 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
         Table {
             name: "counter kinds",
             scope: COUNTER_SCOPE,
-            stubs: counter_stub_spellings(&root.join(COUNTER_STUBS))?,
+            stubs: counter_stub_names(&root.join(COUNTER_STUBS))?,
             rows: counter_rows,
             stub_exempt: &[],
             row_exempt: &[],
