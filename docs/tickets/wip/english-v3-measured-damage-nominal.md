@@ -157,11 +157,18 @@ Deltas:
    controls (seed 20261008). All enumerations complete; every Reading checked
    byte-exact; issues, duplicates and internal failures 0. Stock diff evidence:
    `target/english-v3/english-v3-measured-damage-nominal/diff.json`.
+   Review refresh measured at `ttwuwpxuonzm`: 5,283 → 5,366 covered;
+   2,244,417 → 2,510,941 Readings; 83 trunk gains, lost/decreases/increases
+   0, digest-only 561 (`diff-refresh.json`). Combined delta from measured
+   parent: gained 209, lost/decreases/increases 0, digest-only 573
+   (`diff-final.json`); all 2,510,941 Readings exact, all faces complete,
+   issues/duplicates/internal failures 0.
 2. **Witnesses** (`pplynlpnqzxn`, complete probes): Hold at Bay 18;
    Esper Battlemage 18; Anoint 18; Barbed Wire 42; Kitsune Healer 18.
    All five were probed at 0 on refreshed parent code before implementation.
    `Prevent 3 damage.`, `Add 3 mana.`, and `deals 3 damage to any target`
    remain 1. Bare numeric damage with a relative or PP remains 0.
+   All witness and control counts remain identical on refreshed `ttwuwpxuonzm`.
 3. **Spot checks** (`pplynlpnqzxn`): ten confirmed newly covered faces,
    each selecting a byte-exact determined `CardinalMeasuredNominal` with a
    `SubjectRelativeNominal`: Hold at Bay, Anoint, Kitsune Healer, Alabaster
@@ -183,7 +190,12 @@ Deltas:
    expected sets. Closed NP routes remain intact. The existing Cardinal
    Measurement Use glossary entry is clarified; no glossary gap remains.
    Environment STOP resolved by the owner's approval of foreground Python
-   RSS accounting in place of unavailable GNU time. No outstanding STOP.
+   RSS accounting in place of unavailable GNU time. Review refresh appended
+   test modules on both sides of `tests/main.rs`; retained both and resolved
+   the conflict. Its 64 comparative-value gains come from trunk `xrmmlsotvqpw`;
+   19 anywhere gains from `uzrzywomopku` / `rwxrkzuwrrqq`. All 561 refresh
+   digest changes contain the inherited `PostpositiveNominal`, generalized
+   to a schema by `rwxrkzuwrrqq`; their counts are preserved. No outstanding STOP.
 5. **Tests** (`pplynlpnqzxn`): `cargo test -p deckmaste_english_v3` passed
    (625 tests); `cargo test -p deckmaste_lexical_source` passed (27 unit +
    35 integration); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
@@ -192,8 +204,14 @@ Deltas:
    The initial corrective run's two coordination failures were fixed in
    grammar before the final successful run. Restored outcomes 5; re-spelled
    1 invalid bare-Nominal fixture for the existing quantity projection;
-   ignored 0; added 7; removed 0. No xtask tests or Lean checks.
+   ignored 0; added 7; removed 0. On refreshed `ttwuwpxuonzm`, reran only
+   the same four commands for the affected crates: English 641 passed,
+   lexical source 27 + 35 passed, both clippy commands passed. No xtask
+   tests or Lean checks.
 6. **Timing** (`pplynlpnqzxn`): one 7,322-face bounded candidate census,
    six workers, 710.44 s wall; peak process-tree RSS 18,547,256 KiB
    (18.99 GB), sampled from `/proc` every two seconds under a foreground
-   30 GB kill guard. Kernel `wait4` peak 18,543,840 KiB. Guard not triggered.
+   30 GB kill guard. Kernel `wait4` peak 18,543,840 KiB. Required bounded
+   recheck after grammar/lexicon refresh (`ttwuwpxuonzm`): same 7,322 faces,
+   six workers, 874.84 s wall, peak process-tree RSS 21,951,868 KiB
+   (22.48 GB); kernel peak 21,949,240 KiB. Neither guard triggered.
