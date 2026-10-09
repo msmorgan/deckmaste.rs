@@ -69,8 +69,8 @@
         "core-verb:Have": {"PurposeAdjunctLicence": "No"},
         // Oracle-register stative exclusion: orchestrator ruling 2026-10-08.
         "core-verb:Be": {"PurposeAdjunctLicence": "No", "AuxiliaryUse": "Yes", "CentralAdjunctPosition": "PostCopula"},
-        "core-verb:BeNegative": {"PurposeAdjunctLicence": "No", "AuxiliaryUse": "Yes", "CentralAdjunctPosition": "PostCopula"},
-        "core-verb:BeContracted": {"PurposeAdjunctLicence": "No", "AuxiliaryUse": "Yes", "CentralAdjunctPosition": "PostCopula"},
+        "core-verb:BeNegative": {"PurposeAdjunctLicence": "No", "CentralAdjunctPosition": "PostCopula"},
+        "core-verb:BeContracted": {"PurposeAdjunctLicence": "No", "CentralAdjunctPosition": "PostCopula"},
         "core-verb:Remain": {"PurposeAdjunctLicence": "No"},
         "core-verb:Control": {"PurposeAdjunctLicence": "No"},
         "core-verb:Own": {"PurposeAdjunctLicence": "No"},
