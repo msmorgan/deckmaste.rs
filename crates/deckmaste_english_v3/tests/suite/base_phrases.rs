@@ -170,7 +170,7 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
         Category::InfinitiveComplement,
     );
     let mut choose = word("core-verb:Choose", WordForm::Plain, None);
-    choose.frame = Some(2);
+    choose.frame = Some(1);
     let predicate = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,
         form: 0,

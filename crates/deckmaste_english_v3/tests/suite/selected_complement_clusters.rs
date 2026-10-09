@@ -71,6 +71,13 @@ fn noun(id: &str) -> Reading {
     }
 }
 
+fn mass_noun(id: &str) -> Reading {
+    Reading::Noun {
+        form: 0,
+        head: noun_word(id, false),
+    }
+}
+
 fn case(head: Reading, category: Category) -> Reading {
     Reading::CasePhrase {
         category,
@@ -99,7 +106,7 @@ fn damage(value: i32) -> Reading {
                 countability: None,
             },
         }),
-        head: noun_word("lexeme:CommonNoun/Damage", false),
+        head: Box::new(mass_noun("lexeme:CommonNoun/Damage")),
     })
 }
 
@@ -393,6 +400,7 @@ fn would(predicate: Reading) -> Reading {
 fn avacyn_recipient_stays_with_the_lexical_passive_below_both_auxiliaries() {
     // Actual constituent of Avacyn, Guardian Angel's first activated ability.
     let selected = Reading::SelectedGapPrepositionPredicate {
+        modifier: None,
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: verb("core-verb:Deal", WordForm::PastParticiple, 4),
@@ -755,7 +763,7 @@ fn all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets()
                                 modifier: None,
                                 head: numeral(3),
                             }),
-                            head: noun_word("lexeme:CommonNoun/Life", false),
+                            head: Box::new(mass_noun("lexeme:CommonNoun/Life")),
                         })),
                     )],
                 },

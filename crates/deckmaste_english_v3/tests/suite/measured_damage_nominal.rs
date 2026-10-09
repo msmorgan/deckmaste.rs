@@ -93,20 +93,23 @@ fn amount(owner: &str) -> Reading {
                 countability: None,
             },
         }),
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: owner.into(),
-                form: WordForm::Singular,
-                features: FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
-                },
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
-            }),
-            frame: None,
-            countability: Some(false),
-        },
+        head: Box::new(Reading::Noun {
+            form: 0,
+            head: Word {
+                value: LexicalReading::Word(LexicalValue {
+                    lexeme: owner.into(),
+                    form: WordForm::Singular,
+                    features: FeatureBundle {
+                        number: Some(Number::Singular),
+                        ..Default::default()
+                    },
+                    variant: 0,
+                    capitalization: SurfaceCase::Declared,
+                }),
+                frame: None,
+                countability: Some(false),
+            },
+        }),
     }
 }
 

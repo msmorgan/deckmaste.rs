@@ -252,3 +252,6 @@ mod asyndetic_premodifier_coordination;
 
 #[path = "suite/next_time_relative_adjunct.rs"]
 mod next_time_relative_adjunct;
+
+#[path = "suite/divided_as_you_choose.rs"]
+mod divided_as_you_choose;

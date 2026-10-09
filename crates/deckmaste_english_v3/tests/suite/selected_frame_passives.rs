@@ -151,6 +151,7 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
     // Planar Void: "Whenever another card is put into a graveyard from
     // anywhere, exile that card."
     let expected = Reading::SelectedGapPrepositionPredicate {
+        modifier: None,
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: verb("core-verb:Put", WordForm::PastParticiple, 3),
@@ -175,6 +176,7 @@ fn authentic_selected_object_and_passive_gap_preserve_frame_and_marker() {
     let marker = invariant("vocab:Preposition/To", SurfaceCase::Declared);
     assert!(
         Reading::SelectedGapPrepositionPredicate {
+            modifier: None,
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head,

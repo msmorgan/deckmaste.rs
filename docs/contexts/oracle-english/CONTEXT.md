@@ -272,6 +272,28 @@ _Avoid_: past subjunctive; treating irrealis as a Past Tense
 **Irrealis Clause**:
 A finite Clause whose Predicate contains an Irrealis verb.
 
+**Scalar Measurement Head Use** (project term):
+A mass noun's declared permission to head a scalar measurement Noun Phrase.
+The Nominal retains it through a participial Postmodifier; other nominal
+expansions do not create a second attachment for the measured phrase
+(divided-as-you-choose implementation, 2026-10-09).
+
+**Comparative Object Gap Licence** (project term):
+A verb's declared permission for its Object gap to occur in a comparative-clause
+Complement, distinct from its ordinary relative-clause gaps. This attested
+capability restricts the new manner route under the R12f safety ruling
+(orchestrator, 2026-10-09); it does not license a temporal clause as a
+comparative clause.
+
+**Finite Object Gap Complement** (project term):
+A Preposition's declared permission to take a finite Clause with an Object Gap
+as its Complement (orchestrator ruling R12f, 2026-10-09).
+
+**Intervening Adjunct Licence** (project term):
+A phrase head's declared permission for its Adjunct phrase to precede a
+preposition-marked verb Complement, without preceding an Object Noun Phrase
+(orchestrator ruling R12f, 2026-10-09).
+
 **Irrealis Clause Complement** (project term):
 A Preposition's declared permission to take a finite Content Clause with an
 Irrealis Predicate. It does not itself license a grammatical function or

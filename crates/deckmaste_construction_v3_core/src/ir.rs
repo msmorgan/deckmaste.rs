@@ -122,6 +122,7 @@ pub(crate) enum Segments {
     Discharge(usize, usize),
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Symbol {
     Literal(String),
     Lexical(String),

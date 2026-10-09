@@ -1188,3 +1188,36 @@ fn equal_surfaces_with_different_child_categories_retain_both_forms() {
     assert_eq!(first, second);
     compile(declaration).unwrap();
 }
+
+#[test]
+fn alternate_child_categories_retain_their_form_specific_admission() {
+    let declaration = quote! { mod valid {
+        category A(); category B(); category Parent();
+        construction A: A { form [head: lexical(Noun)]; }
+        construction B: B { form [head: lexical(Adjective)]; }
+        construction Parent: Parent {
+            form [child: A];
+            form [child: B];
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    assert_eq!(ir.constructors[2].forms.len(), 2);
+    assert_ne!(
+        ir.constructors[2].forms[0].fields,
+        ir.constructors[2].forms[1].fields
+    );
+    let forms = &ir.constructors[2].forms;
+    assert_ne!(
+        ir.rules[forms[0].rule].symbols,
+        ir.rules[forms[1].rule].symbols
+    );
+    compile(declaration).unwrap();
+    rejects(
+        quote! { mod bad {
+            category A(); category Parent();
+            construction A: A { form [head: lexical(Noun)]; }
+            construction Parent: Parent { form [child: A]; form [child: Missing]; }
+        } },
+        "unknown constituent Category",
+    );
+}

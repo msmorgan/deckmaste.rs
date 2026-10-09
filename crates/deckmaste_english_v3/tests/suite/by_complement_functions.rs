@@ -153,6 +153,7 @@ fn avacyn_passive() -> Reading {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(Reading::SelectedGapPrepositionPredicate {
+            modifier: None,
             category: Category::SecondaryVerbPhrase,
             form: 0,
             head: word("core-verb:Deal", WordForm::PastParticiple, Some(4), None),
@@ -444,12 +445,7 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
                     modifier: None,
                     head: numeral(3, Numeral::Arabic(false)),
                 }),
-                head: word(
-                    "lexeme:CommonNoun/Life",
-                    WordForm::Singular,
-                    None,
-                    Some(false),
-                ),
+                head: Box::new(noun("lexeme:CommonNoun/Life", WordForm::Singular, false)),
             },
         )))],
     };
