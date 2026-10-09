@@ -130,6 +130,15 @@ Deltas:
    `\bproduc(e|es|ed|ing)\b` (60 faces), plus 300 covered controls selected
    by the existing diff command with seed 20261008. Evidence:
    `target/english-v3/english-v3-produce-verb/{manifest,before,after,diff}.json`.
+   Post-refresh bounded recheck (`lrvlypxrqqrl`): same 360 faces, covered
+   343 and Readings 13,683; zero lost/gained/decreased/increased faces or
+   validation issues versus the pre-refresh after census. One digest-only
+   change: Sizzling Soloist, 1,728 → 1,728, inherited from trunk `yppxtnmu`.
+   Its wrong lexical-*have* Object-gap / Bare Passive *resolved* analysis is
+   replaced by the perfect adverbial-gap relative, under that ticket's
+   [orchestrator ruling R1](../done/english-v3-perfect-relative-adverbial-gap.md#landing-record).
+   Final baseline diff: gained 43, lost/decreased/increased 0, digest-only 1;
+   `refresh-diff.json` and `final-diff.json` hold the stock line-level diffs.
 2. **Witnesses** (`zwkyqqyvxool`): every ticket passage probed at zero before
    implementation; each matching *add* control admitted a Reading with the
    one-Reading probe cap. Complete after probes: Incubation Druid 2;
@@ -147,7 +156,11 @@ Deltas:
    declaration rather than `verbs.ron`, whose loader would generate the
    unattested gerund. *Producing* attestation: zero supported faces; the native
    declaration omits that form and copies Add's two frames exactly. No grammar,
-   loader, frame inventory or glossary changes; no superseded route; no STOP.
+   loader, frame inventory or glossary changes in this ticket; no superseded
+   route or ruling STOP. Refresh incorporated trunk `yppxtnmu` (grammar and
+   lexical data); its test-registration conflict was resolved by retaining
+   both modules. The bounded recheck and checks of the two affected crates
+   follow the user's refresh budget.
    The six *mana produced by …* faces remain unread (0/6), and the three
    multiplier faces remain unread (0/3), as scoped by rulings R16c–R16d.
    The inherited schema-v7 binary's preliminary bounded baseline was discarded;
@@ -161,6 +174,10 @@ Deltas:
    after replacing the new empty-result assertion with a value comparison
    (`assert_is_empty` lint); the full lexical-source test command was rerun
    after that assertion fix and passed. All tests have zero failed/ignored.
+   Post-refresh (`lrvlypxrqqrl`): the same four commands passed: English tests
+   667, lexical-source tests 64, both clippy commands clean with warnings
+   denied; zero failed/ignored. The five witness and ten spot-check counts
+   and selected analyses remain unchanged in the refreshed English suite.
    Restored 0; re-spelled 0; ignored-with-blocker 0; added 7 (five witness tests,
    one ten-face spot-check test, one exact lexical paradigm/frame test);
    removed 0. Citation checks: zero noncompliant and stale citations; diff audit
@@ -168,3 +185,5 @@ Deltas:
 6. **Timing** (`zwkyqqyvxool`): one bounded after census, 6.24 seconds wall
    time, six workers, zero samples per face; peak RSS 1,370,520 KiB under
    `/usr/bin/time -v`. Prebuilt schema-v8 binary; compilation excluded.
+   Post-refresh bounded recheck (`lrvlypxrqqrl`): 5.69 seconds, six workers,
+   zero samples per face, peak RSS 1,390,956 KiB; compilation excluded.
