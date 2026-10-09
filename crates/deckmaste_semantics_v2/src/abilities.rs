@@ -353,10 +353,10 @@ pub enum DeckCondition {
         scope: Predicate,
         r#trait: DeckTrait,
     },
-    /// "Each nonland card in your starting deck has a different name."
-    CardsDiffer { scope: Predicate, axis: QualitySort },
-    /// "Each nonland card in your starting deck shares a card type."
-    CardsShare { scope: Predicate, axis: QualitySort },
+    /// "Each nonland card in your starting deck shares a card type." and "…
+    /// has a different name.": an Agreement (`NounPhrase::Agree`) over the
+    /// starting deck's cards `group` describes.
+    GroupAgrees { group: NounPhrase },
     /// "at least twenty cards more than the minimum deck size", a minimum the
     /// format sets [CR#100.2a,100.2b].
     DeckSizeOverMinimum { extra: u32 },

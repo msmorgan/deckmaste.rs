@@ -184,10 +184,12 @@ pub struct AmountShape {
     pub literal: bool,
 }
 
+/// Sharing on an axis: at least one value in common (`Share`), or none
+/// (`Differ`) [CR#201.2a,201.2c,105.2,205.3m].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum NameAgreement {
-    DifferentNames,
-    SameName,
+pub enum Agreement {
+    Share,
+    Differ,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

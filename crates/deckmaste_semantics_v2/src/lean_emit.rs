@@ -88,7 +88,7 @@ pub const UNRAWABLE: &[&str] = &["crate", "self", "Self", "super"];
 /// name is what keeps it from going stale.
 pub const LEAN_ESCAPED: &[&str] = &[
     "as", "by", "class", "end", "exists", "from", "repeat", "return", "then", "unless", "until",
-    "while",
+    "while", "with",
 ];
 
 /// A Lean constructor name as its Rust variant: the same word, dropping Lean's

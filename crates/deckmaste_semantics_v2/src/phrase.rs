@@ -43,7 +43,7 @@ use crate::words::LibraryEnd;
 use crate::words::LockState;
 use crate::words::ManaSymbol;
 use crate::words::MarkerWord;
-use crate::words::NameAgreement;
+use crate::words::Agreement;
 use crate::words::NounWord;
 use crate::words::Ordinal;
 use crate::words::OutcomeSort;
@@ -170,12 +170,12 @@ pub enum ZoneExpr {
     Wherever,
 }
 
-/// Where a name comes from: printed, chosen, or "with the same name as …".
+/// Where a name comes from: printed or chosen. "With the same name as …" is
+/// Sharing on the name axis, `Predicate::Shares`.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum NameSource {
     Printed { name: String },
     Chosen,
-    SameAs { subject: Box<NounPhrase> },
 }
 
 /// What a choice ranges over.
@@ -388,6 +388,14 @@ pub enum Predicate {
     Named {
         source: Box<NameSource>,
     },
+    /// Sharing: the member and `with` have at least one value in common on
+    /// `axis` (`Share`) or none (`Differ`) [CR#201.2a,201.2c,105.2,205.3m];
+    /// on the name axis it is not equality.
+    Shares {
+        axis: QualitySort,
+        agreement: Agreement,
+        with: Box<NounPhrase>,
+    },
     HasDesignation {
         designation: DesignationLabel,
         holder: Option<Box<NounPhrase>>,
@@ -575,8 +583,11 @@ pub enum NounPhrase {
         description: Option<Box<Predicate>>,
         group: Box<NounPhrase>,
     },
-    NamesAgree {
-        agreement: NameAgreement,
+    /// Agreement: the members of `group` share, or do not share, a value on
+    /// `axis`, a constraint on the selection, not a predicate on one member.
+    Agree {
+        axis: QualitySort,
+        agreement: Agreement,
         group: Box<NounPhrase>,
     },
     TheRest {
