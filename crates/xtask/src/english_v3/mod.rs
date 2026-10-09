@@ -2,6 +2,7 @@
 
 mod card_scope;
 mod diff;
+mod grep;
 mod incremental;
 mod probe;
 mod report;
@@ -110,6 +111,9 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
             return probe::run(probe_args, &args.data, output);
         }
         Some(probe::Command::Diff(diff_args)) => return diff::run(diff_args, output),
+        Some(probe::Command::Grep(grep_args)) => {
+            return grep::run(grep_args, &args.data, output);
+        }
         None => {}
     }
     let started = Instant::now();

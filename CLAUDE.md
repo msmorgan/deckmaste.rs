@@ -147,7 +147,7 @@ verbatim: no parity copying into v1, no new v1 registries.
   wizards regen, assurance — they live here); write "standard constraints apply" plus deltas
   only. Context sections cite prior docs and describe deltas; re-derived subsystem
   prose is a review flag.
-- **Corpus work iterates on a subset, verifies on the whole.** Use `cargo xtask english-v3` with an explicit selector for iteration and `--all` for final corpus verification. Preserve all Readings and report roundtrip/traversal validation, failures and runtime evidence.
+- **Corpus work iterates on a subset, verifies on the whole.** Use `cargo xtask english-v3` with an explicit selector for iteration and `--all` for final corpus verification. Preserve all Readings and report roundtrip/traversal validation, failures and runtime evidence. Corpus attestation checks (does a wording occur, which faces are unread) use `cargo xtask english-v3 grep`, never raw `rg` over the Scryfall file, which holds unsupported cards and reminder text.
 
 - Dispatching agents: explore once, pass the brief — paste it as a byte-identical
   prompt prefix across the fan-out (prompt-cache-shared, question at the tail), or

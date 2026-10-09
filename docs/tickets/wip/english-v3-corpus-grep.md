@@ -57,5 +57,35 @@ with the wall time of `grep "nonland" --count`.
 
 ## Landing record
 
-The six items of `CLAUDE.md` (Feature workflow), written by the claimant
-before integrate.
+Measured on change `xkuounvo` (tooling only; no grammar or lexicon change).
+
+1. **Census delta**: none; no corpus input changed. The census's
+   analysed-source derivation moved into `report::analyzed_source`, called by
+   both `FaceReport::new` and `grep`; behaviour unchanged.
+2. **Witnesses** (acceptance, debug build):
+   - `grep "nonland" --count`: `758 faces, 805 matches`.
+   - `grep -i "nonlands?\b" --names`: 762 faces; includes Abundance, Abundant
+     Harvest, `Gollum, Scheming Guide`, `The Enigma Jewel // Locus of
+     Enlightenment / The Enigma Jewel`; Merfolk Surveyor absent.
+   - `grep "named [A-Z]" --count`: `316 faces, 346 matches`.
+   - `grep "Activate only as a sorcery" --census
+     review-namescope/full-at-head.json --unread --count` (census of
+     `mqrlzszk`): `486 faces, 493 matches`.
+3. **Spot checks**: not applicable (no newly covered faces).
+4. **Deviations and STOPs**: (a) the match is delimited `«…»` in context
+   lines and line breaks print as `⏎`, so a line shows which text matched;
+   (b) `--names` and labels print `Card Name / face name` (`Card Name [face
+   name]` in context lines) only where a face name differs from the card name;
+   (c) faces absent from the `--census` report satisfy neither `--unread` nor
+   `--covered`; (d) `diff::load` became `pub(super)` so `grep` reads the
+   census with diff's field projection; (e) output and census flags are
+   flattened sub-structs (`OutputArgs`, `RestrictionArgs`) to satisfy
+   `clippy::struct_excessive_bools`. No STOPs; no glossary gap.
+5. **Tests**: `cargo test -p xtask`: lib 388 passed, 1 ignored
+   (pre-existing); integration suites 4 and 14 passed. `cargo clippy -p
+   xtask --tests -- -D warnings`: clean. Counts: 6 added
+   (`english_v3::grep::tests`), 0 restored, 0 re-spelled, 0 ignored, 0
+   removed.
+6. **Timing**: no census run. `grep "nonland" --count`: 1.17 s wall, debug
+   build, single thread, host load 5.2 on 24 cores; the `--census --unread`
+   query, loading a full 32,828-face census, 1.27 s.

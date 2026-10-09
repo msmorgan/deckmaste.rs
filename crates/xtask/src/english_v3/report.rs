@@ -145,14 +145,20 @@ pub(super) struct FaceReport {
     pub thread_cpu_ns: Option<u128>,
 }
 
+/// The parser input the census derives from a face's selected field: rules
+/// text with balanced reminder text removed, or the Type Line unchanged.
+pub(super) fn analyzed_source(source: &str, field: SourceField) -> String {
+    match field {
+        SourceField::Text => deckmaste_data::oracle_text::strip_reminder_text(source),
+        SourceField::TypeLine => source.to_owned(),
+    }
+}
+
 impl FaceReport {
     pub fn new(face: &SelectedFace, field: SourceField) -> Self {
         let raw = face.text.as_deref();
         let source = field.source(face).unwrap_or("");
-        let analyzed_source = match field {
-            SourceField::Text => deckmaste_data::oracle_text::strip_reminder_text(source),
-            SourceField::TypeLine => source.to_owned(),
-        };
+        let analyzed_source = analyzed_source(source, field);
         Self {
             id: face.identity.clone(),
             oracle_id: face.oracle_id.clone(),

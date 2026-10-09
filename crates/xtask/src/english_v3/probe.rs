@@ -21,6 +21,8 @@ pub enum Command {
     Probe(ProbeArgs),
     /// Compare two census reports face by face.
     Diff(super::diff::DiffArgs),
+    /// Search the supported corpus's analysed text with a regex.
+    Grep(super::grep::GrepArgs),
 }
 
 #[derive(Debug, Args)]

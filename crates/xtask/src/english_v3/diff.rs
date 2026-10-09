@@ -66,7 +66,7 @@ pub(super) struct CensusFile {
     pub faces: Vec<CensusFace>,
 }
 
-fn load(path: &Path) -> Result<CensusFile> {
+pub(super) fn load(path: &Path) -> Result<CensusFile> {
     let bytes = std::fs::read(path).with_context(|| format!("reading {}", path.display()))?;
     serde_json::from_slice(&bytes).with_context(|| format!("parsing census {}", path.display()))
 }

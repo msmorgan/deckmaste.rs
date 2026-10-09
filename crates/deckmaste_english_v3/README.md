@@ -48,6 +48,25 @@ list uncapped. `--manifest` writes an identity manifest of every count-changed
 face plus `--random N` unchanged covered faces chosen by `--seed`, ready for
 `--identity-manifest`. It always exits 0: a report, not a gate.
 
+## Corpus search
+
+```sh
+cargo xtask english-v3 grep PATTERN [-i] [--all-matches] [--count | --names] \
+  [--limit N] [--field text|type-line] [--json OUT] \
+  [--census FILE --unread|--covered]
+```
+
+`grep` searches the supported faces the census selects, over the analysed
+source the census parses (reminder text removed; Type Lines unchanged), with a
+Rust `regex` (`-i` for case-insensitive). It prints one line per matching face,
+`Card Name [face name] | …context «match» context…` (`--all-matches` prints
+every match), capped by `--limit` (default 200), then `N faces, M matches`;
+`--count` prints only that line and `--names` only the sorted face names.
+`--json` writes every face with byte offsets into the analysed source.
+`--census FILE --unread` (or `--covered`) restricts to faces with no Reading
+(or at least one) in that census. Use it, never `rg` over the Scryfall file,
+for corpus attestation checks.
+
 ## Raw corpus census
 
 ```sh
