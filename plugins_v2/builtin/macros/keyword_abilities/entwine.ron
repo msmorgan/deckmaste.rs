@@ -5,9 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "entwine",
     ),
-    // STOP (waits on: `semantics-v2-modal-choice`).
     // "Entwine [cost]" means "You may choose all modes of this spell instead of
-    // just the number specified" [CR#702.42a]. `Instruction::ChooseModes` carries the
-    // quantity on the spell's own clause; no constructor lets a separate static
-    // rewrite that quantity.
+    // just the number specified. If you do, you pay an additional [cost]."
+    // [CR#702.42a] A Mode Change over the spell's own `chooseModes`.
+    body: [static(modeChoice(allInstead(Some(Param(0)), None)))],
 )

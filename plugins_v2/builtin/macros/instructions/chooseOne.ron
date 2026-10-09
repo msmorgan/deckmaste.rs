@@ -3,5 +3,5 @@
     name: "chooseOne",
     kinds: [Instruction],
     params: {"first": Instruction, "second": Instruction},
-    body: ChooseModes(Range(1, 1), [(None, Param(first)), (None, Param(second))]),
+    body: ChooseModes(Range(1, 1), [(None, None, Param(first)), (None, None, Param(second))]),
 )

@@ -60,6 +60,10 @@ semantic_macro addedCost (cost : Semantics.Cost) (offered : Bool) (times : Seman
 semantic_macro additionalTriggers (event : Semantics.GameEvent) (quantity : Semantics.Quantity) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.additionalTriggers event quantity)
 
+/-- `abilities/allInstead.ron` -/
+semantic_macro allInstead (cost : (Option Semantics.Cost) := none) (condition : (Option Semantics.Condition) := none) : Semantics.ModeChange :=
+  (Semantics.ModeChange.allInstead cost condition)
+
 /-- `abilities/alsoForKeywords.ron` -/
 semantic_macro alsoForKeywords (ability : Semantics.Ability) (keywords : (List Semantics.KeywordTerm) := []) : Semantics.Ability :=
   (Semantics.Ability.alsoForKeywords ability keywords)
@@ -160,6 +164,10 @@ semantic_macro entersWithFewerCounters (subject : Semantics.NounPhrase) (amount 
 semantic_macro entryRider (subject : Semantics.NounPhrase) (rider : Semantics.EntryRider) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.entryRider subject rider)
 
+/-- `abilities/extraModesCost.ron` -/
+semantic_macro extraModesCost (cost : Semantics.Cost) : Semantics.ModeChange :=
+  (Semantics.ModeChange.extraModesCost cost)
+
 /-- `abilities/flavorWord.ron` -/
 semantic_macro flavorWord (word : String) (ability : Semantics.Ability) : Semantics.Ability :=
   (Semantics.Ability.italicHead (Semantics.ItalicWord.flavorWord word) ability)
@@ -236,9 +244,17 @@ semantic_macro mayCastFor (player : Semantics.NounPhrase) (cost : Semantics.Cost
 semantic_macro mayCastFrom (what : Semantics.NounPhrase) (zone : Semantics.ZoneExpr) (paying : Semantics.PlayPayment := Semantics.PlayPayment.itsOwnCost) (exclusive : Bool := false) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.deonticRule Semantics.NounPhrase.actor Semantics.Compulsion.permit [(Semantics.Deed.action "cast")] Semantics.Role.agent none (Semantics.DeonticPatient.counterpart what) none (Semantics.DeonticRider.play (some zone) none none exclusive paying))
 
+/-- `abilities/modeChoice.ron` -/
+semantic_macro modeChoice (change : Semantics.ModeChange) : Semantics.StaticSpec :=
+  (Semantics.StaticSpec.modeChoice change)
+
 /-- `abilities/modification.ron` -/
 semantic_macro modification (subject : Semantics.NounPhrase) (stat : Semantics.Stat) (delta : (Semantics.Delta Semantics.Amount)) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.modification subject stat delta)
+
+/-- `abilities/notChosenBefore.ron` -/
+semantic_macro notChosenBefore (within : Semantics.Duration) : Semantics.ModeChange :=
+  (Semantics.ModeChange.notChosenBefore within)
 
 /-- `abilities/onceEachYourTurn.ron` -/
 semantic_macro onceEachYourTurn : Semantics.UsageLimit :=
@@ -288,6 +304,10 @@ semantic_macro ptModification (subject : Semantics.NounPhrase) (power : (Semanti
 semantic_macro ptSwitch (subject : Semantics.NounPhrase) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.ptSwitch subject)
 
+/-- `abilities/repeatable.ron` -/
+semantic_macro repeatable : Semantics.ModeChange :=
+  Semantics.ModeChange.repeatable
+
 /-- `abilities/replacement.ron` -/
 semantic_macro replacement (event : Semantics.GameEvent) (replacement : Semantics.Instruction) (use : Semantics.ReplUse) (alternatives : (List Semantics.GameEvent) := []) (timing : (Option Semantics.Timing) := none) (limit : (Option Semantics.UsageLimit) := none) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.replacement event alternatives timing replacement use limit)
@@ -299,6 +319,10 @@ semantic_macro retention (spec : Semantics.StaticSpec) (subject : Semantics.Noun
 /-- `abilities/scaled.ron` -/
 semantic_macro scaled (cost : Semantics.Cost) (amount : Semantics.Amount) : Semantics.Cost :=
   (Semantics.Cost.scaled cost amount)
+
+/-- `abilities/setQuantity.ron` -/
+semantic_macro setQuantity (quantity : Semantics.Quantity) : Semantics.ModeChange :=
+  (Semantics.ModeChange.setQuantity quantity)
 
 /-- `abilities/specialAction.ron` -/
 semantic_macro specialAction (when : Semantics.Timing) (cost : Semantics.Cost) (does : Semantics.Instruction) : Semantics.StaticSpec :=
@@ -1246,7 +1270,7 @@ semantic_macro chooseNewTargets (subject : Semantics.NounPhrase) : Semantics.Ins
 
 /-- `instructions/chooseOne.ron` -/
 semantic_macro chooseOne (first : Semantics.Instruction) (second : Semantics.Instruction) : Semantics.Instruction :=
-  (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, first), (none, second)])
+  (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, none, first), (none, none, second)])
 
 /-- `instructions/chooseWhile.ron` -/
 semantic_macro chooseWhile (subject : Semantics.NounPhrase) (while_ : Semantics.Timing) : Semantics.Instruction :=
@@ -2138,7 +2162,7 @@ semantic_macro enlist : Semantics.Ability :=
 
 /-- `keyword_abilities/entwine.ron` -/
 semantic_macro entwine (arg0 : Semantics.Cost) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "entwine") [(Semantics.KeywordParam.cost arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "entwine") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.modeChoice (Semantics.ModeChange.allInstead (some arg0) none)))])
 
 /-- `keyword_abilities/epic.ron` -/
 semantic_macro epic : Semantics.Ability :=
@@ -2150,7 +2174,7 @@ semantic_macro equip (arg0 : Semantics.Cost) : Semantics.Ability :=
 
 /-- `keyword_abilities/escalate.ron` -/
 semantic_macro escalate (arg0 : Semantics.Cost) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "escalate") [(Semantics.KeywordParam.cost arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "escalate") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.modeChoice (Semantics.ModeChange.extraModesCost arg0)))])
 
 /-- `keyword_abilities/escape.ron` -/
 semantic_macro escape (arg0 : Semantics.Cost) : Semantics.Ability :=
@@ -2602,7 +2626,7 @@ semantic_macro splitSecond : Semantics.Ability :=
 
 /-- `keyword_abilities/spree.ron` -/
 semantic_macro spree : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "spree") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "spree") [] [(Semantics.Ability.static (Semantics.StaticSpec.modeChoice (Semantics.ModeChange.setQuantity (Semantics.Quantity.range (some 1) none))))])
 
 /-- `keyword_abilities/squad.ron` -/
 semantic_macro squad (arg0 : Semantics.Cost) : Semantics.Ability :=
@@ -2642,7 +2666,7 @@ semantic_macro teamwork (arg0 : Semantics.Amount) : Semantics.Ability :=
 
 /-- `keyword_abilities/tiered.ron` -/
 semantic_macro tiered : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "tiered") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "tiered") [] [(Semantics.Ability.static (Semantics.StaticSpec.modeChoice (Semantics.ModeChange.setQuantity (Semantics.Quantity.range (some 1) (some 1)))))])
 
 /-- `keyword_abilities/toxic.ron` -/
 semantic_macro toxic (arg0 : Semantics.Amount) : Semantics.Ability :=
@@ -2738,7 +2762,7 @@ semantic_macro attach (arg0 : Semantics.NounPhrase) (arg1 : Semantics.NounPhrase
 
 /-- `keyword_actions/behold.ron` -/
 semantic_macro behold (arg0 : Semantics.Predicate) : Semantics.Instruction :=
-  (Semantics.Instruction.enact (Semantics.Deed.action "behold") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, (Semantics.Instruction.expose Semantics.ExposeVerb.reveal (Semantics.Exposed.cards (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [Semantics.Predicate.isCard, (Semantics.Predicate.inCaller 0 arg0), (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.hand (Semantics.ZoneScope.possessedBy Semantics.NounPhrase.actor)))]))))), (none, (Semantics.Instruction.choose none (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [(Semantics.Predicate.inCaller 0 arg0), (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.actor)])) Semantics.Disclosure.openly none))])))
+  (Semantics.Instruction.enact (Semantics.Deed.action "behold") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, none, (Semantics.Instruction.expose Semantics.ExposeVerb.reveal (Semantics.Exposed.cards (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [Semantics.Predicate.isCard, (Semantics.Predicate.inCaller 0 arg0), (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.hand (Semantics.ZoneScope.possessedBy Semantics.NounPhrase.actor)))]))))), (none, none, (Semantics.Instruction.choose none (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [(Semantics.Predicate.inCaller 0 arg0), (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.actor)])) Semantics.Disclosure.openly none))])))
 
 /-- `keyword_actions/blight.ron` -/
 semantic_macro blight (arg0 : Semantics.Amount) : Semantics.Instruction :=
@@ -2806,7 +2830,7 @@ semantic_macro earthbend (arg0 : Semantics.Amount) : Semantics.Instruction :=
 
 /-- `keyword_actions/endure.ron` -/
 semantic_macro endure (arg0 : Semantics.Amount) : Semantics.Instruction :=
-  (Semantics.Instruction.enact (Semantics.Deed.action "endure") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.act (Semantics.NounPhrase.possessorOf Semantics.PossessorAxis.controller Semantics.NounPhrase.actor) (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, (Semantics.Instruction.putCounters (Semantics.Amount.inCaller 0 arg0) (Semantics.CounterKindSource.printed (Semantics.CounterKind.named "p1p1Counter")) (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.permanent) Semantics.Plurality.one Semantics.Window.whole))), (none, (Semantics.Instruction.createObject (Semantics.Amount.lit 1) (Semantics.CreationSpec.token (Semantics.TokenSpec.written ({ characteristics := ({ name := none, cost := none, colors := [Semantics.Color.white], supertypes := [], types := [Semantics.CardType.creature], subtypes := [(Semantics.Subtype.of Semantics.CardType.creature "Spirit")], text := [], power := (some (Semantics.Amount.inCaller 0 arg0)), toughness := (some (Semantics.Amount.inCaller 0 arg0)), loyalty := none, defense := none } : Semantics.Characteristics), qualities := [] } : Semantics.CharacteristicBundle)) [])))]))))
+  (Semantics.Instruction.enact (Semantics.Deed.action "endure") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.act (Semantics.NounPhrase.possessorOf Semantics.PossessorAxis.controller Semantics.NounPhrase.actor) (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, none, (Semantics.Instruction.putCounters (Semantics.Amount.inCaller 0 arg0) (Semantics.CounterKindSource.printed (Semantics.CounterKind.named "p1p1Counter")) (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.permanent) Semantics.Plurality.one Semantics.Window.whole))), (none, none, (Semantics.Instruction.createObject (Semantics.Amount.lit 1) (Semantics.CreationSpec.token (Semantics.TokenSpec.written ({ characteristics := ({ name := none, cost := none, colors := [Semantics.Color.white], supertypes := [], types := [Semantics.CardType.creature], subtypes := [(Semantics.Subtype.of Semantics.CardType.creature "Spirit")], text := [], power := (some (Semantics.Amount.inCaller 0 arg0)), toughness := (some (Semantics.Amount.inCaller 0 arg0)), loyalty := none, defense := none } : Semantics.Characteristics), qualities := [] } : Semantics.CharacteristicBundle)) [])))]))))
 
 /-- `keyword_actions/exert.ron` -/
 semantic_macro exert (arg0 : Semantics.NounPhrase) : Semantics.Instruction :=
@@ -2822,7 +2846,7 @@ semantic_macro explore : Semantics.Instruction :=
 
 /-- `keyword_actions/faceAVillainousChoice.ron` -/
 semantic_macro faceAVillainousChoice (arg0 : Semantics.Instruction) (arg1 : Semantics.Instruction) : Semantics.Instruction :=
-  (Semantics.Instruction.enact (Semantics.Deed.action "faceAVillainousChoice") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, (Semantics.Instruction.inCaller 0 arg0)), (none, (Semantics.Instruction.inCaller 0 arg1))])))
+  (Semantics.Instruction.enact (Semantics.Deed.action "faceAVillainousChoice") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, none, (Semantics.Instruction.inCaller 0 arg0)), (none, none, (Semantics.Instruction.inCaller 0 arg1))])))
 
 /-- `keyword_actions/fateseal.ron` -/
 semantic_macro fateseal (arg0 : Semantics.Amount) : Semantics.Instruction :=
@@ -2834,7 +2858,7 @@ semantic_macro fight (arg0 : Semantics.NounPhrase) : Semantics.Instruction :=
 
 /-- `keyword_actions/forage.ron` -/
 semantic_macro forage : Semantics.Instruction :=
-  (Semantics.Instruction.enact (Semantics.Deed.action "forage") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, (Semantics.Instruction.enact (Semantics.Deed.action "exile") (Semantics.Instruction.move (Semantics.NounPhrase.described (Semantics.DetPhrase.count (Semantics.Quantity.range (some 3) (some 3)) none) (Semantics.Predicate.and [Semantics.Predicate.isCard, (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.graveyard (Semantics.ZoneScope.possessedBy Semantics.NounPhrase.actor)))])) (Semantics.ZoneExpr.zone Semantics.Zone.graveyard (Semantics.ZoneScope.possessedBy Semantics.NounPhrase.actor)) (Semantics.ZoneExpr.zone Semantics.Zone.exile Semantics.ZoneScope.bare) []))), (none, (Semantics.Instruction.enact (Semantics.Deed.action "sacrifice") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.move (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [(Semantics.Predicate.hasSubtype (Semantics.Subtype.of Semantics.CardType.artifact "Food")), (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.actor)]))) (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare) (Semantics.ZoneExpr.zone Semantics.Zone.graveyard Semantics.ZoneScope.bare) []))))])))
+  (Semantics.Instruction.enact (Semantics.Deed.action "forage") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, none, (Semantics.Instruction.enact (Semantics.Deed.action "exile") (Semantics.Instruction.move (Semantics.NounPhrase.described (Semantics.DetPhrase.count (Semantics.Quantity.range (some 3) (some 3)) none) (Semantics.Predicate.and [Semantics.Predicate.isCard, (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.graveyard (Semantics.ZoneScope.possessedBy Semantics.NounPhrase.actor)))])) (Semantics.ZoneExpr.zone Semantics.Zone.graveyard (Semantics.ZoneScope.possessedBy Semantics.NounPhrase.actor)) (Semantics.ZoneExpr.zone Semantics.Zone.exile Semantics.ZoneScope.bare) []))), (none, none, (Semantics.Instruction.enact (Semantics.Deed.action "sacrifice") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.move (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [(Semantics.Predicate.hasSubtype (Semantics.Subtype.of Semantics.CardType.artifact "Food")), (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.actor)]))) (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare) (Semantics.ZoneExpr.zone Semantics.Zone.graveyard Semantics.ZoneScope.bare) []))))])))
 
 /-- `keyword_actions/goad.ron` -/
 semantic_macro goad (arg0 : Semantics.NounPhrase) : Semantics.Instruction :=
@@ -2938,7 +2962,7 @@ semantic_macro theRingTemptsYou : Semantics.Instruction :=
 
 /-- `keyword_actions/timeTravel.ron` -/
 semantic_macro timeTravel : Semantics.Instruction :=
-  (Semantics.Instruction.enact (Semantics.Deed.action "timeTravel") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.sequentially [(Semantics.Instruction.choose none (Semantics.NounPhrase.described (Semantics.DetPhrase.count (Semantics.Quantity.range none none) none) (Semantics.Predicate.or [(Semantics.Predicate.and [(Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.actor), (Semantics.Predicate.hasCounters (some (Semantics.CounterKind.named "timeCounter")))]), (Semantics.Predicate.and [Semantics.Predicate.isCard, (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.exile Semantics.ZoneScope.bare)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.owner Semantics.NounPhrase.actor), (Semantics.Predicate.hasCounters (some (Semantics.CounterKind.named "timeCounter")))])])) Semantics.Disclosure.openly none), (Semantics.Instruction.doForEach (Semantics.NounPhrase.pro Semantics.Reach.bare Semantics.Plurality.many Semantics.Window.whole) (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, (Semantics.Instruction.putCounters (Semantics.Amount.lit 1) (Semantics.CounterKindSource.printed (Semantics.CounterKind.named "timeCounter")) (Semantics.NounPhrase.pro Semantics.Reach.bare Semantics.Plurality.one Semantics.Window.whole))), (none, (Semantics.Instruction.removeCounters (some (Semantics.Quantity.range (some 1) (some 1))) (some (Semantics.CounterKindSource.printed (Semantics.CounterKind.named "timeCounter"))) (Semantics.NounPhrase.pro Semantics.Reach.bare Semantics.Plurality.one Semantics.Window.whole)))]))])))
+  (Semantics.Instruction.enact (Semantics.Deed.action "timeTravel") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.sequentially [(Semantics.Instruction.choose none (Semantics.NounPhrase.described (Semantics.DetPhrase.count (Semantics.Quantity.range none none) none) (Semantics.Predicate.or [(Semantics.Predicate.and [(Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.actor), (Semantics.Predicate.hasCounters (some (Semantics.CounterKind.named "timeCounter")))]), (Semantics.Predicate.and [Semantics.Predicate.isCard, (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.exile Semantics.ZoneScope.bare)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.owner Semantics.NounPhrase.actor), (Semantics.Predicate.hasCounters (some (Semantics.CounterKind.named "timeCounter")))])])) Semantics.Disclosure.openly none), (Semantics.Instruction.doForEach (Semantics.NounPhrase.pro Semantics.Reach.bare Semantics.Plurality.many Semantics.Window.whole) (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, none, (Semantics.Instruction.putCounters (Semantics.Amount.lit 1) (Semantics.CounterKindSource.printed (Semantics.CounterKind.named "timeCounter")) (Semantics.NounPhrase.pro Semantics.Reach.bare Semantics.Plurality.one Semantics.Window.whole))), (none, none, (Semantics.Instruction.removeCounters (some (Semantics.Quantity.range (some 1) (some 1))) (some (Semantics.CounterKindSource.printed (Semantics.CounterKind.named "timeCounter"))) (Semantics.NounPhrase.pro Semantics.Reach.bare Semantics.Plurality.one Semantics.Window.whole)))]))])))
 
 /-- `keyword_actions/transform.ron` -/
 semantic_macro transform (arg0 : Semantics.NounPhrase) : Semantics.Instruction :=
@@ -3779,6 +3803,10 @@ semantic_macro Quantity.upTo (n : Nat) : Semantics.Quantity :=
 /-- `quantities/upToOf.ron` -/
 semantic_macro upToOf (amount : Semantics.Amount) : Semantics.Quantity :=
   (Semantics.Quantity.upToOf amount)
+
+/-- `quantities/worth.ron` -/
+semantic_macro worth (n : Nat) : Semantics.Quantity :=
+  (Semantics.Quantity.worth n)
 
 /-- `timings/and.ron` -/
 semantic_macro Timing.and (conjuncts : (List Semantics.Timing) := []) : Semantics.Timing :=

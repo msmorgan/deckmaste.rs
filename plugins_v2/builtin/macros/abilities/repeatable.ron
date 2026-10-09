@@ -1,0 +1,8 @@
+// `ModeChange.Repeatable` under Lean's own name for it: "you may choose the
+// same mode more than once" [CR#700.2d].
+(
+    name: "repeatable",
+    kinds: [ModeChange],
+    params: [],
+    body: Repeatable,
+)

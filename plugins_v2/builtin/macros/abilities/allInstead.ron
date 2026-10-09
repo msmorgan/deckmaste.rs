@@ -1,0 +1,9 @@
+// `ModeChange.AllInstead` under Lean's own name for it: "you may choose all
+// modes instead", for a cost (entwine [CR#702.42a]) or under a condition ("if
+// COND, you may choose both instead").
+(
+    name: "allInstead",
+    kinds: [ModeChange],
+    params: {"cost": Default(Any, None), "condition": Default(Any, None)},
+    body: AllInstead(cost: Param(cost), condition: Param(condition)),
+)

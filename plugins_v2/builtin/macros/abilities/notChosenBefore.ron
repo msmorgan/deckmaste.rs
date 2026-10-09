@@ -1,0 +1,9 @@
+// `ModeChange.NotChosenBefore` under Lean's own name for it: "choose one that
+// hasn't been chosen [within]", the window a lookback reads (`soFarThisTurn`,
+// `thisGame`).
+(
+    name: "notChosenBefore",
+    kinds: [ModeChange],
+    params: {"within": Duration},
+    body: NotChosenBefore(within: Param(within)),
+)

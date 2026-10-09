@@ -1,0 +1,9 @@
+// `ModeChange.ExtraModesCost` under Lean's own name for it: "for each mode
+// you choose beyond the first, you pay an additional [cost]" (escalate
+// [CR#702.120a]).
+(
+    name: "extraModesCost",
+    kinds: [ModeChange],
+    params: {"cost": Cost},
+    body: ExtraModesCost(cost: Param(cost)),
+)

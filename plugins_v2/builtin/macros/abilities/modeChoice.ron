@@ -1,0 +1,9 @@
+// `StaticSpec.ModeChoice` under Lean's own name for it: a Mode Change, which
+// modifies how the modes of the spell it is printed on are chosen
+// [CR#700.2,702.42a,702.120a].
+(
+    name: "modeChoice",
+    kinds: [StaticSpec],
+    params: {"change": ModeChange},
+    body: ModeChoice(change: Param(change)),
+)

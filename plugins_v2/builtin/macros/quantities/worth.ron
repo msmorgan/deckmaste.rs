@@ -1,0 +1,8 @@
+// `Quantity.Worth` under Lean's own name for it: "up to N {P} worth of
+// modes", any modes whose weights total at most N [CR#700.2i].
+(
+    name: "worth",
+    kinds: [Quantity],
+    params: {"n": Nat},
+    body: Worth(Param(n)),
+)

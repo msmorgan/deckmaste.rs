@@ -634,8 +634,8 @@ semantic_macro offerWhen (body : Instruction) (trigger : Instruction) : Instruct
 /-- "the chosen number" -/
 semantic_macro chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
-semantic_macro chooseSpree (modes : List (Option Cost × Instruction)) : Instruction := .chooseModes (atLeast 1)
-    modes
+semantic_macro chooseSpree (modes : List (Option Cost × Instruction)) : Instruction :=
+  .chooseModes (atLeast 1) (modes.map fun (c, e) => (c, none, e))
 /-- "vote for <ballot>" -/
 semantic_macro vote (disclosure : Disclosure) (ballot : Ballot) : Instruction :=
   .vote none disclosure ballot
@@ -645,7 +645,7 @@ semantic_macro voteStartingWith (first : NounPhrase) (disclosure : Disclosure) (
   .vote (some first) disclosure ballot
 /-- "Choose N — <modes>", no mode costing anything. -/
 semantic_macro chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
-  .chooseModes quantity (modes.map (none, ·))
+  .chooseModes quantity (modes.map (none, none, ·))
 /-- "<source> deals damage equal to its power to <recipient>" -/
 semantic_macro dealDamageOwnPower (source : NounPhrase) (recipient : NounPhrase) :
     Instruction :=

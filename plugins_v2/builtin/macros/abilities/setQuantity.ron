@@ -1,0 +1,8 @@
+// `ModeChange.SetQuantity` under Lean's own name for it: the number of modes
+// chosen, spree's one or more and tiered's one [CR#702.172a,702.183a].
+(
+    name: "setQuantity",
+    kinds: [ModeChange],
+    params: {"quantity": Quantity},
+    body: SetQuantity(quantity: Param(quantity)),
+)

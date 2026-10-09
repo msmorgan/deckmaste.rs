@@ -5,10 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "escalate",
     ),
-    // STOP (waits on: `semantics-v2-modal-choice`).
-    // "Escalate [cost]" means "For each mode you choose beyond the
-    // first as you cast this spell, you pay an additional [cost]" [CR#702.120a].
-    // `addedCost` now takes a `PayTimes` (`Once`, `AnyNumberOfTimes`, `UpTo`), but escalate's
-    // count is fixed by the modes chosen on the spell's own `ChooseModes`, which no
-    // `PayTimes` or `Amount` reads.
+    // "Escalate [cost]" means "For each mode you choose beyond the first as you
+    // cast this spell, you pay an additional [cost]" [CR#702.120a]. A Mode
+    // Change over the spell's own `chooseModes`; the number of payments reads
+    // `timesPaid(ByKeyword(escalate), …)`.
+    body: [static(modeChoice(extraModesCost(Param(0))))],
 )
