@@ -177,6 +177,16 @@ fn grammar_lexeme(
             }
             lexeme
         }
+        metadata::Grammar::Adjective { surface, onset } => {
+            let mut lexeme = Lexeme::invariant(owner, surface, Category::Adjective, provenance);
+            if let Some(onset) = onset {
+                lexeme
+                    .properties
+                    .features
+                    .insert("Onset".into(), format!("{onset:?}"));
+            }
+            lexeme
+        }
         metadata::Grammar::FixedTerm { surface, onset }
         | metadata::Grammar::FixedClause { surface, onset } => {
             let mut lexeme = Lexeme::invariant(owner, surface, Category::Keyword, provenance);

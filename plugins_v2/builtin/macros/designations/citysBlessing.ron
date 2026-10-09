@@ -3,7 +3,7 @@ Designation(
     name: "citysBlessing",
     params: [],
     spelling: "the city's blessing",
-    grammar: FixedTerm(surface: "the city's blessing"),
+    grammar: Noun(singular: "city's blessing", plural: Unavailable),
     scope: HeldBy(Player),
     effectful: true,
 )

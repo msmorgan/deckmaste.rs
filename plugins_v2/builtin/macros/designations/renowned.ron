@@ -3,7 +3,7 @@ Designation(
     name: "renowned",
     params: [],
     spelling: "renowned",
-    grammar: FixedTerm(surface: "renowned"),
+    grammar: Adjective(surface: "renowned"),
     scope: HeldBy(Object),
     effectful: true,
     zone: Battlefield,

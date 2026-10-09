@@ -3,7 +3,6 @@ Designation(
     name: "goaded",
     params: [],
     spelling: "goaded",
-    grammar: FixedTerm(surface: "goaded"),
     scope: HeldBy(Object),
     effectful: true,
     zone: Battlefield,

@@ -3,7 +3,7 @@ Designation(
     name: "prepared",
     params: [],
     spelling: "prepared",
-    grammar: FixedTerm(surface: "prepared"),
+    grammar: Adjective(surface: "prepared"),
     scope: HeldBy(Object),
     effectful: true,
     zone: Battlefield,

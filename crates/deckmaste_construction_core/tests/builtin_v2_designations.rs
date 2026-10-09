@@ -51,17 +51,31 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
     );
     for declaration in &designations {
         assert_eq!(declaration.params(), Some([].as_slice()));
+        let expected = match declaration.identity().name() {
+            "commander" | "monarch" | "initiative" | "citysBlessing" => Some(GrammarRecipe::Noun),
+            "prepared" | "saddled" | "monstrous" | "renowned" | "solved" => {
+                Some(GrammarRecipe::Adjective)
+            }
+            "goaded" | "suspected" | "harnessed" => None,
+            _ => Some(GrammarRecipe::FixedTerm),
+        };
         assert_eq!(
-            declaration.grammar().unwrap().recipe(),
-            &GrammarRecipe::FixedTerm
+            declaration
+                .grammar()
+                .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
+            expected.as_ref()
         );
         let [SpellingPart::Literal(spelling)] = declaration.spelling() else {
             panic!("{} has one literal spelling", declaration.identity())
         };
-        assert_eq!(
-            declaration.grammar().unwrap().surfaces()[0].text(),
-            spelling
-        );
+        if let Some(grammar) = declaration.grammar() {
+            let singular = if grammar.recipe() == &GrammarRecipe::Noun {
+                spelling.strip_prefix("the ").unwrap_or(spelling)
+            } else {
+                spelling
+            };
+            assert_eq!(grammar.surfaces()[0].text(), singular);
+        }
     }
 
     let commander = &designations[1];

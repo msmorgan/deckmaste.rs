@@ -3,7 +3,6 @@ Designation(
     name: "harnessed",
     params: [],
     spelling: "harnessed",
-    grammar: FixedTerm(surface: "harnessed"),
     scope: HeldBy(Object),
     effectful: true,
     zone: Battlefield,

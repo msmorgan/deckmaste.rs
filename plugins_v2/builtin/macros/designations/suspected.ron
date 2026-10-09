@@ -3,7 +3,6 @@ Designation(
     name: "suspected",
     params: [],
     spelling: "suspected",
-    grammar: FixedTerm(surface: "suspected"),
     scope: HeldBy(Object),
     effectful: true,
     zone: Battlefield,

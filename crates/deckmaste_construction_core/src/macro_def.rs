@@ -386,6 +386,11 @@ pub enum Grammar {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         plural_onset: Option<Onset>,
     },
+    Adjective {
+        surface: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        onset: Option<Onset>,
+    },
     FixedTerm {
         surface: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -921,6 +926,7 @@ pub enum GrammarRecipe {
         frame_set: VerbFrameSet,
     },
     Noun,
+    Adjective,
     FixedTerm,
     FixedClause,
     FixedKeyword {
@@ -935,6 +941,7 @@ impl GrammarRecipe {
         match self {
             Self::Verb { .. } => GrammarPosition::Verb,
             Self::Noun => GrammarPosition::Noun,
+            Self::Adjective => GrammarPosition::Adjective,
             Self::FixedTerm => GrammarPosition::FixedTerm,
             Self::FixedClause => GrammarPosition::FixedClause,
             Self::FixedKeyword { .. } => GrammarPosition::FixedKeyword,
@@ -947,6 +954,7 @@ impl GrammarRecipe {
 pub enum GrammarPosition {
     Verb,
     Noun,
+    Adjective,
     FixedTerm,
     FixedClause,
     FixedKeyword,
@@ -1449,6 +1457,10 @@ enum DiagnosticGrammar<'a> {
         #[serde(default, borrow)]
         plural: Option<&'a RawValue>,
     },
+    Adjective {
+        #[serde(borrow)]
+        surface: &'a RawValue,
+    },
     FixedTerm {
         #[serde(borrow)]
         surface: &'a RawValue,
@@ -1820,7 +1832,8 @@ impl GrammarSourceMap {
                     .map(|value| raw_position(path, source, value, declaration))
                     .transpose()?,
             }),
-            DiagnosticGrammar::FixedTerm { surface }
+            DiagnosticGrammar::Adjective { surface }
+            | DiagnosticGrammar::FixedTerm { surface }
             | DiagnosticGrammar::FixedClause { surface } => Ok(Self::Fixed {
                 surface: raw_position(path, source, surface, declaration)?,
                 bound_suffix_surface: None,
@@ -2610,6 +2623,14 @@ fn normalize_grammar(
                 plural_onset,
             )?,
             (
+                Grammar::Adjective { surface, onset },
+                GrammarSourceMap::Fixed {
+                    surface: position, ..
+                },
+            ) => {
+                normalize_fixed_grammar(path, *position, surface, onset, GrammarRecipe::Adjective)?
+            }
+            (
                 Grammar::FixedTerm { surface, onset },
                 GrammarSourceMap::Fixed {
                     surface: position, ..
@@ -2801,7 +2822,7 @@ fn finish_grammar_normalization(
     let (spelling_head, glued) = spelling_head(spelling);
     // An unspelled declaration has no template whose head could disagree.
     if !spelling.is_empty()
-        && !spelling_head_matches(&spelling_head, glued, &grammar_head, &surfaces)
+        && !spelling_head_matches(&spelling_head, glued, &grammar_head, &surfaces, &recipe)
     {
         return Err(validation_error_at(
             path,
@@ -3245,12 +3266,15 @@ fn spelling_head(spelling: &[SpellingPart]) -> (String, bool) {
 /// is the grammar head, or begins with it at a word boundary (a separator,
 /// preposition, or payload follows: "boast — <Param(0)>", "splice onto
 /// <Param(0)> <Param(1)>"). A head glued after a hole is the grammar's own
-/// bound suffix.
+/// bound suffix. Owner ruling (2026-10-08): a Noun recipe also permits a
+/// designation spelling consisting of `the ` followed by its singular;
+/// the article belongs to that spelling, not to the lexical noun.
 fn spelling_head_matches(
     head: &str,
     glued: bool,
     grammar_head: &str,
     surfaces: &[RealizedSurface],
+    recipe: &GrammarRecipe,
 ) -> bool {
     if glued {
         return surfaces
@@ -3259,6 +3283,8 @@ fn spelling_head_matches(
     }
     head.strip_prefix(grammar_head)
         .is_some_and(|rest| rest.is_empty() || rest.starts_with(' '))
+        || (matches!(recipe, GrammarRecipe::Noun)
+            && head.strip_prefix("the ") == Some(grammar_head))
 }
 
 fn is_bare_ident(name: &str) -> bool {

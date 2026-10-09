@@ -3,7 +3,7 @@ Designation(
     name: "monstrous",
     params: [],
     spelling: "monstrous",
-    grammar: FixedTerm(surface: "monstrous"),
+    grammar: Adjective(surface: "monstrous"),
     scope: HeldBy(Object),
     effectful: true,
     zone: Battlefield,

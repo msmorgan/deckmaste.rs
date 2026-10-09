@@ -8,7 +8,7 @@ Designation(
     name: "commander",
     params: [],
     spelling: "commander",
-    grammar: FixedTerm(surface: "commander"),
+    grammar: Noun(singular: "commander"),
     scope: HeldByCard,
     effectful: false,
 )

@@ -196,5 +196,9 @@ mod enter_as_copy_complement;
 
 #[path = "suite/floated_each_quantifier.rs"]
 mod floated_each_quantifier;
+
 #[path = "suite/landwalk_bound_suffix.rs"]
 mod landwalk_bound_suffix;
+
+#[path = "suite/designation_categories.rs"]
+mod designation_categories;

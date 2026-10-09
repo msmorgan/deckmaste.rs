@@ -3,7 +3,7 @@ Designation(
     name: "saddled",
     params: [],
     spelling: "saddled",
-    grammar: FixedTerm(surface: "saddled"),
+    grammar: Adjective(surface: "saddled"),
     scope: HeldBy(Object),
     effectful: true,
     zone: Battlefield,

@@ -1770,3 +1770,82 @@ fn counter_compound_class_recipe_preserves_stem_structure_and_fixed_term() {
         ValidationError::CompoundNounGrammarMismatch
     );
 }
+
+#[test]
+fn designation_adjective_recipe_preserves_surface_onset_and_definition() {
+    let declaration = read_str(
+        "builtin/macros/designations/monstrous.ron",
+        r#"Designation(
+        name: "monstrous", params: [], spelling: "monstrous",
+        grammar: Adjective(surface: "monstrous", onset: Some(Consonant)),
+        scope: HeldBy(Object), effectful: true, zone: Battlefield,
+    )"#,
+    )
+    .unwrap();
+    let grammar = declaration.grammar().unwrap();
+    assert_eq!(grammar.recipe(), &GrammarRecipe::Adjective);
+    assert_eq!(grammar.recipe().position(), GrammarPosition::Adjective);
+    assert_eq!(
+        featured_texts(&declaration),
+        [(SurfaceFeature::Fixed, "monstrous")]
+    );
+    assert_eq!(
+        grammar.surfaces()[0].onset_override(),
+        Some(Onset::Consonant)
+    );
+    assert!(
+        declaration
+            .body()
+            .unwrap()
+            .get_ron()
+            .contains("label: Named(name: \"monstrous\")")
+    );
+}
+
+#[test]
+fn noun_recipe_separates_a_leading_article_from_the_designation_spelling() {
+    for singular in ["monarch", "initiative", "city's blessing"] {
+        let spelling = format!("the {singular}");
+        let source = format!(
+            r#"Designation(
+            name: "Fixture", params: [], spelling: "{spelling}",
+            grammar: Noun(singular: "{singular}", plural: Unavailable),
+            scope: HeldBy(Player), effectful: true,
+        )"#
+        );
+        let declaration = read_str("fixture.ron", &source).unwrap();
+        assert_eq!(declaration.spelling(), [SpellingPart::Literal(spelling)]);
+        assert_eq!(
+            featured_texts(&declaration),
+            [(SurfaceFeature::Singular, singular)]
+        );
+        assert_eq!(
+            declaration.grammar().unwrap().recipe(),
+            &GrammarRecipe::Noun
+        );
+    }
+}
+
+#[test]
+fn article_consistency_rule_requires_the_noun_recipe_and_an_exact_singular() {
+    for (spelling, grammar) in [
+        ("a monarch", "Noun(singular: \"monarch\")"),
+        ("the monarch creature", "Noun(singular: \"monarch\")"),
+        ("the monarch", "Adjective(surface: \"monarch\")"),
+        ("the monarch", "FixedTerm(surface: \"monarch\")"),
+    ] {
+        let source = format!(
+            r#"Designation(
+            name: "Fixture", params: [], spelling: "{spelling}",
+            grammar: {grammar}, scope: HeldBy(Player), effectful: true,
+        )"#
+        );
+        assert_eq!(
+            validation(&source),
+            ValidationError::GrammarSpellingMismatch {
+                spelling_head: spelling.into(),
+                grammar_head: "monarch".into(),
+            }
+        );
+    }
+}

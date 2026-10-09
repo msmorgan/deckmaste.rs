@@ -8,7 +8,7 @@ Designation(
     name: "monarch",
     params: [],
     spelling: "the monarch",
-    grammar: FixedTerm(surface: "the monarch"),
+    grammar: Noun(singular: "monarch"),
     scope: HeldBy(Player),
     effectful: true,
 )

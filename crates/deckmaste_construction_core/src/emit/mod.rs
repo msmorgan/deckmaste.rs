@@ -707,6 +707,9 @@ pub(super) fn grammar_position(position: crate::macro_def::GrammarPosition) -> T
         GrammarPosition::Noun => {
             quote! { ::deckmaste_construction_core::macro_def::GrammarPosition::Noun }
         }
+        GrammarPosition::Adjective => {
+            quote! { ::deckmaste_construction_core::macro_def::GrammarPosition::Adjective }
+        }
         GrammarPosition::FixedTerm => {
             quote! { ::deckmaste_construction_core::macro_def::GrammarPosition::FixedTerm }
         }

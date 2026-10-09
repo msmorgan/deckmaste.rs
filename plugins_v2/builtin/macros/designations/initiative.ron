@@ -4,7 +4,7 @@ Designation(
     name: "initiative",
     params: [],
     spelling: "the initiative",
-    grammar: FixedTerm(surface: "the initiative"),
+    grammar: Noun(singular: "initiative"),
     scope: HeldBy(Player),
     effectful: true,
 )
