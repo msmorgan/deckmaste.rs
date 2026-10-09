@@ -1,0 +1,13 @@
+// "Morph {4}{U}" [CR#702.37a]: cast face down for {3}, turned face up for its
+// morph cost as a special action, its values reverting [CR#702.37e,708.8].
+SingleFaced(face: (
+    characteristics: (
+        name: "Glacial Stalker",
+        cost: [5, Blue],
+        types: [Creature],
+        subtypes: [elemental],
+        power: 4,
+        toughness: 5,
+        text: [morph(mana([4, Blue]))],
+    ),
+))

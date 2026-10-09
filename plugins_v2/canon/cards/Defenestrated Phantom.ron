@@ -1,0 +1,12 @@
+// "Flying / Disguise {4}{W}" [CR#702.168a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Defenestrated Phantom",
+        cost: [4, White, White],
+        types: [Creature],
+        subtypes: [spirit],
+        power: 4,
+        toughness: 3,
+        text: [flying, disguise(mana([4, White]))],
+    ),
+))

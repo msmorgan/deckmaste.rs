@@ -1,0 +1,21 @@
+// "Hideaway 4 / This land enters tapped. / {T}: Add {G}. / {G}, {T}: You may
+// play the exiled card without paying its mana cost if creatures you control
+// have total power 10 or greater." [CR#702.75a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Mosswort Bridge",
+        types: [Land],
+        text: [
+            hideaway(4),
+            static(entersTapped(thisPermanent)),
+            activated(tapSymbol, addMana(1, Runs([[Green]]))),
+            activated(
+                compound([mana([Green]), tapSymbol]),
+                doIf(
+                    compareAmt(aggregateOver(Sum, and([creature, youControl]), powerOf(it)), AtLeast, 10),
+                    may(procedure(Play, a(exiledWith(this)), WithoutPaying)),
+                ),
+            ),
+        ],
+    ),
+))

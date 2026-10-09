@@ -1,0 +1,13 @@
+// "Flying / Foretell {1}{U}" [CR#702.143a]: foretold on your turn, cast on a
+// later turn.
+SingleFaced(face: (
+    characteristics: (
+        name: "Augury Raven",
+        cost: [3, Blue],
+        types: [Creature],
+        subtypes: [bird],
+        power: 3,
+        toughness: 3,
+        text: [flying, foretell(mana([1, Blue]))],
+    ),
+))
