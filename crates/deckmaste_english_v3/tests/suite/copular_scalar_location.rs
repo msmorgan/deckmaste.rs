@@ -256,6 +256,16 @@ fn independent_non_scalar_subject_and_wrong_frame_are_rejected() {
 
 #[test]
 fn scalar_values_and_other_copular_routes_do_not_overlap() {
+    assert_eq!(readings("X is 2", Category::FiniteClause).len(), 1);
+    assert_constituents(
+        "X is 2",
+        Category::FiniteClause,
+        &[
+            (Category::NominativePhrase, "X"),
+            (Category::ScalarLocationPredicate, "is 2"),
+            (Category::ScalarValue, "2"),
+        ],
+    );
     // Savage Swipe, Disrupting Shoal, Depressurize, and Domestication.
     for text in ["2", "X", "0 or less", "4 or greater", "three"] {
         assert_eq!(readings(text, Category::ScalarValue).len(), 1, "{text}");
@@ -269,7 +279,6 @@ fn scalar_values_and_other_copular_routes_do_not_overlap() {
     }
     for text in [
         "that creature is 2",
-        "X is 2",
         "its power creature is 2",
         "its power and that creature are 2",
         "its power are 2",

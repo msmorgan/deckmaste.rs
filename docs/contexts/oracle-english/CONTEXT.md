@@ -658,12 +658,20 @@ A numeral expressing a count, such as *one* or *two*.
 A phrase expressing an extent or scalar value, including arithmetic
 combinations and comparisons with other values.
 
+**Arithmetic Operand** (project term):
+An expression combined with another by an arithmetic operator in a Measure
+Phrase. A scalar Measure Phrase or a Noun Phrase with Scalar Denotation can
+fill this role under ticket `english-v3-arithmetic-nominal-operand` rulings
+R10a–R10d (2026-10-09).
+
 **Scalar Location**:
 The expression of a position on a scale, commonly with *be* and an NP as
 predicative Complement (CGEL, Ch. 8 §5.4, p. 693).
 
 **Scalar Denotation** (project term):
-A noun use or measured amount's denotation of a quantity or scalar property.
+A noun use, measured amount, or scalar variable's denotation of a quantity or
+scalar property. Scalar variables may be Subjects with scalar predicative
+Complements under orchestrator ruling R10e (2026-10-09).
 An ordinary headed phrase retains that denotation; a number-transparent
 quantificational use instead denotes its Oblique. Its licensing of a value Complement after
 *be* is the restriction of the

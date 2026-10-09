@@ -418,6 +418,7 @@ constructions! {
         category PropertyValue(MeasureKind);
         category Amount();
         category MeasurePhrase(MeasureKind);
+        category ArithmeticOperand();
         category ScalarMeasurePhrase();
         category ScalarExtentComplement();
         category ScalarExtentMeasure();
@@ -4071,7 +4072,7 @@ constructions! {
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export SourceModifierPresent = No;
-            export ScalarDenotation = No;
+            export ScalarDenotation = head.ScalarDenotation;
         }
         schema ScalarVariable {
             form [head: lexical(Numeral)];
@@ -4196,6 +4197,14 @@ constructions! {
             export DeterminerUse = head.DeterminerUse;
         }
 
+        // Scalar Denotation includes measured amounts. Quantification of a
+        // head with declared Measure Position supplies that amount; ordinary
+        // quantified objects retain their head's Scalar Denotation.
+        table quantified_scalar_denotation(ScalarDenotation, MeasurePosition) -> ScalarDenotation {
+            (No, None) => No, (No, Before) => Yes,
+            (Yes, None) => Yes, (Yes, Before) => Yes,
+        }
+
         construction QuantifiedNounPhrase: NounPhrase {
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = quantity.DeterminerAgreementNumber;
@@ -4206,7 +4215,7 @@ constructions! {
             form [quantity: QuantitativeDeterminer, " ", head: Nominal];
             require determiner_license(quantity.DeterminerUse, head.number, head.countability) = Yes;
             require head.DeterminerRequirement = No;
-            export ScalarDenotation = head.ScalarDenotation;
+            export ScalarDenotation = quantified_scalar_denotation(head.ScalarDenotation, head.MeasurePosition);
             export SubjectStructure = Phrase;
             export BareGenitiveHost = head.BareGenitiveHost;
             export Targeting = head.Targeting;
@@ -4299,12 +4308,21 @@ constructions! {
             export MeasureKind = Scalar;
         }
 
+        construction ScalarMeasureOperand: ArithmeticOperand {
+            form [value: MeasurePhrase];
+            require value.MeasureKind = Scalar;
+        }
+        construction ScalarNominalOperand: ArithmeticOperand {
+            form [value: NounPhrase];
+            require value.ScalarDenotation = Yes;
+        }
+
+        // Arithmetic nominal operands follow ticket rulings R10a–R10d
+        // (2026-10-09). CGEL's PP complementation does not supply this route.
         construction ArithmeticMeasure: MeasurePhrase {
-            form [left: MeasurePhrase, " ", operator: lexical(Preposition), " ",
-                right: MeasurePhrase];
+            form [left: ArithmeticOperand, " ", operator: lexical(Preposition), " ",
+                right: ArithmeticOperand];
             require operator.MeasureOperator = Yes;
-            require left.MeasureKind = Scalar;
-            require right.MeasureKind = Scalar;
             export MeasureKind = Scalar;
         }
 

@@ -523,9 +523,15 @@ fn numeral(value: i32, notation: deckmaste_lexical::Numeral) -> Word {
 #[test]
 fn independent_measure_values_preserve_operator_structure_and_notation() {
     use deckmaste_lexical::Numeral;
+    let operand = |value| {
+        Box::new(Reading::ScalarMeasureOperand {
+            form: 0,
+            value: Box::new(value),
+        })
+    };
     let value = Reading::ArithmeticMeasure {
         form: 0,
-        left: Box::new(Reading::GroupedScalarNumeral {
+        left: operand(Reading::GroupedScalarNumeral {
             form: 0,
             modifier: None,
             head: numeral(1000, Numeral::Arabic(true)),
@@ -535,7 +541,7 @@ fn independent_measure_values_preserve_operator_structure_and_notation() {
             WordForm::Invariant,
             FeatureBundle::default(),
         ),
-        right: Box::new(Reading::ScalarVariable {
+        right: operand(Reading::ScalarVariable {
             category: Category::MeasurePhrase,
             form: 0,
             head: word(

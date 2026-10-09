@@ -135,11 +135,29 @@ fn firebending_student_supplements_the_keyword_label_once() {
 
 #[test]
 fn supplementary_licence_excludes_integrated_and_locative_routes() {
+    assert_eq!(readings("X is 2", Category::FiniteClause).len(), 1);
+    assert_constituents(
+        "X is 2",
+        Category::FiniteClause,
+        &[
+            (Category::NominativePhrase, "X"),
+            (Category::ScalarLocationPredicate, "is 2"),
+            (Category::ScalarValue, "2"),
+        ],
+    );
     assert_eq!(
         readings("where X is its power", Category::PrepositionPhrase).len(),
         1
     );
     assert!(readings("where X is its power", Category::NounPhrase).is_empty());
+    assert_eq!(
+        readings(
+            "where X is the number of cards in your hand",
+            Category::PrepositionPhrase,
+        )
+        .len(),
+        3,
+    );
     for (text, category) in [
         ("where X is its power", Category::Clause),
         ("end of turn where X is its power", Category::NounPhrase),
@@ -153,7 +171,6 @@ fn supplementary_licence_excludes_integrated_and_locative_routes() {
         ),
         ("where X are its power", Category::PrepositionPhrase),
         ("where X be its power", Category::PrepositionPhrase),
-        ("X is 2", Category::FiniteClause),
     ] {
         assert!(readings(text, category).is_empty(), "{text}");
     }
