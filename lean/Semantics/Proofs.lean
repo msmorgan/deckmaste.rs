@@ -42,6 +42,7 @@ import Semantics.Proofs.Possessor
 import Semantics.Proofs.KeywordActionResidues
 import Semantics.Proofs.KeywordAbilityCensus
 import Semantics.Proofs.FaceDown
+import Semantics.Proofs.TextChanges
 
 /-!
 # Semantics.Proofs
