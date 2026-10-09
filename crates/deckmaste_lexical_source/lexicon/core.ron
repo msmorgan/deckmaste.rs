@@ -175,7 +175,7 @@
         "vocab:ComparativeQuantifier/Fewer": {"ComparativeQuantityUse": "Yes"},
         "vocab:Determinative/Less": {"ComparativeQuantityUse": "Yes", "MeasureModifierUse": "Yes"},
         "vocab:ScalarDegree/Greater": {"ScalarComparativeUse": "Yes"},
-        "vocab:DefiniteMarker/The": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
+        "vocab:DefiniteMarker/The": {"NominalAdjunctDeterminer": "Definite", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Another": {"DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Any": {"QuantificationalDeterminer": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Either": {"CorrelativeKind": "Either", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
@@ -415,7 +415,7 @@
         ),
         (
             id: "lexeme:CommonNoun/Time", lemma: "time", category: Noun,
-            properties: (countability: [Count, Mass], features: {"FrequencyUnit": "Yes", "RelativisableAdjunctClass": "Temporal"}, frames: []),
+            properties: (countability: [Count, Mass], features: {"FrequencyUnit": "Yes", "NominalAdjunctClass": "Temporal", "RelativisableAdjunctClass": "Temporal"}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Time"),
             capitalization: Initial, binding: Free, surface_structure: Word,

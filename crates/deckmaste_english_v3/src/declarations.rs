@@ -252,7 +252,8 @@ constructions! {
         feature NominalBareClass { None, Interval, Boundary }
         feature NominalAdjunctClass { None, Temporal, Manner } default None;
         feature SlashPremodifierUse { No, Yes } default Yes;
-        feature NominalAdjunctDeterminer { None, Demonstrative, Temporal }
+        feature NominalDependentPresent { No, Yes } default No;
+        feature NominalAdjunctDeterminer { None, Demonstrative, Temporal, Definite }
         feature BareSingularUse { No, Yes } default No;
         feature RelativeUse { No, Yes } default No;
         feature ExistentialUse { No, Yes } default No;
@@ -383,7 +384,7 @@ constructions! {
         category BareComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence);
         category ParticipialComplement(PurposeAdjunctLicence, MatrixComplementLicence);
         category PerfectComplement(PurposeAdjunctLicence, MatrixComplementLicence);
-        category Nominal(AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass,
+        category Nominal(AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
             RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
@@ -411,7 +412,7 @@ constructions! {
         category LocativeComplement();
         category MannerComplement();
         category FrequencyPhrase();
-        category NominalAdjunctPhrase();
+        category NominalAdjunctPhrase(NominalAdjunctClass, NominalAdjunctDeterminer);
         category BareTemporalNominal(NominalBareClass);
         category BoundaryComplement();
         category SubjectRelativeClause(number);
@@ -490,7 +491,7 @@ constructions! {
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
-            AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass,
+            AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
             RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
@@ -934,6 +935,7 @@ constructions! {
         }
 
         policy NominalHeadFeatures {
+            export NominalDependentPresent = Yes;
             export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export BarePrepositionUse = head.BarePrepositionUse;
@@ -957,6 +959,7 @@ constructions! {
         }
 
         policy PostmodifiedNominalProperties {
+            export NominalDependentPresent = Yes;
             export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -1323,6 +1326,8 @@ constructions! {
             agree left.countability = Right.countability;
             agree left.number = Right.number;
             export Targeting = left.Targeting;
+            export NominalDependentPresent = nominal_dependent_presence(left.NominalDependentPresent,
+                Right.NominalDependentPresent);
             export NominalAdjunctClass = nominal_adjunct_concord(left.NominalAdjunctClass,
                 Right.NominalAdjunctClass);
             export RelativisableAdjunctClass = coordinated_relativisable_adjunct_class(
@@ -1641,6 +1646,7 @@ constructions! {
         }
 
         schema NominalAdjunctPredicate {
+            require postposed_nominal_adjunct(modifier.NominalAdjunctDeterminer) = Yes;
             form [head: node, " ", modifier: NominalAdjunctPhrase];
         }
 
@@ -2407,14 +2413,22 @@ constructions! {
             use FiniteHeadAgreement;
         }
 
+        // Preposed temporal NP position: project ruling R11a (2026-10-09).
+        // Keep the existing PP forms and their Reading identities.
         construction InitialPreposition: Clause {
-            form [dependent: PrepositionPhrase, ", ", clause: Clause];
+            form [dependent: PrepositionPhrase, ", ", clause: Clause]
+                require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes
+                require preposed_complement_function(dependent.ComplementFunctionRestriction) = Yes
+                require dependent.MatrixComplementRequirement = None
+                require dependent.SelectedPrepositionUse = No;
             form [dependent: PrepositionPhrase, " ", clause: Clause]
-                require dependent.ClauseInitialAdjunct = Yes;
-            require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes;
-            require preposed_complement_function(dependent.ComplementFunctionRestriction) = Yes;
-            require dependent.MatrixComplementRequirement = None;
-            require dependent.SelectedPrepositionUse = No;
+                require dependent.ClauseInitialAdjunct = Yes
+                require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes
+                require preposed_complement_function(dependent.ComplementFunctionRestriction) = Yes
+                require dependent.MatrixComplementRequirement = None
+                require dependent.SelectedPrepositionUse = No;
+            form [dependent: NominalAdjunctPhrase, ", ", clause: Clause]
+                require dependent.NominalAdjunctClass = Temporal;
             export UnmarkedConjunctLicence = Yes;
         }
 
@@ -2565,6 +2579,7 @@ constructions! {
 
         construction Noun: Nominal {
             export UnmarkedConjunctLicence = Yes;
+            export NominalDependentPresent = No;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [head: lexical(Noun)];
@@ -2574,6 +2589,7 @@ constructions! {
 
         construction BareFramedNoun: Nominal {
             export UnmarkedConjunctLicence = Yes;
+            export NominalDependentPresent = No;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [head: lexical(Noun)];
@@ -2585,6 +2601,7 @@ constructions! {
         // to-infinitivals are internal Complements of nouns.
         construction InfinitiveComplementNominal: Nominal {
             export UnmarkedConjunctLicence = Yes;
+            export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = No;
             form [head: lexical(Noun), " ", complement: InfinitiveComplement];
@@ -2594,6 +2611,7 @@ constructions! {
 
         construction SymbolComplementNominal: Nominal {
             export UnmarkedConjunctLicence = Yes;
+            export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = No;
             form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
@@ -2606,6 +2624,7 @@ constructions! {
 
         construction PrepositionComplementNominal: Nominal {
             export UnmarkedConjunctLicence = Yes;
+            export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
             form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
@@ -2795,6 +2814,7 @@ constructions! {
         // an outer Determiner; without it the cardinal is the Determiner.
         construction CardinalPremodifiedNominal: Nominal {
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
+            export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
@@ -2841,6 +2861,7 @@ constructions! {
         // distinguishes the singular conceptualization of a measured quantity.
         construction CardinalMeasuredNominal: Nominal {
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
+            export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = Head;
@@ -3002,6 +3023,7 @@ constructions! {
 
         construction TargetedNominal: Nominal {
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
+            export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
@@ -3844,11 +3866,21 @@ constructions! {
         }
 
         // CGEL pp. 698 and 671: licensed temporal and manner NPs as adjuncts.
-        table nominal_adjunct_license(NominalAdjunctDeterminer, NominalAdjunctClass)
-            -> Selection {
-            (Demonstrative, Temporal) => Yes,
-            (Demonstrative, Manner) => Yes,
-            (Temporal, Temporal) => Yes,
+        // CGEL p. 698: definite temporal NPs require another dependent.
+        table nominal_adjunct_license(NominalAdjunctDeterminer, NominalAdjunctClass,
+            NominalDependentPresent) -> Selection {
+            (Demonstrative, Temporal, No) => Yes, (Demonstrative, Temporal, Yes) => Yes,
+            (Demonstrative, Manner, No) => Yes, (Demonstrative, Manner, Yes) => Yes,
+            (Temporal, Temporal, No) => Yes, (Temporal, Temporal, Yes) => Yes,
+            (Definite, Temporal, Yes) => Yes,
+        }
+        // Definite temporal NPs are preposed only: project ruling R11d.
+        table postposed_nominal_adjunct(NominalAdjunctDeterminer) -> Selection {
+            (Demonstrative) => Yes, (Temporal) => Yes,
+        }
+        table nominal_dependent_presence(NominalDependentPresent, NominalDependentPresent)
+            -> NominalDependentPresent {
+            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
         table nominal_adjunct_concord(NominalAdjunctClass, NominalAdjunctClass)
             -> NominalAdjunctClass {
@@ -3858,11 +3890,13 @@ constructions! {
             (Manner, Temporal) => None, (Manner, Manner) => Manner,
         }
         construction NominalAdjunctPhrase: NominalAdjunctPhrase {
+            export NominalAdjunctClass = head.NominalAdjunctClass;
+            export NominalAdjunctDeterminer = determiner.NominalAdjunctDeterminer;
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require head.Targeting = No;
             require head.number = Singular;
             require nominal_adjunct_license(determiner.NominalAdjunctDeterminer,
-                head.NominalAdjunctClass) = Yes;
+                head.NominalAdjunctClass, head.NominalDependentPresent) = Yes;
         }
         instance NominalAdjunctPredicate<Result, Head: head, Properties>: [
             (FinitePredicate, Self, PredicateHostAgreement),

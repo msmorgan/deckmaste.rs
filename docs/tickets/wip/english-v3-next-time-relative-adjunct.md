@@ -68,6 +68,13 @@ Orchestrator rulings 2026-10-09:
   by-product; record those faces under spot checks, do not count them as a
   separate construction.
 
+Implementation update (user, 2026-10-09): trunk `otzuyrluxpsw` already supplies
+`AdverbialGapRelativeClause`, a complete FiniteClause relative on a head declaring
+`RelativisableAdjunctClass: Temporal`. Reuse that route for R11c; no relative
+Construction is added. The claim-parent probe reads *the first time you cast a
+spell each turn* as a NounPhrase (16 Readings); it is a green control, not a
+remaining witness.
+
 ## Witnesses
 
 Each is the face's only failing unit at `qsupksky`; re-probed 2026-10-09 on
@@ -92,22 +99,24 @@ trunk `nxzntorp` with `--readings 1 --as-card`: witness 0, control 1. (D) =
 
 ## Method
 
-Standard constraints apply (CLAUDE.md landing record, assurance, scope).
+Standard constraints apply.
 Deltas:
 
-1. Verification budget (binding): one bounded census of every supported face
-   whose analysed text matches case-insensitive `\b(next|last|each) time\b` or `(^|[.:] )(this|that|each) (turn|combat|step),`, plus 300 random covered controls
-   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261009`),
-   with the identity manifest, `--workers 6` and `--samples-per-face 0`, run
-   under `/usr/bin/time -v`; compare it with `cargo xtask english-v3 diff`
-   against the claim parent's census of the same manifest. Never run `--all`.
-   Tests: `cargo test -p` and `cargo clippy -p … --tests -- -D warnings` for
-   every crate whose code or consumed data changed (`deckmaste_english_v3`
-   always; `deckmaste_lexical_source` if `core.ron`, `verbs.ron` or
-   `vocabulary.rs` changed). No xtask tests, no Lean checks, no post-refresh
-   re-census unless refresh touched grammar, lexicon or core. New tests go
-   under `tests/suite/` registered in `tests/main.rs`. Evidence lives under
-   the workspace's ignored `target/english-v3/`, never `/tmp`.
+1. Verification budget (user update 2026-10-09): a bounded census, never
+   `--all`. Select every supported face matching case-insensitive
+   `\b(the (next|first|second|third|last) time|this turn,)` in analysed text,
+   plus 300 random covered controls (seed 20261008) chosen by the official
+   `cargo xtask english-v3 diff --manifest … --random 300 --seed 20261008`.
+   Include the additional demonstrative and distributive *time* faces the
+   declared temporal licence reaches. Run the prebuilt binary with the identity
+   manifest, `--workers 6 --samples-per-face 0`, under `/usr/bin/time -v`, and
+   compare against the claim-parent bounded census with the official `diff`
+   (schema v8, face counts sum line counts; `--lines` attributes changes).
+   Tests and clippy cover each touched crate; no xtask tests or Lean checks.
+   Evidence stays under `target/english-v3/english-v3-next-time-relative-adjunct/`.
+   After the six-item record and `jj --no-pager commit`, refresh and stop for
+   orchestrator review. Re-check only the bounded census and full suites of
+   touched crates if refresh changes grammar, lexicon or construction core.
 2. Probe first: probe each witness and control before implementation and
    record the counts; write each witness as a test. Run the tests and clippy
    once, at the end.
@@ -146,17 +155,60 @@ Deltas:
 
 ## Landing record
 
-Six items, each figure stamped with the change id it was measured on (ruling
-2026-10-08):
-
-1. **Census delta**: covered faces and total Readings before/after on the
-   bounded manifest; lost faces by name with classification, or "none".
-2. **Witnesses**: each witness above with its Reading count after.
-3. **Spot checks**: ten newly covered faces by name with the selected analysis.
-4. **Deviations and STOPs**: constructions, frames or tests added or deleted
-   beyond the ticket's letter, with justification; every STOP and its
-   resolution; any glossary gap in `docs/contexts/oracle-english/CONTEXT.md`.
-5. **Tests**: the `cargo test -p` / clippy commands and outcomes; counts
-   restored / re-spelled / ignored-with-blocker / added / removed.
-6. **Timing**: wall time of the bounded census as one figure with worker count
-   (6), plus peak RSS from `/usr/bin/time -v`.
+1. **Census delta** (pre-refresh `rxwmpvru`, before on its empty claim-parent tree
+   `szxrxoqk`, after on the implementation): bounded manifest **1176 faces**;
+   covered **809 → 883**, Readings **104760 → 111582**. Official
+   `diff --lines`: gained **74**, lost **0** (none), decreases **0**, increases
+   **0**, digest-only **0**, unchanged **1102**; **111** changed lines.
+   Selector: case-insensitive `\b(the (next|first|second|third|last) time|this turn,)`
+   (**840** faces), plus the additional demonstrative/distributive *time*
+   surface (**46** additional faces), plus **300** random covered controls,
+   seed **20261008** (overlaps removed). Refreshed `rxwmpvru`: covered
+   **884**, Readings **111613**; claim-parent diff gained **75**, lost **0**,
+   decreases **0**, increases **0**, digest-only **330**, unchanged **771**.
+   Refresh-only diff: gained **1** (Sentinel Sarah Lyons), digest-only **338**,
+   lost/decreases/increases **0**; these are inherited from `ouzqotlxvsmv`
+   (the bounding cardinal licence and optional modifier representation). Evidence: `target/english-v3/english-v3-next-time-relative-adjunct/{manifest,before,after,diff}.json`.
+2. **Witnesses** (pre-refresh `rxwmpvru`, complete probes): Dazzling Reflection **12**;
+   Words of Waste **24**; New Way Forward **20**; Circle of Protection: Red
+   **40**; Words of Wilding **24**. All five were **0** before implementation;
+   their *If* controls each admitted **1** at the probe cap. The inherited
+   *the first time you cast a spell each turn* NP already admitted **16** and
+   was excluded from the red list. Witness units differ from whole-face totals.
+3. **Spot checks** (pre-refresh `rxwmpvru`): Dazzling Reflection, Words of Waste, New Way
+   Forward, Circle of Protection: Red, Words of Wilding, Aegis of Honor,
+   Awe Strike, Circle of Protection: Blue, Jade Monolith, and Mystic Reflection.
+   Each selected whole-face Reading has a preposed temporal Nominal Adjunct
+   headed by *time*, with an Adverbial Gap Relative Clause containing a complete
+   Finite Clause; none treats that NP as the Subject. Each realizes byte-exactly
+   with no probe issues. Probe trees are `spot-full-*.json` in the evidence directory.
+4. **Deviations and STOPs** (`rxwmpvru`): no new or retired Construction,
+   frame or lexeme; reuse the relative route from `otzuyrluxpsw`. Extend the
+   existing InitialPreposition with a temporal NP form. This required generic
+   per-form Categories for single-child fields in the construction core;
+   cardinality, feature reachability and shared optional/repeated projections
+   remain checked. Two core regression tests accompany that support. The
+   selected-frame validator was factored out to satisfy clippy. No STOPs.
+   Refresh conflicted only on test-module registrations; both suites were
+   retained. Glossary gaps filled: Nominal Dependent Present, Nominal Adjunct Class,
+   Nominal Adjunct Determiner. No superseded route remains to retire.
+5. **Tests** (pre-refresh `rxwmpvru`): `cargo test -p deckmaste_english_v3` passed
+   **669** tests; `cargo test -p deckmaste_lexical_source` passed **63**;
+   `cargo test -p deckmaste_construction_v3_core` passed **32**. The checks
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`, and
+   `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings` passed. English's full suite
+   was rerun after compiler/clippy cleanup. Restored **0**, re-spelled **0**,
+   ignored **0**, added **10** (**8** English, **2** core), removed **0**;
+   no removals to justify. Citation checks: no noncompliant citations, **0**
+   stale; piped `jj --no-pager diff --git | cargo xtask cite audit --diff`
+   passed with no new citation sites. After refresh (`rxwmpvru`), the same
+   full test commands passed **684**, **64**, and **32** tests respectively,
+   and all three exact clippy commands passed again. The refreshed citation
+   checks also pass; the elapsed-time figure is spelled as minutes and seconds
+   to avoid the citation scanner interpreting it as a rule number.
+6. **Timing** (pre-refresh `rxwmpvru`): the bounded landing census took **46.21 s**,
+   **6 workers**, peak RSS **8173084 kB**, measured with `/usr/bin/time -v`
+   on prebuilt `target/debug/cargo-xtask`, identity manifest and
+   `--samples-per-face 0`. Refresh-only bounded recheck (`rxwmpvru`):
+   **1 min 54.11 s**, **6 workers**, peak RSS **8188948 kB**. No full corpus run.

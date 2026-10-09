@@ -850,6 +850,20 @@ _Avoid_: Complement for the slot descriptor
 **Nominal**:
 An intermediate nominal constituent headed by a noun or noun-like element.
 
+**Nominal Dependent Present** (project term):
+Whether a Nominal contains a Modifier or selected Complement in addition to
+its head; an outer Determiner is not such a dependent (temporal-NP ruling
+R11b, 2026-10-09; CGEL, Ch. 8 §6.3, p. 698).
+
+**Nominal Adjunct Class** (project term):
+A nominal head's declared eligibility for temporal or manner Noun Phrase
+Adjunct use (CGEL, Ch. 8 §6.3, p. 698; §2.1, p. 671).
+
+**Nominal Adjunct Determiner** (project term):
+A Determinative's declared eligibility to determine a temporal or manner
+Noun Phrase Adjunct; definite temporal use requires another dependent
+(CGEL, Ch. 8 §6.3, p. 698).
+
 **Noun Phrase**:
 A phrase whose head or fused head is nominal and which can fill functions such
 as Subject, Object, or Complement of a preposition.

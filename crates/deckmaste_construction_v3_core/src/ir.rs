@@ -416,9 +416,13 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         for form in &construction.forms {
             let other = collect_fields(form, &construction.name)?;
             if fields.len() != other.len()
-                || fields
-                    .iter()
-                    .any(|(name, ty)| !other.iter().any(|(n, t)| name == n && ty == t))
+                || fields.iter().any(|(name, ty)| {
+                    !other.iter().any(|(n, t)| {
+                        name == n
+                            && (ty == t
+                                || matches!((ty, t), (FieldType::One(_), FieldType::One(_))))
+                    })
+                })
             {
                 return Err(error(
                     &construction.name,
@@ -426,18 +430,20 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
                 ));
             }
         }
-        for (name, ty) in &fields {
-            match ty {
-                FieldType::SelectedFrame(_, _) => {}
-                FieldType::Lexical(category) => {
-                    ron::from_str::<deckmaste_lexical_model::Category>(category)
-                        .map_err(|_| error(name, "unknown lexical Category"))?;
-                }
-                FieldType::One(category)
-                | FieldType::Optional(category)
-                | FieldType::Repeated(category, _) => {
-                    if category_index(category).is_none() {
-                        return Err(error(name, "unknown constituent Category"));
+        for form in &construction.forms {
+            for (name, ty) in collect_fields(form, &construction.name)? {
+                match &ty {
+                    FieldType::SelectedFrame(_, _) => {}
+                    FieldType::Lexical(category) => {
+                        ron::from_str::<deckmaste_lexical_model::Category>(category)
+                            .map_err(|_| error(&name, "unknown lexical Category"))?;
+                    }
+                    FieldType::One(category)
+                    | FieldType::Optional(category)
+                    | FieldType::Repeated(category, _) => {
+                        if category_index(category).is_none() {
+                            return Err(error(&name, "unknown constituent Category"));
+                        }
                     }
                 }
             }
@@ -651,39 +657,30 @@ fn normalize(
             .iter()
             .zip(&construction.form_requirements)
         {
+            // Field names and storage cardinalities belong to the Construction;
+            // child Categories and reachable features belong to its selected
+            // form.
+            let form_fields = collect_fields(parts, &construction.name)?;
+            let fields = ir.constructors[index]
+                .fields
+                .iter()
+                .map(|(name, _)| {
+                    form_fields
+                        .iter()
+                        .find(|(candidate, _)| candidate == name)
+                        .unwrap()
+                        .clone()
+                })
+                .collect();
+            let constructor_fields = std::mem::replace(&mut ir.constructors[index].fields, fields);
             let mut obligations = construction.equations.clone();
             obligations.extend(requirements.iter().cloned());
-            if parts.iter().any(|p| {
-                matches!(
-                    p,
-                    crate::parse::Part::Field(_, FieldType::SelectedFrame(_, _))
-                )
-            }) {
-                let valid = match parts.as_slice() {
-                    [
-                        Part::Field(head, selector),
-                        Part::Field(_, FieldType::SelectedFrame(selected, _)),
-                    ] if head == selected => match selector {
-                        FieldType::Lexical(category) => category == "Verb",
-                        FieldType::One(category) => ir
-                            .categories
-                            .iter()
-                            .position(|name| name == category)
-                            .is_some_and(|index| interfaces[index].contains(&7)),
-                        _ => false,
-                    },
-                    _ => false,
-                };
-                if !valid {
-                    return Err(error(
-                        &construction.name,
-                        "selected_frame requires exactly a lexical Verb or node exporting frame, followed by selected_frame(head)",
-                    ));
-                }
-            }
+            validate_selected_frame_surface(ir, interfaces, &construction.name, parts)?;
             let pieces = normalize_form(ir, index, interfaces, parts)?;
             let canonical = ir.constructors[index].forms.iter().position(|f| {
-                f.pieces == pieces && canonical_requirements[f.index] == *requirements
+                f.pieces == pieces
+                    && f.fields == ir.constructors[index].fields
+                    && canonical_requirements[f.index] == *requirements
             });
             let form_index = canonical.unwrap_or(ir.constructors[index].forms.len());
             let mut form_rules = vec![];
@@ -704,10 +701,22 @@ fn normalize(
                         Piece::SelectedLiteral { .. } => unreachable!(),
                         Piece::Field(field) => {
                             slots[*field] = symbols.len();
-                            symbols.push(match &field_symbols[*field] {
-                                Symbol::Lexical(c) => Symbol::Lexical(c.clone()),
-                                Symbol::Nonterminal(c) => Symbol::Nonterminal(*c),
-                                Symbol::Literal(_) => unreachable!(),
+                            // Optional/repeated projections remain shared
+                            // across forms.
+                            // Only single constituent Categories can vary by
+                            // form.
+                            symbols.push(match &ir.constructors[index].fields[*field].1 {
+                                FieldType::One(category) => Symbol::Nonterminal(
+                                    ir.categories
+                                        .iter()
+                                        .position(|name| name == category)
+                                        .unwrap(),
+                                ),
+                                _ => match &field_symbols[*field] {
+                                    Symbol::Lexical(c) => Symbol::Lexical(c.clone()),
+                                    Symbol::Nonterminal(c) => Symbol::Nonterminal(*c),
+                                    Symbol::Literal(_) => unreachable!(),
+                                },
                             });
                             checks.push(
                                 plan.references
@@ -772,6 +781,44 @@ fn normalize(
                     fields,
                 });
             }
+            ir.constructors[index].fields = constructor_fields;
+        }
+    }
+    Ok(())
+}
+
+fn validate_selected_frame_surface(
+    ir: &Ir,
+    interfaces: &[BTreeSet<usize>],
+    owner: &Ident,
+    parts: &[Part],
+) -> syn::Result<()> {
+    if parts.iter().any(|p| {
+        matches!(
+            p,
+            crate::parse::Part::Field(_, FieldType::SelectedFrame(_, _))
+        )
+    }) {
+        let valid = match parts {
+            [
+                Part::Field(head, selector),
+                Part::Field(_, FieldType::SelectedFrame(selected, _)),
+            ] if head == selected => match selector {
+                FieldType::Lexical(category) => category == "Verb",
+                FieldType::One(category) => ir
+                    .categories
+                    .iter()
+                    .position(|name| name == category)
+                    .is_some_and(|index| interfaces[index].contains(&7)),
+                _ => false,
+            },
+            _ => false,
+        };
+        if !valid {
+            return Err(error(
+                owner,
+                "selected_frame requires exactly a lexical Verb or node exporting frame, followed by selected_frame(head)",
+            ));
         }
     }
     Ok(())

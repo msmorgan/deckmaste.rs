@@ -1114,3 +1114,77 @@ fn per_form_exports_require_complete_unique_typed_interfaces() {
         "not a value of feature number",
     );
 }
+
+#[test]
+fn constituent_categories_and_feature_requirements_are_specific_to_each_form() {
+    let declaration = quote! { mod valid {
+        feature LeftKind { Left }
+        feature RightKind { Right }
+        category Left(LeftKind);
+        category Right(RightKind);
+        category Root();
+        construction Left: Left {
+            form [word: lexical(Noun)]; export LeftKind = Left;
+        }
+        construction Right: Right {
+            form [word: lexical(Adjective)]; export RightKind = Right;
+        }
+        construction Root: Root {
+            form [child: Left] require child.LeftKind = Left;
+            form [child: Right] require child.RightKind = Right;
+            form ["", child: Right] require child.RightKind = Right;
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    let forms = &ir.constructors[2].forms;
+    assert_eq!(forms.len(), 2);
+    assert_eq!(
+        forms[0].fields[0].1,
+        crate::parse::FieldType::One("Left".into())
+    );
+    assert_eq!(
+        forms[1].fields[0].1,
+        crate::parse::FieldType::One("Right".into())
+    );
+    compile(declaration).unwrap();
+    rejects(
+        quote! { mod bad {
+            feature Kind { Yes }
+            category Left(Kind);
+            category Right();
+            category Root();
+            construction Left: Left { form [word: lexical(Noun)]; export Kind = Yes; }
+            construction Right: Right { form [word: lexical(Adjective)]; }
+            construction Root: Root {
+                form [child: Left] require child.Kind = Yes;
+                form [child: Right] require child.Kind = Yes;
+            }
+        } },
+        "through its Category interface",
+    );
+}
+
+#[test]
+fn equal_surfaces_with_different_child_categories_retain_both_forms() {
+    let declaration = quote! { mod valid {
+        category Left(); category Right(); category Root();
+        construction Left: Left { form [word: lexical(Noun)]; }
+        construction Right: Right { form [word: lexical(Adjective)]; }
+        construction Root: Root {
+            form [child: Left, rest: repeat(Left, ", ")];
+            form [child: Right, rest: repeat(Left, ", ")];
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    let forms = &ir.constructors[2].forms;
+    assert_eq!(forms.len(), 2);
+    let first = &ir.rules[forms[0].rule].symbols[1];
+    let second = &ir.rules[forms[1].rule].symbols[1];
+    let (crate::ir::Symbol::Nonterminal(first), crate::ir::Symbol::Nonterminal(second)) =
+        (first, second)
+    else {
+        panic!("repeated child must retain its shared projection");
+    };
+    assert_eq!(first, second);
+    compile(declaration).unwrap();
+}
