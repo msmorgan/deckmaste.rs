@@ -71,6 +71,7 @@ fn counted_number(head: Reading, value: i32) -> Reading {
             form: 0,
             value: Box::new(Reading::Cardinal {
                 form: 0,
+                modifier: None,
                 head: Word {
                     value: LexicalReading::Numeral {
                         value,

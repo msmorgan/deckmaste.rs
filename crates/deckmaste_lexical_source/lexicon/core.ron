@@ -206,7 +206,7 @@
         "vocab:Subordinator/That": {"RelativeSubordinator": "Yes"},
         "vocab:Preposition/After": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "FiniteClauseComplement": "Yes", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Among": {"SourceComplementUse": "Yes", "PrepositionFunctionLicence": "VerbComplement|Modifier|Compound|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
-        "vocab:Preposition/At": {"PrepositionFunctionLicence": "Adjunct|VerbComplement|Compound|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "NominalBareClass": "Boundary", "KeywordMarker": "At", "AdjectiveComplementClass": "Manner"},
+        "vocab:Preposition/At": {"PrepositionFunctionLicence": "Adjunct|VerbComplement|Compound|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "NominalBareClass": "Boundary", "KeywordMarker": "At", "AdjectiveComplementClass": "Manner", "QuantitativeComplement": "AdjectivePhrase"},
         "vocab:Preposition/Before": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "FiniteClauseComplement": "Yes", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Between": {"PrepositionFunctionLicence": "NounComplement|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Beyond": {"PrepositionFunctionLicence": "Modifier|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
@@ -1035,7 +1035,7 @@
         ),
         (
             id: "vocab:Adjective/Least", lemma: "least", category: Adjective,
-            properties: (countability: [], features: {}, frames: []),
+            properties: (countability: [], features: {"QuantitativeAdjectiveComplementUse": "Yes"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adjective/Least"),
             capitalization: Initial, binding: Free, surface_structure: Word,

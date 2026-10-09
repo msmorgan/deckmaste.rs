@@ -52,6 +52,7 @@ fn frequency(quantity: Reading, number: Number) -> Reading {
 fn cardinal(value: i32) -> Reading {
     Reading::Cardinal {
         form: 0,
+        modifier: None,
         head: Word {
             value: LexicalReading::Numeral {
                 value,

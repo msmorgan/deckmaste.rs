@@ -527,6 +527,7 @@ fn independent_measure_values_preserve_operator_structure_and_notation() {
         form: 0,
         left: Box::new(Reading::GroupedScalarNumeral {
             form: 0,
+            modifier: None,
             head: numeral(1000, Numeral::Arabic(true)),
         }),
         operator: word(
@@ -548,16 +549,19 @@ fn independent_measure_values_preserve_operator_structure_and_notation() {
     assert!(readings("1,000 minus X", Category::MeasurePhrase).contains(&value));
     let wrong_notation = Reading::GroupedScalarNumeral {
         form: 0,
+        modifier: None,
         head: numeral(1000, Numeral::Arabic(false)),
     };
     assert!(wrong_notation.admit(lexicon()).is_err());
     assert!(readings("1000", Category::MeasurePhrase).is_empty());
     let grouped = Reading::GroupedScalarNumeral {
         form: 0,
+        modifier: None,
         head: numeral(2, Numeral::Arabic(true)),
     };
     let ungrouped = Reading::UngroupedScalarNumeral {
         form: 0,
+        modifier: None,
         head: numeral(2, Numeral::Arabic(false)),
     };
     let alternatives = readings("2", Category::MeasurePhrase);
@@ -805,6 +809,7 @@ fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
                 form: 0,
                 head: Box::new(Reading::UngroupedScalarNumeral {
                     form: 0,
+                    modifier: None,
                     head: numeral(2, Numeral::Arabic(false)),
                 }),
             }),
@@ -1154,6 +1159,7 @@ fn complemented_adjectives_are_postpositive_in_both_directions() {
                     form: 0,
                     head: Box::new(Reading::UngroupedScalarNumeral {
                         form: 0,
+                        modifier: None,
                         head: numeral(2, deckmaste_lexical::Numeral::Arabic(false)),
                     }),
                 }),

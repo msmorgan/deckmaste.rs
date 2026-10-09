@@ -85,7 +85,7 @@ Deltas:
 
 1. Verification budget (binding): one bounded census of every supported face
    whose analysed text matches case-insensitive `\bat least\b`, plus 300 random covered controls
-   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261009`),
+   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261008`),
    with the identity manifest, `--workers 6` and `--samples-per-face 0`, run
    under `/usr/bin/time -v`; compare it with `cargo xtask english-v3 diff`
    against the claim parent's census of the same manifest. Never run `--all`.
@@ -135,17 +135,9 @@ Deltas:
 
 ## Landing record
 
-Six items, each figure stamped with the change id it was measured on (ruling
-2026-10-08):
-
-1. **Census delta**: covered faces and total Readings before/after on the
-   bounded manifest; lost faces by name with classification, or "none".
-2. **Witnesses**: each witness above with its Reading count after.
-3. **Spot checks**: ten newly covered faces by name with the selected analysis.
-4. **Deviations and STOPs**: constructions, frames or tests added or deleted
-   beyond the ticket's letter, with justification; every STOP and its
-   resolution; any glossary gap in `docs/contexts/oracle-english/CONTEXT.md`.
-5. **Tests**: the `cargo test -p` / clippy commands and outcomes; counts
-   restored / re-spelled / ignored-with-blocker / added / removed.
-6. **Timing**: wall time of the bounded census as one figure with worker count
-   (6), plus peak RSS from `/usr/bin/time -v`.
+1. **Census delta** (`ouzqotlx`): claim-parent-equivalent baseline → implementation, 300 → 370 covered faces and 11,515 → 23,371 Readings. The built-in diff reports 70 gained, 0 lost, 0 decreases, 0 increases, 100 digest-only and 232 unchanged; no source changes or unmatched identities. Lost faces: none. The digest-only changes preserve counts and reflect the added absent modifier field in existing cardinal/scalar values. Selector: all 102 supported faces matching case-insensitive `\bat least\b` plus 300 covered controls selected by built-in diff from `mqrlzszk`, seed 20261008: 402 identities. The untouched baseline was measured on `ouzqotlx`, source-equivalent to claim parent `mqunoxxy`. Evidence: `target/english-v3/english-v3-at-least-cardinal/{manifest,before,after,diff}.json`.
+2. **Witnesses** (`ouzqotlx`, quoted units, complete enumeration): Sokka, Lateral Strategist 0 → 1; Svyelun of Sea and Sky 0 → 2; Renegade Reaper 0 → 2; Synchronized Eviction 0 → 3; Glimmer Lens 0 → 1. Before probes precede implementation; controls had 1 / 2 / 2 / 3 / 1 Readings. Every admitted witness Reading retains the same independently constructed bounded cardinal; other clause/adjunct scope ambiguities survive.
+3. **Spot checks** (`ouzqotlx`, whole-face counts; one selected Reading inspected per face): Sokka (1), *at least one other creature* as the second Subject conjunct; Svyelun (4), *at least two other Merfolk* as Object; Renegade Reaper (2), *at least one Angel card* as passive Subject; Synchronized Eviction (12), *at least two creatures that share a creature type* as Object; Glimmer Lens (1), coordination of the equipped-creature NP with the bounded quantified NP; The Emperor of Palamecia (8), *at least four mana* as a measured passive Subject; Valakut, the Molten Pinnacle (1), *at least five other Mountains* as Object; Ice-Fang Coatl (2), *at least three other snow permanents* as Object; Henge Walker (36), *at least three mana of the same color* as a measured passive Subject; Searing Barrage (4), *at least three red mana* as a measured passive Subject. All preserve *at* + adjectival *least* inside a PP modifying the numeral and realize byte-exactly; none detaches the bound into an NP-complement or free-Adjunct analysis.
+4. **Deviations and STOPs** (`ouzqotlx`): added one Construction, `QuantitativeAdjectiveComplement`, to read the declared adjective licence directly without widening ordinary Adjective Phrase admission. Added one instance of the existing quantitative-PP schema and refined four existing numeral consumers; no new frame or superseded parallel lexical/grammar route. Derived modifier spacing permits one optional modifier field rather than incompatible surface forms. A trial admitted a wrong extra Glimmer Lens Reading: wide *equipped* over a coordinated Nominal containing a cardinal with an unresolved Determiner Requirement. `BareStatusNounPhrase` now requires that existing feature to be `No`; the wrong trial Reading is retired, while the valid NP coordination survives. Supported-corpus grep found no direct status-adjective + cardinal wording and only Glimmer Lens in the matching coordination surface. Nine tests cover the five witnesses, agreement, measures, both roundtrip laws and excluded PP functions. Glossary gaps filled: Cardinal Modifier, Quantitative Adjective Complement and its Use; CGEL backs the PP modifier function, R9a backs the complement licence. No STOPs. The binding user instructions supplied seed 20261008 and six workers.
+5. **Tests** (`ouzqotlx`): `cargo test -p deckmaste_english_v3`: 662 passed, 0 failed, 0 ignored; `cargo test -p deckmaste_lexical_source`: 35 passed, 0 failed, 0 ignored. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: passed. The first English clippy attempt found an unnecessary clone in the new measure test; its full-value assertion now uses a borrowed slice. `cargo test -p deckmaste_english_v3 at_least_cardinal::bounded_cardinals_compose_with_both_measure_consumers`: passed (1 test); no full-suite repeat. Citation checks: 0 noncompliant, 0 stale; diff audit: 0 new sites. Test-subject counts: restored 0 / re-spelled 0 / ignored 0 / added 9 / removed 0; no removals to justify. Compatibility updates retain 31 explicit Reading builders in 17 existing test modules, supplying `modifier: None` and preserving their value comparisons, lexical identities and outcomes.
+6. **Timing** (`ouzqotlx`): final bounded census 15.52 seconds wall time under `/usr/bin/time -v`, 6 workers, peak RSS 2,099,752 KiB.

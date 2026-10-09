@@ -159,6 +159,7 @@ fn independent_phrase_coordinations_preserve_structure_and_oxford_commas() {
         form: 0,
         quantity: Box::new(Reading::Cardinal {
             form: 0,
+            modifier: None,
             head: numeral(3, Numeral::Cardinal),
         }),
         head: time,

@@ -200,6 +200,7 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
             head: keyword("suspend"),
             amount: Box::new(Reading::UngroupedScalarNumeral {
                 form: 0,
+                modifier: None,
                 head: number(1),
             }),
             cost: Box::new(cost(named("Red"), vec![])),

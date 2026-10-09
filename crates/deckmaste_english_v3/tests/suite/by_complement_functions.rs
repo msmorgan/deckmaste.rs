@@ -96,6 +96,7 @@ fn measure(value: i32, notation: Numeral) -> Reading {
             form: 0,
             value: Box::new(Reading::Cardinal {
                 form: 0,
+                modifier: None,
                 head: numeral(value, notation),
             }),
         }
@@ -106,6 +107,7 @@ fn measure(value: i32, notation: Numeral) -> Reading {
                 form: 0,
                 head: Box::new(Reading::UngroupedScalarNumeral {
                     form: 0,
+                    modifier: None,
                     head: numeral(value, notation),
                 }),
             }),
@@ -439,6 +441,7 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
                 form: 0,
                 quantity: Box::new(Reading::UngroupedScalarNumeral {
                     form: 0,
+                    modifier: None,
                     head: numeral(3, Numeral::Arabic(false)),
                 }),
                 head: word(

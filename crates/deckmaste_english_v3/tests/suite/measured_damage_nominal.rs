@@ -82,6 +82,7 @@ fn amount(owner: &str) -> Reading {
         form: 0,
         quantity: Box::new(Reading::UngroupedScalarNumeral {
             form: 0,
+            modifier: None,
             head: Word {
                 value: LexicalReading::Numeral {
                     value: 3,

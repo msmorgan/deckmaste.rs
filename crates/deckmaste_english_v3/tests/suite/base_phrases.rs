@@ -94,6 +94,7 @@ fn independent_uncoordinated_phrase_primitives_roundtrip() {
     };
     let cardinal = Reading::Cardinal {
         form: 0,
+        modifier: None,
         head: numeral(3, Numeral::Cardinal),
     };
     let amount = Reading::ScalarAmount {
@@ -105,6 +106,7 @@ fn independent_uncoordinated_phrase_primitives_roundtrip() {
     };
     let measure = Reading::UngroupedScalarNumeral {
         form: 0,
+        modifier: None,
         head: numeral(3, Numeral::Arabic(false)),
     };
     let mana = Reading::SymbolSequence {

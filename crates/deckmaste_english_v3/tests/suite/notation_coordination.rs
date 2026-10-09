@@ -50,6 +50,7 @@ fn arabic(value: i32) -> Word {
 fn cardinal(value: i32) -> Reading {
     Reading::Cardinal {
         form: 0,
+        modifier: None,
         head: numeral(value),
     }
 }
@@ -81,6 +82,7 @@ fn independent_noncoordinated_units_survive() {
             Category::MeasurePhrase,
             Reading::UngroupedScalarNumeral {
                 form: 0,
+                modifier: None,
                 head: arabic(2),
             },
         ),

@@ -495,6 +495,7 @@ fn independent_shared_cardinal_and_infinitive_complements_preserve_selected_cate
         head: Box::new(coordinate(head.clone(), head)),
         complement: Box::new(Reading::Cardinal {
             form: 0,
+            modifier: None,
             head: Word {
                 value: LexicalReading::Numeral {
                     value: 1,

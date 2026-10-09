@@ -254,11 +254,13 @@ fn notation_fixtures() -> Vec<(Category, &'static str, Reading, &'static str, Re
             "one",
             Reading::Cardinal {
                 form: 0,
+                modifier: None,
                 head: numeral(1, Numeral::Cardinal),
             },
             "two",
             Reading::Cardinal {
                 form: 0,
+                modifier: None,
                 head: numeral(2, Numeral::Cardinal),
             },
         ),
@@ -286,11 +288,13 @@ fn notation_fixtures() -> Vec<(Category, &'static str, Reading, &'static str, Re
             "1",
             Reading::UngroupedScalarNumeral {
                 form: 0,
+                modifier: None,
                 head: numeral(1, Numeral::Arabic(false)),
             },
             "2",
             Reading::UngroupedScalarNumeral {
                 form: 0,
+                modifier: None,
                 head: numeral(2, Numeral::Arabic(false)),
             },
         ),

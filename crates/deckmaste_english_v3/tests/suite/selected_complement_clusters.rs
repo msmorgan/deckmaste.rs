@@ -88,6 +88,7 @@ fn damage(value: i32) -> Reading {
         form: 0,
         quantity: Box::new(Reading::UngroupedScalarNumeral {
             form: 0,
+            modifier: None,
             head: Word {
                 value: LexicalReading::Numeral {
                     value,
@@ -751,6 +752,7 @@ fn all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets()
                             form: 0,
                             quantity: Box::new(Reading::UngroupedScalarNumeral {
                                 form: 0,
+                                modifier: None,
                                 head: numeral(3),
                             }),
                             head: noun_word("lexeme:CommonNoun/Life", false),

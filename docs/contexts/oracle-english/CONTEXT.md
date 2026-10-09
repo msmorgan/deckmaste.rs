@@ -962,6 +962,20 @@ Complement is normally a Cardinal Numeral (CGEL, Ch. 5 §4, p. 357).
 The sequence *up to* retains nested Preposition Phrase structure: *up* takes
 the Complement *to …* (CGEL, Ch. 7 §3.2, pp. 624–625).
 
+**Cardinal Modifier**:
+A Preposition Phrase that marks a bound on a Cardinal Numeral, as *at least*
+does in *at least two* (CGEL, Ch. 5 §11(e), p. 432).
+
+**Quantitative Adjective Complement** (project term):
+An Adjective selected as the Complement of a quantitative Preposition Phrase
+modifying a cardinal, as *least* in *at least two*, under
+[orchestrator ruling R9a (2026-10-09)](../../tickets/done/english-v3-at-least-cardinal.md#analysis).
+
+**Quantitative Adjective Complement Use** (project term):
+An Adjective's declared permission to be the Complement of a quantitative
+Preposition Phrase modifying a cardinal, under
+[orchestrator ruling R9a (2026-10-09)](../../tickets/done/english-v3-at-least-cardinal.md#analysis).
+
 **Quantity**:
 The Game Model count constraint a Determiner states over a Selection, such as
 *one*, *up to two*, *one or more*, or *any number*. Determiners are this

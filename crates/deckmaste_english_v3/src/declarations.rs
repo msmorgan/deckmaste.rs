@@ -88,7 +88,8 @@ constructions! {
         }
         feature FusedHeadUse { No, Yes } default No;
         feature ComparativePostmodifierUse { No, Yes } default No;
-        feature QuantitativeComplement { Cardinal, CardinalPrepositionPhrase }
+        feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase } default None;
+        feature QuantitativeAdjectiveComplementUse { No, Yes } default No;
         feature ComparativeQuantityUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
@@ -402,6 +403,8 @@ constructions! {
         category FiniteObjectGap(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category BareObjectGap(PurposeAdjunctLicence, MatrixComplementLicence);
         category Cardinal(number);
+        category CardinalModifier();
+        category QuantitativeAdjectiveComplement();
         category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber);
         category CardinalPrepositionPhrase(number);
         category QuantitativePrepositionPhrase(number);
@@ -3789,6 +3792,7 @@ constructions! {
             require head.number = Singular;
             require head.countability = Count;
             require head.Targeting = No;
+            require head.DeterminerRequirement = No;
             use NounPhraseHeadAgreement;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
         }
@@ -4026,13 +4030,13 @@ constructions! {
 
 
         construction Cardinal: Cardinal {
-            form [head: lexical(Numeral)];
+            form [modifier: optional(CardinalModifier), head: lexical(Numeral)];
             require head.numeral_kind = Cardinal;
             export number = head.number;
         }
 
         construction LargeCount: Cardinal {
-            form [head: lexical(Numeral)];
+            form [modifier: optional(CardinalModifier), head: lexical(Numeral)];
             require head.numeral_kind = GroupedArabic;
             require head.numeral_size = Large;
             export number = head.number;
@@ -4082,21 +4086,40 @@ constructions! {
             use Properties;
         }
 
+        construction QuantitativeAdjectiveComplement: QuantitativeAdjectiveComplement {
+            form [head: lexical(Adjective)];
+            require head.QuantitativeAdjectiveComplementUse = Yes;
+            require head.framing = Unframed;
+        }
+
+        separator quantitative_modifier_separator(QuantitativeComplement) {
+            (None) => "", (Cardinal) => "", (CardinalPrepositionPhrase) => "",
+            (AdjectivePhrase) => " ",
+        }
         schema QuantitativePrepositionPhrase {
-            form [head: lexical(Preposition), " ", complement: node];
-            export number = complement.number;
+            form [head: lexical(Preposition), " ", complement: node,
+                quantitative_modifier_separator(head.QuantitativeComplement)];
         }
 
         policy CardinalPrepositionComplement {
+            export number = complement.number;
             require head.QuantitativeComplement = Cardinal;
         }
 
         policy QuantitativePrepositionComplement {
+            export number = complement.number;
             require head.QuantitativeComplement = CardinalPrepositionPhrase;
         }
 
         policy ComparativePrepositionComplement {
+            export number = complement.number;
             require head.ComparisonMarker = Ordering;
+        }
+
+        // CGEL Ch. 5 §11(e), p. 432: a bounding PP modifies a numeral.
+        // Its adjectival Complement licence follows ticket rulings R9a–R9d.
+        policy QuantitativeAdjectiveComplementLicence {
+            require head.QuantitativeComplement = AdjectivePhrase;
         }
 
         instance QuantitativePrepositionPhrase<Result, Complement: complement, Properties>: [
@@ -4104,6 +4127,7 @@ constructions! {
             (QuantitativePrepositionPhrase, CardinalPrepositionPhrase,
                 QuantitativePrepositionComplement),
             (ComparativePrepositionPhrase, Cardinal, ComparativePrepositionComplement),
+            (CardinalModifier, QuantitativeAdjectiveComplement, QuantitativeAdjectiveComplementLicence),
         ] {
             use Properties;
         }
@@ -4202,7 +4226,7 @@ constructions! {
         }
 
         construction GroupedScalarNumeral: MeasurePhrase {
-            form [head: lexical(Numeral)];
+            form [modifier: optional(CardinalModifier), head: lexical(Numeral)];
             require head.numeral_kind = GroupedArabic;
             require head.numeral_size = Large;
             export MeasureKind = Scalar;
@@ -4269,7 +4293,7 @@ constructions! {
         }
 
         construction UngroupedScalarNumeral: MeasurePhrase {
-            form [head: lexical(Numeral)];
+            form [modifier: optional(CardinalModifier), head: lexical(Numeral)];
             require head.numeral_kind = Arabic;
             require head.numeral_size = Small;
             export MeasureKind = Scalar;

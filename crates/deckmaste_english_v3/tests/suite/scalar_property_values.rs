@@ -189,6 +189,7 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
                 form: 0,
                 value: Box::new(Reading::UngroupedScalarNumeral {
                     form: 0,
+                    modifier: None,
                     head: numeric(1),
                 }),
             },
@@ -201,6 +202,7 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
                 form: 0,
                 value: Box::new(Reading::UngroupedScalarNumeral {
                     form: 0,
+                    modifier: None,
                     head: numeric(3),
                 }),
             },

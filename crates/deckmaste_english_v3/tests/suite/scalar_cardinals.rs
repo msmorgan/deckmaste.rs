@@ -70,6 +70,7 @@ fn word(owner: &str, form: WordForm, number: Option<Number>) -> Word {
 fn cardinal(value: i32) -> Reading {
     Reading::Cardinal {
         form: 0,
+        modifier: None,
         head: Word {
             value: LexicalReading::Numeral {
                 value,

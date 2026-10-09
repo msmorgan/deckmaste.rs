@@ -154,6 +154,7 @@ fn scalar(value: i32) -> Reading {
         form: 0,
         value: Box::new(Reading::UngroupedScalarNumeral {
             form: 0,
+            modifier: None,
             head: numeric(value),
         }),
     }

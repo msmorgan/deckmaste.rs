@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "suite/at_least_cardinal.rs"]
+mod at_least_cardinal;
+
 #[path = "suite/from_anywhere.rs"]
 mod from_anywhere;
 
