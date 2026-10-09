@@ -136,9 +136,9 @@ Deltas:
 ## Landing record
 
 1. **Census delta**: claim-parent `qzwzuwwu` source measured at pre-edit
-   `uzrzywom` → refreshed fix `ooxwlork`: covered faces 300 → 401; Readings
+   `uzrzywom` → refreshed fix `sytlvznr`: covered faces 300 → 401; Readings
    11,533 → 37,282; gained 101, lost none, decreases 0, increases 0,
-   digest-only 9 (`diff-review-final.json`). Relative to reviewed `tupvqkuk`,
+   digest-only 9 (`diff-final.json`). Relative to reviewed `tupvqkuk`,
    the fix gains 4 faces and increases 22; lost/decreases 0, digest-only 11
    (`diff-review.json`). Digest changes are the existing `PostpositiveNominal`
    Reading's added category field when generalized to a shared schema; all
@@ -147,9 +147,12 @@ Deltas:
    Refresh incorporated transitive-turn change `vrwvvslo`; at `ooxwlork`,
    the six-worker bounded recheck preserves all 458 faces, counts and digests
    from `rwxrkzuw` (`diff-review-refresh.json`: all delta categories 0).
+   A further refresh brought comparative-property grammar `xrmmlsot`; the
+   bounded six-worker check at `sytlvznr` again preserves every count and
+   digest (`diff-final-refresh.json`: all delta categories 0).
    Same selector: 158 supported analysed *anywhere* faces plus 300 covered
    controls selected with seed 20261008, 458 identities in `manifest.json`.
-   At `ooxwlork`, all 458 completely enumerated: 106 unique, 295 multiple,
+   At `sytlvznr`, all 458 completely enumerated: 106 unique, 295 multiple,
    57 unread; limited/undetermined 0. All 37,282 Readings checked for exact
    realization and structural traversal; issues, duplicates and internal
    failures 0. Evidence: `target/english-v3/english-v3-from-anywhere/`.
@@ -202,10 +205,14 @@ Deltas:
    -D warnings` passed. English clippy first caught similar variable names
    in the new test; renamed the binding and reran it successfully. No test
    command needed a retry. The resume instruction (2026-10-09) retains this
-   completed test/clippy evidence without rerunning it. The missing refreshed
+   completed test/clippy evidence without rerunning it. After final refresh
+   brought grammar `xrmmlsot`, the required affected-crate check at `sytlvznr`,
+   `CARGO_INCREMENTAL=0 cargo test -p deckmaste_english_v3`, passed 634 tests
+   including the attachment/retention regression; lexical-source and clippy
+   evidence was retained. The missing refreshed
    census first failed to link with rust-lld undefined symbols; retried with
    `CARGO_INCREMENTAL=0` as directed. Assurance totals at `rwxrkzuw`: restored 0,
    re-spelled 1, ignored 0, added 8, removed 0. This fix adds 1 and
    re-spells 1; removes none.
-6. **Timing**: the bounded refreshed census at `ooxwlork` took 7.235549628 s
+6. **Timing**: the bounded final census at `sytlvznr` took 6.459085849 s
    corpus wall time with 6 workers.
