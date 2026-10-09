@@ -176,6 +176,7 @@ fn kind_reader(kind: &str) -> Option<(&'static str, LeanReader)> {
             read_lean::<abilities::CharacteristicBundle>,
         ),
         "PipPaid" => ("Semantics.PipPaid", read_lean::<abilities::PipPaid>),
+        "TextChange" => ("Semantics.TextChange", read_lean::<abilities::TextChange>),
         "ManaSubstitute" => (
             "Semantics.ManaSubstitute",
             read_lean::<abilities::ManaSubstitute>,
@@ -345,6 +346,7 @@ fn reader_for_lean_type(lean_type: &str) -> Option<LeanReader> {
         "CounterKindSource",
         "CharacteristicBundle",
         "PipPaid",
+        "TextChange",
         "ManaSubstitute",
         "ModeChange",
         "FaceDown",

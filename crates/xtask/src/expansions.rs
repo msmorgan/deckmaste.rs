@@ -231,6 +231,9 @@ pub const SAMPLES: &[&str] = &[
     "ManaCostOf(object: This)",
     "Top",
     "Bottom",
+    // TextChange.
+    "RemoveBracketed",
+    "TargetToEach",
     // Last: the absent value, which hides the hole it fills. No param type
     // reads it; it is here for an `Any` hole at an `Option` position.
     "None",
@@ -507,6 +510,7 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "CounterKindSource" => render::<abilities::CounterKindSource>,
         "CharacteristicBundle" => render::<abilities::CharacteristicBundle>,
         "PipPaid" => render::<abilities::PipPaid>,
+        "TextChange" => render::<abilities::TextChange>,
         "ManaSubstitute" => render::<abilities::ManaSubstitute>,
         "ModeChange" => render::<abilities::ModeChange>,
         "FaceDown" => render::<abilities::FaceDown>,

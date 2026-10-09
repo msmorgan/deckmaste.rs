@@ -140,11 +140,43 @@ pub enum Exchanged {
         left: Amount,
         right: Amount,
     },
-    /// Two permanents' text boxes.
-    TextBoxes {
-        left: NounPhrase,
-        right: NounPhrase,
+}
+
+/// A word a Text Change replaces where it is used in its rules sense: a color
+/// word or a basic land type word [CR#612.2].
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum TextWord {
+    Color { color: Color },
+    BasicLandType { subtype: Subtype },
+}
+
+/// A Text Change: a specified rewrite of the subject's rules text, applied in
+/// layer 3 [CR#612.1,613.1c]. Each row names the rewrite; the result is not
+/// checked again.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum TextChange {
+    /// Removes every `Bracketed` term from the subject's rules text, the
+    /// brackets with their contents; the rest of the text is unchanged
+    /// (cleave [CR#702.148a]). A text with no brackets is left as it was.
+    RemoveBracketed,
+    /// Replaces every `Target` determiner in the subject's rules text with
+    /// `Each`, keeping its description; nothing else changes (overload
+    /// [CR#702.96a,702.96b]).
+    TargetToEach,
+    /// Appends the rules text of `source` after the subject's own, which it
+    /// neither modifies nor replaces (splice [CR#702.47a,702.47c,612.10]).
+    AppendTextOf { source: NounPhrase },
+    /// Replaces every instance of the word `from` of `sort`, used in its rules
+    /// sense, with the word `to`; `None` is a word of the performer's choice
+    /// [CR#612.2] ("one basic land type with another").
+    ReplaceWord {
+        sort: QualitySort,
+        from: Option<TextWord>,
+        to: Option<TextWord>,
     },
+    /// Exchanges the rules text of the subject and `other`: each one's rules
+    /// text becomes the other's previous rules text [CR#612.5,701.12h].
+    ExchangeWith { other: NounPhrase },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -708,6 +740,12 @@ pub enum StaticSpec {
         subject: NounPhrase,
         description: Predicate,
     },
+    /// A Text Change of the subject's rules text, applied in layer 3
+    /// [CR#612.1,613.1c].
+    TextChange {
+        subject: NounPhrase,
+        change: TextChange,
+    },
 }
 
 /// How a Mode Change modifies its own spell's `chooseModes`.
@@ -982,6 +1020,13 @@ pub enum Instruction {
     OwnScope {
         scope: u32,
         body: Box<Instruction>,
+    },
+    /// Rules text printed in square brackets, kept in place so a Text Change
+    /// can find it [CR#702.148a]: transparent, it means what `instruction`
+    /// means. The mirror of `Predicate::Bracketed` (see there for why the two
+    /// are not one generic payload).
+    Bracketed {
+        instruction: Box<Instruction>,
     },
     DealDamage {
         source: NounPhrase,

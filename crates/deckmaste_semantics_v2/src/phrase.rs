@@ -480,6 +480,18 @@ pub enum Predicate {
     Not {
         predicate: Box<Predicate>,
     },
+    /// Rules text printed in square brackets, kept in place so a Text Change
+    /// can find it [CR#702.148a]: transparent, it means what `predicate`
+    /// means.
+    ///
+    /// Lean writes the marker twice, `Predicate.bracketed` and
+    /// `Instruction.bracketed`, and so does this mirror: a generic
+    /// `Bracketed<T>` payload is not expressible, because `macro_ron`'s
+    /// derives reject generic types (`reject_generics`), and a hand-built kind
+    /// like `Delta`'s would carry no dispatch set.
+    Bracketed {
+        predicate: Box<Predicate>,
+    },
     Other,
     NotChosen,
     OtherThan {

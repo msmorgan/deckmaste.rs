@@ -234,9 +234,9 @@ pub fn scope_of_proj_axis(axis: &ProjAxis, facts: &impl Facts) -> Kind {
 #[must_use]
 pub fn kind_of_predicate(predicate: &Predicate, facts: &impl Facts) -> Option<Kind> {
     match predicate {
-        Predicate::WithBindings { body, .. } | Predicate::InCaller { body, .. } => {
-            kind_of_predicate(body, facts)
-        }
+        Predicate::WithBindings { body, .. }
+        | Predicate::InCaller { body, .. }
+        | Predicate::Bracketed { predicate: body } => kind_of_predicate(body, facts),
         Predicate::AnyPlayer
         | Predicate::Opponent
         | Predicate::ChosenPlayer { .. }

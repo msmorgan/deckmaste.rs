@@ -86,6 +86,9 @@ pub fn kinds() -> KindSet {
     // A Mana Substitute's paid pips (`generic`, `ofColor(…)`), and the
     // substitute itself, a record the `substitute` helper builds.
     kinds.add(crate::abilities::PipPaid::kind());
+    // A Text Change's rewrite (`removeBracketed`, `appendTextOf(…)`), the
+    // second argument of the `textChange` helper.
+    kinds.add(crate::abilities::TextChange::kind());
     kinds.add(Kind::new("ManaSubstitute"));
     // A Mode Change's rows (`allInstead(…)`, `setQuantity(…)`), which the
     // `modeChoice` static carries.
@@ -405,6 +408,7 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::words::ManaMatch>("ManaMatch");
     types.add_typed::<crate::abilities::ManaSubstitute>("ManaSubstitute");
     types.add_typed::<crate::abilities::PipPaid>("PipPaid");
+    types.add_typed::<crate::abilities::TextChange>("TextChange");
     types.add_typed::<Vec<crate::abilities::PipPaid>>("PipPaids");
     types.add_typed::<crate::abilities::ModeChange>("ModeChange");
     types.add_typed::<u32>("Nat");
