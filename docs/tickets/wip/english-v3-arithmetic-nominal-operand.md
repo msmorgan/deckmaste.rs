@@ -203,6 +203,17 @@ Deltas:
    digests reflect imported cardinal modifier fields and temporal-relative
    analysis; the 18 retained R10e gains are distinct from those trunk gains.
 
+   The final data-only refresh on `svonuzor` imports Produce (`zwkyqqyv`,
+   refined by `wkmovwxx`). Same manifest: **1,145 covered, 58,827 Readings**.
+   `diff-refresh-2.json` has one gain, Cactus Preserve (17), attributable to
+   that declaration, and 1,613 unchanged; zero lost/decreased/increased/
+   digest-only/source-changed faces. `diff-final-2.json` against the original
+   claim-parent report has **89 gained, zero lost, one decrease, zero
+   increases, 263 digest-only, 1,261 unchanged**; the sole decrease remains
+   Bronze Cudgels, attributed above. The prebuilt grammar binary remains
+   source-equivalent because this refresh changes consumed data and tests,
+   not grammar or forest code.
+
 2. **Witnesses** (`lrolnmwo`). Each quoted witness failed before implementation
    on the claim parent (zero Readings); its control yielded a Reading.
    Kindle's quoted damage sentence: 3; Ivory Tower's quoted upkeep sentence:
@@ -280,6 +291,14 @@ Deltas:
    The unchanged bounded manifest and full changed-crate suites are rechecked
    after refresh under the orchestrator's R10f verification instruction.
 
+   Closing refresh imported the data-only Produce landing and documentation,
+   then returned 69 for divergent `zpsxwqyp` in `semantics-v2-sharing`.
+   That workspace's live version is immutable here; it requires its owner's
+   repair, not a rewrite from this feature workspace. The imported lexical
+   data was independently verified on the same bounded manifest and full
+   suites below. No integration or workspace drop has occurred. Final Kata
+   refresh completion is pending the external divergence repair.
+
 5. **Tests** (`lrolnmwo`, after R10e/R10f). Full suites and clippy passed:
    `cargo test -p deckmaste_english_v3` — 668 passed, zero failed/ignored;
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` — passed;
@@ -304,6 +323,14 @@ Deltas:
    Citation checks report zero noncompliant and zero stale citations; the
    diff audit selects zero new CR citation sites, so no bless is needed.
 
+   After the data-only Produce refresh, on `svonuzor`, the exact same full
+   commands pass again: `cargo test -p deckmaste_english_v3` — **687 passed**;
+   `cargo test -p deckmaste_lexical_source` — **64 passed** (28 unit + 36
+   integration); zero failed, ignored or filtered tests and zero doctests.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` — passed.
+   Logs have the `after-refresh-2` suffix in the evidence directory.
+
 6. **Timing** (`lrolnmwo`). The widened bounded candidate census took
    **15.53 s wall**, 6 workers, zero samples per face, peak RSS
    **3,118,080 KiB**, measured by `/usr/bin/time -v` with a prebuilt
@@ -312,3 +339,7 @@ Deltas:
    peak RSS 3,062,196 KiB. The post-refresh bounded run on `tyqmlwll` took
    **37.39 s wall**, 6 workers, zero samples, peak RSS **2,687,612 KiB**,
    again with a prebuilt binary under `/usr/bin/time -v`. No run used `--all`.
+   The data-only refreshed census on `svonuzor` took **72.72 s wall**,
+   6 workers, zero samples, peak RSS **2,847,384 KiB**, with the prebuilt
+   binary under `/usr/bin/time -v` (`after-refresh-2.time`); no compilation
+   or full corpus run is included.
