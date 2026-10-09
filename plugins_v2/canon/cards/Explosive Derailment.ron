@@ -1,0 +1,16 @@
+// "Spree. + {2} — Explosive Derailment deals 4 damage to target creature.
+// + {2} — Destroy target artifact." [CR#702.172a,700.2h]
+SingleFaced(face: (
+    characteristics: (
+        name: "Explosive Derailment",
+        cost: [Red],
+        types: [Instant],
+        text: [
+            spree,
+            spell(chooseModes(atLeast(1), [
+                (Some(mana([2])), None, dealDamage(this, 4, target(creature))),
+                (Some(mana([2])), None, destroy(target(artifact))),
+            ])),
+        ],
+    ),
+))

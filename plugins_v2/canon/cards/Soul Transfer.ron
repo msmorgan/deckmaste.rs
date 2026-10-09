@@ -1,0 +1,24 @@
+// "Choose one. If you control an artifact and an enchantment as you cast this
+// spell, you may choose both instead. • Exile target creature or
+// planeswalker. • Return target creature or planeswalker card from your
+// graveyard to your hand." [CR#700.2]
+SingleFaced(face: (
+    characteristics: (
+        name: "Soul Transfer",
+        cost: [1, Black, Black],
+        types: [Sorcery],
+        text: [
+            spell(chooseModes(exactly(1), [
+                (None, None, exile(target(or([creature, planeswalker])))),
+                (None, None, returnToHand(target(and([
+                    or([creature, planeswalker]),
+                    cardIn(graveyardOf(you)),
+                ])))),
+            ])),
+            static(modeChoice(allInstead(None, Some(and([
+                exists(and([artifact, youControl])),
+                exists(and([enchantment, youControl])),
+            ]))))),
+        ],
+    ),
+))

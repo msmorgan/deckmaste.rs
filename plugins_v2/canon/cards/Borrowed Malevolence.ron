@@ -1,0 +1,16 @@
+// "Escalate {2}. Choose one or both — Target creature gets +1/+1 until end of
+// turn; target creature gets -1/-1 until end of turn." [CR#702.120a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Borrowed Malevolence",
+        cost: [Black],
+        types: [Instant],
+        text: [
+            escalate(mana([2])),
+            spell(chooseModes(oneThrough(2), [
+                (None, None, gets(target(creature), up(1), up(1), untilEndOfTurn)),
+                (None, None, gets(target(creature), down(1), down(1), untilEndOfTurn)),
+            ])),
+        ],
+    ),
+))

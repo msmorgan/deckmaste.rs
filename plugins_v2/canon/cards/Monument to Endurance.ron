@@ -1,0 +1,18 @@
+// "Whenever you discard a card, choose one that hasn't been chosen this turn —
+// • Draw a card. • Create a Treasure token. • Each opponent loses 3 life."
+// [CR#700.2b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Monument to Endurance",
+        cost: [3],
+        types: [Artifact],
+        text: [
+            triggered(discards(you, a(card)), chooseModes(exactly(1), [
+                (None, None, draw(1)),
+                (None, None, createToken(treasureToken)),
+                (None, None, act(each(opponent), loseLife(3))),
+            ])),
+            static(modeChoice(notChosenBefore(soFarThisTurn))),
+        ],
+    ),
+))

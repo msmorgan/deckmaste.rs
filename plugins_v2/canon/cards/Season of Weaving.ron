@@ -1,0 +1,22 @@
+// "Choose up to five {P} worth of modes. You may choose the same mode more
+// than once. {P} — Draw a card. {P}{P} — Choose an artifact or creature you
+// control. Create a token that's a copy of it. {P}{P}{P} — Return each
+// nonland, nontoken permanent to its owner's hand." [CR#700.2i,700.2d]
+SingleFaced(face: (
+    characteristics: (
+        name: "Season of Weaving",
+        cost: [4, Blue, Blue],
+        types: [Sorcery],
+        text: [
+            spell(chooseModes(worth(5), [
+                (None, Some(1), draw(1)),
+                (None, Some(2), sequentially([
+                    choose(a(and([or([artifact, creature]), youControl]))),
+                    createTokenCopy(it),
+                ])),
+                (None, Some(3), returnToHand(each(and([permanent, not(land), nontoken])))),
+            ])),
+            static(modeChoice(repeatable)),
+        ],
+    ),
+))

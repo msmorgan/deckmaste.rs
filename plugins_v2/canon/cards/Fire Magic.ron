@@ -1,0 +1,18 @@
+// "Tiered. • Fire — {0} — Fire Magic deals 1 damage to each creature.
+// • Fira — {2} — … 2 damage … • Firaga — {5} — … 3 damage to each creature."
+// [CR#702.183a,700.2h] The mode names are flavor and are not modeled.
+SingleFaced(face: (
+    characteristics: (
+        name: "Fire Magic",
+        cost: [Red],
+        types: [Instant],
+        text: [
+            tiered,
+            spell(chooseModes(exactly(1), [
+                (Some(mana([0])), None, dealDamage(this, 1, each(creature))),
+                (Some(mana([2])), None, dealDamage(this, 2, each(creature))),
+                (Some(mana([5])), None, dealDamage(this, 3, each(creature))),
+            ])),
+        ],
+    ),
+))

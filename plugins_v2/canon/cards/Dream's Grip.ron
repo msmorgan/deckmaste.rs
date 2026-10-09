@@ -1,0 +1,16 @@
+// "Choose one — Tap target permanent; or untap target permanent. Entwine {1}"
+// [CR#702.42a]: entwine lets the caster choose both modes for {1} more.
+SingleFaced(face: (
+    characteristics: (
+        name: "Dream's Grip",
+        cost: [Blue],
+        types: [Instant],
+        text: [
+            spell(chooseModes(exactly(1), [
+                (None, None, setStatus(Tapped, target(permanent))),
+                (None, None, setStatus(Untapped, target(permanent))),
+            ])),
+            entwine(mana([1])),
+        ],
+    ),
+))
