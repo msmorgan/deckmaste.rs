@@ -37,13 +37,17 @@ Orchestrator rulings 2026-10-09:
 
 - R16a. Declare *produce* (bare, third person, preterite and participle
   *produced*) with Add's two frames; no new Role or Construction. Data only.
-- R16b. Pruning rule: only attested forms and frames; *producing* is
-  declared only if attested.
+- R16b. Pruning rule: only attested forms and frames; the restriction on
+  mechanically derived *producing* is superseded by R16e.
 - R16c. The *mana produced by …* faces also fail on the *Spend only mana …*
   restriction ("Spend only mana from creatures to cast this spell." 0); do
   not work on that clause here, record how many of those faces read.
 - R16d. *produces three times / twice as much of that mana* is a multiplier
   construction; out of scope unless it reads through existing routes.
+- R16e. Declare *produce* beside Add in `verbs.ron` with Add's two frames;
+  delete the hand-expanded `core.ron` entry. The regular gerund-participle
+  is minted mechanically by the declaration class and is exempt from the
+  ADR's pruning rule. This supersedes R16b's attestation restriction.
 
 ## Witnesses
 
@@ -119,7 +123,7 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta** (`kztqlmwwqpxw`): 360-face bounded manifest; covered
+1. **Census delta** (`wkmovwxxzoyn`): 360-face bounded manifest; covered
    300 → 343, total per-line Readings 10,356 → 13,683. Gained 43; lost,
    decreases and increases 0; digest-only 93; unchanged 224; validation
    issues 0. Lost faces: none. Selector: supported analysed text matching
@@ -140,7 +144,10 @@ Deltas:
    Stock evidence under `target/english-v3/english-v3-produce-verb/`:
    `manifest.json`, `before.json`, `after.json`, `diff.json`,
    `after-refresh.json`, `refresh-diff.json`, `after-cardinal-refresh.json`,
-   `cardinal-refresh-diff.json`, `cardinal-final-diff.json`.
+   `cardinal-refresh-diff.json`, `cardinal-final-diff.json`, `after-r16e.json`,
+   `r16e-diff.json`, `r16e-final-diff.json`. R16e's rerun of the same manifest
+   is identical to the prior after census: all 360 unchanged, zero changed
+   lines, losses, gains, count changes or digest-only changes.
 2. **Witnesses**: before implementation (`zwkyqqyvxool`), each ticket passage
    probed at 0; each matching *add* control admitted a Reading with the
    one-Reading cap. Complete after counts, retained by the final suite
@@ -154,28 +161,34 @@ Deltas:
    Clause with bare *could produce* or preterite *land produced*, using
    Add's noun-phrase Object frame. One table-driven test checks all ten
    complete passages' counts and constituent spans.
-4. **Deviations and STOPs** (`kztqlmwwqpxw`): one native `core.ron` declaration
-   instead of `verbs.ron`, whose loader would generate the unattested gerund.
-   *Producing* attestation 0; its form is omitted, and Add's two frames are
-   copied exactly. No grammar, loader, frame-inventory or glossary changes
-   in this ticket; no superseded route or ruling STOP. The extra lexical
-   and ten-face tests enforce pruning and spot checks. The inherited
+4. **Deviations and STOPs**: orchestrator ruling R16e (2026-10-09)
+   replaces the native `core.ron` entry with the short `verbs.ron`
+   declaration beside Add, with exactly Add's two frames. *Producing*
+   attestation remains 0; its mechanically derived regular form is exempt
+   from pruning under the ADR clarification, as ruled in R16e. The
+   superseded native entry is deleted. No grammar, loader, frame-inventory
+   or glossary changes; no ruling STOP. The lexical and ten-face tests
+   enforce the regular paradigm, exact frames and spot checks. The inherited
    schema-v7 binary's preliminary bounded baseline was discarded. Seed
    corrected to the user's 20261008. Refresh's test-registration conflict
    was resolved by retaining both modules; grammar/lexical refreshes required
    only bounded rechecks and checks of the two affected crates. R16c's six
    *mana produced by …* faces remain unread (0/6); R16d's three multiplier
    faces remain unread (0/3).
-5. **Tests** (`kztqlmwwqpxw`): `cargo test -p deckmaste_english_v3` passed
+5. **Tests** (`wkmovwxxzoyn`): `cargo test -p deckmaste_english_v3` passed
    (676); `cargo test -p deckmaste_lexical_source` passed (64);
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed;
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
    Zero failed/ignored. Earlier lexical clippy found `assert_is_empty` in
    the new test; replaced it with a value comparison and reran the full
-   lexical-source suite successfully. Restored 0 / re-spelled 0 /
+   lexical-source suite successfully. Restored 0 / re-spelled 1 /
    ignored-with-blocker 0 / added 7 / removed 0: five witness tests, one
    ten-face test, one exact lexical paradigm/frame test. No removals.
+   R16e re-spells `produce_declares_only_attested_forms_with_adds_frames`
+   as `produce_has_regular_paradigm_and_adds_frames`, retaining exact value
+   comparisons for Add's frames and the complete regular paradigm. Both
+   full suites and both clippies were run once after this review change.
    Citation checks: 0 noncompliant, 0 stale; diff audit selects no new sites.
-6. **Timing** (`kztqlmwwqpxw`): final bounded census, 11.74 seconds wall time,
-   six workers, zero samples per face, peak RSS 1,384,808 KiB under
+6. **Timing** (`wkmovwxxzoyn`): final bounded census, 17.24 seconds wall time,
+   six workers, zero samples per face, peak RSS 1,395,564 KiB under
    `/usr/bin/time -v`; prebuilt schema-v8 binary, compilation excluded.

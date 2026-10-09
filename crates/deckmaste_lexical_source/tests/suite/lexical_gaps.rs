@@ -303,7 +303,7 @@ fn color_negative_hosts_use_joined_formation_and_preserve_base_provenance() {
 }
 
 #[test]
-fn produce_declares_only_attested_forms_with_adds_frames() {
+fn produce_has_regular_paradigm_and_adds_frames() {
     let owner = "core-verb:Produce";
     let lexeme = &LEXICON.lexemes()[owner];
     assert_eq!(lexeme.category, Category::Verb);
@@ -311,13 +311,8 @@ fn produce_declares_only_attested_forms_with_adds_frames() {
         lexeme.properties.frames,
         LEXICON.lexemes()["core-verb:Add"].properties.frames
     );
-    let expected: Paradigm = expected_verb("produce", "produces", "produced", "producing")
-        .into_iter()
-        .filter(|(_, form, _)| *form != WordForm::GerundParticiple)
-        .collect();
-    assert_eq!(paradigm(owner), expected);
     assert_eq!(
-        LEXICON.analyze("producing").matches,
-        Vec::<deckmaste_lexical::LexicalMatch>::new()
+        paradigm(owner),
+        expected_verb("produce", "produces", "produced", "producing")
     );
 }

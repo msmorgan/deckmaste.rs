@@ -3,6 +3,10 @@
         Predicate([ObjectNounPhrase]),
         Predicate([Role("ManaPhrase")]),
     ]),
+    (identity: Produce, bare: "produce", third_person: "produces", preterite: Some("produced"), participle: Some("produced"), frames: [
+        Predicate([ObjectNounPhrase]),
+        Predicate([Role("ManaPhrase")]),
+    ]),
     (identity: Attack, bare: "attack", third_person: "attacks", preterite: Some("attacked"), participle: Some("attacked"), frames: [
         Predicate([]),
         Predicate([ObjectNounPhrase]),
