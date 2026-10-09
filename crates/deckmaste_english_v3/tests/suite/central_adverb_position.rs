@@ -1,8 +1,16 @@
-use deckmaste_english_v3::grammar::{Category, FrameValue, Reading, Word};
-use deckmaste_lexical::{
-    FeatureBundle, Finiteness, LexicalReading, LexicalValue, Number, Person, SurfaceCase, Tense,
-    WordForm,
-};
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::FrameValue;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::Finiteness;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::Person;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::Tense;
+use deckmaste_lexical::WordForm;
 
 use crate::common;
 
@@ -95,7 +103,8 @@ fn word(owner: &str, form: WordForm, features: FeatureBundle, frame: Option<usiz
 
 #[test]
 fn independently_assembled_central_adjunct_roundtrips() {
-    // Vastwood Animist's predicative Complement, assembled with the strong copula.
+    // Vastwood Animist's predicative Complement, assembled with the strong
+    // copula.
     let complement = common::readings("a land", Category::PredicativeComplement)
         .into_iter()
         .next()
@@ -157,7 +166,7 @@ fn central_licence_does_not_license_other_positions_or_adverbs() {
     still
         .properties
         .features
-        .insert("CentralAdjunctLicence".into(), "No".into());
+        .insert("CentralAdjunctLicence".into(), "None".into());
     let lexicon = deckmaste_lexical::Lexicon::new(lexemes).unwrap();
     assert!(
         common::readings_with_lexicon(&lexicon, "It's still a land.", Category::Document)

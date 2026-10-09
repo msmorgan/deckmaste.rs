@@ -1066,10 +1066,10 @@ fn parse_directive(
             let start = construction.equations.len();
             while contents.peek(Ident) {
                 let requirement: Ident = contents.parse()?;
-                if requirement != "require" {
+                if requirement != "require" && requirement != "export" {
                     return Err(syn::Error::new(
                         requirement.span(),
-                        "a surface form may add only feature requirements",
+                        "a surface form may add only feature requirements or exports",
                     ));
                 }
                 parse_directive(contents, &requirement, construction)?;

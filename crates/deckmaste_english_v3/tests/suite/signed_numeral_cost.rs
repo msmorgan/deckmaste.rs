@@ -60,13 +60,9 @@ fn numeral(value: i32) -> deckmaste_english_v3::grammar::Word {
 }
 
 fn scalar_cost(value: Reading) -> Reading {
-    Reading::Cost {
+    Reading::SignedScalarCost {
         form: 0,
-        first: Box::new(Reading::SignedScalarCost {
-            form: 0,
-            value: Box::new(value),
-        }),
-        rest: vec![],
+        value: Box::new(value),
     }
 }
 
@@ -119,30 +115,31 @@ fn independently_constructed_signed_costs_preserve_signs_and_traversal() {
                 },
             ),
         ] {
-            let expected = scalar_cost(signed.clone());
+            let expected = if sign == "-" { signed.clone() } else { scalar_cost(signed.clone()) };
+            if sign == "-" {
+                assert!(scalar_cost(signed.clone()).admit(lexicon()).is_err());
+                assert!(readings(&format!("{sign}{surface}"), Category::Cost).is_empty());
+            }
             expected.admit(lexicon()).unwrap();
             let text = format!("{sign}{surface}");
             assert_eq!(expected.realize(lexicon()).unwrap(), text);
             assert_eq!(
-                readings(&text, Category::Cost),
+                readings(
+                    &text,
+                    if sign == "-" { Category::ScalarComponent } else { Category::Cost }
+                ),
                 BTreeSet::from([expected.clone()])
             );
             let mut nodes = vec![];
             expected
                 .visit(&mut |node| nodes.push(node.clone()))
                 .unwrap();
-            assert_eq!(
-                nodes,
-                [
-                    expected,
-                    Reading::SignedScalarCost {
-                        form: 0,
-                        value: Box::new(signed.clone())
-                    },
-                    signed,
-                    number.clone(),
-                ]
-            );
+            let expected_nodes = if sign == "-" {
+                vec![signed, number.clone()]
+            } else {
+                vec![expected, signed, number.clone()]
+            };
+            assert_eq!(nodes, expected_nodes);
             let mut words = vec![];
             nodes[0]
                 .visit_words(&mut |leaf| words.push(leaf.clone()))
@@ -154,11 +151,7 @@ fn independently_constructed_signed_costs_preserve_signs_and_traversal() {
 
 #[test]
 fn zero_cost_is_independently_constructible() {
-    let expected = Reading::Cost {
-        form: 0,
-        first: Box::new(Reading::ZeroScalarCost { form: 0 }),
-        rest: vec![],
-    };
+    let expected = Reading::ZeroScalarCost { form: 0 };
     expected.admit(lexicon()).unwrap();
     assert_eq!(expected.realize(lexicon()).unwrap(), "0");
     assert_eq!(

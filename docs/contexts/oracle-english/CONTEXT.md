@@ -966,8 +966,9 @@ An optional dependent that modifies a phrase without being selected as its
 Complement.
 
 **Central Adjunct Licence** (project term):
-An Adverb's declared permission to function as an Adjunct in central position,
-under the [central-adverb-position project analysis](../../tickets/done/english-v3-central-adverb-position.md#analysis).
+An Adverb's declared permission to function as an Adjunct at each licensed
+position: before a lexical verb, after a copula, after an auxiliary, or in an
+imperative. The positions are licensed separately under the [central-adverb-position project analysis](../../tickets/done/english-v3-central-adverb-position.md#analysis).
 
 **Central Adjunct Position** (project term):
 The declared central Adjunct site of a lexical predicate: before a lexical
@@ -1175,6 +1176,11 @@ when its Nominal head is coordinated. Other Determiners allow Nominal
 Agreement Number through ([owner ruling, 2026-10-08](../../tickets/done/english-v3-coordinated-subject-agreement.md#analysis));
 CGEL, Ch. 5 §18.4(a), p. 508 [28] describes singular agreement for
 coordinated NPs containing distributive *each* or *every*.
+
+**Subject Relative Number** (project term):
+The Number required by a Subject-gap Relative Clause on a coordinated Nominal,
+resolved against the containing Noun Phrase's Agreement after its Determiner
+applies ([owner ruling, 2026-10-08](../../tickets/done/english-v3-overgeneration-prune.md#d-a-relative-clause-on-a-coordinated-nominal-agrees-plural-even-under-each)).
 
 **Nominal Agreement Number** (project term):
 The Number a Nominal contributes to its containing Noun Phrase's Agreement,

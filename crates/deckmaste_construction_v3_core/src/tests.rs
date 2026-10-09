@@ -9,7 +9,7 @@ fn rejects(input: proc_macro2::TokenStream, expected: &str) {
 }
 
 #[test]
-fn surface_requirements_reject_exports_and_invalid_features() {
+fn surface_requirements_reject_undeclared_exports_and_invalid_features() {
     rejects(
         quote! { mod bad {
             category Atom();
@@ -17,7 +17,7 @@ fn surface_requirements_reject_exports_and_invalid_features() {
                 form [word: lexical(Noun)] export number = word.number;
             }
         } },
-        "a surface form may add only feature requirements",
+        "each declared Category feature exactly once",
     );
     rejects(
         quote! { mod bad {
@@ -1069,5 +1069,48 @@ fn selected_literals_reject_ambiguous_untyped_and_inaccessible_lookups() {
             construction Wrapper: Wrapper { form [word: Atom, ending(word.number)]; }
         }),
         "Category interface",
+    );
+}
+
+#[test]
+fn per_form_exports_keep_spelling_and_feature_plans_correlated() {
+    let declaration = quote! { mod signs {
+        feature Sign { Hyphen, Minus }
+        category Scalar(Sign);
+        construction Negative: Scalar {
+            form ["-", word: lexical(Numeral)] export Sign = Hyphen;
+            form ["−", word: lexical(Numeral)] export Sign = Minus;
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    assert_eq!(ir.constructors[0].forms.len(), 2);
+    assert_ne!(
+        ir.rules[0].initial[0].as_ref().unwrap().to_string(),
+        ir.rules[1].initial[0].as_ref().unwrap().to_string()
+    );
+    compile(declaration).unwrap();
+}
+
+#[test]
+fn per_form_exports_require_complete_unique_typed_interfaces() {
+    rejects(
+        quote! { mod bad { category Atom(number); construction Atom: Atom {
+            form ["a"] export number = Singular;
+            form ["b"];
+        } } },
+        "required Category feature cannot reach admission: missing export",
+    );
+    rejects(
+        quote! { mod bad { category Atom(number); construction Atom: Atom {
+            export number = Singular;
+            form ["a"] export number = Plural;
+        } } },
+        "each declared Category feature exactly once",
+    );
+    rejects(
+        quote! { mod bad { category Atom(number); construction Atom: Atom {
+            form ["a"] export number = First;
+        } } },
+        "not a value of feature number",
     );
 }

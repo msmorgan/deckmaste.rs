@@ -205,3 +205,6 @@ mod designation_categories;
 
 #[path = "suite/counter_kind_nouns.rs"]
 mod counter_kind_nouns;
+
+#[path = "suite/overgeneration_prune.rs"]
+mod overgeneration_prune;
