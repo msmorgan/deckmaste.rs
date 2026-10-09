@@ -670,6 +670,7 @@ mutual
       NounPhrase.check (some .object) bs n ++ Amount.check (selfSubjIntro bs n) amt ++
         refuse n.selfDefinedOk .selfDefinedOk
     | .ptSwitch n => NounPhrase.check (some .object) bs n
+    | .combatant n => NounPhrase.check (some .object) bs n
     | .costShift n sh =>
       NounPhrase.check (some .object) bs n ++ sh.check bs
     | .altCost n c =>

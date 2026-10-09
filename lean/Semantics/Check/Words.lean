@@ -25,7 +25,7 @@ namespace Semantics
 /-- Canonical order for remembered type facts; order in the written modifiers is immaterial. -/
 def normalizeTypes (types : List CardType) : List CardType :=
   [ .creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle,
-    .kindred ].filter (· ∈ types)
+    .kindred, .dungeon ].filter (· ∈ types)
 
 def mergeTypes (left right : List CardType) : List CardType :=
   normalizeTypes (left ++ right)
@@ -215,7 +215,8 @@ def fieldObject : DeedRole := ⟨some ⟨.object, [], []⟩, false, some .battle
 def spellTypes : List CardType :=
   [.creature, .artifact, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
 def allTypes : List CardType :=
-  [.creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
+  [.creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred,
+    .dungeon]
 
 /-- The deeds the core rules define, as a total function: every constructor of the closed
 taxonomy has a row, so no lookup here can fail. Attacking and blocking are the turn-based
@@ -1565,7 +1566,7 @@ def distinctSubtypeFacts : List SubtypeFacts → Bool
   | f :: fs => !(fs.map (·.subtype)).elem f.subtype && distinctSubtypeFacts fs
 
 def CardType.ascribesAs : CardType → Bool
-  | .kindred | .instant | .sorcery => false
+  | .kindred | .instant | .sorcery | .dungeon => false
   | _ => true
 
 def MarkerWord.grantorOrigin : MarkerWord → Option Zone
@@ -1780,7 +1781,7 @@ def subsFitLine : List Subtype → List CardType → Bool
     (tys.any s.fits || (s.fits .creature && tys.elem .kindred)) && subsFitLine ss tys
 
 def CardType.permanent : CardType → Bool
-  | .kindred | .instant | .sorcery => false
+  | .kindred | .instant | .sorcery | .dungeon => false
   | _ => true
 
 def permanentSpellType (types : List CardType) : Bool :=

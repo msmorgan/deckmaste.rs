@@ -1093,6 +1093,7 @@ mutual
     | .ptDefinition n _ amt =>
       outcomeB .namedNumber :: (Amount.introduced (selfSubjIntro bs n) amt ++ selfSubjIntro bs n)
     | .ptSwitch n => selfSubjIntro bs n
+    | .combatant n => selfSubjIntro bs n
     | .costShift n sh => sh.introduced (selfSubjIntro bs n) ++ selfSubjIntro bs n
     | .altCost n _ => selfSubjIntro bs n
     | .addedCost _ _ _ => bs
@@ -1361,7 +1362,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .ptModification _ power toughness => power.numberSlots ++ toughness.numberSlots
   -- An effect that sets a power and toughness, the exception [CR#107.1b] names.
   | .ptDefinition _ _ amount => [(amount, .signed)]
-  | .ptSwitch _ => []
+  | .ptSwitch _ | .combatant _ => []
   | .costShift _ shift => shift.numberSlots
   | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ | .specialAction _ _ _ => []
   -- The letter X, defined by the text: a chosen or defined value is never negative

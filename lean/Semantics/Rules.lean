@@ -89,7 +89,8 @@ definition, where a `RulesTables` row is scoped by a predicate and names nothing
 
 `Semantics.Check.Facts` is generated from these: every counter definition is a `CounterFacts`
 row labelled with its kind's name, a subtype definition is a `SubtypeFacts` row, a designation
-definition is a `DesignationFacts` row. -/
+definition is a `DesignationFacts` row. A card type definition is no facts row: the checker's
+card-type tables (`CardType.permanent`) do not read it yet. -/
 inductive Definition where
   /-- A counter [CR#122.1]: its kind, what holds it, and what it does to its bearer.
 
@@ -116,6 +117,12 @@ inductive Definition where
   that holds it. -/
   | designation (label : DesignationLabel) (scope : DesignationScope) (effectful : Bool)
       (zone : Option Zone) (type : Option CardType) (half : Option RoomHalf)
+  /-- A card type [CR#205.2a]: the type, whether it is a permanent type [CR#110.4], and what it
+  confers on every object of that type. A quality the type gives its objects — a creature is a
+  Combatant [CR#508.1a], a land card may be played [CR#305.1], an instant may be cast whenever
+  its owner has priority [CR#304.1] — is no ability of the object [CR#113.12], so it is the
+  ability-free `property` flavor. Most card types confer nothing. -/
+  | cardType (cardType : CardType) (permanentType : Bool) (confers : List Conferral)
   deriving Repr, BEq
 
 /-- A definition's name DENOTES its term.
@@ -125,20 +132,22 @@ stands at two kinds of position: where a definition is wanted, it is the node; w
 declared TERM is wanted — a card's subtype list, a counter reference, a designation — the
 position takes the term the definition names, not the node that defines it. Each flavor names
 one term: `.subtype` names its `subtype`, `.counter` its `kind`, `.designation` its `label`.
+A `.cardType` names its `cardType`, but a card writes a card type as the word itself
+(`.creature`), never through its declaration's name, so it has no projection.
 
 Each projection is defined: a card writes a subtype, a counter kind and a designation by its
 declaration's bare name (`plugins-v2-subtypes-macro-only`; the counter half by ruling
 2026-10-03, the designation half by ruling 2026-10-05). -/
 def Definition.subtypeTerm : Definition → Option Subtype
   | .subtype term _rules => some term
-  | .counter .. | .designation .. => none
+  | .counter .. | .designation .. | .cardType .. => none
 
 /-- The counter half of `Definition.subtypeTerm`: a counter definition names its `kind`, so a
 counter declaration's name read at a `CounterKind` position is the kind it defines, which is
 that same name. -/
 def Definition.counterTerm : Definition → Option CounterKind
   | .counter kind _holder _confers => some kind
-  | .subtype .. | .designation .. => none
+  | .subtype .. | .designation .. | .cardType .. => none
 
 /-- The designation half of `Definition.subtypeTerm`: a designation definition names its `label`,
 so a designation declaration's name read at a `DesignationLabel` position is the designation it
@@ -146,7 +155,7 @@ defines, which is that same name (or, for a member of a declaration that lists s
 member's). -/
 def Definition.designationTerm : Definition → Option DesignationLabel
   | .designation label .. => some label
-  | .subtype .. | .counter .. => none
+  | .subtype .. | .counter .. | .cardType .. => none
 
 /-- The three tables a plugin's `rules/` directory defines, concatenated across its files. The
 predefined-token catalog is a separate list, because its entries are named and a plugin writes

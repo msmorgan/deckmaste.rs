@@ -85,7 +85,8 @@ def CounterKind.declaresName (c : CounterKind) : Bool := !c.name.isEmpty
 
 /-- The obligations of one registry definition. A counter is placed on an object or a player
 [CR#122.1]; a subtype [CR#205.3] and a designation [CR#701.15b] are looked up by the name they
-declare, so a nameless one is unreachable; and what either confers obeys the ability laws. -/
+declare, so a nameless one is unreachable; and what any of them confers obeys the ability laws.
+A card type [CR#205.2a] is a closed word, so it has no name to leave empty. -/
 def Definition.check : Definition → List Refusal
   | .counter kind holder confers =>
       refuse (holder == .object || holder == .player) (.definitionHolder holder) ++
@@ -96,6 +97,7 @@ def Definition.check : Definition → List Refusal
       refuse (!label.name.isEmpty) .definitionNamed ++
         refuse (scope.narrowable || (zone.isNone && type.isNone && half.isNone))
           (.definitionScoped label)
+  | .cardType _ _ confers => confers.flatMap Conferral.check
 
 /-- Every refusal in a plugin's `rules/` directory, in reading order. -/
 def RulesTables.check (t : RulesTables) : List Refusal :=

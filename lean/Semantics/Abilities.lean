@@ -321,6 +321,13 @@ mutual
     `does`, without using the stack [CR#116.1,116.2c]. Morph's turning face up, foretell's and
     plot's exiling are each one [CR#116.2b,116.2h,116.2k]. -/
     | specialAction (when : Option Timing) (cost : Cost) (does : Instruction)
+    /-- "<subject> is a Combatant": the creature-like combat rules apply to it. Its power deals
+    combat and fight damage, marked damage is compared with its toughness, it may be declared an
+    attacker or a blocker, and the summoning-sickness rule applies to it
+    [CR#120.3e,302.6,508.1a,509.1a,701.14a]. The role is a quality of a permanent, not an ability
+    [CR#113.12], and the creature type definition confers it; whether the Combatant may take a
+    given combat action is a separate deontic question. -/
+    | combatant (subject : NounPhrase)
 
   inductive Compulsion where
     | forbid

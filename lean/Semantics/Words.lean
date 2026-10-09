@@ -14,9 +14,11 @@ tables, not enums: the grammar carries the mechanism, the tables carry the set.
 
 namespace Semantics
 
-/-- [CR#205.2a] -/
+/-- [CR#205.2a] A dungeon begins outside the game and is never a permanent or a spell
+[CR#309.2,309.2c]; it is a card type all the same, and the `dungeon` type declaration names it. -/
 inductive CardType where
   | creature | artifact | land | enchantment | instant | sorcery | planeswalker | battle | kindred
+  | dungeon
   deriving DecidableEq, Repr
 
 /-- A rules procedure a card can instruct a player to carry out during resolution: activating an
