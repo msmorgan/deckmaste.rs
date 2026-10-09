@@ -94,6 +94,41 @@ if test -d "$default_dir/target"
     end
 end
 
+# Invalidate the units that baked another checkout's path (only after a
+# successful target pre-warm). `env!("CARGO_MANIFEST_DIR")` and `env!("OUT_DIR")`
+# compile an absolute path into the binary — xtask and over a hundred test and
+# library files do this to find the repo root. rustc records each read in the
+# unit's deps/*.d file (`# env-dep:CARGO_MANIFEST_DIR=...`), but cargo drops the
+# variables it sets itself from its own fingerprint dep-info, so a reflinked unit
+# whose sources match stays fresh and keeps running against `default` (or
+# whichever workspace last built it). Delete the fingerprint dir of every unit
+# whose recorded env-dep names a path under the coordinator checkout but outside
+# this workspace; cargo rebuilds exactly those and their dependents, and the
+# rest of the warm cache survives. The fingerprint dir shares the unit's
+# metadata hash with its deps/NAME-HASH.d file.
+if test $target_warm -eq 1
+    set t (date +%s%N)
+    set -l stale (sh -c '
+        grep -l -F "=$1" "$2"/target/*/deps/*.d "$2"/target/*/*/deps/*.d 2>/dev/null |
+        while IFS= read -r d; do
+            awk -v D="$1" -v W="$2" "
+                /^# env-dep:/ {
+                    v = substr(\$0, index(\$0, \"=\") + 1)
+                    if ((v == D || index(v, D \"/\") == 1) && !(v == W || index(v, W \"/\") == 1)) found = 1
+                }
+                END { exit !found }" "$d" || continue
+            hash=${d##*-}; hash=${hash%.d}
+            for fp in "${d%/deps/*}"/.fingerprint/*-"$hash"; do
+                [ -d "$fp" ] || continue
+                rm -rf "$fp" || exit 1
+                echo "$fp"
+            done
+        done' sh "$default_dir" "$ws_dir")
+    or echo >&2 "$(status filename): baked-path invalidation in $ws_dir failed — run 'cargo clean -p xtask' (and any crate whose tests read the wrong checkout) by hand."
+    echo >&2 "provision-workspace: baked-path invalidation: "(count $stale)" units"
+    phase_done "baked-path invalidation" $t
+end
+
 # Sync mtimes (best-effort, only after a successful target pre-warm): give
 # every tracked file whose bytes equal default's copy default's mtime, so cargo
 # sees exactly the files that truly differ as changed and rebuilds only the
