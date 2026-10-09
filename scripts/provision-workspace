@@ -45,9 +45,21 @@ and begin
 end
 and phase_done symlinks $t
 
-# Re-generate cards from Oracle text.
+# Re-generate cards from Oracle text. Run default's built xtask binary directly
+# (it is what the `cargo xtask` alias runs): `cargo xtask` takes cargo's build
+# lock on default's target/, so any other cargo build in default stalls
+# provisioning, and with it every other session's kata claim (.jj/kata.lock).
+# Fall back to cargo only when the binary is missing. A stale binary only
+# matters when the generator itself changed, and a ticket changing the
+# generator rebuilds before it provisions.
 and set t (date +%s%N)
-and cargo xtask generate "$ws_dir/plugins/wizards"
+and begin
+    if test -x "$default_dir/target/debug/cargo-xtask"
+        "$default_dir/target/debug/cargo-xtask" generate "$ws_dir/plugins/wizards"
+    else
+        cargo xtask generate "$ws_dir/plugins/wizards"
+    end
+end
 and phase_done "wizards generate" $t
 
 or begin
