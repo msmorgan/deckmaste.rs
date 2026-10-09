@@ -159,7 +159,14 @@ the census. They share the segment walk; whichever lands second reuses it.
    the before counts (`yntwupzymxxl`, both phases). Evidence: `target/english-v3/
    english-v3-per-line-readings/{before,after,diff,product-proof}.json` and
    `product-table.tsv`; the before provenance records claim parent
-   `wnrmklzsqrwv` and claim `nxzntorpvzvo`.
+   `wnrmklzsqrwv` and claim `nxzntorpvzvo`. Refresh to `nlvnvwnwovxs`
+   brought trunk `lztruvkmznnx` (Exclude nominal Until attachments). Its
+   bounded manifest covers all 5,695 supported faces with the word until
+   plus 300 seeded controls, 5,944 identities after overlap: covered
+   4,918 → 4,918, lost/gained 0, decreases 627, increases/digest-only 0,
+   unchanged 5,317; line counts 208,096 → 136,645. Those removed Readings
+   belong to the named trunk change, not this representation change;
+   `refresh-diff.json` names every affected face and line.
 2. **Witnesses.** `yntwupzymxxl` after: Goliath Daydreamer 2,244
    (lines 1,050 + 1,194; product 1,253,700); Chandra, Pyromaster 286
    (12 + 4 + 270; product 12,960); Shadow Puppeteers 3,038
@@ -201,6 +208,10 @@ the census. They share the segment walk; whichever lands second reuses it.
    schema-7 fallback), ignored-with-blocker 0, added 10 (four English
    integration tests and six xtask tests), removed 0. Five CLI checks passed;
    three probe outputs unchanged; full census roundtrip/traversal issues 0.
+   After the lexical dependency changed during refresh, bounded census
+   issues remain 0 at `nlvnvwnwovxs`; the same English test and two clippy
+   commands passed at `nlvnvwnwovxs`: English tests 657 passed, zero
+   failed/ignored; both clippy commands passed with warnings denied.
 6. **Timing.** `yntwupzymxxl` after: one full census, 241.000 seconds,
    six workers. GNU `/usr/bin/time -v` maximum resident set size:
    `yntwupzymxxl` before 22,357,172 KiB → `yntwupzymxxl` after
