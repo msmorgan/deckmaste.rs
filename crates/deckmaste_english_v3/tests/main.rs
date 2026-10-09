@@ -246,3 +246,6 @@ mod perfect_relative_adverbial_gap;
 
 #[path = "suite/produce_verb.rs"]
 mod produce_verb;
+
+#[path = "suite/asyndetic_premodifier_coordination.rs"]
+mod asyndetic_premodifier_coordination;

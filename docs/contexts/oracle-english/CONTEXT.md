@@ -1161,6 +1161,12 @@ an Adjective Phrase and a gerund-participial Clause under shared copular/
 progressive *be* (*are tapped and attacking*), without granting that selection
 to other copular verbs (CGEL, Ch. 15 §3.2, pp. 1327–1328).
 
+**Premodifier Coordination**:
+A Coordination whose Conjuncts share Premodifier function over one head,
+including unlike Categories (CGEL, Ch. 15 §3.2, pp. 1326–1328). The flat
+asyndetic Oracle grouping and preservation of coordinator-ending lists follow
+[orchestrator ruling R15e (2026-10-09)](../../tickets/done/english-v3-asyndetic-premodifier-coordination.md#orchestrator-ruling-r15e-2026-10-09).
+
 **Right Nonce-constituent Coordination**:
 Coordination of parallel sequences at a clause's right edge, each sequence
 independently filling the same functions under a shared head; coordination
@@ -1185,8 +1191,8 @@ The licensed Conjunct roles and punctuation environments of a coordination
 marker in Oracle English.
 
 **Unmarked Conjunct Licence** (project term):
-Permission for an expression to begin a Conjunct after a comma without an
-overt Coordinator.
+Permission for an expression to serve as an unmarked Conjunct in a comma
+list, without an overt Coordinator. Under [R15d/R15e](../../tickets/done/english-v3-asyndetic-premodifier-coordination.md#orchestrator-ruling-r15e-2026-10-09), an asyndetic shared-head Premodifier Coordination does not supply an unmarked Nominal Conjunct within a coordinator-ending list.
 
 **Anchor** (project term):
 An ordered position at which a Coordination or a coordinated frame segment joins

@@ -299,7 +299,8 @@ constructions! {
             -> Selection {
             (None, None) => Yes, (None, Of) => Yes, (Of, None) => Yes,
         }
-        feature NounPremodifier { Yes, Attribute }
+        feature NounPremodifier { Yes, Attribute, None }
+        feature PremodifierCoordination { No, Yes } default No;
         feature AttributePremodifierHead { No, Yes } default No;
         table noun_premodifier_use(NounPremodifier) -> Selection {
             (Yes) => Yes, (Attribute) => Yes,
@@ -307,17 +308,21 @@ constructions! {
         table licensed_noun_premodifier(NounPremodifier, AttributePremodifierHead)
             -> Selection {
             (Yes, No) => Yes, (Yes, Yes) => Yes, (Attribute, Yes) => Yes,
+            (None, No) => Yes, (None, Yes) => Yes,
         }
         table coordinated_noun_premodifier(NounPremodifier, NounPremodifier)
             -> NounPremodifier {
             (Yes, Yes) => Yes, (Yes, Attribute) => Attribute,
             (Attribute, Yes) => Attribute, (Attribute, Attribute) => Attribute,
+            (None, None) => None, (None, Yes) => Yes, (Yes, None) => Yes,
+            (None, Attribute) => Attribute, (Attribute, None) => Attribute,
         }
         table coordinated_attribute_premodifier_head(AttributePremodifierHead,
             AttributePremodifierHead) -> AttributePremodifierHead {
             (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
         }
         policy NounPremodifierConcord<Right, Source> {
+            export PremodifierCoordination = Yes;
             export NounPremodifier = coordinated_noun_premodifier(
                 left.NounPremodifier, Right.NounPremodifier);
         }
@@ -381,17 +386,21 @@ constructions! {
         category Nominal(AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass,
             RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
-            BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, SubjectRelativeNumber);
+            BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
-        category NounPremodifier(NounPremodifier);
-        category NounPremodifierSeries(NounPremodifier);
+        category NounPremodifier(NounPremodifier, PremodifierCoordination);
+        category NounPremodifierSeries(NounPremodifier, PremodifierCoordination);
         category PartitiveModifier();
         category NounPhrase(UnitBearing, number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure,
             BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent);
-        category AdjectivePhrase(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse);
+        category AdjectivePhrase(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse, PremodifierCoordination);
+        category Premodifier(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
+            SelectedPrepositionUse, PredicativeAdjunctUse);
+        category PremodifierCoordination(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
+            SelectedPrepositionUse, PredicativeAdjunctUse);
         category VerblessClause();
         category Name(number);
         category NamePredicate();
@@ -485,8 +494,8 @@ constructions! {
             RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
-        , SourceModifierPresent, SubjectRelativeNumber);
-        category AdjectivePhraseSeries(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse);
+        , SourceModifierPresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
+        category AdjectivePhraseSeries(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse, PremodifierCoordination);
         category PrepositionPhraseSeries(LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
@@ -1131,11 +1140,24 @@ constructions! {
         }
 
         policy AdjectiveStructureMerge<Right, Source> {
+            export PremodifierCoordination = Yes;
             export AdjectiveOrigin = coordinated_adjective_origin(left.AdjectiveOrigin, Right.AdjectiveOrigin);
             export AdjectiveStructure = coordinated_adjective_structure(left.AdjectiveStructure,
                 Right.AdjectiveStructure);
             export TargetingPremodifierUse = coordinated_targeting_premodifier(
                 left.TargetingPremodifierUse, Right.TargetingPremodifierUse);
+        }
+
+        policy PremodifierConcord<Right, Source> {
+            export NounPremodifier = coordinated_noun_premodifier(
+                left.NounPremodifier, Right.NounPremodifier);
+            export AdjectiveOrigin = coordinated_adjective_origin(left.AdjectiveOrigin, Right.AdjectiveOrigin);
+            export TargetingPremodifierUse = coordinated_targeting_premodifier(
+                left.TargetingPremodifierUse, Right.TargetingPremodifierUse);
+            export SelectedPrepositionUse = selected_preposition_complement(
+                left.SelectedPrepositionUse, Right.SelectedPrepositionUse);
+            export PredicativeAdjunctUse = predicative_adjunct_concord(
+                left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
         }
 
         policy AdverbPermissions<Right, Source> {
@@ -1162,6 +1184,16 @@ constructions! {
             export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, Right.UnitBearing);
             agree left.MeasureKind = Right.MeasureKind;
             export MeasureKind = left.MeasureKind;
+        }
+
+        // R15d/R15e: an asyndetic shared-head group cannot resegment an
+        // unmarked member of a coordinator-ending Nominal list.
+        policy UnmarkedNominalConjunct<Right, Source> {
+            require left.UnmarkedConjunctLicence = Yes;
+        }
+        policy UnmarkedNominalSeriesConjunct<Right, Source> {
+            require left.UnmarkedConjunctLicence = Yes;
+            export CoordinationKind = Source.CoordinationKind;
         }
 
         policy CoordinatorKindSummary<Right, Source> {
@@ -1259,6 +1291,7 @@ constructions! {
             (DeterminerProjection, DeterminerProjection) => DeterminerProjection,
         }
         policy NominalConcord<Right, Source> {
+            export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = relative_number_concord(left.SubjectRelativeNumber, Right.SubjectRelativeNumber);
             export AttributePremodifierHead = coordinated_attribute_premodifier_head(
                 left.AttributePremodifierHead, Right.AttributePremodifierHead);
@@ -2432,7 +2465,7 @@ constructions! {
             (FiniteSelectedHeadSeries, FiniteSelectedHead, FiniteConcord, SelectedFrameConcord, NoConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
                 SelectedFrameConcord, NoConcord),
-            (NominalSeries, Nominal, NominalConcord, CoordinatorKindSummary),
+            (NominalSeries, Nominal, NominalConcord, UnmarkedNominalSeriesConjunct),
             (AdjectivePhraseSeries, AdjectivePhrase, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions, LeadingConjunct),
@@ -2453,6 +2486,7 @@ constructions! {
         instance CoordinationSeriesContinuation<
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
+            (PremodifierCoordination, Premodifier, Self, PremodifierConcord),
             (ClauseSeries, Clause, Self, UnmarkedConjunct),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, Self,
                 QualityPrepositionConcord),
@@ -2473,7 +2507,7 @@ constructions! {
                 SelectedFrameConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
                 SelectedFrameConcord),
-            (NominalSeries, Nominal, Self, NominalConcord, CoordinatorKindSummary),
+            (NominalSeries, Nominal, Self, NominalConcord, UnmarkedNominalSeriesConjunct),
             (AdjectivePhraseSeries, AdjectivePhrase, Self, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
@@ -2491,6 +2525,7 @@ constructions! {
         }
         instance SerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
+            (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
             (Clause, Self, ClauseSeries, UnmarkedConjunct),
             (KeywordQualityPreposition, Self, KeywordQualityPrepositionSeries,
                 QualityPrepositionConcord),
@@ -2510,7 +2545,7 @@ constructions! {
             (FiniteSelectedHead, Self, FiniteSelectedHeadSeries, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
-            (Nominal, Self, NominalSeries, NominalConcord),
+            (Nominal, Self, NominalSeries, NominalConcord, UnmarkedNominalConjunct),
             (AdjectivePhrase, Self, AdjectivePhraseSeries, AdjectiveStructureMerge),
             (PrepositionPhrase, Self, PrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions, LeadingConjunct),
@@ -2529,6 +2564,7 @@ constructions! {
         }
 
         construction Noun: Nominal {
+            export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [head: lexical(Noun)];
@@ -2537,6 +2573,7 @@ constructions! {
         }
 
         construction BareFramedNoun: Nominal {
+            export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [head: lexical(Noun)];
@@ -2547,6 +2584,7 @@ constructions! {
         // CGEL Ch. 14 §8.2, pp. 1259–1260: selected subjectless
         // to-infinitivals are internal Complements of nouns.
         construction InfinitiveComplementNominal: Nominal {
+            export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = No;
             form [head: lexical(Noun), " ", complement: InfinitiveComplement];
@@ -2555,6 +2593,7 @@ constructions! {
         }
 
         construction SymbolComplementNominal: Nominal {
+            export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = No;
             form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
@@ -2566,6 +2605,7 @@ constructions! {
         }
 
         construction PrepositionComplementNominal: Nominal {
+            export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
@@ -2577,6 +2617,7 @@ constructions! {
         }
 
         construction Adjective: AdjectivePhrase {
+            export PremodifierCoordination = No;
             form [head: lexical(Adjective)];
             require head.framing = Unframed;
             export AdjectiveStructure = Simple;
@@ -2585,6 +2626,7 @@ constructions! {
         }
 
         construction IntransitiveAdjective: AdjectivePhrase {
+            export PremodifierCoordination = No;
             form [head: lexical(Adjective)];
             require head.frame = Intransitive;
             export AdjectiveStructure = Simple;
@@ -2593,6 +2635,7 @@ constructions! {
         }
 
         construction ComplementedAdjective: AdjectivePhrase {
+            export PremodifierCoordination = No;
             form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
             require head.frame = AdjectivalPrepositionComplement;
@@ -2603,6 +2646,7 @@ constructions! {
         }
 
         construction NounPremodifier: NounPremodifier {
+            export PremodifierCoordination = No;
             form [head: lexical(Noun)];
             require noun_premodifier_use(head.NounPremodifier) = Yes;
             export NounPremodifier = head.NounPremodifier;
@@ -2646,7 +2690,59 @@ constructions! {
             use Distribution(right, coordinator);
         }
 
+        // CGEL Ch. 15 §3.2, pp. 1326–1328 permits unlike categories sharing a
+        // function, including pre-head modifiers. R15e (2026-10-09) supplies
+        // the Oracle grouping and keeps coordinator-ending lists unchanged.
+        construction NounPremodifierMember: Premodifier {
+            form [head: NounPremodifier];
+            require head.PremodifierCoordination = No;
+            export NounPremodifier = head.NounPremodifier;
+            export AdjectiveOrigin = Ordinary;
+            export TargetingPremodifierUse = No;
+            export SelectedPrepositionUse = No;
+            export PredicativeAdjunctUse = No;
+        }
+
+        construction AdjectivePremodifierMember: Premodifier {
+            form [head: AdjectivePhrase];
+            require head.PremodifierCoordination = No;
+            require head.AdjectiveStructure = Simple;
+            export NounPremodifier = None;
+            export AdjectiveOrigin = head.AdjectiveOrigin;
+            export TargetingPremodifierUse = head.TargetingPremodifierUse;
+            export SelectedPrepositionUse = Yes;
+            export PredicativeAdjunctUse = Yes;
+        }
+
+        table coordinated_premodifier_property_value(NounPremodifier, AdjectiveOrigin,
+            PropertyValuePosition) -> PropertyValuePosition {
+            (Yes, _, _) => None, (Attribute, _, _) => None,
+            (None, Participial, _) => None,
+            (None, Ordinary, None) => None, (None, Ordinary, Single) => Single,
+            (None, Ordinary, First) => First, (None, Ordinary, Second) => Second,
+            (None, Ordinary, Pair) => Pair,
+        }
+
+        construction CoordinatedPremodifiedNominal: Nominal {
+            export UnmarkedConjunctLicence = No;
+            form [modifier: PremodifierCoordination, " ", head: Nominal];
+            require licensed_noun_premodifier(modifier.NounPremodifier,
+                head.AttributePremodifierHead) = Yes;
+            require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
+            use NominalHeadFeatures;
+            export SubjectRelativeNumber = head.SubjectRelativeNumber;
+            export BareGenitiveHost = head.BareGenitiveHost;
+            export PropertyValuePosition = coordinated_premodifier_property_value(
+                modifier.NounPremodifier, modifier.AdjectiveOrigin, head.PropertyValuePosition);
+            export SelectedPrepositionUse = selected_preposition_complement(
+                modifier.SelectedPrepositionUse, head.SelectedPrepositionUse);
+            export PredicativeAdjunctUse = predicative_adjunct_concord(
+                modifier.PredicativeAdjunctUse, head.PredicativeAdjunctUse);
+            export SourceModifierPresent = head.SourceModifierPresent;
+        }
+
         construction NounPremodifiedNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: NounPremodifier, " ", head: Nominal];
@@ -2661,6 +2757,7 @@ constructions! {
         }
 
         construction PremodifiedNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: AdjectivePhrase, " ", head: Nominal];
@@ -2678,6 +2775,7 @@ constructions! {
         // comparative Complement. Its discontinuous nominal representation
         // follows the fixed-cost-phrases project ruling of 2026-10-06.
         construction DiscontinuousComparativeNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             form [governor: lexical(Adjective), " ", head: Nominal, " ",
                 marker: lexical(Preposition), " ", complement: AccusativePhrase];
@@ -2696,6 +2794,7 @@ constructions! {
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
         // an outer Determiner; without it the cardinal is the Determiner.
         construction CardinalPremodifiedNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
@@ -2741,6 +2840,7 @@ constructions! {
         // not acquire a bare count-plural use. CGEL Ch. 5 §3.4, p. 354
         // distinguishes the singular conceptualization of a measured quantity.
         construction CardinalMeasuredNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = Head;
@@ -2798,6 +2898,7 @@ constructions! {
             form [head: node, " ", modifier: node];
         }
         policy PostpositiveNominalProperties {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -2844,6 +2945,7 @@ constructions! {
         }
 
         construction ParticipialPremodifier: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: VerbalPremodifier, " ", head: Nominal];
@@ -2887,6 +2989,7 @@ constructions! {
         }
 
         construction NamedNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: NamePredicate];
@@ -2898,6 +3001,7 @@ constructions! {
         }
 
         construction TargetedNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
@@ -2926,6 +3030,7 @@ constructions! {
         }
 
         construction PostmodifiedNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: PrepositionPhrase];
@@ -3726,6 +3831,7 @@ constructions! {
             (PastParticiple, BarePassive) => Yes,
         }
         construction ParticipialPostmodifiedNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: SecondaryVerbPhrase];
@@ -3955,6 +4061,7 @@ constructions! {
         }
 
         construction SubjectRelativeNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             require relative_number_chain(head.SubjectRelativeNumber, relative.number) = Yes;
             export SubjectRelativeNumber = deferred_relative_number(head.NominalAgreementNumber, relative.number);
             export BareGenitiveHost = No;
@@ -4015,6 +4122,7 @@ constructions! {
         }
 
         construction ObjectRelativeNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             require relative_head_licence(relative.RelativeGapKind,
                 head.RelativisableAdjunctClass) = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
@@ -4253,6 +4361,7 @@ constructions! {
         }
 
         construction OrdinalPremodifier: AdjectivePhrase {
+            export PremodifierCoordination = No;
             form [head: lexical(Numeral)];
             require head.numeral_kind = Ordinal;
             export AdjectiveStructure = Simple;
@@ -4320,6 +4429,7 @@ constructions! {
         }
 
         construction SlashModifiedNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: SlashPair, " ", head: Nominal];
@@ -4569,6 +4679,7 @@ constructions! {
         }
 
         construction ComparativeAdjective: AdjectivePhrase {
+            export PremodifierCoordination = No;
             form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
             export AdjectiveOrigin = Ordinary;
@@ -5161,6 +5272,7 @@ constructions! {
         }
 
         construction CorrelativePostpositiveNominal: Nominal {
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: CorrelativeAdjectivePhrase];
