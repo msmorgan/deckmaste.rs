@@ -3,6 +3,9 @@ mod common;
 #[path = "suite/from_anywhere.rs"]
 mod from_anywhere;
 
+#[path = "suite/typecycling_bound_suffix.rs"]
+mod typecycling_bound_suffix;
+
 #[path = "suite/bare_zone_noun_complement.rs"]
 mod bare_zone_noun_complement;
 

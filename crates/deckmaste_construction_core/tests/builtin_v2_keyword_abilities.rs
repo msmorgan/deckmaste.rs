@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::path::Path;
 
 use deckmaste_construction_core::macro_def::DeclarationKind;
@@ -83,7 +84,16 @@ fn derived_template(declaration: &NormalizedDeclaration) -> String {
                 .iter()
                 .find(|surface| surface.feature() == SurfaceFeature::BoundSuffix)
                 .expect("a bound-suffix payload has a bound suffix surface");
-            return format!("<Param(0)>{}", suffix.text());
+            let mut template = format!("<Param(0)>{}", suffix.text());
+            for index in 1..params.len() {
+                write!(
+                    template,
+                    "{}<Param({index})>",
+                    separator(syntax.parameter_separator)
+                )
+                .unwrap();
+            }
+            return template;
         }
         KeywordPayloadOrder::AfterHead => {}
     }
@@ -232,6 +242,10 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         assert_eq!(parameterized.insert(name, &["Amount", "Cost"]), None);
     }
     assert_eq!(parameterized.insert("splice", &["Quality", "Cost"]), None);
+    assert_eq!(
+        parameterized.insert("typecycling", &["Quality", "Cost"]),
+        None
+    );
     for name in [
         "boast", "exhaust", "forecast", "infinity", "maxSpeed", "powerUp", "solved",
     ] {
@@ -242,7 +256,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         parameterized.insert("prototype", &["Cost", "Power", "Toughness"]),
         None
     );
-    assert_eq!(parameterized.len(), 106);
+    assert_eq!(parameterized.len(), 107);
     parameterized
 }
 

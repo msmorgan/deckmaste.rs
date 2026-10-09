@@ -118,7 +118,8 @@ pub struct Metadata {
     pub category: Option<SubtypeCategory>,
 }
 
-/// A supplemental lexical compound with an immutable authored stem and noun head.
+/// A supplemental lexical compound with an immutable authored stem and noun
+/// head.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CompoundNounGrammar {
@@ -434,6 +435,10 @@ pub struct BoundSuffixGrammar {
 pub enum BoundKeywordStemClass {
     SubtypesAndType {
         category: SubtypeCategory,
+        card_type: String,
+    },
+    SubtypeClassesAndType {
+        categories: Vec<SubtypeCategory>,
         card_type: String,
     },
 }

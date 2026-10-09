@@ -80,14 +80,22 @@ pub(crate) fn bound_keyword_stem_members(
     classes: &[metadata::BoundKeywordStemClass],
 ) -> Vec<String> {
     let mut members = std::collections::BTreeSet::new();
-    for metadata::BoundKeywordStemClass::SubtypesAndType {
-        category,
-        card_type,
-    } in classes
-    {
+    for class in classes {
+        let (categories, card_type) = match class {
+            metadata::BoundKeywordStemClass::SubtypesAndType {
+                category,
+                card_type,
+            } => (std::slice::from_ref(category), card_type),
+            metadata::BoundKeywordStemClass::SubtypeClassesAndType {
+                categories,
+                card_type,
+            } => (categories.as_slice(), card_type),
+        };
         for declaration in declarations {
             let identity = declaration.identity();
-            if identity.kind() == metadata::DeclarationKind::Subtype(*category)
+            if categories
+                .iter()
+                .any(|category| identity.kind() == metadata::DeclarationKind::Subtype(*category))
                 || (identity.kind() == metadata::DeclarationKind::Type
                     && identity.name() == card_type)
             {
@@ -117,6 +125,17 @@ fn export_metadata(
     };
     let mut lexeme = grammar_lexeme(owner, path, grammar, provenance, normalized, output);
     export_distribution(&mut lexeme, normalized, authored.noun_class);
+    lexeme.properties.features.insert(
+        "CreatureSubtypeStem".into(),
+        if normalized.identity().kind()
+            == metadata::DeclarationKind::Subtype(metadata::SubtypeCategory::Creature)
+        {
+            "Yes"
+        } else {
+            "No"
+        }
+        .into(),
+    );
     if let Some(type_word) = normalized.type_word() {
         if type_word.noun_modifier {
             lexeme
@@ -362,6 +381,14 @@ fn bound_suffix_lexeme(
     suffix: metadata::BoundSuffixGrammar,
     parameter_class: Option<metadata::KeywordParameterClass>,
 ) -> Lexeme {
+    let creature_stem_use = match &suffix.stem_class {
+        metadata::BoundKeywordStemClass::SubtypesAndType { category, .. } => {
+            *category == metadata::SubtypeCategory::Creature
+        }
+        metadata::BoundKeywordStemClass::SubtypeClassesAndType { categories, .. } => {
+            categories.contains(&metadata::SubtypeCategory::Creature)
+        }
+    };
     let suffix_owner = format!("{owner}/bound-suffix");
     let mut lexeme = Lexeme::invariant(
         &suffix_owner,
@@ -377,6 +404,10 @@ fn bound_suffix_lexeme(
         .properties
         .features
         .insert("BoundKeyword".into(), "Yes".into());
+    lexeme.properties.features.insert(
+        "CreatureSubtypeStemUse".into(),
+        if creature_stem_use { "Yes" } else { "No" }.into(),
+    );
     if let Some(class) = parameter_class {
         lexeme.properties.features.insert(
             "KeywordParameterClass".into(),
@@ -604,6 +635,41 @@ mod tests {
         assert_eq!(
             bound_keyword_stem_members(&declarations, &[class.clone(), class]),
             vec!["lexeme:land_subtype/cave", "lexeme:type/land"],
+        );
+    }
+
+    #[test]
+    fn multiple_subtype_classes_share_stems_without_admitting_other_types() {
+        let declarations: Vec<_> = [
+            r#"Subtype(category: Land, name: "cave", spelling: "Cave")"#,
+            r#"Subtype(category: Creature, name: "wizard", spelling: "Wizard")"#,
+            r#"Subtype(category: Artifact, name: "equipment", spelling: "Equipment")"#,
+            r#"Type(name: "land", spelling: "land")"#,
+            r#"Type(name: "artifact", spelling: "artifact")"#,
+        ]
+        .into_iter()
+        .map(|text| metadata::read_str("class-member.ron", text).unwrap())
+        .collect();
+        let classes = [
+            metadata::BoundKeywordStemClass::SubtypesAndType {
+                category: metadata::SubtypeCategory::Land,
+                card_type: "land".into(),
+            },
+            metadata::BoundKeywordStemClass::SubtypeClassesAndType {
+                categories: vec![
+                    metadata::SubtypeCategory::Land,
+                    metadata::SubtypeCategory::Creature,
+                ],
+                card_type: "land".into(),
+            },
+        ];
+        assert_eq!(
+            bound_keyword_stem_members(&declarations, &classes),
+            vec![
+                "lexeme:creature_subtype/wizard",
+                "lexeme:land_subtype/cave",
+                "lexeme:type/land",
+            ]
         );
     }
 

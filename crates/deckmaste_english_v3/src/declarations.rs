@@ -240,6 +240,8 @@ constructions! {
         feature KeywordMarker { None, For, From, Onto, To, Into, At, With, Of, On, Under }
         feature KeywordPayloadOrder { AfterHead, BeforeHead, BoundSuffix }
         feature BoundKeyword { No, Yes }
+        feature CreatureSubtypeStem { No, Yes } default No;
+        feature CreatureSubtypeStemUse { No, Yes } default No;
         feature KeywordSeparator { Space, Dash, SpacedDash }
         feature KeywordParameterSeparator { Space, Dash, SpacedDash }
         feature KeywordQualityNumber { Any, Singular, Plural }
@@ -2106,12 +2108,28 @@ constructions! {
         }
 
         // Oracle keyword formation: ticket analysis and owner ruling, 2026-10-08.
+        table licensed_creature_stem(CreatureSubtypeStem, CreatureSubtypeStemUse) -> Selection {
+            (No, No) => Yes, (No, Yes) => Yes, (Yes, Yes) => Yes,
+        }
         construction BoundQualityKeyword: KeywordPhrase {
             form [quality: lexical(Noun), head: lexical(Keyword)];
             require quality.frame = BoundKeywordStem;
             require head.KeywordParameterClass = Quality;
             require head.KeywordPayloadOrder = BoundSuffix;
             require head.BoundKeyword = Yes;
+            require licensed_creature_stem(quality.CreatureSubtypeStem,
+                head.CreatureSubtypeStemUse) = Yes;
+        }
+
+        // Typecycling's bound Quality and mandatory Cost: orchestrator ruling R8a.
+        construction BoundQualityCostKeyword: KeywordPhrase {
+            form [quality: lexical(Noun), head: lexical(Keyword), " ", cost: CostSymbols];
+            require quality.frame = BoundKeywordStem;
+            require head.KeywordParameterClass = QualityCost;
+            require head.KeywordPayloadOrder = BoundSuffix;
+            require head.BoundKeyword = Yes;
+            require licensed_creature_stem(quality.CreatureSubtypeStem,
+                head.CreatureSubtypeStemUse) = Yes;
         }
 
         construction SubjectKeyword: KeywordPhrase {

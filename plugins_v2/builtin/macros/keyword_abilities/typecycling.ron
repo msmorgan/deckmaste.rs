@@ -1,0 +1,18 @@
+KeywordAbility(
+    name: "typecycling",
+    params: [Quality, Cost],
+    spelling: "<Param(0)>cycling <Param(1)>",
+    keyword_syntax: (payload_order: BoundSuffix),
+    grammar: FixedKeyword(
+        surface: "typecycling",
+        bound_suffix: (
+            surface: "cycling",
+            stem_class: SubtypeClassesAndType(
+                categories: [Land, Creature],
+                card_type: "land",
+            ),
+        ),
+    ),
+    // Grammar-only declaration authorized by orchestrator ruling R8a (2026-10-08).
+    // The engine body belongs to semantics-v2-keyword-ability-census.
+)

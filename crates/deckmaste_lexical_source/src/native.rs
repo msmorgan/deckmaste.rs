@@ -36,7 +36,9 @@ pub(crate) fn add_bound_keyword_stems(
     lexemes: &mut Vec<Lexeme>,
     members: Vec<String>,
 ) -> Result<(), LoadError> {
-    use deckmaste_lexical::{Binding, Category, WordForm};
+    use deckmaste_lexical::Binding;
+    use deckmaste_lexical::Category;
+    use deckmaste_lexical::WordForm;
     for owner in members {
         let noun = lexemes
             .iter()
@@ -71,6 +73,11 @@ pub(crate) fn add_bound_keyword_stems(
         form.surfaces = Some(surfaces);
         stem.forms = vec![form];
         stem.binding = Binding::Prefix;
+        if let Some(value) = noun.properties.features.get("CreatureSubtypeStem") {
+            stem.properties
+                .features
+                .insert("CreatureSubtypeStem".into(), value.clone());
+        }
         stem.properties.frames = vec![Frame {
             kind: "BoundKeywordStem".into(),
             items: Vec::new(),
@@ -83,7 +90,12 @@ pub(crate) fn add_bound_keyword_stems(
 #[cfg(test)]
 mod bound_keyword_stem_tests {
     use deckmaste_construction_core::macro_def as metadata;
-    use deckmaste_lexical::{Binding, Category, Countability, Source, SourceKind, WordForm};
+    use deckmaste_lexical::Binding;
+    use deckmaste_lexical::Category;
+    use deckmaste_lexical::Countability;
+    use deckmaste_lexical::Source;
+    use deckmaste_lexical::SourceKind;
+    use deckmaste_lexical::WordForm;
 
     use super::*;
 

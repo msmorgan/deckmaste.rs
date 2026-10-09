@@ -1308,6 +1308,18 @@ declared singular Word Form, with positional Capitalization of the combined
 word (owner ruling, 2026-10-08,
 [landwalk ticket](../../tickets/done/english-v3-landwalk-bound-suffix.md#analysis)).
 
+**Bound Keyword Stem Class** (project term):
+A keyword's declared set of subtype classes and card type supplying its Bound
+Keyword Stems (orchestrator rulings, 2026-10-08, landwalk stem-class derivation
+and typecycling R8a).
+
+**Creature Subtype Stem** (project term):
+A Bound Keyword Stem derived from a declared creature-subtype noun.
+
+**Creature Subtype Stem Use** (project term):
+A bound suffix's licence to take a Creature Subtype Stem, supplied by its
+Bound Keyword Stem Class (typecycling ruling R8a, 2026-10-08).
+
 ## Status, Designation (Game Model terms — not grammatical categories)
 
 `tapped`, `goaded`, `suspected`, `saddled` are the **Participles** of their

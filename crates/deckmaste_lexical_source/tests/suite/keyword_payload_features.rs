@@ -153,10 +153,27 @@ fn keyword_suffixes_keep_their_binding_and_supplement_identity() {
         .filter(|entry| entry.id.ends_with("/bound-suffix"))
         .collect();
     assert_ne!(suffixes, [] as [&deckmaste_lexical::Lexeme; 0]);
+    let contracts = [
+        ("lexeme:keyword_ability/landwalk", "walk", "Quality", "No"),
+        (
+            "lexeme:keyword_ability/typecycling",
+            "cycling",
+            "QualityCost",
+            "Yes",
+        ),
+    ];
+    assert_eq!(suffixes.len(), contracts.len());
     for suffix in suffixes {
+        let (owner, surface, class, creature_stem_use) = contracts
+            .iter()
+            .find(|(owner, ..)| *owner == suffix.source.owner)
+            .expect("every bound suffix has its declared payload contract");
+        assert_eq!(suffix.lemma, *surface);
+        assert_eq!(suffix.id.as_str(), format!("{owner}/bound-suffix"));
         assert_eq!(suffix.binding, deckmaste_lexical::Binding::Suffix);
         assert_eq!(suffix.category, Category::Keyword);
-        feature(suffix, "KeywordParameterClass", "Quality");
+        feature(suffix, "KeywordParameterClass", class);
+        feature(suffix, "CreatureSubtypeStemUse", creature_stem_use);
         feature(suffix, "KeywordPayloadOrder", "BoundSuffix");
         feature(suffix, "BoundKeyword", "Yes");
         feature(suffix, "KeywordMarker", "None");

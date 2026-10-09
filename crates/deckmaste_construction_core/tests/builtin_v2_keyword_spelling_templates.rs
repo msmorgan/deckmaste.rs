@@ -282,6 +282,7 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("toxic", "toxic <Param(0)>"),
     ("training", "training"),
     ("trample", "trample"),
+    ("typecycling", "<Param(0)>cycling <Param(1)>"),
     ("transfigure", "transfigure <Param(0)>"),
     ("transmute", "transmute <Param(0)>"),
     ("tribute", "tribute <Param(0)>"),
@@ -354,7 +355,7 @@ fn every_keyword_declaration_pins_its_template() {
 #[test]
 fn every_keyword_template_is_consistent_with_its_params_and_grammar() {
     let declarations = keyword_declarations();
-    assert_eq!(declarations.len(), 66 + 199);
+    assert_eq!(declarations.len(), 66 + 200);
     for declaration in &declarations {
         let name = declaration.identity().name();
         let params = declaration.params().unwrap_or_default();
