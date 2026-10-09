@@ -1241,7 +1241,7 @@ _Avoid_: Flavor Text, the italicized artistic text below the rules text
 [CR#207.2b]
 
 **Keyword Quality** (project term):
-The Nominal a parameterized Keyword Ability takes as its argument, on a keyword
+The expression a parameterized Keyword Ability takes as its quality argument, on a keyword
 line or in a grant — *black* in *protection from black*, *artifacts* in
 *affinity for artifacts*. Each Keyword Ability's declaration selects whether its
 Keyword Quality is bare, introduced by a Preposition, or carries the keyword's
@@ -1256,6 +1256,13 @@ Keyword Surface are cased together as the one word they form: capitalized only
 where that word begins a sentence or a keyword line — *Islandwalk*, *Snow
 swampwalk*, *Enchanted creature has mountainwalk.*
 _Avoid_: Prefix for the Keyword Quality it binds to
+
+**Bound Keyword Stem** (project term):
+The declared noun stem forming a Keyword Quality bound to a Bound Keyword
+Surface, as *island* in *islandwalk*. Its lowercase form comes from the noun's
+declared singular Word Form, with positional Capitalization of the combined
+word (owner ruling, 2026-10-08,
+[landwalk ticket](../../tickets/done/english-v3-landwalk-bound-suffix.md#analysis)).
 
 ## Status, Designation (Game Model terms — not grammatical categories)
 

@@ -64,10 +64,11 @@ STRONG bucket (`xnkuznpo`, 0 Readings each):
 Standard constraints apply (CLAUDE.md landing record, assurance, scope).
 Deltas:
 
-1. Verification budget (binding): One full census (`--all --workers 12
-   --samples-per-face 0`) on the finished feature for the record, compared
-   face by face (per-face `readings_sha256` and counts) against the claim
-   parent's census; iterate on selector subsets, never on --all. Tests:
+1. Verification budget (owner override, 2026-10-08): one bounded census of
+   every supported face containing the case-insensitive substring *walk*,
+   plus 300 random covered controls (seed 20261008), using an identity manifest,
+   12 workers and zero samples per face. Compare against the claim parent's
+   census with `cargo xtask english-v3 diff`; never run `--all`. Tests:
    `cargo test -p` and `cargo clippy -p … --tests -- -D warnings` for every
    crate whose code or consumed data changed (`deckmaste_english_v3` always;
    `deckmaste_lexical_source` if core.ron/verbs.ron/vocabulary.rs changed).
@@ -75,7 +76,8 @@ Deltas:
    touched grammar, lexicon or core. New tests go under tests/suite/
    registered in tests/main.rs. Evidence lives under the workspace's ignored
    `target/english-v3/`, never `/tmp`.
-2. Write each witness as a test first.
+2. Probe each witness before implementation (keyword labels as Documents,
+   running text as Sentences); write the tests once and run them at the end.
 3. Zero lost faces. A lost face is a defect: fix it within the ticket first;
    STOP only if the fix fails or needs a ruling.
 4. Compare per-face Reading counts against the claim-parent census. Any
@@ -108,4 +110,56 @@ Deltas:
 
 ## Landing record
 
-The six items in CLAUDE.md.
+1. **Census delta** (`swrqrxlw` → `pvmmspls`): bounded, case-insensitive
+   *walk* selector: 1,213 supported faces plus 300 covered controls, seed
+   20261008; ten overlaps, 1,503 distinct faces. Covered 991 → 1,166;
+   Readings 67,340 → 68,928; 175 gains. Lost faces: none; decreases,
+   increases and digest-only changes: zero. Claim-parent evidence combines
+   the inherited census, the landed floated-each subset and pre-change runtime
+   evidence (`mqrlzszk`, grammar/lexicon/core identical to the claim parent).
+   That runtime evidence corrects inherited omissions for Cult Guildmage,
+   Serum-Core Chimera and Termination Facilitator; these are not feature gains.
+   The corrected manifest replaces the initial control sample. Official
+   `english-v3 diff` evidence is under `target/english-v3/english-v3-landwalk-bound-suffix/`.
+   All selected enumerations complete; all Readings validate exact roundtrip
+   and traversal, with zero issues, duplicate Readings or internal failures
+   (`pvmmspls`).
+2. **Witnesses**: All five units fail with zero Readings before implementation
+   (`mqrlzszk`, claim-equivalent cached runtime). After (`pvmmspls`):
+   Sheoldred's *Swampwalk* 1; Scarwood Bandits' *Forestwalk* 1;
+   River Bear's *Islandwalk* 1 (Documents); Goblin King's sentence 2;
+   Veldrane's scoped sentence 3 (Sentences). All realized byte-exactly.
+3. **Spot checks** (`pvmmspls`, whole-face counts): Anaconda (1),
+   Anurid Murkdiver (1) — bound *Swampwalk* labels; Aysen Highway (1) —
+   *White creatures* Subject granting bound *plainswalk*;
+   Bayou Dragonfly (1) — *Flying, swampwalk* keyword line;
+   Benthic Behemoth (1), Benthic Djinn (1), River Bear (1) — bound
+   *Islandwalk* labels; Desert Nomads (8) — bound *Desertwalk* label;
+   Goblin King (2) — coordinated clauses with a bound *mountainwalk* grant;
+   Sheoldred, Whispering One (2) — bound *Swampwalk* label followed by
+   triggered clauses. One selected Reading each inspected in `spot-0.json`
+   through `spot-9.json`; all byte-exact, stems retain declared noun identities.
+4. **Deviations and STOPs** (`pvmmspls`): Added the `BoundQualityKeyword`
+   Construction, distinct `BoundKeywordStem` frame and declared singular
+   noun-stem class. Desert joins the required hosts because Desert Nomads
+   attests *Desertwalk*. Retired landwalk's unreachable free lexical export;
+   there was no bound-suffix grammar consumer to supersede, and the other
+   payload-order consumers remain. Generic *Landwalk* reads (1); *Legendary
+   landwalk*, *snow swampwalk*, *nonbasic landwalk* and *landwalk of the chosen
+   type* remain unread (0), as permitted. Added structural/roundtrip,
+   malformed-form, free-noun-leakage and class-validation tests. Defined
+   **Bound Keyword Stem** and corrected **Keyword Quality**'s Nominal-only
+   wording; no glossary gap remains. Keyword formation follows the ticket and
+   owner's ruling, without a CGEL claim. No STOPs; the owner's bounded-census
+   override replaces Method's superseded full-census requirement.
+5. **Tests** (`pvmmspls`): `cargo test -p deckmaste_english_v3` passes
+   (558 tests). `cargo test -p deckmaste_lexical_source`: 26 unit tests and
+   34 integration tests pass; one obsolete free-export assertion fails and is
+   re-spelled against the bound suffix, preserving its landwalk owner and
+   payload feature comparisons. The focused rerun
+   `cargo test -p deckmaste_lexical_source --test main keyword_payload_features::authored_keyword_payload_contracts_preserve_separators_and_markers`
+   passes. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` pass.
+   Restored 0; re-spelled 1; ignored-with-blocker 0; added 6; removed 0.
+6. **Timing** (`pvmmspls`): final bounded census, 15.700 seconds including
+   setup, 12 workers.

@@ -464,6 +464,7 @@ constructions! {
         frame ManaComplement = Predicate(Complement(ManaPhrase));
         frame ObjectName = Predicate(Object(NounPhrase), Complement(Name));
         frame BareNominal = Nominal();
+        frame BoundKeywordStem = BoundKeywordStem();
         frame NominalSymbols = Nominal(Marked(Preposition, Of, Complement(CostSymbols)));
         frame NominalInfinitive = Nominal(Complement(InfinitiveComplement));
         frame NominalPreposition = Nominal(Marked(Preposition, Of, Complement(NounPhrase)));
@@ -1928,6 +1929,15 @@ constructions! {
             require head.KeywordMarker = None;
             require compatible_quality(head.KeywordQualityNumber,
                 quality.KeywordQualityNumber) = Yes;
+        }
+
+        // Oracle keyword formation: ticket analysis and owner ruling, 2026-10-08.
+        construction BoundQualityKeyword: KeywordPhrase {
+            form [quality: lexical(Noun), head: lexical(Keyword)];
+            require quality.frame = BoundKeywordStem;
+            require head.KeywordParameterClass = Quality;
+            require head.KeywordPayloadOrder = BoundSuffix;
+            require head.BoundKeyword = Yes;
         }
 
         construction SubjectKeyword: KeywordPhrase {

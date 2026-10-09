@@ -68,12 +68,12 @@ fn authored_keyword_payload_contracts_preserve_separators_and_markers() {
         "KeywordPayloadOrder",
         "BeforeHead",
     );
-    feature(
-        entry("landwalk", Category::Keyword),
-        "KeywordPayloadOrder",
-        "BoundSuffix",
-    );
-    feature(entry("landwalk", Category::Keyword), "BoundKeyword", "No");
+    // Landwalk's formerly unreachable free export is replaced by its bound
+    // surface; retain the same keyword owner and payload contract.
+    let landwalk = entry("walk", Category::Keyword);
+    assert_eq!(landwalk.source.owner, "lexeme:keyword_ability/landwalk");
+    feature(landwalk, "KeywordPayloadOrder", "BoundSuffix");
+    feature(landwalk, "BoundKeyword", "Yes");
     feature(
         entry("affinity", Category::Keyword),
         "KeywordQualityNumber",

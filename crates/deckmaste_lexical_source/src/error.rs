@@ -53,6 +53,8 @@ pub enum LoadError {
     },
     #[error("negative noun formation host {owner} must be a noun with a singular form")]
     InvalidNegativeNounFormation { owner: String },
+    #[error("bound keyword stem host {owner} must be a noun with a singular form")]
+    InvalidBoundKeywordStem { owner: String },
     #[error("invalid compound noun class: {reason}")]
     InvalidCompoundClass { reason: &'static str },
     #[error("compound head {owner}: {source}")]

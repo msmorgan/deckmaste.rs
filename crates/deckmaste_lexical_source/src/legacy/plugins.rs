@@ -198,12 +198,12 @@ fn grammar_lexeme(
             parameter,
         } => {
             if let Some(suffix) = bound_suffix {
-                output.lexemes.push(bound_suffix_lexeme(
+                return bound_suffix_lexeme(
                     owner,
                     path,
                     suffix,
                     normalized.keyword_parameter_class(),
-                ));
+                );
             }
             if let Some(adjective) = participial_adjective {
                 output.lexemes.push(participial_adjective_lexeme(

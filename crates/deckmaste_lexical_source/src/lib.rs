@@ -100,6 +100,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     }
     supplement::apply(root, &mut output)?;
     native::replace_forms(&mut output.lexemes, native.form_replacements)?;
+    native::add_bound_keyword_stems(&mut output.lexemes, native.bound_keyword_stems)?;
     native::add_features(&mut output.lexemes, native.feature_additions)?;
     compound::add_compound_nouns(&mut output, compounds)?;
     native::add_adjective_classes(&mut output.lexemes, native.adjective_classes)?;
