@@ -208,3 +208,6 @@ mod counter_kind_nouns;
 
 #[path = "suite/overgeneration_prune.rs"]
 mod overgeneration_prune;
+
+#[path = "suite/card_noun_premodifier.rs"]
+mod card_noun_premodifier;

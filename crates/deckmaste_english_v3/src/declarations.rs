@@ -271,7 +271,28 @@ constructions! {
             -> Selection {
             (None, None) => Yes, (None, Of) => Yes, (Of, None) => Yes,
         }
-        feature NounPremodifier { Yes }
+        feature NounPremodifier { Yes, Attribute }
+        feature AttributePremodifierHead { No, Yes } default No;
+        table noun_premodifier_use(NounPremodifier) -> Selection {
+            (Yes) => Yes, (Attribute) => Yes,
+        }
+        table licensed_noun_premodifier(NounPremodifier, AttributePremodifierHead)
+            -> Selection {
+            (Yes, No) => Yes, (Yes, Yes) => Yes, (Attribute, Yes) => Yes,
+        }
+        table coordinated_noun_premodifier(NounPremodifier, NounPremodifier)
+            -> NounPremodifier {
+            (Yes, Yes) => Yes, (Yes, Attribute) => Attribute,
+            (Attribute, Yes) => Attribute, (Attribute, Attribute) => Attribute,
+        }
+        table coordinated_attribute_premodifier_head(AttributePremodifierHead,
+            AttributePremodifierHead) -> AttributePremodifierHead {
+            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+        }
+        policy NounPremodifierConcord<Right, Source> {
+            export NounPremodifier = coordinated_noun_premodifier(
+                left.NounPremodifier, Right.NounPremodifier);
+        }
         feature VPFinalAdjunct { Yes, No }
         feature ClauseInitialAdjunct { Yes, No } default No;
         feature CentralAdjunctLicence { Preverbal, PostCopula, PostAuxiliary, Imperative } set;
@@ -329,13 +350,13 @@ constructions! {
         category BareComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence);
         category ParticipialComplement(PurposeAdjunctLicence, MatrixComplementLicence);
         category PerfectComplement(PurposeAdjunctLicence, MatrixComplementLicence);
-        category Nominal(number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
+        category Nominal(AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, SubjectRelativeNumber);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
-        category NounPremodifier();
-        category NounPremodifierSeries();
+        category NounPremodifier(NounPremodifier);
+        category NounPremodifierSeries(NounPremodifier);
         category PartitiveModifier();
         category NounPhrase(number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure,
             BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber);
@@ -428,7 +449,7 @@ constructions! {
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
-            number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
+            AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
         , SourceModifierPresent, SubjectRelativeNumber);
@@ -868,6 +889,7 @@ constructions! {
         }
 
         policy NominalHeadFeatures {
+            export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export BarePrepositionUse = head.BarePrepositionUse;
             export NominalComplementMarker = head.NominalComplementMarker;
@@ -889,6 +911,7 @@ constructions! {
         }
 
         policy PostmodifiedNominalProperties {
+            export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
@@ -1035,6 +1058,7 @@ constructions! {
         }
 
         policy UnmodifiedNominalProperties {
+            export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = Head;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
@@ -1191,6 +1215,8 @@ constructions! {
         }
         policy NominalConcord<Right, Source> {
             export SubjectRelativeNumber = relative_number_concord(left.SubjectRelativeNumber, Right.SubjectRelativeNumber);
+            export AttributePremodifierHead = coordinated_attribute_premodifier_head(
+                left.AttributePremodifierHead, Right.AttributePremodifierHead);
             export NominalAgreementNumber = coordinated_nominal_agreement(
                 Source.CoordinationKind, Right.NominalAgreementNumber);
             export PredicativeAdjunctUse = predicative_adjunct_concord(
@@ -2330,7 +2356,7 @@ constructions! {
             (SecondaryPredicateSeries, SecondaryVerbPhrase, SecondaryConjunctProperties, NoConcord, NoConcord),
             (NounPhraseSeries, NounPhrase, NounCoordinationAgreement, CoordinatorKindSummary),
             (VerbalPremodifierSeries, VerbalPremodifier),
-            (NounPremodifierSeries, NounPremodifier),
+            (NounPremodifierSeries, NounPremodifier, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase),
             (CardinalSeries, Cardinal, CardinalListEnd),
             (AmountSeries, Amount),
@@ -2370,7 +2396,7 @@ constructions! {
             (SecondaryPredicateSeries, SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
             (NounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement, CoordinatorKindSummary),
             (VerbalPremodifierSeries, VerbalPremodifier, Self),
-            (NounPremodifierSeries, NounPremodifier, Self),
+            (NounPremodifierSeries, NounPremodifier, Self, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase, Self),
             (CardinalSeries, Cardinal, Self, CardinalListEnd),
             (AmountSeries, Amount, Self),
@@ -2408,7 +2434,7 @@ constructions! {
             (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryConjunctProperties),
             (NounPhrase, Self, NounPhraseSeries, NounCoordinationAgreement),
             (VerbalPremodifier, Self, VerbalPremodifierSeries),
-            (NounPremodifier, Self, NounPremodifierSeries),
+            (NounPremodifier, Self, NounPremodifierSeries, NounPremodifierConcord),
             (ManaPhrase, Self, ManaPhraseSeries),
             (Cardinal, Self, CardinalSeries, CardinalAgreement),
             (Amount, Self, AmountSeries),
@@ -2513,13 +2539,14 @@ constructions! {
 
         construction NounPremodifier: NounPremodifier {
             form [head: lexical(Noun)];
-            require head.NounPremodifier = Yes;
+            require noun_premodifier_use(head.NounPremodifier) = Yes;
+            export NounPremodifier = head.NounPremodifier;
             require head.form = Singular;
             require head.framing = Unframed;
         }
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
             (VerbalPremodifier, Self),
-            (NounPremodifier, Self),
+            (NounPremodifier, Self, NounPremodifierConcord),
             (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (NounPhrase, Self, NounCoordinationAgreement),
@@ -2558,6 +2585,8 @@ constructions! {
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: NounPremodifier, " ", head: Nominal];
+            require licensed_noun_premodifier(modifier.NounPremodifier,
+                head.AttributePremodifierHead) = Yes;
             use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = No;
@@ -2603,6 +2632,7 @@ constructions! {
         // an outer Determiner; without it the cardinal is the Determiner.
         construction CardinalPremodifiedNominal: Nominal {
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
+            export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
@@ -2633,6 +2663,7 @@ constructions! {
         // distinguishes the singular conceptualization of a measured quantity.
         construction CardinalMeasuredNominal: Nominal {
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
+            export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = Head;
             export ScalarDenotation = Yes;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -2757,6 +2788,7 @@ constructions! {
 
         construction TargetedNominal: Nominal {
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
+            export AttributePremodifierHead = head.AttributePremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;

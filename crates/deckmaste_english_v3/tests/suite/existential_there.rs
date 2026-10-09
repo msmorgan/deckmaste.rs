@@ -210,11 +210,21 @@ fn contracted_ambiguity_and_preterite_lexical_form() {
         readings("there's an additional combat phase", Category::FiniteClause).len(),
         2
     );
-    // Baba Lysaga's "card types" NP is already blocked before this ticket;
-    // its other blockers are explicitly outside the existential-there scope.
+    // Baba Lysaga's attested clause now retains all three attachment Readings
+    // after the card-noun-premodifier landing retires its vocabulary blocker.
     assert_eq!(
         readings(
             "there were three or more card types among the sacrificed permanents",
+            Category::FiniteClause
+        )
+        .len(),
+        3
+    );
+    // Re-spell the retired blocker assertion against an undeclared Attribute
+    // Premodifier head; the authentic clause above remains a positive witness.
+    assert_eq!(
+        readings(
+            "there were three or more card cards among the sacrificed permanents",
             Category::FiniteClause
         )
         .len(),

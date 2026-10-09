@@ -1054,6 +1054,17 @@ premodify a noun, as in *the chosen type* (CGEL, Ch. 5 §14.2, p. 444).
 The lexical declaration records this distribution; a transitive frame alone
 does not supply declared past-participial Premodifier availability.
 
+**Attribute Noun Premodifier** (project term):
+A noun Premodifier whose declared use selects a head with Attribute Premodifier
+Head permission, as *card* in *card type*, *card name*, and *card pool*
+([orchestrator ruling, 2026-10-08](../../tickets/done/english-v3-card-noun-premodifier.md#rulings-orchestrator-2026-10-08)).
+
+**Attribute Premodifier Head** (project term):
+A nominal head's declared permission to take an Attribute Noun Premodifier;
+coordination retains this permission only when each head declares it
+([orchestrator ruling, 2026-10-08](../../tickets/done/english-v3-card-noun-premodifier.md#rulings-orchestrator-2026-10-08)).
+_Avoid_: Card Attribute Head
+
 **Resultative Complement**:
 A predicative Complement denoting the state of its predicand at the end of a
 process, as in *painted the fence blue*. Resultatives require licensing by the

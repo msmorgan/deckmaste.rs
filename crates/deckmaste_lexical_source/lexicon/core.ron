@@ -101,7 +101,9 @@
         "lexeme:CommonNoun/Controller": {"BareGenitiveHost": "Yes"},
         "lexeme:CommonNoun/Opponent": {"BareGenitiveHost": "Yes"},
         "lexeme:CommonNoun/Player": {"BareGenitiveHost": "Yes"},
-        "lexeme:CommonNoun/Card": {"BareGenitiveHost": "Yes"},
+        "lexeme:CommonNoun/Card": {"BareGenitiveHost": "Yes", "NounPremodifier": "Attribute"},
+        "lexeme:CommonNoun/Type": {"AttributePremodifierHead": "Yes"},
+        "lexeme:CommonNoun/Name": {"AttributePremodifierHead": "Yes"},
         "lexeme:CommonNoun/Permanent": {"BareGenitiveHost": "Yes", "NounPremodifier": "Yes"},
         "lexeme:type/creature": {"BareGenitiveHost": "Yes"},
         "lexeme:type/sorcery": {"PredicativeAdjunctUse": "Yes"},
@@ -250,6 +252,14 @@
             properties: (countability: [], features: {"DurationUse": "Yes", "VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Long"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        // Deal Broker: "a card in your card pool".
+        (
+            id: "lexeme:CommonNoun/Pool", lemma: "pool", category: Noun,
+            properties: (countability: [Count], features: {"AttributePremodifierHead": "Yes"}, frames: []),
+            forms: [(form: Singular, features: (number: Some(Singular)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Pool"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
