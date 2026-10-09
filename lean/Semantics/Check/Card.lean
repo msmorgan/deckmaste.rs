@@ -32,13 +32,16 @@ def keywordCardOk : CardClass → KeywordLabel → Bool
 
 def StaticSpec.onInstantOrSorceryCardOk : StaticSpec → Bool
   | .withBindings _ _ body | .inCaller _ body => body.onInstantOrSorceryCardOk
-  | .deonticRule _ .forbid deeds .patient _ _ _ _ =>
+  | .deonticRule _ .forbid deeds .patient _ _ _ _ _ =>
     deeds.all fun deed => deedZoneOf deed .patient == some .stack
   | .altCost .this _ => true
   | .costShift .this _ => true
   | .addedCost _ _ _ => true
   -- A Mode Change is a static ability of the modal spell itself [CR#702.42a,702.120a].
   | .modeChoice _ => true
+  -- A replacement of the spell's own move as it resolves, a static that functions while the
+  -- spell is on the stack (rebound [CR#702.88a]).
+  | .replacement (.zoneChange n _ _ _) _ _ _ _ _ => n.namesThis
   | .conditional se _ _ => se.onInstantOrSorceryCardOk
   | _ => false
 

@@ -63,7 +63,7 @@ this spell's awaken cost was paid, put four +1/+1 counters on target land you co
 becomes a 0/0 Elemental creature with haste. It's still a land." [CR#702.113a] -/
 def awakenDefinition : List Ability :=
   [ .static (.deonticRule .you .permit [.action "cast"] .agent none (.counterpart .this) none
-      (.play none none none false (.payingInstead awakenCost))),
+      (.play none none none false (.payingInstead awakenCost)) none),
     .spell none
       (doIf (costWasPaid (.byKeyword (.named "awaken")) none .this)
         (.sequentially

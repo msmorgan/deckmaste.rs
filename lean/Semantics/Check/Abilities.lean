@@ -575,7 +575,11 @@ def StaticSpec.regimeFits (r : Option StackRegime) : StaticSpec → Bool
   -- A gained target is chosen as the spell is cast [CR#601.2c,702.140a].
   | .addedCost _ _ _ | .costShift _ _ | .paySubstitute _ _ | .modeChoice _ | .addsTarget _ _ =>
     r == some .atCasting
-  | .altCost _ _ | .deonticRule _ .permit _ _ _ _ _ (.play _ _ _ _ _) => r != some .atResolution
+  | .altCost _ _ | .deonticRule _ .permit _ _ _ _ _ (.play _ _ _ _ _) _ => r != some .atResolution
+  -- A replacement of the spell's own move off the stack functions while the spell is on the
+  -- stack, so the keyword's own rule says which regime it takes (rebound [CR#702.88a]).
+  | .replacement (.zoneChange n (some (.zones [z])) _ _) _ _ _ _ _ =>
+    if n.namesThis && z.sort == some .stack then r != some .atResolution else r == none
   | _ => r == none
 termination_by structural se => se
 
@@ -1112,10 +1116,10 @@ mutual
     | .paySubstitute n _ => selfSubjIntro bs n
     | .modeChoice _ => bs
     | .addsTarget n _ => selfSubjIntro bs n
-    | .specialAction _ _ _ => bs
+    | .specialAction _ _ _ | .asEvent _ _ | .whileHolds _ _ => bs
     | .abilityGrant n ab => ab.introducedLetters ++ selfSubjIntro bs n
     | .abilityGrantFrom n _ src _ => nomIntro (nomIntro bs n) src
-    | .deonticRule n _ _ _ _ _ _ _ => selfSubjIntro bs n
+    | .deonticRule n _ _ _ _ _ _ _ _ => selfSubjIntro bs n
     | .partSkip who _ => nomIntro bs who
     | .manaRetention who _ => nomIntro bs who
     | .characteristicChange n _ => selfSubjIntro bs n
@@ -1224,6 +1228,9 @@ mutual
     | .choice _ _ q _ _ => [q.binding]
     | .conjunction _ parts => StaticSpec.partsIntroducedChoices bs parts
     | .addedCost c _ _ => c.introduced bs
+    -- An Off-Stack Static's choices are announced as a triggered ability's are ("as this
+    -- creature enters, an opponent chooses a creature type").
+    | .asEvent _ does | .whileHolds _ does => does.introducedChoices
     | _ => []
   termination_by structural se => se
 
@@ -1380,12 +1387,12 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .ptSwitch _ | .combatant _ | .textChange _ _ => []
   | .costShift _ shift => shift.numberSlots
   | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ | .specialAction _ _ _ | .modeChoice _
-  | .addsTarget _ _ => []
+  | .addsTarget _ _ | .asEvent _ _ | .whileHolds _ _ => []
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
   | .letterDefinition _ amount => [(amount, .clamped)]
   | .abilityGrant _ _ | .abilityGrantFrom _ _ _ _ => []
-  | .deonticRule _ _ _ _ bound _ asThough _ =>
+  | .deonticRule _ _ _ _ bound _ asThough _ _ =>
     optSlots CountBound.numberSlots bound ++ optSlots AsThough.numberSlots asThough
   | .manaRetention _ _ | .partSkip _ _ | .characteristicChange _ _ => []
   | .retention _ _ => []

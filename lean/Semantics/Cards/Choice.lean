@@ -1468,7 +1468,7 @@ def discipleOfCaelusNin : Spelled := spelled <| .singleFaced
                   (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.otherThan thisCreature, Primitives.Predicate.notChosen])) ]),
           Primitives.Ability.static (Primitives.StaticSpec.deonticRule (allOf permanent) Primitives.Compulsion.forbid [.ofAbility (.named "phasing")] .agent none
               Primitives.DeonticPatient.noPatient
-            none Primitives.DeonticRider.noRider) ],
+            none Primitives.DeonticRider.noRider none) ],
       power := stat 3, toughness := stat 4 } }
 
 /-- Sculpted Sunburst: "if you chose a creature this way" reads the standing choices back, the

@@ -210,7 +210,7 @@ theorem combatantIsTheRole : combatant = .property (.combatant .this) := rfl
 theorem playableFromIsThePlayPermission :
     playableFrom yourHand asSorcery =
       .property (.deonticRule .you .permit [.action "play"] .agent none (.counterpart .this) none
-        (.play (some yourHand) none (some asSorcery) false .itsOwnCost)) := rfl
+        (.play (some yourHand) none (some asSorcery) false .itsOwnCost) none) := rfl
 
 /-- [CR#725.1] "The monarch is a designation a player can have. There is no monarch in a game
 until an effect instructs a player to become the monarch" — so the designation is effectful. -/

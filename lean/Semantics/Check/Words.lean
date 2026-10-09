@@ -270,7 +270,12 @@ def abilityDeedFacts : List (KeywordLabel × ActFacts) :=
     -- A creature "mutates" when a mutating creature spell merges with it [CR#702.140d].
     ((.named "mutate"),
       { intransitive := true,
-        agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩ }) ]
+        agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩ }),
+    -- A permanent "devoured" the permanents its devour ability sacrificed as it entered
+    -- [CR#702.82b,702.82c].
+    ((.named "devour"),
+      { agentRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
+        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, none⟩ }) ]
 
 /-- What the checker knows about each keyword action [CR#701.1], keyed by its declaration's
 name. Every column here is the checker's own — the gate a deontic clause reads,
@@ -366,7 +371,11 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
         feature := some .tapping }),
     ("theRingTemptsYou", {}),
     ("timeTravel", { agentRole := playerAgent }),
-    ("transform", { intransitive := true, agentRole := playerAgent, patientRole := fieldObject }),
+    -- What transforms is a double-faced permanent of any type [CR#701.27a]; "this permanent can't
+    -- transform" names it as the deed's patient [CR#702.145b].
+    ("transform",
+      { intransitive := true, agentRole := playerAgent,
+        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
     ("triple", {}),
     ("untap",
       { participle := some "untapped", agentRole := playerAgent,

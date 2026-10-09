@@ -23,34 +23,34 @@ def playRider : DeonticRider := .play none none none false .itsOwnCost
 theorem okStateBasedLossGate :
     Ability.check [] (.static
       (.deonticRule .you .forbid [.core .loseGame] .agent none .noPatient none
-        (.stateBased .nonpositiveLife))) = [] := by decide
+        (.stateBased .nonpositiveLife) none)) = [] := by decide
 
 theorem okStateBasedLossForPlayerGroup :
     Ability.check [] (.static
       (.deonticRule (.playerGroup .yourOpponents) .forbid [.core .loseGame] .agent none .noPatient
           none
-        (.stateBased .nonpositiveLife))) = [] := by decide
+        (.stateBased .nonpositiveLife) none)) = [] := by decide
 
 theorem badStateBasedLossOnCreature :
     Ability.check [] (.static
       (.deonticRule thisCreature .forbid [.core .loseGame] .agent none .noPatient none
-        (.stateBased .nonpositiveLife))) = [.deedFits] := by decide
+        (.stateBased .nonpositiveLife) none)) = [.deedFits] := by decide
 
 /-- Targets belong to the enclosing spell, not to a static ability. -/
 theorem okTargetedContinuousStateBasedLossGate :
     Instruction.check [] (.establish
       (.deonticRule (target .anyPlayer) .forbid [.core .loseGame] .agent none .noPatient none
-        (.stateBased .nonpositiveLife)) (some thisTurn)) = [] := by decide
+        (.stateBased .nonpositiveLife) none) (some thisTurn)) = [] := by decide
 
 theorem badStateBasedCauseWithoutDeed :
     Ability.check [] (.static
       (.deonticRule .you .forbid [] .agent none .noPatient none
-        (.stateBased .nonpositiveLife))) = [.nonEmpty] := by decide
+        (.stateBased .nonpositiveLife) none)) = [.nonEmpty] := by decide
 
 theorem badStateBasedLossPatientRole :
     Ability.check [] (.static
       (.deonticRule .you .forbid [.core .loseGame] .patient none .noPatient none
-        (.stateBased .nonpositiveLife))) = [.deedFits] := by decide
+        (.stateBased .nonpositiveLife) none)) = [.deedFits] := by decide
 
 /-- "Target creature can't be blocked this turn." -/
 theorem okCantBeBlocked :
@@ -149,7 +149,7 @@ theorem okPlayFromGraveyard :
     Instruction.check []
       (.establish
         (.deonticRule .you .permit [.action "play"] .agent none
-          (.counterpart (a (.and [.isCard, .inZone graveyard]))) none playRider) (some thisTurn)) = [] := by
+          (.counterpart (a (.and [.isCard, .inZone graveyard]))) none playRider none) (some thisTurn)) = [] := by
   decide
 
 /-- "You may play a land card from your graveyard this turn." -/
@@ -158,7 +158,7 @@ theorem okPlayLandFromGraveyard :
       (.establish
         (.deonticRule .you .permit [.action "play"] .agent none
           (.counterpart (a (.and [land, .inZone (graveyardOf .you)]))) none
-          (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some thisTurn))
+          (.play (some (graveyardOf .you)) none none false .itsOwnCost) none) (some thisTurn))
       = [] := by
   decide
 
@@ -168,7 +168,7 @@ theorem okCastCreatureFromGraveyard :
       (.establish
         (.deonticRule .you .permit [.action "cast"] .agent none
           (.counterpart (a (.and [creature, .inZone (graveyardOf .you)]))) none
-          (.play (some (graveyardOf .you)) none none false .itsOwnCost)) (some thisTurn))
+          (.play (some (graveyardOf .you)) none none false .itsOwnCost) none) (some thisTurn))
       = [] := by
   decide
 
@@ -293,14 +293,14 @@ theorem badTheDamageUnannounced :
 theorem okObjectPremiseAtCast :
     StaticSpec.check []
       (.deonticRule .you .permit [.action "cast"] .agent none (.counterpart (allOf spell))
-        (some (.of (.hasKeyword (.the (.named "flash"))))) playRider) = [] := by
+        (some (.of (.hasKeyword (.the (.named "flash"))))) playRider none) = [] := by
   decide
 
 /-- "This creature can't be blocked by more than one creature." -/
 theorem okBlockBoundOnBlock :
     StaticSpec.check []
       (.deonticRule thisCreature .forbid [.core .block] .patient (some (.moreThan (.lit 1)))
-        (.counterpart (allOf creature)) none .noRider) = [] := by
+        (.counterpart (allOf creature)) none .noRider none) = [] := by
   decide
 
 /-- "Spells and abilities can't be countered.": an effect that says so counters abilities

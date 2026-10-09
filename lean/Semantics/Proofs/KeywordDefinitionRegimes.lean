@@ -43,7 +43,7 @@ def endStepPart : Ability :=
 /-- "You may cast this card by paying {2} rather than its mana cost." -/
 def castPermission : Ability :=
   .static (.deonticRule .you .permit [.action "cast"] .agent none (.counterpart .this) none
-    (.play none none none false (.payingInstead two)))
+    (.play none none none false (.payingInstead two)) none)
 
 /-- "if this is a permanent card" -/
 def onPermanentCard : Condition := .matches .this permanentCard

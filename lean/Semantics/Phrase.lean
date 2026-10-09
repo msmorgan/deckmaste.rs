@@ -255,6 +255,9 @@ mutual
     | asType (type : CardType) (subject : NounPhrase) (subtype : Option Subtype)
     | asMarker (marker : MarkerWord) (subject : NounPhrase)
     | resolvedPermanent (spell : NounPhrase)
+    /-- The new object `subject` turns into at its next zone change, named before the change
+    happens: "the permanent this spell becomes" [CR#400.7]. -/
+    | becomes (subject : NounPhrase)
     | theGrantor (marker : MarkerWord)
     | you
     /-- Whoever performs the instruction this phrase is part of: the controller [CR#109.5],

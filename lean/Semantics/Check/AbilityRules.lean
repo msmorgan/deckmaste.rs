@@ -98,6 +98,16 @@ def CostShift.check (bs : Bindings) : CostShift → List Refusal
   | .bySymbols (.manaCostOf n) _ _ =>
     NounPhrase.check (some .object) bs n ++ refuse n.plur.isOne .singular
 
+/-- A Deontic Exception reads a keyword label or an object predicate; which source it names is
+not checked against the rule's deed. -/
+def Cause.check (bs : Bindings) : Cause → List Refusal
+  | .byKeyword _ => []
+  | .byObjects p => Predicate.check .object bs p
+
+def OptCause.check (bs : Bindings) : Option Cause → List Refusal
+  | none => []
+  | some c => c.check bs
+
 def CountBound.check (bs : Bindings) : CountBound → List Refusal
   | .moreThan k => Amount.check bs k
   | .additional q => refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ ++ Quantity.check bs q
@@ -733,6 +743,15 @@ mutual
       let bsc := dropLetter .x bs
       OptTiming.check bs when ++ Cost.check bsc c ++
         Instruction.checkWith (publicOnly (c.intro bsc)) none does
+    -- An Off-Stack Static's instruction is read as a replacement's is, against the event it
+    -- happens as [CR#614.1c], or against the condition that holds; nothing is checked of zone or
+    -- timing [CR#604.1].
+    | .asEvent ev does =>
+      let bs := ownPerformerCtx bs
+      GameEvent.check bs ev ++ Instruction.checkWith (interceptCtx bs [] ev) none does
+    | .whileHolds c does =>
+      let bs := ownPerformerCtx bs
+      Condition.check bs c ++ Instruction.checkWith (c.intro bs) none does
     | .letterDefinition l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .abilityGrant n ab =>
       NounPhrase.check (some .object) bs n ++ Ability.check bs ab
@@ -741,7 +760,7 @@ mutual
       NounPhrase.check (some .object) bs n ++ NounPhrase.check (some .object) bs' src ++
         OptPredicate.check .object (nomIntro bs' src) except ++ refuse (!cls.isEmpty) .nonEmpty ++
         refuse (distinctClasses cls) .distinct ++ refuse (cls.all AbilityClass.known) .knownKeywordTerm
-    | .deonticRule n c deeds role bound patient asThough rider =>
+    | .deonticRule n c deeds role bound patient asThough rider except =>
       let k := n.kindOr .object
       let bs' := nomIntro bs n
       NounPhrase.check none bs n ++ Compulsion.check (selfSubjIntro bs n) c ++
@@ -752,7 +771,7 @@ mutual
         (match asThough with
          | none => []
          | some a => a.check bs') ++
-        DeonticRider.check (patient.intro bs') rider ++
+        DeonticRider.check (patient.intro bs') rider ++ OptCause.check bs' except ++
         refuse (!deeds.isEmpty) .nonEmpty ++ refuse (distinctDeeds deeds) .distinct ++
         refuse (knownActs deeds) .deedFits ++
         refuse (deedFits deeds role k n.isAbility (NounPhrase.headTys bs n) (NounPhrase.zone bs n)) .deedFits ++

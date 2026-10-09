@@ -286,6 +286,9 @@ mutual
     | .resolvedPermanent spell =>
       ctxCheck ctx (some .object) ++ NounPhrase.checkIn gap (some .object) bs spell ++
         refuse (permanentSpellType (NounPhrase.ty bs spell)) .permanentSpellType
+    -- Only an object changes zones [CR#400.7].
+    | .becomes n =>
+      ctxCheck ctx (some .object) ++ NounPhrase.checkIn gap (some .object) bs n
     | .described d p =>
       let k := p.kindOr (ctx.getD .object)
       ctxCheck ctx p.kind? ++ refuse k.phrasal (.phrasal k) ++ Predicate.checkIn gap k bs p ++

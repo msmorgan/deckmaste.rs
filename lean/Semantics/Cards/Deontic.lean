@@ -447,7 +447,7 @@ def falsePeace : Spelled := spelled <| .singleFaced
 /-- Battlefront Krushok -/
 def battlefrontKrushokEvasion : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.deonticRule thisCreature Primitives.Compulsion.forbid [.core .block] .patient (some (Primitives.CountBound.moreThan (.lit 1)))
-    (Primitives.DeonticPatient.counterpart (allOf creature)) none Primitives.DeonticRider.noRider)
+    (Primitives.DeonticPatient.counterpart (allOf creature)) none Primitives.DeonticRider.noRider none)
 theorem okBattlefrontKrushokEvasion : Ability.check [] battlefrontKrushokEvasion = [] := by decide
 
 /-- Grand Abolisher -/
@@ -565,7 +565,7 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
 def canoptekWraith : Ability :=
   flavorWord "Wraith Form"
     (Primitives.Ability.static (Primitives.StaticSpec.deonticRule thisCreature Primitives.Compulsion.forbid [.core .block] .patient none Primitives.DeonticPatient.noPatient none
-        Primitives.DeonticRider.noRider))
+        Primitives.DeonticRider.noRider none))
 theorem okCanoptekWraith : Ability.check [] canoptekWraith = [] := by decide
 
 /-- Gadrak, the Crown-Scourge -/
@@ -749,7 +749,7 @@ def retroMutation : Spelled := spelled <| .singleFaced
                 (Primitives.QualityPayload.bundle { characteristics := { subtypes := [creatureType "Turtle"] } } none),
               Primitives.StaticSpec.modification it .power (Primitives.Delta.set (.lit 0)),
               Primitives.StaticSpec.modification (itsOther it (Primitives.Delta.set (.lit 0))) .toughness (Primitives.Delta.set (.lit 1)),
-              Primitives.StaticSpec.deonticRule it Primitives.Compulsion.forbid [.core .attack] .agent none Primitives.DeonticPatient.noPatient none Primitives.DeonticRider.noRider,
+              Primitives.StaticSpec.deonticRule it Primitives.Compulsion.forbid [.core .attack] .agent none Primitives.DeonticPatient.noPatient none Primitives.DeonticRider.noRider none,
               Primitives.StaticSpec.allAbilityLoss it none ]) ] } }
 
 /-- Hotshot Mechanic -/
@@ -760,7 +760,7 @@ def hotshotMechanic : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.deonticRule thisCreature Primitives.Compulsion.permit [.ofAbility (.named "crew")] .agent none
             (Primitives.DeonticPatient.counterpart (allOf (Primitives.Predicate.hasSubtype (artifactType "Vehicle"))))
-            (some (Primitives.AsThough.greater .power (.lit 2))) Primitives.DeonticRider.noRider) ],
+            (some (Primitives.AsThough.greater .power (.lit 2))) Primitives.DeonticRider.noRider none) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Cloudspire Captain -/
@@ -769,7 +769,7 @@ def cloudspireCaptainCrewLine : StaticSpec :=
     (Primitives.DeonticPatient.counterpartsAt
       [ ⟨.ofAbility (.named "saddle"), allOf (Primitives.Predicate.hasSubtype (creatureType "Mount"))⟩,
         ⟨.ofAbility (.named "crew"), allOf (Primitives.Predicate.hasSubtype (artifactType "Vehicle"))⟩ ])
-    (some (Primitives.AsThough.greater .power (.lit 2))) Primitives.DeonticRider.noRider
+    (some (Primitives.AsThough.greater .power (.lit 2))) Primitives.DeonticRider.noRider none
 theorem okCloudspireCaptainCrewLine : StaticSpec.check [] cloudspireCaptainCrewLine = [] := by
   decide
 
@@ -783,7 +783,7 @@ def revokePrivileges : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (Primitives.StaticSpec.deonticRule (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.Compulsion.forbid
             [.core .attack, .core .block, .ofAbility (.named "crew")] .agent none
             (Primitives.DeonticPatient.counterpartsAt [⟨.ofAbility (.named "crew"), allOf (Primitives.Predicate.hasSubtype (artifactType "Vehicle"))⟩])
-            none Primitives.DeonticRider.noRider) ] } }
+            none Primitives.DeonticRider.noRider none) ] } }
 
 /-- Harried Spearguard -/
 def harriedSpearguard : Spelled := spelled <| .singleFaced
@@ -799,7 +799,7 @@ def harriedSpearguard : Spelled := spelled <| .singleFaced
                   text :=
                     [ Primitives.Ability.static (Primitives.StaticSpec.deonticRule (Primitives.NounPhrase.asMarker .token Primitives.NounPhrase.this) Primitives.Compulsion.forbid [.core .block] .agent
                         none
-                        Primitives.DeonticPatient.noPatient none Primitives.DeonticRider.noRider) ],
+                        Primitives.DeonticPatient.noPatient none Primitives.DeonticRider.noRider none) ],
                   power := stat 1, toughness := stat 1 } }) ],
       power := stat 1, toughness := stat 1 } }
 

@@ -134,6 +134,15 @@ structure DeedComplement where
   counterpart : NounPhrase
   deriving Repr, BEq
 
+/-- A Deontic Exception: the one source a "can't" exempts. `byKeyword` names a keyword ability
+of the subject ("can't transform except due to its daybound ability" [CR#702.145b]);
+`byObjects` describes the objects that are exempt ("can't be blocked except by artifact
+creatures and/or black creatures" [CR#702.36b]). -/
+inductive Cause where
+  | byKeyword (label : KeywordLabel)
+  | byObjects (predicate : Predicate)
+  deriving Repr, BEq
+
 /-- Whom a deontic rule's deed is done to. -/
 inductive DeonticPatient where
   | noPatient
@@ -332,7 +341,7 @@ mutual
         (except : Option Predicate)
     | deonticRule (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (role : Role)
         (bound : Option CountBound) (patient : DeonticPatient) (asThough : Option AsThough)
-        (rider : DeonticRider)
+        (rider : DeonticRider) (except : Option Cause)
     | manaRetention (player : NounPhrase) (mana : ManaHeld)
     | partSkip (player : NounPhrase) (part : TurnPart)
     | characteristicChange (subject : NounPhrase) (edits : List CharacteristicEdit)
@@ -359,6 +368,13 @@ mutual
     `does`, without using the stack [CR#116.1,116.2c]. Morph's turning face up, foretell's and
     plot's exiling are each one [CR#116.2b,116.2h,116.2k]. -/
     | specialAction (when : Option Timing) (cost : Cost) (does : Instruction)
+    /-- An Off-Stack Static, "as [event], do": as `event` happens, `does` is carried out without
+    using the stack [CR#604.1,614.1c]. A delayed trigger it creates has this static's object as
+    its source [CR#603.7a,603.7g]. -/
+    | asEvent (event : GameEvent) (does : Instruction)
+    /-- An Off-Stack Static, "any time [condition] holds, do": whenever `condition` holds, `does`
+    is carried out without using the stack [CR#604.1,702.131b]. -/
+    | whileHolds (condition : Condition) (does : Instruction)
     /-- "<subject> is a Combatant": the creature-like combat rules apply to it. Its power deals
     combat and fight damage, marked damage is compared with its toughness, it may be declared an
     attacker or a blocker, and the summoning-sickness rule applies to it

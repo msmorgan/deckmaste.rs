@@ -996,7 +996,7 @@ mutual
     | .counterpart _ _ => .one
     | .paid f _ => f.plur
     | .asType _ n _ => n.plur
-    | .resolvedPermanent n => n.plur
+    | .resolvedPermanent n | .becomes n => n.plur
     | .asMarker _ n => n.plur
     | .playerGroup _ => .many
     | .described d _ => d.plur
@@ -1058,6 +1058,9 @@ def NounPhrase.groupMention : NounPhrase → Bool
   | .pro _ pl .whole => !pl.isOne
   | .and _ => true
   | .oneEachOf _ _ => true
+  -- "The creatures it devoured": the objects a Link Source acted on, read back as a group
+  -- [CR#607.2a,702.82b].
+  | .paid (.objects _ _ pl) _ => !pl.isOne
   | n => n.det == some .target
 
 /-- A positional own-read partitions the group it has just named, a one-card group included
@@ -1089,7 +1092,7 @@ mutual
   def NounPhrase.targeted : NounPhrase → Bool
     | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.targeted
     | .asType _ n _ => n.targeted
-    | .resolvedPermanent n => n.targeted
+    | .resolvedPermanent n | .becomes n => n.targeted
     | .asMarker _ n => n.targeted
     | .eachOf g => g.targeted
     | .someOf _ _ g => g.targeted
@@ -1138,7 +1141,7 @@ def NounPhrase.isAbility : NounPhrase → Bool
   | .asMarker .ability _ => true
   | .eachOf g => g.isAbility
   | .agree _ _ g => g.isAbility
-  | .resolvedPermanent n => n.isAbility
+  | .resolvedPermanent n | .becomes n => n.isAbility
   | .asMarker _ n => n.isAbility
   | .someOf _ _ g => g.isAbility
   | _ => false
@@ -1233,8 +1236,8 @@ def NounPhrase.introducesOwnReferent (n : NounPhrase) : Bool :=
   !(NounPhrase.selfSubjIntroduced n).isEmpty || nominal n
 where
   nominal : NounPhrase → Bool
-    | .asType _ n _ | .resolvedPermanent n | .asMarker _ n | .eachOf n | .agree _ _ n
-    | .firstMention _ n =>
+    | .asType _ n _ | .resolvedPermanent n | .becomes n | .asMarker _ n | .eachOf n
+    | .agree _ _ n | .firstMention _ n =>
       nominal n
     | .described .the p => !p.choiceRead
     | .described _ _ | .slice _ _ _ | .run _ _ _ | .someOf _ _ _ | .pileOf _ _
@@ -1247,7 +1250,7 @@ abbrev OperandSlot := Option (List Nat) × Determiner × Plurality × Payload
 def NounPhrase.captureView (subject : NounPhrase) (value : Binding)
     (types : List CardType) (zone : Option Zone) : Binding :=
   match subject with
-  | .asType _ _ _ | .asMarker _ _ | .resolvedPermanent _ =>
+  | .asType _ _ _ | .asMarker _ _ | .resolvedPermanent _ | .becomes _ =>
     let payload := match value.payload with
       | .object _ _ prov origin size ps => .object types zone prov origin size ps
       | .ability origin _ => .ability origin zone
@@ -1304,6 +1307,11 @@ mutual
       (NounPhrase.result bs n).withValue
         ⟨.the, n.plur, .object (n.ty bs) (some .battlefield) none none none none, []⟩
         (fun value => NounPhrase.captureView (.resolvedPermanent n) value (n.ty bs) (some .battlefield))
+    -- The successor's zone is wherever its next zone change takes it, not known here.
+    | .becomes n =>
+      (NounPhrase.result bs n).withValue
+        ⟨.the, n.plur, .object (n.ty bs) none none none none none, []⟩
+        (fun value => NounPhrase.captureView (.becomes n) value (n.ty bs) none)
     | .asMarker m n =>
       (NounPhrase.result bs n).withValue
         ⟨.the, n.plur, elemPayload .object (m == .ability) (n.ty bs) (some m.zone) none, []⟩
@@ -1677,6 +1685,7 @@ mutual
     | .paid f _ => f.zone
     | .asType _ _ _ => some .battlefield
     | .resolvedPermanent _ => some .battlefield
+    | .becomes _ => none
     | .asMarker m _ => some m.zone
     | .theGrantor m => some m.zone
     | .described _ p => p.phraseZone (p.kindOr .object)
@@ -1725,7 +1734,7 @@ mutual
     | .or _ | .slice _ _ _ | .run _ _ _ | .pileOf _ _ | .possessorOf _ _
     | .designated _ _ | .paid _ _ | .counterpart _ _ => []
     | .asType t _ _ => [t]
-    | .resolvedPermanent n => NounPhrase.ty bs n
+    | .resolvedPermanent n | .becomes n => NounPhrase.ty bs n
     | .asMarker _ n => NounPhrase.ty bs n
     | .described _ p => p.seedTy
     | .eachOf g => NounPhrase.ty bs g
@@ -1766,7 +1775,7 @@ mutual
       if alts.all List.isEmpty then [] else alts
     | .eachOf g => NounPhrase.headTys bs g
     | .agree _ _ g => NounPhrase.headTys bs g
-    | .resolvedPermanent n => NounPhrase.headTys bs n
+    | .resolvedPermanent n | .becomes n => NounPhrase.headTys bs n
     | .asMarker _ n => NounPhrase.headTys bs n
     | .and ns | .or ns => NounPhrase.headTysAll bs ns
     | .oneEachOf _ pool => NounPhrase.headTys bs pool
@@ -2185,6 +2194,9 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
     ⟨.the, m.plur,
       .object (NounPhrase.ty bs m) z (mkStamp p (some .battlefield) (z != some .battlefield)) none none none, []⟩
       :: bs
+  | .becomes m =>
+    ⟨.the, m.plur,
+      .object (NounPhrase.ty bs m) z (mkStamp p none (z != some .battlefield)) none none none, []⟩ :: bs
   | .asMarker .ability .this => ⟨.self, .one, .ability none z, []⟩ :: bs
   | .asMarker .ability _ => ⟨.the, .one, .ability none z, []⟩ :: bs
   | .asMarker _ .this =>
