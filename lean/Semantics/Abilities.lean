@@ -328,6 +328,24 @@ mutual
     [CR#113.12], and the creature type definition confers it; whether the Combatant may take a
     given combat action is a separate deontic question. -/
     | combatant (subject : NounPhrase)
+    /-- A Mode Change: modifies how the modes of the spell or ability it is printed with are
+    chosen [CR#700.2,702.42a,702.120a]. -/
+    | modeChoice (change : ModeChange)
+
+  /-- How a Mode Change modifies its own spell's `chooseModes`. -/
+  inductive ModeChange where
+    /-- "You may choose all modes instead": for `cost` (entwine [CR#702.42a]), or when
+    `condition` holds ("if COND, you may choose both instead"). -/
+    | allInstead (cost : Option Cost) (condition : Option Condition)
+    /-- "For each mode you choose beyond the first, you pay an additional [cost]" (escalate
+    [CR#702.120a]). -/
+    | extraModesCost (cost : Cost)
+    /-- The number of modes chosen: spree's one or more, tiered's one [CR#702.172a,702.183a]. -/
+    | setQuantity (quantity : Quantity)
+    /-- "You may choose the same mode more than once" [CR#700.2d]. -/
+    | repeatable
+    /-- "Choose one that hasn't been chosen [within]". -/
+    | notChosenBefore (within : Duration)
 
   inductive Compulsion where
     | forbid
@@ -519,7 +537,10 @@ mutual
     | repeat_ (repetition : Repetition)
     | sequentially (steps : List Instruction)
     | simultaneously (steps : List Instruction)
-    | chooseModes (quantity : Quantity) (modes : List (Option Cost × Instruction))
+    /-- "Choose <quantity> —" over bulleted modes [CR#700.2]: each mode is its cost (spree's and
+    tiered's priced bullets [CR#700.2h]), its weight (a pawprint mode's count of {P}
+    [CR#700.2i]) and its instruction. -/
+    | chooseModes (quantity : Quantity) (modes : List (Option Cost × Option Nat × Instruction))
     | delay (event : GameEvent) (alternatives : List GameEvent) (duration : Option Duration)
         (body : Instruction)
     | replace (replaced : Instruction) (replacement : Instruction)
@@ -570,7 +591,7 @@ mutual
 end
 
 deriving instance Repr, BEq for Characteristics, CharacteristicBundle, FaceDown, CharacteristicEdit,
-  AbilitySelection, TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, EntryRider,
+  AbilitySelection, TokenSpec, StaticSpec, ModeChange, Compulsion, PlayPayment, DeonticRider, DamageOp, EntryRider,
   PilePlacement, MoveRider, Cost,
   ManaSubstitute, ManaRider, CopyExcept, RollRow, Repetition, CreationSpec, Instruction, KeywordParam,
   AbilityLost, Ability

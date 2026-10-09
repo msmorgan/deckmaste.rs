@@ -438,9 +438,10 @@ mutual
     | e :: es => Instruction.checkWith bs none e ++ Instruction.checkSim (e.annIntro bs) es
   termination_by structural es => es
 
-  def Instruction.checkModes (bs : Bindings) : List (Option Cost × Instruction) → List Refusal
+  def Instruction.checkModes (bs : Bindings) :
+      List (Option Cost × Option Nat × Instruction) → List Refusal
     | [] => []
-    | (c, e) :: es =>
+    | (c, _, e) :: es =>
       (match c with
        | none => []
        | some c => Cost.check bs c) ++ Instruction.checkWith bs none e ++ Instruction.checkModes bs es
@@ -677,6 +678,7 @@ mutual
       NounPhrase.check (some .object) bs n ++ OptCost.check (selfSubjIntro bs n) c
     | .addedCost c _ _ => Cost.check bs c
     | .paySubstitute n s => NounPhrase.check (some .object) bs n ++ ManaSubstitute.check bs s
+    | .modeChoice m => ModeChange.check bs m
     -- Read as an activated ability's cost and effect are: the player who takes the action
     -- performs `does`, which sees what the cost introduced [CR#116.2c].
     | .specialAction when c does =>
@@ -749,6 +751,17 @@ mutual
       OptNoun.check (some .object) bs subject ++ refuse (!parts.isEmpty) .nonEmpty ++
         StaticSpec.checkParts (subjCtx bs subject) parts
   termination_by structural se => se
+
+  /-- A Mode Change's parts are checked for kind and reference only: how many modes it lets
+  the player choose is the spell's own `chooseModes` arithmetic, not checked here. -/
+  def ModeChange.check (bs : Bindings) : ModeChange → List Refusal
+    | .allInstead c cond => OptCost.check bs c ++ OptCondition.check bs cond
+    | .extraModesCost c => Cost.check bs c
+    | .setQuantity q =>
+      Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++ refuse q.wellFormed .wellFormedQ
+    | .repeatable => []
+    | .notChosenBefore within => Duration.check bs within
+  termination_by structural m => m
 
   def StaticSpec.checkParts (bs : Bindings) : List StaticSpec → List Refusal
     | [] => []

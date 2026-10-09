@@ -37,6 +37,8 @@ def StaticSpec.onInstantOrSorceryCardOk : StaticSpec → Bool
   | .altCost .this _ => true
   | .costShift .this _ => true
   | .addedCost _ _ _ => true
+  -- A Mode Change is a static ability of the modal spell itself [CR#702.42a,702.120a].
+  | .modeChoice _ => true
   | .conditional se _ _ => se.onInstantOrSorceryCardOk
   | _ => false
 
@@ -158,8 +160,29 @@ def Ability.writesModes : Ability → Bool
   | .alsoForKeywords ab _ => ab.writesModes
   | _ => false
 
+/-- A Mode Change written on the text. -/
+def Ability.writesModeChoice : Ability → Bool
+  | .static (.modeChoice _) => true
+  | .italicHead _ ab => ab.writesModeChoice
+  | .alsoForKeywords ab _ => ab.writesModeChoice
+  | _ => false
+
+/-- Any ability whose instruction is a modal choice: a spell, an activated ability or a
+triggered ability [CR#700.2a,700.2b]. -/
+def Ability.hasModes : Ability → Bool
+  | .spell _ instruction | .activated _ instruction _ _ _ _
+  | .triggered _ _ _ _ _ _ _ instruction =>
+    match instruction.scopeBody with
+    | .chooseModes _ _ => true
+    | _ => false
+  | .italicHead _ ab => ab.hasModes
+  | .alsoForKeywords ab _ => ab.hasModes
+  | _ => false
+
+/-- A modal keyword needs a modal spell; a written Mode Change needs modes to change. -/
 def modalFrameOk (text : List Ability) : Bool :=
-  !text.any Ability.keywordWantsModes || text.any Ability.writesModes
+  (!text.any Ability.keywordWantsModes || text.any Ability.writesModes) &&
+    (!text.any Ability.writesModeChoice || text.any Ability.hasModes)
 
 def jointBindings : List QualitySort → Bindings → Bindings
   | [], bs => bs

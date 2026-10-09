@@ -309,6 +309,8 @@ mutual
     | range (low high : Option Nat)
     | upToOf (amount : Amount)
     | exactlyOf (amount : Amount)
+    /-- "Up to N {P} worth of modes": any modes whose weights total at most `n` [CR#700.2i]. -/
+    | worth (n : Nat)
 
   inductive SliceCount where
     | counted (quantity : Quantity)

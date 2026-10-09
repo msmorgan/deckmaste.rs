@@ -672,8 +672,8 @@ private def literalEndure (n : Nat) : Instruction :=
   .enact (.action "endure")
     (act (controllerOf actor)
       (.chooseModes (.range (some 1) (some 1))
-        [ (none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent)),
-          (none, create (.lit 1) (creatureToken n n [.white] [creatureType "Spirit"])) ]))
+        [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent)),
+          (none, none, create (.lit 1) (creatureToken n n [.white] [creatureType "Spirit"])) ]))
 
 /-- `adapt N` as declared [CR#701.46a]: unchanged, still reading "this permanent". -/
 private def literalAdapt (n : Nat) : Instruction :=

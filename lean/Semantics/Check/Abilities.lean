@@ -567,7 +567,8 @@ def StaticSpec.regimeFits (r : Option StackRegime) : StaticSpec → Bool
   | .withBindings _ _ body | .inCaller _ body => body.regimeFits r
   | .conditional se _ _ => se.regimeFits r
   -- A Mana Substitute applies as the total cost is paid [CR#702.51b,601.2h].
-  | .addedCost _ _ _ | .costShift _ _ | .paySubstitute _ _ => r == some .atCasting
+  -- Modes are chosen as the spell is cast [CR#601.2b,700.2a].
+  | .addedCost _ _ _ | .costShift _ _ | .paySubstitute _ _ | .modeChoice _ => r == some .atCasting
   | .altCost _ _ | .deonticRule _ .permit _ _ _ _ _ (.play _ _ _ _ _) => r != some .atResolution
   | _ => r == none
 termination_by structural se => se
@@ -1098,6 +1099,7 @@ mutual
     | .altCost n _ => selfSubjIntro bs n
     | .addedCost _ _ _ => bs
     | .paySubstitute n _ => selfSubjIntro bs n
+    | .modeChoice _ => bs
     | .specialAction _ _ _ => bs
     | .abilityGrant n ab => ab.introducedLetters ++ selfSubjIntro bs n
     | .abilityGrantFrom n _ src _ => nomIntro (nomIntro bs n) src
@@ -1364,7 +1366,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .ptDefinition _ _ amount => [(amount, .signed)]
   | .ptSwitch _ | .combatant _ => []
   | .costShift _ shift => shift.numberSlots
-  | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ | .specialAction _ _ _ => []
+  | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ | .specialAction _ _ _ | .modeChoice _ => []
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
   | .letterDefinition _ amount => [(amount, .clamped)]

@@ -936,6 +936,7 @@ def Quantity.wellFormed : Quantity → Bool
 def Quantity.nonZero : Quantity → Bool
   | .withBindings _ _ body | .inCaller _ body => body.nonZero
   | .range _ (some 0) => false
+  | .worth 0 => false
   | _ => true
 
 def Quantity.exact : Quantity → Option Nat
@@ -1630,6 +1631,7 @@ mutual
     | .range _ _ => bs
     | .upToOf a => Amount.intro bs a
     | .exactlyOf a => Amount.intro bs a
+    | .worth _ => bs
 
   def Quantity.introduced (bs : Bindings) : Quantity → List Binding
     | .withBindings scope inputs body =>
@@ -1643,6 +1645,7 @@ mutual
     | .range _ _ => []
     | .upToOf a => Amount.introduced bs a
     | .exactlyOf a => Amount.introduced bs a
+    | .worth _ => []
 
 
   def SliceCount.introduced (bs : Bindings) : SliceCount → List Binding

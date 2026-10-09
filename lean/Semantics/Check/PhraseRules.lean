@@ -389,6 +389,7 @@ mutual
     | .range _ _ => (⟨[], false⟩ : CheckResult)
     | .upToOf a => Amount.checkIn gap bs a
     | .exactlyOf a => Amount.checkIn gap bs a
+    | .worth _ => (⟨[], false⟩ : CheckResult)
   termination_by structural q => q
 
   def SliceCount.checkIn (gap : Option Kind) (bs : Bindings) : SliceCount → CheckResult
