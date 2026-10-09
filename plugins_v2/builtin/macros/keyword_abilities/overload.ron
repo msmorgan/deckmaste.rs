@@ -5,10 +5,13 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "overload",
     ),
-    // STOP (waits on: `semantics-v2-text-changes`).
-    // "Overload [cost]" is an alternative cost plus "If you chose to pay this
-    // spell's overload cost, CHANGE ITS TEXT by replacing all instances of the word
-    // 'target' with the word 'each.'" [CR#702.96a,702.96c] That second static is a
-    // text-changing effect [CR#612.1] over a printed word; no `CharacteristicEdit`
-    // rewrites rules text word by word (the cause Cleave shares).
+    // "Overload [cost]" means "You may choose to pay [cost] rather than pay
+    // this spell's mana cost" and "If you chose to pay this spell's overload
+    // cost, change its text by replacing all instances of the word 'target'
+    // with the word 'each.'" [CR#702.96a] The second is a Text Change
+    // [CR#702.96c,612.1].
+    body: [
+        static(mayCastFor(you, Param(0))),
+        static(onlyWhile(textChange(thisSpell, targetToEach), keywordCostPaid(overload, thisSpell))),
+    ],
 )

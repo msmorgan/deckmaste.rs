@@ -1,0 +1,8 @@
+// "Exchange the text boxes" of the subject and <other>: each one's rules text
+// becomes the other's previous rules text [CR#612.5,701.12h].
+(
+    name: "exchangeWith",
+    kinds: [TextChange],
+    params: {"other": NounPhrase},
+    body: ExchangeWith(Param(other)),
+)

@@ -1,0 +1,8 @@
+// "[<predicate>]": words printed in square brackets, kept in place so a Text
+// Change can find them; it means what <predicate> means [CR#702.148a].
+(
+    name: "bracketed",
+    kinds: [Predicate],
+    params: {"predicate": Predicate},
+    body: Bracketed(Param(predicate)),
+)

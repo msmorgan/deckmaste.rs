@@ -663,6 +663,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Overload",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.96a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_permanent_card: false,
@@ -691,6 +694,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Cleave",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.148a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_permanent_card: false,

@@ -1,0 +1,8 @@
+// "Gains the text of <source>'s rules text": the source's rules text follows
+// the subject's own (splice [CR#702.47a,612.10]).
+(
+    name: "appendTextOf",
+    kinds: [TextChange],
+    params: {"source": NounPhrase},
+    body: AppendTextOf(Param(source)),
+)

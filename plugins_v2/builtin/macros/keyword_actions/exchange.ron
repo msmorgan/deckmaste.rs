@@ -1,7 +1,8 @@
 // "Exchange" [CR#701.12a]: one phrase, an expansion per thing exchanged, so
 // each is a helper over one `Exchange` node: `exchangeControl`,
-// `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues`,
-// `exchangeTextBoxes` [CR#701.12b..701.12h]. Life totals stay their own
+// `exchangeLifeTotals`, `exchangeCards`, `exchangeZones`, `exchangeValues`
+// [CR#701.12b..701.12g]; `exchangeTextBoxes` is the Text Change it creates
+// instead [CR#701.12h,612.5]. Life totals stay their own
 // operand rather than two values: "two target players" is one group whose
 // members are exchanged, which two `Amount` operands cannot select.
 KeywordAction(

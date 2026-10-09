@@ -1,0 +1,8 @@
+// "Remove all text found within square brackets": every bracketed term goes,
+// brackets and contents, and the rest stays (cleave [CR#702.148a]).
+(
+    name: "removeBracketed",
+    kinds: [TextChange],
+    params: [],
+    body: RemoveBracketed,
+)

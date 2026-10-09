@@ -1076,6 +1076,29 @@ semantic_macro actorControls : Predicate := .hasPossessor .controller .actor
 semantic_macro substitute (action : Instruction) (pays : List PipPaid) : ManaSubstitute :=
   { action, pays }
 
+/-! ## Text Changes
+
+A Text Change rewrites an object's rules text in layer 3 [CR#612.1,613.1c]; each row is the
+rewrite the RON helper of the same name spells. -/
+
+/-- A Text Change of `subject`'s rules text, as `change` names it. -/
+semantic_macro textChange (subject : NounPhrase) (change : TextChange) : StaticSpec :=
+  .textChange subject change
+/-- "Remove all text found within square brackets" (cleave [CR#702.148a]). -/
+semantic_macro removeBracketed : TextChange := .removeBracketed
+/-- "Replace all instances of the word 'target' with the word 'each'" (overload
+[CR#702.96a]). -/
+semantic_macro targetToEach : TextChange := .targetToEach
+/-- "Gains the text of <source>'s rules text" (splice [CR#702.47a,612.10]). -/
+semantic_macro appendTextOf (source : NounPhrase) : TextChange := .appendTextOf source
+/-- "Replace all instances of one <sort> word with another" [CR#612.2]; an absent word is the
+performer's choice. -/
+semantic_macro replaceWord (sort : QualitySort) (from_ : Option TextWord := none)
+    (to : Option TextWord := none) : TextChange :=
+  .replaceWord sort from_ to
+/-- Exchange the subject's rules text with `other`'s [CR#612.5,701.12h]. -/
+semantic_macro exchangeWith (other : NounPhrase) : TextChange := .exchangeWith other
+
 namespace Actor
 
 /-- "<performer> reveals their hand" -/

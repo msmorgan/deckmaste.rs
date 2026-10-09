@@ -1,0 +1,8 @@
+// A Text Change of <subject>'s rules text, the rewrite <change> names,
+// applied in layer 3 [CR#612.1,613.1c].
+(
+    name: "textChange",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "change": TextChange},
+    body: TextChange(subject: Param(subject), change: Param(change)),
+)

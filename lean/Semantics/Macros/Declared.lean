@@ -356,6 +356,10 @@ semantic_macro substitute (action : Semantics.Instruction) (pays : (List Semanti
 semantic_macro tapSymbol : Semantics.Cost :=
   Semantics.Cost.tapSymbol
 
+/-- `abilities/textChange.ron` -/
+semantic_macro textChange (subject : Semantics.NounPhrase) (change : Semantics.TextChange) : Semantics.StaticSpec :=
+  (Semantics.StaticSpec.textChange subject change)
+
 /-- `abilities/thatAbility.ron` -/
 semantic_macro thatAbility (ref : Semantics.ChoiceRef) : Semantics.Ability :=
   (Semantics.Ability.thatAbility ref)
@@ -1248,6 +1252,10 @@ semantic_macro atNext (part : Semantics.TurnPart) (instruction : Semantics.Instr
 semantic_macro Instruction.attachment (move : Semantics.AttachMove) (subject : Semantics.NounPhrase) (host : (Option Semantics.NounPhrase) := none) : Semantics.Instruction :=
   (Semantics.Instruction.attachment move subject host)
 
+/-- `instructions/bracketed.ron` -/
+semantic_macro Instruction.bracketed (instruction : Semantics.Instruction) : Semantics.Instruction :=
+  (Semantics.Instruction.bracketed instruction)
+
 /-- `instructions/canBeTargetedAsThough.ron` -/
 semantic_macro canBeTargetedAsThough (what : Semantics.NounPhrase) (by_ : Semantics.NounPhrase) (p : Semantics.Predicate) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.deonticRule what Semantics.Compulsion.permit [(Semantics.Deed.core Semantics.CoreDeed.target)] Semantics.Role.patient none (Semantics.DeonticPatient.targetedBy by_) (some (Semantics.AsThough.of p)) Semantics.DeonticRider.noRider)
@@ -2070,7 +2078,7 @@ semantic_macro cipher : Semantics.Ability :=
 
 /-- `keyword_abilities/cleave.ron` -/
 semantic_macro cleave (arg0 : Semantics.Cost) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "cleave") [(Semantics.KeywordParam.cost arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "cleave") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.deonticRule Semantics.NounPhrase.you Semantics.Compulsion.permit [(Semantics.Deed.action "cast")] Semantics.Role.agent none (Semantics.DeonticPatient.counterpart Semantics.NounPhrase.this) none (Semantics.DeonticRider.play none none none false (Semantics.PlayPayment.payingInstead arg0)))), (Semantics.Ability.static (Semantics.StaticSpec.conditional (Semantics.StaticSpec.textChange (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) Semantics.TextChange.removeBracketed) (Semantics.Condition.compareAmt (Semantics.Amount.paid (Semantics.LinkedFacet.readback (Semantics.LinkSource.byKeyword (Semantics.KeywordLabel.named "cleave")) none) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.Comparator.atLeast (Semantics.Amount.lit 1)) Semantics.CondMarking.asLongAs))])
 
 /-- `keyword_abilities/companion.ron` -/
 semantic_macro companion (arg0 : Semantics.Condition) : Semantics.Ability :=
@@ -2502,7 +2510,7 @@ semantic_macro outlast (arg0 : Semantics.Cost) : Semantics.Ability :=
 
 /-- `keyword_abilities/overload.ron` -/
 semantic_macro overload (arg0 : Semantics.Cost) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "overload") [(Semantics.KeywordParam.cost arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "overload") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.deonticRule Semantics.NounPhrase.you Semantics.Compulsion.permit [(Semantics.Deed.action "cast")] Semantics.Role.agent none (Semantics.DeonticPatient.counterpart Semantics.NounPhrase.this) none (Semantics.DeonticRider.play none none none false (Semantics.PlayPayment.payingInstead arg0)))), (Semantics.Ability.static (Semantics.StaticSpec.conditional (Semantics.StaticSpec.textChange (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) Semantics.TextChange.targetToEach) (Semantics.Condition.compareAmt (Semantics.Amount.paid (Semantics.LinkedFacet.readback (Semantics.LinkSource.byKeyword (Semantics.KeywordLabel.named "overload")) none) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.Comparator.atLeast (Semantics.Amount.lit 1)) Semantics.CondMarking.asLongAs))])
 
 /-- `keyword_abilities/paradigm.ron` -/
 semantic_macro paradigm : Semantics.Ability :=
@@ -2646,7 +2654,7 @@ semantic_macro spectacle (arg0 : Semantics.Cost) : Semantics.Ability :=
 
 /-- `keyword_abilities/splice.ron` -/
 semantic_macro splice_ (arg0 : Semantics.Predicate) (arg1 : Semantics.Cost) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "splice") [(Semantics.KeywordParam.quality arg0), (Semantics.KeywordParam.cost arg1)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "splice") [(Semantics.KeywordParam.quality arg0), (Semantics.KeywordParam.cost arg1)] [(Semantics.Ability.static (Semantics.StaticSpec.replacement (Semantics.GameEvent.casts Semantics.NounPhrase.you (some (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [(Semantics.Predicate.and [(Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.stack Semantics.ZoneScope.bare)), (Semantics.Predicate.not (Semantics.Predicate.abilityHead Semantics.AbilityClass.anyOnStack))]), arg0]))) none) [] none (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.expose Semantics.ExposeVerb.reveal (Semantics.Exposed.cards Semantics.NounPhrase.this)) (some (Semantics.Instruction.establish (Semantics.StaticSpec.conjunction none [(Semantics.StaticSpec.addedCost arg1 false Semantics.PayTimes.once), (Semantics.StaticSpec.textChange (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.spell) Semantics.Plurality.one Semantics.Window.whole) (Semantics.TextChange.appendTextOf Semantics.NounPhrase.this))]) none)) none) Semantics.ReplUse.repeatedly none))])
 
 /-- `keyword_abilities/splitSecond.ron` -/
 semantic_macro splitSecond : Semantics.Ability :=
@@ -3388,6 +3396,10 @@ semantic_macro blocked : Semantics.Predicate :=
 semantic_macro blocking : Semantics.Predicate :=
   (Semantics.Predicate.inCombat Semantics.CombatRelation.blockerOf none)
 
+/-- `predicates/bracketed.ron` -/
+semantic_macro Predicate.bracketed (predicate : Semantics.Predicate) : Semantics.Predicate :=
+  (Semantics.Predicate.bracketed predicate)
+
 /-- `predicates/card.ron` -/
 semantic_macro card : Semantics.Predicate :=
   Semantics.Predicate.isCard
@@ -3855,6 +3867,26 @@ semantic_macro upToOf (amount : Semantics.Amount) : Semantics.Quantity :=
 /-- `quantities/worth.ron` -/
 semantic_macro worth (n : Nat) : Semantics.Quantity :=
   (Semantics.Quantity.worth n)
+
+/-- `text_changes/appendTextOf.ron` -/
+semantic_macro appendTextOf (source : Semantics.NounPhrase) : Semantics.TextChange :=
+  (Semantics.TextChange.appendTextOf source)
+
+/-- `text_changes/exchangeWith.ron` -/
+semantic_macro exchangeWith (other : Semantics.NounPhrase) : Semantics.TextChange :=
+  (Semantics.TextChange.exchangeWith other)
+
+/-- `text_changes/removeBracketed.ron` -/
+semantic_macro removeBracketed : Semantics.TextChange :=
+  Semantics.TextChange.removeBracketed
+
+/-- `text_changes/replaceWord.ron` -/
+semantic_macro replaceWord (sort : Semantics.QualitySort) (from_ : (Option Semantics.TextWord) := none) (to : (Option Semantics.TextWord) := none) : Semantics.TextChange :=
+  (Semantics.TextChange.replaceWord sort from_ to)
+
+/-- `text_changes/targetToEach.ron` -/
+semantic_macro targetToEach : Semantics.TextChange :=
+  Semantics.TextChange.targetToEach
 
 /-- `timings/and.ron` -/
 semantic_macro Timing.and (conjuncts : (List Semantics.Timing) := []) : Semantics.Timing :=

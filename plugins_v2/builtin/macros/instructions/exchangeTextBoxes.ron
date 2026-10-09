@@ -1,10 +1,9 @@
-// "Exchange the text boxes of <left> and <right>" [CR#701.12h]: a
-// text-changing effect, after which each permanent's rules text is the
-// other's previous rules text. All or nothing, like every exchange
-// [CR#701.12a].
+// "Exchange the text boxes of <left> and <right>" [CR#701.12h]: a Text Change
+// that lasts indefinitely, after which each permanent's rules text is the
+// other's previous rules text [CR#612.5].
 (
     name: "exchangeTextBoxes",
     kinds: [Instruction],
     params: {"left": NounPhrase, "right": NounPhrase},
-    body: Exchange(TextBoxes(Param(left), Param(right))),
+    body: Establish(TextChange(Param(left), ExchangeWith(Param(right))), None),
 )

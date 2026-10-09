@@ -1,0 +1,8 @@
+// "Replace all instances of the word 'target' with the word 'each'": every
+// `target` determiner becomes `each` (overload [CR#702.96a]).
+(
+    name: "targetToEach",
+    kinds: [TextChange],
+    params: [],
+    body: TargetToEach,
+)

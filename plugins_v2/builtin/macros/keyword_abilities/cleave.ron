@@ -5,9 +5,14 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "cleave",
     ),
-    // STOP (waits on: `semantics-v2-text-changes`).
-    // Cleave's second ability is "change its text by removing all text found
-    // within square brackets in the spell's rules text" [CR#702.148a] — a
-    // text-changing effect [CR#612.1] over printed bracketing. No
-    // `CharacteristicEdit` edits rules text by its printed marks.
+    // "Cleave [cost]" means "You may cast this spell by paying [cost] rather
+    // than paying its mana cost" and "If this spell's cleave cost was paid,
+    // change its text by removing all text found within square brackets in the
+    // spell's rules text." [CR#702.148a] The second is a Text Change
+    // [CR#702.148b,612.1]; a cleave card writes its bracketed words in place
+    // with `bracketed`.
+    body: [
+        static(mayCastFor(you, Param(0))),
+        static(onlyWhile(textChange(thisSpell, removeBracketed), keywordCostPaid(cleave, thisSpell))),
+    ],
 )

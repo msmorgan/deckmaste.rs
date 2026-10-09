@@ -1,0 +1,8 @@
+// "[<instruction>]": words printed in square brackets, kept in place so a Text
+// Change can find them; it means what <instruction> means [CR#702.148a].
+(
+    name: "bracketed",
+    kinds: [Instruction],
+    params: {"instruction": Instruction},
+    body: Bracketed(Param(instruction)),
+)
