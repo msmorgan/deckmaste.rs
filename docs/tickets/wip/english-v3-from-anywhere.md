@@ -129,13 +129,53 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta**: bounded before → after (covered faces, Readings); lost
-   faces classified by name; decreases, increases, digest-only changes.
-2. **Witnesses**: each witness's Reading count before and after.
-3. **Spot checks**: ten newly covered faces with their selected Reading.
-4. **Deviations and STOPs**: constructions or tests added or removed beyond
-   the ticket's letter, with justification; every STOP and its resolution;
-   any glossary gap.
-5. **Tests**: commands and outcomes; restored, re-spelled, ignored with
-   blockers, added, removed.
-6. **Timing**: one bounded census wall time with worker count.
+1. **Census delta**: bounded pre-edit `uzrzywom` (empty child of claim parent
+   `qzwzuwwu`, source-equivalent) → implemented `uzrzywom`: covered faces
+   300 → 396; Readings 11,533 → 33,324. Gained 96; lost none; decreases 0,
+   increases 0, digest-only 0. Selector: every supported analysed face containing
+   case-insensitive *anywhere* (158 faces), plus 300 covered controls selected by
+   `english-v3 diff --manifest --random 300 --seed 20261008`: 458 identities in
+   `target/english-v3/english-v3-from-anywhere/manifest.json`. `diff.json` compares
+   the identical manifest, with no identity or source-hash changes. At
+   `uzrzywom`, all 458 faces completely enumerated; 107 unique, 289 multiple,
+   62 unread, 0 undetermined or limited. Exact realization and structural
+   traversal checked for all 33,324 Readings; issues, duplicates and internal
+   failures all 0. The older batch census (`mqrlzszk`, source tree `qsupksky`)
+   supplied the seeded controls; a bounded pre-edit census measured the actual
+   claim parent, which already includes subsequent grammar landings.
+2. **Witnesses**: at pre-edit `uzrzywom`, all five `english-v3 probe` calls
+   returned 0 Readings. At implemented `uzrzywom`, complete witness-unit
+   enumeration returned Brinebound Gift 12, Yawgmoth's Agenda 12, Planar Void 3,
+   Rest in Peace 12, Generous Soul 12 (card-scoped). Each has the NP-headed
+   source PP; independently probed *from anywhere* has exactly 1 Reading.
+3. **Spot checks**: ten newly covered faces at `uzrzywom`, each inspected with
+   a byte-exact Reading whose *from* PP has the compound Determinative as a
+   Fused Determiner-Head NP Complement: Abandoned Sarcophagus (84 Readings),
+   Ancestor's Embrace (12), Archive Haunt (36), Avatar's Wrath (2), Benevolent
+   Geist (24), Bilbo, Thief in the Night (1,560), Blightsteel Colossus (44),
+   Brinebound Gift (96), Case of the Gorgon's Kiss (1,500), Catlike Curiosity
+   (36). NP Modifier attachment on the *other than* surfaces uses existing
+   grammar; those incidental gains add no route.
+4. **Deviations and STOPs**: R6a implemented directly, without the Pronoun
+   fallback or any Construction/frame change. Retired the sole-member
+   `LocativeProform` inventory and its Adverb mapping; the supported-corpus
+   `english-v3 grep` evidence at pre-edit `uzrzywom` shows only *from anywhere*
+   and the out-of-scope *putting it/them anywhere else* location Complement,
+   no independent Adverb use. No dedicated locative-Adverb Construction
+   exists to retire; the general Adverb and duration-Complement routes remain
+   used by other lexemes. Fused-head features live in `core.ron` because the
+   vocabulary declaration reader rejects them inline; no new loader logic.
+   Beyond the five required witness tests, added an independent NP/PP
+   roundtrip-and-traversal test and an ownership/Adverb-retirement test.
+   No STOPs, guards or glossary gaps.
+5. **Tests**: at `uzrzywom`, `cargo test -p deckmaste_english_v3` passed
+   (608 tests); `cargo test -p deckmaste_lexical_source` passed (27 unit and
+   35 integration tests). `cargo clippy -p deckmaste_english_v3 --tests --
+   -D warnings` and `cargo clippy -p deckmaste_lexical_source --tests --
+   -D warnings` both passed. The first English test build failed before running
+   tests on an ambiguous `contains_key` argument in the new ownership test;
+   corrected the argument's type and repeated that command successfully.
+   Assurance counts at `uzrzywom`: restored 0, re-spelled 0, ignored 0,
+   added 7, removed 0.
+6. **Timing**: the one bounded landing census at `uzrzywom` took 4.848493556 s
+   corpus wall time with 12 workers.

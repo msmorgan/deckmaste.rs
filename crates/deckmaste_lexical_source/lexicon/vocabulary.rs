@@ -91,7 +91,8 @@ constructions! {
             feature PrepositionComplementKind = UnrestrictedComplement;
         },
     }
-    vocab LocativeProform { Anywhere = "anywhere", }
+    // R6a (orchestrator, 2026-10-08): compound determinative, fused NP head.
+    vocab CompoundDeterminative { Anywhere = "anywhere", }
     vocab ComparativeQuantifier { Fewer = "fewer", More = "more", }
     vocab FrequencyAdverb { Once = "once", Twice = "twice", }
     vocab FocusAdverb { Only = "only", }

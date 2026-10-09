@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "suite/from_anywhere.rs"]
+mod from_anywhere;
+
 #[path = "suite/bare_zone_noun_complement.rs"]
 mod bare_zone_noun_complement;
 

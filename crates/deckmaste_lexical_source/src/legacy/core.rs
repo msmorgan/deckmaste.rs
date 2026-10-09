@@ -75,10 +75,9 @@ fn inventory_category(name: &str) -> Option<Category> {
             Category::Adjective
         }
         "Preposition" | "TriggerMarker" => Category::Preposition,
-        "PredicateNegator" | "LocativeProform" | "FrequencyAdverb" | "FocusAdverb" => {
-            Category::Adverb
-        }
+        "PredicateNegator" | "FrequencyAdverb" | "FocusAdverb" => Category::Adverb,
         "ComparativeQuantifier"
+        | "CompoundDeterminative"
         | "FloatedQuantifier"
         | "SingularDemonstrative"
         | "DefiniteMarker" => Category::Determinative,
