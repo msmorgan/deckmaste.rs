@@ -27,6 +27,7 @@ pub mod graduate;
 pub mod idris_check;
 pub mod lean;
 pub mod lean_check;
+pub mod lean_macros;
 pub mod lexical;
 pub mod macros;
 pub mod map;

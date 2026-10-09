@@ -27,3 +27,5 @@
 /lean/Generated.lean
 /lean/GeneratedDefinitions/
 /lean/GeneratedDefinitions.lean
+# `cargo xtask lean macros align`: the hand-vs-declared alignment proofs.
+/lean/GeneratedMacroAlignment.lean

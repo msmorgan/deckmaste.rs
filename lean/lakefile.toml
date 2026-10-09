@@ -13,7 +13,7 @@ autoImplicit = false
 
 [[lean_lib]]
 name = "Semantics"
-roots = ["Semantics", "Semantics.Check", "Semantics.Macros"]
+roots = ["Semantics", "Semantics.Check", "Semantics.Macros", "Semantics.Macros.Declared"]
 
 [[lean_lib]]
 name = "SemanticsCards"
@@ -38,3 +38,11 @@ roots = ["Generated"]
 [[lean_lib]]
 name = "GeneratedDefinitions"
 roots = ["GeneratedDefinitions"]
+
+# The macro alignment run's proofs (`cargo xtask lean macros align`): every
+# hand `Semantics.Macros` macro with a declared namesake, proved equal to the
+# generated `Semantics.Macros.Declared` one. Untracked and outside
+# `defaultTargets`, as the two gates above are.
+[[lean_lib]]
+name = "GeneratedMacroAlignment"
+roots = ["GeneratedMacroAlignment"]

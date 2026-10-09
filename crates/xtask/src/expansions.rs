@@ -221,6 +221,9 @@ pub const SAMPLES: &[&str] = &[
     "[]",
     // Pile.
     "Library(whose: Bare)",
+    // ManaSubstitute.
+    "(action: Shuffle(pile: That), pays: [Generic])",
+    "(action: DrawGame, pays: [Generic])",
     // Last: the absent value, which hides the hole it fills. No param type
     // reads it; it is here for an `Any` hole at an `Option` position.
     "None",
@@ -523,6 +526,13 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "Conferral" => render::<rules::Conferral>,
         _ => return None,
     })
+}
+
+/// Whether a macro of kind `kind` has a printer here; `lean macros` keeps
+/// its own Lean reader table over the same kind set.
+#[cfg(test)]
+pub(crate) fn has_renderer(kind: &str) -> bool {
+    renderer(kind).is_some()
 }
 
 /// The `Definition` constructors: a body headed by one is a registry node.
