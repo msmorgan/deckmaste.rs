@@ -1596,14 +1596,20 @@ const REGIME_AXIS: &str = "regime and functionsOnStack are two columns because t
                            flashback` stays spellable.";
 
 /// Keyword-ability stubs the workbench does not row.
-const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[Exempt {
-    label: "Prototype",
-    reason: "a layout keyword, not a keyword-ability row: the prototype ability is the inset \
+const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[
+    Exempt {
+        label: "Prototype",
+        reason: "a layout keyword, not a keyword-ability row: the prototype ability is the inset \
              frame itself [CR#702.160a,718.1], so the workbench spells it as the `Card` wrapper \
              `Prototype (inner) (alt)` whose pair is the alternative mana cost and printed box \
              [CR#718.1]; a row carrying its `[Cost, Power, Toughness]` signature would be a \
              second representation of the same ability",
-}];
+    },
+    Exempt {
+        label: "Typecycling",
+        reason: "a variant of the cycling ability [CR#702.29e], already spelled by the Cycling row's compound-quality schema; a row would be a second representation of the same ability",
+    },
+];
 
 /// Rows whose label is a CR-defined variant of a keyword that has its own
 /// stub, so the RON vocabulary spells the variant through that stub.
