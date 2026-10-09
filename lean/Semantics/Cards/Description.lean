@@ -276,7 +276,7 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
                                thisGame ])
             (Primitives.Instruction.conclude .winGame)
             (some (Primitives.Instruction.sequentially
-              [ Primitives.Instruction.move Primitives.NounPhrase.this Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 7)], gainLife (.lit 7) ]))) ] } }
+              [ Primitives.Instruction.move Primitives.NounPhrase.this Primitives.ZoneExpr.wherever onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 7))], gainLife (.lit 7) ]))) ] } }
 
 /-- "a loyalty ability of enchanted planeswalker" -/
 def loyaltyAbilityOfEnchanted : NounPhrase :=

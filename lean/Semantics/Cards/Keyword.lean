@@ -310,7 +310,7 @@ def grimdancer : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Nightmare"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
-            (Primitives.TokenRider.withCounters (.lit 2)
+            (Primitives.EntryRider.withCounters (.lit 2)
               (Primitives.CounterKindSource.distinctChosen [.named "menaceCounter", .named "deathtouchCounter", .named "lifelinkCounter"]) .fresh)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -985,7 +985,7 @@ def brimazAttackToken : Ability :=
         { characteristics :=
           { colors := [.white], types := [.creature], subtypes := [creatureType "Cat", creatureType "Soldier"],
             text := [keyword (.named "vigilance")], power := stat 1, toughness := stat 1 } })
-      [Primitives.TokenRider.entersAttacking none])
+      [Primitives.EntryRider.entersAttacking none])
 theorem okBrimazAttackToken : Ability.check [] brimazAttackToken = [] := by decide
 /-- Sedris, the Traitor King -/
 def sedrisTheTraitorKing : Ability :=
@@ -1691,7 +1691,7 @@ def seraphicGreatsword : Spelled := spelled <| .singleFaced
                 { characteristics :=
                   { colors := [.white], types := [.creature], subtypes := [creatureType "Angel"],
                     text := [keyword (.named "flying")], power := stat 4, toughness := stat 4 } })
-              [Primitives.TokenRider.entersAs .tapped, Primitives.TokenRider.entersAttacking (some (that .player))]),
+              [Primitives.EntryRider.entersAs .tapped, Primitives.EntryRider.entersAttacking (some (that .player))]),
           keywordCosting (.named "equip") (Primitives.Cost.mana [generic 4]) ] } }
 
 def giantGrowth : Instruction :=

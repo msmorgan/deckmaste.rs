@@ -293,7 +293,7 @@ def overgrownZealot : Spelled := spelled <| .singleFaced
         [ activated Primitives.Cost.tapSymbol (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.anyColor .sameColor) []),
           activated Primitives.Cost.tapSymbol
             (Primitives.Instruction.addMana (.lit 2) (Primitives.ProducedMana.anyColor .sameColor)
-              [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toPay (.ofSpecialAction .turnFaceUp)]]) ],
+              [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toPay (.ofKeyword (.named "morph")), Primitives.SpendPurpose.toPay (.ofKeyword (.named "disguise"))]]) ],
       power := stat 0, toughness := stat 4 } }
 
 /-- Unblinking Observer -/
@@ -311,8 +311,7 @@ def unblinkingObserver : Spelled := spelled <| .singleFaced
 def qarsiDeceiverMorphSpend : Ability :=
   activated Primitives.Cost.tapSymbol
     (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.colorless]])
-      [Primitives.ManaRider.spendOnly [ Primitives.SpendPurpose.toCast (Primitives.Predicate.and [creature, faceDown]), Primitives.SpendPurpose.toPay (.ofSpecialAction .turnFaceUp),
-                    Primitives.SpendPurpose.toPay (.ofKeyword (.named "morph")) ]])
+      [Primitives.ManaRider.spendOnly [ Primitives.SpendPurpose.toCast (Primitives.Predicate.and [creature, faceDown]), Primitives.SpendPurpose.toPay (.ofKeyword (.named "morph")) ]])
 theorem okQarsiDeceiverMorphSpend : Ability.check [] qarsiDeceiverMorphSpend = [] := by decide
 
 /-- Mercadian Bazaar -/
@@ -878,7 +877,7 @@ def collectedCompany : Spelled := spelled <| .singleFaced
             [ lookAt (topSlice (.lit 6)),
               move (fromAmong (upTo 2) (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)]) them)
                 battlefield,
-              Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.TokenRider.inOrder .anyOrder] ]) ] } }
+              Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]) ] } }
 
 /-- Soldevi Adnate -/
 def soldeviAdnate : Spelled := spelled <| .singleFaced
@@ -1044,7 +1043,7 @@ def animalAttendant : Spelled := spelled <| .singleFaced
                   (a (Primitives.Predicate.and [Primitives.Predicate.not (Primitives.Predicate.hasSubtype (creatureType "Human")), creature, spell]))
                   (Primitives.Instruction.establish
                     (Primitives.StaticSpec.entryRider (Primitives.NounPhrase.resolvedPermanent (that .spell))
-                      (Primitives.TokenRider.withCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) .additional))
+                      (Primitives.EntryRider.withCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) .additional))
                     none) ]) ],
       power := stat 2, toughness := stat 2 } }
 

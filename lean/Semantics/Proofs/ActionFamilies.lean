@@ -70,7 +70,7 @@ theorem movementAcceptsAnAbilitySubject :
 
 theorem graveyardDestinationAcceptsCounterRiders :
     Instruction.check [] (.move (target (.abilityHead .anyActivated)) .wherever graveyard
-      [.withCounters (.lit 1) (.printed p1p1Counter) .fresh]) = [] := by decide
+      [.placement (.withCounters (.lit 1) (.printed p1p1Counter) .fresh)]) = [] := by decide
 
 theorem pronounMovePreservesCopyOriginAndOuterBindings :
     Instruction.intro [⟨.the, .one, .ability (some .copy), []⟩, ⟨.the, .one, .player false, []⟩]

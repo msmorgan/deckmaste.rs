@@ -464,10 +464,23 @@ semantic_macro destroy (subject : NounPhrase) : Instruction :=
   .enact (.action "destroy") (.move subject (.zone .battlefield .bare) graveyard [])
 semantic_macro exile (subject : NounPhrase) : Instruction :=
   .enact (.action "exile") (.move subject .wherever exileZone [])
+/-- A card exiled face down: no characteristics [CR#406.3a]. -/
+semantic_macro exiledFaceDown : FaceDown := ⟨none⟩
+/-- A 2/2 face-down creature with no text, no name, no subtypes and no mana cost [CR#708.2a]. -/
+semantic_macro faceDownCreature : FaceDown :=
+  ⟨some { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }⟩
+/-- A 2/2 face-down creature with ward {2}, no name, no subtypes and no mana cost
+[CR#701.58a,702.168a]. -/
+semantic_macro faceDownWardedCreature : FaceDown :=
+  ⟨some { types := [.creature], text := [.keyword (.named "ward") [.cost (.mana [generic 2])] []],
+          power := some (.lit 2), toughness := some (.lit 2) }⟩
+/-- "exile <subject> face down" [CR#406.3]. -/
+semantic_macro exileFaceDown (subject : NounPhrase) : Instruction :=
+  .enact (.action "exile") (.move subject .wherever exileZone [.placement (.faceDown exiledFaceDown)])
 /-- "exile <subject> with N <kind> counters on it" -/
 semantic_macro exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     Instruction :=
-  .enact (.action "exile") (.move subject .wherever exileZone [.withCounters amount (.printed kind) .fresh])
+  .enact (.action "exile") (.move subject .wherever exileZone [.placement (.withCounters amount (.printed kind) .fresh)])
 semantic_macro sacrifice (subject : NounPhrase) : Instruction :=
   .enact (.action "sacrifice") (.move subject (.zone .battlefield .bare) graveyard [])
 /-- "put <subject> <destination>" -/
@@ -475,31 +488,30 @@ semantic_macro put (subject : NounPhrase) (destination : ZoneExpr) : Instruction
   .enact (.core .put) (.move subject .wherever destination [])
 /-- "put <subject> <destination>" with the move's riders ("second from the top", "on the top or
 bottom") -/
-semantic_macro putWith (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider) :
+semantic_macro putWith (subject : NounPhrase) (destination : ZoneExpr) (riders : List MoveRider) :
     Instruction :=
   .enact (.core .put) (.move subject .wherever destination riders)
 /-- "return <subject> to <zone>" -/
-semantic_macro returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List TokenRider) :
+semantic_macro returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List MoveRider) :
     Instruction :=
   .enact (.core .return_) (.move subject .wherever destination riders)
 /-- "return <subject> to the battlefield" -/
 semantic_macro returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject battlefield []
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
 semantic_macro returnToBattlefieldTransformed (subject controller : NounPhrase) : Instruction :=
-  returnTo subject battlefield [.entersTransformed, .under controller]
+  returnTo subject battlefield [.entry .entersTransformed, .entry (.under controller)]
 /-- "return <subject> to the battlefield under <who>'s control with N <kind> counters on it" -/
 semantic_macro returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
     (kind : CounterKind) : Instruction :=
-  .move subject .wherever battlefield [.under who, .withCounters amount (.printed kind) .fresh]
+  .move subject .wherever battlefield [.entry (.under who), .entry (.withCounters amount (.printed kind) .fresh)]
 /-- "transform <subject>" -/
 semantic_macro transform (subject : NounPhrase) : Instruction :=
   .enact (.action "transform") (.turnOver subject)
 /-- "meld <subject> into <name>" -/
 semantic_macro meldInto (subject : NounPhrase) (into : String) : Instruction :=
-  .enact (.action "meld") (.move subject .wherever battlefield [.entersMelded into])
+  .enact (.action "meld") (.move subject .wherever battlefield [.entry (.entersMelded into)])
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a].
-This retains the existing fragment; face-down characteristics and the turn-up special
-action are not represented here. -/
+This retains the existing fragment; the face-down spec is `manifest`'s. -/
 semantic_macro manifestPlacement (subject : NounPhrase) : Instruction :=
   .enact (.action "manifest") (.move subject .wherever battlefield [])
 semantic_macro tap (subject : NounPhrase) : Instruction :=
@@ -520,13 +532,13 @@ semantic_macro mill (amount : Amount) (whose : NounPhrase) : Instruction :=
   .enact (.action "mill") (.move (.slice .top amount (library whose)) (.zone .library .bare) graveyard [])
 semantic_macro putOntoBattlefield (subject : NounPhrase) : Instruction := .move subject .wherever battlefield []
 semantic_macro putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
-  .move subject .wherever battlefield [.entersAs .tapped]
+  .move subject .wherever battlefield [.entry (.entersAs .tapped)]
 /-- "put <subject> onto the battlefield under your control" -/
 semantic_macro putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
-  .move subject .wherever battlefield [.under .you]
+  .move subject .wherever battlefield [.entry (.under .you)]
 /-- "put <subject> onto the battlefield tapped and attacking" -/
 semantic_macro putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
-  .move subject .wherever battlefield [.entersAs .tapped, .entersAttacking none]
+  .move subject .wherever battlefield [.entry (.entersAs .tapped), .entry (.entersAttacking none)]
 /-- A search of one zone: the scope constructor, which has no generated primitive because
 `SearchScope` is not a `semantic_expression` type. -/
 semantic_macro oneZone (zone : ZoneExpr) : SearchScope := .oneZone zone
@@ -853,8 +865,8 @@ semantic_macro lookAndSort (whose : NounPhrase) (amount : Amount) : Instruction 
   let slice : NounPhrase := .slice .top amount (library whose)
   .sequentially
     [ .expose .lookAt (.cards slice),
-      .move (someOf anyNumber (lookedCards slice)) .wherever onBottom [.inOrder .anyOrder],
-      .move (theRest .object) .wherever onTop [.inOrder .anyOrder] ]
+      .move (someOf anyNumber (lookedCards slice)) .wherever onBottom [.placement (.inOrder .anyOrder)],
+      .move (theRest .object) .wherever onTop [.placement (.inOrder .anyOrder)] ]
 /-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
 semantic_macro lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr) :
     Instruction :=
@@ -862,7 +874,7 @@ semantic_macro lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : Z
   .sequentially
     [ .expose .lookAt (.cards slice),
       move (someOf anyNumber (lookedCards slice)) spill,
-      .move (theRest .object) .wherever onTop [.inOrder .anyOrder] ]
+      .move (theRest .object) .wherever onTop [.placement (.inOrder .anyOrder)] ]
 /-- "scry N" [CR#701.22a]: the performer's own library. -/
 semantic_macro scry (amount : Amount) : Instruction :=
   .enact (.action "scry") (lookAndSort .actor amount)
@@ -1088,7 +1100,7 @@ semantic_macro discover (amount : Amount) : Instruction :=
     [ move (.run .top (.and [.not land, fits]) (library .actor)) exileZone,
       .withContinuation .optional (castWithoutPaying (that .card) (some fits)) none
         (some (move (that .card) hand)),
-      .move (theRest .object) .wherever onBottom [.inOrder .randomOrder] ])
+      .move (theRest .object) .wherever onBottom [.placement (.inOrder .randomOrder)] ])
 /-- "<performer> incubates N" [CR#701.53a,701.53b]: an Incubator token with N +1/+1 counters. -/
 semantic_macro incubate (amount : Amount) : Instruction :=
   .enact (.action "incubate") (.createObject (.lit 1) (.token
@@ -1109,16 +1121,18 @@ semantic_macro waterbend (cost : Cost) : Instruction :=
     (.pay (.withSubstitute cost
       (substitute (tap (a (.and [untapped, .or [artifact, creature], actorControls]))) [.generic]))
       .once)
-/-- "<performer> manifests <subject>" [CR#701.40a]: onto the battlefield face down as a 2/2
-creature with no text, name, subtypes or mana cost [CR#708.2]. -/
+/-- "<performer> manifests <subject>" [CR#701.40a]: turn it face down as a 2/2 creature with
+no text, name, subtypes or mana cost, then put that card onto the battlefield face down
+[CR#708.2,708.2a]. The card is read back by anaphora after its first mention. -/
 semantic_macro manifest (subject : NounPhrase) : Instruction :=
-  .enact (.action "manifest") (.move subject .wherever battlefield
-    [.faceDown { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }])
+  .enact (.action "manifest") (.sequentially
+    [ .turnFaceDown subject faceDownCreature,
+      .move (that .card) .wherever battlefield [.entry (.faceDown faceDownCreature)] ])
 /-- "<performer> cloaks <subject>" [CR#701.58a]: as manifest, with ward {2}. -/
 semantic_macro cloak (subject : NounPhrase) : Instruction :=
-  .enact (.action "cloak") (.move subject .wherever battlefield
-    [.faceDown { types := [.creature], text := [.keyword (.named "ward") [.cost (.mana [generic 2])] []],
-                 power := some (.lit 2), toughness := some (.lit 2) }])
+  .enact (.action "cloak") (.sequentially
+    [ .turnFaceDown subject faceDownWardedCreature,
+      .move (that .card) .wherever battlefield [.entry (.faceDown faceDownWardedCreature)] ])
 /-- "<performer> manifests dread" [CR#701.62a]: look at the top two cards of their library,
 manifest one, put the other into their graveyard. -/
 semantic_macro manifestDread : Instruction :=
@@ -1359,7 +1373,7 @@ semantic_macro cascadeExpansion : Ability :=
       [ exile (.run .top (.and [.not land, cheaper]) (library .you)),
         offer (Actor.castWithoutPaying (that .card) (some cheaper)),
         .move (allFromAmong (.not .wasCast) (theVerbed (.action "exile") .many)) .wherever onBottom
-          [.inOrder .randomOrder] ])
+          [.placement (.inOrder .randomOrder)] ])
 /-- "Cascade" with its reminder text. -/
 semantic_macro cascade : Ability := .keyword (.named "cascade") [] [cascadeExpansion]
 /-- "Renown N" with its reminder text. -/
@@ -1442,6 +1456,65 @@ semantic_macro sneakExpansion (cost : Cost) : Ability :=
     (.play none none (some (.and [asInstant, duringPart .declareBlockers (some .you)])) false
       (.payingInstead (.compound [cost,
         .perform (returnTo (a (.and [creature, unblocked, .hasPossessor .controller .you])) hand [])]))))
+/-- Morph [cost]'s definition: "You may cast this card as a 2/2 face-down creature with no text,
+no name, no subtypes, and no mana cost by paying {3} rather than paying its mana cost"
+[CR#702.37a], and the special action of turning it face up for its morph cost
+[CR#702.37e,116.2b]. -/
+semantic_macro morphExpansion (cost : Cost) : List Ability :=
+  [ .static (mayPlayDeed (.action "cast") .you .this none
+      (.play none none none false (.faceDown faceDownCreature (.mana [generic 3])))),
+    .static (.specialAction none cost (.setStatus .faceUp .this)) ]
+/-- Megamorph [cost]'s definition: morph's, with "As this permanent is turned face up, put a
++1/+1 counter on it if its megamorph cost was paid to turn it face up" [CR#702.37b]. -/
+semantic_macro megamorphExpansion (cost : Cost) : List Ability :=
+  [ .static (mayPlayDeed (.action "cast") .you .this none
+      (.play none none none false (.faceDown faceDownCreature (.mana [generic 3])))),
+    .static (.specialAction none cost
+      (.sequentially [.setStatus .faceUp .this, .putCounters (.lit 1) (.printed p1p1Counter) .this])) ]
+/-- Disguise [cost]'s definition: morph's, the face-down creature having ward {2}
+[CR#702.168a,702.168d]. -/
+semantic_macro disguiseExpansion (cost : Cost) : List Ability :=
+  [ .static (mayPlayDeed (.action "cast") .you .this none
+      (.play none none none false (.faceDown faceDownWardedCreature (.mana [generic 3])))),
+    .static (.specialAction none cost (.setStatus .faceUp .this)) ]
+/-- Foretell [cost]'s definition: during your turn, pay {2} and exile this card face down; you may
+look at it while it remains exiled, and cast it on a later turn for its foretell cost
+[CR#702.143a,116.2h]. -/
+semantic_macro foretellExpansion (cost : Cost) : List Ability :=
+  [ .static (.specialAction (some (.inPart .turn (some .you) .current)) (.mana [generic 2])
+      (.sequentially
+        [ exileFaceDown .this,
+          .establish (.visibility .lookAt .you (.objects it))
+            (some (.forAsLongAs (.matches it (.inZone exileZone)))),
+          .establish
+            (mayPlayDeed (.action "cast") .you it none
+              (.play (some exileZone) none none false (.payingInstead cost)))
+            (some onALaterTurn) ])) ]
+/-- Plot [cost]'s definition: any time you have priority during your main phase while the stack is
+empty, exile this card and pay [cost]; you may cast it from exile without paying its mana cost
+as a sorcery on a later turn [CR#702.170a,702.170d,116.2k]. -/
+semantic_macro plotExpansion (cost : Cost) : List Ability :=
+  [ .static (.specialAction (some asSorcery) cost
+      (.sequentially
+        [ exile .this,
+          .establish
+            (mayPlayDeed (.action "cast") .you it none
+              (.play (some exileZone) none (some asSorcery) false .withoutPaying))
+            (some onALaterTurn) ])) ]
+/-- Hideaway N's definition: "When this permanent enters, look at the top N cards of your library.
+Exile one of them face down and put the rest on the bottom of your library in a random order. The
+exiled card gains 'The player who controls the permanent that exiled this card may look at this
+card in the exile zone.'" [CR#702.75a]. The look right is the controller's, while the card stays
+exiled; "the exiled card" is `theVerbed(exile, one, card)`. -/
+semantic_macro hideawayExpansion (amount : Amount) : List Ability :=
+  let exiledCard : NounPhrase := theVerbed (.action "exile") .one (some .card)
+  [ when (Primitives.GameEvent.enters thisPermanent none)
+      (.sequentially
+        [ .expose .lookAt (.cards (.slice .top amount (library .you))),
+          exileFaceDown (someOf (exactly 1) them),
+          .move (theRest .object) .wherever onBottom [.placement (.inOrder .randomOrder)],
+          .establish (.visibility .lookAt .you (.objects exiledCard))
+            (some (.forAsLongAs (.matches exiledCard (.inZone exileZone)))) ]) ]
 /-- "Cycling [cost]" with its definition. -/
 semantic_macro cycling (cost : Cost) : Ability :=
   .keyword (.named "cycling") [.cost cost] [cyclingExpansion cost]

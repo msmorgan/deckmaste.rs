@@ -400,7 +400,7 @@ def denryKlin : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Cat", creatureType "Advisor"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
-            (Primitives.TokenRider.withCounters (.lit 1)
+            (Primitives.EntryRider.withCounters (.lit 1)
               (Primitives.CounterKindSource.chosen [p1p1Counter, .named "firstStrikeCounter", .named "vigilanceCounter"]) .fresh)),
           denryKlinSameKinds ],
       power := stat 2, toughness := stat 2 } }

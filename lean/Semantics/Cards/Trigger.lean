@@ -268,7 +268,7 @@ def clone : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Clone", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [creatureType "Shapeshifter"],
-      text := [Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature (Primitives.TokenRider.asCopyOf true (a creature) []))],
+      text := [Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature (Primitives.EntryRider.asCopyOf true (a creature) []))],
       power := stat 0, toughness := stat 0 } }
 
 /-- Quicksilver Gargantuan -/
@@ -278,24 +278,24 @@ def quicksilverGargantuan : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Shapeshifter"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
-            (Primitives.TokenRider.asCopyOf true (a creature) [Primitives.CopyExcept.pt (.lit 7) (.lit 7)])) ],
+            (Primitives.EntryRider.asCopyOf true (a creature) [Primitives.CopyExcept.pt (.lit 7) (.lit 7)])) ],
       power := stat 7, toughness := stat 7 } }
 
 /-- Sculpting Steel -/
 def sculptingSteel : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Sculpting Steel", cost := some [generic 3], types := [.artifact],
-      text := [Primitives.Ability.static (Primitives.StaticSpec.entryRider thisArtifact (Primitives.TokenRider.asCopyOf true (a artifact) []))] } }
+      text := [Primitives.Ability.static (Primitives.StaticSpec.entryRider thisArtifact (Primitives.EntryRider.asCopyOf true (a artifact) []))] } }
 
 /-- Sakashima's Student -/
 def sakashimasStudentCopy : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
-    (Primitives.TokenRider.asCopyOf true (a creature) [Primitives.CopyExcept.types [] [creatureType "Ninja"]]))
+    (Primitives.EntryRider.asCopyOf true (a creature) [Primitives.CopyExcept.types [] [creatureType "Ninja"]]))
 theorem okSakashimasStudentCopy : Ability.check [] sakashimasStudentCopy = [] := by decide
 /-- Chameleon, Master of Disguise -/
 def chameleonCopy : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
-    (Primitives.TokenRider.asCopyOf true (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
+    (Primitives.EntryRider.asCopyOf true (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
       [Primitives.CopyExcept.name "Chameleon, Master of Disguise"]))
 theorem okChameleonCopy : Ability.check [] chameleonCopy = [] := by decide
 
@@ -754,7 +754,7 @@ def gatherSpecimens : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.establish
-            (Primitives.StaticSpec.entryRider (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent])) (Primitives.TokenRider.under Primitives.NounPhrase.you))
+            (Primitives.StaticSpec.entryRider (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent])) (Primitives.EntryRider.under Primitives.NounPhrase.you))
             (some thisTurn)) ] } }
 
 /-- Don't Blink's replacement, without its written agent -/

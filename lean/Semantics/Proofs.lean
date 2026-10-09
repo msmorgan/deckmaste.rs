@@ -38,6 +38,7 @@ import Semantics.Proofs.GetsBothDeltas
 import Semantics.Proofs.BindingIdentity
 import Semantics.Proofs.Possessor
 import Semantics.Proofs.KeywordActionResidues
+import Semantics.Proofs.FaceDown
 
 /-!
 # Semantics.Proofs

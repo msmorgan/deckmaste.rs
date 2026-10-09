@@ -487,7 +487,7 @@ def TokenSpec.introduced (bs : Bindings) : TokenSpec → List Binding
   | .written t => ptDelta bs t.characteristics.pt
   | _ => []
 
-def TokenRider.intro (bs : Bindings) : TokenRider → Bindings
+def EntryRider.intro (bs : Bindings) : EntryRider → Bindings
   | .withCounters amt kind _ => kind.intro (Amount.intro bs amt)
   | .under who => nomIntro bs who
   | _ => bs
@@ -775,7 +775,8 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
     | _ => .agentless
   | .pay _ _ | .enact _ _ | .separateIntoPiles _ _ _ | .chooseNewTargets _ | .createObject _ _
   | .putCounters _ _ _ | .removeCounters _ _ _ | .moveCounters _ _ _ _ | .doubleCounters _
-  | .move _ _ _ _ | .expose _ _ | .addMana _ _ _ | .draw _ | .choose _ _ _ _ | .vote _ _ _
+  | .move _ _ _ _ | .turnFaceDown _ _ | .expose _ _ | .addMana _ _ _ | .draw _ | .choose _ _ _ _
+  | .vote _ _ _
   | .search _ _ _ | .shuffle _ | .flipCoins _ | .rollDice _ _
   | .rerollStored _ _ | .procedure _ _ _ _ => .reflexive
   | .applyResultsTable _ => .notOneAction
@@ -889,6 +890,7 @@ mutual
       | .counters _ => sameIntro (nomIntro bs' among) []
     | .turnOver n => sameIntro (nomIntro bs n) []
     | .setStatus _ n => sameIntro (nomIntro bs n) []
+    | .turnFaceDown n _ => sameIntro (nomIntro bs n) []
     | .skipUntap n steps => sameIntro (Amount.intro (nomIntro bs n) steps) []
     | .skipPart _ count => let w := performerOf perf; sameIntro (Amount.intro (nomIntro bs w) count) []
     | .addTurnPart part _ count _ => let who := performerOf perf;
@@ -1095,6 +1097,7 @@ mutual
     | .altCost n _ => selfSubjIntro bs n
     | .addedCost _ _ _ => bs
     | .paySubstitute n _ => selfSubjIntro bs n
+    | .specialAction _ _ _ => bs
     | .abilityGrant n ab => ab.introducedLetters ++ selfSubjIntro bs n
     | .abilityGrantFrom n _ src _ => nomIntro (nomIntro bs n) src
     | .deonticRule n _ _ _ _ _ _ _ => selfSubjIntro bs n
@@ -1320,14 +1323,27 @@ def IgnoredOutcomes.numberSlots : IgnoredOutcomes → List (Amount × NumberRegi
 
 /-- A rider's own slots: how many counters it enters with, a count [CR#107.1b]. The copy
 exceptions of `asCopyOf` declare their own. -/
-def TokenRider.numberSlots : TokenRider → List (Amount × NumberRegime)
+def EntryRider.numberSlots : EntryRider → List (Amount × NumberRegime)
   | .entersAs _ | .entersAttacking _ | .entersTransformed | .entersMelded _ => []
   | .withCounters amount _ _ => [(amount, .clamped)]
-  | .under _ | .asCopyOf _ _ _ | .faceDown _ | .inOrder _ | .nthFromEnd _ | .orOtherEnd => []
+  | .under _ | .asCopyOf _ _ _ | .faceDown _ => []
 
-def TokenRider.ridersSlots : List TokenRider → List (Amount × NumberRegime)
+def EntryRider.ridersSlots : List EntryRider → List (Amount × NumberRegime)
   | [] => []
-  | rider :: rest => rider.numberSlots ++ TokenRider.ridersSlots rest
+  | rider :: rest => rider.numberSlots ++ EntryRider.ridersSlots rest
+
+/-- A placement's own slots: how many counters a card is exiled with, a count [CR#107.1b]. -/
+def PilePlacement.numberSlots : PilePlacement → List (Amount × NumberRegime)
+  | .withCounters amount _ _ => [(amount, .clamped)]
+  | .inOrder _ | .nthFromEnd _ | .orOtherEnd | .faceDown _ => []
+
+def MoveRider.numberSlots : MoveRider → List (Amount × NumberRegime)
+  | .entry rider => rider.numberSlots
+  | .placement p => p.numberSlots
+
+def MoveRider.ridersSlots : List MoveRider → List (Amount × NumberRegime)
+  | [] => []
+  | rider :: rest => rider.numberSlots ++ MoveRider.ridersSlots rest
 
 /-- A cost's own slots: "for each" multiplies a cost by a count [CR#107.1b]. A nested cost and
 a performed instruction declare their own. -/
@@ -1347,7 +1363,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .ptDefinition _ _ amount => [(amount, .signed)]
   | .ptSwitch _ => []
   | .costShift _ shift => shift.numberSlots
-  | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ => []
+  | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ | .specialAction _ _ _ => []
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
   | .letterDefinition _ amount => [(amount, .clamped)]
@@ -1375,7 +1391,8 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .gainDesignation _ _ _ | .unlock _ | .setGameDesignation _ | .conclude _ => []
   | .drawGame | .restartGame | .separateIntoPiles _ _ _ => []
   | .choose _ _ _ _ | .revealChoices _ | .vote _ _ _ => []
-  | .move _ _ _ riders => TokenRider.ridersSlots riders
+  | .move _ _ _ riders => MoveRider.ridersSlots riders
+  | .turnFaceDown _ _ => []
   -- How many copies to make: a count [CR#107.1b].
   | .copy _ _ times _ => [(times, .clamped)]
   | .chooseNewTargets _ | .copyTargets _ _ => []
@@ -1399,7 +1416,7 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .establish _ _ => []
   | .createObject count spec => (count, .clamped) ::
       (match spec with
-       | .token _ riders => TokenRider.ridersSlots riders
+       | .token _ riders => EntryRider.ridersSlots riders
        | .emblem _ _ => [])
   | .putCounters amount _ _ => [(amount, .clamped)]
   | .distribute _ amount _ => [(amount, .clamped)]

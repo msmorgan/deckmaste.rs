@@ -7,6 +7,10 @@ boundary records their names. -/
 
 declare_semantic_primitives
 
+/-- An entry rider is a move rider as written: the RON mirror reads a bare entry rider at a move
+rider's place (`#[macro_ron(embed)]`), and the bench writes it the same way. -/
+instance : Coe Semantics.EntryRider Semantics.MoveRider := ⟨Semantics.Macros.Primitives.MoveRider.entry⟩
+
 namespace Semantics.Macros.Primitives.Instruction
 
 /-- A numeric definition at instruction position uses the shared static definition. -/
@@ -107,7 +111,7 @@ end Semantics.Macros.Primitives.Instruction
 
 namespace Semantics.Macros.Primitives.Instruction
 
-semantic_macro create (count : Amount) (token : TokenSpec) (riders : List TokenRider) :
+semantic_macro create (count : Amount) (token : TokenSpec) (riders : List EntryRider) :
     Semantics.Instruction :=
   .createObject count (.token token riders)
 

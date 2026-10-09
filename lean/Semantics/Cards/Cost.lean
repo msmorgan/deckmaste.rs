@@ -699,7 +699,7 @@ def shatteredEgo : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Delta.down (.lit 3)) (Primitives.Delta.down (.lit 0))),
           activated (Primitives.Cost.mana [generic 3, pip .blue, pip .blue])
-            (Primitives.Instruction.move (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 3)]) ] } }
+            (Primitives.Instruction.move (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.ZoneExpr.wherever onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 3))]) ] } }
 
 def shuFarmer : Spelled := spelled <| .singleFaced
   { characteristics :=

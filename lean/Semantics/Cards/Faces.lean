@@ -17,14 +17,13 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Cards
 
+/-- "Turn target creature face down. It's a 2/2 Cyberman artifact creature.": the listed
+characteristics are the face-down spec [CR#708.2]. -/
 def cyberConversion : Instruction :=
-  Primitives.Instruction.sequentially
-    [ Primitives.Instruction.setStatus .faceDown (target creature),
-      become it
-        { characteristics :=
-          { types := [.artifact, .creature], subtypes := [creatureType "Cyberman"],
-            power := stat 2, toughness := stat 2 } }
-        none ]
+  Primitives.Instruction.turnFaceDown (target creature)
+    { characteristics := some
+        { types := [.artifact, .creature], subtypes := [creatureType "Cyberman"],
+          power := stat 2, toughness := stat 2 } }
 theorem okCyberConversion : Instruction.check [] cyberConversion = [] := by decide
 
 def breakOpen : Instruction :=
@@ -56,15 +55,12 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
 def missyFaceDownReturn : Ability :=
   whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, Primitives.Predicate.not artifact, Primitives.Predicate.otherThan thisCreature])))
     (Primitives.Instruction.sequentially
-      [ Primitives.Instruction.move it Primitives.ZoneExpr.wherever battlefield [Primitives.TokenRider.entersAs .faceDown, Primitives.TokenRider.entersAs .tapped, Primitives.TokenRider.under Primitives.NounPhrase.you],
-        Primitives.Instruction.establish
-          (Primitives.StaticSpec.qualityChange it .sets
-            (Primitives.QualityPayload.bundle
-              { characteristics :=
-                { types := [.artifact, .creature], subtypes := [creatureType "Cyberman"],
-                  power := stat 2, toughness := stat 2 } }
-              none))
-          none ])
+      [ Primitives.Instruction.move it Primitives.ZoneExpr.wherever battlefield
+          [ Primitives.EntryRider.faceDown
+              { characteristics := some
+                  { types := [.artifact, .creature], subtypes := [creatureType "Cyberman"],
+                    power := stat 2, toughness := stat 2 } },
+            Primitives.EntryRider.entersAs .tapped, Primitives.EntryRider.under Primitives.NounPhrase.you ] ])
 theorem okMissyFaceDownReturn : Ability.check [] missyFaceDownReturn = [] := by decide
 
 /-- Yedora, Grave Gardener -/
@@ -77,13 +73,10 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
         [ whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [nontoken, creatureYouControl, Primitives.Predicate.otherThan thisCreature])))
             (offer
               (Primitives.Instruction.sequentially
-                [ Primitives.Instruction.move it Primitives.ZoneExpr.wherever battlefield [Primitives.TokenRider.entersAs .faceDown, Primitives.TokenRider.under (ownerOf it)],
-                  Primitives.Instruction.establish
-                    (Primitives.StaticSpec.qualityChange it .sets
-                      (Primitives.QualityPayload.bundle
-                        { characteristics := { types := [.land], subtypes := [landType "Forest"] } }
-                        none))
-                    none ])) ],
+                [ Primitives.Instruction.move it Primitives.ZoneExpr.wherever battlefield
+                    [ Primitives.EntryRider.faceDown
+                        { characteristics := some { types := [.land], subtypes := [landType "Forest"] } },
+                      Primitives.EntryRider.under (ownerOf it) ] ])) ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Ral Zarek, Guest Lecturer's ultimate -/

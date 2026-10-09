@@ -136,6 +136,19 @@ def PipPaid.check (bs : Bindings) : PipPaid → List Refusal
   | .generic => []
   | .ofColor c => ColorTerm.check bs c
 
+/-- The kind of move rider a destination allows: an entry rider onto the battlefield, a
+placement into any other zone or at a pile's end, and either where no zone is named. -/
+def ZoneExpr.riderKind : ZoneExpr → Option RiderKind
+  | .withBindings _ _ body | .inCaller _ body => body.riderKind
+  | .zone .battlefield _ => some .entry
+  | .zone _ _ | .place _ _ => some .placement
+  | .wherever => none
+
+def riderKindCheck (allowed : Option RiderKind) (found : RiderKind) : List Refusal :=
+  match allowed with
+  | none => []
+  | some k => refuse (k == found) (.riderKind k found)
+
 /-- Written stat slots in order, each read after the ones before it ("X/X"). -/
 def statsCheck (bs : Bindings) : List (Option Amount) → List Refusal
   | [] => []
@@ -219,8 +232,11 @@ mutual
       let bs' := nomIntro bs what
       let k := what.kindOr .object
       NounPhrase.check none bs what ++ ZoneExpr.check bs' from_ ++ ZoneExpr.check bs' to ++
-        TokenRider.checkAll bs' riders ++
+        MoveRider.checkAll bs' (ZoneExpr.riderKind to) riders ++
         refuse (Kind.lte k (.join .object .pile)) (.kindLte k (.join .object .pile))
+    -- Only an object is turned face down [CR#708.2].
+    | .turnFaceDown what spec =>
+      NounPhrase.check (some .object) bs what ++ FaceDown.check (nomIntro bs what) spec
     | .copy _ what times exc => let agent := performerOf perf;
       let bs' := nomIntro bs agent
       let bs'' := nomIntro bs' what
@@ -280,7 +296,7 @@ mutual
       let bs'' := Amount.intro bs' count
       NounPhrase.check (some .player) bs agent ++ Amount.check bs' count ++
         (match spec with
-         | .token token riders => TokenSpec.check bs'' token ++ TokenRider.checkAll bs'' riders
+         | .token token riders => TokenSpec.check bs'' token ++ EntryRider.checkAll bs'' riders
          | .emblem _ abilities => refuse (!abilities.isEmpty) .nonEmpty ++
              Ability.checkAll [] abilities)
     | .putCounters amt kind on =>
@@ -488,6 +504,7 @@ mutual
 
   def PlayPayment.check (bs : Bindings) : PlayPayment → List Refusal
     | .payingInstead c => Cost.check bs c
+    | .faceDown spec c => FaceDown.check bs spec ++ Cost.check bs c
     | _ => []
   termination_by structural p => p
 
@@ -508,23 +525,46 @@ mutual
     | .scale sc => sc.check bs
   termination_by structural op => op
 
-  def TokenRider.check (bs : Bindings) : TokenRider → List Refusal
+  def EntryRider.check (bs : Bindings) : EntryRider → List Refusal
     | .entersAttacking whom => AttackDefender.check bs whom
     | .entersAs _ | .entersTransformed | .entersMelded _ => []
     | .withCounters amt kind _ =>
       Amount.check bs amt ++ kind.check (Amount.intro bs amt) ++ refuse (kindAmountOk amt kind) .kindAmountOk
     | .under who => NounPhrase.check (some .player) bs who
-    | .faceDown c => Characteristics.checkWritten bs c
-    | .inOrder _ | .orOtherEnd => []
-    | .nthFromEnd ordinal => refuse ordinal.ok .ordinalNonZero
+    | .faceDown spec => FaceDown.check bs spec
     | .asCopyOf _ src exc =>
       NounPhrase.check (some .object) bs src ++ CopyExcept.checkAll bs exc ++ refuse src.perMemberOk .perMember
   termination_by structural r => r
 
-  def TokenRider.checkAll (bs : Bindings) : List TokenRider → List Refusal
+  def EntryRider.checkAll (bs : Bindings) : List EntryRider → List Refusal
     | [] => []
-    | r :: rs => TokenRider.check bs r ++ TokenRider.checkAll bs rs
+    | r :: rs => EntryRider.check bs r ++ EntryRider.checkAll bs rs
   termination_by structural rs => rs
+
+  def PilePlacement.check (bs : Bindings) : PilePlacement → List Refusal
+    | .inOrder _ | .orOtherEnd => []
+    | .nthFromEnd ordinal => refuse ordinal.ok .ordinalNonZero
+    | .faceDown spec => FaceDown.check bs spec
+    | .withCounters amt kind _ =>
+      Amount.check bs amt ++ kind.check (Amount.intro bs amt) ++ refuse (kindAmountOk amt kind) .kindAmountOk
+  termination_by structural r => r
+
+  /-- A move rider is checked as itself and as a kind: it must be of the kind its destination
+  allows, `allowed` (`ZoneExpr.riderKind`; `none` admits either). -/
+  def MoveRider.check (bs : Bindings) (allowed : Option RiderKind) : MoveRider → List Refusal
+    | .entry rider => EntryRider.check bs rider ++ riderKindCheck allowed .entry
+    | .placement p => PilePlacement.check bs p ++ riderKindCheck allowed .placement
+  termination_by structural r => r
+
+  def MoveRider.checkAll (bs : Bindings) (allowed : Option RiderKind) : List MoveRider → List Refusal
+    | [] => []
+    | r :: rs => MoveRider.check bs allowed r ++ MoveRider.checkAll bs allowed rs
+  termination_by structural rs => rs
+
+  def FaceDown.check (bs : Bindings) : FaceDown → List Refusal
+    | ⟨none⟩ => []
+    | ⟨some c⟩ => Characteristics.checkWritten bs c
+  termination_by structural f => f
 
   def Characteristics.checkWritten (bs : Bindings) : Characteristics → List Refusal
     | ⟨_, _, _, _, _, _, text, power, toughness, loyalty, defense⟩ =>
@@ -636,6 +676,13 @@ mutual
       NounPhrase.check (some .object) bs n ++ OptCost.check (selfSubjIntro bs n) c
     | .addedCost c _ _ => Cost.check bs c
     | .paySubstitute n s => NounPhrase.check (some .object) bs n ++ ManaSubstitute.check bs s
+    -- Read as an activated ability's cost and effect are: the player who takes the action
+    -- performs `does`, which sees what the cost introduced [CR#116.2c,602.2].
+    | .specialAction when c does =>
+      let bs := ownPerformerCtx bs
+      let bsc := dropLetter .x bs
+      OptTiming.check bs when ++ Cost.check bsc c ++
+        Instruction.checkWith (publicOnly (c.intro bsc)) none does
     | .letterDefinition l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .abilityGrant n ab =>
       NounPhrase.check (some .object) bs n ++ Ability.check bs ab
@@ -694,7 +741,7 @@ mutual
       GameEvent.check bs ev ++ Quantity.check bs q ++ refuse q.nonZero .nonZeroQ ++
         refuse q.wellFormed .wellFormedQ ++ refuse (Quantity.introduced bs q).isEmpty .quantLiteral
     | .entryRider n rider =>
-      NounPhrase.check (some .object) bs n ++ TokenRider.check (nomIntro bs n) rider
+      NounPhrase.check (some .object) bs n ++ EntryRider.check (nomIntro bs n) rider
     | .choice _ n q dom _ =>
       NounPhrase.check (some .object) bs n ++ sortedDomainCheck bs q dom
     | .conjunction subject parts =>

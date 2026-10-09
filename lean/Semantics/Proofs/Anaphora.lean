@@ -344,7 +344,7 @@ theorem okActivationLookbackComplement :
 /-- "on top of your library in any order, third from the top": the place, and its order and
 depth as the move's riders. -/
 theorem okOneEndArrangedOrdinal :
-    ZoneExpr.check [] onTop ++ TokenRider.checkAll [] [.inOrder .anyOrder, .nthFromEnd (.nth 3)]
+    ZoneExpr.check [] onTop ++ MoveRider.checkAll [] onTop.riderKind [.placement (.inOrder .anyOrder), .placement (.nthFromEnd (.nth 3))]
       = [] := by
   decide
 
@@ -354,11 +354,11 @@ theorem okShuffledPlain :
       = [] := by decide
 
 /-- "third from the top" -/
-theorem okThirdFromTop : TokenRider.check [] (.nthFromEnd (.nth 3)) = [] := by decide
+theorem okThirdFromTop : PilePlacement.check [] (.nthFromEnd (.nth 3)) = [] := by decide
 
 /-- "zeroth from the top" -/
 theorem badZerothFromTop :
-    TokenRider.check [] (.nthFromEnd (.nth 0)) = [.ordinalNonZero] := by
+    PilePlacement.check [] (.nthFromEnd (.nth 0)) = [.ordinalNonZero] := by
   decide
 
 theorem copyParticipleUnwritten : participleOf (.core .copy) = none := by decide

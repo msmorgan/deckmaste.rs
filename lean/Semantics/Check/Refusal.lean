@@ -15,12 +15,20 @@ non-vacuous pin claims.
 
 namespace Semantics
 
+/-- The two kinds of move rider: an entry rider, which only an arrival on the battlefield
+takes, and a pile placement, which any other destination takes. -/
+inductive RiderKind where
+  | entry | placement
+  deriving DecidableEq, Repr
+
 inductive Refusal where
   | amountParameter (scope index : Nat)
   | lexicalScope (scope : Nat)
   /- sorts -/
   /-- A phrase's kind is fixed by two constraints that disagree. -/
   | kindMismatch (expected found : Kind)
+  /-- A move rider is not of the kind its destination allows. -/
+  | riderKind (allowed found : RiderKind)
   | phrasal (k : Kind)
   | targetable (k : Kind)
   | targeter (k : Kind)

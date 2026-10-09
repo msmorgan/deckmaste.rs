@@ -246,7 +246,7 @@ def helicaGlider : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Nightmare", creatureType "Squirrel"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
-            (Primitives.TokenRider.withCounters (.lit 1) (Primitives.CounterKindSource.chosen [flyingCounter, .named "firstStrikeCounter"]) .fresh)) ],
+            (Primitives.EntryRider.withCounters (.lit 1) (Primitives.CounterKindSource.chosen [flyingCounter, .named "firstStrikeCounter"]) .fresh)) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Eager Construct -/
@@ -854,7 +854,7 @@ def gandalfWhiteRider : Spelled := spelled <| .singleFaced
             (Primitives.Instruction.sequentially
               [ get (each creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn),
                 scry (.lit 1) ]),
-          when (Primitives.GameEvent.dies thisCreature) (offer (Primitives.Instruction.move it Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 5)])) ],
+          when (Primitives.GameEvent.dies thisCreature) (offer (Primitives.Instruction.move it Primitives.ZoneExpr.wherever onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 5))])) ],
       power := stat 3, toughness := stat 3 } }
 
 def helmOfPossession : Spelled := spelled <| .singleFaced
@@ -972,13 +972,13 @@ def lostHoursPlacement : Instruction :=
   Primitives.Instruction.sequentially
     [ act (target Primitives.Predicate.anyPlayer) (revealTheirHand),
       choose (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone (handOf they)])),
-      act (that .player) (putWith it onTop [Primitives.TokenRider.nthFromEnd (.nth 3)]) ]
+      act (that .player) (putWith it onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 3))]) ]
 theorem okLostHoursPlacement : Instruction.check [] lostHoursPlacement = [] := by decide
 /-- Aether Gust -/
 def aetherGustPlacement : Instruction :=
   Primitives.Instruction.sequentially
     [ choose (target (Primitives.Predicate.and [permanent, Primitives.Predicate.colorIs .red])),
-      act (ownerOf it) (putWith it onTop [Primitives.TokenRider.orOtherEnd]) ]
+      act (ownerOf it) (putWith it onTop [Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd]) ]
 theorem okAetherGustPlacement : Instruction.check [] aetherGustPlacement = [] := by decide
 /-- Fastbond -/
 def fastbondLands : Ability := Primitives.Ability.static (mayPlayAdditionalLands Primitives.NounPhrase.you anyNumber)
@@ -1365,7 +1365,7 @@ def snowCoveredForest : Spelled := spelled <| .singleFaced
 /-- Not Forgotten -/
 def notForgottenPlacement : Instruction :=
   Primitives.Instruction.move (target (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone graveyard]))
-    Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.orOtherEnd]
+    Primitives.ZoneExpr.wherever onTop [Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd]
 theorem okNotForgottenPlacement : Instruction.check [] notForgottenPlacement = [] := by decide
 
 def duneblastCard : Spelled := spelled <| .singleFaced

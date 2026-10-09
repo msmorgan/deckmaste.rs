@@ -441,14 +441,9 @@ inductive ManaUnit where
   | run (cost : ManaCost)
   deriving DecidableEq, Repr
 
-inductive SpecialAction where
-  | turnFaceUp | putCompanionIntoHand | foretell | unlockDoor
-  deriving DecidableEq, Repr
-
 inductive CostNamed where
   | containing (symbol : ManaSymbol)
   | ofKeyword (keyword : KeywordLabel)
-  | ofSpecialAction (action : SpecialAction)
   deriving DecidableEq, Repr
 
 inductive ColorFreedom where

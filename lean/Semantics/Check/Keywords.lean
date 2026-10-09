@@ -88,7 +88,6 @@ def distinctClasses : List AbilityClass → Bool
 def CostNamed.nameable : CostNamed → Bool
   | .containing _ => true
   | .ofKeyword kw => keywordCosts kw
-  | .ofSpecialAction _ => true
 
 /-- Is the counter kind one the tables admit? One registry lookup: a kind is a counter
 declaration's name, and the counter facts table has a row for every declaration [CR#122.1], so

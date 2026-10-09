@@ -33,7 +33,7 @@ def suspendedSentence : Instruction :=
 theorem okSuspendedSentence : Instruction.check [] suspendedSentence = [] := by decide
 
 def flickeringSpirit : Instruction :=
-  Primitives.Instruction.sequentially [exile thisCreature, Primitives.Instruction.move it Primitives.ZoneExpr.wherever battlefield [Primitives.TokenRider.under (ownerOf it)]]
+  Primitives.Instruction.sequentially [exile thisCreature, Primitives.Instruction.move it Primitives.ZoneExpr.wherever battlefield [Primitives.EntryRider.under (ownerOf it)]]
 theorem okFlickeringSpirit : Instruction.check [] flickeringSpirit = [] := by decide
 
 /-- Bond of Revival -/
@@ -70,13 +70,13 @@ theorem okPhyrexianInfiltrator : Instruction.check [] phyrexianInfiltrator = [] 
 def impulse : Instruction :=
   Primitives.Instruction.sequentially
     [ lookAt (topSlice (.lit 4)), move (someOf (exactly 1) them) hand,
-      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.TokenRider.inOrder .anyOrder] ]
+      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
 theorem okImpulse : Instruction.check [] impulse = [] := by decide
 
 def anticipate : Instruction :=
   Primitives.Instruction.sequentially
     [ lookAt (topSlice (.lit 3)), move (someOf (exactly 1) them) hand,
-      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.TokenRider.inOrder .anyOrder] ]
+      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onBottom [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
 theorem okAnticipate : Instruction.check [] anticipate = [] := by decide
 
 def revealFourPartition : Instruction :=
@@ -88,7 +88,7 @@ theorem okRevealFourPartition : Instruction.check [] revealFourPartition = [] :=
 def exileFourOfThem : Instruction :=
   Primitives.Instruction.sequentially
     [ lookAt (topSlice (.lit 8)), exile (someOf (exactly 4) them),
-      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.inOrder .anyOrder] ]
+      Primitives.Instruction.move (theRest .object) Primitives.ZoneExpr.wherever onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
 theorem okExileFourOfThem : Instruction.check [] exileFourOfThem = [] := by decide
 
 def sylvanScrying : Instruction :=
@@ -160,7 +160,7 @@ def oust : Spelled := spelled <| .singleFaced
     { name := "Oust", cost := some [pip .white], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.move (target creature) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 2)],
+            [ Primitives.Instruction.move (target creature) Primitives.ZoneExpr.wherever onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2))],
               act (controllerOf it) (gainLife (.lit 3)) ]) ] } }
 
 def riseFromTheGrave : Instruction :=
@@ -189,7 +189,7 @@ theorem okMartyrsCry : Instruction.check [] martyrsCry = [] := by decide
 def anotherRound : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (counted anyNumber creatureYouControl),
-      Primitives.Instruction.move them Primitives.ZoneExpr.wherever battlefield [Primitives.TokenRider.under (ownerOf them)],
+      Primitives.Instruction.move them Primitives.ZoneExpr.wherever battlefield [Primitives.EntryRider.under (ownerOf them)],
       Primitives.Instruction.repeat_ (Primitives.Repetition.moreTimes (Primitives.Amount.letter .x)) ]
 theorem okAnotherRound : Instruction.check [] anotherRound = [] := by decide
 
@@ -204,7 +204,7 @@ theorem okEradicateSearch : Instruction.check [] eradicateSearch = [] := by deci
 
 /-- Deem Inferior -/
 def deemInferior : Instruction :=
-  act (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))) (putWith it onTop [Primitives.TokenRider.nthFromEnd (.nth 2), Primitives.TokenRider.orOtherEnd])
+  act (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))) (putWith it onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2)), Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd])
 theorem okDeemInferior : Instruction.check [] deemInferior = [] := by decide
 
 /-- Write into Being -/
@@ -212,7 +212,7 @@ def writeIntoBeingPlacement : Instruction :=
   Primitives.Instruction.sequentially
     [ lookAt (topSlice (.lit 2)),
       manifestPlacement (someOf (exactly 1) them),
-      Primitives.Instruction.move (theOther .object) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.orOtherEnd] ]
+      Primitives.Instruction.move (theOther .object) Primitives.ZoneExpr.wherever onTop [Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd] ]
 theorem okWriteIntoBeingPlacement : Instruction.check [] writeIntoBeingPlacement = [] := by decide
 
 /-- Mystical Tutor -/
@@ -540,7 +540,7 @@ def openTheVaults : Instruction :=
   returnTo
     (allOf (Primitives.Predicate.and [ Primitives.Predicate.isCard, Primitives.Predicate.or [artifact, enchantment],
                    Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers)) ]))
-    battlefield [Primitives.TokenRider.under (ownerOf them)]
+    battlefield [Primitives.EntryRider.under (ownerOf them)]
 theorem okOpenTheVaults : Instruction.check [] openTheVaults = [] := by decide
 
 /-- Codecracker Hound -/
@@ -601,7 +601,7 @@ theorem okGrenzoBottomCard : Instruction.check [] grenzoBottomCard = [] := by de
 def chronostutter : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Chronostutter", cost := some [generic 5, pip .blue], types := [.instant],
-      text := [ Primitives.Ability.spell none (Primitives.Instruction.move (target creature) Primitives.ZoneExpr.wherever onTop [Primitives.TokenRider.nthFromEnd (.nth 2)]) ] } }
+      text := [ Primitives.Ability.spell none (Primitives.Instruction.move (target creature) Primitives.ZoneExpr.wherever onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2))]) ] } }
 
 theorem nekrataalTwoObjects : countOnes .object nekrataalRider = 2 := by decide
 theorem bioplasmTestMintsNothing : countOnes .object bioplasmAfterTest = 2 := by decide

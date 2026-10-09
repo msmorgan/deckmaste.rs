@@ -238,6 +238,13 @@ mutual
     characteristics : Characteristics
     qualities : List TokenQuality := []
 
+  /-- The one face-down spec. `none` is a card exiled face down, which has no characteristics
+  and no status [CR#406.3a,110.5d]; `some c` is a face-down spell or permanent, `c` its listed
+  characteristics and so its copiable values [CR#708.2,613.2b]. Turning it face up is
+  `setStatus faceUp`, and the values revert [CR#708.8]. Nothing face down is a token. -/
+  structure FaceDown where
+    characteristics : Option Characteristics
+
   /-- Typed characteristic writes; the enclosing static or copy form retains its context. -/
   inductive CharacteristicEdit where
     | typeLine (op : QualityOp) (changes : TypeLineChanges)
@@ -302,7 +309,7 @@ mutual
     | conditional (spec : StaticSpec) (condition : Condition) (marking : CondMarking)
     | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | additionalTriggers (event : GameEvent) (quantity : Quantity)
-    | entryRider (subject : NounPhrase) (rider : TokenRider)
+    | entryRider (subject : NounPhrase) (rider : EntryRider)
     | choice (occasion : ChoiceOccasion) (subject : NounPhrase) (sort : ChoiceSort)
         (domain : Option ChoiceDomain) (disclosure : Disclosure)
     | conjunction (subject : Option NounPhrase) (parts : List StaticSpec)
@@ -310,6 +317,10 @@ mutual
     alternative cost, applied once the spell's total cost is locked
     [CR#702.51b,702.66b,702.126b]. -/
     | paySubstitute (subject : NounPhrase) (substitute : ManaSubstitute)
+    /-- A special action: any time you have priority, within `when`, you may pay `cost` and do
+    `does`, without using the stack [CR#116.1,116.2c]. Morph's turning face up, foretell's and
+    plot's exiling are each one [CR#116.2b,116.2h,116.2k]. -/
+    | specialAction (when : Option Timing) (cost : Cost) (does : Instruction)
 
   inductive Compulsion where
     | forbid
@@ -321,6 +332,9 @@ mutual
     | itsOwnCost
     | withoutPaying
     | payingInstead (cost : Cost)
+    /-- Cast face down as `spec` says, paying `cost` rather than the mana cost: morph and
+    disguise [CR#702.37a,702.168a,708.4]. -/
+    | faceDown (spec : FaceDown) (cost : Cost)
 
   inductive DeonticRider where
     | stateBased (cause : StateBasedCause)
@@ -333,7 +347,9 @@ mutual
     | redirect (cut : PreventCut) (to : NounPhrase)
     | scale (scale : DamageScale)
 
-  inductive TokenRider where
+  /-- How a permanent arrives on the battlefield: from a move, a token's creation, or a static
+  entry rider. -/
+  inductive EntryRider where
     | entersAs (status : Status)
     | entersAttacking (defender : Option NounPhrase)
     | entersTransformed
@@ -341,9 +357,13 @@ mutual
     | withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark)
     | under (controller : NounPhrase)
     | asCopyOf (optional : Bool) (source : NounPhrase) (exceptions : List CopyExcept)
-    /-- Enters face down with the characteristics the instruction lists, and no others, while it
-    stays face down [CR#708.2,701.40a,701.58a]. -/
-    | faceDown (characteristics : Characteristics)
+    /-- Enters face down as `spec` lists, and with no other characteristics while it stays face
+    down [CR#708.2,708.3]. -/
+    | faceDown (spec : FaceDown)
+
+  /-- How a moved card is placed in a zone other than the battlefield: its order and depth in
+  a pile, its face, and the counters it is exiled with. -/
+  inductive PilePlacement where
     /-- "In any order", "in a random order": how the objects moved to one place are ordered
     there [CR#401.4]. -/
     | inOrder (arrangement : Arrangement)
@@ -351,6 +371,16 @@ mutual
     | nthFromEnd (ordinal : Ordinal)
     /-- "On the top or bottom": the performer may choose the place's other end instead. -/
     | orOtherEnd
+    /-- "Exile it face down": `none`, a card with no characteristics [CR#406.3,406.3a]. -/
+    | faceDown (spec : FaceDown)
+    /-- "Exile it with N time counters on it" [CR#702.62a]. -/
+    | withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark)
+
+  /-- A move's rider, of the kind its destination allows: an entry rider onto the battlefield,
+  a placement anywhere else. -/
+  inductive MoveRider where
+    | entry (rider : EntryRider)
+    | placement (placement : PilePlacement)
 
   inductive Cost where
     | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Cost)
@@ -392,7 +422,7 @@ mutual
     instruction : Instruction
 
   inductive CreationSpec where
-    | token (spec : TokenSpec) (riders : List TokenRider)
+    | token (spec : TokenSpec) (riders : List EntryRider)
     /-- An emblem, named where the rules name it ("an emblem named The Ring" [CR#701.54c]). -/
     | emblem (name : Option String) (abilities : List Ability)
   inductive Instruction where
@@ -428,7 +458,9 @@ mutual
         (when : Option Timing)
     | revealChoices (sort : HiddenSort)
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
-    | move (subject : NounPhrase) (from_ : ZoneExpr) (to : ZoneExpr) (riders : List TokenRider)
+    | move (subject : NounPhrase) (from_ : ZoneExpr) (to : ZoneExpr) (riders : List MoveRider)
+    /-- Turn `subject` face down as `spec` lists: manifest's first step [CR#701.40a,708.2]. -/
+    | turnFaceDown (subject : NounPhrase) (spec : FaceDown)
     | copy (sort : CopySort) (subject : NounPhrase) (times : Amount) (exceptions : List CopyExcept)
     | chooseNewTargets (subject : NounPhrase)
     | copyTargets (copy : NounPhrase) (original : NounPhrase)
@@ -530,8 +562,9 @@ mutual
     | thatAbility (ref : ChoiceRef)
 end
 
-deriving instance Repr, BEq for Characteristics, CharacteristicBundle, CharacteristicEdit, AbilitySelection,
-  TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, TokenRider, Cost,
+deriving instance Repr, BEq for Characteristics, CharacteristicBundle, FaceDown, CharacteristicEdit,
+  AbilitySelection, TokenSpec, StaticSpec, Compulsion, PlayPayment, DeonticRider, DamageOp, EntryRider,
+  PilePlacement, MoveRider, Cost,
   ManaSubstitute, ManaRider, CopyExcept, RollRow, Repetition, CreationSpec, Instruction, KeywordParam,
   AbilityLost, Ability
 

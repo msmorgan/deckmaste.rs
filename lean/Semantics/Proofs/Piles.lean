@@ -35,7 +35,7 @@ theorem badSingletonBallot : Ballot.check [] (.byLabel ["death"]) = [.ballotLabe
 theorem okTransformedArrivalOnField :
     Instruction.check []
       (.move (target (.and [creature, .inZone (graveyardOf .you)])) .wherever battlefield
-        [.entersTransformed]) = [] := by
+        [.entry .entersTransformed]) = [] := by
   decide
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
@@ -176,7 +176,7 @@ theorem badRippleRevealedCards :
           [ Actor.castWithoutPaying
               (.someOf (.counted anyNumber) (some (.named (.sameAs .this))) them) none,
             .move (allFromAmong (.not .wasCast) (theVerbed (.action "reveal") .many)) .wherever
-              onBottom [.inOrder .anyOrder] ])) none)
+              onBottom [.placement (.inOrder .anyOrder)] ])) none)
       = [.anaphor (.verbed (.action "reveal") none .attributive) .many 0] := by
   decide
 

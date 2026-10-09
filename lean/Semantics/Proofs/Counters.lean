@@ -232,7 +232,7 @@ theorem badThemCounterRecipient :
 theorem okExileWithCounterRider :
     Instruction.check []
       (.enact (.action "exile")
-        (.move (target creature) .wherever exileZone [.withCounters (.lit 1) p11 .fresh])) =
+        (.move (target creature) .wherever exileZone [.placement (.withCounters (.lit 1) p11 .fresh)])) =
             [] := by
   decide
 

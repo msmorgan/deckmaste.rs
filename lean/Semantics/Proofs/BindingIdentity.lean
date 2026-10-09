@@ -162,16 +162,16 @@ mention, read back by identity, so the read's number is the slice's, which is th
 scry 1 reads "that card", scry 2 "those cards" (ruling 2026-10-06). -/
 
 /-- The `plugins_v2` helper `lookAndSortSlice` as the loader expands it. -/
-private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) (spillRiders : List TokenRider) :
+private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) (spillRiders : List MoveRider) :
     Instruction :=
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
       .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .wherever spill
         spillRiders,
-      .move (.theRest .object .many) .wherever onTop [.inOrder .anyOrder] ]
+      .move (.theRest .object .many) .wherever onTop [.placement (.inOrder .anyOrder)] ]
 
 private def scryBy (amount : Amount) : Instruction :=
-  .enact (.action "scry") (lookAndSortSlice (.slice .top amount (library .actor)) onBottom [.inOrder .anyOrder])
+  .enact (.action "scry") (lookAndSortSlice (.slice .top amount (library .actor)) onBottom [.placement (.inOrder .anyOrder)])
 
 /-- "Scry 1." -/
 theorem okScryOne : Instruction.check [] (scryBy (.lit 1)) = [] := by decide
@@ -200,7 +200,7 @@ theorem okFatesealTwo :
     Instruction.check []
       (.enact (.action "fateseal")
         (lookAndSortSlice (.slice .top (.lit 2) (library (a .opponent))) onBottom
-          [.inOrder .anyOrder]))
+          [.placement (.inOrder .anyOrder)]))
       = [] := by decide
 
 /-! ## Connive

@@ -318,7 +318,7 @@ theorem okGainControlBattlefield :
 theorem okPluralOrderRider :
     Instruction.check []
       (.sequentially
-        [revealCards (topSlice (.lit 4)), .move (those .card) .wherever onBottom [.inOrder .anyOrder]]) = [] := by
+        [revealCards (topSlice (.lit 4)), .move (those .card) .wherever onBottom [.placement (.inOrder .anyOrder)]]) = [] := by
   decide
 
 /-- "Look at the top four cards of your library. Put them into your hand." -/
@@ -409,11 +409,11 @@ theorem okHeldUntilExileRetag :
 
 /-- "Put target creature onto the battlefield tapped." -/
 theorem okMoveRidersToBattlefield :
-    Instruction.check [] (.move (target creature) .wherever battlefield [.entersAs .tapped]) = [] := by decide
+    Instruction.check [] (.move (target creature) .wherever battlefield [.entry (.entersAs .tapped)]) = [] := by decide
 
 /-- "Put target creature onto the battlefield under your control." -/
 theorem okMoveRidersSingularController :
-    Instruction.check [] (.move (target creature) .wherever battlefield [.under .you]) = [] := by decide
+    Instruction.check [] (.move (target creature) .wherever battlefield [.entry (.under .you)]) = [] := by decide
 
 /-- "a card exiled with this permanent" -/
 theorem okExiledWithThis : Predicate.check .object [] (.exiledWith .this) = [] := by decide
