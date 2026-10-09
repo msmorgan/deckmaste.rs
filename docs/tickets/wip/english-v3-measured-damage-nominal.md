@@ -49,7 +49,7 @@ record it, do not widen it.
 
 Owner rulings (2026-10-09): admit Arabic numerals through the existing
 numeral categories on the measured routes, and verify *damage* OR *mana* plus
-300 seeded covered controls. The subsequent restriction ruling supersedes
+300 seeded covered controls. The subsequent orchestrator restriction ruling supersedes
 the initial `Yes` declaration in R7a: bare Arabic *N damage* / *N mana* keeps
 its closed measured NP, with no additional postmodifier or relative route.
 Only the measured Nominal under an outer Determiner gains attachment.
@@ -120,8 +120,8 @@ Deltas:
    Any remaining increase must be named and shown to be the same duplicate
    already carried by *3 mana* on the parent.
 5. Spot-check at least 10 newly covered faces and list them by name with their
-   Reading. *3 damage* reading both as the closed NP and as the determinerless Nominal NP on the same string (a spurious duplicate), or *deals 3 damage* gaining Readings, is a defect; restrict or retire the closed route per Method 8. A wrong analysis that parses is a defect, not a gain. The owner restriction
-   ruling keeps the closed NP and restricts the open route to a Determiner;
+   Reading. *3 damage* reading both as the closed NP and as the determinerless Nominal NP on the same string (a spurious duplicate), or *deals 3 damage* gaining Readings, is a defect; restrict or retire the closed route per Method 8. A wrong analysis that parses is a defect, not a gain. The orchestrator restriction ruling (2026-10-09)
+   keeps the closed NP and restricts the open route to a Determiner;
    it supersedes the earlier suggestion to retire the closed route.
 6. No guard may name a lexeme, construction, verb, noun, preposition or card;
    read declared features only. Tests are re-spelled, never deleted. No new
@@ -177,7 +177,8 @@ Deltas:
 4. **Deviations and STOPs** (`pplynlpnqzxn`): no Construction or frame added
    or deleted; seven tests added (five witnesses, two measurement controls).
    Owner-authorised numeral refinement makes `the next 3 mana` read 1;
-   no mana-only face gained. Five gains also contain mana: Necra Disciple 18,
+   `Prevent the 3 damage.` reads 1 and is unattested, like `the next 3 mana`.
+   No mana-only face gained. Five gains also contain mana: Necra Disciple 18,
    Orim's Cure 36, Refraction Trap 888, Scars of the Veteran 1,944, Shining
    Shoal 558; their new determined damage analyses cause the gains.
    The 13 unchanged-count digest changes re-spell the inherited measured

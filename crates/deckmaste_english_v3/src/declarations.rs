@@ -2674,7 +2674,7 @@ constructions! {
             export BareGenitiveHost = head.BareGenitiveHost;
         }
 
-        // Owner ruling 2026-10-09: this licence supplies a measured Nominal
+        // Orchestrator ruling 2026-10-09: this licence supplies a measured Nominal
         // under a Determiner; it does not open the closed bare measured NP.
         table determined_cardinal_measurement(CardinalMeasurementUse) -> Selection {
             (DeterminerRequired) => Yes, (Yes) => Yes,
