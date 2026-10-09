@@ -121,9 +121,18 @@ structure AmountShape where
   literal : Bool
   deriving DecidableEq, Repr, BEq
 
-inductive NameAgreement where
-  | differentNames | sameName
+/-- Sharing on an axis: at least one value in common (`share`), or none (`differ`)
+[CR#201.2a,201.2c,105.2,205.3m]. -/
+inductive Agreement where
+  | share | differ
   deriving DecidableEq, Repr
+
+/-- Sharing over one axis's values: `share` holds when the two value lists meet, `differ` when
+they do not. On names this is not equality: an object with two names shares a name with an
+object that has either [CR#201.2a]. -/
+def Agreement.holdsOn {α : Type} [BEq α] : Agreement → List α → List α → Bool
+  | .share, mine, theirs => mine.any theirs.contains
+  | .differ, mine, theirs => !mine.any theirs.contains
 
 inductive Determiner where
   | target | a | each | all | the | part | count | self | bare

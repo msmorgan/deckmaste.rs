@@ -59,11 +59,11 @@ mutual
     [CR#701.13a]. -/
     | wherever
 
-  /-- Where a name comes from: printed, chosen, or "with the same name as …". -/
+  /-- Where a name comes from: printed or chosen. "With the same name as …" is Sharing on the
+  name axis, `Predicate.shares .cardName .share`. -/
   inductive NameSource where
     | printed (name : String)
     | chosen
-    | sameAs (subject : NounPhrase)
 
   /-- What a choice ranges over. -/
   inductive ChoiceDomain where
@@ -165,6 +165,10 @@ mutual
     | colorIs (color : Color)
     | colorCount (comparator : Comparator) (count : Nat)
     | named (source : NameSource)
+    /-- Sharing: the member and `with_` have at least one value in common on `axis` (`share`)
+    or none (`differ`) [CR#201.2a,201.2c,105.2,205.3m]. On the name axis it is not equality:
+    an object with two names shares a name with an object that has either [CR#201.2a]. -/
+    | shares (axis : QualitySort) (agreement : Agreement) (with_ : NounPhrase)
     | hasDesignation (designation : DesignationLabel) (holder : Option NounPhrase)
     | attachment (side : AttachmentSide) (word : Option AttachWord)
         (counterpart : Option NounPhrase)
@@ -255,7 +259,10 @@ mutual
     time from that end, the last of them the first that matches `stop` [CR#701.57a]. -/
     | run (end_ : LibraryEnd) (stop : Predicate) (pile : Pile)
     | someOf (count : SliceCount) (description : Option Predicate) (group : NounPhrase)
-    | namesAgree (agreement : NameAgreement) (group : NounPhrase)
+    /-- Agreement: the members of `group` share, or do not share, a value on `axis` ("two
+    creatures that share a creature type"), a constraint on the selection, not a predicate on
+    one member. -/
+    | agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase)
     | theRest (kind : Kind) (plurality : Plurality)
     | pileOf (count : SliceCount) (by_ : Option NounPhrase)
     /-- A pronoun: what it reaches for, its number, and the window it resolves in. -/

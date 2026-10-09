@@ -150,6 +150,9 @@ mutual
     | .happenedTo lb => LookbackClause.checkIn gap k bs lb
     | .colorCount r n => kindCheck k (some .object) ++ refuse (colorBoundOk r n) .colorBoundOk
     | .named src => kindCheck k (some .object) ++ NameSource.checkIn gap bs src
+    -- Kinds only: both relata are objects. Whether the axis is defined for the member's class
+    -- is not checked.
+    | .shares _ _ other => kindCheck k (some .object) ++ NounPhrase.checkIn gap (some .object) bs other
     | .hasDesignation d holder =>
       refuse (d.holder == some k) (.designationHolder d k) ++
         refuse (holder.isNone || d.possessorOk) (.designationPossessorFits d) ++
@@ -302,7 +305,7 @@ mutual
       ctxCheck ctx (some .object) ++ SliceCount.checkIn gap bs q ++ OptPredicate.checkIn gap .object
         bs d ++
         NounPhrase.checkIn gap (some .object) bs g ++ refuse g.partitiveBase .partitiveBase
-    | .namesAgree _ g =>
+    | .agree _ _ g =>
       ctxCheck ctx (some .object) ++ NounPhrase.checkIn gap (some .object) bs g ++
         refuse g.countedMention .countedMention ++ refuse (g.plur == .many) .plural
     | .theRest k pl => ctxCheck ctx (some k) ++ refuse (theRestFits k pl bs) (.theRestFits k)
@@ -510,13 +513,11 @@ mutual
     | z :: zs => ZoneExpr.checkIn gap bs z ++ ZoneExpr.checkAllIn gap bs zs
   termination_by structural zs => zs
 
-  def NameSource.checkIn (gap : Option Kind) (bs : Bindings) : NameSource → CheckResult
+  def NameSource.checkIn (_gap : Option Kind) (bs : Bindings) : NameSource → CheckResult
     | .printed _ => (⟨[], false⟩ : CheckResult)
     | .chosen =>
       let n := countChoice (.quality .cardName) bs
       refuse (n == 1) (.choiceRef .theChoice (.quality .cardName) n)
-    | .sameAs n => NounPhrase.checkIn gap (some .object) bs n
-  termination_by structural s => s
 
   def EventSource.checkIn (gap : Option Kind) (bs : Bindings) : EventSource → CheckResult
     | .anywhere => (⟨[], false⟩ : CheckResult)

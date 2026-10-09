@@ -816,7 +816,7 @@ def chosenBind (bs : Bindings) (det : Determiner) (plur : Plurality) : Kind → 
 
 def Predicate.qualityReadOk : Predicate → Bool
   | .withBindings _ _ body | .inCaller _ body => body.qualityReadOk
-  | .ofChosen _ _ | .ofYourChoice _ _ | .named _ => true
+  | .ofChosen _ _ | .ofYourChoice _ _ | .named _ | .shares _ _ _ => true
   | _ => false
 
 def Predicate.qualityReadHost : Predicate → Option CardType
@@ -1004,7 +1004,7 @@ mutual
     | .playerGroup _ => .many
     | .described d _ => d.plur
     | .eachOf _ => .many
-    | .namesAgree _ g => g.plur
+    | .agree _ _ g => g.plur
     | .and _ => .many
     | .or ns => NounPhrase.commonPlurality ns
     | .slice _ amt (.library (.possessedBy whose)) | .slice _ amt (.graveyard (.possessedBy whose)) =>
@@ -1033,7 +1033,7 @@ def NounPhrase.det : NounPhrase → Option Determiner
   | .eachOf _ => some .each
   | .slice _ _ _ | .run _ _ _ => some .the
   | .someOf _ _ _ => some .part
-  | .namesAgree _ g => g.det
+  | .agree _ _ g => g.det
   | .theRest _ _ => some .the
   | .pileOf _ _ => some .part
   | .oneEachOf _ _ => some .bare
@@ -1077,7 +1077,7 @@ def NounPhrase.countableGroup (n : NounPhrase) : Bool := n.det == some .bare || 
 
 def NounPhrase.countedMention : NounPhrase → Bool
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.countedMention
-  | .namesAgree _ _ => false
+  | .agree _ _ _ => false
   | n => n.det == some .count || n.det == some .target
 
 def NounPhrase.ascribable : NounPhrase → Bool
@@ -1125,7 +1125,7 @@ def NounPhrase.agentChoosable : NounPhrase → Bool
 
 def NounPhrase.countedExistential : NounPhrase → Bool
   | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.countedExistential
-  | .namesAgree _ g => g.countedMention
+  | .agree _ _ g => g.countedMention
   | _ => false
 
 def NounPhrase.existentialMention (n : NounPhrase) : Bool := n.det == some .bare || n.countedExistential
@@ -1140,7 +1140,7 @@ def NounPhrase.isAbility : NounPhrase → Bool
   | .pro (.word word) _ _ => word.isAbility
   | .asMarker .ability _ => true
   | .eachOf g => g.isAbility
-  | .namesAgree _ g => g.isAbility
+  | .agree _ _ g => g.isAbility
   | .resolvedPermanent n => n.isAbility
   | .asMarker _ n => n.isAbility
   | .someOf _ _ g => g.isAbility
@@ -1235,7 +1235,7 @@ def NounPhrase.introducesOwnReferent (n : NounPhrase) : Bool :=
   !(NounPhrase.selfSubjIntroduced n).isEmpty || nominal n
 where
   nominal : NounPhrase → Bool
-    | .asType _ n _ | .resolvedPermanent n | .asMarker _ n | .eachOf n | .namesAgree _ n
+    | .asType _ n _ | .resolvedPermanent n | .asMarker _ n | .eachOf n | .agree _ _ n
     | .firstMention _ n =>
       nominal n
     | .described .the p => !p.choiceRead
@@ -1328,7 +1328,7 @@ mutual
         .object [] (pile.zone bs) none none none none, []⟩ ::
         ⟨.part, .one, .object stop.seedTy (pile.zone bs) none none (some 1) none, []⟩ ::
         Predicate.introduced bs stop)
-    | .namesAgree _ g => NounPhrase.result bs g
+    | .agree _ _ g => NounPhrase.result bs g
     | .someOf q d g =>
       (NounPhrase.result bs g).prepend (⟨.part, q.plur,
         .object (sliceTyOf d (NounPhrase.ty bs g)) (NounPhrase.zone bs g) none none q.exact
@@ -1404,6 +1404,7 @@ mutual
       GameEvent.mentioned bs ev
     | .castFrom z => ZoneExpr.introduced bs z
     | .named src => NameSource.introduced bs src
+    | .shares _ _ n => (NounPhrase.result bs n).introduced bs
     | .hasDesignation _ none => []
     | .hasDesignation _ (some h) => (NounPhrase.result bs h).introduced bs
     | .attachment _ _ (some counterpart) => (NounPhrase.result bs counterpart).introduced bs
@@ -1469,11 +1470,9 @@ mutual
     | z :: zs => ZoneExpr.introduced bs z ++ ZoneExpr.introducedAll bs zs
   termination_by structural x => x
 
-  def NameSource.introduced (bs : Bindings) : NameSource → List Binding
+  def NameSource.introduced (_bs : Bindings) : NameSource → List Binding
     | .printed _ => []
     | .chosen => []
-    | .sameAs n => (NounPhrase.result bs n).introduced bs
-
 
   def EventSource.introduced (bs : Bindings) : EventSource → List Binding
     | .anywhere => []
@@ -1679,7 +1678,7 @@ mutual
     | .theGrantor m => some m.zone
     | .described _ p => p.phraseZone (p.kindOr .object)
     | .eachOf g => NounPhrase.zone bs g
-    | .namesAgree _ g => NounPhrase.zone bs g
+    | .agree _ _ g => NounPhrase.zone bs g
     | .and ns => NounPhrase.commonZone bs ns
     | .slice _ _ pile | .run _ _ pile => pile.zone bs
     | .someOf _ _ g => NounPhrase.zone bs g
@@ -1703,7 +1702,7 @@ mutual
     | .inCaller scope body => body.possessor (enterCaller scope bs)
     | .described _ p => p.seedPossessor bs
     | .eachOf g => NounPhrase.possessor bs g
-    | .namesAgree _ g => NounPhrase.possessor bs g
+    | .agree _ _ g => NounPhrase.possessor bs g
     | .someOf _ _ g => NounPhrase.possessor bs g
     | .oneEachOf _ pool => NounPhrase.possessor bs pool
     | .pro r pl w => possessorOfReach r pl (view w bs)
@@ -1727,7 +1726,7 @@ mutual
     | .asMarker _ n => NounPhrase.ty bs n
     | .described _ p => p.seedTy
     | .eachOf g => NounPhrase.ty bs g
-    | .namesAgree _ g => NounPhrase.ty bs g
+    | .agree _ _ g => NounPhrase.ty bs g
     | .and ns => NounPhrase.commonTy bs ns
     | .someOf _ d g => sliceTyOf d (NounPhrase.ty bs g)
     | .theRest k _ => tyOfGroup k bs
@@ -1763,7 +1762,7 @@ mutual
       let alts := p.headTyAlts
       if alts.all List.isEmpty then [] else alts
     | .eachOf g => NounPhrase.headTys bs g
-    | .namesAgree _ g => NounPhrase.headTys bs g
+    | .agree _ _ g => NounPhrase.headTys bs g
     | .resolvedPermanent n => NounPhrase.headTys bs n
     | .asMarker _ n => NounPhrase.headTys bs n
     | .and ns | .or ns => NounPhrase.headTysAll bs ns
@@ -1784,7 +1783,7 @@ mutual
     | .firstMention _ body => body.tys bs
     | .described _ p => p.seedTys
     | .eachOf g => NounPhrase.tys bs g
-    | .namesAgree _ g => NounPhrase.tys bs g
+    | .agree _ _ g => NounPhrase.tys bs g
     | .someOf _ d g => .sole (sliceTyOf d (NounPhrase.ty bs g))
     | .and ns => NounPhrase.coordinatedTys true bs ns
     | .or ns => NounPhrase.coordinatedTys false bs ns
@@ -1813,7 +1812,7 @@ def NounPhrase.prov (bs : Bindings) : NounPhrase → Option Stamp
     | some b => b.payload.prov
     | none => body.prov bs
   | .eachOf g => NounPhrase.prov bs g
-  | .namesAgree _ g => NounPhrase.prov bs g
+  | .agree _ _ g => NounPhrase.prov bs g
   | .someOf _ _ g => NounPhrase.prov bs g
   | _ => none
 
@@ -1908,7 +1907,7 @@ def NounPhrase.chosenIntroduced (bs : Bindings) : NounPhrase → List Binding
   | .described (.count q _) p =>
     let k := p.kindOr .object
     chosenBind bs (chosenDet k .count) q.plur k p :: (Quantity.introduced bs q ++ Predicate.introduced bs p)
-  | .namesAgree _ g => NounPhrase.chosenIntroduced bs g
+  | .agree _ _ g => NounPhrase.chosenIntroduced bs g
   | n@(.firstMention id body) =>
     if body.introducesOwnReferent then recordHead id (body.chosenIntroduced bs)
     else NounPhrase.introduced bs n
@@ -2155,7 +2154,7 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
     | run :: stopped :: rest => setZone p z run :: setZone p z stopped :: rest
     | other => other
   | .eachOf g => moveIntro bs p g z
-  | .namesAgree _ g => moveIntro bs p g z
+  | .agree _ _ g => moveIntro bs p g z
   | .and _ | .or _ => nomIntro bs n
   | .theRest k _ => groupSpent k bs
   | .pro r pl w => overWindow (setZoneReach r pl p z) w bs

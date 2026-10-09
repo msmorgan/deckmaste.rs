@@ -417,9 +417,12 @@ end
 def DeckCondition.check : DeckCondition → List Refusal
   | .everyCardIs scope trait | .noCardIs scope trait =>
     Predicate.check .object [] scope ++ refuse scope.deckReadable .deckReadable ++ trait.check
-  | .cardsDiffer scope ax | .cardsShare scope ax =>
+  -- The group is the starting deck's cards its description selects, compared on a characteristic
+  -- [CR#702.139a,109.3]; any other group is not read from the deck.
+  | .groupAgrees (.agree ax _ g@(.described _ scope)) =>
     Predicate.check .object [] scope ++ refuse scope.deckReadable .deckReadable ++
-      refuse ax.deckComparable .deckComparable
+      refuse ax.deckComparable .deckComparable ++ refuse (g.plur == .many) .plural
+  | .groupAgrees g => NounPhrase.check (some .object) [] g ++ [.deckReadable]
   | .deckSizeOverMinimum _ => []
 
 /-! ## Keywords and regimes -/

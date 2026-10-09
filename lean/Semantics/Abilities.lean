@@ -183,10 +183,9 @@ inductive DeckCondition where
   /-- "No card in your starting deck has more than one of the same mana symbol in its mana
   cost." -/
   | noCardIs (scope : Predicate) (trait : DeckTrait)
-  /-- "Each nonland card in your starting deck has a different name." -/
-  | cardsDiffer (scope : Predicate) (axis : QualitySort)
-  /-- "Each nonland card in your starting deck shares a card type." -/
-  | cardsShare (scope : Predicate) (axis : QualitySort)
+  /-- "Each nonland card in your starting deck shares a card type." and "… has a different
+  name.": an Agreement (`NounPhrase.agree`) over the starting deck's cards `group` describes. -/
+  | groupAgrees (group : NounPhrase)
   /-- "at least twenty cards more than the minimum deck size", a minimum the format sets
   [CR#100.2a,100.2b]. -/
   | deckSizeOverMinimum (extra : Nat)
