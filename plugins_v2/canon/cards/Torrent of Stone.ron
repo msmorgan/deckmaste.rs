@@ -1,0 +1,15 @@
+// "Torrent of Stone deals 4 damage to target creature. / Splice onto
+// Arcane—Sacrifice two Mountains." [CR#702.47a,612.10]: a splice cost that is
+// no mana.
+SingleFaced(face: (
+    characteristics: (
+        name: "Torrent of Stone",
+        cost: [3, Red],
+        types: [Instant],
+        subtypes: [arcane],
+        text: [
+            spell(dealDamage(this, 4, target(creature))),
+            splice(hasSubtype(arcane), perform(sacrifice(counted(exactly(2), and([hasSubtype(mountain), youControl]))))),
+        ],
+    ),
+))

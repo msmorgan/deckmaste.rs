@@ -1,0 +1,16 @@
+// "Cleave {1}{U}{U} / Counter target spell [that wasn't cast from its owner's
+// hand]." [CR#702.148a,701.6a]: the bracketed words are written in place, and
+// paying the cleave cost removes them [CR#612.1]. "Its owner's hand" is the
+// bare hand zone, as a move's `hand` destination is the owner's: a predicate
+// has no pronoun for its own member.
+SingleFaced(face: (
+    characteristics: (
+        name: "Wash Away",
+        cost: [Blue],
+        types: [Instant],
+        text: [
+            cleave(mana([1, Blue, Blue])),
+            spell(counter(target(and([spell, bracketed(not(castFrom(hand)))])))),
+        ],
+    ),
+))

@@ -1,0 +1,22 @@
+// "Cleave {1}{B}{B}{G} / Search your library for a [basic land] card, [reveal
+// it,] put it into your hand, then shuffle." [CR#702.148a,701.23a]: a bracketed
+// description and a bracketed instruction, both removed when the cleave cost
+// is paid [CR#612.1].
+SingleFaced(face: (
+    characteristics: (
+        name: "Dig Up",
+        cost: [Green],
+        types: [Sorcery],
+        text: [
+            cleave(mana([1, Black, Black, Green])),
+            spell(
+                sequentially([
+                    searchLibraryFor(exactly(1), and([card, bracketed(and([hasSupertype(Basic), land]))])),
+                    bracketed(reveal(theVerbed(search, One))),
+                    move(theVerbed(search, One), wherever, hand),
+                    shuffle,
+                ]),
+            ),
+        ],
+    ),
+))

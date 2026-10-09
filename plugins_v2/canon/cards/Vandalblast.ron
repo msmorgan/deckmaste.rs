@@ -1,0 +1,14 @@
+// "Destroy target artifact you don't control. / Overload {4}{R}"
+// [CR#702.96a,701.8a]: paying the overload cost changes "target" to "each"
+// [CR#612.1].
+SingleFaced(face: (
+    characteristics: (
+        name: "Vandalblast",
+        cost: [Red],
+        types: [Sorcery],
+        text: [
+            spell(destroy(target(and([artifact, not(youControl)])))),
+            overload(mana([4, Red])),
+        ],
+    ),
+))

@@ -1,0 +1,29 @@
+// "{T}: Change the text of target white enchantment you control that doesn't
+// have cumulative upkeep by replacing all instances of one color word with
+// another. That enchantment gains 'Cumulative upkeep {1}.'" [CR#612.2,702.24a]:
+// both color words are the activator's choice, and the change lasts
+// indefinitely.
+SingleFaced(face: (
+    characteristics: (
+        name: "Balduvian Shaman",
+        cost: [Blue],
+        types: [Creature],
+        subtypes: [human, cleric, shaman],
+        power: 1,
+        toughness: 1,
+        text: [
+            activated(
+                cost: tapSymbol,
+                instruction: sequentially([
+                    establish(
+                        textChange(
+                            target(and([enchantment, colorIs(White), youControl, not(hasKeyword(The(cumulativeUpkeep)))])),
+                            replaceWord(Color),
+                        ),
+                    ),
+                    establish(abilityGrant(that(Enchantment), cumulativeUpkeep(mana([1])))),
+                ]),
+            ),
+        ],
+    ),
+))
