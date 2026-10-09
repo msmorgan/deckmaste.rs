@@ -143,6 +143,13 @@ Deltas:
    failures all 0. The older batch census (`mqrlzszk`, source tree `qsupksky`)
    supplied the seeded controls; a bounded pre-edit census measured the actual
    claim parent, which already includes subsequent grammar landings.
+   Post-refresh bounded recheck at `tupvqkuk`: 397 covered / 33,372 Readings;
+   107 unique, 290 multiple, 61 unread. All 458 faces completely enumerated;
+   issues, duplicates, internal failures and non-exact Readings all 0.
+   `diff-refresh.json` attributes the one additional gain, Unstable Amulet
+   (48 Readings), to incoming Get frames in `spmtqknq`; losses, decreases,
+   increases and digest-only changes remain 0. `diff-final.json` reports
+   97 gains in total against the claim-parent baseline.
 2. **Witnesses**: at pre-edit `uzrzywom`, all five `english-v3 probe` calls
    returned 0 Readings. At implemented `uzrzywom`, complete witness-unit
    enumeration returned Brinebound Gift 12, Yawgmoth's Agenda 12, Planar Void 3,
@@ -176,6 +183,9 @@ Deltas:
    tests on an ambiguous `contains_key` argument in the new ownership test;
    corrected the argument's type and repeated that command successfully.
    Assurance counts at `uzrzywom`: restored 0, re-spelled 0, ignored 0,
-   added 7, removed 0.
+   added 7, removed 0. After the lexicon refresh, at `tupvqkuk`, repeated only
+   `cargo test -p deckmaste_english_v3` (615 passed, including the incoming Get
+   tests) and `cargo test -p deckmaste_lexical_source` (27 unit + 35 integration
+   passed); failures and ignored tests both 0. Prior clippy results retained.
 6. **Timing**: the one bounded landing census at `uzrzywom` took 4.848493556 s
    corpus wall time with 12 workers.
