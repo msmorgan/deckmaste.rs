@@ -67,6 +67,8 @@ mod from_preposition_phrase_complement;
 mod functions_coordination;
 #[path = "suite/generic_predicates.rs"]
 mod generic_predicates;
+#[path = "suite/get_object_frames.rs"]
+mod get_object_frames;
 #[path = "suite/grammar.rs"]
 mod grammar;
 #[path = "suite/granted_ability_quotes.rs"]

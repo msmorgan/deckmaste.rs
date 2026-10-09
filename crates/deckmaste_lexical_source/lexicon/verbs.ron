@@ -77,6 +77,8 @@
     ]),
     (identity: Get, bare: "get", third_person: "gets", preterite: Some("got"), frames: [
         Predicate([Role("PowerToughnessAdjustment")]),
+        Predicate([ObjectNounPhrase]),
+        Predicate([Role("CostSymbols")]),
     ]),
     (identity: Have, bare: "have", third_person: "has", frames: [
         Predicate([Role("GrantedAbility")]),
