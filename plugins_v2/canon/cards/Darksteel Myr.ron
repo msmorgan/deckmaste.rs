@@ -1,0 +1,12 @@
+// "Indestructible" [CR#702.12b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Darksteel Myr",
+        cost: [3],
+        types: [Artifact, Creature],
+        subtypes: [myr],
+        power: 0,
+        toughness: 1,
+        text: [indestructible],
+    ),
+))

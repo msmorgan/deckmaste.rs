@@ -5,10 +5,10 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "indestructible",
     ),
-    // STOP. "A permanent with indestructible can't be destroyed." [CR#702.12b]
-    // The clause is a deontic rule over the `Destroy` deed in the patient role,
-    // and the deed's `patientRole` fact is `fieldObject` — `bare := false` with
-    // an empty type list — so `deedFits` refuses every noun phrase in that role
-    // and no subject can be written. Fixing that is a change to the deed's role
-    // columns, which this ticket's overlay authority does not cover.
+    // "A permanent with indestructible can't be destroyed." [CR#702.12b] What is
+    // destroyed is a permanent [CR#701.8a], so the rule names this permanent in the
+    // deed's patient role.
+    body: [
+        static(objectCant(destroy, thisPermanent)),
+    ],
 )

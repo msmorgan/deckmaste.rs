@@ -1,0 +1,12 @@
+// "Draw two cards. / Awaken 4—{5}{U}" [CR#702.113a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Coastal Discovery",
+        cost: [3, Blue],
+        types: [Sorcery],
+        text: [
+            spell(draw(2)),
+            awaken(4, mana([5, Blue])),
+        ],
+    ),
+))

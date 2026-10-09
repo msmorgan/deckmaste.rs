@@ -706,6 +706,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Awaken",
+            // The permission to cast it for the awaken cost leaves its regime
+            // to the keyword's: it functions on the stack [CR#702.113a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_permanent_card: false,
@@ -1248,6 +1251,8 @@ fn overlay() -> Vec<Row> {
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
+            // "Cast using teamwork" reads the paid cost back [CR#702.194b].
+            paid_cost: true,
             ..D
         },
         Row {

@@ -297,9 +297,11 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
       { agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩ }),
     ("create", { dest := some .battlefield, agentRole := playerAgent }),
+    /- What is destroyed is a permanent [CR#701.8a], read as sacrifice's and untap's patients
+    are; a creature "can't be destroyed" [CR#702.12b] names it in that role. -/
     ("destroy",
       { participle := some "destroyed", dest := some .graveyard, agentRole := playerAgent,
-        patientRole := fieldObject }),
+        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
     ("detain", { agentRole := playerAgent }),
     ("discard",
       { participle := some "discarded", dest := some .graveyard, agentRole := playerAgent,

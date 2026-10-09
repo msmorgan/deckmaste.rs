@@ -5,9 +5,15 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "teamwork",
     ),
-    // STOP. "Teamwork N" means "As an additional cost to cast this spell, you may tap
-    // ANY NUMBER of creatures you control WITH TOTAL POWER N OR MORE." [CR#702.194a]
-    // No `NounPhrase` selects an unbounded group by an aggregate bound on a stat of
-    // the whole group; `Predicate::CompareOver` compares each member (the cause Crew
-    // and Saddle share).
+    // "Teamwork N" means "As an additional cost to cast this spell, you may tap any
+    // number of creatures you control with total power N or more." [CR#702.194a]
+    // "Cast using teamwork" reads the paid cost back [CR#702.194b].
+    body: [
+        static(
+            addedCost(
+                perform(tap(withTotal(Stat(Power), AtLeast, Param(0), allOf(creatureYouControl)))),
+                true,
+            ),
+        ),
+    ],
 )

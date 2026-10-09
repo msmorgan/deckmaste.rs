@@ -5,10 +5,24 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "saddle",
     ),
-    // STOP. "Saddle N" means "Tap ANY NUMBER of other untapped creatures you control
-    // WITH TOTAL POWER N OR GREATER: This permanent becomes saddled until end of turn.
-    // Activate only as a sorcery." [CR#702.171a] No `NounPhrase` selects an unbounded
-    // group by an aggregate bound on a stat of the whole group;
-    // `Predicate::CompareOver` compares each member (the cause Crew and Teamwork
-    // share).
+    // "Saddle N" means "Tap any number of other untapped creatures you control with
+    // total power N or greater: This permanent becomes saddled until end of turn.
+    // Activate only as a sorcery." [CR#702.171a] Saddled lasts until end of turn by
+    // its own definition [CR#702.171b].
+    body: [
+        activated(
+            perform(
+                tap(
+                    withTotal(
+                        Stat(Power),
+                        AtLeast,
+                        Param(0),
+                        allOf(and([untapped, otherCreatureYouControl(thisPermanent)])),
+                    ),
+                ),
+            ),
+            gainDesignation(thisPermanent, saddled, untilEndOfTurn),
+            asSorcery,
+        ),
+    ],
 )

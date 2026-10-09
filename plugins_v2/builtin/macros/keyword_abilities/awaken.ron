@@ -6,8 +6,30 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "awaken",
     ),
-    // STOP. "Awaken N—[cost]" is an alternative-cost static plus a SPELL ability
-    // [CR#702.113a]. `Ability.category` is `none` for `Ability::Spell`, so
-    // `keywordBodyFits` refuses a spell ability in a keyword definition; the
-    // alternative cost alone would be half the definition.
+    // "Awaken N—[cost]" means "You may pay [cost] rather than pay this spell's mana
+    // cost as you cast this spell" and "If this spell's awaken cost was paid, put N
+    // +1/+1 counters on target land you control. That land becomes a 0/0 Elemental
+    // creature with haste. It's still a land." [CR#702.113a]
+    body: [
+        static(mayCastFor(you, Param(1))),
+        spell(
+            doIf(
+                keywordCostPaid(awaken, this),
+                sequentially([
+                    putCounters(Param(0), p1p1Counter, target(and([land, youControl]))),
+                    establish(
+                        characteristicChange(
+                            that(Land),
+                            [
+                                TypeLine(Adds, (types: [Creature], subtypes: [elemental])),
+                                Stat(Sets, Power, 0),
+                                Stat(Sets, Toughness, 0),
+                                AddedAbilities([haste]),
+                            ],
+                        ),
+                    ),
+                ]),
+            ),
+        ),
+    ],
 )

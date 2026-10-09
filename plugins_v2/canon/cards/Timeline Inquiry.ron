@@ -1,0 +1,18 @@
+// "Teamwork 2 / Draw three cards. Then discard a card unless this spell was cast using
+// teamwork." [CR#702.194a,702.194b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Timeline Inquiry",
+        cost: [3, Blue],
+        types: [Instant],
+        text: [
+            teamwork(2),
+            spell(
+                sequentially([
+                    draw(3),
+                    doIf(not(keywordCostPaid(teamwork, this)), discard(a(card))),
+                ]),
+            ),
+        ],
+    ),
+))

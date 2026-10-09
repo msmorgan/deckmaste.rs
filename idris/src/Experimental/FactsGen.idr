@@ -189,7 +189,7 @@ keywordFacts =
   , { word := "StartYourEngines", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Station", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Sunburst", paramShapes := [NoParam] } defaultKeywordFacts
-  , { word := "Teamwork", paramShapes := [NumberParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
+  , { word := "Teamwork", paramShapes := [NumberParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Tiered", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, wantsModes := True } defaultKeywordFacts
   , { word := "Toxic", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Training", paramShapes := [NoParam], bodied := True } defaultKeywordFacts

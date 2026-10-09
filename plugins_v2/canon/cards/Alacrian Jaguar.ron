@@ -1,0 +1,21 @@
+// "Vigilance / Whenever this creature attacks while saddled, it gets +2/+2 until end
+// of turn. / Saddle 1" [CR#702.20a,702.171a,702.171b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Alacrian Jaguar",
+        cost: [4, Green],
+        types: [Creature],
+        subtypes: [cat, mount],
+        power: 4,
+        toughness: 4,
+        text: [
+            vigilance,
+            triggeredWhile(
+                attacks(thisCreature),
+                whileTrue(matches(thisCreature, hasDesignation(saddled))),
+                getsBoth(thisCreature, up(2), untilEndOfTurn),
+            ),
+            saddle(1),
+        ],
+    ),
+))
