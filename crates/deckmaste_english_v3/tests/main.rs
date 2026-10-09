@@ -231,3 +231,6 @@ mod postpositive_comparative_property;
 
 #[path = "suite/measured_damage_nominal.rs"]
 mod measured_damage_nominal;
+
+#[path = "suite/as_clause_np_licensing.rs"]
+mod as_clause_np_licensing;

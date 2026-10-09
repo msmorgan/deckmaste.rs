@@ -355,10 +355,12 @@ is right and this list needs fixing.
   distributive For-each Adjunct and reduced passive Attach-To (Kemba's Legion),
   without inventing a selected For frame for Block. Re-application owner:
   `english-v3-selected-preposition-nominal-licensing`.
-- **until-M deferred**: compose Exile's existing Object NP frame through
-  coordinated Objects with same-name comparisons and an outer duration Adjunct
-  (Deputy of Detention, Banishment); no selected Until frame is implied.
-  Re-application owner: `english-v3-selected-preposition-nominal-licensing`.
+- **until-M re-applied** (`lztruvkm`): the same-name comparison composition
+  now preserves Deputy of Detention and Banishment with a VP or Clause duration
+  Adjunct. `english-v3-as-clause-verbless-np-licensing` removes Until's noun
+  Modifier licence outright under the user ruling of 2026-10-09; nominal
+  attachments are wrong Readings, including finite-Clause-complemented PPs.
+  No selected Until frame is implied; zero lost faces remains required.
 - Re-application of the seven deferred Preposition Function Licence exclusions
   (with-A, from-M, from-A, to-M, in-A, for-M, until-M) is owned here: when a
   prerequisite frame or composition lands, re-run the attribution check from the

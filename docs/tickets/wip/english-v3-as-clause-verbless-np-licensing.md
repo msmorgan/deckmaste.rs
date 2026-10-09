@@ -14,8 +14,9 @@ extra Readings. In those Readings, *as* takes a finite Clause whose Subject is
 the NP *[that permanent until this creature]* and whose verb is *leaves*. The
 same-as landing record (`docs/tickets/done/english-v3-same-as-comparative.md`,
 item 4) measured this on Deputy's unit at `lqzlkrrp`: 30 of 106 Readings are
-as-Clause only, and 0 Readings have both analyses. The comparative Complement
-*as [that permanent]* with the *until* Adjunct accounts for the remaining 76.
+as-Clause only, and 0 Readings have both analyses. The remaining 76 have the comparative Complement *as [that permanent]*.
+Inspection at `lztruvkm` finds that 46 of these still attach *until* as a
+nominal Modifier; only 30 attach it as a VP or Clause Adjunct.
 The user's ruling of 2026-10-08 retained these Readings in that landing and
 routed them here.
 
@@ -40,13 +41,14 @@ routed them here.
 > Evidence: `target/english-v3/english-v3-same-as-comparative/after.json`,
 > `as-clause-overlap.json`, and the Deputy-of-Detention/Banishment scope probes.
 
-**STOP before dispatch (orchestrator).** The Change below retires the 30
-finite as-Clause Readings that this ruling retained and called "an attested
-ambiguity". The ADR's deferred-exclusion rule (re-apply once the prerequisite
-lands, if zero faces are lost) supports the retirement, but the ruling's own
-words keep them licensed. The two cannot both stand: confirm that the
-2026-10-08 ruling covered only the same-as landing and that this ticket may
-retire the Readings, or rule otherwise, before an implementer claims it.
+**STOP before dispatch resolved by the user rulings of 2026-10-08 and
+2026-10-09.** The same-as retention was scoped to that landing. This ticket
+may remove Until's entire noun-Modifier licence: all nominal *until*
+attachments are wrong Oracle analyses, regardless of Complement shape.
+Measured 106 → 30 units are authorised, provided the survivors retain the
+comparative Complement and a VP or Clause duration Adjunct, and zero faces
+are lost. The prior routing quotation above is historical, not a standing
+licence.
 
 Line numbers refer to `qsupksky`.
 
@@ -103,20 +105,26 @@ route. The as-Clause route is not a pruning candidate.
 
 ## Witnesses
 
-- Deputy of Detention unit "… with the same name as that permanent until this
-  creature leaves the battlefield": 106 → 76. The comparative Complement
-  *as [that permanent]* with the outer *until* Adjunct survives; 0 Readings
-  keep *as* + finite Clause.
-- Banishment: the same drop from its as-Clause Readings. The same-as record
-  measured it at 296 at `lqzlkrrp`, together with Deputy. The expected count
-  after the change is that figure less the as-Clause-only Readings, measured
-  on the claim parent.
+- Deputy of Detention's attested Sentence unit, "Exile all other nonland
+  permanents that player controls with the same name as that permanent until
+  this creature leaves the battlefield.": 106 → 30; full face 296 → 96.
+  All surviving Readings have comparative Complement *as [that permanent]*
+  and a VP or Clause *until* Adjunct; none has a finite *as*-Clause.
+- Banishment's corresponding Sentence unit: 106 → 30; full face 296 → 96.
 - Negative probe: "Exile a creature with the same name as that permanent until
-  this creature leaves the battlefield." Count the as-Clause Readings before
-  and after; they go to 0.
-- Controls: Utopia Sprawl and Kindred Discovery keep their digests. Every
-  supported face whose Readings include an *until* PP keeps its Readings,
-  except the as-Clause Readings named above.
+  this creature leaves the battlefield.": 17 → 5; finite *as*-Clause
+  Readings 5 → 0.
+- Controls: Utopia Sprawl and Kindred Discovery keep their digests; Lilah,
+  Undefeated Slickshot's *as it resolves* PP keeps its Reading.
+- User ruling (2026-10-09): *until* PPs in Oracle function as VP or Clause
+  Adjuncts; every nominal Modifier attachment is a wrong Reading. The full
+  until-M exclusion is authorised, with zero lost faces. This supersedes the
+  original 106 → 76 expectation: removing only 30 finite *as*-Clause Readings
+  overlooked another 46 comparative Readings with nominal *until* attachment.
+  Sauron, the Lidless Eye 44 → 32, Trapjaw Tyrant 10 → 8 and Vault Guardsman
+  11 → 8 are also authorised corrections under this ruling. Do not narrow by
+  Complement shape. The landing record names the five ruling witnesses and
+  links the complete named decreases list with its retired Reading shapes.
 
 ## Method
 
@@ -126,9 +134,11 @@ Standard constraints apply. Deltas:
    reach: every supported face containing *until*, every supported face
    containing *as*, and 300 random covered faces. Compare it with
    `cargo xtask english-v3 diff` against the claim parent on the same
-   manifest. Expected gain is 0 and zero faces may be lost. A count may drop
-   only for an as-Clause-only Reading retired by this ticket, and each such
-   face is listed by name.
+   manifest. Expected gain is 0 and zero faces may be lost. Every count drop
+   caused by removing a nominal *until* Modifier attachment
+   is a correction under the user ruling of 2026-10-09; the stock diff and
+   linked decreases list name every affected face. Use six workers and `/usr/bin/time -v`, record maximum RSS,
+   and kill and report any run exceeding 30 GB resident memory.
 2. Probe first. Write each negative probe as a test, and run the tests once at
    the end.
 3. Run tests and clippy on the crates touched (`deckmaste_lexical_source`,
@@ -136,3 +146,12 @@ Standard constraints apply. Deltas:
 4. No guard may name a lexeme, construction, verb, noun, preposition or card.
    Read declared features only. Re-spell tests; never delete them.
 5. The landing record is the six items in CLAUDE.md.
+
+## Landing record
+
+1. **Census delta** (`lztruvkm`, claim-parent grammar before the licence edit → after): selector is all 7,195 supported analysed-text faces containing ` until ` or ` as `, union 300 covered controls selected by stock diff with seed 20261008: 7,432 distinct faces. Covered 5,760 → 5,760; Readings 2,208,493 → 2,086,355. Stock diff: lost 0, gained 0, decreases 619, increases 0, digest-only 0, unchanged 6,813; source changes/unmatched identities 0. Lost faces: none. All 619 decreases retire wrong nominal Until attachments under the user ruling of 2026-10-09; the [complete named decreases list and retired shapes](../../../target/english-v3/english-v3-as-clause-verbless-np-licensing/decreases.md) renders stock `diff.json`. Named ruling witnesses: Deputy of Detention and Banishment 296 → 96, retiring the malformed finite as-Clause Subject and nominal duration attachments beside the comparison; Sauron, the Lidless Eye 44 → 32, retiring `PostmodifiedNominal` with `BareTemporalPreposition` (*until end of turn*); Trapjaw Tyrant 10 → 8 and Vault Guardsman 11 → 8, retiring nominal `ClauseComplementPreposition` attachments (*until this creature leaves the battlefield*), including Vault's coordinated Object. All 7,432 enumerations complete and all 2,086,355 Readings pass exact realization, declaration admission and traversal; issues, limited enumerations, duplicate Readings and internal failures are 0. Against the supplied batch reference `mqrlzszkuszn`, the same selector has covered 5,601 → 5,760 and Readings 607,213 → 2,086,355: lost 0, gained 159, decreases 601, increases 0, digest-only 32. The 159 gains and prior digest changes already existed on the claim parent; this ticket gains none.
+2. **Witnesses** (`lztruvkm`): Deputy of Detention and Banishment's attested Sentence units each have 106 → 30; full faces each 296 → 96. Every survivor retains comparative Complement *as [that permanent]* and a VP or Clause Until Adjunct; the inspected Deputy tree puts the complete Until PP in the dependent of an outer `ClausalPreposition`. Finite as-Clause alternatives in each unit are 30 → 0. The required negative probe has 17 → 5 Readings and finite as-Clause alternatives 5 → 0. Utopia Sprawl (9), Kindred Discovery (1), and Lilah, Undefeated Slickshot's *as it resolves* PP (1) preserve their exact inspected trees. Before probes exhibited the defect before the licence edit; independent admission and roundtrip tests remain in the suite.
+3. **Spot checks** (`lztruvkm`): no newly covered faces. Ten retained-face checks: Deputy of Detention (96) and Banishment (96), comparative Complement with VP/Clause duration Adjunct; Sauron, the Lidless Eye (32), temporal Adjuncts; Trapjaw Tyrant (8) and Vault Guardsman (8), finite Until Adjuncts; Utopia Sprawl (9) and Kindred Discovery (1), initial finite as-Clause Adjuncts; Static Orb (16), initial *as long as* finite-Clause PP; Magmatic Force (1), initial *at the beginning of each upkeep* Adjunct; Tidebinder Mage (24), duration Adverb Complement of *for*, with a finite as-Clause in its equative comparison. Inspected trees realize byte-exactly. The two initial as controls and Magmatic Force were checked outside the final selector by the small census/probes.
+4. **Deviations and STOPs** (`lztruvkm`): the initial whole-licence exclusion gave 106 → 30, contradicting the ticket's 106 → 76 expectation. STOP resolved by the user ruling of 2026-10-09: all nominal Until attachments are wrong Oracle analyses, regardless of Complement shape. The old expectation overlooked 46 comparative Readings with nominal duration attachment beside the 30 malformed as-Clause Readings. Updated expectations and until-M's systemic-residuals bullet accordingly; the earlier same-as retention STOP was also explicitly resolved as landing-scoped. Removed only Until's declared Modifier licence; no Construction, frame, feature or grammar code added/deleted, and no word-naming guard. The shared grammar Productions remain necessary for other licensed prepositions and already enforce the declared licence. Four regression tests added; no existing tests changed. No glossary gap. The interrupted pre-ruling census produced no after result; the bounded census above is the final pre-refresh evidence.
+5. **Tests** (`lztruvkm`): `cargo test -p deckmaste_english_v3` passed (622); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed; `cargo test -p deckmaste_lexical_source` passed (27 unit + 35 integration); `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed. Each ran once, with no linker retry. Restored 0; re-spelled 0; ignored-with-blocker 0; added 4; removed 0. No xtask tests or Lean checks. Formatting was restricted to the new test file; incidental formatting from the earlier main-module pass was restored before verification.
+6. **Timing** (`lztruvkm`): final pre-refresh bounded census 534.01 seconds wall time under `/usr/bin/time -v`, 6 workers; maximum resident set size 13,463,292 KiB. Foreground memory supervision remained below 30 GB throughout.

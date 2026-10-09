@@ -199,7 +199,7 @@
         "vocab:Preposition/Unless": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/As": {"ExpandedComparisonMarker": "Equality", "PrepositionFunctionLicence": "Adjunct|PreposedAdjunct|ComparativeComplement|PredicativeComplement", "PrepositionComplement": "PredicativeNounPhrase", "FiniteClauseComplement": "Yes", "ComplementFunctionRestriction": "Adjunct", "LocativeUse": "No"},
         "vocab:Preposition/While": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
-        "vocab:Preposition/Until": {"PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase", "NominalBareClass": "Boundary"},
+        "vocab:Preposition/Until": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Since": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase"},
         "vocab:TriggerMarker/When": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:TriggerMarker/Whenever": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
