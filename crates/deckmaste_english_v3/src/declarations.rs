@@ -3585,6 +3585,10 @@ constructions! {
             require head.frame = ObjectExtent;
             use BarePassiveHead;
         }
+        construction SelectedFramePassive: SecondaryVerbPhrase {
+            form [head: lexical(Verb), complements: selected_frame(head, Passive)];
+            use BarePassiveHead;
+        }
         construction RetainedObjectPassive: SecondaryVerbPhrase {
             form [head: lexical(Verb), " ", object: AccusativePhrase];
             require head.frame = Ditransitive;

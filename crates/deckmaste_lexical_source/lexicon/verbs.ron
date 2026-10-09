@@ -184,7 +184,8 @@
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Turn, bare: "turn", third_person: "turns", preterite: Some("turned"), participle: Some("turned"), frames: [
-        Predicate([Literal("face"), Literal("up")]),
+        Predicate([ObjectNounPhrase, Lex("Preposition", "FaceUp")]),
+        Predicate([ObjectNounPhrase, Lex("Preposition", "FaceDown")]),
     ]),
     (identity: Unattach, bare: "unattach", third_person: "unattaches", preterite: Some("unattached"), frames: [
         Predicate([ObjectNounPhrase]),

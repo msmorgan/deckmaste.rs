@@ -143,6 +143,7 @@ fn lexicon() -> Lexicon {
         (
             "turn",
             vec![predicate(vec![
+                argument("NounPhrase"),
                 FrameItem::Marker {
                     vocabulary: "CommonNoun".into(),
                     member: "Face".into(),
@@ -256,12 +257,14 @@ fn one_constructor_consumes_ordered_declared_frames_with_independent_roundtrip_l
         // Dreadhorde Invasion's keyword constituent; Reins of the Vinesteed's
         // selected-with constituent; Enter's ordinary optional control phrase.
         (
-            "turn face up",
+            // Staff Room's selected constituent.
+            "turn that creature face up",
             selected(
                 &lexicon,
                 "turn",
                 0,
                 vec![
+                    arg(np(&lexicon, "that", "creature")),
                     grammar::FrameValue::Marker(word(&lexicon, "face", WordForm::Invariant, None)),
                     grammar::FrameValue::Marker(word(&lexicon, "up", WordForm::Invariant, None)),
                 ],

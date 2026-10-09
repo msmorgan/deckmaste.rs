@@ -322,14 +322,14 @@
         ),
         (
             id: "vocab:Preposition/FaceDown", lemma: "face down", category: Preposition,
-            properties: (countability: [], features: {"PrepositionComplement": "Intransitive", "LocativeUse": "Yes", "PrepositionFunctionLicence": "Adjunct|PredicativeComplement|PreposedAdjunct"}, frames: []),
+            properties: (countability: [], features: {"PrepositionComplement": "Intransitive", "LocativeUse": "Yes", "PrepositionFunctionLicence": "Adjunct|VerbComplement|PredicativeComplement|PreposedAdjunct"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/FaceDown"),
             capitalization: Initial, binding: Free, surface_structure: Multiword,
         ),
         (
             id: "vocab:Preposition/FaceUp", lemma: "face up", category: Preposition,
-            properties: (countability: [], features: {"PrepositionComplement": "Intransitive", "LocativeUse": "Yes", "PrepositionFunctionLicence": "Adjunct|PredicativeComplement|PreposedAdjunct"}, frames: []),
+            properties: (countability: [], features: {"PrepositionComplement": "Intransitive", "LocativeUse": "Yes", "PrepositionFunctionLicence": "Adjunct|VerbComplement|PredicativeComplement|PreposedAdjunct"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/FaceUp"),
             capitalization: Initial, binding: Free, surface_structure: Multiword,
@@ -1285,6 +1285,10 @@
         "vocab:RelativePronoun/Whose": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive))), (form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)))],
     },
     frame_additions: {
+        "core-verb:Turn": [
+            (kind: "Passive", items: [Marker(vocabulary: "Preposition", member: "FaceUp")]),
+            (kind: "Passive", items: [Marker(vocabulary: "Preposition", member: "FaceDown")]),
+        ],
         "core-verb:Block/adjective": [
             (kind: "Predicate", items: []),
             (kind: "Adjectival", items: [Marked(vocabulary: "Preposition", member: "By", slot: (relation: Complement, category: "NounPhrase"))]),
@@ -1316,12 +1320,12 @@
         ],
     },
     frame_markers: {
+        "face up": ("Preposition", "FaceUp"),
+        "face down": ("Preposition", "FaceDown"),
         "to": ("InfinitivalMarker", "To"),
         "among": ("Preposition", "Among"),
         "in": ("Preposition", "In"),
         "order": ("CommonNoun", "Order"),
-        "face": ("CommonNoun", "Face"),
-        "up": ("Adverb", "Up"),
     },
     core_verb_paradigms: {
         "core-verb:Can": (

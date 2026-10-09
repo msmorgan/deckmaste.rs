@@ -216,3 +216,6 @@ mod overgeneration_prune;
 
 #[path = "suite/card_noun_premodifier.rs"]
 mod card_noun_premodifier;
+
+#[path = "suite/transitive_turn_face.rs"]
+mod transitive_turn_face;
