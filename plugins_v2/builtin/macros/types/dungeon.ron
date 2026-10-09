@@ -3,5 +3,5 @@ Type(
     spelling: "dungeon",
     grammar: Noun(singular: "dungeon"),
     params: [],
-    body: TypeDef(name: "Dungeon", permanent_type: false),
+    body: CardType(card_type: Dungeon, permanent_type: false, confers: []),
 )

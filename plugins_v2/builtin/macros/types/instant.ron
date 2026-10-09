@@ -1,16 +1,15 @@
-// Instant ([CR#300.1]) — being castable at instant speed ([CR#601.2,304.1])
-// is a quality of the object, not an ability of it ([CR#113.12]), so the
-// default-deny cast permission is conferred ability-free.
+// Instant ([CR#300.1]) — its owner may cast an instant card from their hand
+// any time they have priority ([CR#304.1,117.1a]). Being castable is a quality
+// of the object, not an ability of it ([CR#113.12]), so the cast permission is
+// conferred ability-free.
 Type(
     name: "instant",
     spelling: "instant",
     grammar: Noun(singular: "instant"),
     params: [],
-    body: TypeDef(
-        name: "Instant",
+    body: CardType(
+        card_type: Instant,
         permanent_type: false,
-        confers: [
-            Static(May(cast(what: Ref(This), window: InstantSpeed))),
-        ],
+        confers: [Property(spec: mayPlayDeed(cast, You, This, Play(yourHand, None, asInstant, false, ItsOwnCost)))],
     ),
 )

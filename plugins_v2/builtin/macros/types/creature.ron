@@ -1,21 +1,15 @@
-// Creature ([CR#300.1]) — a permanent with this type plays the Combatant role
-// ([CR#110.1]). The role is a quality of the object, not an ability of it
-// ([CR#113.12]), so it is conferred ability-free; combat permission
-// ([CR#508.1a,509.1a]), summoning sickness ([CR#302.6]) and creature damage
-// marking ([CR#120.3e]) are derived from it.
+// Creature ([CR#300.1]) — a permanent with this type is a Combatant: the
+// creature-like combat rules apply to it ([CR#120.3e,302.6,508.1a,509.1a]).
+// The role is a quality of the object, not an ability of it ([CR#113.12]), so
+// it is conferred ability-free.
 Type(
     name: "creature",
     spelling: "creature",
     grammar: Noun(singular: "creature"),
     params: [],
-    body: TypeDef(
-        name: "Creature",
+    body: CardType(
+        card_type: Creature,
         permanent_type: true,
-        confers: [
-            Static(Conditionally(
-                Matches(This, Permanent),
-                Role(who: Ref(This), role: Combatant),
-            )),
-        ],
+        confers: [Property(spec: Combatant(subject: This))],
     ),
 )

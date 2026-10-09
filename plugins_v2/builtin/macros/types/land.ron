@@ -1,16 +1,15 @@
-// Land ([CR#300.1]) — being playable as a land ([CR#305.9,116.2a,701.18]) is a
-// quality of the object, not an ability of it ([CR#113.12]), so the default-deny
-// play permission is conferred ability-free.
+// Land ([CR#300.1]) — its owner may play a land card from their hand during
+// their main phase while the stack is empty ([CR#305.1]). Being playable is a
+// quality of the object, not an ability of it ([CR#113.12]), so the play
+// permission is conferred ability-free.
 Type(
     name: "land",
     spelling: "land",
     grammar: Noun(singular: "land"),
     params: [],
-    body: TypeDef(
-        name: "Land",
+    body: CardType(
+        card_type: Land,
         permanent_type: true,
-        confers: [
-            Static(May(Play(what: Ref(This)))),
-        ],
+        confers: [Property(spec: mayPlayDeed(play, You, This, Play(yourHand, None, asSorcery, false, ItsOwnCost)))],
     ),
 )

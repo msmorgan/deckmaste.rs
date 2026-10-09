@@ -25,29 +25,24 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         singular: "artifact",
         plural: Some("artifacts"),
         permanent_type: true,
-        body: r#"TypeDef(name:"Artifact",permanent_type:true)"#,
+        body: r#"CardType(card_type:Artifact,permanent_type:true,confers:[])"#,
     },
     ExpectedType {
         name: "battle",
         singular: "battle",
         plural: Some("battles"),
         permanent_type: true,
-        body: r#"TypeDef(name:"Battle",permanent_type:true)"#,
+        body: r#"CardType(card_type:Battle,permanent_type:true,confers:[])"#,
     },
     ExpectedType {
         name: "creature",
         singular: "creature",
         plural: Some("creatures"),
         permanent_type: true,
-        body: r#"TypeDef(
-            name:"Creature",
+        body: r#"CardType(
+            card_type:Creature,
             permanent_type:true,
-            confers:[
-                Static(Conditionally(
-                    Matches(This,Permanent),
-                    Role(who:Ref(This),role:Combatant)
-                ))
-            ]
+            confers:[Property(spec:Combatant(subject:This))]
         )"#,
     },
     ExpectedType {
@@ -55,24 +50,24 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         singular: "dungeon",
         plural: Some("dungeons"),
         permanent_type: false,
-        body: r#"TypeDef(name:"Dungeon",permanent_type:false)"#,
+        body: r#"CardType(card_type:Dungeon,permanent_type:false,confers:[])"#,
     },
     ExpectedType {
         name: "enchantment",
         singular: "enchantment",
         plural: Some("enchantments"),
         permanent_type: true,
-        body: r#"TypeDef(name:"Enchantment",permanent_type:true)"#,
+        body: r#"CardType(card_type:Enchantment,permanent_type:true,confers:[])"#,
     },
     ExpectedType {
         name: "instant",
         singular: "instant",
         plural: Some("instants"),
         permanent_type: false,
-        body: r#"TypeDef(
-            name:"Instant",
+        body: r#"CardType(
+            card_type:Instant,
             permanent_type:false,
-            confers:[Static(May(cast(what:Ref(This),window:InstantSpeed)))]
+            confers:[Property(spec:mayPlayDeed(cast,You,This,Play(yourHand,None,asInstant,false,ItsOwnCost)))]
         )"#,
     },
     ExpectedType {
@@ -80,17 +75,17 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         singular: "kindred",
         plural: None,
         permanent_type: false,
-        body: r#"TypeDef(name:"Kindred",permanent_type:false)"#,
+        body: r#"CardType(card_type:Kindred,permanent_type:false,confers:[])"#,
     },
     ExpectedType {
         name: "land",
         singular: "land",
         plural: Some("lands"),
         permanent_type: true,
-        body: r#"TypeDef(
-            name:"Land",
+        body: r#"CardType(
+            card_type:Land,
             permanent_type:true,
-            confers:[Static(May(Play(what:Ref(This))))]
+            confers:[Property(spec:mayPlayDeed(play,You,This,Play(yourHand,None,asSorcery,false,ItsOwnCost)))]
         )"#,
     },
     ExpectedType {
@@ -98,14 +93,14 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         singular: "planeswalker",
         plural: Some("planeswalkers"),
         permanent_type: true,
-        body: r#"TypeDef(name:"Planeswalker",permanent_type:true)"#,
+        body: r#"CardType(card_type:Planeswalker,permanent_type:true,confers:[])"#,
     },
     ExpectedType {
         name: "sorcery",
         singular: "sorcery",
         plural: Some("sorceries"),
         permanent_type: false,
-        body: r#"TypeDef(name:"Sorcery",permanent_type:false)"#,
+        body: r#"CardType(card_type:Sorcery,permanent_type:false,confers:[])"#,
     },
 ];
 
@@ -219,7 +214,7 @@ fn builtin_v2_types_load_with_exact_semantics_and_noun_surfaces() {
             compact_ron(
                 declaration
                     .body()
-                    .unwrap_or_else(|| panic!("{} must retain its TypeDef body", expected.name))
+                    .unwrap_or_else(|| panic!("{} must retain its CardType body", expected.name))
                     .get_ron()
             ),
             compact_ron(expected.body),
