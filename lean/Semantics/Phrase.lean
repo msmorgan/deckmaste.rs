@@ -205,6 +205,9 @@ mutual
     /-- Disjuncts of different kinds join: "creature or player" denotes either. -/
     | or (disjuncts : List Predicate)
     | not (predicate : Predicate)
+    /-- Rules text printed in square brackets, kept in place so a Text Change can find it
+    [CR#702.148a]: transparent, it means what `predicate` means. -/
+    | bracketed (predicate : Predicate)
     | other
     | notChosen
     | otherThan (anchor : NounPhrase)

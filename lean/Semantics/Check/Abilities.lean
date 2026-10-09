@@ -15,7 +15,7 @@ namespace Semantics
 /-! ## Small attributes -/
 
 def Instruction.scopeBody : Instruction → Instruction
-  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.scopeBody
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body | .bracketed body => body.scopeBody
   | body => body
 
 def StaticSpec.scopeBody : StaticSpec → StaticSpec
@@ -42,7 +42,6 @@ def Exchanged.intro (bs : Bindings) : Exchanged → Bindings
   | .cardsAcross a b => nomIntro (nomIntro bs a) b
   | .zones a b => ZoneExpr.introduced (ZoneExpr.introduced bs a ++ bs) b ++ ZoneExpr.introduced bs a ++ bs
   | .values a b => Amount.intro (Amount.intro bs a) b
-  | .textBoxes a b => nomIntro (nomIntro bs a) b
 
 def Exchanged.deed : Exchanged → List Binding
   | .lifeTotals _ => [outcomeB .lifeGained, outcomeB .lifeLost]
@@ -190,7 +189,7 @@ def DividedVerb.intro (bs : Bindings) : DividedVerb → Bindings
 def Instruction.enactPatient : Instruction → Option NounPhrase
   | .withBindings scope inputs body => body.enactPatient.map (.withBindings scope inputs)
   | .inCaller scope body => body.enactPatient.map (.inCaller scope)
-  | .ownScope _ body => body.enactPatient
+  | .ownScope _ body | .bracketed body => body.enactPatient
   | .move n _ _ _ => some n
   | _ => none
 
@@ -281,6 +280,7 @@ def actorCtx (bs : Bindings) (who : NounPhrase) : Bindings :=
 does, and an offer, whose performer decides. A handoff to a group hands such an instruction to
 each member, as its performer. -/
 def Instruction.performed : Instruction → Bool
+  | .bracketed body => body.performed
   | .conclude _ | .separateIntoPiles _ _ _ | .choose _ _ _ _ | .vote _ _ _
   | .copy _ _ _ _ | .changeLife _ | .addMana _ _ _ | .draw _ | .expose _ _
   | .search _ _ _ | .shuffle _ | .flipCoins _ | .rollDice _ _ | .rerollStored _ _
@@ -381,7 +381,7 @@ mutual
   /-- A card set aside for the starting deck is outside the game [CR#103.2b], so only its
   characteristics are readable [CR#109.3]. -/
   def Predicate.deckReadable : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.deckReadable
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.deckReadable
     | .isCard | .hasType _ | .hasSubtype _ => true
     | .compare axes _ bound => axes.all ProjAxis.deck && bound.deckBound
     | .and ps | .or ps => Predicate.deckReadableAll ps
@@ -602,7 +602,7 @@ mutual
   /-- The card class every object the predicate holds of has, where its types settle it
   [CR#110.4a]. -/
   def Predicate.impliedClass : Predicate → Option CardClass
-    | .withBindings _ _ body | .inCaller _ body => body.impliedClass
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.impliedClass
     | .hasType t =>
       if t.isInstantOrSorcery then some .instantOrSorceryCard
       else if t.permanent then some .permanentCard
@@ -654,7 +654,7 @@ end
 
 /-- The class guarding a whole instruction: a `doIf` with no otherwise-branch. -/
 def Instruction.classGuard : Instruction → Option CardClass
-  | .withBindings _ _ body | .inCaller _ body => body.classGuard
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.classGuard
   | .doIf cond _ none => cond.impliedClass
   | _ => none
 
@@ -717,6 +717,7 @@ termination_by structural se => se
 
 def Instruction.keyword : Instruction → Option KeywordLabel
   | .establish se _ => se.keyword
+  | .bracketed body => body.keyword
   | _ => none
 
 def Ability.lineKeyword : Ability → Option KeywordLabel
@@ -754,7 +755,7 @@ end
 /-- An enacted deed's body without the own scope the loader reads a keyword action body in: the
 move or status change a deed's provenance stamps is read through it. -/
 def Instruction.unscoped : Instruction → Instruction
-  | .ownScope _ body => body.unscoped
+  | .ownScope _ body | .bracketed body => body.unscoped
   | e => e
 
 inductive EncloseUse where
@@ -773,7 +774,7 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
   | _ => false
 
 def Instruction.reflexEncloseUse : Instruction → EncloseUse
-  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.reflexEncloseUse
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body | .bracketed body => body.reflexEncloseUse
   | .skipPart _ _ => .notYetTaken
   | .addTurnPart .turn _ _ _ => .notYetTaken
   | .establish spec _ =>
@@ -810,7 +811,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | _ => .agentless
 
 def Instruction.thisWayOutcomeOk : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.thisWayOutcomeOk
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body | .bracketed body => body.thisWayOutcomeOk
   | .delay _ _ _ _ => false
   | .withContinuation _ body _ _ => body.thisWayOutcomeOk
   | .act _ body => body.thisWayOutcomeOk
@@ -887,6 +888,7 @@ mutual
       let p := Instruction.profileWith (enterOwnScope scope bs) perf body
       ⟨leaveOwnScope scope p.pre, leaveOwnScope scope p.announced,
        p.rider.map (leaveOwnScope scope), p.deed⟩
+    | .bracketed body => Instruction.profileWith bs perf body
     | .dealDamage src amt to =>
       sameIntro (nomIntro (Amount.introduced (selfSubjIntro bs src) amt ++ nomIntro bs src) to)
         [outcomeB .damageDealt]
@@ -1103,6 +1105,7 @@ mutual
       outcomeB .namedNumber :: (Amount.introduced (selfSubjIntro bs n) amt ++ selfSubjIntro bs n)
     | .ptSwitch n => selfSubjIntro bs n
     | .combatant n => selfSubjIntro bs n
+    | .textChange n _ => selfSubjIntro bs n
     | .costShift n sh => sh.introduced (selfSubjIntro bs n) ++ selfSubjIntro bs n
     | .altCost n _ => selfSubjIntro bs n
     | .addedCost _ _ _ => bs
@@ -1163,6 +1166,7 @@ def Instruction.replacedCtx (bs : Bindings) : Instruction → Bindings
   | .withContinuation policy body _ _ => Instruction.replacedCtx (policy.context bs) body
   | .doOnlyIf e _ _ => Instruction.replacedCtx bs e
   | .limited e _ => Instruction.replacedCtx bs e
+  | .bracketed e => Instruction.replacedCtx bs e
   | .doIf _ _ _ => bs
   | e => e.introducedDeeds bs ++ e.annIntro bs
 
@@ -1175,7 +1179,7 @@ def thisWayCtx (bs : Bindings) (body : Instruction) (ev : GameEvent) : Bindings 
   settleTargets (GameEvent.after (body.intro bs) ev)
 
 def Instruction.namesThisDoor : Instruction → Bool
-  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.namesThisDoor
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body | .bracketed body => body.namesThisDoor
   | .delay ev alts _ _ => ev.namesThisDoor || alts.any GameEvent.namesThisDoor
   | .holdUntil _ ev => ev.namesThisDoor
   | .triggerThisWay _ ev _ => ev.namesThisDoor
@@ -1193,7 +1197,7 @@ def Ability.namesThisDoor : Ability → Bool
 
 mutual
   def Instruction.introducedChoices : Instruction → List Binding
-    | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.introducedChoices
+    | .withBindings _ _ body | .inCaller _ body | .ownScope _ body | .bracketed body => body.introducedChoices
     | .choose _ (.described (.a _) p) _ _ => introducedChoiceAt (p.kindOr .object)
     | .choose _ _ _ _ => []
     | .sequentially es => Instruction.introducedChoicesAll es
@@ -1279,7 +1283,7 @@ def Delta.numberSlots : Delta Amount → List (Amount × NumberRegime)
 /-- Exchanging two numerical values [CR#701.12g] sets each side to the other: a set of a life
 total or a power and toughness, so both stand below zero [CR#107.1b]. -/
 def Exchanged.numberSlots : Exchanged → List (Amount × NumberRegime)
-  | .lifeTotals _ | .controlOf _ _ | .cardsAcross _ _ | .zones _ _ | .textBoxes _ _ => []
+  | .lifeTotals _ | .controlOf _ _ | .cardsAcross _ _ | .zones _ _ => []
   | .values left right => [(left, .signed), (right, .signed)]
 
 /-- A cost shift is an amount of mana, and a floor is the least it can be reduced to: both are
@@ -1373,7 +1377,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .ptModification _ power toughness => power.numberSlots ++ toughness.numberSlots
   -- An effect that sets a power and toughness, the exception [CR#107.1b] names.
   | .ptDefinition _ _ amount => [(amount, .signed)]
-  | .ptSwitch _ | .combatant _ => []
+  | .ptSwitch _ | .combatant _ | .textChange _ _ => []
   | .costShift _ shift => shift.numberSlots
   | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ | .specialAction _ _ _ | .modeChoice _
   | .addsTarget _ _ => []
@@ -1396,7 +1400,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
 
 /-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
 def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
-  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.numberSlots
+  | .withBindings _ _ body | .inCaller _ body | .ownScope _ body | .bracketed body => body.numberSlots
   -- You can't deal negative damage [CR#107.1b].
   | .dealDamage _ amount _ => [(amount, .clamped)]
   | .setStatus _ _ | .turnOver _ | .combat _ _ => []

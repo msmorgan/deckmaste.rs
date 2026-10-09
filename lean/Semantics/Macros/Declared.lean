@@ -1490,7 +1490,7 @@ semantic_macro exchangeLifeTotals (parties : Semantics.NounPhrase) : Semantics.I
 
 /-- `instructions/exchangeTextBoxes.ron` -/
 semantic_macro exchangeTextBoxes (left : Semantics.NounPhrase) (right : Semantics.NounPhrase) : Semantics.Instruction :=
-  (Semantics.Instruction.exchange (Semantics.Exchanged.textBoxes left right))
+  (Semantics.Instruction.establish (Semantics.StaticSpec.textChange left (Semantics.TextChange.exchangeWith right)) none)
 
 /-- `instructions/exchangeValues.ron` -/
 semantic_macro exchangeValues (left : Semantics.Amount) (right : Semantics.Amount) : Semantics.Instruction :=

@@ -1778,7 +1778,7 @@ def deadpoolTradingCard : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Mutant", creatureType "Mercenary", creatureType "Hero"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.replacement (Primitives.GameEvent.enters thisCreature none) [] none
-            (offer (Primitives.Instruction.exchange (Primitives.Exchanged.textBoxes thisCreature (a (Primitives.Predicate.and [creature, Primitives.Predicate.otherThan Primitives.NounPhrase.this])))))
+            (offer (Primitives.Instruction.establish (Primitives.StaticSpec.textChange thisCreature (Primitives.TextChange.exchangeWith (a (Primitives.Predicate.and [creature, Primitives.Predicate.otherThan Primitives.NounPhrase.this])))) none))
             .nextTimeOnly none),
           at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none)) (loseLife (.lit 3)),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (sacrifice thisCreature)])

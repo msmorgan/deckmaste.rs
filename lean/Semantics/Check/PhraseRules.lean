@@ -107,6 +107,7 @@ mutual
     | .inCaller scope body =>
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         Predicate.checkIn gap k (enterCaller scope bs) body
+    | .bracketed body => Predicate.checkIn gap k bs body
     | .hasType _ | .hasSubtype _ | .wasCast | .colorIs _ | .hasSupertype _
     | .isCard | .isToken | .isEmblem | .isCopyOfACard | .currentFace _
     | .hasStatus _ | .isSource | .isManaAbility => kindCheck k (some .object)

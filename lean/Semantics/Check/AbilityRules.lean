@@ -54,9 +54,33 @@ def Exchanged.check (bs : Bindings) : Exchanged → List Refusal
     let bs' := Amount.intro bs a
     Amount.check bs a ++ Amount.check bs' b ++ refuse a.settableValue .settableValue ++
       refuse b.settableValue .settableValue
-  | .textBoxes a b =>
-    let bs' := nomIntro bs a
-    NounPhrase.check (some .object) bs a ++ NounPhrase.check (some .object) bs' b
+
+/-- The sort of thing a replaced word names. -/
+def TextWord.sort : TextWord → QualitySort
+  | .color _ => .color
+  | .basicLandType (.of host _) => .subtype host
+  | .basicLandType (.spell _) => .subtype .instant
+
+/-- The sorts a word-replacing Text Change may range over: a color word, or a land type word
+[CR#612.2]. -/
+def QualitySort.replaceable : QualitySort → Bool
+  | .color | .subtype .land => true
+  | _ => false
+
+/-- A replaced word that names something other than the row's sort. -/
+def TextWord.sortCheck (sort : QualitySort) : Option TextWord → List Refusal
+  | none => []
+  | some w => if w.sort == sort then [] else [.kindMismatch (.quality sort) (.quality w.sort)]
+
+/-- Kinds only: what a Text Change names is checked, and the rewritten text is not
+[CR#612.1]. -/
+def TextChange.check (bs : Bindings) : TextChange → List Refusal
+  | .removeBracketed | .targetToEach => []
+  | .appendTextOf source => NounPhrase.check (some .object) bs source
+  | .exchangeWith other => NounPhrase.check (some .object) bs other
+  | .replaceWord sort from_ to =>
+    (if sort.replaceable then [] else [.kindMismatch (.quality .color) (.quality sort)]) ++
+      TextWord.sortCheck sort from_ ++ TextWord.sortCheck sort to
 
 def CostShift.check (bs : Bindings) : CostShift → List Refusal
   | .less amt floor =>
@@ -168,6 +192,7 @@ mutual
       refuse (callerBoundary scope bs).isSome (.lexicalScope scope) ++
         Instruction.checkWith (enterCaller scope bs) none body
     | .ownScope scope body => Instruction.checkWith (enterOwnScope scope bs) perf body
+    | .bracketed body => Instruction.checkWith bs perf body
     | .dealDamage src amt to =>
       let bs' := selfSubjIntro bs src
       let bs'' := Amount.introduced bs' amt ++ nomIntro bs src
@@ -682,6 +707,8 @@ mutual
         refuse n.selfDefinedOk .selfDefinedOk
     | .ptSwitch n => NounPhrase.check (some .object) bs n
     | .combatant n => NounPhrase.check (some .object) bs n
+    | .textChange n change =>
+      NounPhrase.check (some .object) bs n ++ change.check (nomIntro bs n)
     | .costShift n sh =>
       NounPhrase.check (some .object) bs n ++ sh.check bs
     | .altCost n c =>

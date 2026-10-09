@@ -34,7 +34,7 @@ def joinKinds (a b : Kind) : Kind := if a == b then a else .join a b
 
 mutual
   def Predicate.kind? : Predicate → Option Kind
-    | .withBindings _ _ body | .inCaller _ body => body.kind?
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.kind?
     | .anyPlayer | .opponent | .chosenPlayer _ | .choseExtreme _ => some .player
     | .qualityNoun q _ => some (.quality q)
     | .counterKindOn _ => some (.quality .counterKind)
@@ -233,7 +233,7 @@ def LookbackClause.event : LookbackClause → GameEvent
 mutual
   /-- Explicit card-type facts take precedence over subtype-derived fallback evidence. -/
   def Predicate.writtenTypes : Predicate → List CardType
-    | .withBindings _ _ body | .inCaller _ body => body.writtenTypes
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.writtenTypes
     | .hasType t => [t]
     | .and ps => Predicate.writtenTypesAll ps
     | .or ps => Predicate.writtenTypesJoin ps
@@ -252,7 +252,7 @@ end
 
 mutual
   def Predicate.seedTy : Predicate → List CardType
-    | .withBindings _ _ body | .inCaller _ body => body.seedTy
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.seedTy
     | .hasType t => [t]
     | .hasSubtype s => optCT s.type
     | .and ps =>
@@ -313,13 +313,13 @@ def joinedSeedTys (ps : List Predicate) : List Kind → HeadTy
   | k :: ks => .join (.sole (Predicate.seedTyJoin (Predicate.ofKind k ps))) (joinedSeedTys ps ks)
 
 def Predicate.seedTys : Predicate → HeadTy
-  | .withBindings _ _ body | .inCaller _ body => body.seedTys
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.seedTys
   | .or ps => if Predicate.joins ps then joinedSeedTys ps (Predicate.disjunctKinds ps) else .sole (Predicate.seedTyJoin ps)
   | p => .sole p.seedTy
 
 mutual
   def Predicate.headTys : Predicate → List CardType
-    | .withBindings _ _ body | .inCaller _ body => body.headTys
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.headTys
     | .and ps => Predicate.headTysAll ps
     | .or ps => Predicate.headTysJoin ps
     | p => p.seedTy
@@ -338,7 +338,7 @@ def combineTypeAlts (left right : List (List CardType)) : List (List CardType) :
 
 mutual
   def Predicate.headTyAlts : Predicate → List (List CardType)
-    | .withBindings _ _ body | .inCaller _ body => body.headTyAlts
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.headTyAlts
     | .and ps => Predicate.headTyAltsAll ps
     | .or ps => Predicate.headTyAltsJoin ps
     | p => [p.seedTy]
@@ -354,7 +354,7 @@ end
 
 mutual
   def Predicate.attachWordsIn : Predicate → List AttachWord
-    | .withBindings _ _ body | .inCaller _ body => body.attachWordsIn
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.attachWordsIn
     | .attachment .host (some w) _ => [w]
     | .and ps => Predicate.attachWordsInAll ps
     | .or ps => Predicate.attachWordsInAll ps
@@ -367,7 +367,7 @@ end
 
 mutual
   def Predicate.seedZone : Predicate → Option Zone
-    | .withBindings _ _ body | .inCaller _ body => body.seedZone
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.seedZone
     | .inZone z => z.sort
     | .inCombat .attackedBy _ => none
     | .inCombat _ _ => some .battlefield
@@ -407,7 +407,7 @@ end
 
 mutual
   def Predicate.seedsToken : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.seedsToken
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.seedsToken
     | .isToken => true
     | .and ps => Predicate.seedsTokenAny ps
     | .or ps => Predicate.seedsTokenAll ps
@@ -428,7 +428,7 @@ end
 /-! An activated or triggered ability on the stack is an object [CR#113.1c]. -/
 mutual
   def Predicate.seedsAbility : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.seedsAbility
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.seedsAbility
     | .abilityHead _ | .abilityOf _ | .activatedBy _ | .isManaAbility => true
     | .and ps => Predicate.seedsAbilityAny ps
     | .or ps => Predicate.seedsAbilityAll ps
@@ -448,7 +448,7 @@ end
 
 mutual
   def Predicate.seedType : Predicate → Option CardType
-    | .withBindings _ _ body | .inCaller _ body => body.seedType
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.seedType
     | .inCombat .attackedBy _ => none
     | .inCombat _ _ => some .creature
     | .hasDesignation d _ => d.seedType
@@ -484,7 +484,7 @@ end
 
 mutual
   def Predicate.hasHead : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.hasHead
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.hasHead
     | .hasType _ | .hasSubtype _ | .anyPlayer | .opponent | .chosenPlayer _ | .qualityNoun _ _
     | .counterKindOn _ | .abilityHead _ | .isSource | .isCard | .isToken
     | .isEmblem | .isCopyOfACard | .inZone _ | .exiledWith _ => true
@@ -505,7 +505,7 @@ end
 
 mutual
   def Predicate.uniquifies : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.uniquifies
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.uniquifies
     | .chosenPlayer _ => true
     | .superlative _ _ _ => true
     | .withMostVotes => false
@@ -531,7 +531,7 @@ end
 /-- Look through private scopes for structural predicate facts only. Context-sensitive
 checking and introductions still traverse the original scopes. -/
 def Predicate.scopeBody : Predicate → Predicate
-  | .withBindings _ _ body | .inCaller _ body => body.scopeBody
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.scopeBody
   | body => body
 
 mutual
@@ -542,7 +542,7 @@ mutual
   termination_by structural ps => ps
 
   def Predicate.flattenOne : Predicate → List Predicate
-    | .withBindings _ _ body | .inCaller _ body => body.flattenOne
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.flattenOne
     | .and qs => Predicate.flatten qs
     | .not p => [.not p.scopeBody]
     | p => [p]
@@ -562,7 +562,7 @@ def statusClashOf : Predicate → Predicate → Bool
 
 /-- A colorless object has no color [CR#105.2c]: "colorless" is written `colorCount .eq 0`. -/
 def Predicate.isColorless : Predicate → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.isColorless
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.isColorless
   | .colorCount .eq 0 => true
   | _ => false
 
@@ -573,7 +573,7 @@ def colorClashOf : Predicate → Predicate → Bool
 
 /-- "Permanent" is written `inZone battlefield` [CR#110.1]. -/
 def Predicate.isPermanentHead : Predicate → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.isPermanentHead
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.isPermanentHead
   | .inZone (.zone .battlefield _) => true
   | _ => false
 
@@ -596,7 +596,7 @@ def anyNonPermanentTy : List Predicate → Bool
     p.seedTy.any CardType.isInstantOrSorcery || anyNonPermanentTy ps
 
 def Predicate.negTypesOf : Predicate → List CardType
-  | .withBindings _ _ body | .inCaller _ body => body.negTypesOf
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.negTypesOf
   | .not (.hasSubtype _) => []
   | .not p => p.seedTy
   | _ => []
@@ -606,7 +606,7 @@ def negTypes (ps : List Predicate) : List CardType := ps.flatMap Predicate.negTy
 /-- A subtype is correlated to its card type [CR#205.3c]; negate that type and the
 description's seed is empty. -/
 def Predicate.seedTypeAlts : Predicate → List CardType
-  | .withBindings _ _ body | .inCaller _ body => body.seedTypeAlts
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.seedTypeAlts
   | .hasSubtype s =>
     match s.type with
     | some .creature => [.creature, .kindred]
@@ -634,7 +634,7 @@ def contradictionFree (ps : List Predicate) : Bool :=
 
 mutual
   def Predicate.hasOther : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.hasOther
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.hasOther
     | .other => true
     | .otherThan _ => true
     | .and ps => Predicate.hasOtherAny ps
@@ -647,14 +647,14 @@ mutual
 end
 
 def Predicate.isOther : Predicate → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.isOther
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.isOther
   | .other => true
   | .otherThan _ => true
   | _ => false
 
 mutual
   def Predicate.hasBareOther : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.hasBareOther
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.hasBareOther
     | .other => true
     | .and ps => Predicate.hasBareOtherAny ps
     | _ => false
@@ -665,7 +665,7 @@ mutual
 end
 
 def Predicate.isSourceHead : Predicate → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.isSourceHead
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.isSourceHead
   | .isSource => true
   | .isCard => true
   | _ => false
@@ -693,7 +693,7 @@ def parallelDisjuncts : List Predicate → Bool
 def coordinableAll (ps : List Predicate) : Bool := ps.all fun p => !p.hasOther
 
 def Predicate.negatable : Predicate → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.negatable
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.negatable
   | .anyPlayer => false
   | .chosenPlayer _ => false
   | .qualityNoun _ none => false
@@ -734,7 +734,7 @@ mutual
   /-- Whether a player phrase can only name opponents: "an opponent", "your opponents", "each
   opponent". -/
   def Predicate.opponentOnly : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.opponentOnly
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.opponentOnly
     | .opponent => true
     | .and ps => Predicate.anyOpponentOnly ps
     | _ => false
@@ -774,7 +774,7 @@ mutual
   fixes another player. A conjunction takes the first conjunct that fixes one, and the arms of
   a disjunction must agree. -/
   def Predicate.seedPossessor (bs : Bindings) : Predicate → Option Possessor
-    | .withBindings _ _ body | .inCaller _ body => body.seedPossessor bs
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.seedPossessor bs
     | .inZone z => z.seedPossessor bs
     | .hasPossessor .controller who => who.possessorSide bs
     | .not (.hasPossessor .controller who) =>
@@ -822,24 +822,24 @@ def chosenBind (bs : Bindings) (det : Determiner) (plur : Plurality) : Kind → 
   | k, p => bindFor bs det plur k p
 
 def Predicate.qualityReadOk : Predicate → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.qualityReadOk
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.qualityReadOk
   | .ofChosen _ _ | .ofYourChoice _ _ | .named _ | .shares _ _ _ => true
   | _ => false
 
 def Predicate.qualityReadHost : Predicate → Option CardType
-  | .withBindings _ _ body | .inCaller _ body => body.qualityReadHost
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.qualityReadHost
   | .ofChosen _ (.subtype h) => some h
   | .ofYourChoice (.subtype h) _ => some h
   | _ => none
 
 def Predicate.isOr : Predicate → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.isOr
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.isOr
   | .or _ => true
   | _ => false
 
 mutual
   def Predicate.says : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.says
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.says
     | .and ps => Predicate.saysAny ps
     | .not p => p.says
     | _ => true
@@ -851,7 +851,7 @@ end
 
 mutual
   def Predicate.negFree : Predicate → Bool
-    | .withBindings _ _ body | .inCaller _ body => body.negFree
+    | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.negFree
     | .and ps => Predicate.negFreeAll ps
     | .or ps => Predicate.negFreeAll ps
     | .not _ => false
@@ -864,7 +864,7 @@ end
 
 /-- A party role is a creature subtype [CR#700.8]. -/
 def Predicate.roleSubtype : Predicate → Option Subtype
-  | .withBindings _ _ body | .inCaller _ body => body.roleSubtype
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.roleSubtype
   | .hasSubtype s => some s
   | _ => none
 
@@ -993,7 +993,7 @@ def SliceCount.plur : SliceCount → Plurality
 
 /-- A definite description re-reads the chosen-player binding [CR#607.2d]. -/
 def Predicate.choiceRead : Predicate → Bool
-  | .withBindings _ _ body | .inCaller _ body => body.choiceRead
+  | .withBindings _ _ body | .inCaller _ body | .bracketed body => body.choiceRead
   | .chosenPlayer _ => true
   | _ => false
 
@@ -1402,6 +1402,7 @@ mutual
       let caller := enterCaller scope bs
       let result := leaveCaller bs (Predicate.introduced caller body ++ caller)
       result.take (result.length - bs.length)
+    | .bracketed body => Predicate.introduced bs body
     | .abilityOf n => (NounPhrase.result bs n).introduced bs
     | .activatedBy n => (NounPhrase.result bs n).introduced bs
     | .targets m _ => (NounPhrase.result bs m).introduced bs

@@ -681,10 +681,12 @@ theorem badExchangeLiteralValue :
       = [.settableValue] := by
   decide
 
-/-- "Exchange the text boxes of this creature and another creature." [CR#701.12h] -/
+/-- "Exchange the text boxes of this creature and another creature." [CR#701.12h]: a Text
+Change that lasts indefinitely [CR#612.5]. -/
 theorem okExchangeTextBoxes :
     Instruction.check []
-      (.exchange (.textBoxes thisCreature (a (.and [creature, .otherThan .this])))) = [] := by
+      (.establish (.textChange thisCreature (.exchangeWith (a (.and [creature, .otherThan .this]))))
+        none) = [] := by
   decide
 
 end Semantics.Proofs.Zone

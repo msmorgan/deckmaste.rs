@@ -41,8 +41,35 @@ inductive Exchanged where
   | zones (left right : ZoneExpr)
   /-- Two numerical values [CR#701.12g]: life totals, powers or toughnesses, rolled results. -/
   | values (left right : Amount)
-  /-- Two permanents' text boxes. -/
-  | textBoxes (left right : NounPhrase)
+  deriving Repr, BEq
+
+/-- A word a Text Change replaces where it is used in its rules sense: a color word or a basic
+land type word [CR#612.2]. -/
+inductive TextWord where
+  | color (color : Color)
+  | basicLandType (subtype : Subtype)
+  deriving Repr, BEq
+
+/-- A Text Change: a specified rewrite of the subject's rules text, applied in layer 3
+[CR#612.1,613.1c]. Each row names the rewrite; the result is not checked again. -/
+inductive TextChange where
+  /-- Removes every `bracketed` term from the subject's rules text, the brackets with their
+  contents; the rest of the text is unchanged (cleave [CR#702.148a]). A text with no
+  brackets is left as it was. -/
+  | removeBracketed
+  /-- Replaces every `target` determiner in the subject's rules text with `each`, keeping its
+  description; nothing else changes (overload [CR#702.96a,702.96b]). -/
+  | targetToEach
+  /-- Appends the rules text of `source` after the subject's own, which it neither modifies nor
+  replaces (splice [CR#702.47a,702.47c,612.10]). -/
+  | appendTextOf (source : NounPhrase)
+  /-- Replaces every instance of the word `from_` of `sort`, used in its rules sense, with the
+  word `to`; `none` is a word of the performer's choice [CR#612.2] ("one basic land type with
+  another"). -/
+  | replaceWord (sort : QualitySort) (from_ : Option TextWord) (to : Option TextWord)
+  /-- Exchanges the rules text of the subject and `other`: each one's rules text becomes the
+  other's previous rules text [CR#612.5,701.12h]. -/
+  | exchangeWith (other : NounPhrase)
   deriving Repr, BEq
 
 inductive TokenQuality where
@@ -345,6 +372,8 @@ mutual
     cost is chosen: mutate's "targets a non-Human creature with the same owner as this spell"
     [CR#702.140a,601.2c]. -/
     | addsTarget (subject : NounPhrase) (description : Predicate)
+    /-- A Text Change of the subject's rules text, applied in layer 3 [CR#612.1,613.1c]. -/
+    | textChange (subject : NounPhrase) (change : TextChange)
 
   /-- How a Mode Change modifies its own spell's `chooseModes`. -/
   inductive ModeChange where
@@ -474,6 +503,9 @@ mutual
     (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06). The `plugins_v2` loader writes it
     inside a keyword action's `enact` wrapper. -/
     | ownScope (scope : Nat) (body : Instruction)
+    /-- Rules text printed in square brackets, kept in place so a Text Change can find it
+    [CR#702.148a]: transparent, it means what `instruction` means. -/
+    | bracketed (instruction : Instruction)
     | dealDamage (source : NounPhrase) (amount : Amount) (recipient : NounPhrase)
     | setStatus (status : Status) (subject : NounPhrase)
     | turnOver (subject : NounPhrase)
