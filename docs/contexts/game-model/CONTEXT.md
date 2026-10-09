@@ -230,6 +230,12 @@ Event or several depends on the observer defined by the relevant rule or text.
 An Object's transition from one Zone to another ([CR#400.7]). The Object in the
 new Zone normally has no memory of or relation to its previous existence.
 
+**Becomes** (project term):
+The new Object an Object turns into at its next Zone Change, named before
+the change happens: "the permanent this spell becomes" ([CR#400.7]). It is
+how a Spell's text reaches the Permanent it will be.
+_Avoid_: it, for the successor (the spell itself)
+
 **Observation Point** (project term):
 The moment immediately before or after an Event at which its matching Objects
 and their characteristics are observed ([CR#603.10,603.10a]). A trigger watching
@@ -280,6 +286,16 @@ Turn-Based Action and a State-Based Action. One that an ability or effect
 grants is a cost paid and an instruction carried out, any time its Player has
 priority within an optional Timing — foretell's is paying {2} and exiling the
 card face down during its owner's turn ([CR#116.2c,116.2h]).
+
+**Off-Stack Static** (project term):
+A Static Ability that carries out an instruction without using the stack,
+either as an Event happens ("as this enters, you may sacrifice …",
+[CR#614.1c]) or at any time a condition holds ("any time you control ten or
+more permanents and you don't have the city's blessing, you get the city's
+blessing", [CR#702.131b]). A Special Action is its sibling, done by choice
+with a cost; a delayed trigger an Off-Stack Static creates has that static's
+object as its source ([CR#603.7g]).
+_Avoid_: state trigger, since nothing goes on the stack ([CR#604.1])
 
 **Turn-Based Action**:
 An Action that happens automatically when a Step or Phase begins, or when one
@@ -334,13 +350,22 @@ linked ([CR#702.33e]), as are gift's "you may choose an opponent" cost and the
 ability that hands its effect to the chosen Player ([CR#702.174a,702.174b]).
 _Avoid_: reading "the chosen player" as any Choice in scope
 
-**Paid-Cost Facet** (project term):
-What a Linked Ability reads back about a named cost of its source: the colors
-or amount of mana spent, the number of times the cost was paid, whether it was
-paid ([CR#702.33d,702.44a,601.2h]), or the Player chosen as it was paid
-([CR#702.174a,607.2d]). The cost is named by its Keyword Ability, or as "the
-additional" or "the alternative" cost.
-_Avoid_: payment record (the engine's store, not the reference)
+**Linked Facet** (project term):
+What a Linked Ability reads back about its Link Source: the colors or amount
+of mana spent, the number of times a cost was paid, whether it was paid
+([CR#702.33d,702.44a,601.2h]), the Player chosen as it was paid
+([CR#702.174a,607.2d]), the Objects its deed acted on ("the exiled cards",
+"creatures it devoured", [CR#607.2a,702.82b]), or whether an offered choice
+was taken ("if tribute wasn't paid", [CR#702.104b]).
+_Avoid_: paid-cost facet, since not every source is a cost; payment record
+(the engine's store, not the reference)
+
+**Link Source** (project term):
+The printed ability or cost a Linked Facet reads back: a cost named by its
+Keyword Ability, "the additional" or "the alternative" cost, or a printed
+ability named by what it does ("the exiled card" names the ability that
+exiled it, [CR#607.2a]).
+_Avoid_: paid cost name
 
 **Target**:
 An Object or Player a Spell or Ability has identified to affect as a Target.
@@ -448,6 +473,13 @@ alternative cost ([CR#702.51b]); on a named cost it pays only that cost's
 generic mana ([CR#701.67b]).
 _Avoid_: alternative cost, additional cost
 
+**Mana Cost Term** (project term):
+A mana cost a cost change is stated in symbols of: a printed amount, or the
+mana cost of an Object ("reduced by the sacrificed permanent's mana cost",
+[CR#702.48a,702.48c]). Its symbols reduce or raise the matching symbols of the
+cost ([CR#202.1a]).
+_Avoid_: run, which names a part of a Pile
+
 **Card Face**:
 A set of printed characteristics that the CR calls a card face. Split cards
 have two faces on one side ([CR#709.1]); a double-faced card has a Magic card
@@ -478,6 +510,33 @@ An Object that has acquired the copiable values of another Object's
 characteristics and, for an Object on the stack, the choices made when casting
 or activating it ([CR#707.2]). Other effects, status, counters, and stickers
 are not copied.
+
+**Merge**:
+To place an Object on top of or under a Permanent, which becomes one merged
+Permanent represented by both ([CR#730.2,702.140c]). Only mutate merges
+([CR#730.1]).
+_Avoid_: placement rider, since a merge is no Pile Placement
+
+**Relation**:
+A named link the rules give between two Objects, made by one ability and
+read by others: a card haunting a creature, a pair of soulbonded creatures, a
+card encoded on a creature ([CR#702.55b,702.95b,702.99b]). A Relation is
+declared by name with the kinds of its two sides.
+_Avoid_: designation, which marks one thing, not a pair
+
+**Text Change**:
+A continuous effect that changes an Object's rules text, applied in layer 3
+([CR#612.1,613.1c]): removing the bracketed words (cleave, [CR#702.148a]),
+changing "target" to "each" (overload, [CR#702.96a]), adding another card's
+rules text after the spell's own (splice, [CR#612.10]), or replacing one
+color or land type word with another ([CR#612.2]). It changes words used in
+their rules sense only.
+_Avoid_: readings, alternative readings (a card is written once)
+
+**Bracketed** (project term):
+Rules text a card prints inside square brackets, kept in place as a marker
+so that a Text Change can find it ([CR#702.148a]). Outside a Text Change the
+marker means what its contents mean.
 
 ## Engine semantic language
 
@@ -573,6 +632,20 @@ _Avoid_: Reference for a collection
 **Predicate** (project term):
 A truth criterion evaluated against a candidate from a known domain.
 
+**Sharing** (project term):
+A Predicate true of an Object that has at least one value in common with
+another on one characteristic: a color, a creature type, a name
+([CR#201.2a,105.2,205.3m]); its negation is having none in common
+([CR#201.2c]). On names it is not equality: an Object with two names shares
+a name with an Object that has either.
+_Avoid_: same as, equal
+
+**Agreement** (project term):
+A constraint that the members of a group share, or do not share, a value
+on one characteristic ("two creatures that share a creature type"): it
+holds of the group, not of any one member.
+_Avoid_: Sharing, for the group form
+
 **Type Evidence** (project term):
 Known Card Type facts retained for reference resolution. Multiple facts can
 hold for one Object [CR#205.2b]; an alternative retains only shared facts.
@@ -618,6 +691,22 @@ It is the payload a Static Ability states, and the part a one-shot puts in
 force for a duration ([CR#611.2]); like an Instruction it is syntax, so it is
 not itself an Effect — the Continuous Effect is what applying it establishes.
 _Avoid_: Static Effect
+
+**Mode Change** (project term):
+A Static Spec that changes how its own Spell's modes are chosen: all modes
+for a cost or under a condition ([CR#702.42a]), a cost for each mode beyond
+the first ([CR#702.120a]), the number of modes ([CR#702.172a,702.183a]), the
+same mode chosen more than once ([CR#700.2d]), or only modes not chosen
+before. A mode may carry a weight, counted by "{P} worth of modes"
+([CR#700.2i]).
+_Avoid_: mode cost, for the whole change (one row of it is)
+
+**Deontic Exception** (project term):
+The one source a "can't" exempts: "can't transform except due to its
+daybound ability" ([CR#702.145b]), named by a Keyword Ability, or "can't be
+blocked except by artifact creatures and/or creatures that share a color with
+it" ([CR#702.13b]), named by a description of Objects.
+_Avoid_: negated predicate, for the exception
 
 **Amount** (project term):
 A semantic expression denoting a number in context — a literal, a count over a
@@ -718,6 +807,14 @@ _Avoid_: Intrinsic Keyword Ability
 A named Keyword Ability represented as an ordered collection of component
 Abilities. Its components remain structural parts of the one named Keyword
 Ability rather than independent entries in the visible ability list.
+
+**Qualified Ability** (project term):
+An ability printed with a keyword, together with the restriction the keyword
+adds to it: when it may be activated, how often (once each turn, or once for
+as long as the Object stays in its zone, [CR#602.5b,702.177a]), a condition
+read as "as long as", "triggers only if" or "activate only if" by the
+ability's category ([CR#702.169b..702.169d]), and the zone it functions from
+([CR#113.6b]). Ability words do not qualify an ability ([CR#207.2c]).
 
 **Execution Frame** (project term):
 The evaluation context that supplies bindings needed to interpret References
