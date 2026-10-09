@@ -25,82 +25,82 @@ const EXPECTED_TYPES: [ExpectedType; 10] = [
         singular: "artifact",
         plural: Some("artifacts"),
         permanent_type: true,
-        body: r#"CardType(card_type:Artifact,permanent_type:true,confers:[])"#,
+        body: r"CardType(card_type:Artifact,permanent_type:true,confers:[])",
     },
     ExpectedType {
         name: "battle",
         singular: "battle",
         plural: Some("battles"),
         permanent_type: true,
-        body: r#"CardType(card_type:Battle,permanent_type:true,confers:[])"#,
+        body: r"CardType(card_type:Battle,permanent_type:true,confers:[])",
     },
     ExpectedType {
         name: "creature",
         singular: "creature",
         plural: Some("creatures"),
         permanent_type: true,
-        body: r#"CardType(
+        body: r"CardType(
             card_type:Creature,
             permanent_type:true,
-            confers:[Property(spec:Combatant(subject:This))]
-        )"#,
+            confers:[combatant]
+        )",
     },
     ExpectedType {
         name: "dungeon",
         singular: "dungeon",
         plural: Some("dungeons"),
         permanent_type: false,
-        body: r#"CardType(card_type:Dungeon,permanent_type:false,confers:[])"#,
+        body: r"CardType(card_type:Dungeon,permanent_type:false,confers:[])",
     },
     ExpectedType {
         name: "enchantment",
         singular: "enchantment",
         plural: Some("enchantments"),
         permanent_type: true,
-        body: r#"CardType(card_type:Enchantment,permanent_type:true,confers:[])"#,
+        body: r"CardType(card_type:Enchantment,permanent_type:true,confers:[])",
     },
     ExpectedType {
         name: "instant",
         singular: "instant",
         plural: Some("instants"),
         permanent_type: false,
-        body: r#"CardType(
+        body: r"CardType(
             card_type:Instant,
             permanent_type:false,
-            confers:[Property(spec:mayPlayDeed(cast,You,This,Play(yourHand,None,asInstant,false,ItsOwnCost)))]
-        )"#,
+            confers:[castableFrom(yourHand,asInstant)]
+        )",
     },
     ExpectedType {
         name: "kindred",
         singular: "kindred",
         plural: None,
         permanent_type: false,
-        body: r#"CardType(card_type:Kindred,permanent_type:false,confers:[])"#,
+        body: r"CardType(card_type:Kindred,permanent_type:false,confers:[])",
     },
     ExpectedType {
         name: "land",
         singular: "land",
         plural: Some("lands"),
         permanent_type: true,
-        body: r#"CardType(
+        body: r"CardType(
             card_type:Land,
             permanent_type:true,
-            confers:[Property(spec:mayPlayDeed(play,You,This,Play(yourHand,None,asSorcery,false,ItsOwnCost)))]
-        )"#,
+            confers:[playableFrom(yourHand,asSorcery)]
+        )",
     },
     ExpectedType {
         name: "planeswalker",
         singular: "planeswalker",
         plural: Some("planeswalkers"),
         permanent_type: true,
-        body: r#"CardType(card_type:Planeswalker,permanent_type:true,confers:[])"#,
+        body: r"CardType(card_type:Planeswalker,permanent_type:true,confers:[])",
     },
     ExpectedType {
         name: "sorcery",
         singular: "sorcery",
         plural: Some("sorceries"),
         permanent_type: false,
-        body: r#"CardType(card_type:Sorcery,permanent_type:false,confers:[])"#,
+        body: r"CardType(card_type:Sorcery,permanent_type:false,confers:[])",
     },
 ];
 

@@ -10,6 +10,6 @@ Type(
     body: CardType(
         card_type: Instant,
         permanent_type: false,
-        confers: [Property(spec: mayPlayDeed(cast, You, This, Play(yourHand, None, asInstant, false, ItsOwnCost)))],
+        confers: [castableFrom(yourHand, asInstant)],
     ),
 )

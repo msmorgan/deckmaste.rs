@@ -1,0 +1,9 @@
+// What the creature type confers [CR#508.1a]: its object is a Combatant, so
+// the creature-like combat rules apply to it [CR#120.3e,302.6,509.1a]. A
+// quality, not an ability [CR#113.12], so the ability-free `Property` flavor.
+(
+    name: "combatant",
+    kinds: [Conferral],
+    params: [],
+    body: Property(spec: Combatant(subject: This)),
+)

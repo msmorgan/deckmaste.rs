@@ -182,6 +182,36 @@ unreachable. -/
 theorem badNamelessSubtype :
     Definition.check (.subtype (creatureType "") []) = [.definitionNamed] := by decide
 
+/-- [CR#205.2a] Most card types confer nothing: an artifact is a permanent type [CR#110.4] and
+no more. -/
+def artifactTypeDefinition : Definition := .cardType .artifact true []
+theorem okArtifactType : Definition.check artifactTypeDefinition = [] := by decide
+
+/-- [CR#508.1a] A creature is a Combatant: the creature-like combat rules apply to it. The role is
+a quality, not an ability [CR#113.12]. -/
+def creatureTypeDefinition : Definition := .cardType .creature true [combatant]
+theorem okCreatureType : Definition.check creatureTypeDefinition = [] := by decide
+
+/-- [CR#305.1] "A player who has priority may play a land card from their hand during a main
+phase of their turn when the stack is empty." -/
+def landTypeDefinition : Definition := .cardType .land true [playableFrom yourHand asSorcery]
+theorem okLandType : Definition.check landTypeDefinition = [] := by decide
+
+/-- [CR#304.1] "A player who has priority may cast an instant card from their hand." -/
+def instantTypeDefinition : Definition :=
+  .cardType .instant false [castableFrom yourHand asInstant]
+theorem okInstantType : Definition.check instantTypeDefinition = [] := by decide
+
+/-- [CR#309.2c] "Dungeon cards are not permanents. They can't be cast." -/
+theorem okDungeonType : Definition.check (.cardType .dungeon false []) = [] := by decide
+
+/-- The type conferral helpers are the raw conferrals. -/
+theorem combatantIsTheRole : combatant = .property (.combatant .this) := rfl
+theorem playableFromIsThePlayPermission :
+    playableFrom yourHand asSorcery =
+      .property (.deonticRule .you .permit [.action "play"] .agent none (.counterpart .this) none
+        (.play (some yourHand) none (some asSorcery) false .itsOwnCost)) := rfl
+
 /-- [CR#725.1] "The monarch is a designation a player can have. There is no monarch in a game
 until an effect instructs a player to become the monarch" — so the designation is effectful. -/
 def monarch : Definition := .designation (.named "monarch") (.heldBy .player) true none none none

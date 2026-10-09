@@ -455,6 +455,8 @@ semantic_macro boost (power toughness : Delta Amount) : Conferral :=
 by its declaration's name (`grants (.named "flying")`). -/
 semantic_macro grants (keyword : KeywordLabel) : Conferral :=
   .property (.abilityGrant .this (.keyword keyword [] []))
+/-- What the creature type confers [CR#508.1a]: its object is a Combatant. -/
+semantic_macro combatant : Conferral := .property (.combatant .this)
 
 /-! ## Instructions -/
 
@@ -739,6 +741,15 @@ semantic_macro mayPlayAdditionalLands (player : NounPhrase) (quantity : Quantity
 semantic_macro mayPlayDeed (deed : Deed) (player what : NounPhrase) (asThough : Option AsThough)
     (rider : DeonticRider) : StaticSpec :=
   .deonticRule player .permit [deed] .agent none (.counterpart what) asThough rider
+/-- "You may play this card from <zone> <timing>": the land type's play permission [CR#305.1]. -/
+semantic_macro playableFrom (zone : ZoneExpr) (timing : Timing) : Conferral :=
+  .property (mayPlayDeed (.action "play") .you .this none
+    (.play (some zone) none (some timing) false .itsOwnCost))
+/-- "You may cast this card from <zone> <timing>": the instant type's cast permission
+[CR#304.1]. -/
+semantic_macro castableFrom (zone : ZoneExpr) (timing : Timing) : Conferral :=
+  .property (mayPlayDeed (.action "cast") .you .this none
+    (.play (some zone) none (some timing) false .itsOwnCost))
 /-- A deontic clause with no bound, premise, or rider. -/
 semantic_macro deontic (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (role : Role)
     (patient : DeonticPatient) : StaticSpec :=

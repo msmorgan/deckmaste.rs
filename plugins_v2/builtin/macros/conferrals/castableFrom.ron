@@ -1,0 +1,9 @@
+// "You may cast this card from <zone> <timing>": the cast permission a card
+// type confers on its objects, as the instant type does [CR#304.1]. A
+// quality, not an ability [CR#113.12], so the ability-free `Property` flavor.
+(
+    name: "castableFrom",
+    kinds: [Conferral],
+    params: {"zone": ZoneExpr, "timing": Timing},
+    body: Property(spec: mayPlayDeed(cast, You, This, Play(Param(zone), None, Param(timing), false, ItsOwnCost))),
+)

@@ -1,0 +1,9 @@
+// "You may play this card from <zone> <timing>": the play permission a card
+// type confers on its objects, as the land type does [CR#305.1]. A quality,
+// not an ability [CR#113.12], so the ability-free `Property` flavor.
+(
+    name: "playableFrom",
+    kinds: [Conferral],
+    params: {"zone": ZoneExpr, "timing": Timing},
+    body: Property(spec: mayPlayDeed(play, You, This, Play(Param(zone), None, Param(timing), false, ItsOwnCost))),
+)

@@ -10,6 +10,6 @@ Type(
     body: CardType(
         card_type: Creature,
         permanent_type: true,
-        confers: [Property(spec: Combatant(subject: This))],
+        confers: [combatant],
     ),
 )

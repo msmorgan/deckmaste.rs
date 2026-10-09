@@ -10,6 +10,6 @@ Type(
     body: CardType(
         card_type: Land,
         permanent_type: true,
-        confers: [Property(spec: mayPlayDeed(play, You, This, Play(yourHand, None, asSorcery, false, ItsOwnCost)))],
+        confers: [playableFrom(yourHand, asSorcery)],
     ),
 )

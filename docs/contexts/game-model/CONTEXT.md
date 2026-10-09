@@ -690,7 +690,8 @@ What one registry declaration means — the rules content the declared name
 stands for. A Counter's kind, holder and Conferrals, the Conferrals being what
 ONE Counter of the kind confers, applied once per Counter held (a +1/+1
 counter confers +1/+1 [CR#122.1a]); a Subtype and its
-Conferrals; a Designation's holder and columns. A registry declares a
+Conferrals; a Designation's holder and columns; a Card Type, whether it is a
+Permanent Type, and its Conferrals (a creature is a Combatant [CR#508.1a]). A registry declares a
 namespace's members, so a Registry Definition names what it defines, where a
 Rules Table row names nothing and is scoped by a Predicate instead. The
 declared name DENOTES what is defined: where a position wants the defined term
