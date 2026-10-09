@@ -63,3 +63,120 @@ brackets is a no-op that still checks.
 
 None by name. Refresh before integrate; expect conflicts in
 `Words`/`Phrase`/`Abilities`.
+
+## Landing record
+
+Measured on `zrlsqmuu` (stages `yylkqrtz`, `loxmlxys`, `lvqmtkuq`, `oxnuosrr`,
+`zrlsqmuu`; record `ylootmny`).
+
+1. **Census delta**: none. No English grammar, lexicon or spelling changed, so
+   no census was run; covered faces and Readings are unchanged. Lost faces:
+   none.
+2. **Witnesses** (each proved by `cargo xtask lean check`, canon 174/174 on
+   `zrlsqmuu`): cleave with a predicate bracket, Wash Away ("spell
+   [that wasn't cast from its owner's hand]"); cleave with a predicate and an
+   instruction bracket, Dig Up ("[basic land]", "[reveal it,]"); overload,
+   Vandalblast; splice with a non-mana cost, Torrent of Stone ("Splice onto
+   Arcane—Sacrifice two Mountains"); `replaceWord`, Balduvian Shaman (see
+   item 4 for why not Mind Bend). The re-spelled Text Box Exchange Probe
+   proves in testing 8/8. Pins in `lean/Semantics/Proofs/TextChanges.lean`:
+   `bracketedKindMismatchStillRefused` (a bracketed mismatched kind is refused
+   exactly as without brackets) and `okRemoveBracketedWithoutBrackets` (the
+   ticket's two), plus the cleave, overload and splice definitions checked
+   whole.
+3. **Spot checks** (the five new canon faces): Wash Away `[cleave({1}{U}{U}),
+   spell(counter(target(and([spell, bracketed(not(castFrom(hand)))]))))]`;
+   Dig Up `spell(sequentially([searchLibraryFor(exactly(1), and([card,
+   bracketed(and([hasSupertype(Basic), land]))])), bracketed(reveal(it)),
+   move(it, wherever, hand), shuffle]))`; Vandalblast
+   `spell(destroy(target(and([artifact, not(youControl)])))), overload({4}{R})`;
+   Torrent of Stone `spell(dealDamage(this, 4, target(creature))),
+   splice(hasSubtype(arcane), perform(sacrifice(counted(exactly(2),
+   and([hasSubtype(mountain), youControl])))))`; Balduvian Shaman `{T}:
+   establish(textChange(target(white enchantment you control without
+   cumulative upkeep), replaceWord(Color)))`, then the grant of cumulative
+   upkeep {1}. Only five faces were added, so there are five, not ten.
+4. **Deviations and STOPs**.
+   - STOP (owner ruling wanted), recorded in `text_changes/replaceWord.ron`:
+     Mind Bend and Trait Doctoring replace "one color word with another or
+     one basic land type with another", a sort chosen as the effect applies,
+     which one `replaceWord (sort)` row cannot state; Magical Hack, Sleight of
+     Mind, Alter Reality, Glamerdye and Crystal Spray target "spell or
+     permanent", which the checker refuses as a cross-zone disjunction
+     (`badSpellOrPermanentSubject`, existing). Balduvian Shaman, a
+     single-sort word replacement on "target permanent", is the witness in
+     their place.
+   - Added a fifth `TextChange` row, `exchangeWith (other)`
+     [CR#612.5,701.12h], because the ruling re-spells `Exchanged.textBoxes`
+     against `textChange` and none of the four named rows exchanges two texts.
+     `Exchanged.textBoxes` is retired; `exchangeTextBoxes` (RON), Deadpool,
+     Trading Card (`Cards/Keyword.lean`), `okExchangeTextBoxes`
+     (`Proofs/Zone.lean`) and the generated `Declared.lean` are re-spelled to
+     `establish(textChange(left, exchangeWith(right)), none)`, outcomes
+     unchanged.
+   - Added `TextWord = color | basicLandType (subtype)` as `replaceWord`'s
+     value type, and the refusal of a word whose sort is not the row's, or a
+     row sort other than color or land type, as `kindMismatch` (kinds only).
+   - Rust mirror: two variants (`Predicate::Bracketed`,
+     `Instruction::Bracketed`), not a generic `Bracketed<T>`, because
+     `macro_ron`'s derives reject generic types (`reject_generics`); the note
+     is on `Predicate::Bracketed`. `TextChange` derives `SupportsMacros` and is
+     a registered kind (as `PipPaid` is) so its rows are lowercase helpers.
+   - Transparency follows the `inCaller` precedent: every Predicate and
+     Instruction checker function with an `inCaller` arm, plus
+     `Instruction.performed`, `keyword`, `replacedCtx` and `unscoped`, reads a
+     bracket's contents; the Rust `kind_of_predicate` likewise.
+   - Splice's "as you cast a [quality] spell" is the `replacement` of the
+     cast whose instruction is `may(reveal this, establish(conjunction(None,
+     [addedCost(cost, false), textChange(that(Spell), appendTextOf(this))])))`,
+     the shape Deadpool's "as this enters, you may" already has; the
+     off-stack `asEvent` static of the 2026-10-09 ruling is not landed.
+   - Cleave and overload put the Text Change under
+     `keywordCostPaid(<keyword>, thisSpell)`; their facts rows gain
+     `open_regimes: [(0, AtCasting)]` for the cast permission, and Facts were
+     regenerated (cleave and overload `[static atCasting, static none]`,
+     splice `[static none]`).
+   - Wash Away's "its owner's hand" is the bare hand zone (`castFrom(hand)`):
+     `castFrom(handOf(ownerOf(it)))` is refused (`anaphor bare one 0`), a
+     predicate having no pronoun for its own member.
+   - Spelling: no v2-to-English printer exists, so "spelling prints
+     `bracketed`" is the `bracketed` helper (Predicate and Instruction kinds)
+     a card writes its brackets with; the expanded and emitted term keeps them.
+   - The known limit is as the ticket states: a rewrite is defined on terms,
+     and a card prints its brackets where they stand.
+   - Glossary: Text Change amended to list the text-box exchange
+     [CR#612.5,701.12h]. Newly blessed rules: [CR#702.96b,702.148b], each read
+     against its citing claim.
+   - `Declared.lean` regeneration also refreshed the stale `typecycling`
+     module from trunk, as briefed.
+5. **Tests** (on `zrlsqmuu` plus the record): `cargo test -p
+   deckmaste_semantics_v2` 100 passed; `cargo test -p xtask` 416 passed, 1
+   ignored (existing); `cargo test -p deckmaste_construction_core` 468
+   passed; `cargo test -p deckmaste_lexical_source` 64 passed; `cargo clippy
+   -p <each> --tests -- -D warnings` clean for all four; `lake build --wfail`
+   clean (93 jobs); `cargo xtask lean check` canon 174/174, testing 8/8;
+   `cargo xtask lean definitions` 708/708; `cargo xtask facts check`,
+   `cargo xtask lean macros check` up to date; `cargo xtask lean macros align`
+   333 of 381 aligned, the six new bench macros among them (48 drifted, none
+   of them this landing's); `cargo xtask cite check` 0 stale,
+   `--list-noncompliant` empty. Counts: restored 0; re-spelled 2
+   (`okExchangeTextBoxes`, the Deadpool, Trading Card bench card), with the
+   Text Box Exchange Probe re-spelled through its helper and its card file
+   unchanged; ignored 0; added 12 Lean pins
+   (`bracketedKindMismatchStillRefused`, `bracketedKindMismatchIsRefused`,
+   `okBracketedDescription`, `okBracketedInstruction`,
+   `bracketedInstructionMismatchStillRefused`,
+   `okRemoveBracketedWithoutBrackets`, `okReplaceLandTypeWord`,
+   `badReplaceWordSort`, `badReplaceWordCardName`, `okCleaveDefinition`,
+   `okOverloadDefinition`, `okSpliceDefinition`) and 5 canon cards; removed 0.
+   After the refreshes onto the integrated `semantics-v2-modal-choice`
+   (conflicts in `Abilities.lean`, the mirror's `StaticSpec`, the expansion
+   samples and the two generated modules) and `semantics-v2-sharing` (one in
+   `Check/Phrase.lean`'s `qualityReadOk`), each resolved keeping both sides and
+   the generated modules regenerated,
+   `lake build --wfail`, the four crate test suites (`deckmaste_semantics_v2`
+   now 101) and clippy runs, `facts check`, `lean macros check` and `cite
+   check` were rerun with the same outcomes; `lean check` and `lean
+   definitions` were not rerun.
+6. **Timing**: no census run. `cargo xtask lean check` 180 s wall (2 min 59.8), one
+   `lake` process.
