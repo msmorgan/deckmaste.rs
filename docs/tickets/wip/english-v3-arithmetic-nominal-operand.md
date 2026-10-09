@@ -335,8 +335,10 @@ Deltas:
    That workspace's live version is immutable here; it requires its owner's
    repair, not a rewrite from this feature workspace. The imported lexical
    data was independently verified on the same bounded manifest and full
-   suites below. No integration or workspace drop has occurred. Final Kata
-   refresh completion is pending the external divergence repair.
+   suites below. After the Method 5 fix, Kata refresh exits 0: the external
+   divergence blocker has cleared. This refresh imports semantics/plugin and
+   coordinator changes only; no grammar, lexicon or forest dependency changed,
+   so no additional census or suites are run under the orchestrator's budget.
 
 5. **Tests** (`lrolnmwo`, after R10e/R10f). Full suites and clippy passed:
    `cargo test -p deckmaste_english_v3` — 668 passed, zero failed/ignored;
