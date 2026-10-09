@@ -1704,7 +1704,7 @@ fn template_head_is_the_grammar_head_at_a_word_boundary_or_its_bound_suffix() {
         "landwalk",
         "Quality",
         "<Param(0)>walk",
-        r#"FixedKeyword(surface: "landwalk", bound_suffix: (surface: "walk"))"#,
+        r#"FixedKeyword(surface: "landwalk", bound_suffix: (surface: "walk", stem_class: SubtypesAndType(category: Land, card_type: "land")))"#,
     )
     .unwrap();
 

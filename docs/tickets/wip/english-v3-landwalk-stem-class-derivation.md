@@ -62,7 +62,11 @@ has only `surface`.
    (`docs/contexts/oracle-english/CONTEXT.md:1269–1274`) to say the class is
    derived from the keyword's declared stem class.
 
-### Recorded tension (orchestrator: confirm before dispatch)
+### Recorded tension (resolved by orchestrator, 2026-10-08)
+
+The [pruning clarification](../../decisions/english-lexical-analysis.md#pruning-rule-for-licensed-functions-and-attachments)
+exempts lexemes mechanically minted from a declaration class from attestation;
+the ticket proceeds with derived per-stem lexemes and unchanged stem identities.
 
 The derived class adds 11 stems with zero supported-corpus tokens (no
 *cavewalk*, *gatewalk*, *urza'swalk* … at minting; the only `-walk` words in
@@ -111,3 +115,12 @@ Silone), *nonbasic landwalk* (Dryad Sophisticate, Trailblazer's Boots),
 *landwalk of the chosen type* (Giant Slug, Illusionary Presence, Traveler's
 Cloak): 11 faces by surface match; the orchestrator's count of 15 was not
 reproduced at minting.
+
+## Landing record
+
+1. **Census delta** (`wtnuopxm`, before/after): claim-parent-equivalent `before.json` was measured on the empty child of `xztlzrpk`; the same bounded manifest has 1,345 faces (every supported face containing “walk” plus 300 covered controls, seed 20261008; 8 overlaps). Covered faces 1,074 → 1,074; total Readings 154,828 → 154,828. Built-in `english-v3 diff`: lost/gained/decreases/increases/digest-only/source changes all 0; every selected face is identical. Lost faces: none. Complete roundtrip/traversal validation, internal failures and validation issues: 0. Evidence: `target/english-v3/english-v3-landwalk-stem-class-derivation/`.
+2. **Witnesses** (`wtnuopxm`): Sheoldred, Whispering One’s *Swampwalk*: 1 Reading; Desert Nomads’ *Desertwalk*: 1; Goblin King’s *Other Goblins get +1/+1 and have mountainwalk.*: 2. Before/after probes enumerate completely with no validation issues and unchanged counts.
+3. **Spot checks** (`wtnuopxm`): no newly covered faces; ten unchanged faces each retain 1 Reading and exact realization. Anaconda: bound swamp + walk; Benthic Behemoth: island + walk; Cat Warriors: forest + walk; Righteous Avengers: plains + walk; Canyon Wildcat: mountain + walk; Bayou Dragonfly: flying and bound swampwalk in one keyword line; Merfolk Raiders: islandwalk followed by phasing; Stalker Hag: coordinated bound swampwalk and forestwalk; Lurking Crocodile: bloodthirst followed by bound islandwalk; Inkwell Leviathan: trample, bound islandwalk and shroud. All landwalk constituents use `BoundQualityKeyword` with the preserved lexical owners.
+4. **Deviations and STOPs**: no Construction or frame added or removed. The additional class-selection/deduplication test protects category/type selection and shared-class membership. The earlier lexical-model STOP is resolved by the orchestrator ruling of 2026-10-08: use derived per-stem lexemes; the pruning clarification is recorded in the ADR. Per-form binding on an existing lexeme—distinct free/bound form identity under one owner, form-specific binding and frame lookup—was the preferred shape and is routed to recon as [a lexical-model item](../planned/english-v3-lexical-model-bound-forms.md). The authored member list is retired; the keyword declaration supplies the class. Glossary gap: none; Bound Keyword Stem now records class derivation. At `wtnuopxm`, 17 Land subtype declarations plus the Land type supply 18 stems, 11 additional; supported-corpus grep of those additional formations finds 0 faces and 0 matches, permitted by the ruling.
+5. **Tests** (`wtnuopxm`): `cargo test -p deckmaste_english_v3` passed; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed; `cargo test -p deckmaste_lexical_source` passed; `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed; `cargo test -p deckmaste_construction_core` passed; `cargo clippy -p deckmaste_construction_core --tests -- -D warnings` passed; `cargo xtask lean check` passed. Changed-test accounting: restored 0; re-spelled 4 (the two native stem tests, the template-head bound-suffix fixture, and the builtin landwalk declaration test); ignored with blockers 0; added 1 (class selection/deduplication); removed 0. Existing structural/value assertions and both roundtrip laws are preserved.
+6. **Timing** (`wtnuopxm`): final bounded census wall time 44.038 s with 12 workers (setup plus corpus; compilation excluded).

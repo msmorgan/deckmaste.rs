@@ -22,14 +22,20 @@ use crate::LoadError;
 use crate::compound::Declaration as PendingCompoundNoun;
 use crate::source;
 
+pub(crate) struct LoadedDeclarations {
+    pub compounds: Vec<PendingCompoundNoun>,
+    pub bound_keyword_stems: Vec<String>,
+}
+
 pub(crate) fn load(
     root: &Path,
     output: &mut LexicalSources,
-) -> Result<Vec<PendingCompoundNoun>, LoadError> {
+) -> Result<LoadedDeclarations, LoadError> {
     let mut compounds = Vec::new();
+    let mut stem_classes = Vec::new();
     let declarations = metadata::read_builtin_v2(root.join("plugins_v2/builtin"))?;
     let reader = metadata::declaration_macro_set()?;
-    for normalized in declarations {
+    for normalized in &declarations {
         let path = normalized.provenance().path();
         let text = crate::error::read(path)?;
         let definition: macro_ron::MacroDef<metadata::Metadata> =
@@ -37,11 +43,14 @@ pub(crate) fn load(
                 path: path.into(),
                 source: Box::new(source),
             })?;
-        let owner = format!(
-            "lexeme:{}/{}",
-            declaration_kind(normalized.identity().kind()),
-            normalized.identity().name()
-        );
+        let owner = declaration_owner(normalized);
+        if let Some(metadata::Grammar::FixedKeyword {
+            bound_suffix: Some(suffix),
+            ..
+        }) = &definition.metadata.grammar
+        {
+            stem_classes.push(suffix.stem_class.clone());
+        }
         let path = path.strip_prefix(root).unwrap_or(path).to_string_lossy();
         if let Some(recipe) = normalized.compound_noun() {
             compounds.push(PendingCompoundNoun {
@@ -50,9 +59,43 @@ pub(crate) fn load(
                 noun_class: normalized.noun_class(),
             });
         }
-        export_metadata(&owner, &path, definition.metadata, &normalized, output);
+        export_metadata(&owner, &path, definition.metadata, normalized, output);
     }
-    Ok(compounds)
+    Ok(LoadedDeclarations {
+        compounds,
+        bound_keyword_stems: bound_keyword_stem_members(&declarations, &stem_classes),
+    })
+}
+
+fn declaration_owner(declaration: &metadata::NormalizedDeclaration) -> String {
+    format!(
+        "lexeme:{}/{}",
+        declaration_kind(declaration.identity().kind()),
+        declaration.identity().name()
+    )
+}
+
+pub(crate) fn bound_keyword_stem_members(
+    declarations: &[metadata::NormalizedDeclaration],
+    classes: &[metadata::BoundKeywordStemClass],
+) -> Vec<String> {
+    let mut members = std::collections::BTreeSet::new();
+    for metadata::BoundKeywordStemClass::SubtypesAndType {
+        category,
+        card_type,
+    } in classes
+    {
+        for declaration in declarations {
+            let identity = declaration.identity();
+            if identity.kind() == metadata::DeclarationKind::Subtype(*category)
+                || (identity.kind() == metadata::DeclarationKind::Type
+                    && identity.name() == card_type)
+            {
+                members.insert(declaration_owner(declaration));
+            }
+        }
+    }
+    members.into_iter().collect()
 }
 
 fn export_metadata(
@@ -542,6 +585,27 @@ mod tests {
     use deckmaste_lexical::Lexicon;
 
     use super::*;
+
+    #[test]
+    fn bound_stem_class_selects_declaration_category_and_card_type() {
+        let declarations: Vec<_> = [
+            r#"Subtype(category: Land, name: "cave", spelling: "Cave")"#,
+            r#"Subtype(category: Creature, name: "forest", spelling: "Forest")"#,
+            r#"Type(name: "land", spelling: "land")"#,
+            r#"Type(name: "artifact", spelling: "artifact")"#,
+        ]
+        .into_iter()
+        .map(|text| metadata::read_str("class-member.ron", text).unwrap())
+        .collect();
+        let class = metadata::BoundKeywordStemClass::SubtypesAndType {
+            category: metadata::SubtypeCategory::Land,
+            card_type: "land".into(),
+        };
+        assert_eq!(
+            bound_keyword_stem_members(&declarations, &[class.clone(), class]),
+            vec!["lexeme:land_subtype/cave", "lexeme:type/land"],
+        );
+    }
 
     #[test]
     fn legacy_nonattestation_does_not_withhold_plugin_verb_forms() {

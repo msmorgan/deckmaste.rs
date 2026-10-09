@@ -24,8 +24,6 @@ pub(crate) struct Inventory {
     pub participial_adjective_classes: Vec<ParticipialAdjectiveClass>,
     #[serde(default)]
     pub compound_noun_classes: Vec<CompoundNounClass>,
-    #[serde(default)]
-    pub bound_keyword_stems: Vec<String>,
     pub core_verb_paradigms: BTreeMap<String, Paradigm>,
     pub frame_markers: BTreeMap<String, (String, String)>,
     pub frame_additions: BTreeMap<String, Vec<Frame>>,
@@ -84,9 +82,25 @@ pub(crate) fn add_bound_keyword_stems(
 
 #[cfg(test)]
 mod bound_keyword_stem_tests {
+    use deckmaste_construction_core::macro_def as metadata;
     use deckmaste_lexical::{Binding, Category, Countability, Source, SourceKind, WordForm};
 
     use super::*;
+
+    fn declared_members(name: &str) -> Vec<String> {
+        let declaration = metadata::read_str(
+            "host.ron",
+            &format!(r#"Subtype(category: Land, name: "{name}", spelling: "{name}")"#),
+        )
+        .unwrap();
+        crate::legacy::plugins::bound_keyword_stem_members(
+            &[declaration],
+            &[metadata::BoundKeywordStemClass::SubtypesAndType {
+                category: metadata::SubtypeCategory::Land,
+                card_type: "land".into(),
+            }],
+        )
+    }
 
     #[test]
     fn stems_use_declared_singular_overrides_and_preserve_the_host() {
@@ -102,7 +116,7 @@ mod bound_keyword_stem_tests {
         );
         noun.forms[0].surfaces = Some(vec!["Plains".into()]);
         let mut entries = vec![noun.clone()];
-        add_bound_keyword_stems(&mut entries, vec![noun.id.to_string()]).unwrap();
+        add_bound_keyword_stems(&mut entries, declared_members("plains")).unwrap();
         assert_eq!(entries[0], noun);
         let mut expected = Lexeme::noun(
             "lexeme:land_subtype/plains/bound-keyword-stem",
@@ -125,16 +139,17 @@ mod bound_keyword_stem_tests {
     #[test]
     fn stems_reject_unknown_hosts_and_nonsingular_or_nonnoun_hosts() {
         assert!(matches!(
-            add_bound_keyword_stems(&mut vec![], vec!["missing".into()]),
+            add_bound_keyword_stems(&mut vec![], declared_members("missing")),
             Err(LoadError::UnknownOwner { .. })
         ));
         let source = crate::source(SourceKind::Plugin, "forest.ron", "forest");
-        let adjective = Lexeme::invariant("host", "forest", Category::Adjective, source.clone());
-        let mut noun = Lexeme::noun("host", "Forest", vec![Countability::Count], source);
+        let owner = "lexeme:land_subtype/forest";
+        let adjective = Lexeme::invariant(owner, "forest", Category::Adjective, source.clone());
+        let mut noun = Lexeme::noun(owner, "Forest", vec![Countability::Count], source);
         noun.forms.retain(|slot| slot.form != WordForm::Singular);
         for host in [adjective, noun] {
             assert!(matches!(
-                add_bound_keyword_stems(&mut vec![host], vec!["host".into()]),
+                add_bound_keyword_stems(&mut vec![host], declared_members("forest")),
                 Err(LoadError::InvalidBoundKeywordStem { .. })
             ));
         }

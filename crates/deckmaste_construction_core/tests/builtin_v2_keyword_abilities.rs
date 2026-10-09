@@ -387,6 +387,32 @@ fn landwalk_declares_one_bound_suffix_surface() {
     assert_eq!(grammar.surfaces()[0].text(), "landwalk");
     assert_eq!(grammar.surfaces()[1].feature(), SurfaceFeature::BoundSuffix);
     assert_eq!(grammar.surfaces()[1].text(), "walk");
+    let text = std::fs::read_to_string(
+        workspace_root.join("plugins_v2/builtin/macros/keyword_abilities/landwalk.ron"),
+    )
+    .unwrap();
+    let definition: macro_ron::MacroDef<deckmaste_construction_core::macro_def::Metadata> =
+        deckmaste_construction_core::macro_def::declaration_macro_set()
+            .unwrap()
+            .read_str(&text)
+            .unwrap();
+    assert_eq!(
+        definition.metadata.grammar,
+        Some(deckmaste_construction_core::macro_def::Grammar::FixedKeyword {
+            surface: "landwalk".into(),
+            onset: None,
+            bound_suffix: Some(deckmaste_construction_core::macro_def::BoundSuffixGrammar {
+                surface: "walk".into(),
+                stem_class: deckmaste_construction_core::macro_def::BoundKeywordStemClass::SubtypesAndType {
+                    category: deckmaste_construction_core::macro_def::SubtypeCategory::Land,
+                    card_type: "land".into(),
+                },
+            }),
+            participial_adjective: None,
+            block_label: None,
+            parameter: None,
+        })
+    );
 }
 
 #[test]

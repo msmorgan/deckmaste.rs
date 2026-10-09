@@ -1,14 +1,6 @@
 // V3 lexical declarations. Lexemes follow the supported-corpus pruning rule;
 // surviving forms and frames remain declared linguistic data.
 (
-    // Declared singular noun forms supply the lowercase bound stems.
-    // Desertwalk is attested on Desert Nomads; only attested hosts belong here.
-    bound_keyword_stems: [
-        "lexeme:land_subtype/swamp", "lexeme:land_subtype/forest",
-        "lexeme:land_subtype/island", "lexeme:land_subtype/mountain",
-        "lexeme:land_subtype/plains", "lexeme:land_subtype/desert",
-        "lexeme:type/land",
-    ],
     // Attested adjective hosts share joined negative-prefix formation.
     // World has an ordinary adjective declaration without a negative Lexeme.
     // Legendary keeps its existing adjective owner and Catalog entry.

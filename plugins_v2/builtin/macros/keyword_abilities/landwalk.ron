@@ -5,7 +5,10 @@ KeywordAbility(
     keyword_syntax: (payload_order: BoundSuffix),
     grammar: FixedKeyword(
         surface: "landwalk",
-        bound_suffix: (surface: "walk"),
+        bound_suffix: (
+            surface: "walk",
+            stem_class: SubtypesAndType(category: Land, card_type: "land"),
+        ),
     ),
     // "A creature with landwalk can't be blocked as long as the defending player
     // controls at least one land with the specified land type." [CR#702.14c]

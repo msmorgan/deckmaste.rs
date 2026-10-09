@@ -1267,8 +1267,9 @@ swampwalk*, *Enchanted creature has mountainwalk.*
 _Avoid_: Prefix for the Keyword Quality it binds to
 
 **Bound Keyword Stem** (project term):
-The declared noun stem forming a Keyword Quality bound to a Bound Keyword
-Surface, as *island* in *islandwalk*. Its lowercase form comes from the noun's
+The noun stem forming a Keyword Quality bound to a Bound Keyword Surface, as
+*island* in *islandwalk*, derived from the keyword's declared stem class
+(orchestrator ruling, 2026-10-08). Its lowercase form comes from the noun's
 declared singular Word Form, with positional Capitalization of the combined
 word (owner ruling, 2026-10-08,
 [landwalk ticket](../../tickets/done/english-v3-landwalk-bound-suffix.md#analysis)).

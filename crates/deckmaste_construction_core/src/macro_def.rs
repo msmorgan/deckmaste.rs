@@ -425,6 +425,17 @@ pub enum Grammar {
 #[serde(deny_unknown_fields)]
 pub struct BoundSuffixGrammar {
     pub surface: String,
+    pub stem_class: BoundKeywordStemClass,
+}
+
+/// The declaration class supplying a keyword's Bound Keyword Stems.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub enum BoundKeywordStemClass {
+    SubtypesAndType {
+        category: SubtypeCategory,
+        card_type: String,
+    },
 }
 
 /// The surface grammar selected by one fixed keyword parameter.

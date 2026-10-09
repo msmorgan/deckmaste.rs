@@ -44,7 +44,8 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
             owners: native.core_verb_paradigms.into_keys().collect(),
         });
     }
-    let mut compounds = legacy::plugins::load(root, &mut output)?;
+    let plugins = legacy::plugins::load(root, &mut output)?;
+    let mut compounds = plugins.compounds;
     compounds.extend(native::compound_noun_declarations(
         native.compound_noun_classes,
     )?);
@@ -100,7 +101,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     }
     supplement::apply(root, &mut output)?;
     native::replace_forms(&mut output.lexemes, native.form_replacements)?;
-    native::add_bound_keyword_stems(&mut output.lexemes, native.bound_keyword_stems)?;
+    native::add_bound_keyword_stems(&mut output.lexemes, plugins.bound_keyword_stems)?;
     native::add_features(&mut output.lexemes, native.feature_additions)?;
     compound::add_compound_nouns(&mut output, compounds)?;
     native::add_adjective_classes(&mut output.lexemes, native.adjective_classes)?;

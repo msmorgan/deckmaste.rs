@@ -294,6 +294,8 @@ Function Licence**, never the reverse). Implementation is owned by
 
 ### Pruning rule for licensed functions and attachments
 
+Orchestrator ruling (2026-10-08): A lexeme minted mechanically from a declaration class (e.g. every Land subtype's bound landwalk stem) is not subject to the attestation requirement; the pruning rule governs hand-declared lexemes, licences and routes.
+
 A licensed preposition function, attachment site or lexeme is excluded only
 when the supported corpus (the Vintage-legal faces `cargo xtask english-v3
 --all` reads) shows zero attested uses and applying the exclusion loses zero
