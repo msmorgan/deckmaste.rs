@@ -9,8 +9,6 @@
 
 mod lean;
 
-pub(crate) use lean::registry_definitions;
-
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
@@ -18,6 +16,7 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Args;
 use clap::Subcommand;
+pub(crate) use lean::registry_definitions;
 
 #[derive(Debug, Args)]
 pub struct FactsArgs {
@@ -584,6 +583,13 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Morph",
+            on_spell_card: true,
+            paid_cost: true,
+            ..D
+        },
+        Row {
+            // A megamorph cost is a morph cost [CR#702.37b].
+            label: "Megamorph",
             on_spell_card: true,
             paid_cost: true,
             ..D

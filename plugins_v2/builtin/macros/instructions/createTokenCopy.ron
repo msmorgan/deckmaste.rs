@@ -2,6 +2,6 @@
 (
     name: "createTokenCopy",
     kinds: [Instruction],
-    params: {"source": Subject, "riders": Default(TokenRiders, [])},
+    params: {"source": Subject, "riders": Default(EntryRiders, [])},
     body: createObject(1, Token(copyOf(Param(source)), Param(riders))),
 )

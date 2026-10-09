@@ -152,8 +152,14 @@ fn every_nullary_helper_expands() {
 /// here exactly as a card would write it.
 #[test]
 fn every_ported_alias_expands() {
-    use deckmaste_semantics_v2::abilities::{Ability, Instruction, StaticSpec};
-    use deckmaste_semantics_v2::phrase::{Amount, Condition, GameEvent, NounPhrase, Predicate};
+    use deckmaste_semantics_v2::abilities::Ability;
+    use deckmaste_semantics_v2::abilities::Instruction;
+    use deckmaste_semantics_v2::abilities::StaticSpec;
+    use deckmaste_semantics_v2::phrase::Amount;
+    use deckmaste_semantics_v2::phrase::Condition;
+    use deckmaste_semantics_v2::phrase::GameEvent;
+    use deckmaste_semantics_v2::phrase::NounPhrase;
+    use deckmaste_semantics_v2::phrase::Predicate;
     use deckmaste_semantics_v2::words::ManaSymbol;
     let builtin = Plugin::load(plugins_root().join("builtin")).expect("the builtin reads");
     macro_rules! reads {
@@ -174,7 +180,7 @@ fn every_ported_alias_expands() {
         NounPhrase: "someOf(quantity: Range(low: 1, high: 1), group: You)",
         ManaSymbol: "generic(amount: 2)",
         Instruction: "move(subject: You, from: wherever, to: graveyard)",
-        Instruction: "move(subject: You, from: wherever, to: onBottom, riders: [InOrder(RandomOrder)])",
+        Instruction: "move(subject: You, from: wherever, to: onBottom, riders: [Placement(InOrder(RandomOrder))])",
         NounPhrase: "slice(end: Top, amount: 1, pile: library(player: You))",
         NounPhrase: "run(end: Top, stop: HasType(Land), pile: Graveyard(whose: Bare))",
         deckmaste_semantics_v2::phrase::ZoneExpr: "place(end: Bottom, pile: That)",
@@ -340,9 +346,10 @@ fn no_source_file_writes_out_an_elided_constructor() {
     );
 }
 
-/// The mention macros are loader vocabulary (`deckmaste_semantics_v2::mentions`):
-/// the loader writes them into a declaration body whose referent parameter it
-/// mentions more than once, and no card or declaration writes them itself.
+/// The mention macros are loader vocabulary
+/// (`deckmaste_semantics_v2::mentions`): the loader writes them into a
+/// declaration body whose referent parameter it mentions more than once, and no
+/// card or declaration writes them itself.
 #[test]
 fn no_plugin_file_writes_a_mention_macro() {
     let mut offenders = Vec::new();

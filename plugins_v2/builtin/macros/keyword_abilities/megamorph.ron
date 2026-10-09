@@ -1,0 +1,29 @@
+KeywordAbility(
+    name: "megamorph",
+    params: [Cost],
+    spelling: "megamorph <Param(0)>",
+    grammar: FixedKeyword(
+        surface: "megamorph",
+    ),
+    // "Megamorph [cost]" is morph's two abilities and "As this permanent is turned face
+    // up, put a +1/+1 counter on it if its megamorph cost was paid to turn it face up."
+    // [CR#702.37b] The counter is the special action's own, since only that action pays
+    // the megamorph cost.
+    body: [
+        static(
+            mayPlayDeed(
+                cast,
+                you,
+                this,
+                Play(None, None, None, false, FaceDown(faceDownCreature, mana([3]))),
+            ),
+        ),
+        static(
+            specialAction(
+                None,
+                Param(0),
+                sequentially([setStatus(FaceUp, this), putCounters(1, p1p1Counter, this)]),
+            ),
+        ),
+    ],
+)

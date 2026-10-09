@@ -5,10 +5,20 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "morph",
     ),
-    // STOP. "Morph [cost]" means "You may cast this card as a 2/2 face-down creature
-    // with no text, no name, no subtypes, and no mana cost by paying {3} rather than
-    // paying its mana cost." [CR#702.37a] `PlayPayment` has no clause substituting
-    // the cast object's characteristics, so the face-down 2/2 the permitted cast
-    // produces cannot be written — the cause Disguise, which is morph with ward,
-    // already carries.
+    // "Morph [cost]" means "You may cast this card as a 2/2 face-down creature with no
+    // text, no name, no subtypes, and no mana cost by paying {3} rather than paying its
+    // mana cost." [CR#702.37a] Turning it face up for its morph cost is a special
+    // action any time you have priority [CR#702.37e,116.2b]; its copiable values revert
+    // [CR#708.8].
+    body: [
+        static(
+            mayPlayDeed(
+                cast,
+                you,
+                this,
+                Play(None, None, None, false, FaceDown(faceDownCreature, mana([3]))),
+            ),
+        ),
+        static(specialAction(None, Param(0), setStatus(FaceUp, this))),
+    ],
 )

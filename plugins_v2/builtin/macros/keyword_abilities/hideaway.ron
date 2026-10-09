@@ -5,9 +5,23 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "hideaway",
     ),
-    // STOP. "Hideaway N" ends with the exiled card gaining "The player who controls the
-    // permanent that exiled this card may look at this card in the exile zone"
-    // [CR#702.75a]. `actFacts` names no looking deed, so that granted permission cannot
-    // be written: `Instruction::Expose(verb: LookAt, …)` is an instruction, and a
-    // `DeonticRule` permits deeds, not instructions.
+    // "Hideaway N" means "When this permanent enters, look at the top N cards of your
+    // library. Exile one of them face down and put the rest on the bottom of your library
+    // in a random order. The exiled card gains 'The player who controls the permanent
+    // that exiled this card may look at this card in the exile zone.'" [CR#702.75a] The
+    // look right is `visibility` for the controller while the card stays exiled.
+    body: [
+        triggered(
+            enters(thisPermanent),
+            sequentially([
+                lookAt(slice(Top, Param(0), library(you))),
+                exileFaceDown(someOf(exactly(1), them)),
+                move(theRest(Object), wherever, onBottom, [Placement(InOrder(RandomOrder))]),
+                establish(
+                    visibility(LookAt, you, Objects(theVerbed(exile, One, Card))),
+                    forAsLongAs(matches(theVerbed(exile, One, Card), inZone(exileZone))),
+                ),
+            ]),
+        ),
+    ],
 )

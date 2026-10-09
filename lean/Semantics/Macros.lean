@@ -1481,7 +1481,7 @@ semantic_macro disguiseExpansion (cost : Cost) : List Ability :=
 look at it while it remains exiled, and cast it on a later turn for its foretell cost
 [CR#702.143a,116.2h]. -/
 semantic_macro foretellExpansion (cost : Cost) : List Ability :=
-  [ .static (.specialAction (some (.inPart .turn (some .you) .current)) (.mana [generic 2])
+  [ .static (.specialAction (some (duringPart .turn (some .you))) (.mana [generic 2])
       (.sequentially
         [ exileFaceDown .this,
           .establish (.visibility .lookAt .you (.objects it))

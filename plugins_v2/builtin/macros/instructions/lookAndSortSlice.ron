@@ -11,10 +11,10 @@
 (
     name: "lookAndSortSlice",
     kinds: [Instruction],
-    params: {"slice": NounPhrase, "spill": ZoneExpr, "spillRiders": TokenRiders},
+    params: {"slice": NounPhrase, "spill": ZoneExpr, "spillRiders": MoveRiders},
     body: sequentially([
         lookAt(Param(slice)),
         move(someOf(anyNumber, Param(slice)), wherever, Param(spill), Param(spillRiders)),
-        move(theRest(Object), wherever, onTop, [InOrder(AnyOrder)]),
+        move(theRest(Object), wherever, onTop, [Placement(InOrder(AnyOrder))]),
     ]),
 )

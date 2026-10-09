@@ -1,9 +1,10 @@
 // "Manifest <card>" [CR#701.40a]: turn it face down; it becomes a 2/2
-// face-down creature card with no text, no name, no subtypes and no mana cost,
-// and is put onto the battlefield face down. The face-down characteristics are
-// the move's rider (`FaceDown`) [CR#708.2]. Turning it face up is a special
-// action the rules give its controller [CR#701.40b,116.2b], not part of the
-// instruction.
+// face-down creature card with no text, no name, no subtypes and no mana cost.
+// Put that card onto the battlefield face down. The face-down spec is the
+// one `turnFaceDown` gives and the move's entry rider repeats [CR#708.2,708.3];
+// "that card" is read back by anaphora after the card's first mention (§7,
+// ruling 2026-10-08). Turning it face up is a special action the rules give
+// its controller [CR#701.40b,116.2b], not part of the instruction.
 KeywordAction(
     name: "manifest",
     params: [Subject],
@@ -12,5 +13,8 @@ KeywordAction(
         bare: "manifest",
         frame_set: Transitive,
     ),
-    body: putOntoBattlefieldFaceDown(Param(0), (types: [Creature], power: 2, toughness: 2)),
+    body: sequentially([
+        turnFaceDown(Param(0), faceDownCreature),
+        move(that(Card), wherever, battlefield, [FaceDown(faceDownCreature)]),
+    ]),
 )

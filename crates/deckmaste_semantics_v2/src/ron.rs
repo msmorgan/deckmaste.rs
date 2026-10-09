@@ -85,6 +85,14 @@ pub fn kinds() -> KindSet {
     // substitute itself, a record the `substitute` helper builds.
     kinds.add(crate::abilities::PipPaid::kind());
     kinds.add(Kind::new("ManaSubstitute"));
+    // The face-down spec, a record the `exiledFaceDown`/`faceDownCreature`
+    // helpers build.
+    kinds.add(Kind::new("FaceDown"));
+    // The move rider injection: `MoveRider::Entry` embeds an `EntryRider`, so
+    // both links register — a bare `EntersAs(Tapped)` reads at a move rider's
+    // place.
+    kinds.add(crate::abilities::MoveRider::kind());
+    kinds.add(crate::abilities::EntryRider::kind());
     // `lean/Semantics/Words.lean`
     kinds.add(crate::words::Window::kind());
     // The mana injection chain (§11.1): each of these carries an
@@ -212,16 +220,17 @@ pub const EXPRESSION_KINDS: &[&str] = &[
 /// payload of `CounterKindSource::Printed`), and its derived kind's
 /// dispatch set is the same three constructors, so its row went with it.
 /// `HeaderPossessor` was the last entry; it retired into a `GameEvent`
-/// boundary's optional `whose` and its `TurnRef` (`semantics-v2-temporal-suite`).
+/// boundary's optional `whose` and its `TurnRef`
+/// (`semantics-v2-temporal-suite`).
 const HAND_BUILT_NATIVE: &[(&str, &[&str])] = &[];
 
 /// The variants of a word type that are NOT author vocabulary even though the
 /// type is no `semantic_expression`: a card names them by a declared name
 /// instead, and the variant is what the name's macro expands to (read free).
 ///
-/// `Deed::Action` is a keyword action's deed, and a card names it by the keyword
-/// action's declaration name (`exile`, `crate::keywords::deed_macro`), so an
-/// undeclared name is refused when the card loads rather than when it is
+/// `Deed::Action` is a keyword action's deed, and a card names it by the
+/// keyword action's declaration name (`exile`, `crate::keywords::deed_macro`),
+/// so an undeclared name is refused when the card loads rather than when it is
 /// checked (§7, ruling 2026-10-06, "Deeds and keyword labels are declared
 /// names").
 ///
@@ -302,10 +311,11 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::phrase::Condition>("Condition");
     // Every remaining `SupportsMacros` kind, under its own name: §12 "every
     // `SupportsMacros` kind is a parameter type," mirroring how `kinds()`
-    // above is total over the same derive (`every_supports_macros_type_is_a_kind`).
-    // A body needing a `Subtype`, `ZoneExpr`, `Quantity`, `TokenSpec`, or
-    // `Instruction` argument (Amass, Create, Meld, Search, Face A Villainous
-    // Choice) had no way to declare it before this.
+    // above is total over the same derive
+    // (`every_supports_macros_type_is_a_kind`). A body needing a `Subtype`,
+    // `ZoneExpr`, `Quantity`, `TokenSpec`, or `Instruction` argument
+    // (Amass, Create, Meld, Search, Face A Villainous Choice) had no way to
+    // declare it before this.
     types.add_typed::<crate::phrase::GameEvent>("GameEvent");
     types.add_typed::<crate::phrase::Quantity>("Quantity");
     types.add_typed::<crate::phrase::ZoneExpr>("ZoneExpr");
@@ -316,6 +326,8 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::abilities::Instruction>("Instruction");
     types.add_typed::<crate::abilities::StaticSpec>("StaticSpec");
     types.add_typed::<crate::abilities::TokenSpec>("TokenSpec");
+    types.add_typed::<crate::abilities::EntryRider>("EntryRider");
+    types.add_typed::<crate::abilities::MoveRider>("MoveRider");
     types.add_typed::<crate::words::Window>("Window");
     types.add_typed::<crate::words::TurnPart>("TurnPart");
     types.add_typed::<crate::words::Disclosure>("Disclosure");
@@ -393,7 +405,9 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::words::Stat>("Stat");
     types.add_typed::<Vec<crate::abilities::StaticSpec>>("StaticSpecs");
     types.add_typed::<Vec<crate::words::Subtype>>("Subtypes");
-    types.add_typed::<Vec<crate::abilities::TokenRider>>("TokenRiders");
+    types.add_typed::<Vec<crate::abilities::EntryRider>>("EntryRiders");
+    types.add_typed::<Vec<crate::abilities::MoveRider>>("MoveRiders");
+    types.add_typed::<crate::abilities::FaceDown>("FaceDown");
     types.add_typed::<crate::words::VerbedMarking>("VerbedMarking");
     types
 }

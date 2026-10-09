@@ -5,7 +5,19 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "disguise",
     ),
-    // STOP. "Disguise [cost]" casts the card "as a 2/2 face-down creature with ward
-    // {2}, no name, no subtypes, and no mana cost" [CR#702.168a]. `PlayPayment` has
-    // no clause substituting the cast object's characteristics.
+    // "Disguise [cost]" means "You may cast this card as a 2/2 face-down creature with
+    // ward {2}, no name, no subtypes, and no mana cost by paying {3} rather than paying
+    // its mana cost." [CR#702.168a] Turning it face up for its disguise cost is a special
+    // action [CR#702.168d,116.2b].
+    body: [
+        static(
+            mayPlayDeed(
+                cast,
+                you,
+                this,
+                Play(None, None, None, false, FaceDown(faceDownWardedCreature, mana([3]))),
+            ),
+        ),
+        static(specialAction(None, Param(0), setStatus(FaceUp, this))),
+    ],
 )

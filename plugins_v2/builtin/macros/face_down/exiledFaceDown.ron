@@ -1,0 +1,8 @@
+// A card exiled face down: no characteristics and no status
+// [CR#406.3a,110.5d].
+(
+    name: "exiledFaceDown",
+    kinds: [FaceDown],
+    params: [],
+    body: (characteristics: None),
+)

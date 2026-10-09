@@ -4,7 +4,7 @@
     kinds: [Instruction],
     params: {
         "subject": NounPhrase,
-        "riders": Default(TokenRiders, []),
+        "riders": Default(MoveRiders, []),
         "from": Default(ZoneExpr, Wherever),
     },
     body: Enact(Return, Move(Param(subject), Param(from), battlefield, Param(riders))),

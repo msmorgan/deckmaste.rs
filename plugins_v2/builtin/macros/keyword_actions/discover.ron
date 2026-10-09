@@ -24,6 +24,6 @@ KeywordAction(
             None,
             move(that(Card), wherever, hand),
         ),
-        move(theRest(Object), wherever, onBottom, [InOrder(RandomOrder)]),
+        move(theRest(Object), wherever, onBottom, [Placement(InOrder(RandomOrder))]),
     ]),
 )

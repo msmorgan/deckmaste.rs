@@ -191,6 +191,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         "levelUp",
         "madness",
         "mayhem",
+        "megamorph",
         "miracle",
         "moreThanMeetsTheEye",
         "morph",
@@ -241,7 +242,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         parameterized.insert("prototype", &["Cost", "Power", "Toughness"]),
         None
     );
-    assert_eq!(parameterized.len(), 105);
+    assert_eq!(parameterized.len(), 106);
     parameterized
 }
 

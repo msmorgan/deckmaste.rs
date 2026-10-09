@@ -6,13 +6,14 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "suspend",
     ),
-    // STOP. Suspend's first of three abilities is "If you could begin to cast this card
-    // by putting it onto the stack from your hand, you may pay [cost] and exile it with
-    // N time counters on it. THIS ACTION DOESN'T USE THE STACK." [CR#702.62a] No
-    // instruction or static performs a special action (the cause Companion, Foretell
-    // and Plot share), and nothing reads "you could begin to cast this card" — a
-    // counterfactual over the casting procedure. Its second and third abilities
-    // (upkeep counter removal and the last-counter trigger) function in the exile zone
-    // on a card the first ability put there, and a definition cannot depend on a half
-    // that is not written.
+    // STOP. Suspend's first ability is a special action, writable as
+    // `specialAction(<when>, Param(1), exile(this) with Param(0) time counters)` with
+    // the counters a `Placement(WithCounters(…))` [CR#702.62a,116.2f], but its `when`
+    // is "if you could begin to cast this card by putting it onto the stack from your
+    // hand": a counterfactual over the casting procedure, which no `Timing` or
+    // `Condition` reads (the temporal suite's `onlyIf` takes a condition, and none
+    // says "could begin to cast"). Its second and third abilities (upkeep counter
+    // removal, the last-counter trigger) read "if this card is suspended", which
+    // nothing names either, and a definition cannot depend on a half that is not
+    // written.
 )

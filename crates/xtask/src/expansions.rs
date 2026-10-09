@@ -25,11 +25,12 @@
 //! basis. A typed parameter takes the samples its declared type's validator
 //! accepts, starting at its ordinal among same-typed parameters, so two
 //! `Amount` parameters get different amounts. An `Any` parameter takes
-//! [`WORD_SAMPLES`] and then the whole of [`SAMPLES`]. The first assignment (in list order, no two parameters given
-//! the same text) whose invocation reads is used, and the invocation is
-//! printed in the file's header. Defaulted and elidable parameters are left
-//! out, so their default is what the body sees. Everything here is a function
-//! of the declaration and the fixed list, so the choice is deterministic.
+//! [`WORD_SAMPLES`] and then the whole of [`SAMPLES`]. The first assignment (in
+//! list order, no two parameters given the same text) whose invocation reads is
+//! used, and the invocation is printed in the file's header. Defaulted and
+//! elidable parameters are left out, so their default is what the body sees.
+//! Everything here is a function of the declaration and the fixed list, so the
+//! choice is deterministic.
 //!
 //! Declarations that cannot be printed are listed in `_skipped.txt` with the
 //! reason, never dropped; a declaration that should print and does not read
@@ -497,6 +498,9 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "CharacteristicBundle" => render::<abilities::CharacteristicBundle>,
         "PipPaid" => render::<abilities::PipPaid>,
         "ManaSubstitute" => render::<abilities::ManaSubstitute>,
+        "FaceDown" => render::<abilities::FaceDown>,
+        "MoveRider" => render::<abilities::MoveRider>,
+        "EntryRider" => render::<abilities::EntryRider>,
         "Window" => render::<words::Window>,
         "ManaSymbol" => render::<words::ManaSymbol>,
         "SimpleManaSymbol" => render::<words::SimpleManaSymbol>,

@@ -73,6 +73,7 @@ keywordFacts =
   , { word := "Mayhem", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Disturb", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Morph", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
+  , { word := "Megamorph", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Entwine", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True, wantsModes := True } defaultKeywordFacts
   , { word := "Escalate", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True, wantsModes := True } defaultKeywordFacts
   , { word := "Fuse", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
@@ -143,7 +144,7 @@ keywordFacts =
   , { word := "Graft", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Gravestorm", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, bodied := True } defaultKeywordFacts
   , { word := "Haunt", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
-  , { word := "Hideaway", paramShapes := [NumberParam] } defaultKeywordFacts
+  , { word := "Hideaway", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
   , { word := "Horsemanship", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Increment", paramShapes := [NoParam], regime := Just AtCasting, bodied := True } defaultKeywordFacts
   , { word := "Infinity", paramShapes := [AbilityParam] } defaultKeywordFacts

@@ -1,6 +1,7 @@
 //! Every keyword action and keyword ability spelling is the uninflected
 //! template a card prints (`builtin-v2-keyword-spelling-templates`; the
-//! 2026-10-07 amendment to `docs/decisions/builtin-v2-macro-spelling-and-grammar.md`).
+//! 2026-10-07 amendment to
+//! `docs/decisions/builtin-v2-macro-spelling-and-grammar.md`).
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -213,6 +214,7 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("madness", "madness <Param(0)>"),
     ("maxSpeed", "max speed — <Param(0)>"),
     ("mayhem", "mayhem <Param(0)>"),
+    ("megamorph", "megamorph <Param(0)>"),
     ("melee", "melee"),
     ("menace", "menace"),
     ("mentor", "mentor"),
@@ -352,7 +354,7 @@ fn every_keyword_declaration_pins_its_template() {
 #[test]
 fn every_keyword_template_is_consistent_with_its_params_and_grammar() {
     let declarations = keyword_declarations();
-    assert_eq!(declarations.len(), 66 + 198);
+    assert_eq!(declarations.len(), 66 + 199);
     for declaration in &declarations {
         let name = declaration.identity().name();
         let params = declaration.params().unwrap_or_default();

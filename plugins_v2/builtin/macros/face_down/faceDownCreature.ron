@@ -1,0 +1,8 @@
+// "A 2/2 face-down creature with no text, no name, no subtypes, and no mana
+// cost" [CR#708.2a]: manifest's, morph's and megamorph's face-down spec.
+(
+    name: "faceDownCreature",
+    kinds: [FaceDown],
+    params: [],
+    body: (characteristics: (types: [Creature], power: 2, toughness: 2)),
+)

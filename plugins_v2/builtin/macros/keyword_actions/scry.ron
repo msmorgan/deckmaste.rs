@@ -13,5 +13,5 @@ KeywordAction(
         third_person: "scries",
         frame_set: Custom(frames: [[], [Amount], [ObjectNounPhrase]]),
     ),
-    body: lookAndSortSlice(slice(Top, Param(0), library(actor)), onBottom, [InOrder(AnyOrder)]),
+    body: lookAndSortSlice(slice(Top, Param(0), library(actor)), onBottom, [Placement(InOrder(AnyOrder))]),
 )

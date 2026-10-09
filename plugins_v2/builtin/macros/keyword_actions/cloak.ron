@@ -1,8 +1,8 @@
 // "Cloak <card>" [CR#701.58a]: turn it face down; it becomes a 2/2 face-down
-// creature card with ward {2}, no name, no subtypes and no mana cost, and is
-// put onto the battlefield face down. As manifest's, the face-down
-// characteristics are the move's rider (`FaceDown`) [CR#708.2]; turning it
-// face up is the rules' special action [CR#701.58b,116.2b].
+// creature card with ward {2}, no name, no subtypes and no mana cost. Put that
+// card onto the battlefield face down. As manifest's, the face-down spec is
+// the one `turnFaceDown` gives and the move's entry rider repeats [CR#708.2];
+// turning it face up is the rules' special action [CR#701.58b,116.2b].
 KeywordAction(
     name: "cloak",
     params: [Subject],
@@ -11,8 +11,8 @@ KeywordAction(
         bare: "cloak",
         frame_set: Transitive,
     ),
-    body: putOntoBattlefieldFaceDown(
-        Param(0),
-        (types: [Creature], text: [ward(mana([2]))], power: 2, toughness: 2),
-    ),
+    body: sequentially([
+        turnFaceDown(Param(0), faceDownWardedCreature),
+        move(that(Card), wherever, battlefield, [FaceDown(faceDownWardedCreature)]),
+    ]),
 )

@@ -1,7 +1,7 @@
 //! The vocabulary: every leaf type a phrase, trigger, effect, or card is
-//! written from. Mirrors `lean/Semantics/Words.lean` constructor-for-constructor
-//! and field-for-field; Lean is the specification (see
-//! `docs/decisions/semantics-v2.md` §10).
+//! written from. Mirrors `lean/Semantics/Words.lean`
+//! constructor-for-constructor and field-for-field; Lean is the specification
+//! (see `docs/decisions/semantics-v2.md` §10).
 
 use macro_ron::Expand;
 use macro_ron::SupportsMacros;
@@ -22,9 +22,10 @@ pub enum CardType {
     Kindred,
 }
 
-/// A rules procedure a card can instruct a player to carry out during resolution: activating
-/// an ability [CR#701.2a,602.1], casting a spell [CR#701.5a,601.2], or playing a card as a land
-/// or as a spell [CR#701.18a,701.18b].
+/// A rules procedure a card can instruct a player to carry out during
+/// resolution: activating an ability [CR#701.2a,602.1], casting a spell
+/// [CR#701.5a,601.2], or playing a card as a land or as a spell
+/// [CR#701.18a,701.18b].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Procedure {
     Activate,
@@ -55,7 +56,8 @@ pub enum Comparator {
     Eq,
 }
 
-/// The sorts a quality noun ("a color", "a creature type", "a card name") ranges over.
+/// The sorts a quality noun ("a color", "a creature type", "a card name")
+/// ranges over.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum QualitySort {
     Color,
@@ -92,7 +94,8 @@ pub enum Kind {
     TurnRef,
     /// A pile of objects; the pile itself is not an object [CR#700.3b].
     Pile,
-    /// Idris `(\/)`: a phrase denoting either sort ("target creature or player").
+    /// Idris `(\/)`: a phrase denoting either sort ("target creature or
+    /// player").
     Join {
         left: Box<Kind>,
         right: Box<Kind>,
@@ -168,7 +171,8 @@ pub enum Plurality {
     Many,
 }
 
-/// Static number facts carried by a typed parameter read and checked against its binding.
+/// Static number facts carried by a typed parameter read and checked against
+/// its binding.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct AmountShape {
     pub exact: Option<u32>,
@@ -204,9 +208,9 @@ pub enum PossessorAxis {
     Controller,
 }
 
-/// How an object stands in combat, optionally toward a counterpart: "attacking" is
-/// `attackerOf` with none, "creature blocking it" is `blockerOf` with one. `declaredAttacker` is
-/// the declare-attackers moment [CR#508.1].
+/// How an object stands in combat, optionally toward a counterpart: "attacking"
+/// is `attackerOf` with none, "creature blocking it" is `blockerOf` with one.
+/// `declaredAttacker` is the declare-attackers moment [CR#508.1].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CombatRelation {
     AttackerOf,
@@ -346,15 +350,16 @@ pub type FlavorWordLabel = String;
 
 pub type VoteLabel = String;
 
-/// A keyword action's name [CR#701.1]. The keyword actions are an open set the registry
-/// declares, so a deed of that source is keyed by the declaration's name verbatim (`exile`,
-/// `collectEvidence`), as a designation is. A card writes the name bare where a deed is wanted
-/// (`crate::keywords::deed_macro`).
+/// A keyword action's name [CR#701.1]. The keyword actions are an open set the
+/// registry declares, so a deed of that source is keyed by the declaration's
+/// name verbatim (`exile`, `collectEvidence`), as a designation is. A card
+/// writes the name bare where a deed is wanted (`crate::keywords::deed_macro`).
 pub type KeywordActionLabel = String;
 
-/// Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
-/// [CR#508.1,509.1] and the other actions the rules define in their own sections. Closed, so a law
-/// matches them structurally instead of naming a lexeme.
+/// Deeds the core rules define outside the keyword actions of [CR#701.1]:
+/// turn-based actions [CR#508.1,509.1] and the other actions the rules define
+/// in their own sections. Closed, so a law matches them structurally instead of
+/// naming a lexeme.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum CoreDeed {
     Attack,
@@ -381,9 +386,10 @@ pub enum StateBasedCause {
     NonpositiveLife,
 }
 
-/// A deed: something a card's text says is done. Three sources define one, and only the middle
-/// one is open: the core rules [CR#508.1,509.1,709.5f], the keyword actions the registry declares
-/// [CR#701.1], and the verb a keyword ability defines for itself [CR#702.122b,702.171a,702.26a].
+/// A deed: something a card's text says is done. Three sources define one, and
+/// only the middle one is open: the core rules [CR#508.1,509.1,709.5f], the
+/// keyword actions the registry declares [CR#701.1], and the verb a keyword
+/// ability defines for itself [CR#702.122b,702.171a,702.26a].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Deed {
     /// Carries only the core deed, so a bare `Block` reads here: "can't
@@ -465,12 +471,14 @@ pub enum NounWord {
     Stack,
     /// "Whenever you activate an ability, … copy THAT ABILITY"
     Ability,
-    /// A written type narrows the word without replacing its carrier requirement.
+    /// A written type narrows the word without replacing its carrier
+    /// requirement.
     OfType {
         word: Box<NounWord>,
         r#type: CardType,
     },
-    /// Copy origin narrows the word; an ability copy still has the ability head [CR#707.10].
+    /// Copy origin narrows the word; an ability copy still has the ability head
+    /// [CR#707.10].
     Copied {
         word: Box<NounWord>,
     },
@@ -491,7 +499,8 @@ pub enum SlotCarrier {
     Spell,
 }
 
-/// Structural facts retained by a captured subject, independent of its current properties.
+/// Structural facts retained by a captured subject, independent of its current
+/// properties.
 #[allow(
     clippy::struct_excessive_bools,
     reason = "the field set mirrors `NounShape` in lean/Semantics/Words.lean; Lean is the spec"
@@ -536,8 +545,9 @@ pub enum Reach {
 
 /// A Binding Identity: the name under which a macro body's first mention of a
 /// referent parameter records the binding it introduces or resolves, and by
-/// which the body's later mentions of that parameter read it back. A name, never
-/// a stack position (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06).
+/// which the body's later mentions of that parameter read it back. A name,
+/// never a stack position (`docs/decisions/semantics-v2.md` §7, ruling
+/// 2026-10-06).
 pub type BindingId = String;
 
 /// The stretch of the antecedent stack a pronoun resolves in.
@@ -744,19 +754,10 @@ pub enum ManaUnit {
     Run { cost: ManaCost },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum SpecialAction {
-    TurnFaceUp,
-    PutCompanionIntoHand,
-    Foretell,
-    UnlockDoor,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CostNamed {
     Containing { symbol: ManaSymbol },
     OfKeyword { keyword: KeywordLabel },
-    OfSpecialAction { action: SpecialAction },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -783,16 +784,17 @@ pub enum LoyaltyCost {
 
 /// A card subtype. Instants and sorceries share their spell types [CR#205.3k].
 ///
-/// A DEFINITION'S NAME DENOTES ITS TERM (Lean `Semantics.Definition.subtypeTerm`,
-/// `plugins-v2-subtypes-macro-only`). Every registry declaration's body is the
-/// `Definition` node it defines, so the macro `gargoyle` expands to
-/// `Subtype(subtype: Of(host: Creature, label: "Gargoyle"), rules: [])`
-/// wherever it is written; at a TERM position — a card's subtype list, an
-/// amassed subtype — the position takes the term the definition names rather
-/// than the node. The `denoted_by` marker declares that reading; the same
-/// marker reads a counter definition's `kind` at [`CounterKind`]. The node's
-/// spelling is not one of this type's constructors, so a card writing it raw
-/// is refused by name like `Of` and `Spell` are (§11.1).
+/// A DEFINITION'S NAME DENOTES ITS TERM (Lean
+/// `Semantics.Definition.subtypeTerm`, `plugins-v2-subtypes-macro-only`). Every
+/// registry declaration's body is the `Definition` node it defines, so the
+/// macro `gargoyle` expands to `Subtype(subtype: Of(host: Creature, label:
+/// "Gargoyle"), rules: [])` wherever it is written; at a TERM position — a
+/// card's subtype list, an amassed subtype — the position takes the term the
+/// definition names rather than the node. The `denoted_by` marker declares that
+/// reading; the same marker reads a counter definition's `kind` at
+/// [`CounterKind`]. The node's spelling is not one of this type's constructors,
+/// so a card writing it raw is refused by name like `Of` and `Spell` are
+/// (§11.1).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 #[macro_ron(denoted_by(Subtype, term = crate::rules::Definition::subtype_term))]
 pub enum Subtype {
@@ -817,8 +819,9 @@ pub enum Delta<T> {
     Set { amount: T },
 }
 
-/// Where a number below zero reads as zero and where it stands [CR#107.1b]: an effect's result
-/// is clamped unless it sets, doubles, or triples a life total or a power and toughness.
+/// Where a number below zero reads as zero and where it stands [CR#107.1b]: an
+/// effect's result is clamped unless it sets, doubles, or triples a life total
+/// or a power and toughness.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum NumberRegime {
     Clamped,
@@ -858,7 +861,8 @@ pub enum AttachmentSide {
     Attachment,
 }
 
-/// The current side of a single double-faced permanent, independently of its Status.
+/// The current side of a single double-faced permanent, independently of its
+/// Status.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CardFaceSide {
     Front,
@@ -933,7 +937,8 @@ pub enum StatusCat {
     Phase,
 }
 
-/// The Idris `StatusVal : StatusCat → Type`, unindexed; `category` recovers the index.
+/// The Idris `StatusVal : StatusCat → Type`, unindexed; `category` recovers the
+/// index.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Status {
     Tapped,
@@ -952,7 +957,8 @@ pub enum ColorSpec {
     Every,
 }
 
-/// Phases and steps [CR#500.1]; `firstStrikeCombatDamage` is the extra step of [CR#510.4].
+/// Phases and steps [CR#500.1]; `firstStrikeCombatDamage` is the extra step of
+/// [CR#510.4].
 ///
 /// Macroable because `plugins_v2`'s turn-part declarations register here: the
 /// family's name coincides with this type, so a declaration of kind `TurnPart`
@@ -970,7 +976,8 @@ pub enum TurnPart {
     MainPhase,
     FirstMain,
     Combat,
-    /// The combat phase's own first step [CR#506.1], which the phase around it is not.
+    /// The combat phase's own first step [CR#506.1], which the phase around it
+    /// is not.
     BeginningOfCombat,
     DeclareAttackers,
     DeclareBlockers,
@@ -978,7 +985,8 @@ pub enum TurnPart {
     CombatDamage,
     EndOfCombat,
     PostcombatMain,
-    /// The turn's fifth phase [CR#500.1], the one holding the end and cleanup steps.
+    /// The turn's fifth phase [CR#500.1], the one holding the end and cleanup
+    /// steps.
     EndingPhase,
     EndStep,
     Cleanup,

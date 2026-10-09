@@ -1,0 +1,8 @@
+// "exile <subject> face down" [CR#406.3]: the exiled card has no
+// characteristics [CR#406.3a].
+(
+    name: "exileFaceDown",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase},
+    body: Enact(verb: exile, instruction: Move(Param(subject), wherever, exileZone, [Placement(FaceDown(exiledFaceDown))])),
+)

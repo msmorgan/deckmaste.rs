@@ -1,0 +1,17 @@
+// "A 2/2 face-down creature with ward {2}, no name, no subtypes, and no mana
+// cost": cloak's and disguise's face-down spec [CR#701.58a,702.168a]. Ward is
+// listed as a characteristic, the keyword written with its cost and no
+// expansion, as the Lean bench's `faceDownWardedCreature` writes it.
+(
+    name: "faceDownWardedCreature",
+    kinds: [FaceDown],
+    params: [],
+    body: (
+        characteristics: (
+            types: [Creature],
+            text: [Keyword(Named("ward"), [Cost(mana([2]))], [])],
+            power: 2,
+            toughness: 2,
+        ),
+    ),
+)

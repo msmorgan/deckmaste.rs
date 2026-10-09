@@ -9,6 +9,6 @@ KeywordAbility(
     // MAY put an additional N +1/+1 counters on it as it enters." [CR#702.104a]
     // `StaticSpec::Choice` makes the entry choice of an opponent, but no entry rider is
     // optional and none is decided by a player other than the permanent's controller:
-    // `StaticSpec::EntryRider` takes a `TokenRider` and only `TokenRider::AsCopyOf`
+    // `StaticSpec::EntryRider` takes a `EntryRider` and only `EntryRider::AsCopyOf`
     // carries an `optional` flag (the cause Riot and Unleash share).
 )

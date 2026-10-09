@@ -1,0 +1,10 @@
+// `Instruction.TurnFaceDown` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1). "Turn <subject> face down" as `spec`
+// lists [CR#701.40a,708.2].
+(
+    name: "turnFaceDown",
+    kinds: [Instruction],
+    params: {"subject": Subject, "spec": FaceDown},
+    body: TurnFaceDown(subject: Param(subject), spec: Param(spec)),
+)

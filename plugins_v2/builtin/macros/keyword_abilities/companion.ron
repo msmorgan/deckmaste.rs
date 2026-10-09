@@ -7,8 +7,10 @@ KeywordAbility(
         surface: "companion",
     ),
     // STOP. Companion "functions outside the game" and grants a special action that
-    // pays {3} to put the card into your hand [CR#702.139a]. Nothing in the grammar
-    // speaks about the zone outside the game or about special actions. The
+    // pays {3} to put the card into your hand [CR#702.139a,116.2g]. The special action
+    // itself is a `specialAction(asSorcery, mana([3]), <move to hand>)` row once the
+    // zone outside the game has a `ZoneExpr` and the action a once-per-game limit;
+    // neither exists, so it is not written. The
     // declaration's `Condition` parameter is a phrase `Condition`, which cannot fill
     // `KeywordParam::DeckCondition` either, so the argument is not forwardable.
     keyword_params: [],

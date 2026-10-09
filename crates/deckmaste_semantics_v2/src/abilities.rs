@@ -2,6 +2,11 @@
 //! the characteristics an object carries. Mirrors
 //! `lean/Semantics/Abilities.lean`.
 
+use macro_ron::Expand;
+use macro_ron::SupportsMacros;
+use serde::Deserialize;
+use serde::Serialize;
+
 use crate::events::CondMarking;
 use crate::events::DamageKind;
 use crate::events::Deeds;
@@ -9,8 +14,8 @@ use crate::events::ReplUse;
 use crate::phrase::Amount;
 use crate::phrase::Ballot;
 use crate::phrase::CaptureInput;
-use crate::phrase::ColorTerm;
 use crate::phrase::ChoiceDomain;
+use crate::phrase::ColorTerm;
 use crate::phrase::Condition;
 use crate::phrase::Door;
 use crate::phrase::Duration;
@@ -79,10 +84,6 @@ use crate::words::Subtype;
 use crate::words::SubtypeSpace;
 use crate::words::Supertype;
 use crate::words::TurnPart;
-use macro_ron::Expand;
-use macro_ron::SupportsMacros;
-use serde::Deserialize;
-use serde::Serialize;
 
 /// What mana may be spent on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -131,7 +132,8 @@ pub enum Exchanged {
         left: ZoneExpr,
         right: ZoneExpr,
     },
-    /// Two numerical values [CR#701.12g]: life totals, powers or toughnesses, rolled results.
+    /// Two numerical values [CR#701.12g]: life totals, powers or toughnesses,
+    /// rolled results.
     Values {
         left: Amount,
         right: Amount,
@@ -179,7 +181,8 @@ pub enum QualityOp {
     Loses,
 }
 
-/// Only present axes are written. A present empty list explicitly clears that axis.
+/// Only present axes are written. A present empty list explicitly clears that
+/// axis.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct TypeLineChanges {
     #[serde(default)]
@@ -308,8 +311,8 @@ pub enum SpentMode {
     TriggersThen,
 }
 
-/// Optional payment is decided by its performer, the actor in context; required payment tests
-/// whether it started [CR#118.12].
+/// Optional payment is decided by its performer, the actor in context; required
+/// payment tests whether it started [CR#118.12].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum ContinuationPolicy {
     Optional,
@@ -344,8 +347,8 @@ pub enum DeckCondition {
         scope: Predicate,
         r#trait: DeckTrait,
     },
-    /// "No card in your starting deck has more than one of the same mana symbol in its mana
-    /// cost."
+    /// "No card in your starting deck has more than one of the same mana symbol
+    /// in its mana cost."
     NoCardIs {
         scope: Predicate,
         r#trait: DeckTrait,
@@ -354,8 +357,8 @@ pub enum DeckCondition {
     CardsDiffer { scope: Predicate, axis: QualitySort },
     /// "Each nonland card in your starting deck shares a card type."
     CardsShare { scope: Predicate, axis: QualitySort },
-    /// "at least twenty cards more than the minimum deck size", a minimum the format sets
-    /// [CR#100.2a,100.2b].
+    /// "at least twenty cards more than the minimum deck size", a minimum the
+    /// format sets [CR#100.2a,100.2b].
     DeckSizeOverMinimum { extra: u32 },
 }
 
@@ -372,8 +375,8 @@ pub enum CombatUpdate {
     Participation {
         state: CombatParticipation,
     },
-    /// Adding a blocker makes its attacker blocked; removing the relation leaves that
-    /// blockedness unchanged.
+    /// Adding a blocker makes its attacker blocked; removing the relation
+    /// leaves that blockedness unchanged.
     Blocking {
         r#move: AttachMove,
         attacker: NounPhrase,
@@ -397,9 +400,9 @@ pub enum Repetition {
     },
 }
 
-/// An object's characteristics: name, mana cost, color and color indicator, card type,
-/// subtype, supertype, rules text and abilities, power, toughness, loyalty, and defense
-/// [CR#109.3]. Every field defaults to absent.
+/// An object's characteristics: name, mana cost, color and color indicator,
+/// card type, subtype, supertype, rules text and abilities, power, toughness,
+/// loyalty, and defense [CR#109.3]. Every field defaults to absent.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct Characteristics {
     #[serde(default)]
@@ -426,8 +429,8 @@ pub struct Characteristics {
     pub defense: Option<Amount>,
 }
 
-/// A characteristics set as an effect writes it, with the token qualities ("with every
-/// creature type") an effect can add [CR#111.3].
+/// A characteristics set as an effect writes it, with the token qualities
+/// ("with every creature type") an effect can add [CR#111.3].
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub struct CharacteristicBundle {
     pub characteristics: Box<Characteristics>,
@@ -435,7 +438,18 @@ pub struct CharacteristicBundle {
     pub qualities: Vec<TokenQuality>,
 }
 
-/// Typed characteristic writes; the enclosing static or copy form retains its context.
+/// The one face-down spec. `None` is a card exiled face down, which has no
+/// characteristics and no status [CR#406.3a,110.5d]; `Some` is a face-down
+/// spell or permanent, its listed characteristics and so its copiable values
+/// [CR#708.2,613.2b]. Turning it face up is `SetStatus(FaceUp, …)`, and the
+/// values revert [CR#708.8]. Nothing face down is a token.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub struct FaceDown {
+    pub characteristics: Option<Box<Characteristics>>,
+}
+
+/// Typed characteristic writes; the enclosing static or copy form retains its
+/// context.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CharacteristicEdit {
     TypeLine {
@@ -483,8 +497,8 @@ pub enum AbilitySelection {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum TokenSpec {
-    /// The creating spell or ability defines the token's characteristic values [CR#111.3] and
-    /// sets its name and subtypes [CR#111.4].
+    /// The creating spell or ability defines the token's characteristic values
+    /// [CR#111.3] and sets its name and subtypes [CR#111.4].
     Written {
         characteristics: Box<CharacteristicBundle>,
     },
@@ -517,10 +531,11 @@ pub enum StaticSpec {
         stat: Stat,
         delta: Delta<Amount>,
     },
-    /// "<subject> gets +P/+T" and "<subject> has base power and toughness P/T": one change
-    /// to power and toughness together, its subject written once. Each delta is the one a
-    /// `Modification` of that stat would carry: a set applies in layer 7b, a change by an
-    /// amount in layer 7c [CR#613.4b,613.4c].
+    /// "<subject> gets +P/+T" and "<subject> has base power and toughness P/T":
+    /// one change to power and toughness together, its subject written
+    /// once. Each delta is the one a `Modification` of that stat would
+    /// carry: a set applies in layer 7b, a change by an amount in layer 7c
+    /// [CR#613.4b,613.4c].
     PtModification {
         subject: NounPhrase,
         power: Delta<Amount>,
@@ -632,7 +647,7 @@ pub enum StaticSpec {
     },
     EntryRider {
         subject: NounPhrase,
-        rider: Box<TokenRider>,
+        rider: Box<EntryRider>,
     },
     Choice {
         occasion: ChoiceOccasion,
@@ -652,6 +667,15 @@ pub enum StaticSpec {
         subject: NounPhrase,
         substitute: ManaSubstitute,
     },
+    /// A special action: any time you have priority, within `when`, you may
+    /// pay `cost` and do `does`, without using the stack [CR#116.1,116.2c].
+    /// Morph's turning face up, foretell's and plot's exiling are each one
+    /// [CR#116.2b,116.2h,116.2k].
+    SpecialAction {
+        when: Option<Timing>,
+        cost: Box<Cost>,
+        does: Box<Instruction>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -666,7 +690,15 @@ pub enum Compulsion {
 pub enum PlayPayment {
     ItsOwnCost,
     WithoutPaying,
-    PayingInstead { cost: Box<Cost> },
+    PayingInstead {
+        cost: Box<Cost>,
+    },
+    /// Cast face down as `spec` says, paying `cost` rather than the mana
+    /// cost: morph and disguise [CR#702.37a,702.168a,708.4].
+    FaceDown {
+        spec: FaceDown,
+        cost: Box<Cost>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -699,8 +731,10 @@ pub enum DamageOp {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum TokenRider {
+/// How a permanent arrives on the battlefield: from a move, a token's
+/// creation, or a static entry rider.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum EntryRider {
     EntersAs {
         status: Status,
     },
@@ -724,24 +758,50 @@ pub enum TokenRider {
         source: NounPhrase,
         exceptions: Vec<CopyExcept>,
     },
-    /// Enters face down with the characteristics the instruction lists, and no
-    /// others, while it stays face down [CR#708.2,701.40a,701.58a].
+    /// Enters face down as `spec` lists, and with no other characteristics
+    /// while it stays face down [CR#708.2,708.3].
     FaceDown {
-        characteristics: Box<Characteristics>,
+        spec: FaceDown,
     },
+}
+
+/// How a moved card is placed in a zone other than the battlefield: its order
+/// and depth in a pile, its face, and the counters it is exiled with.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum PilePlacement {
     /// "In any order", "in a random order": how the objects moved to one
     /// place are ordered there [CR#401.4].
-    InOrder {
-        arrangement: Arrangement,
-    },
+    InOrder { arrangement: Arrangement },
     /// "Nth from the top": that many objects in from the place's end
     /// [CR#401.7].
-    NthFromEnd {
-        ordinal: Ordinal,
-    },
+    NthFromEnd { ordinal: Ordinal },
     /// "On the top or bottom": the performer may choose the place's other end
     /// instead.
     OrOtherEnd,
+    /// "Exile it face down": `None`, a card with no characteristics
+    /// [CR#406.3,406.3a].
+    FaceDown { spec: FaceDown },
+    /// "Exile it with N time counters on it" [CR#702.62a].
+    WithCounters {
+        amount: Amount,
+        kind: CounterKindSource,
+        mark: EntryCounterMark,
+    },
+}
+
+/// A move's rider, of the kind its destination allows: an entry rider onto
+/// the battlefield, a placement anywhere else (owner ruling 2026-10-08).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum MoveRider {
+    /// Carries only the entry rider, so a bare `EntersAs(Tapped)` reads at a
+    /// move rider's place.
+    #[macro_ron(embed)]
+    Entry {
+        rider: EntryRider,
+    },
+    Placement {
+        placement: PilePlacement,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -838,7 +898,7 @@ pub struct RollRow {
 pub enum CreationSpec {
     Token {
         spec: Box<TokenSpec>,
-        riders: Vec<TokenRider>,
+        riders: Vec<EntryRider>,
     },
     /// An emblem, named where the rules name it ("an emblem named The Ring"
     /// [CR#701.54c]).
@@ -850,7 +910,8 @@ pub enum CreationSpec {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum Instruction {
-    /// Bind ordered typed inputs for the body, without an implicit whole-body precondition.
+    /// Bind ordered typed inputs for the body, without an implicit whole-body
+    /// precondition.
     WithBindings {
         scope: u32,
         inputs: Vec<CaptureInput>,
@@ -893,7 +954,8 @@ pub enum Instruction {
     ClearDamage {
         subject: NounPhrase,
     },
-    /// "… can't be regenerated this turn": an instruction plus the deed it forbids.
+    /// "… can't be regenerated this turn": an instruction plus the deed it
+    /// forbids.
     DoAndForbid {
         instruction: Box<Instruction>,
         deed: Deed,
@@ -920,8 +982,8 @@ pub enum Instruction {
         piles: u32,
         faces: Vec<PileFace>,
     },
-    /// The `when` rider is the printed "as you activate this ability": the announcement's
-    /// timing, not a condition on what may be chosen.
+    /// The `when` rider is the printed "as you activate this ability": the
+    /// announcement's timing, not a condition on what may be chosen.
     Choose {
         first: Option<NounPhrase>,
         chosen: NounPhrase,
@@ -940,7 +1002,13 @@ pub enum Instruction {
         subject: NounPhrase,
         from: ZoneExpr,
         to: ZoneExpr,
-        riders: Vec<TokenRider>,
+        riders: Vec<MoveRider>,
+    },
+    /// Turn `subject` face down as `spec` lists: manifest's first step
+    /// [CR#701.40a,708.2].
+    TurnFaceDown {
+        subject: NounPhrase,
+        spec: FaceDown,
     },
     Copy {
         sort: CopySort,
@@ -1039,9 +1107,9 @@ pub enum Instruction {
     DoubleCounters {
         on: NounPhrase,
     },
-    /// A named deed done by the performer in context: the deed's own facts row gates that
-    /// performer, the patient and the zones the sentence may name, whichever of the three
-    /// sources defines it.
+    /// A named deed done by the performer in context: the deed's own facts row
+    /// gates that performer, the patient and the zones the sentence may
+    /// name, whichever of the three sources defines it.
     Enact {
         verb: Deed,
         instruction: Box<Instruction>,
@@ -1059,7 +1127,8 @@ pub enum Instruction {
         performer: NounPhrase,
         body: Box<Instruction>,
     },
-    /// Branch on the decision or start of payment, independently of resulting events.
+    /// Branch on the decision or start of payment, independently of resulting
+    /// events.
     WithContinuation {
         policy: ContinuationPolicy,
         body: Box<Instruction>,
@@ -1144,8 +1213,9 @@ pub enum Instruction {
     },
     /// Carry out a rules procedure on `subject` now, during resolution:
     /// activate it, cast it, or play it [CR#701.2a,701.5a,701.18a], paying as
-    /// `payment` says. `resulting` is what the spell the procedure produces must
-    /// be ("if the resulting spell's mana value is N or less" [CR#701.57a]).
+    /// `payment` says. `resulting` is what the spell the procedure produces
+    /// must be ("if the resulting spell's mana value is N or less"
+    /// [CR#701.57a]).
     Procedure {
         kind: Procedure,
         subject: NounPhrase,

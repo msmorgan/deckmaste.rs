@@ -1,0 +1,10 @@
+// `StaticSpec.SpecialAction` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1). "Any time you have priority, within
+// `when`, you may pay `cost` and do `does`" [CR#116.1,116.2c].
+(
+    name: "specialAction",
+    kinds: [StaticSpec],
+    params: {"when": Any, "cost": Cost, "does": Instruction},
+    body: SpecialAction(when: Param(when), cost: Param(cost), does: Param(does)),
+)

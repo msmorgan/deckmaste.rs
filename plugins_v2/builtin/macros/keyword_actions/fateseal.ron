@@ -12,5 +12,5 @@ KeywordAction(
         third_person: Unavailable,
         frame_set: MeasureComplement,
     ),
-    body: lookAndSortSlice(slice(Top, Param(0), library(a(opponent))), onBottom, [InOrder(AnyOrder)]),
+    body: lookAndSortSlice(slice(Top, Param(0), library(a(opponent))), onBottom, [Placement(InOrder(AnyOrder))]),
 )

@@ -1,9 +1,0 @@
-// "<performer> puts <subject> onto the battlefield face down" as an object
-// with the characteristics the instruction lists and no others
-// [CR#708.2,701.40a,701.58a].
-(
-    name: "putOntoBattlefieldFaceDown",
-    kinds: [Instruction],
-    params: {"subject": NounPhrase, "characteristics": Any},
-    body: Move(Param(subject), wherever, battlefield, [FaceDown(Param(characteristics))]),
-)

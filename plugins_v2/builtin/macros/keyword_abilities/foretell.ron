@@ -5,9 +5,27 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "foretell",
     ),
-    // STOP. Foretell's first half is a SPECIAL ACTION [CR#702.143a,702.143b]: paying
-    // {2} to exile a card from hand face down does not use the stack, and the entry
-    // states the rule rather than quoting an expansion. No instruction or static
-    // performs a special action (the cause Companion shares).
-    keyword_params: [],
+    // Foretell [cost]: "Any time a player has priority during their turn, that player
+    // may pay {2} and exile a card with foretell from their hand face down. That player
+    // may look at that card as long as it remains in exile. They may cast that card after
+    // the current turn has ended by paying any foretell cost it has rather than paying
+    // that spell's mana cost." [CR#702.143a] The exile is a special action
+    // [CR#116.2h]; after it the card is a new object, read back as `it` (§7, ruling
+    // 2026-10-08), and the look right is `visibility` [CR#406.3].
+    body: [
+        static(
+            specialAction(
+                duringPart(Turn, you),
+                mana([2]),
+                sequentially([
+                    exileFaceDown(this),
+                    establish(visibility(LookAt, you, Objects(it)), forAsLongAs(matches(it, inZone(exileZone)))),
+                    establish(
+                        mayPlayDeed(cast, you, it, Play(exileZone, None, None, false, PayingInstead(Param(0)))),
+                        onALaterTurn,
+                    ),
+                ]),
+            ),
+        ),
+    ],
 )

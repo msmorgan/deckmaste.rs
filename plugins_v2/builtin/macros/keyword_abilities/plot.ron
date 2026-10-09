@@ -5,9 +5,25 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "plot",
     ),
-    // STOP. "Plot [cost]" means "Any time you have priority during your main phase
-    // while the stack is empty, you may exile this card from your hand and pay
-    // [cost]. It becomes a plotted card." [CR#702.170a] Exiling a card this way is a
-    // SPECIAL ACTION [CR#702.170b]; no instruction or static performs one (the cause
-    // Companion and Foretell share), and nothing names a plotted card.
+    // "Plot [cost]" means "Any time you have priority during your main phase while the
+    // stack is empty, you may exile this card from your hand and pay [cost]. It becomes a
+    // plotted card." [CR#702.170a] Exiling it is a special action [CR#702.170b,116.2k];
+    // its owner may cast it from exile without paying its mana cost during their main
+    // phase while the stack is empty on any later turn [CR#702.170d]. The "plotted"
+    // designation itself is not written: nothing in the registry reads it yet.
+    body: [
+        static(
+            specialAction(
+                asSorcery,
+                Param(0),
+                sequentially([
+                    exile(this),
+                    establish(
+                        mayPlayDeed(cast, you, it, Play(exileZone, None, asSorcery, false, WithoutPaying)),
+                        onALaterTurn,
+                    ),
+                ]),
+            ),
+        ),
+    ],
 )
