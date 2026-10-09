@@ -225,3 +225,6 @@ mod transitive_turn_face;
 
 #[path = "suite/postpositive_comparative_property.rs"]
 mod postpositive_comparative_property;
+
+#[path = "suite/measured_damage_nominal.rs"]
+mod measured_damage_nominal;

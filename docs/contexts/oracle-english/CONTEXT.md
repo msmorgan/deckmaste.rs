@@ -729,7 +729,14 @@ the lexical mass head a bare count-plural use (CGEL, Ch. 5 §3.4, p. 354).
 **Cardinal Measurement Use** (project term):
 A declared lexical licence for a mass Nominal to express units through
 cardinal quantification, including a variable count. It is distinct from
-scalar measurement and supplies no bare count-plural use.
+scalar measurement and supplies no bare count-plural use. The declared
+`DeterminerRequired` value licenses only a Measured Nominal under an outer
+Determiner; the closed bare Measured Noun Phrase retains its scalar route.
+The `DeterminerProjection` value carries that licence through Nominal
+modifiers and admits coordination only with another such measurement, so
+an ordinary recipient cannot lend its Determiner to a following amount.
+Inherited cardinal projections retain their parent licence (project ruling,
+2026-10-09, measured-damage-nominal).
 
 **Adverb**:
 A lexical Category whose members characteristically modify a phrase, Clause,

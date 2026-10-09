@@ -338,7 +338,10 @@ fn mutated_witnesses_reject_wrong_number_finiteness_and_of_adjuncts() {
         form: 0,
         head: Box::new(Reading::CardinalMeasuredNominal {
             form: 0,
-            quantity: Box::new(cardinal(2)),
+            quantity: Box::new(Reading::CardinalQuantityConjunct {
+                form: 0,
+                value: Box::new(cardinal(2)),
+            }),
             head: Box::new(Reading::Noun {
                 form: 0,
                 head: {

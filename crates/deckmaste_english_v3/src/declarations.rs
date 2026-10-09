@@ -216,7 +216,7 @@ constructions! {
         feature ScalarDenotation { No, Yes } default No;
         feature MeasurePosition { None, Before } default None;
         feature PropertyValuePosition { None, Single, First, Second, Pair } default None;
-        feature CardinalMeasurementUse { No, Yes } default No;
+        feature CardinalMeasurementUse { No, DeterminerRequired, DeterminerProjection, Yes } default No;
         feature MeasureKind { Scalar, Pair }
         feature MatrixComparisonUse { No, Yes } default No;
         feature ComparativeComplementForm { Nominal, BareInfinitival, GerundParticipial }
@@ -392,7 +392,7 @@ constructions! {
         category CardinalPrepositionPhrase(number);
         category QuantitativePrepositionPhrase(number);
         category ComparativePrepositionPhrase(number);
-        category QuantityConjunct(number);
+        category QuantityConjunct(number, CardinalMeasurementUse);
         category ComparativeQuantity(number, ComparativeQuantityStructure);
         category ScalarLocationComplement();
         category HollowInfinitivalComplement();
@@ -1222,6 +1222,11 @@ constructions! {
         table coordinated_cardinal_measurement(CardinalMeasurementUse, CardinalMeasurementUse)
             -> CardinalMeasurementUse {
             (Yes, Yes) => Yes, (No, No) => No, (No, Yes) => No, (Yes, No) => No,
+            (DeterminerRequired, DeterminerRequired) => DeterminerRequired,
+            (DeterminerRequired, Yes) => DeterminerRequired,
+            (Yes, DeterminerRequired) => DeterminerRequired,
+            (DeterminerRequired, No) => No, (No, DeterminerRequired) => No,
+            (DeterminerProjection, DeterminerProjection) => DeterminerProjection,
         }
         policy NominalConcord<Right, Source> {
             export SubjectRelativeNumber = relative_number_concord(left.SubjectRelativeNumber, Right.SubjectRelativeNumber);
@@ -2669,6 +2674,19 @@ constructions! {
             export BareGenitiveHost = head.BareGenitiveHost;
         }
 
+        // Owner ruling 2026-10-09: this licence supplies a measured Nominal
+        // under a Determiner; it does not open the closed bare measured NP.
+        table determined_cardinal_measurement(CardinalMeasurementUse) -> Selection {
+            (DeterminerRequired) => Yes, (Yes) => Yes,
+        }
+        table measured_nominal_cardinal_use(CardinalMeasurementUse, CardinalMeasurementUse)
+            -> CardinalMeasurementUse {
+            (Yes, No) => No,
+            (Yes, DeterminerRequired) => DeterminerProjection,
+            (DeterminerRequired, No) => DeterminerProjection,
+            (DeterminerRequired, DeterminerRequired) => DeterminerProjection,
+        }
+
         // Amounts remain singular measurements; the lexical mass noun does
         // not acquire a bare count-plural use. CGEL Ch. 5 §3.4, p. 354
         // distinguishes the singular conceptualization of a measured quantity.
@@ -2682,9 +2700,9 @@ constructions! {
             export SourceModifierPresent = head.SourceModifierPresent;
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
-            form [quantity: Cardinal, " ", head: Nominal];
+            form [quantity: QuantityConjunct, " ", head: Nominal];
             require head.MeasurePosition = Before;
-            require head.CardinalMeasurementUse = Yes;
+            require determined_cardinal_measurement(head.CardinalMeasurementUse) = Yes;
             require head.number = Singular;
             require head.countability = Mass;
             require head.DeterminerRequirement = No;
@@ -2693,7 +2711,8 @@ constructions! {
             export DeterminerRequirement = Yes;
             export MeasurePosition = None;
             export PropertyValuePosition = None;
-            export CardinalMeasurementUse = No;
+            export CardinalMeasurementUse = measured_nominal_cardinal_use(
+                head.CardinalMeasurementUse, quantity.CardinalMeasurementUse);
             export Targeting = head.Targeting;
             export NominalAdjunctClass = None;
             export SlashPremodifierUse = No;
@@ -3970,6 +3989,7 @@ constructions! {
         }
 
         construction NumericQuantityConjunct: QuantityConjunct {
+            export CardinalMeasurementUse = DeterminerRequired;
             form [head: lexical(Numeral)];
             require head.numeral_kind = Arabic;
             require head.numeral_size = Small;
@@ -3977,6 +3997,7 @@ constructions! {
         }
 
         construction CardinalQuantityConjunct: QuantityConjunct {
+            export CardinalMeasurementUse = No;
             cost 0;
             form [value: Cardinal];
             export number = value.number;
