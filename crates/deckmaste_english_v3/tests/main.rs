@@ -219,3 +219,6 @@ mod card_noun_premodifier;
 
 #[path = "suite/transitive_turn_face.rs"]
 mod transitive_turn_face;
+
+#[path = "suite/postpositive_comparative_property.rs"]
+mod postpositive_comparative_property;

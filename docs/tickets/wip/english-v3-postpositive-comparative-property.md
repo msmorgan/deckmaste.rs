@@ -119,13 +119,53 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta**: bounded before → after (covered faces, Readings); lost
-   faces classified by name; decreases, increases, digest-only changes.
-2. **Witnesses**: each witness's Reading count before and after.
-3. **Spot checks**: ten newly covered faces with their selected Reading.
-4. **Deviations and STOPs**: constructions or tests added or removed beyond
-   the ticket's letter, with justification; every STOP and its resolution;
-   any glossary gap.
-5. **Tests**: commands and outcomes; restored, re-spelled, ignored with
-   blockers, added, removed.
-6. **Timing**: one bounded census wall time with worker count.
+1. **Census delta**: bounded `before.json` → `after.json`, both measured on
+   `xrmmlsot` (before edits: claim-parent source `tzkmtpuw`; after: final feature
+   source): 568 → 670 covered faces; 81,933 → 335,418 Readings. `english-v3 diff`:
+   102 gained, 0 lost, 0 decreases, 0 increases on previously covered faces,
+   0 digest-only, 0 source changes; 1,041 unchanged. Lost faces: none.
+   Manifest: all 846 supported faces matching case-insensitive `" than "` plus
+   300 random covered controls (seed 20261008), 1,143 distinct faces; all
+   controls remained covered on the measured claim-parent source. Roundtrip,
+   lexical-identity and structural-traversal validation: 335,418 exact Readings,
+   0 issues on `xrmmlsot`.
+2. **Witnesses**: each before count is 0 on `xrmmlsot` before edits
+   (claim-parent source `tzkmtpuw`); after counts on `xrmmlsot`: Howlgeist 2;
+   Unliving Psychopath 7; Ensnaring Bridge 5; Immobilizer Eldrazi 3;
+   Kiora, Sovereign of the Deep 19. Every probe enumerated completely.
+   Controls on `xrmmlsot` before → after: “Destroy target creature with power
+   3 or less.” 3 → 3; “Its power is less than 3.” 1 → 1.
+3. **Spot checks** (`xrmmlsot`; full-face Reading counts): Ancient Lumberknot
+   8 — toughness / greater than its power; Arni Metalbrow 12 — mana value /
+   less than that creature's mana value; Aura Gnarlid 10 — power / less than
+   this creature's power; Baird, Argivian Recruiter 2 — power / greater than
+   its base power; Beguiler of Wills 18 — power / less than or equal to the
+   number of creatures you control; Broodcaller Scourge 15 — mana value /
+   less than or equal to that damage; Catapult Fodder 1 — toughness / greater
+   than their power; Earthshaker Khenra 9 — power / less than or equal to
+   this creature's power; Ironclaw Curse 8 — power / equal to or greater than
+   the enchanted creature's toughness; Legacy's Allure 31 — power / less than
+   or equal to the number of treasure counters on this enchantment. Each
+   selected tree is `MeasuredAttribute` → `ScalarMeasureValue` →
+   `ComparativeScalarValue` → `ComparativeAdjectivePhrase`, with the whole
+   comparison Complement inside the AdjP; all roundtrip exactly.
+4. **Deviations and STOPs**: one new `ComparativeScalarValue` producer feeds
+   the existing R5a route; schema instances cannot repeat a result Category,
+   so a second `ScalarMeasureValue` instance row was unavailable. Existing
+   `ComparisonMarker` distinguishes ordering and preserves coordinated
+   equality; existing `PredicativeKind` confines scalar-location frames to
+   nominal values. An initial probe exposed a second scalar-location Reading
+   for the predicative control; the frame constraint restores its claim-parent
+   count before final verification. No superseded route, lexicon change or
+   STOP. Beyond the five witness tests, added coordinated-complement, control
+   count and independent-roundtrip tests. Genitive scope alternatives remain
+   admitted under the lexical-analysis contract; tests and spot checks also
+   require the ordinary full-complement Reading. Updated the existing Scalar
+   Value glossary definition for orchestrator ruling R5a; no remaining glossary
+   gap. CGEL is cited only for postpositive function.
+5. **Tests** (`xrmmlsot`): `cargo test -p deckmaste_english_v3` passed
+   (601 passed, 0 failed, 0 ignored); `cargo clippy -p deckmaste_english_v3
+   --tests -- -D warnings` passed. `cargo fmt -p deckmaste_english_v3` completed.
+   Assurance counts on `xrmmlsot`: restored 0, re-spelled 0, ignored-with-blocker
+   0, added 8, removed 0.
+6. **Timing**: final bounded census on `xrmmlsot`: 66.25 seconds, 12 workers.

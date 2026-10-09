@@ -396,7 +396,7 @@ constructions! {
         category ScalarLocationComplement();
         category HollowInfinitivalComplement();
         category PurposeInfinitival(FocusedUse);
-        category ScalarValue();
+        category ScalarValue(PredicativeKind);
         category PropertyValue(MeasureKind);
         category Amount();
         category MeasurePhrase(MeasureKind);
@@ -406,11 +406,11 @@ constructions! {
         category UnsignedScalar();
         category ScalarComponent(ScalarSign);
         category SlashPair();
-        category ComparativeGovernorHead();
+        category ComparativeGovernorHead(ComparisonMarker);
         category ComparativeComplement();
         category MatrixComparativeComplement(ComparisonMarker, ComparativeComplementForm);
         category MatrixComparativePhrase(ComparativeComplementForm);
-        category ComparativeAdjectivePhrase();
+        category ComparativeAdjectivePhrase(ComparisonMarker);
         category KeywordPhrase();
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
@@ -504,6 +504,9 @@ constructions! {
         frame_category NominalPredicativePreposition = PrepositionPhrase where ComplementFunctionRestriction = PreposedOrPredicative;
         frame_category PowerToughnessAdjustment = SlashPair;
         frame_category MeasurePhrase = ScalarMeasurePhrase;
+        // Copular scalar-location frames select a nominal value. Comparative
+        // AdjPs retain their existing adjectival predicative route.
+        frame_category ScalarValue = ScalarValue where PredicativeKind = Nominal;
 
         schema SelectedPredicate {
             form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
@@ -2570,7 +2573,7 @@ constructions! {
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord, NoConcord),
             (Nominal, Self, NominalConcord),
             (AdjectivePhrase, Self, AdjectiveStructureMerge),
-            (ComparativeGovernorHead, Self),
+            (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, NoConcord),
@@ -4199,6 +4202,7 @@ constructions! {
         }
 
         policy ScalarValueMeasure {
+            export PredicativeKind = Nominal;
             require value.MeasureKind = Scalar;
         }
         policy ScalarPropertyValueKind {
@@ -4216,12 +4220,24 @@ constructions! {
             use Properties;
         }
 
+        // Orchestrator ruling R5a (2026-10-08): ordering comparative AdjPs
+        // enter the existing ScalarMeasureValue route to PropertyValue.
+        // CGEL Ch. 6 §3.3(c), p. 552 supports their postpositive function,
+        // not this value-slot analysis.
+        construction ComparativeScalarValue: ScalarValue {
+            export PredicativeKind = Adjectival;
+            form [value: ComparativeAdjectivePhrase];
+            require value.ComparisonMarker = Ordering;
+        }
+
         construction ScalarCardinalValue: ScalarValue {
+            export PredicativeKind = Nominal;
             form [head: lexical(Numeral)];
             require head.numeral_kind = Cardinal;
         }
 
         construction ScalarPropertyCoordination: ScalarValue {
+            export PredicativeKind = Nominal;
             cost 0;
             form [value: ComparativeQuantity];
             require value.ComparativeQuantityStructure = Coordinated;
@@ -4230,6 +4246,7 @@ constructions! {
         // CGEL Ch. 5 §11(d), p. 432 n. 48 classifies greater as an
         // Adjective. Its permission in this value position is a project ruling.
         construction AdjectivalScalarCoordination: ScalarValue {
+            export PredicativeKind = Nominal;
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
                 right: lexical(Adjective)];
             require marker.CoordinationKind = Alternative;
@@ -4323,7 +4340,18 @@ constructions! {
             (SecondaryVerbPhrase, Self, NonfiniteComparisonHost),
         ] { use Properties; }
 
+        table coordinated_comparison_marker(ComparisonMarker, ComparisonMarker)
+            -> ComparisonMarker {
+            (Equality, Equality) => Equality, (Equality, Ordering) => Ordering,
+            (Ordering, Equality) => Ordering, (Ordering, Ordering) => Ordering,
+        }
+        policy ComparativeGovernorComparison<Right, Source> {
+            export ComparisonMarker = coordinated_comparison_marker(
+                left.ComparisonMarker, Right.ComparisonMarker);
+        }
+
         construction ComparativeGovernorHead: ComparativeGovernorHead {
+            export ComparisonMarker = marker.ComparisonMarker;
             form [head: lexical(Adjective), " ", marker: lexical(Preposition)];
             require comparative_marker(head.frame, marker.ComparisonMarker) = Yes;
             require licence_comparative_complement(marker.PrepositionFunctionLicence) = Yes;
@@ -4338,6 +4366,7 @@ constructions! {
         }
 
         construction ComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
+            export ComparisonMarker = governor.ComparisonMarker;
             form [governor: ComparativeGovernorHead, " ", complement: ComparativeComplement];
         }
 

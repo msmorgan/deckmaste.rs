@@ -661,9 +661,13 @@ quantificational use instead denotes its Oblique. Its licensing of a value Compl
 not a restriction asserted by CGEL's scalar-location passage.
 
 **Scalar Value** (project term):
-A value expression realized by a scalar Measure Phrase, a Cardinal Numeral or
-a numeral Coordination, usable in a scalar property dependent or a scalar
-location predicative Complement.
+A value expression realized by a scalar Measure Phrase, Cardinal Numeral,
+numeral Coordination, or ordering comparative Adjective Phrase (including a
+coordinated equality governor), the comparative extension being orchestrator
+ruling R5a (2026-10-08). All forms can supply a scalar property dependent;
+numeral and measurement forms also supply scalar location predicative
+Complements, while comparative forms retain Adjective Phrase predicative
+distribution.
 
 **Scalar Sign** (project term):
 The presence or absence of an explicit sign in scalar Notation. A present sign
