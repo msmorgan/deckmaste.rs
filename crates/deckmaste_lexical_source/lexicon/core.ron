@@ -415,7 +415,7 @@
         ),
         (
             id: "lexeme:CommonNoun/Time", lemma: "time", category: Noun,
-            properties: (countability: [Count, Mass], features: {"FrequencyUnit": "Yes"}, frames: []),
+            properties: (countability: [Count, Mass], features: {"FrequencyUnit": "Yes", "RelativisableAdjunctClass": "Temporal"}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Time"),
             capitalization: Initial, binding: Free, surface_structure: Word,

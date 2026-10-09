@@ -152,6 +152,17 @@ constructions! {
         table coordinated_preposition_licence(PrepositionFunctionLicence, PrepositionFunctionLicence)
             -> PrepositionFunctionLicence intersection;
         frame_marker_licence Predicate(Preposition) = licence_verb_complement;
+        feature RelativeGapKind { Object, TemporalAdjunct } default Object;
+        feature RelativisableAdjunctClass { None, Temporal } default None;
+        table relative_head_licence(RelativeGapKind, RelativisableAdjunctClass) -> Selection {
+            (Object, None) => Yes, (Object, Temporal) => Yes,
+            (TemporalAdjunct, Temporal) => Yes,
+        }
+        table coordinated_relativisable_adjunct_class(RelativisableAdjunctClass,
+            RelativisableAdjunctClass) -> RelativisableAdjunctClass {
+            (None, None) => None, (None, Temporal) => None,
+            (Temporal, None) => None, (Temporal, Temporal) => Temporal,
+        }
         feature FrequencyUnit { Yes }
         feature FiniteClauseComplement { Yes, Nonsequencing }
         table finite_clause_complement(FiniteClauseComplement) -> Selection {
@@ -359,7 +370,8 @@ constructions! {
         category BareComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence);
         category ParticipialComplement(PurposeAdjunctLicence, MatrixComplementLicence);
         category PerfectComplement(PurposeAdjunctLicence, MatrixComplementLicence);
-        category Nominal(AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
+        category Nominal(AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass,
+            RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, SubjectRelativeNumber);
         category VerbalPremodifier();
@@ -386,7 +398,7 @@ constructions! {
         category BareTemporalNominal(NominalBareClass);
         category BoundaryComplement();
         category SubjectRelativeClause(number);
-        category ObjectRelativeClause();
+        category ObjectRelativeClause(RelativeGapKind);
         category FiniteObjectGap(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category BareObjectGap(PurposeAdjunctLicence, MatrixComplementLicence);
         category Cardinal(number);
@@ -458,7 +470,8 @@ constructions! {
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
-            AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, SlashPremodifierUse,
+            AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass,
+            RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
         , SourceModifierPresent, SubjectRelativeNumber);
@@ -913,6 +926,7 @@ constructions! {
             export countability = head.countability;
             export Targeting = head.Targeting;
             export NominalAdjunctClass = head.NominalAdjunctClass;
+            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
             export SlashPremodifierUse = head.SlashPremodifierUse;
             export NumberTransparency = head.NumberTransparency;
             export ObliqueNumber = head.ObliqueNumber;
@@ -939,6 +953,7 @@ constructions! {
             export countability = head.countability;
             export Targeting = head.Targeting;
             export NominalAdjunctClass = head.NominalAdjunctClass;
+            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
             export SlashPremodifierUse = head.SlashPremodifierUse;
             export NumberTransparency = head.NumberTransparency;
         }
@@ -1086,6 +1101,7 @@ constructions! {
             export countability = head.countability;
             export Targeting = No;
             export NominalAdjunctClass = head.NominalAdjunctClass;
+            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
             export SlashPremodifierUse = head.SlashPremodifierUse;
             export NumberTransparency = head.NumberTransparency;
             export ObliqueNumber = None;
@@ -1264,6 +1280,8 @@ constructions! {
             export Targeting = left.Targeting;
             export NominalAdjunctClass = nominal_adjunct_concord(left.NominalAdjunctClass,
                 Right.NominalAdjunctClass);
+            export RelativisableAdjunctClass = coordinated_relativisable_adjunct_class(
+                left.RelativisableAdjunctClass, Right.RelativisableAdjunctClass);
             export SlashPremodifierUse = slash_premodifier_concord(left.SlashPremodifierUse,
                 Right.SlashPremodifierUse);
             export countability = left.countability;
@@ -2682,6 +2700,7 @@ constructions! {
             export countability = head.countability;
             export Targeting = head.Targeting;
             export NominalAdjunctClass = head.NominalAdjunctClass;
+            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
             export SlashPremodifierUse = head.SlashPremodifierUse;
             export NumberTransparency = head.NumberTransparency;
             require head.DeterminerRequirement = No;
@@ -2733,6 +2752,7 @@ constructions! {
                 head.CardinalMeasurementUse, quantity.CardinalMeasurementUse);
             export Targeting = head.Targeting;
             export NominalAdjunctClass = None;
+            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
             export SlashPremodifierUse = No;
             export NumberTransparency = No;
             export ObliqueNumber = head.ObliqueNumber;
@@ -2883,6 +2903,7 @@ constructions! {
             export countability = head.countability;
             export Targeting = Yes;
             export NominalAdjunctClass = None;
+            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
             export SlashPremodifierUse = head.SlashPremodifierUse;
             export NumberTransparency = head.NumberTransparency;
             export ObliqueNumber = head.ObliqueNumber;
@@ -3939,6 +3960,7 @@ constructions! {
         }
 
         construction ObjectRelativeClause: ObjectRelativeClause {
+            export RelativeGapKind = Object;
             form [marker: lexical(Subordinator), " ", subject: NominativePhrase,
                 clitic_separator(predicate.CliticHost), predicate: FiniteObjectGap];
             require marker.RelativeSubordinator = Yes;
@@ -3948,6 +3970,7 @@ constructions! {
         }
 
         construction ZeroObjectRelativeClause: ObjectRelativeClause {
+            export RelativeGapKind = Object;
             form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),
                 predicate: FiniteObjectGap];
             agree subject.number = predicate.number;
@@ -3955,7 +3978,16 @@ constructions! {
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
+        // CGEL Ch. 12 §3.3(e), pp. 1045–1046: a bare relative can have
+        // an Adjunct gap. The temporal head licence is declared by the noun.
+        construction AdverbialGapRelativeClause: ObjectRelativeClause {
+            form [clause: FiniteClause];
+            export RelativeGapKind = TemporalAdjunct;
+        }
+
         construction ObjectRelativeNominal: Nominal {
+            require relative_head_licence(relative.RelativeGapKind,
+                head.RelativisableAdjunctClass) = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", relative: ObjectRelativeClause];

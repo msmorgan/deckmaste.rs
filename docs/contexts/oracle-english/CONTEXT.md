@@ -606,6 +606,16 @@ as in *owners’* (CGEL, Ch. 18 §4.2, p. 1595).
 A dependent Clause that modifies a nominal expression or supplements another
 expression, with a relative element connected to a position in the Clause.
 
+**Adverbial Gap Relative Clause**:
+A Relative Clause whose Gap functions as an Adjunct, including a temporal Gap
+related to a time-denoting nominal head (CGEL, Ch. 12 §3.3(e), pp. 1045–1046).
+A bare relative can have this Gap without an overt relative marker.
+
+**Relativisable Adjunct Class** (project term):
+A nominal head's declared class of Adjunct Gap it can relate to in a Relative
+Clause. The temporal class corresponds to the time type described in CGEL,
+Ch. 12 §3.3(e), pp. 1045–1046.
+
 **Relative Use** (project term):
 A Pronoun's declared permission to function as the relative marker of a
 Relative Clause. A Pronoun in Relative Use does not head an ordinary
@@ -1162,6 +1172,11 @@ Conjuncts. Its presence marks the Coordination as flat rather than nested.
 **Gap**:
 An unpronounced syntactic position related to an overt or understood element
 elsewhere in the structure.
+
+**Relative Gap Kind** (project term):
+The grammatical function of a Relative Clause's Gap. An Adjunct Gap is
+distinct from relativising only a preposition's Complement (CGEL,
+Ch. 12 §3.3(e), pp. 1045–1046).
 
 **Anaphor**:
 An expression whose interpretation depends on an Antecedent in its discourse

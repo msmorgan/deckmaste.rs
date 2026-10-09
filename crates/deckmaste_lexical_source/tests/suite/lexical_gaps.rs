@@ -137,12 +137,14 @@ fn predicate(items: Vec<FrameItem>) -> Frame {
 #[test]
 fn verb_frames_preserve_complement_kind_and_order() {
     let object = argument(Relation::Object, "NounPhrase");
-    for owner in ["core-verb:Trigger", "core-verb:Resolve"] {
-        assert_eq!(
-            LEXICON.lexemes()[owner].properties.frames,
-            [predicate(vec![]), predicate(vec![object.clone()])]
-        );
-    }
+    assert_eq!(
+        LEXICON.lexemes()["core-verb:Trigger"].properties.frames,
+        [predicate(vec![]), predicate(vec![object.clone()])]
+    );
+    assert_eq!(
+        LEXICON.lexemes()["core-verb:Resolve"].properties.frames,
+        [predicate(vec![])]
+    );
     assert_eq!(
         LEXICON.lexemes()["core-verb:Remain"].properties.frames,
         [

@@ -151,7 +151,6 @@
     ]),
     (identity: Resolve, bare: "resolve", third_person: "resolves", frames: [
         Predicate([]),
-        Predicate([ObjectNounPhrase]),
     ]),
     (identity: Distribute, bare: "distribute", third_person: "distributes", frames: [
         Predicate([ObjectNounPhrase]),
