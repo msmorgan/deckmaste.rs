@@ -566,6 +566,16 @@ mimicked.
   use the existing `StaticSpec.visibility` [CR#702.75a,708.5]. (Ruling,
   2026-10-08, owner, Q12, Q13, Q16, Q17;
   `semantics-v2-face-down-and-special-actions`.)
+- **A move's rider is an Entry Rider or a Pile Placement, as its destination
+  allows.** `TokenRider` named neither: it splits into `EntryRider` (enters
+  tapped, attacking, transformed, melded, with counters, under a controller,
+  as a copy, face down), which a move to the battlefield, a token's creation
+  and `StaticSpec.entryRider` take, and `PilePlacement` (in order, Nth from an
+  end, either end, face down, with counters), which any other destination
+  takes. `Instruction.move` carries `MoveRider = entry | placement`, and the
+  checker refuses the wrong kind for the destination as a kind
+  (`riderKind`), not as a zone rule [CR#614.1c,401.4,406.3]. (Ruling,
+  2026-10-08, owner, Q28, Q29; `semantics-v2-face-down-and-special-actions`.)
 - Predicates are flat sibling modifier sets on one referent ("a creature an
   opponent controls" is two modifiers on one object predicate); zone
   membership (`InZone`) is an ordinary conjunct.

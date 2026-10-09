@@ -677,7 +677,7 @@ mutual
     | .addedCost c _ _ => Cost.check bs c
     | .paySubstitute n s => NounPhrase.check (some .object) bs n ++ ManaSubstitute.check bs s
     -- Read as an activated ability's cost and effect are: the player who takes the action
-    -- performs `does`, which sees what the cost introduced [CR#116.2c,602.2].
+    -- performs `does`, which sees what the cost introduced [CR#116.2c].
     | .specialAction when c does =>
       let bs := ownPerformerCtx bs
       let bsc := dropLetter .x bs

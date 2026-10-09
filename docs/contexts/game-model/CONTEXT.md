@@ -372,6 +372,22 @@ matches a description, that one included ([CR#701.57a,702.85a]). An ordered
 group, the stopping Object a part of it.
 _Avoid_: library run
 
+**Entry Rider**:
+How a Permanent arrives on the battlefield, said with what puts it there:
+tapped, attacking, transformed, under a Player's control, with counters, as a
+copy, or face down ([CR#614.1c,708.3]). It rides a move to the battlefield, a
+Token's creation, or a static ability ("this enters tapped"), and nothing
+else; an arrival in any other zone is a Pile Placement.
+_Avoid_: token rider, since most arrivals are not a Token's
+
+**Pile Placement**:
+How a moved card is placed in a zone other than the battlefield: its order and
+depth in a Pile ("in any order", "second from the top", [CR#401.4,401.7]), its
+face ("exile it face down", [CR#406.3]), and the counters it is exiled with
+([CR#702.62a]). A move carries the Entry Riders or the Pile Placements its
+destination allows, never the other kind.
+_Avoid_: rider, for a placement; library position
+
 **Owner**:
 The Player determined for a card by [CR#108.3] and for other Objects by the
 applicable CR rules. Ownership is not a Characteristic.

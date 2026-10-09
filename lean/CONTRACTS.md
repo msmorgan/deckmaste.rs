@@ -575,7 +575,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `DamageScale` | `DamageScale.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DividedVerb` | `DividedVerb.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DividedTakes` | `Instruction.distribute` checks the recipient kind (`objectOrPlayerCheck`) or object kind according to the closed `DividedVerb` constructor; which objects damage reaches is not checked (`lean-checker-sweep-zone`). |
-| `CtrlOverrideOk` | `TokenRider.under` checks player kind. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the single-controller demand is not checked. |
+| `CtrlOverrideOk` | `EntryRider.under` checks player kind. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the single-controller demand is not checked. |
 | `ProducedMana` | `ProducedMana.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Repetition` | `Repetition.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `EachStackOk` | `eachStackOk`, used by `enactKeepsOuter`, accepts preserved outer bindings or closure of the distributive agent’s own parts. |
@@ -588,7 +588,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `PlayPayment` | `PlayPayment.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DeonticRider` | `DeonticRider.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageOp` | `DamageOp.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
-| `TokenRider` | `TokenRider.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
+| `EntryRider`, `PilePlacement`, `MoveRider` | `EntryRider.check`, `PilePlacement.check` and `MoveRider.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) check references and expected child kinds in the supplied context; a move rider of a kind its destination does not allow is refused `riderKind` (owner ruling 2026-10-08, Q28–Q29). |
 | `Cost` | `Cost.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `ManaRider` | `ManaRider.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `CopyExcept` | `CopyExcept.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
