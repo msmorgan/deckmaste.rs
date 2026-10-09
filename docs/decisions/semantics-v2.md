@@ -585,6 +585,97 @@ mimicked.
   `idris/src/Experimental/Words.idr`. Every counter-kind stub must instead
   have a row in the generated Lean `counterFacts` table, which `cargo xtask
   facts check` keeps current with the stubs. (Ruling, 2026-10-09, owner.)
+- **A mode choice is changed by a static over the spell's own `chooseModes`.**
+  `chooseModes` already carries the quantity and each mode's cost
+  [CR#700.2h], so spree's and tiered's priced bullets are authored on the
+  modes. A new `StaticSpec.modeChoice (change : ModeChange)` modifies that
+  choice: `allInstead (cost) (condition)` for entwine and the "if COND, you
+  may choose both instead" cards [CR#702.42a], `extraModesCost` for escalate
+  [CR#702.120a], `setQuantity` for spree and tiered [CR#702.172a,702.183a],
+  `repeatable` [CR#700.2d] and `notChosenBefore (within)`; a pawprint mode
+  carries an optional weight read by `Quantity.worth` [CR#700.2i]. Escalate's
+  count is the existing `timesPaid` facet, and `modalFrameOk` stays a
+  kind/shape check. (Ruling, 2026-10-09, owner, Q45–Q48;
+  `semantics-v2-modal-choice`.)
+- **An off-stack static is a special action's sibling: "as [event], do" and
+  "any time [condition] holds, do".** `StaticSpec.asEvent (event) (does)` and
+  `StaticSpec.whileHolds (condition) (does)` sit beside `specialAction` and
+  carry an instruction that never uses the stack
+  [CR#604.1,603.7a,603.7g,614.1c]: dash, blitz and warp are an `asEvent` on
+  paying the keyword's cost that creates a delayed trigger over the spell's
+  successor, `NounPhrase.becomes` [CR#400.7,702.109a,702.152a,702.185a];
+  ascend, storied, daybound and nightbound are state statics
+  [CR#702.131b,702.195a,702.145b,702.145e]; devour, riot, tribute, unleash and
+  amplify are `asEvent(enters(this), …)` entry clauses over the existing
+  Entry Riders [CR#702.82a,702.136a,702.104a,702.98a,702.38a]. Rebound needs
+  no new node: it is a replacement of the resolve-to-graveyard move whose
+  instruction creates the delayed trigger [CR#702.88a,603.7f]. A deontic
+  rule takes `except : Option Cause` (`byKeyword | byObjects`), which writes
+  "except due to its daybound ability" and "except by artifact creatures"
+  [CR#702.145b,702.13b]. (Ruling, 2026-10-09, owner, Q49–Q55;
+  `semantics-v2-off-stack-statics`.)
+- **Sharing is at least one value in common on an axis, and a group's
+  mutual agreement is a separate noun-phrase constraint.** `Predicate.shares
+  (axis) (agreement : share | differ) (with)` holds when the member and the
+  other have a value in common on the axis (`share`) or none (`differ`)
+  [CR#201.2a,201.2c,105.2,205.3m]; on the name axis this is not equality.
+  `named(sameAs)` retires into `shares(cardName, share, X)`, and
+  `namesAgree` and the deck-scoped `cardsShare` retire into `NounPhrase.agree
+  (axis) (agreement) (group)`, a constraint on a selection, not a predicate on
+  a member. Intimidate, conspire's cost, amplify and prowl get bodies
+  [CR#702.13b,702.78a,702.38a,702.76a]. (Ruling, 2026-10-09, owner, Q56–Q58;
+  `semantics-v2-sharing`.)
+- **A linked ability reads back a Linked Facet of a Link Source, and a named
+  link between two objects is a declared relation.** `PaidFacet` becomes
+  `LinkedFacet` and `PaidCostName` becomes `LinkSource`, which gains `byDeed
+  (verb)`, the printed ability identified by what it does [CR#607.2a], and
+  the facets `objects (verb)` ("the sacrificed creature", "creatures it
+  devoured") and `taken` ("tribute wasn't paid") [CR#702.82b,702.104b]. Haunt,
+  soulbond and cipher write `Definition.relation` names with `relate`,
+  `related` and `counterpart` [CR#702.55b,702.95b,702.99b]; mutate writes
+  `Instruction.merge` and `StaticSpec.addsTarget` [CR#730.2,702.140a].
+  `CostShift.run` is renamed `bySymbols` over a `ManaCostTerm`, which writes
+  offering, emerge and harmonize [CR#702.48a,702.119a,702.180a]. (Ruling,
+  2026-10-09, owner, Q59–Q62; `semantics-v2-linked-readback`.)
+- **A spell copy's target guard is vacuous, so copy keywords offer new
+  targets unconditionally.** `Predicate.targets` gets no optional subject:
+  casualty, replicate, epic and conspire's copy write
+  `may(chooseNewTargets(…))` as storm does, since its player may leave every
+  target unchanged and a copy with no targets has none to change
+  [CR#707.10c], and gravestorm's narrow guard re-spells away. `TargetExtent.only` writes "targets only …". Copying for
+  each object a spell "could target" stays with `engine-copy-target-variants`
+  [CR#707.10d]. (Ruling, 2026-10-09, owner, Q63, Q64;
+  `semantics-v2-spell-copies`.)
+- **A text-changing effect is a specified term rewrite over bracket
+  markers written on the card.** A card is written once with its brackets in
+  place as the transparent markers `Predicate.bracketed` and
+  `Instruction.bracketed`, and `StaticSpec.textChange (subject) (change)`
+  applies one of `removeBracketed`, `targetToEach`, `appendTextOf` or
+  `replaceWord` at layer 3 [CR#612.1,613.1c]: cleave, overload and splice and
+  the word-replacement cards [CR#702.148a,702.96a,702.47a,612.10]. The
+  readings alternative was rejected because it loses bracket positions, so
+  spelling learns to print `bracketed`; `Exchanged.textBoxes` and its probe
+  are re-spelled, never deleted. (Ruling, 2026-10-09, owner, Q65, Q66;
+  `semantics-v2-text-changes`.)
+- **The ability printed with a keyword is a keyword parameter, and the
+  keyword's restriction is a qualifier on it.** `KeywordParam.ability` carries
+  it, and `Ability.qualified (ability) (timing) (limit) (guard) (from)`
+  states the restriction, its guard read as "as long as", "triggers only if"
+  or "activate only if" by the wrapped ability's category
+  [CR#113.10a,113.6b,702.169b..702.169d]. "Activate only once" is a Usage
+  Limit over the new `Period.thisObject`, reset by a zone change
+  [CR#602.5b,702.177a], and backup selects `printedAfter (keyword)`
+  [CR#702.165c]. Ability words stay `italicHead` [CR#207.2c]. (Ruling,
+  2026-10-09, owner, Q67–Q69; `semantics-v2-ability-qualifiers`.)
+- **Three residue groups are routed, not defined here.** Casting a card's
+  other face (disturb, More Than Meets the Eye) goes to
+  `engine-dfc-cast-faces` [CR#702.146a,702.162a]. Partner and companion
+  modify deck construction or function outside the game and are out of
+  Vintage-playable scope [CR#702.124a,702.139a], and freerunning goes to
+  `core-location-outside-the-game` [CR#702.173a]. Infect, lifelink, wither and
+  toxic are damage results: rows in the facts table plus an engine rule,
+  with no definition body [CR#120.3,702.90b,702.15b,702.80a,702.164c].
+  (Ruling, 2026-10-09, owner.)
 
 ## 8. Process
 
