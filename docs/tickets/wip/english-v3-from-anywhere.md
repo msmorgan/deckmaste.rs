@@ -136,17 +136,20 @@ Deltas:
 ## Landing record
 
 1. **Census delta**: claim-parent `qzwzuwwu` source measured at pre-edit
-   `uzrzywom` → review fix `rwxrkzuw`: covered faces 300 → 401; Readings
+   `uzrzywom` → refreshed fix `ooxwlork`: covered faces 300 → 401; Readings
    11,533 → 37,282; gained 101, lost none, decreases 0, increases 0,
-   digest-only 9 (`diff-review-total.json`). Relative to reviewed `tupvqkuk`,
+   digest-only 9 (`diff-review-final.json`). Relative to reviewed `tupvqkuk`,
    the fix gains 4 faces and increases 22; lost/decreases 0, digest-only 11
    (`diff-review.json`). Digest changes are the existing `PostpositiveNominal`
    Reading's added category field when generalized to a shared schema; all
    affected faces retain their counts. Incoming Get frames in `spmtqknq`
    supplied Unstable Amulet's prior 48-Reading gain; it now has 144 Readings.
+   Refresh incorporated transitive-turn change `vrwvvslo`; at `ooxwlork`,
+   the six-worker bounded recheck preserves all 458 faces, counts and digests
+   from `rwxrkzuw` (`diff-review-refresh.json`: all delta categories 0).
    Same selector: 158 supported analysed *anywhere* faces plus 300 covered
    controls selected with seed 20261008, 458 identities in `manifest.json`.
-   At `rwxrkzuw`, all 458 completely enumerated: 106 unique, 295 multiple,
+   At `ooxwlork`, all 458 completely enumerated: 106 unique, 295 multiple,
    57 unread; limited/undetermined 0. All 37,282 Readings checked for exact
    realization and structural traversal; issues, duplicates and internal
    failures 0. Evidence: `target/english-v3/english-v3-from-anywhere/`.
@@ -198,8 +201,11 @@ Deltas:
    -D warnings` and `cargo clippy -p deckmaste_lexical_source --tests --
    -D warnings` passed. English clippy first caught similar variable names
    in the new test; renamed the binding and reran it successfully. No test
-   command needed a retry. Assurance totals at `rwxrkzuw`: restored 0,
+   command needed a retry. The resume instruction (2026-10-09) retains this
+   completed test/clippy evidence without rerunning it. The missing refreshed
+   census first failed to link with rust-lld undefined symbols; retried with
+   `CARGO_INCREMENTAL=0` as directed. Assurance totals at `rwxrkzuw`: restored 0,
    re-spelled 1, ignored 0, added 8, removed 0. This fix adds 1 and
    re-spells 1; removes none.
-6. **Timing**: the bounded review-fix census at `rwxrkzuw` took 5.959074639 s
-   corpus wall time with 12 workers.
+6. **Timing**: the bounded refreshed census at `ooxwlork` took 7.235549628 s
+   corpus wall time with 6 workers.
