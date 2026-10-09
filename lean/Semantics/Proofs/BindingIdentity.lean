@@ -1,4 +1,5 @@
 import Semantics.Macros
+import Semantics.Macros.Declared
 
 /-!
 # Semantics.Proofs.BindingIdentity
@@ -161,14 +162,22 @@ theorem groupHandoffByIdentityPublishesPlurals :
 mention, read back by identity, so the read's number is the slice's, which is the amount's:
 scry 1 reads "that card", scry 2 "those cards" (ruling 2026-10-06). -/
 
-/-- The `plugins_v2` helper `lookAndSortSlice` as the loader expands it. -/
+/-- The `plugins_v2` helper `lookAndSortSlice` as the loader expands it: the generated
+`Semantics.Macros.Declared` macro (`cargo xtask lean macros`). -/
 private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) (spillRiders : List MoveRider) :
     Instruction :=
-  .sequentially
-    [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .wherever spill
-        spillRiders,
-      .move (.theRest .object .many) .wherever onTop [.placement (.inOrder .anyOrder)] ]
+  Semantics.Macros.Declared.lookAndSortSlice slice spill spillRiders
+
+/-- The generated macro is the expansion this file spelled by hand before it was generated. -/
+theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : ZoneExpr)
+    (spillRiders : List MoveRider) :
+    lookAndSortSlice slice spill spillRiders =
+      .sequentially
+        [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
+          .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .wherever spill
+            spillRiders,
+          .move (.theRest .object .many) .wherever onTop [.placement (.inOrder .anyOrder)] ] :=
+  rfl
 
 private def scryBy (amount : Amount) : Instruction :=
   .enact (.action "scry") (lookAndSortSlice (.slice .top amount (library .actor)) onBottom [.placement (.inOrder .anyOrder)])

@@ -539,8 +539,9 @@ semantic_macro putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
 semantic_macro putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
   .move subject .wherever battlefield [.entry (.under .you)]
 /-- "put <subject> onto the battlefield tapped and attacking" -/
-semantic_macro putOntoBattlefieldTappedAttacking (subject : NounPhrase) : Instruction :=
-  .move subject .wherever battlefield [.entry (.entersAs .tapped), .entry (.entersAttacking none)]
+semantic_macro putOntoBattlefieldTappedAttacking (subject : NounPhrase)
+    (from_ : ZoneExpr := .wherever) : Instruction :=
+  .move subject from_ battlefield [.entry (.entersAs .tapped), .entry (.entersAttacking none)]
 /-- A search of one zone: the scope constructor, which has no generated primitive because
 `SearchScope` is not a `semantic_expression` type. -/
 semantic_macro oneZone (zone : ZoneExpr) : SearchScope := .oneZone zone
@@ -608,8 +609,9 @@ semantic_macro shuffleInto (subject : NounPhrase) : Instruction :=
   .sequentially
     [ .enact (.action "shuffle") (.move subject .wherever (.zone .library .bare) []),
       .shuffle (.library .bare) ]
-semantic_macro doIf (condition : Condition) (instruction : Instruction) : Instruction :=
-  .doIf condition instruction none
+semantic_macro doIf (condition : Condition) (instruction : Instruction)
+    (otherwise : Option Instruction := none) : Instruction :=
+  .doIf condition instruction otherwise
 /-- "choose <subject>" -/
 semantic_macro choose (subject : NounPhrase) (disclosure : Disclosure := .openly) : Instruction :=
   .choose none subject disclosure none
@@ -755,8 +757,9 @@ semantic_macro deontic (subject : NounPhrase) (compulsion : Compulsion) (deeds :
     (patient : DeonticPatient) : StaticSpec :=
   .deonticRule subject compulsion deeds role none patient none .noRider
 /-- "When <event>, <instruction>" as a delayed trigger. -/
-semantic_macro delay (event : GameEvent) (instruction : Instruction) : Instruction :=
-  .delay event [] none instruction
+semantic_macro delay (event : GameEvent) (instruction : Instruction)
+    (alternatives : List GameEvent := []) : Instruction :=
+  .delay event alternatives none instruction
 /-- "When <event> <duration>, <instruction>": a delayed trigger with a window. -/
 semantic_macro delayWithin (event : GameEvent) (duration : Duration) (instruction : Instruction) :
     Instruction :=
