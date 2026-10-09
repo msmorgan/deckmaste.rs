@@ -445,6 +445,31 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
+            id: "core-verb:Produce", lemma: "produce", category: Verb,
+            properties: (countability: [], features: {}, frames: [
+                (kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase"))]),
+                (kind: "Predicate", items: [Argument((relation: Complement, category: "ManaPhrase"))]),
+            ]),
+            forms: [
+                (form: Plain, features: ()),
+                (form: PastParticiple, features: (finiteness: Some(Nonfinite))),
+                (form: Present, features: (number: Some(Singular), person: Some(First), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Singular), person: Some(Second), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Singular), person: Some(Third), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Plural), person: Some(First), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Plural), person: Some(Second), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Present, features: (number: Some(Plural), person: Some(Third), tense: Some(Present), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Singular), person: Some(First), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Singular), person: Some(Second), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Singular), person: Some(Third), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Plural), person: Some(First), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Plural), person: Some(Second), tense: Some(Past), finiteness: Some(Finite))),
+                (form: Preterite, features: (number: Some(Plural), person: Some(Third), tense: Some(Past), finiteness: Some(Finite))),
+            ],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "core-verb:Produce"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
             id: "lexeme:Verb/Reduce", lemma: "reduce", category: Verb,
             properties: (countability: [], features: {}, frames: [(kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase"))]), (kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase")), Argument((relation: Complement, category: "ScalarExtentComplement"))])]),
             forms: [

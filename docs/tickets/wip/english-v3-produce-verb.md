@@ -29,7 +29,8 @@ No CGEL citation applies beyond ordinary monotransitive complementation.
 Existing route: `Add` (`crates/deckmaste_lexical_source/lexicon/verbs.ron:2–5`,
 `[ObjectNounPhrase]` and `[Role("ManaPhrase")]`). Each witness control
 substitutes *add* / *adds* / *added* for *produce* / *produces* / *produced*
-and reads 1, so the relative-gap, finite and mana-Object routes already
+and admits a Reading with `--readings 1` (a cap, not a complete count), so
+the relative-gap, finite and mana-Object routes already
 exist; only the lexeme is missing.
 
 Orchestrator rulings 2026-10-09:
@@ -63,12 +64,12 @@ trunk `nxzntorp` with `--readings 1 --as-card`: witness 0 (vocabulary gap
 
 ## Method
 
-Standard constraints apply (CLAUDE.md landing record, assurance, scope).
+Standard constraints apply.
 Deltas:
 
 1. Verification budget (binding): one bounded census of every supported face
    whose analysed text matches case-insensitive `\bproduc(e|es|ed|ing)\b`, plus 300 random covered controls
-   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261009`),
+   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261008`),
    with the identity manifest, `--workers 6` and `--samples-per-face 0`, run
    under `/usr/bin/time -v`; compare it with `cargo xtask english-v3 diff`
    against the claim parent's census of the same manifest. Never run `--all`.
@@ -118,17 +119,52 @@ Deltas:
 
 ## Landing record
 
-Six items, each figure stamped with the change id it was measured on (ruling
-2026-10-08):
-
-1. **Census delta**: covered faces and total Readings before/after on the
-   bounded manifest; lost faces by name with classification, or "none".
-2. **Witnesses**: each witness above with its Reading count after.
-3. **Spot checks**: ten newly covered faces by name with the selected analysis.
-4. **Deviations and STOPs**: constructions, frames or tests added or deleted
-   beyond the ticket's letter, with justification; every STOP and its
-   resolution; any glossary gap in `docs/contexts/oracle-english/CONTEXT.md`.
-5. **Tests**: the `cargo test -p` / clippy commands and outcomes; counts
-   restored / re-spelled / ignored-with-blocker / added / removed.
-6. **Timing**: wall time of the bounded census as one figure with worker count
-   (6), plus peak RSS from `/usr/bin/time -v`.
+1. **Census delta** (`zwkyqqyvxool`): bounded 360-face manifest, covered
+   300 → 343; total per-line Readings 10,356 → 13,683. Lost faces: none;
+   decreases, increases and digest-only changes: zero; gained: 43; validation
+   issues: zero. Before is the claim-line baseline at `nlvnvwnwovxs`, assembled
+   from the full `yntwupzymxxl` census and its landed *until* subset refresh
+   for trunk `lztruvkmznnx` (Exclude nominal Until attachments);
+   grammar and lexicon are unchanged between that refresh and claim `pvpozqvw`.
+   Selector: supported analysed text matching case-insensitive
+   `\bproduc(e|es|ed|ing)\b` (60 faces), plus 300 covered controls selected
+   by the existing diff command with seed 20261008. Evidence:
+   `target/english-v3/english-v3-produce-verb/{manifest,before,after,diff}.json`.
+2. **Witnesses** (`zwkyqqyvxool`): every ticket passage probed at zero before
+   implementation; each matching *add* control admitted a Reading with the
+   one-Reading probe cap. Complete after probes: Incubation Druid 2;
+   Break the Ice 1; Dictate of Karametra 4; Pale Moon 12; Mirari's Wake 4.
+   Tests retain these complete counts and select the relative, finite predicate
+   or declared ManaPhrase analysis through the existing helper.
+3. **Spot checks** (`zwkyqqyvxool`): Exotic Orchard, Reflecting Pool,
+   Quirion Explorer, Fellwar Stone, Naga Vitalist, Harvester Druid and
+   Sylvok Explorer each have 2 Readings; Mana Flare, Heartbeat of Spring and
+   Zhur-Taa Ancient each have 4. Selected analysis: Object-gap Relative Clause,
+   *could produce* (bare) or *land produced* (preterite), using Add's existing
+   noun-phrase Object frame. One table-driven test checks the ten complete
+   passages' counts and selected constituent spans.
+4. **Deviations and STOPs** (`zwkyqqyvxool`): one native `core.ron` verb
+   declaration rather than `verbs.ron`, whose loader would generate the
+   unattested gerund. *Producing* attestation: zero supported faces; the native
+   declaration omits that form and copies Add's two frames exactly. No grammar,
+   loader, frame inventory or glossary changes; no superseded route; no STOP.
+   The six *mana produced by …* faces remain unread (0/6), and the three
+   multiplier faces remain unread (0/3), as scoped by rulings R16c–R16d.
+   The inherited schema-v7 binary's preliminary bounded baseline was discarded;
+   schema-v8 diff uses the archived landed baseline above. The extra lexical
+   regression and table-driven spot-check test enforce the ticket's pruning
+   and spot-check requirements. Ticket seed corrected to the user's 20261008.
+5. **Tests** (`zwkyqqyvxool`): `cargo test -p deckmaste_english_v3` passed (663 tests);
+   `cargo test -p deckmaste_lexical_source` passed (64 tests, both runs).
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed
+   after replacing the new empty-result assertion with a value comparison
+   (`assert_is_empty` lint); the full lexical-source test command was rerun
+   after that assertion fix and passed. All tests have zero failed/ignored.
+   Restored 0; re-spelled 0; ignored-with-blocker 0; added 7 (five witness tests,
+   one ten-face spot-check test, one exact lexical paradigm/frame test);
+   removed 0. Citation checks: zero noncompliant and stale citations; diff audit
+   selects no new citation sites.
+6. **Timing** (`zwkyqqyvxool`): one bounded after census, 6.24 seconds wall
+   time, six workers, zero samples per face; peak RSS 1,370,520 KiB under
+   `/usr/bin/time -v`. Prebuilt schema-v8 binary; compilation excluded.

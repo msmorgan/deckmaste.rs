@@ -240,3 +240,6 @@ mod as_clause_np_licensing;
 
 #[path = "suite/perfect_relative_adverbial_gap.rs"]
 mod perfect_relative_adverbial_gap;
+
+#[path = "suite/produce_verb.rs"]
+mod produce_verb;
