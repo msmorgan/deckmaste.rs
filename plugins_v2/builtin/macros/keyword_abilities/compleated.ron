@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "compleated",
     ),
-    // STOP. Compleated reads the life paid for Phyrexian mana symbols in the cost
+    // STOP (waits on: an amount of life paid for Phyrexian mana symbols).
+    // Compleated reads the life paid for Phyrexian mana symbols in the cost
     // actually paid [CR#702.150a]. No `Amount` projects that, so the loyalty
     // replacement's "minus two for each of those mana symbols" cannot be written.
 )

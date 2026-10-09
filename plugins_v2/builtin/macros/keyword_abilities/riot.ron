@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "riot",
     ),
-    // STOP. "Riot" means "You MAY have this permanent enter with an additional +1/+1
+    // STOP (waits on: an optional or action-performing entry clause).
+    // "Riot" means "You MAY have this permanent enter with an additional +1/+1
     // counter on it. If you don't, it gains haste." [CR#702.136a] No entry rider is
     // optional: `StaticSpec::EntryRider` takes an `EntryRider` and only
     // `EntryRider::AsCopyOf` carries an `optional` flag, so `WithCounters` cannot be

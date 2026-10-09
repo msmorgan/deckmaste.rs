@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "storied",
     ),
-    // STOP. "Storied" means "ANY TIME you control three or more permanents that are
+    // STOP (waits on: a static ability that acts when a state holds, off the stack).
+    // "Storied" means "ANY TIME you control three or more permanents that are
     // artifacts, Sagas, and/or legendary and you don't have an enduring story, you
     // have an enduring story for the rest of the game." [CR#702.195a] No `StaticSpec`
     // performs an instruction when a state holds; `DeonticRider::StateBased` is the

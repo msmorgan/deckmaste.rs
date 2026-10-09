@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "jump-start",
     ),
-    // STOP. "Jump-start" means "You may cast this card from your graveyard if the
+    // STOP (waits on: a play permission paying its own cost plus another).
+    // "Jump-start" means "You may cast this card from your graveyard if the
     // resulting spell is an instant or sorcery spell by discarding a card as an
     // ADDITIONAL cost to cast it" [CR#702.133a]. `PlayPayment` offers only the card's
     // own cost, no cost, or a replacement cost — never its own cost plus another.

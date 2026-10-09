@@ -5,6 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "wither",
     ),
-    // STOP. Wither substitutes the RESULT of damage [CR#702.80a], like infect and
+    // STOP (waits on: the damage-result rules table).
+    // Wither substitutes the RESULT of damage [CR#702.80a], like infect and
     // lifelink; see `Infect.ron`.
 )

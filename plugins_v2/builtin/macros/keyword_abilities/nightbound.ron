@@ -5,6 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "nightbound",
     ),
-    // STOP. Nightbound is daybound's opposite face and has the same shape
+    // STOP (waits on: a static ability that acts when a state holds, off the stack).
+    // Nightbound is daybound's opposite face and has the same shape
     // [CR#702.145b,702.145d]; see `Daybound.ron`.
 )

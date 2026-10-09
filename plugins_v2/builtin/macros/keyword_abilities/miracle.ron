@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "miracle",
     ),
-    // STOP. "Miracle [cost]" means "You may reveal this card from your hand AS YOU
+    // STOP (waits on: a reveal permission with a timing, and a reveal-event `thisWay`).
+    // "Miracle [cost]" means "You may reveal this card from your hand AS YOU
     // DRAW IT if it's the first card you've drawn this turn. When you reveal this
     // card this way, you may cast it by paying [cost] rather than its mana cost."
     // [CR#702.94a] The first half is a permission exercised inside the draw itself.

@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "frenzy",
     ),
-    // STOP. "Frenzy N" means "Whenever this creature attacks and isn't blocked, it gets
+    // STOP (waits on: an "attacks and isn't blocked" event).
+    // "Frenzy N" means "Whenever this creature attacks and isn't blocked, it gets
     // +N/+0 until end of turn" [CR#702.68a]. `CombatRelation` names attacking, being
     // blocked and blocking, but no relation and no `GameEvent` says "attacks and isn't
     // blocked", which fires in the declare blockers step, not at declare attackers;

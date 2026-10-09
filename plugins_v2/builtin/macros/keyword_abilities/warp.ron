@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "warp",
     ),
-    // STOP. "Warp [cost]" means "You may cast this card from your hand by paying [cost]
+    // STOP (waits on: a static ability that creates a delayed triggered ability).
+    // "Warp [cost]" means "You may cast this card from your hand by paying [cost]
     // rather than its mana cost" and "If this spell's warp cost was paid, EXILE THE
     // PERMANENT THIS SPELL BECOMES AT THE BEGINNING OF THE NEXT END STEP. Its owner may
     // cast this card after the current turn has ended for as long as it remains

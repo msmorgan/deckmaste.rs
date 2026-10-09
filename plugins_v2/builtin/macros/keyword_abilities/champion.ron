@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "champion",
     ),
-    // STOP. "Champion an [object]" means "When this permanent enters, sacrifice it
+    // STOP (waits on: `semantics-v2-subject-param-kind`).
+    // "Champion an [object]" means "When this permanent enters, sacrifice it
     // unless you exile another [object] you control" and "When this permanent leaves
     // the battlefield, return the exiled card to the battlefield under its owner's
     // control" [CR#702.72a]. The definition weaves the argument into a larger

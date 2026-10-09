@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "toxic",
     ),
-    // STOP. "Toxic is a static ability… written 'toxic N'" [CR#702.164a] and the entry
+    // STOP (waits on: the damage-result rules table).
+    // "Toxic is a static ability… written 'toxic N'" [CR#702.164a] and the entry
     // quotes no expansion: it states that combat damage dealt to a player by a creature
     // with toxic causes that creature's controller to give the player poison counters
     // equal to its total toxic value, IN ADDITION TO THE DAMAGE'S OTHER RESULTS

@@ -5,8 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "cipher",
     ),
-    // STOP. Cipher's first half is a SPELL ability [CR#702.99a], which
-    // `Ability.category` leaves categoryless and `keywordBodyFits` refuses; its
-    // second half turns on a card being "encoded on" a creature [CR#702.99b], a
-    // relation between an exiled card and a permanent that no `Predicate` reads.
+    // STOP (waits on: a named link between two objects).
+    // Cipher's first half is a spell ability [CR#702.99a], which a
+    // definition may hold (gift's does), but it exiles the card "encoded on" a creature, and
+    // its second half reads that link [CR#702.99b]. No move rider encodes an exiled card on
+    // a permanent and no `Predicate` reads the relation, so neither half can be written.
 )

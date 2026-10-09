@@ -6,21 +6,15 @@ KeywordAbility(
         surface: "protection",
         parameter: Quality(preposition: ("Preposition", "From")),
     ),
-    // STOP. "Protection from [quality]" [CR#702.16a] is four consequences, and three
-    // of them write cleanly: can't be targeted by spells with the quality or by
-    // abilities from a source with it [CR#702.16b] as a `DeonticRule` over
-    // `Core(Target)` in the patient role; damage from such sources prevented
-    // [CR#702.16e] as a `DamageRule`; and an attacking creature can't be blocked by
-    // such creatures [CR#702.16f] as a `DeonticRule` over `Core(Block)`. Written out
-    // with all three, `Abbey Gargoyles` proved. The fourth cannot be written: "can't
-    // be enchanted by Auras that have the stated quality" and "can't be equipped by
-    // Equipment … or fortified by Fortifications that have the stated quality"
-    // [CR#702.16c,702.16d] is a prohibition over the `Attach` deed, whose registry row
-    // gives it an agent role of `playerAgent` and NO patient role at all, so
-    // `deedFits` refuses every noun phrase in that slot — `Abbey Gargoyles` refused
-    // with `[Semantics.Refusal.deedFits, Semantics.Refusal.deonticPatientOk]` and
-    // proved as soon as that row came out. This is the shape Indestructible's
-    // `Destroy` patient role already carries: fixing it is a change to a deed's role
-    // columns, which this ticket's overlay authority does not cover. A body carrying
-    // only three of the four rows would be a wrong analysis, so none is written.
+    // STOP (waits on: a deontic slot for an attachment's host).
+    // "Protection from [quality]" [CR#702.16a] is four
+    // consequences, and three write and check: can't be targeted by spells with the quality
+    // or abilities from a source with it [CR#702.16b] (`cantBeTargetedBy`), damage from such
+    // sources prevented [CR#702.16e] (`damageRule`), and can't be blocked by such creatures
+    // [CR#702.16f] (`cantBeBlockedBy`). The fourth, "can't be enchanted by Auras … equipped
+    // by Equipment … or fortified by Fortifications that have the stated quality"
+    // [CR#702.16c,702.16d], forbids attaching such objects TO this permanent. The `attach`
+    // deed's row has no patient role, and `DeonticPatient`'s counterpart is the deed's other
+    // role (the attaching player), so no slot names the attachment's host. A body carrying
+    // only three of the four would be a wrong analysis, so none is written.
 )

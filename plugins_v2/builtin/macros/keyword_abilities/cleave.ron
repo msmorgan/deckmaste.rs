@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "cleave",
     ),
-    // STOP. Cleave's second ability is "change its text by removing all text found
+    // STOP (waits on: a text-changing effect over printed rules text).
+    // Cleave's second ability is "change its text by removing all text found
     // within square brackets in the spell's rules text" [CR#702.148a] — a
     // text-changing effect [CR#612.1] over printed bracketing. No
     // `CharacteristicEdit` edits rules text by its printed marks.

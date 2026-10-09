@@ -6,7 +6,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "boast",
     ),
-    // STOP. "Boast — [Cost]: [Effect]" means "[Cost]: [Effect]. Activate only if
+    // STOP (waits on: the ability printed with the keyword).
+    // "Boast — [Cost]: [Effect]" means "[Cost]: [Effect]. Activate only if
     // this creature attacked this turn and only once each turn." [CR#702.142a]
     // The guard and limit are now writable (`happened(attacks(this), …,
     // soFarThisTurn)`, `oncePerTurn`), but

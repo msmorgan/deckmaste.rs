@@ -5,12 +5,12 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "ascend",
     ),
-    // STOP. Ascend on a permanent means "Any time you control ten or more
-    // permanents and you don't have the city's blessing, you get the city's
-    // blessing for the rest of the game." [CR#702.131b] No `StaticSpec` performs an
-    // instruction when a state holds; `DeonticRider::StateBased` is the only
-    // state-checked clause and its `StateBasedCause` has the single value
-    // `NonpositiveLife`. The spell form [CR#702.131a] is a spell ability, which a
-    // definition may hold under an instant-or-sorcery class guard
-    // (`semantics-v2-keyword-definition-by-card-class`).
+    // STOP (waits on: a static ability that acts when a state holds, off the stack).
+    // Ascend on a permanent means "Any time you control ten or more
+    // permanents and you don't have the city's blessing, you get the city's blessing for the
+    // rest of the game." [CR#702.131b] That is a static ability acting when a state holds,
+    // and no `StaticSpec` performs an instruction then: `GameEvent.stateHolds` heads a state
+    // trigger, which uses the stack [CR#603.8], and the static does not. The spell form
+    // [CR#702.131a] writes as a spell ability under an instant-or-sorcery guard, as gift's
+    // does, but it is half the definition.
 )

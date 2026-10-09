@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "freerunning",
     ),
-    // STOP. "Freerunning [cost]" is an alternative cost gated on a player having been
+    // STOP (waits on: the commander and outside-the-game vocabulary).
+    // "Freerunning [cost]" is an alternative cost gated on a player having been
     // "dealt combat damage this turn by a creature that, at the time it dealt that
     // damage, was an Assassin creature or a commander under your control"
     // [CR#702.173a]. There is no predicate for a commander, so the second half of the

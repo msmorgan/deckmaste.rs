@@ -6,12 +6,11 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "offering",
     ),
-    // STOP. "[Quality] offering" means "As an additional cost to cast this spell, you
-    // may sacrifice a [quality] permanent. If you chose to pay the additional cost,
-    // this spell's total cost is REDUCED BY THE SACRIFICED PERMANENT'S MANA COST, and
-    // you may cast this spell any time you could cast an instant." [CR#702.48a]
-    // Nothing links the reduction back to the permanent the first clause's cost
-    // sacrificed — `Predicate::ExiledWith` is the only linked-reference predicate and
-    // a `Reach::Stamped` pronoun cannot read out of a sibling clause's cost (the
-    // cause Emerge and Harmonize share).
+    // STOP (waits on: a paid-cost facet naming the object a cost acted on).
+    // "[Quality] offering" means "As an additional cost to cast this
+    // spell, you may sacrifice a [quality] permanent. If you chose to pay the additional
+    // cost, this spell's total cost is reduced by the sacrificed permanent's mana cost, and
+    // you may cast this spell any time you could cast an instant." [CR#702.48a] The
+    // reduction must name the permanent the cost sacrificed, and no `PaidFacet` names the
+    // object a paid cost acted on (the cause Emerge and Harmonize share).
 )

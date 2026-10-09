@@ -5,7 +5,10 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "echo",
     ),
-    // STOP. Echo's intervening if is "if this permanent came under your control
-    // since the beginning of your last upkeep" [CR#702.30a]. `Lookback` has no
-    // value for that window.
+    // STOP (waits on: a control-change event and "your last upkeep").
+    // Echo's intervening if is "if this permanent came under your
+    // control since the beginning of your last upkeep" [CR#702.30a]. No `GameEvent` says an
+    // object came under a player's control (entering under it or a control change), and
+    // `TurnRef.previous` is the turn before this one, not "your last" turn, so the
+    // `LookbackClause` window cannot be written either.
 )

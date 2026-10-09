@@ -5,8 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "harmonize",
     ),
-    // STOP. Harmonize's second static reduces the total cost "by an amount of generic
-    // mana equal to the tapped creature's power" [CR#702.180a]. Nothing links it back
-    // to the creature the first static's cost tapped — the same missing linked
-    // reference that stops emerge.
+    // STOP (waits on: a paid-cost facet naming the object a cost acted on).
+    // Harmonize's second static reduces the total cost "by an amount
+    // of generic mana equal to the tapped creature's power" [CR#702.180a]. It must name the
+    // creature the first static's cost tapped, and no `PaidFacet` names the object a paid
+    // cost acted on (the cause Emerge and Offering share).
 )

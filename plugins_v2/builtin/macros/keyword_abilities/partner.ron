@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "partner",
     ),
-    // STOP. "Partner" means "You may designate two legendary cards as your commander
+    // STOP (waits on: the commander and outside-the-game vocabulary).
+    // "Partner" means "You may designate two legendary cards as your commander
     // rather than one if each of them has partner." [CR#702.124h] Partner abilities
     // "modify the rules for deck construction in the Commander variant and function
     // before the game begins" [CR#702.124a]; nothing in the grammar designates a

@@ -5,10 +5,13 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "paradigm",
     ),
-    // STOP. "Paradigm represents two SPELL abilities, one of which creates a delayed
-    // triggered ability." [CR#702.192a] `Ability.category` is `none` for
-    // `Ability::Spell`, so `keywordBodyFits` refuses one in a definition (the cause
-    // Ascend, Awaken, Cipher and Epic share); the first also creates a delayed
-    // triggered ability at each of your precombat main phases for the rest of the
-    // game.
+    // STOP (waits on: a resolution-history condition and a copy created in exile).
+    // Paradigm means "If this is the first time a spell you control
+    // with this spell's name has resolved this game, at the beginning of each of your
+    // precombat main phases for the rest of the game, create a copy of this object in exile.
+    // You may cast the copy without paying its mana cost" and "Exile this spell."
+    // [CR#702.192a] Spell abilities fit a definition and the delayed trigger is `delay(...)`,
+    // but no `GameEvent` says a spell resolved, so the first-resolution condition cannot be
+    // written, and no instruction creates a copy of a card in exile (`copy` copies onto the
+    // stack, `createObject` makes tokens on the battlefield).
 )

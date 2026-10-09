@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "ripple",
     ),
-    // STOP (routed to `lean-drt-anaphora-refactor`, 2026-10-08). "Ripple N" means
+    // STOP (waits on: `lean-drt-anaphora-refactor`).
+    // "Ripple N" means
     // "When you cast this spell, you may reveal the top N cards of your library… you
     // may cast any of those cards with the same name as this spell without paying
     // their mana costs, then put all revealed cards not cast this way on the bottom

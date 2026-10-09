@@ -5,7 +5,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "rebound",
     ),
-    // STOP. "Rebound" means "If this spell was cast from your hand, instead of putting
+    // STOP (waits on: a static ability that creates a delayed triggered ability).
+    // "Rebound" means "If this spell was cast from your hand, instead of putting
     // it into your graveyard as it resolves, exile it and, AT THE BEGINNING OF YOUR
     // NEXT UPKEEP, you may cast this card from exile without paying its mana cost."
     // [CR#702.88a] It is one static ability that creates a delayed triggered ability;
