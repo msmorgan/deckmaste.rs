@@ -324,8 +324,9 @@ landing contract treats as a defect.
 ## Amendment: landing record slimmed to six items (2026-10-08)
 
 Ruling (user, 2026-10-08): the three-tier PROVE / DISCLOSE / REPORT landing
-record is retired. A landing record is now the six items in `CLAUDE.md`
-(Feature workflow): census delta with lost faces classified by name, witness
+record is retired. A landing record is now the six items in
+`docs/tickets/README.md` (Landing record; formerly `CLAUDE.md` Feature
+workflow): census delta with lost faces classified by name, witness
 Reading counts, ten spot checks, deviations and STOPs, tests run with their
 assurance counts, and one census wall time with worker count. This supersedes
 [Amendment: what a landing proves, discloses, and reports (2026-09-04)](english-v2-rewrite.md#amendment-what-a-landing-proves-discloses-and-reports-2026-09-04)

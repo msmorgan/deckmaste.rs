@@ -1,7 +1,20 @@
 #!/usr/bin/env fish
 # jj-workflow provision hook: populate a new workspace's gitignored shared dirs.
-# Run by `workflow claim/start` after `jj workspace add`, with the new workspace
-# dir as $argv[1]. See CLAUDE.md "New jj workspaces" for the manual equivalent.
+# Run by `kata claim/start` after `jj workspace add`, with the new workspace dir
+# as $argv[1]; for a hand-built workspace, run it yourself from `default`:
+#   scripts/provision-workspace .workspaces/NAME
+#
+# What it does: `data` is symlinked back to `default`. Each dir present under
+# `default/docs/` but absent from the new tracked workspace is symlinked too,
+# sharing ignored local dirs such as `docs/superpowers` and `docs/memory` while
+# leaving tracked documentation alone. `plugins/wizards` is generated as a real
+# dir, never a symlink (deckmaste_plugin's suite loads it, and a symlink would
+# make generate write into the main checkout). `default`'s `target/` is
+# CoW-reflinked as a best-effort build-cache pre-warm, then every tracked file
+# whose bytes match `default`'s copy gets `default`'s mtime, so only crates
+# whose sources truly differ rebuild. `lean/.lake` is reflinked the same way
+# (only as fresh as `default`'s last `lake build`). Verify with a real `jj st`
+# (not `--ignore-working-copy`): it must report no changes.
 
 set ws_dir $argv[1]
 if test -z "$ws_dir"; or not test -d "$ws_dir"

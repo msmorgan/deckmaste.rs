@@ -2,185 +2,112 @@
 
 ## Scope
 
-- **Vintage-playable Magic only.** The grammar, the model, and the workbenches cover the cards
-  and rules of normal Magic: whatever is legal in Vintage. Un-sets, Conspiracy, Planechase
-  (planes, phenomena), Archenemy (schemes), Vanguard, and ante are out of scope, permanently.
-  Unfinity's eternal-legal cards (those the card data marks Vintage-legal) are excluded for now
-  along with the rest of Unfinity. Do not ask whether they are supported, and do not model,
-  enumerate, or reserve room for them.
+Vintage-playable Magic only: whatever is legal in Vintage. Un-sets (including Unfinity's
+eternal-legal cards), Conspiracy, Planechase, Archenemy, Vanguard and ante are permanently out of
+scope. Do not ask about them, model them, or reserve room for them.
 
 ## Version control
 
-- This repo uses **jj** (Jujutsu), not git. For any jj behaviour not covered here or by the session's injected jj guidance, load **`/jj-sensei:knowledge`** (authoritative, version-matched command help) or **`/jj-sensei:wisdom`** (history-shaping idioms: splitting, revset selection, placement) rather than inferring from git. Never refer to changes by git commit-ish. Never add `Co-Authored-By:` trailers; keep jj descriptions brief.
-- **Immutability mechanism** (the jj-not-git rule and the `--config`/`--config-file`/`--ignore-immutable` bans live in the jj-kata skill and are PreToolUse-hook-enforced): trunk protection is a set of four repo-config revset aliases installed by **jj-sensei**, whose net effect is `immutable_heads() = builtin_immutable_heads() | only_if(not_default(), other_workspaces())`. `@` resolves per workspace, so from any feature workspace every OTHER working copy and all its ancestors — trunk, the whole default line, and every sibling feature — is immutable (jj refuses per-op any rewrite reaching shared history or another feature), while YOUR OWN feature work (commits above your claim bookmark, `name+::name@`) stays freely rewritable. In `default` the custom term collapses to `none()`, so the coordinator stays open. jj-kata verifies these aliases by exact text and refuses every lifecycle command if they are missing or reworded — never hand-edit them; re-run the **`/jj-sensei:boundaries`** skill instead, and audit with its `--check`.
-- **The line is the op log, not history rewriting.** Off limits, always, agents and subagents alike: `jj op ...` (`op revert`/`op restore`/`op abandon`/`op integrate`), `jj undo`, `jj redo`. Those rewind shared state under every workspace and are the user's alone. Everything else is yours to use normally — `jj edit`, `jj abandon`, `jj squash`, `jj split`, `jj rebase`, `jj describe` — because the `immutable_heads()` alias is what enforces safety: from a feature workspace the whole default line is immutable, so a rewrite that would reach trunk, a claim commit, or another feature is refused per-op. You cannot damage shared history with these; you can only rewrite your own feature work. If jj says a commit is immutable, you targeted the wrong rev — fix the rev, never `--ignore-immutable`.
-- A **stale working copy** is routine (a sibling workspace advanced the shared op log): run `jj workspace update-stale`. A **working-copy divergence** — two commits sharing `@`'s change id — is likewise ordinary; jj-kata has no repair command, so reach for the **`/jj-sensei:harmony`** skill, which resolves stale state, divergent successors, and file conflicts oldest-first. Keep the half with your work, found by content — never by the `/N` index or a remembered hash, both of which shift on rebase. When the halves hold genuinely different work, **resolve it by hand**: diff the two (`jj diff --from A --to B`), decide which half to keep on the evidence, then `jj edit <keep>` and `jj abandon <drop>`. A formatter pass racing an edit is the common cause, and the halves usually differ only in formatting plus one real change — keep the half with the real change and re-run `jj fix`. (The recurring `working-copy commit in workspace 'default' became immutable` warning is benign.)
-- STOP and ask only when the evidence runs out: you cannot tell what a divergent half contains, `@` is somewhere you cannot account for, or a rewrite is refused as immutable and you do not understand why. "I might damage something" is not a reason to stop — the guard already prevents that.
-- **Superpowers artifacts never enter version control.** `.superpowers/` (SDD plans, briefs, progress and task reports) and `docs/superpowers/` are ignored and must stay untracked: never `jj file track` them past the ignore, and never hand-add them as part of a wider snapshot. They are session scratch, not repo history. Undoing a slip here is not a tip-side deletion commit — the blobs stay in every commit that touched them, so it costs a split-and-abandon pass over that whole stretch of history. The same rule covers source-embedded process artifacts: per-task evidence snapshots, progress TSVs, and plan-scoped verifier code must never enter `crates/` (e.g. as `include_str!` data) — the tracked gate authority is the coverage lock alone; gates read any other evidence from gitignored paths at runtime (ruling 2026-08-26, after Plan 09 accreted 7.1MB of per-task TSVs into xtask).
+- This repo uses **jj**, never git. The jj-sensei skills are the reference (`wisdom` first,
+  `knowledge` for command semantics, `harmony` for stale/divergent/conflicted state, `boundaries`
+  for the immutability aliases). Refer to changes by change id; keep descriptions brief; no
+  `Co-Authored-By:` trailers.
+- **Off limits:** `jj op ...`, `jj undo`, `jj redo` (the user's alone), and `--ignore-immutable`,
+  `--config`, `--config-file`. Normal rewrites (`edit`, `abandon`, `squash`, `split`, `rebase`,
+  `describe`) are fine: from a feature workspace, everything outside your own work is immutable, so
+  an immutability refusal means you targeted the wrong rev.
+- Stale working copy → `jj workspace update-stale`. Divergence → `harmony`; keep the half with
+  your work, found by content, and re-run `jj fix` if a formatter raced you.
+- STOP and ask only when the evidence runs out: you cannot tell what a divergent half contains,
+  `@` is somewhere you cannot account for, or a refusal makes no sense.
+- **Never track session scratch.** `.superpowers/` and `docs/superpowers/` stay untracked, and no
+  per-task evidence, progress TSVs or plan-scoped verifier code enters `crates/`. Gates read such
+  evidence from gitignored paths at runtime; the coverage lock is the only tracked gate authority.
 
 ## Feature workflow
 
-The lifecycle (`claim`/`start` → work in `.workspaces/NAME` → `integrate`, then `drop`) is the **jj-kata** plugin — the auto-loading **`/jj-kata:kata` skill** is the reference for every command, flag, and exit code, and **`/jj-kata:kanban`** covers ticket inspection. Don't restate them here; this section is only what the plugin can't know about *this* repo. Two guardrails the skills omit: **never `refresh --all`** — human-only; it rewrites every workspace's claim at once and can race a concurrent `integrate` into divergence. And jj-kata requires jj-sensei's boundary aliases (above); if a lifecycle command refuses with "kata needs its teacher", run the `/jj-sensei:boundaries` skill rather than editing repo config by hand.
+The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 
-- **Claim/start eagerly — before any exploration, design, or subagents.** A fresh workspace lacks the gitignored fixtures the build needs — `data`, ignored local `docs/` directories such as `docs/superpowers` and `docs/memory`, and ~31k generated `plugins/wizards` — until `scripts/provision-workspace` runs on `claim`/`start`, so building/testing from an unprovisioned workspace wastes the work. And `default` holds other sessions' live claims and edits (expected coordinator state) — claim your own item first so that pre-existing state isn't a mystery to reconcile. Then `cd .workspaces/NAME` — this repo sets `workspace_dir = ".workspaces"` in `kata.toml` so feature workspaces stay inside the coordinator checkout for Codex sandbox compatibility. EnterWorktree is wired to this repo (jj-kata's `WorktreeCreate`/`WorktreeRemove` hooks, registered in the untracked `.claude/settings.local.json` — the hook path is machine-specific, so it must never go in the tracked `.claude/settings.json`; re-add it per checkout from the plugin's `hooks/claude-project-hooks.example.json`), so isolating that way mints a real feature workspace and provisions identically — the path background-job sessions use.
-- **Tickets** live at `docs/tickets/<status>/<slug>.md`, folder = status; `kata kanban ready` lists the next claimable items. **`docs/tickets/README.md`** is the full model (folders, priority order, the `kanban` command set). `kata.toml` sets `[items] driver = "kanban"`, so jj-kata's bundled folder driver owns the ticket moves — this repo ships no ticket tooling of its own. `docs/tickets/census.md` is a prioritisation reference table only; it is not a graph source and nothing reads it mechanically.
-- **Name your session after the item** (NAME) so the session/job list maps one-to-one onto the active claim.
-- **Every completed ticket carries a `## Landing record`**, written by the claimant before integrate, of six short items and nothing more (ruling 2026-10-08, `docs/decisions/english-lexical-analysis.md`). Stamp every number with the change id it was measured on.
-  1. **Census delta**: covered faces and total Readings before/after. Lost faces by name with their classification (wrong analysis retired / routed to `<live ticket>` / regression fixed), or "none". A long loss list is a defect to fix, not a list to paste.
-  2. **Witnesses**: each ticket witness with its Reading count after.
-  3. **Spot checks**: ten newly covered faces by name with the selected analysis. A wrong analysis that parses is a defect, never a gain.
-  4. **Deviations and STOPs**: every construction, frame or test added or deleted beyond the ticket's letter, with justification; every STOP with its resolution; any glossary gap (a term missing from `docs/contexts/oracle-english/CONTEXT.md`).
-  5. **Tests**: the `cargo test -p` / clippy commands run and their outcome; counts restored / re-spelled / ignored-with-blocker / added / removed, each removal justified by name.
-  6. **Timing**: wall time of the one full census as a single figure with worker count.
-
-  The safety laws stay in force and are enforced by the per-face census digest diff, the `environment.rs` load errors and the Assurance section, not by prose: no silent loss, no word-naming guard (a guard naming a lexeme, construction, verb, noun, preposition or card is a STOP, never shipped; the permitted guard reads a declared feature), and every grammatical Reading preserved. A landing without a record is a review finding. A ticket-vs-ruling contradiction resolved without a STOP is a HIGH finding even when disclosed and well-measured: disclosure is not authority.
-- **Semantic conflicts:** when the conflict is that another feature moved a ticket to `done/` you also hold, reconcile the *meaning* — move/mint the right tickets — not just the markers.
-
-## Current English grammar contract
-
-For English implementation, planning, review or corpus accounting, read
-[`docs/decisions/english-lexical-analysis.md`](docs/decisions/english-lexical-analysis.md).
-It supersedes the old zero-tie, destructive-selection and span-storage
-prescriptions, including conflicting wording in the landing contract above.
-Preserve all grammatical readings and both roundtrip laws; retain the other
-no-silent-loss, invalid-reading and internal-failure requirements.
+- **Claim or start before any exploration, design or subagents**, then work in
+  `.workspaces/NAME`. Unprovisioned workspaces lack `data`, local `docs/` dirs and the generated
+  `plugins/wizards`. A hand-built workspace needs `scripts/provision-workspace .workspaces/NAME`
+  run from `default`; verify with a real `jj st` (no changes).
+- **Never `kata refresh --all`** (human-only).
+- Tickets: `docs/tickets/<status>/<slug>.md`; `docs/tickets/README.md` is the model.
+  `kata kanban ready` lists claimable items. Name your session after the item.
+- Every completed ticket carries a **Landing record** before integrate; its six items are
+  specified in `docs/tickets/README.md`. A landing without one is a review finding.
+- A ticket-vs-ruling contradiction resolved without a STOP is a HIGH finding, even when disclosed.
+- If another feature moved a ticket you also hold to `done/`, reconcile the meaning (move or mint
+  tickets), not just the conflict markers.
 
 ## English grammar
 
-`deckmaste_english_v3` is the active grammar. The superseded parser and its
-exclusive proc macro are retired. Vocabulary and verb declarations are owned
-by `deckmaste_lexical_source/lexicon`; `deckmaste_construction_core` remains a
-shared declaration reader for lexical sources and semantics tooling. Do not
-introduce new grammar work in the legacy `deckmaste_english` stack.
+- `deckmaste_english_v3` is the active grammar; read
+  `docs/decisions/english-lexical-analysis.md` before implementing, planning, reviewing or
+  accounting for it. Preserve every grammatical Reading and both roundtrip laws.
+- Vocabulary and verbs live in `deckmaste_lexical_source/lexicon`. No new work in the legacy
+  `deckmaste_english` stack.
+- No silent loss (the per-face census digest diff enforces it). No guard that names a lexeme,
+  construction, verb, noun, preposition or card: that is a STOP. A permitted guard reads a
+  declared feature.
+- Corpus work iterates on a subset (`cargo xtask english-v3 <selector>`) and verifies once with
+  `--all`. Attestation checks use `cargo xtask english-v3 grep`, never raw `rg` over Scryfall.
 
 ## Crate fates (semantics_v2)
 
-Authority: `docs/decisions/semantics-v2.md` §§10–16. `deckmaste_semantics_v2`
-mirrors the Lean syntax constructor-for-constructor over `plugins_v2/` and
-depends on `macro_ron` alone; it takes the `deckmaste_semantics` name at
-parity (`semantics-v2-parity`). Deletion-bound at that cutover:
-`deckmaste_semantics`, `deckmaste_lowering`, `deckmaste_legacy_render`,
-`deckmaste_plugin` (`deck.rs`, `provenance.rs` rehomed), `idris/`,
-`plugins/builtin`, `plugins/canon`. The `_v2` sibling rule above applies
-verbatim: no parity copying into v1, no new v1 registries.
+Authority: `docs/decisions/semantics-v2.md` §§10–16. `deckmaste_semantics_v2` mirrors the Lean
+syntax over `plugins_v2/` and depends on `macro_ron` alone. Deletion-bound at parity:
+`deckmaste_semantics`, `deckmaste_lowering`, `deckmaste_legacy_render`, `deckmaste_plugin`
+(`deck.rs` and `provenance.rs` rehomed), `idris/`, `plugins/builtin`, `plugins/canon`. Never copy
+v2 work back into v1, and add no new v1 registries.
 
 ## Terminology
 
-- Before terminology-sensitive work — naming a public type, variant, field or
-  function, writing an explanatory doc comment, or drafting a ticket, plan or
-  ADR — read the root **`CONTEXT-MAP.md`** and follow it to the owning
-  glossary: `docs/contexts/game-model/CONTEXT.md` for Magic and engine-semantic
-  concepts, `docs/contexts/oracle-english/CONTEXT.md` for grammar and
-  realization. Core, the engine and the Lean workbench use ONE Game Model term
-  per concept; Oracle English keeps its linguistic terms even where a spelling
-  (Object, Predicate) means something else in the Game Model. Honour each
-  entry's `_Avoid_` line.
-- Keep those documents current through the **`domain-modeling`** skill: when a
-  landing needs a term the owning glossary does not define, or implementation
-  evidence exposes a flaw in a definition, amend that glossary with its CR
-  citation as part of the landing. Never reword an entry to accommodate an
-  existing identifier — rename the identifier.
+Before naming a public item, writing an explanatory doc comment, or drafting a ticket, plan or
+ADR, read `CONTEXT-MAP.md` and the owning glossary (`docs/contexts/game-model/CONTEXT.md` or
+`docs/contexts/oracle-english/CONTEXT.md`). One Game Model term per concept; honour `_Avoid_`
+lines. Missing or flawed terms are amended in the glossary (with CR citation) via the
+`domain-modeling` skill as part of the landing. Rename identifiers; never reword entries to fit
+them.
 
 ## CR citations
 
-- Cite Comprehensive Rules in the `[CR#…]` bracket format — e.g. `[CR#704.5g]`, a list `[CR#601.2g,106.4]` (comma-separated, no spaces), a range `[CR#601.2a..601.2b]`. Never write a bare `CR 704.5g` or a loose `704.5g` in prose; the checker flags both.
-- After adding or changing citations: `cargo xtask cite check --list-noncompliant` must be empty, and `cargo xtask cite check` must report 0 stale. When you cite a rule not yet in `cr-citations.lock`, run `cargo xtask cite bless` to register it.
-- Rule numbers come from the CR, never from memory. Before committing citation changes, run `jj diff --git | cargo xtask cite audit --diff` and read each rule's text against the claim citing it — the hash checker can NOT catch a right-number-wrong-topic cite. The command reads its diff from STDIN: run bare (no pipe), it silently audits 0 citation sites and still exits 0, so always pipe a diff in. Give `bless`'s newly-registered list the same read.
+- Format: `[CR#704.5g]`, `[CR#601.2g,106.4]`, `[CR#601.2a..601.2b]`. Never a bare `CR 704.5g` or
+  `704.5g`.
+- After changes: `cargo xtask cite check --list-noncompliant` empty, `cargo xtask cite check`
+  0 stale, `cargo xtask cite bless` for newly cited rules.
+- Rule numbers come from the CR, never memory. Before committing, run
+  `jj diff --git | cargo xtask cite audit --diff` (it reads STDIN; bare, it silently audits
+  nothing) and read each rule's text against its claim, including `bless`'s new registrations.
 
-## Assurance (a standard constraint)
+## Assurance
 
-- **A round never reaches green by removing what could fail.** A test whose
-  subject still exists must keep passing; if it fails, the fix is in the code.
-  A test whose subject a ticket deliberately retires gets **re-spelled**
-  against the replacement shape — same card, same asserted outcome, new
-  spelling — never deleted. Never swap a value comparison for a
-  `discriminant`/`matches!` check, and never add `#[ignore]` without naming
-  the exact blocker in the attribute or an adjacent comment.
-- **Report the counts** in the landing record: restored, re-spelled, ignored
-  with blockers, added, and removed. A nonzero removed count justifies each
-  one by name.
-- **Finding a genuine regression is a successful outcome.** Fix it in the code
-  first. Stop and report only if the fix fails, reaches outside the ticket, or
-  needs a ruling. Never integrate around it, and never delete or weaken the
-  test that found it.
-- Why this is a rule: the 2026-09-02 discourse-regions landing removed 164
-  tests and added 1, reported every suite green, and shipped six regressions
-  the deleted tests had covered — one of which silently broke every "that
-  many" replacement, so infect, wither, and doubled mill were all dead on
-  trunk until the restoration round.
+- Never reach green by removing what could fail. A failing test whose subject still exists is
+  fixed in the code. A test whose subject is deliberately retired is **re-spelled** against the
+  replacement (same card, same asserted outcome), never deleted.
+- Never swap a value comparison for a `discriminant`/`matches!` check. Never `#[ignore]` without
+  naming the exact blocker.
+- A genuine regression is a successful find: fix it; stop only if the fix fails, leaves the
+  ticket, or needs a ruling. Never integrate around it or weaken the test.
+- Report restored / re-spelled / ignored / added / removed counts; justify each removal by name.
+  (Origin: a 2026-09-02 landing deleted 164 tests and shipped six regressions.)
 
 ## Tests for a landing
 
-- Run `cargo test -p <crate>` and `cargo clippy -p <crate> --tests -- -D warnings`
-  for every crate whose code or consumed data you changed. Name the commands
-  and their outcome in the landing record.
-- Run `cargo xtask lean check` only when `lean/` sources or plugin definitions
-  changed.
-- `cargo test --workspace` excludes `slow-tests` (the TUI whole-game
-  simulations); CI's full job runs them.
+- `cargo test -p <crate>` and `cargo clippy -p <crate> --tests -- -D warnings` for every crate
+  whose code or consumed data changed.
+- `cargo xtask lean check` only when `lean/` or plugin definitions changed.
+- `cargo test --workspace` excludes `slow-tests` (TUI whole-game simulations); CI runs them.
 
-## Model economy
+## Bearings
 
-- **If you are Fable: Fable is expensive.** A sequence of mechanical edits or
-  simple tool calls run inline is uneconomical — every turn re-reads the whole
-  context, so the cache reads dominate the cost of the work itself. Delegate
-  such runs to a Sonnet or Opus subagent as appropriate (Sonnet for mechanical,
-  Opus for anything needing judgment), and spend Fable's turns on triage,
-  briefing, and verification.
-
-## Bearings (token efficiency)
-
-- Symbol questions (where defined, who calls it, what variants, what signature) →
-  rust-analyzer LSP first, grep second. The LSP tool is deferred — subagents must load
-  it explicitly (ToolSearch `select:LSP`) before use.
-- Lean work (writing or editing `.lean`, closing proofs, debugging a build):
-  before the first edit, search the available skills (`lean4:*`) and load the
-  Lean LSP MCP tools (ToolSearch `select:mcp__lean-lsp__…`), and use them for
-  goals/diagnostics instead of `lake env lean` scratch compiles. Subagent
-  briefs must say this explicitly — deferred tools are invisible until loaded,
-  and an agent that never calls ToolSearch never sees them.
-- Current code shape: `cargo xtask map enums` regenerates the Rust taxonomy.
-  For Lean constructor lookup, use the Lean LSP and `lean/Semantics/Words.lean`
-  or `lean/Semantics/Abilities.lean` directly until `cargo xtask map lean` exists.
-  Current declarations take precedence over constructor inventories in old plans.
-- Plans/specs: never restate standard constraints (jj, fmt, clippy, CR citations,
-  wizards regen, assurance — they live here); write "standard constraints apply" plus deltas
-  only. Context sections cite prior docs and describe deltas; re-derived subsystem
-  prose is a review flag.
-- **Corpus work iterates on a subset, verifies on the whole.** Use `cargo xtask english-v3` with an explicit selector for iteration and `--all` for final corpus verification. Preserve all Readings and report roundtrip/traversal validation, failures and runtime evidence. Corpus attestation checks (does a wording occur, which faces are unread) use `cargo xtask english-v3 grep`, never raw `rg` over the Scryfall file, which holds unsupported cards and reminder text.
-
-- Dispatching agents: explore once, pass the brief — paste it as a byte-identical
-  prompt prefix across the fan-out (prompt-cache-shared, question at the tail), or
-  send follow-ups to an agent that already holds the context instead of spawning
-  fresh; include the relevant settled rulings in design/audit agent prompts rather
-  than letting them re-derive (or contradict) them.
-
-## New jj workspaces
-
-`kata start`/`claim` provisions a new workspace's gitignored shared dirs for
-you by running `scripts/provision-workspace` (the `kata.toml` provision
-hook). For a workspace you hand-built with `jj workspace add` instead, run the
-hook yourself from `default`:
-
-```sh
-scripts/provision-workspace .workspaces/NAME
-```
-
-What it does (background, in case provisioning needs fixing by hand): `data` is
-symlinked back to the `default` checkout. Each directory present under
-`default/docs/` but absent from the new tracked workspace is also symlinked;
-this shares ignored local directories such as `docs/superpowers` and
-`docs/memory` while leaving tracked documentation directories alone.
-`plugins/wizards` is generated (it's all generated code — a real dir, never a
-symlink: the deckmaste_plugin suite loads it, and a symlink would make generate
-write into the main checkout). The workspaces share the repository and global
-ignore configuration, so there is no per-workspace exclude step. Provisioning
-also CoW-reflinks `default`'s `target/` into the new workspace as a build-cache
-pre-warm (best-effort), then gives every tracked file whose bytes match
-`default`'s copy `default`'s mtime, so only crates whose sources truly differ
-rebuild; `lean/.lake` is CoW-reflinked the same way, so the
-first Lean build there is warm (the seed is only as fresh as `default`'s last
-`lake build`).
-
-Verify with a real `jj st` (not `--ignore-working-copy`, which skips the
-snapshot and hides leaked symlinks): it must report no changes.
+- Symbol questions → rust-analyzer LSP first, grep second (subagents load it via ToolSearch
+  `select:LSP`).
+- Lean work → load the `lean4:*` skills and Lean LSP MCP tools (ToolSearch
+  `select:mcp__lean-lsp__…`) before the first edit; subagent briefs must say so.
+- Code shape: `cargo xtask map enums`; for Lean, `lean/Semantics/Words.lean` and
+  `lean/Semantics/Abilities.lean`. Current declarations beat inventories in old plans.
+- Plans and specs write "standard constraints apply" plus deltas; never restate this file.
+- Dispatching agents: explore once, share a byte-identical brief prefix, include settled rulings,
+  and send follow-ups to an agent that already holds the context.
