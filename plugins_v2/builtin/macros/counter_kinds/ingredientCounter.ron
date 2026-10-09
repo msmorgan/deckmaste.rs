@@ -1,0 +1,6 @@
+CounterKind(
+    name: "ingredientCounter",
+    params: [],
+    spelling: "ingredient",
+    holder: Object,
+)

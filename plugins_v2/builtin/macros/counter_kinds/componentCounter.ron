@@ -1,0 +1,6 @@
+CounterKind(
+    name: "componentCounter",
+    params: [],
+    spelling: "component",
+    holder: Object,
+)

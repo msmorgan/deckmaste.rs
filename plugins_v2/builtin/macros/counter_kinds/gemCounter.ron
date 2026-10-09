@@ -1,0 +1,6 @@
+CounterKind(
+    name: "gemCounter",
+    params: [],
+    spelling: "gem",
+    holder: Object,
+)

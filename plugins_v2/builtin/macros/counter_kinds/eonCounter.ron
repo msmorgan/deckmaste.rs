@@ -1,0 +1,6 @@
+CounterKind(
+    name: "eonCounter",
+    params: [],
+    spelling: "eon",
+    holder: Object,
+)

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "baitCounter",
+    params: [],
+    spelling: "bait",
+    holder: Object,
+)

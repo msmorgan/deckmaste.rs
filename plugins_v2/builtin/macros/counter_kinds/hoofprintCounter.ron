@@ -1,0 +1,6 @@
+CounterKind(
+    name: "hoofprintCounter",
+    params: [],
+    spelling: "hoofprint",
+    holder: Object,
+)

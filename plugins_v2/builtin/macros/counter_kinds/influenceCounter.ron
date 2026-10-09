@@ -1,0 +1,6 @@
+CounterKind(
+    name: "influenceCounter",
+    params: [],
+    spelling: "influence",
+    holder: Object,
+)

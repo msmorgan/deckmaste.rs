@@ -1,0 +1,6 @@
+CounterKind(
+    name: "vowCounter",
+    params: [],
+    spelling: "vow",
+    holder: Object,
+)

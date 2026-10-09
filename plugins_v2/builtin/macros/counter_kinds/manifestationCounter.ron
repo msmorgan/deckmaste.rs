@@ -1,0 +1,6 @@
+CounterKind(
+    name: "manifestationCounter",
+    params: [],
+    spelling: "manifestation",
+    holder: Object,
+)

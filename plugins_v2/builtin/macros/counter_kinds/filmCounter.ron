@@ -1,0 +1,6 @@
+CounterKind(
+    name: "filmCounter",
+    params: [],
+    spelling: "film",
+    holder: Object,
+)

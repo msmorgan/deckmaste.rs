@@ -1,0 +1,6 @@
+CounterKind(
+    name: "ribbonCounter",
+    params: [],
+    spelling: "ribbon",
+    holder: Object,
+)

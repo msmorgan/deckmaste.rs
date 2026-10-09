@@ -1,0 +1,6 @@
+CounterKind(
+    name: "theftCounter",
+    params: [],
+    spelling: "theft",
+    holder: Object,
+)

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "phylacteryCounter",
+    params: [],
+    spelling: "phylactery",
+    holder: Object,
+)

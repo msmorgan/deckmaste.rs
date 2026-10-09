@@ -1,0 +1,6 @@
+CounterKind(
+    name: "impostorCounter",
+    params: [],
+    spelling: "impostor",
+    holder: Object,
+)

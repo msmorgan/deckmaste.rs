@@ -1,0 +1,6 @@
+CounterKind(
+    name: "wageCounter",
+    params: [],
+    spelling: "wage",
+    holder: Object,
+)

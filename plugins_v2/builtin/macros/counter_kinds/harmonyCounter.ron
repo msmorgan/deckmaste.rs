@@ -1,0 +1,6 @@
+CounterKind(
+    name: "harmonyCounter",
+    params: [],
+    spelling: "harmony",
+    holder: Object,
+)

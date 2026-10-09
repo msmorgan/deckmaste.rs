@@ -1,0 +1,6 @@
+CounterKind(
+    name: "matrixCounter",
+    params: [],
+    spelling: "matrix",
+    holder: Object,
+)

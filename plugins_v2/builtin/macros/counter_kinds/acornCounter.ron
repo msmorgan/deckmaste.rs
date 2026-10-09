@@ -1,0 +1,6 @@
+CounterKind(
+    name: "acornCounter",
+    params: [],
+    spelling: "acorn",
+    holder: Object,
+)

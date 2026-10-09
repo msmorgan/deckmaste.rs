@@ -1,0 +1,6 @@
+CounterKind(
+    name: "shellCounter",
+    params: [],
+    spelling: "shell",
+    holder: Object,
+)

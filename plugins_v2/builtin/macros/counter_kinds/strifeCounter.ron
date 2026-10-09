@@ -1,0 +1,6 @@
+CounterKind(
+    name: "strifeCounter",
+    params: [],
+    spelling: "strife",
+    holder: Object,
+)

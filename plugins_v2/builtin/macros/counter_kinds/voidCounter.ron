@@ -1,0 +1,6 @@
+CounterKind(
+    name: "voidCounter",
+    params: [],
+    spelling: "void",
+    holder: Object,
+)

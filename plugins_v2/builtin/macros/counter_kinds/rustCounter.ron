@@ -1,0 +1,6 @@
+CounterKind(
+    name: "rustCounter",
+    params: [],
+    spelling: "rust",
+    holder: Object,
+)

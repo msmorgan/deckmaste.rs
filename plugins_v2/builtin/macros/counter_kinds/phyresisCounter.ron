@@ -1,0 +1,6 @@
+CounterKind(
+    name: "phyresisCounter",
+    params: [],
+    spelling: "phyresis",
+    holder: Object,
+)

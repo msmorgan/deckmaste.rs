@@ -1,0 +1,6 @@
+CounterKind(
+    name: "oreCounter",
+    params: [],
+    spelling: "ore",
+    holder: Object,
+)

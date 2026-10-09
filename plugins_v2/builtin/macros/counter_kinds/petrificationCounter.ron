@@ -1,0 +1,6 @@
+CounterKind(
+    name: "petrificationCounter",
+    params: [],
+    spelling: "petrification",
+    holder: Object,
+)

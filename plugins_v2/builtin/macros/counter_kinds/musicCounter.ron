@@ -1,0 +1,6 @@
+CounterKind(
+    name: "musicCounter",
+    params: [],
+    spelling: "music",
+    holder: Object,
+)

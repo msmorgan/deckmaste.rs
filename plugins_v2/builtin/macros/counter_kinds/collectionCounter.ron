@@ -1,0 +1,6 @@
+CounterKind(
+    name: "collectionCounter",
+    params: [],
+    spelling: "collection",
+    holder: Object,
+)

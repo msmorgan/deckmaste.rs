@@ -1,0 +1,6 @@
+CounterKind(
+    name: "carrionCounter",
+    params: [],
+    spelling: "carrion",
+    holder: Object,
+)

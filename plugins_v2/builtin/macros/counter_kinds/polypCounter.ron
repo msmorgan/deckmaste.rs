@@ -1,0 +1,6 @@
+CounterKind(
+    name: "polypCounter",
+    params: [],
+    spelling: "polyp",
+    holder: Object,
+)

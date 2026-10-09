@@ -1,0 +1,6 @@
+CounterKind(
+    name: "preyCounter",
+    params: [],
+    spelling: "prey",
+    holder: Object,
+)

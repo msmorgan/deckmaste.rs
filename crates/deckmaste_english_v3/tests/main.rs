@@ -202,3 +202,6 @@ mod landwalk_bound_suffix;
 
 #[path = "suite/designation_categories.rs"]
 mod designation_categories;
+
+#[path = "suite/counter_kind_nouns.rs"]
+mod counter_kind_nouns;

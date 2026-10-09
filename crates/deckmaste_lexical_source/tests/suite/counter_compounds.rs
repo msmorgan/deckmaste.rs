@@ -26,7 +26,7 @@ fn counter_class_exports_owned_complete_noun_paradigms() {
             entry.id.starts_with("lexeme:counter_kind/") && entry.id.ends_with("/compound-noun")
         })
         .collect();
-    assert_eq!(compounds.len(), 73);
+    assert_eq!(compounds.len(), 218);
     for compound in compounds {
         assert_eq!(compound.category, Category::Noun);
         assert_eq!(compound.properties.countability, [Countability::Count]);

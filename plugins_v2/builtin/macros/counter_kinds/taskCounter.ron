@@ -1,0 +1,6 @@
+CounterKind(
+    name: "taskCounter",
+    params: [],
+    spelling: "task",
+    holder: Object,
+)

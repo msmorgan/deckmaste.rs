@@ -1,0 +1,6 @@
+CounterKind(
+    name: "memoryCounter",
+    params: [],
+    spelling: "memory",
+    holder: Object,
+)

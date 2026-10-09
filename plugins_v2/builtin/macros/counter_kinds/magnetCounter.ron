@@ -1,0 +1,6 @@
+CounterKind(
+    name: "magnetCounter",
+    params: [],
+    spelling: "magnet",
+    holder: Object,
+)

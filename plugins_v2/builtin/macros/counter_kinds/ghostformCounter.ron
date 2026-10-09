@@ -1,0 +1,6 @@
+CounterKind(
+    name: "ghostformCounter",
+    params: [],
+    spelling: "ghostform",
+    holder: Object,
+)

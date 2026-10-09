@@ -1,0 +1,6 @@
+CounterKind(
+    name: "arrowheadCounter",
+    params: [],
+    spelling: "arrowhead",
+    holder: Object,
+)

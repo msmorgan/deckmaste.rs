@@ -1,0 +1,6 @@
+CounterKind(
+    name: "despairCounter",
+    params: [],
+    spelling: "despair",
+    holder: Object,
+)

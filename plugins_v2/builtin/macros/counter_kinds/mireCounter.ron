@@ -1,0 +1,6 @@
+CounterKind(
+    name: "mireCounter",
+    params: [],
+    spelling: "mire",
+    holder: Object,
+)

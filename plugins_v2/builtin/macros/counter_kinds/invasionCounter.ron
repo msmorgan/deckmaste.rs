@@ -1,0 +1,6 @@
+CounterKind(
+    name: "invasionCounter",
+    params: [],
+    spelling: "invasion",
+    holder: Object,
+)

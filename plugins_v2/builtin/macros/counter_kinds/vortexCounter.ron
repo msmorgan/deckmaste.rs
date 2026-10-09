@@ -1,0 +1,6 @@
+CounterKind(
+    name: "vortexCounter",
+    params: [],
+    spelling: "vortex",
+    holder: Object,
+)

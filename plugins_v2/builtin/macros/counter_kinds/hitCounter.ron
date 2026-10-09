@@ -1,0 +1,6 @@
+CounterKind(
+    name: "hitCounter",
+    params: [],
+    spelling: "hit",
+    holder: Object,
+)

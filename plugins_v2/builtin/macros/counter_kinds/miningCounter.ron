@@ -1,0 +1,6 @@
+CounterKind(
+    name: "miningCounter",
+    params: [],
+    spelling: "mining",
+    holder: Object,
+)

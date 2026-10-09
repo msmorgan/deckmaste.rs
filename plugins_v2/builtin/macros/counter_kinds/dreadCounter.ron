@@ -1,0 +1,6 @@
+CounterKind(
+    name: "dreadCounter",
+    params: [],
+    spelling: "dread",
+    holder: Object,
+)

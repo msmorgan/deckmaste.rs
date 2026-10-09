@@ -1,0 +1,6 @@
+CounterKind(
+    name: "netCounter",
+    params: [],
+    spelling: "net",
+    holder: Object,
+)

@@ -1,0 +1,6 @@
+CounterKind(
+    name: "incarnationCounter",
+    params: [],
+    spelling: "incarnation",
+    holder: Object,
+)

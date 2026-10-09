@@ -1,0 +1,6 @@
+CounterKind(
+    name: "cageCounter",
+    params: [],
+    spelling: "cage",
+    holder: Object,
+)

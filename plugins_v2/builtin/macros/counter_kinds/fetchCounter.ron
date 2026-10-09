@@ -1,0 +1,6 @@
+CounterKind(
+    name: "fetchCounter",
+    params: [],
+    spelling: "fetch",
+    holder: Object,
+)

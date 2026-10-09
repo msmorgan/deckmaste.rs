@@ -1,0 +1,6 @@
+CounterKind(
+    name: "reprieveCounter",
+    params: [],
+    spelling: "reprieve",
+    holder: Object,
+)

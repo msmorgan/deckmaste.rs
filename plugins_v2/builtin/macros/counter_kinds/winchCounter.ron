@@ -1,0 +1,6 @@
+CounterKind(
+    name: "winchCounter",
+    params: [],
+    spelling: "winch",
+    holder: Object,
+)

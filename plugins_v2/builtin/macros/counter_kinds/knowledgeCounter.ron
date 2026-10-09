@@ -1,0 +1,6 @@
+CounterKind(
+    name: "knowledgeCounter",
+    params: [],
+    spelling: "knowledge",
+    holder: Object,
+)

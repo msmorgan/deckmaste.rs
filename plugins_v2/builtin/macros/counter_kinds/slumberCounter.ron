@@ -1,0 +1,6 @@
+CounterKind(
+    name: "slumberCounter",
+    params: [],
+    spelling: "slumber",
+    holder: Object,
+)

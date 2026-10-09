@@ -1,0 +1,6 @@
+CounterKind(
+    name: "feedingCounter",
+    params: [],
+    spelling: "feeding",
+    holder: Object,
+)

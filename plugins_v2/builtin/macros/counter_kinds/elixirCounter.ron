@@ -1,0 +1,6 @@
+CounterKind(
+    name: "elixirCounter",
+    params: [],
+    spelling: "elixir",
+    holder: Object,
+)

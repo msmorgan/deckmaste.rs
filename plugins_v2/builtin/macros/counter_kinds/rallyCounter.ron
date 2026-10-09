@@ -1,0 +1,6 @@
+CounterKind(
+    name: "rallyCounter",
+    params: [],
+    spelling: "rally",
+    holder: Object,
+)

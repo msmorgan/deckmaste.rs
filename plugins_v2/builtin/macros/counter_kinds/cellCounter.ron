@@ -1,0 +1,6 @@
+CounterKind(
+    name: "cellCounter",
+    params: [],
+    spelling: "cell",
+    holder: Object,
+)

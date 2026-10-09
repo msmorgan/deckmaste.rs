@@ -1,0 +1,6 @@
+CounterKind(
+    name: "foreshadowCounter",
+    params: [],
+    spelling: "foreshadow",
+    holder: Object,
+)

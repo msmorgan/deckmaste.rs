@@ -1,0 +1,6 @@
+CounterKind(
+    name: "chorusCounter",
+    params: [],
+    spelling: "chorus",
+    holder: Object,
+)

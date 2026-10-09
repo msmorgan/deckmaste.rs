@@ -1,0 +1,6 @@
+CounterKind(
+    name: "creditCounter",
+    params: [],
+    spelling: "credit",
+    holder: Object,
+)

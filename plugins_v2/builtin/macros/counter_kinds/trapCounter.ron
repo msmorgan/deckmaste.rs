@@ -1,0 +1,6 @@
+CounterKind(
+    name: "trapCounter",
+    params: [],
+    spelling: "trap",
+    holder: Object,
+)

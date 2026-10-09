@@ -1,0 +1,6 @@
+CounterKind(
+    name: "ropeCounter",
+    params: [],
+    spelling: "rope",
+    holder: Object,
+)

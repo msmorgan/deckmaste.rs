@@ -1,0 +1,6 @@
+CounterKind(
+    name: "lootCounter",
+    params: [],
+    spelling: "loot",
+    holder: Object,
+)

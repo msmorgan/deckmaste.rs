@@ -1,0 +1,6 @@
+CounterKind(
+    name: "incubationCounter",
+    params: [],
+    spelling: "incubation",
+    holder: Object,
+)
