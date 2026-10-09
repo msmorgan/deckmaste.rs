@@ -448,7 +448,7 @@ def candlesOfLeng : Spelled := spelled <| .singleFaced
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 4], Primitives.Cost.tapSymbol])
             (Primitives.Instruction.sequentially
               [ revealCards (topSlice (.lit 1)),
-                Primitives.Instruction.doIf (Primitives.Condition.matches it (Primitives.Predicate.named (Primitives.NameSource.sameAs (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))))
+                Primitives.Instruction.doIf (Primitives.Condition.matches it ((Primitives.Predicate.shares .cardName .share (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))))
                   (move it graveyard) (some (Primitives.Instruction.draw (.lit 1))) ]) ] } }
 
 def sphinxOfTheChimes : Spelled := spelled <| .singleFaced

@@ -327,20 +327,20 @@ theorem badCompanionBattlefieldStatus :
 
 /-- "Companion — Each nonland card in your starting deck shares a card type." -/
 theorem okCompanionSharedCardType :
-    Ability.check [] (companion (.cardsShare (.and [.not land, .isCard]) .cardType)) = [] := by
+    Ability.check [] (companion (.groupAgrees (.agree .cardType .share (allOf (.and [.not land, .isCard]))))) = [] := by
   decide
 
 /-- "Companion — Each nonland card in your starting deck shares a color.": color is a
 characteristic [CR#109.3] and the deck-building condition is checked against the starting deck
 [CR#702.139a]. -/
 theorem okCompanionSharedColor :
-    Ability.check [] (companion (.cardsShare (.and [.not land, .isCard]) .color)) = [] := by
+    Ability.check [] (companion (.groupAgrees (.agree .color .share (allOf (.and [.not land, .isCard]))))) = [] := by
   decide
 
 /-- "Companion — Each nonland card in your starting deck shares a counter kind.": a kind of
 counter is not among an object's characteristics [CR#109.3]. -/
 theorem badCompanionSharedCounterKind :
-    Ability.check [] (companion (.cardsShare (.and [.not land, .isCard]) .counterKind))
+    Ability.check [] (companion (.groupAgrees (.agree .counterKind .share (allOf (.and [.not land, .isCard])))))
       = [.deckComparable] := by
   decide
 

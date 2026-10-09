@@ -5,8 +5,12 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "conspire",
     ),
-    // STOP (waits on: `semantics-v2-sharing` and `semantics-v2-spell-copies`).
-    // Conspire's additional cost is "tap two untapped creatures you control
-    // that each share a color with it" [CR#702.78a]. No `Predicate` reads "shares a
-    // color with <subject>".
+    // STOP (waits on: `semantics-v2-spell-copies`).
+    // Conspire's additional cost, "tap two untapped creatures you control that
+    // each share a color with it" [CR#702.78a], is writable
+    // (`addedCost(perform(tap(counted(exactly(2), and([untapped, creature,
+    // youControl, shares(Color, Share, thisSpell)])))), true)`, pinned in
+    // `Semantics.Proofs.Sharing`); its copy trigger's "if the spell has any
+    // targets, you may choose new targets for the copy" waits on the vacuous
+    // target guard of `semantics-v2-spell-copies`.
 )

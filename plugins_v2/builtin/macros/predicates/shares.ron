@@ -1,0 +1,11 @@
+// `Predicate.Shares` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1). Sharing: at least one value in common on
+// the axis (`Share`) or none (`Differ`) [CR#201.2a,201.2c,105.2,205.3m]; on the
+// name axis it is not equality.
+(
+    name: "shares",
+    kinds: [Predicate],
+    params: {"axis": Any, "agreement": Any, "with": Subject},
+    body: Shares(axis: Param(axis), agreement: Param(agreement), with: Param(with)),
+)

@@ -33,6 +33,7 @@ import Semantics.Proofs.Trigger
 import Semantics.Proofs.TypeEvidence
 import Semantics.Proofs.Turn
 import Semantics.Proofs.Zone
+import Semantics.Proofs.Sharing
 import Semantics.Proofs.Actor
 import Semantics.Proofs.GetsBothDeltas
 import Semantics.Proofs.BindingIdentity

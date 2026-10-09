@@ -1753,14 +1753,14 @@ def lurrusCompanion : Ability :=
     (Primitives.DeckCondition.everyCardIs permanentCard (Primitives.DeckTrait.aCharacteristic (Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2))))
 theorem okLurrusCompanion : Ability.check [] lurrusCompanion = [] := by decide
 /-- Lutri, the Spellchaser -/
-def lutriCompanion : Ability := companion (Primitives.DeckCondition.cardsDiffer (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.isCard]) .cardName)
+def lutriCompanion : Ability := companion (Primitives.DeckCondition.groupAgrees (Primitives.NounPhrase.agree .cardName .differ (allOf (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.isCard]))))
 theorem okLutriCompanion : Ability.check [] lutriCompanion = [] := by decide
 /-- Obosh, the Preypiercer -/
 def oboshCompanion : Ability :=
   companion (Primitives.DeckCondition.everyCardIs Primitives.Predicate.isCard (Primitives.DeckTrait.anyOf [Primitives.DeckTrait.manaValueParity .odd, Primitives.DeckTrait.aCharacteristic land]))
 theorem okOboshCompanion : Ability.check [] oboshCompanion = [] := by decide
 /-- Umori, the Collector -/
-def umoriCompanion : Ability := companion (Primitives.DeckCondition.cardsShare (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.isCard]) .cardType)
+def umoriCompanion : Ability := companion (Primitives.DeckCondition.groupAgrees (Primitives.NounPhrase.agree .cardType .share (allOf (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.isCard]))))
 theorem okUmoriCompanion : Ability.check [] umoriCompanion = [] := by decide
 /-- Yorion, Sky Nomad -/
 def yorionCompanion : Ability := companion (Primitives.DeckCondition.deckSizeOverMinimum 20)

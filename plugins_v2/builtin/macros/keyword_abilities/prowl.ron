@@ -5,11 +5,21 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "prowl",
     ),
-    // STOP (waits on: `semantics-v2-sharing`).
     // "Prowl [cost]" means "You may pay [cost] rather than pay this spell's mana
     // cost if a player was dealt combat damage this turn by a source that, at the time
-    // it dealt that damage, was under your control and HAD ANY OF THIS SPELL'S CREATURE
-    // TYPES." [CR#702.76a] No `Predicate` reads "shares a creature type with
-    // <subject>"; the sharing comparison over a subtype axis has no constructor (the
-    // cause Amplify carries).
+    // it dealt that damage, was under your control and had any of this spell's creature
+    // types." [CR#702.76a] The source's control and creature types at the time it dealt
+    // the damage are last-known information, the engine's [CR#608.2h].
+    body: [
+        static(
+            onlyWhile(
+                mayCastFor(you, Param(0)),
+                happened(
+                    damage(CombatOnly, gap(Player), a(and([shares(Subtype(Creature), Share, thisSpell), youControl]))),
+                    a(anyPlayer),
+                    soFarThisTurn,
+                ),
+            ),
+        ),
+    ],
 )

@@ -174,7 +174,7 @@ theorem badRippleRevealedCards :
       (Primitives.Instruction.offer (revealCards (.slice .top (.lit 4) (library .actor)))
         (some (.sequentially
           [ Actor.castWithoutPaying
-              (.someOf (.counted anyNumber) (some (.named (.sameAs .this))) them) none,
+              (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
             .move (allFromAmong (.not .wasCast) (theVerbed (.action "reveal") .many)) .wherever
               onBottom [.placement (.inOrder .anyOrder)] ])) none)
       = [.anaphor (.verbed (.action "reveal") none .attributive) .many 0] := by

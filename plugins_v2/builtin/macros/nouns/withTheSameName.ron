@@ -3,5 +3,5 @@
     name: "withTheSameName",
     kinds: [NounPhrase],
     params: {"group": NounPhrase},
-    body: NamesAgree(SameName, Param(group)),
+    body: Agree(CardName, Share, Param(group)),
 )

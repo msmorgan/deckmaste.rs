@@ -401,7 +401,7 @@ def avenShrine : Spelled := spelled <| .singleFaced
           none)
             (Primitives.Instruction.sequentially
               [ act they (gainLife (Primitives.Amount.letter .x)),
-                Primitives.Instruction.define .x (countOf (Primitives.Predicate.and [Primitives.Predicate.inZone graveyard, Primitives.Predicate.named (Primitives.NameSource.sameAs (that .spell))])) ]) ] } }
+                Primitives.Instruction.define .x (countOf (Primitives.Predicate.and [Primitives.Predicate.inZone graveyard, (Primitives.Predicate.shares .cardName .share (that .spell))])) ]) ] } }
 
 def chromeReplicator : Spelled := spelled <| .singleFaced
   { characteristics :=

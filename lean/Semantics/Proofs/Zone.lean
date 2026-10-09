@@ -523,12 +523,12 @@ theorem badAgentChooseTheRest :
 /-- "… two cards with the same name in your hand …" -/
 theorem okPluralNameAgreement :
     NounPhrase.check (some .object) []
-      (.namesAgree .sameName (counted (exactly 2) (.and [.not land, .inZone hand]))) = [] := by
+      (.agree .cardName .share (counted (exactly 2) (.and [.not land, .inZone hand]))) = [] := by
   decide
 
 /-- "… target creature with different names." -/
 theorem badSingularNameAgreement :
-    NounPhrase.check (some .object) [] (.namesAgree .differentNames (target creature))
+    NounPhrase.check (some .object) [] (.agree .cardName .differ (target creature))
       = [.plural] := by
   decide
 

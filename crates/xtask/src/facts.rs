@@ -523,6 +523,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Prowl",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.76a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,

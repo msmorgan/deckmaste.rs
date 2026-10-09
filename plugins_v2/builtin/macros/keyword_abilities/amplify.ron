@@ -5,9 +5,9 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "amplify",
     ),
-    // STOP (waits on: `semantics-v2-sharing` and `semantics-v2-off-stack-statics`).
+    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // "Amplify N" means "As this object enters, reveal any number of cards
-    // from your hand that share a creature type with it. …" [CR#702.38a] No
-    // `Predicate` reads "shares a creature type with <subject>": the sharing
-    // comparison over a subtype axis has no constructor.
+    // from your hand that share a creature type with it. …" [CR#702.38a] The
+    // sharing half is `shares(Subtype(Creature), Share, …)`; the "as this
+    // object enters" entry clause `asEvent(enters(this), …)` has no node yet.
 )

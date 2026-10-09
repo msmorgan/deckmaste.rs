@@ -1,0 +1,11 @@
+// `NounPhrase.Agree` under Lean's own name for it: the alias
+// `declare_semantic_primitives` generates, so a card writes a macro where the
+// basis has a constructor (ADR 12.1). An Agreement: the members of the group
+// share, or do not share, a value on the axis ("two creatures that share a
+// creature type"), a constraint on the selection, not a predicate on one member.
+(
+    name: "agree",
+    kinds: [NounPhrase],
+    params: {"axis": Any, "agreement": Any, "group": Subject},
+    body: Agree(axis: Param(axis), agreement: Param(agreement), group: Param(group)),
+)

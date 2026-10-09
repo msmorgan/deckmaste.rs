@@ -140,7 +140,7 @@ def bifurcate : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ searchLibraryFor (exactly 1)
-                (Primitives.Predicate.and [permanentCard, Primitives.Predicate.named (Primitives.NameSource.sameAs (target (Primitives.Predicate.and [creature, nontoken])))]),
+                (Primitives.Predicate.and [permanentCard, (Primitives.Predicate.shares .cardName .share (target (Primitives.Predicate.and [creature, nontoken])))]),
               putOntoBattlefield (that .card),
               shuffle ]) ] } }
 
@@ -197,7 +197,7 @@ theorem okAnotherRound : Instruction.check [] anotherRound = [] := by decide
 def eradicateSearch : Instruction :=
   Primitives.Instruction.sequentially
     [ exile (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])),
-      searchZonesOf (controllerOf (that .card)) anyNumber (Primitives.Predicate.named (Primitives.NameSource.sameAs (that .card))),
+      searchZonesOf (controllerOf (that .card)) anyNumber ((Primitives.Predicate.shares .cardName .share (that .card))),
       exile (theVerbed (.action "search") .many),
       act (that .player) shuffle ]
 theorem okEradicateSearch : Instruction.check [] eradicateSearch = [] := by decide
@@ -511,7 +511,7 @@ def bileBlight : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (get
             (Primitives.NounPhrase.both (target creature)
-              (allOf (Primitives.Predicate.and [ creature, Primitives.Predicate.named (Primitives.NameSource.sameAs (that (.type .creature))),
+              (allOf (Primitives.Predicate.and [ creature, (Primitives.Predicate.shares .cardName .share (that (.type .creature))),
                              Primitives.Predicate.otherThan (that (.type .creature)) ])))
             (Primitives.Delta.down (.lit 3)) (Primitives.Delta.down (.lit 3)) (some untilEndOfTurn)) ] } }
 
@@ -522,7 +522,7 @@ def echoingRuin : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (destroy
             (Primitives.NounPhrase.both (target artifact)
-              (allOf (Primitives.Predicate.and [ artifact, Primitives.Predicate.named (Primitives.NameSource.sameAs (that (.type .artifact))),
+              (allOf (Primitives.Predicate.and [ artifact, (Primitives.Predicate.shares .cardName .share (that (.type .artifact))),
                              Primitives.Predicate.otherThan (that (.type .artifact)) ])))) ] } }
 
 /-- Hijack -/

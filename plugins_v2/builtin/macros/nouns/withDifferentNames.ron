@@ -3,5 +3,5 @@
     name: "withDifferentNames",
     kinds: [NounPhrase],
     params: {"group": NounPhrase},
-    body: NamesAgree(DifferentNames, Param(group)),
+    body: Agree(CardName, Differ, Param(group)),
 )

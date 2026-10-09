@@ -293,9 +293,9 @@ semantic_macro among (group : NounPhrase) : NounPhrase := .someOf .whole none gr
 semantic_macro fromAmong (quantity : Quantity) (p : Predicate) (group : NounPhrase) : NounPhrase :=
   .someOf (.counted quantity) (some p) group
 /-- "<group> with the same name" -/
-semantic_macro withTheSameName (group : NounPhrase) : NounPhrase := .namesAgree .sameName group
+semantic_macro withTheSameName (group : NounPhrase) : NounPhrase := .agree .cardName .share group
 /-- "<group> with different names" -/
-semantic_macro withDifferentNames (group : NounPhrase) : NounPhrase := .namesAgree .differentNames group
+semantic_macro withDifferentNames (group : NounPhrase) : NounPhrase := .agree .cardName .differ group
 /-- "the <p> from among <group>": every member the description picks. -/
 semantic_macro allFromAmong (p : Predicate) (group : NounPhrase) : NounPhrase := .someOf .whole (some p) group
 /-- "the <p> among <group>" -/

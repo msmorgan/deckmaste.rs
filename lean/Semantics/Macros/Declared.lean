@@ -2362,7 +2362,7 @@ semantic_macro ingest : Semantics.Ability :=
 
 /-- `keyword_abilities/intimidate.ron` -/
 semantic_macro intimidate : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "intimidate") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "intimidate") [] [(Semantics.Ability.static (Semantics.StaticSpec.deonticRule (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none) Semantics.Compulsion.forbid [(Semantics.Deed.core Semantics.CoreDeed.block)] Semantics.Role.patient none (Semantics.DeonticPatient.counterpart (Semantics.NounPhrase.described Semantics.DetPhrase.all (Semantics.Predicate.and [(Semantics.Predicate.hasType Semantics.CardType.creature), (Semantics.Predicate.not (Semantics.Predicate.or [(Semantics.Predicate.hasType Semantics.CardType.artifact), (Semantics.Predicate.shares Semantics.QualitySort.color Semantics.Agreement.share (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none))]))]))) none Semantics.DeonticRider.noRider))])
 
 /-- `keyword_abilities/jobSelect.ron` -/
 semantic_macro jobSelect : Semantics.Ability :=
@@ -2522,7 +2522,7 @@ semantic_macro prowess : Semantics.Ability :=
 
 /-- `keyword_abilities/prowl.ron` -/
 semantic_macro prowl (arg0 : Semantics.Cost) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "prowl") [(Semantics.KeywordParam.cost arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "prowl") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.conditional (Semantics.StaticSpec.deonticRule Semantics.NounPhrase.you Semantics.Compulsion.permit [(Semantics.Deed.action "cast")] Semantics.Role.agent none (Semantics.DeonticPatient.counterpart Semantics.NounPhrase.this) none (Semantics.DeonticRider.play none none none false (Semantics.PlayPayment.payingInstead arg0))) (Semantics.Condition.happened (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) Semantics.Predicate.anyPlayer) (Semantics.LookbackClause.mk (Semantics.GameEvent.damage Semantics.DamageKind.combatOnly (some (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [(Semantics.Predicate.shares (Semantics.QualitySort.subtype Semantics.CardType.creature) Semantics.Agreement.share (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.you)]))) (some (Semantics.NounPhrase.gap Semantics.Kind.player))) (Semantics.Duration.between (some (Semantics.GameEvent.beginningOf Semantics.TurnPart.turn none Semantics.TurnRef.current)) (some Semantics.GameEvent.now)) none)) Semantics.CondMarking.asLongAs))])
 
 /-- `keyword_abilities/rampage.ron` -/
 semantic_macro rampage (arg0 : Semantics.Amount) : Semantics.Ability :=
@@ -3004,6 +3004,10 @@ semantic_macro pip (color : Semantics.Color) : Semantics.ManaSymbol :=
 semantic_macro actor : Semantics.NounPhrase :=
   Semantics.NounPhrase.actor
 
+/-- `nouns/agree.ron` -/
+semantic_macro agree (axis : Semantics.QualitySort) (agreement : Semantics.Agreement) (group : Semantics.NounPhrase) : Semantics.NounPhrase :=
+  (Semantics.NounPhrase.agree axis agreement group)
+
 /-- `nouns/allAmong.ron` -/
 semantic_macro allAmong (p : Semantics.Predicate) (group : Semantics.NounPhrase) : Semantics.NounPhrase :=
   (Semantics.NounPhrase.someOf Semantics.SliceCount.whole (some p) group)
@@ -3091,10 +3095,6 @@ semantic_macro gap (kind : Semantics.Kind) : Semantics.NounPhrase :=
 /-- `nouns/introduced.ron` -/
 semantic_macro introduced (pattern : (List Semantics.Kind) := []) : Semantics.Window :=
   (Semantics.Window.introduced pattern)
-
-/-- `nouns/namesAgree.ron` -/
-semantic_macro namesAgree (agreement : Semantics.NameAgreement) (group : Semantics.NounPhrase) : Semantics.NounPhrase :=
-  (Semantics.NounPhrase.namesAgree agreement group)
 
 /-- `nouns/oneEachOf.ron` -/
 semantic_macro oneEachOf (pool : Semantics.NounPhrase) (roles : (List Semantics.Predicate) := []) : Semantics.NounPhrase :=
@@ -3254,11 +3254,11 @@ semantic_macro whole : Semantics.Window :=
 
 /-- `nouns/withDifferentNames.ron` -/
 semantic_macro withDifferentNames (group : Semantics.NounPhrase) : Semantics.NounPhrase :=
-  (Semantics.NounPhrase.namesAgree Semantics.NameAgreement.differentNames group)
+  (Semantics.NounPhrase.agree Semantics.QualitySort.cardName Semantics.Agreement.differ group)
 
 /-- `nouns/withTheSameName.ron` -/
 semantic_macro withTheSameName (group : Semantics.NounPhrase) : Semantics.NounPhrase :=
-  (Semantics.NounPhrase.namesAgree Semantics.NameAgreement.sameName group)
+  (Semantics.NounPhrase.agree Semantics.QualitySort.cardName Semantics.Agreement.share group)
 
 /-- `nouns/withTotal.ron` -/
 semantic_macro withTotal (axis : Semantics.ProjAxis) (comparator : Semantics.Comparator) (bound : Semantics.Amount) (group : Semantics.NounPhrase) : Semantics.NounPhrase :=
@@ -3663,6 +3663,10 @@ semantic_macro qualityFrom (sort : Semantics.QualitySort) (domain : Semantics.Ch
 /-- `predicates/qualityNoun.ron` -/
 semantic_macro qualityNoun (sort : Semantics.QualitySort) (domain : (Option Semantics.ChoiceDomain) := none) : Semantics.Predicate :=
   (Semantics.Predicate.qualityNoun sort domain)
+
+/-- `predicates/shares.ron` -/
+semantic_macro shares (axis : Semantics.QualitySort) (agreement : Semantics.Agreement) (with_ : Semantics.NounPhrase) : Semantics.Predicate :=
+  (Semantics.Predicate.shares axis agreement with_)
 
 /-- `predicates/sorcery.ron` -/
 semantic_macro sorcery : Semantics.Predicate :=
