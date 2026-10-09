@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "ascend",
     ),
-    // STOP (waits on: a static ability that acts when a state holds, off the stack).
+    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // Ascend on a permanent means "Any time you control ten or more
     // permanents and you don't have the city's blessing, you get the city's blessing for the
     // rest of the game." [CR#702.131b] That is a static ability acting when a state holds,

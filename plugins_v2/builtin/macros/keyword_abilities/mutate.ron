@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "mutate",
     ),
-    // STOP (waits on: a named link between two objects).
+    // STOP (waits on: `semantics-v2-linked-readback`).
     // "Mutate [cost]" means "You may pay [cost] rather than pay this spell's
     // mana cost. If you do, it becomes a mutating creature spell and TARGETS a
     // non-Human creature with the same owner as this spell." [CR#702.140a] Nothing

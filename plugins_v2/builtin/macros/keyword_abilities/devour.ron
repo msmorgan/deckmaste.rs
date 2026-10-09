@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "devour",
     ),
-    // STOP (waits on: an optional or action-performing entry clause).
+    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // "Devour N" means "As this object enters, you may sacrifice any number of
     // creatures. …" [CR#702.82a] `StaticSpec::Choice` makes an entry choice of a
     // quality or a player only; no entry clause performs an instruction.

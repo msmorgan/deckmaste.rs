@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "spree",
     ),
-    // STOP (waits on: a static that sets or charges for a modal spell's mode choice).
+    // STOP (waits on: `semantics-v2-modal-choice`).
     // "Spree" means "Choose one or more modes. As an additional cost to cast this
     // spell, pay the costs associated with those modes." [CR#702.172a]
     // `Instruction::ChooseModes` carries the mode quantity and each mode's cost on the

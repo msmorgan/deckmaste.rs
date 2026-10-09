@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "replicate",
     ),
-    // STOP (waits on: a condition that a spell has any targets).
+    // STOP (waits on: `semantics-v2-spell-copies`).
     // "Replicate [cost]" means "As an additional cost to cast this
     // spell, you may pay [cost] any number of times" and "When you cast this spell, if a
     // replicate cost was paid for it, copy it for each time its replicate cost was paid. If

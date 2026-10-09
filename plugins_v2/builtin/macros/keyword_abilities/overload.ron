@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "overload",
     ),
-    // STOP (waits on: a text-changing effect over printed rules text).
+    // STOP (waits on: `semantics-v2-text-changes`).
     // "Overload [cost]" is an alternative cost plus "If you chose to pay this
     // spell's overload cost, CHANGE ITS TEXT by replacing all instances of the word
     // 'target' with the word 'each.'" [CR#702.96a,702.96c] That second static is a

@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "disturb",
     ),
-    // STOP (waits on: a play permission that casts a card's other face).
+    // STOP (waits on: `engine-dfc-cast-faces`).
     // "Disturb [cost]" means "You may cast this card TRANSFORMED from your
     // graveyard by paying [cost] rather than its mana cost" [CR#702.146a].
     // `DeonticRider::Play` has no clause for casting a card transformed.

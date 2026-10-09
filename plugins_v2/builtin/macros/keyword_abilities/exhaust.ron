@@ -6,7 +6,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "exhaust",
     ),
-    // STOP (waits on: the ability printed with the keyword).
+    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // "Exhaust — [Cost]: [Effect]" adds "Activate only once" to the activated
     // ability that FOLLOWS the keyword [CR#702.177a]. A keyword definition is a list
     // of abilities of its own; nothing lets one qualify the ability printed after

@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "harmonize",
     ),
-    // STOP (waits on: a paid-cost facet naming the object a cost acted on).
+    // STOP (waits on: `semantics-v2-linked-readback`).
     // Harmonize's second static reduces the total cost "by an amount
     // of generic mana equal to the tapped creature's power" [CR#702.180a]. It must name the
     // creature the first static's cost tapped, and no `PaidFacet` names the object a paid

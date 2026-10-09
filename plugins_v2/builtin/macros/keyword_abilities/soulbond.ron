@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "soulbond",
     ),
-    // STOP (waits on: a named link between two objects).
+    // STOP (waits on: `semantics-v2-linked-readback`).
     // Soulbond's two triggered abilities both PAIR two creatures "for as long as
     // both remain creatures on the battlefield under your control" [CR#702.95a], and
     // abilities elsewhere read whether a creature is paired and which creature it is

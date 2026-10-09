@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "tribute",
     ),
-    // STOP (waits on: an optional or action-performing entry clause).
+    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // "Tribute N" means "As this creature enters, choose an opponent. THAT PLAYER
     // MAY put an additional N +1/+1 counters on it as it enters." [CR#702.104a]
     // `StaticSpec::Choice` makes the entry choice of an opponent, but no entry rider is

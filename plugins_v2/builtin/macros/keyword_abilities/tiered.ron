@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "tiered",
     ),
-    // STOP (waits on: a static that sets or charges for a modal spell's mode choice).
+    // STOP (waits on: `semantics-v2-modal-choice`).
     // "Tiered" means "Choose one. As an additional cost to cast this spell, pay
     // the cost associated with that mode." [CR#702.183a] `Instruction::ChooseModes`
     // carries the mode quantity and each mode's cost on the spell's own clause; no

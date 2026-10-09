@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "backup",
     ),
-    // STOP (waits on: the ability printed with the keyword).
+    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // "Backup N" grants "the non-backup abilities of this creature printed
     // below this one" [CR#702.165a]. No `Predicate` reads a printed position in the
     // text box, so `StaticSpec::AbilityGrantFrom`'s `except` cannot select them.

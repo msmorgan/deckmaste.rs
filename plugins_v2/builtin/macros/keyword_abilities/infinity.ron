@@ -7,7 +7,7 @@ KeywordAbility(
         surface: "∞",
         onset: Vowel,
     ),
-    // STOP (waits on: the ability printed with the keyword).
+    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // "∞ — [Ability]" means "As long as this permanent is harnessed, it has
     // [ability]" [CR#702.186b]. The declaration's argument is an `Ability`, and
     // `KeywordParam` has no `Ability` variant to forward it with (the cause boast

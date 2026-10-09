@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "storied",
     ),
-    // STOP (waits on: a static ability that acts when a state holds, off the stack).
+    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // "Storied" means "ANY TIME you control three or more permanents that are
     // artifacts, Sagas, and/or legendary and you don't have an enduring story, you
     // have an enduring story for the rest of the game." [CR#702.195a] No `StaticSpec`

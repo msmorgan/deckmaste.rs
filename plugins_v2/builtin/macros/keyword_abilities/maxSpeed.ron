@@ -6,7 +6,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "max speed",
     ),
-    // STOP (waits on: the ability printed with the keyword).
+    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // "Max speed — [Ability]" means "As long as your speed is 4, this object
     // has '[Ability].'" [CR#702.178a] Two things are missing at once: `KeywordParam`
     // has no `Ability` variant to forward the declaration's argument with (the cause

@@ -6,7 +6,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "power-up",
     ),
-    // STOP (waits on: the ability printed with the keyword).
+    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // Power-up has no [CR#702] entry in the Comprehensive Rules this repo
     // ships, so there is no definition to port, and the declaration's argument is an
     // `Ability`, which `KeywordParam` has no variant to forward (the cause Boast,

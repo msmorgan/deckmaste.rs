@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "freerunning",
     ),
-    // STOP (waits on: the commander and outside-the-game vocabulary).
+    // STOP (waits on: `core-location-outside-the-game`).
     // "Freerunning [cost]" is an alternative cost gated on a player having been
     // "dealt combat damage this turn by a creature that, at the time it dealt that
     // damage, was an Assassin creature or a commander under your control"

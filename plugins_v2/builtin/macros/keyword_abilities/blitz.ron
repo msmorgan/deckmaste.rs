@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "blitz",
     ),
-    // STOP (waits on: a static ability that creates a delayed triggered ability).
+    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // Blitz's second ability is "If this spell's blitz cost was paid,
     // sacrifice the permanent this spell becomes at the beginning of the next end
     // step" [CR#702.152a] — a static that creates a delayed triggered ability. No

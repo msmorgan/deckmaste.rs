@@ -6,7 +6,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "forecast",
     ),
-    // STOP (waits on: the ability printed with the keyword).
+    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // "Forecast — [Activated ability]" qualifies the activated ability written
     // after it: it may be activated only from its owner's hand, only during their
     // upkeep, only once each turn, and reveals the card [CR#702.57a,702.57b]. The

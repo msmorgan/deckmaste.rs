@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "prowl",
     ),
-    // STOP (waits on: a sharing predicate).
+    // STOP (waits on: `semantics-v2-sharing`).
     // "Prowl [cost]" means "You may pay [cost] rather than pay this spell's mana
     // cost if a player was dealt combat damage this turn by a source that, at the time
     // it dealt that damage, was under your control and HAD ANY OF THIS SPELL'S CREATURE

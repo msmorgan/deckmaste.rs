@@ -6,7 +6,7 @@ KeywordAbility(
         surface: "splice",
         parameter: Quality(preposition: ("Preposition", "Onto")),
     ),
-    // STOP (waits on: a text-changing effect over printed rules text).
+    // STOP (waits on: `semantics-v2-text-changes`).
     // "Splice onto [quality] [cost]" means "You may reveal this card from your
     // hand as you cast a [quality] spell. If you do, THAT SPELL GAINS THE TEXT OF THIS
     // CARD'S RULES TEXT and you pay [cost] as an additional cost to cast that spell."

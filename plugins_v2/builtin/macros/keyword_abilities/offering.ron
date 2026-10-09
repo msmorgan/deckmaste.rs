@@ -6,7 +6,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "offering",
     ),
-    // STOP (waits on: a paid-cost facet naming the object a cost acted on).
+    // STOP (waits on: `semantics-v2-linked-readback`).
     // "[Quality] offering" means "As an additional cost to cast this
     // spell, you may sacrifice a [quality] permanent. If you chose to pay the additional
     // cost, this spell's total cost is reduced by the sacrificed permanent's mana cost, and

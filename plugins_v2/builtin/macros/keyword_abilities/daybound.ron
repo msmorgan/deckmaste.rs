@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "daybound",
     ),
-    // STOP (waits on: a static ability that acts when a state holds, off the stack).
+    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // Daybound's second and third abilities are "As it becomes night, if this
     // permanent is front face up, transform it" and "This permanent can't transform
     // except due to its daybound ability" [CR#702.145b]. The first is a static that

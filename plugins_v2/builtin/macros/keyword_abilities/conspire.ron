@@ -5,7 +5,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "conspire",
     ),
-    // STOP (waits on: a sharing predicate).
+    // STOP (waits on: `semantics-v2-sharing` and `semantics-v2-spell-copies`).
     // Conspire's additional cost is "tap two untapped creatures you control
     // that each share a color with it" [CR#702.78a]. No `Predicate` reads "shares a
     // color with <subject>".

@@ -6,7 +6,7 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "solved",
     ),
-    // STOP (waits on: the ability printed with the keyword).
+    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // "Solved — [Ability text]" qualifies the ability written after the keyword:
     // a static one gains "as long as this Case is solved", a triggered one "this
     // ability triggers only if this Case is solved", an activated one "activate only
