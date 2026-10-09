@@ -893,6 +893,12 @@ functions without an overt nominal or partitive Complement. Fused heads and
 their distributions are described in CGEL, Ch. 5 §§9.1–9.2, pp. 410–415;
 the lexical permission is a project representation.
 
+**Comparative Postmodifier Use** (project term):
+A Noun Phrase head's declared permission to take a postpositive Comparative
+Adjective Phrase as its Modifier. The fused-head *anywhere* use is the
+pre-integrate review ruling (2026-10-09, `english-v3-from-anywhere`),
+with the surrounding nominal attachment retained as a separate Reading.
+
 **Partitive Noun Phrase**:
 A fused-head Noun Phrase containing an *of* phrase and denoting a subset of
 the set denoted by that phrase's Complement, as in *one of them*.

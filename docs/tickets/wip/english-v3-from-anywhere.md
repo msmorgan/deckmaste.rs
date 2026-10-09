@@ -60,6 +60,12 @@ inventory for its new category and map it to Determinative), not only a
 as a lexicon change; resolved as a lexicon change plus that one mapping line,
 size S.
 
+Pre-integrate review ruling (2026-10-09): extend the existing postpositive
+comparative modifier to a declared-licensed Fused Determiner-Head NP. On
+*from anywhere other than X*, retain both *anywhere*-attached and enclosing
+nominal attachments. This supersedes the exclusion of that surface below;
+no new Construction or lexeme-naming guard is authorized.
+
 ## Witnesses
 
 Each is the face's only failing unit at `qsupksky` (0 Readings), each
@@ -124,68 +130,76 @@ Deltas:
 
 ## Out of scope
 
-- *anywhere else*, *from anywhere other than your hand*.
+- *anywhere else*.
 - Other uses of *anywhere* not attested in the supported corpus.
 
 ## Landing record
 
-1. **Census delta**: bounded pre-edit `uzrzywom` (empty child of claim parent
-   `qzwzuwwu`, source-equivalent) → implemented `uzrzywom`: covered faces
-   300 → 396; Readings 11,533 → 33,324. Gained 96; lost none; decreases 0,
-   increases 0, digest-only 0. Selector: every supported analysed face containing
-   case-insensitive *anywhere* (158 faces), plus 300 covered controls selected by
-   `english-v3 diff --manifest --random 300 --seed 20261008`: 458 identities in
-   `target/english-v3/english-v3-from-anywhere/manifest.json`. `diff.json` compares
-   the identical manifest, with no identity or source-hash changes. At
-   `uzrzywom`, all 458 faces completely enumerated; 107 unique, 289 multiple,
-   62 unread, 0 undetermined or limited. Exact realization and structural
-   traversal checked for all 33,324 Readings; issues, duplicates and internal
-   failures all 0. The older batch census (`mqrlzszk`, source tree `qsupksky`)
-   supplied the seeded controls; a bounded pre-edit census measured the actual
-   claim parent, which already includes subsequent grammar landings.
-   Post-refresh bounded recheck at `tupvqkuk`: 397 covered / 33,372 Readings;
-   107 unique, 290 multiple, 61 unread. All 458 faces completely enumerated;
-   issues, duplicates, internal failures and non-exact Readings all 0.
-   `diff-refresh.json` attributes the one additional gain, Unstable Amulet
-   (48 Readings), to incoming Get frames in `spmtqknq`; losses, decreases,
-   increases and digest-only changes remain 0. `diff-final.json` reports
-   97 gains in total against the claim-parent baseline.
-2. **Witnesses**: at pre-edit `uzrzywom`, all five `english-v3 probe` calls
-   returned 0 Readings. At implemented `uzrzywom`, complete witness-unit
-   enumeration returned Brinebound Gift 12, Yawgmoth's Agenda 12, Planar Void 3,
-   Rest in Peace 12, Generous Soul 12 (card-scoped). Each has the NP-headed
-   source PP; independently probed *from anywhere* has exactly 1 Reading.
-3. **Spot checks**: ten newly covered faces at `uzrzywom`, each inspected with
-   a byte-exact Reading whose *from* PP has the compound Determinative as a
-   Fused Determiner-Head NP Complement: Abandoned Sarcophagus (84 Readings),
-   Ancestor's Embrace (12), Archive Haunt (36), Avatar's Wrath (2), Benevolent
-   Geist (24), Bilbo, Thief in the Night (1,560), Blightsteel Colossus (44),
-   Brinebound Gift (96), Case of the Gorgon's Kiss (1,500), Catlike Curiosity
-   (36). NP Modifier attachment on the *other than* surfaces uses existing
-   grammar; those incidental gains add no route.
-4. **Deviations and STOPs**: R6a implemented directly, without the Pronoun
-   fallback or any Construction/frame change. Retired the sole-member
-   `LocativeProform` inventory and its Adverb mapping; the supported-corpus
-   `english-v3 grep` evidence at pre-edit `uzrzywom` shows only *from anywhere*
-   and the out-of-scope *putting it/them anywhere else* location Complement,
-   no independent Adverb use. No dedicated locative-Adverb Construction
-   exists to retire; the general Adverb and duration-Complement routes remain
-   used by other lexemes. Fused-head features live in `core.ron` because the
-   vocabulary declaration reader rejects them inline; no new loader logic.
-   Beyond the five required witness tests, added an independent NP/PP
-   roundtrip-and-traversal test and an ownership/Adverb-retirement test.
-   No STOPs, guards or glossary gaps.
-5. **Tests**: at `uzrzywom`, `cargo test -p deckmaste_english_v3` passed
-   (608 tests); `cargo test -p deckmaste_lexical_source` passed (27 unit and
+1. **Census delta**: claim-parent `qzwzuwwu` source measured at pre-edit
+   `uzrzywom` → review fix `rwxrkzuw`: covered faces 300 → 401; Readings
+   11,533 → 37,282; gained 101, lost none, decreases 0, increases 0,
+   digest-only 9 (`diff-review-total.json`). Relative to reviewed `tupvqkuk`,
+   the fix gains 4 faces and increases 22; lost/decreases 0, digest-only 11
+   (`diff-review.json`). Digest changes are the existing `PostpositiveNominal`
+   Reading's added category field when generalized to a shared schema; all
+   affected faces retain their counts. Incoming Get frames in `spmtqknq`
+   supplied Unstable Amulet's prior 48-Reading gain; it now has 144 Readings.
+   Same selector: 158 supported analysed *anywhere* faces plus 300 covered
+   controls selected with seed 20261008, 458 identities in `manifest.json`.
+   At `rwxrkzuw`, all 458 completely enumerated: 106 unique, 295 multiple,
+   57 unread; limited/undetermined 0. All 37,282 Readings checked for exact
+   realization and structural traversal; issues, duplicates and internal
+   failures 0. Evidence: `target/english-v3/english-v3-from-anywhere/`.
+2. **Witnesses**: the five ticket units at pre-edit `uzrzywom` had 0 Readings;
+   implemented `uzrzywom` has Brinebound Gift 12, Yawgmoth's Agenda 12,
+   Planar Void 3, Rest in Peace 12, Generous Soul 12 (card-scoped), preserved
+   by the review fix's tests. Review witness at pre-fix `rwxrkzuw` (empty
+   child of `tupvqkuk`): “You may cast
+   spells from anywhere other than your hand.” has 1 enclosing-nominal
+   attachment; *anywhere other than your hand* has 0 NP Readings. At
+   `rwxrkzuw`, the sentence has 5 Readings: 4 with the anywhere-attached
+   comparative Modifier and the original nominal attachment retained; the
+   modified NP has exactly 1 Reading. Bare *from anywhere* retains 1.
+3. **Spot checks**: ten newly covered, non-*other than* faces re-inspected
+   byte-exact at `rwxrkzuw`, each with *from* + fused Determiner-Head NP:
+   Abandoned Sarcophagus (84 Readings), Ancestor's Embrace (12), Archive Haunt
+   (36), Compost (3), Benevolent Geist (24), Dread (6), Blightsteel Colossus
+   (44), Brinebound Gift (96), Case of the Gorgon's Kiss (1,500), Catlike
+   Curiosity (36). The reviewed *other than* faces now each have an inspected
+   Reading where the Comparative Adjective Phrase postmodifies the
+   FusedDeterminerHeadNounPhrase *anywhere* inside the source PP: Avatar's
+   Wrath (12), Bilbo, Thief in the Night (3,120), Dimir Strandcatcher (14),
+   Drannith Magistrate (5), Flaming Tyrannosaurus (36), Ghostly Pilferer (15),
+   Iraxxa, Empress of Mars (12), Keeper of Secrets (30), Memory Worm (12),
+   Mizzix, Replica Rider (78), Nico Minoru, Runaway (288), Osgood, Operation
+   Double (144), Poxwalkers (12), Sage of the Beyond (16), Shadow of the
+   Goblin (32), Sisterhood of Karn (300), Spider-Man 2099 (1,872), The
+   Thirteenth Doctor (240), Ultron the Annihilator (12), Ultron's Auxiliary
+   (12), Vega, the Watcher (6). Counts measured at `rwxrkzuw`; enclosing
+   nominal attachments remain admitted alongside the new scope.
+4. **Deviations and STOPs**: initial R6a moves the sole *anywhere* inventory
+   and mapping from Adverb to Determinative, without the Pronoun fallback.
+   The HIGH pre-integrate finding exposed missing comparative NP scope in
+   the original gains; fixed under the user's 2026-10-09 review direction,
+   which expands the ticket's prior *other than* exclusion. Generalized the
+   existing `PostpositiveNominal` into one shared schema with its unchanged
+   nominal instance and one comparative NP instance. No new named
+   Construction, frame or word guard. Declared `ComparativePostmodifierUse`
+   on *anywhere*, exported it from the fused head, and explicitly supplied
+   No on other NP/coordination summaries. Defined Comparative Postmodifier
+   Use in the owning glossary; no remaining glossary gap. Added the requested
+   attachment/retention test with independent NP roundtrip and unlicensed-head
+   checks; re-spelled `grammar::complemented_adjectives_are_postpositive_in_both_directions`
+   for the shared Reading's category field, preserving every assertion.
+   No STOPs; the retired LocativeProform/Adverb route remains retired.
+5. **Tests**: at `rwxrkzuw`, `cargo test -p deckmaste_english_v3` passed
+   (616 tests); `cargo test -p deckmaste_lexical_source` passed (27 unit +
    35 integration tests). `cargo clippy -p deckmaste_english_v3 --tests --
    -D warnings` and `cargo clippy -p deckmaste_lexical_source --tests --
-   -D warnings` both passed. The first English test build failed before running
-   tests on an ambiguous `contains_key` argument in the new ownership test;
-   corrected the argument's type and repeated that command successfully.
-   Assurance counts at `uzrzywom`: restored 0, re-spelled 0, ignored 0,
-   added 7, removed 0. After the lexicon refresh, at `tupvqkuk`, repeated only
-   `cargo test -p deckmaste_english_v3` (615 passed, including the incoming Get
-   tests) and `cargo test -p deckmaste_lexical_source` (27 unit + 35 integration
-   passed); failures and ignored tests both 0. Prior clippy results retained.
-6. **Timing**: the one bounded landing census at `uzrzywom` took 4.848493556 s
+   -D warnings` passed. English clippy first caught similar variable names
+   in the new test; renamed the binding and reran it successfully. No test
+   command needed a retry. Assurance totals at `rwxrkzuw`: restored 0,
+   re-spelled 1, ignored 0, added 8, removed 0. This fix adds 1 and
+   re-spells 1; removes none.
+6. **Timing**: the bounded review-fix census at `rwxrkzuw` took 5.959074639 s
    corpus wall time with 12 workers.

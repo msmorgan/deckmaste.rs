@@ -1175,6 +1175,7 @@ fn complemented_adjectives_are_postpositive_in_both_directions() {
         head: noun,
     };
     let valid = Reading::PostpositiveNominal {
+        category: Category::Nominal,
         form: 0,
         head: Box::new(head.clone()),
         modifier: Box::new(modifier.clone()),

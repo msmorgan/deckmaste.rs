@@ -154,3 +154,78 @@ fn compound_determinative_replaces_the_adverb_owner() {
     );
     assert!(!lexemes.contains_key("vocab:LocativeProform/Anywhere"));
 }
+
+#[test]
+fn comparative_modifier_attaches_to_anywhere_and_retains_nominal_scope() {
+    // Sentence required by the pre-integrate review; the NP is attested on
+    // Drannith Magistrate and the other reviewed "anywhere other than" faces.
+    let comparisons =
+        common::readings("other than your hand", Category::ComparativeAdjectivePhrase);
+    assert_eq!(comparisons.len(), 1);
+    let modifier = comparisons.first().unwrap().clone();
+    let place = Reading::PostpositiveNominal {
+        category: Category::NounPhrase,
+        form: 0,
+        head: Box::new(anywhere()),
+        modifier: Box::new(modifier.clone()),
+    };
+    place.admit(common::lexicon()).unwrap();
+    assert_eq!(
+        place.realize(common::lexicon()).unwrap(),
+        "anywhere other than your hand"
+    );
+    assert_eq!(
+        common::readings("anywhere other than your hand", Category::NounPhrase),
+        BTreeSet::from([place.clone()])
+    );
+
+    let unlicensed = Reading::PostpositiveNominal {
+        category: Category::NounPhrase,
+        form: 0,
+        head: Box::new(Reading::FusedDeterminerHeadNounPhrase {
+            form: 0,
+            head: word("vocab:SingularDemonstrative/This"),
+        }),
+        modifier: Box::new(modifier.clone()),
+    };
+    assert!(unlicensed.admit(common::lexicon()).is_err());
+
+    let nominal_heads = common::readings("spells from anywhere", Category::Nominal);
+    assert!(!nominal_heads.is_empty());
+    let nominal_modifier = Reading::ComparativeAdjective {
+        form: 0,
+        phrase: Box::new(modifier),
+    };
+    let sentence = "You may cast spells from anywhere other than your hand.";
+    let readings = common::readings(sentence, Category::Document);
+    let mut anywhere_attached = BTreeSet::new();
+    let mut nominal_attached = BTreeSet::new();
+    for reading in &readings {
+        reading
+            .visit(&mut |node| {
+                if node == &place {
+                    anywhere_attached.insert(reading.clone());
+                }
+                for head in &nominal_heads {
+                    let expected = Reading::PostpositiveNominal {
+                        category: Category::Nominal,
+                        form: 0,
+                        head: Box::new(head.clone()),
+                        modifier: Box::new(nominal_modifier.clone()),
+                    };
+                    if node == &expected {
+                        nominal_attached.insert(reading.clone());
+                    }
+                }
+            })
+            .unwrap();
+    }
+    assert!(!anywhere_attached.is_empty());
+    assert!(!nominal_attached.is_empty());
+    assert!(anywhere_attached.is_disjoint(&nominal_attached));
+    let all_scopes: BTreeSet<_> = anywhere_attached
+        .union(&nominal_attached)
+        .cloned()
+        .collect();
+    assert_eq!(readings, all_scopes);
+}
