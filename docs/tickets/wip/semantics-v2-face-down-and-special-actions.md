@@ -77,3 +77,111 @@ whose `does` reads an unbound anaphor is refused.
 Glossary Face-Down and Special Action are already rewritten in
 `docs/contexts/game-model/CONTEXT.md`. Amend them if the build shows a flaw.
 Engine-side work stays in `engine-face-down` and `engine-special-actions`.
+
+## Landing record
+
+Series on the claim `yyrwpoyv`, oldest first: `plynpmwr` (Lean nodes, checker,
+bench re-spelled, pins), `nwwlspuy` (Rust mirror, RON helpers, keyword bodies,
+facts), `sntzpsxz` (canon witnesses), `kszwszzx` (glossary, §7 rider ruling,
+contracts, citation lock), and this record. Numbers measured on `kszwszzx`
+after `kata refresh` (onto `english-v3-counter-kind-nouns`, no conflicts).
+`lean/` changed.
+
+1. **Census delta**: bounded census, selector `--text-contains Megamorph`
+   (the only english-v3 input that changed is the new `megamorph` keyword
+   declaration), before = `kszwszzx` with `megamorph.ron` withheld, after =
+   `kszwszzx`: 31 faces, covered 0 → 11, Readings 0 → 12. Lost faces: none.
+   JSONs in `target/english-v3/semantics-v2-face-down-and-special-actions/`.
+2. **Witnesses**: `cargo xtask lean check`: canon 165/165, testing 8/8. Soul
+   Summons (manifest), Ransom Note and Threats Around Every Corner (manifest
+   dread) still prove. New canon: Glacial Stalker (morph; turned face up by
+   `setStatus(FaceUp, this)`, values reverting [CR#708.8]), Segmented Krotiq
+   (megamorph), Defenestrated Phantom (disguise), Augury Raven (foretell; cast
+   permission `onALaterTurn`, so not the turn it was foretold), Djinn of
+   Fool's Fall (plot), Mosswort Bridge (hideaway). Pins in
+   `Proofs/FaceDown.lean`: `okExileFaceDown` (`exile(…, faceDown(none))`
+   checks), `badSpecialActionUnboundAnaphor` (`[anaphor bare one 0]`),
+   `badEntryRiderIntoExile`, `badPlacementOntoBattlefield` (`riderKind`),
+   `okMorph`, `okMegamorph`, `okDisguise`, `okForetell`,
+   `foretoldCastOnALaterTurn`, `okPlot`, `okHideaway`, `okTurnFaceDown`,
+   `badTurnAPlayerFaceDown`. English Readings after: Segmented Krotiq 1,
+   Aerie Bowmasters 1, Gudul Lurker 2.
+3. **Spot checks** (new english-v3 faces, each `Megamorph {cost}` as a
+   CostKeyword line): Segmented Krotiq, Marang River Skeleton, Aerie
+   Bowmasters, Aven Sunstriker, Misthoof Kirin, Marsh Hulk, Sandstorm Charger,
+   Gudul Lurker, Dirgur Nemesis, Ojutai Interceptor. Bodies: morph =
+   `[static(mayPlayDeed(cast, you, this, Play(None, None, None, false,
+   FaceDown(faceDownCreature, mana([3]))))), static(specialAction(None,
+   Param(0), setStatus(FaceUp, this)))]`; foretell's special action is
+   `duringPart(Turn, you)`, {2}, `exileFaceDown(this)`, look right
+   `visibility(LookAt, you, Objects(it))` while exiled, then a cast
+   permission paying `Param(0)` for `onALaterTurn`; plot's is `asSorcery`,
+   `Param(0)`, `exile(this)` then a cast permission without paying at
+   `asSorcery` for `onALaterTurn`; manifest is `sequentially([turnFaceDown(Param(0),
+   faceDownCreature), move(that(Card), wherever, battlefield,
+   [FaceDown(faceDownCreature)])])`.
+4. **Deviations and STOPs**:
+   - Rider split (owner ruling Q28–Q29, recorded in §7): `EntryRider`
+     (entersAs, entersAttacking, entersTransformed, entersMelded, withCounters,
+     under, asCopyOf, faceDown), `PilePlacement` (inOrder, nthFromEnd,
+     orOtherEnd, faceDown, withCounters), `MoveRider = entry | placement`
+     (`entry` is `#[macro_ron(embed)]`, so an entry rider is written bare and a
+     placement `Placement(…)`; the bench has a `Coe EntryRider MoveRider`).
+     `PilePlacement.withCounters` is beyond the ruling's list: "exile it with
+     N time counters" (`exileWithCounters`, suspend) is no battlefield arrival.
+     Checker: `ZoneExpr.riderKind` (battlefield → entry, other zone or pile end
+     → placement, `wherever` → either) and refusal `riderKind`.
+   - `FaceDown` is a structure `(characteristics : Option Characteristics)`;
+     RON helpers `exiledFaceDown`, `faceDownCreature`, `faceDownWardedCreature`
+     (`face_down/`), `exileFaceDown`; aliases `turnFaceDown`, `specialAction`.
+     Ward in `faceDownWardedCreature` is the bare keyword term with its cost
+     (as the Lean bench writes it), so cloak's ward no longer carries its
+     expansion.
+   - `SpecialAction` enum homes: `turnFaceUp` → morph/megamorph/disguise
+     `specialAction` rows; `foretell` → foretell's row; `unlockDoor` → the
+     existing `Instruction.unlock`; `putCompanionIntoHand` → a future
+     `specialAction` row in companion (STOP note kept: no outside-the-game zone,
+     no once-per-game limit). `ofSpecialAction .turnFaceUp` re-spelled as
+     `ofKeyword morph` and `ofKeyword disguise` (Overgrown Zealot) and dropped
+     beside the existing `ofKeyword morph` (Qarsi Deceiver): residue, a
+     manifested or cloaked card's face-up cost is no keyword's cost and no
+     `CostNamed` reads it.
+   - Faces bench: Cyber Conversion is `turnFaceDown` with the listed
+     characteristics; Missy and Yedora fold "It's a …" into the entry rider's
+     spec (no `entersAs faceDown`, no separate characteristic change).
+   - Foretell's declaration forwards its cost (`keyword_params: []` override
+     removed). Hideaway reads "the exiled card" as `theVerbed(exile, One,
+     Card)`; its look right is the ability controller's ("you"). Plot does not
+     write the "plotted" designation.
+   - STOP, suspend: `when` is "if you could begin to cast this card by putting
+     it onto the stack from your hand", which no `Timing`/`Condition` reads
+     [CR#702.62a,116.2f]; its other two abilities read "suspended", unnamed.
+     Bodyless, note updated.
+   - Megamorph declared (facts overlay row, Lean/Idris facts regenerated).
+   - Glossary: Entry Rider and Pile Placement added; no `TokenRider` mention
+     existed there. Face-Down and Special Action unchanged.
+5. **Tests**: `lake build --wfail` 90/90; `cargo test -p
+   deckmaste_semantics_v2` (45, 7, 1, 4, 43), `-p xtask` (382 + 1 pre-existing
+   ignore, 4, 14), `-p deckmaste_construction_core` (434 + 13 suites), `-p
+   deckmaste_lexical_source` (26, 35): all pass; `cargo clippy -p <each>
+   --tests -- -D warnings` clean; `cargo xtask facts check` up to date; `cite
+   check` 0 stale, `--list-noncompliant` empty, `cite bless` registered
+   702.37e, 702.168d, 708.3, 708.4. `lean definitions` 553/553. After the
+   second refresh (onto `english-v3-counter-kind-nouns` complete,
+   `english-v3-corpus-grep`): `lake build --wfail` 90/90, `lean check`
+   165/165 + 8/8, `lean definitions` 698/698, semantics_v2,
+   construction_core and lexical_source pass; `cargo test -p xtask` 387 pass,
+   1 FAIL, `facts::tests::every_stub_has_a_row_or_a_recorded_reason`: 145
+   counter-kind stubs without a `MkCounterFacts` row, all from
+   `english-v3-counter-kind-nouns` (which ran no xtask tests). STOP: the fix
+   is outside this ticket, so it is reported, not made. Counts:
+   restored 0; re-spelled 13 Lean pin statements (rider spellings in
+   ActionFamilies, Anaphora ×3, BindingIdentity, Counters, Piles ×2, Zone ×3,
+   plus the 2 `lookAndSortSlice`/`scryBy` defs) and the bench card terms in 10
+   `Cards/` files, `okManifest`/`okCloak`/`okManifestDread` unchanged over the
+   new macros; Rust 1 corpus sample re-spelled (`Placement(InOrder(…))`), 3
+   construction_core pins extended for megamorph (list entry, count 105 → 106,
+   template, count 264 → 265); ignored 0; added 13 Lean pins, 6 canon cards,
+   2 xtask renderers; removed 0.
+6. **Timing**: bounded census 3 s wall, 12 workers; `cargo xtask lean check`
+   132 s.
