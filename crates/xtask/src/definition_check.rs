@@ -79,12 +79,13 @@ impl DefinitionCheckArgs {
     }
 }
 
-/// The three families of Registry Definition, one generated module each.
+/// The four families of Registry Definition, one generated module each.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Family {
     Counter,
     Subtype,
     Designation,
+    CardType,
 }
 
 impl Family {
@@ -96,6 +97,7 @@ impl Family {
             Definition::Counter { .. } => Family::Counter,
             Definition::Subtype { .. } => Family::Subtype,
             Definition::Designation { .. } => Family::Designation,
+            Definition::CardType { .. } => Family::CardType,
         }
     }
 
@@ -106,6 +108,7 @@ impl Family {
             Family::Counter => ("Counters", "counter_kinds"),
             Family::Subtype => ("Subtypes", "subtypes"),
             Family::Designation => ("Designations", "designations"),
+            Family::CardType => ("CardTypes", "types"),
         }
     }
 
@@ -114,6 +117,7 @@ impl Family {
             Family::Counter => "counters",
             Family::Subtype => "subtypes",
             Family::Designation => "designations",
+            Family::CardType => "card types",
         }
     }
 }
@@ -134,6 +138,7 @@ pub fn run(args: &DefinitionCheckArgs) -> anyhow::Result<()> {
         (Family::Counter, read.counters),
         (Family::Subtype, read.subtypes),
         (Family::Designation, read.designations),
+        (Family::CardType, read.card_types),
     ];
     let total: usize = families.iter().map(|(_, items)| items.len()).sum();
     anyhow::ensure!(

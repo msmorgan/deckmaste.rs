@@ -8,7 +8,8 @@ use macro_ron::SupportsMacros;
 use serde::Deserialize;
 use serde::Serialize;
 
-/// [CR#205.2a]
+/// [CR#205.2a] A dungeon begins outside the game and is never a permanent or
+/// a spell [CR#309.2,309.2c].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, SupportsMacros)]
 pub enum CardType {
     Creature,
@@ -20,6 +21,7 @@ pub enum CardType {
     Planeswalker,
     Battle,
     Kindred,
+    Dungeon,
 }
 
 /// A rules procedure a card can instruct a player to carry out during

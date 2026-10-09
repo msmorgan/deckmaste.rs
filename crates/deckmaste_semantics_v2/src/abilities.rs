@@ -676,6 +676,10 @@ pub enum StaticSpec {
         cost: Box<Cost>,
         does: Box<Instruction>,
     },
+    /// "<subject> is a Combatant": the creature-like combat rules apply to it
+    /// [CR#120.3e,302.6,508.1a,509.1a,701.14a]. A quality of a permanent, not
+    /// an ability [CR#113.12]; the creature type definition confers it.
+    Combatant { subject: NounPhrase },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

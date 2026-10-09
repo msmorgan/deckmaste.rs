@@ -526,7 +526,7 @@ fn renderer(kind: &str) -> Option<Renderer> {
 }
 
 /// The `Definition` constructors: a body headed by one is a registry node.
-const DEFINITION_HEADS: &[&str] = &["Counter", "Subtype", "Designation"];
+const DEFINITION_HEADS: &[&str] = &["Counter", "Subtype", "Designation", "CardType"];
 
 fn expand_one(macros: &MacroSet, samples: &Samples, declaration: &Declaration) -> Outcome {
     let definition = &declaration.definition;

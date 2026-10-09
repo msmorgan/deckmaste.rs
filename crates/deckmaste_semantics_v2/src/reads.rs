@@ -102,6 +102,7 @@ pub fn normalize_types(types: &[CardType]) -> Vec<CardType> {
         CardType::Planeswalker,
         CardType::Battle,
         CardType::Kindred,
+        CardType::Dungeon,
     ]
     .into_iter()
     .filter(|t| types.contains(t))

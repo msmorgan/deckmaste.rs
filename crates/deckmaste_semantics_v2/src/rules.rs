@@ -105,13 +105,14 @@ pub enum Conferral {
 
 /// What one registry declaration MEANS: the rules content the declared name
 /// stands for, and the body every `plugins_v2/builtin/macros/{counter_kinds,
-/// subtypes,designations}` declaration carries.
+/// subtypes,designations,types}` declaration carries.
 ///
 /// `cargo xtask facts generate` writes `lean/Semantics/Check/Facts.lean` from
 /// these: every counter definition is a [`crate::facts::CounterFacts`] row
 /// labelled with its kind's name, a subtype definition a
 /// [`crate::facts::SubtypeFacts`] row, a designation definition a
-/// [`crate::facts::DesignationFacts`] row.
+/// [`crate::facts::DesignationFacts`] row. A card type definition is no facts
+/// row.
 ///
 /// A counter definition's `confers` states what ONE counter of its kind
 /// confers, and the model applies it once per counter held (Lean
@@ -137,6 +138,18 @@ pub enum Definition {
         r#type: Option<CardType>,
         half: Option<RoomHalf>,
     },
+    /// A card type [CR#205.2a]: the type, whether it is a permanent type
+    /// [CR#110.4], and what it confers on every object of that type. A
+    /// quality a type gives its objects (a creature is a Combatant
+    /// [CR#508.1a], a land card may be played [CR#305.1], an instant may be
+    /// cast whenever its owner has priority [CR#304.1]) is no ability
+    /// [CR#113.12], so it is the ability-free [`Conferral::Property`] flavor.
+    /// The body of every `plugins_v2/builtin/macros/types` declaration.
+    CardType {
+        card_type: CardType,
+        permanent_type: bool,
+        confers: Vec<Conferral>,
+    },
 }
 
 impl Definition {
@@ -158,7 +171,7 @@ impl Definition {
     pub fn subtype_term(&self) -> Option<&Subtype> {
         match self {
             Self::Subtype { subtype, .. } => Some(subtype),
-            Self::Counter { .. } | Self::Designation { .. } => None,
+            Self::Counter { .. } | Self::Designation { .. } | Self::CardType { .. } => None,
         }
     }
 
@@ -169,7 +182,7 @@ impl Definition {
     pub fn counter_term(&self) -> Option<&CounterKind> {
         match self {
             Self::Counter { kind, .. } => Some(kind),
-            Self::Subtype { .. } | Self::Designation { .. } => None,
+            Self::Subtype { .. } | Self::Designation { .. } | Self::CardType { .. } => None,
         }
     }
 
@@ -180,7 +193,7 @@ impl Definition {
     pub fn designation_term(&self) -> Option<&DesignationLabel> {
         match self {
             Self::Designation { label, .. } => Some(label),
-            Self::Subtype { .. } | Self::Counter { .. } => None,
+            Self::Subtype { .. } | Self::Counter { .. } | Self::CardType { .. } => None,
         }
     }
 }

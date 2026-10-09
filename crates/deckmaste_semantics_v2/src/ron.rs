@@ -35,10 +35,11 @@ pub const MACRO_KIND: &str = "Macro";
 /// Three families — `Subtype`, `CounterKind`, `TurnPart` — carry the serde
 /// name of a v2 syntax type, so they need no second kind: a declaration
 /// registered under one is already invocable by its bare name wherever a card
-/// writes that type. `Type` does NOT: v2's card-type position is `CardType`,
-/// so a `Type` declaration is a loader tag until a ticket reconciles the two
-/// names. The remaining families are name-erasing loader tags that open no
-/// card position at all, exactly as v1's `TypeDef` and `Counter` do.
+/// writes that type. `Type` does NOT: its body is a card type's Registry
+/// Definition (`Definition::CardType`), but a card writes a card type as the
+/// `CardType` word itself (`Creature`), never by the declaration's name, so
+/// the family stays a loader tag. The remaining families are name-erasing
+/// loader tags that open no card position at all.
 pub const DECLARATION_KINDS: &[&str] = &[
     "AbilityWord",
     "CounterKind",

@@ -101,6 +101,7 @@ fn card_type(card_type: CardType) -> &'static str {
         CardType::Planeswalker => ".planeswalker",
         CardType::Battle => ".battle",
         CardType::Kindred => ".kindred",
+        CardType::Dungeon => ".dungeon",
     }
 }
 
@@ -482,10 +483,30 @@ pub(crate) fn registry_definitions(plugin_dir: &Path) -> anyhow::Result<Registry
             })
         })
         .collect::<anyhow::Result<Vec<_>>>()?;
+    let mut card_types = Vec::new();
+    for row in &declarations {
+        if row.identity().kind() != DeclarationKind::Type {
+            continue;
+        }
+        let name = row.identity().name();
+        let body = row
+            .body()
+            .with_context(|| format!("{name}: card type has no declaration body"))?;
+        let definition: Definition = plugin
+            .macros
+            .read_str(body.get_ron())
+            .with_context(|| format!("reading card type {name}"))?;
+        anyhow::ensure!(
+            matches!(definition, Definition::CardType { .. }),
+            "{name}: a type declaration defines a card type"
+        );
+        card_types.push((name.to_owned(), definition));
+    }
     Ok(RegistryDefinitions {
         counters,
         subtypes,
         designations,
+        card_types,
     })
 }
 
@@ -495,6 +516,7 @@ pub(crate) struct RegistryDefinitions {
     pub(crate) counters: Vec<(String, Definition)>,
     pub(crate) subtypes: Vec<(String, Definition)>,
     pub(crate) designations: Vec<(String, Definition)>,
+    pub(crate) card_types: Vec<(String, Definition)>,
 }
 
 /// The keywords a counter declaration makes a counter of [CR#122.1b]. The
