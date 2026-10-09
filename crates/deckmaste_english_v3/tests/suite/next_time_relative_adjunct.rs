@@ -186,6 +186,13 @@ fn independently_preposed_this_turn_uses_the_same_construction_and_checks_form_c
 }
 
 #[test]
+fn each_time_requires_a_count_nominal() {
+    let readings = common::readings("each time", Category::NominalAdjunctPhrase);
+    assert_eq!(readings.len(), 1);
+    laws("each time", readings.first().unwrap());
+}
+
+#[test]
 fn preposed_licence_does_not_open_postposed_definite_or_manner_routes() {
     assert!(
         common::readings(

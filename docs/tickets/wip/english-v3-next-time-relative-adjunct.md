@@ -169,6 +169,11 @@ Deltas:
    Refresh-only diff: gained **1** (Sentinel Sarah Lyons), digest-only **338**,
    lost/decreases/increases **0**; these are inherited from `ouzqotlxvsmv`
    (the bounding cardinal licence and optional modifier representation). Evidence: `target/english-v3/english-v3-next-time-relative-adjunct/{manifest,before,after,diff}.json`.
+   Review correction (`stymwqqo`): all **1176** faces unchanged against the
+   reviewed census (`review-delta.json`): lost/gained/decreases/increases/
+   digest-only **0**, covered **884**, Readings **111613**. Decreased faces:
+   none. Claim-parent `review-diff.json` retains the **75** gains and the
+   **330** inherited digest-only changes above.
 2. **Witnesses** (pre-refresh `rxwmpvru`, complete probes): Dazzling Reflection **12**;
    Words of Waste **24**; New Way Forward **20**; Circle of Protection: Red
    **40**; Words of Wilding **24**. All five were **0** before implementation;
@@ -192,6 +197,16 @@ Deltas:
    Refresh conflicted only on test-module registrations; both suites were
    retained. Glossary gaps filled: Nominal Dependent Present, Nominal Adjunct Class,
    Nominal Adjunct Determiner. No superseded route remains to retire.
+   Review ruling: the general licence also admits unattested preposed
+   *Each turn, …*, *The next turn, …*, *That time, …*, *Each time, …*, and
+   postposed *each/this/that time* without another declaration; R11d permits
+   these forms that fall out freely. The mass-*time* twin under *the* doubles
+   Readings on the gained faces and is inherited from trunk's NounPhrase;
+   this remains a follow-up question for the orchestrator, unchanged here.
+   Review correction (`stymwqqo`): NominalAdjunctPhrase now uses the determined NP's
+   determiner–countability licence, removing the inadmissible mass analysis
+   of *each time*. Its complete probe went **2 → 1** Readings; one additional
+   regression test asserts the single Reading.
 5. **Tests** (pre-refresh `rxwmpvru`): `cargo test -p deckmaste_english_v3` passed
    **669** tests; `cargo test -p deckmaste_lexical_source` passed **63**;
    `cargo test -p deckmaste_construction_v3_core` passed **32**. The checks
@@ -207,8 +222,16 @@ Deltas:
    and all three exact clippy commands passed again. The refreshed citation
    checks also pass; the elapsed-time figure is spelled as minutes and seconds
    to avoid the citation scanner interpreting it as a rule number.
+   After the review correction (`stymwqqo`), those same full test commands
+   passed **685**, **64**, and **32** tests respectively; all three clippy
+   commands and the citation checks passed. The new test's initial build
+   needed a BTreeSet accessor correction before the suite ran. Final feature
+   counts: restored **0**, re-spelled **0**, ignored **0**, added **11**
+   (**9** English, **2** core), removed **0**; no removals to justify.
 6. **Timing** (pre-refresh `rxwmpvru`): the bounded landing census took **46.21 s**,
    **6 workers**, peak RSS **8173084 kB**, measured with `/usr/bin/time -v`
    on prebuilt `target/debug/cargo-xtask`, identity manifest and
    `--samples-per-face 0`. Refresh-only bounded recheck (`rxwmpvru`):
-   **1 min 54.11 s**, **6 workers**, peak RSS **8188948 kB**. No full corpus run.
+   **1 min 54.11 s**, **6 workers**, peak RSS **8188948 kB**. Review correction
+   recheck (`stymwqqo`): **43.43 s**, **6 workers**, peak RSS **7972736 kB**.
+   No full corpus run.

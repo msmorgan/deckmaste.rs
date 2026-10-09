@@ -3895,6 +3895,7 @@ constructions! {
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require head.Targeting = No;
             require head.number = Singular;
+            require determiner_license(determiner.DeterminerUse, head.number, head.countability) = Yes;
             require nominal_adjunct_license(determiner.NominalAdjunctDeterminer,
                 head.NominalAdjunctClass, head.NominalDependentPresent) = Yes;
         }
