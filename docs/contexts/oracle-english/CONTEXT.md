@@ -1005,6 +1005,14 @@ Adjective and licensing its determiner-less temporal phrase follow
 A phrase whose head or fused head is nominal and which can fill functions such
 as Subject, Object, or Complement of a preposition.
 
+**Noun Phrase Structure** (project term):
+The distinction between a proper-name Noun Phrase, a Noun Phrase determined
+by an indefinite article, and other Noun Phrases. The first two license the
+anchor and Supplement, respectively, in the ascriptive NP supplementation
+Construction under NA1–NA2 (orchestrator ruling, 2026-10-10,
+`english-v3-named-token-apposition`). The Supplement retains its own structure;
+the resulting supplemented phrase is distinct from its unsupplemented anchor.
+
 **Bare Preposition Use** (project term):
 The declared availability of a singular count Noun Phrase without a Determiner
 as the internal Complement of a preposition, distinguishing a bare location

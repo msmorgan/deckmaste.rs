@@ -76,3 +76,6 @@ mod ring_tempts_you;
 
 #[path = "suite/keyword_state_adjectives.rs"]
 mod keyword_state_adjectives;
+
+#[path = "suite/named_token_apposition.rs"]
+mod named_token_apposition;
