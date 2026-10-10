@@ -27,9 +27,9 @@ pub struct BlockersArgs {
     /// Write every face verdict and the uncapped ranking as JSON.
     #[arg(long, value_name = "OUT")]
     json: Option<PathBuf>,
-    /// Maximum keys printed, ordered by sole-blocker faces, then touched faces.
-    #[arg(long, default_value_t = 30)]
-    limit: usize,
+    /// Override the printed limit for each of the three ranked tables.
+    #[arg(long)]
+    limit: Option<usize>,
 }
 
 #[derive(Deserialize)]
@@ -57,6 +57,12 @@ struct Position {
 }
 
 #[derive(Debug, Serialize)]
+struct ContextTokens {
+    before: Vec<String>,
+    after: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
 struct Line {
     span: (usize, usize),
     text: String,
@@ -64,6 +70,7 @@ struct Line {
     reading_count: usize,
     unknown_words: Vec<UnknownWord>,
     position: Option<Position>,
+    context: Option<ContextTokens>,
     keys: BTreeSet<String>,
 }
 
@@ -106,7 +113,8 @@ struct Report {
     census_change_id: Option<String>,
     workers: NonZeroUsize,
     summary: Summary,
-    ranked: Vec<RankedKey>,
+    #[serde(flatten)]
+    rankings: Rankings,
     faces: Vec<Face>,
 }
 
@@ -122,16 +130,76 @@ fn newline_spans(source: &str) -> Vec<(usize, usize)> {
         .collect()
 }
 
-fn token_text(token: Option<char>, boundary: &str) -> String {
-    token.map_or_else(
-        || boundary.into(),
-        |ch| match ch {
-            ' ' => "\\s".into(),
-            '\t' => "\\t".into(),
-            '\n' => "\\n".into(),
-            ch => ch.to_string(),
-        },
-    )
+struct KeyToken {
+    start: usize,
+    end: usize,
+    text: String,
+}
+
+fn key_tokens(text: &str) -> Vec<KeyToken> {
+    let chars: Vec<_> = text.chars().collect();
+    let mut tokens = Vec::new();
+    let mut start = 0;
+    let word = |ch: char| ch.is_alphanumeric() || matches!(ch, '\'' | '’' | '-' | '‐' | '‑');
+    while start < chars.len() {
+        if chars[start].is_whitespace() {
+            start += 1;
+            continue;
+        }
+        let mut end = start + 1;
+        if chars[start] == '{' {
+            if let Some(close) = chars[end..].iter().position(|ch| *ch == '}') {
+                end += close + 1;
+            }
+        } else if word(chars[start]) {
+            while end < chars.len() && word(chars[end]) {
+                end += 1;
+            }
+        }
+        tokens.push(KeyToken {
+            start,
+            end,
+            text: chars[start..end].iter().collect::<String>().to_lowercase(),
+        });
+        start = end;
+    }
+    tokens
+}
+
+fn locate(text: &str, furthest: usize) -> (Position, ContextTokens) {
+    let mut tokens = key_tokens(text);
+    let end = text.chars().count();
+    tokens.push(KeyToken {
+        start: end,
+        end,
+        text: "<end>".into(),
+    });
+    let index = tokens
+        .iter()
+        .position(|token| token.start >= furthest || token.end > furthest)
+        .unwrap_or(tokens.len() - 1);
+    let position = Position {
+        token_index: furthest,
+        previous_token: index
+            .checked_sub(1)
+            .map_or_else(|| "<start>".into(), |i| tokens[i].text.clone()),
+        failing_token: tokens
+            .get(index)
+            .map_or_else(|| "<end>".into(), |token| token.text.clone()),
+    };
+    let context = ContextTokens {
+        before: tokens[index.saturating_sub(2)..index]
+            .iter()
+            .map(|token| token.text.clone())
+            .collect(),
+        after: tokens
+            .iter()
+            .skip(index + 1)
+            .take(2)
+            .map(|token| token.text.clone())
+            .collect(),
+    };
+    (position, context)
 }
 
 fn inspect_face(
@@ -185,28 +253,21 @@ fn inspect_face(
         );
         let reads = result.checked_readings > 0;
         let mut keys = BTreeSet::new();
-        let position = if reads {
-            None
-        } else if result.unknown_words.is_empty() {
-            let tokens: Vec<_> = text.chars().collect();
-            let position = Position {
-                token_index: furthest,
-                previous_token: token_text(
-                    furthest.checked_sub(1).and_then(|n| tokens.get(n)).copied(),
-                    "<start>",
-                ),
-                failing_token: token_text(tokens.get(furthest).copied(), "<end>"),
-            };
-            keys.insert(format!(
-                "at:{} {}",
-                position.previous_token, position.failing_token
-            ));
-            Some(position)
+        let (position, context) = if reads {
+            (None, None)
         } else {
-            for word in &result.unknown_words {
-                keys.insert(format!("word:{}", word.text.to_lowercase()));
+            let (position, context) = locate(text, furthest);
+            if result.unknown_words.is_empty() {
+                keys.insert(format!(
+                    "at:{} {}",
+                    position.previous_token, position.failing_token
+                ));
+            } else {
+                for word in &result.unknown_words {
+                    keys.insert(format!("word:{}", word.text.to_lowercase()));
+                }
             }
-            None
+            (Some(position), Some(context))
         };
         lines.push(Line {
             span: (start, end),
@@ -215,6 +276,7 @@ fn inspect_face(
             reading_count: result.checked_readings,
             unknown_words: result.unknown_words,
             position,
+            context,
             keys,
         });
     }
@@ -233,9 +295,45 @@ fn inspect_face(
     })
 }
 
-fn summarize(faces: &[Face]) -> (Summary, Vec<RankedKey>) {
+#[derive(Default, Serialize)]
+struct Rankings {
+    word_keys: Vec<RankedKey>,
+    at_keys: Vec<RankedKey>,
+    failing_tokens: Vec<RankedKey>,
+}
+
+fn rank(entries: BTreeMap<String, RankedKey>) -> Vec<RankedKey> {
+    let mut ranked: Vec<_> = entries.into_values().collect();
+    ranked.sort_by(|a, b| {
+        b.sole_blocker_faces
+            .cmp(&a.sole_blocker_faces)
+            .then_with(|| b.faces.cmp(&a.faces))
+            .then_with(|| a.key.cmp(&b.key))
+    });
+    ranked
+}
+
+fn touch(entries: &mut BTreeMap<String, RankedKey>, key: &str, face: &Face, sole: bool) {
+    let entry = entries.entry(key.into()).or_insert_with(|| RankedKey {
+        key: key.into(),
+        faces: 0,
+        sole_blocker_faces: 0,
+        examples: Vec::new(),
+    });
+    entry.faces += 1;
+    entry.sole_blocker_faces += usize::from(sole);
+    if entry.examples.len() < 3 {
+        entry.examples.push(Example {
+            id: face.id.clone(),
+            name: face.name.clone(),
+        });
+    }
+}
+
+fn summarize(faces: &[Face]) -> (Summary, Rankings) {
     let mut summary = Summary::default();
     let mut ranked = BTreeMap::<String, RankedKey>::new();
+    let mut failing_tokens = BTreeMap::<String, RankedKey>::new();
     for face in faces {
         summary.lines += face.lines.len();
         summary.reading_lines += face.lines.iter().filter(|line| line.reads).count();
@@ -251,33 +349,31 @@ fn summarize(faces: &[Face]) -> (Summary, Vec<RankedKey>) {
         let sole = failed.len() == 1 && failed[0].keys.len() == 1;
         let keys: BTreeSet<_> = failed.iter().flat_map(|line| &line.keys).collect();
         for key in keys {
-            let entry = ranked.entry(key.clone()).or_insert_with(|| RankedKey {
-                key: key.clone(),
-                faces: 0,
-                sole_blocker_faces: 0,
-                examples: Vec::new(),
-            });
-            entry.faces += 1;
-            entry.sole_blocker_faces += usize::from(sole);
-            if entry.examples.len() < 3 {
-                entry.examples.push(Example {
-                    id: face.id.clone(),
-                    name: face.name.clone(),
-                });
-            }
+            touch(&mut ranked, key, face, sole);
+        }
+        let tokens: BTreeSet<_> = failed
+            .iter()
+            .filter(|line| line.unknown_words.is_empty())
+            .filter_map(|line| line.position.as_ref().map(|p| p.failing_token.as_str()))
+            .collect();
+        for token in tokens {
+            touch(&mut failing_tokens, token, face, sole);
         }
     }
-    let mut ranked: Vec<_> = ranked.into_values().collect();
-    ranked.sort_by(|a, b| {
-        b.sole_blocker_faces
-            .cmp(&a.sole_blocker_faces)
-            .then_with(|| b.faces.cmp(&a.faces))
-            .then_with(|| a.key.cmp(&b.key))
-    });
-    (summary, ranked)
+    let (words, positions) = ranked
+        .into_iter()
+        .partition(|(key, _)| key.starts_with("word:"));
+    (
+        summary,
+        Rankings {
+            word_keys: rank(words),
+            at_keys: rank(positions),
+            failing_tokens: rank(failing_tokens),
+        },
+    )
 }
 
-fn write_summary(report: &Report, limit: usize, out: &mut dyn Write) -> Result<()> {
+fn write_summary(report: &Report, limit: Option<usize>, out: &mut dyn Write) -> Result<()> {
     let s = &report.summary;
     writeln!(
         out,
@@ -289,23 +385,29 @@ fn write_summary(report: &Report, limit: usize, out: &mut dyn Write) -> Result<(
         "Line coverage: {} / {}; {} covered-face segmentation disagreements",
         s.reading_lines, s.lines, s.segmentation_disagreements
     )?;
-    writeln!(
-        out,
-        "Blocker keys (sole-blocker faces, touched faces; examples):"
-    )?;
-    for key in report.ranked.iter().take(limit) {
+    for (title, ranked, default_limit) in [
+        ("Vocabulary keys", &report.rankings.word_keys, 60),
+        ("Position keys", &report.rankings.at_keys, 80),
+        ("Failing tokens", &report.rankings.failing_tokens, 40),
+    ] {
         writeln!(
             out,
-            "{}: {}, {}; {}",
-            key.key,
-            key.sole_blocker_faces,
-            key.faces,
-            key.examples
-                .iter()
-                .map(|e| e.name.as_str())
-                .collect::<Vec<_>>()
-                .join(" | ")
+            "{title} (sole-blocker faces, touched faces; examples):"
         )?;
+        for key in ranked.iter().take(limit.unwrap_or(default_limit)) {
+            writeln!(
+                out,
+                "{}: {}, {}; {}",
+                key.key,
+                key.sole_blocker_faces,
+                key.faces,
+                key.examples
+                    .iter()
+                    .map(|e| e.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" | ")
+            )?;
+        }
     }
     Ok(())
 }
@@ -365,13 +467,13 @@ pub(super) fn run(args: &BlockersArgs, data: &Path, out: &mut dyn Write) -> Resu
             })
             .collect::<Result<_>>()
     })?;
-    let (summary, ranked) = summarize(&faces);
+    let (summary, rankings) = summarize(&faces);
     let report = Report {
         census: args.census.clone(),
         census_change_id: input.change_id,
         workers: input.workers,
         summary,
-        ranked,
+        rankings,
         faces,
     };
     if let Some(path) = &args.json {
@@ -426,6 +528,58 @@ mod tests {
     }
 
     #[test]
+    fn word_positions_keep_unicode_braces_numerals_and_context() {
+        let text = "Élan’s well-known 007 {2/W} next, done.";
+        let inside = "Élan’s well-k".chars().count();
+        let (position, context) = locate(text, inside);
+        assert_eq!(position.previous_token, "élan’s");
+        assert_eq!(position.failing_token, "well-known");
+        assert_eq!(context.before, ["élan’s"]);
+        assert_eq!(context.after, ["007", "{2/w}"]);
+        let whitespace = "Élan’s well-known".chars().count();
+        let (position, context) = locate(text, whitespace);
+        assert_eq!(position.failing_token, "007");
+        assert_eq!(context.before, ["élan’s", "well-known"]);
+        assert_eq!(context.after, ["{2/w}", "next"]);
+        assert_eq!(
+            locate(text, "Élan’s well-known 007 {2/".chars().count())
+                .0
+                .failing_token,
+            "{2/w}"
+        );
+        let (position, context) = locate(text, text.chars().count());
+        assert_eq!(position.previous_token, ".");
+        assert_eq!(position.failing_token, "<end>");
+        assert_eq!(context.before, ["done", "."]);
+        assert_eq!(context.after, Vec::<String>::new());
+        assert_eq!(locate(text, text.chars().count() - 1).1.after, ["<end>"]);
+    }
+
+    #[test]
+    fn token_boundaries_select_the_next_token_and_empty_input_ends() {
+        let text = "Draw, a card.";
+        assert_eq!(locate(text, "Draw".chars().count()).0.failing_token, ",");
+        assert_eq!(locate(text, "Draw,".chars().count()).0.failing_token, "a");
+        assert_eq!(locate(text, 0).0.previous_token, "<start>");
+        assert_eq!(locate("", 0).0.failing_token, "<end>");
+    }
+
+    #[test]
+    fn failing_token_ranking_groups_previous_tokens_and_deduplicates_faces() {
+        let sole = inspect("Draw Draw.");
+        let mut multiple = inspect("Draw Draw.\nDraw Draw.");
+        multiple.lines[1].position.as_mut().unwrap().previous_token = "other".into();
+        multiple.lines[1].keys = BTreeSet::from(["at:other .".into()]);
+        let (_, rankings) = summarize(&[sole, multiple]);
+        assert_eq!(rankings.at_keys.len(), 2);
+        assert_eq!(rankings.failing_tokens.len(), 1);
+        let token = &rankings.failing_tokens[0];
+        assert_eq!(token.key, ".");
+        assert_eq!(token.faces, 2);
+        assert_eq!(token.sole_blocker_faces, 1);
+    }
+
+    #[test]
     fn unknown_second_line_is_the_sole_blocker() {
         let face = inspect("Draw a card.\nZzyzx.");
         assert!(face.lines[0].reads);
@@ -435,7 +589,7 @@ mod tests {
         let (summary, ranked) = summarize(&[face]);
         assert_eq!(summary.single_failing_line_faces, 1);
         assert_eq!(summary.vocabulary_only_faces, 1);
-        assert_eq!(ranked[0].sole_blocker_faces, 1);
+        assert_eq!(ranked.word_keys[0].sole_blocker_faces, 1);
     }
 
     #[test]
@@ -445,11 +599,11 @@ mod tests {
         assert!(!line.reads);
         assert!(line.unknown_words.is_empty());
         let position = line.position.as_ref().unwrap();
-        assert_eq!(position.token_index, "Draw Draw".chars().count());
-        assert_eq!(position.previous_token, "w");
+        assert_eq!(position.previous_token, "draw");
         assert_eq!(position.failing_token, ".");
-        assert_eq!(line.keys, BTreeSet::from(["at:w .".into()]));
-        assert_eq!(summarize(&[face]).1[0].sole_blocker_faces, 1);
+        assert_eq!(line.context.as_ref().unwrap().before, ["draw", "draw"]);
+        assert_eq!(line.keys, BTreeSet::from(["at:draw .".into()]));
+        assert_eq!(summarize(&[face]).1.at_keys[0].sole_blocker_faces, 1);
     }
 
     #[test]
@@ -464,7 +618,11 @@ mod tests {
         let (summary, ranked) = summarize(&[face]);
         assert_eq!(summary.unread_faces, 0);
         assert_eq!(summary.reading_lines, summary.lines);
-        assert!(ranked.is_empty());
+        assert!(
+            ranked.word_keys.is_empty()
+                && ranked.at_keys.is_empty()
+                && ranked.failing_tokens.is_empty()
+        );
     }
 
     #[test]
@@ -474,9 +632,10 @@ mod tests {
         assert_eq!(face.lines[1].keys, BTreeSet::from(["word:zzyzx".into()]));
         assert_eq!(face.lines[2].keys, BTreeSet::from(["word:qqxyz".into()]));
         let (_, ranked) = summarize(&[face]);
-        assert_eq!(ranked.len(), 2);
+        assert_eq!(ranked.word_keys.len(), 2);
         assert!(
             ranked
+                .word_keys
                 .iter()
                 .all(|key| key.faces == 1 && key.sole_blocker_faces == 0)
         );
@@ -486,9 +645,9 @@ mod tests {
     fn repeated_unknown_word_touches_a_face_once() {
         let face = inspect("Zzyzx.\nZzyzx.");
         let (_, ranked) = summarize(&[face]);
-        assert_eq!(ranked.len(), 1);
-        assert_eq!(ranked[0].faces, 1);
-        assert_eq!(ranked[0].sole_blocker_faces, 0);
+        assert_eq!(ranked.word_keys.len(), 1);
+        assert_eq!(ranked.word_keys[0].faces, 1);
+        assert_eq!(ranked.word_keys[0].sole_blocker_faces, 0);
     }
 
     #[test]

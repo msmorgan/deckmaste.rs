@@ -67,6 +67,15 @@ Orchestrator rulings 2026-10-10:
 - B4. No Readings are materialised beyond what a line's count needs; run with
   the same worker pool as the census and stay under the census's peak memory.
 
+- B5 (review ruling, 2026-10-10). Report keys use word tokens: maximal runs
+  of letters, digits, apostrophes and hyphens; brace groups are single tokens;
+  other non-space characters are individual tokens. The token containing the
+  furthest position fails; whitespace and boundaries select the next token.
+  Lowercase keys, preserving numerals. Each failing line records two tokens
+  before and after it as context. Print three separately ranked tables: top
+  60 vocabulary keys, top 80 position keys, top 40 failing tokens (ignoring
+  previous tokens), with all three complete in JSON. Parsing is unchanged.
+
 ## Witnesses
 
 Probe-level expectations, each written as an xtask test on a synthetic
@@ -104,8 +113,15 @@ Standard constraints apply. Deltas:
 
 ## Landing record
 
-1. **Report summary** (`sqnyzpnl`; full 32,828 supported faces; schema 8).
-   Coverage agreement checks passed for every face. Report and census used
+1. **Report summary** (original run `sqnyzpnl`; full 32,828 supported faces;
+   schema 8). B5 rerun at `rwplnpkk` failed the required B1 agreement check:
+   Neoform (`420c6dcf-966d-4a4c-a0ef-23037ab8b325#card`) is unread in the
+   original census and covered by incoming `wlstpkpu` (the refresh diff
+   records 0 to 263 Readings). The existing report artifacts remain intact;
+   the summary below is the original character-key report, pending a ruling
+   reconciling B1 with reuse of the pre-refresh census. Error evidence:
+   `target/english-v3/english-v3-blocker-report/b5-blockers-errors.txt`.
+   The original run passed coverage agreement for every face. Report and census used
    six workers; report peak RSS 11,877,316 KiB, below census peak
    14,952,824 KiB (`sqnyzpnl`). Artifacts in the coordinator workspace:
    `target/english-v3/baseline-blockers.json`, `blockers.json`, `blockers.txt`.
@@ -157,9 +173,9 @@ Standard constraints apply. Deltas:
     at:p ,: 42, 46; Goblin Bomb | Goblin Lyre | Ral, Monsoon Mage
     ```
 
-2. **Witnesses** (`sqnyzpnl`). Synthetic line Reading counts: undeclared
+2. **Witnesses** (original counts `sqnyzpnl`; B5 keys/tests `rwplnpkk`). Synthetic line Reading counts: undeclared
    second line `[1, 0]`, key `word:zzyzx`, sole blocker; declared words in
-   wrong order (`Draw Draw.`) `[0]`, key `at:w .`, sole blocker; covered
+   wrong order (`Draw Draw.`) `[0]`, key `at:draw .`, sole blocker; covered
    two-line face `[1, 1]`, no failing line; two failing lines `[1, 0, 0]`,
    keys `word:zzyzx` and `word:qqxyz`, sole blocker for neither. Additional
    tests preserve face-level deduplication for repeated keys and covered
@@ -179,17 +195,21 @@ Standard constraints apply. Deltas:
 4. **Deviations and STOPs**. Exposed the permitted read-only chart statistic
    `Metrics::furthest_position`; kept it out of the census schema. No
    grammar, lexicon, construction, frame or gate changed. Runtime tokens
-   are Unicode scalars; the ticket's prescribed `at:` keys use those tokens,
-   with explicit whitespace and input-boundary labels. Minted
-   `english-v3-blocker-word-context` because the `at:\s t` group combines
-   *this*, *the* and *twice*. Normalized the existing completed
+   are Unicode scalars; B5 uses report-only word tokens to locate keys, with
+   context kept outside the key. The original report minted
+   `english-v3-blocker-word-context` because the `at:\s t` group combined
+   *this*, *the* and *twice*; B5 resolves that follow-up within this ticket,
+   so the superseded planned ticket is removed. Normalized the existing completed
    `english-v3-derived-punctuation-forms` dependency's quoted frontmatter
    ID; the adapter had treated the quotes as part of the ID. Kanban check
    now passes. Two extra tests cover deduplication and modal segmentation.
    Corrected one new test's mistaken frontier expectation against the packed
    probe: the chart reaches the second *Draw* and stops before the full stop.
-   Its exact position/key assertions remain. No glossary gap or unresolved
-   STOP. Tooling exception: no before/after grammar census or red witnesses
+   B5 re-spells that witness against the whole previous token, failing token
+   and context, replacing the incidental scalar-position count. Three added
+   tests cover Unicode/brace/numeral context, boundary selection and grouped
+   failing-token deduplication. No glossary gap. STOP: the B5 full report
+   fails B1 on Neoform after the grammar refresh; resolution pending. Tooling exception: no before/after grammar census or red witnesses
    for this implementation. Refresh brought equality-property grammar work
    (`wlstpkpu`); the bounded re-check found no lost faces or removed Readings.
 
@@ -199,7 +219,7 @@ Standard constraints apply. Deltas:
    712 passed. `cargo clippy -p xtask --tests -- -D warnings` and
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`: both pass.
    Restored 0 / re-spelled 0 / ignored 0 / added 6 / removed 0; removals:
-   none. Existing test assertions are preserved. Citation checks: zero
+   none. B5 re-spells the wrong-order witness as described above. Citation checks: zero
    noncompliant and zero stale references; no newly cited rules.
    After refresh (`qyllylkq`), `cargo test -p xtask` in full passes:
    404 library, 4 binary, and 14 integration tests (422 total), zero
@@ -211,6 +231,14 @@ Standard constraints apply. Deltas:
    passes: 723 tests, zero failures and zero ignored. The pre-refresh
    clippy checks above passed; refresh verification follows the bounded
    census plus full-crate-test policy.
+   B5 (`rwplnpkk`): `cargo test -p xtask english_v3` passes all 56 tests,
+   zero failures and zero ignored. Added 3 / re-spelled 1 / restored 0 /
+   ignored 0 / removed 0 in the review fix; cumulative added 9. The
+   re-spelled wrong-order witness asserts the word-level key and context,
+   as required by B5. `cargo clippy -p xtask --tests -- -D warnings`
+   passes after replacing one new empty-context assertion with an exact
+   empty-vector comparison, as clippy requires. No suppression or weakening.
+   No additional census was run; the report rerun alone failed B1 as above.
 
 6. **Timing** (`sqnyzpnl`). The one full census took **423340 ms**, six
    workers, prebuilt binary under `/usr/bin/time -v`, samples per face 0.

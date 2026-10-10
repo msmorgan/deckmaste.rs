@@ -82,19 +82,24 @@ counts covered faces whose segments differ from newline splitting. A source
 or coverage disagreement with the census fails loudly.
 
 Each failing line has lowercased `word:` keys for unknown words, or an `at:`
-key with the characters before and at the furthest reached chart boundary.
-Chart tokens are Unicode scalars; `\s`, `\t`, and `\n` display whitespace,
-and `<start>` / `<end>` display input boundaries. JSON records the token index
-and line byte span. These keys diagnose failures and never affect admission.
+key made from the previous and failing word tokens. Report-only tokenization
+uses maximal runs of letters, digits, apostrophes and hyphens, whole brace
+groups such as `{2/W}`, and individual non-space punctuation. A chart
+position inside a token selects that token; whitespace and token boundaries
+select the next token. Numerals retain their digits. `<start>` / `<end>`
+identify input boundaries. JSON preserves the Unicode-scalar chart index and
+line byte span, and records two tokens before and after the failing token as
+`context`. These keys diagnose failures and never affect admission.
 “Vocabulary-only” means every failing line has unknown words; it does not
 claim that declaring those words would suffice to make the lines read.
 
 The summary prints unread faces, single-failing-line faces, vocabulary-only
-faces, and reading lines / total lines over the whole census. Keys rank by
-sole-blocker faces, then touched faces, with up to three examples each. A
-sole blocker requires exactly one failing line with exactly one key.
-`--limit` caps printed keys (default 30); JSON retains every key and face,
-including covered-face line verdicts. The census schema is unchanged.
+faces, line coverage and segmentation disagreements. Three tables rank the
+keys by sole-blocker faces, then touched faces: the top 60 `word:` keys,
+top 80 `at:` keys, and top 40 failing tokens (grouping `at:` keys regardless
+of their previous token). Each row has at most three examples; each face is
+counted once per row. `--limit N` overrides all three text limits; JSON's
+`word_keys`, `at_keys` and `failing_tokens` tables are always complete.
 
 ## Raw corpus census
 
