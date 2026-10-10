@@ -133,7 +133,9 @@ english-v3 grep` only.
    Ghoul (**3**) and Nether Shadow (**6**), from the *above* declaration in
    trunk `nqnztuzo`; this ticket contributes **93**. Refresh adds no losses,
    decreases, previously covered increases or digest-only changes
-   (`refresh-diff.json`, `final-diff.json`).
+   (`refresh-diff.json`, `final-diff.json`). The integration refresh census
+   on the empty child of `mklxszxo` is unchanged on all 923 faces
+   (`integration-refresh-diff.json`, `integration-final-diff.json`).
 2. **Witnesses** (`qolzxolt` tree → `nlprwskn`, sentence probes): Abandoned
    Campground, Divinity of Pride, Innocent Bystander, Callous Giant and
    Dragonborn Champion each **0 → 1**; plain-numeral controls each **1 → 1**.
@@ -161,15 +163,24 @@ english-v3 grep` only.
    superseded residual failure was re-spelled as above; the full suite was rerun.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed after
    correcting three borrowing lints, retaining full value comparisons.
-   Post-refresh gates (the empty child of `nlprwskn`): the same full English test command
+   Post-refresh gates (the empty child of `nlprwskn`): the same full English
+   test command
    passed **757** tests, and the same English clippy command passed.
    `cargo test -p xtask english_v3` passed **56** tests (required by incoming
    plugin grammar data). Full data-consumer command:
    `cargo test -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2`
    passed **80 / 470 / 105** tests respectively. Their command
    `cargo clippy -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings`
-   passed. Every suite reported zero failures and ignores.
+   passed. Every suite reported zero failures and ignores. The integration
+   refresh repeated the full suites with
+   `cargo test -p deckmaste_english_v3 -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2`
+   (**757 / 80 / 470 / 105** passed), `cargo test -p xtask english_v3`
+   (**56** passed), and
+   `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings`
+   (passed), all on the empty child of `mklxszxo`, with zero failures or ignores.
    Restored / re-spelled / ignored-with-blocker / added / removed:
    **0 / 1 / 0 / 8 / 0**. No removals to justify.
-6. **Timing** (the empty child of `nlprwskn`): refreshed bounded census **15.83 s** wall under
-   `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`.
+6. **Timing** (the empty child of `nlprwskn`): refreshed bounded census
+   **15.83 s** wall under `/usr/bin/time -v`, **6 workers**,
+   `--samples-per-face 0`. The integration refresh census on the empty child
+   of `mklxszxo` took **17.17 s** with the same settings.
