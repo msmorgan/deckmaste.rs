@@ -67,10 +67,17 @@ def QualitySort.replaceable : QualitySort → Bool
   | .color | .subtype .land => true
   | _ => false
 
-/-- A replaced word that names something other than the row's sort. -/
-def TextWord.sortCheck (sort : QualitySort) : Option TextWord → List Refusal
+/-- A replaced word that names none of the row's sorts. -/
+def TextWord.sortCheck (sorts : List QualitySort) : Option TextWord → List Refusal
   | none => []
-  | some w => if w.sort == sort then [] else [.kindMismatch (.quality sort) (.quality w.sort)]
+  | some w =>
+    if sorts.contains w.sort then []
+    else [.kindMismatch (.quality (sorts.headD .color)) (.quality w.sort)]
+
+/-- A word replaced by a word of another kind. -/
+def TextWord.sameSort : Option TextWord → Option TextWord → List Refusal
+  | some a, some b => if a.sort == b.sort then [] else [.kindMismatch (.quality a.sort) (.quality b.sort)]
+  | _, _ => []
 
 /-- Kinds only: what a Text Change names is checked, and the rewritten text is not
 [CR#612.1]. -/
@@ -78,9 +85,10 @@ def TextChange.check (bs : Bindings) : TextChange → List Refusal
   | .removeBracketed | .targetToEach => []
   | .appendTextOf source => NounPhrase.check (some .object) bs source
   | .exchangeWith other => NounPhrase.check (some .object) bs other
-  | .replaceWord sort from_ to =>
-    (if sort.replaceable then [] else [.kindMismatch (.quality .color) (.quality sort)]) ++
-      TextWord.sortCheck sort from_ ++ TextWord.sortCheck sort to
+  | .replaceWord sorts from_ to =>
+    refuse (!sorts.isEmpty) .nonEmpty ++
+      (sorts.filter (!·.replaceable)).map (fun sort => .kindMismatch (.quality .color) (.quality sort)) ++
+      TextWord.sortCheck sorts from_ ++ TextWord.sortCheck sorts to ++ TextWord.sameSort from_ to
 
 def CostShift.check (bs : Bindings) : CostShift → List Refusal
   | .less amt floor =>

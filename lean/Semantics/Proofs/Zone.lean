@@ -263,18 +263,19 @@ theorem badEmptyOr : Predicate.check .object [] (.or []) = [.nonEmpty] := by dec
 /-- "artifact or artifact" -/
 theorem okRepeatedDisjunct : Predicate.check .object [] (.or [artifact, artifact]) = [] := by decide
 
-/-- "artifact or attacking" -/
-theorem badHeadlessDisjunct :
-    Predicate.check .object [] (.or [artifact, attacking]) = [.parallelDisjuncts] := by decide
+/-- "artifact or attacking": accepted since `parallelDisjuncts` retired (ruling 2026-10-09). -/
+theorem okHeadlessDisjunct :
+    Predicate.check .object [] (.or [artifact, attacking]) = [] := by decide
 
 /-- "in your hand or in your graveyard" -/
-theorem badCrossZoneDisjunction :
-    Predicate.check .object [] (.or [.inZone hand, .inZone graveyard]) = [.parallelDisjuncts] := by
+theorem okCrossZoneDisjunction :
+    Predicate.check .object [] (.or [.inZone hand, .inZone graveyard]) = [] := by
   decide
 
-/-- "spell or permanent" -/
-theorem badSpellOrPermanentSubject :
-    Predicate.check .object [] (.or [spell, permanent]) = [.parallelDisjuncts] := by decide
+/-- "spell or permanent": both are objects, and the join is a legal subject (owner ruling
+2026-10-09, retiring `parallelDisjuncts`). -/
+theorem okSpellOrPermanentSubject :
+    Predicate.check .object [] (.or [spell, permanent]) = [] := by decide
 
 /-- "Destroy target creature if it's on the battlefield." -/
 theorem okMatchesZoneFits :

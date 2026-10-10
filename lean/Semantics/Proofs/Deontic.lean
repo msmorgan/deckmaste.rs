@@ -101,11 +101,11 @@ theorem okRepeatedComparisonDisjunct :
   decide
 
 /-- "with power 2 or less or mana value 3 or less" -/
-theorem badMixedCharacteristicDisjunct :
+theorem okMixedCharacteristicDisjunct :
     Predicate.check .object []
       (.or
         [ .compare [.stat .power] .atMost (.lit 2),
-          .compare [.stat .manaValue] .atMost (.lit 3) ]) = [.parallelDisjuncts] := by
+          .compare [.stat .manaValue] .atMost (.lit 3) ]) = [] := by
   decide
 
 /-- "You pay 2 life." -/

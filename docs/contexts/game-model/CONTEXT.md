@@ -529,7 +529,8 @@ A continuous effect that changes an Object's rules text, applied in layer 3
 ([CR#612.1,613.1c]): removing the bracketed words (cleave, [CR#702.148a]),
 changing "target" to "each" (overload, [CR#702.96a]), adding another card's
 rules text after the spell's own (splice, [CR#612.10]), replacing one
-color or land type word with another ([CR#612.2]), or exchanging two
+word of a named kind, a color word or a land type word, with another of
+that kind ([CR#612.2]), or exchanging two
 objects' rules text ([CR#612.5,701.12h]). It changes words used in their
 rules sense only.
 _Avoid_: readings, alternative readings (a card is written once)

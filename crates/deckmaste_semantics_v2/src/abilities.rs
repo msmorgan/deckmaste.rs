@@ -166,11 +166,13 @@ pub enum TextChange {
     /// Appends the rules text of `source` after the subject's own, which it
     /// neither modifies nor replaces (splice [CR#702.47a,702.47c,612.10]).
     AppendTextOf { source: NounPhrase },
-    /// Replaces every instance of the word `from` of `sort`, used in its rules
-    /// sense, with the word `to`; `None` is a word of the performer's choice
-    /// [CR#612.2] ("one basic land type with another").
+    /// Replaces every instance of the word `from`, used in its rules sense,
+    /// with the word `to` of the same kind, the kind one of `sorts`; `None` is
+    /// a word of the performer's choice, made as the effect applies
+    /// [CR#612.2] ("one color word with another or one basic land type with
+    /// another").
     ReplaceWord {
-        sort: QualitySort,
+        sorts: Vec<QualitySort>,
         from: Option<TextWord>,
         to: Option<TextWord>,
     },

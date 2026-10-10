@@ -1091,11 +1091,11 @@ semantic_macro removeBracketed : TextChange := .removeBracketed
 semantic_macro targetToEach : TextChange := .targetToEach
 /-- "Gains the text of <source>'s rules text" (splice [CR#702.47a,612.10]). -/
 semantic_macro appendTextOf (source : NounPhrase) : TextChange := .appendTextOf source
-/-- "Replace all instances of one <sort> word with another" [CR#612.2]; an absent word is the
-performer's choice. -/
-semantic_macro replaceWord (sort : QualitySort) (from_ : Option TextWord := none)
+/-- "Replace all instances of one <sort> word with another", the kind one of `sorts` [CR#612.2];
+an absent word is the performer's choice. -/
+semantic_macro replaceWord (sorts : List QualitySort) (from_ : Option TextWord := none)
     (to : Option TextWord := none) : TextChange :=
-  .replaceWord sort from_ to
+  .replaceWord sorts from_ to
 /-- Exchange the subject's rules text with `other`'s [CR#612.5,701.12h]. -/
 semantic_macro exchangeWith (other : NounPhrase) : TextChange := .exchangeWith other
 

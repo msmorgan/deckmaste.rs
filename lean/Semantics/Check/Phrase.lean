@@ -679,17 +679,6 @@ def Predicate.phraseZone (k : Kind) (p : Predicate) : Option Zone :=
 
 def countOthers (ps : List Predicate) : Nat := (ps.filter Predicate.isOther).length
 
-def Predicate.armPresupposes (p : Predicate) : Option CardType :=
-  if p.hasHead then none else p.seedType
-
-def seedsUniform (z : Option Zone) (t : Option CardType) : List Predicate → Bool
-  | [] => true
-  | p :: ps => z == p.seedZone && t == p.armPresupposes && seedsUniform z t ps
-
-def parallelDisjuncts : List Predicate → Bool
-  | [] => true
-  | p :: ps => seedsUniform p.seedZone p.armPresupposes ps
-
 def coordinableAll (ps : List Predicate) : Bool := ps.all fun p => !p.hasOther
 
 def Predicate.negatable : Predicate → Bool

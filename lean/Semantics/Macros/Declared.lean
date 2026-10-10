@@ -3881,8 +3881,8 @@ semantic_macro removeBracketed : Semantics.TextChange :=
   Semantics.TextChange.removeBracketed
 
 /-- `text_changes/replaceWord.ron` -/
-semantic_macro replaceWord (sort : Semantics.QualitySort) (from_ : (Option Semantics.TextWord) := none) (to : (Option Semantics.TextWord) := none) : Semantics.TextChange :=
-  (Semantics.TextChange.replaceWord sort from_ to)
+semantic_macro replaceWord (sorts : (List Semantics.QualitySort)) (from_ : (Option Semantics.TextWord) := none) (to : (Option Semantics.TextWord) := none) : Semantics.TextChange :=
+  (Semantics.TextChange.replaceWord sorts from_ to)
 
 /-- `text_changes/targetToEach.ron` -/
 semantic_macro targetToEach : Semantics.TextChange :=

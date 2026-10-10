@@ -52,19 +52,32 @@ theorem okRemoveBracketedWithoutBrackets :
 another." [CR#612.2] -/
 theorem okReplaceLandTypeWord :
     Instruction.check []
-      (.establish (textChange (target permanent) (replaceWord (.subtype .land))) none) = [] := by
+      (.establish (textChange (target permanent) (replaceWord [.subtype .land])) none) = [] := by
   decide
 
 /-- "… one color word with Swamp": a replaced word of another sort than the row's is refused. -/
 theorem badReplaceWordSort :
     Instruction.check []
       (.establish (textChange (target permanent)
-        (replaceWord .color none (some (.basicLandType (landType "Swamp"))))) none)
+        (replaceWord [.color] none (some (.basicLandType (landType "Swamp"))))) none)
+      = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
+
+/-- "Change the text of target spell or permanent by replacing all instances of one color word
+with another or one basic land type with another." [CR#612.2] -/
+theorem okReplaceColorOrLandTypeWord :
+    Instruction.check []
+      (.establish (textChange (target (.or [spell, permanent]))
+        (replaceWord [.color, .subtype .land])) none) = [] := by decide
+
+/-- "… one color word with Swamp": a word replaced by a word of another kind is refused. -/
+theorem badReplaceAcrossKinds :
+    TextChange.check [] (.replaceWord [.color, .subtype .land] (some (.color .black))
+      (some (.basicLandType (landType "Swamp"))))
       = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
 
 /-- A name is not a word a Text Change replaces [CR#612.2]. -/
 theorem badReplaceWordCardName :
-    TextChange.check [] (.replaceWord .cardName none none)
+    TextChange.check [] (.replaceWord [.cardName] none none)
       = [.kindMismatch (.quality .color) (.quality .cardName)] := by decide
 
 /-- Cleave's definition: the alternative cost, and the Text Change under its paid cost

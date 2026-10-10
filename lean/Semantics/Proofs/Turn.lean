@@ -290,11 +290,11 @@ theorem okAbilityDisjunctionActivated :
   decide
 
 /-- "Activated abilities and creatures can't be activated.": one arm is no ability, so the
-disjunction seeds none, and the arms do not parallel each other either. -/
+disjunction seeds none. -/
 theorem badMixedDisjunctionActivated :
     StaticSpec.check []
       (objectCant (.action "activate") (allOf (.or [.abilityHead .anyActivated, creature])))
-      = [.parallelDisjuncts, .deedFits] := by
+      = [.deedFits] := by
   decide
 
 /-- "At the beginning of your upkeep, draw a card." -/

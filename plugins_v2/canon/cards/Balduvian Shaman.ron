@@ -18,7 +18,7 @@ SingleFaced(face: (
                     establish(
                         textChange(
                             target(and([enchantment, colorIs(White), youControl, not(hasKeyword(The(cumulativeUpkeep)))])),
-                            replaceWord(Color),
+                            replaceWord([Color]),
                         ),
                     ),
                     establish(abilityGrant(that(Enchantment), cumulativeUpkeep(mana([1])))),

@@ -343,6 +343,12 @@ mimicked.
   kept. They check that a term is a well-formed card at all, not what an
   instruction does, so the impossible-instruction argument does not reach
   them, and they do not move when the instruction model moves.)
+  (Note, 2026-10-09, owner ruling: `parallelDisjuncts`, which refused a
+  disjunction whose arms seed different zones or presuppose different card
+  types ("spell or permanent"), is retired as neither reference nor kind,
+  since such a join of objects is a legal subject; its pins, among them
+  `badSpellOrPermanentSubject`, are re-spelled to the new outcome,
+  `semantics-v2-text-changes`.)
 - **A macro's referent parameter is bound at its first mention; later
   mentions refer back.** A referent parameter (`Subject`, `NounPhrase`) of a
   registry macro is introduced by the body's first mention of it; every later

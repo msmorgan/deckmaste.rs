@@ -1,0 +1,13 @@
+// "Change the text of target spell or permanent by replacing all instances of
+// one basic land type with another. (This effect lasts indefinitely.)"
+// [CR#612.2]: both words are the caster's choice.
+SingleFaced(face: (
+    characteristics: (
+        name: "Magical Hack",
+        cost: [Blue],
+        types: [Instant],
+        text: [
+            spell(establish(textChange(target(or([spell, permanent])), replaceWord([Subtype(host: Land)])))),
+        ],
+    ),
+))

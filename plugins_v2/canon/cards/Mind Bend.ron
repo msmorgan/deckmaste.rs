@@ -1,0 +1,14 @@
+// "Change the text of target permanent by replacing all instances of one color
+// word with another or one basic land type with another. (This effect lasts
+// indefinitely.)" [CR#612.2]: the kind of word and both words are the
+// caster's choice as the effect applies.
+SingleFaced(face: (
+    characteristics: (
+        name: "Mind Bend",
+        cost: [Blue],
+        types: [Instant],
+        text: [
+            spell(establish(textChange(target(permanent), replaceWord([Color, Subtype(host: Land)])))),
+        ],
+    ),
+))

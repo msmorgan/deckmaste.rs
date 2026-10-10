@@ -1,16 +1,11 @@
-// "Replace all instances of one <sort> word with another": a color word or a
-// land type word, used as one [CR#612.2]. An absent word is one the performer
-// chooses.
-//
-// STOP (owner ruling wanted). One row is one sort, so Mind Bend and Trait
-// Doctoring ("one color word with another OR one basic land type with
-// another") have no single row: the sort is chosen as the effect applies, not
-// as the spell is cast. And Magical Hack, Sleight of Mind, Alter Reality,
-// Glamerdye and Crystal Spray target a "spell or permanent", which the
-// checker refuses as a cross-zone disjunction (`badSpellOrPermanentSubject`).
+// "Replace all instances of one <sort> word with another", the kind one of
+// <sorts>: a color word or a land type word, used as one [CR#612.2]. An
+// absent word is one the performer chooses as the effect applies, so "one
+// color word with another or one basic land type with another" is
+// `replaceWord([Color, Subtype(host: Land)])`.
 (
     name: "replaceWord",
     kinds: [TextChange],
-    params: {"sort": Any, "from": Default(Any, None), "to": Default(Any, None)},
-    body: ReplaceWord(Param(sort), Param(from), Param(to)),
+    params: {"sorts": Any, "from": Default(Any, None), "to": Default(Any, None)},
+    body: ReplaceWord(Param(sorts), Param(from), Param(to)),
 )

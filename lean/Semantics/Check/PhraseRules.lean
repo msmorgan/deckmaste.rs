@@ -209,7 +209,6 @@ mutual
         kindCheck k (Predicate.kindOfAll ps) ++ Predicate.checkEachIn gap k bs ps
       else
         Predicate.checkAllIn gap k bs ps ++ refuse (!ps.isEmpty) .nonEmpty ++
-          refuse (parallelDisjuncts ps) .parallelDisjuncts ++
           refuse (coordinableAll ps) .coordinableDisjuncts
     | .not p => Predicate.checkIn gap k bs p ++ refuse p.negatable .negatable
     | .other => refuse (anyTargeted k bs) (.anyTargeted k)

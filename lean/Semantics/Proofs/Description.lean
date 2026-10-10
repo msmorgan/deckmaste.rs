@@ -123,8 +123,8 @@ theorem okWholeZoneJoin :
   decide
 
 /-- "attacking artifact or land" -/
-theorem badPartialZoneJoin :
-    Predicate.check .object [] (.or [.and [artifact, attacking], land]) = [.parallelDisjuncts] := by
+theorem okPartialZoneJoin :
+    Predicate.check .object [] (.or [.and [artifact, attacking], land]) = [] := by
   decide
 
 /-- "creature you control or artifact you control" -/

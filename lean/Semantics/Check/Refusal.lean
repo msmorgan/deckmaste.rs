@@ -98,7 +98,6 @@ inductive Refusal where
   | flatDisjuncts
   | contradictionFree
   | otherAnchored
-  | parallelDisjuncts
   | coordinableDisjuncts
   | negatable
   | uniquifying

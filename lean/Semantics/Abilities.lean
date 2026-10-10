@@ -63,10 +63,11 @@ inductive TextChange where
   /-- Appends the rules text of `source` after the subject's own, which it neither modifies nor
   replaces (splice [CR#702.47a,702.47c,612.10]). -/
   | appendTextOf (source : NounPhrase)
-  /-- Replaces every instance of the word `from_` of `sort`, used in its rules sense, with the
-  word `to`; `none` is a word of the performer's choice [CR#612.2] ("one basic land type with
+  /-- Replaces every instance of the word `from_`, used in its rules sense, with the word `to`
+  of the same kind, the kind one of `sorts`; `none` is a word of the performer's choice, made as
+  the effect applies [CR#612.2] ("one color word with another or one basic land type with
   another"). -/
-  | replaceWord (sort : QualitySort) (from_ : Option TextWord) (to : Option TextWord)
+  | replaceWord (sorts : List QualitySort) (from_ : Option TextWord) (to : Option TextWord)
   /-- Exchanges the rules text of the subject and `other`: each one's rules text becomes the
   other's previous rules text [CR#612.5,701.12h]. -/
   | exchangeWith (other : NounPhrase)

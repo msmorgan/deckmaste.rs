@@ -67,7 +67,8 @@ None by name. Refresh before integrate; expect conflicts in
 ## Landing record
 
 Measured on `zrlsqmuu` (stages `yylkqrtz`, `loxmlxys`, `lvqmtkuq`, `oxnuosrr`,
-`zrlsqmuu`; record `ylootmny`).
+`zrlsqmuu`; record `ylootmny`), and on `@` after the 2026-10-09 owner ruling
+round (the last commit).
 
 1. **Census delta**: none. No English grammar, lexicon or spelling changed, so
    no census was run; covered faces and Readings are unchanged. Lost faces:
@@ -77,8 +78,9 @@ Measured on `zrlsqmuu` (stages `yylkqrtz`, `loxmlxys`, `lvqmtkuq`, `oxnuosrr`,
    [that wasn't cast from its owner's hand]"); cleave with a predicate and an
    instruction bracket, Dig Up ("[basic land]", "[reveal it,]"); overload,
    Vandalblast; splice with a non-mana cost, Torrent of Stone ("Splice onto
-   Arcane—Sacrifice two Mountains"); `replaceWord`, Balduvian Shaman (see
-   item 4 for why not Mind Bend). The re-spelled Text Box Exchange Probe
+   Arcane—Sacrifice two Mountains"); `replaceWord`, Mind Bend (a color word
+   or a basic land type), Magical Hack (target spell or permanent) and
+   Balduvian Shaman. The re-spelled Text Box Exchange Probe
    proves in testing 8/8. Pins in `lean/Semantics/Proofs/TextChanges.lean`:
    `bracketedKindMismatchStillRefused` (a bracketed mismatched kind is refused
    exactly as without brackets) and `okRemoveBracketedWithoutBrackets` (the
@@ -94,18 +96,23 @@ Measured on `zrlsqmuu` (stages `yylkqrtz`, `loxmlxys`, `lvqmtkuq`, `oxnuosrr`,
    splice(hasSubtype(arcane), perform(sacrifice(counted(exactly(2),
    and([hasSubtype(mountain), youControl])))))`; Balduvian Shaman `{T}:
    establish(textChange(target(white enchantment you control without
-   cumulative upkeep), replaceWord(Color)))`, then the grant of cumulative
-   upkeep {1}. Only five faces were added, so there are five, not ten.
+   cumulative upkeep), replaceWord([Color])))`, then the grant of cumulative
+   upkeep {1}; Mind Bend `spell(establish(textChange(target(permanent),
+   replaceWord([Color, Subtype(host: Land)]))))`; Magical Hack
+   `spell(establish(textChange(target(or([spell, permanent])),
+   replaceWord([Subtype(host: Land)]))))`. Only seven faces were added, so
+   there are seven, not ten.
 4. **Deviations and STOPs**.
-   - STOP (owner ruling wanted), recorded in `text_changes/replaceWord.ron`:
-     Mind Bend and Trait Doctoring replace "one color word with another or
-     one basic land type with another", a sort chosen as the effect applies,
-     which one `replaceWord (sort)` row cannot state; Magical Hack, Sleight of
-     Mind, Alter Reality, Glamerdye and Crystal Spray target "spell or
-     permanent", which the checker refuses as a cross-zone disjunction
-     (`badSpellOrPermanentSubject`, existing). Balduvian Shaman, a
-     single-sort word replacement on "target permanent", is the witness in
-     their place.
+   - The STOP first recorded here (Mind Bend's two kinds of word, and
+     "spell or permanent" refused by `parallelDisjuncts`) is cleared by the
+     owner ruling of 2026-10-09: `replaceWord` takes `sorts : List
+     QualitySort` ("one of these kinds of word"), and `parallelDisjuncts` is
+     retired under the checker charter (a join of objects is a legal
+     subject), recorded as a dated note in §7's checker-sweep paragraph. The
+     refusal constructor and its helpers `seedsUniform`, `parallelDisjuncts`
+     and `Predicate.armPresupposes` are deleted.
+   - `replaceWord` also refuses an empty `sorts` (`nonEmpty`) and a replaced
+     word whose kind differs from the replacing word's (`kindMismatch`).
    - Added a fifth `TextChange` row, `exchangeWith (other)`
      [CR#612.5,701.12h], because the ruling re-spells `Exchanged.textBoxes`
      against `textChange` and none of the four named rows exchanges two texts.
@@ -145,7 +152,7 @@ Measured on `zrlsqmuu` (stages `yylkqrtz`, `loxmlxys`, `lvqmtkuq`, `oxnuosrr`,
    - The known limit is as the ticket states: a rewrite is defined on terms,
      and a card prints its brackets where they stand.
    - Glossary: Text Change amended to list the text-box exchange
-     [CR#612.5,701.12h]. Newly blessed rules: [CR#702.96b,702.148b], each read
+     [CR#612.5,701.12h] and to say a word is replaced by another of its kind. Newly blessed rules: [CR#702.96b,702.148b], each read
      against its citing claim.
    - `Declared.lean` regeneration also refreshed the stale `typecycling`
      module from trunk, as briefed.
@@ -178,5 +185,31 @@ Measured on `zrlsqmuu` (stages `yylkqrtz`, `loxmlxys`, `lvqmtkuq`, `oxnuosrr`,
    now 101) and clippy runs, `facts check`, `lean macros check` and `cite
    check` were rerun with the same outcomes; `lean check` and `lean
    definitions` were not rerun.
-6. **Timing**: no census run. `cargo xtask lean check` 180 s wall (2 min 59.8), one
-   `lake` process.
+   Ruling round (on `@`, the last commit): `lake build --wfail` clean (94
+   jobs); `cargo test -p deckmaste_semantics_v2` 101 passed; `cargo test -p
+   xtask` 416 passed, 1 ignored (existing); clippy clean for both; `cargo
+   xtask lean check` canon 190/190 (trunk's cards plus Mind Bend and Magical
+   Hack), testing 8/8; `cargo xtask lean definitions` 708/708; `lean macros
+   check`, `facts check`, `cite check` (0 stale, none non-compliant) pass.
+   Re-spelled by the ruling, each a deliberate retirement with a new
+   asserted outcome, none deleted: `badSpellOrPermanentSubject` →
+   `okSpellOrPermanentSubject`, `badHeadlessDisjunct` → `okHeadlessDisjunct`,
+   `badCrossZoneDisjunction` → `okCrossZoneDisjunction` (`Proofs/Zone.lean`),
+   `badPartialZoneJoin` → `okPartialZoneJoin` (`Proofs/Description.lean`),
+   `badMixedCharacteristicDisjunct` → `okMixedCharacteristicDisjunct`
+   (`Proofs/Deontic.lean`), all now `= []`, and `badMixedDisjunctionActivated`
+   (`Proofs/Turn.lean`) from `[parallelDisjuncts, deedFits]` to `[deedFits]`;
+   `okReplaceLandTypeWord`, `badReplaceWordSort` and `badReplaceWordCardName`
+   re-spelled to the list form, same outcomes. Added
+   `okReplaceColorOrLandTypeWord` and `badReplaceAcrossKinds`, and the Mind
+   Bend and Magical Hack canon cards. Totals for the landing: restored 0,
+   re-spelled 11 (2 + 6 + 3), ignored 0, added 14 pins and 7 canon cards,
+   removed 0. After the ruling round's refresh onto `semantics-v2-linked-readback`
+   (conflicts beside `addsTarget` in `Abilities.lean` and the mirror, the
+   expansion samples and the generated modules, resolved keeping both sides
+   and regenerating), `lake build --wfail` (95 jobs), `cargo test -p
+   deckmaste_semantics_v2` (104 passed), `cargo test -p xtask` (416 passed, 1
+   ignored), clippy, `lean macros check`, `facts check` and `cite check` were
+   rerun clean; `lean check` and `lean definitions` were not rerun.
+6. **Timing**: no census run. `cargo xtask lean check` 333 s wall on the
+   ruling round (5 min 32.7), one `lake` process.
