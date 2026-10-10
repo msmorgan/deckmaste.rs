@@ -174,6 +174,9 @@ fn every_ported_alias_expands() {
     reads! {
         Amount: "countOf(p: AnyPlayer)",
         Amount: "aggregate(op: Sum, axis: Stat(stat: Power), p: AnyPlayer)",
+        Amount: "aggregateOf(op: Sum, amounts: [1, 2])",
+        Amount: "smallerOf(a: 1, b: countersOn(kind: p1p1Counter, holder: You))",
+        Amount: "greaterOf(a: 1, b: 2)",
         Predicate: "ofChosen(sort: Color)",
         Predicate: "castBy(player: You)",
         NounPhrase: "theRest(kind: Object)",

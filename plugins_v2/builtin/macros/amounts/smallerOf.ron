@@ -1,0 +1,8 @@
+// "the smaller of <a> and <b>", "<a> or <b>, whichever is smaller"
+// [CR#704.5q]: the minimum over the two listed amounts.
+(
+    name: "smallerOf",
+    kinds: [Amount],
+    params: {"a": Amount, "b": Amount},
+    body: AggregateOf(Min, [Param(a), Param(b)]),
+)

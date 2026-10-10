@@ -449,6 +449,10 @@ semantic_macro chapterAbilityOf (saga : NounPhrase) : Predicate :=
 semantic_macro plus (left right : Amount) : Amount := .arith .plus left right
 semantic_macro minus (left right : Amount) : Amount := .arith .minus left right
 semantic_macro times (per amount : Amount) : Amount := .arith .times per amount
+/-- "the smaller of <a> and <b>", "<a> or <b>, whichever is smaller" [CR#704.5q]. -/
+semantic_macro smallerOf (a b : Amount) : Amount := .aggregateOf .min [a, b]
+/-- "the greater of <a> and <b>", "<a> or <b>, whichever is greater". -/
+semantic_macro greaterOf (a b : Amount) : Amount := .aggregateOf .max [a, b]
 /-- "that much damage prevented this way" -/
 semantic_macro preventedThisWay : Amount := .theOutcome .damagePrevented
 /-- "N for each <p>" -/

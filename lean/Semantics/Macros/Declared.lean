@@ -700,6 +700,10 @@ semantic_macro void (arg0 : Semantics.Ability) : Semantics.Ability :=
 semantic_macro willOfTheCouncil (arg0 : Semantics.Ability) : Semantics.Ability :=
   (Semantics.Ability.italicHead (Semantics.ItalicWord.abilityWord "Will of the council") arg0)
 
+/-- `amounts/aggregateOf.ron` -/
+semantic_macro aggregateOf (op : Semantics.AggregateOp) (amounts : (List Semantics.Amount) := []) : Semantics.Amount :=
+  (Semantics.Amount.aggregateOf op amounts)
+
 /-- `amounts/aggregateOver.ron` -/
 semantic_macro aggregateOver (op : Semantics.AggregateOp) (domain : Semantics.Predicate) (body : Semantics.Amount) : Semantics.Amount :=
   (Semantics.Amount.aggregateOver op domain body)
@@ -739,6 +743,10 @@ semantic_macro finalChapterNumber (saga : Semantics.NounPhrase) : Semantics.Amou
 /-- `amounts/forEach.ron` -/
 semantic_macro forEach (per : Semantics.Amount) (p : Semantics.Predicate) : Semantics.Amount :=
   (Semantics.Amount.arith Semantics.ArithOp.times per (Semantics.Amount.countOf (Semantics.NounPhrase.described Semantics.DetPhrase.bare p)))
+
+/-- `amounts/greaterOf.ron` -/
+semantic_macro greaterOf (a : Semantics.Amount) (b : Semantics.Amount) : Semantics.Amount :=
+  (Semantics.Amount.aggregateOf Semantics.AggregateOp.max [a, b])
 
 /-- `amounts/greatestStoredMatch.ron` -/
 semantic_macro greatestStoredMatch (subject : Semantics.NounPhrase) : Semantics.Amount :=
@@ -791,6 +799,10 @@ semantic_macro preventedThisWay : Semantics.Amount :=
 /-- `amounts/set.ron` -/
 semantic_macro set (amount : Semantics.Amount) : (Semantics.Delta Semantics.Amount) :=
   (Semantics.Delta.set amount)
+
+/-- `amounts/smallerOf.ron` -/
+semantic_macro smallerOf (a : Semantics.Amount) (b : Semantics.Amount) : Semantics.Amount :=
+  (Semantics.Amount.aggregateOf Semantics.AggregateOp.min [a, b])
 
 /-- `amounts/speedOf.ron` -/
 semantic_macro speedOf (player : Semantics.NounPhrase) : Semantics.Amount :=
@@ -931,6 +943,10 @@ semantic_macro grants (keyword : Semantics.KeywordLabel) : Semantics.Conferral :
 /-- `conferrals/playableFrom.ron` -/
 semantic_macro playableFrom (zone : Semantics.ZoneExpr) (timing : Semantics.Timing) : Semantics.Conferral :=
   (Semantics.Conferral.property (Semantics.StaticSpec.deonticRule Semantics.NounPhrase.you Semantics.Compulsion.permit [(Semantics.Deed.action "play")] Semantics.Role.agent none (Semantics.DeonticPatient.counterpart Semantics.NounPhrase.this) none (Semantics.DeonticRider.play (some zone) none (some timing) false Semantics.PlayPayment.itsOwnCost) none))
+
+/-- `conferrals/stateBased.ron` -/
+semantic_macro stateBased (when : Semantics.Condition) (then_ : Semantics.Instruction) : Semantics.Conferral :=
+  (Semantics.Conferral.stateBased when then_)
 
 /-- `determiners/a.ron` -/
 semantic_macro a (p : Semantics.Predicate) : Semantics.NounPhrase :=

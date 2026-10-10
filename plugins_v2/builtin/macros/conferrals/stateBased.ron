@@ -1,0 +1,11 @@
+// `Conferral.StateBased` under Lean's own name for it: "if <when> holds, the
+// game performs <then>" as a state-based action [CR#704.1], once per holder
+// of the definition's subject per check [CR#704.3] (ruling 2026-10-10). Its
+// condition and instruction read `This` as that holder and may read counts,
+// including the count of the definition's own counter kind.
+(
+    name: "stateBased",
+    kinds: [Conferral],
+    params: {"when": Condition, "then": Instruction},
+    body: StateBased(when: Param(when), then: Param(then)),
+)
