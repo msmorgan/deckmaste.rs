@@ -685,6 +685,42 @@ mimicked.
   toxic are damage results: rows in the facts table plus an engine rule,
   with no definition body [CR#120.3,702.90b,702.15b,702.80a,702.164c].
   (Ruling, 2026-10-09, owner.)
+- **Enchant is not settled empty.** The Enchant keyword owns three abilities
+  [CR#702.5a]: the target restriction while the Aura is a spell, its targets
+  limited to the quality [CR#303.4a]; the legal-host permission, a deontic
+  "may attach to [quality]" [CR#303.4c]; and the mandatory entry clause
+  `asEvent(enters(this), sequentially([choose(a(Param(0))), attach(this,
+  that(…))]))`, "if able" being what an empty choice domain already means
+  [CR#303.4f,303.4g,101.3]. For the deontic, `attach` gains patient and host
+  roles and `DeonticPatient` a host-bearing form, so Equipment's "attach only
+  to a creature" [CR#301.5] and Fortification's "only to a land" [CR#301.6] are
+  the same deontic on their subtype definitions, as `Conferral.property`.
+  (Ruling, 2026-10-10, owner; `semantics-v2-subtype-rules`.)
+- **The subtype state-based rows are conferrals.** Aura [CR#704.5m],
+  Equipment and Fortification [CR#704.5n] and Saga [CR#704.5s] confer
+  `Conferral.stateBased` on their definitions; there is no `SbaRule` row and
+  no `legallyAttached` primitive. Aura's reads "is not attached" and moves it
+  to the graveyard, and Equipment's and Fortification's read the same
+  condition and become unattached; the illegal-host half of [CR#704.5m] is the
+  engine's attach-permission model under default-deny and is not written.
+  Saga's compares its lore counters with its final chapter number
+  [CR#714.4]; where "a chapter ability that has triggered but not yet left the
+  stack" has no spelling, the clause is a named residue, the one Siege's
+  [CR#704.5v] also omits. (Ruling, 2026-10-10, owner;
+  `semantics-v2-subtype-rules`.)
+- **Chapter is a projection axis.** `ProjAxis.chapter` projects an object's
+  own chapter abilities, folded by the existing `aggregate`, so "the final
+  chapter number" is `aggregate(max, chapter, this)` [CR#714.2d]. Read
+  ahead's STOP clears where its body becomes writable with it
+  [CR#702.155a,702.155b]; what is still missing is named on the declaration.
+  (Ruling, 2026-10-10, owner; `semantics-v2-subtype-rules`.)
+- **A Saga's entry and main-phase counters are an ability and a turn-based
+  action.** The entry is `Conferral.ability(static(asEvent(enters(this),
+  establish(entersWithCounters(this, 1, loreCounter)))))`, applying only
+  without read ahead [CR#714.3a,614.1c], and the precombat main phase counter
+  is `Conferral.turnBased(firstMain, putCounters(1, loreCounter, this))`
+  [CR#714.3c,703.1]. (Ruling, 2026-10-10, owner;
+  `semantics-v2-subtype-rules`.)
 
 ## 8. Process
 
