@@ -228,7 +228,6 @@
     (identity: Guess, bare: "guess", third_person: "guesses", frames: [Predicate([])]),
     (identity: Lock, bare: "lock", third_person: "locks", frames: [Predicate([ObjectNounPhrase])]),
     (identity: Mark, bare: "mark", third_person: "marks", frames: [Predicate([ObjectNounPhrase])]),
-    (identity: Print, bare: "print", third_person: "prints", frames: [Predicate([ObjectNounPhrase])]),
     (identity: Redistribute, bare: "redistribute", third_person: "redistributes", frames: [Predicate([ObjectNounPhrase])]),
     (identity: Subtract, bare: "subtract", third_person: "subtracts", frames: [Predicate([ObjectNounPhrase])]),
     (identity: Find, bare: "find", third_person: "finds", preterite: Some("found"), participle: Some("found"), frames: [Predicate([ObjectNounPhrase]), Predicate([ObjectNounPhrase, MarkedRole("Preposition", "Among", "NounPhrase")])]),

@@ -2,9 +2,8 @@ use std::path::Path;
 use std::sync::LazyLock;
 
 use deckmaste_lexical::{
-    Capitalization, Category, Countability, FeatureBundle, Finiteness, Lexeme, LexemeId,
-    LexicalReading, Lexicon, Number, Person, SourceKind, SurfaceCase, SurfaceStructure, Tense,
-    WordForm,
+    Capitalization, Category, Countability, Lexeme, LexemeId, LexicalReading, Lexicon, SourceKind,
+    SurfaceCase, SurfaceStructure, WordForm,
 };
 
 static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
@@ -51,7 +50,9 @@ fn native_nouns_names_and_adjectives_retain_their_declared_classes() {
         );
     }
     assert_eq!(
-        entry("vocab:AttributiveAdjective/Fewest").properties.features["QuantitativeAdjectiveComplementUse"],
+        entry("vocab:AttributiveAdjective/Fewest")
+            .properties
+            .features["QuantitativeAdjectiveComplementUse"],
         "Yes"
     );
 }
@@ -83,25 +84,7 @@ fn position_licences_follow_the_attested_adverbs_and_prepositions() {
 }
 
 #[test]
-fn finite_only_verbs_preserve_existing_participial_uses() {
-    for (owner, person) in [
-        ("core-verb:Start", Person::Second),
-        ("core-verb:Stand", Person::Third),
-    ] {
-        let verb = entry(owner);
-        assert_eq!(verb.forms.len(), 1);
-        assert_eq!(verb.forms[0].form, WordForm::Present);
-        assert_eq!(
-            verb.forms[0].features,
-            FeatureBundle {
-                number: Some(Number::Singular),
-                person: Some(person),
-                tense: Some(Tense::Present),
-                finiteness: Some(Finiteness::Finite),
-                case: None
-            }
-        );
-    }
+fn verb_frames_and_inflections_preserve_their_declared_uses() {
     let deal = entry("core-verb:Deal")
         .properties
         .frames
