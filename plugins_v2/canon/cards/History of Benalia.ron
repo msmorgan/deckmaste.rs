@@ -1,0 +1,23 @@
+// "I, II — Create a 2/2 white Knight creature token with vigilance. / III —
+// Knights you control get +2/+1 until end of turn." Each chapter symbol is a
+// triggered ability on its chapter mark [CR#714.2b,714.2c]; the entry lore
+// counter, the precombat main phase lore counter and the final-chapter
+// sacrifice are the Saga subtype's rules [CR#714.3a,714.3c,714.4].
+SingleFaced(face: (
+    characteristics: (
+        name: "History of Benalia",
+        cost: [1, White, White],
+        types: [Enchantment],
+        subtypes: [saga],
+        text: [
+            triggered(
+                chapterMark([1, 2]),
+                createToken(creatureToken(2, 2, [White], [knight], [vigilance])),
+            ),
+            triggered(
+                chapterMark([3]),
+                gets(allOf(and([hasSubtype(knight), creatureYouControl])), up(2), up(1), untilEndOfTurn),
+            ),
+        ],
+    ),
+))

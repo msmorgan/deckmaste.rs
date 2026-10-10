@@ -1,0 +1,25 @@
+// "Read ahead / I — You and target opponent each draw two cards. / II — Create
+// a 1/1 white Bird creature token with flying. / III — Put a +1/+1 counter on
+// each of up to two target creatures." Read ahead keeps a skipped chapter from
+// triggering on the turn the Saga entered [CR#702.155a]; the Saga subtype's
+// entry counter does not apply to it [CR#714.3a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Love Song of Night and Day",
+        cost: [2, White],
+        types: [Enchantment],
+        subtypes: [saga],
+        text: [
+            readAhead,
+            triggered(chapterMark([1]), act(eachOf(and([you, target(opponent)])), draw(2))),
+            triggered(
+                chapterMark([2]),
+                createToken(creatureToken(1, 1, [White], [bird], [flying])),
+            ),
+            triggered(
+                chapterMark([3]),
+                putCounters(1, p1p1Counter, eachOf(described(Target(upTo(2)), creature))),
+            ),
+        ],
+    ),
+))
