@@ -882,10 +882,13 @@ R11b, 2026-10-09; CGEL, Ch. 8 §6.3, p. 698).
 A nominal head's declared eligibility for temporal or manner Noun Phrase
 Adjunct use (CGEL, Ch. 8 §6.3, p. 698; §2.1, p. 671).
 
-**Nominal Adjunct Determiner** (project term):
-A Determinative's declared eligibility to determine a temporal or manner
-Noun Phrase Adjunct; definite temporal use requires another dependent
-(CGEL, Ch. 8 §6.3, p. 698).
+**Nominal Adjunct Dependent** (project term):
+A lexical dependent's declared eligibility to license a temporal or manner
+Noun Phrase Adjunct. Determinatives determine the phrase; a deictic adjective
+can license a determiner-less temporal phrase. Definite temporal use requires
+another dependent (CGEL, Ch. 8 §6.3, p. 698). Rehoming *last* as an attributive
+Adjective and licensing its determiner-less temporal phrase follow
+[orchestrator ruling R14e (2026-10-09)](../../tickets/done/english-v3-last-turn-temporal-adjunct.md#r14e-resolution-2026-10-09).
 
 **Noun Phrase**:
 A phrase whose head or fused head is nominal and which can fill functions such

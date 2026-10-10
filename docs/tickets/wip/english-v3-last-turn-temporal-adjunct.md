@@ -27,7 +27,8 @@ dependents, such as the demonstratives *this* and *that*. *Next* and *last*
 occur widely, but with restrictions. *Last* is always deictic". That backs
 *last* as the dependent that licenses a determiner-less temporal NP only.
 
-Existing route: `NominalAdjunctPhrase`
+Claim-parent route (`szkxvvylquyv`; original ticket line numbers are historical):
+`NominalAdjunctPhrase`
 (`crates/deckmaste_english_v3/src/declarations.rs:3707`,
 `[determiner: lexical(Determinative), " ", head: Nominal]`), licensed by
 `nominal_adjunct_license` (`:3694`) over the declared
@@ -55,6 +56,18 @@ Orchestrator rulings 2026-10-09:
   other function (e.g. as an Object NP of *cast*) where the claim parent
   does not already admit such a reading.
 
+## R14e resolution (2026-10-09)
+
+Orchestrator ruling R14e supersedes R14b's representation premise. Rehome
+*last* as a Word Lexeme mirroring *next*, retire the generated *last* ordinal
+alternative, and read its declared dependent licence in NominalAdjunctPhrase.
+Do not add a numeral-property channel. Include every supported *last* face
+in the bounded manifest. Zero lost faces; changed covered *last* faces must
+have equal or lower counts and correct replacement analyses. STOP if a lost
+face needs an ordinal-only position that a declaration cannot restore.
+Retire unreachable code and re-spell its tests. *Next* receives no new licence:
+Peace Talks already reads on the claim parent (R14c).
+
 ## Witnesses
 
 Each is the face's only failing unit at `qsupksky`; re-probed 2026-10-09 on
@@ -74,12 +87,14 @@ turn* → *this turn*) 1.
 
 ## Method
 
-Standard constraints apply (CLAUDE.md landing record, assurance, scope).
+Standard constraints apply (CLAUDE.md assurance and scope;
+`docs/tickets/README.md` landing record).
 Deltas:
 
 1. Verification budget (binding): one bounded census of every supported face
-   whose analysed text matches case-insensitive `\b(last|next) turn\b`, plus 300 random covered controls
-   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261009`),
+   whose analysed text matches case-insensitive `\b(last|next) turn\b`, plus every supported face matching `\blast\b`, 300 stock-sampled
+   `\b(this|that|each|every) turn\b` controls and 300 random covered controls
+   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261008`),
    with the identity manifest, `--workers 6` and `--samples-per-face 0`, run
    under `/usr/bin/time -v`; compare it with `cargo xtask english-v3 diff`
    against the claim parent's census of the same manifest. Never run `--all`.
@@ -128,17 +143,71 @@ Deltas:
 
 ## Landing record
 
-Six items, each figure stamped with the change id it was measured on (ruling
-2026-10-08):
-
-1. **Census delta**: covered faces and total Readings before/after on the
-   bounded manifest; lost faces by name with classification, or "none".
-2. **Witnesses**: each witness above with its Reading count after.
-3. **Spot checks**: ten newly covered faces by name with the selected analysis.
-4. **Deviations and STOPs**: constructions, frames or tests added or deleted
-   beyond the ticket's letter, with justification; every STOP and its
-   resolution; any glossary gap in `docs/contexts/oracle-english/CONTEXT.md`.
-5. **Tests**: the `cargo test -p` / clippy commands and outcomes; counts
-   restored / re-spelled / ignored-with-blocker / added / removed.
-6. **Timing**: wall time of the bounded census as one figure with worker count
-   (6), plus peak RSS from `/usr/bin/time -v`.
+1. **Census delta** (`xmyznkll`, grammar of claim parent `lolqwrss` before):
+   bounded manifest of 1,007 faces; covered 832 → 895, Readings 52,567 →
+   52,813. Lost none; gained 63; decreases 0; increases 0; digest-only 19;
+   unchanged 925; issues 0. Selector: case-insensitive `\b(last|next) turn\b`
+   and every `\blast\b` face, plus 300 stock-sampled covered
+   `\b(this|that|each|every) turn\b` controls and 300 random covered controls
+   (seed 20261008). All 117 *last* faces are included. Equal-count replacements
+   through `PremodifiedNominal` → `Adjective`, with *last*'s sole Word owner:
+   Arboria 37→37; Avenge 12→12; Beckoning Will-o'-Wisp 3→3; Chromatic Armor
+   27→27; Divine Intervention 7→7; Duplicant 76→76; Giant Turtle 9→9; Goblin
+   Rock Sled 36→36; Halls of Mist 2→2; Jandor's Ring 4→4; Koh, the Face
+   Stealer 14→14; O-Kagachi, Vengeful Kami 7→7; Rally the Horde 896→896;
+   Shape of the Wiitigo 14→14; Suffocation 234→234; Tangle Kelp 34→34;
+   Triarch Stalker 2→2; Weathered Sentinels 15→15; Wiitigo 38→38. All selected
+   replacement analyses retain ordinary premodification; no ordinal-only
+   position is missing. Stock `diff --lines` and identity manifest:
+   `target/english-v3/english-v3-last-turn-temporal-adjunct/{diff,manifest}.json`.
+2. **Witnesses** (`xmyznkll`): pre-implementation probes on the claim parent's
+   grammar all had 0 Readings. After: First Response 1; Lambholt Elder 2;
+   Silverpelt Werewolf 1; Call of the Full Moon 1; Feast on the Fallen 1.
+   These are witness-line counts; census face totals sum all lines. Already
+   reading before implementation: *the next turn* 1; *the last time* 2;
+   Peace Talks 20 (complete). They were dropped from the red list; *next*
+   receives no new licence (orchestrator ruling R14c).
+3. **Spot checks** (`xmyznkll`): First Response and Feast on the Fallen attach
+   *last turn* to the *lost life* predicate; Lambholt Elder, Afflicted
+   Deserter, Mayor of Avabruck, Reckless Waif and Sage of Ancient Lore attach
+   it to the passive *no spells were cast* predicate; Silverpelt Werewolf
+   and Call of the Full Moon attach it to *cast two or more spells*; Paladin
+   of Atonement attaches it to *lost life*. Each uses `NominalAdjunctPhrase`
+   form 1 with the declared deictic Adjective dependent and singular count
+   *turn*, inside the conditional clause, rather than an extra Object or
+   Subject. Probes are complete, with no issues; both laws are checked by
+   the census and the typed witness tests.
+4. **Deviations and STOPs**: the R14b STOP found that generated Numerals have
+   no declared-property channel. [Orchestrator ruling R14e (2026-10-09)](#r14e-resolution-2026-10-09)
+   resolved it by authorizing the sole Word owner for *last*, mirroring
+   *next*, and retiring the exceptional ordinal value −1 on parsing and
+   generation; the numeral-property alternative was not authorized. The
+   remaining *to last* scanner component supports other sequence-relative
+   ordinals. No new Construction or frame; R14a adds a form to the existing
+   `NominalAdjunctPhrase`. The construction core now permits forms with
+   different lexical Categories stored in the same Word field and selects
+   each form's declared Category for parsing, matching admission. One core
+   test covers that generic obligation. The glossary term and feature are
+   renamed `NominalAdjunctDependent` because the dependent can be an
+   Adjective as well as a Determinative. Ordinary premodification is
+   re-spelled through the existing adjective route; no superseded *last*
+   ordinal route remains. No unresolved STOP.
+5. **Tests** (`xmyznkll`): all final commands passed:
+   `cargo test -p deckmaste_english_v3`;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`;
+   `cargo test -p deckmaste_lexical`;
+   `cargo clippy -p deckmaste_lexical --tests -- -D warnings`;
+   `cargo test -p deckmaste_lexical_source`;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`;
+   `cargo test -p deckmaste_construction_v3_core`;
+   `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings`.
+   Initial English clippy found `validate` at 152/150 lines; extracting the
+   unchanged storage-compatibility predicate resolved it. English's full
+   suite and clippy were repeated after that fix; the other suites and
+   clippy ran once. Added 8 (7 English, 1 core); re-spelled 6 (5 numeral
+   tests, 1 lexical-source feature test); restored 0; ignored 0; removed 0.
+   Citation checks: no noncompliant sites, 0 stale citations; no new CR
+   citations require blessing.
+6. **Timing** (`xmyznkll`): bounded census wall 36.08 s under `/usr/bin/time -v`,
+   6 workers, prebuilt `cargo-xtask`, `--samples-per-face 0`; peak RSS
+   3,024,828 KiB. No full census was run.

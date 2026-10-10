@@ -265,7 +265,7 @@ constructions! {
         feature NominalAdjunctClass { None, Temporal, Manner } default None;
         feature SlashPremodifierUse { No, Yes } default Yes;
         feature NominalDependentPresent { No, Yes } default No;
-        feature NominalAdjunctDeterminer { None, Demonstrative, Temporal, Definite }
+        feature NominalAdjunctDependent { None, Demonstrative, Temporal, Definite, DeicticTemporal }
         feature BareSingularUse { No, Yes } default No;
         feature RelativeUse { No, Yes } default No;
         feature ExistentialUse { No, Yes } default No;
@@ -426,7 +426,7 @@ constructions! {
         category LocativeComplement();
         category MannerComplement();
         category FrequencyPhrase();
-        category NominalAdjunctPhrase(NominalAdjunctClass, NominalAdjunctDeterminer);
+        category NominalAdjunctPhrase(NominalAdjunctClass, NominalAdjunctDependent);
         category BareTemporalNominal(NominalBareClass);
         category BoundaryComplement();
         category SubjectRelativeClause(number);
@@ -1734,7 +1734,7 @@ constructions! {
         }
 
         schema NominalAdjunctPredicate {
-            require postposed_nominal_adjunct(modifier.NominalAdjunctDeterminer) = Yes;
+            require postposed_nominal_adjunct(modifier.NominalAdjunctDependent) = Yes;
             form [head: node, " ", modifier: NominalAdjunctPhrase];
         }
 
@@ -3985,16 +3985,17 @@ constructions! {
 
         // CGEL pp. 698 and 671: licensed temporal and manner NPs as adjuncts.
         // CGEL p. 698: definite temporal NPs require another dependent.
-        table nominal_adjunct_license(NominalAdjunctDeterminer, NominalAdjunctClass,
+        table nominal_adjunct_license(NominalAdjunctDependent, NominalAdjunctClass,
             NominalDependentPresent) -> Selection {
             (Demonstrative, Temporal, No) => Yes, (Demonstrative, Temporal, Yes) => Yes,
             (Demonstrative, Manner, No) => Yes, (Demonstrative, Manner, Yes) => Yes,
             (Temporal, Temporal, No) => Yes, (Temporal, Temporal, Yes) => Yes,
             (Definite, Temporal, Yes) => Yes,
+            (DeicticTemporal, Temporal, No) => Yes, (DeicticTemporal, Temporal, Yes) => Yes,
         }
         // Definite temporal NPs are preposed only: project ruling R11d.
-        table postposed_nominal_adjunct(NominalAdjunctDeterminer) -> Selection {
-            (Demonstrative) => Yes, (Temporal) => Yes,
+        table postposed_nominal_adjunct(NominalAdjunctDependent) -> Selection {
+            (Demonstrative) => Yes, (Temporal) => Yes, (DeicticTemporal) => Yes,
         }
         table nominal_dependent_presence(NominalDependentPresent, NominalDependentPresent)
             -> NominalDependentPresent {
@@ -4009,12 +4010,16 @@ constructions! {
         }
         construction NominalAdjunctPhrase: NominalAdjunctPhrase {
             export NominalAdjunctClass = head.NominalAdjunctClass;
-            export NominalAdjunctDeterminer = determiner.NominalAdjunctDeterminer;
-            form [determiner: lexical(Determinative), " ", head: Nominal];
+            export NominalAdjunctDependent = determiner.NominalAdjunctDependent;
+            form [determiner: lexical(Determinative), " ", head: Nominal]
+                require determiner_license(determiner.DeterminerUse, head.number, head.countability) = Yes;
+            // Deictic adjective dependent: orchestrator rulings R14a/R14e (2026-10-09).
+            form [determiner: lexical(Adjective), " ", head: Nominal]
+                require determiner.NominalAdjunctDependent = DeicticTemporal
+                require head.countability = Count;
             require head.Targeting = No;
             require head.number = Singular;
-            require determiner_license(determiner.DeterminerUse, head.number, head.countability) = Yes;
-            require nominal_adjunct_license(determiner.NominalAdjunctDeterminer,
+            require nominal_adjunct_license(determiner.NominalAdjunctDependent,
                 head.NominalAdjunctClass, head.NominalDependentPresent) = Yes;
         }
         instance NominalAdjunctPredicate<Result, Head: head, Properties>: [

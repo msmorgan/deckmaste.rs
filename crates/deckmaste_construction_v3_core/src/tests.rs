@@ -1221,3 +1221,33 @@ fn alternate_child_categories_retain_their_form_specific_admission() {
         "unknown constituent Category",
     );
 }
+
+#[test]
+fn lexical_categories_belong_to_the_selected_form() {
+    let declaration = quote! { mod valid {
+        category Atom();
+        construction Atom: Atom {
+            form [word: lexical(Determinative)];
+            form [word: lexical(Adjective)];
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    assert_eq!(
+        ir.constructors[0].forms[0].fields[0].1,
+        crate::parse::FieldType::Lexical("Determinative".into())
+    );
+    assert_eq!(
+        ir.constructors[0].forms[1].fields[0].1,
+        crate::parse::FieldType::Lexical("Adjective".into())
+    );
+    let lexical_categories = ir.constructors[0]
+        .forms
+        .iter()
+        .map(|form| match &ir.rules[form.rule].symbols[0] {
+            crate::ir::Symbol::Lexical(category) => category.as_str(),
+            _ => panic!("a lexical field must scan a lexical Category"),
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(lexical_categories, vec!["Determinative", "Adjective"]);
+    compile(declaration).unwrap();
+}

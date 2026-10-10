@@ -135,12 +135,12 @@ fn explicit_bare_and_adjunct_licenses_override_category_defaults() {
     );
     feature(
         entry("this", Category::Determinative),
-        "NominalAdjunctDeterminer",
+        "NominalAdjunctDependent",
         "Demonstrative",
     );
     feature(
         entry("each", Category::Determinative),
-        "NominalAdjunctDeterminer",
+        "NominalAdjunctDependent",
         "Temporal",
     );
 }

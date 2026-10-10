@@ -48,7 +48,7 @@
         Keyword: {"KeywordMarker": "None", "KeywordSeparator": "Space", "KeywordParameterSeparator": "Space", "KeywordQualityNumber": "Any", "KeywordPayloadOrder": "AfterHead", "BoundKeyword": "No"},
         Noun: {"NominalBareClass": "None", "NominalAdjunctClass": "None"},
         Preposition: {"KeywordMarker": "None", "NominalBareClass": "None"},
-        Determinative: {"NominalAdjunctDeterminer": "None"},
+        Determinative: {"NominalAdjunctDependent": "None"},
         Adjective: {"BareSingularUse": "No"},
         Pronoun: {"RelativeUse": "No"},
     },
@@ -115,10 +115,10 @@
         "vocab:Adjective/Able": {"VerblessPredicateUse": "Yes"},
         "lexeme:CommonNoun/Number": {"NumberTransparency": "Yes", "ScalarDenotation": "Yes"},
         "lexeme:CommonNoun/Counter": {"SlashPremodifierUse": "No"},
-        "vocab:Determinative/Every": {"NominalAdjunctDeterminer": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
-        "vocab:SingularDemonstrative/That": {"NominalAdjunctDeterminer": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary", "DegreeUse": "Modifier"},
+        "vocab:Determinative/Every": {"NominalAdjunctDependent": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
+        "vocab:SingularDemonstrative/That": {"NominalAdjunctDependent": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary", "DegreeUse": "Modifier"},
         "vocab:CompoundDeterminative/Anywhere": {"ComparativePostmodifierUse": "Yes", "FusedHeadUse": "Yes", "DeterminerUse": "Singular"},
-        "vocab:SingularDemonstrative/This": {"FusedHeadUse": "Yes", "NominalAdjunctDeterminer": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary"},
+        "vocab:SingularDemonstrative/This": {"FusedHeadUse": "Yes", "NominalAdjunctDependent": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:RelativePronoun/Who": {"RelativeUse": "Yes"},
         "lexeme:CommonNoun/Exile": {"BarePrepositionUse": "Location"},
         "lexeme:CommonNoun/Hand": {"BarePrepositionUse": "Location"},
@@ -175,7 +175,7 @@
         "vocab:ComparativeQuantifier/Fewer": {"ComparativeQuantityUse": "Yes"},
         "vocab:Determinative/Less": {"ComparativeQuantityUse": "Yes", "MeasureModifierUse": "Yes"},
         "vocab:ScalarDegree/Greater": {"ScalarComparativeUse": "Yes"},
-        "vocab:DefiniteMarker/The": {"NominalAdjunctDeterminer": "Definite", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
+        "vocab:DefiniteMarker/The": {"NominalAdjunctDependent": "Definite", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Another": {"DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Any": {"QuantificationalDeterminer": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Either": {"CorrelativeKind": "Either", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
@@ -189,7 +189,7 @@
         "vocab:Determinative/Which": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/All": {"DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/Both": {"CorrelativeKind": "Both", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
-        "vocab:FloatedQuantifier/Each": {"QuantificationalAdjunctUse": "Yes", "NominalComplementMarker": "Of", "NominalAdjunctDeterminer": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
+        "vocab:FloatedQuantifier/Each": {"QuantificationalAdjunctUse": "Yes", "NominalComplementMarker": "Of", "NominalAdjunctDependent": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
 
         "vocab:Coordinator/And": {"NoncorrelativeCoordination": "Yes", "CorrelativeCoordinator": "And", "CoordinationKind": "Additive"},
         "vocab:Coordinator/Or": {"NoncorrelativeCoordination": "Yes", "CorrelativeCoordinator": "Or", "CoordinationKind": "Alternative"},
@@ -228,6 +228,14 @@
         "vocab:Preposition/Without": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
+        // Attributive adjective, mirroring Next; rehomed by orchestrator ruling R14e.
+        (
+            id: "vocab:AttributiveAdjective/Last", lemma: "last", category: Adjective,
+            properties: (countability: [], features: {"HomographLicense": "Unlicensed", "ModifierLicense": "Unrestricted", "NominalAdjunctDependent": "DeicticTemporal"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:AttributiveAdjective/Last"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
         // The Hive explicitly names its token Wasp; this is its full name.
         (
             id: "lexeme:Name/Wasp", lemma: "Wasp", category: Catalog,

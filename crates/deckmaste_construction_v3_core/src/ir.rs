@@ -419,9 +419,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             if fields.len() != other.len()
                 || fields.iter().any(|(name, ty)| {
                     !other.iter().any(|(n, t)| {
-                        name == n
-                            && (ty == t
-                                || matches!((ty, t), (FieldType::One(_), FieldType::One(_))))
+                        name == n && same_field_storage(ty, t)
                     })
                 })
             {
@@ -627,6 +625,14 @@ fn validate_tables(ir: &mut Ir, tables: Vec<crate::parse::FeatureTable>) -> syn:
     Ok(())
 }
 
+fn same_field_storage(left: &FieldType, right: &FieldType) -> bool {
+    left == right
+        || matches!(
+            (left, right),
+            (FieldType::One(_), FieldType::One(_)) | (FieldType::Lexical(_), FieldType::Lexical(_))
+        )
+}
+
 fn normalize(
     ir: &mut Ir,
     constructions: &[crate::parse::Construction],
@@ -704,9 +710,10 @@ fn normalize(
                             slots[*field] = symbols.len();
                             // Optional/repeated projections remain shared
                             // across forms.
-                            // Only single constituent Categories can vary by
-                            // form.
+                            // Single constituent and lexical Categories belong
+                            // to the selected form.
                             symbols.push(match &ir.constructors[index].fields[*field].1 {
+                                FieldType::Lexical(category) => Symbol::Lexical(category.clone()),
                                 FieldType::One(category) => Symbol::Nonterminal(
                                     ir.categories
                                         .iter()

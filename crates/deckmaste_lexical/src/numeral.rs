@@ -120,7 +120,8 @@ pub trait NumeralCodec {
     /// # Errors
     ///
     /// Returns [`ParseNumeralError`] for Roman values outside -3,999 through
-    /// 3,999 other than `i32::MIN` and `i32::MAX`.
+    /// 3,999 other than `i32::MIN` and `i32::MAX`, and for retired ordinal
+    /// value -1 (orchestrator ruling R14e, 2026-10-09).
     fn try_format(self, value: i32) -> Result<String, ParseNumeralError>;
 
     /// Parses an integer written using this notation.
@@ -343,15 +344,14 @@ fn cardinalize_ordinal(input: &str) -> Option<String> {
 }
 
 fn parse_ordinal_candidate(input: &str) -> Option<i32> {
-    if input == "last" {
-        Some(-1)
-    } else {
-        let (ordinal, negative) = input
-            .strip_suffix(" to last")
-            .map_or((input, false), |ordinal| (ordinal, true));
-        let cardinal = cardinalize_ordinal(ordinal)?;
-        signed_magnitude(parse_cardinal_magnitude(&cardinal)?, negative)
-    }
+    let (ordinal, negative) = input
+        .strip_suffix(" to last")
+        .map_or((input, false), |ordinal| (ordinal, true));
+    let cardinal = cardinalize_ordinal(ordinal)?;
+    let value = signed_magnitude(parse_cardinal_magnitude(&cardinal)?, negative)?;
+    // R14e: the exceptional ordinal value is retired; its Word replacement
+    // has ordinary attributive-adjective distribution.
+    (value != -1).then_some(value)
 }
 
 fn parse_roman_candidate(input: &str) -> Option<i32> {
@@ -381,9 +381,6 @@ fn parse_roman_candidate(input: &str) -> Option<i32> {
 fn format_ordinal(value: i32) -> String {
     if value == 0 {
         return "zeroth".to_owned();
-    }
-    if value == -1 {
-        return "last".to_owned();
     }
     let words = ordinal_magnitude(value.unsigned_abs());
     if value.is_negative() { format!("{words} to last") } else { words }
@@ -488,6 +485,10 @@ mod tests {
                 (Numeral::Roman, i32::MIN),
                 (Numeral::Roman, i32::MAX),
             ] {
+                if notation == Numeral::Ordinal && value == -1 {
+                    prop_assert_eq!(notation.try_format(value), Err(ParseNumeralError));
+                    continue;
+                }
                 let surface = notation.try_format(value).unwrap();
                 for component in surface.split(|c: char| !c.is_ascii_alphanumeric()) {
                     if !component.is_empty() {
@@ -512,8 +513,13 @@ mod tests {
 
         #[test]
         fn ordinal_round_trips(value in any::<i32>()) {
-            let formatted = Numeral::Ordinal.format(value);
-            prop_assert_eq!(Numeral::Ordinal.parse(&formatted), Ok(value));
+            if value == -1 {
+                prop_assert_eq!(Numeral::Ordinal.try_format(value), Err(ParseNumeralError));
+                prop_assert_eq!(Numeral::Ordinal.parse("last"), Err(ParseNumeralError));
+            } else {
+                let formatted = Numeral::Ordinal.try_format(value).unwrap();
+                prop_assert_eq!(Numeral::Ordinal.parse(&formatted), Ok(value));
+            }
         }
 
         #[test]
@@ -624,7 +630,12 @@ mod tests {
             Numeral::Arabic(true),
         ] {
             for value in [i32::MIN, -4_000, -1, 0, 1, 4_000, i32::MAX] {
-                assert_eq!(numeral.try_format(value), Ok(numeral.format(value)));
+                let expected = if numeral == Numeral::Ordinal && value == -1 {
+                    Err(ParseNumeralError)
+                } else {
+                    Ok(numeral.format(value))
+                };
+                assert_eq!(numeral.try_format(value), expected);
             }
         }
     }
@@ -674,6 +685,7 @@ mod tests {
             "never",
             "zeroth to last",
             "first to last",
+            "last",
             "negative first",
             "twenty-oneth",
         ] {
@@ -789,10 +801,13 @@ mod tests {
 
     #[test]
     fn negative_ordinals_are_sequence_relative() {
+        // The retired value is re-spelled as an ordinary Word in the English
+        // suite; it must no longer be available as an ordinal numeral.
+        assert_eq!(Numeral::Ordinal.try_format(-1), Err(ParseNumeralError));
+        assert_eq!(Numeral::Ordinal.parse("last"), Err(ParseNumeralError));
         assert_formats(
             Numeral::Ordinal,
             &[
-                (-1, "last"),
                 (-2, "second to last"),
                 (-21, "twenty-first to last"),
                 (
