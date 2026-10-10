@@ -1021,6 +1021,7 @@ fn nested_document_admission_uses_a_normal_worker_stack() {
     let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
     value.capitalization = SurfaceCase::Initial;
     let mut paragraph = Reading::Paragraph {
+        category: Category::Paragraph,
         form: 0,
         first: Box::new(Reading::SentenceItem {
             form: 0,
@@ -1044,6 +1045,7 @@ fn nested_document_admission_uses_a_normal_worker_stack() {
     };
     for _ in 0..16 {
         paragraph = Reading::Paragraph {
+            category: Category::Paragraph,
             form: 0,
             first: Box::new(Reading::ParentheticalItem {
                 form: 0,

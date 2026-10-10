@@ -196,6 +196,7 @@ fn sentence(subject: Reading, predicate: Reading) -> Reading {
 
 fn paragraph(sentence: Reading) -> Reading {
     Reading::Paragraph {
+        category: Category::Paragraph,
         form: 0,
         first: Box::new(Reading::SentenceItem {
             form: 0,

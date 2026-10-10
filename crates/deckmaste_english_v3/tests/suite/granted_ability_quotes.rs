@@ -139,6 +139,7 @@ fn independent_grant_preserves_the_nested_ability_frame_and_traversal() {
                     rest: vec![],
                 }),
                 body: Box::new(Reading::Paragraph {
+                    category: Category::Paragraph,
                     form: 0,
                     first: Box::new(Reading::SentenceItem {
                         form: 0,

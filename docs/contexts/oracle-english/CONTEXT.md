@@ -188,6 +188,16 @@ structural metadata, never inferred from the spelling.
 Structured rules text for one text box or independently named face portion,
 including its sentences, keyword lines, and editorial boundaries.
 
+**Mode List Layout** (project term):
+The distinction between a Mode list introduced by a dash header and a
+Sentence Line List (orchestrator ruling NM-R3, 2026-10-10).
+
+**Sentence Line List** (project term):
+A named Mode list attached to a preceding line of complete Sentences as one
+Ability, under orchestrator ruling NM-R3 (2026-10-10,
+`english-v3-named-modes-regression`). Each bullet belongs to the list rather
+than to its Flavor Word label.
+
 **Keyword Line**:
 A line formed from one or more keyword-ability surfaces with their prescribed
 parameters and associated reminder text.

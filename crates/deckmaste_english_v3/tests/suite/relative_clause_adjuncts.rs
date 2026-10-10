@@ -193,6 +193,7 @@ fn seedborn_muse(relative: Reading) -> Reading {
         first: Box::new(Reading::OrdinaryAbility {
             form: 0,
             body: Box::new(Reading::Paragraph {
+                category: Category::Paragraph,
                 form: 0,
                 first: Box::new(Reading::SentenceItem {
                     form: 0,

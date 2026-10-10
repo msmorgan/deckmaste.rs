@@ -286,6 +286,7 @@ fn authentic_boast_payload_preserves_activated_ability_structure() {
         value.form = WordForm::Plain;
     }
     let body = Reading::Paragraph {
+        category: Category::Paragraph,
         form: 0,
         first: Box::new(Reading::SentenceItem {
             form: 0,

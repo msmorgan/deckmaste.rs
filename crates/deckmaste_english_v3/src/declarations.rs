@@ -461,13 +461,17 @@ constructions! {
         feature QuotationStructure { Simple, Coordinated }
         feature GrantedAbilityKind { Keyword, Quoted }
         feature AbilityTermination { Complete, Unterminated } default Complete;
+        feature SentenceLineList { No, Yes }
+        feature ModeListLayout { DashHeader, SentenceHeader }
 
         category Document();
-        category Ability(LabelKind, AbilityTermination);
+        category Ability(LabelKind, AbilityTermination, SentenceLineList);
         category AbilityContinuation();
         category Paragraph();
         category ParagraphItem();
         category ParagraphContinuation();
+        category SentenceParagraph();
+        category SentenceContinuation();
         category Sentence(AbilityTermination);
         category Clause(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
         category ImperativeClause(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
@@ -580,9 +584,11 @@ constructions! {
         category QuotedText(QuotationStructure);
         category GrantedAbility(GrantedAbilityKind);
         category GrantedAbilitySeries(GrantedAbilityKind);
-        category Mode();
-        category Modes();
+        category Mode(LabelKind);
+        category Modes(ModeListLayout);
         category ModeContinuation();
+        category NamedModes(ModeListLayout);
+        category NamedModeContinuation();
         category TypeLine();
         category SupertypePrefix();
         category CardTypes();
@@ -2239,18 +2245,33 @@ constructions! {
 
         construction OrdinaryAbility: Ability {
             export LabelKind = None;
+            export SentenceLineList = No;
             form [body: Paragraph] export AbilityTermination = Complete;
             form [body: Sentence] require body.AbilityTermination = Unterminated
                 export AbilityTermination = Unterminated;
         }
 
-        construction Paragraph: Paragraph {
-            form [first: ParagraphItem, rest: repeat(ParagraphContinuation, "")];
+        policy CompleteSentenceFirst {
+            require first.AbilityTermination = Complete;
         }
+        schema Paragraph {
+            form [first: node, rest: repeat(node, "")];
+        }
+        instance Paragraph<Result, First: first, Rest: rest, Properties = NoFeatures>: [
+            (Paragraph, ParagraphItem, ParagraphContinuation),
+            (SentenceParagraph, Sentence, SentenceContinuation, CompleteSentenceFirst),
+        ] { use Properties; }
 
-        construction ParagraphContinuation: ParagraphContinuation {
-            form [" ", item: ParagraphItem];
+        policy CompleteSentenceMember {
+            require item.AbilityTermination = Complete;
         }
+        schema ParagraphContinuation {
+            form [" ", item: node];
+        }
+        instance ParagraphContinuation<Result, Item: item, Properties = NoFeatures>: [
+            (ParagraphContinuation, ParagraphItem),
+            (SentenceContinuation, Sentence, CompleteSentenceMember),
+        ] { use Properties; }
 
         construction SentenceItem: ParagraphItem {
             form [sentence: Sentence];
@@ -2320,6 +2341,7 @@ constructions! {
 
         construction ActivatedAbility: Ability {
             export LabelKind = None;
+            export SentenceLineList = No;
             form [cost: Cost, ": ", body: Paragraph] export AbilityTermination = Complete;
             form [cost: Cost, ": ", body: Sentence]
                 require body.AbilityTermination = Unterminated
@@ -2331,7 +2353,9 @@ constructions! {
             form [head: lexical(Keyword), " — ", body: Ability];
             require head.LabelKind = AbilityWord;
             require body.LabelKind = None;
+            require body.SentenceLineList = No;
             export LabelKind = AbilityWord;
+            export SentenceLineList = No;
             export AbilityTermination = body.AbilityTermination;
         }
 
@@ -2340,7 +2364,9 @@ constructions! {
             boundary Initial;
             form [head: lexical(FlavorWord), " ", body: Ability];
             require body.LabelKind = None;
+            require body.SentenceLineList = No;
             export LabelKind = FlavorWord;
+            export SentenceLineList = No;
             export AbilityTermination = body.AbilityTermination;
         }
 
@@ -2403,6 +2429,7 @@ constructions! {
 
         construction KeywordLine: Ability {
             export LabelKind = None;
+            export SentenceLineList = No;
             export AbilityTermination = Complete;
             boundary Initial;
             form [first: KeywordPhrase, rest: repeat(KeywordContinuation, "")];
@@ -2586,22 +2613,56 @@ constructions! {
         }
 
         construction Mode: Mode {
-            form ["• ", body: Paragraph];
-            form ["• ", body: Ability] require body.LabelKind = FlavorWord;
+            form ["• ", body: Paragraph] export LabelKind = None;
+            form ["• ", body: Ability] require body.LabelKind = FlavorWord
+                export LabelKind = FlavorWord;
         }
 
-        construction ModeContinuation: ModeContinuation {
+        policy NamedModeMember {
+            require mode.LabelKind = FlavorWord;
+        }
+
+        schema ModeContinuation {
             form ["\n", mode: Mode];
         }
+        instance ModeContinuation<Result, Properties = NoFeatures>: [
+            (ModeContinuation), (NamedModeContinuation, NamedModeMember),
+        ] { use Properties; }
 
-        construction Modes: Modes {
-            form [first: Mode, rest: repeat(ModeContinuation, "")];
+        policy DashHeaderModes {
+            export ModeListLayout = DashHeader;
+        }
+        policy NamedModeFirst {
+            require first.LabelKind = FlavorWord;
+            export ModeListLayout = SentenceHeader;
         }
 
-        construction ModalItem: ParagraphItem {
+        schema Modes {
+            form [first: Mode, rest: repeat(node, "")];
+        }
+        instance Modes<Result, Rest: rest, Properties = NoFeatures>: [
+            (Modes, ModeContinuation, DashHeaderModes),
+            (NamedModes, NamedModeContinuation, NamedModeFirst),
+        ] { use Properties; }
+
+        policy DashHeaderModalItem {
+            require modes.ModeListLayout = DashHeader;
+        }
+        policy SentenceLineListAbility {
+            require modes.ModeListLayout = SentenceHeader;
+            export LabelKind = None;
+            export AbilityTermination = Complete;
+            export SentenceLineList = Yes;
+        }
+        schema ModalItem {
             boundary Initial;
             form [header: Clause, " —\n", modes: Modes];
+            form [header: SentenceParagraph, "\n", modes: NamedModes];
         }
+        instance ModalItem<Result, Properties>: [
+            (ParagraphItem, DashHeaderModalItem),
+            (Ability, SentenceLineListAbility),
+        ] { use Properties; }
 
         separator sentence_terminal(terminal_punctuation) {
             (None) => ".", (QuotedFullStop) => "",
@@ -2625,6 +2686,7 @@ constructions! {
         }
         policy UnlabelledSupplementation {
             export LabelKind = None;
+            export SentenceLineList = No;
             export AbilityTermination = Complete;
         }
         policy CompleteSentence {

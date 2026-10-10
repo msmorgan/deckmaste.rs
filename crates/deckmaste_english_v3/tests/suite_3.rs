@@ -61,3 +61,6 @@ mod same_as_comparative;
 
 #[path = "suite/vocabulary_batch_1.rs"]
 mod vocabulary_batch_1;
+
+#[path = "suite/named_modes_regression.rs"]
+mod named_modes_regression;
