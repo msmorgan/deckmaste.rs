@@ -329,6 +329,10 @@ mutual
     | devotion (player : NounPhrase) (color : ColorTerm) (second : Option ColorTerm)
     | half (rounding : RoundMode) (amount : Amount)
     | aggregateOver (op : AggregateOp) (domain : Predicate) (body : Amount)
+    /-- An aggregate over listed amounts rather than over a group or a domain: "the smaller of
+    the number of +1/+1 and −1/−1 counters on it" [CR#704.5q] is `min` over the two counts,
+    "whichever is greater" `max`. -/
+    | aggregateOf (op : AggregateOp) (amounts : List Amount)
     | distinctCount (axis : KindAxis) (domain : NounPhrase)
     | upTo (bound : Amount)
 

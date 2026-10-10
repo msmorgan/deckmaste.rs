@@ -487,10 +487,18 @@ mutual
       let k := dom.kindOr .object
       refuse k.phrasal (.phrasal k) ++ Predicate.checkIn gap k bs dom ++
         Amount.checkIn gap (bindFor bs .the .one k dom :: (Predicate.introduced bs dom ++ bs)) body
+    | .aggregateOf _ as => Amount.checkAllIn gap bs as
     | .distinctCount ax dom =>
       refuse ax.ok .kindAxisSort ++ NounPhrase.checkIn gap (some .object) bs dom
     | .upTo b => Amount.checkIn gap bs b
   termination_by structural a => a
+
+  /-- Listed amounts are amounts: each is checked as one, at the stack the ones before it leave,
+  as an `arith`'s operands are. -/
+  def Amount.checkAllIn (gap : Option Kind) (bs : Bindings) : List Amount → CheckResult
+    | [] => (⟨[], false⟩ : CheckResult)
+    | a :: as => Amount.checkIn gap bs a ++ Amount.checkAllIn gap (Amount.intro bs a) as
+  termination_by structural as => as
 
   def ZoneScope.checkIn (gap : Option Kind) (bs : Bindings) : ZoneScope → CheckResult
     | .bare => (⟨[], false⟩ : CheckResult)

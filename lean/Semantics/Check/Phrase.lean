@@ -1602,6 +1602,7 @@ mutual
     | .devotion who _ _ => (NounPhrase.result bs who).introduced bs
     | .half _ a => Amount.introduced bs a
     | .aggregateOver _ dom _ => Predicate.introduced bs dom
+    | .aggregateOf _ as => Amount.introducedAll bs as
     | .distinctCount _ dom => (NounPhrase.result bs dom).introduced bs
     | .upTo b => outcomeB .ceilingShortfall :: Amount.introduced bs b
   termination_by structural x => x
@@ -1629,8 +1630,22 @@ mutual
     | .devotion who _ _ => (NounPhrase.result bs who).context
     | .half _ a => Amount.intro bs a
     | .aggregateOver _ dom _ => Predicate.introduced bs dom ++ bs
+    | .aggregateOf _ as => Amount.introAll bs as
     | .distinctCount _ dom => (NounPhrase.result bs dom).context
     | .upTo b => outcomeB .ceilingShortfall :: Amount.intro bs b
+  termination_by structural x => x
+
+  /-- What listed amounts introduce, each read at the stack the ones before it leave, as an
+  `arith`'s two operands are. -/
+  def Amount.introducedAll (bs : Bindings) : List Amount → List Binding
+    | [] => []
+    | a :: as => Amount.introduced bs a ++ Amount.introducedAll (Amount.intro bs a) as
+  termination_by structural x => x
+
+  /-- The stack after listed amounts, each read at the stack the ones before it leave. -/
+  def Amount.introAll (bs : Bindings) : List Amount → Bindings
+    | [] => bs
+    | a :: as => Amount.introAll (Amount.intro bs a) as
   termination_by structural x => x
 
   def Quantity.intro (bs : Bindings) : Quantity → Bindings

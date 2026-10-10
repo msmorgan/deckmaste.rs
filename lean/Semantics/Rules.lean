@@ -77,7 +77,9 @@ inductive Conferral where
   /-- A continuous property with no ability behind it [CR#113.12] — an Equipment's host rule
   [CR#301.5], a keyword counter's grant [CR#122.1b]. -/
   | property (spec : StaticSpec)
-  /-- A state-based action the definition puts on every object it names [CR#704.1]. -/
+  /-- A state-based action the definition puts on every object that holds its subject
+  [CR#704.1]: once per holder per check [CR#704.3], however many counters of the kind it holds,
+  and free to read counts (ruling 2026-10-10). -/
   | stateBased (when : Condition) (then_ : Instruction)
   /-- A turn-based action the definition puts on every object it names [CR#703.1]. -/
   | turnBased (part : TurnPart) (then_ : Instruction)
@@ -96,12 +98,15 @@ inductive Definition where
 
   The kind is the declaration's own name; the declaration meta-macro writes it from the name the
   file declares, so the author never writes it and nothing in the body refers to the counter
-  being defined. `confers` states what ONE counter of the kind confers, and the model applies it
-  once per counter held: a +1/+1 counter confers "+1/+1" [CR#122.1a,613.4c], so N of them give
-  +N/+N, and a keyword counter confers its keyword [CR#122.1b,613.1f], so N of them grant it N
-  times, which is having it once (flying's own rule: [CR#702.9c]). No conferral reads the
-  number of counters of its own kind. The reading is the model's; the checker checks each
-  conferral once, in the empty binding context (`Definition.check`), and computes no
+  being defined. An `ability` or `property` conferral states what ONE counter of the kind
+  confers, and the model applies it once per counter held: a +1/+1 counter confers "+1/+1"
+  [CR#122.1a,613.4c], so N of them give +N/+N, and a keyword counter confers its keyword
+  [CR#122.1b,613.1f], so N of them grant it N times, which is having it once (flying's own rule:
+  [CR#702.9c]); such a conferral reads no count of its own kind. A `stateBased` conferral is
+  scoped to the permanent that holds the counters, applies once per holder per check [CR#704.3],
+  and may read counts, its own kind's included: the +1/+1 and −1/−1 annihilation rule on the
+  −1/−1 counter [CR#704.5q,122.3] (ruling 2026-10-10). The reading is the model's; the checker
+  checks each conferral once, in the empty binding context (`Definition.check`), and computes no
   multiplicity. A counter whose rule makes one or more of it create a single effect — a shield,
   stun or finality counter [CR#122.1c,122.1d,122.1h] — writes no conferral today; giving it one
   needs a reading this one is not. -/
