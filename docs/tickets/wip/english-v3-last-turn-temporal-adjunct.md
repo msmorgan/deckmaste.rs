@@ -168,7 +168,10 @@ Deltas:
    count changes, 182 equal-count digest changes inherited from
    `umzuyqxmtqpx` (division/passive and scalar-NP representation); no
    decreases require attribution or restoration. All *last* faces retain
-   their coverage and counts.
+   their coverage and counts. Accepted-review refresh (`qkqvtntl`, inherited
+   `wlstpkpuulvt` equality-property grammar) rechecked the same manifest:
+   `diff-review-refresh.json` reports all 1,007 faces unchanged;
+   `diff-review-final.json` retains the claim-parent delta above.
 2. **Witnesses** (`xmyznkll`; unchanged at `wyrzqktw`): pre-implementation
    probes on the claim parent's grammar all had 0 Readings. After: First
    Response 1; Lambholt Elder 2;
@@ -224,9 +227,13 @@ Deltas:
    Citation checks: no noncompliant sites, 0 stale citations; no new CR
    citations require blessing. Grammar-bearing refresh verification
    (`wyrzqktw`): the same eight full-suite/clippy commands were repeated
-   and all passed, with no ignored or filtered-out tests.
+   and all passed, with no ignored or filtered-out tests. Accepted-review
+   grammar-bearing refresh (`qkqvtntl`): the same eight commands were
+   repeated in full and all passed; evidence is in the `*-review-refresh.log`
+   files and `verification-review-refresh-results.json` under the same target directory.
 6. **Timing** (`xmyznkll`): bounded census wall 36.08 s under `/usr/bin/time -v`,
    6 workers, prebuilt `cargo-xtask`, `--samples-per-face 0`; peak RSS
    3,024,828 KiB. Required refresh subset check (`wyrzqktw`): 22.65 s wall,
    6 workers, same prebuilt-binary options; peak RSS 2,974,044 KiB.
-   No full census was run.
+   Accepted-review refresh (`qkqvtntl`): 18.28 s wall, the same manifest and
+   options; peak RSS 3,066,184 KiB. No full census was run.
