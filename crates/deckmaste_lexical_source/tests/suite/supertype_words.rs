@@ -25,6 +25,7 @@ fn supertype_adjectives_have_owned_attested_values_without_duplicate_legendary()
         for (id, surface) in forms {
             let entry = &lexicon.lexemes()[id.as_str()];
             assert_eq!(entry.category, Category::Adjective);
+            assert_eq!(entry.properties.features["TypeLineRole"], "Supertype");
             assert_eq!(entry.source.owner, owner);
             for capitalization in [SurfaceCase::Declared, SurfaceCase::Initial] {
                 let expected = LexicalReading::Word(LexicalValue {

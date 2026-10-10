@@ -1324,3 +1324,82 @@ fn schema_lexical_bindings_preserve_categories_and_reject_invalid_bindings() {
         "unknown lexical Category",
     );
 }
+
+#[test]
+fn optional_lexical_fields_apply_requirements_only_when_present() {
+    let declaration = quote! { mod valid {
+        feature Licence { No, Yes }
+        category Atom();
+        construction Atom: Atom {
+            form [modifier: optional(lexical(Adjective), " "), head: lexical(Noun)];
+            require modifier.Licence = Yes;
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    let absent = ir
+        .rules
+        .iter()
+        .find(|rule| matches!(rule.build, crate::ir::Build::AbsentWord))
+        .unwrap();
+    assert_eq!(absent.symbols, [] as [crate::ir::Symbol; 0]);
+    assert!(absent.initial.is_empty());
+    let present = ir
+        .rules
+        .iter()
+        .find(|rule| matches!(rule.build, crate::ir::Build::PresentWord))
+        .unwrap();
+    assert_eq!(
+        present.symbols,
+        vec![
+            crate::ir::Symbol::Lexical("Adjective".into()),
+            crate::ir::Symbol::Literal(" ".into())
+        ]
+    );
+    assert_eq!(present.checks[0].len(), 1);
+    let licence = ir
+        .features
+        .iter()
+        .position(|feature| feature.name == "Licence")
+        .unwrap();
+    let yes = ir.features[licence]
+        .values
+        .iter()
+        .position(|value| value == "Yes")
+        .unwrap();
+    assert_eq!(
+        present.initial[0].as_ref().unwrap().to_string(),
+        quote!(FeatureValue::Custom(#licence, #yes)).to_string()
+    );
+    let generated = compile(declaration).unwrap();
+    syn::parse2::<syn::File>(generated).unwrap();
+}
+
+#[test]
+fn optional_lexical_fields_reject_bad_categories_and_requirements() {
+    rejects(
+        quote! { mod bad { category Atom(); construction Atom: Atom {
+            form [modifier: optional(lexical(Unknown))];
+        } } },
+        "unknown lexical Category",
+    );
+    rejects(
+        quote! { mod bad { feature Licence { No, Yes } category Atom(); construction Atom: Atom {
+            form [modifier: optional(lexical(Adjective))];
+            require modifier.Licence = Yes;
+            require modifier.Licence = No;
+        } } },
+        "contradictory admission requirements",
+    );
+    rejects(
+        quote! { mod bad { category Atom(number); construction Atom: Atom {
+            form [modifier: optional(lexical(Adjective))]; export number = modifier.number;
+        } } },
+        "optional/repeated fields have no single feature value",
+    );
+    rejects(
+        quote! { mod bad { category Atom(); construction Atom: Atom {
+            form [modifier: optional(lexical(Adjective), " ")]; require modifier.number = First;
+        } } },
+        "not a value of feature number",
+    );
+}

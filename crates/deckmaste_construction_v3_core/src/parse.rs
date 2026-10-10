@@ -102,6 +102,7 @@ pub(crate) struct PolicyUse {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FieldType {
     Lexical(String),
+    OptionalLexical(String, String),
     SelectedFrame(String, String),
     One(String),
     Optional(String),
@@ -754,7 +755,8 @@ fn instantiate_schemas(
                     FieldType::One(category)
                     | FieldType::Optional(category)
                     | FieldType::Repeated(category, _)
-                    | FieldType::Lexical(category) => category,
+                    | FieldType::Lexical(category)
+                    | FieldType::OptionalLexical(category, _) => category,
                     FieldType::SelectedFrame(_, _) => continue,
                 };
                 if category != "node" {
@@ -1183,6 +1185,21 @@ fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {
                         arguments.parse::<Token![,]>()?;
                         let kind: Ident = arguments.parse()?;
                         FieldType::SelectedFrame(category.to_string(), kind.to_string())
+                    }
+                    "optional" if category == "lexical" => {
+                        let lexical;
+                        parenthesized!(lexical in arguments);
+                        let category: Ident = lexical.parse()?;
+                        if !lexical.is_empty() {
+                            return Err(lexical.error("unexpected lexical arguments"));
+                        }
+                        let separator = if arguments.is_empty() {
+                            String::new()
+                        } else {
+                            arguments.parse::<Token![,]>()?;
+                            arguments.parse::<LitStr>()?.value()
+                        };
+                        FieldType::OptionalLexical(category.to_string(), separator)
                     }
                     "optional" => FieldType::Optional(category.to_string()),
                     "repeat" => {

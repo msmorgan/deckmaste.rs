@@ -2662,7 +2662,8 @@ constructions! {
             (No, No) => Yes, (No, Yes) => Yes, (Yes, Yes) => Yes,
         }
         construction BoundQualityKeyword: KeywordPhrase {
-            form [quality: lexical(Noun), head: lexical(Keyword)];
+            form [modifier: optional(lexical(Adjective), " "), quality: lexical(Noun), head: lexical(Keyword)];
+            require modifier.TypeLineRole = Supertype;
             require quality.frame = BoundKeywordStem;
             require head.KeywordParameterClass = Quality;
             require head.KeywordPayloadOrder = BoundSuffix;
@@ -2673,7 +2674,8 @@ constructions! {
 
         // Typecycling's bound Quality and mandatory Cost: orchestrator ruling R8a.
         construction BoundQualityCostKeyword: KeywordPhrase {
-            form [quality: lexical(Noun), head: lexical(Keyword), " ", cost: CostSymbols];
+            form [modifier: optional(lexical(Adjective), " "), quality: lexical(Noun), head: lexical(Keyword), " ", cost: CostSymbols];
+            require modifier.TypeLineRole = Supertype;
             require quality.frame = BoundKeywordStem;
             require head.KeywordParameterClass = QualityCost;
             require head.KeywordPayloadOrder = BoundSuffix;

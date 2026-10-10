@@ -487,6 +487,7 @@ pub enum Value {
     Word(Word),
     Literal,
     Optional(Option<Reading>),
+    OptionalWord(Option<Word>),
     Repeated(Vec<Reading>),
 }
 
@@ -503,6 +504,9 @@ impl Value {
         } else {
             Err(Error::Internal)
         }
+    }
+    fn optional_word(self) -> Result<Option<Word>, Error> {
+        if let Self::OptionalWord(v) = self { Ok(v) } else { Err(Error::Internal) }
     }
     fn repeated(self) -> Result<Vec<Reading>, Error> {
         if let Self::Repeated(v) = self { Ok(v) } else { Err(Error::Internal) }

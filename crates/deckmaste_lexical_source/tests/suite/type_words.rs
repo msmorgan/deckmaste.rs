@@ -301,8 +301,16 @@ fn subtype_nouns_are_the_single_owner_for_type_line_and_rules_text() {
                     .map(String::as_str)
                     == Some("Subtype"))
         );
-        if lexeme.id.as_str().ends_with("/non") {
-            assert!(!lexeme.properties.features.contains_key("TypeLineRole"));
+        if let Some(base) = lexeme.id.as_str().strip_suffix("/non") {
+            let expected = if lexeme.category == Category::Adjective {
+                LEXICON.lexemes()[base]
+                    .properties
+                    .features
+                    .get("TypeLineRole")
+            } else {
+                None
+            };
+            assert_eq!(lexeme.properties.features.get("TypeLineRole"), expected);
         }
     }
 }

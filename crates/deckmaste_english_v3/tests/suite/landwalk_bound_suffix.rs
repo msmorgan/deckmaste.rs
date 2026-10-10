@@ -54,6 +54,7 @@ fn keyword_labels_preserve_bound_structure_and_both_roundtrip_laws() {
         let head = suffix();
         let expected = Reading::BoundQualityKeyword {
             form: 0,
+            modifier: None,
             quality: quality.clone(),
             head: head.clone(),
         };
@@ -140,6 +141,7 @@ fn generic_landwalk_has_only_the_composed_lexical_route() {
         readings,
         BTreeSet::from([Reading::BoundQualityKeyword {
             form: 0,
+            modifier: None,
             quality: stem("lexeme:type/land", SurfaceCase::Declared),
             head: suffix(),
         }])

@@ -13,6 +13,10 @@ use proc_macro2::TokenStream;
 
 /// Validate a declaration and generate all projections from its normalized IR.
 ///
+/// `optional(lexical(Category), "separator")` retains an optional Word and a
+/// trailing separator expressed only when it is present. Direct feature
+/// requirements on that field check the present Word; absence satisfies them.
+///
 /// # Errors
 /// Reports the declaration and violated compilation obligation at its source
 /// span.

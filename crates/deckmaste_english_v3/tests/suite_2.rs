@@ -67,3 +67,6 @@ mod analytic_not_after_be;
 
 #[path = "suite/coordinated_focused_adjuncts.rs"]
 mod coordinated_focused_adjuncts;
+
+#[path = "suite/supertype_premodified_bound_keyword.rs"]
+mod supertype_premodified_bound_keyword;

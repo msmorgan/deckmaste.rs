@@ -138,6 +138,8 @@ pub(crate) enum Build {
     },
     Absent,
     Present,
+    AbsentWord,
+    PresentWord,
     Empty,
     Singleton,
     Append,
@@ -434,7 +436,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             for (name, ty) in collect_fields(form, &construction.name)? {
                 match &ty {
                     FieldType::SelectedFrame(_, _) => {}
-                    FieldType::Lexical(category) => {
+                    FieldType::Lexical(category) | FieldType::OptionalLexical(category, _) => {
                         ron::from_str::<deckmaste_lexical_model::Category>(category)
                             .map_err(|_| error(&name, "unknown lexical Category"))?;
                     }
@@ -693,7 +695,9 @@ fn normalize(
             for (expanded, selected_requirements) in expand_selected_literals(ir, parts)? {
                 let mut row_obligations = obligations.clone();
                 row_obligations.extend(selected_requirements);
-                let plan = equations(ir, index, interfaces, &row_obligations)?;
+                let (optional_requirements, ordinary_obligations) =
+                    optional_word_requirements(ir, index, &row_obligations)?;
+                let plan = equations(ir, index, interfaces, &ordinary_obligations)?;
                 let scan_pieces = normalize_form(ir, index, interfaces, &expanded)?;
                 let mut symbols = vec![];
                 let mut slots = vec![0; ir.constructors[index].fields.len()];
@@ -711,20 +715,14 @@ fn normalize(
                             // across forms.
                             // Single constituent and lexical Categories belong
                             // to the selected form.
-                            symbols.push(match &ir.constructors[index].fields[*field].1 {
-                                FieldType::Lexical(category) => Symbol::Lexical(category.clone()),
-                                FieldType::One(category) => Symbol::Nonterminal(
-                                    ir.categories
-                                        .iter()
-                                        .position(|name| name == category)
-                                        .unwrap(),
-                                ),
-                                _ => match &field_symbols[*field] {
-                                    Symbol::Lexical(c) => Symbol::Lexical(c.clone()),
-                                    Symbol::Nonterminal(c) => Symbol::Nonterminal(*c),
-                                    Symbol::Literal(_) => unreachable!(),
-                                },
-                            });
+                            let ty = ir.constructors[index].fields[*field].1.clone();
+                            symbols.push(surface_field_symbol(
+                                ir,
+                                &ty,
+                                &field_symbols[*field],
+                                optional_requirements.get(field).map_or(&[], Vec::as_slice),
+                                &construction.name,
+                            )?);
                             checks.push(
                                 plan.references
                                     .iter()
@@ -1428,6 +1426,101 @@ fn projected_helper(
     }
 }
 
+type OptionalWordRequirements = BTreeMap<usize, Vec<(usize, TokenStream)>>;
+
+fn optional_word_requirements(
+    ir: &Ir,
+    constructor: usize,
+    obligations: &[Equation],
+) -> syn::Result<(OptionalWordRequirements, Vec<Equation>)> {
+    let mut optional = BTreeMap::<usize, Vec<(usize, TokenStream)>>::new();
+    let mut ordinary = Vec::new();
+    for obligation in obligations {
+        if let Equation::Require(reference, constant) = obligation
+            && let Some(field) =
+                ir.constructors[constructor]
+                    .fields
+                    .iter()
+                    .position(|(name, ty)| {
+                        name == &reference.field && matches!(ty, FieldType::OptionalLexical(_, _))
+                    })
+        {
+            if reference.last {
+                return Err(error(
+                    &reference.field,
+                    "last requires a repeated constituent field",
+                ));
+            }
+            let feature = feature_index(&ir.features, &reference.feature)?;
+            optional
+                .entry(field)
+                .or_default()
+                .push((feature, value(ir, feature, constant)?));
+        } else {
+            ordinary.push(obligation.clone());
+        }
+    }
+    Ok((optional, ordinary))
+}
+
+fn surface_field_symbol(
+    ir: &mut Ir,
+    ty: &FieldType,
+    fallback: &Symbol,
+    requirements: &[(usize, TokenStream)],
+    owner: &Ident,
+) -> syn::Result<Symbol> {
+    Ok(match ty {
+        FieldType::Lexical(category) => Symbol::Lexical(category.clone()),
+        FieldType::OptionalLexical(category, separator) => {
+            normalize_optional_word(ir, category, separator, requirements, owner)?
+        }
+        FieldType::One(category) => Symbol::Nonterminal(
+            ir.categories
+                .iter()
+                .position(|name| name == category)
+                .unwrap(),
+        ),
+        _ => match fallback {
+            Symbol::Lexical(category) => Symbol::Lexical(category.clone()),
+            Symbol::Nonterminal(category) => Symbol::Nonterminal(*category),
+            Symbol::Literal(_) => unreachable!(),
+        },
+    })
+}
+
+fn normalize_optional_word(
+    ir: &mut Ir,
+    lexical: &str,
+    separator: &str,
+    requirements: &[(usize, TokenStream)],
+    owner: &Ident,
+) -> syn::Result<Symbol> {
+    let category = ir.categories.len();
+    ir.categories
+        .push(format_ident!("__OptionalWord{category}"));
+    helper(ir, category, vec![], Build::AbsentWord);
+    let mut symbols = vec![Symbol::Lexical(lexical.to_owned())];
+    if !separator.is_empty() {
+        symbols.push(Symbol::Literal(separator.to_owned()));
+    }
+    helper(ir, category, symbols, Build::PresentWord);
+    let rule = ir.rules.last_mut().unwrap();
+    let mut constants = BTreeMap::<usize, String>::new();
+    for (feature, constant) in requirements {
+        if constants
+            .insert(*feature, constant.to_string())
+            .is_some_and(|previous| previous != constant.to_string())
+        {
+            return Err(error(owner, "contradictory admission requirements"));
+        }
+        let register = rule.initial.len();
+        rule.initial.push(Some(constant.clone()));
+        rule.checks[0].push((*feature, register));
+    }
+    Ok(Symbol::Nonterminal(category))
+}
+
 fn normalize_field(ir: &mut Ir, ty: &FieldType, features: &[(usize, TokenStream)]) -> Symbol {
     if matches!(ty, FieldType::SelectedFrame(_, _)) {
         let category = ir.categories.len();
@@ -1436,12 +1529,14 @@ fn normalize_field(ir: &mut Ir, ty: &FieldType, features: &[(usize, TokenStream)
         return Symbol::Nonterminal(category);
     }
 
-    if let FieldType::Lexical(category) = ty {
+    if let FieldType::Lexical(category) | FieldType::OptionalLexical(category, _) = ty {
         return Symbol::Lexical(category.clone());
     }
     let name = match ty {
         FieldType::One(c) | FieldType::Optional(c) | FieldType::Repeated(c, _) => c,
-        FieldType::Lexical(_) | FieldType::SelectedFrame(_, _) => unreachable!(),
+        FieldType::Lexical(_)
+        | FieldType::OptionalLexical(_, _)
+        | FieldType::SelectedFrame(_, _) => unreachable!(),
     };
     let child = ir.categories.iter().position(|n| n == name).unwrap();
     if matches!(ty, FieldType::One(_)) {

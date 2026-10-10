@@ -450,6 +450,7 @@ fn form_pieces(
                 }
                 let category_name = match ty {
                     FieldType::Lexical(c)
+                    | FieldType::OptionalLexical(c, _)
                     | FieldType::One(c)
                     | FieldType::Optional(c)
                     | FieldType::Repeated(c, _) => format_ident!("{c}"),
@@ -462,6 +463,37 @@ fn form_pieces(
                         summaries[*field] = quote!(Some(cache.word(#binding, grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?));
                         write.push(quote!(output.word(#binding, lexicon)?;));
                         word.push(quote!(visitor(#binding);));
+                    }
+                    FieldType::OptionalLexical(_, separator) => {
+                        // Each field has its own helper, located through its surface slot.
+                        let Build::Construction { slots, .. } = &ir.rules[form.rule].build else {
+                            unreachable!()
+                        };
+                        let Symbol::Nonterminal(category) =
+                            ir.rules[form.rule].symbols[slots[*field]]
+                        else {
+                            unreachable!()
+                        };
+                        let rule = ir
+                            .rules
+                            .iter()
+                            .find(|rule| {
+                                rule.category == category
+                                    && matches!(rule.build, Build::PresentWord)
+                            })
+                            .unwrap();
+                        let checks = rule.checks[0].iter().map(|(feature, register)| {
+                            let expected = rule.initial[*register].as_ref().unwrap();
+                            quote!(if summary.values[#feature].as_ref() != Some(&#expected) { return Err(Error::Invalid(#owner, "optional lexical requirement")); })
+                        });
+                        summaries[*field] = quote!(Some({ if let Some(child) = #binding {
+                            let mut summary = cache.word(child, grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?;
+                            #(#checks)*
+                            summary.surface.literal(#separator);
+                            summary
+                        } else { Summary::default() } }));
+                        write.push(quote!(if let Some(child) = #binding { output.word(child, lexicon)?; output.push_str(#separator); }));
+                        word.push(quote!(if let Some(child) = #binding { visitor(child); }));
                     }
                     FieldType::One(_) => {
                         summaries[*field] = quote!(Some({ let child = #binding; #check_category cache.admit(child, grammar, lexicon)? }));
@@ -576,6 +608,7 @@ fn form_admission(
 
 fn ast(ir: &Ir) -> TokenStream {
     let mut variants = vec![];
+    let debug = emit_reading_debug(ir);
     let mut categories = vec![];
     let mut constructions = vec![];
     let mut admits = vec![];
@@ -593,6 +626,7 @@ fn ast(ir: &Ir) -> TokenStream {
             .collect();
         let types = constructor.fields.iter().map(|(_, ty)| match ty {
             FieldType::Lexical(_) => quote!(Word),
+            FieldType::OptionalLexical(_, _) => quote!(Option<Word>),
             FieldType::SelectedFrame(_, _) => quote!(Vec<FrameValue>),
             FieldType::One(_) => quote!(Box<Reading>),
             FieldType::Optional(_) => quote!(Option<Box<Reading>>),
@@ -673,8 +707,8 @@ fn ast(ir: &Ir) -> TokenStream {
     let cost_methods = emit_cost_methods(ir);
     let structural_traits = emit_structural_traits(ir);
     quote! {
-        #[derive(Debug)]
         pub enum Reading { #(#variants),* }
+        #debug
         #structural_traits
         impl Reading {
             #[must_use]
@@ -759,6 +793,38 @@ fn emit_cost_methods(ir: &Ir) -> TokenStream {
 
 // Keep recursive structural operations proportional to the selected variant.
 // Variant and field order exactly match Rust's derived structural ordering.
+fn emit_reading_debug(ir: &Ir) -> TokenStream {
+    let arms = ir.constructors.iter().map(|constructor| {
+        let name = &constructor.name;
+        let owner = name.to_string();
+        let fields = constructor.fields.iter().map(|(field, _)| field);
+        let category_pattern = constructor.shared.then(|| quote!(category,));
+        let category_debug = constructor
+            .shared
+            .then(|| quote!(debug.field("category", category);));
+        let debug_fields = constructor.fields.iter().map(|(field, ty)| {
+            let label = field.to_string();
+            if matches!(ty, FieldType::OptionalLexical(_, _)) {
+                quote!(if #field.is_some() { debug.field(#label, #field); })
+            } else {
+                quote!(debug.field(#label, #field);)
+            }
+        });
+        quote!(Self::#name { form, #category_pattern #(#fields),* } => {
+            let mut debug = formatter.debug_struct(#owner);
+            debug.field("form", form);
+            #category_debug
+            #(#debug_fields)*
+            debug.finish()
+        })
+    });
+    quote!(impl ::core::fmt::Debug for Reading {
+        fn fmt(&self, formatter: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+            match self { #(#arms),* }
+        }
+    })
+}
+
 fn emit_structural_traits(ir: &Ir) -> TokenStream {
     let mut ranks = vec![];
     let mut clones = vec![];
@@ -911,6 +977,7 @@ fn materializer(ir: &Ir) -> TokenStream {
                         let binding = &values[field];
                         let conversion = match constructor.fields[field].1 {
                             FieldType::Lexical(_) => quote!(value.word()?),
+                            FieldType::OptionalLexical(_, _) => quote!(value.optional_word()?),
                             FieldType::SelectedFrame(_, _) => quote!(return Err(Error::Internal)),
                             FieldType::One(_) => quote!(Box::new(value.node()?)),
                             FieldType::Optional(_) => quote!(value.optional()?),
@@ -922,6 +989,12 @@ fn materializer(ir: &Ir) -> TokenStream {
                 quote!(#(#consume)* Ok(Value::Reading(Reading::#name { #category_value form: #form, #(#fields: #values),* })))
             }
             Build::Absent => quote!(Ok(Value::Optional(None))),
+            Build::AbsentWord => quote!(Ok(Value::OptionalWord(None))),
+            Build::PresentWord => {
+                let separator = rule.symbols.len() > 1;
+                let consume_separator = separator.then(|| quote!(if !matches!(children.next(), Some(Value::Literal)) { return Err(Error::Internal); }));
+                quote!({ let word = children.next().ok_or(Error::Internal)?.word()?; #consume_separator Ok(Value::OptionalWord(Some(word))) })
+            },
             Build::Present => quote!(Ok(Value::Optional(Some(children.next().ok_or(Error::Internal)?.node()?)))),
             Build::Empty => quote!(Ok(Value::Repeated(vec![]))),
             Build::Singleton => quote!(Ok(Value::Repeated(vec![children.next().ok_or(Error::Internal)?.node()?]))),

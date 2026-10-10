@@ -1638,6 +1638,11 @@ The noun stem forming a Keyword Quality bound to a Bound Keyword Surface, as
 declared singular Word Form, with positional Capitalization of the combined
 word (owner ruling, 2026-10-08,
 [landwalk ticket](../../tickets/done/english-v3-landwalk-bound-suffix.md#analysis)).
+A supertype may premodify the stem as a separate Adjective, as *basic* in
+*Basic landcycling* and *snow* in *Snow forestwalk*; the Premodifier takes
+positional Capitalization while the stem remains lowercase (orchestrator
+rulings SB1, SB5 and SB7, 2026-10-10,
+[supertype-premodification ticket](../../tickets/wip/english-v3-supertype-premodified-bound-keyword.md#analysis)).
 
 **Bound Keyword Stem Class** (project term):
 A keyword's declared set of subtype classes and card type supplying its Bound

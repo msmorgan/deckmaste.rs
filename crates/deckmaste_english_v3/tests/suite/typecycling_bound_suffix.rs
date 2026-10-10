@@ -16,6 +16,7 @@ use crate::common;
 fn expected(owner: &str, amount: i32, capitalization: SurfaceCase) -> Reading {
     Reading::BoundQualityCostKeyword {
         form: 0,
+        modifier: None,
         quality: Word {
             value: LexicalReading::Word(LexicalValue {
                 lexeme: format!("{owner}/bound-keyword-stem").as_str().into(),
@@ -163,6 +164,7 @@ fn stem_class_binding_and_mandatory_cost_constrain_admission() {
     assert!(
         Reading::BoundQualityKeyword {
             form: 0,
+            modifier: None,
             quality,
             head
         }
@@ -172,10 +174,26 @@ fn stem_class_binding_and_mandatory_cost_constrain_admission() {
 }
 
 #[test]
-fn gleam_of_resistance_retains_the_ruled_premodification_residual() {
-    // R8b: no existing supertype premodification route; a new Construction
-    // for Basic landcycling is forbidden here and remains follow-up work.
-    assert!(common::readings("Basic landcycling {1}{W}", Category::Document).is_empty());
+fn gleam_of_resistance_reads_the_ruled_supertype_premodifier() {
+    crate::supertype_premodified_bound_keyword::assert_keyword(
+        "Basic landcycling {1}{W}",
+        &Word {
+            value: LexicalReading::Word(LexicalValue {
+                lexeme: "vocab:Supertype/Basic".into(),
+                form: WordForm::Invariant,
+                features: FeatureBundle::default(),
+                variant: 0,
+                capitalization: SurfaceCase::Initial,
+            }),
+            frame: None,
+            countability: None,
+        },
+        &match expected("lexeme:type/land", 1, SurfaceCase::Declared) {
+            Reading::BoundQualityCostKeyword { quality, .. } => quality,
+            _ => unreachable!(),
+        },
+        Some("{1}{W}"),
+    );
 }
 
 #[test]
