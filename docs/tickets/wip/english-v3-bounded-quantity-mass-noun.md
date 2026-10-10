@@ -120,3 +120,56 @@ english-v3 grep` only.
 - *exactly N*, *no more than N*.
 
 ## Landing record
+
+1. **Census delta** (`qolzxolt` tree → `nlprwskn`): Method's 629 matching
+   faces plus 300 covered controls (seed 20261008), **923 distinct faces**.
+   Covered **712 → 805**; line Readings **12,408 → 13,485**; **93 gains**.
+   Lost faces: none. Decreases / previously covered increases / digest-only
+   changes: **0 / 0 / 0**. All 300 random controls were covered before.
+   Native `english-v3 diff --lines` evidence and the identity manifest are in
+   `target/english-v3/english-v3-bounded-quantity-mass-noun/`.
+   Post-refresh (`ssqzqnyk`, empty child of `nlprwskn`): covered **807**,
+   Readings **13,494**, **95 total gains**. The two inherited gains are Ashen
+   Ghoul (**3**) and Nether Shadow (**6**), from the *above* declaration in
+   trunk `nqnztuzo`; this ticket contributes **93**. Refresh adds no losses,
+   decreases, previously covered increases or digest-only changes
+   (`refresh-diff.json`, `final-diff.json`).
+2. **Witnesses** (`qolzxolt` tree → `nlprwskn`, sentence probes): Abandoned
+   Campground, Divinity of Pride, Innocent Bystander, Callous Giant and
+   Dragonborn Champion each **0 → 1**; plain-numeral controls each **1 → 1**.
+   No witness was already covered. Other controls unchanged: “You have 5 or
+   more cards in hand.” **2**; “A player has 13 life.” **1**; “You have at
+   least 7 life.” **1**; “mana value 3 or less” **1**; “4 or more counters”
+   **1**. All probes completed enumeration without issues.
+3. **Spot checks** (`nlprwskn`): Abandoned Campground, Divinity of Pride and
+   Guul Draz Vampire: measured life Object; Innocent Bystander: measured
+   damage passive Complement; Callous Giant and Dragonborn Champion: measured
+   damage Object; Burning-Eye Zubera and Rushing-Tide Zubera: singular measured
+   damage Subject of *was dealt*; Tackle Artist and Muse Seeker: word-cardinal
+   measured mana Subject of *was spent*. Each quantity is the coordinated
+   Comparative Quantity with its Quantity Conjunct and comparative Determinative.
+4. **Deviations and STOPs** (`nlprwskn`): one added form refines
+   `MeasuredNounPhrase` (BQ1), using the existing declared `MeasureModifierUse`
+   carried by Comparative Quantity (BQ2). No new Construction or glossary gap;
+   no STOPs. Re-spelled the superseded measured-mana residual in
+   `purpose_does_not_supply_a_negative_clause_or_a_noun_relative`: same
+   sentence and empty Reading-set outcome with `MeasureModifierUse = No`,
+   proving purpose attachment cannot bypass the replacement measurement licence.
+   No lexical or grammatical route was superseded.
+5. **Tests** (`nlprwskn`): `cargo test -p deckmaste_english_v3` passed
+   **756 tests**, **0 failed / ignored**, plus doc tests. The initial run's one
+   superseded residual failure was re-spelled as above; the full suite was rerun.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed after
+   correcting three borrowing lints, retaining full value comparisons.
+   Post-refresh gates (`ssqzqnyk` tree): the same full English test command
+   passed **757** tests, and the same English clippy command passed.
+   `cargo test -p xtask english_v3` passed **56** tests (required by incoming
+   plugin grammar data). Full data-consumer command:
+   `cargo test -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2`
+   passed **80 / 470 / 105** tests respectively. Their command
+   `cargo clippy -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings`
+   passed. Every suite reported zero failures and ignores.
+   Restored / re-spelled / ignored-with-blocker / added / removed:
+   **0 / 1 / 0 / 8 / 0**. No removals to justify.
+6. **Timing** (`ssqzqnyk` tree): refreshed bounded census **15.83 s** wall under
+   `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`.

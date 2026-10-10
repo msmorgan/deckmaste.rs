@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "suite/bounded_quantity_mass_noun.rs"]
+mod bounded_quantity_mass_noun;
+
 #[path = "suite/keyword_dash_cost_line.rs"]
 mod keyword_dash_cost_line;
 

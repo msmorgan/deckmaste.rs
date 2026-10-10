@@ -128,14 +128,25 @@ fn purpose_does_not_supply_a_negative_clause_or_a_noun_relative() {
         );
     }
     assert!(common::readings("mana to cast this spell", Category::NounPhrase).is_empty());
-    // The ticket deliberately leaves the measured mass Subject gap outside
-    // scope.
-    assert!(
-        common::readings(
+    // BQ1–BQ4 now license the measured mass Subject. Purpose attachment must
+    // still not supply that Subject when its declared measurement licence is
+    // absent; retain the original negative sentence and empty Reading set.
+    let mut lexemes: Vec<_> = common::lexicon().lexemes().values().cloned().collect();
+    lexemes
+        .iter_mut()
+        .find(|lexeme| lexeme.id == "vocab:ComparativeQuantifier/More")
+        .unwrap()
+        .properties
+        .features
+        .insert("MeasureModifierUse".into(), "No".into());
+    let lexicon = deckmaste_lexical::Lexicon::new(lexemes).unwrap();
+    assert_eq!(
+        common::readings_with_lexicon(
+            &lexicon,
             "If three or more mana was spent to cast it, draw a card.",
             Category::Document
-        )
-        .is_empty()
+        ),
+        BTreeSet::new()
     );
 }
 

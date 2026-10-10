@@ -477,7 +477,7 @@ constructions! {
         category QuantitativePrepositionPhrase(number);
         category ComparativePrepositionPhrase(number);
         category QuantityConjunct(number, CardinalMeasurementUse);
-        category ComparativeQuantity(number, ComparativeQuantityStructure);
+        category ComparativeQuantity(number, ComparativeQuantityStructure, MeasureModifierUse);
         category ScalarLocationComplement();
         category HollowInfinitivalComplement();
         category PurposeInfinitival(FocusedUse);
@@ -4629,8 +4629,9 @@ constructions! {
         }
 
         // CGEL Ch. 5 §7.6, p. 386: a numeral and comparative are Conjuncts.
-        // §3.4, p. 353 n. 13: this coordination selects a plural head.
+        // §3.4, p. 353 n. 13: with a count noun, it selects a plural head.
         construction NumeralComparativeCoordination: ComparativeQuantity {
+            export MeasureModifierUse = right.MeasureModifierUse;
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
                 right: lexical(Determinative)];
             require marker.CoordinationKind = Alternative;
@@ -4643,6 +4644,7 @@ constructions! {
         // CGEL Ch. 5 §11(d), p. 432: the quantifier in the PP Complement
         // controls head selection, including singular more than one.
         construction ComparativeDeterminativePhrase: ComparativeQuantity {
+            export MeasureModifierUse = head.MeasureModifierUse;
             form [head: lexical(Determinative), " ", complement: ComparativePrepositionPhrase];
             require head.ComparativeQuantityUse = Yes;
             export ComparativeQuantityStructure = Headed;
@@ -4863,13 +4865,18 @@ constructions! {
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
             export Targeting = No;
-            form [quantity: MeasurePhrase, " ", head: Nominal];
+            form [quantity: MeasurePhrase, " ", head: Nominal]
+                require quantity.MeasureKind = Scalar
+                require quantity.UnitBearing = No;
+            // Orchestrator rulings BQ1–BQ4 (2026-10-10): refine the quantity
+            // slot, retaining the measured head's singular conceptualization.
+            form [quantity: ComparativeQuantity, " ", head: Nominal]
+                require quantity.ComparativeQuantityStructure = Coordinated
+                require quantity.MeasureModifierUse = Yes;
             require head.MeasurePosition = Before;
             require head.ScalarMeasurementHeadUse = Yes;
             require head.DeterminerRequirement = No;
             require head.Targeting = No;
-            require quantity.MeasureKind = Scalar;
-            require quantity.UnitBearing = No;
             require head.number = Singular;
             require head.countability = Mass;
             export number = Singular;
