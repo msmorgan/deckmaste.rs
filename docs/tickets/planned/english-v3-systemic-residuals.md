@@ -697,3 +697,32 @@ per-coordinate frame check remains for recon: coordination must retain each
 coordinate's frame signature for the shared head, rather than discharge only
 corresponding frame shapes. See the
 [Enter-copy landing record](../done/english-v3-enter-as-copy-complement.md#landing-record).
+
+## Keyword verb and state Complement residue (2026-10-10)
+
+The [keyword-verb export landing](../done/english-v3-keyword-verb-export.md#landing-record)
+defers saddle and *becomes crewed* under KV3/KV2 (pre-integrate review ruling
+2026-10-10, implementation `surmqztl`). Find a general route for the attested
+state Complements of *become* that preserves the existing Readings and avoids
+a duplicate adjective/passive analysis; standard constraints apply.
+
+- **Saddle**: adding the verb export makes `This creature is saddled` read
+  1 → 2; retiring the existing adjective makes `This creature becomes saddled`
+  read 1 → 0. Threatened covered faces: Stubborn Burrowfiend; Kolodin, Triumph
+  Caster; Guidelight Matrix; Alacrian Armory. The original adjective remains.
+  Unread active witnesses: `This creature saddles Mounts` (Deathless Pilot)
+  and `saddles a Mount` (Reckless Velocitaur), both 0 before and finally 0
+  after; both temporarily read with the rejected export. Probe evidence is
+  under `target/english-v3/english-v3-keyword-verb-export/`
+  (`saddled-with-verb.json`, `becomes-saddled-retired-adjective.json`,
+  `08-before.json`, `09-before.json`).
+- **Becomes crewed**: 4 analysed-corpus attestations — Mindlink Mech, Mighty
+  Servant of Leuk-o, Mobilizer Mech and Ghost Ark — remain 0 before and after
+  (`surmqztl`, review evidence). The missing piece is that *become* takes an
+  adjectival Complement, while crew exports no state adjective. Adding that
+  adjective would duplicate `is crewed` exactly as for saddle. This KV3
+  failing term is recorded here, not implemented by the verb-export ticket.
+
+Preserve the covered state faces and discriminate the adjective/passive
+constituencies before routing a bounded repair. Do not retire an adjective
+until its *become* witnesses have a replacement with the same outcome.
