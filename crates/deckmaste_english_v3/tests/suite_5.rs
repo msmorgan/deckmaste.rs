@@ -79,3 +79,6 @@ mod keyword_state_adjectives;
 
 #[path = "suite/named_token_apposition.rs"]
 mod named_token_apposition;
+
+#[path = "suite/kind_of_counter.rs"]
+mod kind_of_counter;

@@ -1036,6 +1036,13 @@ Postmodifier have different functions even when both are Preposition Phrases
 (CGEL, Ch. 5 §14, p. 439, introduces the distinction; §14.2, p. 446 [14], illustrates PP
 Postmodifiers; Ch. 7 §3.1, pp. 620–623 discusses competing internal analyses).
 
+**Taxonomic Complement Use** (project term):
+A noun head's declared permission to select a bare singular count Nominal as
+the Complement of its *of* marker, under orchestrator rulings KC1–KC3
+(2026-10-10, ticket `english-v3-kind-of-counter`).
+Postmodifiers attach under the selecting head rather than inside that bare
+Complement, preserving the ordinary nominal attachment sites.
+
 **Selected Preposition Use** (project term):
 The declared pairing of nominal and preposition permissions that restricts the
 resulting Preposition Phrase to a selected Complement function in Oracle English.

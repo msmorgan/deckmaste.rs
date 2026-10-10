@@ -898,7 +898,7 @@
         ),
         (
             id: "lexeme:CommonNoun/Kind", lemma: "kind", category: Noun,
-            properties: (countability: [Count], features: {}, frames: []),
+            properties: (countability: [Count], features: {"TaxonomicComplementUse": "Yes"}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Kind"),
             capitalization: Initial, binding: Free, surface_structure: Word,

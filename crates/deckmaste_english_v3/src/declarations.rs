@@ -379,6 +379,10 @@ constructions! {
         }
         feature IdentityUse { Name }
         feature NominalComplementMarker { None, Of } default None;
+        feature TaxonomicComplementUse { No, Yes } default No;
+        table nominal_complement_marker(NominalComplementMarker, NominalComplementMarker) -> Selection {
+            (None, None) => Yes, (Of, Of) => Yes,
+        }
         feature BarePrepositionUse { No, Location, SpatialEdge } default No;
         feature BareNominalComplement { No, Location, SpatialEdge } default No;
         table bare_preposition_use(BarePrepositionUse) -> Selection {
@@ -3169,9 +3173,21 @@ constructions! {
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
             form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
-                complement: AccusativePhrase];
-            require head.frame = NominalPreposition;
-            agree head.NominalComplementMarker = marker.NominalComplementMarker;
+                complement: AccusativePhrase]
+                require head.frame = NominalPreposition
+                require nominal_complement_marker(head.NominalComplementMarker,
+                    marker.NominalComplementMarker) = Yes;
+            // KC1–KC3 (kind-of-counter ruling, 2026-10-10): the licensed
+            // head selects a bare count Nominal; Postmodifiers attach outside it.
+            form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
+                complement: Nominal]
+                require head.framing = Unframed
+                require head.TaxonomicComplementUse = Yes
+                require marker.NominalComplementMarker = Of
+                require complement.number = Singular
+                require complement.countability = Count
+                require complement.NominalDependentPresent = No
+                require complement.DeterminerRequirement = No;
             require licence_noun_complement(marker.PrepositionFunctionLicence) = Yes;
             use UnmodifiedNominalProperties;
             export BareGenitiveHost = No;
