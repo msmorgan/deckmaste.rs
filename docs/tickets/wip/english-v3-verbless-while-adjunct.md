@@ -149,7 +149,11 @@ a plugin definition changes, run `cargo xtask lean check`.
    extra gain is The Masamune (0 → 15), attributable to incoming cause
    complement change `nzmrrqky`, not this construction. The refresh-only
    diff has that one gain and no other changes. Refreshed evidence:
-   `after-refresh.json`, `refresh-diff.json`, `claim-diff.json`.
+   `after-refresh.json`, `refresh-diff.json`, `claim-diff.json`. The accepted
+   integration refresh changed none of the same 643 faces: final totals
+   remain 26 gains, 592 covered and 10,829 Readings, with every other delta
+   zero (`after-accepted-refresh.json`, `accepted-refresh-diff.json`,
+   `final-diff.json`).
 2. **Witnesses** (`wxwozrtz`, complete sentence probes, limit 64): Gilded
    Ghoda, Alacrian Jaguar, District Mascot and Dracosaur Auxiliary each 0 → 1;
    each control with *while saddled* removed reads 1 before and after (W9-A).
@@ -185,7 +189,10 @@ a plugin definition changes, run `cargo xtask lean check`.
    No unresolved STOP remains. The mandatory refresh after committing
    brought `roomopmr` (phase in/out), `nzmrrqky` (cause complement) and
    `tlpwnxqn` (name-anchored NP supplements), including grammar and lexicon
-   changes; it completed without conflicts.
+   changes; it completed without conflicts. Orchestrator review accepted
+   the landing on 2026-10-10. The subsequent integration refresh brought
+   `mpvousxzotns` (sentence-final temporal supplements) and `wkooyukozlpw`
+   (taxonomic nominal complements), without conflicts or implementation fixes.
 5. **Tests** (`wxwozrtz`): `cargo test -p deckmaste_english_v3` passed all six
    binaries (899 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. `cargo test -p deckmaste_lexical_source` passed (42 unit + 44
@@ -207,5 +214,9 @@ a plugin definition changes, run `cargo xtask lean check`.
    `clippy-english-refresh.log`, `tests-lexical-source-refresh.log`,
    `clippy-lexical-source-refresh.log` and `cite-*-refresh.log`. Refreshed
    citation checks again found 0 noncompliant, 0 stale and 0 diff audit sites.
+   After the accepted integration refresh, `cargo build -p xtask`, the same
+   bounded census and all four full test/clippy commands above passed again
+   (English 921 tests; lexical source 42 unit + 44 integration). Logs use
+   the `-accepted-refresh.log` suffix.
 6. **Timing**: complete bounded census wall time **25.06 seconds**, six workers,
    at `wxwozrtz`, measured by `/usr/bin/time -v` (`after.time`).
