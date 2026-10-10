@@ -2893,6 +2893,71 @@ fn self_referential_body_is_rejected_at_insert() {
     assert!(matches!(err, InsertError::Cycle { .. }), "{err}");
 }
 
+/// A body that names itself only in a NESTED argument is a cycle the
+/// insert-time walk does not see (`leading_invoked_name` is shallow on
+/// purpose). It used to run the reader into a stack overflow a few levels
+/// in, long before the `MAX_DEPTH` cap; reading it is now a reported error
+/// naming the cycle.
+#[test]
+fn nested_self_reference_is_a_reported_error_not_an_overflow() {
+    let mut set = empty();
+    set.insert(&def(r#"(
+        name: "Nest",
+        kinds: [Filter],
+        body: AllOf([Any, OneOf([Nest])]),
+    )"#))
+        .unwrap();
+    let err = set.read_str::<Filter>("Nest").unwrap_err().to_string();
+    assert!(
+        err.contains("`Nest` is invoked inside its own definition (Nest -> Nest)"),
+        "{err}"
+    );
+}
+
+/// The same through two macros, each naming the other only in a nested
+/// argument: reading either reports the cycle through both.
+#[test]
+fn nested_mutual_reference_is_a_reported_error_not_an_overflow() {
+    let mut set = empty();
+    set.insert(&def(
+        r#"( name: "Tick", kinds: [Filter], body: OneOf([Any, Tock]) )"#,
+    ))
+    .unwrap();
+    set.insert(&def(
+        r#"( name: "Tock", kinds: [Filter], body: AllOf([Tick]) )"#,
+    ))
+    .unwrap();
+    let err = set.read_str::<Filter>("Tick").unwrap_err().to_string();
+    assert!(
+        err.contains("`Tick` is invoked inside its own definition (Tick -> Tock -> Tick)"),
+        "{err}"
+    );
+}
+
+/// Not a cycle: an author nesting a macro inside its own argument, even when
+/// the body forwards that argument into another macro inside text of its own
+/// (`Inner([Param(x)])`), and a body naming a macro only inside a string.
+#[test]
+fn nesting_in_arguments_is_not_a_cycle() {
+    let mut set = empty();
+    set.insert(&def(r#"(
+        name: "Inner",
+        kinds: [Filter],
+        params: { "xs": Any },
+        body: OneOf(Param(xs)),
+    )"#))
+        .unwrap();
+    set.insert(&def(r#"(
+        name: "Outer",
+        kinds: [Filter],
+        params: { "x": Any },
+        body: AllOf([Named("Outer"), Inner(xs: [Param(x)])]),
+    )"#))
+        .unwrap();
+    set.read_str::<Filter>("Outer(x: Outer(x: Outer(x: Any)))")
+        .expect("an author's nesting is not a cycle");
+}
+
 /// A two-macro cycle is rejected once it closes: `A`'s body naming `B`
 /// (not yet defined) inserts fine — `B` simply isn't a macro yet, so the
 /// walk finds no edge — but `B`'s body naming `A` closes the loop back to

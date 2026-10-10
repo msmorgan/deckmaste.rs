@@ -37,6 +37,7 @@
 //! finishes.
 
 use std::cell::Cell;
+use std::cell::RefCell;
 use std::fmt;
 use std::ops::Range;
 
@@ -91,6 +92,75 @@ pub(crate) struct ReadCtx<'m> {
     /// outlive later pushes, because the boxed strs never move even when
     /// its spine reallocates.
     splices: FrozenVec<Box<str>>,
+    /// Keeps this thread's [`Provenance`] alive for the read, and clears it
+    /// when the outermost read ends.
+    _provenance: ProvenanceScope,
+}
+
+/// Where the text being read came from, shared by every read in flight on
+/// this thread. It is per thread, not per [`ReadCtx`], because a parameter's
+/// validator reads an argument as its type through a read of its own: a
+/// cycle that ran through validation would otherwise start every round with
+/// an empty chain (and a zero depth), and so overflow the stack instead of
+/// being reported.
+#[derive(Default)]
+struct Provenance {
+    /// The expansion chains ([`Chain`]), an append-only arena: entry `i` is a
+    /// macro's name, its definition's identity (its body's address: two
+    /// macros may share a name at different kinds, as a keyword ability and
+    /// the label its name reads as do), and the chain it was invoked in.
+    chains: Vec<(Ident, usize, Chain)>,
+    /// The definition text being read by each expansion in flight, innermost
+    /// last, with the chain that text was written in: a macro's body (or the
+    /// remembered-expansion wrapper around it) and its default expressions.
+    /// Pushed and popped around the expansion, since one definition's text is
+    /// read again by every nested expansion of it.
+    bodies: Vec<(Range<usize>, Chain)>,
+    /// The chain of each splice [`substitute_into`] made, by its address. A
+    /// splice's memory lives as long as its read, so these stay until the
+    /// outermost read ends.
+    spliced: std::collections::BTreeMap<usize, (usize, Chain)>,
+}
+
+thread_local! {
+    static PROVENANCE: RefCell<Provenance> = RefCell::new(Provenance::default());
+    static READS: Cell<usize> = const { Cell::new(0) };
+}
+
+/// One read in flight on this thread; the last to end clears the thread's
+/// [`Provenance`], whose addresses name memory that read owned.
+struct ProvenanceScope;
+
+impl ProvenanceScope {
+    fn enter() -> Self {
+        READS.with(|reads| reads.set(reads.get() + 1));
+        ProvenanceScope
+    }
+}
+
+impl Drop for ProvenanceScope {
+    fn drop(&mut self) {
+        let outermost = READS.with(|reads| {
+            reads.set(reads.get() - 1);
+            reads.get() == 0
+        });
+        if outermost {
+            PROVENANCE.with(|provenance| *provenance.borrow_mut() = Provenance::default());
+        }
+    }
+}
+
+/// Which definitions a piece of text was written in, innermost first: an
+/// index into [`Provenance::chains`], or `None` for the document's own text.
+/// A macro's body is written in a chain one longer than its invocation's, so
+/// an invocation of a macro whose chain already names it is the definition
+/// invoking itself, at any depth of nesting: a cycle.
+pub(crate) type Chain = Option<usize>;
+
+/// The address range a `str` occupies.
+fn span_of(text: &str) -> Range<usize> {
+    let start = text.as_ptr() as usize;
+    start..start + text.len()
 }
 
 impl<'m> ReadCtx<'m> {
@@ -98,11 +168,107 @@ impl<'m> ReadCtx<'m> {
         ReadCtx {
             macros,
             splices: FrozenVec::new(),
+            _provenance: ProvenanceScope::enter(),
         }
     }
 
     fn splice(&self, s: String) -> &str {
         self.splices.push_get(s.into_boxed_str())
+    }
+
+    /// The chain `text` was written in: the innermost definition text in
+    /// flight that holds it, else the splice it lies in, else the document.
+    pub(crate) fn chain_of(text: &str) -> Chain {
+        let at = text.as_ptr() as usize;
+        PROVENANCE.with(|provenance| {
+            let provenance = provenance.borrow();
+            if let Some((_, chain)) = provenance
+                .bodies
+                .iter()
+                .rev()
+                .find(|(range, _)| range.contains(&at))
+            {
+                return *chain;
+            }
+            match provenance.spliced.range(..=at).next_back() {
+                Some((_, (end, chain))) if at < *end => *chain,
+                _ => None,
+            }
+        })
+    }
+
+    /// The names in `chain`, outermost first.
+    fn chain_entries(mut chain: Chain) -> Vec<(Ident, usize)> {
+        PROVENANCE.with(|provenance| {
+            let chains = &provenance.borrow().chains;
+            let mut entries = Vec::new();
+            while let Some(index) = chain {
+                let (name, id, outer) = chains[index];
+                entries.push((name, id));
+                chain = outer;
+            }
+            entries.reverse();
+            entries
+        })
+    }
+
+    /// `name` (defined by `def`) invoked in `chain`: the chain its
+    /// definition's text is written in, or the cycle, if `chain` already
+    /// holds that definition.
+    fn enter(name: Ident, def: &MacroDef, chain: Chain) -> Result<Chain, String> {
+        let id = def.body().as_ptr() as usize;
+        let entries = Self::chain_entries(chain);
+        if let Some(start) = entries.iter().position(|(_, entry)| *entry == id) {
+            let path = entries[start..]
+                .iter()
+                .map(|(name, _)| name)
+                .chain(std::iter::once(&name))
+                .map(Ident::as_str)
+                .collect::<Vec<_>>()
+                .join(" -> ");
+            return Err(format!(
+                "`{name}` is invoked inside its own definition ({path}); \
+                 macros don't recurse"
+            ));
+        }
+        Ok(PROVENANCE.with(|provenance| {
+            let chains = &mut provenance.borrow_mut().chains;
+            chains.push((name, id, chain));
+            Some(chains.len() - 1)
+        }))
+    }
+
+    /// Runs `read` with `texts` (an expansion's definition text) in flight
+    /// as written in `chain`.
+    fn reading<T>(texts: &[&str], chain: Chain, read: impl FnOnce() -> T) -> T {
+        let depth = PROVENANCE.with(|provenance| {
+            let bodies = &mut provenance.borrow_mut().bodies;
+            let depth = bodies.len();
+            bodies.extend(texts.iter().map(|text| (span_of(text), chain)));
+            depth
+        });
+        let result = read();
+        PROVENANCE.with(|provenance| provenance.borrow_mut().bodies.truncate(depth));
+        result
+    }
+
+    /// Records the chain of a splice [`substitute_into`] made: the chain of
+    /// the arguments spliced in when they agree, else the document's. The
+    /// splice mixes the caller's text with its arguments', and giving the
+    /// caller's chain to an argument would call an author's nesting of one
+    /// macro inside itself a cycle; this way only a cycle that runs through
+    /// such a mixture is left to the `MAX_DEPTH` cap.
+    fn record_splice(splice: &str, arguments: &[&str]) {
+        let mut chains = arguments.iter().map(|argument| Self::chain_of(argument));
+        let first = chains.next().flatten();
+        let chain = if chains.all(|chain| chain == first) { first } else { None };
+        let span = span_of(splice);
+        PROVENANCE.with(|provenance| {
+            provenance
+                .borrow_mut()
+                .spliced
+                .insert(span.start, (span.end, chain));
+        });
     }
 }
 
@@ -179,6 +345,8 @@ struct Ctx<'de, 'f> {
     frame: Option<&'f Frame<'de>>,
     /// How many expansions deep this position is; bounded by [`MAX_DEPTH`].
     depth: usize,
+    /// The definitions the text read here was written in ([`Chain`]).
+    chain: Chain,
     /// Whether the text being read here is restricted author vocabulary, in
     /// which case a registered kind's own variant idents are suppressed as
     /// native candidates and must route through identity macros instead
@@ -246,17 +414,19 @@ impl<'de> Ctx<'de, '_> {
     /// wrong macro. `restricted` is the argument text's own provenance (from
     /// [`Ctx::param`]), NOT this context's — that is what keeps a card-written
     /// argument restricted after it is substituted into a free macro body.
-    fn frameless(&self, restricted: bool) -> Ctx<'de, 'de> {
+    fn frameless(&self, restricted: bool, text: &str) -> Ctx<'de, 'de> {
         Ctx {
             read: self.read,
             frame: None,
             depth: self.depth,
+            chain: ReadCtx::chain_of(text),
             restricted,
         }
     }
 
     /// The context for reading `frame`'s macro's body, one level deeper.
-    fn expansion<'g>(&self, frame: &'g Frame<'de>) -> Result<Ctx<'de, 'g>, String> {
+    fn expansion<'g>(&self, frame: &'g Frame<'de>, def: &MacroDef) -> Result<Ctx<'de, 'g>, String> {
+        let chain = ReadCtx::enter(frame.name, def, self.chain)?;
         if self.depth >= MAX_DEPTH {
             return Err(format!(
                 "`{}` is more than {MAX_DEPTH} macro expansions deep; \
@@ -268,6 +438,7 @@ impl<'de> Ctx<'de, '_> {
             read: self.read,
             frame: Some(frame),
             depth: self.depth + 1,
+            chain,
             // A macro body is definition text, which is free vocabulary
             // however the invocation was written (spec §4 container table).
             // Arguments substituted into it carry their own restriction back
@@ -313,24 +484,25 @@ pub struct MacroAware<'de, 'f, D> {
 }
 
 impl<'de, D> MacroAware<'de, 'de, D> {
-    pub(crate) fn new(de: D, read: &'de ReadCtx<'de>) -> Self {
-        Self::with_restriction(de, read, false)
+    pub(crate) fn new(de: D, read: &'de ReadCtx<'de>, chain: Chain) -> Self {
+        Self::with_restriction(de, read, false, chain)
     }
 
     /// The restricted-container entry (spec §4): the document's own text is
     /// author vocabulary, so a registered kind's variant idents are suppressed
     /// as native candidates and must route through identity macros.
-    pub(crate) fn new_restricted(de: D, read: &'de ReadCtx<'de>) -> Self {
-        Self::with_restriction(de, read, true)
+    pub(crate) fn new_restricted(de: D, read: &'de ReadCtx<'de>, chain: Chain) -> Self {
+        Self::with_restriction(de, read, true, chain)
     }
 
-    fn with_restriction(de: D, read: &'de ReadCtx<'de>, restricted: bool) -> Self {
+    fn with_restriction(de: D, read: &'de ReadCtx<'de>, restricted: bool, chain: Chain) -> Self {
         Self {
             de,
             ctx: Ctx {
                 read,
                 frame: None,
                 depth: 0,
+                chain,
                 restricted,
             },
             intercept: Intercept::Full,
@@ -962,8 +1134,9 @@ pub(crate) fn collect_param_keys(
 /// no way to tell the two apart from raw text alone — `M1M1Counter`'s own
 /// body names itself that way, as data, not as a self-invocation) and
 /// mistaking one for an invocation is a false cycle, which is worse than
-/// missing a real one — a missed one still trips the runtime `MAX_DEPTH`
-/// cap, same as before this check existed.
+/// missing a real one. A missed one is found when it is read: an expansion
+/// reaching the definition it is already inside (`ReadCtx::enter`) is a
+/// reported cycle, at whatever depth of nesting the self-reference sits.
 pub(crate) fn leading_invoked_name(body: &str, options: &ron::Options) -> Option<Ident> {
     /// The [`IdentLed`] shape-probe, but it remembers the identifier it read
     /// (in `last_ident`, shared across the tuple/struct retry so the
@@ -1106,11 +1279,18 @@ fn substitute_into<'de>(
     ctx: &Ctx<'de, '_>,
     mode: HoleMode,
 ) -> Result<(&'de str, bool), String> {
+    let mut edits = Vec::new();
+    collect_holes(source, source, ctx, mode, &mut edits)?;
+    let arguments: Vec<&str> = edits.iter().map(|(_, argument, _)| *argument).collect();
     let (resolved, restricted) = substitute_params(source, ctx, mode)?;
     Ok((
         match resolved {
             std::borrow::Cow::Borrowed(source) => source,
-            std::borrow::Cow::Owned(resolved) => ctx.read.splice(resolved),
+            std::borrow::Cow::Owned(resolved) => {
+                let splice = ctx.read.splice(resolved);
+                ReadCtx::record_splice(splice, &arguments);
+                splice
+            }
         },
         restricted,
     ))
@@ -1456,6 +1636,7 @@ pub(crate) fn fill_positional_params(
         read: &read,
         frame: Some(&frame),
         depth: 0,
+        chain: None,
         restricted: false,
     };
     substitute_params(body, &ctx, HoleMode::Strict).map(|(filled, _)| filled.into_owned())
@@ -1626,7 +1807,7 @@ impl<'de, D: Deserializer<'de>> MacroAware<'de, '_, D> {
         match probe::<D::Error>(source, position, self.ctx)? {
             Some(Invocation::Param(key)) => {
                 let (arg, restricted) = self.ctx.param(key).map_err(D::Error::custom)?;
-                reread(arg, self.ctx.frameless(restricted), Intercept::Full, f)
+                reread(arg, self.ctx.frameless(restricted, arg), Intercept::Full, f)
             }
             Some(Invocation::Macro { name, def, invoked }) => {
                 let frame = Frame {
@@ -1634,10 +1815,13 @@ impl<'de, D: Deserializer<'de>> MacroAware<'de, '_, D> {
                     args: invoked.args,
                     elided: invoked.elided,
                 };
-                let ctx = self.ctx.expansion(&frame).map_err(D::Error::custom)?;
+                let ctx = self.ctx.expansion(&frame, def).map_err(D::Error::custom)?;
                 let body =
                     elide_body(def.body(), &frame, self.ctx.read).map_err(D::Error::custom)?;
-                reread(body, ctx, Intercept::Full, f).map_err(|e| in_expansion_of(name, e))
+                ReadCtx::reading(&definition_texts(def, body), ctx.chain, || {
+                    reread(body, ctx, Intercept::Full, f)
+                })
+                .map_err(|e| in_expansion_of(name, e))
             }
             None => reread(source, self.ctx, Intercept::Skip, f),
         }
@@ -1685,9 +1869,12 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         // A whole-value hole (`changes: Param(0)`) resolves against the frame.
         if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)? {
             let (arg, restricted) = self.ctx.param(key).map_err(Self::Error::custom)?;
-            return reread(arg, self.ctx.frameless(restricted), Intercept::Full, |de| {
-                de.deserialize_seq(visitor)
-            });
+            return reread(
+                arg,
+                self.ctx.frameless(restricted, arg),
+                Intercept::Full,
+                |de| de.deserialize_seq(visitor),
+            );
         }
         // Element-level splices: inline every top-level `Splice(X)`.
         if let Some((rewritten, restricted)) =
@@ -1698,8 +1885,14 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             // author's, so the rewritten list carries the restricted half's
             // provenance (see [`Arg`]). The frame stays: the body's own
             // elements may still hole.
+            //
+            // The inlined list mixes the body's elements with the argument's,
+            // so it is read in the document's chain: an author's nesting of a
+            // macro inside its own spliced argument is no cycle, and a cycle
+            // that runs only through a splice is left to `MAX_DEPTH`.
             let ctx = Ctx {
                 restricted: self.ctx.restricted || restricted,
+                chain: None,
                 ..self.ctx
             };
             return reread(spliced, ctx, Intercept::Skip, |de| {
@@ -1736,9 +1929,12 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
             if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)?
                 && let Ok((arg, restricted)) = self.ctx.param(key)
             {
-                return reread(arg, self.ctx.frameless(restricted), Intercept::Skip, |de| {
-                    de.deserialize_newtype_struct(name, visitor)
-                });
+                return reread(
+                    arg,
+                    self.ctx.frameless(restricted, arg),
+                    Intercept::Skip,
+                    |de| de.deserialize_newtype_struct(name, visitor),
+                );
             }
             // The capture is a produced definition's body, read back as raw
             // text (`Skip`). The substitution's restriction is DROPPED here,
@@ -1784,9 +1980,12 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
         let source = <&RawValue>::deserialize(self.de)?.get_ron();
         if let Some(Invocation::Param(key)) = probe::<Self::Error>(source, None, self.ctx)? {
             let (arg, restricted) = self.ctx.param(key).map_err(Self::Error::custom)?;
-            return reread(arg, self.ctx.frameless(restricted), Intercept::Full, |de| {
-                de.deserialize_any(visitor)
-            });
+            return reread(
+                arg,
+                self.ctx.frameless(restricted, arg),
+                Intercept::Full,
+                |de| de.deserialize_any(visitor),
+            );
         }
         // The resolved fragment goes to ron NATIVELY (no wrapper), so no
         // restriction applies inside untagged content however it was written —
@@ -2012,7 +2211,10 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                     args: invoked.args,
                     elided: invoked.elided,
                 };
-                let ctx = self.ctx.expansion(&frame).map_err(Self::Error::custom)?;
+                let ctx = self
+                    .ctx
+                    .expansion(&frame, def)
+                    .map_err(Self::Error::custom)?;
                 let body =
                     elide_body(def.body(), &frame, self.ctx.read).map_err(Self::Error::custom)?;
                 let remembers = self.ctx.read.macros.remembers_expansion(name);
@@ -2023,8 +2225,10 @@ impl<'de, D: Deserializer<'de>> Deserializer<'de> for MacroAware<'de, '_, D> {
                 } else {
                     body
                 };
-                return reread(expanded, ctx, Intercept::Full, |de| {
-                    de.deserialize_enum(name, variants, visitor)
+                return ReadCtx::reading(&definition_texts(def, expanded), ctx.chain, || {
+                    reread(expanded, ctx, Intercept::Full, |de| {
+                        de.deserialize_enum(name, variants, visitor)
+                    })
                 })
                 .map_err(|error| in_expansion_of(frame.name, error));
             }
@@ -2117,6 +2321,7 @@ fn fill_defaults<'de>(
         read,
         frame: Some(&supplied),
         depth: 0,
+        chain: None,
         // A default expression is the definition's own text: free until it
         // splices one of the invocation's arguments into itself.
         restricted: false,
@@ -2395,9 +2600,12 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         if ident == "Param" {
             let key = variant.newtype_variant::<ParamKey>()?;
             let (arg, restricted) = self.ctx.param(key).map_err(A::Error::custom)?;
-            return reread(arg, self.ctx.frameless(restricted), Intercept::Full, |de| {
-                de.deserialize_enum(self.name, self.variants, self.visitor)
-            });
+            return reread(
+                arg,
+                self.ctx.frameless(restricted, arg),
+                Intercept::Full,
+                |de| de.deserialize_enum(self.name, self.variants, self.visitor),
+            );
         }
         if ident == SPLICE {
             return Err(A::Error::custom(format_args!(
@@ -2449,7 +2657,7 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
             args: invoked.args,
             elided: invoked.elided,
         };
-        let ctx = self.ctx.expansion(&frame).map_err(A::Error::custom)?;
+        let ctx = self.ctx.expansion(&frame, def).map_err(A::Error::custom)?;
         let body = elide_body(def.body(), &frame, self.ctx.read).map_err(A::Error::custom)?;
 
         // When the position's kind remembers its invocation, re-read a
@@ -2465,11 +2673,29 @@ impl<'de, V: Visitor<'de>> Visitor<'de> for EnumIntercept<'de, '_, V> {
         } else {
             body
         };
-        reread(source, ctx, Intercept::Full, |de| {
-            de.deserialize_enum(self.name, self.variants, self.visitor)
+        ReadCtx::reading(&definition_texts(def, source), ctx.chain, || {
+            reread(source, ctx, Intercept::Full, |de| {
+                de.deserialize_enum(self.name, self.variants, self.visitor)
+            })
         })
         .map_err(|e| in_expansion_of(frame.name, e))
     }
+}
+
+/// The definition text an expansion of `def` reads: `body` (its body, or the
+/// remembered-expansion wrapper around it) and its default expressions.
+fn definition_texts<'a>(def: &'a MacroDef, body: &'a str) -> Vec<&'a str> {
+    let defaults: Vec<&str> = match &def.params {
+        Params::Positional(params) => params
+            .iter()
+            .filter_map(|ty| ty.default.as_deref())
+            .collect(),
+        Params::Named(params) => params
+            .iter()
+            .filter_map(|(_, ty)| ty.default.as_deref())
+            .collect(),
+    };
+    std::iter::once(body).chain(defaults).collect()
 }
 
 /// Builds the `Expanded(...)` wrapper text the macro reader re-reads when a

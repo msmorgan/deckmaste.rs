@@ -787,9 +787,9 @@ impl MacroSet {
     /// resolved name only counts as an edge if it names `def` itself or a
     /// macro already registered under one of `def`'s own kinds; anything
     /// else resolves to nothing and is silently skipped. A missed edge is
-    /// at worst a cycle caught later by the runtime `MAX_DEPTH` cap
-    /// (unchanged from before this check existed); a spurious one would
-    /// reject a legitimate macro outright.
+    /// a cycle reported when it is read instead (`ReadCtx::enter` in
+    /// `expand.rs`); a spurious one would reject a legitimate macro
+    /// outright.
     fn check_cycles(&self, def: &MacroDef) -> Result<(), InsertError> {
         let mut stack = vec![def.name];
         let mut on_stack = std::collections::HashSet::from([def.name]);
@@ -968,10 +968,13 @@ impl MacroSet {
     ) -> ron::error::SpannedResult<T> {
         let read = crate::expand::ReadCtx::new(self);
         let mut deserializer = ron::de::Deserializer::from_str_with_options(source, &self.options)?;
+        // A read nested in another on this thread (a parameter's validator
+        // reading an argument) continues the chain its text was written in.
+        let chain = crate::expand::ReadCtx::chain_of(source);
         let macro_aware = if restricted {
-            crate::expand::MacroAware::new_restricted(&mut deserializer, &read)
+            crate::expand::MacroAware::new_restricted(&mut deserializer, &read, chain)
         } else {
-            crate::expand::MacroAware::new(&mut deserializer, &read)
+            crate::expand::MacroAware::new(&mut deserializer, &read, chain)
         };
         let value = T::deserialize(macro_aware).map_err(|e| deserializer.span_error(e))?;
         deserializer.end().map_err(|e| deserializer.span_error(e))?;
