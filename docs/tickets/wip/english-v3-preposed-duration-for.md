@@ -97,7 +97,7 @@ Standard constraints apply. Bounded census, never `--all`: every supported
 face matching `as long as` case-insensitively (duration and conditional: PD3
 is about their boundary)
 plus 300 random covered controls (`cargo xtask english-v3 diff --manifest …
---random 300 --seed 20261010`), `--workers 6 --samples-per-face 0`, compared
+--random 300 --seed 20261008`), `--workers 6 --samples-per-face 0`, compared
 with `cargo xtask english-v3 diff` against the claim parent. Zero lost;
 PD5 for increases. Full `cargo test -p deckmaste_english_v3`
 and `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
@@ -117,3 +117,73 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
   unread lower-case faces).
 
 ## Landing record
+
+1. **Census delta**: claim-parent tree (`rtzolrtx`, before the edit) → refreshed
+   implementation (`vlvswmnl`, empty child of `rtzolrtx` when measured): bounded
+   manifest of every supported face matching `as long as` case-insensitively
+   anywhere, plus 300 covered controls sampled by `english-v3 diff` with seed
+   20261008; 1,372 distinct faces (11 overlaps). Covered **1,193 → 1,218**;
+   total Readings **21,601 → 25,998**. Final diff: 25 gained, 0 lost,
+   0 decreases, 0 increases on previously covered faces, 0 digest-only;
+   1,347 unchanged, no source-hash changes, no issues. Lost faces: none.
+   The duration change alone (`rtzolrtx`, pre-refresh) gained 23 faces,
+   reaching 1,216 covered and 25,986 Readings. Refresh imported
+   `roomopmrpkys`: The Pandorica gained 8 Readings and The Phasing of Zhalfir
+   gained 4; no other face changed in the refresh diff. No unintended-only
+   gains found. Evidence:
+   `target/english-v3/english-v3-preposed-duration-for/{manifest,before,after,diff}.json`;
+   preserved `after-pre-refresh.json`, `diff-pre-refresh.json` and
+   `refresh-diff.json` separate the trunk gains. Both comparisons used
+   `diff --lines`. Corpus grep found no `for long` or `for so long` uses
+   outside this selector on `rtzolrtx`.
+2. **Witnesses** (`rtzolrtx`, all completely enumerated by sentence probes):
+   Prowl, Stoic Strategist **0 → 1**; Release to the Wind **0 → 2**;
+   Preacher **0 → 1**; Minas Morgul, Dark Fortress **0 → 6**; Flameshape
+   **0 → 2**; “For as long as you control this creature, it can't attack.”
+   **0 → 1**. No already-reading witness was retained as a failure.
+   The six controls remain **2 / 1 / 1 / 6 / 1 / 1**; the counter conditional's
+   claim-parent count is six, superseding the ticket's historical three.
+   Immovable Rod **0 → 3**: one duration PP per Reading; the whole-coordination
+   versus first-Clause scope pair is the existing `InitialPreposition`
+   behaviour permitted by PD4. The equivalent preposed `Until end of turn`
+   scope control has the same three shapes (`rtzolrtx`).
+3. **Spot checks** (`rtzolrtx`): Prowl, Stoic Strategist; Release to the Wind;
+   Preacher; Minas Morgul, Dark Fortress; Flameshape; Hoarding Broodlord;
+   Aerial Extortionist; Elite Spellbinder; Soul Partition; Temporal Aperture.
+   Each selected Reading has the duration *for* PP in preposed Clause Adjunct
+   function, retaining `EquativeAdverb` and its finite Clause Complement.
+   Temporal Aperture nests it after the preposed *until* PP; its spot probe
+   inspects eight Readings, while the census completely enumerates its line.
+   Probes and selected trees are under the evidence directory above.
+4. **Deviations and STOPs**: no Construction, Frame or lexical route added or
+   deleted; the existing duration construction retains its head's declared
+   function licence and exports the existing Adjunct-only Complement Function
+   Restriction, preventing nominal/compound leakage. No loader or lexicon edit.
+   The Method seed was corrected to the user's binding 20261008. The new Rod
+   test initially expected only outer scope; corrected full Reading values
+   retain the PD4 pair and test it against the existing *until* route. No
+   further duration-Construction change followed the bounded census. Refresh
+   imported phase-in/out lexicon data and tests from `roomopmrpkys`, plus
+   ticket-only updates; the same bounded manifest and full suites/clippy for
+   both affected crates were rechecked. No STOPs or glossary gaps.
+5. **Tests** (`vlvswmnl`, refreshed implementation):
+   `cargo test -p deckmaste_english_v3` passed all **905** tests;
+   `cargo test -p deckmaste_lexical_source` passed all **84** tests;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   No failures or ignored tests remain. Before refresh (`rtzolrtx`), the first
+   full English attempt failed the new Rod scope expectation; the corrected
+   full attempt passed **900** tests. The first clippy attempt found a
+   needless-by-value test-helper argument; borrowing it retained full Reading
+   equality, and corrected clippy passed. The refreshed full suite also tests
+   that final borrowed helper. Assurance counts for this ticket: restored 0,
+   re-spelled 0, ignored 0, added 4, removed 0; no removal to justify. The five
+   additional inherited tests belong to `roomopmrpkys`. The new duration module
+   is registered exactly once in `suite_4`. `cargo build -p xtask` passed both
+   before and after refresh. `cargo xtask cite check --list-noncompliant`
+   reports none; `cargo xtask cite check` reports 0 stale;
+   `jj --no-pager diff --git | cargo xtask cite audit --diff` selects no new
+   citation sites. No newly cited rules require blessing. No Lean checks or
+   full-corpus census ran.
+6. **Timing** (`vlvswmnl`): the refreshed bounded after-census took
+   **48.84 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.

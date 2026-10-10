@@ -76,3 +76,6 @@ mod scalar_property_values;
 
 #[path = "suite/then_sequencing.rs"]
 mod then_sequencing;
+
+#[path = "suite/preposed_duration_for.rs"]
+mod preposed_duration_for;

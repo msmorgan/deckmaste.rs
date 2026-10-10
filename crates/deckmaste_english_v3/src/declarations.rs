@@ -4351,7 +4351,7 @@ constructions! {
             export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
-            export ComplementFunctionRestriction = None;
+            export ComplementFunctionRestriction = Adjunct;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4367,7 +4367,9 @@ constructions! {
             export ObliqueNumber = None;
             export InternalisedComplementMarker = No;
             export LocativeUse = No;
-            export PrepositionFunctionLicence = Adjunct;
+            // PD1–PD2 (orchestrator, preposed-duration-for, 2026-10-10):
+            // retain the head's position licence within Adjunct function.
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         // CGEL Ch. 14 §8.3, p. 1262: gerund-participials freely complement
