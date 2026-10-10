@@ -771,6 +771,13 @@ pub enum Amount {
         domain: Box<Predicate>,
         body: Box<Amount>,
     },
+    /// An aggregate over listed amounts rather than over a group or a domain:
+    /// "the smaller of the number of +1/+1 and -1/-1 counters on it"
+    /// [CR#704.5q] is `Min` over the two counts.
+    AggregateOf {
+        op: AggregateOp,
+        amounts: Vec<Amount>,
+    },
     DistinctCount {
         axis: KindAxis,
         domain: Box<NounPhrase>,

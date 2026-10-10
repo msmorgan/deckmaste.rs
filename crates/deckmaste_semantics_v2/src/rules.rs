@@ -115,11 +115,13 @@ pub enum Conferral {
 /// [`crate::facts::DesignationFacts`] row. A card type definition is no facts
 /// row.
 ///
-/// A counter definition's `confers` states what ONE counter of its kind
-/// confers, and the model applies it once per counter held (Lean
-/// `Semantics.Definition.counter`): a +1/+1 counter confers "+1/+1"
-/// [CR#122.1a], a keyword counter its keyword [CR#122.1b]. No conferral reads
-/// the count of its own kind.
+/// A counter definition's `Ability` and `Property` conferrals state what ONE
+/// counter of its kind confers, and the model applies them once per counter
+/// held (Lean `Semantics.Definition.counter`): a +1/+1 counter confers
+/// "+1/+1" [CR#122.1a], a keyword counter its keyword [CR#122.1b]. A
+/// `StateBased` conferral applies once per holder per check [CR#704.3] and
+/// may read counts, its own kind's included: the -1/-1 counter's annihilation
+/// rule [CR#704.5q] (ruling 2026-10-10).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum Definition {
     Counter {
