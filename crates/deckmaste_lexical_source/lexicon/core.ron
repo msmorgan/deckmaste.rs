@@ -12,11 +12,6 @@
             "vocab:ColorWord/Black", "vocab:ColorWord/Red", "vocab:ColorWord/White",
             "vocab:ColorWord/Green", "vocab:ColorWord/Blue",
         ],
-    ), (
-        // VW2/VW6: the state class licenses a Verbless Clause Predicate
-        // on its existing Adjective owners; no second Lexeme is derived.
-        features: {"VerblessPredicateUse": "Yes"},
-        members: ["lexeme:designation/saddled"],
     )],
     // Attested common nouns declare their own negative formation.
     negative_noun_formations: {
@@ -24,13 +19,13 @@
         "lexeme:turn_part/combat": Joined,
     },
     participial_adjective_classes: [(
-        features: {"AdjectiveOrigin": "Participial"},
+        features: {"AdjectiveOrigin": "Participial", "VerblessPredicateUse": "Yes"},
         form: PastParticiple,
         members: [
             "lexeme:keyword_action/tap", "lexeme:keyword_action/untap", "core-verb:Block",
         ],
     ), (
-        features: {"AdjectiveOrigin": "Participial", "AdjectivePremodifierUse": "No"},
+        features: {"AdjectiveOrigin": "Participial", "AdjectivePremodifierUse": "No", "VerblessPredicateUse": "Yes"},
         form: PastParticiple,
         members: ["lexeme:keyword_action/exile", "lexeme:keyword_ability/crew/verb"],
     )],

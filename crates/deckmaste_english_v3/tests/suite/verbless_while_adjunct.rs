@@ -4,7 +4,7 @@ use crate::common;
 use deckmaste_english_v3::grammar::{Category, Reading, Word};
 use deckmaste_lexical::{LexicalReading, SurfaceCase, WordForm};
 
-fn word(owner: &str) -> Word {
+pub(super) fn word(owner: &str) -> Word {
     Word {
         value: LexicalReading::Word(
             common::lexicon()
@@ -114,8 +114,20 @@ fn independent_complement_keeps_owner_roundtrips_and_lexical_licences() {
     );
     assert!(common::readings("creature while saddled", Category::NounPhrase).is_empty());
     assert!(common::readings("while saddled", Category::LocativeComplement).is_empty());
-    // VW2: no speculative licence for the unattested localization control.
-    assert!(common::readings("It has flying while tapped.", Category::Sentence).is_empty());
+    // VW8 replaces the speculative-member exclusion with class permission.
+    let expected_tapped = common::readings("It has flying.", Category::Sentence)
+        .into_iter()
+        .map(|control| {
+            super::verbless_state_predicate_class::add_predicate_adjunct(
+                control,
+                "lexeme:keyword_action/tap/adjective",
+            )
+        })
+        .collect();
+    assert_eq!(
+        common::readings("It has flying while tapped.", Category::Sentence),
+        expected_tapped
+    );
     for (owner, feature, value) in [
         ("vocab:Preposition/While", "VerblessClauseComplement", "No"),
         ("lexeme:designation/saddled", "VerblessPredicateUse", "No"),

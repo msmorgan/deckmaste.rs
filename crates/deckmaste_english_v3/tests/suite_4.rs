@@ -82,3 +82,6 @@ mod preposed_duration_for;
 
 #[path = "suite/verbless_while_adjunct.rs"]
 mod verbless_while_adjunct;
+
+#[path = "suite/verbless_state_predicate_class.rs"]
+mod verbless_state_predicate_class;

@@ -35,15 +35,31 @@ Owner correction (user, 2026-10-10, verbatim): "hypothetical lines such as attac
   a marker, STOP. Otherwise finish, refresh, integrate, drop, and report the
   change id, class markers and probe table without another review pause.
 
+- **VW10** (orchestrator, 2026-10-10): finish the class independently of
+  vocabulary gaps. Existing state Adjectives inherit permission through
+  their derivations/class markers. Add haunted through the owning haunt
+  definition's participial-adjective export, without a core member row.
+  Its state-Adjective Reading beside the verbal passive under *be* is the
+  accepted KS shape; report covered-face increases and counts. If that
+  export needs a schema change, leave haunted as a vocabulary residual and
+  finish the class. Other missing sources are residuals, not STOPs. Run
+  `cargo test -p xtask english_v3` and `cargo xtask lean check` once before
+  integrating. Self-integrate only with 0 lost, 0 decreases and increases
+  restricted to the KS shape on faces containing the new state Adjective;
+  otherwise STOP. This resolves the vocabulary-source STOP recorded below.
+
 ## Method
 
 Inspect the existing state-Adjective derivations and declarations; re-probe
 all witnesses and controls before implementation. Census selector
-`\bwhile\b|\bif able\b|\bas long as\b` case-insensitively, union with the
+`\bwhile\b|\bif\b|\bas long as\b|\bhaunted\b` case-insensitively, union with the
 300 official random covered controls. Use an identity manifest, six workers,
 zero samples per face and `/usr/bin/time -v`; compare with the official diff.
+The selector includes every *if* face because it shares the state-Predicate
+permission and every *haunted* face to measure the newly derived Adjective
+outside the while construction. It includes VW9's required faces.
 
-## VW7 STOP: missing haunted state-Adjective declaration
+## Resolved VW7 STOP: missing haunted state-Adjective declaration
 
 Inspection and complete before probes at `znzxkzuk` establish:
 
@@ -87,6 +103,75 @@ tapped* 4. Every probe enumerated completely with 0 issues.
 Evidence: `target/english-v3/english-v3-verbless-state-predicate-class/`
 contains `probe-inputs.json` and `before-probe-*.json`, produced with
 `cargo xtask english-v3 probe --text … --category sentence --readings 64
---json` (plus `--as-card` for the previous card witnesses and controls).
-No implementation, test, or lexicon change has been made. No census, suite
-or clippy was run because the required class-marker STOP occurs first.
+--json > target/…/probe.json` (plus `--as-card` for the previous card witnesses and controls).
+At that STOP, no implementation, test, lexicon, census, suite or clippy
+change/check had been made. VW10 subsequently authorized the missing export
+and continuation; the final checks are recorded below.
+
+## Landing record
+
+1. **Census delta** — On `yovlyztp`, before edits (the code tree of parent
+   `znzxkzuk`), the bounded manifest covers 5,972 of 7,102 faces with 214,320
+   Readings. The manifest unions 6,862 matches of
+   `\bwhile\b|\bif\b|\bas long as\b|\bhaunted\b` with 300 official random
+   covered controls, seed 20261008 (60 overlaps). The final frame-constrained
+   census at `yovlyztp` has identical totals; its official line diff reports
+   0 gained/lost/decreased/increased/digest-only faces and 0 issues.
+   Evidence: before.json, after-final.json, diff-final.json. Lost faces: none. The only supported
+   haunted face is Cecily, Haunted Mage: haunted occurs in its proper Name,
+   so no covered-face state-Adjective increase is expected there.
+2. **Witnesses** — At `yovlyztp`, the six requested while probes each read 1:
+   gets +1/+1 while saddled; attacks while equipped, enchanted, haunted,
+   tapped and blocked. Parent while counts are respectively 1/0/0/0/0/0;
+   saddled was already covered and was retained as a control. Their is
+   controls before → after are respectively 2→2, 1→1, 1→1, 1→2, 2→2, 2→2.
+   Haunted's added Reading is the authorized copular Adjectival Complement
+   beside its preserved verbal passive (VW10); remains haunted changes 0→1.
+   Other remains controls remain 1. Crew/exile/suspend/prepared/untapped
+   while siblings change 0→1; is crewed/exiled/untapped remain 2, is suspended
+   remains 1. Prior Ghoda/Jaguar/Mascot/Dracosaur witnesses and controls read
+   1 each; local while saddled stays 1, has flying while tapped changes 0→1,
+   finite while saddled stays 2, finite while tapped stays 4, and the attack
+   trigger control stays 1. All final probes enumerate completely with 0 issues.
+3. **Spot checks** — No newly covered corpus faces exist in the final diff,
+   so there are no ten gained faces to name. Independent hypothetical probes
+   and role assertions exercise saddled, prepared, tapped, untapped, blocked,
+   crewed, exiled, equipped, enchanted and suspended (plus haunted): each
+   forms a clause-final Preposition Predicate containing while + Verbless
+   Clause with its existing Adjective owner. This is the same one route as
+   its control, with no subjectless passive alternative.
+4. **Deviations and STOPs** — VW7–VW10 replace the superseded one-member
+   adjective-class row, which is deleted. Native participial classes export
+   VerblessPredicateUse with their existing AdjectiveOrigin marker; no member
+   list changes. Keyword participial_adjective recipes and Designation
+   declarations with Adjective grammar export the permission generically in
+   the loader, without naming a word or changing owners. Haunt declares the
+   existing participial-adjective recipe on its owning plugin: no schema
+   change or core member row. The vocabulary-source STOP at `znzxkzuk` was
+   resolved by VW10; no residual has been encountered. One extra blocked
+   route was found by probes: the selected by-Complement frame was accepted
+   without its Complement. The existing VerblessClause now separates native
+   participial unframed/intransitive selections from ordinary licensed heads;
+   the existing saddled/able forms remain stable. Two surface alternatives,
+   no new Construction or lexical frame, are added to enforce VW8's one
+   route. The VerblessPredicateUse glossary entry records the class ruling;
+   no terminology gap remains. CGEL p. 1267 supports reducible Clause
+   Complements only; class permission and distribution are project rulings.
+5. **Tests** — At `yovlyztp`, cargo test -p deckmaste_english_v3 passes all
+   945 tests, and cargo test -p deckmaste_lexical_source passes all 86 tests.
+   Both cargo clippy -p deckmaste_english_v3 --tests -- -D warnings and
+   cargo clippy -p deckmaste_lexical_source --tests -- -D warnings pass.
+   cargo test -p xtask english_v3 passes 56 tests; cargo xtask lean check
+   passes for 240 cards across two plugins.
+   Restored 0 / re-spelled 1 / ignored 0 / added 3 / removed 0:
+   independent_complement_keeps_owner_roundtrips_and_lexical_licences retains
+   its subject and now asserts the licensed tapped Reading; the three new
+   class-role tests are registered once in suite_4. No test deletion or
+   weakening. cargo xtask cite check --list-noncompliant reports 0; cargo xtask cite
+   check reports 0 stale; jj --no-pager diff --git | cargo xtask cite audit
+   --diff audits 0 citation sites; cargo xtask facts check passes. The
+   citation checker initially treated a decimal timing as a rule-number
+   lookalike; integer seconds resolved that documentation-only failure.
+6. **Timing** — Final bounded census at `yovlyztp`: 208 s (rounded wall
+   time), six workers, zero samples per face. No full corpus census was run, per the binding verification
+   budget; evidence is under target/english-v3/english-v3-verbless-state-predicate-class/.

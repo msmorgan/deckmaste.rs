@@ -4570,8 +4570,17 @@ constructions! {
         // CGEL Ch. 14 §10(b), p. 1267: reducible Clause Complements.
         // The lexical permission for an unrealized infinitival Complement
         // and the clause-final distribution are declared project decisions.
+        // VW8 (2026-10-10): a native participial state uses its bare or
+        // intransitive frame, never an unsupplied selected Complement.
         construction VerblessClause: VerblessClause {
-            form [predicate: lexical(Adjective)];
+            form [predicate: lexical(Adjective)]
+                require predicate.AdjectiveOrigin = Ordinary;
+            form [predicate: lexical(Adjective)]
+                require predicate.AdjectiveOrigin = Participial
+                require predicate.framing = Unframed;
+            form [predicate: lexical(Adjective)]
+                require predicate.AdjectiveOrigin = Participial
+                require predicate.frame = Intransitive;
             require predicate.VerblessPredicateUse = Yes;
             export VerblessClauseComplement = Yes;
         }

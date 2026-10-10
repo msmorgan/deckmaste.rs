@@ -165,6 +165,14 @@ fn export_metadata(
     };
     let mut lexeme = grammar_lexeme(owner, path, grammar, provenance, Some(normalized), output);
     export_distribution(&mut lexeme, normalized, authored.noun_class);
+    if normalized.identity().kind() == metadata::DeclarationKind::Designation
+        && lexeme.category == Category::Adjective
+    {
+        lexeme
+            .properties
+            .features
+            .insert("VerblessPredicateUse".into(), "Yes".into());
+    }
     lexeme.properties.features.insert(
         "CreatureSubtypeStem".into(),
         if normalized.identity().kind()
@@ -517,6 +525,10 @@ fn participial_adjective_lexeme(
         "BareSingularUse".into(),
         if adjective.bare_singular_use { "Yes" } else { "No" }.into(),
     );
+    lexeme
+        .properties
+        .features
+        .insert("VerblessPredicateUse".into(), "Yes".into());
     if let Some(onset) = adjective.onset {
         lexeme
             .properties

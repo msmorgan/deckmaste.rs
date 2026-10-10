@@ -354,8 +354,11 @@ An Adjective's declared permission to realize a Verbless Clause's Predicate.
 For *able*, its selected infinitival Complement is unexpressed; that licence
 is the [attestation-based project decision](../../tickets/done/english-v3-verbless-if-complement.md#analysis),
 not an example supplied by CGEL's account of *necessary* and *possible*.
-The state-Adjective class's permission follows orchestrator rulings VW2/VW6
-(2026-10-10, `english-v3-verbless-while-adjunct`); CGEL's account of reducible
+State Adjectives inherit the permission from their declared derivation or
+class: native participial-Adjective classes, keyword participial-adjective
+exports, and Adjective exports of Designations. This class permission follows
+project rulings VW7/VW10 (2026-10-10, `english-v3-verbless-state-predicate-class`),
+superseding VW2/VW6's one-member licence; CGEL's account of reducible
 Clause Complements supports the verbless shape (Ch. 14 §10(b), p. 1267),
 not this project's choice of licensed Adjectives.
 
