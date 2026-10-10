@@ -165,7 +165,11 @@ introduces beside **Attribute Noun Premodifier**.
    107,915 Readings: trunk `lvpxmkklqtms` adds 10 clause-initial *once*
    faces (4,480 Readings), with no further loss, decrease, increase or
    digest-only change. Original-parent comparison now has 155 gains,
-   8 increases and 1,035 unchanged. Each increase is the KM5 Keyword Premodifier beside
+   8 increases and 1,035 unchanged. A second refresh, measured on
+   `yymxltku`, adds Dynaheir, Invoker Adept and Pit Automaton through
+   trunk `zunolrnvsuqr` (52 Readings). Final original-parent comparison:
+   covered 822 → 979; Readings 100,627 → 107,967; lost 0, gained 157,
+   decreases 0, increases 8, digest-only 0, unchanged 1,033. Each increase is the KM5 Keyword Premodifier beside
    the retained cycling gerund-participle: Abandoned Sarcophagus 10 → 20,
    Fluctuator 4 → 8, Gavi, Nest Warden 58 → 114, Herald of the Forgotten
    37 → 73, New Perspectives 3 → 5, Rooting Moloch 8 → 15, Spellpyre
@@ -205,9 +209,11 @@ introduces beside **Attribute Noun Premodifier**.
    re-spelled for the authorized bare forms; an independent Cost fixture
    was corrected to its declared nominal frame without weakening equality.
    Refresh conflicted only at the test-binary registration tail; both
-   module registrations were retained exactly once.
-5. **Tests** (`zvtzutzx`): `cargo test -p deckmaste_english_v3` passed
-   797 tests before refresh and 800 after refresh; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   module registrations were retained exactly once. Two later refresh
+   attempts deferred on a concurrent named-modes workspace edit; retry
+   succeeded without changing that workspace’s content.
+5. **Tests** (`zvtzutzx` before refresh; final refreshed tree `yymxltku`): `cargo test -p deckmaste_english_v3` passed
+   797 tests before refresh, 800 after the first and 807 after the second; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed; `cargo test -p deckmaste_lexical_source` passed 83 tests;
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
    Assurance: restored 0 / re-spelled 3 / ignored 0 / added 8 / removed 0.
@@ -217,6 +223,6 @@ introduces beside **Attribute Noun Premodifier**.
    xtask`, the same bounded census and both full suites and clippy passed.
    Citation checks: 0 stale,
    0 noncompliant, diff audit 0 new citation sites.
-6. **Timing** (`zvtzutzx`): final bounded census after refresh 69.34 seconds wall time,
+6. **Timing** (`yymxltku`): final bounded census 114.43 seconds wall time,
    6 workers, samples per face 0, prebuilt binary under `/usr/bin/time -v`.
    Full corpus census was not run, per the binding budget.
