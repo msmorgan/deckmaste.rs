@@ -43,6 +43,7 @@ import Semantics.Proofs.KeywordActionResidues
 import Semantics.Proofs.KeywordAbilityCensus
 import Semantics.Proofs.FaceDown
 import Semantics.Proofs.TextChanges
+import Semantics.Proofs.OffStack
 
 /-!
 # Semantics.Proofs
