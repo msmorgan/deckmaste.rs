@@ -171,6 +171,12 @@ by `cargo xtask english-v3 grep` only.
    Final totals: covered 1,190 → 1,231; Readings 86,235 → 93,293;
    gains 41 (30 own, 11 trunk), lost/decreases 0, increases 8 (all trunk),
    digest-only 34. `accepted-refresh-{after,diff}.json`, `final-diff.json`.
+   Play-with refresh (`mwvnkpvkrnzw`) added only Enduring Renewal (7),
+   from trunk `wwzpptst`'s selected play-with Construction. Refresh-only
+   lost/decreases/increases/digest-only 0. Latest claim-parent totals:
+   covered 1,190 → 1,232; Readings 86,235 → 93,300; gains 42 (30 own,
+   12 trunk), lost/decreases 0, increases 8 (keyword-state trunk),
+   digest-only 34. `play-refresh-{after,diff}.json`, `final-diff.json`.
 2. **Witnesses** (`spzllmsloltx`, complete Document probes): Force of Negation
    0 → 3, Eddymurk Crab 0 → 1, Glademuse 0 → 1, Arcades Sabboth 0 → 2,
    Desynchronization 0 → 2. Their synthetic controls remain 3/1/1/2/2.
@@ -231,6 +237,10 @@ by `cargo xtask english-v3 grep` only.
    the same four full crate test and clippy commands passed again:
    English 881, lexical-source 83, construction-core 473, lexical 60.
    `cargo test -p xtask english_v3` passed all 56 selected tests again.
+   Play-with refresh (`mwvnkpvkrnzw`): `cargo build -p xtask` and
+   the same four full crate test and clippy commands passed again:
+   English 891, lexical-source 83, construction-core 473, lexical 60.
+   `cargo test -p xtask english_v3` passed all 56 selected tests again.
    Restored 0 / re-spelled 2 / ignored 0 / added 4 / removed 0. The two
    re-spelled infinitival tests retain their original cards, roles and
    independently constructed roundtrip outcomes. The initial English run
@@ -238,6 +248,6 @@ by `cargo xtask english-v3 grep` only.
    the full suite rerun. An initial clippy compile found a shadowed helper
    binding in the re-spelling; it was renamed. Citation checks: 0
    noncompliant, 0 stale; piped diff audit found no new citation sites.
-6. **Timing** (`nxwppuwuqkpq`): final bounded census 65.44 s wall,
+6. **Timing** (`mwvnkpvkrnzw`): final bounded census 59.42 s wall,
    6 workers, prebuilt executable, `--samples-per-face 0`, under
    `/usr/bin/time -v`. No `--all` or Lean check was run.
