@@ -67,37 +67,50 @@ consumed data changed. No grammar edits.
 Six items as specified in `docs/tickets/README.md`; item 1 adds a per-item
 table (item, where declared, faces gained) and item 4 the follow-up list.
 
-1. **Census delta** — `vwlkmvns` → `owzsyvqn`, bounded to 11,743 identities:
+1. **Census delta** — before refresh, `vwlkmvns` → `owzsyvqn`, bounded to
+   11,743 identities:
    11,545 surface matches plus 300 covered controls (seed 20261008; 198
    controls outside the surface). Covered faces 9,084 → 9,394; total Readings
    444,958 → 463,064. Gained 310; lost none; decreases 0; increases 0;
-   digest-only 0. The parent has the same grammar and lexicon as the full
-   `vwlkmvns` census. Evidence: `target/english-v3/english-v3-data-batch-2/`
+   digest-only 0. Before refresh, the claim parent had the same grammar and
+   lexicon as the full `vwlkmvns` census. Evidence:
+   `target/english-v3/english-v3-data-batch-2/`
    (`manifest.json`, `after.json`, `diff.json`). Surface selector:
    `\b(end(?:s|ed|ing)?|flips?|totals?|mana abilit(?:y|ies)|remov(?:e[sd]?|ing)|combat|back|there|games?|any|devotion|transform(?:s|ed|ing)?|surveil(?:s|ed|ing|led|ling)?|[a-z]*cycling)\b`.
 
-   Per-item figures on `owzsyvqn` count gained faces attesting the declared
+   After refresh, `vwlkmvns` → `kpvllwpt`, the same 11,743 identities:
+   covered 9,084 → 9,596; total Readings 444,958 → 489,188; gained 512;
+   lost/decreases/increases/digest-only all 0. The built-in comparison of
+   `owzsyvqn` before refresh → `kpvllwpt` after refresh gains 202 faces,
+   loses none and changes no previously covered Reading set. Those 202
+   gains come from the incoming vocabulary changes (`nouqyyouuops`,
+   `qmqmopsronzl`); there are no trunk Reading decreases to attribute.
+   Evidence: `after-refresh.json`, `diff-refresh.json`,
+   `diff-refresh-vs-own.json`.
+
+   Per-item figures on `owzsyvqn` before refresh and `kpvllwpt` after refresh
+   count gained faces attesting the declared
    surface, from supported-corpus `english-v3 grep` identities intersected
    with the built-in diff's gained identities. These overlap; they are not
    separate ablation censuses or additive attribution. Narrowed patterns and
    counts are in `item-gain-counts.json`.
 
-   | Item | Where declared | Faces gained with this surface |
+   | Item | Where declared | Faces gained with this surface, before → after refresh |
    |---|---|---:|
-   | 1: *end* | `verbs.ron`, bare and Object frames | 35 |
-   | 2: noun *flip* | `vocabulary.rs`, Count noun | 44 |
-   | 3: *life total* | `core.ron`, native multiword Count noun; standalone *total* deferred | 32 |
-   | 4: *mana ability* | `core.ron`, compound recipe with *ability* head | 34 |
-   | 5: passive Source frame | `core.ron`, explicit Passive frame; bare transitive deferred | 9 |
-   | 6: *combat* Source Complement | deferred; trial Location licence retired | 0 |
-   | 7: *put back* | `core.ron` Preposition; `verbs.ron` back + locative frame; existing bare/manner frames | 34 |
-   | 8: locative *there* | `core.ron`, intransitive Preposition | 13 |
-   | 9: temporal *game* | `core.ron`, Temporal noun adjunct class | 16 |
-   | 10: bare *any time* | `core.ron`, Temporal dependent licence | 42 |
-   | 11: *devotion to* | deferred | 0 |
-   | 12: *transform* | plugin `grammar:` bare and *into* frames; Object frame retained | 37 |
-   | 13: bare *surveil* | plugin `grammar:` bare frame; measure frame retained | 20 |
-   | 14: *basic landcycling* | deferred | 0 |
+   | 1: *end* | `verbs.ron`, bare and Object frames | 35 → 39 |
+   | 2: noun *flip* | `vocabulary.rs`, Count noun | 44 → 47 |
+   | 3: *life total* | `core.ron`, native multiword Count noun; inherited from `nouqyyouuops` after refresh; standalone *total* deferred | 32 → 42 |
+   | 4: *mana ability* | `core.ron`, compound recipe with *ability* head | 34 → 36 |
+   | 5: passive Source frame | `core.ron`, explicit Passive frame; bare transitive deferred | 9 → 11 |
+   | 6: *combat* Source Complement | deferred; trial Location licence retired | 0 → 0 |
+   | 7: *put back* | `core.ron` Preposition; `verbs.ron` back + locative frame; existing bare/manner frames | 34 → 36 |
+   | 8: locative *there* | `core.ron`, intransitive Preposition | 13 → 13 |
+   | 9: temporal *game* | `core.ron`, Temporal noun adjunct class | 16 → 17 |
+   | 10: bare *any time* | `core.ron`, Temporal dependent licence | 42 → 42 |
+   | 11: *devotion to* | deferred | 0 → 0 |
+   | 12: *transform* | plugin `grammar:` bare and *into* frames; Object frame retained | 37 → 38 |
+   | 13: bare *surveil* | plugin `grammar:` bare frame; measure frame retained | 20 → 28 |
+   | 14: *basic landcycling* | deferred | 0 → 0 |
 
 2. **Witnesses** — probes before declarations on claim parent `pwpypkvo`
    confirmed every failing witness except the already-supported `Transform
@@ -117,7 +130,9 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    (deferred). All paired controls retain their before counts, including
    “Remove a counter from this land.” 1. Evidence: `before-probes.log`,
    `pass-1-probes.log`, `pass-2-probes.log`, `pass-3-probes.log` and the
-   corresponding probe JSON files.
+   corresponding probe JSON files. Re-probed all ticket fail/control pairs
+   on `kpvllwpt` after refresh: every count is unchanged
+   (`probes-refresh.log`).
 
 3. **Spot checks** — `owzsyvqn`, one selected Reading per face, byte-exact
    realization and no issues (`spot-0.json` through `spot-9.json`): Time Stop,
@@ -172,6 +187,12 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    *there*; the frames and licences follow this ticket's project rulings.
    Plugin bodies were untouched; `cargo xtask facts check` passed on
    `owzsyvqn`. No grammar, loader, frame-kind or feature-schema edits.
+   Refresh brought vocabulary batch 1 (`nouqyyouuops`, review rulings
+   `qmqmopsronzl`). Its *life total* declaration is byte-identical to this
+   batch's declaration. Refresh merged both locations; this workspace's
+   duplicate was retired, keeping trunk's declaration and the tests of its
+   values. Item 3's pre-refresh count remains in the table; it is inherited
+   coverage after refresh, not an additional declaration in this landing.
 
 5. **Tests** — `owzsyvqn`: `cargo test -p deckmaste_english_v3` passed
    (731 integration tests, no failures or ignores), including the final
@@ -194,6 +215,12 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    suite failures exposed the retired combat licence and these two obsolete
    inventory counts; all were corrected before landing. No existing tests
    were removed or weakened.
+   After refresh on `kpvllwpt`, the same full `cargo test -p
+   deckmaste_english_v3` command passed 732 integration tests; `cargo test
+   -p deckmaste_lexical_source` passed 35 unit and 40 integration tests.
+   No failures or ignores in either suite. The same lexical-source clippy
+   command passed again after correcting the test name to “declared plural”;
+   its assertions are unchanged.
 
 6. **Timing** — `owzsyvqn`: 4m05.31s for the bounded census, 6 workers,
    `--samples-per-face 0`, measured with `/usr/bin/time -v` (`census.time`).

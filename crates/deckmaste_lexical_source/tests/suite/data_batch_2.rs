@@ -177,7 +177,7 @@ fn noun_declarations_have_independent_singular_and_plural_values() {
 }
 
 #[test]
-fn mana_ability_compound_inherits_the_ability_heads_irregular_plural() {
+fn mana_ability_compound_inherits_the_ability_heads_declared_plural() {
     let owner = "lexeme:CommonNoun/ManaAbility/compound-noun";
     let compound = &LEXICON.lexemes()[owner];
     assert_eq!(compound.category, Category::Noun);
