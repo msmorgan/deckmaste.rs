@@ -143,7 +143,13 @@ a plugin definition changes, run `cargo xtask lean check`.
    construction; wrong-analysis-only gains: 0. Evidence under
    `target/english-v3/english-v3-verbless-while-adjunct/`: `manifest.json`,
    `before.json`, `after.json`, `diff.json`. Calamity remains unread for the
-   ticket's named second blocker.
+   ticket's named second blocker. After refresh, the same manifest covers
+   592 faces with 10,829 Readings: the claim-parent diff has 26 gains and
+   still 0 lost, decreases, increases, digest-only changes or issues. The
+   extra gain is The Masamune (0 → 15), attributable to incoming cause
+   complement change `nzmrrqky`, not this construction. The refresh-only
+   diff has that one gain and no other changes. Refreshed evidence:
+   `after-refresh.json`, `refresh-diff.json`, `claim-diff.json`.
 2. **Witnesses** (`wxwozrtz`, complete sentence probes, limit 64): Gilded
    Ghoda, Alacrian Jaguar, District Mascot and Dracosaur Auxiliary each 0 → 1;
    each control with *while saddled* removed reads 1 before and after (W9-A).
@@ -175,7 +181,10 @@ a plugin definition changes, run `cargo xtask lean check`.
    0 Constructions or Frames; no superseded route to retire. Broadened the
    existing **Verbless Predicate Use** glossary entry under VW3, retaining
    *able* as one case and citing the state permission as a project ruling.
-   No unresolved STOP remains.
+   No unresolved STOP remains. The mandatory refresh after committing
+   brought `roomopmr` (phase in/out), `nzmrrqky` (cause complement) and
+   `tlpwnxqn` (name-anchored NP supplements), including grammar and lexicon
+   changes; it completed without conflicts.
 5. **Tests** (`wxwozrtz`): `cargo test -p deckmaste_english_v3` passed all six
    binaries (899 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. `cargo test -p deckmaste_lexical_source` passed (42 unit + 44
@@ -189,5 +198,13 @@ a plugin definition changes, run `cargo xtask lean check`.
    0 sites, so no new rules needed blessing. No Lean or full-corpus check ran.
    Logs: `tests-english.log`, `clippy-english.log`, `tests-lexical-source.log`,
    `clippy-lexical-source.log`, `cite-*.log` in the evidence directory.
+   After refresh at `lnsnpqxo`, rebuilt with `cargo build -p xtask`, reran
+   the identical bounded census and both full crate suites and clippy commands
+   above: all passed (English 912 tests; lexical source 42 unit + 44
+   integration). No implementation fix was needed. Refreshed logs are
+   `build-refresh.log`, `tests-english-refresh.log`,
+   `clippy-english-refresh.log`, `tests-lexical-source-refresh.log`,
+   `clippy-lexical-source-refresh.log` and `cite-*-refresh.log`. Refreshed
+   citation checks again found 0 noncompliant, 0 stale and 0 diff audit sites.
 6. **Timing**: complete bounded census wall time **25.06 seconds**, six workers,
    at `wxwozrtz`, measured by `/usr/bin/time -v` (`after.time`).
