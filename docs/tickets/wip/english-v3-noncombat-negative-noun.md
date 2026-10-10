@@ -140,7 +140,13 @@ Attestation by `cargo xtask english-v3 grep` only.
    `refresh-diff.json` isolates Felix Five-Boots (0 → 21) from trunk's
    cause-catenative change `nzmrrqky`; this ticket's gain remains 31.
    The refresh incorporated `nzmrrqky` and `tlpwnxqn`; every previously
-   covered face is still unchanged.
+   covered face is still unchanged. Final accepted refresh incorporated
+   kind-of-counter change `wkooyukozlpw`: covered 1,524 → 1,558, Readings
+   74,106 → 75,325; gained 34, lost/decreased/increased/digest-only 0,
+   unchanged 1,731. `final-refresh-diff.json` isolates Blitzball Stadium
+   (0 → 151) and Skyship Plunderer (0 → 7) from that trunk change; this
+   ticket still gains 31 faces. All 1,765 selected faces were re-censused
+   with 6 workers and samples-per-face 0; issues 0.
 2. **Witnesses** (`mzkvyunrqtrw`). Every ticket witness re-probed before the
    edit at 0; none dropped. Sentence Readings after / positive-control
    Readings: Chandra's Spitfire 1/1; Niv-Mizzet, Visionary 3/3; Mark of Asylum
@@ -167,15 +173,20 @@ Attestation by `cargo xtask english-v3 grep` only.
    already resolved on the claim parent; ten *noncombat* faces remain unread
    for other material. No STOP or glossary gap.
 5. **Tests** (`mzkvyunrqtrw`). `cargo test -p deckmaste_english_v3`: PASS,
-   1,008 tests; `cargo test -p deckmaste_lexical_source`: PASS, 84 tests.
+   908 tests; `cargo test -p deckmaste_lexical_source`: PASS, 84 tests.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`: PASS after
    removing a redundant clone of a Copy identifier in the new test helper;
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: PASS.
    Restored 0 / re-spelled 0 / ignored 0 / added 7 / removed 0; no removals
    to justify. After refresh (`lnskowyvyylt`), `cargo build -p xtask`: PASS;
    the bounded manifest re-census: PASS, 0 issues; both full `cargo test -p`
-   commands above: PASS (English 1,016; lexical-source 84); both exact clippy
-   commands above: PASS. Citation checks: no noncompliant or stale citations;
+   commands above: PASS (English 916; lexical-source 84); both exact clippy
+   commands above: PASS. Final accepted refresh: `cargo build -p xtask`
+   PASS; the same bounded manifest re-census PASS; both full test commands
+   PASS (English 921; lexical-source 84); both exact clippy commands PASS.
+   Earlier English totals corrected from the saved logs (908 then 916).
+   Final check logs use the `final-` prefix in the evidence directory.
+   Citation checks: no noncompliant or stale citations;
    diff audit
    has no citations to register or verify. No Lean or xtask test changes.
 6. **Timing** (`mzkvyunrqtrw`). Main pre-refresh AFTER bounded census: 157610 ms wall
