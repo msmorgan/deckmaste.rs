@@ -115,3 +115,6 @@ mod declaration_batch_b;
 
 #[path = "suite/degree_quantity_arithmetic.rs"]
 mod degree_quantity_arithmetic;
+
+#[path = "suite/plugin_term_definitions.rs"]
+mod plugin_term_definitions;

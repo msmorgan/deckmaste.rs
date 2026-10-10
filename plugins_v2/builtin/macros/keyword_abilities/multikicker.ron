@@ -1,0 +1,6 @@
+KeywordAbility(
+    name: "multikicker",
+    params: [Cost],
+    spelling: "multikicker <Param(0)>",
+    grammar: FixedKeyword(surface: "multikicker"),
+)

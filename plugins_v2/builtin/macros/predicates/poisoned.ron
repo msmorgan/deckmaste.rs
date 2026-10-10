@@ -1,0 +1,7 @@
+(
+    name: "poisoned",
+    kinds: [Predicate],
+    params: [],
+    metadata: (grammar: (term: Adjective(surface: "poisoned"))),
+    body: (),
+)

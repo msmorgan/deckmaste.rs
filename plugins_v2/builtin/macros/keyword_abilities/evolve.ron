@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "evolve",
     grammar: FixedKeyword(
         surface: "evolve",
+        verb: (bare: "evolve", frames: [Predicate([])]),
     ),
     // "Evolve" means "Whenever a creature you control enters, if that creature's power
     // is greater than this creature's power and/or that creature's toughness is

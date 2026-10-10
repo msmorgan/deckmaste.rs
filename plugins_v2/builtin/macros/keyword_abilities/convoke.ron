@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "convoke",
     grammar: FixedKeyword(
         surface: "convoke",
+        verb: (bare: "convoke", frames: [Predicate([ObjectNounPhrase])]),
     ),
     // "Convoke" means "For each colored mana in this spell's total cost, you may
     // tap an untapped creature of that color you control rather than pay that

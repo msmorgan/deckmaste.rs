@@ -227,6 +227,7 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("modular", "modular <Param(0)>"),
     ("moreThanMeetsTheEye", "More Than Meets the Eye <Param(0)>"),
     ("morph", "morph <Param(0)>"),
+    ("multikicker", "multikicker <Param(0)>"),
     ("mutate", "mutate <Param(0)>"),
     ("myriad", "myriad"),
     ("nightbound", "nightbound"),

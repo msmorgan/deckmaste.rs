@@ -3,8 +3,8 @@ needs: []
 ---
 # Declare game terms through their owning plugin definitions: another modified creature you control / the number of creatures in your party / Multikicker {1}{G}
 
-A declaration ticket. No `declarations.rs` edit is expected. It opens with a
-question the orchestrator must answer before it is claimed (PT-Q1).
+A declaration ticket. No `declarations.rs` edit is expected. The owner
+answered PT-Q1 and PT-Q2 on 2026-10-10, as recorded below.
 
 ## Why
 
@@ -73,7 +73,7 @@ plugins.rs`. Stub precedent: 37 of the 201 `keyword_abilities/*.ron` files
 have no `body:` at all (`banding.ron` is `name` / `params` / `spelling` /
 `grammar` only), and `ability_words/descend4.ron` likewise.
 
-Questions for the orchestrator (not decided here):
+Drafting questions (answered by the owner below):
 
 - **PT-Q1. What is the minimal acceptable body of a new definition?**
   semantics_v2 owns bodies (`docs/decisions/semantics-v2.md` §§10–16) and
@@ -90,7 +90,7 @@ Questions for the orchestrator (not decided here):
   predefined tokens. A new family is a loader change (`BUILTIN_FAMILIES`),
   outside a data ticket.
 
-Orchestrator rulings 2026-10-10 (drafted; PT-Q1 and PT-Q2 pending):
+Orchestrator rulings 2026-10-10 (PT-Q1 and PT-Q2 answered below):
 
 - PT1. One term, one owner: the definition named in the table, or the new
   file PT-Q1/Q2 authorise. Nothing in `lexicon/core.ron` or
@@ -116,6 +116,24 @@ Orchestrator rulings 2026-10-10 (drafted; PT-Q1 and PT-Q2 pending):
   previously covered face is expected except the one KS4 of
   `english-v3-keyword-state-adjectives` authorises for *is saddled*; any
   other is reported with its shape before landing.
+
+### Owner rulings (2026-10-10)
+
+- PT-Q1: option (b). Grammar-only declarations with no engine body are allowed
+  in every family. List each new bodiless declaration as semantics debt.
+- PT-Q2: declare Role names beside the predefined token definitions, following
+  `instructions/treasureToken.ron` and that family's grammar conventions.
+  If the schema cannot express their required Category, return the smallest
+  schema question. Party is a bodiless noun-exporting stub; its selection
+  mechanism remains semantics debt.
+- Complete B and every A term expressible with existing rows before returning
+  all schema/family questions together at the review STOP. Establish empower's
+  owner from corpus and the CR; defer it if ownership cannot be confirmed.
+- W9-A: one route for this construction; preserve independent ambiguity
+  already present in the substituted control, and record both counts.
+- Verification is bounded: all reachable surface faces plus 300 covered
+  controls (seed 20261008), six workers, no stored samples. Stop after commit,
+  refresh and any required bounded rechecks; integration awaits owner review.
 
 ## Witnesses
 
@@ -171,6 +189,133 @@ or a Debug-printed tree.
   construction gap listed in `english-v3-keyword-state-adjectives`.
 - Bodies and Lean mirrors of new definitions beyond what PT-Q1 settles.
 
+### Deferred terms and declaration questions
+
+Claim-parent probes are under
+`target/english-v3/english-v3-plugin-term-definitions/` (`before-probes.json`,
+`extra-before-probes.json`, `gift-before-probes.json`). Counts below are on
+`ztvzruvp`, whose grammar/data match claim parent `vwktxkol`.
+
+- **Party / full party:** party witness 0, graveyard control 3; full-party
+  witness 0, creature control 1. Which existing helper family/kind should own
+  party's noun stub? `nouns/` has the relevant semantic helpers but the lexical
+  reader accepts only `Predicate` and `GameEvent` helpers from `predicates/`
+  and `events/`. Full party additionally lacks the adjective *full* (PT6).
+- **Role names:** Wicked, Monster, Young Hero, Cursed, Royal and Virtuous
+  witnesses 0 each; Role-token control 5 each. The predefined-token family is
+  `instructions/`, with `CharacteristicBundle` kind (`treasureToken.ron`).
+  It has no lexical reader/grammar convention. May that family export an
+  adjective recipe for its names? Sorcerer already reads (9; control 5), so
+  its witness is dropped as directed; no duplicate lexical owner is added.
+- **Day/night:** both witnesses 0; your-turn controls 1/2 respectively.
+  How should a multi-member Designation export each member as a noun while
+  retaining the existing *day or night* owner?
+- **Gift/promise:** original witness 0, whole-clause control 2. Two attested
+  units retaining *the gift* and substituting only *blocked* for *promised*
+  still have 0 Readings. Gift's keyword export is recognized lexically but
+  does not supply its noun use. May FixedKeyword export a noun as well as its
+  existing verb? Its verb field can already express *promise* independently
+  of the keyword stem; no new verb field is needed.
+- **Bands with other:** witnesses 0; affinity-for controls 2 each. A trial
+  `FixedKeyword`/Quality declaration still gives 0. The existing quality
+  routes select a preposition-marked quality, a before-head quality, or a bound
+  suffix; none selects a bare quality after the head. PT6 defers this
+  Construction gap; the trial declaration is removed.
+- **Banded:** both witnesses 0, paired-with controls 1. A trial band verb
+  with the same active Object + with + Object frame still leaves both passive
+  Postmodifier witnesses at 0. Pair's passive frame is supplied in core data,
+  which PT1 forbids editing here. May KeywordVerbGrammar declare a Passive
+  frame? Its current frame variants are Predicate, Auxiliary and ProVerb;
+  the participial-adjective row has no Complement frame field. The trial verb
+  export is removed rather than shipping an unused active-only route.
+- **Empower:** owner confirmed as the keyword action Empower Jace
+  [CR#701.71a]. Both ticket/enters witnesses are 0, amass-Zombies controls 1.
+  The narrower same-complement control *Amass Jace 3.* is also 0 (no
+  vocabulary gaps): the bare singular subtype Complement needs a declared
+  class licence, not a Jace member-list exception. PT3 fails for the existing
+  Object Noun Phrase + Amount frame; defer that construction/class decision.
+- **Already completed on parent:** saddle exports its verb; *saddles* 1 and
+  *becomes saddled* 1. Leave that definition untouched.
+
 ## Landing record
 
-The six items in `docs/tickets/README.md` ("Landing record").
+1. **Census delta (`ztvzruvp`):** bounded manifest `target/english-v3/
+   english-v3-plugin-term-definitions/manifest.json`, 1,076 faces: 785 matching
+   `modif|part(y|ies)|multikick|expend|descend|poison|wicked|monster|young hero|cursed|royal|sorcerer|virtuous|bands with other|empower|convok|devour|saddl|evolv|banded|day|night|gift|promis`
+   anywhere in supported analysed text, unioned with 300 covered controls
+   (seed 20261008; all 300 covered on the claim parent). Covered 748 → 849;
+   total Readings 20,427 → 21,307. Gains 101; lost/decreases/increases/
+   digest-only/source changes 0. Lost faces: none. No unintended-analysis
+   gains found. `english-v3 diff --lines` evidence is `diff.json` in that
+   directory; no bespoke census comparison was used.
+2. **Witnesses (`ztvzruvp`, after/control):** modified attributive 2/2,
+   predicative 1/1; party 0/3; full party 0/1; both multikicker units 1/1;
+   expend 1/1 (both attested Amount-frame controls 1/1); descended 1/2
+   (including the Enterprising Scallywag unit); poisoned 1/1 (Corrupted
+   Resolve and Viridian Betrayers); night 0/2, day 0/1; gift 0/2 (retaining
+   *the gift* in the two passive controls gives 0/0); Wicked, Monster,
+   Young Hero, Cursed, Royal and Virtuous Role 0/5 each; Sorcerer Role 9/5
+   already read and was dropped; both convoked fragments 1/1; both devoured
+   units 1/1; saddles 1/1 and becomes saddled 1 already read; simple evolves
+   1/1, Watchful Radstag 2/2 and Renegade Krasis 32/32 (independent
+   ambiguity retained under W9-A); both bands-with-other units 0/2; both
+   banded units 0/1; empower/enters 0/1, same-subtype control 0/0. All
+   witness/control probes preceded implementation; after probes and trial
+   declaration evidence are retained in the same target directory.
+3. **Spot checks (`ztvzruvp`):** Envoy of the Ancestors — adjective
+   Premodifier; Skyward Spider — predicative adjective; Corrupted Resolve
+   and Viridian Betrayers — poisoned predicative adjective; Wolfbriar
+   Elemental — CostKeyword; Junkblade Bruiser — expend with Amount
+   Complement; Enterprising Scallywag — descended past intransitive
+   Predicate; Zephyr Singer — convoked Predicate in a Subject-gap Relative Clause;
+   Hellkite Hatchling — devoured transitive Predicate; Watchful Radstag —
+   evolves intransitive Predicate. Each is newly covered and uses the
+   plugin-owned Lexeme; `spot-checks.json` records the inspected Readings.
+4. **Deviations and STOPs:** eight terms completed with existing rows; no
+   Construction, loader, core vocabulary, or existing semantic body changed.
+   The deferred questions above collect party/full party, Role names,
+   day/night, gift/promise, bands with other, banded and empower. Trial
+   bands-with-other and active-only band declarations were removed after
+   probes proved the gaps. Semantics debt: modified, poisoned, descend,
+   expend and multikicker are new bodyless declarations (helper `body: ()`
+   is the existing bodyless representation). No glossary gap. A concurrent
+   docs-only claim-parent update produced divergent successors; harmony
+   recovered the test-bearing successor, preserving the newer parent and
+   ticket notes. Three integration tests in one module, registered once in
+   suite_6, assert ownership, grammatical role and independent roundtrips.
+   A first test build failed on an ambiguous conversion in a new assertion;
+   it was corrected without changing the assertion's subject or strength.
+   Existing exhaustive inventory tests were extended for multikicker's Cost
+   signature and spelling (no assertions removed):
+   `builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`,
+   `every_keyword_declaration_pins_its_template`, and
+   `every_keyword_template_is_consistent_with_its_params_and_grammar`. Their
+   first two full-core runs exposed the missing expected inventory rows;
+   verification was rerun after extending those rows.
+5. **Tests:** all final commands exit 0:
+   - `cargo test -p deckmaste_english_v3` — 964 passed.
+   - `cargo test -p deckmaste_lexical_source` — 86 passed.
+   - `cargo test -p deckmaste_construction_core` — 474 passed.
+   - `cargo test -p deckmaste_semantics_v2` — 105 passed.
+   - `cargo test -p xtask english_v3` — 56 passed.
+   - `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` — passed.
+   - `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` — passed.
+   - `cargo clippy -p deckmaste_construction_core --tests -- -D warnings` — passed.
+   - `cargo clippy -p deckmaste_semantics_v2 --tests -- -D warnings` — passed.
+   - `cargo clippy -p xtask --tests -- -D warnings` — passed.
+   - `cargo xtask lean check` — 240/240 cards checked, 2 plugins.
+   - `cargo xtask cite bless` — registered only [CR#701.71a]; its complete
+     rule text was read against the keyword-action ownership claim.
+   - `cargo xtask cite check --list-noncompliant` — 0 noncompliant.
+   - `cargo xtask cite check` — 0 stale.
+   - `jj --no-pager diff --git | cargo xtask cite audit --diff` — two sites
+     audited and read against the claim.
+   English clippy initially found a redundant clone of a Copy lexeme ID in
+   the new helper; removing it preserved the value comparison and assertions.
+   Final logs and command outcomes are in `verification.json` and adjacent
+   logs under the evidence directory. Assurance counts: restored 0 /
+   re-spelled 0 / ignored 0 / added 3 / removed 0; no removals to justify.
+6. **Timing (`ztvzruvp`):** final bounded census 45.17 s wall time under
+   `/usr/bin/time -v`, six workers, `--samples-per-face 0`. No full-corpus
+   run. The trial-data census was rerun after removing the two unusable
+   declarations; final results above are for the retained data only.

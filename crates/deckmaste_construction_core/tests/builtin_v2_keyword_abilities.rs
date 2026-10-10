@@ -178,6 +178,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         "miracle",
         "moreThanMeetsTheEye",
         "morph",
+        "multikicker",
         "mutate",
         "ninjutsu",
         "offspring",
@@ -389,6 +390,7 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
             "start your engines!",
             "start your engines!",
         ),
+        ("multikicker", "multikicker", "multikicker <Param(0)>"),
         ("webSlinging", "web-slinging", "web-slinging <Param(0)>"),
         ("infinity", "∞", "∞ — <Param(0)>"),
     ] {

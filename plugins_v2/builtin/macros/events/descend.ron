@@ -1,0 +1,7 @@
+(
+    name: "descend",
+    kinds: [GameEvent],
+    params: {"player": Subject},
+    metadata: (grammar: (verb: (bare: "descend", frames: [Predicate([])]))),
+    body: (),
+)

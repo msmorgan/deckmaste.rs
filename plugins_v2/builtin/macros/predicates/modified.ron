@@ -1,0 +1,7 @@
+(
+    name: "modified",
+    kinds: [Predicate],
+    params: [],
+    metadata: (grammar: (term: Adjective(surface: "modified"))),
+    body: (),
+)

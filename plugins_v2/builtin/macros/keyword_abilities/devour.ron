@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "devour <Param(0)>",
     grammar: FixedKeyword(
         surface: "devour",
+        verb: (bare: "devour", frames: [Predicate([ObjectNounPhrase])]),
     ),
     // "Devour N" means "As this object enters, you may sacrifice any number of
     // creatures. This permanent enters with N +1/+1 counters on it for each creature
