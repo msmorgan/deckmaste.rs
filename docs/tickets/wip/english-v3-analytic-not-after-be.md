@@ -183,9 +183,14 @@ by `cargo xtask english-v3 grep` only.
    Primary/Secondary licences; no duplicate negator lexeme or copied negative
    frames. Propagated finite-head Polarity through existing interfaces,
    including coordinate anchors, whose members retain their own polarity.
+   `FiniteConcord` and `FiniteGapConcord` export the LEFT member's Polarity:
+   a mixed coordination (*is X and isn't Y*) carries the left value. Nothing
+   reads that exported value today.
    Added the missing Negative property to HaveNegative for that export.
    Glossary gaps filled: Primary Negation, Primary Negator and shared Negator,
-   cited as NB/NI project rulings. NB4: uncontracted *is not* reads through the
+   Primary Negation's term cites page-checked CGEL, Ch. 9 §2.1, p. 799;
+   its attachment site and the shared Negator representation cite NB/NI
+   project rulings. NB4: uncontracted *is not* reads through the
    same licence. NB5: Cyclopean Tomb and Illusionary Mask (*has not been*)
    remain unread; no additional auxiliary declaration was made to reach them.
    Final refresh conflicted in category interfaces. Resolution preserved both
