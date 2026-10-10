@@ -198,6 +198,19 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    change classes **0**. Its incoming diff leaves all 1,685 covered faces
    unchanged. Final reports: `after-refresh2.json`, `diff-refresh2.json`,
    `diff-incoming2.json`.
+   Accepted-review refresh: covered **1,622 → 1,693**, Readings
+   **79,869 → 87,954**, gains **71** (42 ticket / 29 trunk); lost,
+   decreases and covered-face increases remain **0**. Final digest-only
+   changes: **27**. The refresh-only diff reports seven additional gains:
+   Avengers Disassembled, Fissure Vent and Invasion of Fiora from modal
+   headers (`ztrnpkyvzntv`); Gloryheath Lynx from the while adjunct
+   (`wxwozrtzrsqp`); Kotose, the Silent Spider from preposed duration
+   (`rtzolrtxrrru`); Loyal Retainers from temporal supplementation
+   (`mpvousxzotns`); Wild Endeavor from die nouns (`vlxrulqwmzzk`).
+   Its 28 digest-only changes (including previously gained Vision Charm)
+   retain their Reading counts and are attributed to `ztrnpkyvzntv`'s
+   refined count Complement structure. Reports: `after-refresh3.json`,
+   `diff-refresh3.json`, `diff-incoming3.json`.
 2. **Witnesses** (`ooumkosu`): Gleam of Resistance, Ash Barrens, Rime Dryad,
    Ayumi, the Last Visitor, Dryad Sophisticate, Livonya Silone and
    Trailblazer's Boots each **0 → 1** on their ticket line/sentence.
@@ -249,8 +262,11 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    same build and six full test/clippy commands passed again: English
    **918**, lexical-source **84**, compiler **39**. The five additional
    English tests belong to the kind-of-counter landing.
-   Exact commands/logs are under the evidence directory.
-6. **Timing** (`zrsxnupx`, second refresh): the required **bounded** AFTER
-   census took **2:30.43** wall time under `/usr/bin/time -v`, **6 workers**,
+   Accepted-review refresh: `cargo build -p xtask` and the same six full
+   test/clippy commands passed again: English **946**, lexical-source **86**,
+   compiler **39**. Incoming landings account for the additional tests.
+   Exact commands/logs are under the evidence directory (`refresh3-checks.json`).
+6. **Timing** (accepted-review refresh): the required **bounded** AFTER
+   census took **1:25.16** wall time under `/usr/bin/time -v`, **6 workers**,
    samples 0.
    No full census was run, per the binding verification budget.
