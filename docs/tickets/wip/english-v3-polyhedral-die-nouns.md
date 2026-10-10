@@ -90,8 +90,14 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    again with zero changed faces or line digests. The noncombat refresh
    (`mzkvyunr`) also changed zero faces or line digests; both appended test
    registrations were preserved once when resolving its suite_6 conflict.
-   No wrong new die analysis
-   found. Selector:
+   The modal refresh (`ztrnpkyv`) adds Brutal Expulsion (0 → 5) and
+   Pinecone Strike (0 → 2), plus nine digest-only changes: Agate Assault,
+   Arbalest Engineers, Feast or Famine, Gnashing of Teeth, Light of Hope,
+   Professor's Warning, Shriveling Rot, Suplex, and Vannifar, Evolved Enigma.
+   Final claim-parent diff: 413 → 427 covered, 9,264 → 12,550 Readings;
+   14 gains (12 ticket, 2 trunk), zero lost/decreases/increases, nine
+   digest-only changes attributable to `ztrnpkyv`. No wrong new die analysis
+   found. Both modal and die test registrations survive once. Selector:
    every face matching `\bd(4|6|8|10|12|20)\b|\bdic?e\b` case-insensitively
    (193 faces), plus 300 random covered controls, seed 20261008; one overlap.
    Evidence: `target/english-v3/english-v3-polyhedral-die-nouns/`
@@ -136,12 +142,13 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    tests. The retry refresh build, both full suites and both clippy commands
    also passed, then passed after the next retry refresh bringing preposed
    duration adjuncts, and again after the noncombat refresh and registration
+   conflict resolution, and again after the modal refresh and registration
    conflict resolution. Ticket tests:
    restored 0 / re-spelled 0 / ignored 0 / added 3 / removed 0;
    no removals to justify. The new module is registered once in `suite_6`.
 6. **Timing** (`wowupoznutln`): first refreshed bounded AFTER census 23.51 s wall;
    integration-refresh bounded AFTER census 34.60 s wall;
    retry-refresh bounded AFTER census 28.68 s wall; next retry 22.24 s wall;
-   final noncombat-refresh census 12.61 s wall,
+   noncombat-refresh census 12.61 s wall; final modal-refresh census 12.61 s wall,
    measured with `/usr/bin/time -v`, 6 workers, 0 samples per face.
    No full-corpus census, under the binding verification budget.
