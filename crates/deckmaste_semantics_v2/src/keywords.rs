@@ -148,7 +148,7 @@ pub fn keyword_ability_body(name: &str, params: &Params, body: &str) -> Result<S
     let record = Record::read(body, KEYWORD_ABILITY_FIELDS)?;
     let abilities = record.required("abilities")?;
     if let Some(label) = record.get("label") {
-        return carried_keyword(name, label, &record, abilities);
+        return carried_keyword(name, params, label, &record, abilities);
     }
     let keyword_params = match record.get("keyword_params") {
         Some(written) => written.to_owned(),
@@ -174,8 +174,10 @@ pub fn carried_label(name: &str, body: &str) -> Result<String, String> {
 }
 
 /// Whether a keyword ability's declaration, given the body its meta-macro
-/// produced, is a variant carrying another keyword's label: it defines no
-/// keyword of its own, so it has no registry row.
+/// produced, carries another keyword's label, as a variant (`giftACard`) or a
+/// general form (`devourQuality`): it defines no keyword of its own, so it
+/// has no registry row; a general form's signature is one more argument
+/// schema on the row of the keyword it names.
 ///
 /// # Errors
 /// If the produced body is not the record the meta-macro writes.
@@ -185,12 +187,18 @@ pub fn is_variant(body: &str) -> Result<bool, String> {
         .is_some())
 }
 
-/// A variant's term: the one invocation of the keyword it names, labelled as
-/// that keyword. "Gift a card" is `gift(draw(1))` under gift's label
-/// [CR#702.174e]; nesting it inside a keyword of its own would give a
-/// keyword with no category in another's definition.
+/// A labelled declaration's term. A variant's is the one invocation of the
+/// keyword it names, labelled as that keyword: "gift a card" is
+/// `gift(draw(1))` under gift's label [CR#702.174e]; nesting it inside a
+/// keyword of its own would give a keyword with no category in another's
+/// definition. A general form that invokes no such keyword carries its own
+/// definition under the label it names, its own parameters forwarded:
+/// "devour [quality] N" is `Keyword(keyword: Named(name: "devour"), params:
+/// [Quality(…), Number(…)], body: …)`, so "it devoured" reads devour
+/// whichever form the card prints [CR#702.82b,702.82c] (ruling 2026-10-10).
 fn carried_keyword(
     name: &str,
+    params: &Params,
     label: &str,
     record: &Record,
     abilities: &str,
@@ -198,33 +206,44 @@ fn carried_keyword(
     if record.get("keyword_params").is_some() {
         return Err(format!(
             "keyword ability `{name}` carries `{label}`'s label, so its arguments are \
-             `{label}`'s; it writes no `keyword_params`"
+             `{label}`'s or its own; it writes no `keyword_params`"
         ));
     }
-    let invocation = abilities
+    let inner = abilities
         .strip_prefix('[')
         .and_then(|rest| rest.strip_suffix(']'))
-        .map(|inner| inner.trim().trim_end_matches(',').trim())
         .unwrap_or_default();
-    let invokes_label = invocation
-        .strip_prefix(label)
-        .is_some_and(|rest| rest.trim_start().starts_with('('));
-    if !invokes_label || top_level_commas(invocation) > 0 {
-        return Err(format!(
+    let items = top_level_items(inner);
+    let invokes_label = |item: &str| {
+        item.strip_prefix(label)
+            .is_some_and(|rest| rest.trim_start().starts_with('('))
+    };
+    match items.as_slice() {
+        [] => Err(format!(
             "keyword ability `{name}` carries `{label}`'s label, so its body is one invocation \
-             of `{label}`: found `{abilities}`"
-        ));
+             of `{label}` or its own definition: found `{abilities}`"
+        )),
+        [only] if invokes_label(only) => Ok((*only).to_owned()),
+        _ if items.iter().any(|item| invokes_label(item)) => Err(format!(
+            "keyword ability `{name}` carries `{label}`'s label, so its body is one invocation \
+             of `{label}` alone: found `{abilities}`"
+        )),
+        _ => Ok(format!(
+            "Keyword(keyword: Named(name: \"{label}\"), params: {}, body: {abilities})",
+            forwarded_keyword_params(name, params)?
+        )),
     }
-    Ok(invocation.to_owned())
 }
 
-/// The commas in `text` outside any bracket or string.
-fn top_level_commas(text: &str) -> usize {
+/// The items of a comma-separated list's inside, split at its top-level
+/// commas and trimmed, a trailing comma's empty item dropped.
+fn top_level_items(text: &str) -> Vec<&str> {
+    let mut items = Vec::new();
     let mut depth = 0_i32;
     let mut in_string = false;
     let mut escaped = false;
-    let mut commas = 0;
-    for ch in text.chars() {
+    let mut start = 0;
+    for (at, ch) in text.char_indices() {
         if in_string {
             match (escaped, ch) {
                 (true, _) => escaped = false,
@@ -238,11 +257,16 @@ fn top_level_commas(text: &str) -> usize {
             '"' => in_string = true,
             '(' | '[' | '{' => depth += 1,
             ')' | ']' | '}' => depth -= 1,
-            ',' if depth == 0 => commas += 1,
+            ',' if depth == 0 => {
+                items.push(text[start..at].trim());
+                start = at + 1;
+            }
             _ => {}
         }
     }
-    commas
+    items.push(text[start..].trim());
+    items.retain(|item| !item.is_empty());
+    items
 }
 
 /// A keyword action's definition from its meta-macro's record: the
@@ -558,7 +582,11 @@ mod tests {
         assert!(!is_variant("(abilities: [])").unwrap());
         for refused in [
             "(label: gift, abilities: [])",
-            "(label: gift, abilities: [kicker(tapSymbol)])",
+            // Re-spelled for `semantics-v2-devour-quality-keyword`: a body
+            // invoking no labelled keyword is now a general form's own
+            // definition, so the refused shape is one mixing the invocation
+            // with another ability.
+            "(label: gift, abilities: [gift(draw(1)), kicker(tapSymbol)])",
             "(label: gift, abilities: [gift(draw(1)), gift(draw(2))])",
             "(label: gift, keyword_params: [], abilities: [gift(draw(1))])",
         ] {
@@ -567,6 +595,22 @@ mod tests {
                 "{refused}"
             );
         }
+    }
+
+    /// A general form carries its own definition under the label it names,
+    /// its own parameters forwarded (ruling 2026-10-10): "devour [quality] N"
+    /// is devour's keyword with a quality and a number [CR#702.82c].
+    #[test]
+    fn a_general_form_carries_its_own_body_under_the_label() {
+        let general = "(label: devour, abilities: [static(x)])";
+        assert_eq!(
+            keyword_ability_body("devourQuality", &positional(&["Quality", "Amount"]), general)
+                .unwrap(),
+            "Keyword(keyword: Named(name: \"devour\"), params: [Quality(Param(0)), \
+             Number(Param(1))], body: [static(x)])"
+        );
+        assert_eq!(carried_label("devourQuality", general).unwrap(), "devour");
+        assert!(is_variant(general).unwrap());
     }
 
     #[test]

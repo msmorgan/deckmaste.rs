@@ -158,6 +158,7 @@ fn variant_params(shape: Shape) -> &'static [&'static str] {
         Shape::Ability => &["Ability"],
         Shape::CompoundQuality => &["Quality", "Cost"],
         Shape::CompoundNumber => &["Amount", "Cost"],
+        Shape::QualityAmount => &["Quality", "Amount"],
         Shape::DeckCondition => &["Condition"],
     }
 }
@@ -198,6 +199,10 @@ pub(super) struct KeywordDefinition {
     /// `categories`.
     pub(super) regimes: Vec<FormRegime>,
     pub(super) params: Vec<String>,
+    /// The signatures of the general forms carrying this keyword's label
+    /// with a definition of their own (`devourQuality` for devour
+    /// [CR#702.82c]): each is one more argument schema on this row.
+    pub(super) general_forms: Vec<Vec<String>>,
 }
 
 /// A keyword-ability declaration's built term, read for its shape alone: the
@@ -393,10 +398,22 @@ fn keyword_categories(
             anyhow::bail!("{name}: no sample invocation reads: {first_error}")
         }
     };
-    let Ability::Keyword { body, .. } = ability else {
+    let Ability::Keyword { keyword, body, .. } = ability else {
         anyhow::bail!("{name}: the declaration does not build a keyword term");
     };
+    // A bare form written as its general form ("devour N" is devour
+    // [quality] N over creatures [CR#702.82a,702.82c]) carries the same
+    // keyword, whose own components are the definition's (Lean
+    // `Ability.generalFormOf`).
     body.iter()
+        .flat_map(|ability| match ability {
+            Ability::Keyword {
+                keyword: inner,
+                body,
+                ..
+            } if inner == &keyword => body.iter().collect::<Vec<_>>(),
+            other => vec![other],
+        })
         .map(|ability| Ok((category(ability)?, form_regime(ability))))
         .collect()
 }
@@ -415,6 +432,7 @@ pub(super) fn keyword_definitions(
 ) -> anyhow::Result<Vec<KeywordDefinition>> {
     let mut plugin = None;
     let mut result = Vec::new();
+    let mut general_forms: Vec<(String, String, Vec<String>)> = Vec::new();
     for declared in declarations
         .iter()
         .filter(|row| row.identity().kind() == DeclarationKind::KeywordAbility)
@@ -423,13 +441,6 @@ pub(super) fn keyword_definitions(
         let body = declared
             .body()
             .with_context(|| format!("{name}: keyword ability has no declaration body"))?;
-        // A variant carries another keyword's label (`giftACard` is gift's
-        // `gift(draw(1))`): it defines no keyword, so it has no row.
-        if keywords::is_variant(body.get_ron())
-            .map_err(|reason| anyhow::anyhow!("{name}: {reason}"))?
-        {
-            continue;
-        }
         let params = declared
             .params()
             .unwrap_or_default()
@@ -442,6 +453,29 @@ pub(super) fn keyword_definitions(
             body.get_ron(),
         )
         .map_err(|reason| anyhow::anyhow!("{name}: {reason}"))?;
+        // A labelled declaration defines no keyword, so it has no row: a
+        // variant (`giftACard` is gift's `gift(draw(1))`) shares its
+        // keyword's, and a general form (`devourQuality`, its own
+        // definition under devour's label) adds its signature to it.
+        if keywords::is_variant(body.get_ron())
+            .map_err(|reason| anyhow::anyhow!("{name}: {reason}"))?
+        {
+            if term.starts_with("Keyword(") {
+                let label = keywords::carried_label(name, body.get_ron())
+                    .map_err(|reason| anyhow::anyhow!("{name}: {reason}"))?;
+                general_forms.push((
+                    name.to_owned(),
+                    overlay_key(&label),
+                    declared
+                        .params()
+                        .unwrap_or_default()
+                        .iter()
+                        .map(|param| macro_def::ParameterType::as_str(param).to_owned())
+                        .collect(),
+                ));
+            }
+            continue;
+        }
         let KeywordShape::Keyword { keyword, body, .. } = macro_set()
             .read_str(&term)
             .with_context(|| format!("reading keyword ability {name}"))?;
@@ -467,7 +501,16 @@ pub(super) fn keyword_definitions(
                 .iter()
                 .map(|param| macro_def::ParameterType::as_str(param).to_owned())
                 .collect(),
+            general_forms: Vec::new(),
         });
+    }
+    for (name, word, params) in general_forms {
+        result
+            .iter_mut()
+            .find(|definition| definition.word == word)
+            .with_context(|| format!("{name}: carries the label of no declared keyword {word}"))?
+            .general_forms
+            .push(params);
     }
     Ok(result)
 }
@@ -804,6 +847,12 @@ fn keyword_rows(
                     .collect::<Vec<_>>();
                 add_schema(&mut schemas, &params)
                     .with_context(|| format!("{}: invalid argument schema", row.label))?;
+                for general in &declared.general_forms {
+                    let params = general.iter().map(String::as_str).collect::<Vec<_>>();
+                    add_schema(&mut schemas, &params).with_context(|| {
+                        format!("{}: invalid general-form argument schema", row.label)
+                    })?;
+                }
             }
             for extra in row.extra {
                 add_schema(&mut schemas, variant_params(*extra))?;

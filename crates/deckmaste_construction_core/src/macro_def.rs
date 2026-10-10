@@ -359,6 +359,9 @@ pub enum KeywordParameterClass {
     AmountCost,
     Quality,
     QualityCost,
+    /// A quality then a number, with no preposition: "devour artifact 1"
+    /// [CR#702.82c].
+    QualityAmount,
     Subject,
     Unsupported(UnsupportedKeywordParameterClass),
 }
@@ -2572,6 +2575,7 @@ fn normalized_keyword_parameter_class(
         [Type::Amount, Type::Cost] => Class::AmountCost,
         [Type::Quality] => Class::Quality,
         [Type::Quality, Type::Cost] => Class::QualityCost,
+        [Type::Quality, Type::Amount] => Class::QualityAmount,
         [Type::Predicate] => Class::Subject,
         [Type::Ability] => Class::Unsupported(Unsupported::Ability),
         [Type::Condition] => Class::Unsupported(Unsupported::Condition),

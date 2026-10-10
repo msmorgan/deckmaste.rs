@@ -17,33 +17,6 @@ use deckmaste_construction_core::macro_def::SurfaceFeature;
 use deckmaste_construction_core::macro_def::UnsupportedKeywordParameterClass;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 
-fn declaration_name(head: &str) -> String {
-    if head == "∞" {
-        return "infinity".to_owned();
-    }
-    let stem = head
-        .split([' ', '-', '—'])
-        .map(|word| word.replace(['\'', '!'], "").replace('&', "and"))
-        .filter(|word| !word.is_empty())
-        .map(|word| {
-            let mut chars = word.chars();
-            chars
-                .next()
-                .into_iter()
-                .flat_map(char::to_uppercase)
-                .chain(chars.flat_map(char::to_lowercase))
-                .collect::<String>()
-        })
-        .collect::<String>();
-    let mut chars = stem.chars();
-    chars
-        .next()
-        .into_iter()
-        .flat_map(char::to_lowercase)
-        .chain(chars)
-        .collect()
-}
-
 fn render_without_hints(spelling: &[SpellingPart]) -> String {
     spelling
         .iter()
@@ -250,6 +223,10 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         parameterized.insert("typecycling", &["Quality", "Cost"]),
         None
     );
+    assert_eq!(
+        parameterized.insert("devourQuality", &["Quality", "Amount"]),
+        None
+    );
     for name in [
         "boast", "exhaust", "forecast", "infinity", "maxSpeed", "powerUp", "solved",
     ] {
@@ -260,7 +237,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         parameterized.insert("prototype", &["Cost", "Power", "Toughness"]),
         None
     );
-    assert_eq!(parameterized.len(), 108);
+    assert_eq!(parameterized.len(), 109);
     parameterized
 }
 
@@ -355,15 +332,14 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
                 "{name}"
             );
         }
-        // Re-spelled for `builtin-v2-keyword-spelling-templates`: the spelling
-        // is the card-usage template the grammar, params and keyword syntax
-        // derive, not a bare copy of the surface. The name still derives from
-        // the grammar surface.
-        assert_eq!(name, &declaration_name(grammar.surfaces()[0].text()));
-        // An unspelled keyword (bare gift, `plugins-v2-gift-variants`) has no
-        // template to derive: it is invoked only by its spelled variants.
+        // Re-spelled for `semantics-v2-devour-quality-keyword` (ruling
+        // 2026-10-10): the name no longer derives from the grammar surface,
+        // since a general form shares its keyword's surface under another
+        // name (`devourQuality`, "devour"), and the bare-gift exemption that
+        // went with it retires. The spelling is the card-usage template the
+        // grammar, params and keyword syntax derive, not a bare copy of the
+        // surface; an unspelled keyword has no template to derive.
         if declaration.spelling().is_empty() {
-            assert_eq!(name, "gift", "only bare gift is unspelled");
             continue;
         }
         assert_eq!(

@@ -140,6 +140,7 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("dethrone", "dethrone"),
     ("devoid", "devoid"),
     ("devour", "devour <Param(0)>"),
+    ("devourQuality", "devour <Param(0)> <Param(1)>"),
     ("disguise", "disguise <Param(0)>"),
     ("disturb", "disturb <Param(0)>"),
     ("doctorsCompanion", "doctor's companion"),
@@ -362,7 +363,7 @@ fn every_keyword_declaration_pins_its_template() {
 #[test]
 fn every_keyword_template_is_consistent_with_its_params_and_grammar() {
     let declarations = keyword_declarations();
-    assert_eq!(declarations.len(), 66 + 207);
+    assert_eq!(declarations.len(), 66 + 208);
     for declaration in &declarations {
         let name = declaration.identity().name();
         let params = declaration.params().unwrap_or_default();

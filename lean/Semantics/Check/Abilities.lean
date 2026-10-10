@@ -722,13 +722,21 @@ def KeywordFacts.bodyPartFits (row : KeywordFacts) (ab : Ability) : Bool :=
 def keywordBodyPartFits (k : KeywordLabel) (ab : Ability) : Bool :=
   (keywordFactsFor k).elim false (·.bodyPartFits ab)
 
+/-- A definition component read through the keyword's general form: a bare form written as its
+general form over a fixed argument ("devour N" is devour [quality] N over creatures
+[CR#702.82a,702.82c]) carries the same keyword with that form's arguments, whose own components
+are the definition's. Any other keyword in a definition is a component of no category. -/
+def Ability.generalFormOf (k : KeywordLabel) : Ability → List Ability
+  | ab@(.keyword k' _ body) => if k' == k then body else [ab]
+  | ab => [ab]
+
 /-- A keyword ability's definition [CR#702.1]. A card may write the keyword bare, leaving the
 definition empty; a written one is the abilities the keyword represents, each of a declared
 category. A keyword whose definition is several abilities of different categories — decayed and
 modular each pair a static ability with a triggered one [CR#702.147a,702.43a] — writes them as
 the several abilities they are. -/
 def keywordBodyFits (k : KeywordLabel) (body : List Ability) : Bool :=
-  body.all (keywordBodyPartFits k)
+  (body.flatMap (Ability.generalFormOf k)).all (keywordBodyPartFits k)
 
 def Ability.grantedKeyword : Ability → Option KeywordLabel
   | .keyword k [] _ => if keywordParamless k then some k else none

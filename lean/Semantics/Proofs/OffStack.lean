@@ -97,9 +97,17 @@ theorem okNightbound : Ability.check [] Declared.nightbound = [] := by decide
 /-- Devour 1 [CR#702.82a]. -/
 theorem okDevour : Ability.check [] (Declared.devour (.lit 1)) = [] := by decide
 
-/-- Devour [quality] N's definition, over artifacts [CR#702.82c]. -/
-theorem okDevourQualityExpansion :
-    Ability.check [] (Declared.devourQualityExpansion artifact (.lit 2)) = [] := by decide
+/-- Devour artifact 2 [CR#702.82c]: devour's general form, labelled devour. Re-spelled from
+`okDevourQualityExpansion`, which checked the same definition as a helper before the general form
+was declared (`semantics-v2-devour-quality-keyword`). -/
+theorem okDevourQuality :
+    Ability.check [] (Declared.devourQuality artifact (.lit 2)) = [] := by decide
+
+/-- Twin: devour's definition reads through its own general form only; another keyword written
+as a component of it has no category [CR#702.1]. -/
+theorem badOtherKeywordInDevourDefinition :
+    Ability.check [] (.keyword (.named "devour") [.number (.lit 1)] [Declared.riot])
+      = [.keywordBodyFits (.named "devour")] := by decide
 
 /-- Riot [CR#702.136a]. -/
 theorem okRiot : Ability.check [] Declared.riot = [] := by decide

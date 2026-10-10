@@ -1,0 +1,32 @@
+KeywordAbility(
+    name: "devourQuality",
+    params: [Quality, Amount],
+    spelling: "devour <Param(0)> <Param(1)>",
+    grammar: FixedKeyword(
+        surface: "devour",
+    ),
+    // "Devour [quality] N" means "As this object enters, you may sacrifice any
+    // number of [quality] permanents. This permanent enters with N +1/+1
+    // counters on it for each permanent sacrificed this way." [CR#702.82c] It
+    // is devour's general form, labelled devour, so "it devoured" reads
+    // `ByKeyword(devour)` whichever form the card prints [CR#702.82b]. Bare
+    // devour N is this over creatures [CR#702.82a].
+    label: devour,
+    body: [
+        static(
+            asEvent(
+                enters(thisPermanent),
+                sequentially([
+                    may(sacrifice(counted(anyNumber, and([Param(0), permanent])))),
+                    establish(
+                        entersWithCounters(
+                            thisPermanent,
+                            times(Param(1), numberOf(theVerbed(sacrifice, Many))),
+                            p1p1Counter,
+                        ),
+                    ),
+                ]),
+            ),
+        ),
+    ],
+)

@@ -14,7 +14,10 @@
 // invoke. A variant writes `label`, the keyword whose label it carries, and
 // its body is that keyword invoked once (`giftACard`: `label: gift`, `body:
 // [gift(draw(1))]`); the declaration's term is that invocation, labelled as
-// the keyword it names, never a keyword of its own.
+// the keyword it names, never a keyword of its own. A general form writes
+// `label` and its own definition instead (`devourQuality`: `label: devour`),
+// and its term is that keyword's, carrying its own arguments (ruling
+// 2026-10-10).
 (
     name: "KeywordAbility",
     kinds: [Macro],

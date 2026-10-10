@@ -80,12 +80,19 @@ enum Shape {
     Ability,
     CompoundQuality,
     CompoundNumber,
+    /// A quality then a number, no cost: "devour [quality] N" [CR#702.82c].
+    QualityAmount,
     DeckCondition,
 }
 
 impl Shape {
-    fn idris(self) -> &'static str {
-        match self {
+    /// The frozen Idris reference table's spelling of the shape, `None` for
+    /// a shape it has no constructor for. The Idris table is no longer a
+    /// test subject (rulings 2026-10-09, extended to keyword rows
+    /// 2026-10-10), so its generator skips such a shape rather than the
+    /// deletion-bound `KeywordShapes` gaining one; the Lean table carries it.
+    fn idris(self) -> Option<&'static str> {
+        Some(match self {
             Shape::Nothing => "NoParam",
             Shape::Cost => "CostParam",
             Shape::Quality => "QualityParam",
@@ -95,7 +102,8 @@ impl Shape {
             Shape::CompoundQuality => "CompoundParam QualityHead",
             Shape::CompoundNumber => "CompoundParam NumberHead",
             Shape::DeckCondition => "DeckConditionParam",
-        }
+            Shape::QualityAmount => return None,
+        })
     }
 
     /// The shape a stub's positional parameter-type names spell, or `None`
@@ -112,6 +120,7 @@ impl Shape {
             ["Ability"] => Shape::Ability,
             ["Quality", "Cost"] => Shape::CompoundQuality,
             ["Amount", "Cost"] => Shape::CompoundNumber,
+            ["Quality", "Amount"] => Shape::QualityAmount,
             ["Condition"] => Shape::DeckCondition,
             _ => return None,
         })
@@ -1485,23 +1494,19 @@ fn render(root: &Path) -> anyhow::Result<String> {
         let declared = definitions
             .iter()
             .find(|definition| definition.word == row.label);
-        let mut shapes: Vec<Shape> = declared
-            .map(|declared| {
-                let params = declared
-                    .params
-                    .iter()
-                    .map(String::as_str)
-                    .collect::<Vec<_>>();
-                Shape::from_params(&params).with_context(|| {
-                    format!(
-                        "{}: parameter signature outside the workbench vocabulary: {params:?}",
-                        row.label
-                    )
-                })
-            })
-            .transpose()?
+        let mut shapes: Vec<Shape> = Vec::new();
+        for signature in declared
             .into_iter()
-            .collect();
+            .flat_map(|declared| std::iter::once(&declared.params).chain(&declared.general_forms))
+        {
+            let params = signature.iter().map(String::as_str).collect::<Vec<_>>();
+            shapes.push(Shape::from_params(&params).with_context(|| {
+                format!(
+                    "{}: parameter signature outside the workbench vocabulary: {params:?}",
+                    row.label
+                )
+            })?);
+        }
         for extra in row.extra {
             if !shapes.contains(extra) {
                 shapes.push(*extra);
@@ -1514,7 +1519,7 @@ fn render(root: &Path) -> anyhow::Result<String> {
         );
         let shapes = shapes
             .iter()
-            .map(|s| s.idris().to_owned())
+            .filter_map(|s| s.idris())
             .collect::<Vec<_>>()
             .join(", ");
 

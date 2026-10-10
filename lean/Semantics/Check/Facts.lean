@@ -188,7 +188,7 @@ def keywordFacts : List KeywordFacts :=
     { word := .named "demonstrate", argumentSchemas := [[]], functionsOnStack := true, onInstantOrSorceryCard := true, definition := [⟨.triggered, some .atCasting⟩], regime := some .atCasting },
     { word := .named "dethrone", argumentSchemas := [[]], definition := [⟨.triggered, none⟩] },
     { word := .named "devoid", argumentSchemas := [[]], onInstantOrSorceryCard := true, definition := [⟨.static, none⟩] },
-    { word := .named "devour", argumentSchemas := [[⟨.number, none⟩]], paidCost := true, definition := [⟨.static, none⟩] },
+    { word := .named "devour", argumentSchemas := [[⟨.number, none⟩], [⟨.quality, none⟩, ⟨.number, none⟩]], paidCost := true, definition := [⟨.static, none⟩] },
     { word := .named "embalm", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true, definition := [⟨.activated, none⟩] },
     { word := .named "encore", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true },
     { word := .named "enlist", argumentSchemas := [[]] },
