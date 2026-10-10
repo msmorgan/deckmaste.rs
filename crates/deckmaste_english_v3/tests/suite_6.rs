@@ -106,3 +106,6 @@ mod progressive_object_gap_relative;
 
 #[path = "suite/devotion_to_colour.rs"]
 mod devotion_to_colour;
+
+#[path = "suite/partitive_quantity_phrases.rs"]
+mod partitive_quantity_phrases;

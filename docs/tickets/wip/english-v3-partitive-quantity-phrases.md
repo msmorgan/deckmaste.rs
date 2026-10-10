@@ -155,4 +155,76 @@ a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta** (`pusrqwml`; BEFORE uses the claim-parent `ukysqxnm`
+   declaration and unchanged lexical sources): 710 faces, **572 → 615**
+   covered, **26,331 → 78,740** Readings; 43 gains, zero lost faces,
+   decreases or increases, zero issues. The 262 digest-only changes retain
+   the existing analyses with the canonical `CardinalDeterminer` wrapper.
+   Conqueror's Pledge retains 2 Readings. Selector: the Method's 410 faces
+   plus Conqueror's Pledge (*twelve of*), and 300 random covered controls
+   selected by `english-v3 diff --manifest --random 300 --seed 20261008`
+   from `baseline-wave8.json`; one overlap gives 710 identities. Evidence:
+   `target/english-v3/english-v3-partitive-quantity-phrases/{manifest,before,after,diff}.json`.
+   After refresh, the same selector retains all counts and coverage: zero
+   losses, gains, decreases or increases relative to the verified AFTER,
+   with seven digest-only changes from the imported scalar-comparative and
+   supertype work (`vszmnwup`, `ooumkosu`). The claim-parent-to-refreshed
+   summary remains 43 gains and 262 digest-only changes; reports are
+   `after-refresh.json`, `refresh-diff.json` and `final-diff.json` alongside
+   the original evidence. A second refresh imported phrasal-keyword work
+   (`zvoyutom`) and subtype/plugin definitions. Its bounded recheck adds
+   Ellie, Brick Master (29), Ellyn Harbreeze, Busybody (13), and Safana,
+   Calimport Cutthroat (3), with zero losses, decreases, increases or
+   digest-only changes relative to the first refreshed AFTER. These three
+   gains are attributed to trunk, not this partitive refinement. Final
+   totals: **572 → 618** covered, **26,331 → 78,785** Readings, 46 gains
+   (43 feature + 3 trunk), 262 digest-only changes, zero issues. Evidence:
+   `after-final-refresh.json`, `final-refresh-diff.json`, `final-diff.json`.
+2. **Witnesses** (`pusrqwml`, complete fragment probes): all five were 0 on
+   the claim-parent grammar; after: Urza's Armor 2, Scalpelexis 9, Mangara 1,
+   The Mana Rig 3, Parallel Lives 3. Their matched controls have respectively
+   2, 9, 1, 3, 3 Readings: independent ambiguity is preserved under W9-A.
+   The five quantity fragments each have one route. The ticket's controls
+   retain their counts: four NP controls and Destroy one of them 1 each;
+   Bruvac 1, Commune with Evil 3, Sanguine Indulgence 1. No already-readable
+   witness was dropped.
+3. **Spot checks** (`pusrqwml`): Urza's Armor and Guardian Seraph use a
+   numeric fused head with a non-count oblique; Scalpelexis and Mangara use
+   the numeral/comparative Coordination as fused head; The Mana Rig, Nael,
+   and Slimefoot's Survey use the quantitative PP as fused head; Parallel
+   Lives, Doubling Season, and Adrix and Nev keep the external multiplier
+   above the degree-headed partitive. All retain the *of* PP as Complement.
+   No wrong gain was observed. Nael and Slimefoot each contain one partitive
+   per affected-line Reading; their other attachment ambiguities remain
+   available.
+4. **Deviations and STOPs**: no new Construction, Frame, Lexeme or glossary
+   term. Refined the existing partitive's forms, agreement and Definiteness;
+   retired its bare `Cardinal` slot. Cardinal vocabulary retains its other
+   functions; there was no separate lexical partitive route to retire.
+   Expanded the selector for the attested higher cardinal, then rebuilt
+   BEFORE from the claim-parent declaration and reran the bounded census.
+   Under PQ6, return Ojer Taq's counted multiplier *three times*: its control
+   *three times that many tokens* and *three times that many of those tokens*
+   both probe 0, while *that many of those tokens* probes 1 (`pusrqwml`).
+   That modifier needs work beyond this slot refinement. No STOPs.
+5. **Tests** (`pusrqwml`): `cargo test -p deckmaste_english_v3` passed all
+   975 tests. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed after fixing a needless-by-value parameter in the new witness
+   helper; its exact value comparison is preserved. Restored 0 / re-spelled
+   0 / ignored 0 / added 8 / removed 0. The module is registered once in
+   `suite_6`. Citation checks report zero non-compliant strings and zero
+   stale citations; the diff audit selects no new citation sites. Refresh
+   rebuilt xtask and reran the full suites with
+   `cargo test -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_lexical_source`:
+   984 English v3, 39 construction-core and 86 lexical-source tests passed,
+   zero failed or ignored. The matching three-package clippy command
+   (`--tests -- -D warnings`) passed. After the second refresh,
+   `cargo build -p xtask` and the same full three-package test and clippy
+   commands passed again: 987 English v3, 39 construction-core and 86
+   lexical-source tests, zero failed or ignored.
+6. **Timing** (`pusrqwml`): bounded AFTER census corpus wall **96.65 s**,
+   **6 workers**, `--samples-per-face 0`, run under `/usr/bin/time -v`.
+   The post-refresh bounded census used the same settings and selector:
+   **50.10 s** corpus wall, zero issues or undetermined faces. The final
+   refreshed bounded census took **82.79 s** corpus wall with those same
+   settings, again zero issues or undetermined faces.

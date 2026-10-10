@@ -3974,10 +3974,15 @@ constructions! {
             require phrase.ComplementFunctionRestriction = None;
             require phrase.SelectedPrepositionUse = No;
         }
+        // PQ1: the quantitative fused head retains its declared agreement.
+        table partitive_quantity_number(DeterminerAgreementNumber, DeterminerUse) -> number {
+            (Singular, SingularCount) => Singular, (Singular, Singular) => Singular,
+            (Nominal, SingularCount) => Singular, (Nominal, Singular) => Singular,
+            (Nominal, PluralCount) => Plural, (Nominal, Mass) => Singular,
+        }
         construction PartitiveNounPhrase: NounPhrase {
             export NounPhraseStructure = Other;
             export FocusedUse = No;
-            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3988,12 +3993,20 @@ constructions! {
             export WholeObjectSourcePresent = No;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
-            form [quantity: Cardinal, " ", complement: PrepositionPhrase,
-                modifiers: repeat(PartitiveModifier, "")];
+            form [quantity: QuantitativeDeterminer, " ", complement: PrepositionPhrase,
+                modifiers: repeat(PartitiveModifier, "")]
+                export number = partitive_quantity_number(quantity.DeterminerAgreementNumber,
+                    quantity.DeterminerUse)
+                export Definiteness = quantity.Definiteness;
+            form [quantity: QuantityConjunct, " ", complement: PrepositionPhrase,
+                modifiers: repeat(PartitiveModifier, "")]
+                require quantity.CardinalMeasurementUse = DeterminerRequired
+                require complement.ObliqueNumber = Singular
+                export number = quantity.number
+                export Definiteness = Nondefinite;
             require partitive_oblique(complement.ObliqueNumber) = Yes;
             require licence_noun_complement(complement.PrepositionFunctionLicence) = Yes;
             require complement.ComplementFunctionRestriction = None;
-            export number = quantity.number;
             export Targeting = No;
             use ThirdPersonCommonCase;
         }
