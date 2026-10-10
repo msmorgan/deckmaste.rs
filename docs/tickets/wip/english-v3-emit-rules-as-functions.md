@@ -83,6 +83,16 @@ edits.
    117,740. Lost / gained / decreases / increases / digest-only / source
    changes: all 0; 0 issues. Lost faces: none. Evidence:
    `target/english-v3/english-v3-emit-rules-as-functions/{manifest,before,after,diff}.json`.
+
+   After the mandatory refresh, `zmxzpyny` rechecks the identical 2,276-face
+   manifest: covered 2,276 → 2,276; Readings 117,740 → 60,035; lost 0, gained
+   0, decreases 929, increases 11, digest-only 567, unchanged 769; 0 source
+   changes and 0 issues. These incoming Reading retirements, T5 carrier gains,
+   and constructor re-spells are attributed to trunk `ukytykwr` under T1–T5
+   ([trailing-Adjunct landing](../done/english-v3-trailing-adjunct-height.md#landing-record)).
+   Lost faces remain none. Evidence: `refreshed.json` and `refreshed-diff.json`
+   in the same evidence directory. The emitter's E2 acceptance result above
+   remains the exact-zero comparison made before refresh.
 2. **Witnesses** (`tsuuozyn`): E2 replaces parse witnesses for this build-time
    ticket. All 2,276 face counts and Reading digests are identical; the existing
    English v3 suite also exercises the main and slice grammars.
@@ -94,6 +104,10 @@ edits.
    calls; no lint allowance. No Construction, frame, lexicon route or test
    added or deleted; no glossary gap or STOP. Goal 2 is deferred to the next
    instructed step, per the owner's direction. Grammar optimization remains 2.
+   The closed implementation `tsuuozyn` was refreshed successfully onto
+   incoming grammar/core changes `ukytykwr` (trailing Adjunct height) and
+   `kxwsyulp` (keyword dash costs), including the inherited exact-count
+   re-spells in `youxkuvq`. No conflict repair or feature code edit was needed.
 5. **Tests** (`tsuuozyn`): `cargo test -p deckmaste_english_v3` — 731 passed;
    `cargo test -p deckmaste_construction_v3_core` — 34 passed;
    `cargo test -p xtask english_v3` — 56 passed. All three
@@ -104,6 +118,13 @@ edits.
    Test changes: restored 0 / re-spelled 0 / ignored 0 / added 0 / removed 0;
    no removals to justify. Citation check: 0 noncompliant, 0 stale; diff audit:
    0 citation sites; no new rules to bless.
+   Required post-refresh full suites on `zmxzpyny`:
+   `cargo test -p deckmaste_construction_v3_core` — 36 passed;
+   `cargo test -p deckmaste_english_v3` — 743 passed; no failed or ignored tests.
+   Clippy results above were preserved per the owner's refresh policy. Test
+   change counts above describe this ticket; incoming test additions and
+   re-spells belong to their trunk tickets. Post-refresh citation checks also
+   report 0 noncompliant and 0 stale citations; the record diff adds no citations.
 6. **Timing** (`tsuuozyn`): bounded E2 census, 6 workers, samples-per-face 0,
    under `/usr/bin/time -v`: before 38.36 s (uptime load 13.48/19.33/20.39),
    after 35.24 s (10.84/14.25/13.41). E5 before uses the claim-parent build;
@@ -123,3 +144,8 @@ edits.
    Timing logs and uptime captures are under
    `target/english-v3/english-v3-emit-rules-as-functions/` (`before-*`, `edit-*`,
    and `after-census.*`).
+
+   Post-refresh bounded census (`zmxzpyny`): 22.85 s wall, 6 workers,
+   samples-per-face 0, under `/usr/bin/time -v`; uptime load 8.74/12.45/12.43.
+   Evidence: `refresh-census.{time,load,log}`. No census `--all` or Lean check
+   was run. The workspace remains live for the required review before integration.
