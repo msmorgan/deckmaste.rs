@@ -136,7 +136,11 @@ by `cargo xtask english-v3 grep` only.
 
 1. **Census delta** (`spzllmsloltx`, completed grammar against claim-parent
    `xxytwsys` declarations and lexicon): 1,456 compared faces; covered
-   1,190 → 1,220; total Readings 86,235 → 92,182. Lost: none. Gained 30;
+   1,190 → 1,220; total Readings 86,235 → 92,182. After refresh
+   (`kuqmnwsprmor`), covered 1,190 → 1,222; Readings 86,235 → 92,231.
+   Lost: none. Gained 32: 30 from this change and two incoming named-mode
+   gains from `pxtwrtvu` (Sauron, Dino Devotee, 37 Readings; What Must Be
+   Done, 12 Readings);
    decreases 0; increases on previously covered faces 0; digest-only 34,
    all unchanged-count Secondary Negation Readings whose marker now uses
    the shared Negator schema. No wrong-analysis gains found; 0 census issues.
@@ -146,11 +150,15 @@ by `cargo xtask english-v3 grep` only.
    `target/english-v3/english-v3-analytic-not-after-be/{before,after,diff,manifest}.json`.
    The copied executable stamped `mqrlzszkuszn` and was stale; the parent was
    rebuilt and remeasured, rather than attributing its sibling gains here.
+   Refresh comparisons: `{refresh-after,refresh-diff,final-diff}.json` in
+   the same evidence directory; refresh added no losses, decreases, increases
+   or digest-only changes.
 2. **Witnesses** (`spzllmsloltx`, complete Document probes): Force of Negation
    0 → 3, Eddymurk Crab 0 → 1, Glademuse 0 → 1, Arcades Sabboth 0 → 2,
    Desynchronization 0 → 2. Their synthetic controls remain 3/1/1/2/2.
    The five sentence witnesses each change 0 → 1; all six sentence controls
    remain at 1. Counts were re-probed on the rebuilt claim-parent grammar.
+   Post-refresh (`kuqmnwsprmor`) per-line census counts remain 3/1/1/2/2.
 3. **Spot checks** (`spzllmsloltx`): ten gained faces, with byte-exact
    probe Readings and Primary Negation on the auxiliary, preceding its
    ordinary Complement: Force of Negation, Eddymurk Crab and Glademuse
@@ -175,8 +183,18 @@ by `cargo xtask english-v3 grep` only.
    remain unread; no additional auxiliary declaration was made to reach them.
 5. **Tests** (`spzllmsloltx`): `cargo test -p deckmaste_english_v3` passed
    all 852 tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
-   passed. `cargo test -p deckmaste_lexical_source` passed all 44 tests;
+   passed. `cargo test -p deckmaste_lexical_source` passed all 83 tests;
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Post-refresh (`kuqmnwsprmor`): `cargo build -p xtask` passed;
+   `cargo test -p deckmaste_english_v3` passed all 863 tests;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed;
+   `cargo test -p deckmaste_lexical_source` passed all 83 tests;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed;
+   `cargo test -p deckmaste_construction_core` passed all 473 tests;
+   `cargo clippy -p deckmaste_construction_core --tests -- -D warnings` passed;
+   `cargo test -p deckmaste_lexical` passed all 60 tests;
+   `cargo clippy -p deckmaste_lexical --tests -- -D warnings` passed;
+   `cargo test -p xtask english_v3` passed all 56 selected tests.
    Restored 0 / re-spelled 2 / ignored 0 / added 4 / removed 0. The two
    re-spelled infinitival tests retain their original cards, roles and
    independently constructed roundtrip outcomes. The initial English run
@@ -184,6 +202,6 @@ by `cargo xtask english-v3 grep` only.
    the full suite rerun. An initial clippy compile found a shadowed helper
    binding in the re-spelling; it was renamed. Citation checks: 0
    noncompliant, 0 stale; piped diff audit found no new citation sites.
-6. **Timing** (`spzllmsloltx`): final bounded census 62.11 s wall,
+6. **Timing** (`kuqmnwsprmor`): final bounded census 80.00 s wall,
    6 workers, prebuilt executable, `--samples-per-face 0`, under
    `/usr/bin/time -v`. No `--all` or Lean check was run.
