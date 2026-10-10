@@ -181,6 +181,12 @@ Attestation by `cargo xtask english-v3 grep` only.
    `koswtswwympz` copy-exception licence leaves all 995 face counts and
    digests unchanged. Final evidence: `after-refresh-2.json`,
    `diff-final.json`, and separate `diff-refresh*.json` comparisons.
+   Review refresh (`lzzoxumy`, empty child of record change `pnpplmqn`):
+   covered 818, Readings 25,928, combined gains 70; own gains remain 66.
+   The further 2 gains, Bladehold War-Whip (9) and Cloud, Planet's Champion
+   (7), belong to `zvtzutzxvuyq`'s bare keyword mentions. Lost, decreases and
+   increases remain 0, digest-only 79. `after-review-refresh.json`,
+   `diff-review-refresh.json` and `diff-integrate.json` record this check.
 2. **Witnesses** (`soxvyspk`): all eight probed 0 before implementation.
    After, complete enumerations: Grievous Wound 1; Cut Your Losses 1;
    Endless Ranks of the Dead 2; The Endstone 1; Heartless Hidetsugu 17;
@@ -225,17 +231,47 @@ Attestation by `cargo xtask english-v3 grep` only.
    No multiplier restriction was added. HR2 residuals (`soxvyspk`): half X
    remains unread on 7 faces/9 matches: Wan Shi Tong, Librarian; Banshee;
    Hydroid Krasis; Eternal Flame; The Goose Mother; Contaminated Drink;
-   Brass Infiniscope. Bare “half of their library” remains unread; the
+   Brass Infiniscope. VP-internal medial residuals are Ghosts of the Innocent,
+   Banshee and Eternal Flame: “deals half that damage, rounded down, to …”
+   and the corresponding half-X/up forms (`english-v3 grep
+   'rounded (up|down), to'`: 3 faces, 4 matches on `pnpplmqn`).
+   Bare “half of their library” remains unread; the
    attested Ulamog, the Defiler line instead reads “the top half of their
    library” through the existing determined, premodified, PP-postmodified
    Noun route; its face is newly covered. No new partitive route or
-   NP-internal comma postmodifier was added.
+   NP-internal comma postmodifier was added. The ordinary HR3 “Round up/down
+   each time.” imperative gained Peer into the Abyss, Fraying Omnipotence
+   and Pox Plague. Pox still needs “a third”; Hydroid Krasis still needs the
+   half-X host. These are the 5 attested imperative faces.
+   **Known unattested by-products** (accepted review ruling, 2026-10-10;
+   attestation via `cargo xtask english-v3 grep -i`, measured on `pnpplmqn`):
+   - Per HR4, the rounding Supplement attaches to any finite Clause,
+     Imperative Clause or action Cost, with no fraction dependency.
+     “Draw two cards, rounded up.” reads 1; exact-text grep finds 0 faces.
+     Rounding without half is attested: “divided evenly, rounded down”
+     occurs on 2 faces, Dwarven Catapult and Fireball.
+   - “Each player loses half their life, rounded up, then discards a card.”
+     reads 1, only through preterite “rounded up” as a finite Predicate in
+     serial coordination; grep for “half their life, rounded up, then
+     discards” finds 0 faces. This is not a rounding Supplement Reading.
+   - Comma-less “half your life rounded up” reads 1 through
+     `ParticipialPostmodifiedNominal`; “a half”, “It is rounded up.” and
+     “It rounds up.” each read 1. Their respective case-insensitive grep
+     patterns find 0 faces each. No grammar or test change was requested
+     for these accepted by-products.
 5. **Tests** (`soxvyspk`): `cargo test -p deckmaste_english_v3` passed all
    801 tests; `cargo test -p deckmaste_lexical_source` passed all 82 tests.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
-   Restored 0 / re-spelled 10 existing multiplier tests for the construction
-   rename / ignored 0 / added 11 (including the two HR-R1 role tests) /
+   Restored 0 / re-spelled 8 existing multiplier tests for the construction
+   rename: the seven `witness`-helper tests `boon_reflection`, `fire_servant`,
+   `polliwallop`, `price_of_progress`, `jovial_evil`,
+   `city_on_fire_keeps_the_multiplier_noun` and
+   `bruvac_keeps_the_demonstrative_quantity_inside_the_host`, plus
+   `independently_constructed_multiplier_preserves_both_roundtrip_laws`.
+   `declared_licence_preserves_the_controls_complete_reading_sets` and
+   `nondefinite_and_unclassified_hosts_do_not_gain_a_multiplier_route`
+   are unchanged. Ignored 0 / added 11 (including the two HR-R1 role tests) /
    removed 0. Initial verification exposed a Clause-summary regression,
    fixed by the disjoint imperative anchor, and the two genitive-scope
    assertions, re-spelled under HR-R1. Citation checks: 0 noncompliant,
@@ -246,7 +282,15 @@ Attestation by `cargo xtask english-v3 grep` only.
    Assurance counts above describe this ticket's changes, excluding tests
    brought in from trunk. Neither construction-core nor plugin definitions
    changed, so no xtask-test or Lean check was required.
+   Review refresh checks (`lzzoxumy`): `cargo build -p xtask`,
+   `cargo test -p deckmaste_english_v3` (830 tests),
+   `cargo test -p deckmaste_lexical_source` (83 tests),
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` all passed.
+   These incoming tests leave this ticket's assurance counts unchanged.
 6. **Timing** (`soxvyspk`): bounded census wall time 27.77 s under
    `/usr/bin/time -v`, 6 workers, samples per face 0. Required bounded
    refresh rechecks (`ztqopwrv`): 27.36 s, then 12.17 s, with the same
-   manifest/workers/sampling. No full-corpus census.
+   manifest/workers/sampling. Review refresh (`lzzoxumy`): 37.21 s,
+   again bounded to that manifest with 6 workers and samples per face 0.
+   No full-corpus census.
