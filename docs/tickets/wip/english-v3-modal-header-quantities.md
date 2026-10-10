@@ -118,18 +118,46 @@ how many of the 98 faces read and what blocks the rest.
 
 ## Landing record
 
-1. **Census delta** (`ztrnpkyv`; BEFORE uses claim-parent `pmwtxppo` code):
+1. **Census delta** (`ztrnpkyv`, refreshed verification `pollzlyp`; BEFORE uses claim-parent `pmwtxppo` code):
    2,396 faces selected by `[Cc]hoose[sn]?\b` (2,116), every `or both` face
    (one additional face, Dream Cache), and 300 covered controls from the
    official diff manifest with seed 20261008 (21 overlap). All controls were
    covered on the claim parent. BEFORE combines the original selector report
    and Dream Cache's separate report, both measured before implementation.
-   `cargo xtask english-v3 diff --lines` reports covered 1,774 → 1,850;
-   Readings 130,536 → 131,883; gained 76; lost/decreased/increased 0;
-   digest-only 507 (the refined count Complement structure); unchanged 1,813;
+   `cargo xtask english-v3 diff --lines` reports covered 1,774 → 1,868;
+   Readings 130,536 → 132,171; gained 94; lost/decreased/increased 0;
+   digest-only 507 (the refined count Complement structure); unchanged 1,795;
    source changes and unmatched identities 0. No/one/multiple faces:
-   622/456/1,318 → 546/498/1,352; undetermined and issues 0. Lost faces: none.
-   No wrong-analysis gain observed. Evidence:
+   622/456/1,318 → 528/499/1,369; undetermined and issues 0. Lost faces: none.
+   No wrong-analysis gain observed. The accepted-review refresh imported
+   `tlpwnxqn` (named-token apposition); `integration-refresh-diff.json`
+   reports all 2,396 faces unchanged, including their Reading digests. Integration was then refused because
+   default moved. The retry refresh imported `wkooyuko` (kind-of-counter);
+   `retry-refresh-diff.json` attributes two further gains (Contractual
+   Safeguard 0 → 14; Storm of Forms 0 → 17), with no loss/decrease/increase
+   or digest change, to that trunk change. A second integration refusal required refresh
+   for `mpvousxz` (supplementary-temporal-adjunct); `retry-2-refresh-diff.json` reports
+   all 2,396 faces unchanged, including their Reading digests. A third
+   refusal required refresh for `rtzolrtx` (preposed-duration-for);
+   `retry-3-refresh-diff.json` attributes five further gains to that trunk
+   change: Giant Oyster 0 → 14; Immovable Rod 0 → 10; Kitesail Larcenist
+   0 → 25; Opportunistic Dragon 0 → 15; Preacher 0 → 15. No loss,
+   decrease, increase or digest change; the final 93 gains comprise this
+   ticket's 76 and 17 from refresh at that point. A fourth refusal imported
+   `mzkvyunr` (noncombat-negative-noun); `retry-4-refresh-diff.json` attributes
+   Grisly Sigil 0 → 9 to that trunk change, with no loss/decrease/increase or
+   digest change. Final gains: 94, comprising this ticket's 76 and 18 from
+   refresh. The only refresh conflict was concurrent test-module registrations
+   in `suite_6.rs`; repaired in `ztrnpkyv`, retaining both registrations exactly
+   once. The empty old tip was pruned when editing that ancestor; the existing
+   record change was preserved and a fresh empty child restored the closed
+   feature. The successful retry refresh and full checks verify the repair. The pre-refresh result was 76 gains,
+   covered 1,850 and Readings 131,883. The official refresh diff attributes
+   10 additional gains, with no loss/decrease/increase or digest change, to
+   `roomopmr` (phase-in/out: Ripples of Potential, Sapphire Charm, The
+   Pandorica, Vision Charm, Vision, Synthezoid Avenger) and `nzmrrqky`
+   (cause: Aboleth Spawn, Firebender Ascension, Silhouette, Tamiyo, Collector
+   of Tales, Windcrag Siege). Evidence:
    `target/english-v3/english-v3-modal-header-quantities/{selector,before-combined,after,diff}.json`.
 
 2. **Witnesses** (`ztrnpkyv`, complete probe enumeration): with the ticket's
@@ -179,14 +207,52 @@ how many of the 98 faces read and what blocks the rest.
    a Paragraph), and Expose the Culprit (its exile/shuffle/cloak bullet fails
    as a Paragraph; the turn-face-up bullet reads). The 26 standalone-*both*
    faces remain unread under MH5; `sentence-both.txt` lists them. The binding
-   user seed 20261008 overrides the ticket's Method seed. No STOP required.
+   user seed 20261008 overrides the ticket's Method seed. No design STOP required. Two refresh attempts refused concurrent
+   snapshots in sibling workspaces; their newly snapshotted changes were
+   inspected read-only and refresh retried under Kata's lifecycle recovery
+   guidance. The third refresh succeeded and imported lexical data and tests;
+   all required bounded verification and full crate checks were repeated.
+   The standing review STOP was observed; ACCEPTED by orchestrator review
+   2026-10-10, with the record-only amendments below and integration authorized.
+   Because the count reuses the `QuantitativeDeterminer` category (MH2), three unattested strings now read, each once: *one or both* + noun as a `QuantifiedNounPhrase` (*Choose one or both creatures.*; `grep 'one or both [a-z]'` 0 faces); a non-*one* left coordinate (*Choose three or both.*, *Choose X or both.*; 0 faces); and the other Quantitative Determiners as the count Complement of *choose* (*Choose that many.*, *Choose more than one.*; 0 faces). None adds a Reading to a covered face (0 increases). Nounless *one or both* / *up to one* outside the *choose* frame still read 0 (*Put one or both into your hand.*, *Destroy up to one.*).
 
-5. **Tests** (`ztrnpkyv`): `cargo test -p deckmaste_english_v3` passed
+5. **Tests** (`ztrnpkyv`, repeated after refresh in `pollzlyp`): `cargo test -p deckmaste_english_v3` passed
    in full on the rerun; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed; `cargo test -p deckmaste_lexical_source` passed in full;
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   The post-refresh full suites passed 908 English tests and 84 lexical-source
+   tests, with 0 failures or ignored tests; both clippy commands passed again.
+   `cargo build -p xtask` passed after refresh. Logs carry the
+   `-post-refresh.log` suffix under the evidence directory. The nine imported
+   English tests belong to the phase and cause changes, not this ticket.
+   After the accepted-review refresh, the same build, bounded census, full
+   test and clippy commands passed again: 912 English tests and 84
+   lexical-source tests, 0 failures or ignored tests. The four additional
+   English tests belong to `tlpwnxqn`. Latest logs carry the
+   `-integration-refresh.log` suffix. After the retry refresh, all required
+   commands passed once more: 917 English tests and 84 lexical-source tests,
+   0 failures or ignored tests; both clippy commands passed with warnings
+   denied. The five additional English tests belong to `wkooyuko`. Latest
+   logs carry the `-retry-refresh.log` suffix. After the second retry refresh,
+   all commands passed again: 921 English tests and 84 lexical-source tests,
+   0 failures or ignored tests, and both clippy commands with warnings denied.
+   Four additional English tests belong to `mpvousxz`. The census and crate
+   checks ran concurrently in foreground sessions after the required rebuild.
+   Latest logs carry the `-retry-2-refresh.log` suffix. After the third retry
+   refresh, all commands passed again: 925 English tests and 84 lexical-source
+   tests, 0 failures or ignored tests; both clippy commands passed with
+   warnings denied. Four additional English tests belong to `rtzolrtx`.
+   The bounded census and full crate checks ran concurrently in foreground
+   sessions after the rebuild; latest logs use `-retry-3-refresh.log`.
+   After the fourth retry refresh and conflict repair, all commands passed
+   again: 932 English tests and 84 lexical-source tests, 0 failures or ignored
+   tests; both clippy commands passed with warnings denied. Seven additional
+   English tests belong to `mzkvyunr`. The bounded census and full checks ran
+   concurrently in foreground sessions after the cached rebuild; latest logs
+   use `-retry-4-refresh.log`.
    Added 3; re-spelled 2
-   (`independent_shared_cardinal_and_infinitive_complements_preserve_selected_categories`
+   (`independent_shared_quantitative_and_infinitive_complements_preserve_selected_categories`
+   (renamed from `independent_shared_cardinal_and_infinitive_complements_preserve_selected_categories`)
    and `independent_atomic_heads_preserve_every_exact_selected_signature`),
    retaining their exact surfaces and complete value comparisons against
    the replacement signature. Restored 0; ignored 0; removed 0.
@@ -196,6 +262,7 @@ how many of the 98 faces read and what blocks the rest.
    its outcome, then the full suite was rerun. Citation checks: 0
    noncompliant, 0 stale; diff audit selected no new CR citations.
 
-6. **Timing** (`ztrnpkyv`): the complete bounded AFTER census took **4m37.43s**
+6. **Timing** (`pollzlyp`): the final bounded AFTER census took **2m17.19s**
+   (third retry refresh: **3m34.85s**; second retry refresh: **4m42.35s**; first retry refresh: **5m03.56s**; accepted-review refresh: **5m45.17s**; before that refresh: **4m08.89s**; pre-refresh `ztrnpkyv`: **4m37.43s**)
    wall time under `/usr/bin/time -v`, with **6 workers** and
    `--samples-per-face 0`. No full-corpus census or Lean check was run.
