@@ -6,6 +6,9 @@ mod bounded_quantity_mass_noun;
 #[path = "suite/clitic_have_object_relative.rs"]
 mod clitic_have_object_relative;
 
+#[path = "suite/comparative_quantity_than.rs"]
+mod comparative_quantity_than;
+
 #[path = "suite/keyword_dash_cost_line.rs"]
 mod keyword_dash_cost_line;
 

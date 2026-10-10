@@ -431,12 +431,24 @@ A phrase containing a Comparative Governor (CGEL, Ch. 13 §1.3, p. 1105).
 An adjectival Comparative Phrase retains Adjective Phrase distribution.
 
 **Discontinuous Comparative Nominal** (project term):
-A Nominal whose Comparative Governor premodifies its head while the governor's
+A nominal Construction whose Comparative Governor precedes its head while the
 expanded Comparative Complement follows it, as in *same name as that land*
-(CGEL, Ch. 13 §5.1, p. 1139 describes *same* with *as* + NP; the
-[fixed-cost-phrases project ruling of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md#stop--comparative-admission-2026-10-06-resolved-by-orchestrator)
-assigns the Complement to the governor's licence).
+(CGEL, Ch. 13 §5.1, p. 1139) or *more lands than you* (Ch. 5 §7.11,
+pp. 393, 395). The Adjective governor premodifies a Nominal under the
+[fixed-cost-phrases project ruling of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md#stop--comparative-admission-2026-10-06-resolved-by-orchestrator);
+the Determinative governor supplies the Determiner of an indefinite Noun
+Phrase with an immediate NP Comparative Complement under
+orchestrator rulings CQ1–CQ4 (2026-10-10,
+`english-v3-comparative-quantity-than`).
 _Avoid_: Adjunct for the governor's selected comparison
+
+**Comparative Determiner Use** (project term):
+A Determinative's declared permission to determine a Nominal in a
+Discontinuous Comparative Nominal; its count plural or non-count singular
+head selection is retained (CGEL, Ch. 5 §7.11, pp. 393, 395).
+The immediate NP Complement analysis follows orchestrator ruling CQ3
+(2026-10-10), rather than choosing between CGEL's alternatives for a single
+element after *than* (Ch. 13 §2.2, p. 1113).
 
 **Comparative Complement Form** (project term):
 The syntactic form of a compared Constituent: nominal, bare infinitival, or

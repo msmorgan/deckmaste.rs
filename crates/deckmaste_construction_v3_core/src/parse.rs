@@ -753,8 +753,9 @@ fn instantiate_schemas(
                 let category = match ty {
                     FieldType::One(category)
                     | FieldType::Optional(category)
-                    | FieldType::Repeated(category, _) => category,
-                    FieldType::Lexical(_) | FieldType::SelectedFrame(_, _) => continue,
+                    | FieldType::Repeated(category, _)
+                    | FieldType::Lexical(category) => category,
+                    FieldType::SelectedFrame(_, _) => continue,
                 };
                 if category != "node" {
                     continue;

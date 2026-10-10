@@ -1289,3 +1289,38 @@ fn last_projection_requires_an_empty_repeat_default() {
         "last requires a declared scalar feature default",
     );
 }
+
+#[test]
+fn schema_lexical_bindings_preserve_categories_and_reject_invalid_bindings() {
+    let declaration = quote! { mod valid {
+        category Nominal(); category NounPhrase();
+        schema Comparative { form [governor: lexical(node)]; }
+        instance Comparative<Result, Governor: governor>: [
+            (Nominal, Adjective), (NounPhrase, Determinative),
+        ] {}
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    assert_eq!(
+        ir.constructors[0].forms[0].fields[0].1,
+        crate::parse::FieldType::Lexical("Adjective".into())
+    );
+    assert_eq!(
+        ir.constructors[0].forms[1].fields[0].1,
+        crate::parse::FieldType::Lexical("Determinative".into())
+    );
+    compile(declaration).unwrap();
+    rejects(
+        quote! { mod bad {
+            category Atom(); schema Leaf { form [head: lexical(node)]; }
+            instance Leaf: Atom {}
+        } },
+        "generic field needs exactly one category binding",
+    );
+    rejects(
+        quote! { mod bad {
+            category Atom(); schema Leaf { form [head: lexical(node)]; }
+            instance Leaf<Result, Head: head>: [(Atom, Missing)] {}
+        } },
+        "unknown lexical Category",
+    );
+}

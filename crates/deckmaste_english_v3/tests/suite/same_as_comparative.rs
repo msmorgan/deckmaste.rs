@@ -135,6 +135,7 @@ fn an_independent_comparative_nominal_roundtrips_with_its_selected_complement() 
     let that = word("vocab:SingularDemonstrative/That");
     let land = noun("lexeme:type/land");
     let value = Reading::DiscontinuousComparativeNominal {
+        category: Category::Nominal,
         form: 0,
         governor: governor.clone(),
         head: Box::new(Reading::Noun {

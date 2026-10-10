@@ -726,3 +726,23 @@ a duplicate adjective/passive analysis; standard constraints apply.
 Preserve the covered state faces and discriminate the adjective/passive
 constituencies before routing a bounded repair. Do not retire an adjective
 until its *become* witnesses have a replacement with the same outcome.
+
+## Faces covered by a known wrong analysis
+
+Recorded under orchestrator ruling **CQ-R1, 2026-10-10**, as residual
+obligations rather than correct coverage gains:
+
+- **Keeper of the Light; Keeper of the Flame**
+  (`english-v3-comparative-quantity-than`, `wzpslwxq`, each 0 → 3):
+  *has more life than you do* reads through causative Have with the NP
+  *more life than you* as Object, followed by a plain Do
+  BareAuxiliaryPredicate / BareEllipsis (OmittedPlain). The three Readings
+  attach *as you activate this ability* at different levels. Missing piece:
+  a comparative clause with stranded auxiliary, *than you do / did*; nine
+  attested faces are listed in that ticket's Out of scope. Re-examine these
+  causative-Have + bare-Do Readings when that construction is ticketed.
+- **Diligent Farmhand; Pardic Firecat**
+  (from `english-v3-vocabulary-batch-2`, recorded by CQ-R1):
+  *count it as a card named X* reads with the *as* phrase as an Adjunct PP.
+  Missing piece: an *as*-predicative Complement frame. Re-examine the Adjunct
+  Readings when that Complement frame is ticketed.

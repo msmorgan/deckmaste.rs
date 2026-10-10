@@ -116,6 +116,7 @@ constructions! {
         feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase } default None;
         feature QuantitativeAdjectiveComplementUse { No, Yes } default No;
         feature ComparativeQuantityUse { No, Yes } default No;
+        feature ComparativeDeterminerUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
         feature MeasureModifierUse { No, Yes } default No;
@@ -283,7 +284,7 @@ constructions! {
             (Plain, BareInfinitival) => Yes, (GerundParticiple, GerundParticipial) => Yes,
         }
         feature ComparisonMarker { Equality, Ordering }
-        feature ExpandedComparisonMarker { Equality }
+        feature ExpandedComparisonMarker { Equality, Ordering }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
             QualityCost, Ability, Condition, CostPowerToughness, Instruction }
         feature CostComponentForm { Empty, Symbols, Action } default Empty;
@@ -2976,25 +2977,47 @@ constructions! {
             require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
         }
 
-        // CGEL Ch. 13 §5.1, p. 1139 describes same with an as + NP
-        // comparative Complement. Its discontinuous nominal representation
-        // follows the fixed-cost-phrases project ruling of 2026-10-06.
-        construction DiscontinuousComparativeNominal: Nominal {
-            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
-            export SubjectRelativeNumber = head.SubjectRelativeNumber;
-            form [governor: lexical(Adjective), " ", head: Nominal, " ",
+        // CGEL pp. 393, 395 gives comparative Determiner function and head
+        // selection; CQ1–CQ4 (2026-10-10) supplies the shared representation
+        // and immediate NP Complement analysis. CGEL p. 1139 describes same/as.
+        schema DiscontinuousComparativeNominal {
+            form [governor: lexical(node), " ", head: Nominal, " ",
                 marker: lexical(Preposition), " ", complement: AccusativePhrase];
-            require governor.frame = DiscontinuousEquality;
-            require marker.ExpandedComparisonMarker = Equality;
             require licence_comparative_complement(marker.PrepositionFunctionLicence) = Yes;
             require head.Targeting = No;
-            use NominalHeadFeatures;
-            use NominalHeadProperties;
-            export BareGenitiveHost = head.BareGenitiveHost;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
             export SourceModifierPresent = head.SourceModifierPresent;
         }
+
+        policy DiscontinuousComparativeModifier {
+            export BareGenitiveHost = head.BareGenitiveHost;
+            require governor.frame = DiscontinuousEquality;
+            require marker.ExpandedComparisonMarker = Equality;
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
+            export SubjectRelativeNumber = head.SubjectRelativeNumber;
+        }
+
+        policy DiscontinuousComparativeDeterminer {
+            require governor.ComparativeDeterminerUse = Yes;
+            require determiner_license(governor.DeterminerUse, head.number, head.countability) = Yes;
+            require marker.ExpandedComparisonMarker = Ordering;
+            require head.DeterminerRequirement = No;
+            require resolved_ordinary_relative_number(head.SubjectRelativeNumber,
+                head.NominalAgreementNumber, head.number) = Yes;
+            export UnitBearing = nominal_unit_bearing(head.MeasurePosition);
+            export ComparativePostmodifierUse = No;
+            export DeterminerAgreementNumber = Nominal;
+            export BarePrepositionUse = No;
+        }
+
+        instance DiscontinuousComparativeNominal<Result, Governor: governor,
+            HeadFeatures, HeadProperties, Properties>: [
+            (Nominal, Adjective, NominalHeadFeatures, NominalHeadProperties,
+                DiscontinuousComparativeModifier),
+            (NounPhrase, Determinative, NounPhraseHeadAgreement, NoFeatures,
+                DiscontinuousComparativeDeterminer),
+        ] { use HeadFeatures; use HeadProperties; use Properties; }
 
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
         // an outer Determiner; without it the cardinal is the Determiner.
