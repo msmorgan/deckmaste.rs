@@ -110,6 +110,8 @@
         "lexeme:CommonNoun/Opponent": {"BareGenitiveHost": "Yes"},
         "lexeme:CommonNoun/Player": {"BareGenitiveHost": "Yes"},
         "lexeme:CommonNoun/Card": {"BareGenitiveHost": "Yes", "NounPremodifier": "Attribute"},
+        "lexeme:CommonNoun/Cost": {"KeywordPremodifierHead": "Yes"},
+        "lexeme:CommonNoun/Ability": {"KeywordPremodifierHead": "Yes"},
         "lexeme:CommonNoun/Type": {"AttributePremodifierHead": "Yes"},
         "lexeme:CommonNoun/Name": {"AttributePremodifierHead": "Yes"},
         "lexeme:CommonNoun/Permanent": {"BareGenitiveHost": "Yes", "NounPremodifier": "Yes"},

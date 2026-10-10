@@ -284,3 +284,26 @@ fn keyword_spelling_templates_record_no_unmapped_source() {
         "the templated amass still exports its grammar lexeme"
     );
 }
+
+#[test]
+fn keyword_declarations_mint_premodifier_permissions_without_changing_category() {
+    for entry in SOURCES.lexemes.iter().filter(|entry| {
+        entry
+            .properties
+            .features
+            .contains_key("KeywordParameterClass")
+    }) {
+        assert_eq!(entry.category, Category::Keyword);
+        feature(entry, "NounPremodifier", "Keyword");
+    }
+    feature(
+        entry("cost", Category::Noun),
+        "KeywordPremodifierHead",
+        "Yes",
+    );
+    feature(
+        entry("ability", Category::Noun),
+        "KeywordPremodifierHead",
+        "Yes",
+    );
+}

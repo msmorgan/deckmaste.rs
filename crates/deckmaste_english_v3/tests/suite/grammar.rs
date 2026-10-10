@@ -859,9 +859,31 @@ fn document_collections_connect_keywords_costs_modes_quotes_and_clauses() {
             "no Reading for {text:?}"
         );
     }
+    // KM4 permits bare parameter-taking Keyword Lines; retain the former
+    // missing-parameter witnesses as exact independently constructed values.
+    for (text, owner) in [
+        ("Ward", "lexeme:keyword_ability/ward"),
+        ("Frenzy", "lexeme:keyword_ability/frenzy"),
+    ] {
+        let mut head = word(owner, WordForm::Invariant, FeatureBundle::default());
+        let LexicalReading::Word(value) = &mut head.value else {
+            panic!("expected declared keyword");
+        };
+        value.capitalization = SurfaceCase::Initial;
+        let expected = Reading::Document {
+            form: 0,
+            first: Box::new(Reading::KeywordLine {
+                form: 0,
+                first: Box::new(Reading::BareKeyword { form: 0, head }),
+                rest: vec![],
+            }),
+            rest: vec![],
+        };
+        expected.admit(lexicon()).unwrap();
+        assert_eq!(expected.realize(lexicon()).unwrap(), text);
+        assert_eq!(readings(text, Category::Document), BTreeSet::from([expected]));
+    }
     for text in [
-        "Ward",
-        "Frenzy",
         "Flying 2",
         "Flying {2}",
         "Ward two",
@@ -938,14 +960,11 @@ fn independent_keyword_collection_preserves_parameters_separators_and_leaf_ident
             tap
         ]
     );
-    assert!(
-        Reading::BareKeyword {
-            form: 0,
-            head: ward
-        }
-        .admit(lexicon())
-        .is_err()
-    );
+    // KM1 admits the same ward owner as a bare keyword mention.
+    let bare = Reading::BareKeyword { form: 0, head: ward };
+    bare.admit(lexicon()).unwrap();
+    assert_eq!(bare.realize(lexicon()).unwrap(), "ward");
+    assert_eq!(readings("ward", Category::KeywordPhrase), BTreeSet::from([bare]));
     assert!(
         Reading::CostKeyword {
             form: 0,

@@ -64,3 +64,6 @@ mod trailing_adjunct_height;
 
 #[path = "suite/preposed_frequency.rs"]
 mod preposed_frequency;
+
+#[path = "suite/keyword_mention_without_parameter.rs"]
+mod keyword_mention_without_parameter;

@@ -157,4 +157,66 @@ introduces beside **Attribute Noun Premodifier**.
 
 ## Landing record
 
-Not landed.
+1. **Census delta** (claim-parent code `pkomyrrn`, measured on empty
+   `zvtzutzx` before edits → implementation `zvtzutzx`): bounded selection
+   of 1,198 faces; covered 822 → 967; Readings 100,627 → 103,435.
+   Lost none; gained 145; decreases 0; increases 8; digest-only 0;
+   unchanged 1,045. After refresh, `zvtzutzx` has covered 977 and
+   107,915 Readings: trunk `lvpxmkklqtms` adds 10 clause-initial *once*
+   faces (4,480 Readings), with no further loss, decrease, increase or
+   digest-only change. Original-parent comparison now has 155 gains,
+   8 increases and 1,035 unchanged. Each increase is the KM5 Keyword Premodifier beside
+   the retained cycling gerund-participle: Abandoned Sarcophagus 10 → 20,
+   Fluctuator 4 → 8, Gavi, Nest Warden 58 → 114, Herald of the Forgotten
+   37 → 73, New Perspectives 3 → 5, Rooting Moloch 8 → 15, Spellpyre
+   Phoenix 17 → 32, Zenith Flare 12 → 24. No unintended gained analysis
+   found in the role tests or spot checks. Evidence:
+   `target/english-v3/english-v3-keyword-mention-without-parameter/`.
+2. **Witnesses** (`pkomyrrn` code → `zvtzutzx`, complete fragment probes):
+   Epochrasite 0 → 4; Compleat Devotion 0 → 1; Rootcoil Creeper 0 → 2;
+   Flashback 0 → 5; Murasa Sproutling 0 → 3; Young Deathclaws 0 → 2;
+   *the flashback cost* 0 → 1; *a morph ability* 0 → 1. All witnesses
+   failed before implementation. Substituted controls remained at 4, 1,
+   2, 5 and 2 respectively. Parameterized grant and Flashback, Cycling,
+   Suspend and Toxic lines each retained 1; ward, landwalk and mana-ability
+   NP controls each retained 1. Gavi fragment 56 → 112 (KM5).
+3. **Spot checks** (`zvtzutzx`): Epochrasite (bare suspend grant), Compleat
+   Devotion (bare toxic grant), Rootcoil Creeper (flashback Complement of
+   *with*), Flashback (bare grant and keyword cost Premodifier), Murasa
+   Sproutling (kicker ability Premodifier), Young Deathclaws (scavenge grant
+   and cost Premodifier), Frenzied Raider (boast ability Premodifier),
+   Memory Crystal (buyback costs Premodifier), Delay (bare suspend), Lier,
+   Disciple of the Drowned (flashback grant and cost Premodifier). Full-face
+   probes selected the intended roles; no probe issues.
+4. **Deviations and STOPs**: no new Construction or frame. KM2 required
+   mechanical propagation and coordination of the declared head permission
+   through existing nominals; the existing licence table gained that
+   argument. Added glossary terms **Keyword Premodifier** and **Keyword
+   Premodifier Head**, citing KM2 as a project ruling. The Method selector
+   was widened to all declared eligible bare keywords and all fixed keyword
+   Premodifiers, yielding 901 surface faces plus 300 seeded covered controls
+   (3 overlaps), rather than the ticket's narrower list. Case-insensitive
+   attestation includes Fluctuator as the eighth KM5 face. A preliminary
+   census exposed 138 unintended typecycling-suffix analyses on 7 faces;
+   requiring declared `BoundKeyword: No` retired them before the final
+   census, without removing any parent Reading. Optional *a landwalk
+   ability* remains unread (bound-suffix representation); its existing
+   *with landwalk* route is preserved. No STOP. Three existing tests were
+   re-spelled for the authorized bare forms; an independent Cost fixture
+   was corrected to its declared nominal frame without weakening equality.
+   Refresh conflicted only at the test-binary registration tail; both
+   module registrations were retained exactly once.
+5. **Tests** (`zvtzutzx`): `cargo test -p deckmaste_english_v3` passed
+   797 tests before refresh and 800 after refresh; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed; `cargo test -p deckmaste_lexical_source` passed 83 tests;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Assurance: restored 0 / re-spelled 3 / ignored 0 / added 8 / removed 0.
+   New tests assert full independent values and construction roles. No
+   xtask code, construction-core code or plugin definitions changed;
+   no xtask tests or Lean checks required. After refresh, `cargo build -p
+   xtask`, the same bounded census and both full suites and clippy passed.
+   Citation checks: 0 stale,
+   0 noncompliant, diff audit 0 new citation sites.
+6. **Timing** (`zvtzutzx`): final bounded census after refresh 69.34 seconds wall time,
+   6 workers, samples per face 0, prebuilt binary under `/usr/bin/time -v`.
+   Full corpus census was not run, per the binding budget.

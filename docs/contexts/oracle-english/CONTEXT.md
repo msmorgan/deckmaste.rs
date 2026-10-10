@@ -1215,6 +1215,18 @@ A noun Premodifier whose declared use selects a head with Attribute Premodifier
 Head permission, as *card* in *card type*, *card name*, and *card pool*
 ([orchestrator ruling, 2026-10-08](../../tickets/done/english-v3-card-noun-premodifier.md#rulings-orchestrator-2026-10-08)).
 
+**Keyword Premodifier** (project term):
+A Keyword Lexeme functioning as a Premodifier while retaining its lexical
+Category, as *flashback* in *flashback cost* and *morph* in *morph ability*
+(orchestrator ruling KM2, 2026-10-10, ticket
+`english-v3-keyword-mention-without-parameter`).
+
+**Keyword Premodifier Head** (project term):
+A nominal head's declared permission to take a Keyword Premodifier;
+coordination retains this permission only when each head declares it
+(orchestrator ruling KM2, 2026-10-10, ticket
+`english-v3-keyword-mention-without-parameter`).
+
 **Attribute Premodifier Head** (project term):
 A nominal head's declared permission to take an Attribute Noun Premodifier;
 coordination retains this permission only when each head declares it

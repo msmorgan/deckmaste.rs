@@ -371,6 +371,10 @@ fn export_distribution(
         export_grammar_distribution(lexeme, grammar);
     }
     if let Some(parameter) = normalized.keyword_parameter_class() {
+        lexeme
+            .properties
+            .features
+            .insert("NounPremodifier".into(), "Keyword".into());
         lexeme.properties.features.insert(
             "KeywordParameterClass".into(),
             match parameter {

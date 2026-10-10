@@ -287,6 +287,9 @@ constructions! {
         feature ExpandedComparisonMarker { Equality, Ordering }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
             QualityCost, Ability, Condition, CostPowerToughness, Instruction }
+        table bare_keyword_use(KeywordParameterClass) -> Selection {
+            (Nullary) => Yes, (Amount) => Yes, (Cost) => Yes, (AmountCost) => Yes,
+        }
         feature CostComponentForm { Empty, Symbols, Action } default Empty;
         table final_cost_component(CostComponentForm, CostComponentForm) -> CostComponentForm {
             (Symbols, Empty) => Symbols, (Action, Empty) => Action,
@@ -346,16 +349,17 @@ constructions! {
             -> Selection {
             (None, None) => Yes, (None, Of) => Yes, (Of, None) => Yes,
         }
-        feature NounPremodifier { Yes, Attribute, None }
+        feature NounPremodifier { Yes, Attribute, Keyword, None }
         feature PremodifierCoordination { No, Yes } default No;
         feature AttributePremodifierHead { No, Yes } default No;
+        feature KeywordPremodifierHead { No, Yes } default No;
         table noun_premodifier_use(NounPremodifier) -> Selection {
             (Yes) => Yes, (Attribute) => Yes,
         }
-        table licensed_noun_premodifier(NounPremodifier, AttributePremodifierHead)
-            -> Selection {
-            (Yes, No) => Yes, (Yes, Yes) => Yes, (Attribute, Yes) => Yes,
-            (None, No) => Yes, (None, Yes) => Yes,
+        table licensed_noun_premodifier(NounPremodifier, AttributePremodifierHead,
+            KeywordPremodifierHead) -> Selection {
+            (Yes, _, _) => Yes, (Attribute, Yes, _) => Yes,
+            (Keyword, _, Yes) => Yes, (None, _, _) => Yes,
         }
         table coordinated_noun_premodifier(NounPremodifier, NounPremodifier)
             -> NounPremodifier {
@@ -363,10 +367,16 @@ constructions! {
             (Attribute, Yes) => Attribute, (Attribute, Attribute) => Attribute,
             (None, None) => None, (None, Yes) => Yes, (Yes, None) => Yes,
             (None, Attribute) => Attribute, (Attribute, None) => Attribute,
+            (Keyword, Keyword) => Keyword, (Keyword, Yes) => Keyword,
+            (Yes, Keyword) => Keyword, (Keyword, None) => Keyword, (None, Keyword) => Keyword,
         }
         table coordinated_attribute_premodifier_head(AttributePremodifierHead,
             AttributePremodifierHead) -> AttributePremodifierHead {
             (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+        }
+        table coordinated_keyword_premodifier_head(KeywordPremodifierHead,
+            KeywordPremodifierHead) -> KeywordPremodifierHead {
+            (Yes, Yes) => Yes, (_, _) => No,
         }
         policy NounPremodifierConcord<Right, Source> {
             export PremodifierCoordination = Yes;
@@ -436,7 +446,7 @@ constructions! {
         category BareComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence);
         category ParticipialComplement(PurposeAdjunctLicence, MatrixComplementLicence);
         category PerfectComplement(PurposeAdjunctLicence, MatrixComplementLicence);
-        category Nominal(AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
+        category Nominal(AttributePremodifierHead, KeywordPremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
             RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, ScalarMeasurementHeadUse, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
@@ -544,7 +554,7 @@ constructions! {
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
-            AttributePremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
+            AttributePremodifierHead, KeywordPremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
             RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, ScalarMeasurementHeadUse, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
@@ -1007,6 +1017,7 @@ constructions! {
         policy NominalHeadFeatures {
             export NominalDependentPresent = Yes;
             export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export BarePrepositionUse = head.BarePrepositionUse;
             export NominalComplementMarker = head.NominalComplementMarker;
@@ -1028,6 +1039,7 @@ constructions! {
         policy ParticipialNominalHeadFeatures {
             export NominalDependentPresent = Yes;
             export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export BarePrepositionUse = head.BarePrepositionUse;
             export NominalComplementMarker = head.NominalComplementMarker;
@@ -1053,6 +1065,7 @@ constructions! {
         policy PostmodifiedNominalProperties {
             export NominalDependentPresent = Yes;
             export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
@@ -1225,6 +1238,7 @@ constructions! {
 
         policy UnmodifiedNominalProperties {
             export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
             export NominalAgreementNumber = Head;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
@@ -1439,6 +1453,8 @@ constructions! {
             export SubjectRelativeNumber = relative_number_concord(left.SubjectRelativeNumber, Right.SubjectRelativeNumber);
             export AttributePremodifierHead = coordinated_attribute_premodifier_head(
                 left.AttributePremodifierHead, Right.AttributePremodifierHead);
+            export KeywordPremodifierHead = coordinated_keyword_premodifier_head(
+                left.KeywordPremodifierHead, Right.KeywordPremodifierHead);
             export NominalAgreementNumber = coordinated_nominal_agreement(
                 Source.CoordinationKind, Right.NominalAgreementNumber);
             export PredicativeAdjunctUse = predicative_adjunct_concord(
@@ -2259,7 +2275,7 @@ constructions! {
 
         construction BareKeyword: KeywordPhrase {
             form [head: lexical(Keyword)];
-            require head.KeywordParameterClass = Nullary;
+            require bare_keyword_use(head.KeywordParameterClass) = Yes;
         }
 
         construction AmountKeyword: KeywordPhrase {
@@ -2867,11 +2883,14 @@ constructions! {
 
         construction NounPremodifier: NounPremodifier {
             export PremodifierCoordination = No;
-            form [head: lexical(Noun)];
-            require noun_premodifier_use(head.NounPremodifier) = Yes;
             export NounPremodifier = head.NounPremodifier;
-            require head.form = Singular;
-            require head.framing = Unframed;
+            form [head: lexical(Noun)]
+                require noun_premodifier_use(head.NounPremodifier) = Yes
+                require head.form = Singular
+                require head.framing = Unframed;
+            form [head: lexical(Keyword)]
+                require head.NounPremodifier = Keyword
+                require head.BoundKeyword = No;
         }
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution, BoundaryProperties = NoFeatures>: [
             (VerbalPremodifier, Self),
@@ -2938,7 +2957,7 @@ constructions! {
 
         table coordinated_premodifier_property_value(NounPremodifier, AdjectiveOrigin,
             PropertyValuePosition) -> PropertyValuePosition {
-            (Yes, _, _) => None, (Attribute, _, _) => None,
+            (Yes, _, _) => None, (Attribute, _, _) => None, (Keyword, _, _) => None,
             (None, Participial, _) => None,
             (None, Ordinary, None) => None, (None, Ordinary, Single) => Single,
             (None, Ordinary, First) => First, (None, Ordinary, Second) => Second,
@@ -2949,7 +2968,7 @@ constructions! {
             export UnmarkedConjunctLicence = No;
             form [modifier: PremodifierCoordination, " ", head: Nominal];
             require licensed_noun_premodifier(modifier.NounPremodifier,
-                head.AttributePremodifierHead) = Yes;
+                head.AttributePremodifierHead, head.KeywordPremodifierHead) = Yes;
             require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
             use NominalHeadFeatures;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
@@ -2969,7 +2988,7 @@ constructions! {
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: NounPremodifier, " ", head: Nominal];
             require licensed_noun_premodifier(modifier.NounPremodifier,
-                head.AttributePremodifierHead) = Yes;
+                head.AttributePremodifierHead, head.KeywordPremodifierHead) = Yes;
             use NominalHeadFeatures;
             use NominalHeadProperties;
             export SelectedPrepositionUse = No;
@@ -3045,6 +3064,7 @@ constructions! {
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
@@ -3093,6 +3113,7 @@ constructions! {
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
             export NominalAgreementNumber = Head;
             export ScalarDenotation = Yes;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -3262,6 +3283,7 @@ constructions! {
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
             export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;

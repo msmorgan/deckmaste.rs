@@ -257,11 +257,16 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
 }
 #[test]
 fn keyword_payload_contracts_reject_wrong_markers_numbers_and_separators() {
+    // KM4 retires the missing-parameter rejection; retain the same surface
+    // as an independently constructed bare keyword mention.
+    exact(
+        "Suspend",
+        &Reading::BareKeyword { form: 0, head: keyword("suspend") },
+    );
     for text in [
         "Protection for red",
         "Affinity for artifact",
         "Enchant",
-        "Suspend",
         "Suspend 1 {R}",
         "Suspend 1 — {R}",
         "Prototype",
