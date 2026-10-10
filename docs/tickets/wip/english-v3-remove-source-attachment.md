@@ -222,6 +222,16 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    Seven digest-only changes belong to trunk `soxvyspk`
    (`MultiplierNounPhrase` → `PredeterminerNounPhrase`); no removed
    Readings. `after-refresh.json` / `refresh-diff.json`.
+   Final integration refresh (`tqryzout`): the same 1,500 identities have
+   covered 1,500 → 1,498, Readings 54,535 → 54,523, lost 2, gained 0,
+   decreases/increases 0, digest-only 45. Glacierwood Siege 8 → 0 and
+   Palace Siege 4 → 0 lose their Flavor Word-headed standalone named-bullet
+   Document Readings after trunk's named-mode route retirement `pxtwrtvu`.
+   Complete probes confirm zero replacement Document Readings. The 45
+   digest-only changes accompany trunk's optional secondary negator
+   `wqkrtoxr`; counts are unchanged. Evidence: `after-final-refresh.json`,
+   `final-refresh-diff.json` and `final-refresh-lost-*.json`. Integration
+   is stopped pending a ruling on the two trunk losses; own gains remain 67.
 2. **Witnesses** (`nxxknqvk`, complete probes, claim-parent → after):
    Saprazzan Cove 0 → 2; Catti-brie of Mithral Hall 0 → 8; White Ward's
    sentence 0 → 1; Spires of Orazca's ability 0 → 4; Gustcloak Sentinel
@@ -255,6 +265,13 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    preserve this ticket's declared features (`SourceSelectionAnchor` and
    the existing Whole-Object projection). Two compile errors in the merge
    repair were corrected before the successful rebuild and full checks.
+   The final refresh preserved both AuxiliaryProFormLicence and this
+   ticket's Source selection in selected-head categories, and registered
+   do-so, named-mode and Remove test modules once each. Its new
+   ProFormComplement needed SourceComplementSelection = No, like the
+   existing elided Complement, to compile with this ticket's required
+   export. No RS8/RS11 mechanism was restored. A new STOP records the two
+   named-bullet losses brought by `pxtwrtvu`; no unrelated guard is added.
    Shapes accepted under RS12/RS13, all unattested on covered faces
    (census: 0 increases beyond RS12's three): (i) bare passive Postmodifier
    followed by a Source PP: NP "each counter removed from this land"
@@ -281,6 +298,12 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    tests, 83 lexical-source tests; both clippy commands passed again.
    `cargo build -p xtask` passed before and after refresh. No xtask,
    construction-core or plugin-data change required its test suite.
+   Final integration refresh: `cargo build -p xtask` passed after repairing
+   the required ProFormComplement export. The full English command passed
+   all six binaries (866 tests); full `cargo test -p deckmaste_lexical_source`
+   and `cargo test -p deckmaste_lexical` passed. Clippy with `--tests -- -D
+   warnings` passed for all three crates, including the incoming lexical
+   code. No construction-core or plugin-data changes came in.
    Citation checks: 0 noncompliant, 0 stale, 0 changed citation sites.
 6. **Timing** (`nxxknqvk`). Bounded AFTER census **4:49.89** wall under
    `/usr/bin/time -v`, 6 workers, 6,634 faces, `--samples-per-face 0`.
