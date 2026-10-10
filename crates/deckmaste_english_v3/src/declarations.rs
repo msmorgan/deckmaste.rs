@@ -252,11 +252,23 @@ constructions! {
         feature RelativeSubordinator { Yes }
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
         feature PastParticipialPremodifier { No, Yes } default No;
-        feature AuxiliaryComplementRealization { Overt, Elided }
+        feature AuxiliaryComplementRealization { Overt, Elided, ProForm }
+        feature ProFormComplementUse { No, Yes } default No;
+        feature AuxiliaryProFormLicence { No, Yes } default No;
         feature AuxiliaryEllipsisLicence { No, Yes } default No;
         table licensed_auxiliary_complement(AuxiliaryEllipsisLicence,
             AuxiliaryComplementRealization) -> Selection {
             (No, Overt) => Yes, (Yes, Overt) => Yes, (Yes, Elided) => Yes,
+            (Yes, ProForm) => Yes,
+        }
+        table licensed_auxiliary_pro_form(AuxiliaryProFormLicence,
+            AuxiliaryComplementRealization) -> Selection {
+            (No, Overt) => Yes, (No, Elided) => Yes,
+            (Yes, Overt) => Yes, (Yes, Elided) => Yes, (Yes, ProForm) => Yes,
+        }
+        table auxiliary_pro_form_concord(AuxiliaryProFormLicence,
+            AuxiliaryProFormLicence) -> AuxiliaryProFormLicence {
+            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
         }
         table auxiliary_ellipsis_concord(AuxiliaryEllipsisLicence,
             AuxiliaryEllipsisLicence) -> AuxiliaryEllipsisLicence {
@@ -553,10 +565,10 @@ constructions! {
         category NounPhraseSeries(FocusedUse, UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplement();
-        category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, PurposeAdjunctLicence, MatrixComplementLicence);
-        category SecondarySelectedHead(form, FrameUse, HeadCoordination, AuxiliaryEllipsisLicence, PurposeAdjunctLicence, MatrixComplementLicence);
-        category FiniteSelectedHeadSeries(number, person, FrameUse, CliticHost, AuxiliaryEllipsisLicence, PurposeAdjunctLicence, MatrixComplementLicence);
-        category SecondarySelectedHeadSeries(form, FrameUse, AuxiliaryEllipsisLicence, PurposeAdjunctLicence, MatrixComplementLicence);
+        category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence);
+        category SecondarySelectedHead(form, FrameUse, HeadCoordination, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence);
+        category FiniteSelectedHeadSeries(number, person, FrameUse, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence);
+        category SecondarySelectedHeadSeries(form, FrameUse, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence);
         category ManaPhraseSeries();
         category CardinalSeries(number, CoordinationKind);
         category AmountSeries();
@@ -599,8 +611,8 @@ constructions! {
         category CorrelativeQuotedTextSeries(CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(CorrelativeCoordinator);
         category CorrelativeFiniteSelectedHeadSeries(number, person, FrameUse,
-            CorrelativeCoordinator, CliticHost, AuxiliaryEllipsisLicence, PurposeAdjunctLicence, MatrixComplementLicence);
-        category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator, AuxiliaryEllipsisLicence, PurposeAdjunctLicence, MatrixComplementLicence);
+            CorrelativeCoordinator, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence);
+        category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence);
         category CorrelativeAdjectivePhrase();
         category CorrelativeAdjectiveSeries(CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
@@ -671,6 +683,7 @@ constructions! {
         frame Existential = Existential(Complement(NounPhrase), Optional(Complement(LocativeComplement)));
         frame AdjectivalPrepositionComplement = Adjectival(
             Marked(Preposition, By, Complement(NounPhrase)));
+        frame AdjectivalInfinitive = Adjectival(Complement(InfinitiveComplement));
         frame Locative = Predicate(Complement(LocativeComplement));
         frame ObjectLocative = Predicate(Object(NounPhrase), Complement(LocativeComplement));
         frame BareAuxiliary = Auxiliary(Complement(BarePredicate));
@@ -998,7 +1011,7 @@ constructions! {
             (No) => " ", (Yes) => "",
         }
         table clitic_complement(Clitic, AuxiliaryComplementRealization) -> Selection {
-            (No, Overt) => Yes, (No, Elided) => Yes, (Yes, Overt) => Yes,
+            (No, Overt) => Yes, (No, Elided) => Yes, (No, ProForm) => Yes, (Yes, Overt) => Yes,
         }
 
         policy FiniteHeadAgreement {
@@ -1689,6 +1702,8 @@ constructions! {
         }
 
         policy SelectedFrameConcord<Right, Source> {
+            export AuxiliaryProFormLicence = auxiliary_pro_form_concord(
+                left.AuxiliaryProFormLicence, Right.AuxiliaryProFormLicence);
             export AuxiliaryEllipsisLicence = auxiliary_ellipsis_concord(
                 left.AuxiliaryEllipsisLicence, Right.AuxiliaryEllipsisLicence);
             agree left.FrameUse = Right.FrameUse;
@@ -1696,6 +1711,8 @@ constructions! {
         }
 
         policy SharedFrameConcord<Right, Source> {
+            export AuxiliaryProFormLicence = auxiliary_pro_form_concord(
+                left.AuxiliaryProFormLicence, Right.AuxiliaryProFormLicence);
             export AuxiliaryEllipsisLicence = auxiliary_ellipsis_concord(
                 left.AuxiliaryEllipsisLicence, Right.AuxiliaryEllipsisLicence);
             agree left.FrameUse = Right.FrameUse;
@@ -1772,9 +1789,9 @@ constructions! {
         // omitted auxiliary Complements require a declared lexical licence.
         // Inflection and clitic constraints remain independently enforced.
         table auxiliary_realization(form, AuxiliaryComplementRealization) -> Selection {
-            (Plain, Overt) => Yes, (Plain, Elided) => Yes,
-            (Present, Overt) => Yes, (Present, Elided) => Yes,
-            (Preterite, Overt) => Yes, (Preterite, Elided) => Yes,
+            (Plain, Overt) => Yes, (Plain, Elided) => Yes, (Plain, ProForm) => Yes,
+            (Present, Overt) => Yes, (Present, Elided) => Yes, (Present, ProForm) => Yes,
+            (Preterite, Overt) => Yes, (Preterite, Elided) => Yes, (Preterite, ProForm) => Yes,
             (PastParticiple, Overt) => Yes, (PastParticiple, Elided) => Yes,
             (GerundParticiple, Overt) => Yes,
         }
@@ -1790,6 +1807,8 @@ constructions! {
         }
 
         schema BareAuxiliaryPredicate {
+            require licensed_auxiliary_pro_form(head.AuxiliaryProFormLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
                 complement.AuxiliaryComplementRealization) = Yes;
             // CGEL p. 1614: stranding requires a stressed auxiliary.
@@ -1945,6 +1964,7 @@ constructions! {
         }
 
         schema SelectedVerbHead {
+            export AuxiliaryProFormLicence = head.AuxiliaryProFormLicence;
             export AuxiliaryEllipsisLicence = head.AuxiliaryEllipsisLicence;
             // An uncomplemented coordinate head requires the strong form.
             require head.Clitic = No;
@@ -2003,6 +2023,8 @@ constructions! {
         }
 
         schema SharedAuxiliaryBareComplement {
+            require licensed_auxiliary_pro_form(head.AuxiliaryProFormLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
                 complement.AuxiliaryComplementRealization) = Yes;
             form [head: node, complement: node];
@@ -2638,6 +2660,8 @@ constructions! {
         }
 
         construction QuantifiedBareAuxiliaryPredicate: FinitePredicate {
+            require licensed_auxiliary_pro_form(head.AuxiliaryProFormLicence,
+                complement.AuxiliaryComplementRealization) = Yes;
             export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", quantifier: lexical(Determinative),
                 complement: BareComplement];
@@ -2955,6 +2979,17 @@ constructions! {
                 complement: AccusativePhrase];
             require head.frame = AdjectivalPrepositionComplement;
             require marker.InternalisedComplementMarker = Yes;
+            export AdjectiveStructure = Complemented;
+            export AdjectiveOrigin = head.AdjectiveOrigin;
+            export TargetingPremodifierUse = No;
+        }
+
+        // The Adjective selects its infinitival Complement; DS3 licenses
+        // the resulting complemented phrase on the existing PostpositiveNominal route.
+        construction InfinitivalAdjective: AdjectivePhrase {
+            export PremodifierCoordination = No;
+            form [head: lexical(Adjective), " ", complement: InfinitiveComplement];
+            require head.frame = AdjectivalInfinitive;
             export AdjectiveStructure = Complemented;
             export AdjectiveOrigin = head.AdjectiveOrigin;
             export TargetingPremodifierUse = No;
@@ -4727,6 +4762,15 @@ constructions! {
             use Properties;
             export PurposeAdjunctLicence = predicate.PurposeAdjunctLicence;
             export MatrixComplementLicence = predicate.MatrixComplementLicence;
+        }
+
+        // DS1–DS2: an overt pro-form fills the stranded auxiliary's Complement.
+        construction ProFormComplement: BareComplement {
+            form [" ", head: lexical(Adverb)];
+            require head.ProFormComplementUse = Yes;
+            export AuxiliaryComplementRealization = ProForm;
+            export PurposeAdjunctLicence = No;
+            export MatrixComplementLicence = None;
         }
 
         construction BareEllipsis: BareComplement {

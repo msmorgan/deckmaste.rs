@@ -70,3 +70,6 @@ mod preverbal_next;
 
 #[path = "suite/focus_only_object.rs"]
 mod focus_only_object;
+
+#[path = "suite/do_so_and_able_to.rs"]
+mod do_so_and_able_to;

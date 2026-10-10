@@ -136,4 +136,59 @@ english-v3 grep` only.
 
 ## Landing record
 
-The six items in `docs/tickets/README.md` ("Landing record").
+1. **Census delta** (`mqrlzszk` before, source-equivalent to the claim-parent
+   grammar `mktpoqzr`; `zzwnrkot` after): bounded covered faces **510 → 541**,
+   total Readings **7,268 → 7,368**; **31 gains**, lost **none**, decreases **0**,
+   increases on previously covered faces **0**, digest-only **0**, validation
+   issues **0**. Selector: `\b(do|does|did|doing) so\b|\bable\b`, case-insensitive,
+   **284 faces**, plus **300** random covered controls from the census diff
+   tool, seed **20261008**; two overlapping identities give **582 unique faces**.
+   Evidence: `target/english-v3/english-v3-do-so-and-able-to/{manifest,before,after,diff}.json`;
+   The feature alone gained **30** faces (**540** covered, **7,362** Readings);
+   refresh added Torchling (**6** Readings), whose *targets only this creature*
+   now uses the object-focus route from trunk `zqnqzmnu` / `ynoxmnun`.
+   `refresh-diff.json` isolates that one gain, with no other changes.
+   comparison used `cargo xtask english-v3 diff before.json after.json --json diff.json --lines`
+   with those full evidence paths.
+2. **Witnesses** (claim-parent grammar `mktpoqzr` → `zzwnrkot`, complete direct
+   probes of the ticket's lines): Lure **0 → 1**; Mortipede **0 → 1**; Gift of
+   the Deity **0 → 2**; Marble Priest **0 → 1**; Talruum Piper **0 → 1**. All
+   four isolated mechanism probes **0 → 1**. Predicative *is able to block*
+   **0 → 1**, as DS4 permits. The five controls retain **1 / 1 / 2 / 1 / 1**
+   Readings. No already-reading witness was retained as a failure.
+3. **Spot checks** (`zzwnrkot`): Alluring Scent and Bloodscent have Subject
+   `creatures [able [to block target creature this turn]]` and Predicate
+   `do [so]`; Breaker of Armies, Elvish Bard, Golgari Decoy, Nath's Elite and
+   Nessian Boar have the same roles with `this creature`; Declare Dominance
+   uses `it this turn`; Indrik Umbra uses `it`; Nemesis Mask uses `equipped
+   creature`. In every checked Reading the AdjP is the Nominal's Postmodifier,
+   the infinitival is the Adjective's Complement, and *so* is *do*'s pro-form
+   Complement. No unintended analysis was found.
+4. **Deviations and STOPs** (`zzwnrkot`): reused the existing complemented-AdjP
+   `PostpositiveNominal` route; added `InfinitivalAdjective`,
+   `AdjectivalInfinitive` and `ProFormComplement`, retiring Able's unread
+   marked-Predicate frame in the lexicon. Added a declared
+   `AuxiliaryProFormLicence`, alongside DS2's ellipsis check, to express DS1's
+   *do* restriction without admitting negative *can*; coordination and
+   quantified heads preserve this distinction. Gift's two Readings differ
+   only in existing conditional scope (first conjunct versus the whole
+   coordination); a control on the previous grammar has those same two
+   scopes. *creatures tapped* retains its existing bare-passive analysis,
+   without an adjectival twin. Added the glossary's Pro-form, Pro-form
+   Complement Use and Auxiliary Pro-form Licence entries, and qualified the
+   Ellipsis Licence definition under DS2. No unresolved glossary gap or STOP.
+5. **Tests** (`zzwnrkot`): `cargo test -p deckmaste_english_v3` passed
+   (**819 tests** after refresh; **797** before, including the new module registered once in `suite_6`);
+   `cargo test -p deckmaste_lexical_source` passed (**82 tests**);
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Restored **0**, re-spelled **0**, ignored **0**, added **7**, removed **0**
+   (no removals to justify). After refresh, `cargo build -p xtask` and both
+   complete crate suites and clippy commands passed again. The sole refresh
+   conflict was overlapping `suite_6` registrations; all three were preserved.
+   Citation checks: zero noncompliant strings, zero
+   stale citations; bless changed no registrations; the diff audit selected
+   no new citation sites. No Lean check or full-corpus census was run.
+6. **Timing** (`zzwnrkot`): the bounded landing census took **6.01 s wall time** after refresh (**7.27 s** before)
+   under `/usr/bin/time -v`, using the prebuilt binary, **6 workers** and
+   `--samples-per-face 0`.

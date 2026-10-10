@@ -712,10 +712,25 @@ CGEL excludes those auxiliaries from English ellipsis generally.
 
 **Auxiliary Ellipsis Licence** (project term):
 The declared permission for an auxiliary to occur with an omitted Complement.
-An overt Complement does not require this permission. In a coordination with a
-shared omitted Complement, every auxiliary must carry the permission.
+A fully expressed predicate Complement does not require this permission. In a
+coordination with a shared omitted Complement, every auxiliary must carry the
+permission. The anaphoric pro-form route also requires it under
+[DS2](../../tickets/done/english-v3-do-so-and-able-to.md#analysis).
 _Avoid_: inferring this permission from the auxiliary's spelling or from a
 mere enumerable Gap.
+
+**Pro-form**:
+An expression whose content is supplied anaphorically; *do so* is a complex
+pro-form headed by *do* (CGEL, Ch. 17 §7.5, p. 1529).
+
+**Pro-form Complement Use** (project term):
+An expression's declared permission to fill the pro-form Complement of an
+auxiliary under [DS1–DS2](../../tickets/done/english-v3-do-so-and-able-to.md#analysis).
+
+**Auxiliary Pro-form Licence** (project term):
+An auxiliary's declared permission to select a pro-form Complement, distinct
+from permission to omit its Complement under
+[DS1–DS2](../../tickets/done/english-v3-do-so-and-able-to.md#analysis).
 
 **Cardinal Numeral**:
 A numeral expressing a count, such as *one* or *two*.
