@@ -160,8 +160,18 @@ Deltas:
    replacement analyses retain ordinary premodification; no ordinal-only
    position is missing. Stock `diff --lines` and identity manifest:
    `target/english-v3/english-v3-last-turn-temporal-adjunct/{diff,manifest}.json`.
-2. **Witnesses** (`xmyznkll`): pre-implementation probes on the claim parent's
-   grammar all had 0 Readings. After: First Response 1; Lambholt Elder 2;
+   After grammar-bearing refresh (`wyrzqktw`, inherited `umzuyqxmtqpx`), the
+   same manifest still covers 895 faces / 52,813 Readings. Final stock
+   `diff-final.json` against the claim-parent baseline: lost 0, gained 63,
+   decreases 0, increases 0, digest-only 193, unchanged 751, issues 0.
+   Stock `diff-refresh.json` against the pre-refresh result: no coverage or
+   count changes, 182 equal-count digest changes inherited from
+   `umzuyqxmtqpx` (division/passive and scalar-NP representation); no
+   decreases require attribution or restoration. All *last* faces retain
+   their coverage and counts.
+2. **Witnesses** (`xmyznkll`; unchanged at `wyrzqktw`): pre-implementation
+   probes on the claim parent's grammar all had 0 Readings. After: First
+   Response 1; Lambholt Elder 2;
    Silverpelt Werewolf 1; Call of the Full Moon 1; Feast on the Fallen 1.
    These are witness-line counts; census face totals sum all lines. Already
    reading before implementation: *the next turn* 1; *the last time* 2;
@@ -191,7 +201,10 @@ Deltas:
    renamed `NominalAdjunctDependent` because the dependent can be an
    Adjective as well as a Determinative. Ordinary premodification is
    re-spelled through the existing adjective route; no superseded *last*
-   ordinal route remains. No unresolved STOP.
+   ordinal route remains. Refresh's append conflicts in the core tests and
+   English test registry were resolved with Harmony by retaining both
+   trunk's additions and this ticket's additions; the refresh retry exited
+   0, `conflicts() & ancestors(@)` is empty, and no test was dropped. No unresolved STOP.
 5. **Tests** (`xmyznkll`): all final commands passed:
    `cargo test -p deckmaste_english_v3`;
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`;
@@ -207,7 +220,11 @@ Deltas:
    clippy ran once. Added 8 (7 English, 1 core); re-spelled 6 (5 numeral
    tests, 1 lexical-source feature test); restored 0; ignored 0; removed 0.
    Citation checks: no noncompliant sites, 0 stale citations; no new CR
-   citations require blessing.
+   citations require blessing. Grammar-bearing refresh verification
+   (`wyrzqktw`): the same eight full-suite/clippy commands were repeated
+   and all passed, with no ignored or filtered-out tests.
 6. **Timing** (`xmyznkll`): bounded census wall 36.08 s under `/usr/bin/time -v`,
    6 workers, prebuilt `cargo-xtask`, `--samples-per-face 0`; peak RSS
-   3,024,828 KiB. No full census was run.
+   3,024,828 KiB. Required refresh subset check (`wyrzqktw`): 22.65 s wall,
+   6 workers, same prebuilt-binary options; peak RSS 2,974,044 KiB.
+   No full census was run.
