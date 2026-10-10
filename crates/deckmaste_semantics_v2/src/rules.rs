@@ -37,6 +37,7 @@ use crate::words::CounterKind;
 use crate::words::DesignationLabel;
 use crate::words::DesignationScope;
 use crate::words::Kind;
+use crate::words::RelationLabel;
 use crate::words::RoomHalf;
 use crate::words::Subtype;
 use crate::words::TurnPart;
@@ -150,6 +151,15 @@ pub enum Definition {
         permanent_type: bool,
         confers: Vec<Conferral>,
     },
+    /// A Relation [CR#702.55b,702.95b,702.99b]: a named link between two
+    /// entities, with the kind of each side. The body of every
+    /// `plugins_v2/builtin/macros/relations` declaration; the label is the
+    /// declaration's own name.
+    Relation {
+        label: RelationLabel,
+        left: Kind,
+        right: Kind,
+    },
 }
 
 impl Definition {
@@ -171,7 +181,10 @@ impl Definition {
     pub fn subtype_term(&self) -> Option<&Subtype> {
         match self {
             Self::Subtype { subtype, .. } => Some(subtype),
-            Self::Counter { .. } | Self::Designation { .. } | Self::CardType { .. } => None,
+            Self::Counter { .. }
+            | Self::Designation { .. }
+            | Self::CardType { .. }
+            | Self::Relation { .. } => None,
         }
     }
 
@@ -182,7 +195,10 @@ impl Definition {
     pub fn counter_term(&self) -> Option<&CounterKind> {
         match self {
             Self::Counter { kind, .. } => Some(kind),
-            Self::Subtype { .. } | Self::Designation { .. } | Self::CardType { .. } => None,
+            Self::Subtype { .. }
+            | Self::Designation { .. }
+            | Self::CardType { .. }
+            | Self::Relation { .. } => None,
         }
     }
 
@@ -193,7 +209,24 @@ impl Definition {
     pub fn designation_term(&self) -> Option<&DesignationLabel> {
         match self {
             Self::Designation { label, .. } => Some(label),
-            Self::Subtype { .. } | Self::Counter { .. } | Self::CardType { .. } => None,
+            Self::Subtype { .. }
+            | Self::Counter { .. }
+            | Self::CardType { .. }
+            | Self::Relation { .. } => None,
+        }
+    }
+
+    /// The relation half of the same rule — Lean
+    /// `Semantics.Definition.relationTerm`: a relation definition names its
+    /// `label`.
+    #[must_use]
+    pub fn relation_term(&self) -> Option<&RelationLabel> {
+        match self {
+            Self::Relation { label, .. } => Some(label),
+            Self::Subtype { .. }
+            | Self::Counter { .. }
+            | Self::Designation { .. }
+            | Self::CardType { .. } => None,
         }
     }
 }

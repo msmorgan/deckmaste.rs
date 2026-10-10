@@ -32,6 +32,7 @@ use crate::words::Comparator;
 use crate::words::CounterKind;
 use crate::words::Deed;
 use crate::words::DesignationLabel;
+use crate::words::RelationLabel;
 use crate::words::EventSide;
 use crate::words::FlipCall;
 use crate::words::KeywordLabel;
@@ -47,7 +48,7 @@ use crate::words::Agreement;
 use crate::words::NounWord;
 use crate::words::Ordinal;
 use crate::words::OutcomeSort;
-use crate::words::PaidCostName;
+use crate::words::LinkSource;
 use crate::words::Period;
 use crate::words::PlayerGroupWord;
 use crate::words::Plurality;
@@ -299,21 +300,34 @@ pub enum Duration {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum PaidFacet {
+/// A Linked Facet: what a linked ability reads back about its Link Source
+/// [CR#607.2a].
+pub enum LinkedFacet {
     /// colors of mana spent to cast it [CR#702.44a]
     ColorsSpent,
     /// mana spent to pay the total cost [CR#601.2h]
     ManaValueSpent,
     /// [CR#702.33c..702.33d]
-    TimesPaid { which: PaidCostName },
+    TimesPaid { which: LinkSource },
     /// "was kicked" [CR#702.33d], optionally within a span ("this turn")
     Readback {
-        which: PaidCostName,
+        which: LinkSource,
         within: Option<Box<Duration>>,
     },
     /// "the player chosen as [which] was paid": the choice an additional cost
     /// makes, read back by the ability linked to it [CR#702.174a,607.2d,607.2i]
-    ChosenPlayer { which: PaidCostName },
+    ChosenPlayer { which: LinkSource },
+    /// The objects `deed` acted on as `which` was paid or resolved, as the
+    /// printed text numbers them: "the sacrificed creature", "the exiled
+    /// cards", "creatures it devoured" [CR#607.2a,702.82b].
+    Objects {
+        which: LinkSource,
+        deed: Deed,
+        plurality: Plurality,
+    },
+    /// Whether the choice `which` offered was taken: "if tribute wasn't paid"
+    /// reads it false [CR#702.104b].
+    Taken { which: LinkSource },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -399,6 +413,13 @@ pub enum Predicate {
     HasDesignation {
         designation: DesignationLabel,
         holder: Option<Box<NounPhrase>>,
+    },
+    /// The member stands in the Relation `label` as its first side, with
+    /// `counterpart` as the second, or with anything when `counterpart` is
+    /// none: "paired", "encoded on that creature" [CR#702.95b,702.99b].
+    Related {
+        label: RelationLabel,
+        counterpart: Option<Box<NounPhrase>>,
     },
     Attachment {
         side: AttachmentSide,
@@ -631,11 +652,17 @@ pub enum NounPhrase {
         designation: DesignationLabel,
         whose: Box<NounPhrase>,
     },
-    /// What a cost of the subject's records about a player, read back by the
-    /// ability linked to it: "the player chosen as its gift cost was paid"
-    /// [CR#607.2d,607.2i].
+    /// A Linked Facet of the subject that names a player or objects, read
+    /// back by the ability linked to its source: "the player chosen as its
+    /// gift cost was paid", "the sacrificed creature" [CR#607.2a,607.2d,607.2i].
     Paid {
-        facet: PaidFacet,
+        facet: LinkedFacet,
+        subject: Box<NounPhrase>,
+    },
+    /// The object on the second side of the Relation `label` whose first side
+    /// is `subject`: "the creature it haunts" [CR#702.55b].
+    Counterpart {
+        label: RelationLabel,
         subject: Box<NounPhrase>,
     },
     OneEachOf {
@@ -678,7 +705,7 @@ pub enum Amount {
         group: Box<NounPhrase>,
     },
     Paid {
-        facet: PaidFacet,
+        facet: LinkedFacet,
         subject: Box<NounPhrase>,
     },
     EventTally {

@@ -201,6 +201,8 @@ fn kind_reader(kind: &str) -> Option<(&'static str, LeanReader)> {
             read_lean::<words::DesignationLabel>,
         ),
         "KeywordLabel" => ("Semantics.KeywordLabel", read_lean::<words::KeywordLabel>),
+        "RelationLabel" => ("Semantics.RelationLabel", read_lean::<words::RelationLabel>),
+        "ManaCostTerm" => ("Semantics.ManaCostTerm", read_lean::<abilities::ManaCostTerm>),
         "NounWord" => ("Semantics.NounWord", read_lean::<words::NounWord>),
         "CardType" => ("Semantics.CardType", read_lean::<words::CardType>),
         "Deed" => ("Semantics.Deed", read_lean::<words::Deed>),
@@ -303,7 +305,9 @@ fn param_reader(name: &str) -> Option<(&'static str, LeanReader)> {
         "ManaMatch" => ("Semantics.ManaMatch", read_lean::<words::ManaMatch>),
         "NounWord" => ("Semantics.NounWord", read_lean::<words::NounWord>),
         "Ordinal" => ("Semantics.Ordinal", read_lean::<words::Ordinal>),
-        "PaidCostName" => ("Semantics.PaidCostName", read_lean::<words::PaidCostName>),
+        "LinkSource" => ("Semantics.LinkSource", read_lean::<words::LinkSource>),
+        "LinkedFacet" => ("Semantics.LinkedFacet", read_lean::<phrase::LinkedFacet>),
+        "MergePosition" => ("Semantics.MergePosition", read_lean::<words::MergePosition>),
         "Plurality" => ("Semantics.Plurality", read_lean::<words::Plurality>),
         "ProjAxis" => ("Semantics.ProjAxis", read_lean::<words::ProjAxis>),
         "QualitySort" => ("Semantics.QualitySort", read_lean::<words::QualitySort>),
@@ -385,7 +389,11 @@ fn reader_for_lean_type(lean_type: &str) -> Option<LeanReader> {
         "EventSide",
         "ManaMatch",
         "Ordinal",
-        "PaidCostName",
+        "LinkSource",
+        "LinkedFacet",
+        "MergePosition",
+        "RelationLabel",
+        "ManaCostTerm",
         "Plurality",
         "ProjAxis",
         "QualitySort",
@@ -782,7 +790,7 @@ const UNTYPED_READINGS: usize = 6;
 
 /// The `Definition` constructors: a body headed by one is a registry node,
 /// whose Lean form is `cargo xtask facts`'s, not a macro.
-const DEFINITION_HEADS: &[&str] = &["Counter", "Subtype", "Designation"];
+const DEFINITION_HEADS: &[&str] = &["Counter", "Subtype", "Designation", "Relation"];
 
 /// The candidate arguments for a parameter of type `name`.
 fn candidates(macros: &MacroSet, name: &str) -> Result<Vec<&'static str>, String> {

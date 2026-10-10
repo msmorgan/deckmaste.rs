@@ -253,8 +253,9 @@ fn event_regime(event: &GameEvent) -> Option<Regime> {
 /// A static component's regime (Lean `StaticSpec.regimeFits`): an
 /// additional cost or a cost change is determined as the spell is cast
 /// [CR#601.2f], and a Mana Substitute applies as its total cost is paid
-/// [CR#702.51b,601.2h], and a Mode Change as its modes are chosen
-/// [CR#601.2b,700.2a]; a permission to cast the card is open; any other static
+/// [CR#702.51b,601.2h], a Mode Change as its modes are chosen
+/// [CR#601.2b,700.2a], and a gained target as targets are chosen
+/// [CR#601.2c,702.140a]; a permission to cast the card is open; any other static
 /// ability functions off the stack.
 fn static_regime(spec: &StaticSpec) -> FormRegime {
     match spec {
@@ -265,7 +266,8 @@ fn static_regime(spec: &StaticSpec) -> FormRegime {
         StaticSpec::AddedCost { .. }
         | StaticSpec::CostShift { .. }
         | StaticSpec::PaySubstitute { .. }
-        | StaticSpec::ModeChoice { .. } => FormRegime::Determined(Some(Regime::AtCasting)),
+        | StaticSpec::ModeChoice { .. }
+        | StaticSpec::AddsTarget { .. } => FormRegime::Determined(Some(Regime::AtCasting)),
         StaticSpec::AltCost { .. } => FormRegime::Open,
         StaticSpec::DeonticRule {
             compulsion, rider, ..
@@ -502,11 +504,13 @@ pub(crate) fn registry_definitions(plugin_dir: &Path) -> anyhow::Result<Registry
         );
         card_types.push((name.to_owned(), definition));
     }
+    let relations = relation_definitions(&plugin)?;
     Ok(RegistryDefinitions {
         counters,
         subtypes,
         designations,
         card_types,
+        relations,
     })
 }
 
@@ -517,6 +521,61 @@ pub(crate) struct RegistryDefinitions {
     pub(crate) subtypes: Vec<(String, Definition)>,
     pub(crate) designations: Vec<(String, Definition)>,
     pub(crate) card_types: Vec<(String, Definition)>,
+    pub(crate) relations: Vec<(String, Definition)>,
+}
+
+/// The family kind of a relation declaration (`macros/meta/Relation.ron`).
+/// A relation is no construction of the English grammar, so the declaration
+/// reader of `deckmaste_construction_core` does not read the family; the
+/// plugin loader does.
+const RELATION: &str = "Relation";
+
+/// Every relation the relation declarations define, in name order, each
+/// under the name it is declared by, which is its label
+/// [CR#702.55b,702.95b,702.99b].
+fn relation_definitions(plugin: &Plugin) -> anyhow::Result<Vec<(String, Definition)>> {
+    let mut result = Vec::new();
+    for ((kind, name), declaration) in &plugin.declarations {
+        if kind.as_str() != RELATION {
+            continue;
+        }
+        let definition: Definition = plugin
+            .macros
+            .read_str(declaration.definition.body())
+            .with_context(|| format!("reading relation {name}"))?;
+        let Definition::Relation { label, .. } = &definition else {
+            anyhow::bail!("{name}: a relation declaration defines a relation");
+        };
+        anyhow::ensure!(
+            label.name() == name.as_str(),
+            "{name}: a relation's label is the name it is declared under, not `{}`",
+            label.name()
+        );
+        result.push((name.as_str().to_owned(), definition));
+    }
+    Ok(result)
+}
+
+fn relation_rows(root: &Path) -> anyhow::Result<Vec<String>> {
+    let plugin_dir = root.join("plugins_v2/builtin");
+    let plugin =
+        Plugin::load(&plugin_dir).with_context(|| format!("loading {}", plugin_dir.display()))?;
+    relation_definitions(&plugin)?
+        .into_iter()
+        .map(|(name, definition)| {
+            // `relationTable` is the table `Check/Words.lean` looks every
+            // relation up in, by name.
+            let Definition::Relation { label, left, right } = definition else {
+                anyhow::bail!("{name}: a relation declaration defines a relation");
+            };
+            Ok(format!(
+                "{{ label := {}, left := {}, right := {} }}",
+                quoted(label.name()),
+                kind_of(&left)?,
+                kind_of(&right)?
+            ))
+        })
+        .collect()
 }
 
 /// The keywords a counter declaration makes a counter of [CR#122.1b]. The
@@ -1049,6 +1108,12 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
         "designationTable",
         "DesignationFacts",
         &designation_rows(&declarations)?,
+    );
+    table(
+        &mut out,
+        "relationTable",
+        "RelationFacts",
+        &relation_rows(root)?,
     );
     table(
         &mut out,

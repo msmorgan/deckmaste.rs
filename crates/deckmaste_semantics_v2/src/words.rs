@@ -308,6 +308,40 @@ impl DesignationLabel {
     }
 }
 
+/// A Relation [CR#702.55b,702.95b,702.99b]: the NAME of the relation
+/// declaration that defines it, verbatim (`haunting`, `paired`, `encodedOn`).
+/// Which relations exist, and the kinds of their two sides, is the relation
+/// facts table generated from the declarations' definitions.
+///
+/// A relation's name reads here bare, as a designation's does (Lean
+/// `Semantics.Definition.relationTerm`): `haunting` expands to its
+/// `Definition::Relation` node, and the `denoted_by` marker reads that node
+/// at this position as its `label`.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+#[macro_ron(denoted_by(Relation, term = crate::rules::Definition::relation_term))]
+pub enum RelationLabel {
+    Named { name: String },
+}
+
+impl RelationLabel {
+    /// The declaration name the relation is — Lean
+    /// `Semantics.RelationLabel.name`.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Named { name } => name,
+        }
+    }
+}
+
+/// Where a merging object is placed: on top of the permanent or under it
+/// [CR#730.2].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
+pub enum MergePosition {
+    Top,
+    Bottom,
+}
+
 /// Who holds a designation [CR#701.15b,725.1,731.1]: an Entity of the named
 /// kind, the card itself (a commander is designated on its card, and the
 /// designation follows the card between zones [CR#903.3]), or the game.
@@ -644,7 +678,7 @@ pub enum KeywordTerm {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
-pub enum PaidCostName {
+pub enum LinkSource {
     ByKeyword {
         keyword: KeywordLabel,
     },
@@ -654,6 +688,11 @@ pub enum PaidCostName {
     },
     TheAlternative,
     TheAdditional,
+    /// The printed ability identified by its deed: "the exiled card" reads
+    /// the ability of the same object that exiled it [CR#607.2a].
+    ByDeed {
+        deed: Deed,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

@@ -46,6 +46,7 @@ pub const DECLARATION_KINDS: &[&str] = &[
     "Designation",
     "KeywordAbility",
     "KeywordAction",
+    "Relation",
     "Subtype",
     "TurnPart",
     "Type",
@@ -119,6 +120,12 @@ pub fn kinds() -> KindSet {
     // (`macros/meta/Designation.ron`), and the type's `denoted_by` marker
     // reads the node it expands to as the label it defines.
     kinds.add(crate::words::DesignationLabel::kind());
+    // A relation declaration's name reads bare where a relation is written,
+    // as a designation's does (`macros/meta/Relation.ron`).
+    kinds.add(crate::words::RelationLabel::kind());
+    // A cost shift's mana-cost term: a written cost or an object's
+    // (`manaCostOf(…)`).
+    kinds.add(crate::abilities::ManaCostTerm::kind());
     // A keyword ability declaration's name reads bare where a keyword is
     // written (`crate::keywords::label_macro`), as a designation's does.
     kinds.add(crate::words::KeywordLabel::kind());
@@ -382,6 +389,10 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::abilities::DeonticPatient>("DeonticPatient");
     types.add_typed::<crate::abilities::DeonticRider>("DeonticRider");
     types.add_typed::<crate::words::DesignationLabel>("DesignationLabel");
+    types.add_typed::<crate::words::RelationLabel>("RelationLabel");
+    types.add_typed::<crate::words::MergePosition>("MergePosition");
+    types.add_typed::<crate::abilities::ManaCostTerm>("ManaCostTerm");
+    types.add_typed::<crate::phrase::LinkedFacet>("LinkedFacet");
     types.add_typed::<String>("FlavorWordLabel");
     types.add_typed::<Vec<crate::phrase::GameEvent>>("GameEvents");
     types.add_typed::<Vec<crate::triggers::JoinedHeader>>("JoinedHeaders");
@@ -399,7 +410,7 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<u32>("Nat");
     types.add_typed::<crate::words::NounWord>("NounWord");
     types.add_typed::<crate::words::Ordinal>("Ordinal");
-    types.add_typed::<crate::words::PaidCostName>("PaidCostName");
+    types.add_typed::<crate::words::LinkSource>("LinkSource");
     types.add_typed::<crate::words::Plurality>("Plurality");
     types.add_typed::<crate::words::ProjAxis>("ProjAxis");
     types.add_typed::<crate::words::QualitySort>("QualitySort");

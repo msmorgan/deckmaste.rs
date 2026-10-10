@@ -227,6 +227,10 @@ pub const SAMPLES: &[&str] = &[
     // ModeChange.
     "Repeatable",
     "ExtraModesCost(cost: ItsManaCost)",
+    // ManaCostTerm, MergePosition.
+    "ManaCostOf(object: This)",
+    "Top",
+    "Bottom",
     // Last: the absent value, which hides the hole it fills. No param type
     // reads it; it is here for an `Any` hole at an `Option` position.
     "None",
@@ -515,6 +519,8 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "Color" => render::<words::Color>,
         "CounterKind" => render::<words::CounterKind>,
         "DesignationLabel" => render::<words::DesignationLabel>,
+        "RelationLabel" => render::<words::RelationLabel>,
+        "ManaCostTerm" => render::<abilities::ManaCostTerm>,
         "KeywordLabel" => render::<words::KeywordLabel>,
         "NounWord" => render::<words::NounWord>,
         "CardType" => render::<words::CardType>,
@@ -540,7 +546,7 @@ pub(crate) fn has_renderer(kind: &str) -> bool {
 }
 
 /// The `Definition` constructors: a body headed by one is a registry node.
-const DEFINITION_HEADS: &[&str] = &["Counter", "Subtype", "Designation", "CardType"];
+const DEFINITION_HEADS: &[&str] = &["Counter", "Subtype", "Designation", "CardType", "Relation"];
 
 fn expand_one(macros: &MacroSet, samples: &Samples, declaration: &Declaration) -> Outcome {
     let definition = &declaration.definition;

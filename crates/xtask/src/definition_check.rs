@@ -86,6 +86,7 @@ enum Family {
     Subtype,
     Designation,
     CardType,
+    Relation,
 }
 
 impl Family {
@@ -98,6 +99,7 @@ impl Family {
             Definition::Subtype { .. } => Family::Subtype,
             Definition::Designation { .. } => Family::Designation,
             Definition::CardType { .. } => Family::CardType,
+            Definition::Relation { .. } => Family::Relation,
         }
     }
 
@@ -109,6 +111,7 @@ impl Family {
             Family::Subtype => ("Subtypes", "subtypes"),
             Family::Designation => ("Designations", "designations"),
             Family::CardType => ("CardTypes", "types"),
+            Family::Relation => ("Relations", "relations"),
         }
     }
 
@@ -118,6 +121,7 @@ impl Family {
             Family::Subtype => "subtypes",
             Family::Designation => "designations",
             Family::CardType => "card types",
+            Family::Relation => "relations",
         }
     }
 }
@@ -139,6 +143,7 @@ pub fn run(args: &DefinitionCheckArgs) -> anyhow::Result<()> {
         (Family::Subtype, read.subtypes),
         (Family::Designation, read.designations),
         (Family::CardType, read.card_types),
+        (Family::Relation, read.relations),
     ];
     let total: usize = families.iter().map(|(_, items)| items.len()).sum();
     anyhow::ensure!(

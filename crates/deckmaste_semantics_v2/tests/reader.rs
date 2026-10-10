@@ -751,6 +751,41 @@ fn a_counter_macro_denotes_the_kind_its_definition_names_and_reads_bare_as_print
     );
 }
 
+/// A relation declaration's name denotes the relation its definition names
+/// (Lean `Semantics.Definition.relationTerm`), as a designation's does, and
+/// its definition carries the kinds of its two sides
+/// [CR#702.55b,702.95b,702.99b].
+#[test]
+fn a_relation_macro_denotes_the_relation_its_definition_names() {
+    let builtin =
+        Plugin::load(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin"))
+            .expect("the builtin declarations load");
+    for name in ["haunting", "paired", "encodedOn"] {
+        let read: deckmaste_semantics_v2::words::RelationLabel = builtin
+            .macros
+            .read_str_restricted(name)
+            .unwrap_or_else(|error| panic!("{name} reads at a `RelationLabel` position: {error}"));
+        assert_eq!(read.name(), name);
+        let declaration = builtin
+            .declarations
+            .get(&(macro_ron::Ident::from("Relation"), macro_ron::Ident::from(name)))
+            .unwrap_or_else(|| panic!("{name} is declared as a relation"));
+        let definition: deckmaste_semantics_v2::rules::Definition = builtin
+            .macros
+            .read_str(declaration.definition.body())
+            .unwrap_or_else(|error| panic!("{name} reads as its definition: {error}"));
+        assert_eq!(
+            definition,
+            deckmaste_semantics_v2::rules::Definition::Relation {
+                label: read,
+                left: deckmaste_semantics_v2::words::Kind::Object,
+                right: deckmaste_semantics_v2::words::Kind::Object,
+            },
+            "{name}"
+        );
+    }
+}
+
 /// A designation declaration's name denotes the designation its definition
 /// names (Lean `Semantics.Definition.designationTerm`, ruling 2026-10-05).
 ///

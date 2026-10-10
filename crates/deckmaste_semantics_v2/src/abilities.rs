@@ -65,6 +65,7 @@ use crate::words::Letter;
 use crate::words::LoyaltyCost;
 use crate::words::ManaCost;
 use crate::words::ManaMatch;
+use crate::words::MergePosition;
 use crate::words::Ordinal;
 use crate::words::OutcomeVerb;
 use crate::words::Parity;
@@ -73,6 +74,7 @@ use crate::words::PileFace;
 use crate::words::Procedure;
 use crate::words::ProducedRun;
 use crate::words::QualitySort;
+use crate::words::RelationLabel;
 use crate::words::Role;
 use crate::words::RoundMode;
 use crate::words::ScaleFactor;
@@ -203,6 +205,14 @@ pub enum CharacteristicStat {
     Defense,
 }
 
+/// A mana cost a cost shift raises or lowers by: written ("{W}{B}"), or an
+/// object's mana cost ("the sacrificed permanent's mana cost" [CR#702.48a]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum ManaCostTerm {
+    Lit { cost: ManaCost },
+    ManaCostOf { object: NounPhrase },
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum CostShift {
     Less {
@@ -212,8 +222,12 @@ pub enum CostShift {
     More {
         amount: Amount,
     },
-    Run {
-        run: ManaCost,
+    /// Raise (`rises`) or lower the cost by the symbols of `cost`.
+    /// `colored_only` is "this effect reduces only the amount of colored mana
+    /// you pay" (Edgewalker); without it, colored mana beyond what the total
+    /// cost has reduces generic mana [CR#702.48c,118.7].
+    BySymbols {
+        cost: ManaCostTerm,
         rises: bool,
         colored_only: bool,
     },
@@ -686,6 +700,13 @@ pub enum StaticSpec {
     /// printed with are chosen [CR#700.2,702.42a,702.120a].
     ModeChoice {
         change: ModeChange,
+    },
+    /// The spell gains a target, `description` saying what it may target,
+    /// when its alternative cost is chosen: mutate's "targets a non-Human
+    /// creature with the same owner as this spell" [CR#702.140a,601.2c].
+    AddsTarget {
+        subject: NounPhrase,
+        description: Predicate,
     },
 }
 
@@ -1255,6 +1276,20 @@ pub enum Instruction {
         subject: NounPhrase,
         payment: PlayPayment,
         resulting: Option<Predicate>,
+    },
+    /// Make `subject` stand in the Relation `label` with `counterpart`
+    /// [CR#702.55b,702.95b,702.99b].
+    Relate {
+        subject: NounPhrase,
+        label: RelationLabel,
+        counterpart: NounPhrase,
+    },
+    /// Merge `subject` with the permanent `onto`, placed at `position`
+    /// [CR#730.2].
+    Merge {
+        subject: NounPhrase,
+        onto: NounPhrase,
+        position: MergePosition,
     },
 }
 

@@ -30,6 +30,7 @@
 //! see [`Facts`], with [`NoFacts`] as the table-free reading, which is exactly
 //! the Lean fallback for an unregistered label.
 
+use crate::phrase::LinkedFacet;
 use crate::phrase::NounPhrase;
 use crate::phrase::Predicate;
 use crate::words::AmountShape;
@@ -69,6 +70,14 @@ pub trait Facts {
     fn counter_holder(&self, name: &str) -> Kind {
         let _ = name;
         Kind::Object
+    }
+
+    /// The kinds of the two sides of the relation named `name`, first and
+    /// second. Lean `RelationLabel.left`/`right`, whose fallback for an
+    /// undeclared name is [`Kind::Object`] on both sides.
+    fn relation_sides(&self, name: &str) -> (Kind, Kind) {
+        let _ = name;
+        (Kind::Object, Kind::Object)
     }
 }
 
@@ -239,6 +248,7 @@ pub fn kind_of_predicate(predicate: &Predicate, facts: &impl Facts) -> Option<Ki
         Predicate::HasDesignation { designation, .. } => {
             facts.designation_holder(designation.name())
         }
+        Predicate::Related { label, .. } => Some(facts.relation_sides(label.name()).0),
         Predicate::Compare { axes, .. } => axes.first().map(|axis| scope_of_proj_axis(axis, facts)),
         Predicate::Superlative { domain: inner, .. }
         | Predicate::CompareOver { domain: inner, .. }
@@ -338,6 +348,13 @@ pub fn kind_of_noun_phrase(phrase: &NounPhrase, facts: &impl Facts) -> Option<Ki
         | NounPhrase::CombatPlayer { .. }
         | NounPhrase::PlayerGroup { .. }
         | NounPhrase::PossessorOf { .. } => Some(Kind::Player),
+        // Lean `LinkedFacet.entityKind`: the objects a deed acted on, else
+        // the chosen player.
+        NounPhrase::Paid { facet, .. } => Some(match facet {
+            LinkedFacet::Objects { .. } => Kind::Object,
+            _ => Kind::Player,
+        }),
+        NounPhrase::Counterpart { label, .. } => Some(facts.relation_sides(label.name()).1),
         NounPhrase::Described { predicate, .. } => kind_of_predicate(predicate, facts),
         NounPhrase::EachOf { group } => kind_of_noun_phrase(group, facts),
         NounPhrase::And { phrases } | NounPhrase::Or { phrases } => {
@@ -992,6 +1009,61 @@ mod tests {
             introduction_width(&[Kind::Letter { letter: Letter::X }, Kind::Object], &stack),
             Some(1)
         );
+    }
+
+    /// A relation's sides take their kinds from the declared facts: the
+    /// member of `related` is its first side, a `counterpart` its second.
+    #[test]
+    fn a_relation_takes_its_side_kinds_from_the_facts() {
+        struct Bond;
+        impl Facts for Bond {
+            fn designation_holder(&self, _: &str) -> Option<Kind> {
+                None
+            }
+            fn relation_sides(&self, _: &str) -> (Kind, Kind) {
+                (Kind::Object, Kind::Player)
+            }
+        }
+        let label = crate::words::RelationLabel::Named {
+            name: "bond".to_owned(),
+        };
+        let predicate = Predicate::Related {
+            label: label.clone(),
+            counterpart: None,
+        };
+        assert_eq!(kind_of_predicate(&predicate, &Bond), Some(Kind::Object));
+        let counterpart = NounPhrase::Counterpart {
+            label,
+            subject: Box::new(NounPhrase::This),
+        };
+        assert_eq!(kind_of_noun_phrase(&counterpart, &Bond), Some(Kind::Player));
+        assert_eq!(kind_of_noun_phrase(&counterpart, &NoFacts), Some(Kind::Object));
+    }
+
+    /// A Linked Facet's noun phrase is the chosen player, or the objects its
+    /// deed acted on (Lean `LinkedFacet.entityKind`).
+    #[test]
+    fn a_linked_facet_names_a_player_or_objects() {
+        use crate::phrase::LinkedFacet;
+        use crate::words::LinkSource;
+        let objects = NounPhrase::Paid {
+            facet: LinkedFacet::Objects {
+                which: LinkSource::TheAlternative,
+                deed: Deed::Action {
+                    label: "sacrifice".to_owned(),
+                },
+                plurality: Plurality::One,
+            },
+            subject: Box::new(NounPhrase::This),
+        };
+        assert_eq!(kind_of_noun_phrase(&objects, &NoFacts), Some(Kind::Object));
+        let player = NounPhrase::Paid {
+            facet: LinkedFacet::ChosenPlayer {
+                which: LinkSource::TheAdditional,
+            },
+            subject: Box::new(NounPhrase::This),
+        };
+        assert_eq!(kind_of_noun_phrase(&player, &NoFacts), Some(Kind::Player));
     }
 
     /// A designation's holder kind comes from the declared facts, not the

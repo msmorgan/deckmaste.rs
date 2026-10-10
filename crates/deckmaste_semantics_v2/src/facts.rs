@@ -67,6 +67,17 @@ pub struct DesignationFacts {
     pub half: Option<RoomHalf>,
 }
 
+/// One Relation's columns [CR#702.55b,702.95b,702.99b]: its name and the
+/// kind of each side.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub struct RelationFacts {
+    /// The relation's name ([`crate::words::RelationLabel::name`]): its
+    /// declaration's name.
+    pub label: String,
+    pub left: Kind,
+    pub right: Kind,
+}
+
 /// One counter kind's columns.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 pub struct CounterFacts {
