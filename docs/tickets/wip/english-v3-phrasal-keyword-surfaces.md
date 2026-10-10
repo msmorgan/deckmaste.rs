@@ -125,13 +125,28 @@ negatives. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta** (`zvoyutom`, before at claim-parent content `qwturwom`,
-   after implementation): 355 → 421 covered faces; 7,093 → 10,334 Readings.
-   Official diff: 66 gained, zero lost/decreases/increases/digest-only; zero
-   issues. Lost faces: none. Selector: the 198 faces attested by
-   `(?i)\b(partner|background|companion)\b`, plus 300 covered controls selected
-   with seed 20261008: 498 identities. Evidence:
-   `target/english-v3/english-v3-phrasal-keyword-surfaces/{manifest,before,after,diff}.json`.
+1. **Census delta** (before `zvoyutom` at claim-parent content; final census
+   `qrxmlsms`, grammar of refreshed `rwtmyrpr`): 355 → 423 covered faces;
+   7,093 → 10,362 Readings. Official diff: 68 gained, zero
+   lost/decreases/increases/digest-only; zero issues. Lost faces: none.
+   Before refresh, `zvoyutom` alone gained 66 faces (355 → 421 covered,
+   7,093 → 10,334 Readings), with the same zero-loss findings. Imported gains:
+   Wernog, Rider's Chaplain from `tsvuoyup` has four ordinary-ability Readings
+   with `CardinalScalarOperand` under `ArithmeticMeasure` (*one plus …*) and
+   one `partnerFriendsForever` `BareKeyword`; Kodama of the East Tree from
+   `vszmnwup` has 21 ordinary-ability Readings with *equal or lesser* as a
+   `Coordination` Modifier of `PremodifiedNominal`, plus Reach and ordinary
+   Partner. Both full-face probes have intended, byte-exact analyses and no
+   issues. Selector: the 198 faces attested by
+   `(?i)\b(partner|background|companion)\b`, plus 300 covered controls with seed
+   20261008: 498 identities. Evidence under
+   `target/english-v3/english-v3-phrasal-keyword-surfaces/`: `manifest.json`,
+   `before.json`, `after-refresh2.json`, `diff-final.json`, `diff-trunk.json`,
+   `diff-trunk2.json`. The post-acceptance refresh (`uupqqpmz`) reproduces
+   these totals exactly; the retry refresh (`qwqwzoov`) also reproduces them.
+   `after-accepted2.json`, `diff-accepted2.json`, and
+   `diff-accepted2-trunk.json` show the retry results; `after-accepted.json`, `diff-accepted.json`, and
+   `diff-accepted-trunk.json` report all 498 faces unchanged from review.
 2. **Witnesses** (`zvoyutom`): Abdel Adrian, Gorion's Ward / Choose a
    Background; Clara Oswald / Doctor's companion; Bjorna, Nightfall Alchemist /
    Partner—Friends forever; Leonardo, the Balance / Partner—Character select;
@@ -152,27 +167,45 @@ negatives. Attestation by `cargo xtask english-v3 grep` only.
    `KeywordComplementPreposition`. All ten full-face probes have byte-exact
    realization, the intended analysis, and no issues; no unintended-only gain
    was found.
-4. **Deviations and STOPs**: no Construction or frame changes; no STOP or
-   glossary gap. Six bodiless declarations follow owner-confirmed PK1.
+4. **Deviations and STOPs**: this ticket changes no Construction or frame;
+   no glossary gap. The first refresh returned 69 for divergent `ztvzruvp`
+   in the external plugin-term workspace; that divergence cleared, and this
+   workspace stayed clean. The retry refreshed successfully. Imported grammar/lexicon changes
+   from `tsvuoyup`, `mqyqzunv`, and `vszmnwup` triggered bounded censuses,
+   `cargo build -p xtask`, and full crate test/clippy rechecks after each
+   relevant refresh. No integration was attempted. Six bodiless declarations
+   follow owner-confirmed PK1.
    Existing declared-payload support carries apostrophes, em dashes, ampersands,
    and internal capitals; PK3 needs no compiler fallback. The binding seed
    20261008 supersedes the Method's 20261010. The bounded verification budget
    supersedes the record template's full-census wording. Inventory tests retain
    exact value comparisons while adding the six surfaces and extending
    declaration-name normalization for em dashes and ampersands.
-5. **Tests** (`zvoyutom`): all passed:
+5. **Tests** (`zvoyutom`, repeated successfully on `rwtmyrpr` and final
+   `qrxmlsms`):
+   `cargo build -p xtask` passed after each relevant refresh; these full
+   crate checks passed initially and after each relevant refresh:
    `cargo test -p deckmaste_english_v3 -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2`;
    `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings`;
-   `cargo test -p xtask english_v3` (56 passed);
+   Before refresh, `cargo test -p xtask english_v3` (56 passed);
    `cargo xtask lean check` (240 cards checked, owner override).
    Citation checks: zero noncompliant, zero stale; diff audit has no new
-   citation sites. Assurance: restored 0 / re-spelled 3 / ignored 0 / added 3 /
-   removed 0. Re-spelled:
+   citation sites. This ticket's assurance: restored 0 / re-spelled 3 /
+   ignored 0 / added 3 / removed 0. Re-spelled:
    `builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`,
    `every_keyword_declaration_pins_its_template`, and
    `every_keyword_template_is_consistent_with_its_params_and_grammar`.
    The three new tests are registered once in `suite_3`. Earlier attempts
    exposed a fixture identifier conversion and missing inventory pins; both
-   were corrected before the passing full run. No test removal needs justification.
-6. **Timing** (`zvoyutom`): bounded after-census wall time 17.59 s under
-   `/usr/bin/time -v`, six workers, zero samples per face.
+   were corrected before the passing full run. No test removal needs
+   justification. After orchestrator acceptance, refresh imported core/grammar/lexicon
+   changes; `cargo build -p xtask`, the same bounded census, and the full
+   four-crate test/clippy commands above passed again (`uupqqpmz`), with logs
+   `accepted-build.log`, `accepted-census.log`, `accepted-tests.log`, and
+   `accepted-clippy.log`. Integration was refused because default moved; a
+   second refresh imported subtype-rules code/plugins, and all those checks
+   passed again (`qwqwzoov`, `accepted2-*.log`).
+6. **Timing** (`qrxmlsms`): final bounded census wall time 31.53 s under
+   `/usr/bin/time -v`; six workers, zero samples per face. Post-acceptance
+   bounded recheck (`uupqqpmz`): 10.94 s; retry refresh recheck (`qwqwzoov`):
+   17.30 s, both with the same worker/sample settings.
