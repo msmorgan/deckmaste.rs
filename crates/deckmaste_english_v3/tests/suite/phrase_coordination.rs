@@ -138,6 +138,7 @@ fn independent_phrase_coordinations_preserve_structure_and_oxford_commas() {
     let infinitive = Reading::ToInfinitive {
         category: Category::InfinitiveComplement,
         form: 0,
+        negator: None,
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant, None),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,

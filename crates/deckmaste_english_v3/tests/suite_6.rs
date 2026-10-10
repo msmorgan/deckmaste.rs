@@ -38,6 +38,9 @@ mod lexical_compositions;
 #[path = "suite/name_lexeme_scope.rs"]
 mod name_lexeme_scope;
 
+#[path = "suite/negated_to_infinitival.rs"]
+mod negated_to_infinitival;
+
 #[path = "suite/negative_common_noun_premodifier.rs"]
 mod negative_common_noun_premodifier;
 

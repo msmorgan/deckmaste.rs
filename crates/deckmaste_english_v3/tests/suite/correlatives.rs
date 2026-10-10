@@ -130,6 +130,7 @@ fn infinitive(owner: &str) -> Reading {
     Reading::ToInfinitive {
         category: Category::InfinitiveComplement,
         form: 0,
+        negator: None,
         marker: word("vocab:InfinitivalMarker/To"),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,

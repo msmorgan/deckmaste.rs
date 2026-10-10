@@ -153,6 +153,7 @@ fn selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence() {
     let infinitive = Reading::ToInfinitive {
         category: Category::InfinitiveComplement,
         form: 0,
+        negator: None,
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant, None),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,

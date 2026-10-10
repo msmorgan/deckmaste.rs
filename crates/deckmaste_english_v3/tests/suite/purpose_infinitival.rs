@@ -184,6 +184,7 @@ fn purpose(object: Reading) -> Reading {
     Reading::ToInfinitive {
         category: Category::PurposeInfinitival,
         form: 0,
+        negator: None,
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,

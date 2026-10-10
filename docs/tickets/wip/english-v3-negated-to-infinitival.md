@@ -63,6 +63,17 @@ Orchestrator rulings 2026-10-10:
   previously covered face is expected (no covered face contains *not*);
   report any with its shape before landing.
 
+- NI-R1 (orchestrator ruling, 2026-10-10): supersedes NI1's second-form
+  requirement. Prefer an OPTIONAL negator field in the existing single form,
+  projecting a Category if necessary; only extend the compiler generally if
+  that cannot be expressed. The absent case preserves existing Reading
+  counts; empty-field digest changes are expected and counted. Negation
+  retains one analysis per positive Reading shape, with the NI4 negatives
+  unread. The implemented route uses `optional(SecondaryNegator)` and a
+  unary lexical projection owning its trailing separator, licensed solely
+  by `head.SecondaryNegation`. No existing unary projection has both that
+  licence and the needed separator; no compiler change is needed.
+
 ## Witnesses
 
 Each is the face's only failing line at `uoqyuxtn`. Probed 2026-10-10 with
@@ -118,4 +129,48 @@ All other *not* (66 faces), each a different mechanism:
 
 ## Landing record
 
-Not landed.
+1. **Census delta** (`wqkrtoxrxvor` against claim-parent census
+   `mqrlzszkuszn`): 415 compared faces, selected by
+   `\b(not|choose to|chooses to)\b` case-insensitively (115 faces), plus
+   300 random covered controls, seed 20261008. Covered 302 → 336; total
+   Readings 4,356 → 4,741. Lost: none; gained 34; decreases 0; increases 0;
+   digest-only 9 (the absent optional negator field). No wrong-analysis gains.
+   Evidence: `target/english-v3/english-v3-negated-to-infinitival/{manifest,after,diff}.json`;
+   comparison by `english-v3 diff --lines`, with no source-hash changes.
+2. **Witnesses**: on claim parent `rouunsxt`, all four witness Sentences had
+   0 Readings and their positive counterparts each had 6, uncapped. On
+   `wqkrtoxrxvor`, Rust Tick, Amber Prison, the land witness (Ice Floe), and
+   Rubinia Soulsinger each have 6 Sentence Readings; their complete faces
+   have 12, 12, 12, and 7 respectively. Positive counterparts remain at 6;
+   the three additional controls remain at 4. The three NI-R1 negative
+   orders each read 0. Corpus grep finds 0 faces for both `choose to not`
+   and `to not`; the alternant remains unbuilt.
+3. **Spot checks** (`wqkrtoxrxvor`): Amber Prison, Ashnod's Battle Gear,
+   Callous Oppressor, Coffin Queen, Deserter's Quarters, Endoskeleton,
+   Entrancing Lyre, Everglove Courier, Flamestick Courier, Flowstone Armor.
+   Each selected Document Reading places the Secondary Negator inside the
+   To-infinitival Complement selected by *choose*, with *untap* as its
+   predicate. The witness tests preserve the positive attachment set.
+4. **Deviations and STOPs**: the original second-form edit hit the compiler's
+   identical-fields obligation. Orchestrator ruling NI-R1 (2026-10-10)
+   resolved that STOP with the single optional-field form. One unary
+   `SecondaryNegator` Construction/Category supplies the lexical dependent
+   and trailing separator; no existing projection supplies both. Its guard
+   reads `SecondaryNegation`, declared on the existing *not* Lexeme; no
+   compiler or loader changes. All three ToInfinitive instances admit the
+   optional dependent under NI3. Seven existing independent-value builders
+   gain `negator: None`, preserving their assertions. Added the glossary
+   terms Secondary Negation (CGEL p. 803; representation cited as NI1–NI4
+   amended by NI-R1) and Secondary Negator; no remaining glossary gap.
+5. **Tests** (`wqkrtoxrxvor`): `cargo test -p deckmaste_english_v3` passed
+   (795 tests); `cargo test -p deckmaste_lexical_source` passed (82 tests).
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   The first English run found a mistaken intransitive frame in the new
+   independent *untap* fixture; corrected it to the declared Object-taking
+   frame and reran the full suite without weakening assertions.
+   Restored 0 / re-spelled 0 / ignored 0 / added 5 / removed 0.
+   Citation checks: no noncompliant sites, 0 stale; diff audit selects no new
+   CR citation sites.
+6. **Timing** (`wqkrtoxrxvor`): bounded census 38.32 s wall time, 6 workers,
+   `--samples-per-face 0`, prebuilt binary under `/usr/bin/time -v`.

@@ -412,6 +412,7 @@ constructions! {
         table central_imperative(CentralAdjunctLicence) -> Selection contains Imperative => Yes;
         feature CentralAdjunctPosition { Preverbal, PostCopula, PostAuxiliary } default Preverbal;
         feature InfinitivalMarker { Yes }
+        feature SecondaryNegation { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
             Cardinal, Infinitive }
@@ -506,6 +507,7 @@ constructions! {
         category PastParticipleObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
         category Cardinal(number);
         category CardinalModifier();
+        category SecondaryNegator();
         category QuantitativeAdjectiveComplement();
         category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent);
         category CardinalPrepositionPhrase(number);
@@ -5410,8 +5412,12 @@ constructions! {
         // A selected hollow internal Complement links its Object Gap to the Subject
         // (CGEL Ch. 14 §6.3(c), p. 1250); ordinary infinitivals keep a full predicate.
         schema ToInfinitive {
-            form [marker: lexical(Subordinator), " ", predicate: node];
+            form [negator: optional(SecondaryNegator), marker: lexical(Subordinator), " ", predicate: node];
             require marker.InfinitivalMarker = Yes;
+        }
+        construction SecondaryNegator: SecondaryNegator {
+            form [head: lexical(Adverb), " "];
+            require head.SecondaryNegation = Yes;
         }
         instance ToInfinitive<Result, Predicate: predicate>: [
             (InfinitiveComplement, BarePredicate),

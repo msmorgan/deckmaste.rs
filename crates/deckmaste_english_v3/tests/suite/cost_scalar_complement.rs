@@ -88,6 +88,7 @@ fn hollow() -> Reading {
     Reading::ToInfinitive {
         category: Category::HollowInfinitivalComplement,
         form: 0,
+        negator: None,
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant),
         predicate: Box::new(Reading::BareObjectGap { form: 0, head }),
     }

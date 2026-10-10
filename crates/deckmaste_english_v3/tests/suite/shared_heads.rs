@@ -524,6 +524,7 @@ fn independent_shared_cardinal_and_infinitive_complements_preserve_selected_cate
         complement: Box::new(Reading::ToInfinitive {
             category: Category::InfinitiveComplement,
             form: 0,
+            negator: None,
             marker: word(
                 "vocab:InfinitivalMarker/To",
                 WordForm::Invariant,

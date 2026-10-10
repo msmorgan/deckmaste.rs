@@ -57,6 +57,7 @@
     },
     feature_additions: {
         "core-verb:Round": {"ParticipialSupplementUse": "Yes"},
+        "vocab:PredicateNegator/Not": {"SecondaryNegation": "Yes"},
         // GC1–GC2: each Object + goal tail selects a complete declared frame.
         "core-verb:Put": {"SelectedTailLicence": "DeclaredFrames"},
         "lexeme:keyword_ability/exploit/verb": {"PastParticipialPremodifier": "Yes"},

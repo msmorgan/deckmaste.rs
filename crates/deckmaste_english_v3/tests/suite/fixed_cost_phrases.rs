@@ -247,6 +247,7 @@ fn independent_cost_opener_preserves_predication_and_infinitival_selection() {
     let infinitive = Reading::ToInfinitive {
         category: Category::InfinitiveComplement,
         form: 0,
+        negator: None,
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant, None),
         predicate: Box::new(Reading::BarePredicate {
             form: 0,

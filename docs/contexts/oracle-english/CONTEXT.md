@@ -375,6 +375,15 @@ A nonfinite Clause with a plain-form verb and without the infinitival
 Subordinator *to* (CGEL, Ch. 14 §1.1, pp. 1173–1174).
 _Avoid_: treating the plain Word Form alone as evidence of Finiteness
 
+**Secondary Negation**:
+Negation within a nonfinite Clause, with *not* premodifying its Verb Phrase
+(CGEL, Ch. 9 §2.3.1, p. 803). Its representation before the infinitival
+Subordinator follows orchestrator rulings NI1–NI4 (2026-10-10,
+`english-v3-negated-to-infinitival`, amended by NI-R1).
+
+**Secondary Negator**:
+A negator functioning in Secondary Negation.
+
 **Hollow Infinitival**:
 A nonfinite Clause with a non-Subject Gap linked to an Antecedent outside it;
 a hollow *to*-infinitival can be an internal Complement whose Object Gap is
