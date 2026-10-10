@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "warp <Param(0)>",
     grammar: FixedKeyword(
         surface: "warp",
+        participial_adjective: (),
     ),
     // "Warp [cost]" means "You may cast this card from your hand by paying [cost]
     // rather than its mana cost" and "If this spell's warp cost was paid, exile the

@@ -259,5 +259,8 @@ mod next_time_relative_adjunct;
 #[path = "suite/divided_as_you_choose.rs"]
 mod divided_as_you_choose;
 
+#[path = "suite/vocabulary_batch_1.rs"]
+mod vocabulary_batch_1;
+
 #[path = "suite/last_turn_temporal_adjunct.rs"]
 mod last_turn_temporal_adjunct;

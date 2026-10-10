@@ -22,6 +22,7 @@
         ),
     ],
     overrides: [
+        (owner: "core-verb:Begin", form: GerundParticiple, surfaces: ["beginning"]),
         // Salvaged from archive-english-v2-keyword-action-verb-inflections;
         // the multiword head inflects, and its fixed complement does not.
         (owner: "lexeme:keyword_action/faceAVillainousChoice", form: Preterite, surfaces: ["faced a villainous choice"]),

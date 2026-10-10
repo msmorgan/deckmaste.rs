@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "bargain",
     grammar: FixedKeyword(
         surface: "bargain",
+        participial_adjective: (),
     ),
     // "Bargain" means "As an additional cost to cast this spell, you may sacrifice
     // an artifact, enchantment, or token." [CR#702.166a]

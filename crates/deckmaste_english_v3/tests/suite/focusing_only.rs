@@ -184,13 +184,22 @@ fn focus_does_not_supply_missing_constituents_or_other_functions() {
         "Activate only only during your turn.",
         "Destroy only target creature.",
         "Only creatures attack.",
-        "Activate only before attackers are declared.",
+        "Activate only before attackers are declared by.",
         "Activate only as tapped.",
         "Only during your turn, activate.",
     ] {
         assert!(readings(text, Category::Document).is_empty(), "{text}");
     }
     assert!(readings("only during your turn", Category::NounPhrase).is_empty());
+    // The vocabulary batch supplies Declare; the formerly lexical gap now reads.
+    assert_constituents(
+        "Activate only before attackers are declared.",
+        Category::Document,
+        &[(
+            Category::PrepositionPhrase,
+            "only before attackers are declared",
+        )],
+    );
     // The once-frequency ticket supplies the previously missing Adjunct.
     assert_constituents(
         "Activate only once each turn.",

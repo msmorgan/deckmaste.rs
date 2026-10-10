@@ -203,4 +203,13 @@
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Would, bare: "would", third_person: "would", frames: [Auxiliary]),
+    (identity: Declare, bare: "declare", third_person: "declares", frames: [Predicate([ObjectNounPhrase])]),
+    (identity: Take, bare: "take", third_person: "takes", preterite: Some("took"), participle: Some("taken"), frames: [Predicate([ObjectNounPhrase])]),
+    (identity: Move, bare: "move", third_person: "moves", frames: [Predicate([ObjectNounPhrase, Lex("Preposition", "Onto"), ObjectNounPhrase]), Predicate([])]),
+    (identity: Begin, bare: "begin", third_person: "begins", preterite: Some("began"), participle: Some("begun"), frames: [Predicate([ObjectNounPhrase])]),
+    (identity: Complete, bare: "complete", third_person: "completes", frames: [Predicate([ObjectNounPhrase])]),
+    (identity: Note, bare: "note", third_person: "notes", frames: [Predicate([ObjectNounPhrase])]),
+    (identity: Follow, bare: "follow", third_person: "follows", frames: [Predicate([ObjectNounPhrase])]),
+    (identity: Separate, bare: "separate", third_person: "separates", frames: [Predicate([ObjectNounPhrase, Lex("Preposition", "Into"), ObjectNounPhrase])]),
+    (identity: Switch, bare: "switch", third_person: "switches", frames: [Predicate([ObjectNounPhrase])]),
 ]

@@ -5,6 +5,7 @@ KeywordAbility(
     keyword_syntax: (parameter_separator: Dash),
     grammar: FixedKeyword(
         surface: "suspend",
+        participial_adjective: (),
     ),
     // STOP (waits on: a "could begin to cast" condition and a "suspended" predicate).
     // Suspend's first ability is a special action, writable as

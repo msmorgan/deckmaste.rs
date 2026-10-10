@@ -72,6 +72,14 @@ Orchestrator rulings 2026-10-10:
   between* and similar are expected to fail V2 because they need a
   Construction. That is the intended outcome for them: list, do not build.
 
+- V7. **Unavailable declaration paths.** Orchestrator ruling 2026-10-10:
+  any game term whose owning plugin definition has no supported declaration
+  path today is deferred under **passes V2, blocked on declaration path**,
+  with owner, loader exclusion, face count and substitution evidence. Do not
+  declare it in core or change the loader. List and skip any individual word
+  that cannot be declared cleanly under V1–V7. STOP only if fewer than ten
+  words are declarable at all.
+
 ## Witnesses
 
 Chosen during the work under V2 and recorded per word: two units per declared
@@ -108,15 +116,221 @@ Standard constraints apply. Deltas:
 
 ## Landing record
 
-Six items as specified in `docs/tickets/README.md`, with these shapes:
+1. **Census delta** — measured on `nouqyyouuops` against the data of claim parent `tutzxorzmwws`: 3,702 faces, covered 2,207 → 2,628, Readings 122,516 → 164,117; 421 gained, no lost faces, decreases, covered-face increases, digest-only changes or source changes. Forty-one words/lemma groups declared. The selector is the union of the 41 case-insensitive attestation patterns (all declared inflections and compound surfaces) in `target/english-v3/english-v3-vocabulary-batch-1/selectors.json`: 3,417 surface faces plus 300 covered controls chosen by built-in `diff --manifest --random 300 --seed 20261008`, 3,702 distinct identities in `target/english-v3/english-v3-vocabulary-batch-1/manifest.json`. Full evidence: `before.json`, `after.json`, `diff.json` and `diff.log` there. Counts below are distinct unread faces with an unknown form of the lemma in the supplied V1 baseline; gains are intersections with the built-in diff, and can overlap between words. Categories are attributed to project ruling V4, not to an uncited CGEL passage.
 
-1. **Census delta** on the bounded manifest, plus a per-word table: word,
-   category/frame, where declared, unread faces touching it before, faces
-   gained that contain it.
-2. **Witnesses**: the two units per declared word with counts after.
-3. **Spot checks**: fifteen gained faces across at least ten different
-   words, with the selected analysis.
-4. **Deviations and STOPs**, and the **follow-up list**: every candidate
-   that failed V2, with face count and the missing piece in one line.
-5. **Tests**: commands, outcomes and counts.
-6. **Timing**: bounded census wall time and peak RSS.
+   | Word / lemma group | Category / frame or feature | Declaration owner / source | V1 unread faces | Gained faces containing a declared surface |
+   |---|---|---|---:|---:|
+   | declared | Verb / transitive | `core-verb:Declare` in `verbs.ron` | 49 | 7 |
+   | take | Verb / transitive | `core-verb:Take` in `verbs.ron` | 48 | 55 |
+   | pile | Count noun | `lexeme:CommonNoun/Pile` in `core.ron` | 38 | 12 |
+   | door | Count noun | `lexeme:CommonNoun/Door` in `core.ron` | 36 | 29 |
+   | move | Verb / put, intransitive | `core-verb:Move` in `verbs.ron` | 34 | 28 |
+   | excess | adjective | `vocab:Adjective/Excess` in `core.ron` | 30 | 25 |
+   | deck | Count noun | `lexeme:CommonNoun/Deck` in `core.ron` | 28 | 14 |
+   | opening | adjective | `vocab:Adjective/Opening` in `core.ron` | 27 | 20 |
+   | result | Count noun | `lexeme:CommonNoun/Result` in `core.ron` | 28 | 6 |
+   | begin | Verb / transitive, intransitive / intransitive: finite present third singular only | `core-verb:Begin + core-verb:BeginIntransitive` in `verbs.ron + core.ron (finite intransitive) + overrides.ron (beginning)` | 30 | 71 |
+   | secretly | adverb / VPFinalAdjunct=No, ClauseInitialAdjunct=No, CentralAdjunctLicence=Imperative | `vocab:Adverb/Secretly` in `core.ron` | 17 | 1 |
+   | completed | Verb / transitive | `core-verb:Complete` in `verbs.ron` | 21 | 15 |
+   | unblocked | adjective | `vocab:Adjective/Unblocked` in `core.ron` | 17 | 13 |
+   | fully | adverb / VPFinalAdjunct=No, ClauseInitialAdjunct=No, CentralAdjunctLicence=Preverbal | `vocab:Adverb/Fully` in `core.ron` | 16 | 14 |
+   | text | Mass noun | `lexeme:CommonNoun/Text` in `core.ron` | 15 | 0 |
+   | unspent | adjective | `vocab:Adjective/Unspent` in `core.ron` | 20 | 6 |
+   | note | Verb / transitive | `core-verb:Note` in `verbs.ron` | 16 | 1 |
+   | instances | Count noun | `lexeme:CommonNoun/Instance` in `core.ron` | 14 | 0 |
+   | totals | Count noun / compound life total / ScalarDenotation=Yes | `lexeme:CommonNoun/LifeTotal` in `core.ron` | 8 | 42 |
+   | team | Count noun | `lexeme:CommonNoun/Team` in `core.ron` | 14 | 10 |
+   | activation | Count noun / NounPremodifier=Yes | `lexeme:CommonNoun/Activation` in `core.ron` | 13 | 3 |
+   | followed | Verb / transitive | `core-verb:Follow` in `verbs.ron` | 11 | 6 |
+   | odd | adjective | `vocab:Adjective/Odd` in `core.ron` | 15 | 4 |
+   | even | adjective | `vocab:Adjective/Even` in `core.ron` | 17 | 5 |
+   | lowest | adjective | `vocab:Adjective/Lowest` in `core.ron` | 8 | 3 |
+   | suspended | participial adjective | `lexeme:keyword_ability/suspend/adjective` in `plugins_v2/builtin/macros/keyword_abilities/suspend.ron` | 16 | 12 |
+   | bargained | participial adjective | `lexeme:keyword_ability/bargain/adjective` in `plugins_v2/builtin/macros/keyword_abilities/bargain.ron` | 20 | 16 |
+   | warped | participial adjective | `lexeme:keyword_ability/warp/adjective` in `plugins_v2/builtin/macros/keyword_abilities/warp.ron` | 15 | 14 |
+   | colored | adjective | `vocab:Adjective/Colored` in `core.ron` | 9 | 4 |
+   | hasn't/haven't | finite present negative perfect auxiliary / PastParticiplePredicate | `core-verb:HaveNegative` in `core.ron` | 33 | 14 |
+   | identity | Count noun / compound color identity | `lexeme:CommonNoun/ColorIdentity` in `core.ron` | 9 | 5 |
+   | symbols | Count noun / compound mana symbol | `lexeme:CommonNoun/ManaSymbol` in `core.ron` | 15 | 12 |
+   | kind | Count noun | `lexeme:CommonNoun/Kind` in `core.ron` | 45 | 5 |
+   | highest | adjective | `vocab:Adjective/Highest` in `core.ron` | 14 | 3 |
+   | separate | Verb / into | `core-verb:Separate` in `verbs.ron` | 26 | 8 |
+   | cadet | Catalog / IdentityUse=Name, exact / NameNumber=Singular | `lexeme:Name/Cadet` in `core.ron` | 13 | 8 |
+   | starting | adjective | `vocab:Adjective/Starting` in `core.ron` | 84 | 10 |
+   | word | Count noun / compound color word | `lexeme:CommonNoun/ColorWord` in `core.ron` | 10 | 0 |
+   | right | Count noun | `lexeme:CommonNoun/Right` in `core.ron` | 13 | 1 |
+   | switch | Verb / transitive | `core-verb:Switch` in `verbs.ron` | 25 | 25 |
+   | friends | Count noun | `lexeme:CommonNoun/Friend` in `core.ron` | 14 | 0 |
+
+2. **Witnesses** — measured on `nouqyyouuops`. Every listed unit failed before declaration (0 Readings), and its declared-word substitution read with the intended category/frame. The before/control/after JSON paths, categories and exact units are in `target/english-v3/english-v3-vocabulary-batch-1/declared-after.json`. Each table row is also in the shared integration fixture.
+
+   | Word | Attested card / unit | After Readings |
+   |---|---|---:|
+   | declared | Rapid Fire: `Cast this spell only before blockers are declared.` (document) | 2 |
+   | declared | Master Warcraft: `Cast this spell only before attackers are declared.` (document) | 2 |
+   | take | Time Walk: `Take an extra turn after this one.` (document) | 2 |
+   | take | Time Warp: `Target player takes an extra turn after this one.` (document) | 2 |
+   | pile | Fact or Fiction: `one pile` (noun-phrase) | 2 |
+   | pile | Mangara's Tome: `the exiled pile` (noun-phrase) | 1 |
+   | door | Underwater Tunnel: `When you unlock this door, surveil 2.` (document) | 1 |
+   | door | Ticket Booth: `When you unlock this door, manifest dread.` (document) | 1 |
+   | move | Fate Transfer: `Move all counters from target creature onto another target creature.` (document) | 1 |
+   | move | Leech Bonder: `Move a counter from target creature onto a second target creature.` (document) | 1 |
+   | move | Skullbriar, the Walking Grave: `it moves` (finite-clause) | 1 |
+   | move | Me, the Immortal: `it moves` (finite-clause) | 1 |
+   | excess | Flame Spill: `Excess damage is dealt to that creature's controller instead.` (document) | 3 |
+   | excess | Pigment Storm: `Excess damage is dealt to that creature's controller instead.` (document) | 3 |
+   | deck | Rat Colony: `A deck can have any number of cards named Rat Colony.` (document) | 5 |
+   | deck | Seven Dwarves: `A deck can have up to seven cards named Seven Dwarves.` (document) | 2 |
+   | opening | Leyline of Lightning: `your opening hand` (noun-phrase) | 1 |
+   | opening | Leyline of Hope: `your opening hand` (noun-phrase) | 1 |
+   | result | Clay Golem: `the result` (noun-phrase) | 1 |
+   | result | Netherese Puzzle-Ward: `the result` (noun-phrase) | 1 |
+   | begin | Ugin's Nexus: `If a player would begin an extra turn, that player skips that turn instead.` (document) | 3 |
+   | begin | Gerrard's Hourglass Pendant: `If a player would begin an extra turn, that player skips that turn instead.` (document) | 3 |
+   | begin | Clara Oswald: `the game begins` (finite-clause) | 1 |
+   | begin | The Prismatic Piper: `the game begins` (finite-clause) | 1 |
+   | secretly | Guardian Archon: `As this creature enters, secretly choose an opponent.` (document) | 1 |
+   | secretly | Stalking Leonin: `When this creature enters, secretly choose an opponent.` (document) | 1 |
+   | completed | Gloom Stalker: `As long as you've completed a dungeon, this creature has double strike.` (document) | 1 |
+   | completed | Nadaar, Selfless Paladin: `Other creatures you control get +1/+1 as long as you've completed a dungeon.` (document) | 4 |
+   | unblocked | Curtain of Light: `Target unblocked attacking creature becomes blocked.` (document) | 1 |
+   | unblocked | Dazzling Beauty: `Target unblocked attacking creature becomes blocked.` (document) | 1 |
+   | fully | Entity Tracker: `Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, draw a card.` (document) | 2 |
+   | fully | Skullsnap Nuisance: `Eerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, surveil 1.` (document) | 2 |
+   | text | Alter Reality: `the text of target spell or permanent` (noun-phrase) | 1 |
+   | text | Glamerdye: `the text of target spell or permanent` (noun-phrase) | 1 |
+   | unspent | Omnath, Locus of Mana: `unspent green mana you have` (noun-phrase) | 3 |
+   | unspent | Electro, Assaulting Battery: `unspent red mana` (noun-phrase) | 1 |
+   | note | Bell Borca, Spectral Sergeant: `the greatest number noted for it this turn` (noun-phrase) | 2 |
+   | note | Bell Borca, Spectral Sergeant: `Note the mana value of each card as it's put into exile.` (document) | 2 |
+   | instances | Alter Reality: `all instances` (noun-phrase) | 1 |
+   | instances | Swirl the Mists: `All instances` (noun-phrase) | 1 |
+   | totals | Soul Conduit: `Two target players exchange life totals.` (document) | 1 |
+   | totals | Axis of Mortality: `At the beginning of your upkeep, you may have two target players exchange life totals.` (document) | 1 |
+   | team | Rushblade Commander: `Warriors your team controls have haste.` (document) | 1 |
+   | team | Sylvia Brightspear: `Dragons your team controls have double strike.` (document) | 1 |
+   | activation | Quicksilver Elemental: `the activation costs of this creature's abilities` (noun-phrase) | 2 |
+   | activation | Manascape Refractor: `the activation costs of this artifact's abilities` (noun-phrase) | 2 |
+   | followed | Seize the Day: `an additional combat phase followed by an additional main phase` (noun-phrase) | 20 |
+   | followed | Relentless Assault: `an additional combat phase followed by an additional main phase` (noun-phrase) | 20 |
+   | odd | Obosh, the Preypiercer: `odd mana values` (noun-phrase) | 1 |
+   | odd | Obosh, the Preypiercer: `cards with odd mana values and land cards` (noun-phrase) | 5 |
+   | even | Gyruda, Doom of Depths: `even mana values` (noun-phrase) | 1 |
+   | even | Gyruda, Doom of Depths: `an even mana value` (noun-phrase) | 1 |
+   | lowest | Culling Scales: `the lowest mana value` (noun-phrase) | 1 |
+   | lowest | Culling Scales: `At the beginning of your upkeep, destroy target nonland permanent with the lowest mana value.` (document) | 5 |
+   | suspended | Dust of Moments: `each suspended card` (noun-phrase) | 1 |
+   | suspended | Timecrafting: `suspended card` (nominal) | 1 |
+   | bargained | Ice Out: `This spell costs {1} less to cast if it's bargained.` (document) | 3 |
+   | bargained | Hamlet Glutton: `This spell costs {2} less to cast if it's bargained.` (document) | 3 |
+   | warped | Close Encounter: `a warped creature card you own in exile` (noun-phrase) | 9 |
+   | warped | Temporal Intervention: `a spell was warped this turn` (finite-clause) | 1 |
+   | colored | Void Mirror: `Whenever a player casts a spell, if no colored mana was spent to cast it, counter that spell.` (document) | 2 |
+   | colored | Emblazoned Golem: `colored mana` (noun-phrase) | 1 |
+   | hasn't/haven't | Stoic Sphinx: `This creature has hexproof as long as you haven't cast a spell this turn.` (document) | 5 |
+   | hasn't/haven't | Jem Lightfoote, Sky Explorer: `At the beginning of your end step, if you haven't cast a spell from your hand this turn, draw a card.` (document) | 5 |
+   | identity | Command Tower: `your commander's color identity` (noun-phrase) | 1 |
+   | identity | Commander's Sphere: `your commander's color identity` (noun-phrase) | 1 |
+   | symbols | Primalcrux: `green mana symbols` (noun-phrase) | 1 |
+   | symbols | Umbra Stalker: `black mana symbols` (noun-phrase) | 1 |
+   | kind | Hundred-Battle Veteran: `different kinds of counters` (noun-phrase) | 2 |
+   | kind | Aragorn, Company Leader: `each of those kinds of counters` (noun-phrase) | 2 |
+   | highest | Arbiter of Knollridge: `the highest life total among all players` (noun-phrase) | 2 |
+   | highest | Arbiter of Knollridge: `When this creature enters, each player's life total becomes the highest life total among all players.` (document) | 2 |
+   | separate | Liliana of the Veil: `Separate all permanents target player controls into two piles.` (document) | 1 |
+   | separate | Do or Die: `Separate all creatures target player controls into two piles.` (document) | 1 |
+   | cadet | Craftwork Crusher: `Create a 2/2 colorless Wizard Soldier creature token named Cadet.` (document) | 6 |
+   | cadet | Peer Review: `Create a 2/2 colorless Wizard Soldier creature token named Cadet.` (document) | 6 |
+   | starting | Angel of Destiny: `your starting life total` (noun-phrase) | 1 |
+   | starting | Resolute Archangel: `your starting life total` (noun-phrase) | 1 |
+   | word | Alter Reality: `one color word` (noun-phrase) | 2 |
+   | word | Glamerdye: `one color word` (noun-phrase) | 2 |
+   | right | Hithlain Rope: `your right` (noun-phrase) | 1 |
+   | right | Bucknard's Everfull Purse: `your right` (noun-phrase) | 1 |
+   | switch | Dwarven Thaumaturgist: `{T}: Switch target creature's power and toughness until end of turn.` (document) | 2 |
+   | switch | Valakut Fireboar: `Whenever this creature attacks, switch its power and toughness until end of turn.` (document) | 3 |
+   | friends | Master of Ceremonies: `friends` (noun-phrase) | 1 |
+   | friends | Master of Ceremonies: `For each player who chose friends, you and that player each create a 1/1 green and white Citizen creature token.` (document) | 1 |
+
+3. **Spot checks** — measured on `nouqyyouuops: fifteen gained faces across thirteen words. Each full analysed face was probed for a retained Reading and exact roundtrip; selected grammatical analyses were inspected (`target/english-v3/english-v3-vocabulary-batch-1/spot-checks.json`, `spot-0.json` through `spot-14.json`).
+
+   - Time Walk (2 census Readings): imperative Take with turn ObjectNP.
+   - Time Warp (2 census Readings): finite transitive Take, target-player subject.
+   - Underwater Tunnel (1 census Readings): Door noun ObjectNP of unlock in a When trigger.
+   - Ticket Booth (1 census Readings): Door noun ObjectNP of unlock, with manifest-dread consequent.
+   - Fate Transfer (1 census Readings): Move with counter ObjectNP and onto-marked destination.
+   - Flame Spill (3 census Readings): adjective premodifier of damage, passive deal.
+   - Rat Colony (9 census Readings): count noun deck as subject of can-have.
+   - Leyline of Lightning (17 census Readings): adjective premodifier of hand in initial conditional.
+   - Ugin's Nexus (71 census Readings): passive Begin with extra-turn subject inside if clause.
+   - Guardian Archon (4 census Readings): central imperative adverb before choose.
+   - Gloom Stalker (1 census Readings): perfect auxiliary plus transitive Complete dungeon.
+   - Curtain of Light (5 census Readings): adjective premodifier of attacking creature.
+   - Entity Tracker (3 census Readings): central preverbal adverb before unlock.
+   - Soul Conduit (1 census Readings): compound plural life totals ObjectNP of exchange.
+   - Rushblade Commander (1 census Readings): team noun possessor of the controlling subject relative.
+
+4. **Deviations and STOPs** — measured on `nouqyyouuops. V7 is recorded above and resolves the declaration-path STOP raised for historic; no further STOP. No Construction, frame kind, Role, feature, grammar implementation, loader, non-grammar plugin content or glossary term changed; no superseded live route was retired. The finite negative auxiliary has only the six attested present-concord cells, no invented negative plain/nonfinite/past forms. Starting is an adjective; no Start verb was added. Residual probes added existing intransitive Predicate uses for Move and Begin (two additional units each), without a new frame kind. An unrestricted Begin intransitive frame caused V5 increases on Cyclonus, Cybertronian Fighter (14→26), Shadow of the Second Sun (7→13), and Sphinx of the Second Sun (7→13): verbal beginning competed with the existing beginning-phase term. It was narrowed to a native finite present/third/singular BeginIntransitive declaration, with no gerund/plain/nonfinite/past cells. The ordinary transitive Begin keeps its full paradigm. The bounded recheck restores the three faces to their parent counts; both new finite witnesses remain at 1. Compound life total, color identity, mana symbol and color word have no lexical-owning plugin declaration; semantic amount/instruction accessors are not lexical declarations. The ordinary friend noun is distinct from the unavailable Friends-forever keyword.
+
+   The supplied V1 file actually stamps `yntwupzymxxl`, despite the old ticket label `sskyxnyvmruk`, and predates the claim parent’s Produce/Divided landings. Therefore the parent was replayed on the bounded manifest with the prebuilt feature binary, temporarily restoring byte-verified `jj file show -r @-` parent data and restoring feature data in `finally`. The census metadata stamps the feature change id; `before.json` contains claim-parent data, not the feature declarations. A provisional bounded result was superseded after the final friend declaration spelling corrections (beginning, switches), and the Move/Begin intransitive frames; only bounded rechecks were used. No full-corpus run, custom comparison script or raw-Scryfall attestation search was used. Evidence stays under target.
+
+   **Follow-up: missing constructions or other vocabulary (distinct V1 unread-face counts).**
+
+   | Candidate | Faces | Missing piece / evidence |
+   |---|---:|---|
+   | half | 83 | Quantitative half + possessive/partitive complement; both known-noun controls fail (`followup-probes-before.json`), as expected by V6. |
+   | round / rounded | 87 | Rounded up/down requires particle/result direction and supplement licensing; turned-up controls fail (`remaining-probes-before.json`), V6. |
+   | tied | 51 | Tied-for selected comparison; even vote-is-legendary controls fail because the vote nominal is not mapped (`tied-before.json`); V6 construction remains. |
+   | exactly | 45 | Focusing cardinal modifier; another is an additional cardinal determiner and does not witness this analysis. No intended-control Reading (`followup-probes-before.json`), V6. |
+   | difference | 32 | Scalar relational difference-between / paired property values; number-between control fails (`remaining-probes-before.json`), V6. |
+   | use / using / used | 41 | Purpose attachment in cards-used-to-craft and gerund adjunct use; chosen/choosing controls fail (`pass1-before.json`). |
+   | true | 25 | Fused-head the-same subject and for-complement; legendary controls fail (`pass1-before.json`). |
+   | promised | 24 | Gift/possessive context still lacks a readable control, chosen controls 0/0 (`pass1-before.json`). |
+   | else | 16 | Anywhere-else postmodifier of a fused locative; instead controls fail (`followup-probes-before.json`). |
+   | common | 12 | Most-common degree/superlative phrase; legendary controls 0/0 (`followup-probes-before.json`). |
+   | replace / replacing | 12 | Another as a fused-head object in replacing-X-with-another; sharing controls fail with all other batch vocabulary present (`replace-final-before.json`). |
+   | full | 12 | Party remains unavailable; legendary substitution alone leaves party unknown, 0/0 (`followup-probes-before.json`). |
+   | ignore | 12 | Choose-one control uses Cardinal complementation, not the proposed ObjectNP. Provisional ObjectNP Ignore read 0/0 and was removed before final verification; roll nominal/fused cardinal object needed (provisional probe output; `repairs2-before.json`). |
+   | how | 11 | Embedded degree/manner interrogative complements: how-many cards / how-those-creatures-block. No declared word has the required interrogative class/frame. |
+   | come / comes | 15 | Come-up heads/tails particle-result and comes-first comparative/supplement use; no existing copied frame for the attested uses. |
+   | legend / rule / apply | 10 each | Quoted legend-rule nominal plus stative apply-to complementation; mana-value/resolve full-clause control fails (`quoted-rule-before.json`). |
+   | differently | 10 | Adverb inside named participial premodifier; already controls 0/0 (`followup-probes-before.json`). |
+   | longer | 9 | No-longer negative/degree central modifier; already controls 0/0 (`followup-probes-before.json`). |
+   | whichever | 8 | Supplementary fused relative whichever-comes-first and its priority predicate; no declared substitute of that category. |
+   | contain / contains | 12 | Focusing only over the cards ObjectNP; has-only-cards controls fail even after other declarations (`contain-before.json`). |
+   | starting; kind; odd/even; hasn’t | 84; 45; 15/17; 17 | Starting-with-you supplement, each-kind-of-counter bare singular, choose-odd/even complements and one-that-hasn’t-been-chosen fused-head relatives remain unimplemented; witness NPs/adjective uses and haven’t-perfect clauses do read. These residual uses do not claim new constructions. |
+
+   ### passes V2, blocked on declaration path
+
+   `read_builtin_v2` reads only the eight `BUILTIN_FAMILIES` in `deckmaste_construction_core/src/macro_def.rs`; lexical `legacy/plugins.rs::load` consumes only that normalized set. Predicate/event helpers are excluded. `FixedKeyword` supports the added adjective supplement but no secondary verb export; `FixedTerm` supplies one surface, not additional independent noun heads. The following terms are deferred under V7, never declared in core. Evidence below gives both substitution counts where available; joint-term substitutions are explicitly identified.
+
+   | Candidate | Faces | Owning definition / unsupported path | Substitution evidence |
+   |---|---:|---|---|
+   | historic | 56 | `predicates/historic.ron`, excluded helper family | a-historic-spell → a-legendary-spell, 1/1 (`followup-probes-before.json`); original full-card controls also retained. |
+   | modified | 47 | No Modified declaration exists in the supported families | legendary adjective in two attested creature NPs, 2/2 (`followup-probes-before.json`). |
+   | party | 40 | No Party lexical definition exists in supported families | your-party → your-hand, 1/1 (`followup-probes-before.json`). |
+   | mutate | 33 | `keyword_abilities/mutate.ron`, FixedKeyword has no secondary intransitive verb | this-creature-attacks, 1/1 (`path-probes-before.json`). |
+   | crew | 36 | `keyword_abilities/crew.ron`, FixedKeyword has no secondary verb | blocks-Vehicles predicate, 1/1 (`followup-probes-before.json`); crewed shares this owner/path block. |
+   | exploit | 24 | `keyword_abilities/exploit.ron`, FixedKeyword has no secondary verb | blocks-a-creature trigger clauses, 1/1 (`followup-probes-before.json`). |
+   | paired | 27 | `keyword_abilities/soulbond.ron`, cannot export Pair verb selecting with-NP; unframed adjective supplement cannot encode it | shared-with-creature clauses, 2/2 (`followup-probes-before.json`). |
+   | crime; commit | 27 each | `events/commitsCrime.ron`, event helper family excluded; no separate crime noun export | a-spell NPs 1/1; joint you-cast-a-spell controls 2/2 (`followup-probes-before.json`, `remaining-probes-before.json`). |
+   | multikicker | 19 | No Multikicker definition; `keyword_abilities/kicker.ron` owns only kicker | Kicker cost keyword phrases 1/1 (`remaining-probes-before.json`). |
+   | day; night | 10; 16 | `designations/dayNight.ron`, FixedTerm owns day-or-night only | noun controls it’s-life and damage-becomes-life, 1/1 each (`path-probes-before.json`), joint day/night substitution identified. |
+   | expend | 12 | No Expend keyword-action definition | draw-4 trigger clauses 3/3 (`followup-probes-before.json`). |
+   | descend / descended | 12 | `ability_words/descend4.ron`, `descend8.ron` declare ability labels, no Descend action/verb owner | you-attacked-this-turn clauses 2/2 (`followup-probes-before.json`). |
+   | saddle | 16 | `keyword_abilities/saddle.ron`, FixedKeyword has no secondary verb; `designations/saddled.ron` is a different designation | blocks-Mounts predicates 1/1 (`followup-probes-before.json`). |
+   | escape | 16 | `keyword_abilities/escape.ron`, FixedKeyword has no secondary verb | enters-with-counter sentences 5/5 (`followup-probes-before.json`). |
+   | haunt | 9 | `keyword_abilities/haunt.ron`, FixedKeyword has no secondary transitive verb | creature-this-card/it-targets NPs 1/1 (`path-probes-before.json`). |
+   | outlaw | 20 | `predicates/outlaw.ron`, excluded helper family | artifact-spells/sources NPs 1/1 (`path-probes-before.json`). |
+   | Wicked; Monster | 10; 8 | `subtypes/enchantment/role.ron` owns Role only; individual Role token definitions/exports absent | Whole Wicked/Monster-Role-token term → Treasure-token NPs 1/1 each (`remaining-probes-before.json`). |
+   | bands | 8 | `keyword_abilities/banding.ron` has no bands-with-other definition/export | Protection-from-legendary-creatures keyword phrases 2/2 (`remaining-probes-before.json`), whole construction substitution. |
+   | Friends forever | 7 keyword faces (ordinary friend group 14 implemented) | No Friends-forever keyword definition/export | Separate from the ordinary count noun; no single-word keyword control of the same payload shape. Deferred ownership, not an ordinary-noun declaration. |
+   | empower | 19 | No Empower keyword-action definition; Name + measure payload also lacks a supported frame | V2 not established: no declared verb with that Name+measure frame; deferred rather than manufactured in core. |
+   | evidence / collected | 8 | `keyword_actions/collectEvidence.ron` owns collect-evidence with MeasureComplement only; no evidence noun + bare Collect export | Joint damage-was-dealt controls 1/1 (`remaining-probes-before.json`); a single-word control cannot repair both heads. |
+
+   Produce/Divided were already declared on the claim parent and skipped. Draft/drafted/drafting (27 faces), booster (9), pack (8) and planeswalk (8) are permanent scope exclusions, not future model reservations. All remaining lemma groups fall below eight distinct unread faces (including guess 7, count 7, quality 7, select 6 and give 5); they belong to the next cutoff, not unprocessed eligible work.
+
+5. **Tests** — on `nouqyyouuops`: `cargo test -p deckmaste_english_v3` passed (713); `cargo test -p deckmaste_lexical_source` passed (71); `cargo test -p deckmaste_construction_core` passed (467); `cargo test -p deckmaste_semantics_v2` passed (101). `cargo clippy -p deckmaste_lexical_source -p deckmaste_english_v3 -p deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings` passed. Full suites were rerun after the initial new-fixture failures and the deliberately superseded lexical-gap assertion were corrected. Eight tests added (seven lexical-source class tests and one shared integration table with 86 positive witness cases plus three beginning-phase V5 guards); restored 0, re-spelled 1 existing focusing-only lexical-gap case (original text now also asserted positively; incomplete by-agent complement remains negative), ignored 0, removed 0. New-fixture lifetime, Keyword provenance, keyword adjective feature, and central-adverb constituent expectations were corrected while keeping exact value assertions; moving the witness table to a constant resolved clippy’s function-length finding. Citation checks passed (no noncompliant or stale citations; diff audit found no new citation sites).
+
+6. **Timing** — on `nouqyyouuops`: final bounded census 62.44 seconds, peak RSS 4,098,356 KiB (`after.log`, `/usr/bin/time -v`); prebuilt binary, six workers, zero samples per face. No full-corpus census.
