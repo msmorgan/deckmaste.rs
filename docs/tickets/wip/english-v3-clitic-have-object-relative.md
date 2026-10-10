@@ -140,14 +140,22 @@ a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    37,074 → 42,043. Final lost none; gained 53; decreases 0; increases 6;
    digest-only 0; internal issues 0. The initial 48 gains are this change;
    five additional gains (239 Readings) came from vocabulary batch 2,
-   `nqnztuzo`: Fire Navy Trebuchet, Frontier Siege, Gor Muldrak,
-   Amphinologist, Mordor Trebuchet, and Scriv, the Obligator. The
+   `nqnztuzo`: Fire Navy Trebuchet; Frontier Siege; Gor Muldrak,
+   Amphinologist; Mordor Trebuchet; Scriv, the Obligator. The
    refresh-only diff has no losses, decreases, increases or digest-only
    changes. Rebuilt selector instrumentation finds no additional surface
    faces after refresh. All six increases below are unchanged by refresh
    and instantiate the one perfect-gap analysis per relative licensed by
    CH3/CH6, alongside retained analyses (other independent ambiguities
    multiply the line totals):
+
+   Final accepted-review refresh, at then-empty `nzkyxpym` atop `nulkxpsk`:
+   covered 889 → 944; Readings 37,074 → 42,095. Lost none; gained 55;
+   decreases 0; increases 6; digest-only 0; internal issues 0. The two
+   additional inherited gains (52 Readings), Jeska, Thrice Reborn;
+   Uncivil Unrest, come from multiplier-predeterminer `qoswqlns`.
+   Own gains remain 48; inherited gains total seven. The final refresh-only
+   diff leaves every previously covered face and all six increases unchanged.
 
    | Face | Face Readings before → after | Added Reading shape |
    | --- | --- | --- |
@@ -201,7 +209,13 @@ a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    No grammar pruning. No glossary gap or unresolved STOP. Commit followed
    by successful `kata refresh`; bounded re-census and full checks follow
    the refreshed lexical/core changes. Standing user-directed STOP before
-   integration; keep the workspace for orchestrator review.
+   integration honored; orchestrator review ACCEPTED, with integration
+   and workspace drop authorized.
+   Residual, not addressed: the perfect has no past-participle counterpart of
+   `SelectedGapLocativePredicate`, so *each +1/+1 counter you've put on
+   creatures …* (Iridescent Hornbeetle; `(you|they)'ve put` 4 faces) still
+   reads 0 while preterite *you put on …* and *you can put on …* read.
+   Follow-up ticket, not this landing.
 
 5. **Tests** — `pnrkopro`: `cargo test -p deckmaste_english_v3`
    initially 752 passed / 1 new-test failure (the Hollow One assumption
@@ -209,11 +223,17 @@ a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
    After refresh, then-empty `ovwmnzms` atop `pnrkopro`:
    `cargo test -p deckmaste_english_v3` passed all 754;
-   `cargo test -p deckmaste_lexical_source` passed all 41;
+   `cargo test -p deckmaste_lexical_source` passed 39 unit and 41 integration tests;
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
    `cargo test -p xtask english_v3` passed all 56 selected tests, zero
    failed/ignored (required because refresh changed construction core).
+   Final accepted-review refresh, then-empty `nzkyxpym` atop `nulkxpsk`:
+   `cargo test -p deckmaste_english_v3` passed all 764;
+   `cargo test -p deckmaste_lexical_source` passed 39 unit and 41 integration
+   tests; both full suites have zero failed/ignored.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
    Citation checks: no noncompliant strings or stale rules; no new CR
    registrations. Assurance counts: restored 0 / re-spelled 0 /
    ignored-with-blocker 0 / added 5 / removed 0; no removals.

@@ -4460,8 +4460,8 @@ constructions! {
             export ComparativeObjectGapLicence = complement.ComparativeObjectGapLicence;
             form [head: lexical(Verb), " ", complement: BareObjectGap]
                 require head.frame = BareAuxiliary;
-            // Orchestrator rulings CH1–CH2: the perfect selects an Object gap
-            // in a transitive past-participle Complement, strong or clitic.
+            // The perfect selects an Object gap in a transitive past-participle
+            // Complement, strong or clitic.
             form [head: lexical(Verb), " ", complement: PastParticipleObjectGap]
                 require head.frame = PerfectAuxiliary;
             use FiniteHeadAgreement;
