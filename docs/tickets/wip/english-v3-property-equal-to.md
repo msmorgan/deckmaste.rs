@@ -137,8 +137,8 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta** (`wlstpkpu`; before is the unchanged claim-parent tree
-   `prmkpxrr`): 1,906 faces, selected by supported analysed text matching
+1. **Census delta** (`wlstpkpu`; before is the original, unchanged claim-parent tree
+   `prmkpxrr` before refresh): 1,906 faces, selected by supported analysed text matching
    case-insensitive `\bequal to\b` (1,606 faces) plus 300 covered controls,
    seed `20261008`, in `target/english-v3/english-v3-property-equal-to/manifest.json`.
    Covered 1,380 → 1,411; total Readings 193,360 → 201,762. Official
@@ -157,6 +157,18 @@ Deltas:
    grammatical scopes are retained under the ambiguity contract, not a
    duplicate predicative or coordinated-governor route. Evidence: `diff.json`
    and `woodcaller-sentence-complete.json` in the same target directory.
+   After `kata refresh`, bounded recheck on `pqpstqts` (then-empty child of
+   refreshed `wlstpkpu`) covers 1,419 faces with 202,946 Readings.
+   `final-diff.json` against the original claim parent: 39 gained, 0 lost,
+   0 decreases, 1 increase, 0 digest-only, 1,866 unchanged. The eight
+   refresh-only gains are Awe Strike, Bone Mask, Cho-Arrim Alchemist,
+   Dazzling Reflection, Delif's Cone, Dragonfly Swarm, Intervention Pact,
+   and Reverse Damage; they are inherited from the asyndetic-premodifier
+   (`xqtkuyqk`, landing `zlottuom`) and next-time temporal (`rxwmpvru`,
+   correction `stymwqqo`, landing `szkxvvyl`) changes. `refresh-diff.json`
+   reports 8 gained, no losses, decreases, increases or digest-only changes,
+   and 1,898 unchanged. The ticket's own 31 gains (11 arithmetic / 20 other)
+   and Woodcaller increase remain unchanged; no decreased faces to attribute.
 2. **Witnesses** (`wlstpkpu`, complete probes): all five were 0 before;
    Master Symmetrist 6, Chalice of the Void 10, Sanctum Prelate 2,
    Ratchet Bomb 31, Aether Vial 42 after. Their ordering controls retain
@@ -164,6 +176,8 @@ Deltas:
    *damage equal to its power* 1 → 1, remaining a postmodifier rather than
    a property value. R13c: *power equal to or greater than its toughness*
    1 → 1; Ironclaw Curse's sentence 8 → 8 and face 10 → 10.
+   Refreshed probes (`probes-refreshed.log`) retain all five witness counts,
+   their ordering controls, and the R13b/R13c fragment counts above.
 3. **Spot checks** (`wlstpkpu`; face / affected-line Reading counts):
    Master Symmetrist 7 / 6, Chalice of the Void 15 / 10, Sanctum Prelate
    3 / 2, Ratchet Bomb 32 / 31, Aether Vial 43 / 42, Blast Zone 38 / 31,
@@ -194,8 +208,14 @@ Deltas:
 5. **Tests** (`wlstpkpu`): `cargo test -p deckmaste_english_v3` passed
    (698 tests, 0 failed, 0 ignored; doc tests passed);
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
+   After grammar-bearing refresh, the same full test command passed on
+   `pqpstqts` (716 tests, 0 failed, 0 ignored; doc tests passed); the same
+   clippy command also passed on the refreshed tree. Evidence:
+   `tests-refreshed.log` and `clippy-refreshed.log` under the target directory.
    Restored 0 / re-spelled 1 / ignored 0 / added 11 / removed 0;
-   removals: none. No other crate's code or consumed data changed.
+   removals: none. This ticket changed no other crate's code or consumed data.
 6. **Timing** (`wlstpkpu`): bounded after census 2m 34s 720ms wall, 6 workers,
    peak RSS 10,550,532 KiB (`/usr/bin/time -v`, prebuilt binary,
-   `--samples-per-face 0`).
+   `--samples-per-face 0`). Refreshed bounded census: 54s 370ms wall,
+   6 workers, peak RSS 10,223,504 KiB (same prebuilt-binary invocation;
+   `after-refresh.time`).
