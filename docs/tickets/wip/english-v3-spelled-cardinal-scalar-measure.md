@@ -167,7 +167,23 @@ by `cargo xtask english-v3 grep` only.
    decrease, loss or digest-only change came from that refresh. The last
    refresh imported kind-of-counter `wkooyuko`; bounded `kyymvuqx` has
    zero changed faces or lines against `xnnmkups` (`refresh-2-diff.json`).
-   Final totals and classifications therefore remain exactly those above.
+   Acceptance refresh imported `mpvousxzotns`, `rtzolrtxrrru`,
+   `mzkvyunrqtrw`, `ztrnpkyvzntv`, `vlxrulqwmzzk`, `opxvnokryrro`,
+   `wxwozrtzrsqp` and `qktrquumtlmk`. `accepted-refresh-diff.json` reports
+   five gains, 598 additional Readings, no loss/decrease/increase, and nine
+   digest-only changes. Final `accepted-final-diff.json`: **29 gains**,
+   602 → 631 covered, 90,100 → 91,957 Readings, zero lost/decreased faces,
+   one SC6 increase and nine digest-only changes. The extra gains are Arcane
+   Endeavor (292) and Valiant Endeavor (168), enabled by die nouns
+   `vlxrulqwmzzk`; Desperate Plea (2), enabled by modal quantities
+   `ztrnpkyvzntv`; Ojer Axonil, Deepest Might (117), enabled by noncombat
+   `mzkvyunrqtrw`; and Tahngarth, First Mate (19), enabled by progressive
+   Object-gap relatives `opxvnokryrro`. The modal count-Complement refinement
+   `ztrnpkyvzntv` accounts for unchanged-count digests of Arbalest Engineers,
+   Drown in the Loch, Feast or Famine, Light of Hope, Nightmare Unmaking,
+   Professor's Warning, Shriveling Rot, Tetsuo, Imperial Champion and
+   Vannifar, Evolved Enigma. These refresh changes are attributed to trunk;
+   the ticket's initial 19 gains remain.
    The only increase is **SC5 expected by SC6(a)**: Burn at the Stake
    39 → 45 (line 1: 36 → 42). Six new Readings close the comparison at
    *equal to three* and take *times the number of creatures tapped* as
@@ -213,6 +229,12 @@ by `cargo xtask english-v3 grep` only.
    has a selected intended Reading for each of the five refresh gains:
    four Clockworks use cause's Catenative Complement and the cardinal
    comparative standard; The Moment selects phase's out Complement.
+   `accepted-gain-probe00..04.json` retain one selected Reading for each
+   acceptance-refresh gain: Tahngarth's progressive Object-gap relative;
+   Valiant Endeavor's plural d6 Object; Arcane Endeavor's plural d8 Object;
+   Desperate Plea's modal *one or both* header; and Ojer Axonil's negatively
+   formed noncombat noun. Each selected Reading has the intended imported
+   role, with no reported issues.
 4. **Deviations and STOPs** — SC1's permitted sibling fallback adds
    `CardinalScalarOperand` and `CardinalComparativeComplement`: lexical Word
    storage cannot share a form field with phrase Reading storage. The
@@ -225,7 +247,7 @@ by `cargo xtask english-v3 grep` only.
    supplying the measure.
    `kata kanban wip` showed the systemic residuals ticket unowned; one
    overgeneration candidate for both spellings was added there. Normal
-   STOP BEFORE INTEGRATE remains in force. No CGEL passage is claimed to
+   STOP BEFORE INTEGRATE was lifted by orchestrator acceptance on 2026-10-10. No CGEL passage is claimed to
    supply the new licences. Refresh first hit the banked-workspace concurrency
    guard; devotion's new tip was empty, and retry was safe. The subsequent
    registration conflict in `tests/main.rs` was resolved at `tsvuoyup` by
@@ -236,6 +258,11 @@ by `cargo xtask english-v3 grep` only.
    inventory snapshot race split this documentation update into divergent
    successors; both disjoint record edits were preserved by squashing the
    snapshot into the committed successor. No code or data changed in repair.
+   Acceptance refresh conflicted only at the appended `tests/main.rs`
+   registrations; retaining supplementary_temporal_adjunct and this module
+   once each at `tsvuoyup` resolved it. The retry exited 0, and the full
+   English suite passed. Unrelated conflicts in live subtype workspaces were
+   left to their owners.
 5. **Tests** — On `tsvuoyup`, `cargo test -p deckmaste_english_v3`
    passed 905 integration tests before SC6 and 906 with its added regression;
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed both
@@ -247,7 +274,15 @@ by `cargo xtask english-v3 grep` only.
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`, both
    passed. After kind-of-counter refresh, `kyymvuqx` reran the same build,
    full tests and clippy commands: English 924 tests, lexical-source 84,
-   both doc-test runs and both clippy checks passed. Own counts: restored 0 /
+   both doc-test runs and both clippy checks passed. Acceptance refresh again
+   ran `cargo build -p xtask`, full `cargo test -p deckmaste_english_v3`
+   (961 tests), `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
+   full `cargo test -p deckmaste_lexical_source` (86 tests), and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`:
+   all passed, including doc tests and SC6's Reading-set equality check.
+   Evidence: `build-accepted.log`, `tests-accepted.log`,
+   `clippy-accepted.log`, `tests-lexical-source-accepted.log`, and
+   `clippy-lexical-source-accepted.log`. Own counts: restored 0 /
    re-spelled 0 / ignored 0 / added 10 /
    removed 0. The module is registered once in `tests/main.rs`; assertions
    check operand sides, comparative Complement and existing quantity roles,
@@ -256,6 +291,6 @@ by `cargo xtask english-v3 grep` only.
    implementation changes only English code; lexicon changes came from
    refresh. Final citation checks: 0 noncompliant, 0 stale; the earlier bless
    changed no tracked registrations; diff audit selects no new CR sites.
-6. **Timing** — Latest refreshed `kyymvuqx`: final bounded AFTER census wall time
-   **5:19.81**, `/usr/bin/time -v`, six workers, samples per face 0. No
+6. **Timing** — Acceptance-refresh bounded AFTER census wall time
+   **2:55.45**, `/usr/bin/time -v`, six workers, samples per face 0. No
    full-corpus census or Lean check was run.
