@@ -186,3 +186,66 @@ fn mixed_tails_require_the_declared_licence() {
         .is_empty()
     );
 }
+
+#[test]
+fn nonfinal_locative_tail_selects_its_manner_complement() {
+    let text = "Put one of them on top of your library in any order and the rest on the bottom of your library.";
+    let values = common::readings(text, Category::Document);
+    assert!(!values.is_empty());
+    let mut found = false;
+    for value in values {
+        value.visit(&mut |node| {
+            if let Reading::SelectedComplementClustersPredicate { tail, .. } = node {
+                let Reading::Coordination { left, right, .. } = tail.as_ref() else {
+                    panic!("expected tail coordination")
+                };
+                let Reading::ObjectLocativeMannerTail { complement, manner, .. } = left.as_ref() else {
+                    panic!("expected non-final selected Manner Complement")
+                };
+                assert_eq!(complement.category(), Category::LocativeComplement);
+                assert_eq!(manner.realize(common::lexicon()).unwrap(), "any order");
+                assert!(matches!(right.as_ref(), Reading::ObjectLocativeTail { .. }));
+                found = true;
+            }
+        }).unwrap();
+    }
+    assert!(found);
+}
+
+#[test]
+fn marked_np_tail_does_not_select_manner() {
+    assert!(common::readings(
+        "Put one into your hand in any order and the rest on the bottom of your library.",
+        Category::Document,
+    ).is_empty());
+}
+
+#[test]
+fn attested_nonfinal_manner_tails_select_complete_frames() {
+    for (card, text) in [
+        ("Munda, Ambush Leader", "Rally — Whenever Munda or another Ally you control enters, you may look at the top four cards of your library. If you do, reveal any number of Ally cards from among them, then put those cards on top of your library in any order and the rest on the bottom in any order."),
+        ("Ransack", "Look at the top five cards of target player's library. Put any number of them on the bottom of that library in any order and the rest on top of the library in any order."),
+    ] {
+        let values = common::readings_on_card(card, text, Category::Document);
+        assert!(!values.is_empty(), "unread witness: {card}");
+        for value in values {
+            let mut found = false;
+            value.visit(&mut |node| {
+                if let Reading::SelectedComplementClustersPredicate { tail, .. } = node {
+                    let Reading::Coordination { left, right, .. } = tail.as_ref() else {
+                        panic!("expected tail coordination")
+                    };
+                    for coordinate in [left, right] {
+                        let Reading::ObjectLocativeMannerTail { complement, manner, .. } = coordinate.as_ref() else {
+                            panic!("each Locative tail selects its Manner Complement")
+                        };
+                        assert_eq!(complement.category(), Category::LocativeComplement);
+                        assert_eq!(manner.realize(common::lexicon()).unwrap(), "any order");
+                    }
+                    found = true;
+                }
+            }).unwrap();
+            assert!(found);
+        }
+    }
+}

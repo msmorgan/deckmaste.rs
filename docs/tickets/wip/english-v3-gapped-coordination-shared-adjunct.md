@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-# Read coordinated Object + goal sequences with a final Manner Complement: Put one of them into your hand and the rest on the bottom of your library in any order.
+# Read coordinated Object + goal sequences with selected Manner Complements: Put one of them into your hand and the rest on the bottom of your library in any order.
 
 ## Why
 
@@ -30,7 +30,7 @@ two separate gaps, neither of them an Adjunct:
 ## Goal
 
 Under one selected verb, an Object + marked-NP sequence coordinates with an
-Object + Locative Complement sequence, and the final sequence may carry the
+Object + Locative Complement sequence, and each sequence may carry the
 Manner Complement its own frame selects; byte-exact realisation.
 
 ## Analysis
@@ -78,6 +78,15 @@ Orchestrator rulings 2026-10-10:
   that is not exactly one added tail-route Reading per coordination is a
   defect.
 
+- GC7 (2026-10-10; amends GC2). Manner is not restricted to the final
+  tail. Each tail may carry the Manner Complement its own declared frame
+  selects. Remove the left-tail restriction and its otherwise-unused feature
+  plumbing. Munda, Ambush Leader, Ransack and Rowan's Grim Search attest
+  non-final Locative + Manner tails. Marked-NP tails still select no Manner:
+  "Put one into your hand in any order and the rest on the bottom of your
+  library." remains unread. GC4's one tail-route analysis applies at either
+  position; no shared Adjunct or clause-ellipsis route is licensed.
+
 ## Witnesses
 
 Each is the face's only failing line at `vwlkmvns`. Probed 2026-10-10 with the
@@ -123,7 +132,7 @@ english-v3 diff` against the claim parent. Zero lost; GC6 for increases. Full
 changes), once, at the end: a rebuild after a grammar edit takes about 2–3
 minutes and the test binary about 7, so batch edits. Tests assert the role
 (two tails under one verb, each goal Complement, the Manner Complement inside
-the final tail, and the GC5 Readings still present), never an incidental count
+each frame-licensed tail, and the GC5 Readings still present), never an incidental count
 or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Out of scope
@@ -137,8 +146,8 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 ## Landing record
 
 1. **Census delta** (BEFORE `qmznkvqq`, refreshed AFTER `ksyqnpnq`):
-   bounded **549** faces, covered **351 → 450**, total Readings
-   **5,285 → 10,215**; gained **99**, lost **none**, decreases **0**,
+   bounded **549** faces, covered **351 → 452**, total Readings
+   **5,285 → 10,291**; gained **101**, lost **none**, decreases **0**,
    digest-only **0**, issues **0**. Pre-refresh `qmznkvqq` covered **447**
    faces with **10,150** Readings and **96** gains. The official refresh-only
    diff adds Jace, Multiverse Architect (**27**), Marina Vendrell (**8**),
@@ -161,6 +170,15 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    are ambient line alternatives of the one added tail analysis per
    Coordination (GC6); incumbent NP-coordination Readings survive. The mixed
    shorter sentence control rises **3 → 4**, adding exactly that tail analysis.
+   GC6 shorter shape: the mixed shorter shape (marked-NP tail + Locative tail,
+   no Manner) has 0 corpus faces, so no covered face of it existed; the 45
+   covered shorter-shape faces are like-tail and unchanged; the 3 increases
+   are Locative + Locative+Manner faces formerly read only by NP coordination.
+   GC7 amendment versus accepted `after-refresh.json`: **2** gains (Munda,
+   Ambush Leader **0 → 73** face Readings; Ransack **0 → 3**), **0** lost,
+   decreases, increases or digest-only changes. Own gains total **98**;
+   the three vocabulary-dependent refresh gains remain attributed to `nqnztuzo`.
+   Evidence: `gc7-after.json`, `gc7-diff.json`, `gc7-total-diff.json`.
 2. **Witnesses** (`qmznkvqq`, complete whole-line probes before/after;
    their counts and digests are unchanged at refreshed `ksyqnpnq`):
    Glimpse the Cosmos **0 → 3**; Raven Familiar **0 → 3**; Tezzeret, Master
@@ -170,6 +188,11 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    The four sentence controls before/after are **1 → 1**, **3 → 4**,
    **1 → 1**, **2 → 2** in the ticket's order. Evidence: `before-probe-*`,
    `before-control-count-*`, and `after-probe-*` under the same target directory.
+   GC7 complete Document probes: Munda **0 → 72**, Ransack **0 → 3**,
+   Rowan's Grim Search **0 → 0**. Rowan still needs the separate *back* slot
+   absent from these tail declarations; no additional route was introduced.
+   The non-final Locative + Manner sentence and marked-NP + Manner negative
+   both probed **0** before amendment. Evidence: `gc7-before-*`, `gc7-after-*`.
 3. **Spot checks** (`qmznkvqq`, retained unchanged at `ksyqnpnq`;
    Atla Palani additionally probed at `ksyqnpnq`): Glimpse the Cosmos; Raven Familiar;
    Tezzeret, Master of Metal; Evolutionary Leap; Enshrined Memories;
@@ -187,12 +210,12 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    third-slot frame, retaining the existing Coordination Construction and
    both existing tail routes. Added declared `SelectedTailLicence` on *put*
    and its generic frame-licensing support in the construction compiler;
-   `MannerComplementPresent` restricts Manner to the final tail. Each tail
+   GC7 removes `MannerComplementPresent` and its concord plumbing. Each tail
    still matches a complete frame declared by the same lexical owner, and
    the overt head retains the first tail's frame identity. Other verbs keep
    structural frame concord. No frame declarations or routes were superseded
    or removed. The glossary gap **Selected Tail Licence** is filled with
-   explicit project-ruling attribution (GC1–GC2), not a CGEL claim about
+   explicit project-ruling attribution (GC1–GC2, amended by GC7), not a CGEL claim about
    unequal element counts. STOPs: none. The inherited probe executable was
    incompatible with current keyword metadata; it was rebuilt before the
    successful BEFORE probes and census. Refresh initially paused for a
@@ -200,6 +223,10 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    at the two test-module additions in `tests/main.rs`. Harmony retained both
    registrations in `qmznkvqq`; the retry succeeded and this feature's
    ancestry is conflict-free. No loader code or Lean work.
+   The compiler core reads the feature names "SelectedTailLicence" /
+   "DeclaredFrames" as strings (precedent: "FrameMarker") with the licence
+   test living in the english_v3 suite. GC7 lets each Locative tail carry its
+   own selected Manner Complement; marked-NP tails still select none.
 5. **Tests** (pre-refresh `qmznkvqq`, refreshed `ksyqnpnq`):
    `cargo test -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_lexical_source`
    **passed twice**, all suites unfiltered. Pre-refresh / refreshed counts:
@@ -216,6 +243,19 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    retained complete Reading values, the lexical licence and independent
    construction roundtrip. Citation checks: no noncompliant or stale sites;
    diff audit selects no new citation sites.
+   GC7 full suites passed with the same four-package test command: English
+   **756**, compiler **36**, macro **42** plus **2** doc tests, lexical source
+   **39** unit plus **41** integration. Two preliminary runs exposed mistakes
+   in the new positive fixture: bare *one* lacks an Object analysis, and
+   incumbent NP-coordination Readings must not be required to use the tail
+   route. The final test checks the added route and preserves the incumbents.
+   GC7 clippy passed with the same four-package clippy command above,
+   `--tests -- -D warnings`.
+   GC7: added **3** tests for the non-final Locative + Manner positive,
+   marked-NP negative and attested Munda/Ransack roles. The reviewed negative
+   was a probe, not an existing suite test in this workspace. The positive
+   uses *one of them*: bare *one* has an independent Object blocker. Total own added **7**, restored **0**,
+   re-spelled suite tests **0**, removed **0**, ignored **0**.
 6. **Timing** (`ksyqnpnq`): the refreshed bounded AFTER census took **7.05 s** wall
    time under `/usr/bin/time -v`, **6** workers, **0** samples per face.
-   Full corpus verification belongs to the orchestrator's batch.
+   GC7 bounded census took **7.49 s** wall time. Full corpus verification belongs to the orchestrator's batch.

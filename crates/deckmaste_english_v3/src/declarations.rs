@@ -387,7 +387,6 @@ constructions! {
             Cardinal, Infinitive }
         feature HeadCoordination { No, Yes }
         feature SelectedTailLicence { ParallelFrames, DeclaredFrames } default ParallelFrames;
-        feature MannerComplementPresent { No, Yes } default No;
         feature BareCoordination { No, Yes } default Yes;
         feature CommaCoordination { No, Yes } default No;
         feature GeneralCoordination { No, Yes } default Yes;
@@ -505,8 +504,8 @@ constructions! {
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
         category KeywordQualityPrepositionSeries(KeywordMarker, KeywordQualityNumber);
-        category SelectedComplementTail(HeadCoordination, MannerComplementPresent);
-        category SelectedComplementTailSeries(HeadCoordination, MannerComplementPresent);
+        category SelectedComplementTail(HeadCoordination);
+        category SelectedComplementTailSeries(HeadCoordination);
         category KeywordContinuation();
         category Cost(CostComponentForm);
         category CostComponent(CostComponentForm);
@@ -2298,10 +2297,8 @@ constructions! {
         }
         policy SelectedTailConcord<Right, Source> {
             require left.HeadCoordination = No;
-            require left.MannerComplementPresent = No;
             share_segments left, Right;
             export HeadCoordination = Yes;
-            export MannerComplementPresent = Right.MannerComplementPresent;
         }
         policy PrimitiveRightTail<Right, Source> {
             require Right.HeadCoordination = No;
@@ -4065,15 +4062,13 @@ constructions! {
             require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
             segment Predicate;
             export HeadCoordination = No;
-            export MannerComplementPresent = No;
         }
         construction ObjectLocativeTail: SelectedComplementTail {
             form [object: AccusativePhrase, " ", complement: LocativeComplement];
             segment Predicate;
             export HeadCoordination = No;
-            export MannerComplementPresent = No;
         }
-        // GC2: the final coordinate selects its own Manner Complement.
+        // GC7: each coordinate selects its own Manner Complement.
         construction ObjectLocativeMannerTail: SelectedComplementTail {
             form [object: AccusativePhrase, " ", complement: LocativeComplement,
                 " ", marker: lexical(Preposition), " ", manner: MannerComplement];
@@ -4081,7 +4076,6 @@ constructions! {
             require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
             segment Predicate;
             export HeadCoordination = No;
-            export MannerComplementPresent = Yes;
         }
         schema SelectedComplementClustersPredicate {
             form [head: lexical(Verb), " ", tail: SelectedComplementTail];
