@@ -270,3 +270,6 @@ mod last_turn_temporal_adjunct;
 
 #[path = "suite/trailing_adjunct_height.rs"]
 mod trailing_adjunct_height;
+
+#[path = "suite/data_batch_2.rs"]
+mod data_batch_2;

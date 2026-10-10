@@ -7,7 +7,11 @@ KeywordAction(
     spelling: "transform <Param(0)>",
     grammar: Verb(
         bare: "transform",
-        frame_set: Transitive,
+        frame_set: Custom(frames: [
+            [ObjectNounPhrase],
+            [],
+            [MarkedRole("Preposition", "Into", "NounPhrase")],
+        ]),
     ),
     body: turnOver(Param(0)),
 )

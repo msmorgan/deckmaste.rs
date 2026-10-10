@@ -9,7 +9,10 @@ KeywordAction(
     spelling: "surveil <Param(0)>",
     grammar: Verb(
         bare: "surveil",
-        frame_set: MeasureComplement,
+        frame_set: Custom(frames: [
+            [Role("MeasurePhrase")],
+            [],
+        ]),
     ),
     body: lookAndSortSlice(slice(Top, Param(0), library(actor)), graveyard, []),
 )

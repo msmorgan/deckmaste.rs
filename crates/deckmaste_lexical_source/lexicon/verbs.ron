@@ -71,6 +71,10 @@
         Predicate([MarkedRole("Preposition", "Under", "Object")]),
         Predicate([Role("NominalPredicativePreposition")]),
     ]),
+    (identity: End, bare: "end", third_person: "ends", preterite: Some("ended"), frames: [
+        Predicate([]),
+        Predicate([ObjectNounPhrase]),
+    ]),
     (identity: Flip, bare: "flip", third_person: "flips", preterite: Some("flipped"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
@@ -133,6 +137,7 @@
             Role("MannerComplement"),
         ]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "Onto"), ObjectNounPhrase]),
+        Predicate([ObjectNounPhrase, Lex("Preposition", "Back"), Role("LocativeComplement"), OptionalMarkedRole("Preposition", "In", "MannerComplement")]),
     ]),
     (identity: Remove, bare: "remove", third_person: "removes", preterite: Some("removed"), frames: [
         Predicate([ObjectNounPhrase, Role("SourceComplement")]),

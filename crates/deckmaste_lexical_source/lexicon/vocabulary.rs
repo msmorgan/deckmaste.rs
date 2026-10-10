@@ -242,6 +242,7 @@ constructions! {
         feature Countability = Count;
         feature MannerAnaphorClass = OtherNoun;
         feature Properness = Common;
+        Flip = "flip",
         Ability = "ability" {
             Plural = "abilities",
             feature LocativeTemporalLicense = Unlicensed;

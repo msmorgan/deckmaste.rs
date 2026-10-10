@@ -242,7 +242,7 @@ fn complete_put_and_look_frames_preserve_their_typed_np_slots() {
     };
     // Boldwyr Heavyweights: “put it onto the battlefield”.
     let put = entry("put", Category::Verb);
-    assert_eq!(put.properties.frames.len(), 6);
+    assert_eq!(put.properties.frames.len(), 7);
     assert_eq!(
         put.properties.frames[5],
         deckmaste_lexical::Frame {

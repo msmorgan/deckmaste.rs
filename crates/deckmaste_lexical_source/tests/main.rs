@@ -18,3 +18,6 @@ mod singular_you;
 mod supertype_words;
 #[path = "suite/type_words.rs"]
 mod type_words;
+
+#[path = "suite/data_batch_2.rs"]
+mod data_batch_2;

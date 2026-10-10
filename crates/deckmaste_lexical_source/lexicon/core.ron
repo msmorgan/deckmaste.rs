@@ -22,6 +22,9 @@
     )],
     // Oracle compound nouns use declared noun-head recipes.
     compound_noun_classes: [(
+        head: "lexeme:CommonNoun/Ability", stem_structure: Word,
+        members: [(owner: "lexeme:CommonNoun/ManaAbility", stem: "mana")],
+    ), (
         head: "lexeme:CommonNoun/Size", stem_structure: Word,
         members: [(owner: "lexeme:CommonNoun/HandSize", stem: "hand")],
     ), (
@@ -177,7 +180,7 @@
         "vocab:ScalarDegree/Greater": {"ScalarComparativeUse": "Yes"},
         "vocab:DefiniteMarker/The": {"NominalAdjunctDependent": "Definite", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Another": {"DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/Any": {"QuantificationalDeterminer": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
+        "vocab:Determinative/Any": {"QuantificationalDeterminer": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary", "NominalAdjunctDependent": "Temporal"},
         "vocab:Determinative/Either": {"CorrelativeKind": "Either", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Many": {"DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary", "DegreeUse": "Head"},
         "vocab:Determinative/Most": {"DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
@@ -592,6 +595,13 @@
             capitalization: Initial, binding: Free, surface_structure: Multiword,
         ),
         (
+            id: "lexeme:CommonNoun/LifeTotal", lemma: "life total", category: Noun,
+            properties: (countability: [Count], features: {"ScalarDenotation": "Yes"}, frames: []),
+            forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/LifeTotal"),
+            capitalization: Initial, binding: Free, surface_structure: Multiword,
+        ),
+        (
             id: "lexeme:CommonNoun/Unlock", lemma: "unlock", category: Noun,
             properties: (countability: [Count], features: {"NounPremodifier": "Yes"}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular)))],
@@ -621,7 +631,7 @@
         ),
         (
             id: "lexeme:CommonNoun/Game", lemma: "game", category: Noun,
-            properties: (countability: [Count], features: {}, frames: []),
+            properties: (countability: [Count], features: {"NominalAdjunctClass": "Temporal"}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Game"),
             capitalization: Initial, binding: Free, surface_structure: Word,
@@ -1177,10 +1187,17 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Adverb/Back", lemma: "back", category: Adverb,
-            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
+            id: "vocab:Preposition/Back", lemma: "back", category: Preposition,
+            properties: (countability: [], features: {"PrepositionComplement": "Intransitive", "LocativeUse": "Yes", "PrepositionFunctionLicence": "VerbComplement|PredicativeComplement", "ClauseInitialAdjunct": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Back"),
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Back"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "vocab:Preposition/There", lemma: "there", category: Preposition,
+            properties: (countability: [], features: {"PrepositionComplement": "Intransitive", "LocativeUse": "Yes", "PrepositionFunctionLicence": "VerbComplement|PredicativeComplement", "ClauseInitialAdjunct": "No"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/There"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
@@ -1478,6 +1495,9 @@
         "vocab:RelativePronoun/Whose": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive))), (form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)))],
     },
     frame_additions: {
+        "core-verb:Remove": [
+            (kind: "Passive", items: [Argument((relation: Complement, category: "SourceComplement"))]),
+        ],
         "core-verb:Turn": [
             (kind: "Passive", items: [Marker(vocabulary: "Preposition", member: "FaceUp")]),
             (kind: "Passive", items: [Marker(vocabulary: "Preposition", member: "FaceDown")]),

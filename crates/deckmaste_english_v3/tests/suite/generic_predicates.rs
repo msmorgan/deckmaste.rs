@@ -376,7 +376,33 @@ fn urzas_ruinous_blast_keeps_the_adjective_inside_the_relative_clause() {
 #[test]
 fn sun_droplet_remove_retains_object_and_marked_source_roundtrip() {
     let frames = &LEXICON.lexemes()["core-verb:Remove"].properties.frames;
-    assert_eq!(frames.len(), 1);
+    assert_eq!(
+        frames,
+        &[
+            deckmaste_lexical::Frame {
+                kind: "Predicate".into(),
+                items: vec![
+                    deckmaste_lexical::FrameItem::Argument(deckmaste_lexical::FrameSlot {
+                        relation: deckmaste_lexical::Relation::Object,
+                        category: "NounPhrase".into(),
+                    }),
+                    deckmaste_lexical::FrameItem::Argument(deckmaste_lexical::FrameSlot {
+                        relation: deckmaste_lexical::Relation::Complement,
+                        category: "SourceComplement".into(),
+                    }),
+                ],
+            },
+            deckmaste_lexical::Frame {
+                kind: "Passive".into(),
+                items: vec![deckmaste_lexical::FrameItem::Argument(
+                    deckmaste_lexical::FrameSlot {
+                        relation: deckmaste_lexical::Relation::Complement,
+                        category: "SourceComplement".into(),
+                    }
+                )],
+            },
+        ]
+    );
     assert!(
         ENVIRONMENT
             .unsupported_frames()
