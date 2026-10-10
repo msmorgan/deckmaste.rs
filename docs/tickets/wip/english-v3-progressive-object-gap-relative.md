@@ -133,7 +133,7 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 ## Landing record
 
 1. **Census delta** (`opxvnokr`, original claim-parent grammar `zmkuwouk`;
-   refreshed measurement `uzqxtqnu`): bounded 492-face census, covered
+   final refreshed measurement `yrlklvkv`): bounded 492-face census, covered
    436 → 462, total Readings 8,137 → 8,825; lost,
    decreases, covered-face increases and digest-only changes all 0. The tool
    reports 26 newly covered faces: this ticket's 22 intended gains and 3
@@ -142,7 +142,10 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    Windshaper Planetar (2 wrong relative Readings on each reselect line).
    Capricopian remains unread. Refresh added The Masamune, 15 Readings,
    attributed to cause landing `nzmrrqky`; `refresh-diff.json` reports that
-   sole change and 0 losses/decreases/increases/digest-only changes. Selector:
+   sole change and 0 losses/decreases/increases/digest-only changes. The
+   post-acceptance refresh imported named-token apposition;
+   `accepted-refresh-diff.json` reports all 492 faces unchanged against the
+   reviewed census. Selector:
    case-insensitive
    `\b(am|is|are|'m|'s|'re|was|were|isn't|aren't|wasn't|weren't|been|be) [a-z]+ing\b`,
    196 surface faces plus 300 covered controls from `baseline-wave8.json`
@@ -182,6 +185,8 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    69 for a sibling changed after banking; it succeeded after that sibling's
    working copy was verified empty. It imported cause `nzmrrqky` and phase
    `roomopmr`; their lexical data and English tests were rechecked in full.
+   The post-acceptance refresh imported named-token-apposition grammar and
+   tests; the required build, bounded census, full suites and clippy passed.
    No glossary gap. The mandated review stop was observed; orchestrator review
    accepted the landing and authorized integration under PG7 on 2026-10-10.
 5. **Tests** (`opxvnokr`): `cargo test -p deckmaste_english_v3` first reported
@@ -192,10 +197,15 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `cargo test -p deckmaste_lexical_source` passed 44.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` both passed
-   on the refreshed state. This ticket: restored 0 / re-spelled 0 / ignored 0 /
+   on the first refreshed state. After the post-acceptance refresh
+   (`yrlklvkv`), `cargo build -p xtask` passed; the same full test commands
+   passed 913 English tests and 84 lexical-source tests (40 unit + 44
+   integration), and both exact clippy commands above passed. Evidence:
+   `target/english-v3/english-v3-progressive-object-gap-relative/accepted-refresh-*.log`.
+   This ticket: restored 0 / re-spelled 0 / ignored 0 /
    added 4 / removed 0 (no removals); own code changes only in English v3.
    No Lean check. Citation checks report 0 non-compliant and 0 stale citations;
    no new CR registrations.
-6. **Timing** (`uzqxtqnu`, refreshed `opxvnokr`): final bounded AFTER census
-   **37.25 s**, 6 workers,
+6. **Timing** (`yrlklvkv`, final refreshed state): final bounded AFTER census
+   **57.39 s**, 6 workers,
    measured with `/usr/bin/time -v`; no full-corpus census or `--all` run.
