@@ -202,7 +202,13 @@ Deltas:
    remain checked. Two core regression tests accompany that support. The
    selected-frame validator was factored out to satisfy clippy. No STOPs.
    Refresh conflicted only on test-module registrations; both suites were
-   retained. Glossary gaps filled: Nominal Dependent Present, Nominal Adjunct Class,
+   retained. The final integration retry imported the asyndetic-premodifier
+   landing: its additive conflicts in nominal feature exports and test
+   registrations were resolved by retaining both independent exports and both
+   suites. Per the orchestrator's explicit refused-integration instruction,
+   refresh and integration were retried immediately without further checks.
+   The census and suite figures above/below describe the verified pre-retry
+   snapshot. Glossary gaps filled: Nominal Dependent Present, Nominal Adjunct Class,
    Nominal Adjunct Determiner. No superseded route remains to retire.
    Review ruling: the general licence also admits unattested preposed
    *Each turn, …*, *The next turn, …*, *That time, …*, *Each time, …*, and
