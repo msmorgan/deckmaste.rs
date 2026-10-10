@@ -1,15 +1,31 @@
-Integration tests share one binary and workspace fixtures.
+Integration tests use six Cargo test binaries: main, suite_2, suite_3,
+suite_4, suite_5 and suite_6. Each suite file is registered in exactly one
+binary. Files that import helpers from one another share a binary.
 
-Add a test file under tests/suite/ and register it in tests/main.rs:
+Add a test file under tests/suite/ and register it in exactly one binary
+root (tests/main.rs or tests/suite_2.rs through tests/suite_6.rs):
 
     #[path = "suite/new_module.rs"]
     mod new_module;
 
+Choose a smaller binary, or the binary containing any suite module whose
+helpers the new module imports. Look up a module's registration with:
+
+    rg 'mod new_module;' crates/deckmaste_english_v3/tests/*.rs
+
 Import shared fixtures with `use crate::common;` rather than declaring
 `mod common;` in a test module. `common::lexicon()` and `common::ENVIRONMENT`
-load the workspace Lexicon and compile its Grammar once for the binary.
+load the workspace Lexicon and compile its Grammar once per binary.
 Custom Lexicons remain local to the tests that need them.
 
-Run one module with:
+Run the full suite with:
 
-    cargo test -p deckmaste_english_v3 --test main new_module::
+    cargo test -p deckmaste_english_v3
+
+Run one module by choosing its binary:
+
+    cargo test -p deckmaste_english_v3 --test <binary> new_module::
+
+For example, bounded_quantity_mass_noun is registered in suite_6:
+
+    cargo test -p deckmaste_english_v3 --test suite_6 bounded_quantity_mass_noun::

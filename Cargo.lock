@@ -607,6 +607,10 @@ dependencies = [
  "deckmaste_construction_v3",
  "deckmaste_lexical",
  "deckmaste_lexical_source",
+ "libc",
+ "macro_ron",
+ "memchr",
+ "proc-macro2",
  "thiserror",
 ]
 
