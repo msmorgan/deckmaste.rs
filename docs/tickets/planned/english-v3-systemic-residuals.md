@@ -764,6 +764,18 @@ obligations rather than correct coverage gains:
   repair in the named-modes ticket; re-examine these Readings when chapter
   line forms are implemented.
 
+- **Misleading Signpost; Portal Mage; Windshaper Planetar**
+  (orchestrator ruling **PG7, 2026-10-10**,
+  `english-v3-progressive-object-gap-relative`, `opxvnokr`):
+  *reselect which player or permanent … is attacking* reads an interrogative
+  clause as **which NP + Object-gap relative**, through the existing Reselect
+  Object-NP frame and the new progressive Object-gap route. Each newly
+  covered face has two wrong Readings on its reselect line. PG7 accepts
+  these three as faces covered by a known wrong analysis, counted separately
+  from the ticket's 22 intended gains and not blocked by any check, following
+  CQ-R1 and NM-R1. Missing piece: an interrogative clause Complement for
+  *reselect*. Re-examine these Readings when that Complement is implemented.
+
 ## Cycling cost and ability gerund retirement candidate (2026-10-10)
 
 Accepted review ruling L3 for `english-v3-keyword-mention-without-parameter`:

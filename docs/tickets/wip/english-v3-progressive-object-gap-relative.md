@@ -72,6 +72,15 @@ Orchestrator rulings 2026-10-10:
   attacking you with* shapes); report each with its shape. An increase on a
   Subject-gap relative is a defect under PG4.
 
+- PG7 (orchestrator review, 2026-10-10). ACCEPT: the 22 intended gains
+  mirror the perfect's Object-gap sibling under PG1. Following CQ-R1 and
+  NM-R1, Misleading Signpost, Portal Mage and Windshaper Planetar are
+  accepted as faces covered by a known wrong analysis: an interrogative
+  clause read as *which* NP + Object-gap relative. Count the three separately
+  from the 22 intended gains; they are not blocked by any check. Record them
+  in `english-v3-systemic-residuals` rather than repairing interrogatives
+  in this ticket. Integration authorized after the required refresh checks.
+
 ## Witnesses
 
 Each is the face's only failing line at `ymqwzour`. Probed 2026-10-10 with the `ymqwzour` binary (`--category sentence --readings
@@ -128,7 +137,7 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    436 → 462, total Readings 8,137 → 8,825; lost,
    decreases, covered-face increases and digest-only changes all 0. The tool
    reports 26 newly covered faces: this ticket's 22 intended gains and 3
-   unintended PG5 admissions, counted separately: Misleading Signpost, Portal
+   known-wrong PG5 admissions accepted under PG7, counted separately: Misleading Signpost, Portal
    Mage and
    Windshaper Planetar (2 wrong relative Readings on each reselect line).
    Capricopian remains unread. Refresh added The Masamune, 15 Readings,
@@ -164,17 +173,17 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    expanded BEFORE uses the preserved binary built on the claim parent before
    editing, with unchanged lexical data. PG5 follows through the already-landed
    Reselect Object-NP frame (`nqnztuzo`), but its three newly covered interrogative
-   faces have unintended nominal-relative analyses, not accepted gains; fixing
-   interrogatives remains outside PG5's scope. Two new-test expectations were
+   faces have unintended nominal-relative analyses. PG7 accepts these as
+   known-wrong covered faces, separately from the 22 intended gains; their
+   repair remains outside this ticket and is recorded in systemic residuals. Two new-test expectations were
    corrected after the first full run: preserve nominal attachment scopes while
    requiring the intended antecedent Reading, and preserve both declared
    adjective and verbal-passive analyses of blocked. Refresh initially exited
    69 for a sibling changed after banking; it succeeded after that sibling's
    working copy was verified empty. It imported cause `nzmrrqky` and phase
    `roomopmr`; their lexical data and English tests were rechecked in full.
-   No glossary gap or additional grammatical ruling. Stop before integration
-   for review under the
-   standing instruction; no integration or workspace drop.
+   No glossary gap. The mandated review stop was observed; orchestrator review
+   accepted the landing and authorized integration under PG7 on 2026-10-10.
 5. **Tests** (`opxvnokr`): `cargo test -p deckmaste_english_v3` first reported
    898 passed / 2 new-test expectation failures, then passed all 900 after
    corrections; no existing test failed. English clippy with `--tests -- -D warnings`
