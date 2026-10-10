@@ -218,7 +218,8 @@ uses `cargo xtask english-v3 grep`.
    changes also predate this feature, isolated in `ancestor-diff.json`.
    Post-refresh `after-refresh.json` / `refresh-diff.json`: all 433 faces
    unchanged; covered 413 and Readings 36,216; no gains, losses, decreases,
-   increases, digest-only changes, source changes, or issues.
+   increases, digest-only changes, source changes, or issues. The second
+   refresh is also unchanged (`after-refresh-2.json`, `refresh-2-diff.json`).
 2. **Witnesses** (`qpqyvsou` before: all 0; `wwzpptst` after): Telepathy **2**
    and Enduring Renewal's witness **2**, each one selected clause and one
    retained NP participial Postmodifier. Field of Dreams **7** and Future
@@ -251,7 +252,10 @@ uses `cargo xtask english-v3 grep`.
    `sztumtmq` (Ring) and `pxtwrtvu` (named modes), including parsing, lexical,
    construction-core and plugin changes. The sole conflict was additive
    module registration in `suite_6`; both registrations were retained. A
-   subsequent refresh succeeded as a no-op.
+   subsequent refresh succeeded as a no-op. The second refresh brought
+   `nxxknqvk` (remove-source-attachment), including grammar and core lexicon
+   data. Its additional `suite_6` registration conflict was resolved by
+   retaining both modules; the retry succeeded as a no-op.
 5. **Tests** (`wwzpptst`): `cargo test -p deckmaste_english_v3 -p
    deckmaste_lexical_source -p deckmaste_construction_core -p
    deckmaste_semantics_v2` passed in full; its first build caught an ambiguous
@@ -264,7 +268,11 @@ uses `cargo xtask english-v3 grep`.
    and `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source -p
    deckmaste_construction_core -p deckmaste_semantics_v2 -p deckmaste_lexical
    --tests -- -D warnings` passed. `cargo test -p xtask english_v3`
-   also passed (56 matching tests). Logs: `refresh-build.log`,
+   also passed (56 matching tests). The second refresh rebuilt xtask and
+   repeated the same full five-crate suite and clippy commands successfully.
+   Evidence: `refresh-2-build.log`, `refresh-2-tests.log`,
+   `refresh-2-clippy.log`. No new construction-core/plugin changes required
+   another xtask test run. First-refresh logs: `refresh-build.log`,
    `refresh-tests.log`, `refresh-clippy.log`, `refresh-xtask-tests.log`.
    Restored 0 / re-spelled 0 / ignored 0 / added 10 / removed 0.
    The new module is registered once in `suite_6`. Citation check: 0
@@ -274,3 +282,4 @@ uses `cargo xtask english-v3 grep`.
    6 workers, `--samples-per-face 0`, prebuilt binary under `/usr/bin/time -v`.
    The same post-refresh bounded census took **91.13 s** wall time; the
    rebuild took **2m 14s**, and full suite compilation took **2m 26s**.
+   Second-refresh rebuild: **2m 10s**; bounded census: **33.64 s**.
