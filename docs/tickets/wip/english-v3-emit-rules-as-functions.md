@@ -102,8 +102,11 @@ edits.
    `too_many_lines` lint (165/150). Its helper-generation expressions were moved
    into private `grammar_functions`, preserving the generated functions and
    calls; no lint allowance. No Construction, frame, lexicon route or test
-   added or deleted; no glossary gap or STOP. Goal 2 is deferred to the next
-   instructed step, per the owner's direction. Grammar optimization remains 2.
+   added or deleted; no glossary gap or STOP. By orchestrator ruling 2026-10-10,
+   Goal 2 (the integration-test binary, responsible for the remaining 6:57
+   `test --no-run` time) is split into its own follow-up ticket and is NOT done
+   here. Goal 1 was accepted by orchestrator review on 2026-10-10. Grammar
+   optimization remains 2.
    The closed implementation `tsuuozyn` was refreshed successfully onto
    incoming grammar/core changes `ukytykwr` (trailing Adjunct height) and
    `kxwsyulp` (keyword dash costs), including the inherited exact-count
@@ -121,7 +124,12 @@ edits.
    Required post-refresh full suites on `zmxzpyny`:
    `cargo test -p deckmaste_construction_v3_core` — 36 passed;
    `cargo test -p deckmaste_english_v3` — 743 passed; no failed or ignored tests.
-   Clippy results above were preserved per the owner's refresh policy. Test
+   Review-requested clippy checks on the current refreshed head (`mswmnwtr`)
+   all passed once:
+   `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings`;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`;
+   `cargo clippy -p xtask --tests -- -D warnings`. Evidence:
+   `review-{core,english,xtask}-clippy.log` in the evidence directory. Test
    change counts above describe this ticket; incoming test additions and
    re-spells belong to their trunk tickets. Post-refresh citation checks also
    report 0 noncompliant and 0 stale citations; the record diff adds no citations.
@@ -148,4 +156,5 @@ edits.
    Post-refresh bounded census (`zmxzpyny`): 22.85 s wall, 6 workers,
    samples-per-face 0, under `/usr/bin/time -v`; uptime load 8.74/12.45/12.43.
    Evidence: `refresh-census.{time,load,log}`. No census `--all` or Lean check
-   was run. The workspace remains live for the required review before integration.
+   was run. Orchestrator review accepted Goal 1 and authorized integration on
+   2026-10-10.
