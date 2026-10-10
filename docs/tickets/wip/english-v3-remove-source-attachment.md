@@ -225,13 +225,16 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    Final integration refresh (`tqryzout`): the same 1,500 identities have
    covered 1,500 → 1,498, Readings 54,535 → 54,523, lost 2, gained 0,
    decreases/increases 0, digest-only 45. Glacierwood Siege 8 → 0 and
-   Palace Siege 4 → 0 lose their Flavor Word-headed standalone named-bullet
-   Document Readings after trunk's named-mode route retirement `pxtwrtvu`.
+   Palace Siege 4 → 0: lost on trunk by pxtwrtvu before this refresh;
+   not caused by this change. Their retired shapes are Flavor Word-headed
+   standalone named-bullet Document Readings.
    Complete probes confirm zero replacement Document Readings. The 45
    digest-only changes accompany trunk's optional secondary negator
    `wqkrtoxr`; counts are unchanged. Evidence: `after-final-refresh.json`,
    `final-refresh-diff.json` and `final-refresh-lost-*.json`. Integration
-   is stopped pending a ruling on the two trunk losses; own gains remain 67.
+   is authorized by the orchestrator ruling of 2026-10-10: these two faces
+   and eight other anchor-word faces were lost on trunk; their separate
+   repair belongs to the named-modes-regression workspace. Own gains remain 67.
 2. **Witnesses** (`nxxknqvk`, complete probes, claim-parent → after):
    Saprazzan Cove 0 → 2; Catti-brie of Mithral Hall 0 → 8; White Ward's
    sentence 0 → 1; Spires of Orazca's ability 0 → 4; Gustcloak Sentinel
@@ -271,7 +274,9 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    ProFormComplement needed SourceComplementSelection = No, like the
    existing elided Complement, to compile with this ticket's required
    export. No RS8/RS11 mechanism was restored. A new STOP records the two
-   named-bullet losses brought by `pxtwrtvu`; no unrelated guard is added.
+   named-bullet losses brought by `pxtwrtvu`; the orchestrator confirms
+   these are trunk losses and authorizes integration with their repair in
+   a separate workspace. No unrelated guard is added.
    Shapes accepted under RS12/RS13, all unattested on covered faces
    (census: 0 increases beyond RS12's three): (i) bare passive Postmodifier
    followed by a Source PP: NP "each counter removed from this land"
