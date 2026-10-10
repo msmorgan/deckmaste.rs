@@ -1,0 +1,17 @@
+// "Lifelink / Power-up — {4}{W}: Put two +1/+1 counters on this creature."
+// Activate only once; if this creature entered this turn, the cost is
+// reduced by its mana cost [CR#702.193a,702.193b].
+SingleFaced(face: (
+    characteristics: (
+        name: "Brave Brawler",
+        cost: [1, White],
+        types: [Creature],
+        subtypes: [human, warrior, hero],
+        power: 2,
+        toughness: 1,
+        text: [
+            lifelink,
+            powerUp(activated(mana([4, White]), putCounters(2, p1p1Counter, thisCreature))),
+        ],
+    ),
+))

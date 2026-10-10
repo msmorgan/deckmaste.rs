@@ -1,0 +1,27 @@
+// "Indestructible / {T}: Add {B}. / {6}{B}, {T}, Exile a creature you
+// control: Harness The Soul Stone. / ∞ — At the beginning of your upkeep,
+// return target creature card from your graveyard to the battlefield." As
+// long as it is harnessed, it has the upkeep trigger [CR#702.186b,701.64a].
+SingleFaced(face: (
+    characteristics: (
+        name: "The Soul Stone",
+        cost: [1, Black],
+        supertypes: [Legendary],
+        types: [Artifact],
+        subtypes: [infinity, stone],
+        text: [
+            indestructible,
+            activated(tapSymbol, addMana(1, Runs([[Black]]))),
+            activated(
+                compound([mana([6, Black]), tapSymbol, perform(exile(a(creatureYouControl)))]),
+                harness(thisArtifact),
+            ),
+            infinity(
+                triggered(
+                    beginningOfYour(upkeep),
+                    returnToBattlefield(target(and([creature, cardIn(graveyardOf(you))]))),
+                ),
+            ),
+        ],
+    ),
+))

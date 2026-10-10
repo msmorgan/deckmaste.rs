@@ -1,0 +1,17 @@
+// "First strike / Boast — {2}{R}: This creature gets +2/+0 until end of
+// turn." Activate only if this creature attacked this turn and only once
+// each turn [CR#702.142a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Fearless Pup",
+        cost: [Red],
+        types: [Creature],
+        subtypes: [wolf],
+        power: 1,
+        toughness: 1,
+        text: [
+            firstStrike,
+            boast(activated(mana([2, Red]), gets(thisCreature, up(2), up(0), untilEndOfTurn))),
+        ],
+    ),
+))

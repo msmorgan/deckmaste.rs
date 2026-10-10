@@ -1,0 +1,23 @@
+// "Shadow / Forecast — {1}{W}, Reveal this creature from your hand: Target
+// creature gains shadow until end of turn." The forecast ability is
+// activated only from its owner's hand, during their upkeep and once each
+// turn [CR#702.57a,702.57b].
+SingleFaced(face: (
+    characteristics: (
+        name: "Spirit en-Dal",
+        cost: [2, White],
+        types: [Creature],
+        subtypes: [spirit],
+        power: 2,
+        toughness: 1,
+        text: [
+            shadow,
+            forecast(
+                activated(
+                    compound([mana([1, White]), perform(reveal(thisCreature))]),
+                    gain(target(creature), shadow, untilEndOfTurn),
+                ),
+            ),
+        ],
+    ),
+))

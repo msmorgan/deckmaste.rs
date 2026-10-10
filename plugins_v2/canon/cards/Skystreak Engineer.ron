@@ -1,0 +1,16 @@
+// "Flying / Exhaust — {4}{U}: Put two +1/+1 counters on this creature."
+// Activate only once [CR#702.177a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Skystreak Engineer",
+        cost: [1, Blue],
+        types: [Creature],
+        subtypes: [human, pilot],
+        power: 1,
+        toughness: 3,
+        text: [
+            flying,
+            exhaust(activated(mana([4, Blue]), putCounters(2, p1p1Counter, thisCreature))),
+        ],
+    ),
+))

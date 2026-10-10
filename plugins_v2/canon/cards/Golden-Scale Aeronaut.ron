@@ -1,0 +1,14 @@
+// "Backup 1 / Flying": flying is printed below backup, so another creature
+// the backup ability puts its counter on gains flying until end of turn
+// [CR#702.165a,702.165c].
+SingleFaced(face: (
+    characteristics: (
+        name: "Golden-Scale Aeronaut",
+        cost: [4, White],
+        types: [Creature],
+        subtypes: [dwarf, pilot],
+        power: 2,
+        toughness: 3,
+        text: [backup(1), flying],
+    ),
+))

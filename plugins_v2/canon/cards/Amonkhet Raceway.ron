@@ -1,0 +1,14 @@
+// "Start your engines! / {T}: Add {C}. / Max speed — {T}: Target creature
+// gains haste until end of turn." As long as your speed is 4, this land has
+// the last ability [CR#702.178a,702.179a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Amonkhet Raceway",
+        types: [Land],
+        text: [
+            startYourEngines,
+            activated(tapSymbol, addMana(1, Runs([[Colorless]]))),
+            maxSpeed(activated(tapSymbol, gain(target(creature), haste, untilEndOfTurn))),
+        ],
+    ),
+))

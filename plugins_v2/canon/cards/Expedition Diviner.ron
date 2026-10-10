@@ -1,0 +1,22 @@
+// "Flying / As long as you control another Wizard, this creature has 'When
+// this creature dies, draw a card.'" A conditional grant of a quoted ability,
+// the form ∞ and max speed write [CR#113.10,611.3a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Expedition Diviner",
+        cost: [3, Blue],
+        types: [Creature],
+        subtypes: [merfolk, wizard],
+        power: 3,
+        toughness: 2,
+        text: [
+            flying,
+            static(
+                onlyWhile(
+                    abilityGrant(thisCreature, triggered(dies(thisCreature), draw(1))),
+                    exists(and([creature, hasSubtype(wizard), otherThan(thisCreature), youControl])),
+                ),
+            ),
+        ],
+    ),
+))

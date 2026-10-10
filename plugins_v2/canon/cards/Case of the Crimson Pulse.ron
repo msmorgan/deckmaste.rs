@@ -1,0 +1,33 @@
+// "When this Case enters, discard a card, then draw two cards. / To solve —
+// You have no cards in hand. / Solved — At the beginning of your upkeep,
+// discard your hand, then draw two cards." "To solve" is written as the
+// triggered ability it means [CR#719.3a]; the solved ability triggers only if
+// this Case is solved [CR#702.169c].
+SingleFaced(face: (
+    characteristics: (
+        name: "Case of the Crimson Pulse",
+        cost: [2, Red],
+        types: [Enchantment],
+        subtypes: [case],
+        text: [
+            triggered(
+                enters(thisCase),
+                sequentially([discard(a(cardIn(yourHand))), draw(2)]),
+            ),
+            triggeredIf(
+                beginningOfYour(endStep),
+                and([
+                    not(exists(cardIn(yourHand))),
+                    not(matches(thisCase, hasDesignation(solved))),
+                ]),
+                gainDesignation(thisCase, solved),
+            ),
+            solved(
+                triggered(
+                    beginningOfYour(upkeep),
+                    sequentially([discard(allOf(cardIn(yourHand))), draw(2)]),
+                ),
+            ),
+        ],
+    ),
+))
