@@ -184,6 +184,14 @@ by `cargo xtask english-v3 grep` only.
    --unread`). Glossary gaps filled: Predeterminer, Multiplier, Predeterminer
    Use, Definiteness; CGEL supports the linguistic terms, MP1–MP3 the project
    licensing. No STOPs.
+   Residue, unattested (`english-v3 grep`: 0 faces for `\bthat double\b`
+   and for `\b(a|the) (double|triple)\b` outside *a double strike counter*,
+   which keeps 1 Reading): (a) as Count nouns, *double* / *triple* also read
+   as NP heads (*a double*, *the double*; *It deals that double damage.* reads
+   1 as a double-object, not as a multiplier); (b) MultiplierNounPhrase
+   re-exports the host's Definiteness, so multipliers stack (*twice twice
+   that damage* reads 1). Neither produces an increase on the 742-face
+   census. Not narrowed here; left for a follow-up if a face attests either.
 
 5. **Tests:** on `qoswqlns`, `cargo test -p deckmaste_english_v3` passed
    **758 tests**, and `cargo test -p deckmaste_lexical_source` passed **76
