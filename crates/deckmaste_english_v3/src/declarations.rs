@@ -1791,7 +1791,7 @@ constructions! {
         table auxiliary_realization(form, AuxiliaryComplementRealization) -> Selection {
             (Plain, Overt) => Yes, (Plain, Elided) => Yes, (Plain, ProForm) => Yes,
             (Present, Overt) => Yes, (Present, Elided) => Yes, (Present, ProForm) => Yes,
-            (Preterite, Overt) => Yes, (Preterite, Elided) => Yes, (Preterite, ProForm) => Yes,
+            (Preterite, Overt) => Yes, (Preterite, Elided) => Yes,
             (PastParticiple, Overt) => Yes, (PastParticiple, Elided) => Yes,
             (GerundParticiple, Overt) => Yes,
         }

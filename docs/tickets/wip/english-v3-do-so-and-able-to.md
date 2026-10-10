@@ -137,7 +137,7 @@ english-v3 grep` only.
 ## Landing record
 
 1. **Census delta** (`mqrlzszk` before, source-equivalent to the claim-parent
-   grammar `mktpoqzr`; `zzwnrkot` after): bounded covered faces **510 → 541**,
+   grammar `mktpoqzr`; `qtzurkpz` after): bounded covered faces **510 → 541**,
    total Readings **7,268 → 7,368**; **31 gains**, lost **none**, decreases **0**,
    increases on previously covered faces **0**, digest-only **0**, validation
    issues **0**. Selector: `\b(do|does|did|doing) so\b|\bable\b`, case-insensitive,
@@ -148,6 +148,8 @@ english-v3 grep` only.
    refresh added Torchling (**6** Readings), whose *targets only this creature*
    now uses the object-focus route from trunk `zqnqzmnu` / `ynoxmnun`.
    `refresh-diff.json` isolates that one gain, with no other changes.
+   Review prune `qtzurkpz` leaves all **582** faces unchanged from accepted
+   `zzwnrkot` (`prune-diff.json`): **30** own gains, **0** other changes.
    comparison used `cargo xtask english-v3 diff before.json after.json --json diff.json --lines`
    with those full evidence paths.
 2. **Witnesses** (claim-parent grammar `mktpoqzr` → `zzwnrkot`, complete direct
@@ -176,8 +178,16 @@ english-v3 grep` only.
    scopes. *creatures tapped* retains its existing bare-passive analysis,
    without an adjectival twin. Added the glossary's Pro-form, Pro-form
    Complement Use and Auxiliary Pro-form Licence entries, and qualified the
-   Ellipsis Licence definition under DS2. No unresolved glossary gap or STOP.
-5. **Tests** (`zzwnrkot`): `cargo test -p deckmaste_english_v3` passed
+   Ellipsis Licence definition under DS2. Review prune `qtzurkpz` removes the
+   explicit `(Preterite, ProForm)` cell: official corpus grep finds **0**
+   *did so* faces. Retained `(Plain, ProForm)` because the secondary-head
+   `BareAuxiliaryPredicate` instance needs it; probing *do so* as
+   `SecondaryVerbPhrase` yields **1** Reading with a Plain head. The glossary
+   now identifies this licence as the project stranded-*do* route under DS1,
+   without making an auxiliary classification claim about CGEL. Added
+   *If you did so, draw a card.* to the Document negatives. No unresolved
+   glossary gap or STOP.
+5. **Tests** (`qtzurkpz`, repeated after the review prune): `cargo test -p deckmaste_english_v3` passed
    (**819 tests** after refresh; **797** before, including the new module registered once in `suite_6`);
    `cargo test -p deckmaste_lexical_source` passed (**82 tests**);
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
@@ -189,6 +199,7 @@ english-v3 grep` only.
    Citation checks: zero noncompliant strings, zero
    stale citations; bless changed no registrations; the diff audit selected
    no new citation sites. No Lean check or full-corpus census was run.
-6. **Timing** (`zzwnrkot`): the bounded landing census took **6.01 s wall time** after refresh (**7.27 s** before)
+6. **Timing** (`zzwnrkot`): the bounded landing census took **22.15 s wall time** after review prune `qtzurkpz`
+   (**6.01 s** on refreshed `zzwnrkot`, **7.27 s** before refresh)
    under `/usr/bin/time -v`, using the prebuilt binary, **6 workers** and
    `--samples-per-face 0`.

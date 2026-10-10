@@ -728,9 +728,9 @@ An expression's declared permission to fill the pro-form Complement of an
 auxiliary under [DS1–DS2](../../tickets/done/english-v3-do-so-and-able-to.md#analysis).
 
 **Auxiliary Pro-form Licence** (project term):
-An auxiliary's declared permission to select a pro-form Complement, distinct
-from permission to omit its Complement under
-[DS1–DS2](../../tickets/done/english-v3-do-so-and-able-to.md#analysis).
+The declared permission to select a pro-form Complement through the project's
+stranded-*do* route under [DS1](../../tickets/done/english-v3-do-so-and-able-to.md#analysis),
+distinct from permission to omit its Complement under DS2.
 
 **Cardinal Numeral**:
 A numeral expressing a count, such as *one* or *two*.

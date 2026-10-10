@@ -187,6 +187,7 @@ fn bare_adjectives_and_nonagreeing_or_unlicensed_heads_gain_no_route() {
         );
     }
     for text in [
+        "If you did so, draw a card.",
         "That player do so.",
         "All creatures does so.",
         "You can't so.",
