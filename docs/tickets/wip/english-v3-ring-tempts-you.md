@@ -141,14 +141,22 @@ Attestation by `cargo xtask english-v3 grep` only.
    8,868 → 9,361 Readings. 44 gains; lost faces none; decreases, increases and
    digest-only changes all zero; zero internal issues. Selector
    `\b(Ring|Ring-bearers?|monarch|initiative|[Vv]entures?|commander)\b` found 315
-   faces; the diff-generated 300 covered controls (seed 20261008) give 614 distinct
+   faces (the Method’s historical 355 is corrected here to the measured 315);
+   the diff-generated 300 covered controls (seed 20261008) give 614 distinct
    identities. After refresh at `nskzmmvt`, 543 covered faces and 9,530
    Readings: the sole additional gain is Thunderclap Drake (169 Readings),
    inherited from `zunolrnv`'s preverbal *next*. Final totals are 45 gains and
    zero lost/decreased/increased/digest-only faces, with zero internal issues.
    Evidence: `target/english-v3/english-v3-ring-tempts-you/`, including
    `before.json`, `after.json`, `diff.json`, `manifest.json`,
-   `after-refresh.json`, `refresh-diff.json` and `final-diff.json`.
+   `after-refresh.json`, `refresh-diff.json` and `final-diff.json`. Review
+   follow-up: `grep -i --names '\b(tempting|rings)\b'` selected nine
+   additional faces (seven Tempt with cards, Eriette’s Tempting Apple and
+   Razor Rings). Direct before/after censuses on `inflected-manifest.json`
+   compare unchanged in `inflected-diff.json`: 8 → 8 covered, 1,736 → 1,736
+   Readings, all nine digests unchanged, zero changed lines and zero increases.
+   `complete-manifest.json` combines these with the original 614 identities
+   for any further refresh verification (623 distinct faces).
 2. **Witnesses** — Claim-parent probes at `mqrlzszk` → `sztumtmq`: Uruk-hai
    Berserker 0 → 1; Witch-king of Angmar's document passage 0 → 57; One Ring to
    Rule Them All's chapter passage 0 → 1; Lord of the Nazgûl's protection line
@@ -177,8 +185,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    the concurrent bank refusal was retried successfully. The perfect-frequency
    fragment remains unread after refresh at `nskzmmvt`, as RT2's
    allowed residual on Frodo, Adventurous Hobbit and Frodo, Sauron's Bane;
-   *choose NP as NP* stays out of scope. Lean checks omitted under the explicit
-   user budget. A reasoned length expectation preserves the closed declaration
+   *choose NP as NP* stays out of scope. `cargo xtask lean check` passed on the reviewed head: 240/240 cards
+   across two plugins prove `Card.check = []` (34.0 s; evidence `lean.log`).
+   `FixedClause.onset` remains accepted by the schema but is ignored by the
+   loader arm; there is no current user of that field. A reasoned length expectation preserves the closed declaration
    dispatcher; the designation test's expected-recipe table was extracted
    without changing its value assertions.
 5. **Tests** — After refresh at `nskzmmvt`, passed `cargo test -p deckmaste_english_v3`
