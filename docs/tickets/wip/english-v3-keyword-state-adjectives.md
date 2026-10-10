@@ -234,6 +234,17 @@ what remains.
    increases, 50 trunk-attributed digest-only, 0 losses/decreases.
    Evidence: `retry-after.json`, `retry-diff.json`, `retry-claim-diff.json`,
    `retry-refresh-stat.txt`.
+   Post-divergence refresh brought Source attachment trunk `nxxknqvk`.
+   Bounded diff: 0 lost/gained/decreases/digest-only, one increase:
+   Dawnhand Dissident 1,154 → 3,273 (line 2: 1,151 → 3,270). This is
+   trunk's RS12-accepted shape: Source PP following the bare-Object gerund
+   *by removing N counters* also attaches to the matrix Predicate, as
+   recorded in [that landing](english-v3-remove-source-attachment.md#landing-record).
+   Totals: 773 covered, 116,777 Readings, 0 issues. Original-parent diff:
+   68 gains (47 own, 21 trunk), 43 increases (42 own approved, one trunk
+   RS12), 50 trunk digest-only, 0 lost/decreases. Evidence:
+   `resume-after.json`, `resume-diff.json`, `resume-claim-diff.json`,
+   `resume-refresh-stat.txt`.
 2. **Witnesses** (`ptvtlvss` before/after): Gustha's Scepter 0 → 4;
    Fiend of the Shadows 0 → 12; Savvy Trader 0 → 6; Jester's Scepter
    0 → 6; Mobilizer Mech 0 → 3. Complete limit-16 sentence probes:
@@ -295,6 +306,11 @@ what remains.
    `sztumtmq` Ring changes. Harmony retained Ring and keyword-state module
    registrations exactly once. The repeated refresh succeeded, rebuild and
    bounded census and all full retry checks passed.
+   After the orchestrator repaired external divergence `lqmpuwls`, refresh
+   conflicted in the category declarations with `nxxknqvk`. Harmony merged
+   trunk's `WholeObjectSourcePresent` and this ticket's
+   `AdjectivePremodifierUse`, retaining both declarations. Refresh then
+   succeeded; the rebuild and bounded census passed.
 5. **Tests** (`ptvtlvss`): `cargo test -p deckmaste_english_v3` passed all six
    test binaries (795 tests). `cargo clippy -p deckmaste_english_v3 --tests
    -- -D warnings` passed. `cargo test -p deckmaste_lexical_source` passed
@@ -342,6 +358,10 @@ what remains.
    `cargo clippy -p deckmaste_construction_core --tests -- -D warnings`).
    English passed all six binaries (864 tests). Logs use `-retry.log`;
    facts check also passes on refreshed plugin data (`facts-retry.log`).
+   Post-divergence verification: `cargo build -p xtask` and the same nine
+   full test/clippy commands passed. English passed all six binaries
+   (877 tests); xtask passed 56 tests. Logs use `-resume.log`;
+   facts check passed again (`facts-resume.log`).
    Citation checks: 0 noncompliant, 0 stale; piped diff audit selected 0
    citation sites, so none needed bless.
 6. **Timing**: the corrected complete bounded census took 232,110 milliseconds,
