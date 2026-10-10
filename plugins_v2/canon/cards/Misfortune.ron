@@ -1,0 +1,25 @@
+// "An opponent chooses one — • You put a +1/+1 counter on each creature you
+// control and gain 4 life. • You put a -1/-1 counter on each creature that
+// player controls and Misfortune deals 4 damage to that player." The opponent
+// makes the mode choice [CR#700.2]; each mode hands the action back to you.
+// Both counter kinds can end up on one creature, where the -1/-1 counter's
+// state-based conferral removes them in pairs [CR#704.5q].
+SingleFaced(face: (
+    characteristics: (
+        name: "Misfortune",
+        cost: [1, Black, Red, Green],
+        types: [Sorcery],
+        text: [
+            spell(act(anOpponent, chooseOne(
+                act(you, sequentially([
+                    putCounters(1, p1p1Counter, each(creatureYouControl)),
+                    gainLife(4),
+                ])),
+                act(you, sequentially([
+                    putCounters(1, m1m1Counter, each(and([creature, controlledBy(that(Player))]))),
+                    dealDamage(this, 4, that(Player)),
+                ])),
+            ))),
+        ],
+    ),
+))
