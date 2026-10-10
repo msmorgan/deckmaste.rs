@@ -2,6 +2,7 @@ use std::path::Path;
 
 use deckmaste_construction_core::macro_def::CustomTailAtom;
 use deckmaste_construction_core::macro_def::DeclarationKind;
+use deckmaste_construction_core::macro_def::DerivedSurface;
 use deckmaste_construction_core::macro_def::GrammarRecipe;
 use deckmaste_construction_core::macro_def::InflectionalForm;
 use deckmaste_construction_core::macro_def::NormalizedDeclaration;
@@ -350,6 +351,28 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     assert_eq!(
         surfaces(ring),
         [(SurfaceFeature::Fixed, "the Ring tempts you")]
+    );
+    assert_eq!(
+        ring.grammar().unwrap().verb(),
+        Some(
+            &deckmaste_construction_core::macro_def::KeywordVerbGrammar {
+                bare: "tempt".into(),
+                frames: vec![
+                    deckmaste_construction_core::macro_def::VerbDeclarationFrame::Predicate(vec![
+                        deckmaste_construction_core::macro_def::FrameItem::Argument(
+                            deckmaste_construction_core::macro_def::FrameComplement {
+                                relation:
+                                    deckmaste_construction_core::macro_def::FrameRelation::Object,
+                                category: "NounPhrase".into(),
+                            },
+                        ),
+                    ])
+                ],
+                preterite: DerivedSurface::default(),
+                participle: DerivedSurface::default(),
+                gerund_participle: DerivedSurface::default(),
+            }
+        ),
     );
 }
 

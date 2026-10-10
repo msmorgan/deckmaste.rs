@@ -4,7 +4,7 @@ Designation(
     name: "ringBearer",
     params: [],
     spelling: "Ring-bearer",
-    grammar: FixedTerm(surface: "Ring-bearer"),
+    grammar: Noun(singular: "Ring-bearer"),
     scope: HeldBy(Object),
     effectful: true,
     zone: Battlefield,

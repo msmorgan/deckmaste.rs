@@ -13,7 +13,14 @@ KeywordAction(
     name: "theRingTemptsYou",
     params: [],
     spelling: "the Ring tempts you",
-    grammar: FixedClause(surface: "the Ring tempts you"),
+    grammar: FixedClause(
+        surface: "the Ring tempts you",
+        noun: "Ring",
+        verb: (
+            bare: "tempt",
+            frames: [Predicate([Argument(relation: Object, category: "NounPhrase")])],
+        ),
+    ),
     body: sequentially([
         doIf(
             not(exists(and([isEmblem, named(Printed("The Ring")), ownedBy(actor)]))),

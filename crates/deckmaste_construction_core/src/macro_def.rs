@@ -16,7 +16,6 @@ mod lexical_helpers;
 pub use lexical_helpers::HelperGrammar;
 pub use lexical_helpers::HelperLexicalDeclaration;
 pub use lexical_helpers::read_builtin_v2_helpers;
-
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::Serialize;
@@ -409,6 +408,8 @@ pub enum Grammar {
         surface: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         onset: Option<Onset>,
+        noun: String,
+        verb: KeywordVerbGrammar,
     },
     FixedKeyword {
         surface: String,
@@ -945,7 +946,7 @@ pub struct GrammarRow {
 }
 
 impl GrammarRow {
-    /// Returns the keyword's supplemental regular Verb declaration.
+    /// Returns the keyword's regular Verb Lexeme declaration.
     #[must_use]
     pub fn verb(&self) -> Option<&KeywordVerbGrammar> {
         self.verb.as_ref()
@@ -1320,6 +1321,7 @@ enum GrammarSourceMap {
         bound_suffix_surface: Option<SourcePosition>,
         participial_adjective_surface: Option<SourcePosition>,
         block_label_surface: Option<SourcePosition>,
+        noun_singular: Option<SourcePosition>,
         verb_bare: Option<SourcePosition>,
         verb_frames: Option<SourcePosition>,
     },
@@ -1525,6 +1527,10 @@ enum DiagnosticGrammar<'a> {
     FixedClause {
         #[serde(borrow)]
         surface: &'a RawValue,
+        #[serde(borrow)]
+        noun: &'a RawValue,
+        #[serde(borrow)]
+        verb: DiagnosticKeywordVerbGrammar<'a>,
     },
     FixedKeyword {
         #[serde(borrow)]
@@ -1899,15 +1905,29 @@ impl GrammarSourceMap {
                     .map(|value| raw_position(path, source, value, declaration))
                     .transpose()?,
             }),
-            DiagnosticGrammar::Adjective { surface }
-            | DiagnosticGrammar::FixedTerm { surface }
-            | DiagnosticGrammar::FixedClause { surface } => Ok(Self::Fixed {
+            DiagnosticGrammar::Adjective { surface } | DiagnosticGrammar::FixedTerm { surface } => {
+                Ok(Self::Fixed {
+                    surface: raw_position(path, source, surface, declaration)?,
+                    bound_suffix_surface: None,
+                    participial_adjective_surface: None,
+                    block_label_surface: None,
+                    noun_singular: None,
+                    verb_bare: None,
+                    verb_frames: None,
+                })
+            }
+            DiagnosticGrammar::FixedClause {
+                surface,
+                noun,
+                verb,
+            } => Ok(Self::Fixed {
                 surface: raw_position(path, source, surface, declaration)?,
                 bound_suffix_surface: None,
                 participial_adjective_surface: None,
                 block_label_surface: None,
-                verb_bare: None,
-                verb_frames: None,
+                noun_singular: Some(raw_position(path, source, noun, declaration)?),
+                verb_bare: Some(raw_position(path, source, verb.bare, declaration)?),
+                verb_frames: Some(raw_position(path, source, verb.frames, declaration)?),
             }),
             DiagnosticGrammar::FixedKeyword {
                 surface,
@@ -1930,6 +1950,7 @@ impl GrammarSourceMap {
                     .as_ref()
                     .map(|grammar| raw_position(path, source, grammar.surface, declaration))
                     .transpose()?,
+                noun_singular: None,
                 verb_bare: verb
                     .as_ref()
                     .map(|grammar| raw_position(path, source, grammar.bare, declaration))
@@ -2598,6 +2619,7 @@ fn normalize_grammar(
 ) -> Result<GrammarRow, ReadError> {
     let keyword_verb = match &grammar {
         Grammar::FixedKeyword { verb, .. } => verb.clone(),
+        Grammar::FixedClause { verb, .. } => Some(verb.clone()),
         _ => None,
     };
     let (grammar_head, recipe, surfaces, participial_adjective, block_label) =
@@ -2721,17 +2743,35 @@ fn normalize_grammar(
                 normalize_fixed_grammar(path, *position, surface, onset, GrammarRecipe::FixedTerm)?
             }
             (
-                Grammar::FixedClause { surface, onset },
-                GrammarSourceMap::Fixed {
-                    surface: position, ..
+                Grammar::FixedClause {
+                    surface,
+                    onset,
+                    noun,
+                    verb,
                 },
-            ) => normalize_fixed_grammar(
-                path,
-                *position,
-                surface,
-                onset,
-                GrammarRecipe::FixedClause,
-            )?,
+                GrammarSourceMap::Fixed {
+                    surface: position,
+                    noun_singular,
+                    verb_bare,
+                    verb_frames,
+                    ..
+                },
+            ) => {
+                validate_surface(path, noun_singular.unwrap_or(*position), "noun", &noun)?;
+                validate_keyword_verb(
+                    path,
+                    verb_bare.unwrap_or(*position),
+                    verb_frames.unwrap_or(*position),
+                    &verb,
+                )?;
+                normalize_fixed_grammar(
+                    path,
+                    *position,
+                    surface,
+                    onset,
+                    GrammarRecipe::FixedClause,
+                )?
+            }
             (
                 Grammar::FixedKeyword {
                     surface,
@@ -2749,6 +2789,7 @@ fn normalize_grammar(
                     block_label_surface,
                     verb_bare,
                     verb_frames,
+                    ..
                 },
             ) => {
                 if let Some(verb) = &verb {

@@ -205,6 +205,10 @@ fn export_metadata(
     output.lexemes.push(lexeme);
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "lexical export dispatch covers every closed declaration grammar recipe"
+)]
 fn grammar_lexeme(
     owner: &str,
     path: &str,
@@ -289,8 +293,16 @@ fn grammar_lexeme(
             }
             lexeme
         }
-        metadata::Grammar::FixedTerm { surface, onset }
-        | metadata::Grammar::FixedClause { surface, onset } => {
+        metadata::Grammar::FixedClause { noun, verb, .. } => {
+            output.lexemes.push(keyword_verb_lexeme(owner, path, verb));
+            Lexeme::noun(
+                format!("{owner}/noun"),
+                noun,
+                vec![Countability::Count],
+                provenance,
+            )
+        }
+        metadata::Grammar::FixedTerm { surface, onset } => {
             let mut lexeme = Lexeme::invariant(owner, surface, Category::Keyword, provenance);
             lexeme.source.kind = SourceKind::Keyword;
             if let Some(onset) = onset {

@@ -70,3 +70,6 @@ mod preposed_frequency;
 
 #[path = "suite/keyword_mention_without_parameter.rs"]
 mod keyword_mention_without_parameter;
+
+#[path = "suite/ring_tempts_you.rs"]
+mod ring_tempts_you;

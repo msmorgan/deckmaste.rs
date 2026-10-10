@@ -946,12 +946,18 @@ KeywordAction(
 KeywordAction(
     name: "TheRingTemptsYou",
     spelling: "the Ring tempts you",
-    grammar: FixedClause(surface: "the Ring tempts you"),
+    grammar: FixedClause(
+        surface: "the Ring tempts you",
+        noun: "Ring",
+        verb: (bare: "tempt", frames: [Predicate([Argument(relation: Object, category: "NounPhrase")])]),
+    ),
 )
 "#,
     )
     .unwrap();
-    assert_eq!(fixed.grammar.unwrap().recipe, GrammarRecipe::FixedClause);
+    let grammar = fixed.grammar.unwrap();
+    assert_eq!(grammar.recipe, GrammarRecipe::FixedClause);
+    assert_eq!(grammar.verb.unwrap().bare, "tempt");
 }
 
 #[test]

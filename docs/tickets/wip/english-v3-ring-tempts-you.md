@@ -136,4 +136,55 @@ Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-Not landed.
+1. **Census delta** — Claim-parent evidence `mqrlzszk` (identical bounded Readings to
+   the coordinator census; claim `yptsourp`) → `sztumtmq`: 498 → 542 covered faces,
+   8,868 → 9,361 Readings. 44 gains; lost faces none; decreases, increases and
+   digest-only changes all zero; zero internal issues. Selector
+   `\b(Ring|Ring-bearers?|monarch|initiative|[Vv]entures?|commander)\b` found 315
+   faces; the diff-generated 300 covered controls (seed 20261008) give 614 distinct
+   identities. Evidence: `target/english-v3/english-v3-ring-tempts-you/{before,after,diff,manifest}.json`.
+2. **Witnesses** — Claim-parent probes at `mqrlzszk` → `sztumtmq`: Uruk-hai
+   Berserker 0 → 1; Witch-king of Angmar's document passage 0 → 57; One Ring to
+   Rule Them All's chapter passage 0 → 1; Lord of the Nazgûl's protection line
+   0 → 2; trigger fragment 0 → 1; NP *your Ring-bearer* 0 → 1. No witness was
+   already covered. All controls retain their measured counts (Witch-king
+   control capped at 3+, the others exact); the three additional action/
+   commander controls each retain 1.
+3. **Spot checks** — At `sztumtmq`, ten gained faces have the intended selected
+   analysis: Bilbo, Retired Burglar — finite consequence after the coordinated
+   enters/leaves condition; Birthday Escape and Bombadil's Song — a separate
+   finite Ring clause; Dúnedain Rangers — an indefinite Ring-bearer Object and
+   a finite Ring consequence; Elrond, Lord of Rivendell — a finite Ring
+   consequence under *if*; Frodo Baggins — a finite Ring consequence and a
+   possessive Ring-bearer NP as copular Complement; Gollum, Patient Plotter —
+   a finite Ring consequence after *when*; Lord of the Nazgûl — plural noun as
+   protection's Nominal Keyword Quality; One Ring to Rule Them All — finite
+   coordinated Ring clause and a genitive Ring-bearer NP in the power comparison;
+   Witch-king of Angmar — a separate finite Ring clause. Each clause has
+   *the Ring* as Subject, *tempt* as transitive head and *you* as Object.
+   No unintended-only gain found in these checks.
+4. **Deviations and STOPs** — No new Construction or frame kind; schema,
+   declaration reader and loader changes follow RT2, with the opaque Keyword
+   lexeme retired and the semantic fixed surface retained under RT3. No STOP
+   or glossary gap. The perfect-frequency fragment remains unread, as RT2's
+   allowed residual on Frodo, Adventurous Hobbit and Frodo, Sauron's Bane;
+   *choose NP as NP* stays out of scope. Lean checks omitted under the explicit
+   user budget. A reasoned length expectation preserves the closed declaration
+   dispatcher; the designation test's expected-recipe table was extracted
+   without changing its value assertions.
+5. **Tests** — At `sztumtmq`, passed `cargo test -p deckmaste_english_v3`
+   (796), `cargo test -p deckmaste_lexical_source` (82),
+   `cargo test -p deckmaste_construction_core` (473), and
+   `cargo test -p xtask english_v3` (56 selected tests). Passed
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`, and
+   `cargo clippy -p deckmaste_construction_core --tests -- -D warnings`;
+   initial English/core clippy failures were the length/default style issues
+   resolved above. `cargo xtask facts check`,
+   `cargo xtask cite check --list-noncompliant`, `cargo xtask cite check`, and
+   `jj --no-pager diff --git | cargo xtask cite audit --diff` passed;
+   no new citations need blessing. Assurance at `sztumtmq`:
+   restored 0 / re-spelled 2 / ignored 0 / added 6 / removed 0. The action
+   inventory test additionally retains and strengthens its existing assertions.
+6. **Timing** — Bounded census at `sztumtmq`: 18.41 s wall time under
+   `/usr/bin/time -v`, 6 workers, 614 faces, `--samples-per-face 0`.

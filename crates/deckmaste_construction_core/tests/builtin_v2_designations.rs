@@ -6,6 +6,19 @@ use deckmaste_construction_core::macro_def::SpellingPart;
 use deckmaste_construction_core::macro_def::read_builtin_v2;
 use deckmaste_construction_core::macro_def::read_str;
 
+fn expected_recipe(name: &str) -> Option<GrammarRecipe> {
+    match name {
+        "commander" | "monarch" | "initiative" | "citysBlessing" | "ringBearer" => {
+            Some(GrammarRecipe::Noun)
+        }
+        "prepared" | "saddled" | "monstrous" | "renowned" | "solved" => {
+            Some(GrammarRecipe::Adjective)
+        }
+        "goaded" | "suspected" | "harnessed" => None,
+        _ => Some(GrammarRecipe::FixedTerm),
+    }
+}
+
 #[test]
 fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -51,14 +64,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
     );
     for declaration in &designations {
         assert_eq!(declaration.params(), Some([].as_slice()));
-        let expected = match declaration.identity().name() {
-            "commander" | "monarch" | "initiative" | "citysBlessing" => Some(GrammarRecipe::Noun),
-            "prepared" | "saddled" | "monstrous" | "renowned" | "solved" => {
-                Some(GrammarRecipe::Adjective)
-            }
-            "goaded" | "suspected" | "harnessed" => None,
-            _ => Some(GrammarRecipe::FixedTerm),
-        };
+        let expected = expected_recipe(declaration.identity().name());
         assert_eq!(
             declaration
                 .grammar()
