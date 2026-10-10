@@ -296,3 +296,6 @@ mod pronominal_other;
 
 #[path = "suite/predicate_terms.rs"]
 mod predicate_terms;
+
+#[path = "suite/gapped_coordination_shared_adjunct.rs"]
+mod gapped_coordination_shared_adjunct;

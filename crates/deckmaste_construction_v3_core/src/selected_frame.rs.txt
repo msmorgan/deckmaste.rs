@@ -406,7 +406,15 @@ impl Grammar {
                         properties
                             .frames
                             .iter()
-                            .filter(|candidate| corresponding_frame(selected, candidate))
+                            .filter(|candidate| {
+                                if properties.features.get("SelectedTailLicence")
+                                    .is_some_and(|licence| licence == "DeclaredFrames")
+                                {
+                                    candidate.kind == selected.kind
+                                } else {
+                                    corresponding_frame(selected, candidate)
+                                }
+                            })
                             .filter_map(|candidate| {
                                 self.canonical_frames
                                     .iter()

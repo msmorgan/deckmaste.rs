@@ -1272,6 +1272,12 @@ Coordination of parallel sequences at a clause's right edge, each sequence
 independently filling the same functions under a shared head; coordination
 gives the sequences constituent status (CGEL, Ch. 15 §4.3, pp. 1341–1343).
 
+**Selected Tail Licence** (project term):
+A verb's declared permission for right nonce-constituent coordinates to use
+different complete Verb Frames it declares. An Object + goal coordinate may
+include its selected Manner Complement in final position under
+[orchestrator rulings GC1–GC2 (2026-10-10)](../../tickets/done/english-v3-gapped-coordination-shared-adjunct.md#analysis).
+
 **Correlative Coordination**:
 A Coordination with a marker associated with its first Conjunct and a paired
 Coordinator, as in *both … and*, *either … or*, or *neither … nor*.

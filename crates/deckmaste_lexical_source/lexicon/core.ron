@@ -56,6 +56,8 @@
         Pronoun: {"RelativeUse": "No"},
     },
     feature_additions: {
+        // GC1–GC2: each Object + goal tail selects a complete declared frame.
+        "core-verb:Put": {"SelectedTailLicence": "DeclaredFrames"},
         "lexeme:keyword_ability/exploit/verb": {"PastParticipialPremodifier": "Yes"},
         "core-verb:Lock": {"PastParticipialPremodifier": "Yes"},
         "lexeme:designation/commander": {"NounPremodifier": "Yes"},

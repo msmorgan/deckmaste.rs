@@ -135,3 +135,67 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
   they fall out with no extra declaration.
 
 ## Landing record
+
+1. **Census delta** (`qmznkvqq`, before implementation → after): bounded
+   549 faces, covered **351 → 447**, total Readings **5,285 → 10,150**;
+   gained **96**, lost **none**, decreases **0**, digest-only **0**, issues **0**.
+   Selector: ` and (the rest|the other|[a-z]+ of them|that card|those cards) (on|into|onto) `
+   (**249** supported faces) plus **300** covered random controls from the
+   inherited census, selected by `english-v3 diff --random 300 --seed 20261008`
+   (**no overlap**). The bounded BEFORE re-measures the claim-parent grammar;
+   no full corpus run. Manifest and official comparison:
+   `target/english-v3/english-v3-gapped-coordination-shared-adjunct/{manifest,before,after,diff}.json`.
+   The three covered-face increases are Cream of the Crop **45 → 48**
+   (line 0, **+3**), Fertile Thicket **218 → 254** (line 1, **+36**), and
+   Planar Atlas **164 → 191** (line 1, **+27**). Complete Ability probes show
+   each added whole-line Reading has exactly one selected verb, an Object +
+   Locative goal tail and a final Object + Locative goal + Manner tail. These
+   are ambient line alternatives of the one added tail analysis per
+   Coordination (GC6); incumbent NP-coordination Readings survive. The mixed
+   shorter sentence control rises **3 → 4**, adding exactly that tail analysis.
+2. **Witnesses** (`qmznkvqq`, complete whole-line probes before/after):
+   Glimpse the Cosmos **0 → 3**; Raven Familiar **0 → 3**; Tezzeret, Master
+   of Metal **0 → 3**; Evolutionary Leap **0 → 3**; Enshrined Memories
+   **0 → 6**. No witness was already covered. Their *and put the rest*
+   controls before implementation have **6, 6, 6, 6, 12** Readings respectively.
+   The four sentence controls before/after are **1 → 1**, **3 → 4**,
+   **1 → 1**, **2 → 2** in the ticket's order. Evidence: `before-probe-*`,
+   `before-control-count-*`, and `after-probe-*` under the same target directory.
+3. **Spot checks** (`qmznkvqq`): Glimpse the Cosmos; Raven Familiar;
+   Tezzeret, Master of Metal; Evolutionary Leap; Enshrined Memories;
+   Anticipate; Blood Price; Diabolic Vision; Drawn from Dreams; Dig Through
+   Time. Each newly covered face selects one verb with an Object + marked-NP
+   goal as the first tail and an Object + Locative goal + selected Manner
+   Complement as the final tail. Diabolic Vision's final goal is *on top of
+   your library*; the others use *on the bottom of your library*. Complete
+   probe trees were inspected; Manner belongs inside the final tail, under
+   GC2, with no clause-ellipsis route or shared Adjunct. Attestation was
+   checked with `english-v3 grep`, including `manner-attestation.json`.
+4. **Deviations and STOPs**: added `ObjectLocativeMannerTail` for the complete
+   third-slot frame, retaining the existing Coordination Construction and
+   both existing tail routes. Added declared `SelectedTailLicence` on *put*
+   and its generic frame-licensing support in the construction compiler;
+   `MannerComplementPresent` restricts Manner to the final tail. Each tail
+   still matches a complete frame declared by the same lexical owner, and
+   the overt head retains the first tail's frame identity. Other verbs keep
+   structural frame concord. No frame declarations or routes were superseded
+   or removed. The glossary gap **Selected Tail Licence** is filled with
+   explicit project-ruling attribution (GC1–GC2), not a CGEL claim about
+   unequal element counts. STOPs: none. The inherited probe executable was
+   incompatible with current keyword metadata; it was rebuilt before the
+   successful BEFORE probes and census. No loader code or Lean work.
+5. **Tests** (`qmznkvqq`):
+   `cargo test -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_lexical_source`
+   **passed**, all suites unfiltered: English **752**; construction compiler
+   **36**; construction macro integration **42** plus **2** doc tests;
+   lexical source **35** unit and **41** integration tests. Zero failures
+   or ignored tests.
+   `cargo clippy -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_lexical_source --tests -- -D warnings`
+   **passed**. Restored **0** / re-spelled **0** / ignored **0** / added
+   **4** / removed **0**; no removals to justify. New tests assert roles,
+   retained complete Reading values, the lexical licence and independent
+   construction roundtrip. Citation checks: no noncompliant or stale sites;
+   diff audit selects no new citation sites.
+6. **Timing** (`qmznkvqq`): the bounded AFTER census took **7.61 s** wall
+   time under `/usr/bin/time -v`, **6** workers, **0** samples per face.
+   Full corpus verification belongs to the orchestrator's batch.
