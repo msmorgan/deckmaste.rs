@@ -155,6 +155,11 @@ a plugin definition changes, run `cargo xtask lean check`.
    zero (`after-accepted-refresh.json`, `accepted-refresh-diff.json`,
    `final-diff.json`). The integration retry refresh likewise changes none
    of the 643 faces (`retry-refresh-diff.json`, `final-retry-diff.json`).
+   A second integration retry refresh adds The Rollercrusher Ride (0 → 151)
+   through trunk noncombat formation `mzkvyunr`: final claim-parent totals
+   are 27 gains (25 this ticket, 2 trunk), 593 covered and 10,980 Readings;
+   lost/decreased/increased/digest-only/source changes and issues remain 0
+   (`retry2-refresh-diff.json`, `final-retry2-diff.json`).
 2. **Witnesses** (`wxwozrtz`, complete sentence probes, limit 64): Gilded
    Ghoda, Alacrian Jaguar, District Mascot and Dracosaur Auxiliary each 0 → 1;
    each control with *while saddled* removed reads 1 before and after (W9-A).
@@ -198,7 +203,9 @@ a plugin definition changes, run `cargo xtask lean check`.
    `rtzolrtx` (preposed duration). Resolved the overlapping additions in
    `suite_4.rs` by preserving both module registrations exactly once in
    `wxwozrtz`; the Harmony repair and retry refresh succeeded without
-   remaining conflicts. No construction implementation changed.
+   remaining conflicts. No construction implementation changed. Default
+   moved again; a second retry refresh incorporated `mzkvyunr` (noncombat
+   noun formation), without conflicts.
 5. **Tests** (`wxwozrtz`): `cargo test -p deckmaste_english_v3` passed all six
    binaries (899 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. `cargo test -p deckmaste_lexical_source` passed (42 unit + 44
@@ -226,6 +233,9 @@ a plugin definition changes, run `cargo xtask lean check`.
    the `-accepted-refresh.log` suffix. After the integration retry refresh,
    repeated the xtask build, bounded census, both full suites and both clippy
    commands: all passed (English 925 tests; lexical source 42 unit + 44
-   integration). Logs use the `-retry-refresh.log` suffix.
+   integration). Logs use the `-retry-refresh.log` suffix. After the second
+   retry refresh, the same build, bounded census, both full suites and both
+   clippy commands passed (English 932 tests; lexical source 42 unit + 44
+   integration); logs use the `-retry2-refresh.log` suffix.
 6. **Timing**: complete bounded census wall time **25.06 seconds**, six workers,
    at `wxwozrtz`, measured by `/usr/bin/time -v` (`after.time`).
