@@ -135,7 +135,8 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 1. **Census delta** (`opxvnokr`, original claim-parent grammar `zmkuwouk`;
    final refreshed `opxvnokr` measurement): bounded 492-face census, covered
    436 → 462, total Readings 8,137 → 8,825; lost,
-   decreases, covered-face increases and digest-only changes all 0. The tool
+   decreases and covered-face increases all 0. Final digest-only changes: 7,
+   all attributed to modal-header-quantities `ztrnpkyv`, not this ticket. The tool
    reports 26 newly covered faces: this ticket's 22 intended gains and 3
    known-wrong PG5 admissions accepted under PG7, counted separately: Misleading Signpost, Portal
    Mage and
@@ -150,7 +151,12 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    third refresh imported supplementary-temporal-adjunct;
    `temporal-refresh-diff.json` also reports all 492 faces unchanged. The
    fourth refresh imported preposed-duration-for; `duration-refresh-diff.json`
-   again reports all 492 faces unchanged. Selector:
+   again reports all 492 faces unchanged. The fifth verification includes
+   noncombat-negative-noun `mzkvyunr` and modal-header-quantities `ztrnpkyv`: 
+   `header-refresh-diff.json` reports no count changes and 7 digest-only
+   changes from the modal count-Complement structure (Arbalest Engineers;
+   Feast or Famine; Jin Sakai, Ghost of Tsushima; Light of Hope; Professor's
+   Warning; Shriveling Rot; Vannifar, Evolved Enigma). Selector:
    case-insensitive
    `\b(am|is|are|'m|'s|'re|was|were|isn't|aren't|wasn't|weren't|been|be) [a-z]+ing\b`,
    196 surface faces plus 300 covered controls from `baseline-wave8.json`
@@ -202,6 +208,14 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    working-copy divergence cleared before the successful refresh retry.
    A fourth refresh after default moved imported preposed-duration-for
    grammar and tests; the same checks passed again.
+   A fifth refresh sequence imported noncombat-negative-noun lexical data
+   and modal-header grammar/data. Suite registration conflicts were resolved
+   in the implementation change by retaining each incoming module and the
+   progressive Object-gap module exactly once. Feature ancestry was restored
+   after a refresh from the implementation change separated the record stack;
+   a concurrent checkout was also repaired. The final own diff retains the
+   17-line grammar addition, four tests and both requested documentation edits.
+   All required checks passed on the complete restored tip.
    No glossary gap. The mandated review stop was observed; orchestrator review
    accepted the landing and authorized integration under PG7 on 2026-10-10.
 5. **Tests** (`opxvnokr`): `cargo test -p deckmaste_english_v3` first reported
@@ -227,10 +241,13 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    After the fourth refresh (`ppvnxnrm` census), the same build and full
    test commands passed: 926 English tests and 84 lexical-source tests; both
    clippy commands passed. Evidence uses the `duration-refresh-` prefix.
+   After the fifth refresh (`okrtvpsm` census), the same build and full
+   test commands passed: 936 English tests and 84 lexical-source tests; both
+   clippy commands passed. Evidence uses the `header-refresh-` prefix.
    This ticket: restored 0 / re-spelled 0 / ignored 0 /
    added 4 / removed 0 (no removals); own code changes only in English v3.
    No Lean check. Citation checks report 0 non-compliant and 0 stale citations;
    no new CR registrations.
 6. **Timing** (final refreshed `opxvnokr` state): final bounded AFTER census
-   **12.79 s**, 6 workers,
+   **13.64 s**, 6 workers,
    measured with `/usr/bin/time -v`; no full-corpus census or `--all` run.
