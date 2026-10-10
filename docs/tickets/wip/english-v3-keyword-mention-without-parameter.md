@@ -210,6 +210,17 @@ introduces beside **Attribute Noun Premodifier**.
    module registrations were retained exactly once. Two later refresh
    attempts deferred on a concurrent named-modes workspace edit; retry
    succeeded without changing that workspace’s content.
+   Accepted review rulings (2026-10-10): L1 — KM4's “unattested” premise
+   was wrong: Tidewalker and Out of Time attest bare *Vanishing*, and
+   Oscorp Industries attests bare *Mayhem*; the behaviour is correct.
+   L2 — Murasa Sproutling's 3 Readings against control 2 reflect ordinary
+   Premodifier/Postmodifier scope: *kicker [ability from your graveyard]*
+   versus *[kicker ability] from your graveyard*. The compound noun *mana
+   ability* control cannot expose that distinction. L3 — routed the cycling
+   gerund retirement candidate to `english-v3-systemic-residuals`; KM5 keeps
+   both routes in this landing. L4 — *the flying cost* and *a flying ability*
+   read because KM2 gives nullary keywords the Premodifier feature; nullary
+   keyword cost/ability uses are unattested except *delve ability*.
 5. **Tests** (`zvtzutzx` before refresh; final refreshed tree `mrqukxns`): `cargo test -p deckmaste_english_v3` passed
    797 tests before refresh, then 800 / 807 / 811 after successive refreshes; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed; `cargo test -p deckmaste_lexical_source` passed 83 tests;

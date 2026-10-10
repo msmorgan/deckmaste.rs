@@ -746,3 +746,14 @@ obligations rather than correct coverage gains:
   *count it as a card named X* reads with the *as* phrase as an Adjunct PP.
   Missing piece: an *as*-predicative Complement frame. Re-examine the Adjunct
   Readings when that Complement frame is ticketed.
+
+## Cycling cost and ability gerund retirement candidate (2026-10-10)
+
+Accepted review ruling L3 for `english-v3-keyword-mention-without-parameter`:
+the gerund Reading of *cycling cost / cycling ability* (VerbalPremodifier
+of the verb *cycle*) is a candidate for retirement: it doubles Readings on
+8 faces (Gavi 58 → 114), the head is not the understood subject of
+*cycling*, and the string patterns with *flashback/morph/kicker cost*;
+KM5 kept both. Route a bounded retirement decision here, preserving the
+Keyword Premodifier Reading and measuring every affected face before and
+after any retirement.
