@@ -133,7 +133,7 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 ## Landing record
 
 1. **Census delta** (`opxvnokr`, original claim-parent grammar `zmkuwouk`;
-   final refreshed measurement `yrlklvkv`): bounded 492-face census, covered
+   final refreshed measurement `zkzkzwzp`): bounded 492-face census, covered
    436 → 462, total Readings 8,137 → 8,825; lost,
    decreases, covered-face increases and digest-only changes all 0. The tool
    reports 26 newly covered faces: this ticket's 22 intended gains and 3
@@ -145,7 +145,8 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    sole change and 0 losses/decreases/increases/digest-only changes. The
    post-acceptance refresh imported named-token apposition;
    `accepted-refresh-diff.json` reports all 492 faces unchanged against the
-   reviewed census. Selector:
+   reviewed census. A second refresh imported kind-of-counter;
+   `retry-refresh-diff.json` likewise reports all 492 faces unchanged. Selector:
    case-insensitive
    `\b(am|is|are|'m|'s|'re|was|were|isn't|aren't|wasn't|weren't|been|be) [a-z]+ing\b`,
    196 surface faces plus 300 covered controls from `baseline-wave8.json`
@@ -187,6 +188,11 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `roomopmr`; their lexical data and English tests were rechecked in full.
    The post-acceptance refresh imported named-token-apposition grammar and
    tests; the required build, bounded census, full suites and clippy passed.
+   Integration was refused because default moved again; the second refresh
+   imported kind-of-counter grammar and lexical data, with the same checks
+   repeated successfully. A concurrent record-only snapshot divergence was
+   repaired by retaining the successor containing the update and abandoning
+   the empty successor.
    No glossary gap. The mandated review stop was observed; orchestrator review
    accepted the landing and authorized integration under PG7 on 2026-10-10.
 5. **Tests** (`opxvnokr`): `cargo test -p deckmaste_english_v3` first reported
@@ -202,10 +208,14 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    passed 913 English tests and 84 lexical-source tests (40 unit + 44
    integration), and both exact clippy commands above passed. Evidence:
    `target/english-v3/english-v3-progressive-object-gap-relative/accepted-refresh-*.log`.
+   After the second refresh (`zkzkzwzp`), the same build and full test
+   commands passed: 918 English tests and 84 lexical-source tests; both
+   clippy commands passed. Evidence uses the `retry-refresh-` prefix in the
+   same directory.
    This ticket: restored 0 / re-spelled 0 / ignored 0 /
    added 4 / removed 0 (no removals); own code changes only in English v3.
    No Lean check. Citation checks report 0 non-compliant and 0 stale citations;
    no new CR registrations.
-6. **Timing** (`yrlklvkv`, final refreshed state): final bounded AFTER census
-   **57.39 s**, 6 workers,
+6. **Timing** (`zkzkzwzp`, final refreshed state): final bounded AFTER census
+   **31.47 s**, 6 workers,
    measured with `/usr/bin/time -v`; no full-corpus census or `--all` run.
