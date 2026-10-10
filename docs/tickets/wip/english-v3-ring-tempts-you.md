@@ -142,7 +142,13 @@ Attestation by `cargo xtask english-v3 grep` only.
    digest-only changes all zero; zero internal issues. Selector
    `\b(Ring|Ring-bearers?|monarch|initiative|[Vv]entures?|commander)\b` found 315
    faces; the diff-generated 300 covered controls (seed 20261008) give 614 distinct
-   identities. Evidence: `target/english-v3/english-v3-ring-tempts-you/{before,after,diff,manifest}.json`.
+   identities. After refresh at `nskzmmvt`, 543 covered faces and 9,530
+   Readings: the sole additional gain is Thunderclap Drake (169 Readings),
+   inherited from `zunolrnv`'s preverbal *next*. Final totals are 45 gains and
+   zero lost/decreased/increased/digest-only faces, with zero internal issues.
+   Evidence: `target/english-v3/english-v3-ring-tempts-you/`, including
+   `before.json`, `after.json`, `diff.json`, `manifest.json`,
+   `after-refresh.json`, `refresh-diff.json` and `final-diff.json`.
 2. **Witnesses** — Claim-parent probes at `mqrlzszk` → `sztumtmq`: Uruk-hai
    Berserker 0 → 1; Witch-king of Angmar's document passage 0 → 57; One Ring to
    Rule Them All's chapter passage 0 → 1; Lord of the Nazgûl's protection line
@@ -166,14 +172,17 @@ Attestation by `cargo xtask english-v3 grep` only.
 4. **Deviations and STOPs** — No new Construction or frame kind; schema,
    declaration reader and loader changes follow RT2, with the opaque Keyword
    lexeme retired and the semantic fixed surface retained under RT3. No STOP
-   or glossary gap. The perfect-frequency fragment remains unread, as RT2's
+   or glossary gap. Refresh's test-registration conflict was resolved on
+   `sztumtmq`, retaining Ring and preposed-frequency exactly once in `suite_5`;
+   the concurrent bank refusal was retried successfully. The perfect-frequency
+   fragment remains unread after refresh at `nskzmmvt`, as RT2's
    allowed residual on Frodo, Adventurous Hobbit and Frodo, Sauron's Bane;
    *choose NP as NP* stays out of scope. Lean checks omitted under the explicit
    user budget. A reasoned length expectation preserves the closed declaration
    dispatcher; the designation test's expected-recipe table was extracted
    without changing its value assertions.
-5. **Tests** — At `sztumtmq`, passed `cargo test -p deckmaste_english_v3`
-   (796), `cargo test -p deckmaste_lexical_source` (82),
+5. **Tests** — After refresh at `nskzmmvt`, passed `cargo test -p deckmaste_english_v3`
+   (810), `cargo test -p deckmaste_lexical_source` (82),
    `cargo test -p deckmaste_construction_core` (473), and
    `cargo test -p xtask english_v3` (56 selected tests). Passed
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
@@ -186,5 +195,5 @@ Attestation by `cargo xtask english-v3 grep` only.
    no new citations need blessing. Assurance at `sztumtmq`:
    restored 0 / re-spelled 2 / ignored 0 / added 6 / removed 0. The action
    inventory test additionally retains and strengthens its existing assertions.
-6. **Timing** — Bounded census at `sztumtmq`: 18.41 s wall time under
+6. **Timing** — Final bounded census at `nskzmmvt`: 18.78 s wall time under
    `/usr/bin/time -v`, 6 workers, 614 faces, `--samples-per-face 0`.
