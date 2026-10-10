@@ -126,7 +126,8 @@ def ptDelta (bs : Bindings) : Option (Amount × Amount) → List Binding
 def CostShift.introduced (bs : Bindings) : CostShift → List Binding
   | .less a _ => Amount.introduced bs a
   | .more a => Amount.introduced bs a
-  | .run _ _ _ => []
+  | .bySymbols (.lit _) _ _ => []
+  | .bySymbols (.manaCostOf n) _ _ => (NounPhrase.result bs n).introduced bs
 
 def gatePayer : Binding := ⟨.the, .one, .player false, []⟩
 
@@ -571,7 +572,9 @@ def StaticSpec.regimeFits (r : Option StackRegime) : StaticSpec → Bool
   | .conditional se _ _ => se.regimeFits r
   -- A Mana Substitute applies as the total cost is paid [CR#702.51b,601.2h].
   -- Modes are chosen as the spell is cast [CR#601.2b,700.2a].
-  | .addedCost _ _ _ | .costShift _ _ | .paySubstitute _ _ | .modeChoice _ => r == some .atCasting
+  -- A gained target is chosen as the spell is cast [CR#601.2c,702.140a].
+  | .addedCost _ _ _ | .costShift _ _ | .paySubstitute _ _ | .modeChoice _ | .addsTarget _ _ =>
+    r == some .atCasting
   | .altCost _ _ | .deonticRule _ .permit _ _ _ _ _ (.play _ _ _ _ _) => r != some .atResolution
   | _ => r == none
 termination_by structural se => se
@@ -782,7 +785,7 @@ def Instruction.reflexEncloseUse : Instruction → EncloseUse
   | .move _ _ _ _ | .turnFaceDown _ _ | .expose _ _ | .addMana _ _ _ | .draw _ | .choose _ _ _ _
   | .vote _ _ _
   | .search _ _ _ | .shuffle _ | .flipCoins _ | .rollDice _ _
-  | .rerollStored _ _ | .procedure _ _ _ _ => .reflexive
+  | .rerollStored _ _ | .procedure _ _ _ _ | .relate _ _ _ | .merge _ _ _ => .reflexive
   | .applyResultsTable _ => .notOneAction
   | .withContinuation _ body none _ => body.reflexEncloseUse
   | .withContinuation _ _ _ _ => .notOneAction
@@ -1048,6 +1051,8 @@ mutual
     | .holdUntil e _ => sameIntro (Instruction.profileWith bs none e).announced []
     | .procedure _ subject _ _ => let who := performerOf perf;
       sameIntro (nomIntro (nomIntro bs who) subject) []
+    | .relate subject _ counterpart => sameIntro (nomIntro (nomIntro bs subject) counterpart) []
+    | .merge subject onto _ => sameIntro (nomIntro (nomIntro bs subject) onto) []
   termination_by structural e => e
 
   def Instruction.profileOpt (bs : Bindings) : Option Instruction → Option InstrProfile
@@ -1103,6 +1108,7 @@ mutual
     | .addedCost _ _ _ => bs
     | .paySubstitute n _ => selfSubjIntro bs n
     | .modeChoice _ => bs
+    | .addsTarget n _ => selfSubjIntro bs n
     | .specialAction _ _ _ => bs
     | .abilityGrant n ab => ab.introducedLetters ++ selfSubjIntro bs n
     | .abilityGrantFrom n _ src _ => nomIntro (nomIntro bs n) src
@@ -1281,7 +1287,7 @@ counts, so neither goes below zero [CR#107.1b]. -/
 def CostShift.numberSlots : CostShift → List (Amount × NumberRegime)
   | .less amount floor => (amount, .clamped) :: optClamped floor
   | .more amount => [(amount, .clamped)]
-  | .run _ _ _ => []
+  | .bySymbols _ _ _ => []
 
 /-- "more than one creature each combat": a count of deeds [CR#107.1b]. -/
 def CountBound.numberSlots : CountBound → List (Amount × NumberRegime)
@@ -1369,7 +1375,8 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   | .ptDefinition _ _ amount => [(amount, .signed)]
   | .ptSwitch _ | .combatant _ => []
   | .costShift _ shift => shift.numberSlots
-  | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ | .specialAction _ _ _ | .modeChoice _ => []
+  | .altCost _ _ | .addedCost _ _ _ | .paySubstitute _ _ | .specialAction _ _ _ | .modeChoice _
+  | .addsTarget _ _ => []
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
   | .letterDefinition _ amount => [(amount, .clamped)]
@@ -1439,6 +1446,6 @@ def Instruction.numberSlots : Instruction → List (Amount × NumberRegime)
   | .skipUntap _ steps => [(steps, .clamped)]
   | .skipPart _ count => [(count, .clamped)]
   | .addTurnPart _ _ count _ => [(count, .clamped)]
-  | .procedure _ _ _ _ => []
+  | .procedure _ _ _ _ | .relate _ _ _ | .merge _ _ _ => []
 
 end Semantics

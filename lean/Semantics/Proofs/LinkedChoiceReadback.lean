@@ -9,7 +9,7 @@ opponent." [CR#702.174a]. Its second ability hands the effect to the chosen play
 [CR#702.174b,702.174e], and the two are linked [CR#607.2d,607.2i]. The second reads the choice
 back through a paid-cost facet keyed by the cost's name, as kicker's "was kicked" readback is
 [CR#702.33e] (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06 on gift and the
-additional-cost keywords): `PaidFacet.chosenPlayer`, read as a noun phrase by `NounPhrase.paid`.
+additional-cost keywords): `LinkedFacet.chosenPlayer`, read as a noun phrase by `NounPhrase.paid`.
 
 The facet resolves where the named cost chooses a player when it is paid (the keyword row's
 `costChoosesPlayer`); a cost that chooses no player leaves the linked ability nothing to read,
@@ -25,10 +25,10 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.LinkedChoiceReadback
 
 /-- "its gift cost" -/
-def gift : PaidCostName := .byKeyword (.named "gift")
+def gift : LinkSource := .byKeyword (.named "gift")
 
 /-- "its kicker cost" -/
-def kicker : PaidCostName := .byKeyword (.named "kicker")
+def kicker : LinkSource := .byKeyword (.named "kicker")
 
 /-- "if this is a permanent card" -/
 def onPermanentCard : Condition := .matches .this permanentCard
@@ -71,26 +71,26 @@ theorem badUnlinkedChosenPlayer :
 /-- Kicker's cost chooses no player, so there is none to read back [CR#702.33a,607.2d]. -/
 theorem badKickerChoosesNoPlayer :
     NounPhrase.check (some .player) [] (chosenAsPaid (.named "kicker") .this)
-      = [.paidChoiceInScope kicker] := by
+      = [.linkedChoiceInScope kicker] := by
   decide
 
 /-- Flying has no cost at all: the facet names nothing. -/
 theorem badCostlessKeywordChoosesNoPlayer :
     NounPhrase.check (some .player) [] (chosenAsPaid (.named "flying") .this)
-      = [.paidFacetNamed] := by
+      = [.linkedFacetNamed] := by
   decide
 
 /-- "The additional cost" names no declared choice. -/
 theorem badTheAdditionalChoosesNoPlayer :
     NounPhrase.check (some .player) [] (.paid (.chosenPlayer .theAdditional) .this)
-      = [.paidChoiceInScope .theAdditional] := by
+      = [.linkedChoiceInScope .theAdditional] := by
   decide
 
 /-- The chosen player is a player, not an amount; an amount facet is not a player. -/
 theorem badFacetReadAsTheOtherKind :
     (Amount.check [] (.paid (.chosenPlayer gift) .this),
       NounPhrase.check (some .player) [] (.paid (.timesPaid kicker) .this))
-      = ([.paidFacetKind], [.paidFacetKind]) := by
+      = ([.linkedFacetKind], [.linkedFacetKind]) := by
   decide
 
 /-- The chosen player is a player: an object context refuses it. -/

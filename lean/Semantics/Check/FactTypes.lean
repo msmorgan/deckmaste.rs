@@ -38,6 +38,14 @@ def playerHeld (label : String) : DesignationFacts :=
 def permanentHeld (label : String) : DesignationFacts :=
   ⟨label, .heldBy .object, true, some .battlefield, none, none⟩
 
+/-- One Relation's columns [CR#702.55b,702.95b,702.99b]: its name and the kind of each side. -/
+structure RelationFacts where
+  /-- The relation's name (`RelationLabel.name`): its declaration's name. -/
+  label : String
+  left : Kind
+  right : Kind
+  deriving Repr, BEq
+
 structure CounterFacts where
   label : String
   /-- What the counter is placed on: an object or a player [CR#122.1]. -/

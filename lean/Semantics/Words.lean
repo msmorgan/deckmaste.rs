@@ -191,6 +191,19 @@ inductive DesignationLabel where
   | named (name : String)
   deriving DecidableEq, Repr
 
+/-- A Relation [CR#702.55b,702.95b,702.99b]: the NAME of the relation declaration that defines
+it, verbatim (`haunting`, `paired`, `encodedOn`). Which relations exist, and the kinds of their
+two sides, is the relation facts table generated from the declarations' definitions
+(`Definition.relation`); the grammar carries only the mechanism. -/
+inductive RelationLabel where
+  | named (name : String)
+  deriving DecidableEq, Repr
+
+/-- Where a merging object is placed: on top of the permanent or under it [CR#730.2]. -/
+inductive MergePosition where
+  | top | bottom
+  deriving DecidableEq, Repr
+
 /-- Who holds a designation [CR#701.15b,725.1,731.1]: an Entity of the named kind, the card
 itself (a commander is designated on its card, and the designation follows the card between
 zones [CR#903.3]), or the game. -/
@@ -383,11 +396,18 @@ inductive KeywordTerm where
   | theWith (keyword : KeywordLabel) (number : Nat)
   deriving DecidableEq, Repr
 
-inductive PaidCostName where
+/-- A Link Source: the printed ability or cost a Linked Facet reads back [CR#607.2a]. A cost is
+named by its keyword ("its kicker cost"), by its keyword and rank ("its second kicker cost"), or
+as "the alternative" or "the additional" cost; a printed ability is named by what it does ("the
+exiled card" names the ability that exiled it). -/
+inductive LinkSource where
   | byKeyword (keyword : KeywordLabel)
   | byNthKeyword (ordinal : Ordinal) (keyword : KeywordLabel)
   | theAlternative
   | theAdditional
+  /-- The printed ability identified by its deed: "the exiled card" reads the ability of the
+  same object that exiled it [CR#607.2a]. -/
+  | byDeed (deed : Deed)
   deriving DecidableEq, Repr
 
 inductive AbilityClass where

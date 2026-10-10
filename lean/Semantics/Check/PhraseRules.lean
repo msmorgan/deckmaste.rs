@@ -153,6 +153,9 @@ mutual
     -- Kinds only: both relata are objects. Whether the axis is defined for the member's class
     -- is not checked.
     | .shares _ _ other => kindCheck k (some .object) ++ NounPhrase.checkIn gap (some .object) bs other
+    | .related l counterpart =>
+      kindCheck k (some l.left) ++ refuse l.known (.knownRelation l) ++
+        OptNoun.checkIn gap (some l.right) bs counterpart
     | .hasDesignation d holder =>
       refuse (d.holder == some k) (.designationHolder d k) ++
         refuse (holder.isNone || d.possessorOk) (.designationPossessorFits d) ++
@@ -335,12 +338,15 @@ mutual
       ctxCheck ctx (some .object) ++ NounPhrase.checkIn gap (some .player) bs whose ++
         refuse d.heldByItsCard (.designationScope d)
     | .paid f n =>
-      ctxCheck ctx (some .player) ++ refuse f.named .paidFacetNamed ++
-        refuse f.readsPlayer .paidFacetKind ++
+      ctxCheck ctx (some f.entityKind) ++ refuse f.named .linkedFacetNamed ++
+        refuse f.readsEntity .linkedFacetKind ++
         (match f with
-         | .chosenPlayer which => refuse f.choiceFound (.paidChoiceInScope which)
+         | .chosenPlayer which => refuse f.choiceFound (.linkedChoiceInScope which)
          | _ => (⟨[], false⟩ : CheckResult)) ++
         NounPhrase.checkIn gap (some .object) bs n ++ refuse n.plur.isOne .singular
+    | .counterpart l n =>
+      ctxCheck ctx (some l.right) ++ refuse l.known (.knownRelation l) ++
+        NounPhrase.checkIn gap (some l.left) bs n ++ refuse n.plur.isOne .singular
     | .oneEachOf roles pool =>
       ctxCheck ctx (some .object) ++ Predicate.checkAllIn gap .object bs roles ++
         NounPhrase.checkIn gap (some .object) bs pool ++ refuse (pool.plur == .many) .plural ++
@@ -430,8 +436,8 @@ mutual
       NounPhrase.checkIn gap none bs g ++ ax.check ++ refuse (ax.scope == k) (.projScope k) ++
         refuse (g.plur == .many) .plural
     | .paid f n =>
-      refuse f.named .paidFacetNamed ++ refuse (!f.readsPlayer) .paidFacetKind ++
-        PaidFacet.checkIn gap bs f ++
+      refuse f.named .linkedFacetNamed ++ refuse (!f.readsEntity) .linkedFacetKind ++
+        LinkedFacet.checkIn gap bs f ++
         NounPhrase.checkIn gap (some .object) bs n ++ refuse n.plur.isOne .singular
     | .eventTally op who lb =>
       NounPhrase.checkIn gap none bs who ++ LookbackClause.checkIn gap (who.kindOr .object)
@@ -580,9 +586,9 @@ mutual
     | some d => Duration.checkIn gap bs d
   termination_by structural d => d
 
-  def PaidFacet.checkIn (gap : Option Kind) (bs : Bindings) : PaidFacet → CheckResult
+  def LinkedFacet.checkIn (gap : Option Kind) (bs : Bindings) : LinkedFacet → CheckResult
     | .readback _ within => OptDuration.checkIn gap bs within
-    | .colorsSpent | .manaValueSpent | .timesPaid _ | .chosenPlayer _ =>
+    | .colorsSpent | .manaValueSpent | .timesPaid _ | .chosenPlayer _ | .objects .. | .taken _ =>
       (⟨[], false⟩ : CheckResult)
   termination_by structural f => f
 

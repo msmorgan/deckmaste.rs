@@ -19,7 +19,7 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.GiftVariants
 
 /-- "its gift cost" -/
-def giftCost : PaidCostName := .byKeyword (.named "gift")
+def giftCost : LinkSource := .byKeyword (.named "gift")
 
 /-- "if this has a permanent type": read off the types, so it holds of a token with gift as
 well as a card [CR#110.4]. -/

@@ -39,6 +39,7 @@ mutual
     | .qualityNoun q _ => some (.quality q)
     | .counterKindOn _ => some (.quality .counterKind)
     | .hasDesignation d _ => d.holder
+    | .related l _ => some l.left
     | .attachment .host _ _ => none
     | .compare axes _ _ => (axes.head?).map (·.scope)
     | .superlative _ _ dom => dom.kind?
@@ -95,7 +96,9 @@ mutual
   def NounPhrase.kind? : NounPhrase → Option Kind
     | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.kind?
     | .gap k => some k
-    | .you | .actor | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ | .paid _ _ => some .player
+    | .you | .actor | .combatPlayer _ | .playerGroup _ | .possessorOf _ _ => some .player
+    | .paid f _ => some f.entityKind
+    | .counterpart l _ => some l.right
     | .described _ p => p.kind?
     | .eachOf g => g.kind?
     | .and ns | .or ns => some (NounPhrase.kindOfAll ns)
@@ -997,7 +1000,8 @@ mutual
     | .withBindings _ _ body | .inCaller _ body | .firstMention _ body => body.plur
     | .gap _ => .one
     | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .attachHost _ _ | .designated _ _
-    | .paid _ _ => .one
+    | .counterpart _ _ => .one
+    | .paid f _ => f.plur
     | .asType _ n _ => n.plur
     | .resolvedPermanent n => n.plur
     | .asMarker _ n => n.plur
@@ -1181,23 +1185,24 @@ def durationPossessorOk : Option NounPhrase → Bool
   | none => true
   | some n => n.plur.isOne && n.det.elim true (fun d => d == .the || d == .target)
 
-def PaidFacet.named : PaidFacet → Bool
+def LinkedFacet.named : LinkedFacet → Bool
   | .colorsSpent => true
   | .manaValueSpent => true
   | .timesPaid which => which.named
   | .readback which _ => which.named
   | .chosenPlayer which => which.named
+  | .objects which deed _ =>
+    which.named && knownAct deed && (actPatientKindsOf deed).elem .object && which.performs deed
+  | .taken which => which.named
 
 /-- The cost a chosen-player facet names chooses a player when it is paid; a facet naming no
-registered cost is refused by `PaidFacet.named` alone. -/
-def PaidFacet.choiceFound : PaidFacet → Bool
+registered cost is refused by `LinkedFacet.named` alone. -/
+def LinkedFacet.choiceFound : LinkedFacet → Bool
   | .chosenPlayer which => !which.named || which.choosesPlayer
   | _ => true
 
-/-- What a facet reads: a player, or an amount. -/
-def PaidFacet.readsPlayer : PaidFacet → Bool
-  | .chosenPlayer _ => true
-  | _ => false
+
+
 
 /-- A duration boundary that names whose turn names one definite player. -/
 def boundaryPossessorOk : Option GameEvent → Bool
@@ -1240,7 +1245,7 @@ where
       nominal n
     | .described .the p => !p.choiceRead
     | .described _ _ | .slice _ _ _ | .run _ _ _ | .someOf _ _ _ | .pileOf _ _
-    | .possessorOf _ _ | .oneEachOf _ _ | .paid _ _ => true
+    | .possessorOf _ _ | .oneEachOf _ _ | .paid _ _ | .counterpart _ _ => true
     | _ => false
 
 abbrev OperandSlot := Option (List Nat) × Determiner × Plurality × Payload
@@ -1344,7 +1349,8 @@ mutual
     | .possessorOf _ n =>
       (NounPhrase.result bs n).prepend
         (⟨.the, n.plur, .player false, []⟩ :: NounPhrase.selfSubjIntroduced n)
-    | .paid _ n => (NounPhrase.result bs n).prepend [⟨.the, .one, .player false, []⟩]
+    | .paid f n => (NounPhrase.result bs n).prepend [f.binding]
+    | .counterpart l n => (NounPhrase.result bs n).prepend [kindBinding l.right]
     | .oneEachOf roles pool =>
       (NounPhrase.result bs pool).prepend (⟨.bare, .many,
         .object (NounPhrase.ty bs pool) (NounPhrase.zone bs pool) none none none
@@ -1407,6 +1413,8 @@ mutual
     | .shares _ _ n => (NounPhrase.result bs n).introduced bs
     | .hasDesignation _ none => []
     | .hasDesignation _ (some h) => (NounPhrase.result bs h).introduced bs
+    | .related _ none => []
+    | .related _ (some c) => (NounPhrase.result bs c).introduced bs
     | .attachment _ _ (some counterpart) => (NounPhrase.result bs counterpart).introduced bs
     | .inPile p => (NounPhrase.result bs p).introduced bs
     | .inZone z => ZoneExpr.introduced bs z
@@ -1671,7 +1679,8 @@ mutual
     | .inCaller scope body => body.zone (enterCaller scope bs)
     | .gap _ => none
     | .this | .combatPlayer _ | .you | .actor | .playerGroup _ | .or _
-    | .possessorOf _ _ | .designated _ _ | .paid _ _ => none
+    | .possessorOf _ _ | .designated _ _ | .counterpart _ _ => none
+    | .paid f _ => f.zone
     | .asType _ _ _ => some .battlefield
     | .resolvedPermanent _ => some .battlefield
     | .asMarker m _ => some m.zone
@@ -1720,7 +1729,7 @@ mutual
     | .gap _ => []
     | .this | .theGrantor _ | .combatPlayer _ | .you | .actor | .playerGroup _
     | .or _ | .slice _ _ _ | .run _ _ _ | .pileOf _ _ | .possessorOf _ _
-    | .designated _ _ | .paid _ _ => []
+    | .designated _ _ | .paid _ _ | .counterpart _ _ => []
     | .asType t _ _ => [t]
     | .resolvedPermanent n => NounPhrase.ty bs n
     | .asMarker _ n => NounPhrase.ty bs n
@@ -2194,6 +2203,7 @@ def moveIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) (z : Option Zon
   | .you | .actor | .combatPlayer _ | .playerGroup _ | .designated _ _ => bs
   | .possessorOf ax m => nomIntro bs (.possessorOf ax m)
   | .paid f m => nomIntro bs (.paid f m)
+  | .counterpart l m => nomIntro bs (.counterpart l m)
 termination_by structural n
 
 def stampIntro (bs : Bindings) (p : Option Deed) (n : NounPhrase) : Bindings :=

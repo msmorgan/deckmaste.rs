@@ -117,4 +117,47 @@ def Zone.possessable : Zone → Bool
   | .hand | .graveyard | .library => true
   | _ => false
 
+/-! ## Linked Facets -/
+
+/-- What a facet reads: a player. -/
+def LinkedFacet.readsPlayer : LinkedFacet → Bool
+  | .chosenPlayer _ => true
+  | _ => false
+
+/-- The facet reads the objects a deed acted on. -/
+def LinkedFacet.readsObjects : LinkedFacet → Bool
+  | .objects .. => true
+  | _ => false
+
+/-- The facet reads an entity, which a noun phrase denotes: a player or objects. -/
+def LinkedFacet.readsEntity (f : LinkedFacet) : Bool := f.readsPlayer || f.readsObjects
+
+/-- The kind of entity a noun-phrase facet denotes. -/
+def LinkedFacet.entityKind : LinkedFacet → Kind
+  | .objects .. => .object
+  | _ => .player
+
+/-- The number a noun-phrase facet denotes: one chosen player, or the objects as the text
+numbers them. -/
+def LinkedFacet.plur : LinkedFacet → Plurality
+  | .objects _ _ p => p
+  | _ => .one
+
+/-- The zone the objects a facet reads were put into by its deed ("the exiled card" is in
+exile); none for a facet that reads a player or an amount. -/
+def LinkedFacet.zone : LinkedFacet → Option Zone
+  | .objects _ deed _ => actDestOf deed
+  | _ => none
+
+/-- The binding a noun-phrase facet introduces: the chosen player, or the objects its deed acted
+on, as many as the text says. -/
+def LinkedFacet.binding (f : LinkedFacet) : Binding :=
+  if f.readsObjects then ⟨.the, f.plur, .object [] f.zone none none none none, []⟩
+  else ⟨.the, .one, .player false, []⟩
+
+/-- A definite binding of one entity of kind `k`: a player, or an object. -/
+def kindBinding (k : Kind) : Binding :=
+  if k == .player then ⟨.the, .one, .player false, []⟩
+  else ⟨.the, .one, .object [] none none none none none, []⟩
+
 end Semantics

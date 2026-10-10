@@ -1665,6 +1665,28 @@ def RoomHalf.designation (h : RoomHalf) : DesignationLabel :=
 
 def DesignationLabel.half (label : DesignationLabel) : Option RoomHalf := label.facts >>= (·.half)
 
+/-! ## Relations
+
+The grammar names a Relation by its declaration's name (`RelationLabel`); the kinds of its two
+sides are the declaration's, read from the relation facts table. -/
+
+/-- The relation's name, which is the label of its facts row. -/
+def RelationLabel.name : RelationLabel → String
+  | .named n => n
+
+/-- The registry's row for the relation, looked up by its name. -/
+def RelationLabel.facts (label : RelationLabel) : Option RelationFacts :=
+  relationTable.find? (·.label == label.name)
+
+def RelationLabel.known (label : RelationLabel) : Bool := label.facts.isSome
+
+/-- The kind of the relation's first side; an object where the label is undeclared, which is
+refused by `RelationLabel.known` alone. -/
+def RelationLabel.left (label : RelationLabel) : Kind := (label.facts.map (·.left)).getD .object
+
+/-- The kind of the relation's second side, likewise. -/
+def RelationLabel.right (label : RelationLabel) : Kind := (label.facts.map (·.right)).getD .object
+
 /-! ## Attachment, status, counters -/
 
 def NounWord.attachHostZone : NounWord → Option Zone

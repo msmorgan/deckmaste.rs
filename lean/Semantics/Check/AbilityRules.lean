@@ -62,7 +62,9 @@ def CostShift.check (bs : Bindings) : CostShift → List Refusal
   | .less amt floor =>
     Amount.check bs amt ++ (match floor with | none => [] | some f => Amount.check bs f)
   | .more amt => Amount.check bs amt
-  | .run r _ _ => refuse (!r.isEmpty) .nonEmpty ++ ManaCost.check r
+  | .bySymbols (.lit r) _ _ => refuse (!r.isEmpty) .nonEmpty ++ ManaCost.check r
+  | .bySymbols (.manaCostOf n) _ _ =>
+    NounPhrase.check (some .object) bs n ++ refuse n.plur.isOne .singular
 
 def CountBound.check (bs : Bindings) : CountBound → List Refusal
   | .moreThan k => Amount.check bs k
@@ -412,6 +414,14 @@ mutual
       let bs' := nomIntro bs who
       NounPhrase.check (some .player) bs who ++ NounPhrase.check (some .object) bs' subject ++
         PlayPayment.check bs' payment ++ OptPredicate.check .object (nomIntro bs' subject) resulting
+    -- Each side is checked at the kind the relation's declaration gives it.
+    | .relate subject l counterpart =>
+      refuse l.known (.knownRelation l) ++ NounPhrase.check (some l.left) bs subject ++
+        NounPhrase.check (some l.right) (nomIntro bs subject) counterpart
+    -- Only an object merges, and only with one permanent [CR#730.2].
+    | .merge subject onto _ =>
+      NounPhrase.check (some .object) bs subject ++
+        NounPhrase.check (some .object) (nomIntro bs subject) onto ++ refuse onto.plur.isOne .singular
   termination_by structural e => e
 
   def Repetition.check (bs : Bindings) : Repetition → List Refusal
@@ -679,6 +689,8 @@ mutual
     | .addedCost c _ _ => Cost.check bs c
     | .paySubstitute n s => NounPhrase.check (some .object) bs n ++ ManaSubstitute.check bs s
     | .modeChoice m => ModeChange.check bs m
+    | .addsTarget n d =>
+      NounPhrase.check (some .object) bs n ++ Predicate.check .object (selfSubjIntro bs n) d
     -- Read as an activated ability's cost and effect are: the player who takes the action
     -- performs `does`, which sees what the cost introduced [CR#116.2c].
     | .specialAction when c does =>

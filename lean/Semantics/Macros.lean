@@ -710,18 +710,18 @@ semantic_macro eventSum (event : GameEvent) (who : NounPhrase) (within : Duratio
 /-- "if there is no <designation>" -/
 semantic_macro thereIsNo (designation : DesignationLabel) : Condition := .noHolder designation
 /-- "<subject>'s <keyword> cost was paid", read back. -/
-semantic_macro paidCostRead (which : PaidCostName) (window : Option Duration) (subject : NounPhrase) :
+semantic_macro paidCostRead (which : LinkSource) (window : Option Duration) (subject : NounPhrase) :
     Amount :=
   .paid (.readback which window) subject
 /-- "the number of times <subject>'s <keyword> cost was paid" -/
-semantic_macro timesPaid (which : PaidCostName) (subject : NounPhrase) : Amount :=
+semantic_macro timesPaid (which : LinkSource) (subject : NounPhrase) : Amount :=
   .paid (.timesPaid which) subject
 /-- "the player chosen as <subject>'s <label> cost was paid", read back by the linked ability
 [CR#607.2d,702.174a] -/
 semantic_macro chosenAsPaid (label : KeywordLabel) (subject : NounPhrase) : NounPhrase :=
   .paid (.chosenPlayer (.byKeyword label)) subject
 /-- "if <subject>'s <cost> was paid" -/
-semantic_macro costWasPaid (which : PaidCostName) (window : Option Duration) (subject : NounPhrase) :
+semantic_macro costWasPaid (which : LinkSource) (window : Option Duration) (subject : NounPhrase) :
     Condition :=
   .compareAmt (paidCostRead which window subject) .atLeast (.lit 1)
 /-- "the last chosen color" -/

@@ -947,7 +947,7 @@ def alabasterLeech : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Alabaster Leech", cost := some [pip .white], types := [.creature],
       subtypes := [creatureType "Leech"],
-      text := [Primitives.Ability.static (spellsCost (Primitives.Predicate.and [spell, Primitives.Predicate.colorIs .white, castBy Primitives.NounPhrase.you]) (Primitives.CostShift.run [pip .white] true false))],
+      text := [Primitives.Ability.static (spellsCost (Primitives.Predicate.and [spell, Primitives.Predicate.colorIs .white, castBy Primitives.NounPhrase.you]) (Primitives.CostShift.bySymbols (Primitives.ManaCostTerm.lit [pip .white]) true false))],
       power := stat 1, toughness := stat 3 } }
 
 /-- Edgewalker -/
@@ -957,7 +957,7 @@ def edgewalker : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Cleric"],
       text :=
         [ Primitives.Ability.static (spellsCost (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Cleric"), spell, castBy Primitives.NounPhrase.you])
-            (Primitives.CostShift.run [pip .white, pip .black] false true)) ],
+            (Primitives.CostShift.bySymbols (Primitives.ManaCostTerm.lit [pip .white, pip .black]) false true)) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Cavern-Hoard Dragon -/

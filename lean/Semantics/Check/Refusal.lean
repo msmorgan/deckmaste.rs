@@ -39,6 +39,8 @@ inductive Refusal where
   | counterKindNamed (k : Kind)
   | designationHolder (designation : DesignationLabel) (k : Kind)
   | designationScope (designation : DesignationLabel)
+  /-- A Relation no declaration declares [CR#702.55b,702.95b,702.99b]. -/
+  | knownRelation (relation : RelationLabel)
   | designationPossessorFits (designation : DesignationLabel)
   /- number -/
   | soleHolder
@@ -70,7 +72,7 @@ inductive Refusal where
   | choiceInScope (k : Kind)
   /-- "The player chosen as [cost] was paid" names a cost whose payment chooses no player, so
   there is no choice for the linked ability to read back [CR#607.2d,607.2i]. -/
-  | paidChoiceInScope (which : PaidCostName)
+  | linkedChoiceInScope (which : LinkSource)
   | outcomeInScope (s : OutcomeSort) (found : Nat)
   | quantOutcomeInScope (found : Nat)
   | coinFlipInScope
@@ -136,10 +138,10 @@ inductive Refusal where
   | knownKeyword (k : KeywordLabel)
   | knownKeywordTerm
   | knownCounter
-  | paidFacetNamed
-  /-- A facet is read as what it records: an amount as an amount, the chosen player as a noun
-  phrase. -/
-  | paidFacetKind
+  | linkedFacetNamed
+  /-- A facet is read as what it records: an amount as an amount, the chosen player or the
+  objects a deed acted on as a noun phrase. -/
+  | linkedFacetKind
   | costNameable
   | keywordParamFits (k : KeywordLabel)
   | keywordBodyFits (k : KeywordLabel)

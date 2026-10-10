@@ -98,6 +98,11 @@ def Definition.check : Definition → List Refusal
         refuse (scope.narrowable || (zone.isNone && type.isNone && half.isNone))
           (.definitionScoped label)
   | .cardType _ _ confers => confers.flatMap Conferral.check
+  -- A Relation links two entities, each an object or a player [CR#702.55b,702.95b,702.99b].
+  | .relation label left right =>
+      refuse (!label.name.isEmpty) .definitionNamed ++
+        refuse (left == .object || left == .player) (.definitionHolder left) ++
+        refuse (right == .object || right == .player) (.definitionHolder right)
 
 /-- Every refusal in a plugin's `rules/` directory, in reading order. -/
 def RulesTables.check (t : RulesTables) : List Refusal :=

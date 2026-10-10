@@ -508,6 +508,11 @@ def designationTable : List DesignationFacts :=
     { label := "solved", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none },
     { label := "suspected", scope := .heldBy .object, effectful := true, zone := some .battlefield, type := none, half := none } ]
 
+def relationTable : List RelationFacts :=
+  [ { label := "encodedOn", left := .object, right := .object },
+    { label := "haunting", left := .object, right := .object },
+    { label := "paired", left := .object, right := .object } ]
+
 def subtypeFacts : List SubtypeFacts :=
   [ ⟨.of .enchantment "Saga", .chapters⟩,
     ⟨.spell "Adventure", .adventureInset⟩,

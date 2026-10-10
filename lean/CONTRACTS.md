@@ -842,20 +842,20 @@ may choose an opponent" [CR#702.174a], and its second hands the effect to the
 chosen player [CR#702.174b,702.174d..702.174i]. The two are linked
 [CR#607.2d,607.2i], as kicker's cost and its "was kicked" readback are
 [CR#702.33e], and the second
-reads the first through the same paid-cost facets: `PaidFacet.chosenPlayer
-which`, "the player chosen as [which] was paid", keyed by `PaidCostName` and
+reads the first through the same paid-cost facets: `LinkedFacet.chosenPlayer
+which`, "the player chosen as [which] was paid", keyed by `LinkSource` and
 written `.byKeyword (.named "gift")` (`semantics-v2.md` §7, ruling 2026-10-06,
 "Gift and the additional-cost keywords share one mechanism"). There is no
 general linked-ability binding.
 
 - The facet is a player, so it is read by `NounPhrase.paid facet subject`
   (`chosenAsPaid`); `Amount.paid` reads the amount facets. Each refuses the
-  other's facet (`paidFacetKind`): a term-shape check.
+  other's facet (`linkedFacetKind`): a term-shape check.
 - It resolves as kicker's readback does: the cost is named in the registry
-  (`paidFacetNamed`); where the subject is (the `paidSubject` stack demand) is
+  (`linkedFacetNamed`); where the subject is (the `paidSubject` stack demand) is
   no longer checked (`lean-checker-sweep-zone`). It adds one reference check: paying the named cost chooses
   a player, the row's `costChoosesPlayer` column (gift's alone), else
-  `paidChoiceInScope which`, since the linked ability has no choice to read
+  `linkedChoiceInScope which`, since the linked ability has no choice to read
   [CR#607.2d]. "The additional cost" and "the alternative cost" declare no
   choice. Neither check asserts a game rule (§7, "The checker's charter").
 - A bare "the chosen player" (`chosenPlayer`, `.chosenPlayer .theChoice`) still
@@ -864,6 +864,34 @@ general linked-ability binding.
 - Pins: `Semantics/Proofs/LinkedChoiceReadback.lean`, including both
   class-guarded halves of a gift-shaped definition.
 
+
+### Linked Facets of a Link Source, and declared Relations
+
+`PaidFacet` and `PaidCostName` are `LinkedFacet` and `LinkSource`
+(`semantics-v2.md` §7, ruling 2026-10-09, "A linked ability reads back a
+Linked Facet of a Link Source"). A Link Source is also a printed ability named
+by its deed, `LinkSource.byDeed deed` ("the exiled card" [CR#607.2a]), and two
+facets join the five:
+
+- `LinkedFacet.objects which deed plurality`, the objects `deed` acted on
+  ("the sacrificed creature", "creatures it devoured" [CR#702.82b]), read by
+  `NounPhrase.paid` at object kind and the written number. It is named when
+  its source is (`linkedFacetNamed`), the deed is declared and acts on
+  objects, and the source performs that deed (`LinkSource.performs`): a
+  `byDeed` source performs only its own deed, and a keyword ability's own deed
+  is performed only by that keyword's source. Anything else is refused
+  `linkedFacetNamed`: there is nothing to read back.
+- `LinkedFacet.taken which`, whether the choice `which` offered was taken
+  ("if tribute wasn't paid" [CR#702.104b]), an amount facet.
+
+A Relation (`RelationLabel`) is declared as a designation is, under
+`plugins_v2/builtin/macros/relations/`, as `Definition.relation label left
+right`; `cargo xtask facts` writes `relationTable`. `Instruction.relate`,
+`Predicate.related` and `NounPhrase.counterpart` check each side at the kind
+the declaration gives it, so a side of the wrong kind is refused
+`kindMismatch`, and an undeclared label `knownRelation`. These are kind and
+reference checks; when a relation ends [CR#702.95e,702.99c] is the engine's.
+Pins: `Semantics/Proofs/LinkedReadback.lean`.
 
 ### Movement destinations
 

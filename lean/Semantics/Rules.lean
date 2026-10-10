@@ -123,6 +123,10 @@ inductive Definition where
   its owner has priority [CR#304.1] — is no ability of the object [CR#113.12], so it is the
   ability-free `property` flavor. Most card types confer nothing. -/
   | cardType (cardType : CardType) (permanentType : Bool) (confers : List Conferral)
+  /-- A Relation [CR#702.55b,702.95b,702.99b]: a named link between two entities, made by one
+  ability and read by others, with the kind of each side. The label is the declaration's own
+  name; the declaration meta-macro writes it, never the author. -/
+  | relation (label : RelationLabel) (left : Kind) (right : Kind)
   deriving Repr, BEq
 
 /-- A definition's name DENOTES its term.
@@ -140,14 +144,14 @@ declaration's bare name (`plugins-v2-subtypes-macro-only`; the counter half by r
 2026-10-03, the designation half by ruling 2026-10-05). -/
 def Definition.subtypeTerm : Definition → Option Subtype
   | .subtype term _rules => some term
-  | .counter .. | .designation .. | .cardType .. => none
+  | .counter .. | .designation .. | .cardType .. | .relation .. => none
 
 /-- The counter half of `Definition.subtypeTerm`: a counter definition names its `kind`, so a
 counter declaration's name read at a `CounterKind` position is the kind it defines, which is
 that same name. -/
 def Definition.counterTerm : Definition → Option CounterKind
   | .counter kind _holder _confers => some kind
-  | .subtype .. | .designation .. | .cardType .. => none
+  | .subtype .. | .designation .. | .cardType .. | .relation .. => none
 
 /-- The designation half of `Definition.subtypeTerm`: a designation definition names its `label`,
 so a designation declaration's name read at a `DesignationLabel` position is the designation it
@@ -155,7 +159,13 @@ defines, which is that same name (or, for a member of a declaration that lists s
 member's). -/
 def Definition.designationTerm : Definition → Option DesignationLabel
   | .designation label .. => some label
-  | .subtype .. | .counter .. | .cardType .. => none
+  | .subtype .. | .counter .. | .cardType .. | .relation .. => none
+
+/-- The relation half of `Definition.subtypeTerm`: a relation definition names its `label`, so a
+relation declaration's name read at a `RelationLabel` position is the relation it defines. -/
+def Definition.relationTerm : Definition → Option RelationLabel
+  | .relation label .. => some label
+  | .subtype .. | .counter .. | .designation .. | .cardType .. => none
 
 /-- The three tables a plugin's `rules/` directory defines, concatenated across its files. The
 predefined-token catalog is a separate list, because its entries are named and a plugin writes

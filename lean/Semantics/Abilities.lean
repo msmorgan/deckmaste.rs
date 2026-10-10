@@ -77,10 +77,21 @@ inductive CharacteristicStat where
   | power | toughness | loyalty | defense
   deriving DecidableEq, Repr
 
+/-- A mana cost a cost shift raises or lowers by: written ("{W}{B}"), or an object's mana cost
+("the sacrificed permanent's mana cost" [CR#702.48a]). -/
+inductive ManaCostTerm where
+  | lit (cost : ManaCost)
+  | manaCostOf (object : NounPhrase)
+  deriving Repr, BEq
+
 inductive CostShift where
   | less (amount : Amount) (floor : Option Amount)
   | more (amount : Amount)
-  | run (run : ManaCost) (rises : Bool) (coloredOnly : Bool)
+  /-- Raise (`rises`) or lower the cost by the symbols of `cost`, each symbol of a type changing
+  mana of that type. `coloredOnly` is "this effect reduces only the amount of colored mana you
+  pay" (Edgewalker): a reduction that leaves generic mana alone; without it, colored mana
+  in `cost` beyond what the total cost has reduces generic mana [CR#702.48c,118.7]. -/
+  | bySymbols (cost : ManaCostTerm) (rises : Bool) (coloredOnly : Bool)
   deriving Repr, BEq
 
 /-- The mana one act of a Mana Substitute pays for: one generic mana, or one mana of a color
@@ -330,6 +341,10 @@ mutual
     /-- A Mode Change: modifies how the modes of the spell or ability it is printed with are
     chosen [CR#700.2,702.42a,702.120a]. -/
     | modeChoice (change : ModeChange)
+    /-- The spell gains a target, `description` saying what it may target, when its alternative
+    cost is chosen: mutate's "targets a non-Human creature with the same owner as this spell"
+    [CR#702.140a,601.2c]. -/
+    | addsTarget (subject : NounPhrase) (description : Predicate)
 
   /-- How a Mode Change modifies its own spell's `chooseModes`. -/
   inductive ModeChange where
@@ -556,6 +571,13 @@ mutual
     [CR#701.57a]). -/
     | procedure (kind : Procedure) (subject : NounPhrase) (payment : PlayPayment)
         (resulting : Option Predicate)
+    /-- Make `subject` stand in the Relation `label` with `counterpart`: "exile it haunting target
+    creature", "pair this creature with another", "encoded on a creature"
+    [CR#702.55b,702.95b,702.99b]. -/
+    | relate (subject : NounPhrase) (label : RelationLabel) (counterpart : NounPhrase)
+    /-- Merge `subject` with the permanent `onto`, placed at `position`: the permanent becomes
+    a merged permanent represented by both [CR#730.2]. -/
+    | merge (subject : NounPhrase) (onto : NounPhrase) (position : MergePosition)
   inductive KeywordParam where
     | cost (cost : Cost)
     | quality (predicate : Predicate)

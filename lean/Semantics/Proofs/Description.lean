@@ -404,12 +404,12 @@ theorem okPaidCostOnKeywordWithACost :
 
 /-- "if this creature's flying cost was paid" -/
 theorem badPaidCostOnCostlessKeyword :
-    Amount.check [] (.paid (.readback (.byKeyword (.named "flying")) none) .this) = [.paidFacetNamed] := by
+    Amount.check [] (.paid (.readback (.byKeyword (.named "flying")) none) .this) = [.linkedFacetNamed] := by
   decide
 
 /-- "for each time it was kickre'd" -/
 theorem badTimesPaidUnknownKeyword :
-    Amount.check [] (.paid (.timesPaid (.byKeyword (.named "kickre"))) thisCreature) = [.paidFacetNamed] := by
+    Amount.check [] (.paid (.timesPaid (.byKeyword (.named "kickre"))) thisCreature) = [.linkedFacetNamed] := by
   decide
 
 /-- "for each color of mana spent to cast this spell" -/
