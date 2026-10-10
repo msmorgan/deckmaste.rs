@@ -1,5 +1,6 @@
 //! Raw supported-corpus census for the generated v3 grammar.
 
+mod blockers;
 mod card_scope;
 mod diff;
 mod grep;
@@ -114,6 +115,9 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
         Some(probe::Command::Diff(diff_args)) => return diff::run(diff_args, output),
         Some(probe::Command::Grep(grep_args)) => {
             return grep::run(grep_args, &args.data, output);
+        }
+        Some(probe::Command::Blockers(blocker_args)) => {
+            return blockers::run(blocker_args, &args.data, output);
         }
         None => {}
     }
@@ -238,6 +242,16 @@ fn analyze_face(
     grammar: &Grammar,
     args: &EnglishV3Args,
 ) -> Result<FaceReport> {
+    Ok(analyze_face_with_progress(face, lexicon, grammar, args)?.0)
+}
+
+fn analyze_face_with_progress(
+    face: &SelectedFace,
+    lexicon: &Lexicon,
+    grammar: &Grammar,
+    args: &EnglishV3Args,
+) -> Result<(FaceReport, usize)> {
+    let mut furthest_position = 0;
     let cpu_start = report::thread_cpu_ns();
     let started = Instant::now();
     let mut result = FaceReport::new(face, args.field);
@@ -262,6 +276,7 @@ fn analyze_face(
     match parse(grammar, lexicon, &analyzed, &args.field.category()) {
         Ok(forest) => {
             result.chart_wall_ns = started.elapsed().as_nanos();
+            furthest_position = forest.metrics().furthest_position;
             result.chart = report::chart_metrics(forest.metrics());
             let started = Instant::now();
             let (segments, category) =
@@ -310,7 +325,7 @@ fn analyze_face(
     result.thread_cpu_ns = cpu_start
         .zip(report::thread_cpu_ns())
         .map(|(start, end)| end - start);
-    Ok(result)
+    Ok((result, furthest_position))
 }
 
 fn census_segments(

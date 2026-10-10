@@ -67,6 +67,35 @@ every match), capped by `--limit` (default 200), then `N faces, M matches`;
 (or at least one) in that census. Use it, never `rg` over the Scryfall file,
 for corpus attestation checks.
 
+## Blocker report
+
+```sh
+cargo xtask english-v3 blockers --census FILE [--json OUT] [--limit N]
+```
+
+`blockers` diagnoses every unread face in a complete schema-8 text census
+using the current grammar and lexicon and the census's worker count. It reuses
+card-scoped census line analysis, with no retained tree samples. Unread faces
+split on analysed-source newlines; covered faces use their census Ability
+segments, retaining quoted multiline abilities and modal lists. The summary
+counts covered faces whose segments differ from newline splitting. A source
+or coverage disagreement with the census fails loudly.
+
+Each failing line has lowercased `word:` keys for unknown words, or an `at:`
+key with the characters before and at the furthest reached chart boundary.
+Chart tokens are Unicode scalars; `\s`, `\t`, and `\n` display whitespace,
+and `<start>` / `<end>` display input boundaries. JSON records the token index
+and line byte span. These keys diagnose failures and never affect admission.
+“Vocabulary-only” means every failing line has unknown words; it does not
+claim that declaring those words would suffice to make the lines read.
+
+The summary prints unread faces, single-failing-line faces, vocabulary-only
+faces, and reading lines / total lines over the whole census. Keys rank by
+sole-blocker faces, then touched faces, with up to three examples each. A
+sole blocker requires exactly one failing line with exactly one key.
+`--limit` caps printed keys (default 30); JSON retains every key and face,
+including covered-face line verdicts. The census schema is unchanged.
+
 ## Raw corpus census
 
 ```sh

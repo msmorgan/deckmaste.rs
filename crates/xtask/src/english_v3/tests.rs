@@ -30,7 +30,7 @@ use crate::raw_corpus::SelectedCorpus;
 use crate::raw_corpus::SelectionRequest;
 use crate::raw_corpus::load_selected;
 
-fn lexicon() -> &'static Lexicon {
+pub(super) fn lexicon() -> &'static Lexicon {
     static LEXICON: OnceLock<Lexicon> = OnceLock::new();
     LEXICON.get_or_init(|| {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -43,7 +43,7 @@ fn lexicon() -> &'static Lexicon {
     })
 }
 
-fn args(limit: Option<usize>) -> EnglishV3Args {
+pub(super) fn args(limit: Option<usize>) -> EnglishV3Args {
     EnglishV3Args {
         command: None,
         field: SourceField::Text,
@@ -62,7 +62,7 @@ fn card(text: Option<&str>, legality: &str) -> serde_json::Value {
         "layout":"normal", "legalities":{"vintage":legality}, "text":text})
 }
 
-fn selected_corpus(legacy_fixture: &[u8]) -> SelectedCorpus {
+pub(super) fn selected_corpus(legacy_fixture: &[u8]) -> SelectedCorpus {
     let value: serde_json::Value = serde_json::from_slice(legacy_fixture).unwrap();
     let mut records = Vec::new();
     for (group, faces) in value["data"].as_object().unwrap() {

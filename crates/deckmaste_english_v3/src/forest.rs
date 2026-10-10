@@ -96,6 +96,9 @@ pub struct Metrics {
     pub families: usize,
     pub completion_work: usize,
     pub scan_work: usize,
+    /// Furthest reached boundary in the input's Unicode-scalar token sequence.
+    /// Predicted items alone do not advance this position.
+    pub furthest_position: usize,
 }
 
 /// Packed recognizer output. Growth of a shared child's families is visible

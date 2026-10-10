@@ -104,7 +104,93 @@ Standard constraints apply. Deltas:
 
 ## Landing record
 
-Six items as specified in `docs/tickets/README.md`. Item 1 is replaced by the
-report's own summary on the full census (unread faces, single-failing-line
-faces, vocabulary-only faces, line-level coverage, top 30 keys by sole-blocker
-faces); item 3 by ten faces checked by hand against `probe --as-card`.
+1. **Report summary** (`sqnyzpnl`; full 32,828 supported faces; schema 8).
+   Coverage agreement checks passed for every face. Report and census used
+   six workers; report peak RSS 11,877,316 KiB, below census peak
+   14,952,824 KiB (`sqnyzpnl`). Artifacts in the coordinator workspace:
+   `target/english-v3/baseline-blockers.json`, `blockers.json`, `blockers.txt`.
+
+    ```text
+    5886 unread faces; 5035 with exactly one failing line; 1673 vocabulary-only faces
+    Line coverage: 52196 / 59428; 440 covered-face segmentation disagreements
+    Blocker keys (sole-blocker faces, touched faces; examples):
+    at:\s t: 245, 274; Guul Draz Vampire | Heartwarming Redemption | Doubling Season
+    at:\s {: 195, 238; Nissa, Worldsoul Speaker | Lattice Library | Saltcrusted Steppe
+    at:e .: 177, 220; Syndicate Heavy | Greater Werewolf | Giant Oyster
+    at:. <end>: 152, 180; Goblin Barrage | Cabal Therapy | Bloodthorn Flail
+    at:\s n: 146, 171; Soul-Scar Mage | Glademuse | Tawnos's Coffin
+    at:d .: 140, 178; The Foretold Soldier | Glimpse of Freedom | Stenn, Paranoid Partisan
+    at:r .: 137, 159; Worldly Counsel | Muxus, Goblin Grandee | Karn, Living Legacy
+    at:\s a: 121, 130; Muck Drubb | Twice Upon a Time | Akawalli, the Seething Tower
+    at:n .: 113, 129; Sanguine Indulgence | Flashback | Eye of Duskmantle
+    at:\s o: 109, 144; Eldrazi Confluence | Kotis, Sibsig Champion | Doomsday Confluence
+    at:\s i: 106, 138; Pest Rescuer | Wail of the Forgotten | Verrak, Warped Sengir
+    at:t .: 100, 116; Observed Stasis | Gustcloak Runner | Stunning Strike
+    at:\s c: 92, 100; Welkin Tern | Departed Soulkeeper | Cloud Elemental
+    at:\s m: 88, 96; Rashmi, Eternities Crafter | No Witnesses | Asinine Antics
+    at:m \s: 69, 74; Treasure Map | Ulrich of the Krallenhorde | Ulrich, Uncontested Alpha
+    at:y .: 67, 74; Coalition Relic | Green Sun's Twilight | Fountain of Cho
+    at:\s l: 64, 94; Stormchaser's Talent | Beza, the Bounding Spring | Kasmina, Enigma Sage
+    at:\s p: 63, 74; Benevolent Hydra | Goblin Gathering | Hulkling, Burgeoning Bruiser
+    at:s .: 63, 65; Jace, the Perfected Mind | Primal Adversary | Conflagrate
+    at:\s d: 55, 65; Kotis, Sibsig Champion | One with the Multiverse | Forethought Amulet
+    at:\s w: 54, 56; Gorex, the Tombshell | Illusionary Mask | Karn, Scion of Urza
+    at:\s f: 53, 59; Walking Sponge | Rime Dryad | Tomb Tyrant
+    at:\s b: 50, 54; Ponder | Sealed Fate | Frenzied Raider
+    at:\s y: 49, 55; Phial of Galadriel | Convalescent Care | Hoarding Broodlord
+    at:\s e: 46, 59; Aura Graft | Omo, Queen of Vesuva | Hired Claw
+    at:s \s: 46, 53; Phenax, God of Deception | Erebos, God of the Dead | Magister Sphinx
+    at:— <end>: 43, 196; Saheeli's Artistry | Dawnbringer Cleric | Astarion, the Decadent
+    at:e \s: 42, 51; The Book of Exalted Deeds | The Sound of Drums | First Response
+    at:\s R: 42, 50; Elrond, Lord of Rivendell | Uruk-hai Berserker | Horses of the Bruinen
+    at:p ,: 42, 46; Goblin Bomb | Goblin Lyre | Ral, Monsoon Mage
+    ```
+
+2. **Witnesses** (`sqnyzpnl`). Synthetic line Reading counts: undeclared
+   second line `[1, 0]`, key `word:zzyzx`, sole blocker; declared words in
+   wrong order (`Draw Draw.`) `[0]`, key `at:w .`, sole blocker; covered
+   two-line face `[1, 1]`, no failing line; two failing lines `[1, 0, 0]`,
+   keys `word:zzyzx` and `word:qqxyz`, sole blocker for neither. Additional
+   tests preserve face-level deduplication for repeated keys and covered
+   modal-list segmentation with a reported newline disagreement.
+
+3. **Spot checks** (`sqnyzpnl`). Ten faces checked line by line with
+   `probe --as-card NAME --text LINE --readings 8 --json`: Ancestral Recall
+   `[1]`; Lightning Bolt `[1]`; Black Lotus `[1]`; Counterspell `[1]`;
+   Brainstorm `[2]`; Guul Draz Vampire `[0]`, `at:\s t`; Nissa, Worldsoul
+   Speaker `[2, 0]`, `at:\s {`; Syndicate Heavy `[1, 0]`, `at:e .`; Goblin
+   Barrage `[0, 1]`, `at:. <end>`; Hua Tuo, Honored Physician `[0]`,
+   `word:declared`. Every probe enumerated completely, agreed with the
+   report, and had zero issues; every inspected Reading realized exactly.
+   Evidence: the feature workspace's
+   `target/english-v3/english-v3-blocker-report/spotcheck-*.json`.
+
+4. **Deviations and STOPs**. Exposed the permitted read-only chart statistic
+   `Metrics::furthest_position`; kept it out of the census schema. No
+   grammar, lexicon, construction, frame or gate changed. Runtime tokens
+   are Unicode scalars; the ticket's prescribed `at:` keys use those tokens,
+   with explicit whitespace and input-boundary labels. Minted
+   `english-v3-blocker-word-context` because the `at:\s t` group combines
+   *this*, *the* and *twice*. Normalized the existing completed
+   `english-v3-derived-punctuation-forms` dependency's quoted frontmatter
+   ID; the adapter had treated the quotes as part of the ID. Kanban check
+   now passes. Two extra tests cover deduplication and modal segmentation.
+   Corrected one new test's mistaken frontier expectation against the packed
+   probe: the chart reaches the second *Draw* and stops before the full stop.
+   Its exact position/key assertions remain. No glossary gap or unresolved
+   STOP. Tooling exception: no before/after grammar census or red witnesses.
+
+5. **Tests** (`sqnyzpnl`). `cargo test -p xtask english_v3`: 53 passed (the
+   initial run had 52 passes and the mistaken new expectation described
+   above; the corrected run passes). `cargo test -p deckmaste_english_v3`:
+   712 passed. `cargo clippy -p xtask --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`: both pass.
+   Restored 0 / re-spelled 0 / ignored 0 / added 6 / removed 0; removals:
+   none. Existing test assertions are preserved. Citation checks: zero
+   noncompliant and zero stale references; no newly cited rules.
+
+6. **Timing** (`sqnyzpnl`). The one full census took **423340 ms**, six
+   workers, prebuilt binary under `/usr/bin/time -v`, samples per face 0.
+   `free -g` showed 82 GB available immediately before launch. Timing and
+   verification logs are in the feature workspace's
+   `target/english-v3/english-v3-blocker-report/`.

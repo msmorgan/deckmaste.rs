@@ -207,6 +207,10 @@ impl<G: Grammar> Chart<'_, G> {
     }
 
     fn insert(&mut self, item: Item<G::State>, edge: Edge) {
+        if item.dot != 0 {
+            self.forest.metrics.furthest_position =
+                self.forest.metrics.furthest_position.max(item.end);
+        }
         let id = if let Some(id) = self.item_index.get(&item) {
             *id
         } else {

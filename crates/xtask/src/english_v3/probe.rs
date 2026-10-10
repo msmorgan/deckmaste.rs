@@ -23,6 +23,8 @@ pub enum Command {
     Diff(super::diff::DiffArgs),
     /// Search the supported corpus's analysed text with a regex.
     Grep(super::grep::GrepArgs),
+    /// Localize and rank unread census faces by failing line.
+    Blockers(super::blockers::BlockersArgs),
 }
 
 #[derive(Debug, Args)]

@@ -1,5 +1,5 @@
 ---
-needs: ["english-v3-licence-hygiene"]
+needs: [english-v3-licence-hygiene]
 ---
 # Derive punctuation from structure: collapse separator-only form pairs and drop dead curly variants
 
