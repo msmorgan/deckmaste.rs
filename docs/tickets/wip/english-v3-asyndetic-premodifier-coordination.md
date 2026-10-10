@@ -212,6 +212,7 @@ Deltas:
    resolved by the [orchestrator ruling R15e](#orchestrator-ruling-r15e-2026-10-09).
    Three constructions provide noun/adjective member projections and the
    shared-head consumer; existing comma schemas supply the coordination.
+   These are a net +3 Constructions against the 250 ceiling (`xqtkuyqk`).
    No extra syndetic declaration, frame or lexicon route was added or retired.
    Terror's syndetic Nominal Reading stays unchanged; unattested
    `red, green creature` reads 1 on `xqtkuyqk`, permitted by R15e.
@@ -219,7 +220,12 @@ Deltas:
    original list `[Swamp], [Mountain], [black permanent], or [red permanent]`
    gained `[Swamp], [[Mountain, black] permanent], or [red permanent]`.
    Propagating the declared unmarked-conjunct licence excludes the latter
-   under R15d; the final census restores 2 → 2 and changes no other covered
+   under R15d. The orchestrator review ruling (2026-10-09) accepts its cost:
+   a CoordinatedPremodifiedNominal cannot be a non-final member of a
+   coordinator-ending Nominal list, so `[[P1, P2] N], N, or N` stays closed.
+   That ruling records 0 supported faces attesting this shape; this restriction
+   is a project ruling, not a CGEL claim.
+   The final census restores 2 → 2 and changes no other covered
    face. No claim-parent Reading was removed. The glossary adds Premodifier
    Coordination and clarifies UnmarkedConjunctLicence; CGEL pp. 1326–28
    supports likeness of function, while Oracle restrictions cite R15e.
@@ -237,6 +243,8 @@ Deltas:
    Post-refresh full `cargo test -p deckmaste_english_v3` passed (`zumztwqt`):
    696 tests, 0 failed, ignored or filtered; 0 doctests. Only this feature's
    changed code crate requires the post-refresh suite.
+   Review recheck (`zmlqouow`), on the current refreshed grammar:
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
    Restored 0 / re-spelled 0 / ignored 0 / added 9 / removed 0 (`xqtkuyqk`).
 6. **Timing** (`xqtkuyqk`): final bounded census 6m34.14s, 6 workers,
    peak RSS 14,207,812 KB (`/usr/bin/time -v`, prebuilt binary,
