@@ -142,6 +142,24 @@ constructions! {
         feature ComparativeDeterminerUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
+        feature ImplicitComparativeUse { No, Yes } default No;
+        feature AdjectiveAttributiveOnlyUse { No, Yes } default No;
+        table implicit_comparative_attributive_use(ImplicitComparativeUse) -> AdjectiveAttributiveOnlyUse {
+            (No) => No, (Yes) => Yes,
+        }
+        table adjective_attributive_concord(AdjectiveAttributiveOnlyUse, AdjectiveAttributiveOnlyUse)
+            -> AdjectiveAttributiveOnlyUse {
+            (No, No) => No, (_, _) => Yes,
+        }
+        feature ComparativeModifierPresent { No, Yes } default No;
+        table implicit_comparative_concord(ImplicitComparativeUse, ImplicitComparativeUse)
+            -> ImplicitComparativeUse {
+            (Yes, Yes) => Yes, (_, _) => No,
+        }
+        table comparative_modifier_present(ImplicitComparativeUse, ComparativeModifierPresent)
+            -> ComparativeModifierPresent {
+            (Yes, _) => Yes, (No, Yes) => Yes, (No, No) => No,
+        }
         feature MeasureModifierUse { No, Yes } default No;
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct,
@@ -521,7 +539,7 @@ constructions! {
         category BareComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category ParticipialComplement(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category PerfectComplement(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category Nominal(AttributePremodifierHead, KeywordPremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
+        category Nominal(ComparativeModifierPresent, AttributePremodifierHead, KeywordPremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
             RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, ScalarMeasurementHeadUse, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
@@ -534,7 +552,7 @@ constructions! {
             BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent, WholeObjectSourcePresent);
-        category AdjectivePhrase(AdjectiveComplementClass, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
+        category AdjectivePhrase(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category Premodifier(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
         category PremodifierCoordination(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
@@ -591,6 +609,9 @@ constructions! {
         category MatrixComparativeComplement(ComparisonMarker, ComparativeComplementForm);
         category MatrixComparativePhrase(ComparativeComplementForm);
         category ComparativeAdjectivePhrase(ComparisonMarker, AdjectivePremodifierUse);
+        category DiscontinuousComparativeGovernor(frame, ImplicitComparativeUse);
+        category ComparativeDeterminerHead(ComparativeDeterminerUse, DeterminerUse,
+            NominalAdjunctDependent);
         category KeywordPhrase();
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
@@ -637,12 +658,12 @@ constructions! {
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
-            AttributePremodifierHead, KeywordPremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
+            ComparativeModifierPresent, AttributePremodifierHead, KeywordPremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
             RelativisableAdjunctClass, SlashPremodifierUse,
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, ScalarMeasurementHeadUse, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
         , SourceModifierPresent, WholeObjectSourcePresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
-        category AdjectivePhraseSeries(AdjectiveComplementClass, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
+        category AdjectivePhraseSeries(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category PrepositionPhraseSeries(InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category FocusedAdjunctMember(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, SourceComplementUse);
@@ -677,8 +698,8 @@ constructions! {
         category CorrelativeFiniteSelectedHeadSeries(Polarity, number, person, FrameUse,
             CorrelativeCoordinator, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category CorrelativeAdjectivePhrase();
-        category CorrelativeAdjectiveSeries(CorrelativeCoordinator);
+        category CorrelativeAdjectivePhrase(AdjectiveAttributiveOnlyUse);
+        category CorrelativeAdjectiveSeries(AdjectiveAttributiveOnlyUse, CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(Polarity, number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category CorrelativeBareObjectGapSeries(CorrelativeCoordinator, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category SelectedPrepositionHead(LocativeUse, PrepositionFunctionLicence, HeadCoordination,
@@ -1438,9 +1459,17 @@ constructions! {
             AdjectiveComplementClass) -> AdjectiveComplementClass {
             (ColorWord, ColorWord) => ColorWord, (Manner, Manner) => Manner, (_, _) => None,
         }
+        policy AdjectiveAttributiveConcord<Right, Source> {
+            export AdjectiveAttributiveOnlyUse = adjective_attributive_concord(
+                left.AdjectiveAttributiveOnlyUse, Right.AdjectiveAttributiveOnlyUse);
+        }
         policy AdjectiveStructureMerge<Right, Source> {
             export AdjectiveComplementClass = coordinated_adjective_complement_class(
                 left.AdjectiveComplementClass, Right.AdjectiveComplementClass);
+            export AdjectiveAttributiveOnlyUse = adjective_attributive_concord(
+                left.AdjectiveAttributiveOnlyUse, Right.AdjectiveAttributiveOnlyUse);
+            export ImplicitComparativeUse = implicit_comparative_concord(
+                left.ImplicitComparativeUse, Right.ImplicitComparativeUse);
             export AdjectivePremodifierUse = coordinated_adjective_premodifier(
                 left.AdjectivePremodifierUse, Right.AdjectivePremodifierUse);
             export PremodifierCoordination = Yes;
@@ -1628,6 +1657,7 @@ constructions! {
             (DeterminerProjection, DeterminerProjection) => DeterminerProjection,
         }
         policy NominalConcord<Right, Source> {
+            export ComparativeModifierPresent = No;
             export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = relative_number_concord(left.SubjectRelativeNumber, Right.SubjectRelativeNumber);
             export AttributePremodifierHead = coordinated_attribute_premodifier_head(
@@ -2584,6 +2614,7 @@ constructions! {
         }
         construction AdjectivalKeywordQuality: KeywordQuality {
             form [phrase: AdjectivePhrase];
+            require phrase.AdjectiveAttributiveOnlyUse = No;
             require phrase.AdjectiveStructure = Simple;
             export KeywordQualityNumber = Any;
         }
@@ -3248,6 +3279,7 @@ constructions! {
         }
 
         construction Noun: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = No;
             export SubjectRelativeNumber = None;
@@ -3258,6 +3290,7 @@ constructions! {
         }
 
         construction BareFramedNoun: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = No;
             export SubjectRelativeNumber = None;
@@ -3270,6 +3303,7 @@ constructions! {
         // CGEL Ch. 14 §8.2, pp. 1259–1260: selected subjectless
         // to-infinitivals are internal Complements of nouns.
         construction InfinitiveComplementNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3280,6 +3314,7 @@ constructions! {
         }
 
         construction SymbolComplementNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3298,6 +3333,7 @@ constructions! {
         // Orchestrator rulings DV1–DV4: the selected colour Complement stays
         // inside the noun's frame, without a general colour-word NP route.
         construction PrepositionComplementNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3330,6 +3366,8 @@ constructions! {
 
         construction Adjective: AdjectivePhrase {
             export AdjectiveComplementClass = head.AdjectiveComplementClass;
+            export AdjectiveAttributiveOnlyUse = No;
+            export ImplicitComparativeUse = No;
             export PremodifierCoordination = No;
             form [head: lexical(Adjective)];
             require head.framing = Unframed;
@@ -3341,6 +3379,9 @@ constructions! {
 
         construction IntransitiveAdjective: AdjectivePhrase {
             export AdjectiveComplementClass = head.AdjectiveComplementClass;
+            export AdjectiveAttributiveOnlyUse = implicit_comparative_attributive_use(
+                head.ImplicitComparativeUse);
+            export ImplicitComparativeUse = head.ImplicitComparativeUse;
             export PremodifierCoordination = No;
             form [head: lexical(Adjective)];
             require head.frame = Intransitive;
@@ -3352,6 +3393,8 @@ constructions! {
 
         construction ComplementedAdjective: AdjectivePhrase {
             export AdjectiveComplementClass = None;
+            export AdjectiveAttributiveOnlyUse = No;
+            export ImplicitComparativeUse = No;
             export PremodifierCoordination = No;
             form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
@@ -3367,6 +3410,8 @@ constructions! {
         // the resulting complemented phrase on the existing PostpositiveNominal route.
         construction InfinitivalAdjective: AdjectivePhrase {
             export AdjectiveComplementClass = None;
+            export AdjectiveAttributiveOnlyUse = No;
+            export ImplicitComparativeUse = No;
             export PremodifierCoordination = No;
             form [head: lexical(Adjective), " ", complement: InfinitiveComplement];
             require head.frame = AdjectivalInfinitive;
@@ -3461,6 +3506,7 @@ constructions! {
         }
 
         construction CoordinatedPremodifiedNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = No;
             form [modifier: PremodifierCoordination, " ", head: Nominal];
             require licensed_noun_premodifier(modifier.NounPremodifier,
@@ -3480,6 +3526,7 @@ constructions! {
         }
 
         construction NounPremodifiedNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
@@ -3501,6 +3548,8 @@ constructions! {
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: AdjectivePhrase, " ", head: Nominal];
             use NominalHeadFeatures;
+            export ComparativeModifierPresent = comparative_modifier_present(
+                modifier.ImplicitComparativeUse, head.ComparativeModifierPresent);
             export PropertyValuePosition = premodified_property_value_position(
                 modifier.AdjectiveOrigin, head.PropertyValuePosition);
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -3516,7 +3565,7 @@ constructions! {
         // selection; CQ1–CQ4 (2026-10-10) supplies the shared representation
         // and immediate NP Complement analysis. CGEL p. 1139 describes same/as.
         schema DiscontinuousComparativeNominal {
-            form [governor: lexical(node), " ", head: Nominal, " ",
+            form [governor: node, " ", head: Nominal, " ",
                 marker: lexical(Preposition), " ", complement: AccusativePhrase];
             require licence_comparative_complement(marker.PrepositionFunctionLicence) = Yes;
             require head.Targeting = No;
@@ -3526,10 +3575,49 @@ constructions! {
             export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
         }
 
+        // AC2/AC4: the declared selected frame survives governor coordination,
+        // with one expanded Comparative Complement after the Nominal.
+        table discontinuous_governor_frame(frame, ImplicitComparativeUse) -> Selection {
+            (DiscontinuousEquality, _) => Yes, (Ordering, Yes) => Yes,
+            (Equality, Yes) => Yes,
+        }
+        table coordinated_discontinuous_frame(frame, frame) -> frame {
+            (DiscontinuousEquality, DiscontinuousEquality) => DiscontinuousEquality,
+            (Ordering, Ordering) => Ordering,
+            (Equality, Ordering) => Ordering, (Ordering, Equality) => Ordering,
+        }
+        table discontinuous_comparative_marker(frame, ExpandedComparisonMarker) -> Selection {
+            (DiscontinuousEquality, Equality) => Yes, (Ordering, Ordering) => Yes,
+        }
+        construction DiscontinuousComparativeGovernorHead: DiscontinuousComparativeGovernor {
+            form [head: lexical(Adjective)];
+            require discontinuous_governor_frame(head.frame, head.ImplicitComparativeUse) = Yes;
+            export frame = head.frame;
+            export ImplicitComparativeUse = head.ImplicitComparativeUse;
+        }
+        policy DiscontinuousGovernorConcord<Right, Source> {
+            export frame = coordinated_discontinuous_frame(left.frame, Right.frame);
+            export ImplicitComparativeUse = implicit_comparative_concord(
+                left.ImplicitComparativeUse, Right.ImplicitComparativeUse);
+        }
+        instance Coordination: DiscontinuousComparativeGovernor {
+            bind left, right = DiscontinuousComparativeGovernor;
+            use DiscontinuousGovernorConcord(right, coordinator);
+        }
+        construction ComparativeDeterminerHead: ComparativeDeterminerHead {
+            form [head: lexical(Determinative)];
+            require head.ComparativeDeterminerUse = Yes;
+            export ComparativeDeterminerUse = head.ComparativeDeterminerUse;
+            export DeterminerUse = head.DeterminerUse;
+            export NominalAdjunctDependent = head.NominalAdjunctDependent;
+        }
+
         policy DiscontinuousComparativeModifier {
             export BareGenitiveHost = head.BareGenitiveHost;
-            require governor.frame = DiscontinuousEquality;
-            require marker.ExpandedComparisonMarker = Equality;
+            require discontinuous_comparative_marker(governor.frame,
+                marker.ExpandedComparisonMarker) = Yes;
+            export ComparativeModifierPresent = comparative_modifier_present(
+                governor.ImplicitComparativeUse, head.ComparativeModifierPresent);
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
         }
@@ -3553,15 +3641,16 @@ constructions! {
 
         instance DiscontinuousComparativeNominal<Result, Governor: governor,
             HeadFeatures, HeadProperties, Properties>: [
-            (Nominal, Adjective, NominalHeadFeatures, NominalHeadProperties,
+            (Nominal, DiscontinuousComparativeGovernor, NominalHeadFeatures, NominalHeadProperties,
                 DiscontinuousComparativeModifier),
-            (NounPhrase, Determinative, NounPhraseHeadAgreement, NoFeatures,
+            (NounPhrase, ComparativeDeterminerHead, NounPhraseHeadAgreement, NoFeatures,
                 DiscontinuousComparativeDeterminer),
         ] { use HeadFeatures; use HeadProperties; use Properties; }
 
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
         // an outer Determiner; without it the cardinal is the Determiner.
         construction CardinalPremodifiedNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
@@ -3612,6 +3701,7 @@ constructions! {
         // not acquire a bare count-plural use. CGEL Ch. 5 §3.4, p. 354
         // distinguishes the singular conceptualization of a measured quantity.
         construction CardinalMeasuredNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
@@ -3678,6 +3768,7 @@ constructions! {
             form [head: node, " ", modifier: node];
         }
         policy PostpositiveNominalProperties {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
@@ -3686,6 +3777,7 @@ constructions! {
             export SourceModifierPresent = head.SourceModifierPresent;
             export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             require modifier.AdjectiveStructure = Complemented;
+            require modifier.AdjectiveAttributiveOnlyUse = No;
         }
         // Pre-integrate review ruling (2026-10-09): a declared fused-head NP
         // licence admits the comparative Postmodifier without pruning nominal scope.
@@ -3730,6 +3822,7 @@ constructions! {
         }
 
         construction ParticipialPremodifier: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
@@ -3807,6 +3900,7 @@ constructions! {
         }
 
         construction NamedNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
@@ -3820,6 +3914,7 @@ constructions! {
         }
 
         construction TargetedNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
@@ -3853,6 +3948,7 @@ constructions! {
         }
 
         construction PostmodifiedNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
@@ -4036,8 +4132,10 @@ constructions! {
             require nondefinite_determiner_requirement(head.DeterminerRequirement) = Yes;
         }
 
-        table bare_noun_phrase_license(number, countability) -> Selection {
-            (Plural, Count) => Yes, (Singular, Mass) => Yes,
+        table bare_noun_phrase_license(number, countability, ScalarDenotation,
+            ComparativeModifierPresent) -> Selection {
+            (Plural, Count, _, _) => Yes, (Singular, Mass, _, _) => Yes,
+            (Singular, Count, Yes, Yes) => Yes,
         }
         construction BareNounPhrase: NounPhrase {
             export NounPhraseStructure = Other;
@@ -4052,7 +4150,8 @@ constructions! {
             export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [head: Nominal];
-            require bare_noun_phrase_license(head.number, head.countability) = Yes;
+            require bare_noun_phrase_license(head.number, head.countability,
+                head.ScalarDenotation, head.ComparativeModifierPresent) = Yes;
             require head.DeterminerRequirement = No;
             use NounPhraseHeadAgreement;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
@@ -4396,6 +4495,7 @@ constructions! {
         construction SubjectAdjectiveVerblessClause: VerblessClause {
             form [subject: AccusativePhrase, " ", predicate: AdjectivePhrase];
             export VerblessClauseComplement = OvertSubject;
+            require predicate.AdjectiveAttributiveOnlyUse = No;
         }
 
         construction SubjectParticipialClause: VerblessClause {
@@ -4671,12 +4771,14 @@ constructions! {
             export PredicativeAdjunctUse = No;
             form [phrase: AdjectivePhrase];
             export PredicativeKind = Adjectival;
+            require phrase.AdjectiveAttributiveOnlyUse = No;
         }
 
         // CGEL pp. 262, 1265: optional depictives are adjuncts.
         construction AdjectivalDepictive: DepictivePhrase {
             form [phrase: AdjectivePhrase];
             export DepictiveKind = Adjectival;
+            require phrase.AdjectiveAttributiveOnlyUse = No;
         }
 
         construction ParticipialDepictive: DepictivePhrase {
@@ -4893,6 +4995,7 @@ constructions! {
             (PastParticiple, BarePassive) => Yes,
         }
         construction ParticipialPostmodifiedNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
@@ -5173,6 +5276,7 @@ constructions! {
         }
 
         construction SubjectRelativeNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             require relative_number_chain(head.SubjectRelativeNumber, relative.number) = Yes;
             export SubjectRelativeNumber = deferred_relative_number(head.NominalAgreementNumber, relative.number);
@@ -5289,6 +5393,7 @@ constructions! {
         }
 
         construction ObjectRelativeNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             require relative_head_licence(relative.RelativeGapKind,
                 head.RelativisableAdjunctClass) = Yes;
@@ -5571,6 +5676,8 @@ constructions! {
 
         construction OrdinalPremodifier: AdjectivePhrase {
             export AdjectiveComplementClass = None;
+            export AdjectiveAttributiveOnlyUse = No;
+            export ImplicitComparativeUse = No;
             export PremodifierCoordination = No;
             form [head: lexical(Numeral)];
             require head.numeral_kind = Ordinal;
@@ -5640,6 +5747,7 @@ constructions! {
         }
 
         construction SlashModifiedNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
@@ -5786,6 +5894,7 @@ constructions! {
             require marker.CoordinationKind = Alternative;
             require marker.NoncorrelativeCoordination = Yes;
             require right.ScalarComparativeUse = Yes;
+            require right.frame = Ordering;
         }
 
         // Project rulings: scalar-property-values (2026-10-07) and
@@ -5930,6 +6039,8 @@ constructions! {
 
         construction ComparativeAdjective: AdjectivePhrase {
             export AdjectiveComplementClass = None;
+            export AdjectiveAttributiveOnlyUse = No;
+            export ImplicitComparativeUse = No;
             export PremodifierCoordination = No;
             form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
@@ -6310,7 +6421,7 @@ constructions! {
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase),
+            (CorrelativeAdjectivePhrase, AdjectivePhrase, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties),
@@ -6342,7 +6453,7 @@ constructions! {
                 SelectedFrameConcord),
             (CorrelativeSecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
                 SelectedFrameConcord),
-            (CorrelativeAdjectiveSeries, AdjectivePhrase),
+            (CorrelativeAdjectiveSeries, AdjectivePhrase, AdjectiveAttributiveConcord),
             (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, FiniteGapConcord),
             (CorrelativeBareObjectGapSeries, BareObjectGap, BareGapConcord),
             (CorrelativeFiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties),
@@ -6374,7 +6485,7 @@ constructions! {
                 SelectedFrameConcord),
             (CorrelativeSecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
                 SelectedFrameConcord),
-            (CorrelativeAdjectiveSeries, AdjectivePhrase, Self),
+            (CorrelativeAdjectiveSeries, AdjectivePhrase, Self, AdjectiveAttributiveConcord),
             (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, Self, FiniteGapConcord),
             (CorrelativeBareObjectGapSeries, BareObjectGap, Self, BareGapConcord),
             (CorrelativeFiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
@@ -6402,7 +6513,7 @@ constructions! {
                 SharedFrameConcord),
             (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries),
+            (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
@@ -6426,7 +6537,7 @@ constructions! {
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase),
+            (CorrelativeAdjectivePhrase, AdjectivePhrase, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
@@ -6452,7 +6563,7 @@ constructions! {
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase),
+            (CorrelativeAdjectivePhrase, AdjectivePhrase, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
@@ -6480,7 +6591,7 @@ constructions! {
                 SharedFrameConcord),
             (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries),
+            (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
@@ -6603,9 +6714,11 @@ constructions! {
             export PredicativeAdjunctUse = No;
             form [phrase: CorrelativeAdjectivePhrase];
             export PredicativeKind = Adjectival;
+            require phrase.AdjectiveAttributiveOnlyUse = No;
         }
 
         construction CorrelativePostpositiveNominal: Nominal {
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
@@ -6616,6 +6729,7 @@ constructions! {
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
             export SourceModifierPresent = head.SourceModifierPresent;
             export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
+            require modifier.AdjectiveAttributiveOnlyUse = No;
         }
 
         construction SelectedPrepositionHead: SelectedPrepositionHead {

@@ -2,6 +2,9 @@
 #[allow(dead_code, reason = "Each binary uses a subset of the shared test fixtures.")]
 mod common;
 
+#[path = "suite/attributive_scalar_comparative.rs"]
+mod attributive_scalar_comparative;
+
 #[path = "suite/amount_complements.rs"]
 mod amount_complements;
 

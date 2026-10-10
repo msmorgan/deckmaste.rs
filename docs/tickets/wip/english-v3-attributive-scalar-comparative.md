@@ -82,6 +82,17 @@ Orchestrator rulings 2026-10-10:
   covered *N or greater* / *greater than* / *equal to* face is an AC4
   defect; report each with its shape before landing.
 
+- AC6 (orchestrator, 2026-10-10). Scoped licence, not general mass uses:
+  extend the existing bare-property licence so a scalar specification can be
+  a comparative Adjective Premodifier. Admission reads the noun's declared
+  `ScalarDenotation` and the modifier's declared complement-free attributive
+  comparative use. No new Construction if the existing route can take the
+  condition; one added form is the fallback. No word test. Every covered
+  `(lesser|greater|equal)` face keeps its count.
+- W9-A (standing ruling). One analysis per string means one route for this
+  construction; independent ambiguity also present in the control is retained
+  and recorded, not a STOP.
+
 ## Witnesses
 
 Each is the face's only failing line. Probed with the `ymqwzour` binary
@@ -114,7 +125,7 @@ re-probed (the trunk moved under the prebuilt binary).
 
 Standard constraints apply. Bounded census: every supported face matching
 `(?i)\b(lesser|greater|equal)\b` (2,091 faces; the Lexemes gain a declared
-use) plus 300 random covered controls (`--random 300 --seed 20261010`),
+use) plus 300 random covered controls (`--random 300 --seed 20261008`),
 `--workers 6 --samples-per-face 0`, compared with `cargo xtask english-v3
 diff` against the claim parent. Zero lost; AC5 for increases. Full `cargo
 test -p` and `cargo clippy -p … --tests -- -D warnings` for
@@ -138,4 +149,9 @@ Ordering Adjective governor (CGEL p. 1126 [14ii]) in the landing.
 
 ## Landing record
 
-To be written by the claimant: the six items of `docs/tickets/README.md`.
+1. **Census delta** (`vszmnwup`, before implementation at its empty claim-parent-equivalent tree, and after implementation): 1,986 → 2,026 covered faces; 162,369 → 165,756 per-line Readings. Lost faces, decreases, and covered-face increases: none. Gains: 40; wrong-analysis gains: none. Digest-only: Heidegger, Shinra Executive, 79 → 79, from the governor's new node wrapper. Selector: all 2,091 faces matching `(?i)\b(lesser|greater|equal)\b` plus 300 random covered controls, seed 20261008; 13 overlap, 2,378 identities. Claim parent: `kuylxzly`. Evidence: `target/english-v3/english-v3-attributive-scalar-comparative/{manifest,before,after,diff}.json`; comparison is the built-in `english-v3 diff --lines`.
+2. **Witnesses** (`vszmnwup`): all five full-card witnesses re-probed before implementation had 0 Readings. After: Reinterpret 19; Body Launderer's quoted death clause 12 (full card 24); Prehistoric Pet's quoted sentence 21 (full card 42); Rushed Rebirth 60. Conformer Shuriken's comparative finite clause has 1; its full face remains 0 because `difference` is undeclared, also a vocabulary gap in its BEFORE probe. The four NP witnesses changed 0 → 1, 1, 1, 2 respectively. All ten controls retain their counts: measured-property NP 2; greatest-property NP 1; six copular controls 1 each; Reinterpret numeric control 9; Body Launderer numeric control 4. W9-A preserves independent noun and modifier-attachment ambiguity: the ticket construction itself uses one route. Saruman's coordinated governor shares one standard (local NP 1; face census 1,122 per-line Readings).
+3. **Spot checks** (`vszmnwup`, ten new faces): Reinterpret and Body Launderer — coordinated Adjective Premodifier over one property noun; Prehistoric Pet — greater/power; Rushed Rebirth and Orah, Skyclave Hierophant — lesser/mana value; V.A.T.S. — equal/toughness. Saruman of Many Colors — coordinated equal/lesser governor with shared *than that spell*; Triple Triad — lesser/mana value with *than it*; Death's Oasis — lesser/mana value with *than the creature that died*; Hulkling, Burgeoning Bruiser — greater over the existing power/toughness head coordination with *than Hulkling*. Samples `spot-0.json` through `spot-9.json` preserve these roles and report no validation issues.
+4. **Deviations and STOPs** (`vszmnwup`): the bare-count-property blocker was resolved by AC6, extending `BareNounPhrase` with Scalar Denotation and comparative-modifier presence; noun countability is unchanged. Two helper Constructions, `DiscontinuousComparativeGovernorHead` and `ComparativeDeterminerHead`, replace the schema's direct Word governors so ordinary governor coordination can share a standard; no new comparative schema or implicit-modifier Construction. The original selected frames remain; the new empty frames supply the attributive use. The scalar conjunct now requires its declared Ordering frame. An initial census found 22 covered-face increases (157 spurious Readings): bare comparatives had entered predicative coordination. A propagated Attributive Adjective Restriction removes them, restoring every claim-parent count. Existing comparative tests were re-spelled for the wrappers and selected-frame role; the old assertion that bare *equal* has no Adjective Phrase was superseded by AC1, while selected-frame complement rejection remains tested in both directions. Hulkling's head coordination reads unaided through the existing route, as the ticket permits. Glossary gaps filled: Implicit Comparative Use, Comparative Modifier Presence, and Attributive Adjective Restriction. Conformer's ordinary-vocabulary residual was raised for scope review; no noun addition is included in this construction ticket.
+5. **Tests** (`vszmnwup`): `cargo test -p deckmaste_english_v3` passed, 900 tests; its first run exposed the superseded bare-*equal* assertion, re-spelled before the successful full rerun. `cargo test -p deckmaste_lexical_source` passed, 84 tests. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` both passed. Restored 0; re-spelled 5; ignored 0; added 4 (one suite module, registered once in `suite_6`); removed 0. No Lean checks; no xtask code changes.
+6. **Timing** (`vszmnwup`): final bounded census 5:42.18 wall under `/usr/bin/time -v`, 6 workers, 0 samples per face. No full-corpus run.

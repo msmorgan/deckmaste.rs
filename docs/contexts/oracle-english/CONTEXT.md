@@ -479,12 +479,16 @@ An adjectival Comparative Phrase retains Adjective Phrase distribution.
 
 **Discontinuous Comparative Nominal** (project term):
 A nominal Construction whose Comparative Governor precedes its head while the
-expanded Comparative Complement follows it, as in *same name as that land*
+expanded Comparative Complement follows it, as in *lesser risk than taking no
+action at all* (CGEL, Ch. 13 §4.1.1, p. 1126 [14ii]) or *same name as that land*
 (CGEL, Ch. 13 §5.1, p. 1139) or *more lands than you* (Ch. 5 §7.11,
 pp. 393, 395). The Adjective governor premodifies a Nominal under the
 [fixed-cost-phrases project ruling of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md#stop--comparative-admission-2026-10-06-resolved-by-orchestrator);
-the Determinative governor supplies the Determiner of an indefinite Noun
-Phrase with an immediate NP Comparative Complement under
+the Ordering Adjective governor and coordinated *equal or lesser* share the
+post-head *than* Complement under orchestrator rulings AC2–AC4 (2026-10-10,
+`english-v3-attributive-scalar-comparative`); the Determinative governor supplies
+the Determiner of an indefinite Noun Phrase with an immediate NP Comparative
+Complement under
 orchestrator rulings CQ1–CQ4 (2026-10-10,
 `english-v3-comparative-quantity-than`).
 _Avoid_: Adjunct for the governor's selected comparison
@@ -865,6 +869,26 @@ of first and second positions licenses the pair, in that order. Other
 Coordinations do not license a Property Value. The modifier restriction is the
 [orchestrator ruling (2026-10-08)](../../tickets/done/english-v3-coordinated-property-values.md#post-landing-fix-2026-10-08). The position and pair selection are the
 [coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values).
+
+**Attributive Adjective Restriction** (project term):
+An Adjective Phrase's retention of a use licensed only in attributive function.
+The complement-free comparative use declared under orchestrator ruling AC1
+(2026-10-10, `english-v3-attributive-scalar-comparative`) has this restriction.
+Coordination retains it if any Conjunct has it, including Correlative
+Coordination; it cannot enter predicative or postpositive function or become
+an Adjectival Keyword Quality.
+
+**Implicit Comparative Use** (project term):
+An Adjective's declared permission to function as a comparative Premodifier
+with its standard left implicit, under orchestrator ruling AC1 (2026-10-10,
+`english-v3-attributive-scalar-comparative`). Coordination retains this
+permission when both Conjuncts declare it.
+
+**Comparative Modifier Presence** (project term):
+A Nominal's retention of a Premodifier or discontinuous Comparative Governor
+whose Adjective declares Implicit Comparative Use. Together with declared
+Scalar Denotation, it licenses a bare scalar-property Noun Phrase under
+orchestrator ruling AC6 (2026-10-10, `english-v3-attributive-scalar-comparative`).
 
 **Scalar Comparative Use** (project term):
 An Adjective's declared permission to be the comparative Conjunct in a

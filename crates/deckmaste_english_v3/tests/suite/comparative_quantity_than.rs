@@ -88,7 +88,13 @@ fn witnesses_keep_the_determiner_and_selected_comparison_with_the_nominal_head()
                     } = node
                     {
                         assert_eq!(*category, Category::NounPhrase);
-                        assert_eq!(*governor, word(owner));
+                        assert_eq!(
+                            **governor,
+                            Reading::ComparativeDeterminerHead {
+                                form: 0,
+                                head: word(owner)
+                            }
+                        );
                         assert_eq!(head.category(), Category::Nominal);
                         assert_eq!(head.realize(lexicon()).unwrap(), nominal);
                         assert_eq!(*marker, word("vocab:Preposition/Than"));
@@ -120,7 +126,13 @@ fn witnesses_keep_the_determiner_and_selected_comparison_with_the_nominal_head()
         else {
             panic!("less must determine the comparative NP");
         };
-        assert_eq!(governor, word("vocab:Determinative/Less"));
+        assert_eq!(
+            *governor,
+            Reading::ComparativeDeterminerHead {
+                form: 0,
+                head: word("vocab:Determinative/Less")
+            }
+        );
         assert_eq!(head.realize(lexicon()).unwrap(), "life");
         assert_eq!(complement.realize(lexicon()).unwrap(), "an opponent");
     }
@@ -160,7 +172,10 @@ fn an_independently_constructed_comparative_np_roundtrips() {
     let value = Reading::DiscontinuousComparativeNominal {
         category: Category::NounPhrase,
         form: 0,
-        governor: word("vocab:ComparativeQuantifier/More"),
+        governor: Box::new(Reading::ComparativeDeterminerHead {
+            form: 0,
+            head: word("vocab:ComparativeQuantifier/More"),
+        }),
         head: Box::new(Reading::Noun {
             form: 0,
             head: land,

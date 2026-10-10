@@ -83,7 +83,9 @@ fn witnesses_keep_the_complement_inside_the_premodified_nominal() {
                         }
                         assert_eq!(nominal_head.realize(lexicon()).unwrap(), head);
                         assert_eq!(compared.category(), Category::AccusativePhrase);
-                        assert_eq!(governor.frame, Some(1));
+                        let mut expected = word("vocab:AttributiveAdjective/Same");
+                        expected.frame = Some(1);
+                        assert_eq!(**governor, Reading::DiscontinuousComparativeGovernorHead { form: 0, head: expected });
                         assert_eq!(*marker, word("vocab:Preposition/As"));
                         comparisons += 1;
                     }
@@ -137,7 +139,10 @@ fn an_independent_comparative_nominal_roundtrips_with_its_selected_complement() 
     let value = Reading::DiscontinuousComparativeNominal {
         category: Category::Nominal,
         form: 0,
-        governor: governor.clone(),
+        governor: Box::new(Reading::DiscontinuousComparativeGovernorHead {
+            form: 0,
+            head: governor.clone(),
+        }),
         head: Box::new(Reading::Noun {
             form: 0,
             head: head.clone(),
@@ -178,7 +183,10 @@ fn an_independent_comparative_nominal_roundtrips_with_its_selected_complement() 
     let Reading::DiscontinuousComparativeNominal { governor, .. } = &mut wrong_governor else {
         unreachable!()
     };
-    governor.frame = Some(0);
+    let Reading::DiscontinuousComparativeGovernorHead { head, .. } = governor.as_mut() else {
+        unreachable!()
+    };
+    head.frame = Some(0);
     assert!(wrong_governor.admit(lexicon()).is_err());
 }
 

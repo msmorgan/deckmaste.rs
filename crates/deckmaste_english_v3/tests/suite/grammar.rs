@@ -825,11 +825,20 @@ fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
     assert_eq!(value.realize(lexicon()).unwrap(), "equal to 2");
     assert!(readings("equal to 2", Category::ComparativeAdjectivePhrase).contains(&value));
     assert!(
-        Reading::Adjective { form: 0, head }
+        Reading::Adjective {
+            form: 0,
+            head: head.clone()
+        }
+        .admit(lexicon())
+        .is_err()
+    );
+    // AC1 adds a separate attributive frame; the selected frame still needs its standard.
+    assert!(
+        Reading::IntransitiveAdjective { form: 0, head }
             .admit(lexicon())
             .is_err()
     );
-    assert!(readings("equal", Category::AdjectivePhrase).is_empty());
+    assert!(readings("equal", Category::ComparativeAdjectivePhrase).is_empty());
     assert!(readings("equal than 2", Category::ComparativeAdjectivePhrase).is_empty());
     assert!(!readings("greater than 2", Category::ComparativeAdjectivePhrase).is_empty());
 }
