@@ -170,7 +170,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    in that landing record. All nine added identities remain unchanged.
    Final own gains remain 44; the three inherited gains are Thunderclap
    Drake, Henzie and Skull Storm. The expanded census has 553 covered faces
-   and 11,337 Readings.
+   and 11,337 Readings. Integration was refused when default advanced again;
+   the next refresh at `wllpsktm` brings `zzwnrkot`/`qtzurkpz`'s *do so* and
+   *able to* work. `integration3-diff.json` reports all 623 faces unchanged:
+   identical counts and digests, zero changed lines and zero internal issues.
 2. **Witnesses** — Claim-parent probes at `mqrlzszk` → `sztumtmq`: Uruk-hai
    Berserker 0 → 1; Witch-king of Angmar's document passage 0 → 57; One Ring to
    Rule Them All's chapter passage 0 → 1; Lord of the Nazgûl's protection line
@@ -214,9 +217,9 @@ Attestation by `cargo xtask english-v3 grep` only.
    expectation preserves the closed declaration
    dispatcher; the designation test's expected-recipe table was extracted
    without changing its value assertions.
-5. **Tests** — After the latest integration refresh at `mstvlwro`, `cargo build -p xtask`
+5. **Tests** — After the latest integration refresh at `wllpsktm`, `cargo build -p xtask`
    passed; passed `cargo test -p deckmaste_english_v3`
-   (842), `cargo test -p deckmaste_lexical_source` (83),
+   (849), `cargo test -p deckmaste_lexical_source` (83),
    `cargo test -p deckmaste_construction_core` (473), and
    `cargo test -p xtask english_v3` (56 selected tests). Passed
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
@@ -229,5 +232,5 @@ Attestation by `cargo xtask english-v3 grep` only.
    no new citations need blessing. Assurance at `sztumtmq`:
    restored 0 / re-spelled 2 / ignored 0 / added 6 / removed 0. The action
    inventory test additionally retains and strengthens its existing assertions.
-6. **Timing** — Final bounded census at `mstvlwro`: 34.88 s wall time under
+6. **Timing** — Final bounded census at `wllpsktm`: 7.71 s wall time under
    `/usr/bin/time -v`, 6 workers, 623 faces, `--samples-per-face 0`.
