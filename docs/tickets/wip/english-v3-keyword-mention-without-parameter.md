@@ -157,19 +157,17 @@ introduces beside **Attribute Noun Premodifier**.
 
 ## Landing record
 
-1. **Census delta** (claim-parent code `pkomyrrn`, measured on empty
-   `zvtzutzx` before edits → implementation `zvtzutzx`): bounded selection
-   of 1,198 faces; covered 822 → 967; Readings 100,627 → 103,435.
-   Lost none; gained 145; decreases 0; increases 8; digest-only 0;
-   unchanged 1,045. After refresh, `zvtzutzx` has covered 977 and
-   107,915 Readings: trunk `lvpxmkklqtms` adds 10 clause-initial *once*
-   faces (4,480 Readings), with no further loss, decrease, increase or
-   digest-only change. Original-parent comparison now has 155 gains,
-   8 increases and 1,035 unchanged. A second refresh, measured on
-   `yymxltku`, adds Dynaheir, Invoker Adept and Pit Automaton through
-   trunk `zunolrnvsuqr` (52 Readings). Final original-parent comparison:
-   covered 822 → 979; Readings 100,627 → 107,967; lost 0, gained 157,
-   decreases 0, increases 8, digest-only 0, unchanged 1,033. Each increase is the KM5 Keyword Premodifier beside
+1. **Census delta**: original claim-parent code `pkomyrrn`, measured on
+   empty `zvtzutzx` before edits → implementation `zvtzutzx`: 1,198 bounded
+   faces; covered 822 → 967; Readings 100,627 → 103,435; lost none,
+   gained 145, decreases 0, increases 8, digest-only 0, unchanged 1,045.
+   Final refreshed tree `mrqukxns`: covered 981, Readings 107,997; original
+   parent comparison lost 0, gained 159, decreases 0, increases 8,
+   digest-only 0, unchanged 1,031. Refresh-only gains: `lvpxmkkl` adds
+   10 clause-initial *once* faces (4,480 Readings); `zunolrnv` adds Dynaheir,
+   Invoker Adept and Pit Automaton (52 Readings); `zqnqzmnu` adds Merseine
+   and Security Rhox (30 Readings). No refresh removes a Reading.
+   Each increase is the KM5 Keyword Premodifier beside
    the retained cycling gerund-participle: Abandoned Sarcophagus 10 → 20,
    Fluctuator 4 → 8, Gavi, Nest Warden 58 → 114, Herald of the Forgotten
    37 → 73, New Perspectives 3 → 5, Rooting Moloch 8 → 15, Spellpyre
@@ -212,8 +210,8 @@ introduces beside **Attribute Noun Premodifier**.
    module registrations were retained exactly once. Two later refresh
    attempts deferred on a concurrent named-modes workspace edit; retry
    succeeded without changing that workspace’s content.
-5. **Tests** (`zvtzutzx` before refresh; final refreshed tree `yymxltku`): `cargo test -p deckmaste_english_v3` passed
-   797 tests before refresh, 800 after the first and 807 after the second; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+5. **Tests** (`zvtzutzx` before refresh; final refreshed tree `mrqukxns`): `cargo test -p deckmaste_english_v3` passed
+   797 tests before refresh, then 800 / 807 / 811 after successive refreshes; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed; `cargo test -p deckmaste_lexical_source` passed 83 tests;
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
    Assurance: restored 0 / re-spelled 3 / ignored 0 / added 8 / removed 0.
@@ -223,6 +221,6 @@ introduces beside **Attribute Noun Premodifier**.
    xtask`, the same bounded census and both full suites and clippy passed.
    Citation checks: 0 stale,
    0 noncompliant, diff audit 0 new citation sites.
-6. **Timing** (`yymxltku`): final bounded census 114.43 seconds wall time,
+6. **Timing** (`mrqukxns`): final bounded census `1m56.81s` wall time,
    6 workers, samples per face 0, prebuilt binary under `/usr/bin/time -v`.
    Full corpus census was not run, per the binding budget.
