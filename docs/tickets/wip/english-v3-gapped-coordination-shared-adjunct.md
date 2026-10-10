@@ -145,9 +145,9 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta** (BEFORE `qmznkvqq`, refreshed AFTER `ksyqnpnq`):
-   bounded **549** faces, covered **351 → 452**, total Readings
-   **5,285 → 10,291**; gained **101**, lost **none**, decreases **0**,
+1. **Census delta** (BEFORE `qmznkvqq`, GC7 AFTER `ypywlqqo`, final refresh):
+   bounded **549** faces, covered **351 → 453**, total Readings
+   **5,285 → 10,298**; gained **102**, lost **none**, decreases **0**,
    digest-only **0**, issues **0**. Pre-refresh `qmznkvqq` covered **447**
    faces with **10,150** Readings and **96** gains. The official refresh-only
    diff adds Jace, Multiverse Architect (**27**), Marina Vendrell (**8**),
@@ -179,6 +179,10 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    decreases, increases or digest-only changes. Own gains total **98**;
    the three vocabulary-dependent refresh gains remain attributed to `nqnztuzo`.
    Evidence: `gc7-after.json`, `gc7-diff.json`, `gc7-total-diff.json`.
+   Final refresh adds only Pillage the Bog **0 → 7**, enabled by *twice the
+   number of lands* from multiplier change `qoswqlns`. No previously covered
+   face changes. Final totals include **4** trunk-dependent gains; own **98**.
+   Evidence: `gc7-refreshed-after.json`, `gc7-refresh-diff.json`.
 2. **Witnesses** (`qmznkvqq`, complete whole-line probes before/after;
    their counts and digests are unchanged at refreshed `ksyqnpnq`):
    Glimpse the Cosmos **0 → 3**; Raven Familiar **0 → 3**; Tezzeret, Master
@@ -227,6 +231,9 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    "DeclaredFrames" as strings (precedent: "FrameMarker") with the licence
    test living in the english_v3 suite. GC7 lets each Locative tail carry its
    own selected Manner Complement; marked-NP tails still select none.
+   GC7 refresh also conflicted at test-module registrations; Harmony retained
+   multiplier, predicate-term and gapped-tail suites. Incoming grammar/data
+   changes required the same bounded census and full-suite/clippy recheck.
 5. **Tests** (pre-refresh `qmznkvqq`, refreshed `ksyqnpnq`):
    `cargo test -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_lexical_source`
    **passed twice**, all suites unfiltered. Pre-refresh / refreshed counts:
@@ -251,6 +258,13 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    route. The final test checks the added route and preserves the incumbents.
    GC7 clippy passed with the same four-package clippy command above,
    `--tests -- -D warnings`.
+   Final refresh full suites passed with that same four-package command:
+   English **781**, compiler **36**, macro **42** plus **2** doc tests,
+   lexical source **39** unit plus **43** integration; no failures or ignores.
+   Final refresh `cargo test -p xtask english_v3` passed **56** tests; the filter is the
+   prescribed English verification suite.
+   Final refresh clippy passed with the five-package command above
+   (including xtask), `--tests -- -D warnings`.
    GC7: added **3** tests for the non-final Locative + Manner positive,
    marked-NP negative and attested Munda/Ransack roles. The reviewed negative
    was a probe, not an existing suite test in this workspace. The positive
@@ -258,4 +272,4 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    re-spelled suite tests **0**, removed **0**, ignored **0**.
 6. **Timing** (`ksyqnpnq`): the refreshed bounded AFTER census took **7.05 s** wall
    time under `/usr/bin/time -v`, **6** workers, **0** samples per face.
-   GC7 bounded census took **7.49 s** wall time. Full corpus verification belongs to the orchestrator's batch.
+   GC7 bounded census took **7.49 s** wall time; final refresh **6.95 s**. Full corpus verification belongs to the orchestrator's batch.
