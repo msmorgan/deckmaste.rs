@@ -253,8 +253,11 @@ uses `cargo xtask english-v3 grep`.
    count/control STOP; PW-R1 resolved it with selected complementation.
    Retired its *with* lexical licence and general grammar route. Added empty
    and marked-clause frames after the original Object frame; no new frame
-   kind, loader or compiler code. Two clause Constructions distinguish
-   adjectival and bare-passive predicates; the existing preposition route
+   kind, loader or compiler code. Added exactly two Constructions,
+   `SubjectAdjectiveVerblessClause` and `SubjectParticipialClause`, charged
+   against the 250-Construction ceiling: current refreshed parent 240 →
+   landing 242 (8 below the ceiling). They distinguish adjectival and
+   bare-passive predicates; the existing preposition route
    remains subjectless, and the frame Category projection requires an overt
    Subject. These are PW2/PW-R1 distinctions, not word guards. No glossary
    gap. The extra bounded data-only parent run separates ancestor changes
@@ -290,6 +293,8 @@ uses `cargo xtask english-v3 grep`.
    `refresh-3-build.log`, `refresh-3-tests.log`, `refresh-3-clippy.log`,
    `refresh-3-xtask-tests.log`. First-refresh logs: `refresh-build.log`,
    `refresh-tests.log`, `refresh-clippy.log`, `refresh-xtask-tests.log`.
+   `cargo xtask facts check` passed after the *play.ron* `grammar:` edit;
+   generated facts are up to date (`facts-check.log`).
    Restored 0 / re-spelled 0 / ignored 0 / added 10 / removed 0.
    The new module is registered once in `suite_6`. Citation check: 0
    noncompliant and 0 stale; `jj --no-pager diff --git | cargo xtask cite audit
