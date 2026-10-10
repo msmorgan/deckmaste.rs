@@ -127,4 +127,91 @@ Phrases only; amend both in the landing.
 
 ## Landing record
 
-Not landed.
+1. **Census delta** — `mqrlzszkuszn` → refreshed `ouktkvpyzvym`
+   (implementation `zqnqzmnumpyr`): bounded covered faces **1,367 → 1,457**,
+   Readings **20,228 → 27,329**; **90 gains**: **88** from this ticket and
+   Rivaz of the Claw (**17** Readings) from `lvpxmkkl`'s preposed-frequency
+   landing. Its *Once during each of your turns* is an initial Adjunct.
+   The other trunk gain is Zevlor, Elturel Exile (**1,393** Readings), from
+   `zunolrnv`'s preverbal-next landing; its *next* is a central Adverb
+   Adjunct in *when you next cast*.
+   Lost **none**, decreases **0**, increases **0**, digest-only
+   **0**, unintended gains **0**. Selector: case-insensitive
+   `cargo xtask english-v3 grep '\bonly\b'` identities (1,473 faces), union
+   300 covered controls selected by `diff --random 300 --seed 20261008`:
+   **1,759 distinct faces**. The pre-edit subset at `zqnqzmnumpyr` (claim
+   parent `rmvovpnx`, before refresh) exactly matches the `mqrlzszkuszn`
+   census on this set.
+   Evidence: `target/english-v3/english-v3-focus-only-object/{manifest.json,
+   before.json,after.json,diff.json,diff-integration-refresh.log,claim-parent-diff.json,
+   refresh-diff.json,integration-refresh-diff.json,refresh-stat.log,
+   integration-refresh-stat.log}`.
+2. **Witnesses** — sentence probes before refresh, at pre-edit/post-edit
+   `zqnqzmnumpyr`:
+   Welkin Tern **0 → 3** (control 3); Muck Drubb **0 → 7** (control 7);
+   Reflective Golem **0 → 10** (control 10); Ragemonger **0 → 3** (control 3);
+   Meddle **0 → 2** (control 2); *Only your opponents may activate this
+   ability.* **0 → 1** (control 1). No witness already read on the claim
+   parent. Existing controls retain **1 / 1 / 2 / 2 / 1** for *Activate only
+   during your turn.*, *Activate only as a sorcery.*, *This creature can
+   block only during your turn.*, *This creature can attack only alone.*,
+   and *Activate only once each turn.* Complete enumerations, cap 100;
+   `before-probes.json` and `after-probes.json` in the evidence directory.
+3. **Spot checks** — `zqnqzmnumpyr`, `spot-probes.json`: Air Bladder — focus
+   on the Object *creatures*, with *with flying* at an existing predicate
+   attachment in the selected Reading; Chef's Kiss — focused coordinated
+   Object *a single permanent or player*; Edgewalker — focused Object *the
+   amount of colored mana you pay*, retaining the relative attachments;
+   Imperiosaur — focused Object *mana produced by basic lands* plus purpose
+   infinitival; Meddle — focused Object *one target*; Merseine — focused
+   Subject *the controller of the enchanted creature*; Retether — focused
+   Subject *creatures* of the passive; Selective Obliteration — focused
+   copular Complement *the color its controller chose*; Kumena's Awakening —
+   focused Subject *you* under *instead*; Throne of Eldraine — focused mana
+   Object in the second ability, with its existing purpose focus retained
+   in the first. All ten selected analyses are intended.
+4. **Deviations and STOPs** — `zqnqzmnumpyr`: one Noun Phrase instance of
+   `FocusedPhrase`, no new Construction or frame. Explicit unfocused exports
+   on ordinary NPs and their coordination summaries are required by the
+   compiler. Subjects read through the same instance (FO3); copular
+   Complement and *instead only you* coverage follows FO2–FO3 automatically,
+   including the two passages listed as out of scope for targeted work.
+   No additional position licence, lexicon route, or loader change; no
+   superseded grammar/lexicon route. No STOPs. Extended **Focusing Modifier**
+   and **Focused Use** in the glossary; no remaining glossary gap.
+5. **Tests** — before refresh, `zqnqzmnumpyr`:
+   `cargo test -p deckmaste_english_v3` **passed (794 tests)** and
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` **passed**.
+   After refresh, `ukqoxwzxtwpq`: `cargo build -p xtask` **passed**; full
+   `cargo test -p deckmaste_english_v3` **passed (797 tests)**;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` **passed**;
+   full `cargo test -p deckmaste_lexical_source` **passed (82 tests)**;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` **passed**.
+   Final refresh, `ouktkvpyzvym`, incorporates `zunolrnv`'s lexical data
+   and test registrations; the registration conflict was resolved by retaining
+   both suite modules exactly once. `cargo build -p xtask` **passed**;
+   full `cargo test -p deckmaste_english_v3` **passed (804 tests)**;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` **passed**;
+   full `cargo test -p deckmaste_lexical_source` **passed (82 tests)**;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` **passed**.
+   Final logs are `build-integration-refresh.log` and the four test/clippy
+   `*-integration-refresh.log` files in the evidence directory.
+   Zero failures or ignored tests in the successful full runs. Logs:
+   `tests-verified.log`, `clippy-verified.log`, and the four test/clippy
+   `*-refresh.log` files in the evidence directory.
+   Assurance counts: restored **0**, re-spelled **1**, ignored **0**, added
+   **4**, removed **0**. Re-spelled
+   `focusing_only::focus_does_not_supply_missing_constituents_or_other_functions`:
+   FO2–FO3 retire its blanket Object/Subject prohibition. The same two inputs
+   still reject unintended focus analyses; every other negative stays.
+   The first full run found that obsolete prohibition and exited 101; it was
+   corrected before the rerun. That rerun found an incomplete expected
+   attachment list in the new Muck Drubb test; the test now compares full
+   NP values with its unfocused control, preserving the existing *to this
+   creature* attachment rather than enumerating assumed surfaces. No invented
+   positive Oracle witness
+   or test deletion. Four added tests cover attested Object roles, Subject
+   role, existing Adjunct roles/double focus, and an independent NP roundtrip.
+6. **Timing** — `ouktkvpyzvym`: the final refreshed bounded after-census took **36.92 seconds**
+   wall time, **6 workers**, `--samples-per-face 0`, prebuilt binary under
+   `/usr/bin/time -v`. No full-corpus census or Lean check was run.

@@ -64,3 +64,6 @@ mod targeting_projection;
 
 #[path = "suite/preverbal_next.rs"]
 mod preverbal_next;
+
+#[path = "suite/focus_only_object.rs"]
+mod focus_only_object;

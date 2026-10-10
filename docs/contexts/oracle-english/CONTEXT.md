@@ -845,8 +845,8 @@ An Adverb that associates with a Focus, such as restrictive *only*.
 
 **Focusing Modifier**:
 A Modifier that associates with a scopal Focus. Restrictive focusing Adverbs
-include *only* and can modify a Preposition Phrase (CGEL, Ch. 6 §7.3.1,
-p. 587, [41–42]); their position relative to the Focus is a separate
+include *only* and can modify Noun Phrases, Preposition Phrases and Adverb Phrases
+(CGEL, Ch. 6 §7.3.1, p. 587, [41–42]); their position relative to the Focus is a separate
 distinction (p. 589).
 
 **Focusing Modifier Use** (project term):
@@ -855,9 +855,10 @@ restrictive or additive interpretation kept distinct.
 
 **Focused Use** (project term):
 A phrase's having a Focusing Modifier of its own. In this project's restrictive
-PP and Adverb Phrase analysis, a phrase already in Focused Use cannot itself be the head of another
-restrictive Focusing Modifier (post-landing review, 2026-10-08, extended to
-Adverb Phrases by the [once-frequency landing](../../tickets/done/english-v3-once-frequency.md#landing-record)).
+Noun Phrase, PP and Adverb Phrase analysis, a phrase already in Focused Use
+cannot itself be the head of another restrictive Focusing Modifier (post-landing review, 2026-10-08, extended to
+Adverb Phrases by the [once-frequency landing](../../tickets/done/english-v3-once-frequency.md#landing-record)
+and Noun Phrases by [orchestrator ruling FO5, 2026-10-10](../../tickets/wip/english-v3-focus-only-object.md#analysis)).
 
 **Predicate**:
 The grammatical function in a Clause that predicates something of the Subject.

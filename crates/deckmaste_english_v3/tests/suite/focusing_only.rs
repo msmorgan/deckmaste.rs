@@ -182,13 +182,35 @@ fn focus_does_not_supply_missing_constituents_or_other_functions() {
     for text in [
         "Activate only.",
         "Activate only only during your turn.",
-        "Destroy only target creature.",
-        "Only creatures attack.",
         "Activate only before attackers are declared by.",
         "Activate only as tapped.",
         "Only during your turn, activate.",
     ] {
         assert!(readings(text, Category::Document).is_empty(), "{text}");
+    }
+    // FO2–FO3 (focus-only-object, 2026-10-10) supersede the blanket
+    // prohibition at these two positions. Keep the same inputs as negatives
+    // for unintended focus analyses; attested positive witnesses live in
+    // focus_only_object, rather than making these invented effects witnesses.
+    for text in ["Destroy only target creature.", "Only creatures attack."] {
+        let unintended: Vec<_> = readings(text, Category::Document)
+            .into_iter()
+            .filter(|value| {
+                let mut focused_np = false;
+                let mut wrong_category = false;
+                value
+                    .visit(&mut |node| {
+                        if let Reading::FocusedPhrase { category, head, .. } = node {
+                            focused_np |= *category == Category::NounPhrase;
+                            wrong_category |= *category != Category::NounPhrase
+                                || head.category() != Category::NounPhrase;
+                        }
+                    })
+                    .unwrap();
+                !focused_np || wrong_category
+            })
+            .collect();
+        assert_eq!(unintended, Vec::<Reading>::new(), "{text}");
     }
     assert!(readings("only during your turn", Category::NounPhrase).is_empty());
     // The vocabulary batch supplies Declare; the formerly lexical gap now reads.
