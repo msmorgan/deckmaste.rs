@@ -1159,6 +1159,12 @@ Coordination. Comparative forms and their quantitative Complements are
 described in CGEL, Ch. 5 §11(d), p. 432; their count and non-count distribution
 is described in Ch. 13 §4.1.2, pp. 1126–1127.
 
+**Quantitative Conjunct Use** (project term):
+A Determinative's declared permission to coordinate with a Cardinal Numeral
+in a Quantitative Determiner, under MH2 (orchestrator ruling, 2026-10-10,
+`english-v3-modal-header-quantities`). This permission supplies neither a
+standalone fused head nor a Comparative Quantity use.
+
 **Quantity Conjunct** (project term):
 A cardinal expression or Arabic numeral used as the first Conjunct of a
 Comparative Quantity Coordination, such as *three* in *three or more* or

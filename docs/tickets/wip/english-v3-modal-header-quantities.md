@@ -117,3 +117,85 @@ how many of the 98 faces read and what blocks the rest.
 - Bullets that fail for their own reason once the header reads.
 
 ## Landing record
+
+1. **Census delta** (`ztrnpkyv`; BEFORE uses claim-parent `pmwtxppo` code):
+   2,396 faces selected by `[Cc]hoose[sn]?\b` (2,116), every `or both` face
+   (one additional face, Dream Cache), and 300 covered controls from the
+   official diff manifest with seed 20261008 (21 overlap). All controls were
+   covered on the claim parent. BEFORE combines the original selector report
+   and Dream Cache's separate report, both measured before implementation.
+   `cargo xtask english-v3 diff --lines` reports covered 1,774 → 1,850;
+   Readings 130,536 → 131,883; gained 76; lost/decreased/increased 0;
+   digest-only 507 (the refined count Complement structure); unchanged 1,813;
+   source changes and unmatched identities 0. No/one/multiple faces:
+   622/456/1,318 → 546/498/1,352; undetermined and issues 0. Lost faces: none.
+   No wrong-analysis gain observed. Evidence:
+   `target/english-v3/english-v3-modal-header-quantities/{selector,before-combined,after,diff}.json`.
+
+2. **Witnesses** (`ztrnpkyv`, complete probe enumeration): with the ticket's
+   two control bullets, *Choose one or both —* (Saheeli's Artistry / Decoy
+   Ploy), *Choose one or more —* (Collective Brutality), *Choose up to one —*,
+   and *Choose up to two —* each 0 → 1; the triggered *When this creature
+   enters, choose one or both —* 0 → 1. *Choose one that hasn't been chosen —*
+   remains 0 under MH3. Whole-face census counts: Saheeli's Artistry 16,
+   Decoy Ploy 1, Collective Brutality 8. Header controls *one*, *two*, *three*,
+   *any number* remain 1. Sentence controls *Choose one.*, *Choose one or
+   two.*, *Choose one of them.*, *Choose one or more creatures.*, and
+   *Choose up to one creature.* remain 1; the overt *one mode that hasn't
+   been chosen* remains 2. *Choose any number* retains its NP Object.
+   *Choose both.* and *You may choose both instead.* remain 0; *Choose two
+   or more.* and *Choose up to three.* follow the refined frame, 0 → 1.
+   `before-probes.json` and `after-probes.json` retain every probe.
+
+3. **Spot checks** (`ztrnpkyv`): Decoy Ploy, Saheeli's Artistry, Aid the
+   Fallen, and Crush Contraband select `CardinalDeterminativeCoordination`
+   (*one or both*); Collective Brutality and Collective Effort select
+   `ComparativeQuantityDeterminer` (*one or more*); Sawblade Slinger, Ertai
+   Resurrected, and Dreamshackle Geist select `PrepositionDeterminer`
+   (*up to one*); The Ruinous Wrecking Crew selects `PrepositionDeterminer`
+   (*up to X*). Each is the declared count Complement of *choose* inside
+   the `ModalItem` header Clause, with the bullets retained as Modes.
+   Ten complete-face probes inspected the intended analysis, with no issues;
+   evidence is `spot-probes.json`.
+
+4. **Deviations and STOPs** (`ztrnpkyv`): one mixed Cardinal Numeral /
+   Determinative Coordination added under MH2, using the existing
+   `QuantitativeDeterminer` category and the declared **Quantitative Conjunct
+   Use** licence, added to the Oracle English glossary as a project term.
+   The Cardinal count frame and shared-complement schema are retired on both
+   lexicon and grammar sides and replaced with their Quantitative Determiner
+   equivalents. No changes to `ModalItem`, `Modes`, or `Mode`; no loader code
+   or general fused cardinal head. MH3 leaves the relative header deferred:
+   current supported grep finds 18 faces, rather than the drafting count 22:
+   Breeches, Eager Pillager; Captive Audience; Demonic Pact; Gala Greeters;
+   Galadriel, Light of Valinor; Gandalf the Grey; Gollum, Riddle Master;
+   Henrika Domnathi; Kargan Intimidator; Kimoyo Beads; Monument to Endurance;
+   Parapet Thrasher; Silent Hallcreeper; Sol'Kanar the Tainted; Survivor's
+   Med Kit; Teval's Judgment; The Vision; Three Bowls of Porridge.
+   Of the 98 target faces, *one or both* reads 51/53, *one or more* 18/19,
+   bounded counts 7/8, and relative counts 0/18. The four other residuals
+   are Biblioplex Tomekeeper (unknown *unprepared*), Deadly Complication
+   (unknown *longer*), Collective Defiance (its discard/draw bullet fails as
+   a Paragraph), and Expose the Culprit (its exile/shuffle/cloak bullet fails
+   as a Paragraph; the turn-face-up bullet reads). The 26 standalone-*both*
+   faces remain unread under MH5; `sentence-both.txt` lists them. The binding
+   user seed 20261008 overrides the ticket's Method seed. No STOP required.
+
+5. **Tests** (`ztrnpkyv`): `cargo test -p deckmaste_english_v3` passed
+   in full on the rerun; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed; `cargo test -p deckmaste_lexical_source` passed in full;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Added 3; re-spelled 2
+   (`independent_shared_cardinal_and_infinitive_complements_preserve_selected_categories`
+   and `independent_atomic_heads_preserve_every_exact_selected_signature`),
+   retaining their exact surfaces and complete value comparisons against
+   the replacement signature. Restored 0; ignored 0; removed 0.
+   The first full English run exposed the retired atomic-head fixture and
+   the new test's incorrect assumption that *any number* was a count
+   Complement; both were corrected without deleting a subject or weakening
+   its outcome, then the full suite was rerun. Citation checks: 0
+   noncompliant, 0 stale; diff audit selected no new CR citations.
+
+6. **Timing** (`ztrnpkyv`): the complete bounded AFTER census took **4m37.43s**
+   wall time under `/usr/bin/time -v`, with **6 workers** and
+   `--samples-per-face 0`. No full-corpus census or Lean check was run.

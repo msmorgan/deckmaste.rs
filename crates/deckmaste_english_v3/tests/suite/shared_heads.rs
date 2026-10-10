@@ -483,28 +483,31 @@ fn selected_complement_head(owner: &str, category: &str) -> Word {
 }
 
 #[test]
-fn independent_shared_cardinal_and_infinitive_complements_preserve_selected_categories() {
+fn independent_shared_quantitative_and_infinitive_complements_preserve_selected_categories() {
     let head = Reading::SelectedVerbHead {
         category: Category::SecondarySelectedHead,
         form: 0,
-        head: selected_complement_head("core-verb:Choose", "Cardinal"),
+        head: selected_complement_head("core-verb:Choose", "QuantitativeDeterminer"),
     };
-    let expected = Reading::SharedCardinalComplement {
+    let expected = Reading::SharedQuantitativeDeterminerComplement {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(coordinate(head.clone(), head)),
-        complement: Box::new(Reading::Cardinal {
+        complement: Box::new(Reading::CardinalDeterminer {
             form: 0,
-            modifier: None,
-            head: Word {
-                value: LexicalReading::Numeral {
-                    value: 1,
-                    notation: deckmaste_lexical::Numeral::Cardinal,
-                    capitalization: SurfaceCase::Declared,
+            value: Box::new(Reading::Cardinal {
+                form: 0,
+                modifier: None,
+                head: Word {
+                    value: LexicalReading::Numeral {
+                        value: 1,
+                        notation: deckmaste_lexical::Numeral::Cardinal,
+                        capitalization: SurfaceCase::Declared,
+                    },
+                    frame: None,
+                    countability: None,
                 },
-                frame: None,
-                countability: None,
-            },
+            }),
         }),
     };
     roundtrip(
@@ -541,7 +544,7 @@ fn independent_shared_cardinal_and_infinitive_complements_preserve_selected_cate
         "choose and choose to attack",
         Category::SecondaryVerbPhrase,
     );
-    let invalid = Reading::SharedCardinalComplement {
+    let invalid = Reading::SharedQuantitativeDeterminerComplement {
         category: Category::SecondaryVerbPhrase,
         form: 0,
         head: Box::new(Reading::SelectedVerbHead {

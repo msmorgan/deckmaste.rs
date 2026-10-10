@@ -91,3 +91,6 @@ mod champion_keyword_line;
 
 #[path = "suite/noncombat_negative_noun.rs"]
 mod noncombat_negative_noun;
+
+#[path = "suite/modal_header_quantities.rs"]
+mod modal_header_quantities;

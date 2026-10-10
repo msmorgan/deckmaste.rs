@@ -210,7 +210,7 @@
         "vocab:Determinative/Those": {"Definiteness": "Definite", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Which": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/All": {"DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
-        "vocab:FloatedQuantifier/Both": {"CorrelativeKind": "Both", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
+        "vocab:FloatedQuantifier/Both": {"QuantitativeConjunctUse": "Yes", "CorrelativeKind": "Both", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/Each": {"QuantificationalAdjunctUse": "Yes", "NominalComplementMarker": "Of", "NominalAdjunctDependent": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
 
         "vocab:Coordinator/And": {"NoncorrelativeCoordination": "Yes", "CorrelativeCoordinator": "And", "CoordinationKind": "Additive"},
@@ -2149,7 +2149,7 @@
         "core-verb:Have": [
             (kind: "Auxiliary", items: [Argument((relation: Complement, category: "PastParticiplePredicate"))]),
         ],
-        "core-verb:Choose": [(kind: "Predicate", items: [Argument((relation: Complement, category: "Cardinal"))])],
+        "core-verb:Choose": [(kind: "Predicate", items: [Argument((relation: Complement, category: "QuantitativeDeterminer"))])],
         "core-verb:BeNegative": [(kind: "Predicate", items: [Argument((relation: Complement, category: "LocativeComplement"))]), (kind: "Auxiliary", items: [Argument((relation: Complement, category: "ParticipialPredicate"))]), (kind: "ScalarLocation", items: [Argument((relation: Complement, category: "ScalarValue"))])],
         "core-verb:BeContracted": [(kind: "Predicate", items: [Argument((relation: Complement, category: "LocativeComplement"))]), (kind: "Auxiliary", items: [Argument((relation: Complement, category: "ParticipialPredicate"))]), (kind: "ScalarLocation", items: [Argument((relation: Complement, category: "ScalarValue"))]), (kind: "Existential", items: [Argument((relation: Complement, category: "NounPhrase")), Optional(Argument((relation: Complement, category: "LocativeComplement")))])],
         "vocab:Adjective/Able": [(kind: "Adjectival", items: [Argument((relation: Complement, category: "InfinitiveComplement"))])],

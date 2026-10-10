@@ -129,6 +129,7 @@ constructions! {
         feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase } default None;
         feature QuantitativeAdjectiveComplementUse { No, Yes } default No;
         feature ComparativeQuantityUse { No, Yes } default No;
+        feature QuantitativeConjunctUse { No, Yes } default No;
         feature ComparativeDeterminerUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
@@ -452,7 +453,7 @@ constructions! {
         feature SecondaryNegation { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
-            Cardinal, Infinitive }
+            QuantitativeDeterminer, Infinitive }
         feature HeadCoordination { No, Yes }
         feature SelectedTailLicence { ParallelFrames, DeclaredFrames } default ParallelFrames;
         feature BareCoordination { No, Yes } default Yes;
@@ -780,7 +781,7 @@ constructions! {
         frame Ordering = Predicate(Marked(Preposition, Than, Complement(ComparativeComplement)));
         frame GrantedAbilityComplement = Predicate(Complement(GrantedAbility));
         frame AmountComplement = Predicate(Complement(Amount));
-        frame CardinalComplement = Predicate(Complement(Cardinal));
+        frame QuantitativeDeterminerComplement = Predicate(Complement(QuantitativeDeterminer));
         frame InfinitiveSelection = Predicate(Complement(InfinitiveComplement));
 
         frame SourceFreeObjectSourceToObject = Predicate(Object(SourceFreeObject), Complement(SourceComplement), Preposition(To), Object(NounPhrase), Optional(Marked(Preposition, Under, Complement(NounPhrase))));
@@ -1047,7 +1048,7 @@ constructions! {
             (ParticipialAuxiliary) => AuxiliaryParticiple,
             (PerfectAuxiliary) => AuxiliaryPerfect,
             (ObjectName) => ObjectName,
-            (CardinalComplement) => Cardinal,
+            (QuantitativeDeterminerComplement) => QuantitativeDeterminer,
             (InfinitiveSelection) => Infinitive,
         }
 
@@ -2234,10 +2235,10 @@ constructions! {
             require rest.CorrelativeCoordinator = Nor;
         }
 
-        schema SharedCardinalComplement {
+        schema SharedQuantitativeDeterminerComplement {
             form [head: node, " ", complement: node];
             require head.HeadCoordination = Yes;
-            require head.FrameUse = Cardinal;
+            require head.FrameUse = QuantitativeDeterminer;
         }
 
         schema SharedInfinitiveComplement {
@@ -5280,6 +5281,19 @@ constructions! {
             export number = complement.number;
         }
 
+        // MH2: a declared Determinative may coordinate with a cardinal count.
+        construction CardinalDeterminativeCoordination: QuantitativeDeterminer {
+            form [left: Cardinal, " ", coordinator: lexical(Coordinator), " ",
+                right: lexical(Determinative)];
+            require coordinator.CoordinationKind = Alternative;
+            require coordinator.NoncorrelativeCoordination = Yes;
+            require right.QuantitativeConjunctUse = Yes;
+            export DeterminerUse = right.DeterminerUse;
+            export DeterminerAgreementNumber = right.DeterminerAgreementNumber;
+            export Definiteness = Nondefinite;
+            export NominalAdjunctDependent = None;
+        }
+
         construction ComparativeQuantityDeterminer: QuantitativeDeterminer {
             export Definiteness = Nondefinite;
             export NominalAdjunctDependent = None;
@@ -6338,9 +6352,9 @@ constructions! {
             export InternalisedComplementMarker = head.InternalisedComplementMarker;
             export LocativeUse = head.LocativeUse;
         }
-        instance SharedCardinalComplement<Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, Cardinal, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, Cardinal, OrdinarySelectedPredicate),
+        instance SharedQuantitativeDeterminerComplement<Result, Head: head, Complement: complement, Properties>: [
+            (FinitePredicate, FiniteSelectedHead, QuantitativeDeterminer, PredicateHostAgreement),
+            (SecondaryVerbPhrase, SecondarySelectedHead, QuantitativeDeterminer, OrdinarySelectedPredicate),
         ] {
             export ClauseComplementBoundary = None;
             use Properties;
