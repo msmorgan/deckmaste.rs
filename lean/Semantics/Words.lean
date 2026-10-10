@@ -378,8 +378,12 @@ inductive ShiftDir where
   | up | down
   deriving DecidableEq, Repr
 
+/-- How much of a spell's or ability's targets a "targets …" check reads [CR#115.9]: some target
+("that targets [something]" [CR#115.9b]), its sole target ("that targets only a single
+[something]"), or the subject alone ("that targets only it"); both "only" readings count the
+different objects and players chosen as targets [CR#115.9c]. -/
 inductive TargetExtent where
-  | someTarget | soleTarget
+  | someTarget | soleTarget | only
   deriving DecidableEq, Repr
 
 inductive CopySort where
