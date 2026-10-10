@@ -72,6 +72,12 @@ Orchestrator rulings 2026-10-10:
   previously covered face is expected (QA3); any increase is reported with
   its shape before landing.
 
+- QA7. The unattested stop-outside string `It has "{T}: Draw a card".`
+  (0 → 1) and comma-outside three-quote series follow from the unterminated
+  quotation form plus existing routes. Neither is closed here: 0 supported
+  faces attest either surface, and a restriction solely blocking them is
+  not wanted. Orchestrator review accepted 2026-10-10.
+
 ## Witnesses
 
 Each is the face's only failing line. Probed 2026-10-10 on the `uoqyuxtnowpo`
@@ -131,8 +137,23 @@ only.
 ## Landing record
 
 1. **Census delta**: baseline `mqrlzszkuszn` (`baseline-wave7.json`), grammar-identical to the claim-parent content before refresh. Bounded selector: raw `--text-contains '"'` plus 300 covered controls from `diff --manifest --random 300 --seed 20261008`, stored in `target/english-v3/english-v3-quoted-ability-coordination/manifest.json`. 2,172 faces, including reminder-only quotation surfaces. This ticket at `lrynurmu`, before refresh: covered 1,760 → 1,801; Readings 22,125 → 22,684; 41 gains. After refresh, measured at `oyykqwry`: covered 1,760 → 1,812; Readings 22,125 → 24,055; 52 gains. The additional 11 are incoming changes: NP focus 7 (`zqnqzmnu`), preverbal next 2 (`zunolrnv`), preposed frequency 2 (`lvpxmkkl`). Lost none; decreases/increases/digest-only 0/0/0; issues 0, both before and after refresh. `diff.json` and `diff-refresh-only.json` record these comparisons.
+   Residual unread faces matching `[a-z0-9}]" [a-z]`: 42 faces (45 matches).
+
+   | Reason | Faces |
+   | --- | ---: |
+   | Legend rule | 10 |
+   | “for as long as it remains exiled” in the next sentence | 6 |
+   | Matrix fails with a keyword too | 6 |
+   | Named/appositive token | 5 |
+   | Inner quoted ability fails | 4 |
+   | Sibling sentence | 3 |
+   | Another line | 3 |
+   | Quoted cost | 2 |
+   | Bands with other | 2 |
+   | Quoted labels | 1 |
+
 2. **Witnesses** (`qlmzqktu` before, `lrynurmu` after): line probes Glowcap Lantern 0 → 8, Saheeli, Filigree Master 0 → 16, Pursued Whale 0 → 10, Iron Hills Blacksmith 0 → 10, Diviner's Wand 0 → 2; corresponding face census counts 0 → 9/25/14/11/4. All four sentence witnesses 0 → 1. Controls unchanged: terminated quote 1; keyword first 1; preposed duration 1; token 5; predicate 4; swapped Iron Hills 10; Ogre Marauder 2. No witness already read on the claim parent. Witness face counts and digests remained unchanged after refresh at `oyykqwry`.
 3. **Spot checks** (`lrynurmu`): Glowcap Lantern—static Ability then triggered quotation; Saheeli—two static grants; Pursued Whale—two static grants under token modification; Iron Hills Blacksmith—static grant then equip; Diviner's Wand—triggered grant then activated quotation; Arterial Alchemy—static grant then equip; Furystoke Giant—activated grant with final duration; Quicksmith Rebel—activated grant with final duration; Lithoform Blight—two activated grants; Imprisoned in the Moon—activated grant followed by a predicate coordinate. All use the intended unterminated Ability content; wrong-only gains observed: none. These ten faces retained identical counts and digests after refresh at `oyykqwry`.
-4. **Deviations and STOPs** (`lrynurmu`): no new or deleted Construction or frame. Added the declared Ability Termination feature and its glossary entry (QA1–QA4), with `CompleteSentence` and complete-body exports/requirements; refined existing Sentence, Ability and QuotedClause forms. QA4 multi-sentence and QA5 punctuation attestation: 0 faces each. Re-spelled `articles::articles_and_case_reach_real_grammatical_hosts` to reject the same capitalized bare-Clause quotation, and `derived_punctuation::coordination_and_sentence_punctuation_have_no_independent_form_choice` to reject omission in the same completed Paragraph context. Corrected two new-test assumptions: Ogre's existing Clause ambiguity is retained as a full value set; QA5 adds no blocker to the pre-existing completed-quotation route. No STOPs.
-5. **Tests**: at `lrynurmu`, `cargo test -p deckmaste_english_v3` passed 796 tests after the three failed runs exposed the assertion issues recorded above; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed. After refresh at `oyykqwry`, `cargo build -p xtask` passed; `cargo test -p deckmaste_english_v3` passed 810 tests; `cargo test -p deckmaste_lexical_source` passed 82 tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed. No failures or ignored tests in the final runs; doc tests passed. This ticket: restored 0 / re-spelled 2 / ignored 0 / added 6 / removed 0; the 14 further English tests arrived from trunk. Citation noncompliance empty; 0 stale; piped diff audit selected no new CR citations.
+4. **Deviations and STOPs** (`lrynurmu`): no new or deleted Construction or frame. Added the declared Ability Termination feature and its glossary entry (QA1–QA4), with `CompleteSentence` and complete-body exports/requirements; refined existing Sentence, Ability and QuotedClause forms. QA4 multi-sentence and QA5 punctuation attestation: 0 faces each. Re-spelled `articles::articles_and_case_reach_real_grammatical_hosts` to reject the same capitalized bare-Clause quotation, and `derived_punctuation::coordination_rejects_extra_forms_and_complete_consumers_reject_unterminated_content` to reject omission in the same completed Paragraph context; value assertions also cover all five consumers requiring Complete: SentenceItem, ConditionKeywordPayload, Document, AbilityContinuation and AbilityKeywordPayload. Corrected two new-test assumptions: Ogre's existing Clause ambiguity is retained as a full value set; QA5 adds no blocker to the pre-existing completed-quotation route. QA7 accepted by the orchestrator on 2026-10-10: `It has "{T}: Draw a card".` (0 → 1) remains licensed; stop-outside grep `[a-z0-9}]"\.` finds 0 faces / 0 matches. The comma-outside three-quote series remains licensed; grep `[a-z0-9}]", "[^"\n]+", and "` finds 0 faces / 0 matches. Both follow from the unterminated quotation plus existing routes; no restriction solely blocking these unattested strings is wanted. No STOPs.
+5. **Tests**: at `lrynurmu`, `cargo test -p deckmaste_english_v3` passed 796 tests after the three failed runs exposed the assertion issues recorded above; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed. After refresh at `oyykqwry`, `cargo build -p xtask` passed; `cargo test -p deckmaste_english_v3` passed 810 tests; `cargo test -p deckmaste_lexical_source` passed 82 tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed. After QA7 review, the renamed punctuation test and its five Complete-consumer value checks passed in the full 810-test English suite; English clippy with warnings denied passed again (tests-qa7.log, clippy-qa7.log). No failures or ignored tests in the final runs; doc tests passed. This ticket: restored 0 / re-spelled 2 / ignored 0 / added 6 / removed 0; the 14 further English tests arrived from trunk. Citation noncompliance empty; 0 stale; piped diff audit selected no new CR citations.
 6. **Timing** (`oyykqwry`): final bounded census 46.96 s wall time, six workers, zero samples per face, measured with `/usr/bin/time -v`. No full-corpus census run.

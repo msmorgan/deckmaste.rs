@@ -118,7 +118,7 @@ fn selected_literals_scan_realize_and_admit_with_one_form_index() {
 }
 
 #[test]
-fn coordination_and_sentence_punctuation_have_no_independent_form_choice() {
+fn coordination_rejects_extra_forms_and_complete_consumers_reject_unterminated_content() {
     // Obsessive Stitcher and attested coordinated keyword qualities.
     for (text, category) in [
         (
@@ -158,6 +158,48 @@ fn coordination_and_sentence_punctuation_have_no_independent_form_choice() {
                     _ => {}
                 }
             }
+        }
+    }
+    // Root Sentences may omit their terminal, but every Document-reachable
+    // consumer requiring Complete must reject that value outside a quotation.
+    let sentences = common::readings("Draw a card", Category::Sentence);
+    assert!(!sentences.is_empty());
+    for sentence in sentences {
+        sentence.admit(common::lexicon()).unwrap();
+        let ability = Reading::OrdinaryAbility {
+            form: 1,
+            body: Box::new(sentence.clone()),
+        };
+        ability.admit(common::lexicon()).unwrap();
+        let consumers = [
+            Reading::SentenceItem {
+                form: 0,
+                sentence: Box::new(sentence.clone()),
+            },
+            Reading::ConditionKeywordPayload {
+                form: 0,
+                body: Box::new(sentence),
+            },
+            Reading::Document {
+                form: 0,
+                first: Box::new(ability.clone()),
+                rest: vec![],
+            },
+            Reading::AbilityContinuation {
+                form: 0,
+                ability: Box::new(ability.clone()),
+            },
+            Reading::AbilityKeywordPayload {
+                form: 0,
+                body: Box::new(ability),
+            },
+        ];
+        for consumer in consumers {
+            assert!(
+                consumer.admit(common::lexicon()).is_err(),
+                "{} must require Complete content",
+                consumer.construction(),
+            );
         }
     }
 }
