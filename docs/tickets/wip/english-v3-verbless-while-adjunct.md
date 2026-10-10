@@ -181,6 +181,7 @@ a plugin definition changes, run `cargo xtask lean check`.
    0 Constructions or Frames; no superseded route to retire. Broadened the
    existing **Verbless Predicate Use** glossary entry under VW3, retaining
    *able* as one case and citing the state permission as a project ruling.
+   The class row lists its member by lexeme id (`lexeme:designation/saddled`), a one-member class today; this is a data declaration, not a grammar guard. Hygiene candidate: let the designation's owning plugin definition export `VerblessPredicateUse` so core.ron names no plugin-owned lexeme.
    No unresolved STOP remains. The mandatory refresh after committing
    brought `roomopmr` (phase in/out), `nzmrrqky` (cause complement) and
    `tlpwnxqn` (name-anchored NP supplements), including grammar and lexicon
