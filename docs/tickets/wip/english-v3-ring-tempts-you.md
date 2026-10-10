@@ -145,7 +145,7 @@ Attestation by `cargo xtask english-v3 grep` only.
    the diff-generated 300 covered controls (seed 20261008) give 614 distinct
    identities. After refresh at `nskzmmvt`, 543 covered faces and 9,530
    Readings: the sole additional gain is Thunderclap Drake (169 Readings),
-   inherited from `zunolrnv`'s preverbal *next*. Final totals are 45 gains and
+   inherited from `zunolrnv`'s preverbal *next*. Totals at that refresh are 45 gains and
    zero lost/decreased/increased/digest-only faces, with zero internal issues.
    Evidence: `target/english-v3/english-v3-ring-tempts-you/`, including
    `before.json`, `after.json`, `diff.json`, `manifest.json`,
@@ -156,7 +156,13 @@ Attestation by `cargo xtask english-v3 grep` only.
    compare unchanged in `inflected-diff.json`: 8 → 8 covered, 1,736 → 1,736
    Readings, all nine digests unchanged, zero changed lines and zero increases.
    `complete-manifest.json` combines these with the original 614 identities
-   for any further refresh verification (623 distinct faces).
+   for further refresh verification (623 distinct faces). The integration
+   refresh at `xssxrynx` compares all 623 faces in `integration-diff.json`:
+   551 → 552 covered, 11,266 → 11,316 Readings, one inherited gain
+   (Henzie "Toolbox" Torre, 50 Readings, from `zvtzutzx`), and no
+   losses/decreases/increases/digest-only changes. All nine added identities
+   stay unchanged. Final own gains remain 44; the two inherited gains are
+   Thunderclap Drake and Henzie.
 2. **Witnesses** — Claim-parent probes at `mqrlzszk` → `sztumtmq`: Uruk-hai
    Berserker 0 → 1; Witch-king of Angmar's document passage 0 → 57; One Ring to
    Rule Them All's chapter passage 0 → 1; Lord of the Nazgûl's protection line
@@ -176,23 +182,30 @@ Attestation by `cargo xtask english-v3 grep` only.
    coordinated Ring clause and a genitive Ring-bearer NP in the power comparison;
    Witch-king of Angmar — a separate finite Ring clause. Each clause has
    *the Ring* as Subject, *tempt* as transitive head and *you* as Object.
-   No unintended-only gain found in these checks.
+   No unintended-only gain found in these checks. At `xssxrynx`, the
+   inherited Henzie gain has *blitz* as a KeywordGrantedAbility and as
+   NounPremodifier of *cost* and *costs* (`integration-henzie.json`).
 4. **Deviations and STOPs** — No new Construction or frame kind; schema,
    declaration reader and loader changes follow RT2, with the opaque Keyword
    lexeme retired and the semantic fixed surface retained under RT3. No STOP
    or glossary gap. Refresh's test-registration conflict was resolved on
    `sztumtmq`, retaining Ring and preposed-frequency exactly once in `suite_5`;
-   the concurrent bank refusal was retried successfully. The perfect-frequency
+   the concurrent bank refusal was retried successfully. Integration refresh
+   likewise conflicted on appended registrations; Ring and keyword-mention
+   are both retained exactly once, and the retry exited 0. The perfect-frequency
    fragment remains unread after refresh at `nskzmmvt`, as RT2's
    allowed residual on Frodo, Adventurous Hobbit and Frodo, Sauron's Bane;
-   *choose NP as NP* stays out of scope. `cargo xtask lean check` passed on the reviewed head: 240/240 cards
+   *choose NP as NP* stays out of scope. `cargo xtask lean check` passed on
+   the reviewed head: 240/240 cards
    across two plugins prove `Card.check = []` (34.0 s; evidence `lean.log`).
    `FixedClause.onset` remains accepted by the schema but is ignored by the
-   loader arm; there is no current user of that field. A reasoned length expectation preserves the closed declaration
+   loader arm; there is no current user of that field. A reasoned length
+   expectation preserves the closed declaration
    dispatcher; the designation test's expected-recipe table was extracted
    without changing its value assertions.
-5. **Tests** — After refresh at `nskzmmvt`, passed `cargo test -p deckmaste_english_v3`
-   (810), `cargo test -p deckmaste_lexical_source` (82),
+5. **Tests** — After integration refresh at `xssxrynx`, `cargo build -p xtask`
+   passed; passed `cargo test -p deckmaste_english_v3`
+   (825), `cargo test -p deckmaste_lexical_source` (83),
    `cargo test -p deckmaste_construction_core` (473), and
    `cargo test -p xtask english_v3` (56 selected tests). Passed
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
@@ -205,5 +218,5 @@ Attestation by `cargo xtask english-v3 grep` only.
    no new citations need blessing. Assurance at `sztumtmq`:
    restored 0 / re-spelled 2 / ignored 0 / added 6 / removed 0. The action
    inventory test additionally retains and strengthens its existing assertions.
-6. **Timing** — Final bounded census at `nskzmmvt`: 18.78 s wall time under
-   `/usr/bin/time -v`, 6 workers, 614 faces, `--samples-per-face 0`.
+6. **Timing** — Final bounded census at `xssxrynx`: 13.21 s wall time under
+   `/usr/bin/time -v`, 6 workers, 623 faces, `--samples-per-face 0`.
