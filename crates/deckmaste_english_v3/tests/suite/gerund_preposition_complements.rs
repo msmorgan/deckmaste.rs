@@ -244,7 +244,7 @@ fn coordination_does_not_restore_a_forbidden_nominal_attachment() {
 fn jazal_goldmane_keeps_its_nominal_complement() {
     let text = "First strike\n{3}{W}{W}: Attacking creatures you control get +X/+X until end of turn, where X is the number of attacking creatures.";
     let readings = common::readings(text, Category::Document);
-    assert_eq!(readings.len(), 4);
+    assert_eq!(readings.len(), 2);
     for reading in readings {
         reading
             .visit(&mut |node| {

@@ -125,14 +125,14 @@ fn shared_comparative_complement_stays_inside_the_value_slot() {
 }
 
 #[test]
-fn existing_routes_keep_the_claim_parent_counts() {
+fn existing_routes_keep_their_predicate_readings() {
     assert_eq!(
         common::readings(
             "Destroy target creature with power 3 or less.",
             Category::Document
         )
         .len(),
-        3
+        2
     );
     assert_eq!(
         common::readings("Its power is less than 3.", Category::Document).len(),

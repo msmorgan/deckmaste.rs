@@ -145,6 +145,7 @@ fn independently_constructed_clitic_copula_and_passive_roundtrip() {
         form: 0,
         category: Category::NominativePhrase,
         head: Box::new(Reading::NominativePronoun {
+            category: Category::NounPhrase,
             form: 0,
             head: word(
                 "vocab:SubjectPronoun/It",

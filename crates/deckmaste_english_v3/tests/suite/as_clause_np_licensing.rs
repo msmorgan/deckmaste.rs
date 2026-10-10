@@ -78,15 +78,15 @@ fn comparison_and_duration_survive_without_the_finite_as_alternatives() {
             "Flash\nWhen this enchantment enters, exile target nonland permanent an opponent controls and all other nonland permanents your opponents control with the same name as that permanent until this enchantment leaves the battlefield.",
         ),
     ] {
-        comparison_witness(card, unit, Category::Sentence, 30);
-        comparison_witness(card, face, Category::Document, 96);
+        comparison_witness(card, unit, Category::Sentence, 15);
+        comparison_witness(card, face, Category::Document, 30);
     }
 }
 
 #[test]
 fn the_negative_probe_has_no_finite_as_clause() {
     let text = "Exile a creature with the same name as that permanent until this creature leaves the battlefield.";
-    comparison_witness("Deputy of Detention", text, Category::Document, 5);
+    comparison_witness("Deputy of Detention", text, Category::Document, 2);
 }
 
 #[test]

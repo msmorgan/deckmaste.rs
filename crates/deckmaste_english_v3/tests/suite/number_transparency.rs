@@ -261,7 +261,11 @@ fn eerie_interlude_keeps_both_relative_clause_scopes_and_plural_concord() {
             relative: Box::new(Reading::ZeroObjectRelativeClause {
                 form: 0,
                 subject: Box::new(case(
-                    Reading::NominativePronoun { form: 0, head: you },
+                    Reading::NominativePronoun {
+                        category: Category::NounPhrase,
+                        form: 0,
+                        head: you,
+                    },
                     Category::NominativePhrase,
                 )),
                 predicate: Box::new(Reading::FiniteObjectGap {

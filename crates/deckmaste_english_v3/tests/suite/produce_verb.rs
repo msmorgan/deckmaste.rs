@@ -59,7 +59,7 @@ fn pale_moon() {
     let text = "Until end of turn, if a player taps a nonbasic land for mana, it produces colorless mana instead of any other type.";
     assert_eq!(
         common::readings_on_card(card, text, Category::Document).len(),
-        12
+        3
     );
     common::assert_constituents_on_card(
         card,

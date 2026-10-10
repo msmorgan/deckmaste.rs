@@ -129,7 +129,7 @@ fn shortened_names_keep_one_card_identity_and_roundtrip_in_its_scope() {
             Category::Sentence
         )
         .len(),
-        4
+        3
     );
 }
 

@@ -82,7 +82,7 @@ fn scrapper_champion() {
 fn vexing_radgull() {
     witness(
         "Whenever this creature deals combat damage to a player, that player gets two rad counters if they don't have any rad counters.",
-        9,
+        3,
         1,
         "two rad counters",
         Category::AccusativePhrase,

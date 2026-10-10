@@ -535,6 +535,7 @@ fn numeric_symbol(value: i32) -> Reading {
 
 fn enter_trigger(kind: &str, predicate: Reading) -> Reading {
     let subject = Reading::NominativePronoun {
+        category: Category::NounPhrase,
         form: 0,
         head: pronoun(
             "vocab:SubjectPronoun/It",
@@ -743,6 +744,7 @@ fn all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets()
             ),
             sentence(
                 Reading::NominativePronoun {
+                    category: Category::NounPhrase,
                     form: 0,
                     head: pronoun(
                         "vocab:SubjectPronoun/You",

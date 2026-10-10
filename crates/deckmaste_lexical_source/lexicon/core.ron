@@ -501,7 +501,7 @@
         ),
         (
             id: "vocab:Preposition/Instead", lemma: "instead", category: Preposition,
-            properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct|Compound|PreposedAdjunct", "CompoundComplementMarker": "Of", "PrepositionComplement": "Intransitive", "ClauseInitialAdjunct": "Yes", "LocativeUse": "No"}, frames: []),
+            properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct|Compound|PreposedAdjunct", "CompoundComplementMarker": "Of", "ConnectiveAdjunctUse": "Yes", "PrepositionComplement": "Intransitive", "ClauseInitialAdjunct": "Yes", "LocativeUse": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Instead"),
             capitalization: Initial, binding: Free, surface_structure: Word,

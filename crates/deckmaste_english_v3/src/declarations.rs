@@ -59,6 +59,29 @@ constructions! {
             -> TargetingPremodifierUse {
             (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
         }
+        feature ClauseCoordinationHost { Simple, Coordinated } default Simple;
+        feature ClauseComplementBoundary { None, Finite, Verbless } default None;
+        feature ConnectiveAdjunctUse { No, Yes } default No;
+        table nonconnective_trailing_adjunct_host(ClauseComplementBoundary) -> Selection {
+            (None) => Yes, (Verbless) => Yes,
+        }
+        table trailing_adjunct_host(ClauseComplementBoundary, ConnectiveAdjunctUse) -> Selection {
+            (None, No) => Yes, (None, Yes) => Yes,
+            (Verbless, No) => Yes, (Verbless, Yes) => Yes,
+            (Finite, Yes) => Yes,
+        }
+        table coordinated_clause_complement_boundary(ClauseComplementBoundary,
+            ClauseComplementBoundary) -> ClauseComplementBoundary {
+            (None, None) => None, (None, Verbless) => Verbless,
+            (Verbless, None) => Verbless, (Verbless, Verbless) => Verbless,
+            (None, Finite) => Finite, (Finite, None) => Finite,
+            (Verbless, Finite) => Finite, (Finite, Verbless) => Finite,
+            (Finite, Finite) => Finite,
+        }
+        table connective_adjunct_concord(ConnectiveAdjunctUse, ConnectiveAdjunctUse)
+            -> ConnectiveAdjunctUse {
+            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+        }
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase, PredicativeNounPhrase, PrepositionPhrase, Intransitive } set;
         table noun_phrase_complement(PrepositionComplement) -> Selection contains NounPhrase => Yes;
@@ -382,7 +405,7 @@ constructions! {
         category ParagraphItem();
         category ParagraphContinuation();
         category Sentence();
-        category Clause(UnmarkedConjunctLicence);
+        category Clause(ClauseCoordinationHost, UnmarkedConjunctLicence);
         category FiniteClause();
         category FiniteGappedClause();
         category InterveningPrepositionAdjunct();
@@ -390,10 +413,13 @@ constructions! {
         category IrrealisPredicate(number, person);
         category CentralAdverbSelectedHead(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, frame);
         category ExistentialExtension();
-        category FinitePredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
+        category DummyPronoun();
+        category ExistentialPredicate(ClauseComplementBoundary, number, person, CliticHost,
+            PurposeAdjunctLicence, MatrixComplementLicence);
+        category FinitePredicate(ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category QuantifiedAuxiliaryHead(number, person, frame, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category ScalarLocationPredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
-        category SecondaryVerbPhrase(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
+        category SecondaryVerbPhrase(ClauseComplementBoundary, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category FiniteDepictiveHost(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category SecondaryDepictiveHost(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category BarePredicate(PurposeAdjunctLicence, MatrixComplementLicence);
@@ -427,7 +453,7 @@ constructions! {
         category VerblessClause();
         category Name(number);
         category NamePredicate();
-        category PrepositionPhrase(InterveningAdjunctLicence, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber,
+        category PrepositionPhrase(InterveningAdjunctLicence, ConnectiveAdjunctUse, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse,
             ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category SourceComplement();
@@ -439,8 +465,8 @@ constructions! {
         category BoundaryComplement();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause(RelativeGapKind);
-        category FiniteObjectGap(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
-        category BareObjectGap(PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
+        category FiniteObjectGap(ClauseComplementBoundary,number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
+        category BareObjectGap(ClauseComplementBoundary,PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
         category Cardinal(number);
         category CardinalModifier();
         category QuantitativeAdjectiveComplement();
@@ -496,7 +522,7 @@ constructions! {
         category CardTypeContinuation();
         category Subtypes();
         category SubtypeContinuation();
-        category ClauseSeries(UnmarkedConjunctLicence);
+        category ClauseSeries(ClauseCoordinationHost, UnmarkedConjunctLicence);
         category FinitePredicateSeries(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category NounPhraseSeries(UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
@@ -519,7 +545,7 @@ constructions! {
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
         , SourceModifierPresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
         category AdjectivePhraseSeries(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse, PremodifierCoordination);
-        category PrepositionPhraseSeries(InterveningAdjunctLicence, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
+        category PrepositionPhraseSeries(InterveningAdjunctLicence, ConnectiveAdjunctUse, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplementSeries();
@@ -529,13 +555,13 @@ constructions! {
         category CoordinatedFiniteClause(GeneralCoordination);
         category FiniteClauseSeries(GeneralCoordination);
         category PredicativeComplementSeries(PredicativeKind, PredicativeAdjunctUse);
-        category CorrelativeClauseSeries(CorrelativeCoordinator, UnmarkedConjunctLicence);
+        category CorrelativeClauseSeries(ClauseCoordinationHost, CorrelativeCoordinator, UnmarkedConjunctLicence);
         category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category CorrelativeNounPhraseSeries(UnitBearing, number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
-        category CorrelativePrepositionPhraseSeries(InterveningAdjunctLicence, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
+        category CorrelativePrepositionPhraseSeries(InterveningAdjunctLicence, ConnectiveAdjunctUse, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
             DurationUse, CorrelativeCoordinator, FocusedUse);
@@ -571,12 +597,13 @@ constructions! {
             form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
             require head.PredicateFrameUse = Yes;
         }
-        instance SelectedPredicate<Result, Properties>: [
-            (FinitePredicate, FiniteHeadAgreement),
+        instance SelectedPredicate<Result, Properties, BoundaryProperties = NoFeatures>: [
+            (FinitePredicate, FiniteHeadAgreement, NoClauseComplementBoundary),
             (IrrealisPredicate, IrrealisHeadAgreement),
-            (SecondaryVerbPhrase, OrdinarySecondaryHead),
+            (SecondaryVerbPhrase, OrdinarySecondaryHead, NoClauseComplementBoundary),
         ] {
             use Properties;
+            use BoundaryProperties;
         }
         // The ticket's central-position analysis: the lexical declaration
         // chooses the site; the Adverb is an Adjunct of the predicate head.
@@ -594,6 +621,7 @@ constructions! {
             (CentralAdverbSelectedHead, FiniteHeadAgreement),
         ] { use Properties; }
         construction CentralAdverbPredicate: FinitePredicate {
+            export ClauseComplementBoundary = None;
             form [head: CentralAdverbSelectedHead, complements: selected_frame(head, Predicate)];
             use PredicateHostAgreement;
         }
@@ -1532,6 +1560,10 @@ constructions! {
         policy ObliquePrepositionConcord<Right, Source> {
             export InterveningAdjunctLicence = coordinated_intervening_adjunct(
                 left.InterveningAdjunctLicence, Right.InterveningAdjunctLicence);
+            export ConnectiveAdjunctUse = connective_adjunct_concord(
+                left.ConnectiveAdjunctUse, Right.ConnectiveAdjunctUse);
+            export ClauseComplementBoundary = coordinated_clause_complement_boundary(
+                left.ClauseComplementBoundary, Right.ClauseComplementBoundary);
             export PredicativeAdjunctUse = predicative_adjunct_concord(
                 left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
             export NominalExceptionComplementUse = nominal_exception_concord(
@@ -1634,6 +1666,14 @@ constructions! {
         policy UnmarkedConjunct<Right, Source> {
             require Right.UnmarkedConjunctLicence = Yes;
             export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
+        }
+
+        policy NoClauseComplementBoundary {
+            export ClauseComplementBoundary = None;
+        }
+
+        policy CoordinatedClauseHost<Right, Source> {
+            export ClauseCoordinationHost = Coordinated;
         }
 
         policy ClauseCoordinationProperties<Right, Source> {
@@ -1742,6 +1782,8 @@ constructions! {
         }
 
         schema NominalAdjunctPredicate {
+            require nonconnective_trailing_adjunct_host(head.ClauseComplementBoundary) = Yes;
+            export ClauseComplementBoundary = None;
             require postposed_nominal_adjunct(modifier.NominalAdjunctDependent) = Yes;
             form [head: node, " ", modifier: NominalAdjunctPhrase];
         }
@@ -1758,6 +1800,9 @@ constructions! {
         }
 
         schema PrepositionPredicate {
+            require trailing_adjunct_host(head.ClauseComplementBoundary,
+                modifier.ConnectiveAdjunctUse) = Yes;
+            export ClauseComplementBoundary = modifier.ClauseComplementBoundary;
             form [head: node, " ", modifier: node];
             require adjunct_complement_function(modifier.ComplementFunctionRestriction,
                 modifier.PredicativeAdjunctUse) = Yes;
@@ -1784,9 +1829,11 @@ constructions! {
         instance LicensedMatrixComplementPredicate<Result, Head: head, Properties>: [
             (FinitePredicate, Self, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, SecondaryProjection),
-        ] { use Properties; }
+        ] {
+            export ClauseComplementBoundary = None; use Properties; }
 
         construction MatrixComplementPredicate: SecondaryVerbPhrase {
+            export ClauseComplementBoundary = None;
             form [head: SecondaryVerbPhrase, " ", modifier: PrepositionPhrase];
             require modifier.MatrixComplementRequirement = Internalised;
             require head.ParticipialUse = BarePassive;
@@ -1799,6 +1846,7 @@ constructions! {
         }
 
         construction InternalisedComplementPredicate: SecondaryVerbPhrase {
+            export ClauseComplementBoundary = None;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             form [head: SecondaryVerbPhrase, " ", modifier: PrepositionPhrase];
@@ -2402,11 +2450,13 @@ constructions! {
         }
 
         construction Declarative: Clause {
+            export ClauseCoordinationHost = Simple;
             form [clause: FiniteClause];
             export UnmarkedConjunctLicence = Yes;
         }
 
         construction Imperative: Clause {
+            export ClauseCoordinationHost = Simple;
             form [predicate: BarePredicate];
             export UnmarkedConjunctLicence = Yes;
         }
@@ -2415,18 +2465,27 @@ constructions! {
         // pre-verbal central position are not overtly distinct. The licensed
         // central analysis of Oracle imperative also is the project application.
         construction CentralAdverbImperative: Clause {
+            export ClauseCoordinationHost = Simple;
             form [modifier: lexical(Adverb), " ", predicate: BarePredicate];
             require central_imperative(modifier.CentralAdjunctLicence) = Yes;
             export UnmarkedConjunctLicence = Yes;
         }
 
 
+        table finite_subject_number(number, number) -> Selection {
+            (Singular, Singular) => Yes, (Plural, Plural) => Yes,
+        }
+        table finite_subject_person(person, person) -> Selection {
+            (First, First) => Yes, (Second, Second) => Yes, (Third, Third) => Yes,
+        }
         construction FiniteClause: FiniteClause {
             form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),
-                predicate: FinitePredicate];
-            agree subject.number = predicate.number;
-            agree subject.person = predicate.person;
-            require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
+                predicate: FinitePredicate]
+                require finite_subject_number(subject.number, predicate.number) = Yes
+                require finite_subject_person(subject.person, predicate.person) = Yes
+                require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
+            form [subject: DummyPronoun, clitic_separator(predicate.CliticHost),
+                predicate: ExistentialPredicate];
         }
 
         // CGEL Ch. 5 §9.2, p. 413: implicit-partitive adjuncts quantify
@@ -2452,6 +2511,7 @@ constructions! {
             use FiniteHeadAgreement;
         }
         construction PostAuxiliaryQuantification: FinitePredicate {
+            export ClauseComplementBoundary = None;
             form [head: QuantifiedAuxiliaryHead, complements: selected_frame(head, Predicate)];
             use PredicateHostAgreement;
         }
@@ -2461,6 +2521,7 @@ constructions! {
         }
 
         construction QuantifiedBareAuxiliaryPredicate: FinitePredicate {
+            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", quantifier: lexical(Determinative),
                 complement: BareComplement];
             require quantifier.QuantificationalAdjunctUse = Yes;
@@ -2485,16 +2546,16 @@ constructions! {
         // (an internal Complement, not an Object). Agreement inheritance:
         // Ch. 4 §3.2.2, p. 242. Strict concord also with clitic forms is the
         // existential-there ticket's Oracle-English requirement.
-        construction ExistentialClause: FiniteClause {
-            form [subject: lexical(Pronoun), lexical_clitic_separator(head.Clitic),
-                head: lexical(Verb), " ", displaced_subject: AccusativePhrase,
+        // Carrier completed under orchestrator ruling T1, 2026-10-10.
+        construction ExistentialPredicate: ExistentialPredicate {
+            form [head: lexical(Verb), " ", displaced_subject: AccusativePhrase,
                 extension: optional(ExistentialExtension)];
-            require subject.ExistentialUse = Yes;
+            export ClauseComplementBoundary = None;
             require head.frame = Existential;
-            require head.finiteness = Finite;
             require tensed_form(head.form) = Yes;
             agree displaced_subject.number = head.number;
             agree displaced_subject.person = head.person;
+            use FiniteHeadAgreement;
         }
 
         // CGEL Ch. 16 §6.2.1, pp. 1393–1394: the locative extension is a
@@ -2523,6 +2584,7 @@ constructions! {
         // Preposed temporal NP position: project ruling R11a (2026-10-09).
         // Keep the existing PP forms and their Reading identities.
         construction InitialPreposition: Clause {
+            export ClauseCoordinationHost = Simple;
             form [dependent: PrepositionPhrase, ", ", clause: Clause]
                 require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes
                 require preposed_complement_function(dependent.ComplementFunctionRestriction) = Yes
@@ -2539,7 +2601,11 @@ constructions! {
             export UnmarkedConjunctLicence = Yes;
         }
 
+        // Project ruling, trailing-adjunct-height (2026-10-09): only a
+        // Clause Coordination licenses trailing Clause-level Adjunct scope.
         construction ClausalPreposition: Clause {
+            require clause.ClauseCoordinationHost = Coordinated;
+            export ClauseCoordinationHost = clause.ClauseCoordinationHost;
             form [clause: Clause, " ", dependent: PrepositionPhrase];
             require licence_adjunct(dependent.PrepositionFunctionLicence) = Yes;
             require adjunct_complement_function(dependent.ComplementFunctionRestriction,
@@ -2550,6 +2616,7 @@ constructions! {
         }
 
         construction MedialSupplementation: Clause {
+            export ClauseCoordinationHost = Simple;
             form [anchor: Clause, ", ", supplement: PrepositionPhrase, ", ",
                 coordinator: lexical(Coordinator), " ", continuation: Clause];
             require licence_supplement(supplement.PrepositionFunctionLicence) = Yes;
@@ -2559,6 +2626,7 @@ constructions! {
         }
 
         construction ClauseCoordination: Clause {
+            export ClauseCoordinationHost = Coordinated;
             form [left: Clause, ", ", coordinator: lexical(Coordinator), " ", right: Clause];
             form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause]
                 require coordinator.BareCoordination = Yes;
@@ -2567,7 +2635,7 @@ constructions! {
         }
         instance CoordinationSeriesEnd<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
-            (ClauseSeries, Clause, NoConcord, LeadingConjunct, NoConcord),
+            (ClauseSeries, Clause, LeadingConjunct, CoordinatedClauseHost, NoConcord),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
@@ -2608,7 +2676,7 @@ constructions! {
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
             (PremodifierCoordination, Premodifier, Self, PremodifierConcord),
-            (ClauseSeries, Clause, Self, UnmarkedConjunct),
+            (ClauseSeries, Clause, Self, UnmarkedConjunct, CoordinatedClauseHost),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, Self,
                 QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
@@ -2645,14 +2713,14 @@ constructions! {
             use Properties(rest, rest);
         }
         instance SerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
-            Properties = NoConcord>: [
+            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
-            (Clause, Self, ClauseSeries, UnmarkedConjunct),
+            (Clause, Self, ClauseSeries, UnmarkedConjunct, CoordinatedClauseHost),
             (KeywordQualityPreposition, Self, KeywordQualityPrepositionSeries,
                 QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
-            (FinitePredicate, Self, FinitePredicateSeries, FiniteConcord),
-            (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryConjunctProperties),
+            (FinitePredicate, Self, FinitePredicateSeries, FiniteConcord, NoConcord, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (NounPhrase, Self, NounPhraseSeries, NounCoordinationAgreement),
             (VerbalPremodifier, Self, VerbalPremodifierSeries),
             (NounPremodifier, Self, NounPremodifierSeries, NounPremodifierConcord),
@@ -2672,8 +2740,8 @@ constructions! {
             (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
-            (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteGapConcord),
-            (BareObjectGap, Self, BareObjectGapSeries, BareGapConcord),
+            (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
+            (BareObjectGap, Self, BareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, FiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
             (DepictivePhrase, Self, DepictivePhraseSeries, UnlikeDepictives),
             (PredicativeComplement, Self, PredicativeComplementSeries, UnlikePredicatives),
@@ -2682,6 +2750,7 @@ constructions! {
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
+            use BoundaryProperties;
         }
 
         construction Noun: Nominal {
@@ -2779,15 +2848,15 @@ constructions! {
             require head.form = Singular;
             require head.framing = Unframed;
         }
-        instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
+        instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution, BoundaryProperties = NoFeatures>: [
             (VerbalPremodifier, Self),
             (NounPremodifier, Self, NounPremodifierConcord),
             (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (NounPhrase, Self, NounCoordinationAgreement),
-            (FinitePredicate, Self, FiniteConcord, NoConcord, NoConcord),
-            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoConcord),
-            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoConcord),
+            (FinitePredicate, Self, FiniteConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoConcord, NoClauseComplementBoundary),
+            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -2804,7 +2873,7 @@ constructions! {
             (AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
-            (BareObjectGap, Self, BareGapConcord, NoConcord, NoConcord),
+            (BareObjectGap, Self, BareGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhrase, Self, UnlikeDepictives),
             (PredicativeComplement, Self, UnlikePredicatives),
@@ -2814,6 +2883,7 @@ constructions! {
             use Agreement(right, coordinator);
             use Properties(right, coordinator);
             use Distribution(right, coordinator);
+            use BoundaryProperties;
         }
 
         // CGEL Ch. 15 §3.2, pp. 1326–1328 permits unlike categories sharing a
@@ -3351,7 +3421,9 @@ constructions! {
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
         }
 
-        construction NominativePronoun: NounPhrase {
+        schema NominativePronoun { form [head: lexical(Pronoun)]; }
+        policy OrdinaryNominativePronoun {
+
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3363,13 +3435,18 @@ constructions! {
             export SubjectStructure = Pronoun;
             export BareGenitiveHost = No;
             export Targeting = No;
-            form [head: lexical(Pronoun)];
-            use PredicateHeadAgreement;
+            export number = head.number;
+            export person = head.person;
             require head.case = Nominative;
             require head.RelativeUse = No;
             require head.ExistentialUse = No;
             export CaseUse = Nominative;
-        }
+                }
+        policy DummyPronounLicence { require head.ExistentialUse = Yes; }
+        instance NominativePronoun<Result, Properties>: [
+            (NounPhrase, OrdinaryNominativePronoun),
+            (DummyPronoun, DummyPronounLicence),
+        ] { use Properties; }
         instance CasePhrase<Result, Head: head, Properties>: [
             (NominativePhrase, NounPhrase, NominativeCase),
             (AccusativePhrase, NounPhrase, AccusativeCase),
@@ -3402,6 +3479,8 @@ constructions! {
 
         construction PrepositionPhrase: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = head.NominalExceptionComplementUse;
             export ComplementFunctionRestriction = None;
@@ -3424,6 +3503,8 @@ constructions! {
 
         construction BareNominalPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -3454,6 +3535,8 @@ constructions! {
         // preposed uses survive independently (CGEL Ch. 4 §5.3, p. 263).
         construction PredicativeComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export PredicativeAdjunctUse = complement.PredicativeAdjunctUse;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
@@ -3485,6 +3568,8 @@ constructions! {
         }
         policy FocusedPrepositionPermissions {
             export InterveningAdjunctLicence = head.InterveningAdjunctLicence;
+            export ConnectiveAdjunctUse = head.ConnectiveAdjunctUse;
+            export ClauseComplementBoundary = head.ClauseComplementBoundary;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
             export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
             require adjunct_complement_function(head.ComplementFunctionRestriction,
@@ -3528,6 +3613,8 @@ constructions! {
 
         construction IntransitivePreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = head.ConnectiveAdjunctUse;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -3542,6 +3629,8 @@ constructions! {
         // CGEL Ch. 7 §3.2, p. 626: preposition + adjective idioms.
         construction AdjectiveComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -3573,6 +3662,8 @@ constructions! {
 
         construction VerblessClauseComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = Verbless;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -3598,6 +3689,8 @@ constructions! {
         // Their Oracle function and irrealis licences are lexical declarations.
         construction ClauseComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = head.InterveningAdjunctLicence;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = Finite;
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
@@ -3623,6 +3716,8 @@ constructions! {
         // CGEL Ch. 13 §5.5, p. 1152: irrealis content-clause Complement.
         construction IrrealisClauseComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = Finite;
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
@@ -3647,6 +3742,8 @@ constructions! {
         // the Oracle equative duration are declared project analyses.
         construction AdverbComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -3672,6 +3769,8 @@ constructions! {
         // declared by the lexicon, independently of Complement availability.
         construction GerundComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
@@ -3696,6 +3795,8 @@ constructions! {
         // omission removes its head together with its internal Complement.
         construction CompoundPrepositionPhrase: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -3715,6 +3816,8 @@ constructions! {
         // free duration, purpose or nominal-modifier use.
         construction QuantitativeExceptionPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export ComplementFunctionRestriction = None;
             form [head: lexical(Preposition), " ", complement: Cardinal];
             require head.NominalExceptionComplementUse = Yes;
@@ -3735,6 +3838,8 @@ constructions! {
         }
         construction MatrixComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export ComplementFunctionRestriction = None;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require head.MatrixComplementGovernor = Yes;
@@ -3761,6 +3866,8 @@ constructions! {
         // The supported source-head eligibility is a declared project decision.
         construction PrepositionComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -3825,19 +3932,22 @@ constructions! {
             (FinitePredicate, BareComplement, FiniteAuxiliaryAgreement),
             (SecondaryVerbPhrase, BareComplement, SecondaryAuxiliaryProperties),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
-        instance ParticipialAuxiliaryPredicate<Result, Complement: complement, Properties>: [
-            (FinitePredicate, ParticipialComplement, FiniteAuxiliaryAgreement),
+        instance ParticipialAuxiliaryPredicate<Result, Complement: complement, Properties, BoundaryProperties = NoFeatures>: [
+            (FinitePredicate, ParticipialComplement, FiniteAuxiliaryAgreement, NoClauseComplementBoundary),
             (IrrealisPredicate, ParticipialComplement, IrrealisHeadAgreement),
-            (SecondaryVerbPhrase, ParticipialComplement, SecondaryAuxiliaryProperties),
+            (SecondaryVerbPhrase, ParticipialComplement, SecondaryAuxiliaryProperties, NoClauseComplementBoundary),
         ] {
             use Properties;
+            use BoundaryProperties;
         }
         instance PerfectAuxiliaryPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, PerfectComplement, FiniteAuxiliaryAgreement),
             (SecondaryVerbPhrase, PerfectComplement, SecondaryAuxiliaryProperties),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
 
@@ -3877,6 +3987,7 @@ constructions! {
             (FinitePredicate, FiniteHeadAgreement),
             (SecondaryVerbPhrase, OrdinarySecondaryHead),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         // The depictive precedes the selected predicative PP (Vesuva).
@@ -3890,7 +4001,8 @@ constructions! {
         instance DepictiveSelectedPredicativePredicate<Result, Properties>: [
             (FinitePredicate, FiniteHeadAgreement),
             (SecondaryVerbPhrase, OrdinarySecondaryHead),
-        ] { use Properties; }
+        ] {
+            export ClauseComplementBoundary = None; use Properties; }
 
         schema SelectedSourceDepictivePredicate {
             form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
@@ -3947,9 +4059,11 @@ constructions! {
             (BareObjectGap, PlainGapHead),
             (SecondaryVerbPhrase, BarePassiveHead),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         construction BareNominalPrepositionPassive: SecondaryVerbPhrase {
+            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", marker: lexical(Preposition), " ",
                 complement: NounPhrase];
             require selected_object_marker(head.frame, marker.KeywordMarker) = Yes;
@@ -3968,18 +4082,22 @@ constructions! {
             (BareObjectGap, PlainGapHead),
             (SecondaryVerbPhrase, BarePassiveHead),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         construction SelectedExtentPassive: SecondaryVerbPhrase {
+            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", complement: ScalarExtentComplement];
             require head.frame = ObjectExtent;
             use BarePassiveHead;
         }
         construction SelectedFramePassive: SecondaryVerbPhrase {
+            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), complements: selected_frame(head, Passive)];
             use BarePassiveHead;
         }
         construction RetainedObjectPassive: SecondaryVerbPhrase {
+            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", object: AccusativePhrase];
             require head.frame = Ditransitive;
             use BarePassiveHead;
@@ -4042,6 +4160,7 @@ constructions! {
                 head.NominalAdjunctClass, head.NominalDependentPresent) = Yes;
         }
         instance NominalAdjunctPredicate<Result, Head: head, Properties>: [
+            (ExistentialPredicate, Self, PredicateHostAgreement),
             (FinitePredicate, Self, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, SecondaryProjection),
             (FiniteObjectGap, Self, FiniteGapHostProjection),
@@ -4075,6 +4194,8 @@ constructions! {
         }
         construction BareTemporalPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -4155,10 +4276,12 @@ constructions! {
             (FinitePredicate, Self, FrequencyPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, FrequencyPhrase, SecondaryProjection),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
 
         instance PrepositionPredicate<Result, Head: head, Modifier: modifier, Properties>: [
+            (ExistentialPredicate, Self, PrepositionPhrase, PredicateHostAgreement),
             (FinitePredicate, Self, PrepositionPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, PrepositionPhrase, SecondaryPrepositionProjection),
             (FiniteObjectGap, Self, PrepositionPhrase, FiniteGapHostProjection),
@@ -4173,6 +4296,7 @@ constructions! {
             (FiniteObjectGap, Self, FiniteGapHostProjection),
             (BareObjectGap, Self, BareGapHostProjection),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
 
@@ -4219,6 +4343,7 @@ constructions! {
         }
 
         construction PassivePredicate: SecondaryVerbPhrase {
+            export ClauseComplementBoundary = None;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             form [head: lexical(Verb)];
@@ -4253,6 +4378,7 @@ constructions! {
         }
 
         construction FiniteObjectGap: FiniteObjectGap {
+            export ClauseComplementBoundary = None;
             export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
             require head.PredicateFrameUse = Yes;
             form [head: lexical(Verb)];
@@ -4261,6 +4387,7 @@ constructions! {
         }
 
         construction BareObjectGap: BareObjectGap {
+            export ClauseComplementBoundary = None;
             export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
@@ -4270,6 +4397,7 @@ constructions! {
         }
 
         construction AuxiliaryObjectGap: FiniteObjectGap {
+            export ClauseComplementBoundary = None;
             export ComparativeObjectGapLicence = complement.ComparativeObjectGapLicence;
             form [head: lexical(Verb), " ", complement: BareObjectGap];
             use FiniteHeadAgreement;
@@ -4838,10 +4966,10 @@ constructions! {
             export ParticipialUse = head.ParticipialUse;
             export form = head.form;
         }
-        instance MatchedComparativeConstituent<Result, Head: head, Properties>: [
+        instance MatchedComparativeConstituent<Result, Head: head, Properties, BoundaryProperties = NoFeatures>: [
             (NounPhrase, Self, NominalComparisonHost),
-            (SecondaryVerbPhrase, Self, NonfiniteComparisonHost),
-        ] { use Properties; }
+            (SecondaryVerbPhrase, Self, NonfiniteComparisonHost, NoClauseComplementBoundary),
+        ] { use Properties; use BoundaryProperties; }
 
         table coordinated_comparison_marker(ComparisonMarker, ComparisonMarker)
             -> ComparisonMarker {
@@ -4920,22 +5048,26 @@ constructions! {
             (FinitePredicate, FiniteHeadAgreement),
             (SecondaryVerbPhrase, OrdinarySecondaryHead),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance ComplementedDepictivePredicate<Result, Head: head, Properties>: [
             (FinitePredicate, FiniteDepictiveHost, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondaryDepictiveHost, SecondaryAdjunctProjection),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance AdverbPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, AdverbPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, AdverbPhrase, SecondaryAdjunctProjection),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
 
         construction InitialAdverb: Clause {
+            export ClauseCoordinationHost = Simple;
             form [modifier: AdverbPhrase, " ", clause: Clause];
             form [modifier: AdverbPhrase, ", ", clause: Clause];
             require modifier.ClauseInitialAdjunct = Yes;
@@ -4994,6 +5126,7 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase,
                 OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedPredicativeComplement<
@@ -5002,6 +5135,7 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, PredicativeComplement,
                 OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedLocativeComplement<Result, Head: head, Complement: complement, Properties>: [
@@ -5009,30 +5143,35 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, LocativeComplement,
                 OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedManaComplement<Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, ManaPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, ManaPhrase, OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedAmountComplement<Result, Head: head, Amount: amount, Properties>: [
             (FinitePredicate, FiniteSelectedHead, Amount, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, Amount, OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
             (FinitePredicate, FiniteSelectedHead, MeasurePhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, MeasurePhrase, OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedSlashMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
             (FinitePredicate, FiniteSelectedHead, SlashPair, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, SlashPair, OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedGrantedAbilityComplement<
@@ -5040,6 +5179,7 @@ constructions! {
             (FinitePredicate, FiniteSelectedHead, GrantedAbility, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, GrantedAbility, OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedAuxiliaryBareComplement<
@@ -5048,6 +5188,7 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, BareComplement,
                 AuxiliarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedAuxiliaryParticipleComplement<
@@ -5056,6 +5197,7 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, ParticipialComplement,
                 SelectedAuxiliaryProperties),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedAuxiliaryPerfectComplement<
@@ -5064,6 +5206,7 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, PerfectComplement,
                 SelectedAuxiliaryProperties),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedObjectNameComplement<
@@ -5072,6 +5215,7 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, Name,
                 OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
         table coordinated_locative_use(LocativeUse, LocativeUse) -> LocativeUse {
@@ -5111,6 +5255,8 @@ constructions! {
 
         construction CoordinatedClauseComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = Finite;
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -5183,10 +5329,10 @@ constructions! {
         // Correlative prefixes: Both binary only; main Clause Either only.
         // Nominal/AdjP deferred until pre-head placement is represented in summaries.
         instance EitherCoordination<Result, Member, Agreement = NoConcord,
-            Properties = NoConcord>: [
-            (Clause, Self, UnmarkedConjunctHead),
-            (FinitePredicate, Self, FiniteConcord),
-            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
+            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
+            (Clause, Self, UnmarkedConjunctHead, CoordinatedClauseHost),
+            (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
@@ -5200,18 +5346,19 @@ constructions! {
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase),
-            (FiniteObjectGap, Self, FiniteGapConcord),
-            (BareObjectGap, Self, BareGapConcord),
+            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
+            (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
             use Properties(right, coordinator);
+            use BoundaryProperties;
         }
 
         instance CorrelativeSeriesEnd<Result, Member, Agreement = NoConcord, Properties = NoConcord,
             Status = NoConcord>: [
-            (CorrelativeClauseSeries, Clause, NoConcord, LeadingConjunct),
+            (CorrelativeClauseSeries, Clause, LeadingConjunct, CoordinatedClauseHost),
             (CorrelativeFinitePredicateSeries, FinitePredicate, FiniteConcord),
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase,
                 SecondaryConjunctProperties),
@@ -5243,7 +5390,7 @@ constructions! {
         instance CorrelativeSeriesContinuation<
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, Status = NoConcord>: [
-            (CorrelativeClauseSeries, Clause, Self, UnmarkedConjunct),
+            (CorrelativeClauseSeries, Clause, Self, UnmarkedConjunct, CoordinatedClauseHost),
             (CorrelativeFinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase, Self,
                 SecondaryConjunctProperties),
@@ -5272,11 +5419,10 @@ constructions! {
             use Status(rest, rest);
         }
         instance EitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
-            Properties = NoConcord>: [
-            (Clause, Self, CorrelativeClauseSeries, MarkedConjunctSeries),
-            (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord),
-            (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries,
-                SecondaryConjunctProperties),
+            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
+            (Clause, Self, CorrelativeClauseSeries, MarkedConjunctSeries, CoordinatedClauseHost),
+            (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord, NoConcord, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
             (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions, UnmarkedConjunctHead),
@@ -5292,16 +5438,17 @@ constructions! {
             (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries),
-            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord),
-            (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord),
+            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
+            (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
+            use BoundaryProperties;
         }
-        instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord>: [
-            (FinitePredicate, Self, FiniteConcord),
-            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
+        instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, BoundaryProperties = NoFeatures>: [
+            (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
@@ -5315,18 +5462,19 @@ constructions! {
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase),
-            (FiniteObjectGap, Self, FiniteGapConcord),
-            (BareObjectGap, Self, BareGapConcord),
+            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
+            (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
             use Properties(right, coordinator);
+            use BoundaryProperties;
         }
 
         instance NeitherCoordination<Result, Member, Agreement = NoConcord,
-            Properties = NoConcord>: [
-            (FinitePredicate, Self, FiniteConcord),
-            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
+            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
+            (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
@@ -5340,19 +5488,19 @@ constructions! {
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase),
-            (FiniteObjectGap, Self, FiniteGapConcord),
-            (BareObjectGap, Self, BareGapConcord),
+            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
+            (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
             use Properties(right, coordinator);
+            use BoundaryProperties;
         }
 
         instance NeitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
-            Properties = NoConcord>: [
-            (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord),
-            (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries,
-                SecondaryConjunctProperties),
+            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
+            (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord, NoConcord, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
             (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions, UnmarkedConjunctHead),
@@ -5368,11 +5516,12 @@ constructions! {
             (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
             (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries),
-            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord),
-            (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord),
+            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
+            (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
+            use BoundaryProperties;
         }
 
         // CGEL pp. 467–468: a genitive NP determines the following nominal.
@@ -5415,6 +5564,8 @@ constructions! {
 
         construction KeywordComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -5427,6 +5578,8 @@ constructions! {
         }
         construction QuotedComplementPreposition: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
@@ -5451,6 +5604,7 @@ constructions! {
             (FinitePredicate, FiniteSelectedHead, Cardinal, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, Cardinal, OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
 
@@ -5460,6 +5614,7 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, InfinitiveComplement,
                 OrdinarySelectedPredicate),
         ] {
+            export ClauseComplementBoundary = None;
             use Properties;
         }
 
@@ -5490,6 +5645,8 @@ constructions! {
 
         construction SharedPrepositionComplement: PrepositionPhrase {
             export InterveningAdjunctLicence = No;
+            export ConnectiveAdjunctUse = No;
+            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;

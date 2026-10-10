@@ -65,7 +65,7 @@ fn brinebound_gift() {
     witness(
         "Brinebound Gift",
         "If this Aura would be put into a graveyard from anywhere, exile it instead.",
-        12,
+        4,
     );
 }
 
@@ -74,7 +74,7 @@ fn yawgmoths_agenda() {
     witness(
         "Yawgmoth's Agenda",
         "If a card would be put into your graveyard from anywhere, exile it instead.",
-        12,
+        4,
     );
 }
 
@@ -92,7 +92,7 @@ fn rest_in_peace() {
     witness(
         "Rest in Peace",
         "If a card or token would be put into a graveyard from anywhere, exile it instead.",
-        12,
+        4,
     );
 }
 
@@ -101,7 +101,7 @@ fn generous_soul() {
     witness(
         "Generous Soul",
         "If Generous Soul would be put into a graveyard from anywhere, exile it instead.",
-        12,
+        4,
     );
 }
 

@@ -59,7 +59,7 @@ fn crop_sigil() {
     witness(
         "Crop Sigil",
         "Activate only if there are four or more card types among cards in your graveyard.",
-        25,
+        11,
         "lexeme:CommonNoun/Type",
     );
 }
@@ -79,7 +79,7 @@ fn deluge_of_doom() {
     witness(
         "Deluge of Doom",
         "All creatures get -X/-X until end of turn, where X is the number of card types among cards in your graveyard.",
-        24,
+        12,
         "lexeme:CommonNoun/Type",
     );
 }
@@ -140,7 +140,7 @@ fn open_the_gates_preserves_coordination_without_card_as_a_coordinated_premodifi
     let text = "Search your library for a basic land card or Gate card, reveal it, put it into your hand, then shuffle.";
     // The claim-parent census admits 23 Readings of this Open the Gates face.
     let readings = common::readings_on_card("Open the Gates", text, Category::Document);
-    assert_eq!(readings.len(), 23);
+    assert_eq!(readings.len(), 20);
     for reading in readings {
         reading
             .visit(&mut |node| {

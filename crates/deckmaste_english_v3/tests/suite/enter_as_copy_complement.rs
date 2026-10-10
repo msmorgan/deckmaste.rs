@@ -218,7 +218,7 @@ fn existing_enter_frames_and_adjunct_exclusion_survive() {
     }
     assert_eq!(
         common::readings("Activate as a sorcery.", Category::Document).len(),
-        2
+        1
     );
     let text = "Creatures you control die as a copy of this creature.";
     assert!(
@@ -231,7 +231,7 @@ fn existing_enter_frames_and_adjunct_exclusion_survive() {
 fn geths_summons_keeps_finite_as_as_an_adjunct() {
     let text = "Return up to one target creature card from your graveyard to the battlefield.\nCorrupted — For each opponent who has three or more poison counters as you cast this spell, put up to one target creature card from that player's graveyard onto the battlefield under your control.";
     let values = common::readings(text, Category::Document);
-    assert_eq!(values.len(), 48);
+    assert_eq!(values.len(), 24);
     for value in values {
         let mut selected_predicatives = 0;
         value
@@ -249,7 +249,7 @@ fn geths_summons_keeps_finite_as_as_an_adjunct() {
 fn master_biomancer_keeps_licensed_unlike_complement_coordination() {
     let text = "Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types.";
     let values = common::readings(text, Category::Document);
-    assert_eq!(values.len(), 96);
+    assert_eq!(values.len(), 72);
     for value in values {
         value.admit(common::lexicon()).unwrap();
         assert_eq!(value.realize(common::lexicon()).unwrap(), text);

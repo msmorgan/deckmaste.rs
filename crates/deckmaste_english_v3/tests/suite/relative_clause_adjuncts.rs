@@ -113,6 +113,7 @@ fn relative(predicate: Reading) -> Reading {
             category: Category::NominativePhrase,
             form: 0,
             head: Box::new(Reading::NominativePronoun {
+                category: Category::NounPhrase,
                 form: 0,
                 head: word(
                     "vocab:SubjectPronoun/You",

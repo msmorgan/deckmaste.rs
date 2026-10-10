@@ -37,17 +37,17 @@ fn resolved_witnesses_use_temporal_gaps_and_perfect_auxiliaries() {
         (
             "Saint Traft and Rem Karolus",
             "Whenever Saint Traft and Rem Karolus becomes tapped, create a 1/1 red Human creature token if this is the first time this ability has resolved this turn.",
-            80,
+            24,
         ),
         (
             "Belladonna Took",
             "Whenever a token you control enters, you gain 1 life if this is the first time this ability has resolved this turn.",
-            80,
+            24,
         ),
         (
             "Nissa, Leyline Tamer",
             "Then if this is the first time this ability has resolved this turn, reveal cards from the top of your library until you reveal a creature card.",
-            432,
+            72,
         ),
         (
             "Teething Wurmlet",
@@ -75,7 +75,7 @@ fn frequency_and_lexical_have_controls_keep_their_readings() {
         (
             "Saint Traft and Rem Karolus",
             "If it's the second time, create a 1/1 blue Spirit creature token with flying.",
-            32,
+            24,
         ),
         (
             "Aurelia, the Warleader",
@@ -85,7 +85,7 @@ fn frequency_and_lexical_have_controls_keep_their_readings() {
         (
             "Felisa, Fang of Silverquill",
             "Whenever a nontoken creature you control dies, if it had counters on it, create X tapped 2/1 white and black Inkling creature tokens with flying, where X is the number of counters it had on it.",
-            280,
+            196,
         ),
     ];
     for (card, text, count) in witnesses {

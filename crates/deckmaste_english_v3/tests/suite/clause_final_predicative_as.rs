@@ -153,7 +153,7 @@ fn selected_and_comparative_controls_gain_no_as_adjunct() {
         (
             "Counterbore",
             "Counter target spell. Search its controller's graveyard, hand, and library for all cards with the same name as that spell and exile them. Then that player shuffles.",
-            28,
+            22,
         ),
         (
             "Aven Shrine",
@@ -163,7 +163,7 @@ fn selected_and_comparative_controls_gain_no_as_adjunct() {
         (
             "Clone",
             "You may have this creature enter as a copy of any creature on the battlefield.",
-            6,
+            5,
         ),
     ] {
         let values = common::readings_on_card(card, text, Category::Document);

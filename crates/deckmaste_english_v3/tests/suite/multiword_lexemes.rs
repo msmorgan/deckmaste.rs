@@ -215,6 +215,7 @@ fn orientation_predication_uses_the_existing_selected_locative_frame() {
             category: Category::NominativePhrase,
             form: 0,
             head: Box::new(Reading::NominativePronoun {
+                category: Category::NounPhrase,
                 form: 0,
                 head: Word {
                     value: LexicalReading::Word(LexicalValue {

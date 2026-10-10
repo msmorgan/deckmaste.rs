@@ -99,7 +99,7 @@ fn svyelun_keeps_the_bounded_cardinal_in_determiner_function() {
         "Svyelun of Sea and Sky",
         "Svyelun has indestructible as long as you control at least two other Merfolk.",
         2,
-        2,
+        1,
     );
 }
 
@@ -119,7 +119,7 @@ fn synchronized_eviction_keeps_the_relative_clause_on_the_nominal() {
         "Synchronized Eviction",
         "This spell costs {2} less to cast if you control at least two creatures that share a creature type.",
         2,
-        3,
+        2,
     );
 }
 

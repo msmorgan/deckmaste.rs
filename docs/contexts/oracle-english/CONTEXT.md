@@ -234,6 +234,22 @@ Supplementary material set off from the surrounding expression, commonly by
 parentheses. It can refer to preceding linguistic material without becoming a
 selected Complement of its host.
 
+**Clause Coordination Host** (project term):
+A Clause Coordination, including one with trailing Clause-level Adjuncts, that
+can host a further trailing Clause-level Adjunct under the
+`english-v3-trailing-adjunct-height` project ruling (2026-10-09).
+A Clause with a preposed dependent is not itself such a host.
+
+**Clause Complement Boundary** (project term):
+The scope boundary of a Preposition Phrase's finite or verbless Clause
+Complement, retained under focusing and Coordination. Under orchestrator rulings
+T2–T3 (2026-10-10), only a finite Complement blocks a further nonconnective
+trailing Adjunct of the enclosing Predicate.
+
+**Existential Predicate**:
+The Predicate in a Clause with a Dummy Pronoun as Subject and an internal
+Complement functioning as displaced Subject (CGEL, Ch. 16 §6.1, p. 1391).
+
 **Clause**:
 A syntactic unit organized around a predication and its dependents.
 
@@ -803,7 +819,10 @@ An Adjunct relating its Clause to surrounding text or context; connective
 elements can also link smaller units (CGEL, Ch. 8 §19, p. 775). In Oracle
 English, sentence-initial *Then* uses this Adverb route (CGEL, Ch. 8 §19,
 p. 778, [9ii]); sole-linking comma-*then* is a coordination marker under the
-project's orchestrator resolution of 2026-10-06.
+project's orchestrator resolution of 2026-10-06. CGEL classifies connective AdvP
+Adjuncts as Clause-oriented (Ch. 6 §7.1, p. 576, [6v]); the intransitive
+Preposition Phrase *instead* has this orientation under orchestrator ruling T3
+(2026-10-10).
 
 **Focus**:
 The constituent whose interpretation is made prominent or restricted relative

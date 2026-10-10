@@ -280,7 +280,7 @@ fn selected_destination_preserves_passive_and_object_gap_readings() {
 fn stand_together_retains_coordinated_object_and_locative_complements() {
     let text = "Put two +1/+1 counters on target creature and two +1/+1 counters on another target creature.";
     let values = readings(text, Category::Document);
-    assert_eq!(values.len(), 6);
+    assert_eq!(values.len(), 5);
     let mut clusters = Vec::new();
     for value in &values {
         value

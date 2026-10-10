@@ -82,7 +82,7 @@ fn bare_as_keeps_its_preposed_licence_and_gains_final_position() {
     );
     assert_eq!(
         readings("Activate as a sorcery.", Category::Document).len(),
-        2
+        1
     );
 }
 

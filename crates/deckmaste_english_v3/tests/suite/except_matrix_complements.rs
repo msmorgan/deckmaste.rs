@@ -97,7 +97,7 @@ fn keldon_firebombers() {
 #[test]
 fn shifting_sliver_control_retains_its_complete_reading() {
     let values = common::readings("Slivers can't be blocked by Slivers.", Category::Document);
-    assert_eq!(values.len(), 9);
+    assert_eq!(values.len(), 7);
     for value in values {
         value.admit(common::lexicon()).unwrap();
     }

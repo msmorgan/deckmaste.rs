@@ -47,6 +47,7 @@ fn pronoun(owner: &str, case: Case) -> Word {
 
 fn you() -> Reading {
     Reading::NominativePronoun {
+        category: Category::NounPhrase,
         form: 0,
         head: pronoun("vocab:SubjectPronoun/You", Case::Nominative),
     }

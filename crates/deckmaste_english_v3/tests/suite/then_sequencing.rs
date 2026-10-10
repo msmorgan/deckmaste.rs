@@ -361,7 +361,7 @@ fn erode_retains_clause_series_and_shared_subject_readings_for_both_markers() {
     let text = "Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle.";
     for text in [text.to_owned(), text.replace(", then", ", and")] {
         let values = readings(&text, Category::Document);
-        assert_eq!(values.len(), 16);
+        assert_eq!(values.len(), 14);
         let mut clause_series = 0;
         let mut shared_subject = 0;
         for value in values {
@@ -381,6 +381,6 @@ fn erode_retains_clause_series_and_shared_subject_readings_for_both_markers() {
                 _ => panic!("one serial scope in each Erode Reading"),
             }
         }
-        assert_eq!((clause_series, shared_subject), (10, 6));
+        assert_eq!((clause_series, shared_subject), (8, 6));
     }
 }

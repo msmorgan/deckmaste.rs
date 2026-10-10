@@ -33,7 +33,7 @@ fn flint_golem_becomes_blocked_has_an_adjectival_predicative_complement() {
 #[test]
 fn talruum_champion_keeps_the_selected_by_complement_inside_the_adjective() {
     let text = "Whenever this creature blocks or becomes blocked by a creature, that creature loses first strike until end of turn.";
-    assert_eq!(readings(text, Category::Document).len(), 9);
+    assert_eq!(readings(text, Category::Document).len(), 3);
     assert_constituents(
         text,
         Category::Document,
@@ -58,11 +58,11 @@ fn vedalken_ghoul_trained_cheetah_and_somberwald_alpha_preserve_the_adjective() 
         ),
         (
             "Whenever this creature becomes blocked, it gets +1/+1 until end of turn.",
-            3,
+            1,
         ),
         (
             "Whenever a creature you control becomes blocked, it gets +1/+1 until end of turn.",
-            3,
+            1,
         ),
     ] {
         assert_eq!(readings(text, Category::Document).len(), count, "{text}");

@@ -267,3 +267,6 @@ mod vocabulary_batch_1;
 
 #[path = "suite/last_turn_temporal_adjunct.rs"]
 mod last_turn_temporal_adjunct;
+
+#[path = "suite/trailing_adjunct_height.rs"]
+mod trailing_adjunct_height;

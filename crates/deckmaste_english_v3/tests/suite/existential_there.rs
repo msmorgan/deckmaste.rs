@@ -16,15 +16,14 @@ fn witness(text: &str, displaced: &str, location: &str) {
         let mut clauses = 0;
         value
             .visit(&mut |node| {
-                if let Reading::ExistentialClause {
-                    subject,
-                    head,
-                    displaced_subject,
-                    extension,
-                    ..
+                if let Reading::FiniteClause {
+                    subject, predicate, ..
                 } = node
+                    && predicate.category() == Category::ExistentialPredicate
                 {
-                    clauses += 1;
+                    let Reading::NominativePronoun { head: subject, .. } = &**subject else {
+                        panic!("expected dummy Pronoun")
+                    };
                     let LexicalReading::Word(subject_value) = &subject.value else {
                         panic!("dummy Subject must be a declared pronoun")
                     };
@@ -32,6 +31,15 @@ fn witness(text: &str, displaced: &str, location: &str) {
                     assert_eq!(subject_value.features.number, None);
                     assert_eq!(subject_value.features.person, None);
                     assert_eq!(subject.frame, None);
+                }
+                if let Reading::ExistentialPredicate {
+                    head,
+                    displaced_subject,
+                    extension,
+                    ..
+                } = node
+                {
+                    clauses += 1;
                     let LexicalReading::Word(head_value) = &head.value else {
                         panic!("verb must be a declared word")
                     };
@@ -129,20 +137,27 @@ fn agreement_mismatches_do_not_read() {
 #[test]
 fn bare_and_extended_existentials_preserve_distinct_constituencies() {
     // Drop of Honey's condition: NP-internal Modifier and verb Complement
-    // remain distinct grammatical Readings.
+    // remain distinct grammatical Readings alongside the predicate Adjunct.
     let text = "there are no creatures on the battlefield";
     let values = readings(text, Category::FiniteClause);
-    assert_eq!(values.len(), 2);
+    assert_eq!(values.len(), 3);
     let observed: std::collections::BTreeSet<_> = values
         .iter()
         .map(|value| {
-            let Reading::ExistentialClause {
+            let Reading::FiniteClause { predicate, .. } = value else {
+                panic!("expected finite Clause")
+            };
+            let mut predicate = &**predicate;
+            while let Reading::PrepositionPredicate { head, .. } = predicate {
+                predicate = head;
+            }
+            let Reading::ExistentialPredicate {
                 displaced_subject,
                 extension,
                 ..
-            } = value
+            } = predicate
             else {
-                panic!("expected existential Clause")
+                panic!("expected existential Predicate")
             };
             (
                 displaced_subject.realize(lexicon()).unwrap(),
@@ -158,6 +173,7 @@ fn bare_and_extended_existentials_preserve_distinct_constituencies() {
                 Some(" on the battlefield".to_owned())
             ),
             ("no creatures on the battlefield".to_owned(), None),
+            ("no creatures".to_owned(), None),
         ])
     );
     common::assert_constituents(
@@ -261,52 +277,63 @@ fn word(id: &str, form: WordForm, number: Option<Number>) -> Word {
 fn independent_condition() -> Reading {
     // Independently build Drop of Honey's displaced NP and locative
     // extension, without deriving the value from a parse.
-    Reading::ExistentialClause {
-        form: 0,
-        subject: word("vocab:DummyPronoun/There", WordForm::Invariant, None),
-        head: word("core-verb:Be", WordForm::Present, Some(Number::Plural)),
-        displaced_subject: Box::new(Reading::CasePhrase {
-            category: Category::AccusativePhrase,
+    Reading::FiniteClause {
+        form: 1,
+        subject: Box::new(Reading::NominativePronoun {
+            category: Category::DummyPronoun,
             form: 0,
-            head: Box::new(Reading::DeterminedNounPhrase {
+            head: word("vocab:DummyPronoun/There", WordForm::Invariant, None),
+        }),
+        predicate: Box::new(Reading::ExistentialPredicate {
+            form: 0,
+            head: word("core-verb:Be", WordForm::Present, Some(Number::Plural)),
+            displaced_subject: Box::new(Reading::CasePhrase {
+                category: Category::AccusativePhrase,
                 form: 0,
-                determiner: word("vocab:Determinative/No", WordForm::Invariant, None),
-                head: Box::new(Reading::Noun {
+                head: Box::new(Reading::DeterminedNounPhrase {
                     form: 0,
-                    head: word(
-                        "lexeme:type/creature",
-                        WordForm::Plural,
-                        Some(Number::Plural),
-                    ),
+                    determiner: word("vocab:Determinative/No", WordForm::Invariant, None),
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: word(
+                            "lexeme:type/creature",
+                            WordForm::Plural,
+                            Some(Number::Plural),
+                        ),
+                    }),
                 }),
             }),
-        }),
-        extension: Some(Box::new(Reading::ExistentialExtension {
-            form: 0,
-            complement: Box::new(Reading::LocativeComplement {
+            extension: Some(Box::new(Reading::ExistentialExtension {
                 form: 0,
-                phrase: Box::new(Reading::PrepositionPhrase {
+                complement: Box::new(Reading::LocativeComplement {
                     form: 0,
-                    head: word("vocab:Preposition/On", WordForm::Invariant, None),
-                    complement: Box::new(Reading::CasePhrase {
-                        category: Category::AccusativePhrase,
+                    phrase: Box::new(Reading::PrepositionPhrase {
                         form: 0,
-                        head: Box::new(Reading::DeterminedNounPhrase {
+                        head: word("vocab:Preposition/On", WordForm::Invariant, None),
+                        complement: Box::new(Reading::CasePhrase {
+                            category: Category::AccusativePhrase,
                             form: 0,
-                            determiner: word("vocab:DefiniteMarker/The", WordForm::Invariant, None),
-                            head: Box::new(Reading::Noun {
+                            head: Box::new(Reading::DeterminedNounPhrase {
                                 form: 0,
-                                head: word(
-                                    "lexeme:CommonNoun/Battlefield",
-                                    WordForm::Singular,
-                                    Some(Number::Singular),
+                                determiner: word(
+                                    "vocab:DefiniteMarker/The",
+                                    WordForm::Invariant,
+                                    None,
                                 ),
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: word(
+                                        "lexeme:CommonNoun/Battlefield",
+                                        WordForm::Singular,
+                                        Some(Number::Singular),
+                                    ),
+                                }),
                             }),
                         }),
                     }),
                 }),
-            }),
-        })),
+            })),
+        }),
     }
 }
 
@@ -338,7 +365,10 @@ fn independently_constructed_existential_retains_both_traversals() {
 #[test]
 fn independently_constructed_bare_existential_roundtrips() {
     let mut value = independent_condition();
-    let Reading::ExistentialClause { extension, .. } = &mut value else {
+    let Reading::FiniteClause { predicate, .. } = &mut value else {
+        unreachable!()
+    };
+    let Reading::ExistentialPredicate { extension, .. } = &mut **predicate else {
         unreachable!()
     };
     *extension = None;
@@ -353,17 +383,21 @@ fn independently_constructed_bare_existential_roundtrips() {
 #[test]
 fn independent_construction_rejects_wrong_agreement_and_lexical_permissions() {
     let mut value = independent_condition();
-    let Reading::ExistentialClause { head, .. } = &mut value else {
+    let Reading::FiniteClause { predicate, .. } = &mut value else {
+        unreachable!()
+    };
+    let Reading::ExistentialPredicate { head, .. } = &mut **predicate else {
         unreachable!()
     };
     *head = word("core-verb:Be", WordForm::Present, Some(Number::Singular));
     assert!(value.admit(lexicon()).is_err());
     assert!(value.realize(lexicon()).is_err());
     let mut value = independent_condition();
-    let Reading::ExistentialClause { subject, .. } = &mut value else {
+    let Reading::FiniteClause { subject, .. } = &mut value else { unreachable!() };
+    let Reading::NominativePronoun { head, .. } = &mut **subject else {
         unreachable!()
     };
-    *subject = word(
+    *head = word(
         "vocab:SubjectPronoun/They",
         WordForm::Invariant,
         Some(Number::Plural),
@@ -371,7 +405,10 @@ fn independent_construction_rejects_wrong_agreement_and_lexical_permissions() {
     assert!(value.admit(lexicon()).is_err());
     assert!(value.realize(lexicon()).is_err());
     let mut value = independent_condition();
-    let Reading::ExistentialClause { head, .. } = &mut value else {
+    let Reading::FiniteClause { predicate, .. } = &mut value else {
+        unreachable!()
+    };
+    let Reading::ExistentialPredicate { head, .. } = &mut **predicate else {
         unreachable!()
     };
     *head = word("core-verb:Remain", WordForm::Present, Some(Number::Plural));

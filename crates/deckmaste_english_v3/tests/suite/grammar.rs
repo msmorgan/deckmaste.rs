@@ -394,6 +394,7 @@ fn independently_constructed_auxiliary_ellipsis_roundtrips_without_discourse_con
             category: Category::NominativePhrase,
             form: 0,
             head: Box::new(Reading::NominativePronoun {
+                category: Category::NounPhrase,
                 form: 0,
                 head: word(
                     "vocab:SubjectPronoun/You",

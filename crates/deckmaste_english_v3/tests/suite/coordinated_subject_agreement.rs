@@ -15,7 +15,7 @@ fn shared_determiner_nominal_subject_requires_plural_agreement() {
         ),
         (
             "Lord of Extinction's power and toughness are equal to the number of cards in all graveyards.",
-            4,
+            3,
         ),
     ] {
         assert_eq!(readings(text, Category::Sentence).len(), count, "{text}");
@@ -90,7 +90,7 @@ fn common_readings_on_card(card: &str, text: &str) -> std::collections::BTreeSet
 fn alternative_coordination_preserves_singular_agreement() {
     // Captain America's Motorcycle's triggered-effect clause.
     let text = "Target creature or Vehicle gets +2/+0 until end of turn.";
-    assert_eq!(readings(text, Category::Sentence).len(), 2);
+    assert_eq!(readings(text, Category::Sentence).len(), 1);
     assert!(readings(&text.replace(" gets ", " get "), Category::Sentence).is_empty());
 }
 

@@ -146,6 +146,7 @@ fn independent_irrealis() -> Reading {
                 category: Category::NominativePhrase,
                 form: 0,
                 head: Box::new(Reading::NominativePronoun {
+                    category: Category::NounPhrase,
                     form: 0,
                     head: word(
                         "vocab:SubjectPronoun/It",

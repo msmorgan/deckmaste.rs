@@ -30,7 +30,7 @@ fn a_filled_passive_rejects_a_second_internalised_complement_adjunct() {
             Category::Document
         )
         .len(),
-        3,
+        2,
     );
     assert_eq!(
         readings(
@@ -42,7 +42,7 @@ fn a_filled_passive_rejects_a_second_internalised_complement_adjunct() {
     );
     assert_eq!(
         readings("Slivers can't be blocked by Walls.", Category::Document).len(),
-        9
+        7
     );
 }
 

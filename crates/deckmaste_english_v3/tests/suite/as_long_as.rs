@@ -115,7 +115,7 @@ fn document(clause: Reading) -> Reading {
 }
 
 #[test]
-fn aeronaut_tinkerer_has_exactly_the_two_conditional_readings() {
+fn aeronaut_tinkerer_has_exactly_the_vp_conditional_reading() {
     let finite = only("This creature has flying", Category::FiniteClause);
     let conditional = only(
         "as long as you control an artifact",
@@ -123,33 +123,23 @@ fn aeronaut_tinkerer_has_exactly_the_two_conditional_readings() {
     );
     let Reading::FiniteClause {
         subject, predicate, ..
-    } = finite.clone()
+    } = finite
     else {
         panic!()
     };
-    let expected = BTreeSet::from([
-        document(Reading::ClausalPreposition {
+    let expected = BTreeSet::from([document(Reading::Declarative {
+        form: 0,
+        clause: Box::new(Reading::FiniteClause {
             form: 0,
-            clause: Box::new(Reading::Declarative {
+            subject,
+            predicate: Box::new(Reading::PrepositionPredicate {
+                category: Category::FinitePredicate,
                 form: 0,
-                clause: Box::new(finite),
-            }),
-            dependent: Box::new(conditional.clone()),
-        }),
-        document(Reading::Declarative {
-            form: 0,
-            clause: Box::new(Reading::FiniteClause {
-                form: 0,
-                subject,
-                predicate: Box::new(Reading::PrepositionPredicate {
-                    category: Category::FinitePredicate,
-                    form: 0,
-                    head: predicate,
-                    modifier: Box::new(conditional),
-                }),
+                head: predicate,
+                modifier: Box::new(conditional),
             }),
         }),
-    ]);
+    })]);
     assert_eq!(
         readings(
             "This creature has flying as long as you control an artifact.",
@@ -160,7 +150,7 @@ fn aeronaut_tinkerer_has_exactly_the_two_conditional_readings() {
 }
 
 #[test]
-fn master_thief_has_exactly_the_three_duration_readings() {
+fn master_thief_has_exactly_the_vp_duration_reading() {
     let duration = Reading::AdverbComplementPreposition {
         form: 0,
         head: invariant("vocab:Preposition/For"),
@@ -188,13 +178,13 @@ fn master_thief_has_exactly_the_three_duration_readings() {
         dependent: trigger,
         clause: imperative,
         ..
-    } = triggered_clause.clone()
+    } = triggered_clause
     else {
         panic!()
     };
     let Reading::Imperative {
         predicate: bare, ..
-    } = *imperative.clone()
+    } = *imperative
     else {
         panic!()
     };
@@ -204,38 +194,22 @@ fn master_thief_has_exactly_the_three_duration_readings() {
     else {
         panic!()
     };
-    let expected = BTreeSet::from([
-        document(Reading::ClausalPreposition {
+    let expected = BTreeSet::from([document(Reading::InitialPreposition {
+        form: 0,
+        dependent: trigger,
+        clause: Box::new(Reading::Imperative {
             form: 0,
-            clause: Box::new(triggered_clause),
-            dependent: Box::new(duration.clone()),
-        }),
-        document(Reading::InitialPreposition {
-            form: 0,
-            dependent: trigger.clone(),
-            clause: Box::new(Reading::ClausalPreposition {
+            predicate: Box::new(Reading::BarePredicate {
                 form: 0,
-                clause: imperative,
-                dependent: Box::new(duration.clone()),
-            }),
-        }),
-        document(Reading::InitialPreposition {
-            form: 0,
-            dependent: trigger,
-            clause: Box::new(Reading::Imperative {
-                form: 0,
-                predicate: Box::new(Reading::BarePredicate {
+                head: Box::new(Reading::PrepositionPredicate {
+                    category: Category::SecondaryVerbPhrase,
                     form: 0,
-                    head: Box::new(Reading::PrepositionPredicate {
-                        category: Category::SecondaryVerbPhrase,
-                        form: 0,
-                        head: predicate,
-                        modifier: Box::new(duration),
-                    }),
+                    head: predicate,
+                    modifier: Box::new(duration),
                 }),
             }),
         }),
-    ]);
+    })]);
     assert_eq!(
         readings(
             "When this creature enters, gain control of target artifact for as long as you control this creature.",
@@ -279,6 +253,7 @@ fn independently_constructed_conditional_pp_obeys_both_roundtrip_laws() {
             category: Category::NominativePhrase,
             form: 0,
             head: Box::new(Reading::NominativePronoun {
+                category: Category::NounPhrase,
                 form: 0,
                 head: word("vocab:SubjectPronoun/You", WordForm::Invariant, None, None),
             }),
