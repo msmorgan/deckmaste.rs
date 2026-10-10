@@ -162,6 +162,10 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    kind-of-counter refresh (`wkooyuko`) was measured on `kmzutkzt`:
    `counter-refresh-diff.json` likewise reports all 1,372 faces and all lines
    unchanged, with zero count or digest changes. The same final totals stand.
+   Integration was refused when default moved again; retry refresh imported
+   supplementary temporal adjuncts (`vyzponrxzvqq`). At `llqmupwn`,
+   `temporal-refresh-diff.json` again reports all 1,372 faces and every line
+   unchanged, with the same final totals and zero count/digest changes.
 2. **Witnesses** (`rtzolrtx`, all completely enumerated by sentence probes):
    Prowl, Stoic Strategist **0 → 1**; Release to the Wind **0 → 2**;
    Preacher **0 → 1**; Minas Morgul, Dark Fortress **0 → 6**; Flameshape
@@ -224,5 +228,9 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `cargo test -p deckmaste_english_v3` (918 tests),
    `cargo test -p deckmaste_lexical_source` (84 tests), and both exact clippy
    commands above passed. Five inherited tests belong to `wkooyuko`.
-6. **Timing** (`kmzutkzt`): the final refreshed bounded after-census took
-   **99.81 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.
+   After supplementary-temporal retry refresh (`llqmupwn`),
+   `cargo build -p xtask`, `cargo test -p deckmaste_english_v3` (922 tests),
+   `cargo test -p deckmaste_lexical_source` (84 tests), and both exact clippy
+   commands above passed. Four inherited tests belong to `vyzponrxzvqq`.
+6. **Timing** (`llqmupwn`): the final refreshed bounded after-census took
+   **60.25 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.
