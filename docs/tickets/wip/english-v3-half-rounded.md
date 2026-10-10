@@ -91,6 +91,13 @@ Orchestrator rulings 2026-10-10:
   previously covered face is expected (all three words are new); report any
   with its shape before landing.
 
+- HR-R1 (orchestrator ruling, 2026-10-10). Retain both
+  `[half [that player's life total]]` and `[[half that player]'s life total]`.
+  Both are grammatical bracketings: a fractional Predeterminer may modify a
+  definite NP that becomes a Genitive Determiner. Tests assert the intended
+  whole-possessive-NP constituency is present by value, without excluding the
+  other Reading. Do not add a feature solely to suppress the second scope.
+
 ## Witnesses
 
 Each is the face's only failing line at `uoqyuxtn`. Probed 2026-10-10 with
@@ -156,4 +163,90 @@ Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-Not landed.
+1. **Census delta** (`soxvyspk`): bounded manifest, 995 faces; covered
+   748 → 814, total Readings 25,118 → 25,855. Lost none; gained 66;
+   decreases 0; previously covered increases 0; digest-only 79 (the
+   `MultiplierNounPhrase` → `PredeterminerNounPhrase` rename). Wrong-analysis
+   gains found: none. `before.json` was measured on the empty `soxvyspk`
+   equivalent to claim parent `mrsslony`; `after.json` and `diff.json` are
+   under `target/english-v3/english-v3-half-rounded/`. Selector:
+   `\b(half|third|tenth|twice|double|triple|rounded?)\b`, case insensitive,
+   704 attested faces plus 300 random covered faces, seed 20261008 (995
+   unique). Standard `english-v3 diff --lines` supplies the comparison.
+   After refresh (`ztqopwrv`, empty child of `soxvyspk`): covered 816,
+   Readings 25,912; combined diff: gained 68, lost/decreases/increases 0,
+   digest-only 79. The additional gains are Complete the Circuit (20
+   Readings, preverbal next from `zunolrnvsuqr`) and Personal Incarnation
+   (37 Readings, NP focus from `zqnqzmnumpyr`). The second refresh's
+   `koswtswwympz` copy-exception licence leaves all 995 face counts and
+   digests unchanged. Final evidence: `after-refresh-2.json`,
+   `diff-final.json`, and separate `diff-refresh*.json` comparisons.
+2. **Witnesses** (`soxvyspk`): all eight probed 0 before implementation.
+   After, complete enumerations: Grievous Wound 1; Cut Your Losses 1;
+   Endless Ranks of the Dead 2; The Endstone 1; Heartless Hidetsugu 17;
+   Malignus 2; “That player loses half their life.” 1;
+   “half that player's life total” 2. Controls before → after:
+   Grievous 1 → 1; Cut 1 → 1; Endless twice 2 → 2 and plain number 2 → 2;
+   Endstone 1 → 1; Hidetsugu 10+ (enumeration capped at 10) → 11 complete;
+   Malignus 2 → 2; twice-genitive NP 2 → 2; double-damage, spell-twice,
+   twice-that-many-counters and prevent-double-damage each 1 → 1.
+3. **Spot checks** (`soxvyspk`, ten newly covered faces): Grievous Wound,
+   fraction over their life, rounding anchored on the triggered effect's
+   finite Clause; Cut Your Losses, fraction over their library, finite-Clause
+   rounding; Endless Ranks of the Dead, fraction over the number of Zombies,
+   rounding on the finite where-binding Clause; The Endstone, fraction over
+   your starting life total, rounding on the becomes Clause; Heartless
+   Hidetsugu, fraction over the whole genitive NP, plus HR-R1's retained
+   genitive-possessor scope, rounding on the deals Clause; Malignus, fraction
+   over the highest life total among your opponents, rounding on the finite
+   Clause; Lurking Evil, fraction over your life, rounding anchored on the
+   action Cost; Garza's Assassin, the same action-Cost analysis inside
+   Recover; Aspect of Wolf, separate X/Y finite where-binding Clauses with
+   their respective down/up Supplements; Infernal Contract, fraction over
+   your life and rounding on the lose Clause. Full-face probes are
+   `spot-0.json` through `spot-9.json` in the evidence directory.
+4. **Deviations and STOPs**: `ParticipialSupplementation` is an embedded
+   schema, separate from terminal PP `Supplementation`, because the latter's
+   initial-capitalization boundary prevents lowercase triggered and adjunct
+   Clauses. `ImperativeClause`/`SupplementAnchorImperative` supply a disjoint
+   Clause anchor without duplicating declarative Readings or changing
+   existing Clause summaries; the existing finiteness test remains unchanged.
+   Refresh's category-interface conflict was resolved by preserving both
+   trunk's NounPhraseSeries `FocusedUse` and this change's
+   SecondaryPredicateSeries `ParticipialSupplementUse`; no route was removed.
+   The licence is declared `ParticipialSupplementUse`, propagated through
+   secondary projections and conjoined for coordination. Added glossary
+   entries Participial Supplement Use and Imperative Clause; amended
+   Predeterminer and Predeterminer Use. STOP over genitive scope resolved by
+   **HR-R1 (orchestrator ruling, 2026-10-10)**: retain both bracketings and
+   assert the intended constituency is present by value. The landed
+   multiplier already has the same pair on claim-parent trunk (`mrsslony`):
+   `[twice [that player's life total]]` and `[[twice that player]'s life total]`.
+   No multiplier restriction was added. HR2 residuals (`soxvyspk`): half X
+   remains unread on 7 faces/9 matches: Wan Shi Tong, Librarian; Banshee;
+   Hydroid Krasis; Eternal Flame; The Goose Mother; Contaminated Drink;
+   Brass Infiniscope. Bare “half of their library” remains unread; the
+   attested Ulamog, the Defiler line instead reads “the top half of their
+   library” through the existing determined, premodified, PP-postmodified
+   Noun route; its face is newly covered. No new partitive route or
+   NP-internal comma postmodifier was added.
+5. **Tests** (`soxvyspk`): `cargo test -p deckmaste_english_v3` passed all
+   801 tests; `cargo test -p deckmaste_lexical_source` passed all 82 tests.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Restored 0 / re-spelled 10 existing multiplier tests for the construction
+   rename / ignored 0 / added 11 (including the two HR-R1 role tests) /
+   removed 0. Initial verification exposed a Clause-summary regression,
+   fixed by the disjoint imperative anchor, and the two genitive-scope
+   assertions, re-spelled under HR-R1. Citation checks: 0 noncompliant,
+   0 stale; diff audit 0 newly cited sites. No CR registration was added.
+   Required checks repeated after both code/data refreshes (`ztqopwrv`):
+   `cargo build -p xtask`, full tests and clippy for both changed crates,
+   all passed; final English suite 823 tests, lexical-source suite 82.
+   Assurance counts above describe this ticket's changes, excluding tests
+   brought in from trunk. Neither construction-core nor plugin definitions
+   changed, so no xtask-test or Lean check was required.
+6. **Timing** (`soxvyspk`): bounded census wall time 27.77 s under
+   `/usr/bin/time -v`, 6 workers, samples per face 0. Required bounded
+   refresh rechecks (`ztqopwrv`): 27.36 s, then 12.17 s, with the same
+   manifest/workers/sampling. No full-corpus census.

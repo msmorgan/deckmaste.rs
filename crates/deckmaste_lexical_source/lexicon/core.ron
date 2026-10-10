@@ -56,6 +56,7 @@
         Pronoun: {"RelativeUse": "No"},
     },
     feature_additions: {
+        "core-verb:Round": {"ParticipialSupplementUse": "Yes"},
         // GC1–GC2: each Object + goal tail selects a complete declared frame.
         "core-verb:Put": {"SelectedTailLicence": "DeclaredFrames"},
         "lexeme:keyword_ability/exploit/verb": {"PastParticipialPremodifier": "Yes"},
@@ -238,6 +239,14 @@
         "vocab:Preposition/Without": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
+        // CGEL Ch. 5 §12(b), p. 434: fractional noun in predeterminer use.
+        (
+            id: "lexeme:Fraction/Half", lemma: "half", category: Noun,
+            properties: (countability: [Count], features: {"PredeterminerUse": "Fraction"}, frames: []),
+            forms: [(form: Singular, features: (number: Some(Singular)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:Fraction/Half"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
         // CGEL Ch. 5 §12(c), p. 434: noun multipliers in predeterminer use.
         (
             id: "lexeme:Multiplier/Double", lemma: "double", category: Noun,
@@ -2100,6 +2109,10 @@
         "vocab:RelativePronoun/Whose": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive))), (form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)))],
     },
     frame_additions: {
+        "core-verb:Round": [
+            (kind: "Passive", items: [Marker(vocabulary: "Adverb", member: "Up")]),
+            (kind: "Passive", items: [Marker(vocabulary: "Adverb", member: "Down")]),
+        ],
         "core-verb:Remove": [
             (kind: "Passive", items: [Argument((relation: Complement, category: "SourceComplement"))]),
         ],

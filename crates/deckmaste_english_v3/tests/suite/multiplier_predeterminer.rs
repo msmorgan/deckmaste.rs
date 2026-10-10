@@ -32,7 +32,7 @@ fn witness(card: &str, text: &str, owner: &str, host: &str) {
         let mut modifiers = Vec::new();
         value
             .visit(&mut |node| {
-                if let Reading::MultiplierNounPhrase { modifier, head, .. } = node {
+                if let Reading::PredeterminerNounPhrase { modifier, head, .. } = node {
                     modifiers.push((modifier.clone(), (**head).clone()));
                 }
             })
@@ -157,7 +157,7 @@ fn independently_constructed_multiplier_preserves_both_roundtrip_laws() {
             head: word("lexeme:CommonNoun/Power", WordForm::Singular, Some(true)),
         }),
     };
-    let value = Reading::MultiplierNounPhrase {
+    let value = Reading::PredeterminerNounPhrase {
         form: 0,
         modifier: word("vocab:FrequencyAdverb/Twice", WordForm::Invariant, None),
         head: Box::new(host),

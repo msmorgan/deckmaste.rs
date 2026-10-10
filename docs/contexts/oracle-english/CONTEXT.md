@@ -229,6 +229,16 @@ integration into the anchor's headed syntax (CGEL, Ch. 15 §5.1, pp. 1350–1351
 *where X is …* Preposition Phrase is supplementary under the
 [where-variable-clause project analysis](../../tickets/done/english-v3-where-variable-clause.md#project-analysis).
 
+**Participial Supplement Use** (project term):
+A verb's declared permission for its Bare Passive to function as a Supplement
+anchored on a Clause or action Cost, under HR3–HR4 (orchestrator ruling,
+2026-10-10, `english-v3-half-rounded`).
+
+**Imperative Clause** (project term):
+A subjectless Clause whose Predicate has plain Form. Its separate Supplement
+anchor preserves the distinction from a Finite Clause under HR4 (orchestrator
+ruling, 2026-10-10, `english-v3-half-rounded`).
+
 **Parenthetical**:
 Supplementary material set off from the surrounding expression, commonly by
 parentheses. It can refer to preceding linguistic material without becoming a
@@ -985,9 +995,11 @@ The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
 
 **Predeterminer**:
-An external Modifier preceding a determined Noun Phrase. Multipliers have
-this function with definite hosts and retain their Adverb or Noun Category
-(CGEL, Ch. 5 §12(c), p. 434).
+An external Modifier preceding a determined Noun Phrase. Fractional nouns
+and multipliers have this function while retaining their lexical Category
+(CGEL, Ch. 5 §12(b–c), p. 434); their definite-host restriction in Oracle
+English follows HR1–HR2 (orchestrator ruling, 2026-10-10,
+`english-v3-half-rounded`).
 
 **Multiplier**:
 A multiplicative expression functioning as a Predeterminer of a definite
@@ -996,7 +1008,9 @@ Noun Phrase, such as adverbial *twice* or nominal *double* and *triple*
 
 **Predeterminer Use** (project term):
 A Lexeme's declared permission to function as a Predeterminer, including the
-multiplier use ([MP2](../../tickets/done/english-v3-multiplier-predeterminer.md#analysis)).
+multiplier use ([MP2](../../tickets/done/english-v3-multiplier-predeterminer.md#analysis))
+and fractional use (HR1, orchestrator ruling, 2026-10-10,
+`english-v3-half-rounded`).
 
 **Definiteness**:
 The distinction between definite and nondefinite Noun Phrases. The definite

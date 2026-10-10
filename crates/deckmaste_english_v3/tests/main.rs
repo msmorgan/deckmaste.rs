@@ -58,3 +58,6 @@ mod shared_preposition_heads;
 
 #[path = "suite/verbless_if_complement.rs"]
 mod verbless_if_complement;
+
+#[path = "suite/half_rounded.rs"]
+mod half_rounded;

@@ -1,4 +1,8 @@
 [
+    (identity: Round, bare: "round", third_person: "rounds", preterite: Some("rounded"), participle: Some("rounded"), frames: [
+        Predicate([Lex("Adverb", "Up")]),
+        Predicate([Lex("Adverb", "Down")]),
+    ]),
     (identity: Add, bare: "add", third_person: "adds", preterite: Some("added"), frames: [
         Predicate([ObjectNounPhrase]),
         Predicate([Role("ManaPhrase")]),

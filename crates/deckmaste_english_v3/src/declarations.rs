@@ -13,7 +13,15 @@ constructions! {
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
         feature DegreeUse { Head, Modifier }
-        feature PredeterminerUse { No, Multiplier } default No;
+        feature PredeterminerUse { No, Multiplier, Fraction } default No;
+        table predeterminer_host(PredeterminerUse, Definiteness) -> Selection {
+            (Multiplier, Definite) => Yes, (Fraction, Definite) => Yes,
+        }
+        feature ParticipialSupplementUse { No, Yes } default No;
+        table coordinated_participial_supplement(ParticipialSupplementUse, ParticipialSupplementUse)
+            -> ParticipialSupplementUse {
+            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+        }
         feature Definiteness { Unspecified, Nondefinite, Definite } default Unspecified;
         feature DeterminerRequirement { No, Yes, Definite } default No;
         feature NumberTransparency { No, Yes } default No;
@@ -420,6 +428,7 @@ constructions! {
         category ParagraphContinuation();
         category Sentence();
         category Clause(ClauseCoordinationHost, UnmarkedConjunctLicence);
+        category ImperativeClause(ClauseCoordinationHost, UnmarkedConjunctLicence);
         category FiniteClause();
         category FiniteGappedClause();
         category InterveningPrepositionAdjunct();
@@ -433,9 +442,9 @@ constructions! {
         category FinitePredicate(ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category QuantifiedAuxiliaryHead(number, person, frame, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category ScalarLocationPredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
-        category SecondaryVerbPhrase(ClauseComplementBoundary, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
+        category SecondaryVerbPhrase(ParticipialSupplementUse, ClauseComplementBoundary, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category FiniteDepictiveHost(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
-        category SecondaryDepictiveHost(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
+        category SecondaryDepictiveHost(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category BarePredicate(PurposeAdjunctLicence, MatrixComplementLicence);
         category ParticipialPredicate(PurposeAdjunctLicence, MatrixComplementLicence, CentralAdjunctPosition);
         category PastParticiplePredicate(PurposeAdjunctLicence, MatrixComplementLicence);
@@ -539,7 +548,7 @@ constructions! {
         category SubtypeContinuation();
         category ClauseSeries(ClauseCoordinationHost, UnmarkedConjunctLicence);
         category FinitePredicateSeries(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
-        category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
+        category SecondaryPredicateSeries(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category NounPhraseSeries(FocusedUse, UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplement();
@@ -573,7 +582,7 @@ constructions! {
         category PredicativeComplementSeries(PredicativeKind, PredicativeAdjunctUse);
         category CorrelativeClauseSeries(ClauseCoordinationHost, CorrelativeCoordinator, UnmarkedConjunctLicence);
         category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
-        category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
+        category CorrelativeSecondaryVerbPhraseSeries(ParticipialSupplementUse, form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category CorrelativeNounPhraseSeries(FocusedUse, UnitBearing, number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
@@ -1144,6 +1153,7 @@ constructions! {
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export form = secondary_form(head.form);
+            export ParticipialSupplementUse = No;
             export ParticipialUse = Ordinary;
             export InternalisedComplementPresent = No;
         }
@@ -1152,6 +1162,7 @@ constructions! {
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export form = head.form;
+            export ParticipialSupplementUse = No;
             export ParticipialUse = Ordinary;
             export InternalisedComplementPresent = No;
         }
@@ -1178,6 +1189,7 @@ constructions! {
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export InternalisedComplementPresent = head.InternalisedComplementPresent;
+            export ParticipialSupplementUse = head.ParticipialSupplementUse;
             export ParticipialUse = head.ParticipialUse;
             export form = secondary_form(head.form);
         }
@@ -1192,6 +1204,7 @@ constructions! {
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export InternalisedComplementPresent = internalised_complement_presence(
                 head.InternalisedComplementPresent, modifier.InternalisedComplementMarker);
+            export ParticipialSupplementUse = head.ParticipialSupplementUse;
             export ParticipialUse = head.ParticipialUse;
             export form = secondary_form(head.form);
         }
@@ -1200,6 +1213,7 @@ constructions! {
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export InternalisedComplementPresent = head.InternalisedComplementPresent;
+            export ParticipialSupplementUse = head.ParticipialSupplementUse;
             export ParticipialUse = head.ParticipialUse;
             export form = head.form;
         }
@@ -1208,6 +1222,7 @@ constructions! {
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export form = secondary_form(head.form);
+            export ParticipialSupplementUse = No;
             export ParticipialUse = Ordinary;
             export InternalisedComplementPresent = No;
         }
@@ -1216,6 +1231,7 @@ constructions! {
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export form = head.form;
+            export ParticipialSupplementUse = No;
             export ParticipialUse = Ordinary;
             export InternalisedComplementPresent = No;
         }
@@ -1665,6 +1681,8 @@ constructions! {
             export form = left.form;
             export InternalisedComplementPresent = complement_presence(
                 left.InternalisedComplementPresent, Right.InternalisedComplementPresent);
+            export ParticipialSupplementUse = coordinated_participial_supplement(
+                left.ParticipialSupplementUse, Right.ParticipialSupplementUse);
             export ParticipialUse = coordinated_participial_use(left.ParticipialUse,
                 Right.ParticipialUse);
         }
@@ -1763,6 +1781,7 @@ constructions! {
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export form = head.form;
+            export ParticipialSupplementUse = No;
             export ParticipialUse = Ordinary;
             export InternalisedComplementPresent = No;
             require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
@@ -1877,6 +1896,7 @@ constructions! {
             require head.ParticipialUse = BarePassive;
             require head.InternalisedComplementPresent = No;
             export form = head.form;
+            export ParticipialSupplementUse = head.ParticipialSupplementUse;
             export ParticipialUse = head.ParticipialUse;
             export InternalisedComplementPresent = Yes;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
@@ -1892,6 +1912,7 @@ constructions! {
             require head.InternalisedComplementPresent = No;
             require modifier.InternalisedComplementMarker = Yes;
             export form = head.form;
+            export ParticipialSupplementUse = head.ParticipialSupplementUse;
             export ParticipialUse = head.ParticipialUse;
             export InternalisedComplementPresent = Yes;
         }
@@ -2487,9 +2508,43 @@ constructions! {
             use Properties;
         }
 
+        // HR4: an embedded participial Supplement has a Clause or action
+        // Cost anchor. Unlike terminal supplementation, it has no initial
+        // capitalization boundary and leaves punctuation to its container.
+        schema ParticipialSupplementation {
+            form [anchor: node, ", ", supplement: SecondaryVerbPhrase];
+            require supplement.ParticipialUse = BarePassive;
+            require supplement.form = PastParticiple;
+            require supplement.ParticipialSupplementUse = Yes;
+            require anchor.terminal_punctuation = None;
+        }
+        policy ImperativeSupplement {
+            export ClauseCoordinationHost = anchor.ClauseCoordinationHost;
+            export UnmarkedConjunctLicence = anchor.UnmarkedConjunctLicence;
+        }
+        policy CostSupplement {
+            require anchor.CostComponentForm = Action;
+            export CostComponentForm = Action;
+        }
+        instance ParticipialSupplementation<Result, Anchor: anchor, Properties>: [
+            (FiniteClause, FiniteClause, NoFeatures),
+            (Clause, ImperativeClause, ImperativeSupplement),
+            (CostComponent, CostComponent, CostSupplement),
+        ] {
+            use Properties;
+        }
+
         construction Declarative: Clause {
             export ClauseCoordinationHost = Simple;
             form [clause: FiniteClause];
+            export UnmarkedConjunctLicence = Yes;
+        }
+
+        // HR4: a disjoint Clause anchor keeps the finite and imperative
+        // supplementation routes from duplicating a declarative Reading.
+        construction SupplementAnchorImperative: ImperativeClause {
+            export ClauseCoordinationHost = Simple;
+            form [predicate: BarePredicate];
             export UnmarkedConjunctLicence = Yes;
         }
 
@@ -3404,13 +3459,12 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
-        // CGEL Ch. 5 §12(c), p. 434: multipliers are external Modifiers
-        // of definite NPs; their lexical Categories remain Adverb and Noun.
-        construction MultiplierNounPhrase: NounPhrase {
+        // CGEL Ch. 5 §12(b–c), p. 434: fractions and multipliers are
+        // external Modifiers; HR1–HR2 require a declared definite host.
+        construction PredeterminerNounPhrase: NounPhrase {
             form [modifier: lexical(Adverb), " ", head: NounPhrase];
             form [modifier: lexical(Noun), " ", head: NounPhrase];
-            require modifier.PredeterminerUse = Multiplier;
-            require head.Definiteness = Definite;
+            require predeterminer_host(modifier.PredeterminerUse, head.Definiteness) = Yes;
             export UnitBearing = head.UnitBearing;
             export number = head.number;
             export person = head.person;
@@ -4205,6 +4259,7 @@ constructions! {
             require head.form = Plain;
         }
         policy BarePassiveHead {
+            export ParticipialSupplementUse = head.ParticipialSupplementUse;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             require head.form = PastParticiple;
@@ -4513,6 +4568,7 @@ constructions! {
             require head.form = PastParticiple;
             require head.frame = Transitive;
             export form = PastParticiple;
+            export ParticipialSupplementUse = No;
             export ParticipialUse = BarePassive;
             export InternalisedComplementPresent = No;
         }
@@ -5165,6 +5221,7 @@ constructions! {
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export InternalisedComplementPresent = head.InternalisedComplementPresent;
+            export ParticipialSupplementUse = No;
             export ParticipialUse = head.ParticipialUse;
             export form = head.form;
         }
