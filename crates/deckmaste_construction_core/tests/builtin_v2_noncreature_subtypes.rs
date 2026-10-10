@@ -97,6 +97,7 @@ fn attested_plural(category: SubtypeCategory, name: &str) -> Option<&'static str
         (SubtypeCategory::Land, "plains") => Some("Plains"),
         (SubtypeCategory::Land, "swamp") => Some("Swamps"),
         (SubtypeCategory::Land, "town") => Some("Towns"),
+        (SubtypeCategory::Planeswalker, "jace") => Some("Jaces"),
         _ => None,
     }
 }
@@ -252,7 +253,10 @@ fn noncreature_subtype_surfaces_preserve_attested_number_boundaries() {
             SubtypeCategory::Planeswalker,
             "jace"
         )),
-        [(SurfaceFeature::Singular, "Jace")]
+        [
+            (SurfaceFeature::Singular, "Jace"),
+            (SurfaceFeature::Plural, "Jaces"),
+        ]
     );
 }
 

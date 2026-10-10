@@ -122,9 +122,9 @@ fn declared_type_words_preserve_complete_independent_noun_paradigms() {
         (
             "lexeme:planeswalker_subtype/jace",
             "Jace",
-            None,
+            Some("Jaces"),
             "non-Jace",
-            None,
+            Some("non-Jaces"),
         ),
     ] {
         for (id, singular, plural) in [

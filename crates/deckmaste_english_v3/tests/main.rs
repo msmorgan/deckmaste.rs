@@ -275,3 +275,6 @@ mod trailing_adjunct_height;
 
 #[path = "suite/data_batch_2.rs"]
 mod data_batch_2;
+
+#[path = "suite/vocabulary_batch_2.rs"]
+mod vocabulary_batch_2;

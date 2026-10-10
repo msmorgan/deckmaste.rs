@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "plot <Param(0)>",
     grammar: FixedKeyword(
         surface: "plot",
+        participial_adjective: (surface: "plotted"),
     ),
     // "Plot [cost]" means "Any time you have priority during your main phase while the
     // stack is empty, you may exile this card from your hand and pay [cost]. It becomes a

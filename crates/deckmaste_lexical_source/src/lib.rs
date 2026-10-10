@@ -304,3 +304,6 @@ mod card_name_tests {
 
 #[cfg(test)]
 mod vocabulary_batch_1_tests;
+
+#[cfg(test)]
+mod vocabulary_batch_2_tests;
