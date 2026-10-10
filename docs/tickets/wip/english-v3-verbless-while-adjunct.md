@@ -153,7 +153,8 @@ a plugin definition changes, run `cargo xtask lean check`.
    integration refresh changed none of the same 643 faces: final totals
    remain 26 gains, 592 covered and 10,829 Readings, with every other delta
    zero (`after-accepted-refresh.json`, `accepted-refresh-diff.json`,
-   `final-diff.json`).
+   `final-diff.json`). The integration retry refresh likewise changes none
+   of the 643 faces (`retry-refresh-diff.json`, `final-retry-diff.json`).
 2. **Witnesses** (`wxwozrtz`, complete sentence probes, limit 64): Gilded
    Ghoda, Alacrian Jaguar, District Mascot and Dracosaur Auxiliary each 0 → 1;
    each control with *while saddled* removed reads 1 before and after (W9-A).
@@ -193,6 +194,11 @@ a plugin definition changes, run `cargo xtask lean check`.
    the landing on 2026-10-10. The subsequent integration refresh brought
    `mpvousxzotns` (sentence-final temporal supplements) and `wkooyukozlpw`
    (taxonomic nominal complements), without conflicts or implementation fixes.
+   Integration was then refused because default moved; refresh brought
+   `rtzolrtx` (preposed duration). Resolved the overlapping additions in
+   `suite_4.rs` by preserving both module registrations exactly once in
+   `wxwozrtz`; the Harmony repair and retry refresh succeeded without
+   remaining conflicts. No construction implementation changed.
 5. **Tests** (`wxwozrtz`): `cargo test -p deckmaste_english_v3` passed all six
    binaries (899 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. `cargo test -p deckmaste_lexical_source` passed (42 unit + 44
@@ -217,6 +223,9 @@ a plugin definition changes, run `cargo xtask lean check`.
    After the accepted integration refresh, `cargo build -p xtask`, the same
    bounded census and all four full test/clippy commands above passed again
    (English 921 tests; lexical source 42 unit + 44 integration). Logs use
-   the `-accepted-refresh.log` suffix.
+   the `-accepted-refresh.log` suffix. After the integration retry refresh,
+   repeated the xtask build, bounded census, both full suites and both clippy
+   commands: all passed (English 925 tests; lexical source 42 unit + 44
+   integration). Logs use the `-retry-refresh.log` suffix.
 6. **Timing**: complete bounded census wall time **25.06 seconds**, six workers,
    at `wxwozrtz`, measured by `/usr/bin/time -v` (`after.time`).
