@@ -619,7 +619,9 @@ const WITNESSES: &[(&str, &str, &str, Category, usize, Category, &str)] = &[
         "Ashen Ghoul",
         "Activate only during your upkeep and only if three or more creature cards are above this card.",
         Category::Document,
-        2,
+        // CF7 retires the outer focus on the coordination; keep the same
+        // Ashen Ghoul witness and its independently asserted PP role.
+        1,
         Category::PrepositionPhrase,
         "above this card",
     ),

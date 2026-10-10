@@ -71,6 +71,23 @@ Orchestrator rulings 2026-10-10:
   same string; under CF1 that is a STOP, not a result to report after the
   fact. Any other increase is a defect.
 
+- CF7 (orchestrator, 2026-10-10). Retain Reading 1; retire
+  `only [during … and only if …]` as a wrong analysis. A coordination
+  exports Focused Use when any coordinate is focused; FocusedPhrase cannot
+  focus such a coordination. Unfocused coordinations under one focusing
+  modifier retain their Reading. Every decrease must be exactly the retired
+  shape, one Reading per affected line; report count classes and restore any
+  other decrease.
+- CF8 (orchestrator, 2026-10-10). ONE Adjunct-member projection Construction
+  is permitted, with no compiler change. It checks Focused Use and the
+  member's Adjunct function licence. All focused-Adjunct coordinations use
+  this common member route; the old same-category route cannot also build
+  them. Disclose the Construction and count against the 250 ceiling. CF7
+  stands.
+- W9-A (standing ruling). One analysis per string means one route for the
+  ticket's construction. Independent ambiguity also present in the control
+  stays admitted and is reported beside its control's count.
+
 ## Witnesses
 
 Each is the last sentence of the face's only failing line at `ymqwzour`.
@@ -96,12 +113,21 @@ no creatures." 1; "Activate during your turn and during your upkeep." 1; "Any
 player may activate this ability." 1; "Only your opponents may activate this
 ability." 1.
 
+Claim-parent re-probes (`wrxuwlwq`, 2026-10-10) completed without issues:
+the seven failing witnesses remain 0 and the six controls remain 1. Hakim's
+covered and reversed orders each have 2: coordinated focused PPs, and the
+wrong outer-focus shape retired under CF7. Reversed Thunderhead, Instill,
+and Security orders remain 0. Evidence:
+`target/english-v3/english-v3-coordinated-focused-adjuncts/before-*.json`
+and `baseline-probe-summary.json`. CF1's tree STOP was resolved by CF7;
+the compiler's fixed schema Category binding STOP was resolved by CF8.
+
 ## Method
 
 Standard constraints apply. Bounded census, never `--all`: every supported
 face matching `\bonly\b` case-insensitively (the surface the change can touch;
 1,473 faces) plus 300 random covered controls (`cargo xtask english-v3
-diff --manifest … --random 300 --seed 20261010`), `--workers 6
+diff --manifest … --random 300 --seed 20261008`), `--workers 6
 --samples-per-face 0`, compared with `cargo xtask english-v3 diff` against the
 claim parent. Zero lost; CF6 for increases. Full `cargo test -p
 deckmaste_english_v3` and `cargo clippy -p deckmaste_english_v3 --tests -- -D
@@ -122,3 +148,127 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
   sorcery spells* on Urabrask may not): report, do not chase.
 
 ## Landing record
+
+1. **Census delta** (`qktrquum`, original claim parent `wrxuwlwq`):
+   1,763 faces; initial 1,491 → 1,528 covered / 29,555 → 30,010 Readings;
+   37 ticket gains, 25 decreased faces, zero losses / increases / digest-only
+   changes / issues / wrong-only gains found. Selector: all 1,473 supported
+   case-insensitive word-boundary `only` faces plus 300 covered controls,
+   seed 20261008, ten overlaps. All 300 are covered on the claim parent;
+   selector includes CF7's same-sentence surface and the ticket's pattern.
+   Decreases by affected **line** count, all the retired outer-focus route:
+   **2→1 (8)**: Arcum's Sleigh, Ashen Ghoul, Coffin Puppets, Essence Anchor,
+   Gutterbones, Hakim, Loreweaver, Kjeldoran Guard, Nemesis Phoenix;
+   **4→2 (1)**: Kuldotha Phoenix;
+   **6→3 (15)**: Assassin's Blade, Champion's Victory, Command of Unsummoning,
+   Deep Wood, Defiant Stand, Eightfold Maze, Harsh Justice, Heavy Fog, Just
+   Fate, Kongming's Contraptions, Rally the Troops, Remove, Scorching Winds,
+   Treetop Defense, Warrior's Stand;
+   **14→7 (1)**: Defenders of Humanity. Exactly 62 retired Readings; another
+   decreased shape: none. Final refreshed subset (`vyopwkts`): **1,563
+   covered / 30,182 Readings**, **72 gains (37 ticket + 35 trunk)**,
+   the same 25 decreases, zero losses / increases / issues, nine digest-only
+   changes. Official refresh-only diffs attribute trunk gains to
+   `roomopmrpkys` (The Moment, The Pandorica), `tlpwnxqnnquu` (Minsc, Beloved
+   Ranger), `wkooyukozlpw` (Powerful Broker), `mpvousxzotns` (26 faces),
+   `mzkvyunrqtrw` (Grim Repriser), and `ztrnpkyvzntv` (Satsuki, the Living
+   Lore). `rtzolrtxrrru` changes no selected face or line. The nine modal
+   header digest-only changes belong to `ztrnpkyvzntv`: Arbalest Engineers
+   (1), Feast or Famine (2), Light of Hope (1), Open the Omenpaths (7),
+   Professor's Warning (1), Savage Beating (6), Shriveling Rot (2), Stand or
+   Fall (9), Vannifar, Evolved Enigma (4); counts unchanged. No refresh
+   decrease. The final progressive-gap / die refresh (`opxvnokryrro`,
+   `vlxrulqwmzzk`) adds False Orders (21), Wall of Shadows (13), and Ydwen
+   Efreet (30), with no further losses / decreases / increases / digests.
+   The final verbless-while refresh `wxwozrtzrsqp` changes no selected face
+   or line. Evidence directory:
+   `target/english-v3/english-v3-coordinated-focused-adjuncts/`;
+   initial `{manifest,before,after,diff}.json`, final
+   `after-retry7-refresh.json` / `diff-retry7-refresh.json`, and all official
+   refresh-only diff reports retained there.
+2. **Witnesses** (`qktrquum`, complete sentence probes, zero issues):
+   Thunderhead Gunner 1, Instill Energy 1, Temple of Cyclical Time 6,
+   Security Detail 1; Scandalmonger, Detention Vortex and draw-step *but only*
+   witness 0. Hakim and reversed Hakim 2→1; reversed Thunderhead, Instill and
+   Security 0→1 each. Six original controls remain 1 each. Temple's single
+   Adjunct control also has 6 (three `time counters` analyses × two `on it`
+   attachments), preserved under W9-A. Grizzled Wolverine serial restriction
+   1. Attacked-step control 3; Kuldotha conditional sentence control 1 /
+   complete activated-line control 2; Defenders' single-Adjunct activated
+   control 7; Hall of Oracles single-Adjunct control 4. BEFORE probes show
+   all seven initially failing witnesses at 0 and original controls at 1.
+3. **Spot checks** (`qktrquum`, ten newly covered faces): Thunderhead Gunner,
+   Bound by Moonsilver and Nimbleclaw Adept: focused predicative PP + bounded
+   frequency AdvP; Instill Energy and Gate to Phyrexia: temporal PP + bounded
+   frequency AdvP; Security Detail: conditional PP + bounded frequency AdvP;
+   Temple of Cyclical Time: conditional + predicative PPs (six independent
+   control Readings); In the Trenches: predicative PP + unbounded frequency
+   AdvP; Hall of Oracles: predicative + conditional PPs (four independent
+   control Readings); Grizzled Wolverine: three focused members through the
+   serial schema. Each coordination is one predicate Adjunct; each member
+   retains its own focus and underlying Category.
+4. **Deviations and STOPs** (`qktrquum`): CF1's tree STOP resolved by CF7;
+   fixed schema-binding STOP resolved by CF8. Added ONE Construction,
+   `FocusedAdjunctMember` (two forms: PP, AdvP); also 3 Categories
+   (FocusedAdjunctMember, FocusedAdjunctSeries, FocusedAdjunctCoordination),
+   5 instances of existing schemas (NominalAdjunctPredicate, Coordination,
+   CoordinationSeriesEnd, CoordinationSeriesContinuation, SerialCoordination),
+   2 policies, 2 tables, 1 feature (accepted under CF8 by the orchestrator).
+   The roughly 70 `export NominalAdjunctHost = Yes` lines restate the default
+   (hygiene candidate: drop them if the compiler does not need them);
+   NominalAdjunctPredicate's `nonconnective_trailing_adjunct_host` requirement
+   and `ClauseComplementBoundary = None` export moved unchanged into its
+   existing five-host instance. Side effects, unattested: NP coordinations
+   also lose the outer-focus Reading (CF7 union; "You may cast only creature
+   spells and only artifact spells." 2 → 1); `or` coordinates focused Adjuncts
+   (`\bor only\b`: 0 faces); a PP may stack after the coordination
+   ("… and only once each turn during your upkeep." reads 1; attestation
+   unchecked). Residual: CF3 *X but only Y* (nine faces and Detention Vortex)
+   still reads 0; the test `clause_plus_focused_phrase_requires_its_own_route`
+   pins that residual and must be re-spelled by the follow-up.
+   All focused Adjunct coordinations use the projection; old same-category
+   PP/AdvP paths reject two focused coordinates, mixed focused/unfocused
+   paths remain. Focused Use propagates by union. NominalAdjunctHost keeps
+   the right frequency member's temporal restriction inside that member.
+   No compiler or lexicon code/data added by this ticket; no word guard.
+   Construction count at initial census: 308 (241 ordinary + 67 schemas),
+   original claim parent 307, ticket net +1, eventual ceiling 250. Final
+   count: **311** (244 ordinary + 67 schemas), including one additional
+   Construction each from `tlpwnxqnnquu`, `ztrnpkyvzntv`, and
+   `opxvnokryrro`. Glossary adds
+   Focused Adjunct Member / Nominal Adjunct Host and clarifies Focused Use.
+   CF7's one-Reading-per-line wording is resolved by standing ruling W9-A:
+   the single retired outer-focus route is replicated by independent ambiguity
+   that the kept route also has. Reviewer enumeration (Defiant Stand 6→3,
+   Arcum's Sleigh 2→1, Kuldotha Phoenix 4→2, Defenders of Humanity 14→7):
+   the removed Readings are exactly the `only [X and only Y]` half, and the
+   kept set is identical modulo the member wrapper. Orchestrator review
+   2026-10-10: ACCEPTED. Named-token refresh conflict resolved by retaining
+   both NounPhraseStructure additions and NominalAdjunctHost / FocusedUse
+   exports. Final progressive-gap conflict resolved by preserving the three
+   existing gap Categories' NominalAdjunctHost feature and the new trunk
+   GerundParticipleObjectGap Category unchanged. Kata snapshot races retried.
+5. **Tests** (`qktrquum`; final verification on `vyopwkts`):
+   `cargo build -p xtask` passed;
+   `cargo test -p deckmaste_english_v3` **951 passed**, zero failures / ignores;
+   `cargo test -p deckmaste_lexical_source` **86 passed**, zero failures / ignores;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Required full suites and clippy repeated after every code/data refresh;
+   unchanged lexical-source results retained on grammar-only refreshes.
+   `cargo test -p deckmaste_english_v3 --test suite_2 coordinated_focused_adjuncts::`
+   passed 9 tests after the helper's clippy `let … else` fix. Initial full
+   suite passed 905 after re-spelling Ashen Ghoul's deliberately retired
+   two-Reading expectation as one; exact comparison, card, text and role
+   remain. Defiant Stand is re-spelled for the common coordination Category.
+   Assurance: restored 0 / re-spelled 2 / ignored 0 / added 9 / removed 0
+   (removals: none). Noncombat refresh full-suite subtotal is 938, correcting
+   the earlier 934 arithmetic error. Citation checks: zero non-compliant /
+   stale; diff audit selected zero sites, no new CR rules to bless.
+   `conflicts()` empty after repair.
+6. **Timing** (`qktrquum`): initial bounded AFTER **112.79 s** under
+   `/usr/bin/time -v`, **6 workers**, **0 samples per face**. Final verbless-while
+   retry (`vyopwkts`): **587.04 s** command elapsed (including Cargo lock
+   wait), **46.00 s** corpus wall, identical selector / workers / samples,
+   zero issues. Earlier bounded refresh timings remain in evidence logs.
+   No `--all` census or Lean check was run.

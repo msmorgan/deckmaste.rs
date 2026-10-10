@@ -939,6 +939,11 @@ cannot itself be the head of another restrictive Focusing Modifier (post-landing
 Adverb Phrases by the [once-frequency landing](../../tickets/done/english-v3-once-frequency.md#landing-record)
 and Noun Phrases by [orchestrator ruling FO5, 2026-10-10](../../tickets/done/english-v3-focus-only-object.md#analysis)).
 
+A Coordination containing a focused Conjunct is also in Focused Use, so it
+cannot itself be the focus of another restrictive Focusing Modifier
+(orchestrator ruling CF7, 2026-10-10,
+`english-v3-coordinated-focused-adjuncts`).
+
 **Predicate**:
 The grammatical function in a Clause that predicates something of the Subject.
 This is distinct from a Game Model Predicate.
@@ -1387,6 +1392,19 @@ different Categories when their grammatical function permits it, including
 an Adjective Phrase and a gerund-participial Clause under shared copular/
 progressive *be* (*are tapped and attacking*), without granting that selection
 to other copular verbs (CGEL, Ch. 15 §3.2, pp. 1327–1328).
+
+**Focused Adjunct Member** (project term):
+A focused Preposition Phrase or Adverb Phrase used as a Conjunct sharing
+Adjunct function with other focused phrases. Its underlying Category and
+own Focusing Modifier are retained (orchestrator ruling CF8, 2026-10-10,
+`english-v3-coordinated-focused-adjuncts`).
+
+**Nominal Adjunct Host** (project term):
+Permission for a phrase to take a following Nominal Adjunct. A temporal
+restriction following an Adverb Phrase at the right edge of a focused
+Adjunct Coordination belongs to that coordinate, rather than supplying
+another route through the matrix predicate (CF2/CF8 implementation,
+`english-v3-coordinated-focused-adjuncts`, 2026-10-10).
 
 **Premodifier Coordination**:
 A Coordination whose Conjuncts share Premodifier function over one head,

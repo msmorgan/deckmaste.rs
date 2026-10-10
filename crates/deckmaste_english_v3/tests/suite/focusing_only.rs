@@ -151,7 +151,7 @@ fn defiant_stand_coordinates_focused_adjuncts() {
         Category::Document,
         &[
             (
-                Category::PrepositionPhrase,
+                Category::FocusedAdjunctCoordination,
                 "only during the declare attackers step and only if you've been attacked this step",
             ),
             (

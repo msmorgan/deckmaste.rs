@@ -64,3 +64,6 @@ mod where_variable_clause;
 
 #[path = "suite/analytic_not_after_be.rs"]
 mod analytic_not_after_be;
+
+#[path = "suite/coordinated_focused_adjuncts.rs"]
+mod coordinated_focused_adjuncts;
