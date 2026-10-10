@@ -228,6 +228,13 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    lost **0**, decreases **2** (the same `qktrquumtlmk` removals),
    increases **0**, digest-only **27** (the same `ztrnpkyvzntv` changes).
    Reports: `after-refresh5.json`, `diff-refresh5.json`, `diff-incoming5.json`.
+   Third integration-retry refresh imports devotion colour complements
+   (`mqyqzunvuxko`): only Altar of the Pantheon's digest changes, **3 → 3**,
+   through the explicit devotion Complement. Final covered **1,696**,
+   Readings **87,979**, gains **74** (42 ticket / 32 trunk), lost **0**,
+   decreases **2**, increases **0**, digest-only **28**; the two decreases
+   and 27 other digests retain their earlier trunk attributions.
+   Reports: `after-refresh6.json`, `diff-refresh6.json`, `diff-incoming6.json`.
 2. **Witnesses** (`ooumkosu`): Gleam of Resistance, Ash Barrens, Rime Dryad,
    Ayumi, the Last Visitor, Dryad Sophisticate, Livonya Silone and
    Trailblazer's Boots each **0 → 1** on their ticket line/sentence.
@@ -290,7 +297,10 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    Second integration-retry refresh: the build and the same six full
    test/clippy commands passed again: English **965**, lexical-source **86**,
    compiler **39**. Evidence: `refresh5-checks.json` and its command logs.
-6. **Timing** (second integration-retry refresh): the required **bounded** AFTER
-   census took **3:56.03** wall time under `/usr/bin/time -v`, **6 workers**,
+   Third integration-retry refresh: the build and the same six full
+   test/clippy commands passed again: English **971**, lexical-source **86**,
+   compiler **39**. Evidence: `refresh6-checks.json` and its command logs.
+6. **Timing** (third integration-retry refresh): the required **bounded** AFTER
+   census took **1:10.54** wall time under `/usr/bin/time -v`, **6 workers**,
    samples 0.
    No full census was run, per the binding verification budget.
