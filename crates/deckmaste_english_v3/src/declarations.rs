@@ -547,6 +547,7 @@ constructions! {
         category FiniteObjectGap(Polarity, ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category BareObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category PastParticipleObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
+        category GerundParticipleObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category Cardinal(number);
         category CardinalModifier();
         category SecondaryNegator();
@@ -5050,6 +5051,18 @@ constructions! {
             require head.frame = Transitive;
         }
 
+        construction GerundParticipleObjectGap: GerundParticipleObjectGap {
+            export ClauseComplementBoundary = None;
+            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
+            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
+            export MatrixComplementLicence = head.MatrixComplementLicence;
+            export SourceComplementSelection = head.SourceComplementSelection;
+            form [head: lexical(Verb)];
+            require head.PredicateFrameUse = Yes;
+            require head.form = GerundParticiple;
+            require head.frame = Transitive;
+        }
+
         construction AuxiliaryObjectGap: FiniteObjectGap {
             export ClauseComplementBoundary = None;
             export ComparativeObjectGapLicence = complement.ComparativeObjectGapLicence;
@@ -5059,6 +5072,10 @@ constructions! {
             // Complement, strong or clitic.
             form [head: lexical(Verb), " ", complement: PastParticipleObjectGap]
                 require head.frame = PerfectAuxiliary;
+            // PG1–PG3: the progressive selects a transitive gerund-participle
+            // Object gap through the existing strong and clitic auxiliary route.
+            form [head: lexical(Verb), " ", complement: GerundParticipleObjectGap]
+                require head.frame = ParticipialAuxiliary;
             use FiniteHeadAgreement;
         }
 

@@ -97,3 +97,6 @@ mod modal_header_quantities;
 
 #[path = "suite/polyhedral_die_nouns.rs"]
 mod polyhedral_die_nouns;
+
+#[path = "suite/progressive_object_gap_relative.rs"]
+mod progressive_object_gap_relative;

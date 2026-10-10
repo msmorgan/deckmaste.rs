@@ -122,3 +122,71 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
   attacking with* 0): unattested in the sole lines.
 
 ## Landing record
+
+1. **Census delta** (`opxvnokr`, original claim-parent grammar `zmkuwouk`;
+   refreshed measurement `uzqxtqnu`): bounded 492-face census, covered
+   436 → 462, total Readings 8,137 → 8,825; lost,
+   decreases, covered-face increases and digest-only changes all 0. The tool
+   reports 26 newly covered faces: this ticket's 22 intended gains and 3
+   unintended PG5 admissions, counted separately: Misleading Signpost, Portal
+   Mage and
+   Windshaper Planetar (2 wrong relative Readings on each reselect line).
+   Capricopian remains unread. Refresh added The Masamune, 15 Readings,
+   attributed to cause landing `nzmrrqky`; `refresh-diff.json` reports that
+   sole change and 0 losses/decreases/increases/digest-only changes. Selector:
+   case-insensitive
+   `\b(am|is|are|'m|'s|'re|was|were|isn't|aren't|wasn't|weren't|been|be) [a-z]+ing\b`,
+   196 surface faces plus 300 covered controls from `baseline-wave8.json`
+   (`mqrlzszk`), seed 20261008, 492 identities after overlaps. Evidence:
+   `target/english-v3/english-v3-progressive-object-gap-relative/{manifest,before,after,diff}.json`;
+   comparison is the supplied `english-v3 diff --lines`, with no custom comparator.
+2. **Witnesses** (`zmkuwouk` → `opxvnokr`, complete probe enumeration): Wall of
+   Corpses 0 → 1 at Document; Tinder Wall 0 → 1; Scorch Spitter 0 → 2;
+   Astral Confrontation 0 → 2; Wall of Shadows 0 → 10; strong pronoun and
+   phrase-Subject examples each 0 → 1. Every original sentence probe was 0
+   before implementation; none was dropped. Wall of Corpses is an activated
+   Ability, so Sentence remains 0; the preserved claim-parent binary also
+   verifies Document 0. The seven ticket controls retain 1 each. Scorch Spitter
+   retains coordinated-head/right-conjunct attachment; Wall of Shadows retains
+   nominal attachment scopes, all with the progressive Object gap.
+3. **Spot checks** (`opxvnokr`): ten newly covered faces, selected Readings all
+   byte-exact with the relative as nominal Modifier, progressive auxiliary and
+   transitive gerund-participle Object gap: Astral Confrontation (opponent);
+   Cavalcade of Calamity (player or planeswalker); Fathom Fleet Swordjack
+   (player or planeswalker); Gomazoa (creature); Guardian of the Gateless
+   (creature); Hellrider (player or planeswalker); Mage Slayer (player or
+   planeswalker); Myr Battlesphere (player or planeswalker); Scorch Spitter
+   (player or planeswalker); Wall of Corpses (creature).
+4. **Deviations and STOPs** (`opxvnokr`): PG1–PG3 add only the gap Category,
+   its leaf Construction and the third AuxiliaryObjectGap form; no lexicon,
+   loader, duplicate clitic or retired-route edits. The selector was widened
+   to include every finite auxiliary spelling, requiring a bounded repeat;
+   expanded BEFORE uses the preserved binary built on the claim parent before
+   editing, with unchanged lexical data. PG5 follows through the already-landed
+   Reselect Object-NP frame (`nqnztuzo`), but its three newly covered interrogative
+   faces have unintended nominal-relative analyses, not accepted gains; fixing
+   interrogatives remains outside PG5's scope. Two new-test expectations were
+   corrected after the first full run: preserve nominal attachment scopes while
+   requiring the intended antecedent Reading, and preserve both declared
+   adjective and verbal-passive analyses of blocked. Refresh initially exited
+   69 for a sibling changed after banking; it succeeded after that sibling's
+   working copy was verified empty. It imported cause `nzmrrqky` and phase
+   `roomopmr`; their lexical data and English tests were rechecked in full.
+   No glossary gap or additional grammatical ruling. Stop before integration
+   for review under the
+   standing instruction; no integration or workspace drop.
+5. **Tests** (`opxvnokr`): `cargo test -p deckmaste_english_v3` first reported
+   898 passed / 2 new-test expectation failures, then passed all 900 after
+   corrections; no existing test failed. English clippy with `--tests -- -D warnings`
+   passed. After refresh (`uzqxtqnu`), `cargo build -p xtask` passed;
+   `cargo test -p deckmaste_english_v3` passed 909 and
+   `cargo test -p deckmaste_lexical_source` passed 44.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` both passed
+   on the refreshed state. This ticket: restored 0 / re-spelled 0 / ignored 0 /
+   added 4 / removed 0 (no removals); own code changes only in English v3.
+   No Lean check. Citation checks report 0 non-compliant and 0 stale citations;
+   no new CR registrations.
+6. **Timing** (`uzqxtqnu`, refreshed `opxvnokr`): final bounded AFTER census
+   **37.25 s**, 6 workers,
+   measured with `/usr/bin/time -v`; no full-corpus census or `--all` run.
