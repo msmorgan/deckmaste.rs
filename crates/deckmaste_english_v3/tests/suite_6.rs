@@ -88,3 +88,6 @@ mod remove_source_attachment;
 
 #[path = "suite/champion_keyword_line.rs"]
 mod champion_keyword_line;
+
+#[path = "suite/noncombat_negative_noun.rs"]
+mod noncombat_negative_noun;

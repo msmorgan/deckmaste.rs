@@ -14,7 +14,10 @@
         ],
     )],
     // Attested common nouns declare their own negative formation.
-    negative_noun_formations: {"lexeme:CommonNoun/Token": Joined},
+    negative_noun_formations: {
+        "lexeme:CommonNoun/Token": Joined,
+        "lexeme:turn_part/combat": Joined,
+    },
     participial_adjective_classes: [(
         features: {"AdjectiveOrigin": "Participial"},
         form: PastParticiple,

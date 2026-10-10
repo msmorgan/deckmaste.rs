@@ -126,4 +126,47 @@ Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta** (`mzkvyunrqtrw`, clean claim-parent state before / edited
+   state after; claim `vlmxklpr`). Bounded manifest: the Method's grep pattern
+   found 1,476 faces; union with 300 covered controls (seed 20261008) is 1,765
+   faces. Covered 1,524 → 1,555; total Readings 74,106 → 75,146. Official
+   `english-v3 diff --lines`: gained 31, lost none, decreases 0, increases 0,
+   digest-only 0, unchanged 1,734; issues 0. Every previously covered face,
+   including every covered *combat damage* and *nontoken* face, is unchanged.
+   Evidence: `target/english-v3/english-v3-noncombat-negative-noun/`:
+   `manifest.json`, `before.json`, `after.json`, `diff.json`.
+2. **Witnesses** (`mzkvyunrqtrw`). Every ticket witness re-probed before the
+   edit at 0; none dropped. Sentence Readings after / positive-control
+   Readings: Chandra's Spitfire 1/1; Niv-Mizzet, Visionary 3/3; Mark of Asylum
+   12/12; Wildfire Elemental 1/1; Chandra's Pyreling 6/6. Whole-face census
+   Readings respectively 2, 5, 12, 1, 6 (other lines contribute to the sum).
+   NP *noncombat damage*, *excess noncombat damage*, *a noncombat phase*:
+   0 → 1 each. Controls unchanged: *combat damage* 1, *excess combat damage*
+   1, *a noncreature spell* 1; Wall of Essence 1, Coastal Piracy 3,
+   Jaheira's Respite 10. W9-A preserves the controls' independent ambiguity.
+3. **Spot checks** (`mzkvyunrqtrw`). Chandra's Spitfire, Niv-Mizzet,
+   Visionary, Mark of Asylum, Wildfire Elemental, Chandra's Pyreling,
+   Asgardian Inspiration, Blessed Sanctuary, Grisly Sigil, Soul-Scar Mage,
+   Solphim, Mayhem Dominus: each selected Reading has
+   `lexeme:turn_part/combat/non` as noun Premodifier over *damage*, using
+   `NounPremodifier` / `NounPremodifiedNominal`, and realizes byte-exactly.
+   Unintended-analysis gains found: 0.
+4. **Deviations and STOPs** (`mzkvyunrqtrw`). NC1 is data-only; no loader,
+   grammar, plugin schema, or glossary change. NC6 accepts the plugin owner's
+   formation in `negative_noun_formations`; NC3 needs no loader adjustment
+   because *combat* already declares `NounPremodifier: Yes`. No superseded
+   route exists to retire. Hyphenated *non-combat*: grep 0 faces; undeclared.
+   Seven role/provenance/roundtrip tests registered once in `suite_6`.
+   Chandra's Incinerator gains coverage because its independent blocker was
+   already resolved on the claim parent; ten *noncombat* faces remain unread
+   for other material. No STOP or glossary gap.
+5. **Tests** (`mzkvyunrqtrw`). `cargo test -p deckmaste_english_v3`: PASS,
+   1,008 tests; `cargo test -p deckmaste_lexical_source`: PASS, 84 tests.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`: PASS after
+   removing a redundant clone of a Copy identifier in the new test helper;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: PASS.
+   Restored 0 / re-spelled 0 / ignored 0 / added 7 / removed 0; no removals
+   to justify. Citation checks: no noncompliant or stale citations; diff audit
+   has no citations to register or verify. No Lean or xtask test changes.
+6. **Timing** (`mzkvyunrqtrw`). Main AFTER bounded census: 157.61 s wall
+   under `/usr/bin/time -v`, 6 workers, samples-per-face 0. No full-corpus run.
