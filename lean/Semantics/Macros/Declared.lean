@@ -412,6 +412,10 @@ semantic_macro triggeredOnlyOnce (event : Semantics.GameEvent) (limit : Semantic
 semantic_macro triggeredOr (event : Semantics.GameEvent) (alternatives : (List Semantics.GameEvent)) (instruction : Semantics.Instruction) : Semantics.Ability :=
   (Semantics.Ability.triggered event alternatives none [] none none none instruction)
 
+/-- `abilities/triggeredOrOnlyOnce.ron` -/
+semantic_macro triggeredOrOnlyOnce (event : Semantics.GameEvent) (alternatives : (List Semantics.GameEvent)) (limit : Semantics.UsageLimit) (instruction : Semantics.Instruction) : Semantics.Ability :=
+  (Semantics.Ability.triggered event alternatives none [] none (some limit) none instruction)
+
 /-- `abilities/triggeredWhile.ron` -/
 semantic_macro triggeredWhile (event : Semantics.GameEvent) (while_ : Semantics.Timing) (instruction : Semantics.Instruction) : Semantics.Ability :=
   (Semantics.Ability.triggered event [] (some while_) [] none none none instruction)
@@ -2102,7 +2106,7 @@ semantic_macro cascade : Semantics.Ability :=
 
 /-- `keyword_abilities/casualty.ron` -/
 semantic_macro casualty (arg0 : Semantics.Amount) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "casualty") [(Semantics.KeywordParam.number arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "casualty") [(Semantics.KeywordParam.number arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.addedCost (Semantics.Cost.perform (Semantics.Instruction.enact (Semantics.Deed.action "sacrifice") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.move (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [(Semantics.Predicate.hasType Semantics.CardType.creature), (Semantics.Predicate.compare [(Semantics.ProjAxis.stat Semantics.Stat.power)] Semantics.Comparator.atLeast arg0)]))) (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare) (Semantics.ZoneExpr.zone Semantics.Zone.graveyard Semantics.ZoneScope.bare) [])))) true Semantics.PayTimes.once)), (Semantics.Ability.triggered (Semantics.GameEvent.casts Semantics.NounPhrase.you (some (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) none) [] none [] none none (some (Semantics.Condition.compareAmt (Semantics.Amount.paid (Semantics.LinkedFacet.readback (Semantics.LinkSource.byKeyword (Semantics.KeywordLabel.named "casualty")) none) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.Comparator.atLeast (Semantics.Amount.lit 1))) (Semantics.Instruction.sequentially [(Semantics.Instruction.copy Semantics.CopySort.fromStack (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.Amount.lit 1) []), (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.chooseNewTargets (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.copy) Semantics.Plurality.one Semantics.Window.whole)) none none)]))])
 
 /-- `keyword_abilities/champion.ron` -/
 semantic_macro champion (arg0 : Semantics.NounPhrase) : Semantics.Ability :=
@@ -2130,7 +2134,7 @@ semantic_macro compleated : Semantics.Ability :=
 
 /-- `keyword_abilities/conspire.ron` -/
 semantic_macro conspire : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "conspire") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "conspire") [] [(Semantics.Ability.static (Semantics.StaticSpec.addedCost (Semantics.Cost.perform (Semantics.Instruction.enact (Semantics.Deed.action "tap") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.setStatus Semantics.Status.tapped (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.described (Semantics.DetPhrase.count (Semantics.Quantity.range (some 2) (some 2)) none) (Semantics.Predicate.and [(Semantics.Predicate.hasStatus Semantics.Status.untapped), (Semantics.Predicate.hasType Semantics.CardType.creature), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.you), (Semantics.Predicate.shares Semantics.QualitySort.color Semantics.Agreement.share (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this))]))))))) true Semantics.PayTimes.once)), (Semantics.Ability.triggered (Semantics.GameEvent.casts Semantics.NounPhrase.you (some (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) none) [] none [] none none (some (Semantics.Condition.compareAmt (Semantics.Amount.paid (Semantics.LinkedFacet.readback (Semantics.LinkSource.byKeyword (Semantics.KeywordLabel.named "conspire")) none) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.Comparator.atLeast (Semantics.Amount.lit 1))) (Semantics.Instruction.sequentially [(Semantics.Instruction.copy Semantics.CopySort.fromStack (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.Amount.lit 1) []), (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.chooseNewTargets (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.copy) Semantics.Plurality.one Semantics.Window.whole)) none none)]))])
 
 /-- `keyword_abilities/convoke.ron` -/
 semantic_macro convoke : Semantics.Ability :=
@@ -2242,7 +2246,7 @@ semantic_macro entwine (arg0 : Semantics.Cost) : Semantics.Ability :=
 
 /-- `keyword_abilities/epic.ron` -/
 semantic_macro epic : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "epic") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "epic") [] [(Semantics.Ability.spell none (Semantics.Instruction.establish (Semantics.StaticSpec.deonticRule Semantics.NounPhrase.you Semantics.Compulsion.forbid [(Semantics.Deed.action "cast")] Semantics.Role.agent none Semantics.DeonticPatient.noPatient none Semantics.DeonticRider.noRider none) (some (Semantics.Duration.between none none)))), (Semantics.Ability.spell none (Semantics.Instruction.delay (Semantics.GameEvent.beginningOf Semantics.TurnPart.upkeep (some Semantics.NounPhrase.you) (Semantics.TurnRef.each none)) [] (some (Semantics.Duration.between none none)) (Semantics.Instruction.sequentially [(Semantics.Instruction.copy Semantics.CopySort.fromStack (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.Amount.lit 1) [(Semantics.CopyExcept.edits [(Semantics.CharacteristicEdit.removedAbilities (Semantics.AbilitySelection.specified [(Semantics.AbilityLost.term (Semantics.KeywordTerm.the (Semantics.KeywordLabel.named "epic")))]))])]), (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.chooseNewTargets (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.copy) Semantics.Plurality.one Semantics.Window.whole)) none none)])))])
 
 /-- `keyword_abilities/equip.ron` -/
 semantic_macro equip (arg0 : Semantics.Cost) : Semantics.Ability :=
@@ -2382,7 +2386,7 @@ semantic_macro graft (arg0 : Semantics.Amount) : Semantics.Ability :=
 
 /-- `keyword_abilities/gravestorm.ron` -/
 semantic_macro gravestorm : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "gravestorm") [] [(Semantics.Ability.triggered (Semantics.GameEvent.casts Semantics.NounPhrase.you (some (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) none) [] none [] none none none (Semantics.Instruction.sequentially [(Semantics.Instruction.copy Semantics.CopySort.fromStack (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.Amount.eventTally Semantics.TallyOp.count (Semantics.NounPhrase.described Semantics.DetPhrase.bare (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare))) (Semantics.LookbackClause.mk (Semantics.GameEvent.zoneChange (Semantics.NounPhrase.gap Semantics.Kind.object) (some (Semantics.EventSource.zones [(Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)])) (some (Semantics.ZoneExpr.zone Semantics.Zone.graveyard Semantics.ZoneScope.bare)) Semantics.ObservationPoint.before) (Semantics.Duration.between (some (Semantics.GameEvent.beginningOf Semantics.TurnPart.turn none Semantics.TurnRef.current)) (some Semantics.GameEvent.now)) none)) []), (Semantics.Instruction.doIf (Semantics.Condition.matches (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.Predicate.targets (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) Semantics.Predicate.isSource) Semantics.TargetExtent.someTarget)) (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.chooseNewTargets (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.copy) Semantics.Plurality.many Semantics.Window.whole)) none none) none)]))])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "gravestorm") [] [(Semantics.Ability.triggered (Semantics.GameEvent.casts Semantics.NounPhrase.you (some (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) none) [] none [] none none none (Semantics.Instruction.sequentially [(Semantics.Instruction.copy Semantics.CopySort.fromStack (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.Amount.eventTally Semantics.TallyOp.count (Semantics.NounPhrase.described Semantics.DetPhrase.bare (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare))) (Semantics.LookbackClause.mk (Semantics.GameEvent.zoneChange (Semantics.NounPhrase.gap Semantics.Kind.object) (some (Semantics.EventSource.zones [(Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)])) (some (Semantics.ZoneExpr.zone Semantics.Zone.graveyard Semantics.ZoneScope.bare)) Semantics.ObservationPoint.before) (Semantics.Duration.between (some (Semantics.GameEvent.beginningOf Semantics.TurnPart.turn none Semantics.TurnRef.current)) (some Semantics.GameEvent.now)) none)) []), (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.chooseNewTargets (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.copy) Semantics.Plurality.many Semantics.Window.whole)) none none)]))])
 
 /-- `keyword_abilities/harmonize.ron` -/
 semantic_macro harmonize (arg0 : Semantics.Cost) : Semantics.Ability :=
@@ -2638,7 +2642,7 @@ semantic_macro renown (arg0 : Semantics.Amount) : Semantics.Ability :=
 
 /-- `keyword_abilities/replicate.ron` -/
 semantic_macro replicate (arg0 : Semantics.Cost) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "replicate") [(Semantics.KeywordParam.cost arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "replicate") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.addedCost arg0 true Semantics.PayTimes.anyNumberOfTimes)), (Semantics.Ability.triggered (Semantics.GameEvent.casts Semantics.NounPhrase.you (some (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) none) [] none [] none none (some (Semantics.Condition.compareAmt (Semantics.Amount.paid (Semantics.LinkedFacet.readback (Semantics.LinkSource.byKeyword (Semantics.KeywordLabel.named "replicate")) none) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.Comparator.atLeast (Semantics.Amount.lit 1))) (Semantics.Instruction.sequentially [(Semantics.Instruction.copy Semantics.CopySort.fromStack (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.Amount.paid (Semantics.LinkedFacet.timesPaid (Semantics.LinkSource.byKeyword (Semantics.KeywordLabel.named "replicate"))) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) []), (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.chooseNewTargets (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.copy) Semantics.Plurality.many Semantics.Window.whole)) none none)]))])
 
 /-- `keyword_abilities/retrace.ron` -/
 semantic_macro retrace : Semantics.Ability :=
@@ -3795,6 +3799,10 @@ semantic_macro tapped : Semantics.Predicate :=
 /-- `predicates/targets.ron` -/
 semantic_macro targets (subject : Semantics.NounPhrase) (extent : Semantics.TargetExtent) : Semantics.Predicate :=
   (Semantics.Predicate.targets subject extent)
+
+/-- `predicates/targetsOnly.ron` -/
+semantic_macro targetsOnly (subject : Semantics.NounPhrase) : Semantics.Predicate :=
+  (Semantics.Predicate.targets subject Semantics.TargetExtent.only)
 
 /-- `predicates/thatColor.ron` -/
 semantic_macro thatColor : Semantics.ColorTerm :=

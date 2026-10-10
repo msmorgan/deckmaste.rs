@@ -45,6 +45,7 @@ import Semantics.Proofs.KeywordAbilityCensus
 import Semantics.Proofs.FaceDown
 import Semantics.Proofs.TextChanges
 import Semantics.Proofs.OffStack
+import Semantics.Proofs.SpellCopies
 
 /-!
 # Semantics.Proofs

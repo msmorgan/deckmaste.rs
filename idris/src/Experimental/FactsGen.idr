@@ -129,7 +129,7 @@ keywordFacts =
   , { word := "Embalm", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Encore", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Enlist", paramShapes := [NoParam] } defaultKeywordFacts
-  , { word := "Epic", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
+  , { word := "Epic", paramShapes := [NoParam], regime := Just AtResolution, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
   , { word := "Eternalize", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Evolve", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Exploit", paramShapes := [NoParam], bodied := True } defaultKeywordFacts

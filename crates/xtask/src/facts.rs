@@ -1006,6 +1006,12 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Epic",
+            // Two spell abilities, followed as the spell resolves
+            // [CR#702.50a,113.3a], so its stack part is a spell ability and
+            // not a stack function, as cipher's is; every printed epic card
+            // is a sorcery.
+            regime: Some(Regime::AtResolution),
+            on_permanent_card: false,
             on_spell_card: true,
             ..D
         },

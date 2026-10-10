@@ -8,15 +8,18 @@ KeywordAbility(
     // "Gravestorm" means "When you cast this spell, copy it for each permanent that was
     // put into a graveyard from the battlefield this turn. If the spell has any
     // targets, you may choose new targets for any of the copies." [CR#702.69a]
+    // The target guard is not written: writing "if the spell has any targets"
+    // would need a new constructor, and the guard is inert, since a player who
+    // may choose new targets may leave every one unchanged [CR#707.10c]
+    // (`semantics-v2.md` §7, ruling 2026-10-09).
+    // The guard once read "the spell targets a source", which is not the CR's;
+    // the copies are offered new targets as storm's are.
     body: [
         triggered(
             casts(you, thisSpell),
             sequentially([
                 copySpell(thisSpell, eventCount(dies(gap(Object)), bare(permanent), soFarThisTurn)),
-                doIf(
-                    matches(thisSpell, targets(a(isSource), SomeTarget)),
-                    may(chooseNewTargets(those(Copy))),
-                ),
+                may(chooseNewTargets(those(Copy))),
             ]),
         ),
     ],

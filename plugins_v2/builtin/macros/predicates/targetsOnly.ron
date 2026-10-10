@@ -1,0 +1,7 @@
+// "that targets only <subject>" [CR#115.9c]
+(
+    name: "targetsOnly",
+    kinds: [Predicate],
+    params: {"subject": NounPhrase},
+    body: Targets(Param(subject), Only),
+)

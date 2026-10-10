@@ -650,7 +650,10 @@ mimicked.
   target unchanged and a copy with no targets has none to change
   [CR#707.10c], and gravestorm's narrow guard re-spells away. `TargetExtent.only` writes "targets only …". Copying for
   each object a spell "could target" stays with `engine-copy-target-variants`
-  [CR#707.10d]. (Ruling, 2026-10-09, owner, Q63, Q64;
+  [CR#707.10d]. The guard was dropped because writing it would have needed
+  a new constructor, not because it was vacuous: a guard the existing
+  vocabulary writes stays as the CR writes it, however inert, and this does
+  not generalise. (Ruling, 2026-10-09, owner, Q63, Q64;
   `semantics-v2-spell-copies`.)
 - **A text-changing effect is a specified term rewrite over bracket
   markers written on the card.** A card is written once with its brackets in

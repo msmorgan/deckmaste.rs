@@ -60,7 +60,7 @@ theorem badOneCreatureAgrees :
   decide
 
 /-- Conspire's additional cost: "tap two untapped creatures you control that each share a color
-with it" [CR#702.78a]; its copy half waits on `semantics-v2-spell-copies`. -/
+with it" [CR#702.78a]; the whole body is pinned in `Proofs/SpellCopies.lean`. -/
 theorem okConspireCost :
     Ability.check []
       (.static (.addedCost

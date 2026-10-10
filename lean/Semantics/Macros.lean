@@ -207,6 +207,8 @@ semantic_macro ofTheLastChosen (sort : QualitySort) : Predicate := .ofChosen .th
 semantic_macro copyOfACard : Predicate := .isCopyOfACard
 semantic_macro cardOnTheStack : Predicate := .and [.isCard, spell]
 semantic_macro tokenOnTheBattlefield : Predicate := .and [.isToken, permanent]
+/-- "that targets only <subject>" [CR#115.9c] -/
+semantic_macro targetsOnly (subject : NounPhrase) : Predicate := .targets subject .only
 
 /-- The four party roles, in rule order [CR#700.8]. -/
 semantic_macro partyRoles : List Predicate :=

@@ -5,12 +5,27 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "epic",
     ),
-    // STOP (waits on: `semantics-v2-spell-copies`).
     // "Epic" means "For the rest of the game, you can't cast spells," and "At
-    // the beginning of each of your upkeeps for the rest of the game, copy this spell except
-    // for its epic ability. If the spell has any targets, you may choose new targets for the
-    // copy." [CR#702.50a] Both spell abilities now fit a definition, the delayed trigger is
-    // `delay(...)` with an open-ended `between` duration, and the exception is
-    // `RemovedAbilities`; what remains is "if the spell has any targets", which no
-    // `Condition` reads (the cause Casualty and Replicate share).
+    // the beginning of each of your upkeeps for the rest of the game, copy this
+    // spell except for its epic ability. If the spell has any targets, you may
+    // choose new targets for the copy." [CR#702.50a] Both are spell abilities;
+    // the second creates a delayed trigger for the rest of the game, and the
+    // copy loses epic by name, not by its definition.
+    // The target guard is not written: writing "if the spell has any targets"
+    // would need a new constructor, and the guard is inert, since a player who
+    // may choose new targets may leave every one unchanged [CR#707.10c]
+    // (`semantics-v2.md` §7, ruling 2026-10-09).
+    body: [
+        spell(establish(playerCant(cast, you), restOfGame)),
+        spell(
+            delayWithin(
+                beginningOfYour(upkeep),
+                restOfGame,
+                sequentially([
+                    copy(FromStack, thisSpell, 1, [Edits([RemovedAbilities(Specified([Term(The(epic))]))])]),
+                    may(chooseNewTargets(that(Copy))),
+                ]),
+            ),
+        ),
+    ],
 )

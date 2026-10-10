@@ -5,8 +5,20 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "casualty",
     ),
-    // STOP (waits on: `semantics-v2-spell-copies`).
-    // Casualty's triggered half says "If the spell has any targets, you may
-    // choose new targets for the copy" [CR#702.153a]. No `Condition` reads "has any
-    // targets": `Predicate::Targets` requires the targeted subject to be named.
+    // Casualty N means "As an additional cost to cast this spell, you may
+    // sacrifice a creature with power N or greater," and "When you cast this
+    // spell, if a casualty cost was paid for it, copy it. If the spell has any
+    // targets, you may choose new targets for the copy." [CR#702.153a]
+    // The target guard is not written: writing "if the spell has any targets"
+    // would need a new constructor, and the guard is inert, since a player who
+    // may choose new targets may leave every one unchanged [CR#707.10c]
+    // (`semantics-v2.md` §7, ruling 2026-10-09).
+    body: [
+        static(addedCost(perform(sacrifice(a(and([creature, compare(AtLeast, Param(0), [Stat(Power)])])))), true)),
+        triggeredIf(
+            casts(you, thisSpell),
+            keywordCostPaid(casualty, thisSpell),
+            sequentially([copySpell(thisSpell), may(chooseNewTargets(that(Copy)))]),
+        ),
+    ],
 )

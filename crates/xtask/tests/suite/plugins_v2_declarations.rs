@@ -242,12 +242,15 @@ fn a_keyword_declaration_builds_its_wrapper() {
             .body()
             .to_owned()
     };
-    // Forwarded: `casualty` declares an `Amount` and writes no abilities.
+    // Forwarded: `toxic` declares an `Amount` and writes no abilities.
     // (Re-spelled for `plugins-v2-gift-variants`: gift, which forwarded a
-    // `Subject` here, now takes its effect as an instruction.)
+    // `Subject` here, now takes its effect as an instruction. Re-spelled for
+    // `semantics-v2-spell-copies`: casualty, which forwarded its `Amount`
+    // here, now writes its abilities; toxic is a damage result with no
+    // definition body, `semantics-v2.md` §7, ruling 2026-10-09.)
     assert_eq!(
-        body("KeywordAbility", "casualty"),
-        r#"Keyword(keyword: Named(name: "casualty"), params: [Number(Param(0))], body: [])"#
+        body("KeywordAbility", "toxic"),
+        r#"Keyword(keyword: Named(name: "toxic"), params: [Number(Param(0))], body: [])"#
     );
     // Gift's instruction is forwarded as nothing, and a variant is gift's own
     // invocation under gift's label [CR#702.174b,702.174e].

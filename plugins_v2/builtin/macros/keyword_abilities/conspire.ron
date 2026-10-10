@@ -5,12 +5,27 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "conspire",
     ),
-    // STOP (waits on: `semantics-v2-spell-copies`).
-    // Conspire's additional cost, "tap two untapped creatures you control that
-    // each share a color with it" [CR#702.78a], is writable
-    // (`addedCost(perform(tap(counted(exactly(2), and([untapped, creature,
-    // youControl, shares(Color, Share, thisSpell)])))), true)`, pinned in
-    // `Semantics.Proofs.Sharing`); its copy trigger's "if the spell has any
-    // targets, you may choose new targets for the copy" waits on the vacuous
-    // target guard of `semantics-v2-spell-copies`.
+    // "Conspire" means "As an additional cost to cast this spell, you may tap
+    // two untapped creatures you control that each share a color with it" and
+    // "When you cast this spell, if its conspire cost was paid, copy it. If the
+    // spell has any targets, you may choose new targets for the copy."
+    // [CR#702.78a] Each tapped creature shares a color with the spell
+    // (`shares`, ruling 2026-10-09).
+    // The target guard is not written: writing "if the spell has any targets"
+    // would need a new constructor, and the guard is inert, since a player who
+    // may choose new targets may leave every one unchanged [CR#707.10c]
+    // (`semantics-v2.md` §7, ruling 2026-10-09).
+    body: [
+        static(
+            addedCost(
+                perform(tap(counted(exactly(2), and([untapped, creature, youControl, shares(Color, Share, thisSpell)])))),
+                true,
+            ),
+        ),
+        triggeredIf(
+            casts(you, thisSpell),
+            keywordCostPaid(conspire, thisSpell),
+            sequentially([copySpell(thisSpell), may(chooseNewTargets(that(Copy)))]),
+        ),
+    ],
 )
