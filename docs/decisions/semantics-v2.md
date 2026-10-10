@@ -678,9 +678,11 @@ mimicked.
   2026-10-09, owner, Q67–Q69; `semantics-v2-ability-qualifiers`.)
 - **Three residue groups are routed, not defined here.** Casting a card's
   other face (disturb, More Than Meets the Eye) goes to
-  `engine-dfc-cast-faces` [CR#702.146a,702.162a]. Partner and companion
-  modify deck construction or function outside the game and are out of
-  Vintage-playable scope [CR#702.124a,702.139a], and freerunning goes to
+  `engine-dfc-cast-faces` [CR#702.146a,702.162a]. Partner modifies deck
+  construction for the Commander variant and is out of Vintage-playable scope
+  [CR#702.124a]; companion is Vintage-legal and in scope, but functions
+  outside the game, so it is deferred until the mechanisms it needs exist
+  [CR#702.139a] (amended 2026-10-10, owner). Freerunning goes to
   `core-location-outside-the-game` [CR#702.173a]. Infect, lifelink, wither and
   toxic are damage results: rows in the facts table plus an engine rule,
   with no definition body [CR#120.3,702.90b,702.15b,702.80a,702.164c].
