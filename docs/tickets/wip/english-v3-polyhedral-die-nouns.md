@@ -84,7 +84,9 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `tlpwnxqn` (name-anchored supplements); the pre/post-refresh diff has
    zero changed faces or line digests. The integration refresh imported
    `wkooyuko` (taxonomic nominal complements); its bounded re-check also
-   changed zero faces or line digests. No wrong new die analysis found. Selector:
+   changed zero faces or line digests. The retry refresh imported `mpvousxz`
+   (sentence-final temporal supplements), also with zero changed faces or line
+   digests. No wrong new die analysis found. Selector:
    every face matching `\bd(4|6|8|10|12|20)\b|\bdic?e\b` case-insensitively
    (193 faces), plus 300 random covered controls, seed 20261008; one overlap.
    Evidence: `target/english-v3/english-v3-polyhedral-die-nouns/`
@@ -125,10 +127,13 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    passed, then passed again after refresh on `wowupoznutln`. The required
    `cargo build -p xtask` also passed after refresh. After the accepted
    integration refresh, the build, both full suites and both clippy commands
-   passed again; the English suite ran 917 tests with zero failures or ignored tests. Ticket tests:
+   passed again; the English suite ran 917 tests with zero failures or ignored
+   tests. The retry refresh build, both full suites and both clippy commands
+   also passed. Ticket tests:
    restored 0 / re-spelled 0 / ignored 0 / added 3 / removed 0;
    no removals to justify. The new module is registered once in `suite_6`.
 6. **Timing** (`wowupoznutln`): first refreshed bounded AFTER census 23.51 s wall;
-   integration-refresh bounded AFTER census 34.60 s wall,
+   integration-refresh bounded AFTER census 34.60 s wall;
+   retry-refresh bounded AFTER census 28.68 s wall,
    measured with `/usr/bin/time -v`, 6 workers, 0 samples per face.
    No full-corpus census, under the binding verification budget.
