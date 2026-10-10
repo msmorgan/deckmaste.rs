@@ -108,7 +108,7 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 ## Landing record
 
 1. **Census delta** — Pre-refresh claim-parent grammar (`ulwqwoxx`; BEFORE
-   census stamped `mpvousxzotns`) → refreshed `yomxytwxyzyl`: covered faces
+   census stamped `mpvousxzotns`) → refreshed `vyzponrxzvqq`: covered faces
    **1,225 → 1,253**, total Readings **41,330 → 41,477**. **28 gains; zero
    lost, decreased, increased or digest-only faces; zero wrong-analysis gains**.
    This ticket supplies 26 gains; Creeping Inn (97 Readings: 96 on its first
@@ -121,8 +121,9 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    deduplicated to **1,472 faces**. Evidence:
    `target/english-v3/english-v3-supplementary-temporal-adjunct/`
    (`manifest-final.json`, `before-final.json`, `after.json`, `diff.json`,
-   `refresh-diff.json`, `integration-refresh-diff.json`).
-2. **Witnesses (`mpvousxzotns`, verified after refresh at `yomxytwxyzyl`)** —
+   `refresh-diff.json`, `integration-refresh-diff.json`,
+   `integration-refresh-2-diff.json`).
+2. **Witnesses (`mpvousxzotns`, verified after refresh at `vyzponrxzvqq`)** —
    Talas Researcher, King's Assassin, Stern Marshal, Lady Sun, and Cao Cao,
    Lord of Wei: each sentence **0 → 1**. Both localization variants also
    **0 → 1**. All six controls remain **1**. No witness was already covered
@@ -149,25 +150,29 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    no-Reading assertion was too broad. Refresh brought `nzmrrqky` (cause) and
    `roomopmr` (phase in/out); the registration conflict was resolved by retaining
    both modules exactly once. The accepted integration refresh also brought
-   `tlpwnxqn` (named-token apposition), without conflicts. No semantic STOPs
+   `tlpwnxqn` (named-token apposition), without conflicts. The retry refresh
+   brought `wkooyuko` (kind-of-counter); all 1,472 selected faces are unchanged
+   from the preceding census. No semantic STOPs
    or unresolved glossary gaps.
-5. **Tests (`mpvousxzotns` before refresh; `yomxytwxyzyl` after)** —
+5. **Tests (`mpvousxzotns` before refresh; `vyzponrxzvqq` after)** —
    `cargo test -p deckmaste_english_v3`: initial run failed the medial negative;
    full suites passed twice after correction (900 tests each), then passed
    after refresh (909, including 9 incoming trunk tests), then after the
-   accepted integration refresh (913, including 4 apposition tests).
+   accepted integration refresh (913, including 4 apposition tests), then
+   the retry refresh (918, including 5 kind-of-counter tests).
    `cargo test -p deckmaste_lexical_source`: passed before and after refresh
    (84 each). `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: passed
-   before and after both refreshes. `cargo build -p xtask`: passed before and
+   before and after every refresh. `cargo build -p xtask`: passed before and
    after both refreshes. Both full crate suites passed after the integration
-   refresh; logs are `test-english-integration-refresh.log`,
-   `test-lexical-source-integration-refresh.log`, and corresponding
-   `clippy-*-integration-refresh.log` and `build-integration-refresh.log`.
+   refresh and retry refresh; latest logs are
+   `test-english-integration-refresh-2.log`,
+   `test-lexical-source-integration-refresh-2.log`, and corresponding
+   `clippy-*-integration-refresh-2.log` and `build-integration-refresh-2.log`.
    This ticket's existing tests restored / re-spelled / ignored /
    removed: **0 / 0 / 0 / 0**; added: **4**, registered once in `tests/main.rs`;
    no removals to justify. Citation checks: zero noncompliant, zero stale;
    diff audit selected zero sites, with no new CR citations.
-6. **Timing (`yomxytwxyzyl`)** — Final complete bounded AFTER census:
-   **120.44 seconds**, **6 workers**, `--samples-per-face 0`, measured by
+6. **Timing (`vyzponrxzvqq`)** — Final complete bounded AFTER census:
+   **573.49 seconds** (including Cargo build-lock wait), **6 workers**, `--samples-per-face 0`, measured by
    `/usr/bin/time -v`. No full-corpus census was run.
