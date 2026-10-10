@@ -136,10 +136,16 @@ def DeonticPatient.intro (bs : Bindings) : DeonticPatient → Bindings
   | .counterpart m => nomIntro bs m
   | .targetedBy m => nomIntro bs m
   | .counterpartsAt _ => bs
+  | .host m => nomIntro bs m
 
 /-- A counterpart is of a kind every deed's role `r` takes. -/
 def counterpartKindOk (ds : Deeds) (r : Role) (m : NounPhrase) : Bool :=
   ds.all fun d => deedKindOk d r (m.kindOr .object)
+
+/-- A host is of a kind every deed's host role takes; a deed with no host role takes none. -/
+def hostKindOk (ds : Deeds) (m : NounPhrase) : Bool :=
+  ds.all fun d => ((deedFacts d).elim noRole (·.hostRole)).sort.elim false
+    (·.domain.admits (m.kindOr .object))
 
 /-- A counterpart named after `n` must not be `n` read back. -/
 def counterpartNotSelf (bs : Bindings) (n m : NounPhrase) : Bool :=
@@ -514,6 +520,7 @@ def deonticPatientOk (bs : Bindings) (n : NounPhrase) (ds : Deeds) (r : Role)
   | .noPatient | .defendingPlayer _ | .targetedBy _ => true
   | .counterpart m => counterpartKindOk ds r.counter m && counterpartNotSelf bs n m
   | .counterpartsAt cs => distinctDeeds (cs.map (·.deed)) && cs.all (complementAtOk bs n ds r)
+  | .host m => hostKindOk ds m && counterpartNotSelf bs n m
 
 def DamageOp.intro (bs : Bindings) : DamageOp → Bindings
   | .prevent cut _ => cut.intro bs

@@ -578,6 +578,11 @@ inductive ProjAxis where
   | playerStat (stat : PlayerStat)
   | counter (kind : CounterKind)
   | anyCounter (kind : Kind)
+  /-- The chapter numbers of an object's own chapter abilities [CR#714.2a,714.2d]: a Saga
+  projects one per chapter ability it has, and a chapter ability projects its own. Several
+  values or none, so it is read through a fold: "the final chapter number" is the greatest of
+  them, `aggregate max chapter this` [CR#714.2d]. -/
+  | chapter
   deriving DecidableEq, Repr
 
 /-- A Saga's chapter, counted from I [CR#714.2a]. -/

@@ -122,6 +122,7 @@ def DeonticPatient.check (bs : Bindings) : DeonticPatient → List Refusal
     NounPhrase.check Option.none bs m ++ refuse k.targeter (.targeter k)
   | .counterpartsAt cs =>
     refuse (!cs.isEmpty) .nonEmpty ++ cs.flatMap fun c => NounPhrase.check Option.none bs c.counterpart
+  | .host m => NounPhrase.check Option.none bs m
 
 def DamageScope.check (bs : Bindings) : DamageScope → List Refusal
   | .everywhere => []
@@ -736,8 +737,12 @@ mutual
     | .addedCost c _ _ => Cost.check bs c
     | .paySubstitute n s => NounPhrase.check (some .object) bs n ++ ManaSubstitute.check bs s
     | .modeChoice m => ModeChange.check bs m
+    -- A spell may target an object or a player [CR#115.1,702.5d]: an Aura spell's target is its
+    -- enchant ability's, which may name a player.
     | .addsTarget n d =>
-      NounPhrase.check (some .object) bs n ++ Predicate.check .object (selfSubjIntro bs n) d
+      let k := d.kindOr .object
+      NounPhrase.check (some .object) bs n ++ Predicate.check k (selfSubjIntro bs n) d ++
+        refuse (Kind.lte k (.join .object .player)) (.kindLte k (.join .object .player))
     -- Read as an activated ability's cost and effect are: the player who takes the action
     -- performs `does`, which sees what the cost introduced [CR#116.2c].
     | .specialAction when c does =>

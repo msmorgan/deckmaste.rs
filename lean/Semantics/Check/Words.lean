@@ -197,6 +197,10 @@ structure ActFacts where
   intransitive : Bool := false
   agentRole : DeedRole := noRole
   patientRole : DeedRole := noRole
+  /-- The deed's third participant, the object or player the patient ends up on: what an Aura,
+  Equipment or Fortification is attached to [CR#701.3a]. A deontic rule names it with
+  `DeonticPatient.host`; no other deed has one. -/
+  hostRole : DeedRole := noRole
   feature : Option DeedFeature := none
   /-- The patient is the performer's own: a permanent the performer controls ("sacrifice"
   [CR#701.21a]) or a card in the performer's own hand ("discard" [CR#701.9a]). -/
@@ -291,7 +295,14 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("airbend", { dest := some .exile, agentRole := playerAgent }),
     ("amass", { agentRole := playerAgent }),
     ("assemble", {}),
-    ("attach", { agentRole := playerAgent }),
+    /- An Aura, Equipment or Fortification is attached to an object or player [CR#701.3a]: the
+    patient is the attached permanent, an enchantment or artifact wherever it is (an Aura is
+    attached as it enters [CR#303.4f]), and the host is any object or player, a card in a
+    graveyard included. -/
+    ("attach",
+      { agentRole := playerAgent,
+        patientRole := ⟨some ⟨.object, [], [.artifact, .enchantment]⟩, true, none⟩,
+        hostRole := ⟨some ⟨.either, [], []⟩, false, none⟩ }),
     ("behold", { agentRole := playerAgent }),
     ("blight", { agentRole := playerAgent }),
     ("bolster", { agentRole := playerAgent }),
@@ -1769,6 +1780,7 @@ def ProjAxis.scope : ProjAxis → Kind
   | .playerStat _ => .player
   | .counter c => c.scope
   | .anyCounter k => k
+  | .chapter => .object
 
 def ProjAxis.type : ProjAxis → Option CardType
   | .stat c => c.comparedType

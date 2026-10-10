@@ -40,6 +40,12 @@ def ManaSymbol.check (m : ManaSymbol) : List Refusal := refuse m.ok .manaSymbolO
 
 def ManaCost.check (c : ManaCost) : List Refusal := c.flatMap ManaSymbol.check
 
+/-- An axis that projects several values from one object, so a fold over a single object is
+already a fold: a Saga's chapter numbers [CR#714.2d]. -/
+def ProjAxis.multiValued : ProjAxis → Bool
+  | .chapter => true
+  | _ => false
+
 def ProjAxis.check : ProjAxis → List Refusal
   | .counter c => c.check
   | _ => []
@@ -437,7 +443,7 @@ mutual
     | .aggregate _ ax g =>
       let k := g.kindOr .object
       NounPhrase.checkIn gap none bs g ++ ax.check ++ refuse (ax.scope == k) (.projScope k) ++
-        refuse (g.plur == .many) .plural
+        refuse (g.plur == .many || ax.multiValued) .plural
     | .paid f n =>
       refuse f.named .linkedFacetNamed ++ refuse (!f.readsEntity) .linkedFacetKind ++
         LinkedFacet.checkIn gap bs f ++

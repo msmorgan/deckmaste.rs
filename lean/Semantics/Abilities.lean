@@ -150,6 +150,10 @@ inductive DeonticPatient where
   | counterpart (patient : NounPhrase)
   | targetedBy (patient : NounPhrase)
   | counterpartsAt (complements : List DeedComplement)
+  /-- The object or player the subject is attached to, by the attach deed's host role: "an
+  Equipment may be attached to a creature" [CR#301.5,701.3a], "can't be enchanted by" read from
+  the Aura's side [CR#303.4c]. -/
+  | host (host : NounPhrase)
   deriving Repr, BEq
 
 inductive DamageScope where
