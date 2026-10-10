@@ -192,6 +192,12 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    (`nzmrrqkysxto`), and Vision Charm's phase frame (`roomopmrpkys`).
    The first AFTER's 1,664 covered faces all retain their counts and digests.
    Refreshed reports: `after-refresh.json`, `diff-refresh.json`.
+   Second refresh (`zrsxnupx`) adds Ultimate Spider-Man from
+   `wkooyukozlpw`: final covered **1,622 → 1,686**, Readings
+   **79,869 → 81,720**, gains **64** (42 ticket / 22 trunk), all other
+   change classes **0**. Its incoming diff leaves all 1,685 covered faces
+   unchanged. Final reports: `after-refresh2.json`, `diff-refresh2.json`,
+   `diff-incoming2.json`.
 2. **Witnesses** (`ooumkosu`): Gleam of Resistance, Ash Barrens, Rime Dryad,
    Ayumi, the Last Visitor, Dryad Sophisticate, Livonya Silone and
    Trailblazer's Boots each **0 → 1** on their ticket line/sentence.
@@ -239,8 +245,12 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    and the same six full test/clippy commands passed again: English **913**,
    lexical-source **84**, compiler **39**; the 13 extra English tests belong
    to the incoming landings. Citation checks remain 0 stale/noncompliant.
+   After the second refresh (`zrsxnupx`, importing `wkooyukozlpw`), the
+   same build and six full test/clippy commands passed again: English
+   **918**, lexical-source **84**, compiler **39**. The five additional
+   English tests belong to the kind-of-counter landing.
    Exact commands/logs are under the evidence directory.
-6. **Timing** (`pqzrnyok`, post-refresh): the required **bounded** AFTER
-   census took **3:27.32** wall time under `/usr/bin/time -v`, **6 workers**,
+6. **Timing** (`zrsxnupx`, second refresh): the required **bounded** AFTER
+   census took **2:30.43** wall time under `/usr/bin/time -v`, **6 workers**,
    samples 0.
    No full census was run, per the binding verification budget.
