@@ -738,6 +738,22 @@ mimicked.
   test keeps "a body and a signature land together" and the per-keyword
   parameter-kind table. (Ruling, 2026-10-10, owner;
   `semantics-v2-devour-quality-keyword`.)
+- **A state-based conferral applies once per holder.** `Conferral.stateBased
+  (when) (then_)` on a registry definition is scoped to the object that holds
+  the definition's subject (the permanent, for a counter kind
+  [CR#704.5q,122.3]; the object, for a subtype), applies once per holder per
+  check [CR#704.3], and may read counts, including the count of its own kind;
+  the characteristic conferrals stay once per counter. So the +1/+1 and -1/-1
+  annihilation rule lives on `m1m1Counter`'s definition, not in a rules
+  table, and removes N of each kind at once as one event [CR#704.5q], not one
+  pair per sweep. (Ruling, 2026-10-10, owner;
+  `semantics-v2-counter-annihilation-sba`.)
+- **"The smaller of" is the general aggregate over amounts.** `Amount.aggregateOf
+  (op : AggregateOp) (amounts : List Amount)` reuses the existing `sum | min |
+  max`, written in RON as `smallerOf(a, b)` and `greaterOf(a, b)` after the
+  cards' own wording [CR#704.5q]. Snowblind's "whichever is smaller" is its
+  non-rule witness. (Ruling, 2026-10-10, owner;
+  `semantics-v2-counter-annihilation-sba`.)
 
 ## 8. Process
 
