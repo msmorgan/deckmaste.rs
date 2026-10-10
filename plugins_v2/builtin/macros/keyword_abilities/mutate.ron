@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "mutate <Param(0)>",
     grammar: FixedKeyword(
         surface: "mutate",
+        verb: (bare: "mutate", frames: [Predicate([])]),
     ),
     // "Mutate [cost]" means "You may pay [cost] rather than pay this spell's
     // mana cost. If you do, it becomes a mutating creature spell and targets a

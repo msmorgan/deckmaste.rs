@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "escape <Param(0)>",
     grammar: FixedKeyword(
         surface: "escape",
+        verb: (bare: "escape", frames: [Predicate([])]),
     ),
     // "Escape [cost]" means "You may cast this card from your graveyard by paying
     // [cost] rather than paying its mana cost." [CR#702.138a]

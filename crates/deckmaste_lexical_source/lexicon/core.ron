@@ -56,6 +56,7 @@
         Pronoun: {"RelativeUse": "No"},
     },
     feature_additions: {
+        "lexeme:keyword_ability/exploit/verb": {"PastParticipialPremodifier": "Yes"},
         "lexeme:designation/commander": {"NounPremodifier": "Yes"},
         "lexeme:keyword_action/goad": {"PastParticipialPremodifier": "Yes"},
         "lexeme:keyword_action/suspect": {"PastParticipialPremodifier": "Yes"},
@@ -1490,6 +1491,9 @@
     frame_additions: {
         "core-verb:Remove": [
             (kind: "Passive", items: [Argument((relation: Complement, category: "SourceComplement"))]),
+        ],
+        "lexeme:keyword_ability/soulbond/verb": [
+            (kind: "Passive", items: [Marked(vocabulary: "Preposition", member: "With", slot: (relation: Complement, category: "NounPhrase"))]),
         ],
         "core-verb:Turn": [
             (kind: "Passive", items: [Marker(vocabulary: "Preposition", member: "FaceUp")]),

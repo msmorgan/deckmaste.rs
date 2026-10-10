@@ -6,6 +6,8 @@ mod counter_compounds;
 mod errors;
 #[path = "suite/keyword_payload_features.rs"]
 mod keyword_payload_features;
+#[path = "suite/keyword_verbs.rs"]
+mod keyword_verbs;
 #[path = "suite/lexical_gaps.rs"]
 mod lexical_gaps;
 #[path = "suite/multiword_lexemes.rs"]

@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "crew <Param(0)>",
     grammar: FixedKeyword(
         surface: "crew",
+        verb: (bare: "crew", frames: [Predicate([ObjectNounPhrase])]),
     ),
     // "Crew N" means "Tap any number of other untapped creatures you control with
     // total power N or greater: This permanent becomes an artifact creature until

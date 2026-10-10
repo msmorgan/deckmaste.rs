@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "soulbond",
     grammar: FixedKeyword(
         surface: "soulbond",
+        verb: (bare: "pair", frames: [Predicate([ObjectNounPhrase, Lex("Preposition", "With"), ObjectNounPhrase])]),
     ),
     // "Soulbond" means "When this creature enters, if you control both this
     // creature and another creature and both are unpaired, you may pair this

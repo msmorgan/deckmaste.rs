@@ -7,7 +7,6 @@ use deckmaste_lexical::Capitalization;
 use deckmaste_lexical::Case;
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Countability;
-use deckmaste_lexical::Frame;
 use deckmaste_lexical::Lexeme;
 use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
@@ -64,7 +63,7 @@ pub(crate) fn load(
     let provenance = path.strip_prefix(root).unwrap_or(&path).to_string_lossy();
     for verb in verbs {
         let paradigm = paradigms.remove(&format!("core-verb:{}", verb.identity.0));
-        export_verb(verb, &provenance, output, paradigm);
+        export_verb(&verb, &provenance, output, paradigm);
     }
     Ok(())
 }
@@ -253,18 +252,11 @@ struct CoreVerb {
     third_person: String,
     preterite: Option<String>,
     participle: Option<String>,
-    frames: Vec<CoreFrame>,
-}
-
-#[derive(Deserialize)]
-enum CoreFrame {
-    Predicate(Vec<metadata::FrameItem>),
-    Auxiliary,
-    ProVerb,
+    frames: Vec<metadata::VerbDeclarationFrame>,
 }
 
 fn export_verb(
-    verb: CoreVerb,
+    verb: &CoreVerb,
     path: &str,
     output: &mut LexicalSources,
     paradigm: Option<crate::native::Paradigm>,
@@ -274,7 +266,7 @@ fn export_verb(
         && verb
             .frames
             .iter()
-            .all(|frame| matches!(frame, CoreFrame::Auxiliary))
+            .all(|frame| matches!(frame, metadata::VerbDeclarationFrame::Auxiliary))
     {
         output.unmapped.push(format!(
             "auxiliary {owner}: {:?}/{:?} needs declared finite/nonfinite applicability",
@@ -305,20 +297,7 @@ fn export_verb(
         }
         _ => true,
     });
-    for frame in verb.frames {
-        let (kind, items) = match frame {
-            CoreFrame::Predicate(items) => (
-                "Predicate",
-                items.iter().map(super::plugins::frame_item).collect(),
-            ),
-            CoreFrame::Auxiliary => ("Auxiliary", Vec::new()),
-            CoreFrame::ProVerb => ("ProVerb", Vec::new()),
-        };
-        lexeme.properties.frames.push(Frame {
-            kind: kind.to_owned(),
-            items,
-        });
-    }
+    lexeme.properties.frames = super::plugins::declared_frames(&verb.frames);
     if let Some(paradigm) = paradigm {
         lexeme.forms = paradigm.forms;
         lexeme.properties.frames = paradigm.frames;
@@ -344,7 +323,7 @@ mod tests {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        export_verb(verb, "test-source", &mut output, None);
+        export_verb(&verb, "test-source", &mut output, None);
         let lexicon = Lexicon::new(output.lexemes).unwrap();
         for surface in ["attack", "attacks", "attacked", "attacking"] {
             assert!(
@@ -361,7 +340,7 @@ mod tests {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        export_verb(verb, "test-source", &mut output, None);
+        export_verb(&verb, "test-source", &mut output, None);
         let lexeme = &output.lexemes[0];
         assert_eq!(lexeme.id, "core-verb:Draw");
         assert_eq!(lexeme.source.owner, "core-verb:Draw");

@@ -427,6 +427,7 @@ fn landwalk_declares_one_bound_suffix_surface() {
                 },
             }),
             participial_adjective: None,
+            verb: None,
             block_label: None,
             parameter: None,
         })

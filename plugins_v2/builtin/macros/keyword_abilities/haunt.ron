@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "haunt",
     grammar: FixedKeyword(
         surface: "haunt",
+        verb: (bare: "haunt", frames: [Predicate([ObjectNounPhrase])]),
     ),
     // "Haunt" on a permanent means "When this permanent is put into a
     // graveyard from the battlefield, exile it haunting target creature," and

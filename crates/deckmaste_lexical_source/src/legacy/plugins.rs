@@ -268,7 +268,11 @@ fn grammar_lexeme(
             participial_adjective,
             block_label,
             parameter,
+            verb,
         } => {
+            if let Some(verb) = verb {
+                output.lexemes.push(keyword_verb_lexeme(owner, path, verb));
+            }
             if let Some(suffix) = bound_suffix {
                 return bound_suffix_lexeme(
                     owner,
@@ -498,6 +502,35 @@ fn derived(slot: &mut FormDeclaration, source: &metadata::DerivedSurface) -> boo
         }
         metadata::DerivedSurface::Unavailable => false,
     }
+}
+
+fn keyword_verb_lexeme(owner: &str, path: &str, verb: metadata::KeywordVerbGrammar) -> Lexeme {
+    let mut lexeme = Lexeme::verb(
+        format!("{owner}/verb"),
+        verb.bare,
+        source(SourceKind::Plugin, path, owner),
+    );
+    lexeme.properties.frames = declared_frames(&verb.frames);
+    lexeme
+}
+
+pub(super) fn declared_frames(source: &[metadata::VerbDeclarationFrame]) -> Vec<Frame> {
+    source
+        .iter()
+        .map(|frame| {
+            let (kind, items) = match frame {
+                metadata::VerbDeclarationFrame::Predicate(items) => {
+                    ("Predicate", items.iter().map(frame_item).collect())
+                }
+                metadata::VerbDeclarationFrame::Auxiliary => ("Auxiliary", Vec::new()),
+                metadata::VerbDeclarationFrame::ProVerb => ("ProVerb", Vec::new()),
+            };
+            Frame {
+                kind: kind.into(),
+                items,
+            }
+        })
+        .collect()
 }
 
 fn frames(source: &metadata::VerbFrameSet) -> Vec<Frame> {

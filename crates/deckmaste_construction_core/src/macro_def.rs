@@ -411,10 +411,28 @@ pub enum Grammar {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         participial_adjective: Option<ParticipialAdjectiveGrammar>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        verb: Option<KeywordVerbGrammar>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         block_label: Option<BlockLabelGrammar>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         parameter: Option<FixedKeywordParameterGrammar>,
     },
+}
+
+/// A keyword-owned Verb Lexeme using the regular inflectional paradigm.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct KeywordVerbGrammar {
+    pub bare: String,
+    pub frames: Vec<VerbDeclarationFrame>,
+}
+
+/// The shared serialized frame kinds of core and keyword Verb declarations.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub enum VerbDeclarationFrame {
+    Predicate(VerbFrame),
+    Auxiliary,
+    ProVerb,
 }
 
 /// A supplemental bound-suffix use of a fixed keyword declaration.
@@ -909,9 +927,16 @@ pub struct GrammarRow {
     surfaces: Vec<RealizedSurface>,
     participial_adjective: Option<RealizedSurface>,
     block_label: Option<RealizedSurface>,
+    verb: Option<KeywordVerbGrammar>,
 }
 
 impl GrammarRow {
+    /// Returns the keyword's supplemental regular Verb declaration.
+    #[must_use]
+    pub fn verb(&self) -> Option<&KeywordVerbGrammar> {
+        self.verb.as_ref()
+    }
+
     #[must_use]
     pub fn recipe(&self) -> &GrammarRecipe {
         &self.recipe
@@ -1281,6 +1306,8 @@ enum GrammarSourceMap {
         bound_suffix_surface: Option<SourcePosition>,
         participial_adjective_surface: Option<SourcePosition>,
         block_label_surface: Option<SourcePosition>,
+        verb_bare: Option<SourcePosition>,
+        verb_frames: Option<SourcePosition>,
     },
 }
 
@@ -1494,7 +1521,17 @@ enum DiagnosticGrammar<'a> {
         participial_adjective: Option<DiagnosticParticipialAdjectiveGrammar<'a>>,
         #[serde(default, borrow)]
         block_label: Option<DiagnosticBlockLabelGrammar<'a>>,
+        #[serde(default, borrow)]
+        verb: Option<DiagnosticKeywordVerbGrammar<'a>>,
     },
+}
+
+#[derive(Deserialize)]
+struct DiagnosticKeywordVerbGrammar<'a> {
+    #[serde(borrow)]
+    bare: &'a RawValue,
+    #[serde(borrow)]
+    frames: &'a RawValue,
 }
 
 #[derive(Deserialize)]
@@ -1855,12 +1892,15 @@ impl GrammarSourceMap {
                 bound_suffix_surface: None,
                 participial_adjective_surface: None,
                 block_label_surface: None,
+                verb_bare: None,
+                verb_frames: None,
             }),
             DiagnosticGrammar::FixedKeyword {
                 surface,
                 bound_suffix,
                 participial_adjective,
                 block_label,
+                verb,
             } => Ok(Self::Fixed {
                 surface: raw_position(path, source, surface, declaration)?,
                 bound_suffix_surface: bound_suffix
@@ -1875,6 +1915,14 @@ impl GrammarSourceMap {
                 block_label_surface: block_label
                     .as_ref()
                     .map(|grammar| raw_position(path, source, grammar.surface, declaration))
+                    .transpose()?,
+                verb_bare: verb
+                    .as_ref()
+                    .map(|grammar| raw_position(path, source, grammar.bare, declaration))
+                    .transpose()?,
+                verb_frames: verb
+                    .as_ref()
+                    .map(|grammar| raw_position(path, source, grammar.frames, declaration))
                     .transpose()?,
             }),
         }
@@ -2534,6 +2582,10 @@ fn normalize_grammar(
     spelling: &[SpellingPart],
     grammar: Grammar,
 ) -> Result<GrammarRow, ReadError> {
+    let keyword_verb = match &grammar {
+        Grammar::FixedKeyword { verb, .. } => verb.clone(),
+        _ => None,
+    };
     let (grammar_head, recipe, surfaces, participial_adjective, block_label) =
         match (grammar, source_map) {
             (
@@ -2674,28 +2726,41 @@ fn normalize_grammar(
                     participial_adjective,
                     block_label,
                     parameter,
+                    verb,
                 },
                 GrammarSourceMap::Fixed {
                     surface: position,
                     bound_suffix_surface,
                     participial_adjective_surface,
                     block_label_surface,
+                    verb_bare,
+                    verb_frames,
                 },
-            ) => normalize_fixed_keyword_grammar(
-                path,
-                FixedGrammarPositions {
-                    surface: *position,
-                    bound_suffix: *bound_suffix_surface,
-                    participial_adjective: *participial_adjective_surface,
-                    block_label: *block_label_surface,
-                },
-                surface,
-                onset,
-                bound_suffix,
-                participial_adjective,
-                block_label,
-                parameter,
-            )?,
+            ) => {
+                if let Some(verb) = &verb {
+                    validate_keyword_verb(
+                        path,
+                        verb_bare.unwrap_or(*position),
+                        verb_frames.unwrap_or(*position),
+                        verb,
+                    )?;
+                }
+                normalize_fixed_keyword_grammar(
+                    path,
+                    FixedGrammarPositions {
+                        surface: *position,
+                        bound_suffix: *bound_suffix_surface,
+                        participial_adjective: *participial_adjective_surface,
+                        block_label: *block_label_surface,
+                    },
+                    surface,
+                    onset,
+                    bound_suffix,
+                    participial_adjective,
+                    block_label,
+                    parameter,
+                )?
+            }
             _ => {
                 return Err(source_map_parse_error(
                     path,
@@ -2705,7 +2770,7 @@ fn normalize_grammar(
             }
         };
 
-    finish_grammar_normalization(
+    let mut row = finish_grammar_normalization(
         path,
         spelling_position,
         spelling,
@@ -2716,7 +2781,9 @@ fn normalize_grammar(
             participial_adjective,
             block_label,
         ),
-    )
+    )?;
+    row.verb = keyword_verb;
+    Ok(row)
 }
 
 fn normalize_noun_grammar(
@@ -2855,6 +2922,7 @@ fn finish_grammar_normalization(
         surfaces,
         participial_adjective,
         block_label,
+        verb: None,
     })
 }
 
@@ -3060,6 +3128,57 @@ fn english_noun(singular: &str) -> String {
     format!("{singular}s")
 }
 
+fn validate_keyword_verb(
+    path: &Path,
+    bare_position: SourcePosition,
+    position: SourcePosition,
+    verb: &KeywordVerbGrammar,
+) -> Result<(), ReadError> {
+    validate_surface(path, bare_position, "verb.bare", &verb.bare)?;
+    if verb.frames.is_empty() {
+        return Err(validation_error_at(
+            path,
+            position,
+            ValidationError::EmptyCustomVerbFrameSet,
+        ));
+    }
+    let mut seen = HashSet::new();
+    for frame in &verb.frames {
+        let items = match frame {
+            VerbDeclarationFrame::Predicate(items) => items.as_slice(),
+            VerbDeclarationFrame::Auxiliary | VerbDeclarationFrame::ProVerb => &[],
+        };
+        if !seen.insert(frame) {
+            return Err(validation_error_at(
+                path,
+                position,
+                ValidationError::DuplicateVerbFrame {
+                    frame: items.to_vec(),
+                },
+            ));
+        }
+        validate_frame_items(path, position, items)?;
+    }
+    Ok(())
+}
+
+fn validate_frame_items(
+    path: &Path,
+    position: SourcePosition,
+    items: &[FrameItem],
+) -> Result<(), ReadError> {
+    for atom in items {
+        if !atom.valid_payload() {
+            return Err(validation_error_at(
+                path,
+                position,
+                ValidationError::InvalidCustomLiteral,
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn validate_frame_set(
     path: &Path,
     position: SourcePosition,
@@ -3086,15 +3205,7 @@ fn validate_frame_set(
                 },
             ));
         }
-        for atom in frame {
-            if !atom.valid_payload() {
-                return Err(validation_error_at(
-                    path,
-                    position,
-                    ValidationError::InvalidCustomLiteral,
-                ));
-            }
-        }
+        validate_frame_items(path, position, frame)?;
     }
     Ok(())
 }

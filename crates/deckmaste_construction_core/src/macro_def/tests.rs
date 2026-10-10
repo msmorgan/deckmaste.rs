@@ -1849,3 +1849,93 @@ fn article_consistency_rule_requires_the_noun_recipe_and_an_exact_singular() {
         );
     }
 }
+
+#[test]
+fn keyword_verb_declarations_preserve_the_keyword_recipe_and_roundtrip() {
+    let source = r#"KeywordAbility(
+        name: "mutate", params: [], spelling: "mutate",
+        grammar: FixedKeyword(surface: "mutate",
+            verb: (bare: "mutate", frames: [Predicate([])])),
+        body: [],
+    )"#;
+    let declaration = read_str(source_path("mutate.ron"), source).unwrap();
+    let row = declaration.grammar().unwrap();
+    assert_eq!(
+        row.recipe(),
+        &GrammarRecipe::FixedKeyword { parameter: None }
+    );
+    assert_eq!(row.surfaces().len(), 1);
+    assert_eq!(row.surfaces()[0].text(), "mutate");
+    assert_eq!(
+        row.verb(),
+        Some(&KeywordVerbGrammar {
+            bare: "mutate".into(),
+            frames: vec![VerbDeclarationFrame::Predicate(vec![])],
+        })
+    );
+    let definition: macro_ron::MacroDef<Metadata> =
+        declaration_macro_set().unwrap().read_str(source).unwrap();
+    let grammar = definition.metadata.grammar.unwrap();
+    let encoded = macro_options().to_string(&grammar).unwrap();
+    assert_eq!(
+        macro_options().from_str::<Grammar>(&encoded).unwrap(),
+        grammar
+    );
+}
+
+#[test]
+fn keyword_verb_validation_locates_the_lemma_and_frame_errors() {
+    for (bare, frames, field, expected) in [
+        (
+            "",
+            "[Predicate([])]",
+            "bare",
+            ValidationError::InvalidSurface { field: "verb.bare" },
+        ),
+        (
+            "mutate",
+            "[]",
+            "frames",
+            ValidationError::EmptyCustomVerbFrameSet,
+        ),
+        (
+            "mutate",
+            "[Predicate([ObjectNounPhrase]), Predicate([ObjectNounPhrase])]",
+            "frames",
+            ValidationError::DuplicateVerbFrame {
+                frame: vec![FrameItem::ObjectNounPhrase],
+            },
+        ),
+        (
+            "mutate",
+            "[Predicate([Role(\"\")])]",
+            "frames",
+            ValidationError::InvalidCustomLiteral,
+        ),
+    ] {
+        let source = format!(
+            r#"KeywordAbility(
+    name: "mutate", params: [], spelling: "mutate",
+    grammar: FixedKeyword(surface: "mutate", verb: (
+        bare: "{bare}",
+        frames: {frames},
+    )),
+    body: [],
+)"#
+        );
+        let error = read_str(source_path("mutate.ron"), &source).unwrap_err();
+        let position = error.position().unwrap();
+        assert!(
+            source
+                .lines()
+                .nth(position.line - 1)
+                .unwrap()
+                .contains(field),
+            "{error}"
+        );
+        let ReadError::Validate { source, .. } = error else {
+            panic!("located validation error required");
+        };
+        assert_eq!(source, expected);
+    }
+}
