@@ -79,7 +79,13 @@ before landing (KD3, KD4 make most of them defects).
    The claim parent `rsoqootn` differs from the baseline only in ticket docs.
    Evidence: `target/english-v3/english-v3-keyword-dash-cost-line/`
    (`manifest.json`, `before.json`, `after.json`, `diff.json`; builtin diff
-   also run with `--lines`).
+   also run with `--lines`). After refresh, `rqrtmmyz` measures covered
+   faces 454 and total Readings 50,364: gained 152 against `vwlkmvns`, with
+   lost, decreases, increases, and digest-only changes still zero.
+   Builtin `refresh-delta.json` isolates one additional gain, Walk the Aeons
+   (3 Readings), from trunk `nouqyyouuops`'s transitive Take declaration;
+   the other 537 selected faces are unchanged. Final evidence is
+   `after-refresh.json` and `diff-refresh.json` in the same directory.
 2. **Witnesses** (`kxwsyulp`, complete Document enumeration):
    “Ward—Pay 3 life.” 1; “Flashback—{1}{R}, Pay 3 life.” 1;
    “Equip—{3}” 1; “Escape—{3}{U}, Exile four other cards from your
@@ -107,16 +113,16 @@ before landing (KD3, KD4 make most of them defects).
    the existing space form is retained under KD3. Beyond the literal witness
    checks, two compiler diagnostic tests and a synthetic four-Construction
    fixture (Symbols, Action, Tail, List) test the projection and both
-   roundtrip laws. Initial diagnostic parsing and clippy failures were fixed
-   in compiler code; the new test helper's Ident conversion, fixture's leading
-   separator, and Landfall expected set were corrected without removing or
-   weakening value assertions. The Landfall set explicitly retains both
-   ability-word and flavor-word trees shown by the before probe.
+   roundtrip laws. The Landfall control asserts the complete value set,
+   retaining both ability-word and flavor-word trees shown by the before
+   probe.
 5. **Tests** (`kxwsyulp`): `cargo test -p deckmaste_english_v3` passed
    (735 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed; `cargo test -p deckmaste_construction_v3_core` passed (36 tests);
    `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings`
-   passed. Both doc-test suites passed with no tests. This ticket restored 0,
+   passed. After the vocabulary-bearing refresh, all four commands passed
+   again in full at `rqrtmmyz` (736 English tests, 36 construction-core
+   tests). Both doc-test suites passed with no tests. This ticket restored 0,
    re-spelled 0, ignored 0, added 7, and removed 0 tests; no removals to justify.
    Citation check reports no noncompliant citations and zero stale citations;
    bless introduced no lock change, and the piped diff audit's sole citation
