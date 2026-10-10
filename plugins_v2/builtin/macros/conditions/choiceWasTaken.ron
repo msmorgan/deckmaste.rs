@@ -1,0 +1,8 @@
+// "If <subject>'s <which> was taken": the choice the Link Source offered was
+// taken; "if tribute wasn't paid" is its negation [CR#702.104b].
+(
+    name: "choiceWasTaken",
+    kinds: [Condition],
+    params: {"which": LinkSource, "subject": NounPhrase},
+    body: CompareAmt(Paid(Taken(Param(which)), Param(subject)), AtLeast, 1),
+)

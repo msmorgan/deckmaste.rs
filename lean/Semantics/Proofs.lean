@@ -22,6 +22,7 @@ import Semantics.Proofs.Keyword
 import Semantics.Proofs.KeywordByCardClass
 import Semantics.Proofs.KeywordDefinitionRegimes
 import Semantics.Proofs.LinkedChoiceReadback
+import Semantics.Proofs.LinkedReadback
 import Semantics.Proofs.Mana
 import Semantics.Proofs.Numbers
 import Semantics.Proofs.NounWords

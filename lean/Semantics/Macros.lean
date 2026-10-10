@@ -724,6 +724,24 @@ semantic_macro chosenAsPaid (label : KeywordLabel) (subject : NounPhrase) : Noun
 semantic_macro costWasPaid (which : LinkSource) (window : Option Duration) (subject : NounPhrase) :
     Condition :=
   .compareAmt (paidCostRead which window subject) .atLeast (.lit 1)
+/-- "the sacrificed creature", "the exiled card": the one object `deed` acted on as the Link
+Source `which` of `subject` was paid or resolved [CR#607.2a]. -/
+semantic_macro linkedObject (which : LinkSource) (deed : Deed) (subject : NounPhrase) : NounPhrase :=
+  .paid (.objects which deed .one) subject
+/-- "the exiled cards", "creatures it devoured": the objects `deed` acted on as the Link Source
+`which` of `subject` was paid or resolved [CR#607.2a,702.82b]. -/
+semantic_macro linkedObjects (which : LinkSource) (deed : Deed) (subject : NounPhrase) :
+    NounPhrase :=
+  .paid (.objects which deed .many) subject
+/-- "if <subject>'s <which> was taken": the choice the Link Source offered was taken
+[CR#702.104b]. -/
+semantic_macro choiceWasTaken (which : LinkSource) (subject : NounPhrase) : Condition :=
+  .compareAmt (.paid (.taken which) subject) .atLeast (.lit 1)
+/-- "<object>'s mana cost" as the mana a cost shift changes by [CR#702.48a]. -/
+semantic_macro manaCostOf (object : NounPhrase) : ManaCostTerm := .manaCostOf object
+/-- "<subject>'s total cost is reduced by <cost>", symbol by symbol [CR#702.48c,118.7]. -/
+semantic_macro reducedBySymbols (subject : NounPhrase) (cost : ManaCostTerm) : StaticSpec :=
+  .costShift subject (.bySymbols cost false false)
 /-- "the last chosen color" -/
 semantic_macro theLastChosenColor : ColorTerm := .chosen .theLatestChoice
 /-- "the last chosen number" -/

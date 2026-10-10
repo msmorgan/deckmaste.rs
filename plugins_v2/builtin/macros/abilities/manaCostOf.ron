@@ -1,0 +1,7 @@
+// "<object>'s mana cost" as the mana a cost shift changes by [CR#702.48a].
+(
+    name: "manaCostOf",
+    kinds: [ManaCostTerm],
+    params: {"object": NounPhrase},
+    body: ManaCostOf(Param(object)),
+)

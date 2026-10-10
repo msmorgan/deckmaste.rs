@@ -2,6 +2,6 @@
 (
     name: "timesPaid",
     kinds: [Amount],
-    params: {"which": PaidCostName, "subject": NounPhrase},
+    params: {"which": LinkSource, "subject": NounPhrase},
     body: Paid(TimesPaid(Param(which)), Param(subject)),
 )

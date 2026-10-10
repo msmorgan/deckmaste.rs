@@ -243,6 +243,10 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
     }
     assert_eq!(parameterized.insert("splice", &["Quality", "Cost"]), None);
     assert_eq!(
+        parameterized.insert("emergeFrom", &["Quality", "Cost"]),
+        None
+    );
+    assert_eq!(
         parameterized.insert("typecycling", &["Quality", "Cost"]),
         None
     );
@@ -256,7 +260,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         parameterized.insert("prototype", &["Cost", "Power", "Toughness"]),
         None
     );
-    assert_eq!(parameterized.len(), 107);
+    assert_eq!(parameterized.len(), 108);
     parameterized
 }
 

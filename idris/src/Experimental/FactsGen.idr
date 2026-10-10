@@ -63,6 +63,7 @@ keywordFacts =
   , { word := "Saddle", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "PartnerWith", paramShapes := [QualityParam] } defaultKeywordFacts
   , { word := "Emerge", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
+  , { word := "EmergeFrom", paramShapes := [CompoundParam QualityHead], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Craft", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Madness", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Prowl", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
@@ -87,7 +88,7 @@ keywordFacts =
   , { word := "Evoke", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Blitz", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, paidCost := True } defaultKeywordFacts
   , { word := "Cleave", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True, paidCost := True } defaultKeywordFacts
-  , { word := "Harmonize", paramShapes := [CostParam], onPermanentCard := False, onSpellCard := True, paidCost := True } defaultKeywordFacts
+  , { word := "Harmonize", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Impending", paramShapes := [CompoundParam NumberHead], regime := Just AtCasting, functionsOnStack := True, paidCost := True } defaultKeywordFacts
   , { word := "Awaken", paramShapes := [CompoundParam NumberHead], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Buyback", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True, paidCost := True } defaultKeywordFacts
@@ -117,7 +118,7 @@ keywordFacts =
   , { word := "BattleCry", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Bloodthirst", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Champion", paramShapes := [SubjectParam] } defaultKeywordFacts
-  , { word := "Cipher", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
+  , { word := "Cipher", paramShapes := [NoParam], regime := Just AtResolution, onPermanentCard := False, onSpellCard := True } defaultKeywordFacts
   , { word := "Compleated", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Conspire", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Daybound", paramShapes := [NoParam] } defaultKeywordFacts
@@ -163,7 +164,7 @@ keywordFacts =
   , { word := "MoreThanMeetsTheEye", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Myriad", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Nightbound", paramShapes := [NoParam] } defaultKeywordFacts
-  , { word := "Offering", paramShapes := [QualityParam], regime := Just AtCasting, functionsOnStack := True } defaultKeywordFacts
+  , { word := "Offering", paramShapes := [QualityParam], regime := Just AtCasting, functionsOnStack := True, paidCost := True } defaultKeywordFacts
   , { word := "Outlast", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Paradigm", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
   , { word := "Partner", paramShapes := [NoParam] } defaultKeywordFacts

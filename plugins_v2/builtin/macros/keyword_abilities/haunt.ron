@@ -5,9 +5,23 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "haunt",
     ),
-    // STOP (waits on: `semantics-v2-linked-readback`).
-    // "Haunt" means "exile it haunting target creature" [CR#702.55a], and the
-    // exiled card thereafter "haunts" that creature [CR#702.55b]. Nothing expresses
-    // the haunting link: `Move` has no rider attaching an exiled card to a creature
-    // and there is no haunting designation.
+    // "Haunt" on a permanent means "When this permanent is put into a
+    // graveyard from the battlefield, exile it haunting target creature," and
+    // on an instant or sorcery spell "When this spell is put into a graveyard
+    // during its resolution, exile it haunting target creature." [CR#702.55a]
+    // The exiled card then "haunts" that creature [CR#702.55b]: the `haunting`
+    // Relation, which "the creature it haunts" reads back as its
+    // `counterpart`. Each half is guarded by the card's class, as gift's are.
+    body: [
+        triggeredIf(
+            dies(thisPermanent),
+            matches(this, permanentType),
+            sequentially([exile(it), relate(it, haunting, target(creature))]),
+        ),
+        triggeredIf(
+            zoneChange(thisSpell, Before, Zones([stack]), graveyard),
+            matches(this, instantOrSorcery),
+            sequentially([exile(it), relate(it, haunting, target(creature))]),
+        ),
+    ],
 )

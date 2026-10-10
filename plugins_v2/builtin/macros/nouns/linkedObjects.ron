@@ -1,0 +1,9 @@
+// "The exiled cards", "creatures it devoured": the objects `deed` acted on as
+// the Link Source `which` of `subject` was paid or resolved, read back by the
+// ability linked to it [CR#607.2a,702.82b].
+(
+    name: "linkedObjects",
+    kinds: [NounPhrase],
+    params: {"which": LinkSource, "deed": Deed, "subject": NounPhrase},
+    body: Paid(Objects(Param(which), Param(deed), Many), Param(subject)),
+)

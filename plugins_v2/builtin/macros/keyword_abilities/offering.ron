@@ -6,11 +6,29 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "offering",
     ),
-    // STOP (waits on: `semantics-v2-linked-readback`).
-    // "[Quality] offering" means "As an additional cost to cast this
-    // spell, you may sacrifice a [quality] permanent. If you chose to pay the additional
-    // cost, this spell's total cost is reduced by the sacrificed permanent's mana cost, and
-    // you may cast this spell any time you could cast an instant." [CR#702.48a] The
-    // reduction must name the permanent the cost sacrificed, and no `PaidFacet` names the
-    // object a paid cost acted on (the cause Emerge and Harmonize share).
+    // "[Quality] offering" means "As an additional cost to cast this spell, you
+    // may sacrifice a [quality] permanent. If you chose to pay the additional
+    // cost, this spell's total cost is reduced by the sacrificed permanent's
+    // mana cost, and you may cast this spell any time you could cast an
+    // instant." [CR#702.48a] The reduction is by the sacrificed permanent's
+    // mana cost, symbol by symbol, any colored excess reducing generic mana
+    // [CR#702.48c], so it is a `BySymbols` shift over the `objects` Linked
+    // Facet of the additional cost's sacrifice. The instant timing is a
+    // permission to cast it as an instant, which holds only once the
+    // additional cost is paid [CR#601.3c].
+    body: [
+        static(addedCost(perform(sacrifice(a(and([Param(0), permanent])))), true)),
+        static(
+            onlyWhile(
+                reducedBySymbols(thisSpell, manaCostOf(linkedObject(TheAdditional, sacrifice, thisSpell))),
+                keywordCostPaid(offering, thisSpell),
+            ),
+        ),
+        static(
+            onlyWhile(
+                mayPlayDeed(cast, you, this, Play(None, None, asInstant, false, ItsOwnCost)),
+                keywordCostPaid(offering, this),
+            ),
+        ),
+    ],
 )

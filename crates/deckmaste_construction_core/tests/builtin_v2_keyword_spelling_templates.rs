@@ -146,6 +146,7 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("echo", "echo <Param(0)>"),
     ("embalm", "embalm <Param(0)>"),
     ("emerge", "emerge <Param(0)>"),
+    ("emergeFrom", "emerge from <Param(0)> <Param(1)>"),
     ("enchant", "enchant <Param(0)>"),
     ("encore", "encore <Param(0)>"),
     ("enlist", "enlist"),
@@ -355,7 +356,7 @@ fn every_keyword_declaration_pins_its_template() {
 #[test]
 fn every_keyword_template_is_consistent_with_its_params_and_grammar() {
     let declarations = keyword_declarations();
-    assert_eq!(declarations.len(), 66 + 200);
+    assert_eq!(declarations.len(), 66 + 201);
     for declaration in &declarations {
         let name = declaration.identity().name();
         let params = declaration.params().unwrap_or_default();

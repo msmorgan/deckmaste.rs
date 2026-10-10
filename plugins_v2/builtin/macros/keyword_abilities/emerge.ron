@@ -5,11 +5,23 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "emerge",
     ),
-    // STOP (waits on: `semantics-v2-linked-readback`).
-    // "Emerge [cost]" is an alternative cost plus "its total cost is
-    // reduced by an amount of generic mana equal to the sacrificed creature's mana value"
-    // [CR#702.119a]. The reduction must name the creature the alternative cost sacrificed.
-    // `PaidFacet` reads a paid cost's spent colors and mana, how often it was paid, whether
-    // it was, and the player it chose (`chosenPlayer`), but no facet names the object a
-    // paid cost acted on.
+    // "Emerge [cost]" means "You may cast this spell by paying [cost] and
+    // sacrificing a creature rather than paying its mana cost" and "If you
+    // chose to pay this spell's emerge cost, its total cost is reduced by an
+    // amount of generic mana equal to the sacrificed creature's mana value."
+    // [CR#702.119a] The sacrificed creature is the `objects` Linked Facet of
+    // the alternative cost's sacrifice. "Emerge from [quality]" is its own
+    // declaration (`emergeFrom`) [CR#702.119b].
+    body: [
+        static(mayCastFor(you, compound([Param(0), perform(sacrifice(a(creature)))]))),
+        static(
+            onlyWhile(
+                costShift(
+                    thisSpell,
+                    Less(statOf(Stat(ManaValue), linkedObject(TheAlternative, sacrifice, thisSpell)), None),
+                ),
+                keywordCostPaid(emerge, thisSpell),
+            ),
+        ),
+    ],
 )

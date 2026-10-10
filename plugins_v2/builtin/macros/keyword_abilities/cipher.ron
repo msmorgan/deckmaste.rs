@@ -5,9 +5,30 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "cipher",
     ),
-    // STOP (waits on: `semantics-v2-linked-readback`).
-    // Cipher's first half is a spell ability [CR#702.99a], which a
-    // definition may hold (gift's does), but it exiles the card "encoded on" a creature, and
-    // its second half reads that link [CR#702.99b]. No move rider encodes an exiled card on
-    // a permanent and no `Predicate` reads the relation, so neither half can be written.
+    // "Cipher" means "If this spell is represented by a card, you may exile
+    // this card encoded on a creature you control" and "For as long as this
+    // card is encoded on that creature, that creature has 'Whenever this
+    // creature deals combat damage to a player, you may copy the encoded card
+    // and you may cast the copy without paying its mana cost.'" [CR#702.99a]
+    // Encoding is the `encodedOn` Relation [CR#702.99b]; the creature it is
+    // encoded on is its `counterpart`, which holds the granted ability only
+    // while the relation does [CR#702.99c], and the granted ability reads
+    // "the encoded card" as the card related to it.
+    body: [
+        spell(
+            doIf(
+                matches(this, card),
+                may(sequentially([exile(thisSpell), relate(this, encodedOn, a(creatureYouControl))])),
+            ),
+        ),
+        static(
+            abilityGrant(
+                counterpart(encodedOn, this),
+                triggered(
+                    dealsCombatDamage(thisCreature, a(anyPlayer)),
+                    may(sequentially([copy(FromCardZone, the(and([card, related(encodedOn, thisCreature)])), 1), may(castWithoutPaying(that(Copy)))])),
+                ),
+            ),
+        ),
+    ],
 )

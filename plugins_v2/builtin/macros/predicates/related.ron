@@ -1,0 +1,8 @@
+// "Paired", "paired with <counterpart>", "encoded on <counterpart>": the
+// member stands in the Relation `label` [CR#702.95b,702.99b].
+(
+    name: "related",
+    kinds: [Predicate],
+    params: {"label": RelationLabel, "counterpart": Default(Any, None)},
+    body: Related(Param(label), Param(counterpart)),
+)

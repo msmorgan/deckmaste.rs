@@ -511,6 +511,14 @@ fn overlay() -> Vec<Row> {
             ..D
         },
         Row {
+            label: "EmergeFrom",
+            regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
+            on_spell_card: true,
+            paid_cost: true,
+            ..D
+        },
+        Row {
             label: "Craft",
             paid_cost: true,
             ..D
@@ -692,6 +700,10 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Harmonize",
+            // Two of its three statics function while the spell is on the
+            // stack [CR#702.180a].
+            regime: Some(Regime::AtCasting),
+            functions_on_stack: true,
             on_permanent_card: false,
             on_spell_card: true,
             paid_cost: true,
@@ -908,8 +920,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Cipher",
-            regime: Some(Regime::AtCasting),
-            functions_on_stack: true,
+            // Its spell ability is followed as the spell resolves, and no
+            // static of it functions on the stack [CR#702.99a,113.3a].
+            regime: Some(Regime::AtResolution),
             on_permanent_card: false,
             on_spell_card: true,
             ..D
@@ -1127,6 +1140,7 @@ fn overlay() -> Vec<Row> {
             label: "Offering",
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
+            paid_cost: true,
             ..D
         },
         Row {

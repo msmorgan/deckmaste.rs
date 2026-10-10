@@ -515,6 +515,10 @@ mutual
     [CR#607.2a]; a singular reference still resolves when that ability exiled several cards
     [CR#607.3]. -/
     | .exiledWith _ => true
+    /- "the encoded card" reads a relation from its second side; where several objects stand in
+    it with that counterpart, the reference names each, as a linked "the exiled card" does
+    [CR#702.99b,607.3]. -/
+    | .related _ (some _) => true
     | .castBy _ rank => rank.isSome
     | .and ps => Predicate.uniquifiesAny ps
     | _ => false

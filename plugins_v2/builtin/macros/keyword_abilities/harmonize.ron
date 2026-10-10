@@ -5,9 +5,33 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "harmonize",
     ),
-    // STOP (waits on: `semantics-v2-linked-readback`).
-    // Harmonize's second static reduces the total cost "by an amount
-    // of generic mana equal to the tapped creature's power" [CR#702.180a]. It must name the
-    // creature the first static's cost tapped, and no `PaidFacet` names the object a paid
-    // cost acted on (the cause Emerge and Offering share).
+    // "Harmonize [cost]" means "You may cast this card from your graveyard by
+    // paying [cost] and tapping up to one untapped creature you control rather
+    // than paying this spell's mana cost," "If you cast this spell using its
+    // harmonize ability, its total cost is reduced by an amount of generic
+    // mana equal to the tapped creature's power," and "If the harmonize cost
+    // was paid, exile this card instead of putting it anywhere else any time
+    // it would leave the stack." [CR#702.180a] The tapped creature is the
+    // `objects` Linked Facet of the alternative cost's tap.
+    body: [
+        static(
+            mayCastFor(
+                you,
+                compound([Param(0), perform(tap(counted(upTo(1), and([untapped, creatureYouControl]))))]),
+                graveyardOf(you),
+            ),
+        ),
+        static(
+            onlyWhile(
+                costShift(thisSpell, Less(powerOf(linkedObject(TheAlternative, tap, thisSpell)), None)),
+                keywordCostPaid(harmonize, thisSpell),
+            ),
+        ),
+        static(
+            onlyWhile(
+                insteadOf(leavesZone(thisSpell, stack), exile(thisSpell)),
+                keywordCostPaid(harmonize, thisSpell),
+            ),
+        ),
+    ],
 )

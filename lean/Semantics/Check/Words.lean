@@ -266,7 +266,11 @@ def abilityDeedFacts : List (KeywordLabel × ActFacts) :=
         patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
     ((.named "phasing"),
       { intransitive := true,
-        agentRole := ⟨some ⟨.object, [], []⟩, true, some .battlefield⟩ }) ]
+        agentRole := ⟨some ⟨.object, [], []⟩, true, some .battlefield⟩ }),
+    -- A creature "mutates" when a mutating creature spell merges with it [CR#702.140d].
+    ((.named "mutate"),
+      { intransitive := true,
+        agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩ }) ]
 
 /-- What the checker knows about each keyword action [CR#701.1], keyed by its declaration's
 name. Every column here is the checker's own — the gate a deontic clause reads,

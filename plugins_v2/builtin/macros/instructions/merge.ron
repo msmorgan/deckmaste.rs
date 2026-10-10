@@ -1,0 +1,8 @@
+// `Instruction.Merge` under Lean's own name for it: `subject` is placed on
+// top of or under the permanent `onto` [CR#730.2].
+(
+    name: "merge",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "onto": NounPhrase, "position": MergePosition},
+    body: Merge(Param(subject), Param(onto), Param(position)),
+)

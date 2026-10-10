@@ -1,0 +1,8 @@
+// `Instruction.Relate` under Lean's own name for it: `subject` comes to stand
+// in the Relation `label` with `counterpart` [CR#702.55b,702.95b,702.99b].
+(
+    name: "relate",
+    kinds: [Instruction],
+    params: {"subject": NounPhrase, "label": RelationLabel, "counterpart": NounPhrase},
+    body: Relate(Param(subject), Param(label), Param(counterpart)),
+)

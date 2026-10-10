@@ -1,0 +1,31 @@
+// A relation declaration [CR#702.55b,702.95b,702.99b]. The file writes the
+// kind of each side — `left`, the side a relation names first ("the card
+// haunts the creature"), and `right` — and the meta-macro builds the
+// `Relation` definition from them and from the declaration's own NAME, which
+// is the relation (`haunting`), so the author never writes it. The phrase a
+// card prints is the `spelling` ("haunts"), not the name.
+//
+// `kinds` names the family first and `RelationLabel` second, so the name
+// reads where a relation is written and denotes the label its definition
+// names. A relation is not a construction of the English grammar, so
+// `deckmaste_construction_core` does not read this family.
+(
+    name: "Relation",
+    kinds: [Macro],
+    params: {
+        "name": String,
+        "params": Elidable(Any),
+        "spelling": String,
+        "left": Default(Any, Object),
+        "right": Default(Any, Object),
+    },
+    body: (
+        name: Param(name),
+        kinds: [Relation, RelationLabel],
+        params: Param(params),
+        metadata: (
+            spelling: Param(spelling),
+        ),
+        body: Relation(label: Named(name: Param(name)), left: Param(left), right: Param(right)),
+    ),
+)

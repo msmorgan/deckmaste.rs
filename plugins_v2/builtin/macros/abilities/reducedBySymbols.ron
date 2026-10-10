@@ -1,0 +1,9 @@
+// "<subject>'s total cost is reduced by <cost>": each symbol of the cost
+// reduces mana of its type, any excess reducing generic mana
+// [CR#702.48c,118.7].
+(
+    name: "reducedBySymbols",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "cost": ManaCostTerm},
+    body: CostShift(Param(subject), BySymbols(Param(cost), false, false)),
+)
