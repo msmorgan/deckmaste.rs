@@ -49,6 +49,7 @@ use deckmaste_semantics_v2::words::Deed;
 use deckmaste_semantics_v2::words::DesignationScope;
 use deckmaste_semantics_v2::words::KeywordLabel;
 use deckmaste_semantics_v2::words::Kind;
+use deckmaste_semantics_v2::words::MarkerWord;
 use deckmaste_semantics_v2::words::RoomHalf;
 use deckmaste_semantics_v2::words::Subtype;
 use deckmaste_semantics_v2::words::Zone;
@@ -187,7 +188,11 @@ fn table(out: &mut String, name: &str, ty: &str, rows: &[String]) {
 /// are not (see `overlay`).
 pub(super) struct KeywordDefinition {
     pub(super) word: String,
-    pub(super) categories: Vec<&'static str>,
+    /// Each component's category; `None` is a component qualifying the
+    /// ability printed with the keyword, whose category is that ability's
+    /// and which the overlay's `definition` names from the CR entry
+    /// [CR#702.169a] (`resolved_categories`).
+    pub(super) categories: Vec<Option<&'static str>>,
     /// Each component's stack regime as its form gives it, beside
     /// `categories`.
     pub(super) regimes: Vec<FormRegime>,
@@ -217,16 +222,27 @@ enum KeywordShape {
 /// [CR#702.1] — a spell ability as the half a keyword represents on an instant
 /// or sorcery spell [CR#702.174b] — so a body ability of any other shape is a
 /// refusal.
-fn category(ability: &Ability) -> anyhow::Result<&'static str> {
-    Ok(match ability {
+///
+/// A qualified ability has the category of the ability it wraps
+/// [CR#113.10a]. Where that is the keyword's own `Ability` argument (the
+/// sample invocation's argument has no category), the component's category
+/// is the printed ability's, `None` here.
+fn category(ability: &Ability) -> anyhow::Result<Option<&'static str>> {
+    Ok(Some(match ability {
         Ability::Static { .. } => ".static",
         Ability::Triggered { .. } => ".triggered",
         Ability::Activated { .. } => ".activated",
         Ability::Spell { .. } => ".spell",
+        Ability::Qualified { ability, .. } => {
+            return match &**ability {
+                Ability::MayBeginOnBattlefield | Ability::Keyword { .. } => Ok(None),
+                inner => category(inner),
+            };
+        }
         other => anyhow::bail!(
             "a keyword definition is static, triggered, activated or spell: {other:?}"
         ),
-    })
+    }))
 }
 
 /// The stack regime a definition component's form gives it, as Lean's
@@ -265,6 +281,16 @@ fn static_regime(spec: &StaticSpec) -> FormRegime {
             static_regime(body)
         }
         StaticSpec::Conditional { spec, .. } => static_regime(spec),
+        // An ability's cost is determined as it is activated, not as a spell
+        // is cast [CR#602.2b,601.2f] (power-up [CR#702.193a]).
+        StaticSpec::CostShift {
+            subject:
+                NounPhrase::AsMarker {
+                    marker: MarkerWord::Ability,
+                    ..
+                },
+            ..
+        } => FormRegime::Determined(None),
         StaticSpec::AddedCost { .. }
         | StaticSpec::CostShift { .. }
         | StaticSpec::PaySubstitute { .. }
@@ -327,6 +353,7 @@ fn names_this(subject: &NounPhrase) -> bool {
 /// resolves [CR#113.3a].
 fn form_regime(ability: &Ability) -> FormRegime {
     match ability {
+        Ability::Qualified { ability, .. } => form_regime(ability),
         Ability::Static { spec } => static_regime(spec),
         Ability::Triggered { event, .. } => FormRegime::Determined(event_regime(event)),
         Ability::Spell { .. } => FormRegime::Determined(Some(Regime::AtResolution)),
@@ -342,7 +369,7 @@ fn keyword_categories(
     plugin: &Plugin,
     samples: &Samples,
     name: &str,
-) -> anyhow::Result<Vec<(&'static str, FormRegime)>> {
+) -> anyhow::Result<Vec<(Option<&'static str>, FormRegime)>> {
     let declaration = plugin
         .declarations
         .get(&(
@@ -689,23 +716,51 @@ fn written_components(
             row.label
         );
     }
-    Ok(declared
+    let mut components = Vec::new();
+    for (index, (category, form)) in declared.categories.iter().zip(&declared.regimes).enumerate()
+    {
+        let Some(category) = category else {
+            // The printed ability's own: each category the CR entry admits.
+            anyhow::ensure!(
+                !row.definition.is_empty(),
+                "{}: component {index} qualifies the printed ability, so the overlay names \
+                 its categories",
+                row.label
+            );
+            components.extend(
+                row.definition
+                    .iter()
+                    .map(|(category, regime)| (category.lean(), *regime)),
+            );
+            continue;
+        };
+        let regime = match form {
+            FormRegime::Determined(regime) => *regime,
+            FormRegime::Open => row
+                .open_regimes
+                .iter()
+                .find(|(at, _)| *at == index)
+                .map(|(_, regime)| *regime),
+        };
+        components.push((*category, regime));
+    }
+    Ok(components)
+}
+
+/// A declared definition's categories, each printed-ability component read
+/// as the categories the overlay names for it (`written_components`).
+pub(super) fn resolved_categories(
+    row: &super::Row,
+    declared: &KeywordDefinition,
+) -> Vec<&'static str> {
+    declared
         .categories
         .iter()
-        .zip(&declared.regimes)
-        .enumerate()
-        .map(|(index, (category, form))| {
-            let regime = match form {
-                FormRegime::Determined(regime) => *regime,
-                FormRegime::Open => row
-                    .open_regimes
-                    .iter()
-                    .find(|(at, _)| *at == index)
-                    .map(|(_, regime)| *regime),
-            };
-            (*category, regime)
+        .flat_map(|category| match category {
+            Some(category) => vec![*category],
+            None => row.definition.iter().map(|(category, _)| category.lean()).collect(),
         })
-        .collect())
+        .collect()
 }
 
 fn keyword_rows(

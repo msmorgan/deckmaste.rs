@@ -24,6 +24,10 @@ semantic_macro abilityGrant (subject : Semantics.NounPhrase) (ability : Semantic
 semantic_macro abilityGrantFrom (subject : Semantics.NounPhrase) (source : Semantics.NounPhrase) (classes : (List Semantics.AbilityClass) := []) (except : (Option Semantics.Predicate) := none) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.abilityGrantFrom subject classes source except)
 
+/-- `abilities/abilityGrantSelected.ron` -/
+semantic_macro abilityGrantSelected (subject : Semantics.NounPhrase) (source : Semantics.NounPhrase) (selection : Semantics.AbilitySelection) : Semantics.StaticSpec :=
+  (Semantics.StaticSpec.abilityGrantSelected subject source selection)
+
 /-- `abilities/abilityWord.ron` -/
 semantic_macro abilityWord (word : String) (ability : Semantics.Ability) : Semantics.Ability :=
   (Semantics.Ability.italicHead (Semantics.ItalicWord.abilityWord word) ability)
@@ -288,6 +292,10 @@ semantic_macro onceEachYourTurn : Semantics.UsageLimit :=
 semantic_macro oncePerGame : Semantics.UsageLimit :=
   (Semantics.UsageLimit.mk (Semantics.CountBound.moreThan (Semantics.Amount.lit 1)) Semantics.Period.game)
 
+/-- `abilities/oncePerObject.ron` -/
+semantic_macro oncePerObject : Semantics.UsageLimit :=
+  (Semantics.UsageLimit.mk (Semantics.CountBound.moreThan (Semantics.Amount.lit 1)) Semantics.Period.thisObject)
+
 /-- `abilities/oncePerTurn.ron` -/
 semantic_macro oncePerTurn : Semantics.UsageLimit :=
   (Semantics.UsageLimit.mk (Semantics.CountBound.moreThan (Semantics.Amount.lit 1)) Semantics.Period.turn)
@@ -327,6 +335,10 @@ semantic_macro ptModification (subject : Semantics.NounPhrase) (power : (Semanti
 /-- `abilities/ptSwitch.ron` -/
 semantic_macro ptSwitch (subject : Semantics.NounPhrase) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.ptSwitch subject)
+
+/-- `abilities/qualified.ron` -/
+semantic_macro qualified (ability : Semantics.Ability) (timing : (Option Semantics.Timing) := none) (limit : (Option Semantics.UsageLimit) := none) (guard : (Option Semantics.Condition) := none) (from_ : (Option Semantics.Zone) := none) : Semantics.Ability :=
+  (Semantics.Ability.qualified ability timing limit guard from_)
 
 /-- `abilities/reducedBySymbols.ron` -/
 semantic_macro reducedBySymbols (subject : Semantics.NounPhrase) (cost : Semantics.ManaCostTerm) : Semantics.StaticSpec :=
@@ -767,6 +779,10 @@ semantic_macro preventedThisWay : Semantics.Amount :=
 /-- `amounts/set.ron` -/
 semantic_macro set (amount : Semantics.Amount) : (Semantics.Delta Semantics.Amount) :=
   (Semantics.Delta.set amount)
+
+/-- `amounts/speedOf.ron` -/
+semantic_macro speedOf (player : Semantics.NounPhrase) : Semantics.Amount :=
+  (Semantics.Amount.statOf (Semantics.ProjAxis.playerStat Semantics.PlayerStat.speed) player)
 
 /-- `amounts/statOf.ron` -/
 semantic_macro statOf (axis : Semantics.ProjAxis) (subject : Semantics.NounPhrase) : Semantics.Amount :=
@@ -2042,7 +2058,7 @@ semantic_macro awaken (arg0 : Semantics.Amount) (arg1 : Semantics.Cost) : Semant
 
 /-- `keyword_abilities/backup.ron` -/
 semantic_macro backup (arg0 : Semantics.Amount) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "backup") [(Semantics.KeywordParam.number arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "backup") [(Semantics.KeywordParam.number arg0)] [(Semantics.Ability.triggered (Semantics.GameEvent.zoneChange (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none) none (some (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)) Semantics.ObservationPoint.after) [] none [] none none none (Semantics.Instruction.sequentially [(Semantics.Instruction.putCounters arg0 (Semantics.CounterKindSource.printed (Semantics.CounterKind.named "p1p1Counter")) (Semantics.NounPhrase.described (Semantics.DetPhrase.target (Semantics.Quantity.range (some 1) (some 1))) (Semantics.Predicate.hasType Semantics.CardType.creature))), (Semantics.Instruction.doIf (Semantics.Condition.matches (Semantics.NounPhrase.pro (Semantics.Reach.word (Semantics.NounWord.type Semantics.CardType.creature)) Semantics.Plurality.one Semantics.Window.whole) (Semantics.Predicate.otherThan (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none))) (Semantics.Instruction.establish (Semantics.StaticSpec.abilityGrantSelected (Semantics.NounPhrase.pro (Semantics.Reach.word (Semantics.NounWord.type Semantics.CardType.creature)) Semantics.Plurality.one Semantics.Window.whole) (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none) (Semantics.AbilitySelection.printedAfter (Semantics.KeywordLabel.named "backup"))) (some (Semantics.Duration.between none (some (Semantics.GameEvent.endOf Semantics.TurnPart.turn none Semantics.TurnRef.current))))) none)]))])
 
 /-- `keyword_abilities/banding.ron` -/
 semantic_macro banding : Semantics.Ability :=
@@ -2070,7 +2086,7 @@ semantic_macro bloodthirst (arg0 : Semantics.Amount) : Semantics.Ability :=
 
 /-- `keyword_abilities/boast.ron` -/
 semantic_macro boast (arg0 : Semantics.Ability) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "boast") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "boast") [(Semantics.KeywordParam.ability arg0)] [(Semantics.Ability.qualified arg0 none (some (Semantics.UsageLimit.mk (Semantics.CountBound.moreThan (Semantics.Amount.lit 1)) Semantics.Period.turn)) (some (Semantics.Condition.matches (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none) (Semantics.Predicate.happenedTo (Semantics.LookbackClause.mk (Semantics.GameEvent.combat Semantics.CombatRelation.attackerOf (Semantics.NounPhrase.gap Semantics.Kind.object) none) (Semantics.Duration.between (some (Semantics.GameEvent.beginningOf Semantics.TurnPart.turn none Semantics.TurnRef.current)) (some Semantics.GameEvent.now)) none)))) none)])
 
 /-- `keyword_abilities/bushido.ron` -/
 semantic_macro bushido (arg0 : Semantics.Amount) : Semantics.Ability :=
@@ -2258,7 +2274,7 @@ semantic_macro exalted : Semantics.Ability :=
 
 /-- `keyword_abilities/exhaust.ron` -/
 semantic_macro exhaust (arg0 : Semantics.Ability) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "exhaust") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "exhaust") [(Semantics.KeywordParam.ability arg0)] [(Semantics.Ability.qualified arg0 none (some (Semantics.UsageLimit.mk (Semantics.CountBound.moreThan (Semantics.Amount.lit 1)) Semantics.Period.thisObject)) none none)])
 
 /-- `keyword_abilities/exploit.ron` -/
 semantic_macro exploit : Semantics.Ability :=
@@ -2310,7 +2326,7 @@ semantic_macro forMirrodin : Semantics.Ability :=
 
 /-- `keyword_abilities/forecast.ron` -/
 semantic_macro forecast (arg0 : Semantics.Ability) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "forecast") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "forecast") [(Semantics.KeywordParam.ability arg0)] [(Semantics.Ability.qualified arg0 (some (Semantics.Timing.inPart Semantics.TurnPart.upkeep (some (Semantics.NounPhrase.possessorOf Semantics.PossessorAxis.owner Semantics.NounPhrase.this)) Semantics.TurnRef.current)) (some (Semantics.UsageLimit.mk (Semantics.CountBound.moreThan (Semantics.Amount.lit 1)) Semantics.Period.turn)) none (some Semantics.Zone.hand))])
 
 /-- `keyword_abilities/foretell.ron` -/
 semantic_macro foretell (arg0 : Semantics.Cost) : Semantics.Ability :=
@@ -2414,7 +2430,7 @@ semantic_macro infect : Semantics.Ability :=
 
 /-- `keyword_abilities/infinity.ron` -/
 semantic_macro infinity (arg0 : Semantics.Ability) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "infinity") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "infinity") [(Semantics.KeywordParam.ability arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.conditional (Semantics.StaticSpec.abilityGrant (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this) arg0) (Semantics.Condition.matches (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this) (Semantics.Predicate.hasDesignation (Semantics.DesignationLabel.named "harnessed") none)) Semantics.CondMarking.asLongAs))])
 
 /-- `keyword_abilities/ingest.ron` -/
 semantic_macro ingest : Semantics.Ability :=
@@ -2462,7 +2478,7 @@ semantic_macro madness (arg0 : Semantics.Cost) : Semantics.Ability :=
 
 /-- `keyword_abilities/maxSpeed.ron` -/
 semantic_macro maxSpeed (arg0 : Semantics.Ability) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "maxSpeed") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "maxSpeed") [(Semantics.KeywordParam.ability arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.conditional (Semantics.StaticSpec.abilityGrant Semantics.NounPhrase.this arg0) (Semantics.Condition.compareAmt (Semantics.Amount.statOf (Semantics.ProjAxis.playerStat Semantics.PlayerStat.speed) Semantics.NounPhrase.you) Semantics.Comparator.eq (Semantics.Amount.lit 4)) Semantics.CondMarking.asLongAs))])
 
 /-- `keyword_abilities/mayhem.ron` -/
 semantic_macro mayhem (arg0 : Semantics.Cost) : Semantics.Ability :=
@@ -2562,7 +2578,7 @@ semantic_macro poisonous (arg0 : Semantics.Amount) : Semantics.Ability :=
 
 /-- `keyword_abilities/powerUp.ron` -/
 semantic_macro powerUp (arg0 : Semantics.Ability) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "powerUp") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "powerUp") [(Semantics.KeywordParam.ability arg0)] [(Semantics.Ability.qualified arg0 none (some (Semantics.UsageLimit.mk (Semantics.CountBound.moreThan (Semantics.Amount.lit 1)) Semantics.Period.thisObject)) none none), (Semantics.Ability.static (Semantics.StaticSpec.conditional (Semantics.StaticSpec.costShift (Semantics.NounPhrase.asMarker Semantics.MarkerWord.ability Semantics.NounPhrase.this) (Semantics.CostShift.bySymbols (Semantics.ManaCostTerm.manaCostOf (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this)) false false)) (Semantics.Condition.matches (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this) (Semantics.Predicate.happenedTo (Semantics.LookbackClause.mk (Semantics.GameEvent.zoneChange (Semantics.NounPhrase.gap Semantics.Kind.object) none (some (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)) Semantics.ObservationPoint.after) (Semantics.Duration.between (some (Semantics.GameEvent.beginningOf Semantics.TurnPart.turn none Semantics.TurnRef.current)) (some Semantics.GameEvent.now)) none))) Semantics.CondMarking.asLongAs))])
 
 /-- `keyword_abilities/protection.ron` -/
 semantic_macro protection (arg0 : Semantics.Predicate) : Semantics.Ability :=
@@ -2662,7 +2678,7 @@ semantic_macro sneak (arg0 : Semantics.Cost) : Semantics.Ability :=
 
 /-- `keyword_abilities/solved.ron` -/
 semantic_macro solved (arg0 : Semantics.Ability) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "solved") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "solved") [(Semantics.KeywordParam.ability arg0)] [(Semantics.Ability.qualified arg0 none none (some (Semantics.Condition.matches (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Case"))) (Semantics.Predicate.hasDesignation (Semantics.DesignationLabel.named "solved") none))) none)])
 
 /-- `keyword_abilities/soulbond.ron` -/
 semantic_macro soulbond : Semantics.Ability :=

@@ -5,8 +5,24 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "backup",
     ),
-    // STOP (waits on: `semantics-v2-ability-qualifiers`).
-    // "Backup N" grants "the non-backup abilities of this creature printed
-    // below this one" [CR#702.165a]. No `Predicate` reads a printed position in the
-    // text box, so `StaticSpec::AbilityGrantFrom`'s `except` cannot select them.
+    // "Backup N" means "When this creature enters, put N +1/+1 counters on
+    // target creature. If that's another creature, it also gains the
+    // non-backup abilities of this creature printed below this one until end
+    // of turn." [CR#702.165a] Only printed abilities are granted
+    // [CR#702.165c].
+    body: [
+        triggered(
+            enters(thisCreature),
+            sequentially([
+                putCounters(Param(0), p1p1Counter, target(creature)),
+                doIf(
+                    matches(that(Creature), otherThan(thisCreature)),
+                    establish(
+                        abilityGrantSelected(that(Creature), thisCreature, PrintedAfter(backup)),
+                        untilEndOfTurn,
+                    ),
+                ),
+            ]),
+        ),
+    ],
 )

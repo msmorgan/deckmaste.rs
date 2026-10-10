@@ -6,11 +6,8 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "max speed",
     ),
-    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // "Max speed — [Ability]" means "As long as your speed is 4, this object
-    // has '[Ability].'" [CR#702.178a] Two things are missing at once: `KeywordParam`
-    // has no `Ability` variant to forward the declaration's argument with (the cause
-    // Boast, Gift and Infinity share), and a player's speed [CR#702.179b] is a
-    // player-level value no `Amount` projects — `PlayerStat` has only `LifeTotal`
-    // and `StartingLifeTotal`.
+    // has '[Ability].'" [CR#702.178a] Speed is a player's
+    // [CR#702.179a]; the engine keeps it (`engine-speed`).
+    body: [static(onlyWhile(abilityGrant(this, Param(0)), compareAmt(speedOf(you), Eq, 4)))],
 )

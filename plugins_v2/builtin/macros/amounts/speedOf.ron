@@ -1,0 +1,8 @@
+// "<player>'s speed" [CR#702.179a]; a player with no speed reads 0
+// [CR#702.179f].
+(
+    name: "speedOf",
+    kinds: [Amount],
+    params: {"player": NounPhrase},
+    body: StatOf(PlayerStat(Speed), Param(player)),
+)

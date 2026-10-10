@@ -422,6 +422,8 @@ semantic_macro oncePerTurn : UsageLimit := ⟨.moreThan (.lit 1), .turn⟩
 semantic_macro oncePerGame : UsageLimit := ⟨.moreThan (.lit 1), .game⟩
 /-- "only once during each of your turns" -/
 semantic_macro onceEachYourTurn : UsageLimit := ⟨.moreThan (.lit 1), .yourTurn⟩
+/-- "Activate only once": no more than one while the object exists [CR#602.5b,702.177a]. -/
+semantic_macro oncePerObject : UsageLimit := ⟨.moreThan (.lit 1), .thisObject⟩
 /-- "<instruction>. Do this only once each turn." [CR#603.2h] -/
 semantic_macro doOnlyOnceEachTurn (instruction : Instruction) : Instruction :=
   .limited instruction oncePerTurn
@@ -429,6 +431,8 @@ semantic_macro doOnlyOnceEachTurn (instruction : Instruction) : Instruction :=
 /-! ## Amounts -/
 
 semantic_macro lifeTotalOf (player : NounPhrase) : Amount := .statOf (.playerStat .lifeTotal) player
+/-- "<player>'s speed" [CR#702.179a]. -/
+semantic_macro speedOf (player : NounPhrase) : Amount := .statOf (.playerStat .speed) player
 semantic_macro powerOf (subject : NounPhrase) : Amount := .statOf (.stat .power) subject
 semantic_macro toughnessOf (subject : NounPhrase) : Amount := .statOf (.stat .toughness) subject
 semantic_macro countersOn (kind : CounterKind) (holder : NounPhrase) : Amount := .statOf (.counter kind) holder
@@ -1490,6 +1494,17 @@ semantic_macro activatedOnlyOnce (cost : Cost) (instruction : Instruction) (limi
 /-- "[cost]: <instruction>. Activate only if <guard>." -/
 semantic_macro activatedOnlyIf (cost : Cost) (instruction : Instruction) (guard : Condition) : Ability :=
   .activated cost instruction none none (some guard) none
+/-- `ability` with the restrictions a keyword or a granting effect adds to it [CR#113.10a]: when,
+how often, the guard read by its category [CR#702.169b..702.169d], and the zone it functions
+from [CR#113.6b]. -/
+semantic_macro qualified (ability : Ability) (timing : Option Timing := none)
+    (limit : Option UsageLimit := none) (guard : Option Condition := none)
+    (from_ : Option Zone := none) : Ability :=
+  .qualified ability timing limit guard from_
+/-- "<subject> has <selection> of <source>" (backup [CR#702.165a]). -/
+semantic_macro abilityGrantSelected (subject : NounPhrase) (source : NounPhrase)
+    (selection : AbilitySelection) : StaticSpec :=
+  .abilityGrantSelected subject source selection
 /-- "[cost]: <instruction>. Activate only once <limit> and only if <guard>." -/
 semantic_macro activatedOnlyOnceIf (cost : Cost) (instruction : Instruction) (limit : UsageLimit)
     (guard : Condition) : Ability :=

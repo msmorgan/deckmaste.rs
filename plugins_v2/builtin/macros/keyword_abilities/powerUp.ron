@@ -6,9 +6,18 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "power-up",
     ),
-    // STOP (waits on: `semantics-v2-ability-qualifiers`).
-    // Power-up has no [CR#702] entry in the Comprehensive Rules this repo
-    // ships, so there is no definition to port, and the declaration's argument is an
-    // `Ability`, which `KeywordParam` has no variant to forward (the cause Boast,
-    // Gift, Infinity, Max Speed and Solved share).
+    // "Power-up — [Cost]: [Effect]" means "[Cost]: [Effect]. If this
+    // permanent entered this turn, this ability's cost is reduced by this
+    // permanent's mana cost. Activate this ability only once." [CR#702.193a]
+    // The reduction is symbol by symbol, any excess reducing generic mana
+    // [CR#702.193b,118.7].
+    body: [
+        qualified(ability: Param(0), limit: oncePerObject),
+        static(
+            onlyWhile(
+                reducedBySymbols(thisAbility, manaCostOf(thisPermanent)),
+                matches(thisPermanent, happenedTo(enters(relative(Object)), soFarThisTurn)),
+            ),
+        ),
+    ],
 )

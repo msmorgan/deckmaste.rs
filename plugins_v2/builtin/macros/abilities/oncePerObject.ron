@@ -1,0 +1,8 @@
+// "Activate only once": no more than one while the object exists, a zone
+// change making it a new object [CR#602.5b,702.177a].
+(
+    name: "oncePerObject",
+    kinds: [UsageLimit],
+    params: [],
+    body: Mk(MoreThan(1), ThisObject),
+)

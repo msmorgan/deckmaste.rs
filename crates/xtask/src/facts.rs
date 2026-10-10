@@ -143,12 +143,11 @@ impl Regime {
 /// The general category an ability is written in [CR#113.3]. A keyword's
 /// definition — the body its `Ability.keyword` term may carry [CR#702.1] — is
 /// an ability of one of these.
+///
+/// The overlay names categories for the keywords whose definition the
+/// workbench cannot spell, and for those whose definition qualifies the
+/// ability printed with the keyword, whose category is that ability's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[expect(
-    dead_code,
-    reason = "the three [CR#113.3] categories; the overlay carries only the keywords whose \
-              definition the workbench cannot spell, and each of those is triggered"
-)]
 enum Category {
     Static,
     Triggered,
@@ -455,14 +454,23 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Boast",
+            // The definition qualifies the activated ability printed with the
+            // keyword; the [CR#702.142a] entry names its category.
+            definition: &[(Category::Activated, None)],
             ..D
         },
         Row {
             label: "Exhaust",
+            // The definition qualifies the activated ability printed with the
+            // keyword; the [CR#702.177a] entry names its category.
+            definition: &[(Category::Activated, None)],
             ..D
         },
         Row {
             label: "PowerUp",
+            // The definition qualifies the activated ability printed with the
+            // keyword; the [CR#702.193a] entry names its category.
+            definition: &[(Category::Activated, None)],
             ..D
         },
         Row {
@@ -910,9 +918,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Backup",
-            // The workbench cannot spell this definition, so the declaration
-            // writes none and the [CR#702.165a] entry is what names its category.
-            definition: &[(Category::Triggered, None)],
             ..D
         },
         Row {
@@ -1044,6 +1049,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Forecast",
+            // The definition qualifies the activated ability printed with the
+            // keyword; the [CR#702.57a] entry names its category.
+            definition: &[(Category::Activated, None)],
             on_spell_card: true,
             ..D
         },
@@ -1252,6 +1260,13 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Solved",
+            // The definition qualifies the ability printed with the keyword,
+            // which is static, triggered or activated [CR#702.169a].
+            definition: &[
+                (Category::Static, None),
+                (Category::Triggered, None),
+                (Category::Activated, None),
+            ],
             ..D
         },
         Row {
@@ -1519,7 +1534,7 @@ fn render(root: &Path) -> anyhow::Result<String> {
         // column means "the entry defines ONE triggered ability with a quoted
         // expansion" — so a multi-category definition is not bodied there.
         let categories = declared
-            .map(|declared| declared.categories.clone())
+            .map(|declared| lean::resolved_categories(row, declared))
             .filter(|categories| !categories.is_empty())
             .unwrap_or_else(|| row.definition.iter().map(|(c, _)| c.lean()).collect());
         if categories == [Category::Triggered.lean()] {

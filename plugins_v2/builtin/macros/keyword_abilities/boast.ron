@@ -6,13 +6,13 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "boast",
     ),
-    // STOP (waits on: `semantics-v2-ability-qualifiers`).
     // "Boast — [Cost]: [Effect]" means "[Cost]: [Effect]. Activate only if
     // this creature attacked this turn and only once each turn." [CR#702.142a]
-    // The guard and limit are now writable (`happened(attacks(this), …,
-    // soFarThisTurn)`, `oncePerTurn`), but
-    // `KeywordParam` has no `Ability` variant, so the declaration's `Ability`
-    // argument cannot be carried in `params`, and the definition wraps that
-    // argument's cost and effect in new `guard` and `limit` riders, which requires
-    // reading them out of it.
+    body: [
+        qualified(
+            ability: Param(0),
+            limit: oncePerTurn,
+            guard: matches(thisCreature, happenedTo(attacks(relative(Object)), soFarThisTurn)),
+        ),
+    ],
 )

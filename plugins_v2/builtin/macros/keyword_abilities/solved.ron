@@ -6,12 +6,10 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "solved",
     ),
-    // STOP (waits on: `semantics-v2-ability-qualifiers`).
-    // "Solved — [Ability text]" qualifies the ability written after the keyword:
-    // a static one gains "as long as this Case is solved", a triggered one "this
-    // ability triggers only if this Case is solved", an activated one "activate only
-    // if this Case is solved" [CR#702.169b..702.169d]. `KeywordParam` has no `Ability`
-    // variant to forward the declaration's argument with, and nothing lets a
-    // definition qualify the ability printed after it (the causes Boast and Backup
-    // share).
+    // "Solved — [Ability text]" is a static, triggered or activated ability
+    // [CR#702.169a], restricted by the one guard: "as long as this Case is
+    // solved" for a static ability, "this ability triggers only if this Case
+    // is solved" for a triggered one, "activate only if this Case is solved"
+    // for an activated one [CR#702.169b..702.169d].
+    body: [qualified(ability: Param(0), guard: matches(thisCase, hasDesignation(solved)))],
 )

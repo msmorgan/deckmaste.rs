@@ -1,0 +1,9 @@
+// "<subject> has <selection> of <source>": the abilities of `source` the
+// selection picks, as backup grants "the non-backup abilities of this
+// creature printed below this one" [CR#702.165a].
+(
+    name: "abilityGrantSelected",
+    kinds: [StaticSpec],
+    params: {"subject": Subject, "source": Subject, "selection": Any},
+    body: AbilityGrantSelected(Param(subject), Param(source), Param(selection)),
+)

@@ -1,0 +1,17 @@
+// "<ability>. Activate only <timing>, only <limit>, only if <guard>." and the
+// like: the restrictions a keyword or a granting effect adds to an ability
+// [CR#113.10a]. The guard reads "as long as", "this ability triggers only if"
+// or "activate only if" by the wrapped ability's category
+// [CR#702.169b..702.169d]; `from` is the zone it functions from [CR#113.6b].
+(
+    name: "qualified",
+    kinds: [Ability],
+    params: {
+        "ability": Ability,
+        "timing": Default(Any, None),
+        "limit": Default(Any, None),
+        "guard": Default(Any, None),
+        "from": Default(Any, None),
+    },
+    body: Qualified(Param(ability), Param(timing), Param(limit), Param(guard), Param(from)),
+)
