@@ -117,7 +117,21 @@ and continuation; the final checks are recorded below.
    covered controls, seed 20261008 (60 overlaps). The final frame-constrained
    census at `yovlyztp` has identical totals; its official line diff reports
    0 gained/lost/decreased/increased/digest-only faces and 0 issues.
-   Evidence: before.json, after-final.json, diff-final.json. Lost faces: none. The only supported
+   Evidence: before.json, after-final.json, diff-final.json. Lost faces: none.
+   After refresh at `xxtorssp`: 5,972 → 6,045 covered, 214,320 → 216,140
+   Readings; 73 trunk gains, 0 lost/increases, 25 decreases and 80 digest-only
+   faces. The official after-final → refresh-after diff attributes every
+   change to refresh, with the identical counts above. The 25 decreases are
+   the 62 outer-focus Readings deliberately retired by `qktrquumtlmk`, CF7,
+   in [coordinated-focused-adjuncts](../done/english-v3-coordinated-focused-adjuncts.md).
+   Their face counts are: Arcum's Sleigh 2→1; Ashen Ghoul 3→2; Assassin's Blade 7→4; Champion's Victory 7→4; Coffin Puppets 2→1; Command of Unsummoning 7→4; Deep Wood 30→27; Defenders of Humanity 21→14; Defiant Stand 7→4; Eightfold Maze 7→4; Essence Anchor 3→2; Gutterbones 3→2; Hakim, Loreweaver 4→3; Harsh Justice 12→9; Heavy Fog 30→27; Just Fate 7→4; Kjeldoran Guard 2→1; Kongming's Contraptions 6→3; Kuldotha Phoenix 5→3; Nemesis Phoenix 3→2; Rally the Troops 7→4; Remove 7→4; Scorching Winds 7→4; Treetop Defense 7→4; Warrior's Stand 7→4.
+   No decrease originates in this ticket's pre-refresh change. Nevertheless,
+   the post-refresh 25 decreases fail VW10's literal self-integration gate:
+   STOP, pending a ruling. No retired wrong outer-focus route is restored.
+   The other incoming implementations are `vszmnwup` / `ttzrlpkw`
+   (comparatives), `mqyqzunv` (devotion) and `tsvuoyup` (spelled cardinals);
+   refresh-incoming-changes.txt lists the complete ancestry. Census evidence:
+   refresh-after.json, refresh-diff.json, refresh-only-diff.json. The only supported
    haunted face is Cecily, Haunted Mage: haunted occurs in its proper Name,
    so no covered-face state-Adjective increase is expected there.
 2. **Witnesses** — At `yovlyztp`, the six requested while probes each read 1:
@@ -133,7 +147,8 @@ and continuation; the final checks are recorded below.
    1 each; local while saddled stays 1, has flying while tapped changes 0→1,
    finite while saddled stays 2, finite while tapped stays 4, and the attack
    trigger control stays 1. All final probes enumerate completely with 0 issues.
-3. **Spot checks** — No newly covered corpus faces exist in the final diff,
+3. **Spot checks** — No ticket-owned newly covered corpus faces exist in the
+   pre-refresh final diff,
    so there are no ten gained faces to name. Independent hypothetical probes
    and role assertions exercise saddled, prepared, tapped, untapped, blocked,
    crewed, exiled, equipped, enchanted and suspended (plus haunted): each
@@ -148,7 +163,14 @@ and continuation; the final checks are recorded below.
    the loader, without naming a word or changing owners. Haunt declares the
    existing participial-adjective recipe on its owning plugin: no schema
    change or core member row. The vocabulary-source STOP at `znzxkzuk` was
-   resolved by VW10; no residual has been encountered. One extra blocked
+   resolved by VW10. A later native-source audit at `xxtorssp` found
+   invariant core Adjectives unblocked and unspent with empty feature maps,
+   no state/participial marker or declared state-class membership. Both is/remains
+   controls read 1; both bare while phrases read 0, completely with 0
+   issues. Integration is held for the VW7 unmarked-class STOP unless a
+   ruling classifies these existing ordinary Adjective sources as VW10
+   vocabulary residuals. No word list or new marker has been introduced.
+   Evidence: marker-probe-*.json; core.ron owns both declarations. One extra blocked
    route was found by probes: the selected by-Complement frame was accepted
    without its Complement. The existing VerblessClause now separates native
    participial unframed/intransitive selections from ordinary licensed heads;
@@ -172,6 +194,11 @@ and continuation; the final checks are recorded below.
    --diff audits 0 citation sites; cargo xtask facts check passes. The
    citation checker initially treated a decimal timing as a rule-number
    lookalike; integer seconds resolved that documentation-only failure.
-6. **Timing** — Final bounded census at `yovlyztp`: 208 s (rounded wall
-   time), six workers, zero samples per face. No full corpus census was run, per the binding verification
-   budget; evidence is under target/english-v3/english-v3-verbless-state-predicate-class/.
+   After refresh at `xxtorssp`, cargo build -p xtask and the same four full
+   touched-crate test/clippy commands PASS again: 975 English tests and 86
+   lexical-source tests. The once-required xtask English and Lean checks
+   are retained; refresh changed no xtask code or plugin definitions.
+6. **Timing** — Latest bounded census at `xxtorssp`: 956 s (rounded wall
+   time, including Cargo's build-lock wait), six workers, zero samples per
+   face. No full corpus census was run, per the binding verification budget.
+   Evidence is under target/english-v3/english-v3-verbless-state-predicate-class/.
