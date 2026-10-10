@@ -738,8 +738,8 @@ obligations rather than correct coverage gains:
   *more life than you* as Object, followed by a plain Do
   BareAuxiliaryPredicate / BareEllipsis (OmittedPlain). The three Readings
   attach *as you activate this ability* at different levels. Missing piece:
-  a comparative clause with stranded auxiliary, *than you do / did*; nine
-  attested faces are listed in that ticket's Out of scope. Re-examine these
+  a comparative clause with stranded auxiliary, *than you do / did / does*;
+  ten attested faces (nine *do*/*did*, one *does*: Oath of Ghouls). Re-examine these
   causative-Have + bare-Do Readings when that construction is ticketed.
 - **Diligent Farmhand; Pardic Firecat**
   (from `english-v3-vocabulary-batch-2`, recorded by CQ-R1):
