@@ -35,7 +35,8 @@ revealed state": the wrong reading for these cards.
 2. *with* takes a clause Complement with an overt Subject and a predicative
    past participle or Adjective: *with their hands revealed*, *with the top
    card of your library revealed*, *with that card revealed in their hand*.
-   The whole PP is an Adjunct of the *play* predicate.
+   Under PW-R1 (orchestrator ruling, 2026-10-10), the marked *with* role
+   is a selected Complement of the verb, not a general Adjunct.
 
 ## Analysis
 
@@ -96,6 +97,64 @@ Orchestrator rulings 2026-10-10:
   adjectival predicate (no PP predicate) is the authorised narrowing, since
   only that is attested as an absolute here.
 
+### Claim-parent probes and resolved STOP (2026-10-10)
+
+Measured with the workspace-built binary on claim parent `qpqyvsou`, before
+implementation: all five witnesses 0; the three intransitive sentence probes
+0; the five unchanged controls 1 each; attack-with-revealed 1; counter-entry
+2. No witness was dropped. Evidence is under
+`target/english-v3/english-v3-play-with-absolute/`.
+
+Draft `wwzpptst` adds the empty frame after the existing Object frame, declares
+an `OvertSubject` value of `VerblessClauseComplement` on *with*, and retains
+the subjectless `Yes` value on *if*. The existing preposition Construction
+agrees its licence with the Complement's shape; two subject–predicate
+Constructions supply an adjectival or bare-passive predicate. No PP predicate
+is admitted and no lexeme-naming guard is added.
+
+Initial STOP (resolved by PW-R1 below): the general implementation conflicts
+with PW4's expected witness count and the unchanged *look* control. On
+`wwzpptst`, Telepathy and Enduring Renewal have 2 Readings each. Field of
+Dreams and Future Sight have 7 each: 2 subject–predicate clause Complements
+(the Subject NP has two existing Modifier scopes) and 5 NP-postmodifier
+analyses. Sen Triplets' complete printed line has 84 Document Readings; its
+previously failing *This turn … revealed.* sentence has 4. These probes
+enumerated completely. The *look … with it revealed* control rises 1 → 3:
+the existing Object-NP analysis remains, plus clause Adjuncts at lexical-verb
+and modal levels. Attack-with-revealed rises 1 → 2; counter-entry stays 2;
+the other four unchanged controls stay 1. The three intransitive sentence
+probes now have 1, 1 and 2 Readings respectively.
+
+The manifest implements Method's 475 surface matches plus 300 sampled covered
+*with* faces and 300 general covered controls (seed 20261008), deduplicated
+to 1,064 faces. No census or test run has occurred after this STOP; no landing
+record is claimed. Resolve whether these retained general Readings revise
+PW4/PW5's counts or require a narrower grammatical ruling before continuing.
+
+### PW-R1 — selected Complement (orchestrator ruling, 2026-10-10)
+
+PW-R1 supersedes the general Adjunct route in PW2/PW3/PW5/PW6. Declare a
+marked *with* role on the verb's frame whose Complement is the overt
+subject–predicate clause. Only verbs declaring that frame can select it;
+no general absolute Adjunct route and no word test in the grammar. Existing
+`MarkedRole` frame atoms can express it, with a Category projection requiring
+an overt Subject; no new frame kind is needed.
+
+Zero Reading-count increases are allowed on covered faces without
+`\bplays? with\b`. The *look … with it revealed* control must remain 1,
+attack-with-revealed must remain 1, and counter-entry must remain 2. Witnesses
+must include the selected-frame analysis for coverage to count as a gain;
+report each count and its multipliers, retaining the existing NP-postmodifier
+analysis beside it as PW4 permits. The initial STOP's expected counts are
+superseded by this shape-based accounting.
+
+Bounded selector: `\bwith\b[^.]* (revealed|tapped|attached|face (up|down))`
+plus `\bplays? with\b`, plus 300 covered controls (seed 20261008). No full
+corpus run or Lean checks. Tests assert the selected Complement role. Full
+suites and clippy precede the six-item record, commit and refresh. Incoming
+`crates/` or `plugins_v2/` changes require rebuild, bounded re-census and full
+suites/clippy before the review STOP. Do not integrate until instructed.
+
 ## Witnesses
 
 Each is the face's only failing line. Probed 2026-10-10 on the `uoqyuxtnowpo`
@@ -118,21 +177,16 @@ hands revealed." 1; "It enters with a +1/+1 counter on it." 2.
 
 ## Method
 
-Standard constraints apply. Plugin `grammar:` data loads at runtime: PW1
-needs no rebuild. Bounded census, never `--all`: every supported face
-matching `\bplays?\b|\bwith\b[^.]* revealed\b` (475 faces) plus, for PW5(b),
-a 300-face random sample of covered faces matching `\bwith (a|an|the|its|
-their|your|X)\b`, plus 300 random covered controls, `--workers 6
---samples-per-face 0`, compared with `cargo xtask english-v3 diff` against
-the claim parent. Zero lost; PW4–PW6 for increases. Full `cargo test -p` and
-`cargo clippy -p … --tests -- -D warnings` for `deckmaste_english_v3`,
-`deckmaste_lexical_source` and any crate reading `play.ron`; `cargo xtask
-lean check` because a plugin definition changes. Once, at the end: a rebuild
-after a grammar edit takes about 3 minutes and the test binary about 7. Tests
-assert the role (the PP is an Adjunct of intransitive *play*; its Complement
-is a clause with Subject and predicate; the PW5 negatives), never an
-incidental count or a Debug-printed tree. Attestation by `cargo xtask
-english-v3 grep` only.
+Standard constraints apply; PW-R1 controls the selected role and supersedes the
+original general Adjunct plan. Plugin `grammar:` data loads at runtime. Use the
+PW-R1 selector and 300 covered controls, `--workers 6 --samples-per-face 0`,
+with a prebuilt binary under `/usr/bin/time -v`; never `--all`. Compare using
+`cargo xtask english-v3 diff --lines`. Check every gained *play with* line for
+the selected-frame analysis. Zero lost or decreased Readings; zero increases
+outside *play with*. Full suites and clippy for English and crates consuming
+the changed plugin data; no Lean checks. Tests assert the selected Complement,
+its Subject and predicate, and unchanged control values. Corpus attestation
+uses `cargo xtask english-v3 grep`.
 
 ## Out of scope
 
@@ -145,4 +199,61 @@ english-v3 grep` only.
 
 ## Landing record
 
-The six items in `docs/tickets/README.md` ("Landing record").
+1. **Census delta** (`wwzpptst`, parent-equivalent `qpqyvsou` → selected
+   frames): 433 bounded faces; covered **389 → 413**, total Readings
+   **35,813 → 36,216**. Lost none; gains **24**; decreases **0**; increases
+   **0**, including outside *play with*; digest-only **0**; issues **0**;
+   wrong-analysis-only gains **0**. Every gain has the selected analysis.
+   Selector: PW-R1's `\bwith\b[^.]* (revealed|tapped|attached|face (up|down))`
+   plus `\bplays? with\b` (134 faces), plus 300 covered controls from
+   `english-v3 diff --manifest --random 300 --seed 20261008`, deduplicated.
+   Evidence: `target/english-v3/english-v3-play-with-absolute/`:
+   `selected-manifest.json`, `before-parent.json`, `after.json`,
+   `parent-diff.json`, `gain-shapes.json`. The parent-equivalent run restores
+   only the original *play* data: the new clause forms then have no Document
+   route. The original `mqrlzszkuszn` census comparison also contains seven
+   upstream gains: Backslide, Dermoplasm, Master of the Veil and Weaver of
+   Lies (`zvtzutzx`, keyword mentions); Hedge Whisperer, Old Man of the Sea
+   and Vedalken Shackles (`wqkrtoxr`, negated infinitivals). Its 13 digest-only
+   changes also predate this feature, isolated in `ancestor-diff.json`.
+2. **Witnesses** (`qpqyvsou` before: all 0; `wwzpptst` after): Telepathy **2**
+   and Enduring Renewal's witness **2**, each one selected clause and one
+   retained NP participial Postmodifier. Field of Dreams **7** and Future
+   Sight's witness **7**: two selected clauses (the Subject NP's two
+   premodifier/postmodifier scopes) and five existing NP-postmodifier
+   analyses, varying Modifier scope and the participle's nominal host.
+   Sen Triplets' failing Sentence **3**: one selected clause and two NP
+   analyses, with the PP scoping *plays* or the coordinated Predicate. Its
+   complete printed line is **63** (21 selected / 42 NP), multiplied by the
+   other Sentences' 21 combinations. Whole-face totals for Enduring Renewal
+   and Future Sight are 7 and 24 because of their other Abilities. Controls:
+   *look … with it revealed* 1, attack-with-revealed 1, counter-entry 2;
+   transitive *play* and *Play with Fire* retain their complete values.
+3. **Spot checks** (`wwzpptst`): Goblin Spy, Lantern of Insight, Wizened
+   Snitches, Revelation, Wandering Eye, Courser of Kruphix, Oracle of Mul
+   Daya, Melek, Izzet Paragon, Conspicuous Snoop, Garruk's Horde. Each has a
+   selected *with* frame whose Complement retains its Subject NP and
+   bare-passive predicate. Temporal Aperture remains unread; Stromgald Spy
+   reads as a whole face (26) and its causative constituent is tested.
+4. **Deviations and STOPs**: the initial general Adjunct draft triggered the
+   count/control STOP; PW-R1 resolved it with selected complementation.
+   Retired its *with* lexical licence and general grammar route. Added empty
+   and marked-clause frames after the original Object frame; no new frame
+   kind, loader or compiler code. Two clause Constructions distinguish
+   adjectival and bare-passive predicates; the existing preposition route
+   remains subjectless, and the frame Category projection requires an overt
+   Subject. These are PW2/PW-R1 distinctions, not word guards. No glossary
+   gap. The extra bounded data-only parent run separates ancestor changes
+   from this feature without rebuilding the grammar.
+5. **Tests** (`wwzpptst`): `cargo test -p deckmaste_english_v3 -p
+   deckmaste_lexical_source -p deckmaste_construction_core -p
+   deckmaste_semantics_v2` passed in full; its first build caught an ambiguous
+   `.into()` in the new fixture, corrected before the successful full run.
+   `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source -p
+   deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings`
+   passed. Restored 0 / re-spelled 0 / ignored 0 / added 10 / removed 0.
+   The new module is registered once in `suite_6`. Citation check: 0
+   noncompliant and 0 stale; `jj --no-pager diff --git | cargo xtask cite audit
+   --diff` selected 0 new sites, so no new CR registrations need blessing.
+6. **Timing** (`wwzpptst`): landing bounded census **69.73 s** wall time,
+   6 workers, `--samples-per-face 0`, prebuilt binary under `/usr/bin/time -v`.

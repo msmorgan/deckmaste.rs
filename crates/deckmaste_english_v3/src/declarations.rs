@@ -238,7 +238,7 @@ constructions! {
             (Yes, Yes) => Yes, (No, No) => No, (No, Yes) => No, (Yes, No) => No,
         }
         feature IrrealisClauseComplement { No, Yes } default No;
-        feature VerblessClauseComplement { No, Yes } default No;
+        feature VerblessClauseComplement { No, Yes, OvertSubject } default No;
         feature VerblessPredicateUse { No, Yes } default No;
         feature GerundClauseComplement { Yes }
         feature ComplementFunctionRestriction { None, Adjunct, Compound, PreposedOrPredicative } default None;
@@ -515,7 +515,7 @@ constructions! {
             SelectedPrepositionUse, PredicativeAdjunctUse);
         category PremodifierCoordination(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
-        category VerblessClause();
+        category VerblessClause(VerblessClauseComplement);
         category Name(number);
         category NamePredicate();
         category PrepositionPhrase(InterveningAdjunctLicence, ConnectiveAdjunctUse, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber,
@@ -653,6 +653,9 @@ constructions! {
         category CorrelativeFiniteClauseSeries(CorrelativeCoordinator, GeneralCoordination);
 
         frame_category NounPhrase = AccusativePhrase;
+        // PW-R1 (orchestrator ruling, 2026-10-10): a selected frame
+        // takes the overt subject–predicate form, not reducible if able.
+        frame_category VerblessClause = VerblessClause where VerblessClauseComplement = OvertSubject;
         frame_category SourceFreeObject = AccusativePhrase where SourceModifierPresent = No;
         frame_category WholeSourceFreeObject = AccusativePhrase where WholeObjectSourcePresent = No;
         frame_category NominalPredicativePreposition = PrepositionPhrase where ComplementFunctionRestriction = PreposedOrPredicative;
@@ -4057,6 +4060,23 @@ constructions! {
         construction VerblessClause: VerblessClause {
             form [predicate: lexical(Adjective)];
             require predicate.VerblessPredicateUse = Yes;
+            export VerblessClauseComplement = Yes;
+        }
+
+        // CGEL Ch. 14 §10(a), p. 1267: with takes subject–predicate
+        // clause Complements, including nonfinite and verbless forms.
+        // The participial/adjectival restriction is project ruling PW2/PW6
+        // (english-v3-play-with-absolute, 2026-10-10).
+        construction SubjectAdjectiveVerblessClause: VerblessClause {
+            form [subject: AccusativePhrase, " ", predicate: AdjectivePhrase];
+            export VerblessClauseComplement = OvertSubject;
+        }
+
+        construction SubjectParticipialClause: VerblessClause {
+            form [subject: AccusativePhrase, " ", predicate: SecondaryVerbPhrase];
+            require predicate.form = PastParticiple;
+            require predicate.ParticipialUse = BarePassive;
+            export VerblessClauseComplement = OvertSubject;
         }
 
         construction VerblessClauseComplementPreposition: PrepositionPhrase {
@@ -4068,6 +4088,7 @@ constructions! {
             export ComplementFunctionRestriction = None;
             form [head: lexical(Preposition), " ", complement: VerblessClause];
             require head.VerblessClauseComplement = Yes;
+            require complement.VerblessClauseComplement = Yes;
             require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
             export SourceComplementUse = No;
             export SourceMarker = No;

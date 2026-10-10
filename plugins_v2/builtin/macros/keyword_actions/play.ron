@@ -7,7 +7,11 @@ KeywordAction(
     spelling: "play <Param(0)>",
     grammar: Verb(
         bare: "play",
-        frame_set: Transitive,
+        frame_set: Custom(frames: [
+            [ObjectNounPhrase],
+            [],
+            [MarkedRole("Preposition", "With", "VerblessClause")],
+        ]),
     ),
     body: procedure(Play, Param(0), ItsOwnCost),
 )

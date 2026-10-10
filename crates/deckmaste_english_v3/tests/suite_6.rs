@@ -80,5 +80,8 @@ mod do_so_and_able_to;
 #[path = "suite/named_modes.rs"]
 mod named_modes;
 
+#[path = "suite/play_with_absolute.rs"]
+mod play_with_absolute;
+
 #[path = "suite/remove_source_attachment.rs"]
 mod remove_source_attachment;
