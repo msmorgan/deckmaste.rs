@@ -1795,10 +1795,10 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Adverb/Out", lemma: "out", category: Adverb,
-            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
+            id: "vocab:Preposition/Out", lemma: "out", category: Preposition,
+            properties: (countability: [], features: {"PrepositionComplement": "Intransitive", "PrepositionFunctionLicence": "VerbComplement", "LocativeUse": "No", "ClauseInitialAdjunct": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Out"),
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Out"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (

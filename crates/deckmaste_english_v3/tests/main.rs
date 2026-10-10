@@ -61,3 +61,6 @@ mod verbless_if_complement;
 
 #[path = "suite/half_rounded.rs"]
 mod half_rounded;
+
+#[path = "suite/phase_in_out.rs"]
+mod phase_in_out;

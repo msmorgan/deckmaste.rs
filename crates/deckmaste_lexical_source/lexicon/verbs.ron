@@ -1,4 +1,8 @@
 [
+    (identity: Phase, bare: "phase", third_person: "phases", preterite: Some("phased"), participle: Some("phased"), frames: [
+        Predicate([Lex("Preposition", "Out")]),
+        Predicate([Lex("Preposition", "In")]),
+    ]),
     (identity: Round, bare: "round", third_person: "rounds", preterite: Some("rounded"), participle: Some("rounded"), frames: [
         Predicate([Lex("Adverb", "Up")]),
         Predicate([Lex("Adverb", "Down")]),

@@ -115,3 +115,51 @@ negatives), never an incidental count or a Debug-printed tree. Attestation by
 - Semantics of phasing; the `phaseOutUntil` instruction macro.
 
 ## Landing record
+
+1. **Census delta** — `roomopmrpkys`: claim-parent grammar (`purnrskv`)
+   BEFORE → implemented AFTER, 467 → 511 covered faces, 12,661 → 13,070
+   Readings; no/one/multiple faces 100/121/346 → 56/146/365. 44 gains;
+   lost faces none; decreases, increases, digest-only changes and issues all 0.
+   Selector: every supported face matching `\b(?:phase[sd]?|out)\b` (267),
+   including every retired *out* surface, plus 300 disjoint random covered
+   controls, seed **20261008** (binding session direction): **567 faces**.
+   Evidence: `target/english-v3/english-v3-phase-in-out-verb/{manifest,before,after,diff}.json`;
+   comparison used the stock `english-v3 diff --lines`.
+2. **Witnesses** — `roomopmrpkys`: all claim-parent witness probes were 0;
+   AFTER face totals: Rainbow Efreet 2, Reality Ripple 1, Taniwha 3,
+   March of Swirling Mist 26, Spatial Binding 1. Each listed sentence/ability
+   probe is 1 after, including “It can't phase in.” and “You may have any
+   number of them phase out.” (Change of Plans). Simplified probes “Target
+   creature phases out.” and “All lands you control phase out.” also 0 → 1.
+   Round up/down, Put back and can't block controls remain 1 each.
+3. **Spot checks** — `roomopmrpkys`: Blink Dog, Clever Concealment, Creeping
+   Inn, Crystal Golem, Divine Smite, Dream Fighter, Ertai's Familiar, Frenetic
+   Efreet, Galadriel's Dismissal and Guardian of Faith. Every Reading of their
+   complete Documents retains *phase* as `SelectedPredicate`, with *out* as
+   its selected Preposition Complement (`FrameValue::Marker`); verified
+   structurally in `phase_in_out::ten_newly_covered_faces_have_the_selected_particle_analysis`.
+   Unintended-only gains observed: 0.
+4. **Deviations and STOPs** — `roomopmrpkys`: PH2 replaces the unused Adverb
+   *out* declaration with selected-only Intransitive Preposition *out*;
+   there is no separate word-specific grammar route to retire. *In* is
+   selected directly by the new verb frame; its existing transitive PP
+   declarations are unchanged. Added the two PH1 frames; no grammar,
+   loader, plugin or glossary edits. No category residue or STOP. PH5 leaves
+   Time and Tide's *phased-out* premodifier unread: no existing compound
+   route. Corpus grep found 0 *phasing in/out* faces, so the default gerund
+   reaches no extra faces outside this selector.
+5. **Tests** — `roomopmrpkys`: `cargo test -p deckmaste_english_v3` passed
+   (901 tests); `cargo test -p deckmaste_lexical_source` passed (84 tests).
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   The first English run failed only the new fixture requesting bare
+   *combat phase* as Noun Phrase; corrected it to Nominal, retaining the
+   complete Reading-set comparison, then reran the full suite. Assurance:
+   restored 0 / re-spelled 0 / ignored 0 / added 5 / removed 0. The five
+   tests cover witness roles, ten complete gained faces, independent
+   inflection/particle roundtrips, PH4 negatives and unchanged noun/control
+   Reading sets; registered once in `tests/main.rs`. Citation checks:
+   0 noncompliant, 0 stale; no new rule registrations.
+6. **Timing** — `roomopmrpkys`: bounded AFTER census **38.03 s** wall under
+   `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`. No full-corpus
+   census or Lean check was run.
