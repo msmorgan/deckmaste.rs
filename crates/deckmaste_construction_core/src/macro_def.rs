@@ -480,6 +480,10 @@ pub enum BoundKeywordStemClass {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
 #[serde(deny_unknown_fields)]
 pub enum FixedKeywordParameterGrammar {
+    Subject {
+        #[serde(default)]
+        indefinite_article: bool,
+    },
     Quality {
         preposition: FixedLexeme,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -2435,17 +2439,21 @@ fn validate_fixed_keyword_parameter_grammar(
     grammar: Option<&GrammarRow>,
 ) -> Result<(), ReadError> {
     let Some(GrammarRecipe::FixedKeyword {
-        parameter: Some(FixedKeywordParameterGrammar::Quality { .. }),
+        parameter: Some(parameter),
     }) = grammar.map(GrammarRow::recipe)
     else {
         return Ok(());
     };
-    if kind == DeclarationKind::KeywordAbility
-        && matches!(
+    let compatible = match parameter {
+        FixedKeywordParameterGrammar::Quality { .. } => matches!(
             params,
             Some([ParameterType::Quality] | [ParameterType::Quality, ParameterType::Cost])
-        )
-    {
+        ),
+        FixedKeywordParameterGrammar::Subject { .. } => {
+            matches!(params, Some([ParameterType::Predicate]))
+        }
+    };
+    if kind == DeclarationKind::KeywordAbility && compatible {
         return Ok(());
     }
     Err(validation_error_at(

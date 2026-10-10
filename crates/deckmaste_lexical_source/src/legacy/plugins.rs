@@ -363,6 +363,14 @@ fn grammar_lexeme(
                     nominal_number.map_or_else(|| "Any".into(), |number| format!("{number:?}")),
                 );
             }
+            if let Some(metadata::FixedKeywordParameterGrammar::Subject { indefinite_article }) =
+                &parameter
+            {
+                lexeme.properties.features.insert(
+                    "KeywordIndefiniteArticle".into(),
+                    if *indefinite_article { "Yes" } else { "No" }.into(),
+                );
+            }
             if let Some(parameter) = parameter {
                 lexeme
                     .properties
@@ -718,6 +726,42 @@ mod tests {
     use deckmaste_lexical::Lexicon;
 
     use super::*;
+
+    #[test]
+    fn subject_article_is_exported_from_the_parameter_recipe() {
+        for (indefinite_article, expected) in [(false, "No"), (true, "Yes")] {
+            let mut output = LexicalSources {
+                lexemes: vec![],
+                unmapped: vec![],
+            };
+            let lexeme = grammar_lexeme(
+                "lexeme:keyword_ability/quorbling",
+                "quorbling.ron",
+                metadata::Grammar::FixedKeyword {
+                    surface: "quorbling".into(),
+                    onset: None,
+                    bound_suffix: None,
+                    participial_adjective: None,
+                    block_label: None,
+                    verb: None,
+                    parameter: Some(metadata::FixedKeywordParameterGrammar::Subject {
+                        indefinite_article,
+                    }),
+                },
+                source(
+                    SourceKind::Plugin,
+                    "quorbling.ron",
+                    "lexeme:keyword_ability/quorbling",
+                ),
+                None,
+                &mut output,
+            );
+            assert_eq!(
+                lexeme.properties.features["KeywordIndefiniteArticle"],
+                expected
+            );
+        }
+    }
 
     #[test]
     fn bound_stem_class_selects_declaration_category_and_card_type() {

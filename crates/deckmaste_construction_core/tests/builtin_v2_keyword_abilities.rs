@@ -296,6 +296,9 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
             .grammar()
             .expect("every keyword stub contributes grammar");
         let parameter = match name.as_str() {
+            "champion" => Some(FixedKeywordParameterGrammar::Subject {
+                indefinite_article: true,
+            }),
             "affinity" => Some(FixedKeywordParameterGrammar::Quality {
                 preposition: FixedLexeme("Preposition".to_owned(), "For".to_owned()),
                 nominal_number: Some(FixedKeywordNominalNumber::Plural),

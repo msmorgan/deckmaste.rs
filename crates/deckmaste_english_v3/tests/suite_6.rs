@@ -85,3 +85,6 @@ mod play_with_absolute;
 
 #[path = "suite/remove_source_attachment.rs"]
 mod remove_source_attachment;
+
+#[path = "suite/champion_keyword_line.rs"]
+mod champion_keyword_line;

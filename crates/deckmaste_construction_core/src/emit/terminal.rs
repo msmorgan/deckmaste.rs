@@ -831,17 +831,18 @@ pub(crate) fn emit(
                                         #feature,
                                     ))
                                     .and_then(|_| {
-                                        let parameter = parameter.as_ref().map(|parameter| match parameter {
+                                        let parameter = parameter.as_ref().and_then(|parameter| match parameter {
                                             ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Quality {
                                                 preposition: ::deckmaste_construction_core::macro_def::FixedLexeme(terminal, member),
                                                 nominal_number,
-                                            } => (
+                                            } => Some((
                                                 match (terminal.as_str(), member.as_str()) {
                                                     #(#parameter_prepositions)*
                                                     _ => u16::MAX,
                                                 },
                                                 *nominal_number,
-                                            ),
+                                            )),
+                                            ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Subject { .. } => None,
                                         });
                                         Self::from_reading(id, parameter)
                                     })

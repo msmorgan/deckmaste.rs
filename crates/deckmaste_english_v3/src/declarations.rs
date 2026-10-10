@@ -2607,9 +2607,20 @@ constructions! {
                 head.CreatureSubtypeStemUse) = Yes;
         }
 
+        // The keyword's parameter recipe selects its article (CH1, 2026-10-10).
+        feature KeywordIndefiniteArticle { No, Yes } default No;
+        separator keyword_subject_article(KeywordIndefiniteArticle, onset) {
+            (No, _) => " ", (Yes, Consonant) => " a ", (Yes, Vowel) => " an ",
+        }
+        table keyword_subject_license(KeywordIndefiniteArticle, number, countability) -> Selection {
+            (No, _, _) => Yes, (Yes, Singular, Count) => Yes,
+        }
         construction SubjectKeyword: KeywordPhrase {
-            form [head: lexical(Keyword), " ", subject: Nominal];
+            form [head: lexical(Keyword),
+                keyword_subject_article(head.KeywordIndefiniteArticle, subject.onset), subject: Nominal];
             require head.KeywordParameterClass = Subject;
+            require keyword_subject_license(head.KeywordIndefiniteArticle,
+                subject.number, subject.countability) = Yes;
             require head.KeywordSeparator = Space;
             require subject.Targeting = No;
         }

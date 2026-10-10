@@ -1948,3 +1948,37 @@ fn keyword_verb_validation_locates_the_lemma_and_frame_errors() {
         assert_eq!(source, expected);
     }
 }
+
+#[test]
+fn fixed_subject_article_requires_a_predicate_keyword_signature() {
+    for params in [
+        "",
+        "params: [Amount],",
+        "params: [Quality],",
+        "params: [Predicate],",
+    ] {
+        let source = format!(
+            r#"KeywordAbility(
+            name: "Quorbling", {params} spelling: "quorbling",
+            grammar: FixedKeyword(surface: "quorbling",
+                parameter: Subject(indefinite_article: true)),
+        )"#
+        );
+        if params == "params: [Predicate]," {
+            let declaration = read_str(source_path("Quorbling.ron"), &source).unwrap();
+            assert_eq!(
+                declaration.grammar().unwrap().recipe(),
+                &GrammarRecipe::FixedKeyword {
+                    parameter: Some(FixedKeywordParameterGrammar::Subject {
+                        indefinite_article: true,
+                    }),
+                }
+            );
+        } else {
+            assert_eq!(
+                validation(&source),
+                ValidationError::FixedKeywordParameterGrammarMismatch
+            );
+        }
+    }
+}

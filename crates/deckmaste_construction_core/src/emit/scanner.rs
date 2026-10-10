@@ -687,17 +687,18 @@ fn declaration_term_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                         value: Leaf::DeclarationTerm {
                             terminal_index: #terminal_index,
                             id,
-                            parameter: parameter.as_ref().map(|parameter| match parameter {
+                            parameter: parameter.as_ref().and_then(|parameter| match parameter {
                                 ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Quality {
                                     preposition: ::deckmaste_construction_core::macro_def::FixedLexeme(terminal, member),
                                     nominal_number,
-                                } => (
+                                } => Some((
                                     match (terminal.as_str(), member.as_str()) {
                                         #(#parameter_prepositions)*
                                         _ => u16::MAX,
                                     },
                                     *nominal_number,
-                                ),
+                                )),
+                                ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Subject { .. } => None,
                             }),
                             onset,
                             possessive_ending: possessive_ending_at(input.text, end),

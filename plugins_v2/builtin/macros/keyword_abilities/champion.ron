@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "champion <Param(0)>",
     grammar: FixedKeyword(
         surface: "champion",
+        parameter: Subject(indefinite_article: true),
     ),
     // "Champion an [object]" means "When this permanent enters, sacrifice it
     // unless you exile another [object] you control" and "When this permanent
