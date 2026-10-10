@@ -146,7 +146,11 @@ Attestation by `cargo xtask english-v3 grep` only.
    unchanged 1,731. `final-refresh-diff.json` isolates Blitzball Stadium
    (0 → 151) and Skyship Plunderer (0 → 7) from that trunk change; this
    ticket still gains 31 faces. All 1,765 selected faces were re-censused
-   with 6 workers and samples-per-face 0; issues 0.
+   with 6 workers and samples-per-face 0; issues 0. The subsequent accepted
+   refresh incorporated temporal-supplement change `mpvousxzotns`;
+   `temporal-refresh-diff.json` reports all 1,765 faces unchanged, including
+   every covered face. The final claim-parent totals remain 34 gains
+   (31 this ticket, 3 trunk), 0 losses/decreases/increases/digest-only.
 2. **Witnesses** (`mzkvyunrqtrw`). Every ticket witness re-probed before the
    edit at 0; none dropped. Sentence Readings after / positive-control
    Readings: Chandra's Spitfire 1/1; Niv-Mizzet, Visionary 3/3; Mark of Asylum
@@ -185,7 +189,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    PASS; the same bounded manifest re-census PASS; both full test commands
    PASS (English 921; lexical-source 84); both exact clippy commands PASS.
    Earlier English totals corrected from the saved logs (908 then 916).
-   Final check logs use the `final-` prefix in the evidence directory.
+   The subsequent temporal refresh also passed `cargo build -p xtask`,
+   the same bounded re-census, both full test commands (English 925;
+   lexical-source 84), and both exact clippy commands. Check logs use
+   `final-` and `temporal-` prefixes in the evidence directory.
    Citation checks: no noncompliant or stale citations;
    diff audit
    has no citations to register or verify. No Lean or xtask test changes.
