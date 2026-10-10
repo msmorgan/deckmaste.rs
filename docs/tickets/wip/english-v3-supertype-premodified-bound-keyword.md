@@ -211,6 +211,16 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    retain their Reading counts and are attributed to `ztrnpkyvzntv`'s
    refined count Complement structure. Reports: `after-refresh3.json`,
    `diff-refresh3.json`, `diff-incoming3.json`.
+   Integration-retry refresh imports `qktrquumtlmk`: final covered
+   **1,622 → 1,695**, Readings **79,869 → 87,957**, gains **73**
+   (42 ticket / 31 trunk), lost **0**, decreases **2**, increases **0**,
+   digest-only **27**. Its incoming diff adds Gaea's Touch **0 → 4** and
+   Goblin Ski Patrol **0 → 1**. Arcum's Sleigh and Kjeldoran Guard each
+   decrease **2 → 1** through that trunk landing's deliberately retired
+   outer-focus route; these are two removed Readings attributable to
+   `qktrquumtlmk`, as named in its own landing record. Other incoming
+   count/digest changes: none. Reports: `after-refresh4.json`,
+   `diff-refresh4.json`, `diff-incoming4.json`.
 2. **Witnesses** (`ooumkosu`): Gleam of Resistance, Ash Barrens, Rime Dryad,
    Ayumi, the Last Visitor, Dryad Sophisticate, Livonya Silone and
    Trailblazer's Boots each **0 → 1** on their ticket line/sentence.
@@ -266,7 +276,11 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    test/clippy commands passed again: English **946**, lexical-source **86**,
    compiler **39**. Incoming landings account for the additional tests.
    Exact commands/logs are under the evidence directory (`refresh3-checks.json`).
-6. **Timing** (accepted-review refresh): the required **bounded** AFTER
-   census took **1:25.16** wall time under `/usr/bin/time -v`, **6 workers**,
+   Integration-retry refresh: the build and all six full test/clippy commands
+   passed again: English **955**, lexical-source **86**, compiler **39**.
+   Both test-module registrations survived the refresh conflict exactly once.
+   Evidence: `refresh4-checks.json` and its command logs.
+6. **Timing** (integration-retry refresh): the required **bounded** AFTER
+   census took **1:50.37** wall time under `/usr/bin/time -v`, **6 workers**,
    samples 0.
    No full census was run, per the binding verification budget.
