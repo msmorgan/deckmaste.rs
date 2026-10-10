@@ -174,6 +174,16 @@ Attestation by `cargo xtask english-v3 grep` only.
    the next refresh at `wllpsktm` brings `zzwnrkot`/`qtzurkpz`'s *do so* and
    *able to* work. `integration3-diff.json` reports all 623 faces unchanged:
    identical counts and digests, zero changed lines and zero internal issues.
+   A second refused integration required a refresh at `yukokvqx`, bringing
+   `pxtwrtvu`'s named modes and `wqkrtoxr`'s negated infinitivals (including
+   lexical analysis). `integration4-diff.json` adds You Find a Cursed Idol
+   (2 Readings, named modes); its 16 digest-only changes are the empty optional
+   negator field on positive ToInfinitive nodes, from `wqkrtoxr`, with each
+   face and line listed in `integration4-diff.log`. Counts stay unchanged on
+   those faces. Lost/decreased/increased faces and internal issues remain zero;
+   all nine added identities retain their original counts and digests. Final
+   own gains remain 44, with four inherited gains; the expanded census now has
+   554 covered faces and 11,339 Readings.
 2. **Witnesses** — Claim-parent probes at `mqrlzszk` → `sztumtmq`: Uruk-hai
    Berserker 0 → 1; Witch-king of Angmar's document passage 0 → 57; One Ring to
    Rule Them All's chapter passage 0 → 1; Lord of the Nazgûl's protection line
@@ -198,7 +208,9 @@ Attestation by `cargo xtask english-v3 grep` only.
    NounPremodifier of *cost* and *costs* (`integration-henzie.json`). At
    `mstvlwro`, Skull Storm has *half* as a Predeterminer on the Object NP
    and *rounded up* as ParticipialSupplementation around the FiniteClause
-   (`integration2-skull-storm.json`).
+   (`integration2-skull-storm.json`). At `yukokvqx`, You Find a Cursed Idol
+   has three Mode bodies with FlavorWordHead labels before OrdinaryAbility
+   contents (`integration4-cursed-idol.json`).
 4. **Deviations and STOPs** — No new Construction or frame kind; schema,
    declaration reader and loader changes follow RT2, with the opaque Keyword
    lexeme retired and the semantic fixed surface retained under RT3. No STOP
@@ -217,11 +229,13 @@ Attestation by `cargo xtask english-v3 grep` only.
    expectation preserves the closed declaration
    dispatcher; the designation test's expected-recipe table was extracted
    without changing its value assertions.
-5. **Tests** — After the latest integration refresh at `wllpsktm`, `cargo build -p xtask`
+5. **Tests** — After the latest integration refresh at `yukokvqx`, `cargo build -p xtask`
    passed; passed `cargo test -p deckmaste_english_v3`
-   (849), `cargo test -p deckmaste_lexical_source` (83),
+   (859), `cargo test -p deckmaste_lexical_source` (83),
    `cargo test -p deckmaste_construction_core` (473), and
-   `cargo test -p xtask english_v3` (56 selected tests). Passed
+   `cargo test -p xtask english_v3` (56 selected tests). The incoming lexical
+   change also passed `cargo test -p deckmaste_lexical` (60) and
+   `cargo clippy -p deckmaste_lexical --tests -- -D warnings`. Passed
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`, and
    `cargo clippy -p deckmaste_construction_core --tests -- -D warnings`;
@@ -232,5 +246,5 @@ Attestation by `cargo xtask english-v3 grep` only.
    no new citations need blessing. Assurance at `sztumtmq`:
    restored 0 / re-spelled 2 / ignored 0 / added 6 / removed 0. The action
    inventory test additionally retains and strengthens its existing assertions.
-6. **Timing** — Final bounded census at `wllpsktm`: 7.71 s wall time under
+6. **Timing** — Final bounded census at `yukokvqx`: 9.28 s wall time under
    `/usr/bin/time -v`, 6 workers, 623 faces, `--samples-per-face 0`.
