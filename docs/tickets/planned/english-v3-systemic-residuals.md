@@ -786,3 +786,11 @@ of the verb *cycle*) is a candidate for retirement: it doubles Readings on
 KM5 kept both. Route a bounded retirement decision here, preserving the
 Keyword Premodifier Reading and measuring every affected face before and
 after any retirement.
+
+## Scalar comparison attachment candidate (2026-10-10)
+
+- *equal to N* followed by *times the number of …* read as a second Object
+  of *deal*: overgeneration candidate for both digit and spelled cardinals.
+  Burn at the Stake's identical digit-3 line has the same split Reading set
+  as the six new cardinal-Complement Readings (SC6(a), orchestrator ruling
+  2026-10-10, `english-v3-spelled-cardinal-scalar-measure`).

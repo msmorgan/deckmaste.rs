@@ -70,3 +70,6 @@ mod phase_in_out;
 
 #[path = "suite/supplementary_temporal_adjunct.rs"]
 mod supplementary_temporal_adjunct;
+
+#[path = "suite/spelled_cardinal_scalar_measure.rs"]
+mod spelled_cardinal_scalar_measure;

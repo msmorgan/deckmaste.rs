@@ -798,6 +798,8 @@ An expression combined with another by an arithmetic operator in a Measure
 Phrase. A scalar Measure Phrase or a Noun Phrase with Scalar Denotation can
 fill this role under ticket `english-v3-arithmetic-nominal-operand` rulings
 R10a–R10d (2026-10-09).
+A Cardinal Numeral can also fill this role under ticket
+`english-v3-spelled-cardinal-scalar-measure` rulings SC1–SC4 (2026-10-10).
 
 **Unit Bearing** (project term):
 The presence of a measurement unit in an amount, as in *2 life* or *that much

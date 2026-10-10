@@ -586,10 +586,10 @@ constructions! {
         category ScalarComponent(ScalarSign);
         category SlashPair();
         category ComparativeGovernorHead(ComparisonMarker);
-        category ComparativeComplement();
+        category ComparativeComplement(AdjectivePremodifierUse);
         category MatrixComparativeComplement(ComparisonMarker, ComparativeComplementForm);
         category MatrixComparativePhrase(ComparativeComplementForm);
-        category ComparativeAdjectivePhrase(ComparisonMarker);
+        category ComparativeAdjectivePhrase(ComparisonMarker, AdjectivePremodifierUse);
         category KeywordPhrase();
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
@@ -5643,6 +5643,12 @@ constructions! {
             form [value: MeasurePhrase];
             require value.MeasureKind = Scalar;
         }
+        // Spelled scalar operands follow ticket rulings SC1–SC4 (2026-10-10).
+        construction CardinalScalarOperand: ArithmeticOperand {
+            export UnitBearing = No;
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Cardinal;
+        }
         construction ScalarNominalOperand: ArithmeticOperand {
             export UnitBearing = value.UnitBearing;
             form [value: NounPhrase];
@@ -5875,15 +5881,25 @@ constructions! {
         }
 
         construction ScalarComparativeComplement: ComparativeComplement {
+            export AdjectivePremodifierUse = Yes;
             form [value: ScalarMeasurePhrase];
         }
 
+        // SC3 excludes a second, adjective-premodified quantity analysis.
+        construction CardinalComparativeComplement: ComparativeComplement {
+            export AdjectivePremodifierUse = No;
+            form [head: lexical(Numeral)];
+            require head.numeral_kind = Cardinal;
+        }
+
         construction NominalComparativeComplement: ComparativeComplement {
+            export AdjectivePremodifierUse = Yes;
             form [value: AccusativePhrase];
         }
 
         construction ComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
             export ComparisonMarker = governor.ComparisonMarker;
+            export AdjectivePremodifierUse = complement.AdjectivePremodifierUse;
             form [governor: ComparativeGovernorHead, " ", complement: ComparativeComplement];
         }
 
@@ -5892,7 +5908,7 @@ constructions! {
             form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
             export AdjectiveOrigin = Ordinary;
-            export AdjectivePremodifierUse = Yes;
+            export AdjectivePremodifierUse = phrase.AdjectivePremodifierUse;
             export TargetingPremodifierUse = No;
         }
 
