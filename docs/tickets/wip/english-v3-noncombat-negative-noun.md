@@ -151,6 +151,13 @@ Attestation by `cargo xtask english-v3 grep` only.
    `temporal-refresh-diff.json` reports all 1,765 faces unchanged, including
    every covered face. The final claim-parent totals remain 34 gains
    (31 this ticket, 3 trunk), 0 losses/decreases/increases/digest-only.
+   Integration was then refused because default moved. The retry refresh
+   incorporated preposed-duration change `rtzolrtxrrru`;
+   `duration-refresh-diff.json` isolates Aerial Extortionist (0 → 9) and
+   Dream-Thief’s Bandana (0 → 217), with every previously covered face
+   unchanged. Final totals: covered 1,524 → 1,560, Readings 74,106 → 75,551;
+   gained 36 (31 this ticket, 5 trunk), lost/decreased/increased/digest-only
+   0, unchanged 1,729; issues 0.
 2. **Witnesses** (`mzkvyunrqtrw`). Every ticket witness re-probed before the
    edit at 0; none dropped. Sentence Readings after / positive-control
    Readings: Chandra's Spitfire 1/1; Niv-Mizzet, Visionary 3/3; Mark of Asylum
@@ -192,7 +199,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    The subsequent temporal refresh also passed `cargo build -p xtask`,
    the same bounded re-census, both full test commands (English 925;
    lexical-source 84), and both exact clippy commands. Check logs use
-   `final-` and `temporal-` prefixes in the evidence directory.
+   `final-` and `temporal-` prefixes in the evidence directory. The duration
+   retry refresh likewise passed `cargo build -p xtask`, the bounded
+   re-census, both full test commands (English 929; lexical-source 84),
+   and both exact clippy commands; logs use the `duration-` prefix.
    Citation checks: no noncompliant or stale citations;
    diff audit
    has no citations to register or verify. No Lean or xtask test changes.
