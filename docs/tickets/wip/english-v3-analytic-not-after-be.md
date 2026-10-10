@@ -159,6 +159,18 @@ by `cargo xtask english-v3 grep` only.
    1,190 → 1,228; Readings 86,235 → 92,288; gained 38 (30 own, eight
    trunk), lost/decreases/increases 0, digest-only 34. Evidence:
    `second-refresh-{after,diff}.json` and `final-diff.json`.
+   Accepted-review refresh (`nxwppuwuqkpq`) brought keyword-state code
+   `ptvtlvss` / `qkvxplko` / `tqsuwzum`: three further trunk gains,
+   Court of Locthwain (721), Opposition Agent (8), Planeswalker's Mischief
+   (10). Eight trunk increases have the KS6/KS-R1 finite-*be* + *exiled*
+   Adjective Complement shape alongside the retained verbal passive:
+   Arcane Artisan 17 → 23; Azor's Gateway 36 → 54; Dinosaurs on a Spaceship
+   18 → 30; Market Gnome 12 → 15; Riftmarked Knight 14 → 26; Uvilda, Dean
+   of Perfection 68 → 272 (both quoted *be exiled* clauses); Veiling Oddity
+   11 → 21; Watcher of Hours 3 → 4. Own gains remain 30; own increases 0.
+   Final totals: covered 1,190 → 1,231; Readings 86,235 → 93,293;
+   gains 41 (30 own, 11 trunk), lost/decreases 0, increases 8 (all trunk),
+   digest-only 34. `accepted-refresh-{after,diff}.json`, `final-diff.json`.
 2. **Witnesses** (`spzllmsloltx`, complete Document probes): Force of Negation
    0 → 3, Eddymurk Crab 0 → 1, Glademuse 0 → 1, Arcades Sabboth 0 → 2,
    Desynchronization 0 → 2. Their synthetic controls remain 3/1/1/2/2.
@@ -215,6 +227,10 @@ by `cargo xtask english-v3 grep` only.
    the same four full crate test and clippy commands passed again:
    English 876, lexical-source 83, construction-core 473, lexical 60.
    `cargo test -p xtask english_v3` passed all 56 selected tests again.
+   Accepted-review refresh (`nxwppuwuqkpq`): `cargo build -p xtask` and
+   the same four full crate test and clippy commands passed again:
+   English 881, lexical-source 83, construction-core 473, lexical 60.
+   `cargo test -p xtask english_v3` passed all 56 selected tests again.
    Restored 0 / re-spelled 2 / ignored 0 / added 4 / removed 0. The two
    re-spelled infinitival tests retain their original cards, roles and
    independently constructed roundtrip outcomes. The initial English run
@@ -222,6 +238,6 @@ by `cargo xtask english-v3 grep` only.
    the full suite rerun. An initial clippy compile found a shadowed helper
    binding in the re-spelling; it was renamed. Citation checks: 0
    noncompliant, 0 stale; piped diff audit found no new citation sites.
-6. **Timing** (`zkvnqmuussok`): final bounded census 73.69 s wall,
+6. **Timing** (`nxwppuwuqkpq`): final bounded census 65.44 s wall,
    6 workers, prebuilt executable, `--samples-per-face 0`, under
    `/usr/bin/time -v`. No `--all` or Lean check was run.
