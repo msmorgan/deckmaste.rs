@@ -222,7 +222,7 @@ pub fn scope_of_counter_kind(kind: &CounterKind, facts: &impl Facts) -> Kind {
 #[must_use]
 pub fn scope_of_proj_axis(axis: &ProjAxis, facts: &impl Facts) -> Kind {
     match axis {
-        ProjAxis::Stat { .. } => Kind::Object,
+        ProjAxis::Stat { .. } | ProjAxis::Chapter => Kind::Object,
         ProjAxis::PlayerStat { .. } => Kind::Player,
         ProjAxis::Counter { kind } => scope_of_counter_kind(kind, facts),
         ProjAxis::AnyCounter { kind } => kind.clone(),

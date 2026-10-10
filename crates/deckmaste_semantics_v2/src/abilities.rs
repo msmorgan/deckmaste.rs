@@ -301,6 +301,9 @@ pub enum DeonticPatient {
     Counterpart { patient: NounPhrase },
     TargetedBy { patient: NounPhrase },
     CounterpartsAt { complements: Vec<DeedComplement> },
+    /// The object or player the subject is attached to, by the attach deed's
+    /// host role [CR#301.5,701.3a].
+    Host { host: NounPhrase },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]

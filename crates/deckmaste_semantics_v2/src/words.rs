@@ -975,6 +975,9 @@ pub enum ProjAxis {
     PlayerStat { stat: PlayerStat },
     Counter { kind: CounterKind },
     AnyCounter { kind: Kind },
+    /// The chapter numbers of an object's own chapter abilities, read through
+    /// a fold [CR#714.2a,714.2d].
+    Chapter,
 }
 
 /// A Saga's chapter, counted from I [CR#714.2a].
