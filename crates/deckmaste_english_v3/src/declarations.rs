@@ -419,14 +419,15 @@ constructions! {
         feature QuotedComplement { Yes }
         feature QuotationStructure { Simple, Coordinated }
         feature GrantedAbilityKind { Keyword, Quoted }
+        feature AbilityTermination { Complete, Unterminated } default Complete;
 
         category Document();
-        category Ability(LabelKind);
+        category Ability(LabelKind, AbilityTermination);
         category AbilityContinuation();
         category Paragraph();
         category ParagraphItem();
         category ParagraphContinuation();
-        category Sentence();
+        category Sentence(AbilityTermination);
         category Clause(ClauseCoordinationHost, UnmarkedConjunctLicence);
         category ImperativeClause(ClauseCoordinationHost, UnmarkedConjunctLicence);
         category FiniteClause();
@@ -2124,15 +2125,19 @@ constructions! {
 
         construction Document: Document {
             form [first: Ability, rest: repeat(AbilityContinuation, "")];
+            require first.AbilityTermination = Complete;
         }
 
         construction AbilityContinuation: AbilityContinuation {
             form ["\n", ability: Ability];
+            require ability.AbilityTermination = Complete;
         }
 
         construction OrdinaryAbility: Ability {
             export LabelKind = None;
-            form [body: Paragraph];
+            form [body: Paragraph] export AbilityTermination = Complete;
+            form [body: Sentence] require body.AbilityTermination = Unterminated
+                export AbilityTermination = Unterminated;
         }
 
         construction Paragraph: Paragraph {
@@ -2145,6 +2150,7 @@ constructions! {
 
         construction SentenceItem: ParagraphItem {
             form [sentence: Sentence];
+            require sentence.AbilityTermination = Complete;
         }
 
         construction ParentheticalItem: ParagraphItem {
@@ -2164,6 +2170,9 @@ constructions! {
             export QuotationStructure = Simple;
             boundary Interior;
             form ["\"", clause: Clause, "\""];
+            form ["\"", clause: Ability, "\""]
+                require clause.AbilityTermination = Unterminated
+                require clause.terminal_punctuation = None;
         }
 
         construction QuotedKeyword: QuotedText {
@@ -2207,7 +2216,10 @@ constructions! {
 
         construction ActivatedAbility: Ability {
             export LabelKind = None;
-            form [cost: Cost, ": ", body: Paragraph];
+            form [cost: Cost, ": ", body: Paragraph] export AbilityTermination = Complete;
+            form [cost: Cost, ": ", body: Sentence]
+                require body.AbilityTermination = Unterminated
+                export AbilityTermination = Unterminated;
         }
 
         construction AbilityWordHead: Ability {
@@ -2216,6 +2228,7 @@ constructions! {
             require head.LabelKind = AbilityWord;
             require body.LabelKind = None;
             export LabelKind = AbilityWord;
+            export AbilityTermination = body.AbilityTermination;
         }
 
         construction FlavorWordHead: Ability {
@@ -2224,6 +2237,7 @@ constructions! {
             form [head: lexical(FlavorWord), " ", body: Ability];
             require body.LabelKind = None;
             export LabelKind = FlavorWord;
+            export AbilityTermination = body.AbilityTermination;
         }
 
         construction Cost: Cost {
@@ -2285,6 +2299,7 @@ constructions! {
 
         construction KeywordLine: Ability {
             export LabelKind = None;
+            export AbilityTermination = Complete;
             boundary Initial;
             form [first: KeywordPhrase, rest: repeat(KeywordContinuation, "")];
         }
@@ -2442,10 +2457,12 @@ constructions! {
         construction AbilityKeywordPayload: ClausalKeywordPayload {
             form [body: Ability];
             require body.LabelKind = None;
+            require body.AbilityTermination = Complete;
             export KeywordParameterClass = Ability;
         }
         construction ConditionKeywordPayload: ClausalKeywordPayload {
             form [body: Sentence];
+            require body.AbilityTermination = Complete;
             export KeywordParameterClass = Condition;
         }
         construction ClausalKeyword: KeywordPhrase {
@@ -2486,7 +2503,10 @@ constructions! {
         }
         construction Sentence: Sentence {
             boundary Initial;
-            form [clause: Clause, sentence_terminal(clause.terminal_punctuation)];
+            form [clause: Clause, sentence_terminal(clause.terminal_punctuation)]
+                export AbilityTermination = Complete;
+            form [clause: Clause] require clause.terminal_punctuation = None
+                export AbilityTermination = Unterminated;
         }
 
         // Project analysis: a variable-defining PP supplements the completed
@@ -2500,9 +2520,13 @@ constructions! {
         }
         policy UnlabelledSupplementation {
             export LabelKind = None;
+            export AbilityTermination = Complete;
+        }
+        policy CompleteSentence {
+            export AbilityTermination = Complete;
         }
         instance Supplementation<Result, Anchor: anchor, Properties>: [
-            (Sentence, Clause, NoFeatures),
+            (Sentence, Clause, CompleteSentence),
             (Ability, KeywordPhrase, UnlabelledSupplementation),
         ] {
             use Properties;

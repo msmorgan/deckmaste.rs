@@ -59,6 +59,9 @@ mod produce_verb;
 #[path = "suite/proper_names.rs"]
 mod proper_names;
 
+#[path = "suite/quoted_ability_coordination.rs"]
+mod quoted_ability_coordination;
+
 #[path = "suite/trailing_adjunct_height.rs"]
 mod trailing_adjunct_height;
 

@@ -280,13 +280,23 @@ fn articles_and_case_reach_real_grammatical_hosts() {
         ("Flying, Trample", Category::Ability),
         ("flying, trample", Category::Ability),
         ("Creatures have Flying.", Category::Document),
-        ("\"This creature can't be blocked\"", Category::QuotedText),
         ("\"draw a card.\"", Category::QuotedText),
         ("three Dog, Galaxy News DJ", Category::Name),
     ] {
         if !parse_all(lexicon, text, root).is_empty() {
             failures.push(format!("unexpected {text:?} at {root:?}"));
         }
+    }
+    // QA1 admits a capitalized Ability quotation. Ogre Marauder's bare-Clause
+    // quotation still requires interior capitalization (QA3).
+    let clauses = parse_all(lexicon, "This creature can't be blocked", Category::Clause);
+    assert!(!clauses.is_empty());
+    for clause in clauses {
+        let fragment = Reading::QuotedClause {
+            form: 0,
+            clause: Box::new(clause),
+        };
+        assert!(fragment.admit(lexicon).is_err());
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

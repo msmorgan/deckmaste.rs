@@ -1276,6 +1276,11 @@ Punctuation marking the end of a sentence. When a quotation ends a matrix
 sentence and both would have a full stop, the matrix full stop is suppressed
 (CGEL, Ch. 20 §6, p. 1755).
 
+**Ability Termination** (project term):
+Whether an Ability has its ordinary terminal punctuation or omits its final
+sentence's full stop in a non-final Quotation, under
+[orchestrator rulings QA1–QA4 (2026-10-10)](../../tickets/done/english-v3-quoted-ability-coordination.md#analysis).
+
 **Granted Ability Complement** (project term):
 A selected Complement expressing cited ability wording or a Keyword Phrase.
 Its Conjuncts can have different Categories while sharing Complement function

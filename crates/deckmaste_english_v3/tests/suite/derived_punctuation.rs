@@ -139,10 +139,21 @@ fn coordination_and_sentence_punctuation_have_no_independent_form_choice() {
             reading.visit(&mut |node| nodes.push(node.clone())).unwrap();
             for mut node in nodes {
                 match &mut node {
-                    Reading::Coordination { form, .. } | Reading::Sentence { form, .. } => {
+                    Reading::Coordination { form, .. } => {
                         assert_eq!(*form, 0);
                         *form = 1;
                         assert!(node.admit(common::lexicon()).is_err());
+                    }
+                    Reading::Sentence { form, .. } => {
+                        assert_eq!(*form, 0);
+                        *form = 1;
+                        // QA2 licenses omission within a quotation, while a
+                        // completed Paragraph item still requires its terminal.
+                        let item = Reading::SentenceItem {
+                            form: 0,
+                            sentence: Box::new(node),
+                        };
+                        assert!(item.admit(common::lexicon()).is_err());
                     }
                     _ => {}
                 }
