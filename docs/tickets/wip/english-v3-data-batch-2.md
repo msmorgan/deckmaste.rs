@@ -118,6 +118,15 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    reports covered 693 → 693 and Readings 38,813 → 38,813; lost/gained/
    decreases/increases/digest-only all 0 and changed lines 0. Own gains
    remain 310. Evidence: `review-after.json`, `review-diff.json`.
+   The next refresh on `stpwnkqv` repeats the same 799 identities:
+   covered 693 → 693, Readings 38,813 → 30,643, lost/gained 0,
+   decreases 431, increases 127, digest-only 71, unchanged 170.
+   These incoming changes, including every removed Reading in the
+   431 decreased faces, are attributed to trunk `ukytykwr` (trailing
+   Adjunct height and Predicate carriers), not to this batch's declarations.
+   The complete named and per-line ledger is the built-in
+   `review-refresh-diff.json`; census `review-refresh-after.json`.
+   The accepted own-gain count remains 310.
 
 2. **Witnesses** — probes before declarations on claim parent `pwpypkvo`
    confirmed every failing witness except the already-supported `Transform
@@ -156,7 +165,7 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    Temporal “this game” within the commander-casting relative.
 
 4. **Deviations and STOPs** — no STOPs or glossary gaps. D1 follow-ups:
-   standalone *total*, bare transitive *remove*, *combat* Source Complement,
+   standalone *total*, bare transitive / bare passive *remove*, *combat* Source Complement,
    *devotion to*, and *basic landcycling*. The trial *total* noun gave
    Cryptborn Horror 51 → 66 and
    Tainted Sigil 15 → 21 Readings, through new object-gap relative analyses
@@ -215,6 +224,12 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    duplicate was retired, keeping trunk's declaration and the tests of its
    values. Item 3's pre-refresh count remains in the table; it is inherited
    coverage after refresh, not an additional declaration in this landing.
+   The review refresh brought trailing Adjunct change `ukytykwr` and its
+   inherited vocabulary count re-spell `youxkuvq`. Harmony resolved the
+   single `tests/main.rs` registration conflict in `owzsyvqn`, retaining
+   both `trailing_adjunct_height` and `data_batch_2`; retry refresh passed.
+   Both licences remain unchanged. All four requested *put back*/*put there*
+   probes still read 1 after this refresh (`review-refresh-probe-*.json`).
 
 5. **Tests** — `owzsyvqn`: `cargo test -p deckmaste_english_v3` passed
    (731 integration tests, no failures or ignores), including the final
@@ -248,8 +263,21 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    passed with both generated facts files up to date (`facts-current.log`).
    A `cargo test -p deckmaste_english_v3` trial was interrupted during
    compilation after the narrowing was reverted; no test results were
-   produced. All code, data and tests are byte-identical to `kpvllwpt`;
-   the previous complete-suite results remain applicable.
+   produced. Before the next refresh, all code, data and tests were
+   byte-identical to the reviewed `kpvllwpt` state.
+   After the grammar-bearing review refresh, on `stpwnkqv`, full
+   `cargo test -p deckmaste_english_v3` passed 744 integration tests
+   (0 failed, ignored or filtered); full `cargo test -p
+   deckmaste_lexical_source` passed 35 unit and 40 integration tests
+   (0 failed, ignored or filtered). `cargo clippy -p deckmaste_english_v3
+   --tests -- -D warnings` and `cargo clippy -p deckmaste_lexical_source
+   --tests -- -D warnings` both passed. `cargo xtask facts check` passed
+   again with both generated files up to date. Logs:
+   `test-{english,lexical}-review-refresh.log`,
+   `clippy-{english,lexical}-review-refresh.log`, `facts-review-refresh.log`.
+   Citation checks found 0 noncompliant strings and 0 stale citations;
+   no new CR registrations. Assurance counts remain added 5 / restored 0 /
+   re-spelled 2 / ignored 0 / removed 0 for this batch.
 
 6. **Timing** — `owzsyvqn`: 4m05.31s for the bounded census, 6 workers,
    `--samples-per-face 0`, measured with `/usr/bin/time -v` (`census.time`).
