@@ -125,4 +125,54 @@ negatives. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant: the six items of `docs/tickets/README.md`.
+1. **Census delta** (`zvoyutom`, before at claim-parent content `qwturwom`,
+   after implementation): 355 → 421 covered faces; 7,093 → 10,334 Readings.
+   Official diff: 66 gained, zero lost/decreases/increases/digest-only; zero
+   issues. Lost faces: none. Selector: the 198 faces attested by
+   `(?i)\b(partner|background|companion)\b`, plus 300 covered controls selected
+   with seed 20261008: 498 identities. Evidence:
+   `target/english-v3/english-v3-phrasal-keyword-surfaces/{manifest,before,after,diff}.json`.
+2. **Witnesses** (`zvoyutom`): Abdel Adrian, Gorion's Ward / Choose a
+   Background; Clara Oswald / Doctor's companion; Bjorna, Nightfall Alchemist /
+   Partner—Friends forever; Leonardo, the Balance / Partner—Character select;
+   Kratos, Stoic Father / Partner—Father & son; Joel, Resolute Survivor /
+   Partner—Survivors: each line 0 → 1, through its own `BareKeyword` Lexeme.
+   Rose Noble's doctor's-companion mention 0 → 18, beside its flying control's
+   unchanged 18 (W9-A); the isolated with-mention 0 → 1. Controls Partner,
+   First strike; swampwalk, Choose a Background., and the Background Type Line
+   remain 1; the Lurrus Companion-line control remains 4. No already-reading
+   witness was retained as a gap.
+3. **Spot checks** (`zvoyutom`): Clara Oswald → `doctorsCompanion`;
+   Bjorna, Nightfall Alchemist → `partnerFriendsForever`; Leonardo, the Balance
+   → `partnerCharacterSelect`; Kratos, Stoic Father → `partnerFatherAndSon`;
+   Joel, Resolute Survivor → `partnerSurvivors`; Alora, Merry Thief, Faceless
+   One, and Wilson, Refined Grizzly → `chooseABackground`: each is a whole
+   `BareKeyword` under `KeywordLine`. An Unearthly Child and Rose Noble →
+   `doctorsCompanion` as the `BareKeyword` Complement of
+   `KeywordComplementPreposition`. All ten full-face probes have byte-exact
+   realization, the intended analysis, and no issues; no unintended-only gain
+   was found.
+4. **Deviations and STOPs**: no Construction or frame changes; no STOP or
+   glossary gap. Six bodiless declarations follow owner-confirmed PK1.
+   Existing declared-payload support carries apostrophes, em dashes, ampersands,
+   and internal capitals; PK3 needs no compiler fallback. The binding seed
+   20261008 supersedes the Method's 20261010. The bounded verification budget
+   supersedes the record template's full-census wording. Inventory tests retain
+   exact value comparisons while adding the six surfaces and extending
+   declaration-name normalization for em dashes and ampersands.
+5. **Tests** (`zvoyutom`): all passed:
+   `cargo test -p deckmaste_english_v3 -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2`;
+   `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source -p deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings`;
+   `cargo test -p xtask english_v3` (56 passed);
+   `cargo xtask lean check` (240 cards checked, owner override).
+   Citation checks: zero noncompliant, zero stale; diff audit has no new
+   citation sites. Assurance: restored 0 / re-spelled 3 / ignored 0 / added 3 /
+   removed 0. Re-spelled:
+   `builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`,
+   `every_keyword_declaration_pins_its_template`, and
+   `every_keyword_template_is_consistent_with_its_params_and_grammar`.
+   The three new tests are registered once in `suite_3`. Earlier attempts
+   exposed a fixture identifier conversion and missing inventory pins; both
+   were corrected before the passing full run. No test removal needs justification.
+6. **Timing** (`zvoyutom`): bounded after-census wall time 17.59 s under
+   `/usr/bin/time -v`, six workers, zero samples per face.

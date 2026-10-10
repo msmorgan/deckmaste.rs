@@ -2,6 +2,9 @@
 #[allow(dead_code, reason = "Each binary uses a subset of the shared test fixtures.")]
 mod common;
 
+#[path = "suite/phrasal_keyword_surfaces.rs"]
+mod phrasal_keyword_surfaces;
+
 #[path = "suite/articles.rs"]
 mod articles;
 

@@ -22,8 +22,8 @@ fn declaration_name(head: &str) -> String {
         return "infinity".to_owned();
     }
     let stem = head
-        .split([' ', '-'])
-        .map(|word| word.replace(['\'', '!'], ""))
+        .split([' ', '-', '—'])
+        .map(|word| word.replace(['\'', '!'], "").replace('&', "and"))
         .filter(|word| !word.is_empty())
         .map(|word| {
             let mut chars = word.chars();
@@ -375,6 +375,32 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
 
     for (name, surface, template) in [
         ("flying", "flying", "flying"),
+        (
+            "chooseABackground",
+            "choose a Background",
+            "choose a Background",
+        ),
+        (
+            "doctorsCompanion",
+            "doctor's companion",
+            "doctor's companion",
+        ),
+        (
+            "partnerFriendsForever",
+            "partner—Friends forever",
+            "partner—Friends forever",
+        ),
+        (
+            "partnerCharacterSelect",
+            "partner—Character select",
+            "partner—Character select",
+        ),
+        ("partnerSurvivors", "partner—Survivors", "partner—Survivors"),
+        (
+            "partnerFatherAndSon",
+            "partner—Father & son",
+            "partner—Father & son",
+        ),
         ("doubleStrike", "double strike", "double strike"),
         ("forMirrodin", "for Mirrodin!", "for Mirrodin!"),
         (

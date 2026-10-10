@@ -119,6 +119,7 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("casualty", "casualty <Param(0)>"),
     ("champion", "champion <Param(0)>"),
     ("changeling", "changeling"),
+    ("chooseABackground", "choose a Background"),
     ("cipher", "cipher"),
     ("cleave", "cleave <Param(0)>"),
     ("companion", "companion — <Param(0)>"),
@@ -141,6 +142,7 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("devour", "devour <Param(0)>"),
     ("disguise", "disguise <Param(0)>"),
     ("disturb", "disturb <Param(0)>"),
+    ("doctorsCompanion", "doctor's companion"),
     ("doubleStrike", "double strike"),
     ("dredge", "dredge <Param(0)>"),
     ("echo", "echo <Param(0)>"),
@@ -234,6 +236,10 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("overload", "overload <Param(0)>"),
     ("paradigm", "paradigm"),
     ("partner", "partner"),
+    ("partnerCharacterSelect", "partner—Character select"),
+    ("partnerFatherAndSon", "partner—Father & son"),
+    ("partnerFriendsForever", "partner—Friends forever"),
+    ("partnerSurvivors", "partner—Survivors"),
     ("persist", "persist"),
     ("phasing", "phasing"),
     ("plot", "plot <Param(0)>"),
@@ -356,7 +362,7 @@ fn every_keyword_declaration_pins_its_template() {
 #[test]
 fn every_keyword_template_is_consistent_with_its_params_and_grammar() {
     let declarations = keyword_declarations();
-    assert_eq!(declarations.len(), 66 + 201);
+    assert_eq!(declarations.len(), 66 + 207);
     for declaration in &declarations {
         let name = declaration.identity().name();
         let params = declaration.params().unwrap_or_default();

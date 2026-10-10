@@ -1,0 +1,10 @@
+KeywordAbility(
+    name: "partnerFatherAndSon",
+    params: [],
+    spelling: "partner—Father & son",
+    grammar: FixedKeyword(
+        surface: "partner—Father & son",
+    ),
+    // Grammar-only declaration authorized by owner ruling PK1 (2026-10-10).
+    // The engine body belongs to semantics-v2-keyword-ability-census.
+)
