@@ -1263,6 +1263,11 @@ premodify a noun, as in *the chosen type* (CGEL, Ch. 5 §14.2, p. 444).
 The lexical declaration records this distribution; a transitive frame alone
 does not supply declared past-participial Premodifier availability.
 
+**Adjective Premodifier Use** (project term):
+An Adjective's declared permission to function as a Premodifier, independently
+of its permission to be a predicative Complement ([orchestrator ruling KS5,
+2026-10-10](../../tickets/wip/english-v3-keyword-state-adjectives.md#analysis)).
+
 **Attribute Noun Premodifier** (project term):
 A noun Premodifier whose declared use selects a head with Attribute Premodifier
 Head permission, as *card* in *card type*, *card name*, and *card pool*

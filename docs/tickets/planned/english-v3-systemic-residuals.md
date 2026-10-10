@@ -720,32 +720,19 @@ corresponding frame shapes. See the
 
 ## Keyword verb and state Complement residue (2026-10-10)
 
-The [keyword-verb export landing](../done/english-v3-keyword-verb-export.md#landing-record)
-defers saddle and *becomes crewed* under KV3/KV2 (pre-integrate review ruling
-2026-10-10, implementation `surmqztl`). Find a general route for the attested
-state Complements of *become* that preserves the existing Readings and avoids
-a duplicate adjective/passive analysis; standard constraints apply.
+Repaired in [keyword state adjectives](../wip/english-v3-keyword-state-adjectives.md#landing-record)
+under orchestrator rulings KS1–KS6 and the confirmed saddle extension
+(2026-10-10). Exile and crew derive their state Adjectives by class membership;
+saddle exports its active/passive verb and retains its existing state Adjective.
+The adjectival and verbal passive Readings under *be* are both grammatical.
+Have’s Object + predicative Complement state route is accepted by project
+ruling KS-R1; the adjectival *be* + *by* Adjunct route is accepted by KS-R2
+on claim-parent *tapped* parity (2026-10-10).
+*Remain* / *become* select only the state Adjective; the existing verbal
+attributive *exiled* route receives no Adjective twin (KS5).
 
-- **Saddle**: adding the verb export makes `This creature is saddled` read
-  1 → 2; retiring the existing adjective makes `This creature becomes saddled`
-  read 1 → 0. Threatened covered faces: Stubborn Burrowfiend; Kolodin, Triumph
-  Caster; Guidelight Matrix; Alacrian Armory. The original adjective remains.
-  Unread active witnesses: `This creature saddles Mounts` (Deathless Pilot)
-  and `saddles a Mount` (Reckless Velocitaur), both 0 before and finally 0
-  after; both temporarily read with the rejected export. Probe evidence is
-  under `target/english-v3/english-v3-keyword-verb-export/`
-  (`saddled-with-verb.json`, `becomes-saddled-retired-adjective.json`,
-  `08-before.json`, `09-before.json`).
-- **Becomes crewed**: 4 analysed-corpus attestations — Mindlink Mech, Mighty
-  Servant of Leuk-o, Mobilizer Mech and Ghost Ark — remain 0 before and after
-  (`surmqztl`, review evidence). The missing piece is that *become* takes an
-  adjectival Complement, while crew exports no state adjective. Adding that
-  adjective would duplicate `is crewed` exactly as for saddle. This KV3
-  failing term is recorded here, not implemented by the verb-export ticket.
-
-Preserve the covered state faces and discriminate the adjective/passive
-constituencies before routing a bounded repair. Do not retire an adjective
-until its *become* witnesses have a replacement with the same outcome.
+Verbless *while saddled* remains outside this repair, as recorded in that
+ticket's scope; its *while tapped* control also fails.
 
 ## Faces covered by a known wrong analysis
 

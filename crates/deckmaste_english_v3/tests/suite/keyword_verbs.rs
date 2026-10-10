@@ -209,7 +209,7 @@ fn henry_wus_exploited_creature_is_a_verbal_premodifier() {
 }
 
 #[test]
-fn deferred_saddle_keeps_the_attested_adjectival_state_routes() {
+fn saddle_keeps_the_attested_adjectival_state_routes() {
     // Stubborn Burrowfiend and Archmage's Newt, respectively. Retiring this
     // adjective before a replacement for become would lose the former.
     for text in ["this creature becomes saddled", "this creature is saddled"] {
@@ -221,7 +221,21 @@ fn deferred_saddle_keeps_the_attested_adjectival_state_routes() {
                 (Category::AdjectivePhrase, "saddled"),
             ],
         );
-        for reading in common::readings(text, Category::FiniteClause) {
+        let readings = common::readings(text, Category::FiniteClause);
+        let mut state_readings = Vec::new();
+        for reading in readings {
+            let mut state = false;
+            reading
+                .visit(&mut |node| {
+                    state |= node.category() == Category::PredicativeComplement;
+                })
+                .unwrap();
+            if state {
+                state_readings.push(reading);
+            }
+        }
+        assert!(!state_readings.is_empty(), "missing adjective for {text}");
+        for reading in state_readings {
             let mut words = Vec::new();
             reading
                 .visit_words(&mut |word| {

@@ -4,6 +4,7 @@ KeywordAbility(
     spelling: "saddle <Param(0)>",
     grammar: FixedKeyword(
         surface: "saddle",
+        verb: (bare: "saddle", frames: [Predicate([ObjectNounPhrase])]),
     ),
     // "Saddle N" means "Tap any number of other untapped creatures you control with
     // total power N or greater: This permanent becomes saddled until end of turn.

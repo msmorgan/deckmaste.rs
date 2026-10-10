@@ -18,7 +18,13 @@
     participial_adjective_classes: [(
         features: {"AdjectiveOrigin": "Participial"},
         form: PastParticiple,
-        members: ["lexeme:keyword_action/tap", "lexeme:keyword_action/untap", "core-verb:Block"],
+        members: [
+            "lexeme:keyword_action/tap", "lexeme:keyword_action/untap", "core-verb:Block",
+        ],
+    ), (
+        features: {"AdjectiveOrigin": "Participial", "AdjectivePremodifierUse": "No"},
+        form: PastParticiple,
+        members: ["lexeme:keyword_action/exile", "lexeme:keyword_ability/crew/verb"],
     )],
     // Oracle compound nouns use declared noun-head recipes.
     compound_noun_classes: [(

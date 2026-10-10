@@ -73,3 +73,6 @@ mod keyword_mention_without_parameter;
 
 #[path = "suite/ring_tempts_you.rs"]
 mod ring_tempts_you;
+
+#[path = "suite/keyword_state_adjectives.rs"]
+mod keyword_state_adjectives;

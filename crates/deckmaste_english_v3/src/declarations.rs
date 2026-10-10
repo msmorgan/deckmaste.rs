@@ -271,6 +271,11 @@ constructions! {
         feature ExtentMarker { Yes }
         feature LocativeUse { No, Yes }
         feature AdjectiveOrigin { Ordinary, Participial } default Ordinary;
+        feature AdjectivePremodifierUse { No, Yes } default Yes;
+        table coordinated_adjective_premodifier(AdjectivePremodifierUse, AdjectivePremodifierUse)
+            -> AdjectivePremodifierUse {
+            (Yes, Yes) => Yes, (_, _) => No,
+        }
         feature AdjectiveStructure { Simple, Complemented }
         feature RelativeSubordinator { Yes }
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
@@ -505,7 +510,7 @@ constructions! {
             BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent, WholeObjectSourcePresent);
-        category AdjectivePhrase(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse, PremodifierCoordination);
+        category AdjectivePhrase(AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category Premodifier(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
         category PremodifierCoordination(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
@@ -606,7 +611,7 @@ constructions! {
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, ScalarMeasurementHeadUse, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
         , SourceModifierPresent, WholeObjectSourcePresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
-        category AdjectivePhraseSeries(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse, PremodifierCoordination);
+        category AdjectivePhraseSeries(AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category PrepositionPhraseSeries(InterveningAdjunctLicence, ConnectiveAdjunctUse, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
@@ -1350,6 +1355,8 @@ constructions! {
         }
 
         policy AdjectiveStructureMerge<Right, Source> {
+            export AdjectivePremodifierUse = coordinated_adjective_premodifier(
+                left.AdjectivePremodifierUse, Right.AdjectivePremodifierUse);
             export PremodifierCoordination = Yes;
             export AdjectiveOrigin = coordinated_adjective_origin(left.AdjectiveOrigin, Right.AdjectiveOrigin);
             export AdjectiveStructure = coordinated_adjective_structure(left.AdjectiveStructure,
@@ -3053,6 +3060,7 @@ constructions! {
             require head.framing = Unframed;
             export AdjectiveStructure = Simple;
             export AdjectiveOrigin = head.AdjectiveOrigin;
+            export AdjectivePremodifierUse = head.AdjectivePremodifierUse;
             export TargetingPremodifierUse = head.TargetingPremodifierUse;
         }
 
@@ -3062,6 +3070,7 @@ constructions! {
             require head.frame = Intransitive;
             export AdjectiveStructure = Simple;
             export AdjectiveOrigin = head.AdjectiveOrigin;
+            export AdjectivePremodifierUse = head.AdjectivePremodifierUse;
             export TargetingPremodifierUse = head.TargetingPremodifierUse;
         }
 
@@ -3073,6 +3082,7 @@ constructions! {
             require marker.InternalisedComplementMarker = Yes;
             export AdjectiveStructure = Complemented;
             export AdjectiveOrigin = head.AdjectiveOrigin;
+            export AdjectivePremodifierUse = head.AdjectivePremodifierUse;
             export TargetingPremodifierUse = No;
         }
 
@@ -3154,6 +3164,7 @@ constructions! {
             form [head: AdjectivePhrase];
             require head.PremodifierCoordination = No;
             require head.AdjectiveStructure = Simple;
+            require head.AdjectivePremodifierUse = Yes;
             export NounPremodifier = None;
             export AdjectiveOrigin = head.AdjectiveOrigin;
             export TargetingPremodifierUse = head.TargetingPremodifierUse;
@@ -3218,6 +3229,7 @@ constructions! {
             export SourceModifierPresent = head.SourceModifierPresent;
             export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             require modifier.AdjectiveStructure = Simple;
+            require modifier.AdjectivePremodifierUse = Yes;
             require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
         }
 
@@ -5151,6 +5163,7 @@ constructions! {
             require head.numeral_kind = Ordinal;
             export AdjectiveStructure = Simple;
             export AdjectiveOrigin = Ordinary;
+            export AdjectivePremodifierUse = Yes;
             export TargetingPremodifierUse = Yes;
         }
 
@@ -5488,6 +5501,7 @@ constructions! {
             form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
             export AdjectiveOrigin = Ordinary;
+            export AdjectivePremodifierUse = Yes;
             export TargetingPremodifierUse = No;
         }
 
