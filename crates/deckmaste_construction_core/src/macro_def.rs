@@ -11,6 +11,12 @@ use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 
+mod lexical_helpers;
+
+pub use lexical_helpers::HelperGrammar;
+pub use lexical_helpers::HelperLexicalDeclaration;
+pub use lexical_helpers::read_builtin_v2_helpers;
+
 use ron::value::RawValue;
 use serde::Deserialize;
 use serde::Serialize;
@@ -427,6 +433,12 @@ pub enum Grammar {
 pub struct KeywordVerbGrammar {
     pub bare: String,
     pub frames: Vec<VerbDeclarationFrame>,
+    #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
+    pub preterite: DerivedSurface,
+    #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
+    pub participle: DerivedSurface,
+    #[serde(default, skip_serializing_if = "DerivedSurface::is_derived")]
+    pub gerund_participle: DerivedSurface,
 }
 
 /// The shared serialized frame kinds of core and keyword Verb declarations.
@@ -3137,6 +3149,15 @@ fn validate_keyword_verb(
     verb: &KeywordVerbGrammar,
 ) -> Result<(), ReadError> {
     validate_surface(path, bare_position, "verb.bare", &verb.bare)?;
+    for (field, surface) in [
+        ("verb.preterite", &verb.preterite),
+        ("verb.participle", &verb.participle),
+        ("verb.gerund_participle", &verb.gerund_participle),
+    ] {
+        if let DerivedSurface::Override(surface) = surface {
+            validate_surface(path, bare_position, field, surface)?;
+        }
+    }
     if verb.frames.is_empty() {
         return Err(validation_error_at(
             path,

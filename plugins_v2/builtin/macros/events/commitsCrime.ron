@@ -5,5 +5,15 @@
     name: "commitsCrime",
     kinds: [GameEvent],
     params: {"player": Subject},
+    metadata: (grammar: (
+        term: Noun(singular: "crime", plural: Unavailable),
+        verb: (
+            bare: "commit",
+            frames: [Predicate([Argument(relation: Object, category: "NounPhrase")])],
+            preterite: Unavailable,
+            participle: "committed",
+            gerund_participle: Unavailable,
+        ),
+    )),
     body: CommitsCrime(Param(player)),
 )

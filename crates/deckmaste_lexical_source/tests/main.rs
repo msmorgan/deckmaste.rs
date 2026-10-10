@@ -23,3 +23,6 @@ mod type_words;
 
 #[path = "suite/data_batch_2.rs"]
 mod data_batch_2;
+
+#[path = "suite/predicate_terms.rs"]
+mod predicate_terms;

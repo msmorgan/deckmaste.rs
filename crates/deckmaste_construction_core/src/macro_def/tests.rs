@@ -1871,6 +1871,9 @@ fn keyword_verb_declarations_preserve_the_keyword_recipe_and_roundtrip() {
         Some(&KeywordVerbGrammar {
             bare: "mutate".into(),
             frames: vec![VerbDeclarationFrame::Predicate(vec![])],
+            preterite: DerivedSurface::Derived,
+            participle: DerivedSurface::Derived,
+            gerund_participle: DerivedSurface::Derived,
         })
     );
     let definition: macro_ron::MacroDef<Metadata> =

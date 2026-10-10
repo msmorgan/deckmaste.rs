@@ -3,5 +3,6 @@
     name: "historic",
     kinds: [Predicate],
     params: [],
+    metadata: (grammar: (term: Adjective(surface: "historic"))),
     body: Or([HasType(Artifact), HasSupertype(Legendary), HasSubtype(Of(Enchantment, "Saga"))]),
 )

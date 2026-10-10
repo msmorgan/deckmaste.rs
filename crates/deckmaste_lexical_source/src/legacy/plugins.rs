@@ -61,10 +61,50 @@ pub(crate) fn load(
         }
         export_metadata(&owner, &path, definition.metadata, normalized, output);
     }
+    for declaration in metadata::read_builtin_v2_helpers(root.join("plugins_v2/builtin"))? {
+        export_helper(root, declaration, output);
+    }
     Ok(LoadedDeclarations {
         compounds,
         bound_keyword_stems: bound_keyword_stem_members(&declarations, &stem_classes),
     })
+}
+
+fn export_helper(
+    root: &Path,
+    declaration: metadata::HelperLexicalDeclaration,
+    output: &mut LexicalSources,
+) {
+    let owner = format!("lexeme:{}/{}", declaration.kind, declaration.name);
+    let path = declaration
+        .path
+        .strip_prefix(root)
+        .unwrap_or(&declaration.path)
+        .to_string_lossy();
+    if let Some(grammar) = declaration.grammar.term {
+        let provenance = source(SourceKind::Plugin, &path, &owner);
+        let mut lexeme = grammar_lexeme(&owner, &path, grammar, provenance, None, output);
+        if let Some(term) = &declaration.term {
+            export_grammar_distribution(&mut lexeme, term);
+        }
+        if declaration.grammar.noun_modifier {
+            lexeme
+                .properties
+                .features
+                .insert("NounPremodifier".into(), "Yes".into());
+        }
+        if let Some(join) = declaration.grammar.negative_prefix_join {
+            output
+                .lexemes
+                .push(crate::native::negative_lexeme(&lexeme, join));
+        }
+        output.lexemes.push(lexeme);
+    }
+    if let Some(verb) = declaration.grammar.verb {
+        output
+            .lexemes
+            .push(keyword_verb_lexeme(&owner, &path, verb));
+    }
 }
 
 fn declaration_owner(declaration: &metadata::NormalizedDeclaration) -> String {
@@ -123,7 +163,7 @@ fn export_metadata(
         });
         return;
     };
-    let mut lexeme = grammar_lexeme(owner, path, grammar, provenance, normalized, output);
+    let mut lexeme = grammar_lexeme(owner, path, grammar, provenance, Some(normalized), output);
     export_distribution(&mut lexeme, normalized, authored.noun_class);
     lexeme.properties.features.insert(
         "CreatureSubtypeStem".into(),
@@ -170,7 +210,7 @@ fn grammar_lexeme(
     path: &str,
     grammar: metadata::Grammar,
     provenance: Source,
-    normalized: &metadata::NormalizedDeclaration,
+    normalized: Option<&metadata::NormalizedDeclaration>,
     output: &mut LexicalSources,
 ) -> Lexeme {
     match grammar {
@@ -278,7 +318,7 @@ fn grammar_lexeme(
                     owner,
                     path,
                     suffix,
-                    normalized.keyword_parameter_class(),
+                    normalized.and_then(metadata::NormalizedDeclaration::keyword_parameter_class),
                 );
             }
             if let Some(adjective) = participial_adjective {
@@ -328,21 +368,7 @@ fn export_distribution(
     noun_class: Option<metadata::NounClassSemantics>,
 ) {
     if let Some(grammar) = normalized.grammar() {
-        for surface in grammar.surfaces() {
-            if let Some(onset) = surface.onset_override() {
-                lexeme.onsets.insert(
-                    surface.text().into(),
-                    match onset {
-                        metadata::Onset::Consonant => deckmaste_lexical::Onset::Consonant,
-                        metadata::Onset::Vowel => deckmaste_lexical::Onset::Vowel,
-                    },
-                );
-            }
-        }
-        lexeme
-            .properties
-            .features
-            .insert("source_recipe".into(), format!("{:?}", grammar.recipe()));
+        export_grammar_distribution(lexeme, grammar);
     }
     if let Some(parameter) = normalized.keyword_parameter_class() {
         lexeme.properties.features.insert(
@@ -377,6 +403,24 @@ fn export_distribution(
             .features
             .insert("relationality".into(), format!("{:?}", class.relationality));
     }
+}
+
+fn export_grammar_distribution(lexeme: &mut Lexeme, grammar: &metadata::GrammarRow) {
+    for surface in grammar.surfaces() {
+        if let Some(onset) = surface.onset_override() {
+            lexeme.onsets.insert(
+                surface.text().into(),
+                match onset {
+                    metadata::Onset::Consonant => deckmaste_lexical::Onset::Consonant,
+                    metadata::Onset::Vowel => deckmaste_lexical::Onset::Vowel,
+                },
+            );
+        }
+    }
+    lexeme
+        .properties
+        .features
+        .insert("source_recipe".into(), format!("{:?}", grammar.recipe()));
 }
 
 fn bound_suffix_lexeme(
@@ -510,6 +554,15 @@ fn keyword_verb_lexeme(owner: &str, path: &str, verb: metadata::KeywordVerbGramm
         verb.bare,
         source(SourceKind::Plugin, path, owner),
     );
+    lexeme.forms.retain_mut(|slot| {
+        let declaration = match slot.form {
+            WordForm::Preterite => &verb.preterite,
+            WordForm::PastParticiple => &verb.participle,
+            WordForm::GerundParticiple => &verb.gerund_participle,
+            _ => return true,
+        };
+        derived(slot, declaration)
+    });
     lexeme.properties.frames = declared_frames(&verb.frames);
     lexeme
 }
