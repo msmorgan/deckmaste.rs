@@ -153,39 +153,48 @@ by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta** — Bounded, fully enumerated selector: 572 faces matching
-   `(?i)\b(plus|minus)\b|\b(less|greater) than\b|\b(than|plus|minus|equal to) (one|two|three|four|five|six|seven|eight|nine|ten)\b`,
-   plus 300 covered controls drawn by `english-v3 diff --manifest --random 300
-   --seed 20261008`; 869 distinct faces. BEFORE is empty `tsvuoyup` on claim
-   parent `ymtxrrsu`; AFTER is implementation `tsvuoyup`. Covered 602 → 621;
-   Readings 90,100 → 91,276; gained 19, lost none, decreases none, digest-only
-   none, issues none. **SC5 increase expected by SC6(a):** Burn at the Stake
-   increases
-   39 → 45 (line 1: 36 → 42). Its six new Readings close the comparative at
-   *equal to three* and use *times the number of creatures tapped* as deal's
-   second Object, with *the number of creatures* the Subject of preterite
-   *tapped*. The identical digit-3 line enumerates six Readings, all with this
-   split
-   shape. Replacing only the new cardinal Complement with the digit's scalar
-   Complement makes the six added complete Reading values equal to the digit
-   control's set (SC6 regression). The spelled line has 42 Readings, retaining
-   its other 36; the full face retains its other three. SC6(a) accepts the
-   increase as a pre-existing analysis reached by the spelled form. The tool's
-   full comparison and line attribution are in
-   `target/english-v3/english-v3-spelled-cardinal-scalar-measure/diff.json`.
+1. **Census delta** — Bounded selector:
+   `(?i)\b(plus|minus)\b|\b(less|greater) than\b|\b(than|plus|minus|equal to) (one|two|three|four|five|six|seven|eight|nine|ten)\b`
+   matches 572 faces; plus 300 covered controls from `english-v3 diff
+   --manifest --random 300 --seed 20261008` gives 869 distinct faces.
+   BEFORE is empty `tsvuoyup` on claim parent `ymtxrrsu`; pre-refresh AFTER
+   `tsvuoyup` has 602 → 621 covered, 90,100 → 91,276 Readings and 19 gains.
+   Final refreshed `xnnmkups` has 602 → 626 covered, 90,100 → 91,359 Readings,
+   24 gains, lost none, decreases none, digest-only none and issues none.
+   `refresh-diff.json` isolates five gains and 83 Readings: Clockwork Avian,
+   Beast, Steed and Swarm (jointly enabled by imported cause `nzmrrqky` and
+   this ticket), and The Moment (imported phase `roomopmr`). No increase,
+   decrease, loss or digest-only change came from refresh.
+   The only increase is **SC5 expected by SC6(a)**: Burn at the Stake
+   39 → 45 (line 1: 36 → 42). Six new Readings close the comparison at
+   *equal to three* and take *times the number of creatures tapped* as
+   deal's second Object, with *the number of creatures* the Subject of
+   preterite *tapped*. Normalizing only the new cardinal Complement to the
+   digit scalar route makes the six complete Reading values equal to the
+   digit-3 control's set. Final `xnnmkups` probes retain spelled-line 42 and
+   digit-line 6; the other 36 spelled-line Readings and three other face
+   Readings remain. Evidence is under
+   `target/english-v3/english-v3-spelled-cardinal-scalar-measure/`;
+   `diff.json`, `refresh-diff.json` and `final-diff.json` are the stock tool's
+   comparisons, including per-line attribution.
 2. **Witnesses** — Claim-parent `ymtxrrsu` (probes on empty `tsvuoyup`) →
    implementation `tsvuoyup`: Journey On 0 → 1; Welcome to Sweettooth 0 → 2;
    Boss's Chauffeur 0 → 26; Mind Burst 0 → 3; Clockwork Steed's sentence
    0 → 0. Clockwork Steed's digit-4 control also stays 0; its *greater than
-   four* comparative constituent now reads and the remaining cause is owned
-   by `english-v3-cause-catenative-complement`. *Its power is less than five*
+   four* comparative constituent now reads; the remaining cause was tracked
+   by
+   `english-v3-cause-catenative-complement`. After refresh, `xnnmkups` gives
+   the sentence and its digit-4 control 5 each, from imported `nzmrrqky`;
+   all remaining reprobed counts match the pre-refresh AFTER. *Its power is
+   less than five*
    and *Your life total is less than seven* each go 0 → 1. The six listed
    controls retain 1 / 1 / 1 / 2 / 2 / 2 Readings. Removing *one plus* retains
    Journey On 1, Welcome to Sweettooth 2, Boss's Chauffeur 26, Mind Burst 5;
    Journey On's digit-1 control retains 1. *one* as Arithmetic Operand goes
    0 → 1; bare *five* as Scalar Measure Phrase stays 0. Every witness/control
    probe enumerated completely (cap 100), with evidence under the same
-   target directory.
+   target directory. The rebuilt xtask binary re-probed all 30 inputs plus
+   both Burn controls after refresh; all enumerations completed.
 3. **Spot checks** — On implementation `tsvuoyup`, selected newly covered
    Readings: Boss's Chauffeur, *one plus the number of other creatures*;
    Goblin Gathering, *two plus the number of named cards*; Journey On,
@@ -197,7 +206,10 @@ by `cargo xtask english-v3 grep` only.
    number of lands*: each has a cardinal left Arithmetic Operand and a
    scalar nominal right operand. Kyren Toy has scalar variable *X* on the
    left and cardinal *one* on the right. No selected gained Reading was
-   found to rely only on an unintended analysis.
+   found to rely only on an unintended analysis. Refreshed `xnnmkups` also
+   has a selected intended Reading for each of the five refresh gains:
+   four Clockworks use cause's Catenative Complement and the cardinal
+   comparative standard; The Moment selects phase's out Complement.
 4. **Deviations and STOPs** — SC1's permitted sibling fallback adds
    `CardinalScalarOperand` and `CardinalComparativeComplement`: lexical Word
    storage cannot share a form field with phrase Reading storage. The
@@ -206,25 +218,33 @@ by `cargo xtask english-v3 grep` only.
    under SC3. No construction or lexical route was retired. The Arithmetic
    Operand glossary entry now includes SC1–SC4's Cardinal Numeral licence;
    no new term was needed. The initial STOP for Burn at the Stake's increase
-   was resolved by
-   orchestrator ruling SC6(a), with the digit control supplying the measure.
+   was resolved by orchestrator ruling SC6(a), with the digit control
+   supplying the measure.
    `kata kanban wip` showed the systemic residuals ticket unowned; one
    overgeneration candidate for both spellings was added there. Normal
    STOP BEFORE INTEGRATE remains in force. No CGEL passage is claimed to
-   supply
-   the new licences.
-5. **Tests** — At implementation `tsvuoyup`, `cargo test -p
-   deckmaste_english_v3` passed all 906 integration tests (six binaries) and
-   doc tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
-   passed. Restored 0 / re-spelled 0 / ignored 0 / added 10 / removed 0.
-   The new module is registered once in `tests/main.rs`; assertions check
-   operand sides, the selected comparative Complement, existing scalar and
-   quantity roles, independently constructed roundtrips, and equality of Burn
-   at the Stake's normalized new Reading values with its digit control. No
-   other crate's
-   code or consumed data changed. Citation checks report 0 noncompliant,
-   0 stale; bless changes no tracked registrations; diff audit selects no
-   newly changed CR citation sites.
-6. **Timing** — Implementation `tsvuoyup`: bounded AFTER census wall time
-   **8:49.38**, `/usr/bin/time -v`, six workers, samples per face 0; this
-   includes waiting for Cargo's build lock. No full-corpus census was run.
+   supply the new licences. Refresh first hit the banked-workspace concurrency
+   guard; devotion's new tip was empty, and retry was safe. The subsequent
+   registration conflict in `tests/main.rs` was resolved at `tsvuoyup` by
+   retaining phase_in_out and this module exactly once. Refresh then exited
+   0 and the global conflicts query was empty.
+5. **Tests** — On `tsvuoyup`, `cargo test -p deckmaste_english_v3`
+   passed 905 integration tests before SC6 and 906 with its added regression;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed both
+   times. On refreshed `xnnmkups`, `cargo build -p xtask` passed;
+   `cargo test -p deckmaste_english_v3` passed all 919 integration tests in
+   six binaries and doc tests, and `cargo clippy -p deckmaste_english_v3
+   --tests -- -D warnings` passed. Imported lexicon data also received full
+   `cargo test -p deckmaste_lexical_source` (84 tests and doc tests) and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`, both
+   passed. Own counts: restored 0 / re-spelled 0 / ignored 0 / added 10 /
+   removed 0. The module is registered once in `tests/main.rs`; assertions
+   check operand sides, comparative Complement and existing quantity roles,
+   independently constructed roundtrips, and equality of Burn at the
+   Stake's normalized new Reading values with the digit control. The
+   implementation changes only English code; lexicon changes came from
+   refresh. Final citation checks: 0 noncompliant, 0 stale; the earlier bless
+   changed no tracked registrations; diff audit selects no new CR sites.
+6. **Timing** — Refreshed `xnnmkups`: final bounded AFTER census wall time
+   **4:49.69**, `/usr/bin/time -v`, six workers, samples per face 0. No
+   full-corpus census or Lean check was run.
