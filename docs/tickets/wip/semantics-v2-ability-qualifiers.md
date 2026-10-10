@@ -67,3 +67,96 @@ refused as a reference.
 Cross-references `semantics-v2-linked-readback` (`bySymbols`) and
 `engine-speed` (speed state); neither blocks. Refresh before integrate;
 expect conflicts in `Words`/`Phrase`/`Abilities`.
+
+## Landing record
+
+Series `xvnotyvw`..`moqsonsp`. Tests, `lean check` and `lean definitions` were
+measured on `moqsonsp` after the refresh that brought in
+`semantics-v2-text-changes` and `semantics-v2-off-stack-statics` (one
+conflict in `Check/Abilities.lean`, both sides kept; generated files up to
+date); the census before on `oktlpppt` (the
+claim) and after on `pvmpzlwy` (the series before that refresh).
+
+1. **Census delta**: no English-visible change (no spelling, grammar or
+   lexicon edit; the eight declarations keep their spellings). Full
+   `cargo xtask english-v3 --all`: 32828 faces, covered faces 26973 (8659
+   one, 18314 multiple) before and after, 923730 Readings before and after;
+   0 per-face Readings digests changed. Lost faces: none. Lean: `lean check`
+   235/235 cards (canon 227, nine of them this landing's witnesses; testing
+   8).
+2. **Witnesses** (semantic canon cards, each proving `Card.check = []`; English
+   Readings after): Spirit en-Dal (forecast) 9, Fearless Pup (boast) 5,
+   Skystreak Engineer (exhaust) 3, Brave Brawler (power-up) 3, Golden-Scale
+   Aeronaut (backup) 2, Amonkhet Raceway (max speed) 6, The Soul Stone (∞) 5,
+   Case of the Crimson Pulse (solved) 12, Expedition Diviner (the non-keyword
+   "as long as C, this creature has '[ability]'") 2. Pins in
+   `Semantics.Proofs.AbilityQualifiers` (24): a qualified activated ability
+   with a guard checks (`okQualifiedActivatedGuard`), a limit on a static is
+   refused (`badLimitOnStatic`), `printedAfter` of a keyword the card lacks is
+   refused (`badPrintedAfterAbsentKeyword`), and one per body, solved over
+   each of its three categories.
+3. **Spot checks**: forecast = `qualified(Param(0), timing:
+   duringPart(upkeep, ownerOf(this)), limit: oncePerTurn, from: Hand)`;
+   boast = `qualified(Param(0), limit: oncePerTurn, guard:
+   matches(thisCreature, happenedTo(attacks(relative(Object)),
+   soFarThisTurn)))`; exhaust = `qualified(Param(0), limit: oncePerObject)`;
+   solved = `qualified(Param(0), guard: matches(thisCase,
+   hasDesignation(solved)))`; ∞ = `static(onlyWhile(abilityGrant(
+   thisPermanent, Param(0)), matches(thisPermanent,
+   hasDesignation(harnessed))))`; max speed = `static(onlyWhile(
+   abilityGrant(this, Param(0)), compareAmt(speedOf(you), Eq, 4)))`;
+   power-up = the qualifier with `oncePerObject` and `static(onlyWhile(
+   reducedBySymbols(thisAbility, manaCostOf(thisPermanent)),
+   matches(thisPermanent, happenedTo(enters(relative(Object)),
+   soFarThisTurn))))`; backup = `triggered(enters(thisCreature),
+   sequentially([putCounters(Param(0), p1p1Counter, target(creature)),
+   doIf(matches(that(Creature), otherThan(thisCreature)),
+   establish(abilityGrantSelected(that(Creature), thisCreature,
+   PrintedAfter(backup)), untilEndOfTurn))]))`; Spirit en-Dal's printed
+   ability is `activated(compound([mana([1, White]),
+   perform(reveal(thisCreature))]), gain(target(creature), shadow,
+   untilEndOfTurn))`; the Case's "To solve" is the triggered ability it means
+   [CR#719.3a].
+4. **Deviations and STOPs**: no STOPs. Beyond the ticket's letter:
+   - Backup's grant needed a carrier for an Ability Selection:
+     `StaticSpec.abilityGrantSelected (subject) (source) (selection)`, since
+     `abilityGrantFrom` takes classes, not a selection.
+   - `printedAfter`'s reference law is a card text law
+     (`printedAfterLaws`, refusal `printedAfterKeyword`), walking static
+     clauses, establishing instructions and the ability forms around them as
+     `namesThisDoor` does; a selection nested in another instruction form is
+     not walked. New refusal `qualifiedLimit` for a limit on a non-activated
+     ability.
+   - Power-up's reduction is a static `costShift` on `thisAbility` beside the
+     qualifier, and a cost shift on an ability takes no stack regime
+     [CR#602.2b,601.2f] (Lean `StaticSpec.regimeFits`, xtask
+     `static_regime`), so power-up's row stays regime-free.
+   - Facts: a qualifier over the keyword's own argument has the printed
+     ability's category, so the overlay names it from the CR entry (forecast,
+     boast, exhaust, power-up activated; solved static, triggered and
+     activated); backup's overlay category retires now its body is written.
+     `Category`'s stale `dead_code` expectation removed.
+   - Forecast's reveal is part of each card's printed cost ("Reveal this card
+     from your hand"); the keyword adds no reveal qualifier.
+   - `deckmaste_construction_core`'s English keyword-line class for an
+     `Ability` parameter stays `Unsupported(Ability)`: that is the
+     keyword-line grammar's codec, not the semantic reader, which now carries
+     the argument (`KeywordParam::Ability`).
+   - `PlayerStat.speed`'s game state is `engine-speed`'s.
+   - Glossary: Ability Selection and Usage Limit amended
+     (`docs/contexts/game-model/CONTEXT.md`); Qualified Ability was already
+     defined.
+5. **Tests**: `lake build --wfail` clean (97 jobs); `cargo test -p
+   deckmaste_semantics_v2` pass (47+7+1+4+46); `cargo test -p xtask` pass
+   (407 passed, 1 ignored pre-existing; 4; 14); `cargo test -p
+   deckmaste_construction_core` pass; `cargo test -p deckmaste_lexical_source`
+   pass (28+36); `cargo clippy -p <crate> --tests -- -D warnings` clean for
+   all four; `cargo xtask lean check` 235/235; `cargo xtask lean definitions`
+   711/711; `facts check`, `lean macros check` up to date; `cite check` 0
+   stale, 0 non-compliant. Counts: restored 0; re-spelled 1
+   (`keywords::tests::a_keyword_ability_forwards_its_signature`: an `Ability`
+   parameter is now forwarded as `Ability(Param(1))`, the ticket's change);
+   ignored 0; added 24 Lean theorems, 1 Rust test
+   (`a_keyword_carries_its_printed_ability_and_qualifies_it`), 9 canon cards;
+   removed 0.
+6. **Timing**: one full census 285 s wall, 16 workers (`after`, `pvmpzlwy`).
