@@ -4695,14 +4695,14 @@ constructions! {
             use Properties;
         }
 
-        // Orchestrator ruling R5a (2026-10-08): ordering comparative AdjPs
-        // enter the existing ScalarMeasureValue route to PropertyValue.
+        // Orchestrator rulings R5a (2026-10-08) and R13a (2026-10-09):
+        // ordering and equality comparative AdjPs enter the existing
+        // ScalarMeasureValue route to PropertyValue.
         // CGEL Ch. 6 §3.3(c), p. 552 supports their postpositive function,
         // not this value-slot analysis.
         construction ComparativeScalarValue: ScalarValue {
             export PredicativeKind = Adjectival;
             form [value: ComparativeAdjectivePhrase];
-            require value.ComparisonMarker = Ordering;
         }
 
         construction ScalarCardinalValue: ScalarValue {

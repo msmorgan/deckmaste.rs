@@ -88,7 +88,7 @@ Deltas:
 
 1. Verification budget (binding): one bounded census of every supported face
    whose analysed text matches case-insensitive `\bequal to\b`, plus 300 random covered controls
-   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261009`),
+   (`cargo xtask english-v3 diff --manifest … --random 300 --seed 20261008`),
    with the identity manifest, `--workers 6` and `--samples-per-face 0`, run
    under `/usr/bin/time -v`; compare it with `cargo xtask english-v3 diff`
    against the claim parent's census of the same manifest. Never run `--all`.
@@ -132,22 +132,70 @@ Deltas:
 ## Out of scope
 
 - *whose power is equal to X* (relative-clause gap).
-- The arithmetic half of *equal to 1 plus …*
-  (`english-v3-arithmetic-nominal-operand`).
+- Implementing arithmetic operands (`english-v3-arithmetic-nominal-operand`,
+  landed as `owrvksuw`); verify their composition with equality here.
 
 ## Landing record
 
-Six items, each figure stamped with the change id it was measured on (ruling
-2026-10-08):
-
-1. **Census delta**: covered faces and total Readings before/after on the
-   bounded manifest; lost faces by name with classification, or "none".
-2. **Witnesses**: each witness above with its Reading count after.
-3. **Spot checks**: ten newly covered faces by name with the selected analysis.
-4. **Deviations and STOPs**: constructions, frames or tests added or deleted
-   beyond the ticket's letter, with justification; every STOP and its
-   resolution; any glossary gap in `docs/contexts/oracle-english/CONTEXT.md`.
-5. **Tests**: the `cargo test -p` / clippy commands and outcomes; counts
-   restored / re-spelled / ignored-with-blocker / added / removed.
-6. **Timing**: wall time of the bounded census as one figure with worker count
-   (6), plus peak RSS from `/usr/bin/time -v`.
+1. **Census delta** (`wlstpkpu`; before is the unchanged claim-parent tree
+   `prmkpxrr`): 1,906 faces, selected by supported analysed text matching
+   case-insensitive `\bequal to\b` (1,606 faces) plus 300 covered controls,
+   seed `20261008`, in `target/english-v3/english-v3-property-equal-to/manifest.json`.
+   Covered 1,380 → 1,411; total Readings 193,360 → 201,762. Official
+   `english-v3 diff --lines`: 31 gained, 0 lost, 0 decreases, 1 increase,
+   0 digest-only, 0 changed sources. Lost faces: none. Arithmetic *equal to
+   1 plus …*: 11 gains (including Birthing Pod and Neoform), separately from
+   20 non-arithmetic gains. Woodcaller Automaton increases 273 → 285
+   (line 1: 272 → 284): six new NP coordinations on the *becomes* sentence,
+   doubled by its containing line's two trigger analyses. Their shape is
+   `[a Treefolk creature with haste and base power] and [toughness equal to
+   this creature's power and toughness]`, with three existing left-conjunct
+   modifier scopes; three counterparts instead have the wide genitive
+   `[[toughness equal to this creature]'s [power and toughness]]`. The right
+   property value retains `MeasuredAttribute → ScalarMeasureValue(PropertyValue)
+   → ComparativeScalarValue → ComparativeAdjectivePhrase`. These distinct
+   grammatical scopes are retained under the ambiguity contract, not a
+   duplicate predicative or coordinated-governor route. Evidence: `diff.json`
+   and `woodcaller-sentence-complete.json` in the same target directory.
+2. **Witnesses** (`wlstpkpu`, complete probes): all five were 0 before;
+   Master Symmetrist 6, Chalice of the Void 10, Sanctum Prelate 2,
+   Ratchet Bomb 31, Aether Vial 42 after. Their ordering controls retain
+   6 / 10 / 2 / 31 / 42. R13b controls: predicative equality 1 → 1;
+   *damage equal to its power* 1 → 1, remaining a postmodifier rather than
+   a property value. R13c: *power equal to or greater than its toughness*
+   1 → 1; Ironclaw Curse's sentence 8 → 8 and face 10 → 10.
+3. **Spot checks** (`wlstpkpu`; face / affected-line Reading counts):
+   Master Symmetrist 7 / 6, Chalice of the Void 15 / 10, Sanctum Prelate
+   3 / 2, Ratchet Bomb 32 / 31, Aether Vial 43 / 42, Blast Zone 38 / 31,
+   Brain in a Jar 1,659 / 1,658, Engineered Explosives 32 / 31,
+   Birthing Pod 52 / 52, Neoform 263 / 262. All ten are newly covered.
+   Selected analysis: the property Nominal selects the equality AdjP as
+   `PropertyValue`, retaining its governor and comparison Complement inside
+   the AdjP. Master Symmetrist compares power with *its toughness*; Sanctum
+   Prelate compares mana value with *the chosen number*; the counter-based
+   cases retain *the number of charge counters on this artifact/land*;
+   Birthing Pod and Neoform retain *1 plus the sacrificed creature's mana
+   value* as an arithmetic Measure Phrase inside that Complement. R13d's
+   Soul Separator property fragment reads 0 → 7 with coordinated property
+   values; its full face remains unread because its unrelated copy-token
+   *except* sentence still fails. Probe evidence: `spot-0.json` through
+   `spot-10.json`, `property-shape.json`, `charge-property-shape.json` and
+   `after-prebuilt-control-4.json` under the same target directory.
+4. **Deviations and STOPs** (`wlstpkpu`): no Constructions or frames added
+   or retired; remove only the ordering-only requirement under R13a.
+   The six tests beyond the five witness tests cover R13b–R13d, landed
+   arithmetic composition and the independently composed-value roundtrip
+   law. Re-spell the existing equality exclusion in
+   `shared_comparative_complement_stays_inside_the_value_slot`; no test
+   deletion. Amend the Scalar Value glossary definition under R13a; no CGEL
+   passage is claimed to license the project value-slot analysis. Seed and
+   arithmetic scope follow the user's updated instructions. No design STOPs;
+   standing review STOP before integration.
+5. **Tests** (`wlstpkpu`): `cargo test -p deckmaste_english_v3` passed
+   (698 tests, 0 failed, 0 ignored; doc tests passed);
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
+   Restored 0 / re-spelled 1 / ignored 0 / added 11 / removed 0;
+   removals: none. No other crate's code or consumed data changed.
+6. **Timing** (`wlstpkpu`): bounded after census 2m 34s 720ms wall, 6 workers,
+   peak RSS 10,550,532 KiB (`/usr/bin/time -v`, prebuilt binary,
+   `--samples-per-face 0`).

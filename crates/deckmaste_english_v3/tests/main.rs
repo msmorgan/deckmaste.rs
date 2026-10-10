@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "suite/property_equal_to.rs"]
+mod property_equal_to;
+
 #[path = "suite/at_least_cardinal.rs"]
 mod at_least_cardinal;
 

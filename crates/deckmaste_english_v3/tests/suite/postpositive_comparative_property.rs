@@ -110,9 +110,17 @@ fn shared_comparative_complement_stays_inside_the_value_slot() {
             ),
         ],
     );
-    assert_eq!(
-        common::readings("equal to its toughness", Category::PropertyValue).len(),
-        0
+    common::assert_constituents(
+        "equal to its toughness",
+        Category::PropertyValue,
+        &[
+            (
+                Category::ComparativeAdjectivePhrase,
+                "equal to its toughness",
+            ),
+            (Category::ComparativeGovernorHead, "equal to"),
+            (Category::ComparativeComplement, "its toughness"),
+        ],
     );
 }
 

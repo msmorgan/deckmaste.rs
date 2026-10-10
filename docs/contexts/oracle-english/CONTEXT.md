@@ -708,9 +708,10 @@ not a restriction asserted by CGEL's scalar-location passage.
 
 **Scalar Value** (project term):
 A value expression realized by a scalar Measure Phrase, Cardinal Numeral,
-numeral Coordination, or ordering comparative Adjective Phrase (including a
-coordinated equality governor), the comparative extension being orchestrator
-ruling R5a (2026-10-08). All forms can supply a scalar property dependent;
+numeral Coordination, or ordering or equality comparative Adjective Phrase,
+under orchestrator rulings R5a (2026-10-08) and
+[R13a (2026-10-09)](../../tickets/done/english-v3-property-equal-to.md#analysis).
+All forms can supply a scalar property dependent;
 numeral and measurement forms also supply scalar location predicative
 Complements, while comparative forms retain Adjective Phrase predicative
 distribution.
