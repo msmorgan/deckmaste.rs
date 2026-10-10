@@ -136,6 +136,19 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `refresh-diff.json` separate the trunk gains. Both comparisons used
    `diff --lines`. Corpus grep found no `for long` or `for so long` uses
    outside this selector on `rtzolrtx`.
+   Review audit (`kwpypvst`): the sole eligible Preposition head is
+   `vocab:Preposition/For` (`AdverbComplementClass = Duration`); the sole
+   duration Adverb is `vocab:Adverb/Long` (`DurationUse = Yes`). The identity
+   union includes all 154 faces using `AdverbComplementPreposition` in the
+   default workspace's `baseline-wave8.json`, all 213 supported faces matching
+   `\bfor\b[^\n]*\blong\b` case-insensitively, and the original manifest
+   with its 300 seeded controls. All are already among the same 1,372 faces;
+   the original before-census identities exactly equal the audited manifest.
+   Re-running the after-census and stock `diff --lines` confirms 25 gains
+   (23 own, two phase-in/out), zero lost/decreases/increases/digest-only and
+   1,347 unchanged. No covered face changed, and no other head is licensed.
+   Evidence: `wide-{manifest,selector,grep,after,diff}.json` and corresponding
+   logs in the same evidence directory.
 2. **Witnesses** (`rtzolrtx`, all completely enumerated by sentence probes):
    Prowl, Stoic Strategist **0 → 1**; Release to the Wind **0 → 2**;
    Preacher **0 → 1**; Minas Morgul, Dark Fortress **0 → 6**; Flameshape
