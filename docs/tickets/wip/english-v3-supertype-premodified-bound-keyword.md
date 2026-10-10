@@ -235,6 +235,16 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    decreases **2**, increases **0**, digest-only **28**; the two decreases
    and 27 other digests retain their earlier trunk attributions.
    Reports: `after-refresh6.json`, `diff-refresh6.json`, `diff-incoming6.json`.
+   Fourth integration-retry refresh imports attributive scalar comparatives
+   (`vszmnwup`): Havi, the All-Father **0 → 40**, Jodah, the Unifier
+   **0 → 150**, Kethek, Crucible Goliath **0 → 84**, and Éowyn, Fearless
+   Knight **0 → 7**. Its 20 digest-only faces use the new governor wrappers
+   in `DiscontinuousComparativeNominal`, retaining every Reading count;
+   one is the already gained Kotose. Final covered **1,622 → 1,700**,
+   Readings **79,869 → 88,260**, gains **78** (42 ticket / 36 trunk),
+   lost **0**, decreases **2**, increases **0**, digest-only **47**.
+   The two decreases and earlier digests retain their prior trunk attributions.
+   Reports: `after-refresh7.json`, `diff-refresh7.json`, `diff-incoming7.json`.
 2. **Witnesses** (`ooumkosu`): Gleam of Resistance, Ash Barrens, Rime Dryad,
    Ayumi, the Last Visitor, Dryad Sophisticate, Livonya Silone and
    Trailblazer's Boots each **0 → 1** on their ticket line/sentence.
@@ -300,7 +310,10 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    Third integration-retry refresh: the build and the same six full
    test/clippy commands passed again: English **971**, lexical-source **86**,
    compiler **39**. Evidence: `refresh6-checks.json` and its command logs.
-6. **Timing** (third integration-retry refresh): the required **bounded** AFTER
-   census took **1:10.54** wall time under `/usr/bin/time -v`, **6 workers**,
+   Fourth integration-retry refresh: the build and the same six full
+   test/clippy commands passed again: English **976**, lexical-source **86**,
+   compiler **39**. Evidence: `refresh7-checks.json` and its command logs.
+6. **Timing** (fourth integration-retry refresh): the required **bounded** AFTER
+   census took **3:23.23** wall time under `/usr/bin/time -v`, **6 workers**,
    samples 0.
    No full census was run, per the binding verification budget.
