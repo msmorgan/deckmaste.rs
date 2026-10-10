@@ -797,11 +797,10 @@ fn vocabulary_only_witnesses_preserve_counts_and_constituents() {
         );
         common::assert_constituents_on_card(card, text, category, &[(constituent, surface)]);
     }
-    for text in ["This creature moves."] {
-        assert_eq!(
-            common::readings(text, Category::Document).len(),
-            0,
-            "{text}"
-        );
-    }
+    let text = "This creature moves.";
+    assert_eq!(
+        common::readings(text, Category::Document).len(),
+        0,
+        "{text}"
+    );
 }
