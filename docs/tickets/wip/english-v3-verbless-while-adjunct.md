@@ -159,7 +159,13 @@ a plugin definition changes, run `cargo xtask lean check`.
    through trunk noncombat formation `mzkvyunr`: final claim-parent totals
    are 27 gains (25 this ticket, 2 trunk), 593 covered and 10,980 Readings;
    lost/decreased/increased/digest-only/source changes and issues remain 0
-   (`retry2-refresh-diff.json`, `final-retry2-diff.json`).
+   (`retry2-refresh-diff.json`, `final-retry2-diff.json`). The subsequent
+   modal-header refresh leaves gains, coverage and Reading totals unchanged
+   but changes 8 digests through `ztrnpkyv`'s refined count Complement:
+   Arbalest Engineers, Feast or Famine, Incite War, Light of Hope, Professor's
+   Warning, Shriveling Rot, Vannifar, Evolved Enigma and You've Been Caught
+   Stealing. No lost/decreased/increased faces or issues
+   (`modal-refresh-diff.json`, `final-modal-diff.json`).
 2. **Witnesses** (`wxwozrtz`, complete sentence probes, limit 64): Gilded
    Ghoda, Alacrian Jaguar, District Mascot and Dracosaur Auxiliary each 0 → 1;
    each control with *while saddled* removed reads 1 before and after (W9-A).
@@ -205,7 +211,9 @@ a plugin definition changes, run `cargo xtask lean check`.
    `wxwozrtz`; the Harmony repair and retry refresh succeeded without
    remaining conflicts. No construction implementation changed. Default
    moved again; a second retry refresh incorporated `mzkvyunr` (noncombat
-   noun formation), without conflicts.
+   noun formation), without conflicts. Later integration retries encountered
+   ticket-only moves and concurrent banking refusals; refresh eventually
+   incorporated `ztrnpkyv` (modal-header quantities), without conflicts.
 5. **Tests** (`wxwozrtz`): `cargo test -p deckmaste_english_v3` passed all six
    binaries (899 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. `cargo test -p deckmaste_lexical_source` passed (42 unit + 44
@@ -236,6 +244,9 @@ a plugin definition changes, run `cargo xtask lean check`.
    integration). Logs use the `-retry-refresh.log` suffix. After the second
    retry refresh, the same build, bounded census, both full suites and both
    clippy commands passed (English 932 tests; lexical source 42 unit + 44
-   integration); logs use the `-retry2-refresh.log` suffix.
+   integration); logs use the `-retry2-refresh.log` suffix. After the modal
+   refresh, repeated the same build, bounded census, both full suites and
+   both clippy commands: all passed (English 935 tests; lexical source
+   42 unit + 44 integration). Logs use the `-modal-refresh.log` suffix.
 6. **Timing**: complete bounded census wall time **25.06 seconds**, six workers,
    at `wxwozrtz`, measured by `/usr/bin/time -v` (`after.time`).
