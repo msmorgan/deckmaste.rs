@@ -1,0 +1,26 @@
+// "Flying / Haunt / When this creature enters or the creature it haunts dies,
+// target player loses 2 life and you gain 2 life." "The creature it haunts"
+// is the haunting Relation's counterpart [CR#702.55a,702.55b,702.55c].
+SingleFaced(face: (
+    characteristics: (
+        name: "Blind Hunter",
+        cost: [
+            2,
+            White,
+            Black,
+        ],
+        types: [Creature],
+        subtypes: [bat],
+        power: 2,
+        toughness: 2,
+        text: [
+            flying,
+            haunt,
+            triggeredOr(
+                enters(thisCreature),
+                [dies(counterpart(haunting, this))],
+                sequentially([act(target(anyPlayer), loseLife(2)), gainLife(2)]),
+            ),
+        ],
+    ),
+))

@@ -1,0 +1,34 @@
+// "Flash / Flying / When this creature enters, exile target spell with mana
+// value 4 or less. / When this creature leaves the battlefield, the exiled
+// card's owner may cast that card without paying its mana cost." "The exiled
+// card" reads the ability that exiled it, a Link Source named by its deed
+// [CR#607.2a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Spell Queller",
+        cost: [
+            1,
+            White,
+            Blue,
+        ],
+        types: [Creature],
+        subtypes: [spirit],
+        power: 2,
+        toughness: 3,
+        text: [
+            flash,
+            flying,
+            triggered(
+                enters(thisCreature),
+                exile(target(and([spell, compare(AtMost, 4, [Stat(ManaValue)])]))),
+            ),
+            triggered(
+                leavesZone(thisCreature, battlefield),
+                act(
+                    ownerOf(linkedObject(ByDeed(exile), exile, this)),
+                    may(castWithoutPaying(that(Card))),
+                ),
+            ),
+        ],
+    ),
+))

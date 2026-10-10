@@ -1,0 +1,21 @@
+// "Target creature gets +3/+0 and gains haste until end of turn. / Harmonize
+// {4}{R}" [CR#702.180a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Wild Ride",
+        cost: [Red],
+        types: [Sorcery],
+        text: [
+            spell(
+                sequentially([
+                    gets(target(creature), up(3), up(0), untilEndOfTurn),
+                    gainHaste(it, untilEndOfTurn),
+                ]),
+            ),
+            harmonize(mana([
+                4,
+                Red,
+            ])),
+        ],
+    ),
+))

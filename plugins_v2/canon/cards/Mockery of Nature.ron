@@ -1,0 +1,22 @@
+// "Emerge {7}{G} / When you cast this spell, you may destroy target artifact
+// or enchantment." [CR#702.119a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Mockery of Nature",
+        cost: [9],
+        types: [Creature],
+        subtypes: [eldrazi, beast],
+        power: 6,
+        toughness: 5,
+        text: [
+            emerge(mana([
+                7,
+                Green,
+            ])),
+            triggered(
+                casts(you, thisSpell),
+                may(destroy(target(or([artifact, enchantment])))),
+            ),
+        ],
+    ),
+))

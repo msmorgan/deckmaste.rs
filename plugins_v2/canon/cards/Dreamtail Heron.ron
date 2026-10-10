@@ -1,0 +1,24 @@
+// "Mutate {3}{U} / Flying / Whenever this creature mutates, draw a card."
+// A creature "mutates" when a mutating creature spell merges with it
+// [CR#702.140a,702.140d].
+SingleFaced(face: (
+    characteristics: (
+        name: "Dreamtail Heron",
+        cost: [
+            4,
+            Blue,
+        ],
+        types: [Creature],
+        subtypes: [elemental, bird],
+        power: 3,
+        toughness: 4,
+        text: [
+            mutate(mana([
+                3,
+                Blue,
+            ])),
+            flying,
+            triggered(verbedEvent(verb: OfAbility(mutate), agent: thisCreature), draw(1)),
+        ],
+    ),
+))

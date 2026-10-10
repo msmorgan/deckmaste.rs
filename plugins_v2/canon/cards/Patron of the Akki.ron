@@ -1,0 +1,24 @@
+// "Goblin offering / Whenever Patron of the Akki attacks, creatures you
+// control get +2/+0 until end of turn." [CR#702.48a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Patron of the Akki",
+        cost: [
+            4,
+            Red,
+            Red,
+        ],
+        supertypes: [Legendary],
+        types: [Creature],
+        subtypes: [spirit],
+        power: 5,
+        toughness: 5,
+        text: [
+            offering(hasSubtype(goblin)),
+            triggered(
+                attacks(thisCreature),
+                gets(allOf(creatureYouControl), up(2), up(0), untilEndOfTurn),
+            ),
+        ],
+    ),
+))

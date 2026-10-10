@@ -1,0 +1,32 @@
+// "{B}, {T}, Sacrifice another creature: Create X 2/2 black Zombie creature
+// tokens, where X is the sacrificed creature's power." The sacrificed
+// creature is the `objects` Linked Facet of the ability that sacrificed it
+// [CR#607.2a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Ghoulcaller Gisa",
+        cost: [
+            3,
+            Black,
+            Black,
+        ],
+        supertypes: [Legendary],
+        types: [Creature],
+        subtypes: [human, wizard],
+        power: 3,
+        toughness: 4,
+        text: [
+            activated(
+                cost: compound([
+                    mana([Black]),
+                    tapSymbol,
+                    perform(sacrifice(a(otherCreature(thisCreature)))),
+                ]),
+                instruction: createToken(
+                    creatureToken(2, 2, [Black], [zombie]),
+                    powerOf(linkedObject(ByDeed(sacrifice), sacrifice, this)),
+                ),
+            ),
+        ],
+    ),
+))

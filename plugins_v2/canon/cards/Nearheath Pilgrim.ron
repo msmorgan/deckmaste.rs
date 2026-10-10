@@ -1,0 +1,27 @@
+// "Soulbond / As long as this creature is paired with another creature, both
+// creatures have lifelink." [CR#702.95a,702.95b]
+SingleFaced(face: (
+    characteristics: (
+        name: "Nearheath Pilgrim",
+        cost: [
+            1,
+            White,
+        ],
+        types: [Creature],
+        subtypes: [human, cleric],
+        power: 2,
+        toughness: 1,
+        text: [
+            soulbond,
+            static(
+                onlyWhile(
+                    abilityGrant(
+                        and([thisCreature, counterpart(paired, thisCreature)]),
+                        lifelink,
+                    ),
+                    matches(thisCreature, related(paired)),
+                ),
+            ),
+        ],
+    ),
+))

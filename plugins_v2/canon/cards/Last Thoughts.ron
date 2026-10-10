@@ -1,0 +1,15 @@
+// "Draw a card. / Cipher" [CR#702.99a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Last Thoughts",
+        cost: [
+            3,
+            Blue,
+        ],
+        types: [Sorcery],
+        text: [
+            spell(draw(1)),
+            cipher,
+        ],
+    ),
+))
