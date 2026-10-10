@@ -34,6 +34,9 @@ inductive Stat where
 
 inductive PlayerStat where
   | lifeTotal | startingLifeTotal
+  /-- A player's speed [CR#702.179a]: none until a rule or effect sets it, read as 0 then
+  [CR#702.179b,702.179f]. -/
+  | speed
   deriving DecidableEq, Repr
 
 inductive Comparator where
@@ -614,6 +617,9 @@ each game, or each occurrence of a phase or step [CR#602.5b]. -/
 inductive Period where
   | turn | yourTurn | game
   | part (part : TurnPart)
+  /-- The object's own existence: "activate only once" counts until the object changes zones,
+  when it becomes a new object [CR#602.5b,702.177a,400.7]. -/
+  | thisObject
   deriving DecidableEq, Repr
 
 /-- Which side of an event a timing names: "before attackers are declared", "after combat". -/

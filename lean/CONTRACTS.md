@@ -893,6 +893,40 @@ the declaration gives it, so a side of the wrong kind is refused
 reference checks; when a relation ends [CR#702.95e,702.99c] is the engine's.
 Pins: `Semantics/Proofs/LinkedReadback.lean`.
 
+### The ability printed with a keyword, and its qualifiers
+
+The ability a keyword is printed with ("Boast — [Cost]: [Effect]") is the
+keyword's parameter, `KeywordParam.ability`, and the restriction the keyword
+adds is a qualifier on it, `Ability.qualified ability timing limit guard
+from_` (`semantics-v2.md` §7, ruling 2026-10-09) [CR#113.10a,113.6b]. A
+qualified ability keeps the wrapped ability's category, stack regime and class
+guard, so a keyword definition written as a qualifier over its argument is
+checked against the keyword's row by the printed ability's category; the
+row's `definition` names the categories the CR entry admits (solved: static,
+triggered and activated [CR#702.169a]).
+
+- The guard reads "as long as", "this ability triggers only if" or "activate
+  only if" by the wrapped ability's category [CR#702.169b..702.169d]; the
+  checker checks it, the timing and the limit for kinds and references only.
+- A limit is admitted on an activated ability alone (`qualifiedLimit`): a
+  usage limit restricts activation [CR#602.5b]. A triggered ability's limit
+  is written on its header.
+- "Activate only once" is a limit over `Period.thisObject`, reset when the
+  object changes zones [CR#602.5b,702.177a].
+- `AbilitySelection.printedAfter keyword` selects the abilities printed below
+  a keyword's line [CR#702.165a,702.165c], granted by
+  `StaticSpec.abilityGrantSelected subject source selection`. A selection
+  naming a keyword the card does not print is refused as a reference of the
+  card's text (`printedAfterKeyword`, `printedAfterLaws`); the walk follows
+  the forms a grant is written in, as `namesThisDoor` does.
+- A cost shift on an ability ("this ability's cost is reduced", power-up
+  [CR#702.193a]) is determined as the ability is activated, so it takes no
+  stack regime [CR#602.2b,601.2f].
+- `PlayerStat.speed` is a player's speed [CR#702.179a]; its game state is
+  `engine-speed`'s.
+
+Pins: `Semantics/Proofs/AbilityQualifiers.lean`.
+
 ### Movement destinations
 
 `Instruction.move` requires a destination. Every move checks its destination's

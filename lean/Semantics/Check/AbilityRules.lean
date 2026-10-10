@@ -661,6 +661,8 @@ mutual
       refuse (!abilities.isEmpty) .nonEmpty ++ AbilityLost.checkAll bs abilities
     | .family class_ => refuse class_.known .knownKeywordTerm
     | .allExcept except => OptPredicate.check .object (subjCtx bs subject) except
+    -- Whether the source prints the keyword is a law of the card's text (`printedAfterOk`).
+    | .printedAfter k => refuse (knownKeyword k) (.knownKeywordTerm)
   termination_by structural selection => selection
 
   def TokenSpec.check (bs : Bindings) : TokenSpec → List Refusal
@@ -755,6 +757,10 @@ mutual
     | .letterDefinition l amt => Amount.check bs amt ++ refuse (anyOpenLetter l bs) (.openLetter l)
     | .abilityGrant n ab =>
       NounPhrase.check (some .object) bs n ++ Ability.check bs ab
+    | .abilityGrantSelected n src selection =>
+      let bs' := nomIntro bs n
+      NounPhrase.check (some .object) bs n ++ NounPhrase.check (some .object) bs' src ++
+        AbilitySelection.check (nomIntro bs' src) (some src) selection
     | .abilityGrantFrom n cls src except =>
       let bs' := nomIntro bs n
       NounPhrase.check (some .object) bs n ++ NounPhrase.check (some .object) bs' src ++
@@ -854,6 +860,7 @@ mutual
     | .subject p => Predicate.check (p.kindOr .object) [] p
     | .number amt => Amount.check [] amt
     | .deckCondition dc => dc.check
+    | .ability ab => Ability.check bs ab
   termination_by structural p => p
 
   def KeywordParam.checkAll (bs : Bindings) (schema : KeywordSchema) :
@@ -899,6 +906,10 @@ mutual
     | .thatAbility ref =>
       let n := countChoice (.quality .ability) bs
       refuse (ref.ok n) (.choiceRef ref (.quality .ability) n)
+    | .qualified ab window limit guard _ =>
+      let bs' := ownPerformerCtx bs
+      Ability.check bs ab ++ OptTiming.check bs' window ++ OptUsageLimit.check bs' limit ++
+        OptCondition.check bs' guard ++ refuse (ab.limitFits limit) .qualifiedLimit
   termination_by structural ab => ab
 
   def Ability.checkAll (bs : Bindings) : List Ability → List Refusal

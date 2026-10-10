@@ -144,6 +144,9 @@ inductive Refusal where
   | costNameable
   | keywordParamFits (k : KeywordLabel)
   | keywordBodyFits (k : KeywordLabel)
+  /-- A qualifier's usage limit restricts activation, so it wraps an activated ability
+  [CR#602.5b]. -/
+  | qualifiedLimit
   | deedFits
   | verbPatientOk
   | verbedVoiceOk
@@ -205,6 +208,9 @@ inductive Refusal where
   | modalFrame
   | chapterFrame
   | doorFrame
+  /-- "The abilities printed below <keyword>" reads a keyword line the card prints
+  [CR#702.165a,702.165c]. -/
+  | printedAfterKeyword (k : KeywordLabel)
   | cardName
   | cardBox
   | cardCost

@@ -54,6 +54,7 @@ mutual
     | c, .keyword k _ body => keywordCardOk c k && classPartsOk c body
     | c, .alsoForKeywords ab _ => classAbilityOk c ab
     | c, .italicHead _ ab => classAbilityOk c ab
+    | c, .qualified ab _ _ _ _ => classAbilityOk c ab
     | .permanentCard, .spell _ _ => false
     | .permanentCard, _ => true
     | .instantOrSorceryCard, .activated c _ _ _ _ _ => c.offBattlefield
@@ -81,12 +82,101 @@ def chapterLineOk (subs : List Subtype) : Ability → Bool
     | .chapterMark _ => framesWith .chapters subs
     | _ => true
   | .italicHead _ ab => chapterLineOk subs ab
+  | .qualified ab _ _ _ _ => chapterLineOk subs ab
   | .alsoForKeywords ab _ => chapterLineOk subs ab
   | _ => true
 
 def chapterFrameOk (subs : List Subtype) (text : List Ability) : Bool := text.all (chapterLineOk subs)
 
 def doorFrameOk (text : List Ability) : Bool := text.all fun a => !a.namesThisDoor
+
+/-! ## Printed-position references
+
+"The abilities printed below <keyword>" reads the card's own text: only printed abilities are
+selected [CR#702.165c], so the keyword is one the card prints. The walk follows the forms a
+grant is written in (a static clause, an instruction that establishes one, and the ability
+forms around them), as `namesThisDoor` does. -/
+
+def AbilitySelection.printedKeyword : AbilitySelection → Option KeywordLabel
+  | .printedAfter k => some k
+  | _ => none
+
+def CharacteristicEdit.printedKeyword : CharacteristicEdit → Option KeywordLabel
+  | .removedAbilities selection => selection.printedKeyword
+  | _ => none
+
+mutual
+  def StaticSpec.printedAfterKeywords : StaticSpec → List KeywordLabel
+    | .withBindings _ _ body | .inCaller _ body => body.printedAfterKeywords
+    | .conditional se _ _ => se.printedAfterKeywords
+    | .conjunction _ parts => StaticSpec.printedAfterKeywordsAll parts
+    | .abilityGrantSelected _ _ selection => selection.printedKeyword.toList
+    | .characteristicChange _ edits => edits.filterMap CharacteristicEdit.printedKeyword
+    | _ => []
+  termination_by structural se => se
+
+  def StaticSpec.printedAfterKeywordsAll : List StaticSpec → List KeywordLabel
+    | [] => []
+    | se :: rest => se.printedAfterKeywords ++ StaticSpec.printedAfterKeywordsAll rest
+  termination_by structural parts => parts
+end
+
+mutual
+  def Instruction.printedAfterKeywords : Instruction → List KeywordLabel
+    | .withBindings _ _ body | .inCaller _ body | .ownScope _ body => body.printedAfterKeywords
+    | .establish se _ => se.printedAfterKeywords
+    | .act _ body => body.printedAfterKeywords
+    | .limited e _ => e.printedAfterKeywords
+    | .doIf _ e none => e.printedAfterKeywords
+    | .doIf _ e (some other) => e.printedAfterKeywords ++ other.printedAfterKeywords
+    | .sequentially es => Instruction.printedAfterKeywordsAll es
+    | .simultaneously es => Instruction.printedAfterKeywordsAll es
+    | _ => []
+  termination_by structural e => e
+
+  def Instruction.printedAfterKeywordsAll : List Instruction → List KeywordLabel
+    | [] => []
+    | e :: es => e.printedAfterKeywords ++ Instruction.printedAfterKeywordsAll es
+  termination_by structural es => es
+end
+
+mutual
+  def Ability.printedAfterKeywords : Ability → List KeywordLabel
+    | .keyword _ params body =>
+      KeywordParam.printedAfterKeywordsAll params ++ Ability.printedAfterKeywordsAll body
+    | .activated _ instr _ _ _ _ => instr.printedAfterKeywords
+    | .triggered _ _ _ _ _ _ _ instr => instr.printedAfterKeywords
+    | .static se => se.printedAfterKeywords
+    | .spell _ instr => instr.printedAfterKeywords
+    | .italicHead _ ab => ab.printedAfterKeywords
+    | .alsoForKeywords ab _ => ab.printedAfterKeywords
+    | .qualified ab _ _ _ _ => ab.printedAfterKeywords
+    | .mayBeginOnBattlefield | .thatAbility _ => []
+  termination_by structural ab => ab
+
+  def Ability.printedAfterKeywordsAll : List Ability → List KeywordLabel
+    | [] => []
+    | ab :: rest => ab.printedAfterKeywords ++ Ability.printedAfterKeywordsAll rest
+  termination_by structural abs => abs
+
+  def KeywordParam.printedAfterKeywordsAll : List KeywordParam → List KeywordLabel
+    | [] => []
+    | .ability ab :: rest => ab.printedAfterKeywords ++ KeywordParam.printedAfterKeywordsAll rest
+    | _ :: rest => KeywordParam.printedAfterKeywordsAll rest
+  termination_by structural params => params
+end
+
+/-- Whether a text line prints `k`'s keyword line. -/
+def Ability.printsKeyword (k : KeywordLabel) : Ability → Bool
+  | .keyword k' _ _ => k' == k
+  | .italicHead _ ab => ab.printsKeyword k
+  | .alsoForKeywords ab _ => ab.printsKeyword k
+  | _ => false
+
+/-- Each keyword a printed-position selection names is one the text prints. -/
+def printedAfterLaws (text : List Ability) : List Refusal :=
+  (Ability.printedAfterKeywordsAll text).filterMap fun k =>
+    if text.any (Ability.printsKeyword k) then none else some (.printedAfterKeyword k)
 
 mutual
   /-- The stat slots a static clause defines; a shared-subject clause ("its power is … and its
@@ -107,6 +197,7 @@ end
 def Ability.definesPt : Ability → List DefinedSlots
   | .static se => se.definedSlots
   | .italicHead _ ab => ab.definesPt
+  | .qualified ab _ _ _ _ => ab.definesPt
   | _ => []
 
 def textDefines (f : DefinedSlots → Bool) (text : List Ability) : Bool :=
@@ -152,6 +243,7 @@ def Ability.keywordWantsModes : Ability → Bool
   | .keyword k _ _ => (keywordFactsFor k).elim false (·.wantsModes)
   | .italicHead _ ab => ab.keywordWantsModes
   | .alsoForKeywords ab _ => ab.keywordWantsModes
+  | .qualified ab _ _ _ _ => ab.keywordWantsModes
   | _ => false
 
 def Ability.writesModes : Ability → Bool
@@ -161,6 +253,7 @@ def Ability.writesModes : Ability → Bool
     | _ => false
   | .italicHead _ ab => ab.writesModes
   | .alsoForKeywords ab _ => ab.writesModes
+  | .qualified ab _ _ _ _ => ab.writesModes
   | _ => false
 
 /-- A Mode Change written on the text. -/
@@ -168,6 +261,7 @@ def Ability.writesModeChoice : Ability → Bool
   | .static (.modeChoice _) => true
   | .italicHead _ ab => ab.writesModeChoice
   | .alsoForKeywords ab _ => ab.writesModeChoice
+  | .qualified ab _ _ _ _ => ab.writesModeChoice
   | _ => false
 
 /-- Any ability whose instruction is a modal choice: a spell, an activated ability or a
@@ -180,6 +274,7 @@ def Ability.hasModes : Ability → Bool
     | _ => false
   | .italicHead _ ab => ab.hasModes
   | .alsoForKeywords ab _ => ab.hasModes
+  | .qualified ab _ _ _ _ => ab.hasModes
   | _ => false
 
 /-- A modal keyword needs a modal spell; a written Mode Change needs modes to change. -/
@@ -197,6 +292,7 @@ def Ability.introducedChoices (bs : Bindings) : Ability → List Binding
   | .static se => se.introducedChoices bs
   | .alsoForKeywords ab _ => Ability.introducedChoices bs ab
   | .italicHead _ ab => Ability.introducedChoices bs ab
+  | .qualified ab _ _ _ _ => Ability.introducedChoices bs ab
   | .spell _ instr => instr.introducedChoices
   | _ => []
 
@@ -210,7 +306,7 @@ def jointChoicesOk (qs : List QualitySort) (made : List Binding) : Bool :=
 shared line, so the door-frame law is a face's alone. -/
 def halfTextLaws (line : Characteristics) (text : List Ability) : List Refusal :=
   refuse (cardTextOk line.types text) .cardText ++ refuse (modalFrameOk text) .modalFrame ++
-    refuse (chapterFrameOk line.subtypes text) .chapterFrame
+    refuse (chapterFrameOk line.subtypes text) .chapterFrame ++ printedAfterLaws text
 
 /-- The laws a text obeys on a type line: class fit, modal frame, chapter frame, door frame. -/
 def textLaws (line : Characteristics) (text : List Ability) : List Refusal :=

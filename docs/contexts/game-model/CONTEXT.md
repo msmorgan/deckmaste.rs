@@ -110,8 +110,10 @@ changes participate in determining copiable values, including whether a
 characteristic-defining ability is copied ([CR#707.9d]).
 
 **Ability Selection**:
-The abilities an effect identifies individually, by an ability family, or as
-all abilities except a stated selection.
+The abilities an effect identifies individually, by an ability family, as
+all abilities except a stated selection, or as the abilities printed below a
+keyword's line (backup's "the non-backup abilities of this creature printed
+below this one", [CR#702.165a,702.165c]).
 
 **Color**:
 One of white, blue, black, red, and green ([CR#105.1]). An Object is the Color
@@ -755,7 +757,8 @@ _Avoid_: this turn, as a reference — "this" names an Object
 
 **Usage Limit** (project term):
 How many times something may be done per Turn, per one of its Player's Turns,
-per Phase or Step, or per game ([CR#602.5b]). An Event's ordinal ("the second
+per Phase or Step, per game, or for as long as the Object exists ("activate
+only once", [CR#602.5b,702.177a]). An Event's ordinal ("the second
 spell each turn") is not a Usage Limit.
 _Avoid_: rank, ordinal
 

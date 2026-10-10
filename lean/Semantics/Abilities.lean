@@ -308,6 +308,10 @@ mutual
     | specified (abilities : List AbilityLost)
     | family (class_ : AbilityClass)
     | allExcept (except : Option Predicate)
+    /-- The abilities printed below `keyword`'s line, other than that keyword's own: backup's
+    "the non-backup abilities of this creature printed below this one". Only printed abilities
+    are selected, never gained ones [CR#702.165a,702.165c]. -/
+    | printedAfter (keyword : KeywordLabel)
 
   inductive TokenSpec where
     /-- The creating spell or ability defines the token's characteristic values [CR#111.3] and
@@ -339,6 +343,11 @@ mutual
     | abilityGrant (subject : NounPhrase) (ability : Ability)
     | abilityGrantFrom (subject : NounPhrase) (classes : List AbilityClass) (source : NounPhrase)
         (except : Option Predicate)
+    /-- "<subject> has <selection> of <source>": the abilities of `source` the selection picks
+    (backup's "it gains the non-backup abilities of this creature printed below this one"
+    [CR#702.165a]). -/
+    | abilityGrantSelected (subject : NounPhrase) (source : NounPhrase)
+        (selection : AbilitySelection)
     | deonticRule (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (role : Role)
         (bound : Option CountBound) (patient : DeonticPatient) (asThough : Option AsThough)
         (rider : DeonticRider) (except : Option Cause)
@@ -633,6 +642,9 @@ mutual
     | subject (predicate : Predicate)
     | number (amount : Amount)
     | deckCondition (condition : DeckCondition)
+    /-- The ability printed with the keyword ("Boast — [Cost]: [Effect]"), which the keyword's
+    definition restricts (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-09). -/
+    | ability (ability : Ability)
 
   inductive AbilityLost where
     | written (ability : Ability)
@@ -658,6 +670,14 @@ mutual
     | italicHead (word : ItalicWord) (ability : Ability)
     /-- "that ability", read off an ability chosen earlier in the same text. -/
     | thatAbility (ref : ChoiceRef)
+    /-- `ability` with the restrictions a keyword or a granting effect adds to it: when it may be
+    activated or trigger (`timing`), how often (`limit`), the condition it is subject to
+    (`guard`) and the zone it functions from (`from_`) [CR#113.10a,113.6b]. The guard reads by
+    the wrapped ability's category: "as long as" for a static ability, "this ability triggers
+    only if" for a triggered one, "activate only if" for an activated one
+    [CR#702.169b..702.169d]. -/
+    | qualified (ability : Ability) (timing : Option Timing) (limit : Option UsageLimit)
+        (guard : Option Condition) (from_ : Option Zone)
 end
 
 deriving instance Repr, BEq for Characteristics, CharacteristicBundle, FaceDown, CharacteristicEdit,

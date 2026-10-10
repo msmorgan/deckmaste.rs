@@ -531,6 +531,7 @@ def KeywordParam.shape : KeywordParam → KeywordParamShape
   | .subject _ => .subject
   | .number _ => .number
   | .deckCondition _ => .deckCondition
+  | .ability _ => .ability
 
 def keywordSchemaFor (k : KeywordLabel) (params : List KeywordParam) : Option KeywordSchema :=
   (keywordSchemas k).find? (fun schema => schema.shapes == params.map KeywordParam.shape)
@@ -550,7 +551,16 @@ def Ability.category : Ability → Option AbilityCategory
   | .triggered _ _ _ _ _ _ _ _ => some .triggered
   | .activated _ _ _ _ _ _ => some .activated
   | .spell _ _ => some .spell
+  -- A restriction leaves the ability's category as it was [CR#113.10a].
+  | .qualified ab _ _ _ _ => ab.category
   | _ => none
+
+/-- Only an activated ability takes a usage limit as a qualifier: "activate only once" restricts
+activation [CR#602.5b], and a static or triggered ability is never activated. A triggered
+ability's own limit is written on its header. -/
+def Ability.limitFits (ab : Ability) : Option UsageLimit → Bool
+  | none => true
+  | some _ => ab.category == some .activated
 
 /-! ## A definition component's regime
 
@@ -570,6 +580,9 @@ regime. -/
 def StaticSpec.regimeFits (r : Option StackRegime) : StaticSpec → Bool
   | .withBindings _ _ body | .inCaller _ body => body.regimeFits r
   | .conditional se _ _ => se.regimeFits r
+  -- An ability's cost is determined as it is activated, not as a spell is cast
+  -- [CR#602.2b,601.2f]: power-up's "this ability's cost is reduced" [CR#702.193a].
+  | .costShift (.asMarker .ability _) _ => r == none
   -- A Mana Substitute applies as the total cost is paid [CR#702.51b,601.2h].
   -- Modes are chosen as the spell is cast [CR#601.2b,700.2a].
   -- A gained target is chosen as the spell is cast [CR#601.2c,702.140a].
@@ -590,6 +603,7 @@ def Ability.regimeFits (r : Option StackRegime) : Ability → Bool
   | .triggered ev _ _ _ _ _ _ _ => bodyEventRegime ev == r
   | .activated _ _ _ _ _ _ => r == none
   | .spell _ _ => r == some .atResolution
+  | .qualified ab _ _ _ _ => ab.regimeFits r
   | _ => false
 
 /-! ## Card-class guards
@@ -676,6 +690,7 @@ def Ability.classGuard : Ability → Option CardClass
   | .triggered _ _ _ _ _ _ intervening instr =>
     (intervening >>= Condition.impliedClass) <|> instr.classGuard
   | .static se => se.classGuard
+  | .qualified ab _ _ _ _ => ab.classGuard
   | _ => none
 
 /-- A guard names a class the keyword's card may have: one its registry row puts it on. -/
@@ -1119,6 +1134,7 @@ mutual
     | .specialAction _ _ _ | .asEvent _ _ | .whileHolds _ _ => bs
     | .abilityGrant n ab => ab.introducedLetters ++ selfSubjIntro bs n
     | .abilityGrantFrom n _ src _ => nomIntro (nomIntro bs n) src
+    | .abilityGrantSelected n src _ => nomIntro (nomIntro bs n) src
     | .deonticRule n _ _ _ _ _ _ _ _ => selfSubjIntro bs n
     | .partSkip who _ => nomIntro bs who
     | .manaRetention who _ => nomIntro bs who
@@ -1197,6 +1213,7 @@ def Ability.namesThisDoor : Ability → Bool
   | .spell _ instr => instr.namesThisDoor
   | .italicHead _ ab => ab.namesThisDoor
   | .alsoForKeywords ab _ => ab.namesThisDoor
+  | .qualified ab _ _ _ _ => ab.namesThisDoor
   | _ => false
 
 mutual
@@ -1251,6 +1268,7 @@ def Ability.intro (bs : Bindings) : Ability → Bindings
   | .spell _ instr => instr.introducedChoices ++ bs
   | .mayBeginOnBattlefield => bs
   | .thatAbility _ => bs
+  | .qualified ab _ _ _ _ => Ability.intro bs ab
 
 
 /-! ## Number slots [CR#107.1b]
@@ -1391,7 +1409,7 @@ def StaticSpec.numberSlots : StaticSpec → List (Amount × NumberRegime)
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
   | .letterDefinition _ amount => [(amount, .clamped)]
-  | .abilityGrant _ _ | .abilityGrantFrom _ _ _ _ => []
+  | .abilityGrant _ _ | .abilityGrantFrom _ _ _ _ | .abilityGrantSelected _ _ _ => []
   | .deonticRule _ _ _ _ bound _ asThough _ _ =>
     optSlots CountBound.numberSlots bound ++ optSlots AsThough.numberSlots asThough
   | .manaRetention _ _ | .partSkip _ _ | .characteristicChange _ _ => []
