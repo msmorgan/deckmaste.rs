@@ -107,46 +107,55 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta** — Claim-parent grammar (`ulwqwoxx`; BEFORE census stamped
-   `mpvousxzotns`) → `mpvousxzotns`: covered faces **1,225 → 1,251**, total
-   Readings **41,330 → 41,367**. **26 gains; zero lost, decreased, increased or
-   digest-only faces; zero wrong-analysis gains**. Bounded selector: all 62
-   supported faces matching `\bbefore\b` and all 1,119 matching `\bwhere\b`,
-   case-insensitively, plus 300 covered controls selected by the official diff
-   manifest with seed 20261008; overlaps deduplicated to **1,472 faces**.
-   Evidence: `target/english-v3/english-v3-supplementary-temporal-adjunct/`
-   (`manifest-final.json`, `before-final.json`, `after.json`, `diff.json`).
-2. **Witnesses (`mpvousxzotns`)** — Talas Researcher, King's Assassin, Stern
-   Marshal, Lady Sun, and Cao Cao, Lord of Wei: each sentence **0 → 1**.
-   Both localization variants also **0 → 1**. All six controls remain **1**.
-   No witness was already covered on the claim parent.
+1. **Census delta** — Pre-refresh claim-parent grammar (`ulwqwoxx`; BEFORE
+   census stamped `mpvousxzotns`) → refreshed `znqqyoksovkx`: covered faces
+   **1,225 → 1,252**, total Readings **41,330 → 41,464**. **27 gains; zero
+   lost, decreased, increased or digest-only faces; zero wrong-analysis gains**.
+   This ticket supplies 26 gains; Creeping Inn (97 Readings: 96 on its first
+   line, 1 on its phase-out line) is a refresh gain from trunk `roomopmr`.
+   Bounded selector: all 62 supported faces matching `\bbefore\b` and all
+   1,119 matching `\bwhere\b`, case-insensitively, plus 300 covered controls
+   selected by the official diff manifest with seed 20261008; overlaps
+   deduplicated to **1,472 faces**. Evidence:
+   `target/english-v3/english-v3-supplementary-temporal-adjunct/`
+   (`manifest-final.json`, `before-final.json`, `after.json`, `diff.json`,
+   `refresh-diff.json`).
+2. **Witnesses (`mpvousxzotns`, verified after refresh at `znqqyoksovkx`)** —
+   Talas Researcher, King's Assassin, Stern Marshal, Lady Sun, and Cao Cao,
+   Lord of Wei: each sentence **0 → 1**. Both localization variants also
+   **0 → 1**. All six controls remain **1**. No witness was already covered
+   on the claim parent.
 3. **Spot checks (`mpvousxzotns`)** — Alaborn Veteran; Apprentice Sorcerer;
    Cao Cao, Lord of Wei; Capricious Sorcerer; Coastal Wizard; Cunning Advisor;
    Diaochan, Artful Beauty; Fire Bowman; Goblin Firestarter; Hua Tuo, Honored
    Physician. Every inspected whole-face Reading places the final *before*
    PP as a Supplement to the imperative Clause, with *only* focusing *during
-   your turn* alone. Other ability ambiguities remain intact.
+   your turn* alone. These Readings survive refresh unchanged. Creeping Inn's
+   additional trunk gain uses the selected phase-out verb.
 4. **Deviations and STOPs** — ST4 required a schema correction beyond ST1's
    data-only route: `MedialSupplementation` now reads a separate
    `MedialSupplement` member of the declared function licence; *where* retains
    both supplementary licences, *before* only the sentence-final licence.
-   No Construction or Frame added or deleted. The existing licence glossary
-   entry now records ST4; the selector includes *where* to verify preservation.
-   The seed follows the user's 20261008 direction. The medial localization test
-   rejects the medial attachment while preserving the valid terminal
-   Supplement whose finite Complement contains coordinated predicates; its
-   initial blanket no-Reading assertion was too broad. No STOPs or unresolved
-   glossary gaps.
-5. **Tests (`mpvousxzotns`)** — `cargo test -p deckmaste_english_v3`: initial
-   run failed the medial negative; after the correction, full suites passed
-   twice (900 tests each), including the final independently constructed
-   negative fixture. `cargo test -p deckmaste_lexical_source`: passed (84).
-   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
-   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: passed.
-   `cargo build -p xtask`: passed. Existing tests restored / re-spelled /
-   ignored / removed: **0 / 0 / 0 / 0**; added: **4**, registered once in
-   `tests/main.rs`; no removals to justify. Citation checks: zero noncompliant,
-   zero stale; diff audit selected zero sites, with no new CR citations.
-6. **Timing (`mpvousxzotns`)** — Final complete bounded AFTER census:
-   **97.57 seconds**, **6 workers**, `--samples-per-face 0`, measured by
+   This ticket adds or deletes no Construction or Frame. The existing licence
+   glossary entry records ST4; the selector includes *where* to verify
+   preservation. The seed follows the user's 20261008 direction. The medial
+   localization test rejects the medial attachment while preserving the valid
+   terminal Supplement with coordinated finite predicates; its initial blanket
+   no-Reading assertion was too broad. Refresh brought `nzmrrqky` (cause) and
+   `roomopmr` (phase in/out); the registration conflict was resolved by retaining
+   both modules exactly once. No semantic STOPs or unresolved glossary gaps.
+5. **Tests (`mpvousxzotns` before refresh; `znqqyoksovkx` after)** —
+   `cargo test -p deckmaste_english_v3`: initial run failed the medial negative;
+   full suites passed twice after correction (900 tests each), then passed
+   after refresh (909, including 9 incoming trunk tests).
+   `cargo test -p deckmaste_lexical_source`: passed before and after refresh
+   (84 each). `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: passed
+   before and after refresh. `cargo build -p xtask`: passed before and after
+   refresh. This ticket's existing tests restored / re-spelled / ignored /
+   removed: **0 / 0 / 0 / 0**; added: **4**, registered once in `tests/main.rs`;
+   no removals to justify. Citation checks: zero noncompliant, zero stale;
+   diff audit selected zero sites, with no new CR citations.
+6. **Timing (`znqqyoksovkx`)** — Final complete bounded AFTER census:
+   **85.83 seconds**, **6 workers**, `--samples-per-face 0`, measured by
    `/usr/bin/time -v`. No full-corpus census was run.
