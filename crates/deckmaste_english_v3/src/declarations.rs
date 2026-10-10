@@ -469,6 +469,7 @@ constructions! {
         category ObjectRelativeClause(RelativeGapKind);
         category FiniteObjectGap(ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
         category BareObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
+        category PastParticipleObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
         category Cardinal(number);
         category CardinalModifier();
         category QuantitativeAdjectiveComplement();
@@ -554,6 +555,7 @@ constructions! {
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
         category BareObjectGapSeries(PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
+        category PastParticipleObjectGapSeries(PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
         category CoordinatedFiniteClause(GeneralCoordination);
         category FiniteClauseSeries(GeneralCoordination);
         category PredicativeComplementSeries(PredicativeKind, PredicativeAdjunctUse);
@@ -2665,6 +2667,7 @@ constructions! {
             (FrequencyPhraseSeries, FrequencyPhrase),
             (FiniteObjectGapSeries, FiniteObjectGap, FiniteGapConcord, NoConcord, NoConcord),
             (BareObjectGapSeries, BareObjectGap, BareGapConcord, NoConcord, NoConcord),
+            (PastParticipleObjectGapSeries, PastParticipleObjectGap, BareGapConcord, NoConcord, NoConcord),
             (FiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhraseSeries, DepictivePhrase, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, PredicativeListEnd),
@@ -2707,6 +2710,7 @@ constructions! {
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
             (FiniteObjectGapSeries, FiniteObjectGap, Self, FiniteGapConcord),
             (BareObjectGapSeries, BareObjectGap, Self, BareGapConcord),
+            (PastParticipleObjectGapSeries, PastParticipleObjectGap, Self, BareGapConcord),
             (FiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
             (DepictivePhraseSeries, DepictivePhrase, Self, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListEnd),
@@ -2745,6 +2749,7 @@ constructions! {
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
             (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, BareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
+            (PastParticipleObjectGap, Self, PastParticipleObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, FiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
             (DepictivePhrase, Self, DepictivePhraseSeries, UnlikeDepictives),
             (PredicativeComplement, Self, PredicativeComplementSeries, UnlikePredicatives),
@@ -2877,6 +2882,7 @@ constructions! {
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
             (BareObjectGap, Self, BareGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
+            (PastParticipleObjectGap, Self, BareGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhrase, Self, UnlikeDepictives),
             (PredicativeComplement, Self, UnlikePredicatives),
@@ -4438,12 +4444,27 @@ constructions! {
             require head.frame = Transitive;
         }
 
+        construction PastParticipleObjectGap: PastParticipleObjectGap {
+            export ClauseComplementBoundary = None;
+            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
+            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
+            export MatrixComplementLicence = head.MatrixComplementLicence;
+            form [head: lexical(Verb)];
+            require head.PredicateFrameUse = Yes;
+            require head.form = PastParticiple;
+            require head.frame = Transitive;
+        }
+
         construction AuxiliaryObjectGap: FiniteObjectGap {
             export ClauseComplementBoundary = None;
             export ComparativeObjectGapLicence = complement.ComparativeObjectGapLicence;
-            form [head: lexical(Verb), " ", complement: BareObjectGap];
+            form [head: lexical(Verb), " ", complement: BareObjectGap]
+                require head.frame = BareAuxiliary;
+            // Orchestrator rulings CH1–CH2: the perfect selects an Object gap
+            // in a transitive past-participle Complement, strong or clitic.
+            form [head: lexical(Verb), " ", complement: PastParticipleObjectGap]
+                require head.frame = PerfectAuxiliary;
             use FiniteHeadAgreement;
-            require head.frame = BareAuxiliary;
         }
 
         construction ObjectRelativeClause: ObjectRelativeClause {

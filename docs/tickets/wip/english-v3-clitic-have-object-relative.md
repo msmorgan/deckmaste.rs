@@ -128,3 +128,95 @@ a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 - *a spell you've cast is countered* (Multani's Presence) unless it falls out.
 
 ## Landing record
+
+1. **Census delta** — BEFORE: the pre-refresh claim-parent `myrrznxk` tree
+   at then-empty `pnrkopro`; initial AFTER: implemented `pnrkopro`; refreshed
+   AFTER: then-empty `ovwmnzms` atop refreshed `pnrkopro`. Bounded manifest:
+   851 surface faces (ticket grep `('ve|\b(have|has|had)) [a-z]+(ed|n|t)\b`, unioned with
+   strong/clitic *have* followed by every declared past-participle spelling)
+   plus 300 covered controls sampled by `english-v3 diff`, seed 20261008;
+   five overlaps, 1,146 distinct faces. Initial covered 889 → 937; total
+   Readings 37,074 → 41,804. After refresh: covered 889 → 942; Readings
+   37,074 → 42,043. Final lost none; gained 53; decreases 0; increases 6;
+   digest-only 0; internal issues 0. The initial 48 gains are this change;
+   five additional gains (239 Readings) came from vocabulary batch 2,
+   `nqnztuzo`: Fire Navy Trebuchet, Frontier Siege, Gor Muldrak,
+   Amphinologist, Mordor Trebuchet, and Scriv, the Obligator. The
+   refresh-only diff has no losses, decreases, increases or digest-only
+   changes. Rebuilt selector instrumentation finds no additional surface
+   faces after refresh. All six increases below are unchanged by refresh
+   and instantiate the one perfect-gap analysis per relative licensed by
+   CH3/CH6, alongside retained analyses (other independent ambiguities
+   multiply the line totals):
+
+   | Face | Face Readings before → after | Added Reading shape |
+   | --- | --- | --- |
+   | Abaddon the Despoiler | 181 → 281 | *life your opponents have lost*: Subject *your opponents*, strong perfect *have*, transitive *lost* with Object gap |
+   | Delightful Discovery | 7 → 12 | *spell your opponents have cast*: Subject *your opponents*, strong perfect *have*, transitive *cast* with Object gap |
+   | Heliod, the Warped Eclipse | 22 → 42 | *card your opponents have drawn*: Subject *your opponents*, strong perfect *have*, transitive *drawn* with Object gap |
+   | Molten Psyche | 229 → 349 | *cards that player has drawn*: Subject NP *that player*, strong perfect *has*, transitive *drawn* with Object gap |
+   | Moraug, Fury of Akoum | 14 → 16 | *time it has attacked*: Subject *it*, strong perfect *has*, transitive *attacked* with Object gap; existing temporal-gap readings retained |
+   | Thought Sponge | 146 → 210 | *cards an opponent has drawn*: Subject NP *an opponent*, strong perfect *has*, transitive *drawn* with Object gap |
+
+2. **Witnesses** — Complete ticket-unit probes at the pre-refresh claim-parent tree
+   (`myrrznxk`, empty `pnrkopro`) → implemented `pnrkopro`: Aetherflux
+   Reservoir 0 → 4 (strong control 4 → 8); Kydele, Chosen of Kruphix
+   0 → 2 (2 → 4); Greven, Predator Captain 0 → 4 (6 → 10);
+   Knowledge Is Power 0 → 4 (6 → 10); Rug of Smothering 0 → 2 (2 → 4).
+   No already-covered witness was retained as a failure. Controls:
+   conditional perfect 2 → 2; finite perfect 2 → 2; *the first time you've
+   cast your commander* 8 → 8; *the second spell you cast this turn* 8 → 8;
+   opponents' strong-perfect sentence 6 → 10, expected by CH3/CH6.
+   Hollow One's coordinated constituent 0 → 3. The refresh-only census
+   diff changes none of these witness/control faces.
+
+3. **Spot checks** — Newly covered faces on `pnrkopro`, each inspected with
+   complete probes, exact realization and no issues: Aetherflux Reservoir
+   (*spell you've cast*), Kydele (*card you've drawn*), Greven (*life you've
+   lost*), Knowledge Is Power (*cards you've drawn*), Rug of Smothering
+   (*spell they've cast*), Hollow One (*card you've cycled or discarded*),
+   Children of Korlis (*life you've lost*), Fists of Flame (*card you've
+   drawn*), Multani's Presence (*a spell you've cast*, modifying the matrix
+   Subject), Voracious Wurm (*life you've gained*). Each selected Reading
+   has a bare Object relative with its overt Subject and perfect auxiliary
+   selecting a transitive past-participle Object gap; Hollow One coordinates
+   the gaps under one auxiliary. The outer clauses and their other
+   grammatical ambiguities remain intact.
+
+4. **Deviations and STOPs** — `pnrkopro`: add the supporting
+   `PastParticipleObjectGap` Construction/Category and its series Category;
+   a transitive past-participle gap is distinct from both a plain gap and a
+   Bare Passive. Instantiate the four existing ordinary Coordination schemas
+   for that Category, as CH5 permits. Refine `AuxiliaryObjectGap` with a
+   perfect second form under CH1–CH2. No relative-clause Construction, frame,
+   lexical declaration, loader change or superseded route; CH3 explicitly
+   retains the lexical-*have* route. Selector expanded by 85 attested faces
+   to cover all declared participles and the *'s*/*'d* clitic forms; checks
+   use `english-v3 grep`. Multani's Presence falls out without extra work,
+   as permitted by the ticket. Five structural tests added. The initial
+   Hollow One test wrongly required the shared perfect in every Reading;
+   corrected it to assert both the
+   shared perfect and the independently licensed finite coordination with
+   preterite *discarded*, checking their lexical identities and frames.
+   No grammar pruning. No glossary gap or unresolved STOP. Commit followed
+   by successful `kata refresh`; bounded re-census and full checks follow
+   the refreshed lexical/core changes. Standing user-directed STOP before
+   integration; keep the workspace for orchestrator review.
+
+5. **Tests** — `pnrkopro`: `cargo test -p deckmaste_english_v3`
+   initially 752 passed / 1 new-test failure (the Hollow One assumption
+   above); the corrected FULL run passed all 753, zero failed/ignored.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
+   After refresh, then-empty `ovwmnzms` atop `pnrkopro`:
+   `cargo test -p deckmaste_english_v3` passed all 754;
+   `cargo test -p deckmaste_lexical_source` passed all 41;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   `cargo test -p xtask english_v3` passed all 56 selected tests, zero
+   failed/ignored (required because refresh changed construction core).
+   Citation checks: no noncompliant strings or stale rules; no new CR
+   registrations. Assurance counts: restored 0 / re-spelled 0 /
+   ignored-with-blocker 0 / added 5 / removed 0; no removals.
+
+6. **Timing** — `pnrkopro`: bounded AFTER census 49.87 s wall time under
+   `/usr/bin/time -v`, six workers, zero samples per face. No `--all` run.

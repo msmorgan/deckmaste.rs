@@ -3,6 +3,9 @@ mod common;
 #[path = "suite/bounded_quantity_mass_noun.rs"]
 mod bounded_quantity_mass_noun;
 
+#[path = "suite/clitic_have_object_relative.rs"]
+mod clitic_have_object_relative;
+
 #[path = "suite/keyword_dash_cost_line.rs"]
 mod keyword_dash_cost_line;
 
