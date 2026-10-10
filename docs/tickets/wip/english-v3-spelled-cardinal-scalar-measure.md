@@ -159,20 +159,23 @@ by `cargo xtask english-v3 grep` only.
    --manifest --random 300 --seed 20261008` gives 869 distinct faces.
    BEFORE is empty `tsvuoyup` on claim parent `ymtxrrsu`; pre-refresh AFTER
    `tsvuoyup` has 602 → 621 covered, 90,100 → 91,276 Readings and 19 gains.
-   Final refreshed `xnnmkups` has 602 → 626 covered, 90,100 → 91,359 Readings,
+   First refreshed `xnnmkups` has 602 → 626 covered, 90,100 → 91,359 Readings,
    24 gains, lost none, decreases none, digest-only none and issues none.
    `refresh-diff.json` isolates five gains and 83 Readings: Clockwork Avian,
    Beast, Steed and Swarm (jointly enabled by imported cause `nzmrrqky` and
    this ticket), and The Moment (imported phase `roomopmr`). No increase,
-   decrease, loss or digest-only change came from refresh.
+   decrease, loss or digest-only change came from that refresh. The last
+   refresh imported kind-of-counter `wkooyuko`; bounded `kyymvuqx` has
+   zero changed faces or lines against `xnnmkups` (`refresh-2-diff.json`).
+   Final totals and classifications therefore remain exactly those above.
    The only increase is **SC5 expected by SC6(a)**: Burn at the Stake
    39 → 45 (line 1: 36 → 42). Six new Readings close the comparison at
    *equal to three* and take *times the number of creatures tapped* as
    deal's second Object, with *the number of creatures* the Subject of
    preterite *tapped*. Normalizing only the new cardinal Complement to the
    digit scalar route makes the six complete Reading values equal to the
-   digit-3 control's set. Final `xnnmkups` probes retain spelled-line 42 and
-   digit-line 6; the other 36 spelled-line Readings and three other face
+   digit-3 control's set. Both `xnnmkups` and `kyymvuqx` probes retain
+   spelled-line 42 and digit-line 6; the other 36 spelled-line Readings and three other face
    Readings remain. Evidence is under
    `target/english-v3/english-v3-spelled-cardinal-scalar-measure/`;
    `diff.json`, `refresh-diff.json` and `final-diff.json` are the stock tool's
@@ -227,7 +230,12 @@ by `cargo xtask english-v3 grep` only.
    guard; devotion's new tip was empty, and retry was safe. The subsequent
    registration conflict in `tests/main.rs` was resolved at `tsvuoyup` by
    retaining phase_in_out and this module exactly once. Refresh then exited
-   0 and the global conflicts query was empty.
+   0 and the global conflicts query was empty. The later refresh brought
+   `wkooyuko` grammar and lexicon changes, triggering another xtask build,
+   bounded census, full suites and clippy under the standing rule. A citation
+   inventory snapshot race split this documentation update into divergent
+   successors; both disjoint record edits were preserved by squashing the
+   snapshot into the committed successor. No code or data changed in repair.
 5. **Tests** — On `tsvuoyup`, `cargo test -p deckmaste_english_v3`
    passed 905 integration tests before SC6 and 906 with its added regression;
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed both
@@ -237,7 +245,10 @@ by `cargo xtask english-v3 grep` only.
    --tests -- -D warnings` passed. Imported lexicon data also received full
    `cargo test -p deckmaste_lexical_source` (84 tests and doc tests) and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`, both
-   passed. Own counts: restored 0 / re-spelled 0 / ignored 0 / added 10 /
+   passed. After kind-of-counter refresh, `kyymvuqx` reran the same build,
+   full tests and clippy commands: English 924 tests, lexical-source 84,
+   both doc-test runs and both clippy checks passed. Own counts: restored 0 /
+   re-spelled 0 / ignored 0 / added 10 /
    removed 0. The module is registered once in `tests/main.rs`; assertions
    check operand sides, comparative Complement and existing quantity roles,
    independently constructed roundtrips, and equality of Burn at the
@@ -245,6 +256,6 @@ by `cargo xtask english-v3 grep` only.
    implementation changes only English code; lexicon changes came from
    refresh. Final citation checks: 0 noncompliant, 0 stale; the earlier bless
    changed no tracked registrations; diff audit selects no new CR sites.
-6. **Timing** — Refreshed `xnnmkups`: final bounded AFTER census wall time
-   **4:49.69**, `/usr/bin/time -v`, six workers, samples per face 0. No
+6. **Timing** — Latest refreshed `kyymvuqx`: final bounded AFTER census wall time
+   **5:19.81**, `/usr/bin/time -v`, six workers, samples per face 0. No
    full-corpus census or Lean check was run.
