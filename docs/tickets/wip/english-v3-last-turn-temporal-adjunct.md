@@ -205,6 +205,8 @@ Deltas:
    English test registry were resolved with Harmony by retaining both
    trunk's additions and this ticket's additions; the refresh retry exited
    0, `conflicts() & ancestors(@)` is empty, and no test was dropped. No unresolved STOP.
+   Unattested *Last turn, draw a card.* now has 1 Reading through the existing preposed `NominalAdjunctPhrase` route; no new route was added.
+   The licence is class-wide, so unattested bare *last time* and *last combat* read as adjuncts.
 5. **Tests** (`xmyznkll`): all final commands passed:
    `cargo test -p deckmaste_english_v3`;
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`;
