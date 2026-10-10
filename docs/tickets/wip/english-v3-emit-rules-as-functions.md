@@ -76,5 +76,50 @@ edits.
 
 ## Landing record
 
-Six items as specified in `docs/tickets/README.md`; item 1 is the E2
-equivalence diff, item 6 the E5 timing table.
+1. **Census delta** (`tsuuozyn`, before the emitter edit and after the final
+   emitter edit; claim parent `qquyuyns`): E2 compares the stock-diff selection
+   of 2,000 covered faces (seed 20261010) plus 300 controls (seed 20261008),
+   deduplicated to 2,276 identities. Covered 2,276 → 2,276; Readings 117,740 →
+   117,740. Lost / gained / decreases / increases / digest-only / source
+   changes: all 0; 0 issues. Lost faces: none. Evidence:
+   `target/english-v3/english-v3-emit-rules-as-functions/{manifest,before,after,diff}.json`.
+2. **Witnesses** (`tsuuozyn`): E2 replaces parse witnesses for this build-time
+   ticket. All 2,276 face counts and Reading digests are identical; the existing
+   English v3 suite also exercises the main and slice grammars.
+3. **Spot checks** (`tsuuozyn`): no newly covered faces; E2 requires zero
+   gains, so ten newly covered faces are inapplicable.
+4. **Deviations and STOPs** (`tsuuozyn`): the E1 prototype hit the existing
+   `too_many_lines` lint (165/150). Its helper-generation expressions were moved
+   into private `grammar_functions`, preserving the generated functions and
+   calls; no lint allowance. No Construction, frame, lexicon route or test
+   added or deleted; no glossary gap or STOP. Goal 2 is deferred to the next
+   instructed step, per the owner's direction. Grammar optimization remains 2.
+5. **Tests** (`tsuuozyn`): `cargo test -p deckmaste_english_v3` — 731 passed;
+   `cargo test -p deckmaste_construction_v3_core` — 34 passed;
+   `cargo test -p xtask english_v3` — 56 passed. All three
+   `cargo clippy -p <crate> --tests -- -D warnings` commands passed, with
+   `<crate>` respectively `deckmaste_english_v3`,
+   `deckmaste_construction_v3_core`, and `xtask`. The E5 `cargo test -p
+   deckmaste_english_v3 --no-run` and subsequent full 731-test run also passed.
+   Test changes: restored 0 / re-spelled 0 / ignored 0 / added 0 / removed 0;
+   no removals to justify. Citation check: 0 noncompliant, 0 stale; diff audit:
+   0 citation sites; no new rules to bless.
+6. **Timing** (`tsuuozyn`): bounded E2 census, 6 workers, samples-per-face 0,
+   under `/usr/bin/time -v`: before 38.36 s (uptime load 13.48/19.33/20.39),
+   after 35.24 s (10.84/14.25/13.41). E5 before uses the claim-parent build;
+   after holds a temporary unused feature declaration through all four commands,
+   then removes it. The final source retains no declaration change. Loads below
+   are uptime's 1/5/15-minute averages measured immediately before each command;
+   these are contended-machine measurements. The lint-extraction verification
+   reused identical generated code; its warm rebuild is not the E5 after result.
+
+   | Command | Before wall; load | After real declaration edit wall; load |
+   | --- | --- | --- |
+   | `cargo build -p xtask` | 22:12.43; 14.65/16.33/19.17 | 2:02.85; 5.04/9.34/11.55 |
+   | `cargo test -p deckmaste_english_v3 --no-run` | 20:42.48; 13.48/18.80/20.18 | 6:56.85; 11.31/10.79/11.84 |
+   | `cargo test -p deckmaste_english_v3` | 0:21.53; 10.82/9.83/11.93 | 0:21.08; 9.48/10.70/11.45 |
+   | `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` | 0:34.09; 11.33/10.04/11.96 | 0:36.93; 9.95/10.76/11.46 |
+
+   Timing logs and uptime captures are under
+   `target/english-v3/english-v3-emit-rules-as-functions/` (`before-*`, `edit-*`,
+   and `after-census.*`).

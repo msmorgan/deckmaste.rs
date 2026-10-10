@@ -61,6 +61,35 @@ fn frame_argument_requirements(ir: &Ir) -> TokenStream {
     }
 }
 
+fn grammar_functions(
+    rules: impl Iterator<Item = TokenStream>,
+    productions: impl Iterator<Item = TokenStream>,
+) -> (
+    Vec<TokenStream>,
+    Vec<TokenStream>,
+    Vec<TokenStream>,
+    Vec<TokenStream>,
+) {
+    let (rule_fns, rule_calls): (Vec<_>, Vec<_>) = rules
+        .enumerate()
+        .map(|(index, rule)| {
+            let name = format_ident!("__rule{index}");
+            (
+                quote!(#[inline(never)] fn #name() -> Rule { #rule }),
+                quote!(Self::#name()),
+            )
+        })
+        .unzip();
+    let (production_fns, production_calls): (Vec<_>, Vec<_>) = productions
+        .enumerate()
+        .map(|(index, production)| {
+            let name = format_ident!("__production{index}");
+            (quote!(#[inline(never)] fn #name() -> ::deckmaste_english_v3::Production<Category> { #production }), quote!(Self::#name()))
+        })
+        .unzip();
+    (rule_fns, rule_calls, production_fns, production_calls)
+}
+
 fn grammar(ir: &Ir) -> TokenStream {
     let productions = ir.rules.iter().map(|rule| {
         let category = &ir.categories[rule.category];
@@ -139,6 +168,8 @@ fn grammar(ir: &Ir) -> TokenStream {
             release: vec![#(#release),*]
         })
     });
+    let (rule_fns, rule_calls, production_fns, production_calls) =
+        grammar_functions(rules, productions);
     let templates: Vec<_> = ir
         .constructors
         .iter()
@@ -198,9 +229,11 @@ fn grammar(ir: &Ir) -> TokenStream {
         const SELECTED_FRAME_TEMPLATES: &[(usize, &str)] = &[#(#templates),*];
         const REQUIRES_ENVIRONMENT: bool = #required;
         impl Default for Grammar {
-            fn default() -> Self { Self { rules: vec![#(#rules),*], productions: vec![#(#productions),*], programs: vec![], canonical_frames: vec![#(#canonical_frames),*], marker_classes: vec![], expansions: vec![], frame_programs: vec![], expansion_index: ::std::collections::BTreeMap::new(), unsupported: vec![], static_count: #static_count, compiled: false } }
+            fn default() -> Self { Self { rules: vec![#(#rule_calls),*], productions: vec![#(#production_calls),*], programs: vec![], canonical_frames: vec![#(#canonical_frames),*], marker_classes: vec![], expansions: vec![], frame_programs: vec![], expansion_index: ::std::collections::BTreeMap::new(), unsupported: vec![], static_count: #static_count, compiled: false } }
         }
         impl Grammar {
+            #(#rule_fns)*
+            #(#production_fns)*
             fn frame_category(name: &str) -> Option<Category> { match name { #(#categories,)* _ => None } }
             fn for_admission() -> &'static Self {
                 static GRAMMAR: ::std::sync::OnceLock<Grammar> = ::std::sync::OnceLock::new();
