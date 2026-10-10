@@ -169,6 +169,19 @@ Deltas:
    reports 8 gained, no losses, decreases, increases or digest-only changes,
    and 1,898 unchanged. The ticket's own 31 gains (11 arithmetic / 20 other)
    and Woodcaller increase remain unchanged; no decreased faces to attribute.
+   Integration refresh (`ovwwkuvl`, then-empty): 1,426 covered faces,
+   203,059 Readings. Official `integration-refresh-diff.json` against the
+   accepted census adds 7 gains and 140 digest-only changes, with 0 lost,
+   decreased or increased faces and 1,759 unchanged. These are inherited
+   from divided-as-you-choose `umzuyqxm` (landing `xlzlkvsp`): inherited
+   structural changes preserve counts, and the division construction covers
+   Captain America, First Avenger; Huatli, Warrior Poet; Living Inferno;
+   Master of the Wild Hunt; Orca, Siege Demon; Polukranos, World Eater;
+   and Ravenous Gigantotherium. Original-claim-parent comparison
+   (`integration-final-diff.json`): 46 gained, 0 lost, 0 decreased,
+   1 increased (the accepted Woodcaller scopes), 139 digest-only,
+   1,720 unchanged. Orchestrator accepted this ticket as is on 2026-10-10,
+   explicitly accepting Woodcaller's distinct grammatical scopes.
 2. **Witnesses** (`wlstpkpu`, complete probes): all five were 0 before;
    Master Symmetrist 6, Chalice of the Void 10, Sanctum Prelate 2,
    Ratchet Bomb 31, Aether Vial 42 after. Their ordering controls retain
@@ -212,10 +225,19 @@ Deltas:
    `pqpstqts` (716 tests, 0 failed, 0 ignored; doc tests passed); the same
    clippy command also passed on the refreshed tree. Evidence:
    `tests-refreshed.log` and `clippy-refreshed.log` under the target directory.
+   Integration-refresh full suite on `ovwwkuvl`: 723 passed, 0 failed,
+   0 ignored, doc tests passed; `cargo test -p deckmaste_english_v3` used
+   `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`, matching the
+   accepted division landing's verification environment. Evidence:
+   `tests-integration-refresh.log`. With the same environment,
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed
+   (`clippy-integration-refresh.log`).
    Restored 0 / re-spelled 1 / ignored 0 / added 11 / removed 0;
    removals: none. This ticket changed no other crate's code or consumed data.
 6. **Timing** (`wlstpkpu`): bounded after census 2m 34s 720ms wall, 6 workers,
    peak RSS 10,550,532 KiB (`/usr/bin/time -v`, prebuilt binary,
    `--samples-per-face 0`). Refreshed bounded census: 54s 370ms wall,
    6 workers, peak RSS 10,223,504 KiB (same prebuilt-binary invocation;
-   `after-refresh.time`).
+   `after-refresh.time`). Integration-refresh bounded census: 1m 17s 520ms
+   wall, 6 workers, peak RSS 10,733,860 KiB (same invocation;
+   `after-integration-refresh.time`).
