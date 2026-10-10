@@ -217,13 +217,10 @@ fn declarations_fill_attested_roles_and_preserve_both_roundtrip_laws() {
             }
         }
     }
-    for (text, category) in [
-        ("Remove it from combat.", Category::Document),
-        ("removed from combat", Category::SecondaryVerbPhrase),
-        ("combat", Category::NounPhrase),
-    ] {
-        assert_eq!(common::readings(text, category), BTreeSet::new(), "{text}");
-    }
+    assert_eq!(
+        common::readings("combat", Category::NounPhrase),
+        BTreeSet::new()
+    );
     for (owner, frame, text) in [
         ("core-verb:End", 0, "end"),
         ("lexeme:keyword_action/transform", 1, "transform"),
@@ -303,4 +300,21 @@ fn declarations_fill_attested_roles_and_preserve_both_roundtrip_laws() {
         common::readings("removed from this land", Category::SecondaryVerbPhrase),
         BTreeSet::from([passive])
     );
+}
+
+#[test]
+fn combat_source_deferrals_follow_the_selected_complement_route() {
+    for (text, category) in [
+        ("Remove it from combat.", Category::Document),
+        ("removed from combat", Category::SecondaryVerbPhrase),
+    ] {
+        common::assert_constituents(
+            text,
+            category,
+            &[
+                (Category::SourceComplement, "from combat"),
+                (Category::BareTemporalNominal, "combat"),
+            ],
+        );
+    }
 }

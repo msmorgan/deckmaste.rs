@@ -97,6 +97,43 @@ Orchestrator rulings 2026-10-10:
   and an increase there is the RS1 / RS2 defect. Report any with its shape
   before landing.
 
+- RS7 (2026-10-10). Source-free applies to the whole Object, including
+  transparent Obliques and Genitive Possessors. Project the declared Source
+  class through those extensions; no word tests. The six nominal-extension
+  increases must return to their claim-parent counts.
+- RS8 (2026-10-10). A Source PP following a gerund whose predicate used a
+  Source-free Object frame belongs to that predicate. Export a declared
+  boundary through the gerund PP and reject Source-class matrix Adjuncts
+  across it. Dawnhand Dissident, Falco Spara and Quilled Greatwurm must
+  return to their claim-parent counts.
+- RS9 (2026-10-10). Stormfront Riders' two removed Source Adjunct Readings
+  require one-for-one selected Complement replacements, or must remain.
+  Implementation choice: preserve those existing Adjunct Readings by leaving
+  Return's prior attachment licence unchanged. Adding a new Return frame
+  would broaden this ticket beyond the required Remove construction.
+  None of the nine increases is accepted. Verify the same 6,634 identities;
+  stop on any surviving increase, and classify gains by intended analysis.
+
+- RS10 (2026-10-10). The 34 Return decreases are not accepted. Preserve
+  the head-only Source-free Object licence for every existing Frame;
+  the ticket's new bare-Object Frames declare a distinct whole-Object
+  licence. Expected: zero decreases.
+- RS11 (2026-10-10). Forward the RS8 Source boundary through auxiliaries
+  instead of resetting it, for this property only. Expected: Dawnhand
+  Dissident, Falco Spara and Quilled Greatwurm retain their before counts.
+  Verify the same 6,634 identities: zero lost/increases/decreases, 67 gains
+  with intended analyses. Stop with the shape if anything else moves.
+
+- RS12 (2026-10-10), superseding RS8/RS11. Remove the gerund-boundary
+  property, its gerund/auxiliary forwarding and its trailing-Adjunct row;
+  restore that grammar to its claim-parent shape. Retain the new Remove
+  frames, combat Source, RS7 scoped by RS10 and RS9. Accept only the three
+  gerund increases (Dawnhand Dissident, Falco Spara, Quilled Greatwurm),
+  whose following Source PP can also attach to the matrix Predicate.
+  This ordinary PP-attachment ambiguity is follow-up work, not a defect
+  of this ticket. Expected: zero lost/decreases, 67 intended gains, exactly
+  those three increases; otherwise stop with the shape.
+
 ## Witnesses
 
 Each is the face's only failing line at `uoqyuxtn`. Probed 2026-10-10 with
@@ -161,4 +198,73 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-Not landed.
+1. **Census delta** (`nxxknqvk`; claim-parent content `kntxoopo`). Bounded
+   selector `\b(remov(e|es|ed|ing)|from|combat)\b`, case-insensitive:
+   6,383 matching faces plus 300 random covered controls, seed 20261008,
+   6,634 unique identities. Covered 5,480 → 5,547; Readings
+   272,490 → 276,357; gained 67, lost none, decreases 0, digest-only 0,
+   issues 0. Exactly three increases, accepted by ruling RS12:
+   Dawnhand Dissident 1,154 → 3,273; Falco Spara, Pactweaver 56 → 109;
+   Quilled Greatwurm 34 → 71. Added shape: Source PP after the bare-Object
+   gerund `by removing N counters` attaches to the matrix Predicate rather
+   than being selected by the gerund. All six RS7 faces and the three
+   without-paying controls retain their before counts; Stormfront Riders
+   retains 5. Built-in `diff --lines`: `diff.json`, under
+   `target/english-v3/english-v3-remove-source-attachment/`.
+   After refresh (`vppqlzlo`, empty child of `nxxknqvk`), built-in diff
+   on the seeded 1,500-face manifest sample: covered 1,500 → 1,500,
+   Readings 54,535 → 54,535, lost/gained/decreases/increases 0, issues 0.
+   Seven digest-only changes belong to trunk `soxvyspk`
+   (`MultiplierNounPhrase` → `PredeterminerNounPhrase`); no removed
+   Readings. `after-refresh.json` / `refresh-diff.json`.
+2. **Witnesses** (`nxxknqvk`, complete probes, claim-parent → after):
+   Saprazzan Cove 0 → 2; Catti-brie of Mithral Hall 0 → 8; White Ward's
+   sentence 0 → 1; Spires of Orazca's ability 0 → 4; Gustcloak Sentinel
+   0 → 4; Disharmony's fragment 0 → 2. None already read on the parent.
+   All eight ticket controls retain their counts: six at 1, combat damage
+   at 3, bare NP combat at 0. `probes-before.log` / `probes-rs12.log`.
+3. **Spot checks** (`nxxknqvk`). Black Ward, Blue Ward, White Ward — bare
+   Object; Saprazzan Cove, Catti-brie, Hex Parasite, Bounty of the Luxa —
+   Bare Passive Postmodifier; Spires of Orazca, Gustcloak Sentinel,
+   Disharmony — selected combat Source Complement. Current-build role
+   inspection finds an intended analysis on all 67 gained faces: 20 bare
+   Object, 29 bare passive, 18 combat Source. Unintended-only gains: 0,
+   none. Evidence: `gain-role-review.json` and `gain-*.json`; this checks
+   existence of an intended analysis, not every alternative's correctness.
+4. **Deviations and STOPs** (`nxxknqvk`). Separate bare active/passive
+   frames are appended in core.ron, preserving old indices. RS2 adds
+   declared Source selection and feature-only predicate/Clause attachment
+   guards. RS3 adds From's Interval class alongside Location. RS7 scoped
+   by RS10 uses WholeSourceFreeObject only on the new frames; the original
+   head-only licence remains unchanged. RS9 preserves both Stormfront
+   Riders Source Adjunct Readings. RS12 resolves the three STOP rounds by
+   retiring the RS8/RS11 gerund-boundary mechanism entirely; its ordinary
+   attachment ambiguity is routed to systemic residuals. Glossary terms
+   cite project rulings. The accepted shapes are in
+   `rs12-accepted-increases.log`; no word-naming guard or Lean change.
+   Refresh conflicts in category declarations and suite_6 registrations
+   were resolved preserving both feature sets and all test modules. The
+   incoming focused-NP and participial-supplement anchor projections now
+   preserve this ticket's declared features (`SourceSelectionAnchor` and
+   the existing Whole-Object projection). Two compile errors in the merge
+   repair were corrected before the successful rebuild and full checks.
+5. **Tests** (`nxxknqvk`). `cargo test -p deckmaste_english_v3` passed
+   803 tests across all six binaries; `cargo test -p deckmaste_lexical_source`
+   passed 82. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
+   passed. Restored 0 / re-spelled 4 / ignored 0 / added 13 / removed 0.
+   Re-spelled: `declarations_fill_attested_roles_and_preserve_both_roundtrip_laws`
+   (combat checks moved to an added test),
+   `sun_droplet_remove_retains_object_and_marked_source_roundtrip` and
+   `frames_preserve_objects_selected_complements_and_existing_plugin_frames`
+   (complete frame inventories extended), and RS12's
+   `gerund_source_retains_selected_and_matrix_attachments_under_rs12`
+   (same Falco line, selected Source retained, matrix alternative accepted).
+   After refresh (`vppqlzlo`), both full commands passed again: 849 English
+   tests, 83 lexical-source tests; both clippy commands passed again.
+   `cargo build -p xtask` passed before and after refresh. No xtask,
+   construction-core or plugin-data change required its test suite.
+   Citation checks: 0 noncompliant, 0 stale, 0 changed citation sites.
+6. **Timing** (`nxxknqvk`). Bounded AFTER census **4:49.89** wall under
+   `/usr/bin/time -v`, 6 workers, 6,634 faces, `--samples-per-face 0`.
+   No full-corpus or `--all` run.

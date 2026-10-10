@@ -401,6 +401,19 @@ fn sun_droplet_remove_retains_object_and_marked_source_roundtrip() {
                     }
                 )],
             },
+            deckmaste_lexical::Frame {
+                kind: "Predicate".into(),
+                items: vec![deckmaste_lexical::FrameItem::Argument(
+                    deckmaste_lexical::FrameSlot {
+                        relation: deckmaste_lexical::Relation::Object,
+                        category: "WholeSourceFreeObject".into(),
+                    }
+                )],
+            },
+            deckmaste_lexical::Frame {
+                kind: "Passive".into(),
+                items: vec![],
+            },
         ]
     );
     assert!(

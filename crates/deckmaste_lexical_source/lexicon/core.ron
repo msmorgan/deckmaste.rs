@@ -75,6 +75,7 @@
         "lexeme:keyword_action/sacrifice": {"MatrixComplementLicence": "Nominal", "PastParticipialPremodifier": "Yes"},
         "lexeme:keyword_action/destroy": {"MatrixComplementLicence": "Nominal"},
         "core-verb:Return": {"MatrixComplementLicence": "Nominal"},
+        "core-verb:Remove": {"SourceComplementSelection": "Yes"},
         "core-verb:Deal": {"MatrixComplementLicence": "Nominal"},
         "core-verb:Have": {"PurposeAdjunctLicence": "No"},
         // Oracle-register stative exclusion: orchestrator ruling 2026-10-08.
@@ -226,7 +227,7 @@
         "vocab:Preposition/During": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "NominalBareClass": "Interval"},
         "vocab:Preposition/Except": {"MatrixComplementGovernor": "Yes", "MatrixComplementRequirement": "Content", "FiniteClauseComplement": "Nonsequencing", "PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
         "vocab:Preposition/For": {"NominalExceptionComplementUse": "Yes","AdverbComplementClass": "Duration", "PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Adjunct|Modifier|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "For"},
-        "vocab:Preposition/From": {"BareNominalComplement": "Location", "SourceMarker": "Yes", "PrepositionPhraseComplementLicence": "Source", "PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Modifier|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "KeywordMarker": "From"},
+        "vocab:Preposition/From": {"NominalBareClass": "Interval", "BareNominalComplement": "Location", "SourceMarker": "Yes", "PrepositionPhraseComplementLicence": "Source", "PrepositionFunctionLicence": "VerbComplement|NounComplement|Compound|Modifier|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "KeywordMarker": "From"},
         "vocab:Preposition/In": {"BareNominalComplement": "Location", "SelectedPrepositionUse": "Yes", "PrepositionFunctionLicence": "Modifier|VerbComplement|PredicativeComplement|Compound|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Into": {"BareNominalComplement": "Location", "PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Into"},
         "vocab:Preposition/Of": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Compound", "PrepositionPhraseComplementLicence": "Unrestricted", "PrepositionFunctionLicence": "NounComplement|Modifier|PredicativeComplement", "ObliqueMarker": "Yes", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "NominalComplementMarker": "Of", "NominalBareClass": "Interval", "KeywordMarker": "Of"},
@@ -2116,6 +2117,8 @@
         ],
         "core-verb:Remove": [
             (kind: "Passive", items: [Argument((relation: Complement, category: "SourceComplement"))]),
+            (kind: "Predicate", items: [Argument((relation: Object, category: "WholeSourceFreeObject"))]),
+            (kind: "Passive", items: []),
         ],
         "lexeme:keyword_ability/soulbond/verb": [
             (kind: "Passive", items: [Marked(vocabulary: "Preposition", member: "With", slot: (relation: Complement, category: "NounPhrase"))]),

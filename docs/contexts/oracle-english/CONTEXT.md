@@ -581,15 +581,29 @@ A Locative Complement expressing the starting location. Its PP form retains
 the governing preposition and that preposition's internal Complement
 (CGEL, Ch. 8 §4.3, p. 687).
 
+**Source Complement Selection** (project term):
+A verb's declared selection of a Source Complement in its Frame Set, retained
+when the Source is unexpressed. Its attachment restriction in Oracle English
+is orchestrator ruling RS2 (2026-10-10, `english-v3-remove-source-attachment`),
+not a restriction supplied by CGEL.
+
 **Source Modifier Present** (project term):
 Whether a nominal head has a source-marked PP Postmodifier. A source inside
 a distinct embedded Noun Phrase or Clause is not a Postmodifier of this head.
+RS10 (2026-10-10) preserves this distribution for existing Frames.
+
+**Whole Object Source Present** (project term):
+Whether the Object contains a source-marked PP on its head or through a
+transparent Oblique or Genitive Possessor. RS7 and RS10 (2026-10-10,
+`english-v3-remove-source-attachment`) require this declared distribution
+only for that ticket's new bare-Object Frames. Embedded Clauses retain
+their own attachment domain.
 
 **Source-free Object** (project term):
 An Object Noun Phrase whose own nominal head has no source-marked PP
-Postmodifier. A Verb Frame that selects its source separately can require
-this distribution. Other hosts retain the source PP's licensed nominal
-function; this is a [project constraint](../../tickets/done/english-v3-from-preposition-phrase-complement.md#project-analysis).
+Postmodifier. Existing Frames retain this [project constraint](../../tickets/done/english-v3-from-preposition-phrase-complement.md#project-analysis).
+The distinct whole-Object licence also excludes Sources in transparent
+Obliques and Genitive Possessors, as ruled in RS7/RS10 (2026-10-10).
 
 **Frame Category Projection** (project term):
 The correspondence between a lexical Frame Slot's Category and the grammar

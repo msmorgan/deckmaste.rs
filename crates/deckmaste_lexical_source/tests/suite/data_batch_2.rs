@@ -81,6 +81,11 @@ fn frames_preserve_objects_selected_complements_and_existing_plugin_frames() {
                 "Passive",
                 vec![argument(Relation::Complement, "SourceComplement")]
             ),
+            frame(
+                "Predicate",
+                vec![argument(Relation::Object, "WholeSourceFreeObject")]
+            ),
+            frame("Passive", vec![]),
         ]
     );
     let put = &LEXICON.lexemes()["core-verb:Put"].properties.frames;

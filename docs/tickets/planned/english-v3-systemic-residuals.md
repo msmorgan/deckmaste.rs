@@ -25,6 +25,15 @@ obligations, flat serial coordination, within-group Type Line ordering, and
 richer document forms. Test positive/negative structural witnesses for each
 before assigning an implementation owner. Concrete starting points are:
 
+- **Source PP after a gerund-participial bare-Object use of a Source-selecting
+  verb attaches to the matrix predicate** (3 faces; Dawnhand Dissident
+  1,154 -> ~3,273). Orchestrator ruling RS12 (2026-10-10,
+  `english-v3-remove-source-attachment`) accepts this ordinary PP-attachment
+  ambiguity for that landing and routes attachment restriction here.
+  The other faces are Falco Spara, Pactweaver and Quilled Greatwurm;
+  the selected Source Complement analysis remains available alongside
+  the matrix Source Adjunct after `by removing N counters`.
+
 - **as-Clause verbless NP licensing**: route the existing bare-NP-after-*as*
   licence (no verb) to the named [recon hygiene ticket](english-v3-as-clause-verbless-np-licensing.md).
   The user ruling of 2026-10-08 retains inherited finite *as*-Clause alternatives;
