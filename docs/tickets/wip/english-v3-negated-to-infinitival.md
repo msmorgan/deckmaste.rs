@@ -168,6 +168,7 @@ All other *not* (66 faces), each a different mechanism:
    and tests required a rebuild and all bounded/full checks below to rerun.
    The first refresh refused a concurrent focus-workspace edit; retry after
    verifying its empty working copy succeeded without conflicts.
+   the purpose and hollow to-infinitival instances also admit the negator ("… not to untap this artifact" reads once per positive Reading); unattested (`\bnot to` is 45 faces, all *choose not to*); and on the full corpus every covered line with a ToInfinitive node changes digest only (the empty optional `negator` field), no count change.
 5. **Tests** (`wqkrtoxrxvor`): `cargo test -p deckmaste_english_v3` passed
    (795 tests); `cargo test -p deckmaste_lexical_source` passed (82 tests).
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
