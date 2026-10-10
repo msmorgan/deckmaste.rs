@@ -255,6 +255,41 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
         },
     );
 }
+/// "Devour [quality] N": a bare quality then a number, licensed by the
+/// declaration's `QualityAmount` class, never by the keyword's name (ruling
+/// 2026-10-10, `semantics-v2-devour-quality-keyword`) [CR#702.82c].
+#[test]
+fn quality_amount_keywords_read_a_bare_quality_then_a_number() {
+    for (text, quality, value) in [
+        // Feasting Hobbit.
+        ("Devour Food 3", "lexeme:artifact_subtype/food", 3),
+        // Famished Worldsire.
+        ("Devour land 3", "lexeme:type/land", 3),
+        // Caprichrome.
+        ("Devour artifact 1", "lexeme:type/artifact", 1),
+    ] {
+        exact(
+            text,
+            &Reading::QualityAmountKeyword {
+                form: 0,
+                head: keyword("devourQuality"),
+                quality: Box::new(Reading::NominalKeywordQuality {
+                    form: 0,
+                    phrase: Box::new(noun(quality)),
+                }),
+                amount: Box::new(Reading::UngroupedScalarNumeral {
+                    form: 0,
+                    modifier: None,
+                    head: number(value),
+                }),
+            },
+        );
+    }
+    for text in ["Devour Food", "Devour for Food 3", "Devour Food — 3"] {
+        assert!(readings(text, Category::KeywordPhrase).is_empty(), "{text}");
+    }
+}
+
 #[test]
 fn keyword_payload_contracts_reject_wrong_markers_numbers_and_separators() {
     // KM4 retires the missing-parameter rejection; retain the same surface

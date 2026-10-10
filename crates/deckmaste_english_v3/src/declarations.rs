@@ -377,7 +377,7 @@ constructions! {
         feature ComparisonMarker { Equality, Ordering }
         feature ExpandedComparisonMarker { Equality, Ordering }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
-            QualityCost, Ability, Condition, CostPowerToughness, Instruction }
+            QualityCost, QualityAmount, Ability, Condition, CostPowerToughness, Instruction }
         table bare_keyword_use(KeywordParameterClass) -> Selection {
             (Nullary) => Yes, (Amount) => Yes, (Cost) => Yes, (AmountCost) => Yes,
         }
@@ -2752,6 +2752,15 @@ constructions! {
             agree head.KeywordMarker = quality.KeywordMarker;
             require compatible_quality(head.KeywordQualityNumber,
                 quality.KeywordQualityNumber) = Yes;
+        }
+        // A bare quality then a number, no preposition: "Devour artifact 1"
+        // (ruling 2026-10-10, `semantics-v2-devour-quality-keyword`).
+        construction QualityAmountKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", quality: KeywordQuality, " ",
+                amount: MeasurePhrase];
+            require head.KeywordParameterClass = QualityAmount;
+            require head.KeywordSeparator = Space;
+            require amount.MeasureKind = Scalar;
         }
         category ClausalKeywordPayload(KeywordParameterClass);
         construction AbilityKeywordPayload: ClausalKeywordPayload {
