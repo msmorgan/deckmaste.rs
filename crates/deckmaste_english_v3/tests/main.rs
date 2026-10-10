@@ -291,5 +291,8 @@ mod vocabulary_batch_2;
 #[path = "suite/multiplier_predeterminer.rs"]
 mod multiplier_predeterminer;
 
+#[path = "suite/pronominal_other.rs"]
+mod pronominal_other;
+
 #[path = "suite/predicate_terms.rs"]
 mod predicate_terms;

@@ -15,7 +15,7 @@ constructions! {
         feature DegreeUse { Head, Modifier }
         feature PredeterminerUse { No, Multiplier } default No;
         feature Definiteness { Unspecified, Nondefinite, Definite } default Unspecified;
-        feature DeterminerRequirement { No, Yes } default No;
+        feature DeterminerRequirement { No, Yes, Definite } default No;
         feature NumberTransparency { No, Yes } default No;
         feature SubjectRelativeNumber { None, Singular, Plural } default None;
         table relative_number_concord(SubjectRelativeNumber, SubjectRelativeNumber) -> SubjectRelativeNumber {
@@ -299,7 +299,7 @@ constructions! {
         feature NominalAdjunctClass { None, Temporal, Manner } default None;
         feature SlashPremodifierUse { No, Yes } default Yes;
         feature NominalDependentPresent { No, Yes } default No;
-        feature NominalAdjunctDependent { None, Demonstrative, Temporal, Definite, DeicticTemporal }
+        feature NominalAdjunctDependent { None, Demonstrative, Temporal, Definite, DeicticTemporal } default None;
         feature BareSingularUse { No, Yes } default No;
         feature RelativeUse { No, Yes } default No;
         feature ExistentialUse { No, Yes } default No;
@@ -474,7 +474,7 @@ constructions! {
         category Cardinal(number);
         category CardinalModifier();
         category QuantitativeAdjectiveComplement();
-        category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness);
+        category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent);
         category CardinalPrepositionPhrase(number);
         category QuantitativePrepositionPhrase(number);
         category ComparativePrepositionPhrase(number);
@@ -786,17 +786,30 @@ constructions! {
             (Mixed, Mixed) => Mixed,
         }
 
-        table determiner_license(DeterminerUse, number, countability) -> Selection {
-            (SingularCount, Singular, Count) => Yes,
-            (Unrestricted, Singular, Count) => Yes,
-            (Unrestricted, Plural, Count) => Yes,
-            (Unrestricted, Singular, Mass) => Yes,
-            (PluralOrMass, Plural, Count) => Yes,
-            (PluralOrMass, Singular, Mass) => Yes,
-            (PluralCount, Plural, Count) => Yes,
-            (Mass, Singular, Mass) => Yes,
-            (Singular, Singular, Count) => Yes,
-            (Singular, Singular, Mass) => Yes,
+        table determiner_license(DeterminerUse, number, countability,
+            DeterminerRequirement, NominalAdjunctDependent) -> Selection {
+            // FH7 (orchestrator, 2026-10-10): noun-side definite selection.
+            (Unrestricted, Singular, Count, Definite, Definite) => Yes,
+            (SingularCount, Singular, Count, No, _) => Yes,
+            (SingularCount, Singular, Count, Yes, _) => Yes,
+            (Unrestricted, Singular, Count, No, _) => Yes,
+            (Unrestricted, Singular, Count, Yes, _) => Yes,
+            (Unrestricted, Plural, Count, No, _) => Yes,
+            (Unrestricted, Plural, Count, Yes, _) => Yes,
+            (Unrestricted, Singular, Mass, No, _) => Yes,
+            (Unrestricted, Singular, Mass, Yes, _) => Yes,
+            (PluralOrMass, Plural, Count, No, _) => Yes,
+            (PluralOrMass, Plural, Count, Yes, _) => Yes,
+            (PluralOrMass, Singular, Mass, No, _) => Yes,
+            (PluralOrMass, Singular, Mass, Yes, _) => Yes,
+            (PluralCount, Plural, Count, No, _) => Yes,
+            (PluralCount, Plural, Count, Yes, _) => Yes,
+            (Mass, Singular, Mass, No, _) => Yes,
+            (Mass, Singular, Mass, Yes, _) => Yes,
+            (Singular, Singular, Count, No, _) => Yes,
+            (Singular, Singular, Count, Yes, _) => Yes,
+            (Singular, Singular, Mass, No, _) => Yes,
+            (Singular, Singular, Mass, Yes, _) => Yes,
         }
 
         // CGEL Ch. 5 §§3.3, 18.2: the oblique controls concord only in the
@@ -1217,7 +1230,7 @@ constructions! {
             export SourceModifierPresent = head.SourceModifierPresent;
             export BarePrepositionUse = head.BarePrepositionUse;
             export NominalComplementMarker = head.NominalComplementMarker;
-            export DeterminerRequirement = No;
+            export DeterminerRequirement = head.DeterminerRequirement;
             export MeasurePosition = head.MeasurePosition;
             export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
             export PropertyValuePosition = head.PropertyValuePosition;
@@ -1349,6 +1362,7 @@ constructions! {
         table coordinated_determiner_requirement(DeterminerRequirement, DeterminerRequirement)
             -> DeterminerRequirement {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (Definite, _) => Definite, (_, Definite) => Definite,
         }
         table coordinated_measure_position(MeasurePosition, MeasurePosition) -> MeasurePosition {
             (Before, Before) => Before,
@@ -3398,12 +3412,16 @@ constructions! {
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require determiner.DeterminerKind = Ordinary;
             require determiner_license(determiner.DeterminerUse, head.number,
-                head.countability) = Yes;
+                head.countability, head.DeterminerRequirement, determiner.NominalAdjunctDependent) = Yes;
             export number = quantificational_number(determiner.QuantificationalDeterminer,
                 head.NumberTransparency, head.ObliqueNumber, head.number, head.NominalAgreementNumber,
                 determiner.DeterminerAgreementNumber);
             use ThirdPersonCommonCase;
             require resolved_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number, determiner.DeterminerAgreementNumber) = Yes;
+        }
+
+        table nondefinite_determiner_requirement(DeterminerRequirement) -> Selection {
+            (No) => Yes, (Yes) => Yes,
         }
 
         construction IndefiniteNounPhrase: NounPhrase {
@@ -3427,6 +3445,7 @@ constructions! {
             export BareGenitiveHost = head.BareGenitiveHost;
             use ThirdPersonCommonCase;
             require singular_relative_number(head.SubjectRelativeNumber) = Yes;
+            require nondefinite_determiner_requirement(head.DeterminerRequirement) = Yes;
         }
 
         table bare_noun_phrase_license(number, countability) -> Selection {
@@ -4219,7 +4238,8 @@ constructions! {
             export NominalAdjunctClass = head.NominalAdjunctClass;
             export NominalAdjunctDependent = determiner.NominalAdjunctDependent;
             form [determiner: lexical(Determinative), " ", head: Nominal]
-                require determiner_license(determiner.DeterminerUse, head.number, head.countability) = Yes;
+                require determiner_license(determiner.DeterminerUse, head.number, head.countability,
+                    head.DeterminerRequirement, determiner.NominalAdjunctDependent) = Yes;
             // Deictic adjective dependent: orchestrator rulings R14a/R14e (2026-10-09).
             form [determiner: lexical(Adjective), " ", head: Nominal]
                 require determiner.NominalAdjunctDependent = DeicticTemporal
@@ -4698,6 +4718,7 @@ constructions! {
 
         construction ComparativeQuantityDeterminer: QuantitativeDeterminer {
             export Definiteness = Nondefinite;
+            export NominalAdjunctDependent = None;
             cost 0;
             form [value: ComparativeQuantity];
             export DeterminerUse = cardinal_determiner_use(value.number);
@@ -4706,6 +4727,7 @@ constructions! {
 
         construction CardinalDeterminer: QuantitativeDeterminer {
             export Definiteness = Nondefinite;
+            export NominalAdjunctDependent = None;
             cost 0;
             form [value: Cardinal];
             export DeterminerUse = cardinal_determiner_use(value.number);
@@ -4714,6 +4736,7 @@ constructions! {
 
         construction PrepositionDeterminer: QuantitativeDeterminer {
             export Definiteness = Nondefinite;
+            export NominalAdjunctDependent = None;
             cost 0;
             form [value: QuantitativePrepositionPhrase];
             export DeterminerUse = cardinal_determiner_use(value.number);
@@ -4736,6 +4759,7 @@ constructions! {
         // CGEL Ch. 5 §11(c), p. 431: degree modification within a DP.
         construction DegreeDeterminativePhrase: QuantitativeDeterminer {
             export Definiteness = modifier.Definiteness;
+            export NominalAdjunctDependent = None;
             export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
             form [modifier: lexical(Determinative), " ", head: lexical(Determinative)];
             require modifier.DegreeUse = Modifier;
@@ -4761,7 +4785,8 @@ constructions! {
             export SourceModifierPresent = head.SourceModifierPresent;
             export BarePrepositionUse = No;
             form [quantity: QuantitativeDeterminer, " ", head: Nominal];
-            require determiner_license(quantity.DeterminerUse, head.number, head.countability) = Yes;
+            require determiner_license(quantity.DeterminerUse, head.number, head.countability,
+                head.DeterminerRequirement, quantity.NominalAdjunctDependent) = Yes;
             require head.DeterminerRequirement = No;
             export ScalarDenotation = quantified_scalar_denotation(head.ScalarDenotation, head.MeasurePosition);
             export SubjectStructure = Phrase;
@@ -5648,6 +5673,7 @@ constructions! {
                 marker.HostEnding) = Yes;
             use NounPhraseHeadAgreement;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
+            require nondefinite_determiner_requirement(head.DeterminerRequirement) = Yes;
         }
 
         construction PossessiveNounPhrase: NounPhrase {
@@ -5664,6 +5690,7 @@ constructions! {
             require possessor.NominalLicense = AnyNominal;
             use NounPhraseHeadAgreement;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
+            require nondefinite_determiner_requirement(head.DeterminerRequirement) = Yes;
         }
 
         construction KeywordComplementPreposition: PrepositionPhrase {

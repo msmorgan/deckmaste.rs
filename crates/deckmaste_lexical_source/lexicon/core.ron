@@ -822,6 +822,15 @@
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:Name/Moloid"),
             capitalization: Exact, binding: Free, surface_structure: Opaque,
         ),
+        // Pro-nominal noun: CGEL Ch. 17 §6.2, pp. 1517–1518; definite selection
+        // and singular-only inventory: orchestrator rulings FH2/FH3/FH7 (2026-10-10).
+        (
+            id: "lexeme:CommonNoun/Other", lemma: "other", category: Noun,
+            properties: (countability: [Count], features: {"DeterminerRequirement": "Definite"}, frames: []),
+            forms: [(form: Singular, features: (number: Some(Singular)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Other"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
         // Attributive adjective, mirroring Next; rehomed by orchestrator ruling R14e.
         (
             id: "vocab:AttributiveAdjective/Last", lemma: "last", category: Adjective,

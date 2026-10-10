@@ -1005,10 +1005,12 @@ Ch. 5 §12(a), p. 434); demonstrative degree determination in *that much* and
 [MP1–MP3](../../tickets/done/english-v3-multiplier-predeterminer.md#analysis).
 
 **Determiner Requirement** (project term):
-A Nominal's unresolved need for an outer Determiner when a cardinal numeral
-functions as its internal Modifier, as in *that one mistake* (CGEL, Ch. 5
-§7.6, p. 386). Without the outer Determiner the numeral instead functions as
-the Determiner.
+A Nominal's unresolved need for an outer Determiner, optionally of a selected
+class (orchestrator ruling FH7, 2026-10-10,
+[pro-nominal *other*](../../tickets/done/english-v3-fused-head-noun-phrases.md#analysis)).
+A cardinal numeral functioning as an internal Modifier also creates this
+requirement, as in *that one mistake*; without the outer Determiner it
+instead functions as Determiner (CGEL, Ch. 5 §7.6, p. 386).
 
 **Fused Determiner-Head**:
 An expression combining the Determiner and Head functions in a Noun Phrase;
