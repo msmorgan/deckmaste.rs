@@ -116,6 +116,15 @@ before landing (KD3, KD4 make most of them defects).
    roundtrip laws. The Landfall control asserts the complete value set,
    retaining both ability-word and flavor-word trees shown by the before
    probe.
+   Accepted review (2026-10-10, `rqrtmmyz`): the ticket's witness
+   “Equip—{3}” is **UNATTESTED**. Zero supported lines end in a symbols-only
+   dash cost; the only symbols-final dash costs are the five
+   “Suspend X—{X}{W}{W}. X can't be 0.” lines, which carry a full stop.
+   Thus `(Symbols, None) => ""` in `keyword_cost_terminal` rests on ruling
+   KD3 alone and must be revisited when the Suspend X— form is ticketed.
+   The review reports 41 still-unread dash lines, with these class counts:
+   named Partner variants 19; non-Cost parameter classes: Suspend X— 5,
+   Splice onto Arcane— 5, Modular—Sunburst 1; Cost-internal gaps and riders 16.
 5. **Tests** (`kxwsyulp`): `cargo test -p deckmaste_english_v3` passed
    (735 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed; `cargo test -p deckmaste_construction_v3_core` passed (36 tests);
