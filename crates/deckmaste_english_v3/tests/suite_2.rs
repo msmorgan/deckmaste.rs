@@ -61,3 +61,6 @@ mod vocabulary_batch_2;
 
 #[path = "suite/where_variable_clause.rs"]
 mod where_variable_clause;
+
+#[path = "suite/analytic_not_after_be.rs"]
+mod analytic_not_after_be;

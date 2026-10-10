@@ -134,4 +134,56 @@ by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-The six items in `docs/tickets/README.md` ("Landing record").
+1. **Census delta** (`spzllmsloltx`, completed grammar against claim-parent
+   `xxytwsys` declarations and lexicon): 1,456 compared faces; covered
+   1,190 → 1,220; total Readings 86,235 → 92,182. Lost: none. Gained 30;
+   decreases 0; increases on previously covered faces 0; digest-only 34,
+   all unchanged-count Secondary Negation Readings whose marker now uses
+   the shared Negator schema. No wrong-analysis gains found; 0 census issues.
+   Selector: case-insensitive `\bnot\b|\b(it|that|they|you|there)'(s|re)\b`
+   (1,161 faces), plus 300 random covered controls, seed 20261008 (5 overlap).
+   Official `english-v3 diff --lines` evidence is
+   `target/english-v3/english-v3-analytic-not-after-be/{before,after,diff,manifest}.json`.
+   The copied executable stamped `mqrlzszkuszn` and was stale; the parent was
+   rebuilt and remeasured, rather than attributing its sibling gains here.
+2. **Witnesses** (`spzllmsloltx`, complete Document probes): Force of Negation
+   0 → 3, Eddymurk Crab 0 → 1, Glademuse 0 → 1, Arcades Sabboth 0 → 2,
+   Desynchronization 0 → 2. Their synthetic controls remain 3/1/1/2/2.
+   The five sentence witnesses each change 0 → 1; all six sentence controls
+   remain at 1. Counts were re-probed on the rebuilt claim-parent grammar.
+3. **Spot checks** (`spzllmsloltx`): ten gained faces, with byte-exact
+   probe Readings and Primary Negation on the auxiliary, preceding its
+   ordinary Complement: Force of Negation, Eddymurk Crab and Glademuse
+   (NP, *your/their turn*); Arcades Sabboth (participial, *attacking*);
+   Desynchronization (AdjP, *historic*); Court of Vantress (NP, *the monarch*);
+   Otherworldly Escort (NP, *a Spirit*); The Peregrine Dynamo (NP,
+   *a commander*); Ember Island Production (AdjP, *legendary*, within its
+   except clauses); Captain Marvel, Apex Avenger (NP, *a Kree*).
+4. **Deviations and STOPs** (`spzllmsloltx`): no STOPs. Added
+   NegatedAuxiliaryHead and its selected-predicate and participial-predicate
+   forms over the existing frames; `selected_frame` requires a completed
+   head immediately before the frame, and *attacking* uses the auxiliary
+   participial frame. Refined the existing SecondaryNegator into a spacing
+   wrapper over one shared atomic Negator schema with separate declared
+   Primary/Secondary licences; no duplicate negator lexeme or copied negative
+   frames. Propagated finite-head Polarity through existing interfaces,
+   including coordinate anchors, whose members retain their own polarity.
+   Added the missing Negative property to HaveNegative for that export.
+   Glossary gaps filled: Primary Negation, Primary Negator and shared Negator,
+   cited as NB/NI project rulings. NB4: uncontracted *is not* reads through the
+   same licence. NB5: Cyclopean Tomb and Illusionary Mask (*has not been*)
+   remain unread; no additional auxiliary declaration was made to reach them.
+5. **Tests** (`spzllmsloltx`): `cargo test -p deckmaste_english_v3` passed
+   all 852 tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed. `cargo test -p deckmaste_lexical_source` passed all 44 tests;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Restored 0 / re-spelled 2 / ignored 0 / added 4 / removed 0. The two
+   re-spelled infinitival tests retain their original cards, roles and
+   independently constructed roundtrip outcomes. The initial English run
+   exposed double spacing in the new route; the declaration was fixed and
+   the full suite rerun. An initial clippy compile found a shadowed helper
+   binding in the re-spelling; it was renamed. Citation checks: 0
+   noncompliant, 0 stale; piped diff audit found no new citation sites.
+6. **Timing** (`spzllmsloltx`): final bounded census 62.11 s wall,
+   6 workers, prebuilt executable, `--samples-per-face 0`, under
+   `/usr/bin/time -v`. No `--all` or Lean check was run.

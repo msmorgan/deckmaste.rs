@@ -64,10 +64,17 @@ fn witnesses_keep_secondary_negation_in_the_selected_infinitival() {
                                 } = value.as_ref()
                             {
                                 assert_eq!(*category, Category::InfinitiveComplement);
-                                let Reading::SecondaryNegator { head, .. } = negator.as_ref()
+                                let Reading::SecondaryNegator {
+                                    head: negator_head, ..
+                                } = negator.as_ref()
                                 else {
                                     panic!("the infinitival must retain its Secondary Negator");
                                 };
+                                let Reading::Negator { category, head, .. } = negator_head.as_ref()
+                                else {
+                                    panic!("the Secondary Negator must retain its marker");
+                                };
+                                assert_eq!(*category, Category::SecondaryNegatorHead);
                                 assert_eq!(owner(head), "vocab:PredicateNegator/Not");
                                 assert_eq!(owner(marker), "vocab:InfinitivalMarker/To");
                                 assert_eq!(predicate.category(), Category::BarePredicate);
@@ -190,7 +197,11 @@ fn independently_constructed_negated_complement_preserves_both_laws() {
         form: 0,
         negator: Some(Box::new(Reading::SecondaryNegator {
             form: 0,
-            head: word("vocab:PredicateNegator/Not", WordForm::Invariant),
+            head: Box::new(Reading::Negator {
+                category: Category::SecondaryNegatorHead,
+                form: 0,
+                head: word("vocab:PredicateNegator/Not", WordForm::Invariant),
+            }),
         })),
         marker: word("vocab:InfinitivalMarker/To", WordForm::Invariant),
         predicate: Box::new(Reading::BarePredicate {

@@ -391,6 +391,18 @@ Negation within a nonfinite Clause, with *not* premodifying its Verb Phrase
 Subordinator follows orchestrator rulings NI1–NI4 (2026-10-10,
 `english-v3-negated-to-infinitival`, amended by NI-R1).
 
+**Primary Negation** (project term):
+Verbal negation of a finite auxiliary head. Analytic *not* follows the head
+and precedes its ordinary Complement under orchestrator rulings NB1–NB4
+(2026-10-10, `english-v3-analytic-not-after-be`).
+
+**Negator**:
+A word whose function is to mark negation; its licence distinguishes Primary
+Negation from Secondary Negation (orchestrator rulings NB1–NB4 and NI1–NI4).
+
+**Primary Negator**:
+A Negator functioning in Primary Negation.
+
 **Secondary Negator**:
 A negator functioning in Secondary Negation.
 

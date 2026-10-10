@@ -63,7 +63,7 @@
     },
     feature_additions: {
         "core-verb:Round": {"ParticipialSupplementUse": "Yes"},
-        "vocab:PredicateNegator/Not": {"SecondaryNegation": "Yes"},
+        "vocab:PredicateNegator/Not": {"SecondaryNegation": "Yes", "PrimaryNegation": "Yes"},
         // GC1–GC2: each Object + goal tail selects a complete declared frame.
         "core-verb:Put": {"SelectedTailLicence": "DeclaredFrames"},
         "lexeme:keyword_ability/exploit/verb": {"PastParticipialPremodifier": "Yes"},
@@ -87,7 +87,7 @@
         // Oracle-register stative exclusion: orchestrator ruling 2026-10-08.
         "core-verb:Be": {"PurposeAdjunctLicence": "No", "AuxiliaryUse": "Yes", "CentralAdjunctPosition": "PostCopula"},
         "core-verb:BeNegative": {"PurposeAdjunctLicence": "No", "CentralAdjunctPosition": "PostCopula"},
-        "core-verb:BeContracted": {"PurposeAdjunctLicence": "No", "CentralAdjunctPosition": "PostCopula"},
+        "core-verb:BeContracted": {"AuxiliaryUse": "Yes", "PurposeAdjunctLicence": "No", "CentralAdjunctPosition": "PostCopula"},
         "core-verb:Remain": {"PurposeAdjunctLicence": "No"},
         "core-verb:Control": {"PurposeAdjunctLicence": "No"},
         "core-verb:Own": {"PurposeAdjunctLicence": "No"},
@@ -919,7 +919,7 @@
         ),
         (
             id: "core-verb:HaveNegative", lemma: "haven't", category: Verb,
-            properties: (countability: [], features: {"AuxiliaryUse": "Yes", "PurposeAdjunctLicence": "No"}, frames: [
+            properties: (countability: [], features: {"Polarity": "Negative", "AuxiliaryUse": "Yes", "PurposeAdjunctLicence": "No"}, frames: [
                 (kind: "Auxiliary", items: [Argument((relation: Complement, category: "PastParticiplePredicate"))]),
             ]),
             forms: [

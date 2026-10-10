@@ -57,6 +57,8 @@ constructions! {
         feature QuantificationalDeterminer { No, Yes } default No;
         feature QuantificationalAdjunctUse { No, Yes } default No;
         feature AuxiliaryUse { No, Yes } default No;
+        feature Polarity { Positive, Negative } default Positive;
+        feature PrimaryNegation { Yes }
         feature ObliqueMarker { No, Yes } default No;
         feature ObliqueNumber { None, Singular, Plural } default None;
         feature CaseUse { Common, Nominative, Accusative }
@@ -480,16 +482,16 @@ constructions! {
         category InterveningPrepositionAdjunct();
         category IrrealisClause();
         category IrrealisPredicate(number, person);
-        category CentralAdverbSelectedHead(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, frame);
+        category CentralAdverbSelectedHead(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, frame);
         category ExistentialExtension();
         category DummyPronoun();
-        category ExistentialPredicate(ClauseComplementBoundary, number, person, CliticHost,
+        category ExistentialPredicate(Polarity, ClauseComplementBoundary, number, person, CliticHost,
             PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category FinitePredicate(ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category QuantifiedAuxiliaryHead(number, person, frame, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category ScalarLocationPredicate(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category FinitePredicate(Polarity, ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category QuantifiedAuxiliaryHead(Polarity, number, person, frame, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category ScalarLocationPredicate(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondaryVerbPhrase(ParticipialSupplementUse, ClauseComplementBoundary, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category FiniteDepictiveHost(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category FiniteDepictiveHost(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondaryDepictiveHost(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category BarePredicate(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category ParticipialPredicate(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, CentralAdjunctPosition);
@@ -534,12 +536,15 @@ constructions! {
         category BoundaryComplement();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause(RelativeGapKind);
-        category FiniteObjectGap(ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
+        category FiniteObjectGap(Polarity, ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category BareObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category PastParticipleObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category Cardinal(number);
         category CardinalModifier();
         category SecondaryNegator();
+        category SecondaryNegatorHead();
+        category PrimaryNegator();
+        category NegatedAuxiliaryHead(PredicateFrameUse, Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, frame);
         category QuantitativeAdjectiveComplement();
         category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent);
         category CardinalPrepositionPhrase(number);
@@ -596,14 +601,14 @@ constructions! {
         category Subtypes();
         category SubtypeContinuation();
         category ClauseSeries(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
-        category FinitePredicateSeries(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category FinitePredicateSeries(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondaryPredicateSeries(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category NounPhraseSeries(FocusedUse, UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplement();
-        category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category FiniteSelectedHead(Polarity, number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondarySelectedHead(form, FrameUse, HeadCoordination, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category FiniteSelectedHeadSeries(number, person, FrameUse, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category FiniteSelectedHeadSeries(Polarity, number, person, FrameUse, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondarySelectedHeadSeries(form, FrameUse, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category ManaPhraseSeries();
         category CardinalSeries(number, CoordinationKind);
@@ -623,14 +628,14 @@ constructions! {
         category AdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
-        category FiniteObjectGapSeries(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
+        category FiniteObjectGapSeries(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category BareObjectGapSeries(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category PastParticipleObjectGapSeries(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category CoordinatedFiniteClause(GeneralCoordination);
         category FiniteClauseSeries(GeneralCoordination);
         category PredicativeComplementSeries(PredicativeKind, PredicativeAdjunctUse);
         category CorrelativeClauseSeries(ClauseCoordinationHost, CorrelativeCoordinator, UnmarkedConjunctLicence, SourceComplementSelection);
-        category CorrelativeFinitePredicateSeries(number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category CorrelativeFinitePredicateSeries(Polarity, number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category CorrelativeSecondaryVerbPhraseSeries(ParticipialSupplementUse, form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category CorrelativeNounPhraseSeries(FocusedUse, UnitBearing, number, person, CaseUse, Targeting,
@@ -646,12 +651,12 @@ constructions! {
         category CorrelativeKeywordPhraseSeries(CorrelativeCoordinator);
         category CorrelativeQuotedTextSeries(CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(CorrelativeCoordinator);
-        category CorrelativeFiniteSelectedHeadSeries(number, person, FrameUse,
+        category CorrelativeFiniteSelectedHeadSeries(Polarity, number, person, FrameUse,
             CorrelativeCoordinator, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category CorrelativeAdjectivePhrase();
         category CorrelativeAdjectiveSeries(CorrelativeCoordinator);
-        category CorrelativeFiniteObjectGapSeries(number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
+        category CorrelativeFiniteObjectGapSeries(Polarity, number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category CorrelativeBareObjectGapSeries(CorrelativeCoordinator, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category SelectedPrepositionHead(LocativeUse, PrepositionFunctionLicence, HeadCoordination,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker);
@@ -683,6 +688,38 @@ constructions! {
             use Properties;
             use BoundaryProperties;
         }
+        // NB1–NB4: analytic verbal negation belongs to a positive finite
+        // auxiliary head; its ordinary selected Complement is unchanged.
+        construction NegatedAuxiliaryHead: NegatedAuxiliaryHead {
+            form [head: lexical(Verb), " ", negator: PrimaryNegator];
+            export frame = head.frame;
+            export PredicateFrameUse = head.PredicateFrameUse;
+            require head.AuxiliaryUse = Yes;
+            require head.Polarity = Positive;
+            export Polarity = Negative;
+            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
+            export MatrixComplementLicence = head.MatrixComplementLicence;
+            export SourceComplementSelection = head.SourceComplementSelection;
+            export CliticHost = clitic_host(head.Clitic, head.form, head.number, head.person);
+            require head.finiteness = Finite;
+            export number = head.number;
+            export person = head.person;
+        }
+
+        construction NegatedSelectedPredicate: FinitePredicate {
+            require head.PredicateFrameUse = Yes;
+            form [head: NegatedAuxiliaryHead, complements: selected_frame(head, Predicate)];
+            export ClauseComplementBoundary = None;
+            use PredicateHostAgreement;
+        }
+
+        construction NegatedParticipialPredicate: FinitePredicate {
+            form [head: NegatedAuxiliaryHead, complement: ParticipialComplement];
+            require head.frame = ParticipialAuxiliary;
+            export ClauseComplementBoundary = None;
+            use SharedAuxiliaryAgreement;
+        }
+
         // The ticket's central-position analysis: the lexical declaration
         // chooses the site; the Adverb is an Adjunct of the predicate head.
         schema CentralAdverbHead {
@@ -1055,6 +1092,7 @@ constructions! {
         }
 
         policy FiniteHeadAgreement {
+            export Polarity = head.Polarity;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export SourceComplementSelection = head.SourceComplementSelection;
@@ -1155,6 +1193,7 @@ constructions! {
         }
 
         policy PredicateHostAgreement {
+            export Polarity = head.Polarity;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export SourceComplementSelection = head.SourceComplementSelection;
@@ -1164,6 +1203,7 @@ constructions! {
         }
 
         policy FiniteGapHostProjection {
+            export Polarity = head.Polarity;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export SourceComplementSelection = head.SourceComplementSelection;
@@ -1179,6 +1219,7 @@ constructions! {
             export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
         }
         policy FiniteGapHeadAgreement {
+            export Polarity = head.Polarity;
             export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
             export MatrixComplementLicence = head.MatrixComplementLicence;
             export SourceComplementSelection = head.SourceComplementSelection;
@@ -1195,6 +1236,7 @@ constructions! {
         }
 
         policy FiniteAuxiliaryAgreement {
+            export Polarity = head.Polarity;
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export SourceComplementSelection = complement.SourceComplementSelection;
@@ -1205,6 +1247,7 @@ constructions! {
         }
 
         policy SharedAuxiliaryAgreement {
+            export Polarity = head.Polarity;
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export SourceComplementSelection = complement.SourceComplementSelection;
@@ -1427,6 +1470,7 @@ constructions! {
         }
 
         policy FiniteConcord<Right, Source> {
+            export Polarity = left.Polarity;
             export PurposeAdjunctLicence = coordinated_purpose_licence(
                 left.PurposeAdjunctLicence, Right.PurposeAdjunctLicence);
             export MatrixComplementLicence = matrix_host_concord(
@@ -1442,6 +1486,7 @@ constructions! {
         }
 
         policy FiniteGapConcord<Right, Source> {
+            export Polarity = left.Polarity;
             export PurposeAdjunctLicence = coordinated_purpose_licence(
                 left.PurposeAdjunctLicence, Right.PurposeAdjunctLicence);
             export MatrixComplementLicence = matrix_host_concord(
@@ -5667,9 +5712,21 @@ constructions! {
             form [negator: optional(SecondaryNegator), marker: lexical(Subordinator), " ", predicate: node];
             require marker.InfinitivalMarker = Yes;
         }
-        construction SecondaryNegator: SecondaryNegator {
-            form [head: lexical(Adverb), " "];
+        schema Negator {
+            form [head: lexical(Adverb)];
+        }
+        policy SecondaryNegatorLicence {
             require head.SecondaryNegation = Yes;
+        }
+        policy PrimaryNegatorLicence {
+            require head.PrimaryNegation = Yes;
+        }
+        instance Negator<Result, Licence>: [
+            (SecondaryNegatorHead, SecondaryNegatorLicence),
+            (PrimaryNegator, PrimaryNegatorLicence),
+        ] { use Licence; }
+        construction SecondaryNegator: SecondaryNegator {
+            form [head: SecondaryNegatorHead, " "];
         }
         instance ToInfinitive<Result, Predicate: predicate>: [
             (InfinitiveComplement, BarePredicate),
