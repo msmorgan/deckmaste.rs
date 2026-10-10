@@ -47,6 +47,9 @@ pub enum Stat {
 pub enum PlayerStat {
     LifeTotal,
     StartingLifeTotal,
+    /// A player's speed [CR#702.179a]: none until a rule or effect sets it,
+    /// read as 0 then [CR#702.179b,702.179f].
+    Speed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -1044,6 +1047,10 @@ pub enum Period {
     YourTurn,
     Game,
     Part { part: TurnPart },
+    /// The object's own existence: "activate only once" counts until the
+    /// object changes zones, when it becomes a new object
+    /// [CR#602.5b,702.177a,400.7].
+    ThisObject,
 }
 
 /// Which side of an event a timing names: "before attackers are declared".

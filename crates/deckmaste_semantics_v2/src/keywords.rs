@@ -340,10 +340,11 @@ fn in_caller(params: &Params, instruction: &str) -> String {
 /// The keyword arguments a keyword ability's signature forwards, one per
 /// declared parameter in order, each the `KeywordParam` that carries its
 /// type: `Cost` → `Cost`, `Amount` → `Number`, `Quality` → `Quality`,
-/// `Subject` → `Subject`. An `Ability` or `Instruction` parameter is
-/// forwarded as nothing — `KeywordParam` has neither variant; gift's effect
-/// is written into its definition, not carried as an argument — and any
-/// other type is an error
+/// `Subject` → `Subject`, `Ability` → `Ability` (the ability printed with
+/// the keyword, ruling 2026-10-09). An `Instruction` parameter is forwarded
+/// as nothing — `KeywordParam` has no such variant; gift's effect is written
+/// into its definition, not carried as an argument — and any other type is
+/// an error
 /// the declaration answers by writing `keyword_params` itself.
 fn forwarded_keyword_params(name: &str, params: &Params) -> Result<String, String> {
     let types: Vec<&str> = match params {
@@ -362,7 +363,8 @@ fn forwarded_keyword_params(name: &str, params: &Params) -> Result<String, Strin
             "Amount" => "Number",
             "Quality" => "Quality",
             "Subject" => "Subject",
-            "Ability" | "Instruction" => continue,
+            "Ability" => "Ability",
+            "Instruction" => continue,
             other => {
                 return Err(format!(
                     "keyword ability `{name}`: a `{other}` parameter has no keyword argument to \
@@ -494,7 +496,8 @@ mod tests {
                 "(abilities: [])"
             )
             .unwrap(),
-            "Keyword(keyword: Named(name: \"ward\"), params: [Number(Param(0)), Cost(Param(2))], body: [])"
+            "Keyword(keyword: Named(name: \"ward\"), params: [Number(Param(0)), Ability(Param(1)), \
+             Cost(Param(2))], body: [])"
         );
         assert_eq!(
             keyword_ability_body(

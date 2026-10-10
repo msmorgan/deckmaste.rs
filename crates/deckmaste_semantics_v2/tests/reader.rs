@@ -1490,3 +1490,49 @@ fn a_mode_carries_its_weight_and_a_mode_change_reads() {
         }
     );
 }
+
+/// A keyword written with the ability printed after it carries that ability
+/// as its parameter, and its definition qualifies the same ability: exhaust's
+/// "activate only once" (`docs/decisions/semantics-v2.md` §7, ruling
+/// 2026-10-09) [CR#702.177a].
+#[test]
+fn a_keyword_carries_its_printed_ability_and_qualifies_it() {
+    use deckmaste_semantics_v2::abilities::KeywordParam;
+    use deckmaste_semantics_v2::triggers::UsageLimit;
+    use deckmaste_semantics_v2::words::Period;
+
+    let builtin = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../plugins_v2/builtin");
+    let prelude = Plugin::load(builtin).expect("the builtin declarations load");
+    let printed: Ability = prelude
+        .macros
+        .read_str("activated(tapSymbol, draw(1))")
+        .expect("\"{T}: Draw a card.\" reads");
+    let exhaust: Ability = prelude
+        .macros
+        .read_str("exhaust(activated(tapSymbol, draw(1)))")
+        .expect("an exhaust line reads");
+    let once: UsageLimit = prelude
+        .macros
+        .read_str("oncePerObject")
+        .expect("\"activate only once\" reads");
+    let UsageLimit::Mk { per, .. } = &once;
+    assert_eq!(*per, Period::ThisObject);
+    assert_eq!(
+        exhaust,
+        Ability::Keyword {
+            keyword: KeywordLabel::Named {
+                name: "exhaust".to_owned(),
+            },
+            params: vec![KeywordParam::Ability {
+                ability: Box::new(printed.clone()),
+            }],
+            body: vec![Ability::Qualified {
+                ability: Box::new(printed),
+                timing: None,
+                limit: Some(once),
+                guard: None,
+                from: None,
+            }],
+        }
+    );
+}

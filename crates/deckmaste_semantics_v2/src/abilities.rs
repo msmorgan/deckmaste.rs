@@ -86,6 +86,7 @@ use crate::words::Subtype;
 use crate::words::SubtypeSpace;
 use crate::words::Supertype;
 use crate::words::TurnPart;
+use crate::words::Zone;
 
 /// What mana may be spent on.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -552,6 +553,10 @@ pub enum AbilitySelection {
     Specified { abilities: Vec<AbilityLost> },
     Family { class: AbilityClass },
     AllExcept { except: Option<Predicate> },
+    /// The abilities printed below `keyword`'s line, other than that
+    /// keyword's own; only printed abilities are selected
+    /// [CR#702.165a,702.165c].
+    PrintedAfter { keyword: KeywordLabel },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
@@ -634,6 +639,14 @@ pub enum StaticSpec {
         classes: Vec<AbilityClass>,
         source: NounPhrase,
         except: Option<Predicate>,
+    },
+    /// "<subject> has <selection> of <source>": the abilities of `source`
+    /// the selection picks (backup's "the non-backup abilities of this
+    /// creature printed below this one" [CR#702.165a]).
+    AbilityGrantSelected {
+        subject: NounPhrase,
+        source: NounPhrase,
+        selection: Box<AbilitySelection>,
     },
     DeonticRule {
         subject: NounPhrase,
@@ -1376,6 +1389,9 @@ pub enum KeywordParam {
     Subject { predicate: Predicate },
     Number { amount: Amount },
     DeckCondition { condition: DeckCondition },
+    /// The ability printed with the keyword, which the keyword's definition
+    /// restricts (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-09).
+    Ability { ability: Box<Ability> },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
@@ -1431,5 +1447,17 @@ pub enum Ability {
     /// "that ability", read off an ability chosen earlier in the same text.
     ThatAbility {
         r#ref: ChoiceRef,
+    },
+    /// `ability` with the restrictions a keyword or a granting effect adds
+    /// to it: when it may be activated or trigger, how often, the condition
+    /// it is subject to and the zone it functions from [CR#113.10a,113.6b].
+    /// The guard reads by the wrapped ability's category
+    /// [CR#702.169b..702.169d].
+    Qualified {
+        ability: Box<Ability>,
+        timing: Option<Timing>,
+        limit: Option<UsageLimit>,
+        guard: Option<Condition>,
+        from: Option<Zone>,
     },
 }
