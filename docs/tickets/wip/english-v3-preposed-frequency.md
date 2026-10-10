@@ -135,4 +135,47 @@ only.
 
 ## Landing record
 
-Not landed.
+1. **Census delta** (`lvpxmkkl`, claim parent `svyrxusu`): bounded selector
+   `\b([Oo]nce|[Tt]wice|[Ee]ach turn,|[Ee]ach of your turns,)` reaches 699
+   supported faces; add 300 covered controls, seed 20261008 (994 distinct
+   faces). Covered 778 → 806; total Readings 37,052 → 45,089; gained 28;
+   lost none; decreases, increases and digest-only changes all 0; issues 0.
+   The parent subset matches `baseline-wave7.json` on all 994 faces.
+   Evidence: `target/english-v3/english-v3-preposed-frequency/{manifest,before,after,diff}.json`;
+   comparison uses `cargo xtask english-v3 diff --lines`. No previously
+   covered face changes, including bare-*once* contexts under PF5.
+2. **Witnesses** (`lvpxmkkl`): all five fragments failed with 0 before the
+   edit. After: Johann, Apprentice Sorcerer 18 (whole face 26); Darksteel
+   Monolith 90 (91); As Foretold 138 (139); Lurrus of the Dream-Den 10 (15);
+   Kess, Dissident Mage 9 (10). Uncapped without-*Once* controls before are
+   respectively 18, 90, 138, 10, 9. The seven unchanged controls in the
+   Witnesses section are respectively 1, 1, 1, 10, 1, 1, 1. Frequency and
+   interval are two ordered preposed Adjuncts; main-Clause ambiguity is
+   preserved, with no alternative subordinator or interval-Subject analysis.
+3. **Spot checks** (`lvpxmkkl`): Access Maze, Danitha, New Benalia's Light,
+   Demon of Fate's Design, Gisa and Geralf, Karador, Ghost Chieftain, One
+   with the Multiverse and Vision, Spectral Synthezoid select `InitialAdverb`
+   (*once*) over `InitialPreposition` (*during* PP). Assemble the Players,
+   Tlincalli Hunter and Warped Space select the same frequency over the
+   temporal `NominalAdjunctPhrase` (*each turn*). All ten are newly covered,
+   byte-exact and issue-free; none reads only through an unintended analysis.
+4. **Deviations and STOPs**: PF1 suffices: only Once's declared
+   `ClauseInitialAdjunct` changes. No Construction, frame or route added or
+   retired; no PF2 fallback, STOP or glossary gap. PF4 leaves Twice unchanged:
+   the entries are independently declared, not generated from a shared
+   licence recipe; fresh supported-corpus grep finds 0 preposed *Twice* /
+   *Only once* faces. The claim-parent result is 28 gains rather than the
+   ticket's earlier estimate of 29; Exploration Broodship, Hauken's Insight,
+   Kotis, Sibsig Champion and The Eighth Doctor remain blocked independently
+   of *Once*. Three new tests implement the requested structural, independent
+   composition/roundtrip and unchanged VP-final contracts, registered once
+   in `suite_5`.
+5. **Tests** (`lvpxmkkl`): `cargo test -p deckmaste_english_v3` passed 793;
+   `cargo test -p deckmaste_lexical_source` passed 82. Both
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Restored 0 / re-spelled 0 / ignored 0 / added 3 / removed 0.
+   Citation checks: 0 noncompliant, 0 stale; bless changes no registrations;
+   diff audit selects no new citation sites. No Lean checks or full-corpus run.
+6. **Timing** (`lvpxmkkl`): bounded after census, 19.36 s wall under
+   `/usr/bin/time -v`, 6 workers, 0 samples per face.

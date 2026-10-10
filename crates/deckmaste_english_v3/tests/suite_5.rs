@@ -61,3 +61,6 @@ mod proper_names;
 
 #[path = "suite/trailing_adjunct_height.rs"]
 mod trailing_adjunct_height;
+
+#[path = "suite/preposed_frequency.rs"]
+mod preposed_frequency;

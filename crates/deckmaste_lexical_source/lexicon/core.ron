@@ -85,7 +85,7 @@
         // Project analysis: cost-scalar-complement requires its hollow Complement.
         "core-verb:Cost": {"PurposeAdjunctLicence": "No"},
         "vocab:FocusAdverb/Only": {"FocusingModifierUse": "Restrictive"},
-        "vocab:FrequencyAdverb/Once": {"VPFinalAdjunct": "Yes", "ClauseInitialAdjunct": "No"},
+        "vocab:FrequencyAdverb/Once": {"VPFinalAdjunct": "Yes", "ClauseInitialAdjunct": "Yes"},
         "vocab:FrequencyAdverb/Twice": {"PredeterminerUse": "Multiplier", "VPFinalAdjunct": "Yes", "ClauseInitialAdjunct": "No"},
         "vocab:AttributiveAdjective/Other": {"TargetingPremodifierUse": "Yes"},
         "core-verb:Do": {"AuxiliaryEllipsisLicence": "Yes"},
