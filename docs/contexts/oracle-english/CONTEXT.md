@@ -641,9 +641,11 @@ verb-selected Complement, or predicative Complement (CGEL, Ch. 7 §2.1,
 pp. 604–606). Supplementary use is additionally licensed under the
 [where-variable-clause project analysis](../../tickets/done/english-v3-where-variable-clause.md#project-analysis);
 this is project policy, not a claim that CGEL treats a Supplement as a syntactic
-dependent. The licence is a set of functions, not a kind of Preposition
-Phrase (CGEL, Ch. 7 §2.2, p. 617, n. 3), and may be narrower than in general
-English. CGEL licenses predicative-*as* phrases in Adjunct function generally
+dependent. Sentence-final and medial supplementary uses are licensed separately
+under ST4 (orchestrator ruling, 2026-10-10,
+`english-v3-supplementary-temporal-adjunct`). The licence is a set of functions,
+not a kind of Preposition Phrase (CGEL, Ch. 7 §2.2, p. 617, n. 3), and may be
+narrower than in general English. CGEL licenses predicative-*as* phrases in Adjunct function generally
 (Ch. 7 §5.1, p. 637). Their licence in Oracle English admits the preposed,
 comma-separated, clause-initial position under the
 [orchestrator resolution of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md).

@@ -226,7 +226,7 @@
         "vocab:Preposition/After": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "FiniteClauseComplement": "Yes", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Among": {"KeywordMarker": "Among", "SourceComplementUse": "Yes", "PrepositionFunctionLicence": "VerbComplement|Modifier|Compound|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/At": {"PrepositionFunctionLicence": "Adjunct|VerbComplement|Compound|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "NominalBareClass": "Boundary", "KeywordMarker": "At", "AdjectiveComplementClass": "Manner", "QuantitativeComplement": "AdjectivePhrase"},
-        "vocab:Preposition/Before": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "FiniteClauseComplement": "Yes", "NominalBareClass": "Boundary"},
+        "vocab:Preposition/Before": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct|Supplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "FiniteClauseComplement": "Yes", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Between": {"PrepositionFunctionLicence": "NounComplement|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Beyond": {"PrepositionFunctionLicence": "Modifier|PredicativeComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/By": {"PrepositionFunctionLicence": "VerbComplement|Adjunct|PreposedAdjunct", "GerundClauseComplement": "Yes", "InternalisedComplementMarker": "Yes", "ExtentMarker": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
@@ -1733,7 +1733,7 @@
         ),
         (
             id: "vocab:Preposition/Where", lemma: "where", category: Preposition,
-            properties: (countability: [], features: {"PrepositionFunctionLicence": "Supplement", "FiniteClauseComplement": "Nonsequencing", "LocativeUse": "No", "ClauseInitialAdjunct": "No"}, frames: []),
+            properties: (countability: [], features: {"PrepositionFunctionLicence": "Supplement|MedialSupplement", "FiniteClauseComplement": "Nonsequencing", "LocativeUse": "No", "ClauseInitialAdjunct": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Where"),
             capitalization: Initial, binding: Free, surface_structure: Word,

@@ -67,3 +67,6 @@ mod half_rounded;
 
 #[path = "suite/phase_in_out.rs"]
 mod phase_in_out;
+
+#[path = "suite/supplementary_temporal_adjunct.rs"]
+mod supplementary_temporal_adjunct;

@@ -134,7 +134,8 @@ constructions! {
         feature ScalarComparativeUse { No, Yes } default No;
         feature MeasureModifierUse { No, Yes } default No;
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
-            PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct, Supplement } set;
+            PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct,
+            Supplement, MedialSupplement } set;
         feature MatrixComplementGovernor { No, Yes } default No;
         feature MatrixComplementRequirement { None, Internalised, Nominal, Content } default None;
         feature MatrixComplementLicence { None, Nominal, Content } default None;
@@ -203,6 +204,7 @@ constructions! {
             -> Selection { (Of, Of) => Yes, }
         table licence_adjunct(PrepositionFunctionLicence) -> Selection contains Adjunct => Yes;
         table licence_supplement(PrepositionFunctionLicence) -> Selection contains Supplement => Yes;
+        table licence_medial_supplement(PrepositionFunctionLicence) -> Selection contains MedialSupplement => Yes;
         table licence_preposed_adjunct(PrepositionFunctionLicence) -> Selection contains PreposedAdjunct => Yes;
         table licence_modifier(PrepositionFunctionLicence) -> Selection contains Modifier => Yes;
         table licence_noun_complement(PrepositionFunctionLicence) -> Selection contains NounComplement => Yes;
@@ -2984,7 +2986,7 @@ constructions! {
             export ClauseCoordinationHost = Simple;
             form [anchor: Clause, ", ", supplement: PrepositionPhrase, ", ",
                 coordinator: lexical(Coordinator), " ", continuation: Clause];
-            require licence_supplement(supplement.PrepositionFunctionLicence) = Yes;
+            require licence_medial_supplement(supplement.PrepositionFunctionLicence) = Yes;
             require coordinator.NoncorrelativeCoordination = Yes;
             require anchor.terminal_punctuation = None;
             export UnmarkedConjunctLicence = anchor.UnmarkedConjunctLicence;
