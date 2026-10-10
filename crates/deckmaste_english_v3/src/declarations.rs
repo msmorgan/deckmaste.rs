@@ -13,6 +13,8 @@ constructions! {
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
         feature DegreeUse { Head, Modifier }
+        feature PredeterminerUse { No, Multiplier } default No;
+        feature Definiteness { Unspecified, Nondefinite, Definite } default Unspecified;
         feature DeterminerRequirement { No, Yes } default No;
         feature NumberTransparency { No, Yes } default No;
         feature SubjectRelativeNumber { None, Singular, Plural } default None;
@@ -442,7 +444,7 @@ constructions! {
         category NounPremodifierSeries(NounPremodifier, PremodifierCoordination);
         category PartitiveModifier();
         category NounPhrase(UnitBearing, number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure,
-            BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
+            BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent);
         category AdjectivePhrase(AdjectiveStructure, AdjectiveOrigin, TargetingPremodifierUse, PremodifierCoordination);
@@ -470,7 +472,7 @@ constructions! {
         category Cardinal(number);
         category CardinalModifier();
         category QuantitativeAdjectiveComplement();
-        category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber);
+        category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness);
         category CardinalPrepositionPhrase(number);
         category QuantitativePrepositionPhrase(number);
         category ComparativePrepositionPhrase(number);
@@ -525,7 +527,7 @@ constructions! {
         category ClauseSeries(ClauseCoordinationHost, UnmarkedConjunctLicence);
         category FinitePredicateSeries(number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence);
         category SecondaryPredicateSeries(form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
-        category NounPhraseSeries(UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
+        category NounPhraseSeries(UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category AdverbPhrase(VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplement();
         category FiniteSelectedHead(number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, PurposeAdjunctLicence, MatrixComplementLicence);
@@ -560,7 +562,7 @@ constructions! {
         category CorrelativeSecondaryVerbPhraseSeries(form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence);
         category CorrelativeNounPhraseSeries(UnitBearing, number, person, CaseUse, Targeting,
-            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse);
+            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category CorrelativePrepositionPhraseSeries(InterveningAdjunctLicence, ConnectiveAdjunctUse, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category CorrelativeAdverbPhraseSeries(VPFinalAdjunct, ClauseInitialAdjunct,
@@ -1508,6 +1510,7 @@ constructions! {
             (Alternative, Plural, Plural, Singular, Singular) => Singular,
         }
         policy NounCoordinationAgreement<Right, Source> {
+            export Definiteness = Unspecified;
             export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, Right.UnitBearing);
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = coordinated_determiner_agreement(
@@ -3073,6 +3076,7 @@ constructions! {
         }
 
         construction CardinalMeasuredNounPhrase: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = Yes;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3109,6 +3113,7 @@ constructions! {
         // Pre-integrate review ruling (2026-10-09): a declared fused-head NP
         // licence admits the comparative Postmodifier without pruning nominal scope.
         policy PostpositiveNounPhraseProperties {
+            export Definiteness = head.Definiteness;
             export UnitBearing = head.UnitBearing;
             require head.ComparativePostmodifierUse = Yes;
             export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
@@ -3167,6 +3172,7 @@ constructions! {
         // Owner ruling (2026-10-08): Oracle names carry the grammatical
         // agreement declared on their lexeme.
         construction ProperNameNounPhrase: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3255,6 +3261,7 @@ constructions! {
             require phrase.SelectedPrepositionUse = No;
         }
         construction PartitiveNounPhrase: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3277,6 +3284,7 @@ constructions! {
         // CGEL Ch. 5 §§9.1–9.2, pp. 411–413: explicitly partitive determiner-head.
         // Targeted obliques are the each-of ticket's Oracle-English decision.
         construction DeterminerHeadPartitiveNounPhrase: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3302,6 +3310,7 @@ constructions! {
         // CGEL Ch. 5 §9.2(c), pp. 414–415: a singular demonstrative
         // can fuse Determiner and Head without an overt nominal.
         construction FusedDeterminerHeadNounPhrase: NounPhrase {
+            export Definiteness = head.Definiteness;
             export UnitBearing = No;
             export ComparativePostmodifierUse = head.ComparativePostmodifierUse;
             export DeterminerAgreementNumber = Nominal;
@@ -3319,7 +3328,32 @@ constructions! {
             use ThirdPersonCommonCase;
         }
 
+        // CGEL Ch. 5 §12(c), p. 434: multipliers are external Modifiers
+        // of definite NPs; their lexical Categories remain Adverb and Noun.
+        construction MultiplierNounPhrase: NounPhrase {
+            form [modifier: lexical(Adverb), " ", head: NounPhrase];
+            form [modifier: lexical(Noun), " ", head: NounPhrase];
+            require modifier.PredeterminerUse = Multiplier;
+            require head.Definiteness = Definite;
+            export UnitBearing = head.UnitBearing;
+            export number = head.number;
+            export person = head.person;
+            export CaseUse = head.CaseUse;
+            export Targeting = head.Targeting;
+            export BareGenitiveHost = head.BareGenitiveHost;
+            export SubjectStructure = head.SubjectStructure;
+            export BarePrepositionUse = head.BarePrepositionUse;
+            export SelectedPrepositionUse = head.SelectedPrepositionUse;
+            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
+            export ScalarDenotation = head.ScalarDenotation;
+            export SourceModifierPresent = head.SourceModifierPresent;
+            export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
+            export ComparativePostmodifierUse = head.ComparativePostmodifierUse;
+            export Definiteness = head.Definiteness;
+        }
+
         construction DeterminedNounPhrase: NounPhrase {
+            export Definiteness = determiner.Definiteness;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = determiner.DeterminerAgreementNumber;
@@ -3343,6 +3377,7 @@ constructions! {
         }
 
         construction IndefiniteNounPhrase: NounPhrase {
+            export Definiteness = Nondefinite;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3368,6 +3403,7 @@ constructions! {
             (Plural, Count) => Yes, (Singular, Mass) => Yes,
         }
         construction BareNounPhrase: NounPhrase {
+            export Definiteness = Nondefinite;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3384,6 +3420,7 @@ constructions! {
 
         // CGEL Ch. 7 §3.1, pp. 620–623: the bare NP is internal to the PP.
         construction BarePrepositionNounPhrase: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3401,6 +3438,7 @@ constructions! {
         }
 
         construction TargetNounPhrase: NounPhrase {
+            export Definiteness = Nondefinite;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -3423,6 +3461,7 @@ constructions! {
 
         schema NominativePronoun { form [head: lexical(Pronoun)]; }
         policy OrdinaryNominativePronoun {
+            export Definiteness = Unspecified;
 
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
@@ -3459,6 +3498,7 @@ constructions! {
         }
 
         construction AccusativePronoun: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -4209,6 +4249,7 @@ constructions! {
 
         // The declared modifier licenses this Oracle-register bare singular NP.
         construction BareStatusNounPhrase: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -4227,6 +4268,7 @@ constructions! {
         }
 
         construction BareParticipialStatusNounPhrase: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -4608,6 +4650,7 @@ constructions! {
         }
 
         construction ComparativeQuantityDeterminer: QuantitativeDeterminer {
+            export Definiteness = Nondefinite;
             cost 0;
             form [value: ComparativeQuantity];
             export DeterminerUse = cardinal_determiner_use(value.number);
@@ -4615,6 +4658,7 @@ constructions! {
         }
 
         construction CardinalDeterminer: QuantitativeDeterminer {
+            export Definiteness = Nondefinite;
             cost 0;
             form [value: Cardinal];
             export DeterminerUse = cardinal_determiner_use(value.number);
@@ -4622,6 +4666,7 @@ constructions! {
         }
 
         construction PrepositionDeterminer: QuantitativeDeterminer {
+            export Definiteness = Nondefinite;
             cost 0;
             form [value: QuantitativePrepositionPhrase];
             export DeterminerUse = cardinal_determiner_use(value.number);
@@ -4643,6 +4688,7 @@ constructions! {
 
         // CGEL Ch. 5 §11(c), p. 431: degree modification within a DP.
         construction DegreeDeterminativePhrase: QuantitativeDeterminer {
+            export Definiteness = modifier.Definiteness;
             export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
             form [modifier: lexical(Determinative), " ", head: lexical(Determinative)];
             require modifier.DegreeUse = Modifier;
@@ -4659,6 +4705,7 @@ constructions! {
         }
 
         construction QuantifiedNounPhrase: NounPhrase {
+            export Definiteness = quantity.Definiteness;
             export UnitBearing = nominal_unit_bearing(head.MeasurePosition);
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = quantity.DeterminerAgreementNumber;
@@ -4805,6 +4852,7 @@ constructions! {
         }
 
         construction MeasuredNounPhrase: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = Yes;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -4885,6 +4933,7 @@ constructions! {
         // coordinated-property-values (2026-10-08). A property Nominal selects
         // its following value Complement through declared position and kind.
         construction MeasuredAttribute: NounPhrase {
+            export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -4942,6 +4991,7 @@ constructions! {
             form [head: node, " ", comparison: MatrixComparativePhrase];
         }
         policy NominalComparisonHost {
+            export Definiteness = head.Definiteness;
             export UnitBearing = head.UnitBearing;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
@@ -5530,6 +5580,7 @@ constructions! {
             (Plural, Yes, PluralS) => Yes,
         }
         construction GenitiveNounPhrase: NounPhrase {
+            export Definiteness = Definite;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
@@ -5548,6 +5599,7 @@ constructions! {
         }
 
         construction PossessiveNounPhrase: NounPhrase {
+            export Definiteness = Definite;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;

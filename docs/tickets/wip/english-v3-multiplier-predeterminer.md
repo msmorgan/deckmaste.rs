@@ -125,3 +125,66 @@ by `cargo xtask english-v3 grep` only.
 - *that many of those tokens* (8 lines): fails without the multiplier.
 
 ## Landing record
+
+1. **Census delta:** claim-parent `uqlozwkr` (measured in empty `qoswqlns`)
+   → implementation `qoswqlns`: **521 → 598 covered faces**, **17,455 →
+   19,306 Readings**; no/one/multiple: 221/211/310 → 144/215/383.
+   **77 gains; lost none; decreases 0; increases 0; digest-only 0; issues 0.**
+   Selector: the Method's `\b(twice|double|triple)\b` (444 supported faces)
+   plus 300 covered controls, seed 20261008: **742 distinct faces** (two
+   overlaps), in `target/english-v3/english-v3-multiplier-predeterminer/manifest.json`.
+   Official `english-v3 diff --lines` compares `before.json` and `after.json`
+   in that directory; `diff.json` retains the complete comparison.
+
+2. **Witnesses:** on `uqlozwkr`, all five re-probed witnesses have **0**
+   Readings; none was dropped. On `qoswqlns`: Boon Reflection **1**, Fire
+   Servant **10**, Polliwallop **6**, Price of Progress **32**, Jovial Evil
+   **3**, matching their unmultiplied controls' complete counts. The four MP5
+   controls remain **1 each**; tests compare their complete Reading sets.
+   Probe evidence is `before-probe-*.json` / `after-probe-*.json` in the
+   evidence directory above (complete enumeration, rather than the ticket's
+   historical three-Reading cap).
+
+3. **Spot checks:** ten newly covered faces on `qoswqlns`, with byte-exact
+   selected Readings: Alhammarret's Archive — external *twice* over *that
+   much life*; Angel of Suffering — *twice* over *that many cards*;
+   Angrath's Marauders — noun *double* over *that damage*; Animist's Might —
+   *twice* over *its power*; Branching Evolution — *twice* over the plural
+   *that many +1/+1 counters* Subject; Bruvac the Grandiloquent — *twice*
+   over *that many cards*; City on Fire — noun *triple* over *that damage*;
+   Corpseweft — *twice* over the definite number NP in the variable
+   definition; Fiery Emancipation — noun *triple* over *that damage*;
+   Reflecting Mirror — *twice* over *the mana value of that spell*.
+   Selected trees are `spot-0.json` through `spot-9.json`.
+
+4. **Deviations and STOPs:** MP1's permitted single NP wrapper is used:
+   optional fields accept Categories, cannot expose a single feature value
+   for conditional host licensing, and policies admit only feature equations.
+   A shared optional lexical dependent across the existing host routes cannot
+   express the required licence with the current schema; the wrapper shares
+   one external position across them without compiler changes. One
+   Construction added, no frames added or deleted, no routes superseded;
+   frequency *twice*, imperative *double*, and *double strike* remain live.
+   Other NP routes retain unclassified definiteness. MP4 leaves **17
+   scalar-X faces plus Nuclear Fallout's negative-X face unread** (18 faces,
+   18 matches on `qoswqlns`, attested with `english-v3 grep --census …
+   --unread`). Glossary gaps filled: Predeterminer, Multiplier, Predeterminer
+   Use, Definiteness; CGEL supports the linguistic terms, MP1–MP3 the project
+   licensing. No STOPs.
+
+5. **Tests:** on `qoswqlns`, `cargo test -p deckmaste_english_v3` passed
+   **758 tests**, and `cargo test -p deckmaste_lexical_source` passed **76
+   tests** (35 unit + 41 integration). Both
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   The first English run passed all 748 existing tests and eight new tests;
+   two new helper assertions incorrectly restricted the host's PP scope.
+   Corrected them to compare the complete original sentence's host Reading
+   set while also retaining every intended-host value; the full suite then
+   passed. Restored **0**, re-spelled **0**, ignored **0**, added **10**,
+   removed **0**; no existing test changed. Citation checks: **0 stale, 0
+   noncompliant**, no newly cited CR sites.
+
+6. **Timing:** `qoswqlns` bounded census **46.17 s**, **6 workers**, under
+   `/usr/bin/time -v`, prebuilt xtask, `--samples-per-face 0`. No full corpus
+   census was run.

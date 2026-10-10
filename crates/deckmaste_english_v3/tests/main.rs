@@ -278,3 +278,6 @@ mod data_batch_2;
 
 #[path = "suite/vocabulary_batch_2.rs"]
 mod vocabulary_batch_2;
+
+#[path = "suite/multiplier_predeterminer.rs"]
+mod multiplier_predeterminer;

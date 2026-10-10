@@ -971,6 +971,27 @@ Ch. 5 §11(c), p. 431; their declared licensing is a project representation.
 The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
 
+**Predeterminer**:
+An external Modifier preceding a determined Noun Phrase. Multipliers have
+this function with definite hosts and retain their Adverb or Noun Category
+(CGEL, Ch. 5 §12(c), p. 434).
+
+**Multiplier**:
+A multiplicative expression functioning as a Predeterminer of a definite
+Noun Phrase, such as adverbial *twice* or nominal *double* and *triple*
+(CGEL, Ch. 5 §12(c), p. 434).
+
+**Predeterminer Use** (project term):
+A Lexeme's declared permission to function as a Predeterminer, including the
+multiplier use ([MP2](../../tickets/done/english-v3-multiplier-predeterminer.md#analysis)).
+
+**Definiteness**:
+The distinction between definite and nondefinite Noun Phrases. The definite
+article, demonstratives and genitives supply definite determination (CGEL,
+Ch. 5 §12(a), p. 434); demonstrative degree determination in *that much* and
+*that many* supplies definite multiplier hosts under
+[MP1–MP3](../../tickets/done/english-v3-multiplier-predeterminer.md#analysis).
+
 **Determiner Requirement** (project term):
 A Nominal's unresolved need for an outer Determiner when a cardinal numeral
 functions as its internal Modifier, as in *that one mistake* (CGEL, Ch. 5
