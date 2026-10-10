@@ -265,13 +265,6 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Adjective/Starting", lemma: "starting", category: Adjective,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adjective/Starting"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
             id: "lexeme:Name/Cadet", lemma: "Cadet", category: Catalog,
             properties: (countability: [], features: {"IdentityUse": "Name"}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -283,13 +276,6 @@
             properties: (countability: [Count], features: {}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Kind"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Adjective/Highest", lemma: "highest", category: Adjective,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adjective/Highest"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
@@ -341,13 +327,6 @@
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adjective/Even"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Adjective/Lowest", lemma: "lowest", category: Adjective,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adjective/Lowest"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
@@ -428,24 +407,10 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
-            id: "vocab:Adjective/Excess", lemma: "excess", category: Adjective,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adjective/Excess"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
             id: "lexeme:CommonNoun/Deck", lemma: "deck", category: Noun,
             properties: (countability: [Count], features: {}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Deck"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Adjective/Opening", lemma: "opening", category: Adjective,
-            properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adjective/Opening"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (

@@ -101,6 +101,11 @@ constructions! {
         feature HomographLicense = Unlicensed;
         feature ModifierLicense = Unrestricted;
         Additional = "additional",
+        Starting = "starting",
+        Opening = "opening",
+        Excess = "excess",
+        Highest = "highest",
+        Lowest = "lowest",
         Base = "base",
         Declare = "declare",
         FaceDown = "face-down",

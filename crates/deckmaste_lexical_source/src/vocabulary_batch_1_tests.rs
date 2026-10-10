@@ -113,7 +113,12 @@ fn ordinary_adjectives_have_invariant_forms() {
         "Lowest",
         "Colored",
     ] {
-        let owner = format!("vocab:Adjective/{word}");
+        let class = if ["Starting", "Opening", "Excess", "Highest", "Lowest"].contains(&word) {
+            "AttributiveAdjective"
+        } else {
+            "Adjective"
+        };
+        let owner = format!("vocab:{class}/{word}");
         let adjective = entry(&owner);
         assert_eq!(adjective.category, Category::Adjective);
         assert_eq!(
@@ -151,7 +156,7 @@ fn verbs_reuse_existing_complementation_and_derive_inflections() {
         ("Note", &["Draw"]),
         ("Follow", &["Draw"]),
         ("Switch", &["Draw"]),
-        ("Move", &["Put", "Enter"]),
+        ("Move", &["Put"]),
         ("Separate", &["Put"]),
     ];
     for (verb, models) in cases {

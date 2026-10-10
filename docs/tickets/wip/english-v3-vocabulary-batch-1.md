@@ -80,6 +80,10 @@ Orchestrator rulings 2026-10-10:
   that cannot be declared cleanly under V1–V7. STOP only if fewer than ten
   words are declarable at all.
 
+- V8. **Unblocked ownership exception.** Orchestrator ruling 2026-10-10: *unblocked* remains in core by the existing colorless / monocolored / multicolored precedent, although the predicate family owns those terms. This is a V3 deviation pending a follow-up that gives the predicate family a declaration path.
+
+- V9. **Predicative restriction deferred.** Orchestrator ruling 2026-10-10: keep starting, opening, excess, highest and lowest in AttributiveAdjective; defer the predicative restriction and its two zero-Reading negatives. No grammar changes.
+
 ## Witnesses
 
 Chosen during the work under V2 and recorded per word: two units per declared
@@ -124,12 +128,12 @@ Standard constraints apply. Deltas:
    | take | Verb / transitive | `core-verb:Take` in `verbs.ron` | 48 | 55 |
    | pile | Count noun | `lexeme:CommonNoun/Pile` in `core.ron` | 38 | 12 |
    | door | Count noun | `lexeme:CommonNoun/Door` in `core.ron` | 36 | 29 |
-   | move | Verb / put, intransitive | `core-verb:Move` in `verbs.ron` | 34 | 28 |
-   | excess | adjective | `vocab:Adjective/Excess` in `core.ron` | 30 | 25 |
+   | move | Verb / ObjectNP + Onto + ObjectNP | `core-verb:Move` in `verbs.ron` | 34 | 28 |
+   | excess | adjective | `vocab:AttributiveAdjective/Excess` in `lexicon/vocabulary.rs` | 30 | 25 |
    | deck | Count noun | `lexeme:CommonNoun/Deck` in `core.ron` | 28 | 14 |
-   | opening | adjective | `vocab:Adjective/Opening` in `core.ron` | 27 | 20 |
+   | opening | adjective | `vocab:AttributiveAdjective/Opening` in `lexicon/vocabulary.rs` | 27 | 20 |
    | result | Count noun | `lexeme:CommonNoun/Result` in `core.ron` | 28 | 6 |
-   | begin | Verb / transitive, intransitive / intransitive: finite present third singular only | `core-verb:Begin + core-verb:BeginIntransitive` in `verbs.ron + core.ron (finite intransitive) + overrides.ron (beginning)` | 30 | 71 |
+   | begin | Verb / transitive, intransitive / intransitive: finite present third singular only | `core-verb:Begin + core-verb:BeginIntransitive` in `verbs.ron + core.ron (finite intransitive) + overrides.ron (beginning)` | 30 | 20 |
    | secretly | adverb / VPFinalAdjunct=No, ClauseInitialAdjunct=No, CentralAdjunctLicence=Imperative | `vocab:Adverb/Secretly` in `core.ron` | 17 | 1 |
    | completed | Verb / transitive | `core-verb:Complete` in `verbs.ron` | 21 | 15 |
    | unblocked | adjective | `vocab:Adjective/Unblocked` in `core.ron` | 17 | 13 |
@@ -138,13 +142,13 @@ Standard constraints apply. Deltas:
    | unspent | adjective | `vocab:Adjective/Unspent` in `core.ron` | 20 | 6 |
    | note | Verb / transitive | `core-verb:Note` in `verbs.ron` | 16 | 1 |
    | instances | Count noun | `lexeme:CommonNoun/Instance` in `core.ron` | 14 | 0 |
-   | totals | Count noun / compound life total / ScalarDenotation=Yes | `lexeme:CommonNoun/LifeTotal` in `core.ron` | 8 | 42 |
+   | life total | Count noun / compound life total / ScalarDenotation=Yes | `lexeme:CommonNoun/LifeTotal` in `core.ron` | 8 | 42 |
    | team | Count noun | `lexeme:CommonNoun/Team` in `core.ron` | 14 | 10 |
    | activation | Count noun / NounPremodifier=Yes | `lexeme:CommonNoun/Activation` in `core.ron` | 13 | 3 |
    | followed | Verb / transitive | `core-verb:Follow` in `verbs.ron` | 11 | 6 |
    | odd | adjective | `vocab:Adjective/Odd` in `core.ron` | 15 | 4 |
    | even | adjective | `vocab:Adjective/Even` in `core.ron` | 17 | 5 |
-   | lowest | adjective | `vocab:Adjective/Lowest` in `core.ron` | 8 | 3 |
+   | lowest | adjective | `vocab:AttributiveAdjective/Lowest` in `lexicon/vocabulary.rs` | 8 | 3 |
    | suspended | participial adjective | `lexeme:keyword_ability/suspend/adjective` in `plugins_v2/builtin/macros/keyword_abilities/suspend.ron` | 16 | 12 |
    | bargained | participial adjective | `lexeme:keyword_ability/bargain/adjective` in `plugins_v2/builtin/macros/keyword_abilities/bargain.ron` | 20 | 16 |
    | warped | participial adjective | `lexeme:keyword_ability/warp/adjective` in `plugins_v2/builtin/macros/keyword_abilities/warp.ron` | 15 | 14 |
@@ -153,10 +157,10 @@ Standard constraints apply. Deltas:
    | identity | Count noun / compound color identity | `lexeme:CommonNoun/ColorIdentity` in `core.ron` | 9 | 5 |
    | symbols | Count noun / compound mana symbol | `lexeme:CommonNoun/ManaSymbol` in `core.ron` | 15 | 12 |
    | kind | Count noun | `lexeme:CommonNoun/Kind` in `core.ron` | 45 | 5 |
-   | highest | adjective | `vocab:Adjective/Highest` in `core.ron` | 14 | 3 |
+   | highest | adjective | `vocab:AttributiveAdjective/Highest` in `lexicon/vocabulary.rs` | 14 | 3 |
    | separate | Verb / into | `core-verb:Separate` in `verbs.ron` | 26 | 8 |
    | cadet | Catalog / IdentityUse=Name, exact / NameNumber=Singular | `lexeme:Name/Cadet` in `core.ron` | 13 | 8 |
-   | starting | adjective | `vocab:Adjective/Starting` in `core.ron` | 84 | 10 |
+   | starting | adjective | `vocab:AttributiveAdjective/Starting` in `lexicon/vocabulary.rs` | 84 | 10 |
    | word | Count noun / compound color word | `lexeme:CommonNoun/ColorWord` in `core.ron` | 10 | 0 |
    | right | Count noun | `lexeme:CommonNoun/Right` in `core.ron` | 13 | 1 |
    | switch | Verb / transitive | `core-verb:Switch` in `verbs.ron` | 25 | 25 |
@@ -176,8 +180,6 @@ Standard constraints apply. Deltas:
    | door | Ticket Booth: `When you unlock this door, manifest dread.` (document) | 1 |
    | move | Fate Transfer: `Move all counters from target creature onto another target creature.` (document) | 1 |
    | move | Leech Bonder: `Move a counter from target creature onto a second target creature.` (document) | 1 |
-   | move | Skullbriar, the Walking Grave: `it moves` (finite-clause) | 1 |
-   | move | Me, the Immortal: `it moves` (finite-clause) | 1 |
    | excess | Flame Spill: `Excess damage is dealt to that creature's controller instead.` (document) | 3 |
    | excess | Pigment Storm: `Excess damage is dealt to that creature's controller instead.` (document) | 3 |
    | deck | Rat Colony: `A deck can have any number of cards named Rat Colony.` (document) | 5 |
@@ -206,8 +208,8 @@ Standard constraints apply. Deltas:
    | note | Bell Borca, Spectral Sergeant: `Note the mana value of each card as it's put into exile.` (document) | 2 |
    | instances | Alter Reality: `all instances` (noun-phrase) | 1 |
    | instances | Swirl the Mists: `All instances` (noun-phrase) | 1 |
-   | totals | Soul Conduit: `Two target players exchange life totals.` (document) | 1 |
-   | totals | Axis of Mortality: `At the beginning of your upkeep, you may have two target players exchange life totals.` (document) | 1 |
+   | life total | Soul Conduit: `Two target players exchange life totals.` (document) | 1 |
+   | life total | Axis of Mortality: `At the beginning of your upkeep, you may have two target players exchange life totals.` (document) | 1 |
    | team | Rushblade Commander: `Warriors your team controls have haste.` (document) | 1 |
    | team | Sylvia Brightspear: `Dragons your team controls have double strike.` (document) | 1 |
    | activation | Quicksilver Elemental: `the activation costs of this creature's abilities` (noun-phrase) | 2 |
@@ -271,14 +273,20 @@ Standard constraints apply. Deltas:
    - Soul Conduit (1 census Readings): compound plural life totals ObjectNP of exchange.
    - Rushblade Commander (1 census Readings): team noun possessor of the controlling subject relative.
 
-4. **Deviations and STOPs** — measured on `nouqyyouuops`. V7 is recorded above and resolves the declaration-path STOP raised for historic; no further STOP. No Construction, frame kind, Role, feature, grammar implementation, loader, non-grammar plugin content or glossary term changed; no superseded live route was retired. The finite negative auxiliary has only the six attested present-concord cells, no invented negative plain/nonfinite/past forms. Starting is an adjective; no Start verb was added. Residual probes added existing intransitive Predicate uses for Move and Begin (two additional units each), without a new frame kind. An unrestricted Begin intransitive frame caused V5 increases on Cyclonus, Cybertronian Fighter (14→26), Shadow of the Second Sun (7→13), and Sphinx of the Second Sun (7→13): verbal beginning competed with the existing beginning-phase term. It was narrowed to a native finite present/third/singular BeginIntransitive declaration, with no gerund/plain/nonfinite/past cells. The ordinary transitive Begin keeps its full paradigm. The bounded recheck restores the three faces to their parent counts; both new finite witnesses remain at 1. Compound life total, color identity, mana symbol and color word have no lexical-owning plugin declaration; semantic amount/instruction accessors are not lexical declarations. The ordinary friend noun is distinct from the unavailable Friends-forever keyword.
+4. **Deviations and STOPs** — measured on `nouqyyouuops`. V7 resolves the declaration-path STOP raised for historic; V9 resolves the review STOP about predicative use of the attributive class. Both rulings are recorded above. No Construction, frame kind, Role, feature, grammar implementation, loader, non-grammar plugin content or glossary term changed; the reviewed, unattested intransitive Move route was retired from lexicon data and its fixtures; it introduced no grammar route to retire. The finite negative auxiliary has only the six attested present-concord cells, no invented negative plain/nonfinite/past forms. Starting is an adjective; no Start verb was added. The finite Begin intransitive use remains. Review retired Move’s unframed Predicate declaration and its two synthetic mid-clause fragment fixtures (Skullbriar / Me, the Immortal: it moves), because the attested move-to-zone clauses remain unread. Move now selects ObjectNP + Onto + ObjectNP only; the lexical-source frame test matches that declaration. An unrestricted Begin intransitive frame caused V5 increases on Cyclonus, Cybertronian Fighter (14→26), Shadow of the Second Sun (7→13), and Sphinx of the Second Sun (7→13): verbal beginning competed with the existing beginning-phase term. It was narrowed to a native finite present/third/singular BeginIntransitive declaration, with no gerund/plain/nonfinite/past cells. The ordinary transitive Begin keeps its full paradigm. The bounded recheck restores the three faces to their parent counts; both new finite witnesses remain at 1. Compound life total, color identity, mana symbol and color word have no lexical-owning plugin declaration; semantic amount/instruction accessors are not lexical declarations. The ordinary friend noun is distinct from the unavailable Friends-forever keyword.
 
    The supplied V1 file actually stamps `yntwupzymxxl`, despite the old ticket label `sskyxnyvmruk`, and predates the claim parent’s Produce/Divided landings. Therefore the parent was replayed on the bounded manifest with the prebuilt feature binary, temporarily restoring byte-verified `jj file show -r @-` parent data and restoring feature data in `finally`. The census metadata stamps the feature change id; `before.json` contains claim-parent data, not the feature declarations. A provisional bounded result was superseded after the final friend declaration spelling corrections (beginning, switches), and the Move/Begin intransitive frames; only bounded rechecks were used. No full-corpus run, custom comparison script or raw-Scryfall attestation search was used. Evidence stays under target. Kata refresh succeeded after the initial commit, incorporating equality-property grammar `wlstpkpuulvt` and linked-readback changes `vmupwtsqwxlm` / `xsqzrryrlups`. The seven refresh gains are Aether Vial (43), Enigmatic Incarnation (49), In Search of Greatness (999), Instrument of the Bards (222), Necroplasm (25), Powder Keg (32), and Wave of Terror (24); all have mana-value-equal-to phrases and are attributable to `wlstpkpuulvt`, not vocabulary declarations. The built-in line diff reports thirteen newly readable lines. No trunk decreases need attribution. Shared claim transitions during verification changed only other ticket locations, not dependency content.
+
+   Review on `qmqmopsronzl`: begin’s gain column counts begin/begins surfaces only (20, excluding beginning, from `review/begin-surfaces.json` intersected with the original built-in gain list). Life total is named as a compound. Secretly is Imperative-only. Was warped this turn is a predicative state Adjective, the only path V3 permits today, not a verbal event passive. V8 permits unblocked in core as a V3 deviation until the predicate family has a declaration path.
+
+   The five requested adjective redeclarations retain all ten original witness counts. However, the AttributiveAdjective class maps to ordinary Category::Adjective (`legacy/core.rs::inventory_category`), and generic Adjective → AdjectivalComplement still admits Your hand is opening and This damage is excess (1 each). Its existing HomographLicense / ModifierLicense defaults do not constrain predicative use. V9 resolves the STOP by deferring the predicative restriction and both zero-Reading adjective negatives while keeping the correct AttributiveAdjective declarations.
 
    **Follow-up: missing constructions or other vocabulary (distinct V1 unread-face counts).**
 
    | Candidate | Faces | Missing piece / evidence |
    |---|---:|---|
+   | move to zone | 2 | Zone noun + to-goal Complement (Skullbriar / Me, the Immortal); the full attested move-to-zone clauses stay unread. |
+   | secretly, finite uses | 10 | Imperative-only declaration; finite secretly-chooses/votes stays unread (`review/secretly-finite.json`), requiring a separately attested central-adverb licence. |
    | half | 83 | Quantitative half + possessive/partitive complement; both known-noun controls fail (`followup-probes-before.json`), as expected by V6. |
    | round / rounded | 87 | Rounded up/down requires particle/result direction and supplement licensing; turned-up controls fail (`remaining-probes-before.json`), V6. |
    | tied | 51 | Tied-for selected comparison; even vote-is-legendary controls fail because the vote nominal is not mapped (`tied-before.json`); V6 construction remains. |
@@ -300,6 +308,10 @@ Standard constraints apply. Deltas:
    | whichever | 8 | Supplementary fused relative whichever-comes-first and its priority predicate; no declared substitute of that category. |
    | contain / contains | 12 | Focusing only over the cards ObjectNP; has-only-cards controls fail even after other declarations (`contain-before.json`). |
    | starting; kind; odd/even; hasn’t | 84; 45; 15/17; 17 | Starting-with-you supplement, each-kind-of-counter bare singular, choose-odd/even complements and one-that-hasn’t-been-chosen fused-head relatives remain unimplemented; witness NPs/adjective uses and haven’t-perfect clauses do read. These residual uses do not claim new constructions. |
+
+   ### grammar hygiene
+
+   V9: `AttributiveAdjective` members read predicatively through the generic AdjectivalComplement (`declarations.rs:3781`), e.g. “Your hand is opening.” and presumably “This cost is additional.”; the class needs a declared attributive-only feature read by AdjectivalComplement; affects every existing member, zero attested predicative uses to confirm by grep. A supported-corpus grep over all 20 member surfaces after copular verbs (including contractions, become/remain and optional not) found zero matches on `qmqmopsronzl`; the exact pattern and JSON are `review/attributive-predicative-pattern.txt` and `review/attributive-predicative-hits.json`. This attestation search does not repair the grammar licence. The two proposed adjective negatives are deferred, not ignored tests.
 
    ### passes V2, blocked on declaration path
 
@@ -331,6 +343,8 @@ Standard constraints apply. Deltas:
 
    Produce/Divided were already declared on the claim parent and skipped. Draft/drafted/drafting (27 faces), booster (9), pack (8) and planeswalk (8) are permanent scope exclusions, not future model reservations. All remaining lemma groups fall below eight distinct unread faces (including guess 7, count 7, quality 7, select 6 and give 5); they belong to the next cutoff, not unprocessed eligible work.
 
-5. **Tests** — on `nouqyyouuops`: `cargo test -p deckmaste_english_v3` passed (713); `cargo test -p deckmaste_lexical_source` passed (71); `cargo test -p deckmaste_construction_core` passed (468); `cargo test -p deckmaste_semantics_v2` passed (101). `cargo clippy -p deckmaste_lexical_source -p deckmaste_english_v3 -p deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings` passed. Full suites were rerun after the initial new-fixture failures and the deliberately superseded lexical-gap assertion were corrected. Eight tests added (seven lexical-source class tests and one shared integration table with 86 positive witness cases plus three beginning-phase V5 guards); restored 0, re-spelled 1 existing focusing-only lexical-gap case (original text now also asserted positively; incomplete by-agent complement remains negative), ignored 0, removed 0. New-fixture lifetime, Keyword provenance, keyword adjective feature, and central-adverb constituent expectations were corrected while keeping exact value assertions; moving the witness table to a constant resolved clippy’s function-length finding. Citation checks passed (no noncompliant or stale citations; diff audit found no new citation sites). After the grammar-bearing refresh, on `oxtqzporvvmw`, the same four exact full-suite commands passed again: English v3 724, lexical source 71, construction core 468, semantics v2 104. The same four-package clippy command passed again. Refreshed logs are `refresh-test-deckmaste_english_v3.log`, `refresh-test-deckmaste_lexical_source.log`, `refresh-test-deckmaste_construction_core.log`, `refresh-test-deckmaste_semantics_v2.log` and `refresh-clippy.log` under the evidence directory. The declaration passes were complete before the three-hour time box; only required refresh verification continued afterward.
+5. **Tests** — on `nouqyyouuops`: `cargo test -p deckmaste_english_v3` passed (713); `cargo test -p deckmaste_lexical_source` passed (71); `cargo test -p deckmaste_construction_core` passed (468); `cargo test -p deckmaste_semantics_v2` passed (101). `cargo clippy -p deckmaste_lexical_source -p deckmaste_english_v3 -p deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings` passed. Full suites were rerun after the initial new-fixture failures and the deliberately superseded lexical-gap assertion were corrected. Eight tests added (seven lexical-source class tests and one shared integration table with 84 positive witness cases plus three beginning-phase V5 guards and one negative case (This creature moves)); restored 0, re-spelled 1 existing focusing-only lexical-gap case (original text now also asserted positively; incomplete by-agent complement remains negative), ignored 0, removed 0. New-fixture lifetime, Keyword provenance, keyword adjective feature, and central-adverb constituent expectations were corrected while keeping exact value assertions; moving the witness table to a constant resolved clippy’s function-length finding. Citation checks passed (no noncompliant or stale citations; diff audit found no new citation sites). After the grammar-bearing refresh, on `oxtqzporvvmw`, the same four exact full-suite commands passed again: English v3 724, lexical source 71, construction core 468, semantics v2 104. The same four-package clippy command passed again. Refreshed logs are `refresh-test-deckmaste_english_v3.log`, `refresh-test-deckmaste_lexical_source.log`, `refresh-test-deckmaste_construction_core.log`, `refresh-test-deckmaste_semantics_v2.log` and `refresh-clippy.log` under the evidence directory. The declaration passes were complete before the three-hour time box; only required refresh verification continued afterward.
 
-6. **Timing** — on `nouqyyouuops`: final bounded census 62.44 seconds, peak RSS 4,098,356 KiB (`after.log`, `/usr/bin/time -v`); prebuilt binary, six workers, zero samples per face. Post-refresh bounded recheck on `oxtqzporvvmw`: 100.20 seconds, peak RSS 4,352,664 KiB, six workers, zero samples (`after-refresh.log`). No full-corpus census.
+   Review gates on `qmqmopsronzl`: `cargo xtask facts check` passed; both generated fact files are up to date (`review/facts-cargo.log`). Two fragment cases were removed by the explicit review direction; 55 whole-root checks were replaced with constituent roles, with all positive expected counts retained. Test functions removed / ignored remain 0. An initial fixture serialization emitted invalid Rust Unicode escapes; these were corrected to the original em dash before rerunning tests. Full lexical-source, construction-core and semantics-v2 suites passed after the review edits. The English suite’s initial compile failed on fixture serialization and that syntax is corrected; V9 defers its two zero-Reading adjective assertions; `cargo test -p deckmaste_english_v3` passed on the final review head (724 tests, `review/test-english-final.log`), including all constituent-role assertions and the remaining Move negative. The exact four-package clippy command passed after the review edits (`review/clippy.log`). The review bounded census uses `review/manifest.json`: 198 matching move/adjective surface faces plus 300 seeded covered controls, overlap 12, 486 distinct faces. Built-in comparison with the accepted post-refresh state has lost 0, gained 0, decreases 0, increases 0 and 61 digest-only owner changes; comparison with claim-parent data has 129 gains and zero loss, decreases, increases or digest-only changes. The other 3,216 identities are outside this recheck, not losses. All 61 owner changes are on this batch’s newly covered faces.
+
+6. **Timing** — on `nouqyyouuops`: final bounded census 62.44 seconds, peak RSS 4,098,356 KiB (`after.log`, `/usr/bin/time -v`); prebuilt binary, six workers, zero samples per face. Post-refresh bounded recheck on `oxtqzporvvmw`: 100.20 seconds, peak RSS 4,352,664 KiB, six workers, zero samples (`after-refresh.log`). Review bounded recheck on `qmqmopsronzl`: 12.11 seconds, six workers, peak RSS 2,504,112 KiB (`review/after.log`). No full-corpus census.
