@@ -94,3 +94,6 @@ mod noncombat_negative_noun;
 
 #[path = "suite/modal_header_quantities.rs"]
 mod modal_header_quantities;
+
+#[path = "suite/polyhedral_die_nouns.rs"]
+mod polyhedral_die_nouns;

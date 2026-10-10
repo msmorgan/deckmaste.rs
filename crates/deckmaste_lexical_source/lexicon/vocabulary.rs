@@ -454,7 +454,33 @@ constructions! {
             feature LocativeTemporalLicense = Unlicensed;
             feature Relationality = NonRelational;
         },
+        D4 = "d4" {
+            Plural = "d4",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        D6 = "d6" {
+            Plural = "d6",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        D8 = "d8" {
+            Plural = "d8",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        D10 = "d10" {
+            Plural = "d10",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
+        D12 = "d12" {
+            Plural = "d12",
+            feature LocativeTemporalLicense = Unlicensed;
+            feature Relationality = NonRelational;
+        },
         D20 = "d20" {
+            Plural = "d20",
             feature LocativeTemporalLicense = Unlicensed;
             feature Relationality = NonRelational;
         },

@@ -76,3 +76,50 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
   roll-result constructions.
 
 ## Landing record
+
+1. **Census delta** (`vlxrulqwmzzk`, before edits on claim parent
+   `wxnqznnw` → implemented): bounded 492 faces, 413 → 425 covered,
+   9,264 → 12,543 Readings; 12 gains; lost, decreases, increases and
+   digest-only changes all zero. No wrong new die analysis found. Selector:
+   every face matching `\bd(4|6|8|10|12|20)\b|\bdic?e\b` case-insensitively
+   (193 faces), plus 300 random covered controls, seed 20261008; one overlap.
+   Evidence: `target/english-v3/english-v3-polyhedral-die-nouns/`
+   (`manifest.json`, `before.json`, `after.json`, `diff.json`). Still unread:
+   Underdark Rift (`just` unknown); Sword of Hours (scalar copular clause
+   *the result is 12*); Neverwinter Hydra (the following *It enters with a
+   number of +1/+1 counters on it equal to the total of those results.*).
+   Their die-containing roll constituents read. Berserker's Frenzy remains
+   unread with unrelated unknown `ignore`, `lower`, and `how`.
+2. **Witnesses** (`vlxrulqwmzzk`): *Roll a d6.*, *Roll a d8.*, *Roll a d4.*,
+   *Roll a d12.* each 0 → 1; additional *Roll a d10.* 0 → 1.
+   *Roll two d6 and choose one result.* 0 → 4, matching its *Roll two dice
+   and choose one result.* control's 4: predicate/clause Coordination and
+   determinative/cardinal *one result* are independent ambiguity retained
+   under W9-A; the die uses one CommonNoun route. Original controls
+   *Roll a d20.*, *Roll a six-sided die.*, and *Whenever you roll one or
+   more dice, draw a card.* each 1 → 1. The attested *roll two d20*
+   constituent now has 1 Reading; its complete Berserker's Frenzy sentence
+   still has 0 because `ignore` and `lower` are unknown.
+3. **Spot checks** (`vlxrulqwmzzk`): ten newly covered faces, each with
+   byte-exact realization and the die CommonNoun heading roll's Object:
+   Arcane Endeavor (plural d8); Bag of Devouring (singular d10);
+   Bag of Tricks (singular d8); Bucknard's Everfull Purse (singular d4);
+   Clay Golem (singular d8); Ebony Fly (singular d6); Grave Endeavor
+   (plural d10); Maddening Hex (singular d6); Netherese Puzzle-Ward
+   (singular d4); Reckless Endeavor (plural d12).
+4. **Deviations and STOPs** (`vlxrulqwmzzk`): invariant plural also declared
+   for the existing D20 under PD2; its superseded default *d20s* has zero
+   supported attestations. No Construction, Frame, loader change or glossary
+   addition. Seed 20261008 and bounded verification follow the user's binding
+   budget. No STOPs. Tests additionally cover d10, the five Endeavors'
+   plural Objects, the attested d20 plural constituent, and independently
+   constructed singular/plural noun values preserving both roundtrip laws.
+5. **Tests** (`vlxrulqwmzzk`): `cargo test -p deckmaste_english_v3`,
+   `cargo test -p deckmaste_lexical_source`,
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`, and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` all
+   passed. Restored 0 / re-spelled 0 / ignored 0 / added 3 / removed 0;
+   no removals to justify. The new module is registered once in `suite_6`.
+6. **Timing** (`vlxrulqwmzzk`): bounded AFTER census 40.68 s wall,
+   measured with `/usr/bin/time -v`, 6 workers, 0 samples per face.
+   No full-corpus census, under the binding verification budget.
