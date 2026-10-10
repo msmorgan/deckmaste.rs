@@ -225,7 +225,15 @@ shape, with no relative-head restriction. Any other shape remains a defect. Evid
    (`final-diff.json`; isolated refresh delta `refresh-diff.json`). A second
    grammar-bearing refresh incorporated multiplier predeterminers
    (`qoswqlnsyrsm`); all 689 faces retained their counts and digests
-   (`refresh2-diff.json`), so these final totals are unchanged.
+   (`refresh2-diff.json`), so those totals are unchanged. After accepted
+   review, refresh incorporated bounded quantities (`nlprwsknrulx`) and
+   clitic-have object relatives (`pnrkoproqnlp`). On `tztyznvt`, the same
+   689-face subset has 570 covered and 15,921 Readings: clitic-have adds
+   Damping Sphere 0 → 31, Lock and Load 0 → 161, Show of Confidence
+   0 → 161, and Thousand-Year Storm 0 → 480. There are no refresh losses,
+   decreases, covered-face increases or digest-only changes
+   (`review-refresh-diff.json`). The ticket's own gain count remains 38;
+   the combined delta includes five trunk gains.
 2. **Witnesses (`qtnyyyvx` → `vkqxprpx`):** Nagging Thoughts 0 → 3,
    Sibsig Appraiser 0 → 3, Talas Lookout 0 → 3, Tower Geist 0 → 3,
    Write into Being 0 → 12 (counts for the ticket's witness line;
@@ -273,9 +281,14 @@ shape, with no relative-head restriction. Any other shape remains a defect. Evid
    (`deckmaste_english_v3`: 764; `deckmaste_lexical_source`: 80) and both
    exact clippy commands passed again. No construction-core or plugin-data
    change arrived in that second refresh, so the xtask result was retained.
+   After accepted-review refresh, both full suites passed again on `tztyznvt`
+   (`deckmaste_english_v3`: 777; `deckmaste_lexical_source`: 80), and both
+   exact clippy commands passed again. No construction-core or plugin-data
+   change arrived in this refresh, so the xtask result remains valid.
 6. **Timing (`vkqxprpx`):** bounded after census 7.42 s wall time,
    6 workers, `--samples-per-face 0`, prebuilt binary under `/usr/bin/time -v`.
    Refreshed bounded census (`vkqxprpx`) 20.06 s wall time, same 6 workers
    and manifest; second refreshed bounded census 10.45 s, also 6 workers.
-   User's binding bounded-run override applies; no full census
+   Accepted-review refresh census (`tztyznvt`) 9.61 s, same 6 workers and
+   manifest. User's binding bounded-run override applies; no full census
    was run.
