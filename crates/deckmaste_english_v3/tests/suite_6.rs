@@ -20,6 +20,9 @@ mod data_batch_2;
 #[path = "suite/derived_punctuation.rs"]
 mod derived_punctuation;
 
+#[path = "suite/enter_as_copy_except_clause.rs"]
+mod enter_as_copy_except_clause;
+
 #[path = "suite/gapped_coordination_shared_adjunct.rs"]
 mod gapped_coordination_shared_adjunct;
 

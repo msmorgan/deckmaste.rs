@@ -73,6 +73,16 @@ Orchestrator rulings 2026-10-10:
   previously covered face is expected: 0 covered faces match the selector.
   Any increase is reported with its shape before landing.
 
+Orchestrator ruling 2026-10-10 (EX-R1): RETAIN both scopes. In the
+Phantasmal Image and Machine God's Effigy wording, the coordinated *and it
+has …* Clause may sit inside the exception's Content Clause or outside it.
+Both are grammatical; the existing create-token control already retains both.
+Re-spell the two new assertions as value assertions requiring both
+constituencies. This resolves the `koswtsww` STOP; no admission change is
+required. After full suites, clippy, the landing record, commit and refresh,
+integration and workspace removal are authorized without a further STOP.
+Bounded evidence is in `target/english-v3/english-v3-enter-as-copy-except-clause/`.
+
 ## Witnesses
 
 Each is the face's only failing line. Probed 2026-10-10 on the `uoqyuxtnowpo`
@@ -131,4 +141,49 @@ xtask english-v3 grep` only.
 
 ## Landing record
 
-The six items in `docs/tickets/README.md` ("Landing record").
+1. **Census delta** (`mqrlzszk` → refreshed `lzsrwprt`, own `koswtsww`; baseline grammar identical
+   to claim parent `pmwlrxnt`): bounded selector
+   `\bexcept\b|\bas a copy of\b`, 301 supported faces plus 300 covered
+   controls from seed 20261008, 599 distinct faces. Covered 494 → 532;
+   Readings 15,308 → 19,112. Aggregate gains 38, own gains 37;
+   The Clone Saga (0 → 8) came from trunk `zunolrnv` during refresh.
+   Lost none, decreases none,
+   increases none, digest-only none, issues none. Evidence: `after-refresh-2.json`, `diff-refresh-2.json`,
+   `diff-refresh-only.json` and `diff-refresh-2-only.json` under `target/english-v3/english-v3-enter-as-copy-except-clause/`.
+2. **Witnesses** (`koswtsww`): claim-parent probes all 0; Evil Twin 6,
+   Copycrook 3, Phantasmal Image 54, Machine God's Effigy 6 on its witness
+   line (7 on the whole face). Finite, causative, artifact and tapped sentence
+   witnesses each 0 → 3. Controls unchanged: bare/tapped causatives 5,
+   finite 3, artifact create/become 4, flying create 2 and become 1,
+   Evil Twin become 2. The old cap of 3 understated several controls.
+3. **Spot checks** (`koswtsww`): Evil Twin, Copycrook, Phantasmal Image,
+   Machine God's Effigy, Auton Soldier, Dack's Duplicate, Copy Artifact,
+   Copy Land, Mercurial Pretender and Gigantoplasm each attach the exception
+   PP to the lexical *enter* predicate, with a finite Content Clause inside.
+   Phantasmal Image and Machine God's Effigy retain BOTH scopes: *and it
+   has …* inside the exception's Content Clause, or coordinated outside it
+   with the matrix Clause (orchestrator ruling EX-R1, 2026-10-10).
+   No sampled wrong analysis.
+4. **Deviations and STOPs** (`koswtsww`): one runtime lexical feature
+   addition; no Construction or frame added/deleted, no loader or projection
+   changes. Eight tests added in one suite_6 module. The whole-tail STOP was
+   resolved by EX-R1; both constituencies now have value assertions, while
+   independently licensed Adjunct attachments remain. No glossary gap.
+   EC5's 55 broad grep matches minus 43 enter-as-copy matches are 12 cases
+   whose exceptions attach to later become/create/destroy predicates, not
+   non-copy *enter*. No spelling guard added. No superseded route. The first refresh refused because a sibling moved;
+   retry succeeded and brought `lvpxmkkl` and `zunolrnv`. A later refresh
+   brought the focus-only-object landing, with zero delta on all 599 faces.
+5. **Tests** (refreshed `lzsrwprt`, own `koswtsww`): `cargo test -p deckmaste_english_v3`,
+   `cargo test -p deckmaste_lexical_source`,
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`, and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`:
+   all passed (812 English tests, 82 lexical-source tests).
+   `cargo build -p xtask` also passed after refresh. Initial English run exposed two overrestrictive
+   new assertions; EX-R1 resolved their scope requirement. Assurance counts:
+   restored 0 / re-spelled 2 new assertions / ignored 0 / added 8 tests /
+   removed 0. Citation audit has no new sites; checks report 0 stale and
+   0 noncompliant citations.
+6. **Timing** (refreshed `lzsrwprt`): the bounded census took 19.75 s
+   wall time under `/usr/bin/time -v`, with 6 workers and 0 samples per face.
+   No full corpus census or Lean check was run.

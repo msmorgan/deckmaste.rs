@@ -69,6 +69,7 @@
         "lexeme:keyword_action/create": {"MatrixComplementLicence": "Content"},
         "core-verb:Copy": {"MatrixComplementLicence": "Content"},
         "core-verb:Become": {"MatrixComplementLicence": "Content"},
+        "core-verb:Enter": {"MatrixComplementLicence": "Content"},
         "lexeme:keyword_action/sacrifice": {"MatrixComplementLicence": "Nominal", "PastParticipialPremodifier": "Yes"},
         "lexeme:keyword_action/destroy": {"MatrixComplementLicence": "Nominal"},
         "core-verb:Return": {"MatrixComplementLicence": "Nominal"},
