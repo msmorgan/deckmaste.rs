@@ -721,6 +721,23 @@ mimicked.
   is `Conferral.turnBased(firstMain, putCounters(1, loreCounter, this))`
   [CR#714.3c,703.1]. (Ruling, 2026-10-10, owner;
   `semantics-v2-subtype-rules`.)
+- **A keyword's general form is its declaration, and its bare form the
+  helper over it (2026-10-10).** "Devour [quality] N" is the `KeywordAbility`
+  `devourQuality` (`params: [Quality, Amount]`, surface "devour") carrying
+  `label: devour` and its own body, the definition the retired helper
+  `devourQualityExpansion` wrote; bare devour N is `devourQuality(creature,
+  N)` [CR#702.82a,702.82c]. A labelled declaration may now carry its own
+  body, its term labelled with the keyword word it names, so "it devoured"
+  stays `ByKeyword(devour)` and devour's facts row gains the quality-then-number
+  schema [CR#702.82b]. (Ruling, 2026-10-10, owner;
+  `semantics-v2-devour-quality-keyword`.)
+- **A keyword ability's name need not derive from its grammar surface
+  (2026-10-10).** The nursery test's `name == declaration_name(surface)`
+  assertion and its bare-gift exemption retire, since a general form shares
+  its keyword's surface under another name (`devourQuality`, "devour"). The
+  test keeps "a body and a signature land together" and the per-keyword
+  parameter-kind table. (Ruling, 2026-10-10, owner;
+  `semantics-v2-devour-quality-keyword`.)
 
 ## 8. Process
 
