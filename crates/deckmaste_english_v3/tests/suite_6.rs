@@ -100,3 +100,6 @@ mod polyhedral_die_nouns;
 
 #[path = "suite/progressive_object_gap_relative.rs"]
 mod progressive_object_gap_relative;
+
+#[path = "suite/devotion_to_colour.rs"]
+mod devotion_to_colour;

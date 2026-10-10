@@ -101,7 +101,7 @@ constructions! {
         table preposition_phrase_complement(PrepositionComplement) -> Selection contains PrepositionPhrase => Yes;
         table predicative_noun_phrase_complement(PrepositionComplement) -> Selection contains PredicativeNounPhrase => Yes;
         table intransitive_preposition_complement(PrepositionComplement) -> Selection contains Intransitive => Yes;
-        feature AdjectiveComplementClass { Manner }
+        feature AdjectiveComplementClass { None, Manner, ColorWord } default None;
         feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No;
         feature FocusingModifierUse { Restrictive }
@@ -390,10 +390,10 @@ constructions! {
             (Singular) => Singular, (Plural) => Plural,
         }
         feature IdentityUse { Name }
-        feature NominalComplementMarker { None, Of } default None;
+        feature NominalComplementMarker { None, Of, To } default None;
         feature TaxonomicComplementUse { No, Yes } default No;
         table nominal_complement_marker(NominalComplementMarker, NominalComplementMarker) -> Selection {
-            (None, None) => Yes, (Of, Of) => Yes,
+            (None, None) => Yes, (Of, Of) => Yes, (To, To) => Yes,
         }
         feature BarePrepositionUse { No, Location, SpatialEdge } default No;
         feature BareNominalComplement { No, Location, SpatialEdge } default No;
@@ -415,6 +415,7 @@ constructions! {
         table nominal_postmodifier_licence(NominalComplementMarker, NominalComplementMarker)
             -> Selection {
             (None, None) => Yes, (None, Of) => Yes, (Of, None) => Yes,
+            (None, To) => Yes, (Of, To) => Yes, (To, None) => Yes, (To, Of) => Yes,
         }
         feature NounPremodifier { Yes, Attribute, Keyword, None }
         feature PremodifierCoordination { No, Yes } default No;
@@ -533,7 +534,7 @@ constructions! {
             BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category NominativePhrase(number, person, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent);
         category AccusativePhrase(number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent, WholeObjectSourcePresent);
-        category AdjectivePhrase(AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
+        category AdjectivePhrase(AdjectiveComplementClass, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category Premodifier(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
         category PremodifierCoordination(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
@@ -641,7 +642,7 @@ constructions! {
             NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, ScalarMeasurementHeadUse, PropertyValuePosition, CardinalMeasurementUse,
             BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
         , SourceModifierPresent, WholeObjectSourcePresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
-        category AdjectivePhraseSeries(AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
+        category AdjectivePhraseSeries(AdjectiveComplementClass, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category PrepositionPhraseSeries(InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category FocusedAdjunctMember(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, SourceComplementUse);
@@ -780,6 +781,8 @@ constructions! {
         frame NominalSymbols = Nominal(Marked(Preposition, Of, Complement(CostSymbols)));
         frame NominalInfinitive = Nominal(Complement(InfinitiveComplement));
         frame NominalPreposition = Nominal(Marked(Preposition, Of, Complement(NounPhrase)));
+        frame NominalToPreposition = Nominal(Marked(Preposition, To, Complement(NounPhrase)));
+        frame NominalColorWordPreposition = Nominal(Marked(Preposition, To, Complement(AdjectivePhrase)));
         frame Predicative = Predicate(Complement(PredicativeComplement));
         frame NominalPredicativePreposition = Predicate(Complement(NominalPredicativePreposition));
         frame Existential = Existential(Complement(NounPhrase), Optional(Complement(LocativeComplement)));
@@ -1431,7 +1434,13 @@ constructions! {
             export LocativeUse = head.LocativeUse;
         }
 
+        table coordinated_adjective_complement_class(AdjectiveComplementClass,
+            AdjectiveComplementClass) -> AdjectiveComplementClass {
+            (ColorWord, ColorWord) => ColorWord, (Manner, Manner) => Manner, (_, _) => None,
+        }
         policy AdjectiveStructureMerge<Right, Source> {
+            export AdjectiveComplementClass = coordinated_adjective_complement_class(
+                left.AdjectiveComplementClass, Right.AdjectiveComplementClass);
             export AdjectivePremodifierUse = coordinated_adjective_premodifier(
                 left.AdjectivePremodifierUse, Right.AdjectivePremodifierUse);
             export PremodifierCoordination = Yes;
@@ -3283,13 +3292,18 @@ constructions! {
             use UnmodifiedNominalProperties;
         }
 
+        table nominal_preposition_frame(frame) -> Selection {
+            (NominalPreposition) => Yes, (NominalToPreposition) => Yes,
+        }
+        // Orchestrator rulings DV1–DV4: the selected colour Complement stays
+        // inside the noun's frame, without a general colour-word NP route.
         construction PrepositionComplementNominal: Nominal {
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
             form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase]
-                require head.frame = NominalPreposition
+                require nominal_preposition_frame(head.frame) = Yes
                 require nominal_complement_marker(head.NominalComplementMarker,
                     marker.NominalComplementMarker) = Yes;
             // KC1–KC3 (kind-of-counter ruling, 2026-10-10): the licensed
@@ -3303,12 +3317,19 @@ constructions! {
                 require complement.countability = Count
                 require complement.NominalDependentPresent = No
                 require complement.DeterminerRequirement = No;
+            form [head: lexical(Noun), " ", marker: lexical(Preposition), " ",
+                complement: AdjectivePhrase]
+                require head.frame = NominalColorWordPreposition
+                require complement.AdjectiveComplementClass = ColorWord
+                require nominal_complement_marker(head.NominalComplementMarker,
+                    marker.NominalComplementMarker) = Yes;
             require licence_noun_complement(marker.PrepositionFunctionLicence) = Yes;
             use UnmodifiedNominalProperties;
             export BareGenitiveHost = No;
         }
 
         construction Adjective: AdjectivePhrase {
+            export AdjectiveComplementClass = head.AdjectiveComplementClass;
             export PremodifierCoordination = No;
             form [head: lexical(Adjective)];
             require head.framing = Unframed;
@@ -3319,6 +3340,7 @@ constructions! {
         }
 
         construction IntransitiveAdjective: AdjectivePhrase {
+            export AdjectiveComplementClass = head.AdjectiveComplementClass;
             export PremodifierCoordination = No;
             form [head: lexical(Adjective)];
             require head.frame = Intransitive;
@@ -3329,6 +3351,7 @@ constructions! {
         }
 
         construction ComplementedAdjective: AdjectivePhrase {
+            export AdjectiveComplementClass = None;
             export PremodifierCoordination = No;
             form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
@@ -3343,6 +3366,7 @@ constructions! {
         // The Adjective selects its infinitival Complement; DS3 licenses
         // the resulting complemented phrase on the existing PostpositiveNominal route.
         construction InfinitivalAdjective: AdjectivePhrase {
+            export AdjectiveComplementClass = None;
             export PremodifierCoordination = No;
             form [head: lexical(Adjective), " ", complement: InfinitiveComplement];
             require head.frame = AdjectivalInfinitive;
@@ -5546,6 +5570,7 @@ constructions! {
         }
 
         construction OrdinalPremodifier: AdjectivePhrase {
+            export AdjectiveComplementClass = None;
             export PremodifierCoordination = No;
             form [head: lexical(Numeral)];
             require head.numeral_kind = Ordinal;
@@ -5904,6 +5929,7 @@ constructions! {
         }
 
         construction ComparativeAdjective: AdjectivePhrase {
+            export AdjectiveComplementClass = None;
             export PremodifierCoordination = No;
             form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
