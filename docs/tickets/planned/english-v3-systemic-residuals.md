@@ -27,12 +27,23 @@ before assigning an implementation owner. Concrete starting points are:
 
 - **Source PP after a gerund-participial bare-Object use of a Source-selecting
   verb attaches to the matrix predicate** (3 faces; Dawnhand Dissident
-  1,154 -> ~3,273). Orchestrator ruling RS12 (2026-10-10,
+  1,154 -> 3,273). Orchestrator ruling RS12 (2026-10-10,
   `english-v3-remove-source-attachment`) accepts this ordinary PP-attachment
   ambiguity for that landing and routes attachment restriction here.
   The other faces are Falco Spara, Pactweaver and Quilled Greatwurm;
   the selected Source Complement analysis remains available alongside
   the matrix Source Adjunct after `by removing N counters`.
+  Related shapes accepted under orchestrator rulings RS12/RS13 (2026-10-10)
+  are unattested on covered faces (0 census increases beyond those three):
+  (i) a bare passive Postmodifier followed by a Source PP stacked as a
+  second Postmodifier: NP "each counter removed from this land" 1 → 2,
+  3 in a Clause; the 19 `removed from` faces are finite passives plus
+  Cogwork Grinder. (ii) bare-Object *remove* with the Source PP read as
+  Adjunct of a relative clause inside the Object: Reconnaissance 4 of
+  8 Readings; False Orders has the same string. (iii) *from combat*
+  outside *remove* as an ordinary *from* PP ("Draw a card from combat."
+  2); all 24 `from combat` faces are *remove NP from combat*. No guard
+  is added for these residuals.
 
 - **as-Clause verbless NP licensing**: route the existing bare-NP-after-*as*
   licence (no verb) to the named [recon hygiene ticket](english-v3-as-clause-verbless-np-licensing.md).

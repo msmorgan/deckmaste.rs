@@ -582,8 +582,9 @@ the governing preposition and that preposition's internal Complement
 (CGEL, Ch. 8 §4.3, p. 687).
 
 **Source Complement Selection** (project term):
-A verb's declared selection of a Source Complement in its Frame Set, retained
-when the Source is unexpressed. Its attachment restriction in Oracle English
+A verb's declared selection of a Source Complement, retained when the Source
+is unexpressed. It is declared per verb, not derived from the Frame Set;
+*return* is left undeclared under RS9. Its attachment restriction in Oracle English
 is orchestrator ruling RS2 (2026-10-10, `english-v3-remove-source-attachment`),
 not a restriction supplied by CGEL.
 

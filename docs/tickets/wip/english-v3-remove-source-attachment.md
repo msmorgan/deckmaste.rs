@@ -101,7 +101,7 @@ Orchestrator rulings 2026-10-10:
   transparent Obliques and Genitive Possessors. Project the declared Source
   class through those extensions; no word tests. The six nominal-extension
   increases must return to their claim-parent counts.
-- RS8 (2026-10-10). A Source PP following a gerund whose predicate used a
+- RS8 (2026-10-10), superseded by RS12. A Source PP following a gerund whose predicate used a
   Source-free Object frame belongs to that predicate. Export a declared
   boundary through the gerund PP and reject Source-class matrix Adjuncts
   across it. Dawnhand Dissident, Falco Spara and Quilled Greatwurm must
@@ -118,7 +118,7 @@ Orchestrator rulings 2026-10-10:
   the head-only Source-free Object licence for every existing Frame;
   the ticket's new bare-Object Frames declare a distinct whole-Object
   licence. Expected: zero decreases.
-- RS11 (2026-10-10). Forward the RS8 Source boundary through auxiliaries
+- RS11 (2026-10-10), superseded by RS12. Forward the RS8 Source boundary through auxiliaries
   instead of resetting it, for this property only. Expected: Dawnhand
   Dissident, Falco Spara and Quilled Greatwurm retain their before counts.
   Verify the same 6,634 identities: zero lost/increases/decreases, 67 gains
@@ -133,6 +133,11 @@ Orchestrator rulings 2026-10-10:
   This ordinary PP-attachment ambiguity is follow-up work, not a defect
   of this ticket. Expected: zero lost/decreases, 67 intended gains, exactly
   those three increases; otherwise stop with the shape.
+
+- RS13 (2026-10-10). A bare passive Postmodifier followed by a Source PP
+  may stack that PP as a second Postmodifier: NP "each counter removed
+  from this land" 1 → 2. This is an accepted unattested residual of the
+  same family as RS12 (0 covered faces have the shape); no guard is added.
 
 ## Witnesses
 
@@ -221,8 +226,10 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    Saprazzan Cove 0 → 2; Catti-brie of Mithral Hall 0 → 8; White Ward's
    sentence 0 → 1; Spires of Orazca's ability 0 → 4; Gustcloak Sentinel
    0 → 4; Disharmony's fragment 0 → 2. None already read on the parent.
-   All eight ticket controls retain their counts: six at 1, combat damage
-   at 3, bare NP combat at 0. `probes-before.log` / `probes-rs12.log`.
+   All eight must-not-change controls retain their counts: six at 1, combat
+   damage at 3, bare NP combat at 0. The two witness-paired Source controls
+   increased: "… for each storage counter removed from this land this way."
+   2 → 4 and the Catti-brie "removed from Catti-brie this way" control 8 → 18. `probes-before.log` / `probes-rs12.log`.
 3. **Spot checks** (`nxxknqvk`). Black Ward, Blue Ward, White Ward — bare
    Object; Saprazzan Cove, Catti-brie, Hex Parasite, Bounty of the Luxa —
    Bare Passive Postmodifier; Spires of Orazca, Gustcloak Sentinel,
@@ -248,18 +255,28 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    preserve this ticket's declared features (`SourceSelectionAnchor` and
    the existing Whole-Object projection). Two compile errors in the merge
    repair were corrected before the successful rebuild and full checks.
+   Shapes accepted under RS12/RS13, all unattested on covered faces
+   (census: 0 increases beyond RS12's three): (i) bare passive Postmodifier
+   followed by a Source PP: NP "each counter removed from this land"
+   1 → 2, 3 in a Clause; `removed from` is 19 faces, all finite passives
+   plus Cogwork Grinder. (ii) bare-Object *remove* with the Source PP read
+   as Adjunct of a relative clause inside the Object: Reconnaissance
+   4 of 8 Readings; False Orders has the same string. (iii) *from combat*
+   outside *remove* reads as an ordinary *from* PP ("Draw a card from
+   combat." 2); all 24 `from combat` faces are *remove NP from combat*.
 5. **Tests** (`nxxknqvk`). `cargo test -p deckmaste_english_v3` passed
    803 tests across all six binaries; `cargo test -p deckmaste_lexical_source`
    passed 82. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
-   passed. Restored 0 / re-spelled 4 / ignored 0 / added 13 / removed 0.
+   passed. Against trunk: 13 added, 3 re-spelled; the RS12 gerund test is new
+   against trunk. Restored 0 / ignored 0 / removed 0.
    Re-spelled: `declarations_fill_attested_roles_and_preserve_both_roundtrip_laws`
    (combat checks moved to an added test),
    `sun_droplet_remove_retains_object_and_marked_source_roundtrip` and
    `frames_preserve_objects_selected_complements_and_existing_plugin_frames`
-   (complete frame inventories extended), and RS12's
+   (complete frame inventories extended). The new RS12 test is
    `gerund_source_retains_selected_and_matrix_attachments_under_rs12`
-   (same Falco line, selected Source retained, matrix alternative accepted).
+   (Falco line, selected Source retained, matrix alternative accepted).
    After refresh (`vppqlzlo`), both full commands passed again: 849 English
    tests, 83 lexical-source tests; both clippy commands passed again.
    `cargo build -p xtask` passed before and after refresh. No xtask,
