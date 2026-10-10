@@ -1,0 +1,15 @@
+// "Replicate {1}{U} / Draw a card." [CR#702.56a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Train of Thought",
+        cost: [
+            1,
+            Blue,
+        ],
+        types: [Sorcery],
+        text: [
+            replicate(mana([1, Blue])),
+            spell(draw(1)),
+        ],
+    ),
+))

@@ -1,0 +1,30 @@
+// "Doctor's companion / Whenever you cast an instant or sorcery spell that
+// targets only Bill Potts or activate an ability that targets only Bill
+// Potts, copy that spell or ability. You may choose new targets for the copy.
+// This ability triggers only once each turn." "Targets only" counts the
+// different objects and players chosen as targets [CR#115.9c]. Doctor's
+// companion is a partner ability, which modifies deck construction in the
+// Commander variant [CR#702.124a,702.124m] and is outside Vintage-playable
+// scope, so it is not written.
+SingleFaced(face: (
+    characteristics: (
+        name: "Bill Potts",
+        cost: [
+            3,
+            Red,
+        ],
+        supertypes: [Legendary],
+        types: [Creature],
+        subtypes: [human],
+        power: 2,
+        toughness: 4,
+        text: [
+            triggeredOrOnlyOnce(
+                casts(you, a(and([instantOrSorcery, spell, targetsOnly(thisCreature)]))),
+                [activates(you, a(and([abilityHead(AnyActivated), targetsOnly(thisCreature)])))],
+                oncePerTurn,
+                sequentially([copy(FromStack, that(Stack), 1), may(chooseNewTargets(that(Copy)))]),
+            ),
+        ],
+    ),
+))

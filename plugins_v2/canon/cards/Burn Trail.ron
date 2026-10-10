@@ -1,0 +1,15 @@
+// "Burn Trail deals 3 damage to any target. / Conspire" [CR#702.78a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Burn Trail",
+        cost: [
+            3,
+            Red,
+        ],
+        types: [Sorcery],
+        text: [
+            spell(dealDamage(this, 3, target(anyTarget))),
+            conspire,
+        ],
+    ),
+))

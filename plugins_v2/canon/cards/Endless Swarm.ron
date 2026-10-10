@@ -1,0 +1,29 @@
+// "Create a 1/1 green Snake creature token for each card in your hand. /
+// Epic" [CR#702.50a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Endless Swarm",
+        cost: [
+            5,
+            Green,
+            Green,
+            Green,
+        ],
+        types: [Sorcery],
+        text: [
+            spell(
+                create(
+                    numberOf(bare(cardIn(yourHand))),
+                    written((characteristics: (
+                        colors: [Green],
+                        types: [Creature],
+                        subtypes: [snake],
+                        power: 1,
+                        toughness: 1,
+                    ))),
+                ),
+            ),
+            epic,
+        ],
+    ),
+))
