@@ -180,7 +180,7 @@ def keywordFacts : List KeywordFacts :=
     { word := .named "bargain", argumentSchemas := [[]], functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true, definition := [⟨.static, some .atCasting⟩], regime := some .atCasting },
     { word := .named "battleCry", argumentSchemas := [[]], definition := [⟨.triggered, none⟩] },
     { word := .named "bloodthirst", argumentSchemas := [[⟨.number, none⟩]], definition := [⟨.static, none⟩] },
-    { word := .named "champion", argumentSchemas := [[⟨.subject, none⟩]] },
+    { word := .named "champion", argumentSchemas := [[⟨.subject, none⟩]], definition := [⟨.triggered, none⟩, ⟨.triggered, none⟩] },
     { word := .named "cipher", argumentSchemas := [[]], onInstantOrSorceryCard := true, onPermanentCard := false, definition := [⟨.spell, some .atResolution⟩, ⟨.static, none⟩], regime := some .atResolution },
     { word := .named "compleated", argumentSchemas := [[]] },
     { word := .named "conspire", argumentSchemas := [[]], functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true, definition := [⟨.static, some .atCasting⟩, ⟨.triggered, some .atCasting⟩], regime := some .atCasting },

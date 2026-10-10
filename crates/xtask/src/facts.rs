@@ -107,7 +107,7 @@ impl Shape {
             [] | ["Instruction"] => Shape::Nothing,
             ["Cost"] => Shape::Cost,
             ["Quality"] => Shape::Quality,
-            ["Subject"] => Shape::Subject,
+            ["Predicate"] => Shape::Subject,
             ["Amount"] => Shape::Number,
             ["Ability"] => Shape::Ability,
             ["Quality", "Cost"] => Shape::CompoundQuality,

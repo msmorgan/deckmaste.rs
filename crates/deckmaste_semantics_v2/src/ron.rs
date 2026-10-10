@@ -306,9 +306,13 @@ fn carve_out_the_non_expression_kinds(kinds: &KindSet) -> KindSet {
 /// The names are the ones `plugins_v2/builtin`'s declarations already write
 /// (`params: [Cost]`, `params: [Amount, Cost]`): a keyword one-liner's typed
 /// argument vocabulary. `Power` and `Toughness` are `Amount` under two names,
-/// because a declaration says which stat its argument fills; `Quality` is a
-/// `Predicate` and `Subject` a `NounPhrase`, the two ways a declaration takes
-/// a description. `Any` and `String` come from `macro_ron` itself.
+/// because a declaration says which stat its argument fills. `Quality` and
+/// `Predicate` are both a `Predicate`, a description: a keyword declaration
+/// writes `Quality` for one printed after a marker or bound to the keyword
+/// ("protection from red", "islandwalk") and `Predicate` for one printed as a
+/// nominal ("enchant creature", forwarded as `KeywordParam::Subject`).
+/// `Subject` is a `NounPhrase`, a referent, never a description. `Any` and
+/// `String` come from `macro_ron` itself.
 ///
 /// This is NOT Lean's `MacroParameters`, which is a proof device (§12); it is
 /// the argument vocabulary the declaration files write, and a name absent from
@@ -607,6 +611,7 @@ mod tests {
             "Power",
             "Toughness",
             "Quality",
+            "Predicate",
             "Subject",
             "Condition",
         ] {

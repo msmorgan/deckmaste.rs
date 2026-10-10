@@ -1385,7 +1385,14 @@ pub enum Instruction {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum KeywordParam {
     Cost { cost: Box<Cost> },
+    /// A description printed after a marker or bound to the keyword:
+    /// "protection from red", "islandwalk" [CR#702.16a,702.14a]. A
+    /// declaration writes it `Quality`.
     Quality { predicate: Predicate },
+    /// A description printed as a nominal: "Enchant creature you control",
+    /// "Champion a Kithkin" [CR#702.5a,702.72a]. It is a description, not a
+    /// referent, so a declaration writes it `Predicate`, never `Subject` (a
+    /// `NounPhrase`).
     Subject { predicate: Predicate },
     Number { amount: Amount },
     DeckCondition { condition: DeckCondition },

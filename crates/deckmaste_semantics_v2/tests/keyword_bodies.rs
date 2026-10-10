@@ -118,7 +118,7 @@ fn sample(ty: &str) -> &'static str {
         "Cost" => "tapSymbol",
         "Disclosure" => "Openly",
         "Instruction" => "drawGame",
-        "Quality" => "creature",
+        "Quality" | "Predicate" => "creature",
         "Quantity" => "exactly(1)",
         "SearchScope" => "OneZone(yourLibrary)",
         "String" => "\"Sample\"",

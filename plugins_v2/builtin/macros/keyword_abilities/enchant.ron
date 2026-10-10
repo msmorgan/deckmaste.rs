@@ -1,6 +1,6 @@
 KeywordAbility(
     name: "enchant",
-    params: [Subject],
+    params: [Predicate],
     spelling: "enchant <Param(0)>",
     grammar: FixedKeyword(
         surface: "enchant",
@@ -9,6 +9,6 @@ KeywordAbility(
     // Settled empty. "Enchant is a static ability, written 'Enchant [object or
     // player]'"; the entry states how the ability restricts an Aura's target and
     // host [CR#702.5a] rather than quoting an expansion, so there is no definition
-    // to write.
-    keyword_params: [],
+    // to write. The printed argument is a description, a `Predicate` (Lean
+    // `KeywordParam.subject`), forwarded as the keyword's argument.
 )

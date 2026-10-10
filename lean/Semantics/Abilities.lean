@@ -638,7 +638,12 @@ mutual
     | merge (subject : NounPhrase) (onto : NounPhrase) (position : MergePosition)
   inductive KeywordParam where
     | cost (cost : Cost)
+    /-- A description printed after a marker or bound to the keyword: "protection from red",
+    "islandwalk" [CR#702.16a,702.14a]. A declaration writes it `Quality`. -/
     | quality (predicate : Predicate)
+    /-- A description printed as a nominal: "Enchant creature you control", "Champion a Kithkin"
+    [CR#702.5a,702.72a]. It is a description, not a referent, so a declaration writes it
+    `Predicate`, never `Subject` (a `NounPhrase`). -/
     | subject (predicate : Predicate)
     | number (amount : Amount)
     | deckCondition (condition : DeckCondition)

@@ -233,7 +233,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         assert_eq!(parameterized.insert(name, &["Quality"]), None);
     }
     for name in ["champion", "enchant"] {
-        assert_eq!(parameterized.insert(name, &["Subject"]), None);
+        assert_eq!(parameterized.insert(name, &["Predicate"]), None);
     }
     // Re-spelled for `plugins-v2-gift-variants`: gift takes its effect as an
     // instruction [CR#702.174b], no longer a noun phrase.

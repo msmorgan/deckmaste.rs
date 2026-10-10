@@ -259,11 +259,21 @@ fn a_keyword_declaration_builds_its_wrapper() {
             .starts_with(r#"Keyword(keyword: Named(name: "gift"), params: [], body: ["#)
     );
     assert_eq!(body("KeywordAbility", "giftACard"), "gift(draw(1))");
-    // Overridden: `champion` declares a `Subject` it cannot forward.
+    // Overridden: `prototype` declares a `Cost`, `Power` and `Toughness` it
+    // does not forward. (Re-spelled for `semantics-v2-subject-param-kind`:
+    // champion, which overrode here, declares its description `Predicate`
+    // and forwards it as `Subject`, as enchant does.)
     assert_eq!(
-        body("KeywordAbility", "champion"),
-        r#"Keyword(keyword: Named(name: "champion"), params: [], body: [])"#
+        body("KeywordAbility", "prototype"),
+        r#"Keyword(keyword: Named(name: "prototype"), params: [], body: [])"#
     );
+    assert_eq!(
+        body("KeywordAbility", "enchant"),
+        r#"Keyword(keyword: Named(name: "enchant"), params: [Subject(Param(0))], body: [])"#
+    );
+    assert!(body("KeywordAbility", "champion").starts_with(
+        r#"Keyword(keyword: Named(name: "champion"), params: [Subject(Param(0))], body: ["#
+    ));
     // The default deed is the action the name spells, done by the actor, its
     // body read in its own scope and each parameter in the caller's view.
     assert_eq!(

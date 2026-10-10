@@ -340,11 +340,15 @@ fn in_caller(params: &Params, instruction: &str) -> String {
 /// The keyword arguments a keyword ability's signature forwards, one per
 /// declared parameter in order, each the `KeywordParam` that carries its
 /// type: `Cost` → `Cost`, `Amount` → `Number`, `Quality` → `Quality`,
-/// `Subject` → `Subject`, `Ability` → `Ability` (the ability printed with
-/// the keyword, ruling 2026-10-09). An `Instruction` parameter is forwarded
-/// as nothing — `KeywordParam` has no such variant; gift's effect is written
-/// into its definition, not carried as an argument — and any other type is
-/// an error
+/// `Predicate` → `Subject`, `Ability` → `Ability` (the ability printed with
+/// the keyword, ruling 2026-10-09). `KeywordParam::Subject` carries a
+/// `Predicate`, the description "Enchant creature" and "Champion a Kithkin"
+/// print as a nominal; a `Quality` is the description printed after a marker
+/// or bound to the keyword ("protection from red", "islandwalk"). A `Subject`
+/// parameter is a referent (a `NounPhrase`), which no keyword argument
+/// carries. An `Instruction` parameter is forwarded as nothing —
+/// `KeywordParam` has no such variant; gift's effect is written into its
+/// definition, not carried as an argument — and any other type is an error
 /// the declaration answers by writing `keyword_params` itself.
 fn forwarded_keyword_params(name: &str, params: &Params) -> Result<String, String> {
     let types: Vec<&str> = match params {
@@ -362,7 +366,7 @@ fn forwarded_keyword_params(name: &str, params: &Params) -> Result<String, Strin
             "Cost" => "Cost",
             "Amount" => "Number",
             "Quality" => "Quality",
-            "Subject" => "Subject",
+            "Predicate" => "Subject",
             "Ability" => "Ability",
             "Instruction" => continue,
             other => {
@@ -499,15 +503,27 @@ mod tests {
             "Keyword(keyword: Named(name: \"ward\"), params: [Number(Param(0)), Ability(Param(1)), \
              Cost(Param(2))], body: [])"
         );
+        // Re-spelled for `semantics-v2-subject-param-kind`: a description
+        // argument is declared `Predicate` and forwarded as `Subject`; an
+        // explicit `keyword_params` still overrides the forwarding.
+        assert_eq!(
+            keyword_ability_body("enchant", &positional(&["Predicate"]), "(abilities: [])")
+                .unwrap(),
+            "Keyword(keyword: Named(name: \"enchant\"), params: [Subject(Param(0))], body: [])"
+        );
         assert_eq!(
             keyword_ability_body(
                 "champion",
-                &positional(&["Subject"]),
+                &positional(&["Predicate"]),
                 "(keyword_params: [], abilities: [])"
             )
             .unwrap(),
             "Keyword(keyword: Named(name: \"champion\"), params: [], body: [])"
         );
+        let error =
+            keyword_ability_body("enchant", &positional(&["Subject"]), "(abilities: [])")
+                .unwrap_err();
+        assert!(error.contains("keyword_params"), "{error}");
         let error =
             keyword_ability_body("companion", &positional(&["Condition"]), "(abilities: [])")
                 .unwrap_err();

@@ -281,8 +281,10 @@ pub enum ParameterType {
     Condition,
     Cost,
     Power,
+    /// A description a keyword prints as a nominal ("enchant creature"), the
+    /// `Subject` keyword parameter class.
+    Predicate,
     Quality,
-    Subject,
     Toughness,
     /// Any other declared parameter type name (`Subtype`, `TokenSpec`,
     /// `Instruction`, `Ballot`, …): this crate reads it opaquely by name and
@@ -308,8 +310,8 @@ impl ParameterType {
             "Condition" => Ok(Self::Condition),
             "Cost" => Ok(Self::Cost),
             "Power" => Ok(Self::Power),
+            "Predicate" => Ok(Self::Predicate),
             "Quality" => Ok(Self::Quality),
-            "Subject" => Ok(Self::Subject),
             "Toughness" => Ok(Self::Toughness),
             _ => Ok(Self::Other(name)),
         }
@@ -323,8 +325,8 @@ impl ParameterType {
             Self::Condition => "Condition",
             Self::Cost => "Cost",
             Self::Power => "Power",
+            Self::Predicate => "Predicate",
             Self::Quality => "Quality",
-            Self::Subject => "Subject",
             Self::Toughness => "Toughness",
             Self::Other(name) => name.as_str(),
         }
@@ -2529,7 +2531,7 @@ fn normalized_keyword_parameter_class(
         [Type::Amount, Type::Cost] => Class::AmountCost,
         [Type::Quality] => Class::Quality,
         [Type::Quality, Type::Cost] => Class::QualityCost,
-        [Type::Subject] => Class::Subject,
+        [Type::Predicate] => Class::Subject,
         [Type::Ability] => Class::Unsupported(Unsupported::Ability),
         [Type::Condition] => Class::Unsupported(Unsupported::Condition),
         [Type::Other(name)] if name == "Instruction" => {

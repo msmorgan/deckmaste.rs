@@ -1,18 +1,32 @@
 KeywordAbility(
     name: "champion",
-    params: [Subject],
+    params: [Predicate],
     spelling: "champion <Param(0)>",
     grammar: FixedKeyword(
         surface: "champion",
     ),
-    // STOP (waits on: `semantics-v2-subject-param-kind`).
     // "Champion an [object]" means "When this permanent enters, sacrifice it
-    // unless you exile another [object] you control" and "When this permanent leaves
-    // the battlefield, return the exiled card to the battlefield under its owner's
-    // control" [CR#702.72a]. The definition weaves the argument into a larger
-    // description, so it must reach a PREDICATE position; the declaration's `Subject`
-    // kind is a `NounPhrase` (the retired parser parsed "Enchant creature you control" through
-    // it) and `KeywordParam::Subject` carries a `Predicate`. Nothing converts one to
-    // the other, so the argument cannot be forwarded into the body.
-    keyword_params: [],
+    // unless you exile another [object] you control" and "When this permanent
+    // leaves the battlefield, return the exiled card to the battlefield under its
+    // owner's control" [CR#702.72a]. The printed argument is a description, a
+    // `Predicate` (Lean `KeywordParam.subject`), so the definition weaves it into
+    // the larger description "another [object] you control". "The exiled card"
+    // reads the first ability, the one that exiled it, a Link Source named by its
+    // deed; the two abilities are linked [CR#607.2a,607.2k,702.72b].
+    body: [
+        triggered(
+            enters(thisPermanent),
+            doUnless(
+                sacrifice(thisPermanent),
+                perform(exile(a(and([Param(0), youControl, otherThan(thisPermanent)])))),
+            ),
+        ),
+        triggered(
+            leavesZone(thisPermanent, battlefield),
+            returnToBattlefield(
+                linkedObject(ByDeed(exile), exile, this),
+                [Under(ownerOf(that(Card)))],
+            ),
+        ),
+    ],
 )
