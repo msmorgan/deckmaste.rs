@@ -161,8 +161,16 @@ Attestation by `cargo xtask english-v3 grep` only.
    551 → 552 covered, 11,266 → 11,316 Readings, one inherited gain
    (Henzie "Toolbox" Torre, 50 Readings, from `zvtzutzx`), and no
    losses/decreases/increases/digest-only changes. All nine added identities
-   stay unchanged. Final own gains remain 44; the two inherited gains are
-   Thunderclap Drake and Henzie.
+   stay unchanged. A further refresh at `mstvlwro` brings `soxvyspk`'s
+   half/rounding and `lrynurmu`/`qyyttwtl`'s quotation work. Its 623-face
+   `integration2-diff.json` adds Skull Storm (21 Readings, from `soxvyspk`),
+   with zero losses/decreases/increases. Jeska, Thrice Reborn (40) and
+   The Sound of Drums (6) have digest-only changes from `soxvyspk`'s
+   `MultiplierNounPhrase` → `PredeterminerNounPhrase` rename, documented
+   in that landing record. All nine added identities remain unchanged.
+   Final own gains remain 44; the three inherited gains are Thunderclap
+   Drake, Henzie and Skull Storm. The expanded census has 553 covered faces
+   and 11,337 Readings.
 2. **Witnesses** — Claim-parent probes at `mqrlzszk` → `sztumtmq`: Uruk-hai
    Berserker 0 → 1; Witch-king of Angmar's document passage 0 → 57; One Ring to
    Rule Them All's chapter passage 0 → 1; Lord of the Nazgûl's protection line
@@ -184,7 +192,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    *the Ring* as Subject, *tempt* as transitive head and *you* as Object.
    No unintended-only gain found in these checks. At `xssxrynx`, the
    inherited Henzie gain has *blitz* as a KeywordGrantedAbility and as
-   NounPremodifier of *cost* and *costs* (`integration-henzie.json`).
+   NounPremodifier of *cost* and *costs* (`integration-henzie.json`). At
+   `mstvlwro`, Skull Storm has *half* as a Predeterminer on the Object NP
+   and *rounded up* as ParticipialSupplementation around the FiniteClause
+   (`integration2-skull-storm.json`).
 4. **Deviations and STOPs** — No new Construction or frame kind; schema,
    declaration reader and loader changes follow RT2, with the opaque Keyword
    lexeme retired and the semantic fixed surface retained under RT3. No STOP
@@ -203,9 +214,9 @@ Attestation by `cargo xtask english-v3 grep` only.
    expectation preserves the closed declaration
    dispatcher; the designation test's expected-recipe table was extracted
    without changing its value assertions.
-5. **Tests** — After integration refresh at `xssxrynx`, `cargo build -p xtask`
+5. **Tests** — After the latest integration refresh at `mstvlwro`, `cargo build -p xtask`
    passed; passed `cargo test -p deckmaste_english_v3`
-   (825), `cargo test -p deckmaste_lexical_source` (83),
+   (842), `cargo test -p deckmaste_lexical_source` (83),
    `cargo test -p deckmaste_construction_core` (473), and
    `cargo test -p xtask english_v3` (56 selected tests). Passed
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
@@ -218,5 +229,5 @@ Attestation by `cargo xtask english-v3 grep` only.
    no new citations need blessing. Assurance at `sztumtmq`:
    restored 0 / re-spelled 2 / ignored 0 / added 6 / removed 0. The action
    inventory test additionally retains and strengthens its existing assertions.
-6. **Timing** — Final bounded census at `xssxrynx`: 13.21 s wall time under
+6. **Timing** — Final bounded census at `mstvlwro`: 34.88 s wall time under
    `/usr/bin/time -v`, 6 workers, 623 faces, `--samples-per-face 0`.
