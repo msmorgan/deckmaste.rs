@@ -1,0 +1,13 @@
+// "Riot" [CR#702.136a]: an Off-Stack Static as it enters, the optional entry
+// rider or haste.
+SingleFaced(face: (
+    characteristics: (
+        name: "Zhur-Taa Goblin",
+        cost: [Red, Green],
+        types: [Creature],
+        subtypes: [goblin, berserker],
+        power: 2,
+        toughness: 2,
+        text: [riot],
+    ),
+))

@@ -1,0 +1,13 @@
+// "Devour 1" [CR#702.82a]: devour [quality] N over creatures [CR#702.82c], an
+// Off-Stack Static as it enters.
+SingleFaced(face: (
+    characteristics: (
+        name: "Gorger Wurm",
+        cost: [3, Red, Green],
+        types: [Creature],
+        subtypes: [wurm],
+        power: 5,
+        toughness: 5,
+        text: [devour(1)],
+    ),
+))

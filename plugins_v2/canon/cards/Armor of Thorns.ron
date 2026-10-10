@@ -1,0 +1,34 @@
+// "You may cast this spell as though it had flash. If you cast it any time a
+// sorcery couldn't have been cast, the controller of the permanent it becomes
+// sacrifices it at the beginning of the next cleanup step. / Enchant nonblack
+// creature / Enchanted creature gets +2/+2." The delayed sacrifice is an
+// Off-Stack Static on casting it, over the permanent it becomes [CR#400.7];
+// "any time a sorcery couldn't have been cast" is the cast's timing
+// qualifier [CR#307.5a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Armor of Thorns",
+        cost: [1, Green],
+        types: [Enchantment],
+        subtypes: [aura],
+        text: [
+            static(mayPlayDeed(cast, you, this, NoRider, Of(hasKeyword(The(flash))))),
+            static(
+                onlyIfSo(
+                    asEvent(
+                        casts(you, thisSpell),
+                        atNext(
+                            Cleanup,
+                            act(controllerOf(becomes(thisSpell)), sacrifice(becomes(thisSpell))),
+                        ),
+                    ),
+                    happened(casts(gap(Player), this), you, thisGame, not(asSorcery)),
+                ),
+            ),
+            keywordSubject(label: enchant, subject: and([hasType(Creature), not(colorIs(Black))])),
+            static(
+                ptModification(attachHost(word: Enchanted, head: Type(Creature)), up(2), up(2)),
+            ),
+        ],
+    ),
+))

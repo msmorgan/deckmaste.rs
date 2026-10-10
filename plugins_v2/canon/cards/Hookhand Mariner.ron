@@ -1,0 +1,31 @@
+// "Daybound" // "This creature can't be blocked by creatures with power 2 or
+// less. / Nightbound" [CR#702.145b,702.145e]: each face transforms as it
+// becomes night or day, an Off-Stack Static, and can't transform except due to
+// its own keyword.
+Transforming(
+    front: (
+        characteristics: (
+            name: "Hookhand Mariner",
+            cost: [3, Green],
+            types: [Creature],
+            subtypes: [human, werewolf],
+            power: 4,
+            toughness: 4,
+            text: [daybound],
+        ),
+    ),
+    back: (
+        characteristics: (
+            name: "Riphook Raider",
+            colors: [Green],
+            types: [Creature],
+            subtypes: [werewolf],
+            power: 6,
+            toughness: 4,
+            text: [
+                static(cantBeBlockedBy(thisCreature, and([creature, compare(AtMost, 2, [Stat(Power)])]))),
+                nightbound,
+            ],
+        ),
+    ),
+)

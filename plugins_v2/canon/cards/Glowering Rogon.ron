@@ -1,0 +1,13 @@
+// "Amplify 1" [CR#702.38a]: the reveal is an Off-Stack Static as it enters,
+// the revealed cards those sharing a creature type with it.
+SingleFaced(face: (
+    characteristics: (
+        name: "Glowering Rogon",
+        cost: [5, Green],
+        types: [Creature],
+        subtypes: [beast],
+        power: 4,
+        toughness: 4,
+        text: [amplify(1)],
+    ),
+))

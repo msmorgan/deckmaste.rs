@@ -1,0 +1,17 @@
+// "Ascend / This creature has flying as long as you have the city's blessing."
+// [CR#702.131b]: ascend on a permanent is an Off-Stack Static that holds any
+// time you control ten or more permanents.
+SingleFaced(face: (
+    characteristics: (
+        name: "Skymarcher Aspirant",
+        cost: [White],
+        types: [Creature],
+        subtypes: [vampire, soldier],
+        power: 2,
+        toughness: 1,
+        text: [
+            ascend,
+            static(onlyWhile(abilityGrant(thisCreature, flying), matches(you, hasDesignation(citysBlessing)))),
+        ],
+    ),
+))

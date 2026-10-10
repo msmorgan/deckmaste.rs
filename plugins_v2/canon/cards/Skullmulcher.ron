@@ -1,0 +1,20 @@
+// "Devour 1 / When this creature enters, draw a card for each creature it
+// devoured." "It devoured" reads back the objects devour's sacrifice acted on
+// [CR#702.82a,702.82b].
+SingleFaced(face: (
+    characteristics: (
+        name: "Skullmulcher",
+        cost: [4, Green],
+        types: [Creature],
+        subtypes: [elemental],
+        power: 3,
+        toughness: 3,
+        text: [
+            devour(1),
+            triggered(
+                enters(thisCreature),
+                draw(numberOf(linkedObjects(ByKeyword(devour), OfAbility(devour), thisCreature))),
+            ),
+        ],
+    ),
+))

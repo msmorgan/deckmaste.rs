@@ -1,0 +1,19 @@
+// "({T}: Add {U} or {R}.) / As this land enters, you may pay 2 life. If you
+// don't, it enters tapped." The payment is an Off-Stack Static as it enters
+// [CR#614.1c], its refusal branch the existing entry rider; the mana ability
+// is the basic land types' own [CR#305.6].
+SingleFaced(face: (
+    characteristics: (
+        name: "Steam Vents",
+        types: [Land],
+        subtypes: [island, mountain],
+        text: [
+            static(
+                asEvent(
+                    enters(thisLand),
+                    mayOrElse(pay(payLife(2), Once), establish(entersTapped(thisLand))),
+                ),
+            ),
+        ],
+    ),
+))

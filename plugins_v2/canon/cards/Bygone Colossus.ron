@@ -1,0 +1,13 @@
+// "Warp {3}" [CR#702.185a]: the delayed exile is an Off-Stack Static on paying
+// the warp cost, and the exiled card may be cast on a later turn.
+SingleFaced(face: (
+    characteristics: (
+        name: "Bygone Colossus",
+        cost: [9],
+        types: [Artifact, Creature],
+        subtypes: [robot, giant],
+        power: 9,
+        toughness: 9,
+        text: [warp(mana([3]))],
+    ),
+))

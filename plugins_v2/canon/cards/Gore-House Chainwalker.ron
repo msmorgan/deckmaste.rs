@@ -1,0 +1,13 @@
+// "Unleash" [CR#702.98a]: the optional entry rider is an Off-Stack Static as
+// it enters; the can't-block is conditional on a +1/+1 counter.
+SingleFaced(face: (
+    characteristics: (
+        name: "Gore-House Chainwalker",
+        cost: [1, Red],
+        types: [Creature],
+        subtypes: [human, warrior],
+        power: 2,
+        toughness: 1,
+        text: [unleash],
+    ),
+))

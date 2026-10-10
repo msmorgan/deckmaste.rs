@@ -1,0 +1,24 @@
+// "If it's neither day nor night, it becomes day as this creature enters. /
+// Whenever day becomes night or night becomes day, draw a card." The first is
+// an Off-Stack Static as it enters [CR#731.1]; "day becomes night" is read as
+// the game becoming night, as the bench's `firmamentSage` reads it
+// [CR#731.1a].
+SingleFaced(face: (
+    characteristics: (
+        name: "Firmament Sage",
+        cost: [3, Blue],
+        types: [Creature],
+        subtypes: [human, wizard],
+        power: 2,
+        toughness: 3,
+        text: [
+            static(
+                asEvent(
+                    enters(thisCreature),
+                    doIf(and([not(gameIs(day)), not(gameIs(night))]), setGameDesignation(day)),
+                ),
+            ),
+            triggeredOr(gameBecomes(night), [gameBecomes(day)], draw(1)),
+        ],
+    ),
+))

@@ -1,0 +1,14 @@
+// "Staggershock deals 2 damage to any target. / Rebound" [CR#702.88a]: a
+// replacement of the spell's move to the graveyard as it resolves, creating the
+// delayed trigger [CR#603.7f].
+SingleFaced(face: (
+    characteristics: (
+        name: "Staggershock",
+        cost: [2, Red],
+        types: [Instant],
+        text: [
+            spell(dealDamage(this, 2, target(anyTarget))),
+            rebound,
+        ],
+    ),
+))

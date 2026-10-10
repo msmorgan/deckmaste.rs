@@ -1,0 +1,21 @@
+// "Tribute 3 / When this creature enters, if tribute wasn't paid, you gain 4
+// life." "Tribute wasn't paid" is the tribute choice not taken
+// [CR#702.104a,702.104b].
+SingleFaced(face: (
+    characteristics: (
+        name: "Snake of the Golden Grove",
+        cost: [4, Green],
+        types: [Creature],
+        subtypes: [snake],
+        power: 4,
+        toughness: 4,
+        text: [
+            tribute(3),
+            triggeredIf(
+                enters(thisCreature),
+                not(choiceWasTaken(ByKeyword(tribute), thisCreature)),
+                gainLife(4),
+            ),
+        ],
+    ),
+))

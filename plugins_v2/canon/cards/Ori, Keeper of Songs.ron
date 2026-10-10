@@ -1,0 +1,28 @@
+// "Storied / As long as you have an enduring story, Ori gets +1/+0 and has
+// vigilance." [CR#702.195a]
+SingleFaced(face: (
+    characteristics: (
+        name: "Ori, Keeper of Songs",
+        cost: [2, White],
+        supertypes: [Legendary],
+        types: [Creature],
+        subtypes: [dwarf, bard],
+        power: 3,
+        toughness: 3,
+        text: [
+            storied,
+            static(
+                onlyWhile(
+                    conjunction(
+                        subject: None,
+                        parts: [
+                            modification(subject: thisCreature, stat: Power, delta: up(1)),
+                            abilityGrant(subject: thisCreature, ability: vigilance),
+                        ],
+                    ),
+                    matches(you, hasDesignation(enduringStory)),
+                ),
+            ),
+        ],
+    ),
+))

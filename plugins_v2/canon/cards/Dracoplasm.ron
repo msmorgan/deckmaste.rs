@@ -1,0 +1,34 @@
+// "Flying / As this creature enters, sacrifice any number of creatures. This
+// creature's power becomes the total power of those creatures and its toughness
+// becomes their total toughness. / {R}: This creature gets +1/+0 until end of
+// turn." The sacrifice and the setting are an Off-Stack Static as it enters
+// [CR#614.1c], the totals read back from the creatures sacrificed this way.
+SingleFaced(face: (
+    characteristics: (
+        name: "Dracoplasm",
+        cost: [Blue, Red],
+        types: [Creature],
+        subtypes: [shapeshifter],
+        power: 0,
+        toughness: 0,
+        text: [
+            flying,
+            static(
+                asEvent(
+                    enters(thisCreature),
+                    sequentially([
+                        sacrifice(counted(anyNumber, creature)),
+                        establish(
+                            ptModification(
+                                thisCreature,
+                                set(totalOf(Stat(Power), theVerbed(sacrifice, Many))),
+                                set(totalOf(Stat(Toughness), theVerbed(sacrifice, Many))),
+                            ),
+                        ),
+                    ]),
+                ),
+            ),
+            activated(mana([Red]), gets(thisCreature, up(1), up(0), untilEndOfTurn)),
+        ],
+    ),
+))

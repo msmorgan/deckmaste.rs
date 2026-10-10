@@ -1,0 +1,26 @@
+// "You may choose not to untap this creature during your untap step. / As this
+// creature enters, an opponent chooses a creature type. / {T}: Gain control of
+// target creature that isn't of the chosen type for as long as this creature
+// remains tapped." The choice is an Off-Stack Static as it enters
+// [CR#614.1c], made by the opponent it hands the choice to.
+SingleFaced(face: (
+    characteristics: (
+        name: "Callous Oppressor",
+        cost: [1, Blue, Blue],
+        types: [Creature],
+        subtypes: [octopus],
+        power: 1,
+        toughness: 2,
+        text: [
+            static(onlyWhile(deonticRule(thisCreature, Permit, [untap], Patient, NoPatient, NoRider), duringPart(UntapStep, you))),
+            static(asEvent(enters(thisCreature), act(anOpponent, choose(a(qualityNoun(Subtype(Creature))))))),
+            activated(
+                tapSymbol,
+                gainControl(
+                    target(and([creature, not(ofChosen(Subtype(Creature)))])),
+                    forAsLongAs(matches(thisCreature, tapped)),
+                ),
+            ),
+        ],
+    ),
+))

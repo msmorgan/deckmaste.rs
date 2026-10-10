@@ -1,0 +1,20 @@
+// "As this land enters, you may reveal a Mountain or Forest card from your
+// hand. If you don't, this land enters tapped. / {T}: Add {R} or {G}."
+SingleFaced(face: (
+    characteristics: (
+        name: "Game Trail",
+        types: [Land],
+        text: [
+            static(
+                asEvent(
+                    enters(thisLand),
+                    mayOrElse(
+                        revealCards(a(and([or([hasSubtype(mountain), hasSubtype(forest)]), cardIn(yourHand)]))),
+                        establish(entersTapped(thisLand)),
+                    ),
+                ),
+            ),
+            activated(tapSymbol, addMana(1, Runs([[Red], [Green]]))),
+        ],
+    ),
+))

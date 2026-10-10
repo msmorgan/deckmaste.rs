@@ -1,0 +1,13 @@
+// "Dash {1}{R}" [CR#702.109a]: the delayed return is an Off-Stack Static on
+// paying the dash cost, over the permanent this spell becomes [CR#400.7].
+SingleFaced(face: (
+    characteristics: (
+        name: "Mardu Scout",
+        cost: [Red, Red],
+        types: [Creature],
+        subtypes: [goblin, scout],
+        power: 3,
+        toughness: 1,
+        text: [dash(mana([1, Red]))],
+    ),
+))

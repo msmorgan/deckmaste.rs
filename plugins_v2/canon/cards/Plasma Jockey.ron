@@ -1,0 +1,18 @@
+// "Whenever this creature attacks, target creature an opponent controls can't
+// block this turn. / Blitz {2}{R}" [CR#702.152a]: the delayed sacrifice is an
+// Off-Stack Static on paying the blitz cost, over the permanent this spell
+// becomes [CR#400.7].
+SingleFaced(face: (
+    characteristics: (
+        name: "Plasma Jockey",
+        cost: [3, Red],
+        types: [Creature],
+        subtypes: [lizard, warrior],
+        power: 3,
+        toughness: 1,
+        text: [
+            triggered(attacks(thisCreature), forbidBlock(target(and([creature, controlledBy(anOpponent)])), thisTurn)),
+            blitz(mana([2, Red])),
+        ],
+    ),
+))
