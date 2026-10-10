@@ -220,6 +220,16 @@ uses `cargo xtask english-v3 grep`.
    unchanged; covered 413 and Readings 36,216; no gains, losses, decreases,
    increases, digest-only changes, source changes, or issues. The second
    refresh is also unchanged (`after-refresh-2.json`, `refresh-2-diff.json`).
+   Third refresh (`after-refresh-3.json`, `refresh-3-diff.json`): covered
+   413, Readings 36,234; 0 gains/losses/decreases/digest changes, 1 increase.
+   Azor's Gateway 36 → 54 is inherited from `ptvtlvss` / `qkvxplko` /
+   `tqsuwzum`: the finite-*are* + adjectival *exiled* Complement adds
+   18 Readings alongside the 36 preserved prior Readings. This is the
+   keyword-state-adjectives ticket's accepted shape under project ruling KS6,
+   recorded there by name; it is not a *play with* increase. Its complete
+   probe and supported-corpus attestation are `refresh-3-azor-probe.json`
+   and `refresh-3-azor-attestation.json`. Own delta remains 24 gains with
+   zero covered-face increases.
 2. **Witnesses** (`qpqyvsou` before: all 0; `wwzpptst` after): Telepathy **2**
    and Enduring Renewal's witness **2**, each one selected clause and one
    retained NP participial Postmodifier. Field of Dreams **7** and Future
@@ -255,7 +265,9 @@ uses `cargo xtask english-v3 grep`.
    subsequent refresh succeeded as a no-op. The second refresh brought
    `nxxknqvk` (remove-source-attachment), including grammar and core lexicon
    data. Its additional `suite_6` registration conflict was resolved by
-   retaining both modules; the retry succeeded as a no-op.
+   retaining both modules; the retry succeeded as a no-op. A third,
+   conflict-free refresh brought keyword-state-adjectives (`ptvtlvss`,
+   `qkvxplko`, `tqsuwzum`), including grammar, lexicon and saddle plugin data.
 5. **Tests** (`wwzpptst`): `cargo test -p deckmaste_english_v3 -p
    deckmaste_lexical_source -p deckmaste_construction_core -p
    deckmaste_semantics_v2` passed in full; its first build caught an ambiguous
@@ -272,7 +284,11 @@ uses `cargo xtask english-v3 grep`.
    repeated the same full five-crate suite and clippy commands successfully.
    Evidence: `refresh-2-build.log`, `refresh-2-tests.log`,
    `refresh-2-clippy.log`. No new construction-core/plugin changes required
-   another xtask test run. First-refresh logs: `refresh-build.log`,
+   another xtask test run. Third refresh rebuilt xtask and repeated the
+   same full five-crate suites and clippy successfully; `cargo test -p xtask
+   english_v3` also passed again (56 matching tests). Third-refresh logs:
+   `refresh-3-build.log`, `refresh-3-tests.log`, `refresh-3-clippy.log`,
+   `refresh-3-xtask-tests.log`. First-refresh logs: `refresh-build.log`,
    `refresh-tests.log`, `refresh-clippy.log`, `refresh-xtask-tests.log`.
    Restored 0 / re-spelled 0 / ignored 0 / added 10 / removed 0.
    The new module is registered once in `suite_6`. Citation check: 0
@@ -283,3 +299,4 @@ uses `cargo xtask english-v3 grep`.
    The same post-refresh bounded census took **91.13 s** wall time; the
    rebuild took **2m 14s**, and full suite compilation took **2m 26s**.
    Second-refresh rebuild: **2m 10s**; bounded census: **33.64 s**.
+   Third-refresh bounded census: **42.01 s**.
