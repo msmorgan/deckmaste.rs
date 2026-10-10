@@ -135,6 +135,19 @@ by `cargo xtask english-v3 grep` only.
    overlaps), in `target/english-v3/english-v3-multiplier-predeterminer/manifest.json`.
    Official `english-v3 diff --lines` compares `before.json` and `after.json`
    in that directory; `diff.json` retains the complete comparison.
+   After refresh, empty `kwpynuzm` over rebased `qoswqlns` gives
+   **602 covered faces, 19,434
+   Readings** (140/215/387 no/one/multiple), **81 gains** against the original
+   claim parent, with **0 lost/decreases/increases/digest-only/issues**.
+   `diff-refresh.json` is the official parent comparison;
+   `trunk-refresh-diff.json` compares the two implementation censuses:
+   **4 gains, 128 Readings**, no other changes. These inherited gains are
+   Invasion of Pyrulea, Nick Fury, Agent of S.H.I.E.L.D., Overgrown Pest,
+   and The Golden-Gear Colossus, from `nqnztuzo`'s *double-faced* adjective
+   declaration (retained by vocabulary correction `pwoslssz`).
+   The refresh also brought plugin/core change
+   `xwuuqwvw`; both conflicted additive lists (lexemes and test modules)
+   were stacked, retaining every addition.
 
 2. **Witnesses:** on `uqlozwkr`, all five re-probed witnesses have **0**
    Readings; none was dropped. On `qoswqlns`: Boon Reflection **1**, Fire
@@ -184,7 +197,18 @@ by `cargo xtask english-v3 grep` only.
    passed. Restored **0**, re-spelled **0**, ignored **0**, added **10**,
    removed **0**; no existing test changed. Citation checks: **0 stale, 0
    noncompliant**, no newly cited CR sites.
+   After the grammar/data-bearing refresh, on `kwpynuzm` over `qoswqlns`,
+   the full English suite passed
+   **759 tests**, and the same full lexical-source suite passed **80 tests**
+   (39 unit + 41 integration), with **0 failed/ignored**; the extra tests are
+   inherited from vocabulary batch 2. Both clippy commands above passed
+   again with warnings denied. The refresh-required
+   `cargo test -p xtask english_v3` passed **56 tests**, **0 failed/ignored**.
+   Post-refresh logs are `test-*-refresh.log` / `clippy-*-refresh.log` in the
+   evidence directory. Citation checks again had **0 stale/noncompliant**.
 
 6. **Timing:** `qoswqlns` bounded census **46.17 s**, **6 workers**, under
    `/usr/bin/time -v`, prebuilt xtask, `--samples-per-face 0`. No full corpus
-   census was run.
+   census was run. The required post-refresh bounded re-run on `kwpynuzm`
+   took **17.43 s**
+   with the same manifest and options (`after-refresh-census.time`).
