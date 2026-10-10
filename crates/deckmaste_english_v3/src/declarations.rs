@@ -3094,6 +3094,7 @@ constructions! {
             require head.frame = AdjectivalInfinitive;
             export AdjectiveStructure = Complemented;
             export AdjectiveOrigin = head.AdjectiveOrigin;
+            export AdjectivePremodifierUse = head.AdjectivePremodifierUse;
             export TargetingPremodifierUse = No;
         }
 

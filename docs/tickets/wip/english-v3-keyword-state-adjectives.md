@@ -218,6 +218,22 @@ what remains.
    1 digest-only, 0 lost/decreases/increases, 0 issues. Evidence:
    `refresh-2-after.json`, `refresh-2-diff.json`, `refresh-2-claim-diff.json`,
    `refresh-2-stat.txt`. Own gains remain 47.
+   Accepted-review refresh and export repair (`tqsuwzum`): 773 covered,
+   114,658 Readings, unchanged totals; refresh-only diff has 0 gains,
+   losses, decreases or increases and 79 digest-only changes from trunk
+   `wqkrtoxr`'s absent optional infinitival negator field. Original-parent
+   diff: 68 gains (47 own, 21 trunk), 42 approved increases, 0 lost/decreases,
+   50 digest-only (the 49 remaining negator-field changes plus Corpseweft's
+   trunk rename), 0 issues. Evidence: `integration-after.json`,
+   `integration-diff.json`, `integration-claim-diff.json`,
+   `review-refresh-stat.txt`. No refreshed Reading count decreases.
+   Integration retry refresh (`lkorvrvl`) brought Ring trunk `sztumtmq`.
+   The official bounded diff is entirely unchanged: all 955 face counts
+   and digests retained; totals 773 covered / 114,658 Readings; 0 issues.
+   Original-parent comparison remains 68 gains (47 own), 42 approved
+   increases, 50 trunk-attributed digest-only, 0 losses/decreases.
+   Evidence: `retry-after.json`, `retry-diff.json`, `retry-claim-diff.json`,
+   `retry-refresh-stat.txt`.
 2. **Witnesses** (`ptvtlvss` before/after): Gustha's Scepter 0 → 4;
    Fiend of the Shadows 0 → 12; Savvy Trader 0 → 6; Jester's Scepter
    0 → 6; Mobilizer Mech 0 → 3. Complete limit-16 sentence probes:
@@ -254,8 +270,8 @@ what remains.
    residual entry records the completed repair. Attached is deferred
    (11 faces, 13 grep matches at `ptvtlvss`): the class recipe does not carry
    the needed *to* Complement. The STOP on Have and crew-*by* is resolved
-   by KS-R1 and KS-R2 above. No unresolved STOP remains. Integration awaits
-   the authorized integration after accepted review. Unattested accepted
+   by KS-R1 and KS-R2 above. No unresolved STOP remains. Accepted review
+   authorizes integration. Unattested accepted
    class-parity consequences, review probes at `qkvxplko`: *It remains
    exiled by a creature.* 1; *It enters exiled.* 1 (AdjectivalDepictive);
    *It becomes exiled.* 1. Each is Reading for Reading equal to its *tapped*
@@ -269,6 +285,16 @@ what remains.
    all mandatory full first-refresh suites/clippy passed. Final refresh
    brought `soxvyspk` half-rounded and `lrynurmu` quoted-ability coordination;
    rebuild, bounded census, second full suites and clippy all passed.
+   Accepted-review refresh brought `zzwnrkot` do-so/able-to, `wqkrtoxr`
+   negated infinitivals and `pxtwrtvu` named modes. The combined build found
+   a missing `AdjectivePremodifierUse` export in trunk's new
+   `InfinitivalAdjective`; propagated the head's declared value exactly as
+   in other adjective constructions. No new Construction or lexeme guard.
+   Corrected rebuild, bounded census and all full checks passed.
+   Integration was refused because default moved; retry refresh brought
+   `sztumtmq` Ring changes. Harmony retained Ring and keyword-state module
+   registrations exactly once. The repeated refresh succeeded, rebuild and
+   bounded census and all full retry checks passed.
 5. **Tests** (`ptvtlvss`): `cargo test -p deckmaste_english_v3` passed all six
    test binaries (795 tests). `cargo clippy -p deckmaste_english_v3 --tests
    -- -D warnings` passed. `cargo test -p deckmaste_lexical_source` passed
@@ -293,7 +319,7 @@ what remains.
    and all five test/clippy commands above passed; English all six binaries
    (841 tests), lexical source 39 unit + 44 integration, xtask 56 tests.
    Logs use the same names with `-refresh-2.log`. The record is folded into
-   implementation `ptvtlvss`; the feature is closed for orchestrator review.
+   implementation `ptvtlvss`; accepted review is recorded below.
    Review nits at `qkvxplko`: `cargo xtask facts check` passes (saddle
    `grammar:` edit). Added the requested negative assertion for *it remains
    destroyed* to the existing witness test (probe 0); no new test module or
@@ -301,6 +327,21 @@ what remains.
    (841 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. Evidence: `tests-english-review.log`, `clippy-english-review.log`,
    `facts-review.log`.
+   Final integration checks at `tqsuwzum`, including the export repair:
+   `cargo build -p xtask` passed. All seven full test/clippy commands passed:
+   the five commands above, plus `cargo test -p deckmaste_lexical` and
+   `cargo clippy -p deckmaste_lexical --tests -- -D warnings` for incoming
+   lexical code. English passed all six binaries (858 tests); xtask 56 tests.
+   Logs: `integration-build-fixed.log`, `tests-english-integration.log`,
+   `clippy-english-integration.log`, `tests-lexical-source-integration.log`,
+   `clippy-lexical-source-integration.log`, `tests-lexical-integration.log`,
+   `clippy-lexical-integration.log`, `tests-xtask-integration.log`.
+   Final retry verification at `lkorvrvl`: `cargo build -p xtask` and all
+   nine full test/clippy commands passed (the seven integration commands
+   above, plus `cargo test -p deckmaste_construction_core` and
+   `cargo clippy -p deckmaste_construction_core --tests -- -D warnings`).
+   English passed all six binaries (864 tests). Logs use `-retry.log`;
+   facts check also passes on refreshed plugin data (`facts-retry.log`).
    Citation checks: 0 noncompliant, 0 stale; piped diff audit selected 0
    citation sites, so none needed bless.
 6. **Timing**: the corrected complete bounded census took 232,110 milliseconds,
