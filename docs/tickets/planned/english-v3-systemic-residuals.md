@@ -720,7 +720,7 @@ corresponding frame shapes. See the
 
 ## Keyword verb and state Complement residue (2026-10-10)
 
-Repaired in [keyword state adjectives](../wip/english-v3-keyword-state-adjectives.md#landing-record)
+Repaired in [keyword state adjectives](../done/english-v3-keyword-state-adjectives.md#landing-record)
 under orchestrator rulings KS1–KS6 and the confirmed saddle extension
 (2026-10-10). Exile and crew derive their state Adjectives by class membership;
 saddle exports its active/passive verb and retains its existing state Adjective.

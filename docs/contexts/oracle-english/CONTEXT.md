@@ -1266,7 +1266,7 @@ does not supply declared past-participial Premodifier availability.
 **Adjective Premodifier Use** (project term):
 An Adjective's declared permission to function as a Premodifier, independently
 of its permission to be a predicative Complement ([orchestrator ruling KS5,
-2026-10-10](../../tickets/wip/english-v3-keyword-state-adjectives.md#analysis)).
+2026-10-10](../../tickets/done/english-v3-keyword-state-adjectives.md#analysis)).
 
 **Attribute Noun Premodifier** (project term):
 A noun Premodifier whose declared use selects a head with Attribute Premodifier

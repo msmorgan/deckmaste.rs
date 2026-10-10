@@ -105,6 +105,10 @@ Additional orchestrator rulings, 2026-10-10 (project rulings):
   assertion is re-spelled to preserve both roles. Evidence:
   `target/english-v3/english-v3-keyword-state-adjectives/parent-tapped-by.json`.
   No Adjective-selected *by* Complement is introduced.
+- KS-R3 (accepted review, 2026-10-10) approves the small grammar edit as a
+  deviation from the ticket's data-only hope: `AdjectivePremodifierUse`
+  reads a declared feature, names no lexeme, and adds no Construction.
+  It prevents the forbidden attributive twin.
 - The orchestrator's confirmed state/passive pair explicitly authorizes the
   deferred saddle verb export here as pure data, superseding KS7's exclusion.
 
@@ -223,10 +227,14 @@ what remains.
    *is saddled*, *is exiled*, *is crewed* each 1 → 2. The battlefield
    control stays 1; *remains in exile* stays 2. *The exiled card* and
    *exiled cards* stay 1; *cards exiled with this creature* stays 2;
-   *cards exiled this way* stays 1. *Was crewed by two creatures* 6 → 8:
+   *cards exiled this way* stays 1. The subjectless `finite-predicate`
+   probe *was crewed by two creatures* is 6 → 8:
    all six passive Readings survive, plus two adjectival-Be Readings whose
    *by* phrase is an Adjunct, not an Adjective Complement (accepted by KS-R2 parity).
-   Both active saddle witnesses 0 → 1; both attached controls stay 0.
+   The full sentence *It was crewed by two creatures.* reads 4, Reading
+   for Reading equal to *It was tapped by two creatures.* after substituting
+   the declared verb identity (review probes at `qkvxplko`). Both active
+   saddle witnesses 0 → 1; both attached controls stay 0.
 3. **Spot checks** (`ptvtlvss`): Gustha's Scepter; Fiend of the Shadows;
    Savvy Trader; Jester's Scepter; Author of Shadows; Brainstealer Dragon;
    Covetous Urge; Cunning Rhetoric — *remain* selects the derived
@@ -238,14 +246,21 @@ what remains.
    forbidden attributive twin. Added **Adjective Premodifier Use** to the
    glossary and existing adjective/coordination and Premodifier declarations
    under KS5; the new class declares No, preserving the existing verbal
-   Premodifier. No new Construction. The user's confirmation of 2026-10-10
+   Premodifier. Accepted grammar deviation by project ruling KS-R3
+   (2026-10-10): it reads a declared feature, names no lexeme, and adds no
+   Construction. The user's confirmation of 2026-10-10
    supersedes KS7's saddle exclusion: the saddle verb export is pure data
    in its existing definition; its state Adjective remains. The systemic
    residual entry records the completed repair. Attached is deferred
    (11 faces, 13 grep matches at `ptvtlvss`): the class recipe does not carry
    the needed *to* Complement. The STOP on Have and crew-*by* is resolved
    by KS-R1 and KS-R2 above. No unresolved STOP remains. Integration awaits
-   orchestrator review under the standing stop-before-integrate rule.
+   the authorized integration after accepted review. Unattested accepted
+   class-parity consequences, review probes at `qkvxplko`: *It remains
+   exiled by a creature.* 1; *It enters exiled.* 1 (AdjectivalDepictive);
+   *It becomes exiled.* 1. Each is Reading for Reading equal to its *tapped*
+   control after verb-identity substitution. Evidence: `review-probe-*.json`.
+   These are project-approved class consequences, not corpus attestations.
    Commit then refresh brought grammar/lexicon changes. Harmony resolved
    the suite_5 registration conflict by retaining every incoming module and
    this ticket's module exactly once; the repeated refresh succeeded.
@@ -279,6 +294,13 @@ what remains.
    (841 tests), lexical source 39 unit + 44 integration, xtask 56 tests.
    Logs use the same names with `-refresh-2.log`. The record is folded into
    implementation `ptvtlvss`; the feature is closed for orchestrator review.
+   Review nits at `qkvxplko`: `cargo xtask facts check` passes (saddle
+   `grammar:` edit). Added the requested negative assertion for *it remains
+   destroyed* to the existing witness test (probe 0); no new test module or
+   test removal. `cargo test -p deckmaste_english_v3` passed all six binaries
+   (841 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed. Evidence: `tests-english-review.log`, `clippy-english-review.log`,
+   `facts-review.log`.
    Citation checks: 0 noncompliant, 0 stale; piped diff audit selected 0
    citation sites, so none needed bless.
 6. **Timing**: the corrected complete bounded census took 232,110 milliseconds,

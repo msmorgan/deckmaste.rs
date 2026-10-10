@@ -111,6 +111,7 @@ fn remain_and_become_witnesses_select_the_declared_adjective() {
             assert!(contains_adjective(&reading, owner), "{text}");
         }
     }
+    assert!(common::readings("it remains destroyed", Category::FiniteClause).is_empty());
 }
 
 #[test]
