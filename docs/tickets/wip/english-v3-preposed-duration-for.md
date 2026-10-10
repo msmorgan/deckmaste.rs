@@ -154,7 +154,11 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    claim-parent delta 27 gains (23 own, four attributed to trunk), zero lost,
    decreases, increases or digest-only; 1,345 unchanged. The refresh-only
    diff has two gains and 1,370 unchanged. Evidence: `review-refreshed-after`,
-   `review-refresh-diff` and `review-final-diff` JSON/log files.
+   `review-refresh-diff` and `review-final-diff` JSON/log files. The next
+   refresh imported named-token apposition (`tlpwnxqn`); rechecking the same
+   manifest on `ynosvvpz` yielded all 1,372 faces and all lines unchanged,
+   including counts and digests (`token-refresh-diff.json`). Final totals
+   remain 1,220 covered and 26,016 Readings, with 23 own gains.
 2. **Witnesses** (`rtzolrtx`, all completely enumerated by sentence probes):
    Prowl, Stoic Strategist **0 → 1**; Release to the Wind **0 → 2**;
    Preacher **0 → 1**; Minas Morgul, Dark Fortress **0 → 6**; Flameshape
@@ -207,6 +211,11 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `cargo build -p xtask`, `cargo test -p deckmaste_english_v3` (909 tests),
    `cargo test -p deckmaste_lexical_source` (84 tests), and both preceding
    exact clippy commands passed again; no failures or ignored tests.
-   Four additional inherited tests belong to `nzmrrqkysxto`.
-6. **Timing** (`kxpkwpno`): the final refreshed bounded after-census took
-   **37.42 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.
+   Four additional inherited tests belong to `nzmrrqkysxto`. Following the
+   named-token grammar refresh (`ynosvvpz`), `cargo build -p xtask`, full
+   `cargo test -p deckmaste_english_v3` (913 tests), and
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed again.
+   The four new inherited tests belong to `tlpwnxqn`; lexical-source files
+   were unchanged in that refresh, preserving its full-suite/clippy results.
+6. **Timing** (`ynosvvpz`): the final refreshed bounded after-census took
+   **68.13 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.
