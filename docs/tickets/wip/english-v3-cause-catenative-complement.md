@@ -133,6 +133,10 @@ english-v3 grep` only.
    `english-v3 diff before.json after.json --json diff.json --lines` is the
    comparison authority. Evidence is under
    `target/english-v3/english-v3-cause-catenative-complement/`.
+   Post-refresh `uppvxtrvrrvn` imported phase-in/out `roomopmr`: the same
+   671-face bounded census has zero changed faces or lines against the first
+   AFTER; final delta remains 55 gains, 550 → 605 covered and 10,252 →
+   10,727 Readings (`final-diff.json`).
 2. **Witnesses** (`nzmrrqkysxto`): sentence probes before → after: Torpor Orb
    0 → 1; Sigarda, Host of Herons 0 → 3; Quagnoth 0 → 2; Yurlok of Scorch
    Thrash 0 → 1; Teysa Karlov 0 → 5. The three shortened diagnostics each
@@ -156,13 +160,18 @@ english-v3 grep` only.
    independently constructed Torpor Orb constituent's two roundtrip laws.
    STOP on CC4's literal uniqueness resolved by W9-A above. Seed 20261008
    follows the user's binding brief rather than the Method's 20261010.
-   Glossary gaps: none.
+   Glossary gaps: none. Concurrent Kata snapshot refusals were retried;
+   the modal-header owner resolved its divergent working copy. A behind-default
+   integration refusal was resolved by refresh and the required rechecks.
 5. **Tests** (`nzmrrqkysxto`): `cargo test -p deckmaste_english_v3` passed
    (900 tests); `cargo test -p deckmaste_lexical_source` passed (84 tests).
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` both
    passed. Assurance: restored 0 / re-spelled 0 / ignored 0 / added 4 /
    removed 0; no removals to justify. Citation checks: zero noncompliant,
-   zero stale, no changed citation sites.
-6. **Timing** (`nzmrrqkysxto`): bounded AFTER census 25.90 s wall under
+   zero stale, no changed citation sites. Post-refresh `uppvxtrvrrvn`:
+   `cargo build -p xtask` passed; the same four full test/clippy commands were
+   repeated and passed (English 905 tests, lexical-source 84; the five extra
+   English tests belong to imported `roomopmr`, not this ticket).
+6. **Timing** (`uppvxtrvrrvn`): final bounded AFTER census 28.97 s wall under
    `/usr/bin/time -v`, six workers, zero samples per face; no `--all` run.
