@@ -146,9 +146,9 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 ## Landing record
 
 1. **Census delta** (BEFORE `qmznkvqq`, GC7 AFTER `ypywlqqo`, final refresh):
-   bounded **549** faces, covered **351 → 453**, total Readings
-   **5,285 → 10,298**; gained **102**, lost **none**, decreases **0**,
-   digest-only **0**, issues **0**. Pre-refresh `qmznkvqq` covered **447**
+   bounded **549** faces, covered **351 → 484**, total Readings
+   **5,285 → 13,230**; gained **133**, lost **none**, decreases **0**,
+   digest-only **1**, issues **0**. Pre-refresh `qmznkvqq` covered **447**
    faces with **10,150** Readings and **96** gains. The official refresh-only
    diff adds Jace, Multiverse Architect (**27**), Marina Vendrell (**8**),
    and Tom Bombadil (**30**), enabled by vocabulary change `nqnztuzo`;
@@ -183,6 +183,12 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    number of lands* from multiplier change `qoswqlns`. No previously covered
    face changes. Final totals include **4** trunk-dependent gains; own **98**.
    Evidence: `gc7-refreshed-after.json`, `gc7-refresh-diff.json`.
+   The subsequent refresh adds **31** gains, all containing *the other*, from
+   fused-head change `vkqxprpx`. Counterbalance **2 → 2** is digest-only:
+   comparative change `wzpslwxq` changes the *same … as* representation.
+   Zero lost, decreases or increases across this refresh. Final totals include
+   **35** trunk-dependent gains; own **98**. Evidence: `final-after.json`,
+   `final-refresh-diff.json`, `final-total-diff.json`.
 2. **Witnesses** (`qmznkvqq`, complete whole-line probes before/after;
    their counts and digests are unchanged at refreshed `ksyqnpnq`):
    Glimpse the Cosmos **0 → 3**; Raven Familiar **0 → 3**; Tezzeret, Master
@@ -234,6 +240,11 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    GC7 refresh also conflicted at test-module registrations; Harmony retained
    multiplier, predicate-term and gapped-tail suites. Incoming grammar/data
    changes required the same bounded census and full-suite/clippy recheck.
+   A second grammar-bearing refresh combined the comparative and fused-head
+   landings with an outdated three-input `determiner_license` call in
+   `DiscontinuousComparativeDeterminer`. Updated it to the five-input signature,
+   passing `head.DeterminerRequirement` and `governor.NominalAdjunctDependent`,
+   consistent with all other callers; the policy still requires `No`.
 5. **Tests** (pre-refresh `qmznkvqq`, refreshed `ksyqnpnq`):
    `cargo test -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_lexical_source`
    **passed twice**, all suites unfiltered. Pre-refresh / refreshed counts:
@@ -265,6 +276,11 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    prescribed English verification suite.
    Final refresh clippy passed with the five-package command above
    (including xtask), `--tests -- -D warnings`.
+   Second grammar-bearing refresh full suites passed with the same command:
+   English **790**, compiler **37**, macro **42** plus **2** doc tests,
+   lexical source **39** unit plus **43** integration; no failures or ignores.
+   Second refresh `cargo test -p xtask english_v3` passed **56** tests;
+   the five-package clippy command (including xtask) passed with warnings denied.
    GC7: added **3** tests for the non-final Locative + Manner positive,
    marked-NP negative and attested Munda/Ransack roles. The reviewed negative
    was a probe, not an existing suite test in this workspace. The positive
@@ -272,4 +288,4 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    re-spelled suite tests **0**, removed **0**, ignored **0**.
 6. **Timing** (`ksyqnpnq`): the refreshed bounded AFTER census took **7.05 s** wall
    time under `/usr/bin/time -v`, **6** workers, **0** samples per face.
-   GC7 bounded census took **7.49 s** wall time; final refresh **6.95 s**. Full corpus verification belongs to the orchestrator's batch.
+   GC7 bounded census took **7.49 s** wall time; both later refreshes **6.95 s** each. Full corpus verification belongs to the orchestrator's batch.

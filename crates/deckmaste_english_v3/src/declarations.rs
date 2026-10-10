@@ -3016,7 +3016,8 @@ constructions! {
         policy DiscontinuousComparativeDeterminer {
             export Definiteness = Nondefinite;
             require governor.ComparativeDeterminerUse = Yes;
-            require determiner_license(governor.DeterminerUse, head.number, head.countability) = Yes;
+            require determiner_license(governor.DeterminerUse, head.number, head.countability,
+                head.DeterminerRequirement, governor.NominalAdjunctDependent) = Yes;
             require marker.ExpandedComparisonMarker = Ordering;
             require head.DeterminerRequirement = No;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber,
