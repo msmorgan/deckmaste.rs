@@ -2999,6 +2999,7 @@ constructions! {
         }
 
         policy DiscontinuousComparativeDeterminer {
+            export Definiteness = Nondefinite;
             require governor.ComparativeDeterminerUse = Yes;
             require determiner_license(governor.DeterminerUse, head.number, head.countability) = Yes;
             require marker.ExpandedComparisonMarker = Ordering;

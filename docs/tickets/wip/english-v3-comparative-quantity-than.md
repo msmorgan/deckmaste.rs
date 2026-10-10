@@ -165,6 +165,14 @@ project ruling, not a CGEL claim.
    `nqnztuzo` / retirement `pwoslssz`. This ticket's gains remain 63 correct
    + 2 covered by a wrong analysis. Refreshed evidence: `refresh-after.json`,
    `refresh-diff.json`, `refresh-trunk-diff.json` in the same directory.
+   Final grammar-bearing refresh (`uurrvnnx`): covered 624 → 692,
+   Readings 97460 → 98534; lost 0, gained 68, decreases 0, increases 0,
+   digest-only 98, unchanged 772. Against the previous refreshed census,
+   trunk contributes one more gain, Dwarven Shrine (9 Readings), from the
+   newly landed multiplier/bounded-quantity grammar (`qoswqlns`, `nlprwskn`).
+   Own gains remain **63 intended + 2 covered by a wrong analysis**, all 65
+   classified and accepted by the orchestrator review. Final evidence:
+   `landing-after.json`, `landing-diff.json`, `landing-trunk-diff.json`.
 2. **Witnesses** (`rqnkrnur` → `wzpslwxq`): Sunstar Expansionist 0 → 1;
    Okina Nightwatch 0 → 1; Unified Will 0 → 1; Even the Odds 0 → 1;
    Survival Cache document 0 → 1; *You have less life than an opponent*
@@ -199,7 +207,14 @@ project ruling, not a CGEL claim.
    with four known wrong-analysis faces recorded in systemic residuals.
    Refresh initially exited 69 for concurrent divergence in the multiplier
    workspace; its owner resolved that state, then refresh succeeded. No
-   other workspace was repaired or rewritten by this claimant.
+   other workspace was repaired or rewritten by this claimant. The final
+   refresh produced a suite-registration conflict; both registrations were
+   retained. Trunk's multiplier landing added required NounPhrase
+   Definiteness, so this ticket's NP policy now explicitly exports
+   Nondefinite, as CQ4 requires. The initial build diagnosed that missing
+   export; the compatibility fix passed the subsequent full English suite.
+   The residual attestation was corrected by review to ten faces (nine
+   do/did, one does: Oath of Ghouls).
 5. **Tests** (`wzpslwxq`): `cargo test -p deckmaste_english_v3` passed 752;
    `cargo test -p deckmaste_lexical_source` passed 35 unit + 41 integration;
    `cargo test -p deckmaste_construction_v3_core` passed 37;
@@ -215,8 +230,12 @@ project ruling, not a CGEL claim.
    the same full commands were rerun: English 753, lexical-source 39 unit +
    41 integration, construction-v3-core 37, xtask English 56; all passed.
    The same three clippy commands also passed after refresh. Refreshed citation
-   checks: 0 noncompliant, 0 stale; diff audit 0 new sites.
-6. **Timing** (`tmqsnsyt`, post-refresh): bounded after-census **54.49 s**, workers 6,
+   checks: 0 noncompliant, 0 stale; diff audit 0 new sites. Final refresh
+   (`uurrvnnx`), same full test commands: English 771, lexical-source 39 unit
+   + 41 integration, construction-v3-core 37, xtask English 56; all passed.
+   The same three clippy commands passed. Final citation checks: 0
+   noncompliant, 0 stale; diff audit 0 new sites.
+6. **Timing** (`uurrvnnx`, final refresh): bounded after-census **41.20 s**, workers 6,
    samples-per-face 0, measured under `/usr/bin/time -v` with the prebuilt
    workspace-local binary. No full corpus census was run, per the binding
    verification budget.
