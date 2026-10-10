@@ -254,6 +254,7 @@ shape, with no relative-head restriction. Any other shape remains a defect. Evid
    NominalAdjunctDependent input coexist; both test registrations were kept. One new test fixture
    was corrected to include the adjective's declared frame, then strengthened
    to compare the complete modifier analysis; no existing test was weakened.
+   the noun-side definite selection reads the Determinative's `NominalAdjunctDependent = Definite` value, while trunk now also has a `Definiteness` feature (multiplier-predeterminer landing); the two should be unified and the doubled `(…, No, _)` / `(…, Yes, _)` rows of `determiner_license` collapsed: hygiene follow-up (english-v3-licence-plumbing-economy)
 5. **Tests (`vkqxprpx`):** `cargo test -p deckmaste_english_v3` passed
    (753 tests); `cargo test -p deckmaste_lexical_source` passed (76 tests).
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
