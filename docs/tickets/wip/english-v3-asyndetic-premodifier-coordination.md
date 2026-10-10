@@ -176,13 +176,25 @@ Deltas:
 
 ## Landing record
 
-1. **Census delta** (`xqtkuyqk`, claim-parent grammar `krllwokk` before):
+1. **Census delta**, before refresh (`xqtkuyqk`, claim-parent grammar
+   `krllwokk` before):
    covered faces 16,760 → 16,822; total Readings 804,350 → 809,071.
    Gains 62; lost faces none; decreases, increases and digest-only changes 0.
    Selector: every supported analysed face containing `, ` (21,626 on
    `krllwokk`) plus 300 random covered faces, seed 20261008; identity union
    21,748 faces. This includes both R15e patterns. Evidence:
    `target/english-v3/english-v3-asyndetic-premodifier-coordination/{manifest,before,after,diff}.json`.
+   After grammar/lexicon refresh (`zumztwqt`): same 21,748-face manifest,
+   covered 16,760 → 16,923 and Readings 804,350 → 817,296 against the
+   original parent. Gains 163; lost faces none; decreases and increases 0;
+   digest-only 4. Stock `final-diff.json` and `refresh-diff.json`, both with
+   `--lines`, separate the original 62 gains from 101 refresh gains.
+   Refresh adds arithmetic (`lrolnmwo`, refined by `wnmmonzs`) and Produce
+   (`zwkyqqyv`, refined by `wkmovwxx`). The four digest-only faces—An-Havva
+   Inn, Hellfire, Invasion of Tarkir, Sidisi, Regent of the Mire—retain their
+   counts: `lrolnmwo` replaces direct Measure Phrase operands with
+   `ScalarMeasureOperand(MeasurePhrase)` projections in ArithmeticMeasure.
+   Refresh-only losses, decreases and increases are all 0 (`zumztwqt`).
 2. **Witnesses** (`xqtkuyqk`, quoted ticket fragments): Terror 1; Duress 4;
    Druidic Satchel 1; Victim of Night 1; Filter Out 1. Each was unread on
    `krllwokk`, established with `cargo xtask english-v3 probe` before editing.
@@ -213,12 +225,21 @@ Deltas:
    supports likeness of function, while Oracle restrictions cite R15e.
    Beyond the five witness tests, mixed and triple-member value roundtrips,
    the exact syndetic control and the Royal Decree regression protect grouping
-   and preservation. No existing route is superseded.
+   and preservation. No existing route is superseded. Refresh's registration
+   conflict was resolved by retaining both Produce and this ticket's modules;
+   the English/lexicon changes triggered the bounded re-census and full English
+   suite. Later shared-claim rewrites changed only other tickets' status paths,
+   with no change to tested grammar or consumed data.
 5. **Tests** (`xqtkuyqk`): `cargo test -p deckmaste_english_v3` passed
    (679 tests, 0 failures, 0 ignored);
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
    Citation checks: 0 noncompliant, 0 stale; diff audit selected no CR sites.
-   Restored 0 / re-spelled 0 / ignored 0 / added 9 / removed 0.
+   Post-refresh full `cargo test -p deckmaste_english_v3` passed (`zumztwqt`):
+   696 tests, 0 failed, ignored or filtered; 0 doctests. Only this feature's
+   changed code crate requires the post-refresh suite.
+   Restored 0 / re-spelled 0 / ignored 0 / added 9 / removed 0 (`xqtkuyqk`).
 6. **Timing** (`xqtkuyqk`): final bounded census 6m34.14s, 6 workers,
    peak RSS 14,207,812 KB (`/usr/bin/time -v`, prebuilt binary,
-   `--samples-per-face 0`).
+   `--samples-per-face 0`). After refresh (`zumztwqt`): bounded re-census
+   3m56.15s, 6 workers, zero samples, peak RSS 16,933,624 KB under the same
+   prebuilt-binary `/usr/bin/time -v` command.
