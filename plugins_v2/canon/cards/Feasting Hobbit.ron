@@ -1,0 +1,22 @@
+// "Devour Food 3 / Creatures with power less than this creature's power can't
+// block it." Devour [quality] N over Foods, devour's general form labelled
+// devour [CR#702.82c].
+SingleFaced(face: (
+    characteristics: (
+        name: "Feasting Hobbit",
+        cost: [1, Green],
+        types: [Creature],
+        subtypes: [halfling, citizen],
+        power: 2,
+        toughness: 2,
+        text: [
+            devourQuality(hasSubtype(food), 3),
+            static(
+                cantBeBlockedBy(
+                    thisCreature,
+                    and([creature, compare(Less, powerOf(thisCreature), [Stat(Power)])]),
+                ),
+            ),
+        ],
+    ),
+))
