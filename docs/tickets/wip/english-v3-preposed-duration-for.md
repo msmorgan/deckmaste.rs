@@ -148,7 +148,13 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    (23 own, two phase-in/out), zero lost/decreases/increases/digest-only and
    1,347 unchanged. No covered face changed, and no other head is licensed.
    Evidence: `wide-{manifest,selector,grep,after,diff}.json` and corresponding
-   logs in the same evidence directory.
+   logs in the same evidence directory. Review refresh (`kxpkwpno`) imported
+   `nzmrrqkysxto`: Archon of Coronation gained 3 Readings and The Masamune
+   gained 15. The bounded recheck has 1,220 covered, 26,016 Readings:
+   claim-parent delta 27 gains (23 own, four attributed to trunk), zero lost,
+   decreases, increases or digest-only; 1,345 unchanged. The refresh-only
+   diff has two gains and 1,370 unchanged. Evidence: `review-refreshed-after`,
+   `review-refresh-diff` and `review-final-diff` JSON/log files.
 2. **Witnesses** (`rtzolrtx`, all completely enumerated by sentence probes):
    Prowl, Stoic Strategist **0 → 1**; Release to the Wind **0 → 2**;
    Preacher **0 → 1**; Minas Morgul, Dark Fortress **0 → 6**; Flameshape
@@ -197,6 +203,10 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    reports none; `cargo xtask cite check` reports 0 stale;
    `jj --no-pager diff --git | cargo xtask cite audit --diff` selects no new
    citation sites. No newly cited rules require blessing. No Lean checks or
-   full-corpus census ran.
-6. **Timing** (`vlvswmnl`): the refreshed bounded after-census took
-   **48.84 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.
+   full-corpus census ran. After review refresh (`kxpkwpno`),
+   `cargo build -p xtask`, `cargo test -p deckmaste_english_v3` (909 tests),
+   `cargo test -p deckmaste_lexical_source` (84 tests), and both preceding
+   exact clippy commands passed again; no failures or ignored tests.
+   Four additional inherited tests belong to `nzmrrqkysxto`.
+6. **Timing** (`kxpkwpno`): the final refreshed bounded after-census took
+   **37.42 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.
