@@ -5,13 +5,31 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "warp",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // "Warp [cost]" means "You may cast this card from your hand by paying [cost]
-    // rather than its mana cost" and "If this spell's warp cost was paid, EXILE THE
-    // PERMANENT THIS SPELL BECOMES AT THE BEGINNING OF THE NEXT END STEP. Its owner may
-    // cast this card after the current turn has ended for as long as it remains
-    // exiled." [CR#702.185a] The second is a static ability that creates a delayed
-    // triggered ability; no `StaticSpec` creates one (the cause Blitz, Dash and Rebound
-    // share). Its "after the current turn has ended" is now writable
-    // (`onALaterTurn`); the delayed trigger is what remains.
+    // rather than its mana cost" and "If this spell's warp cost was paid, exile the
+    // permanent this spell becomes at the beginning of the next end step. Its owner
+    // may cast this card after the current turn has ended for as long as it remains
+    // exiled." [CR#702.185a] The second is an Off-Stack Static on paying the cost
+    // that creates a delayed trigger over the spell's successor (`becomes`)
+    // [CR#603.7g]; "after the current turn has ended" is `onALaterTurn`, read as
+    // the delayed trigger resolves, and "as long as it remains exiled" is the
+    // permission's zone.
+    body: [
+        static(mayCastFor(you, Param(0), yourHand)),
+        static(
+            asEvent(
+                paysCost(Paid, thisSpell, warp, you),
+                atNext(
+                    EndStep,
+                    sequentially([
+                        exile(becomes(thisSpell)),
+                        establish(
+                            mayPlayDeed(cast, ownerOf(it), it, Play(exileZone, None, None, false, ItsOwnCost)),
+                            onALaterTurn,
+                        ),
+                    ]),
+                ),
+            ),
+        ),
+    ],
 )

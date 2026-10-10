@@ -26,7 +26,7 @@ keywordFacts =
   , { word := "Enchant", paramShapes := [SubjectParam] } defaultKeywordFacts
   , { word := "Equip", paramShapes := [CostParam, CompoundParam QualityHead], paidCost := True } defaultKeywordFacts
   , { word := "Suspend", paramShapes := [CompoundParam NumberHead], onSpellCard := True, paidCost := True } defaultKeywordFacts
-  , { word := "Ascend", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
+  , { word := "Ascend", paramShapes := [NoParam], regime := Just AtResolution, onSpellCard := True } defaultKeywordFacts
   , { word := "Storied", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Renown", paramShapes := [NumberParam], bodied := True } defaultKeywordFacts
   , { word := "Indestructible", paramShapes := [NoParam], counterEligible := True } defaultKeywordFacts
@@ -125,7 +125,7 @@ keywordFacts =
   , { word := "Demonstrate", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, bodied := True } defaultKeywordFacts
   , { word := "Dethrone", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Devoid", paramShapes := [NoParam], onSpellCard := True } defaultKeywordFacts
-  , { word := "Devour", paramShapes := [NumberParam] } defaultKeywordFacts
+  , { word := "Devour", paramShapes := [NumberParam], paidCost := True } defaultKeywordFacts
   , { word := "Embalm", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Encore", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Enlist", paramShapes := [NoParam] } defaultKeywordFacts
@@ -196,7 +196,7 @@ keywordFacts =
   , { word := "Training", paramShapes := [NoParam], bodied := True } defaultKeywordFacts
   , { word := "Transfigure", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Transmute", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
-  , { word := "Tribute", paramShapes := [NumberParam] } defaultKeywordFacts
+  , { word := "Tribute", paramShapes := [NumberParam], paidCost := True } defaultKeywordFacts
   , { word := "UmbraArmor", paramShapes := [NoParam] } defaultKeywordFacts
   , { word := "Undaunted", paramShapes := [NoParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True } defaultKeywordFacts
   , { word := "Undying", paramShapes := [NoParam], bodied := True } defaultKeywordFacts

@@ -93,6 +93,9 @@ pub fn kinds() -> KindSet {
     // A Mode Change's rows (`allInstead(…)`, `setQuantity(…)`), which the
     // `modeChoice` static carries.
     kinds.add(crate::abilities::ModeChange::kind());
+    // A Deontic Exception (`ByKeyword(…)`, `ByObjects(…)`), which a deontic
+    // rule's `except` carries.
+    kinds.add(crate::abilities::Cause::kind());
     // The face-down spec, a record the `exiledFaceDown`/`faceDownCreature`
     // helpers build.
     kinds.add(Kind::new("FaceDown"));
@@ -411,6 +414,7 @@ pub fn param_types() -> ParamTypeSet {
     types.add_typed::<crate::abilities::TextChange>("TextChange");
     types.add_typed::<Vec<crate::abilities::PipPaid>>("PipPaids");
     types.add_typed::<crate::abilities::ModeChange>("ModeChange");
+    types.add_typed::<crate::abilities::Cause>("Cause");
     types.add_typed::<u32>("Nat");
     types.add_typed::<crate::words::NounWord>("NounWord");
     types.add_typed::<crate::words::Ordinal>("Ordinal");

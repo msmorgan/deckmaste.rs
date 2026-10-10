@@ -5,11 +5,23 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "tribute",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
-    // "Tribute N" means "As this creature enters, choose an opponent. THAT PLAYER
-    // MAY put an additional N +1/+1 counters on it as it enters." [CR#702.104a]
-    // `StaticSpec::Choice` makes the entry choice of an opponent, but no entry rider is
-    // optional and none is decided by a player other than the permanent's controller:
-    // `StaticSpec::EntryRider` takes a `EntryRider` and only `EntryRider::AsCopyOf`
-    // carries an `optional` flag (the cause Riot and Unleash share).
+    // "Tribute N" means "As this creature enters, choose an opponent. That player
+    // may put an additional N +1/+1 counters on it as it enters." [CR#702.104a] An
+    // Off-Stack Static as it enters, the chosen opponent deciding the entry rider.
+    // "Tribute wasn't paid" [CR#702.104b] is `not(choiceWasTaken(ByKeyword(tribute),
+    // …))` (Snake of the Golden Grove).
+    body: [
+        static(
+            asEvent(
+                enters(thisCreature),
+                sequentially([
+                    choose(anOpponent),
+                    act(
+                        the(chosenPlayer),
+                        may(establish(entersWithAdditionalCounters(thisCreature, Param(0), p1p1Counter))),
+                    ),
+                ]),
+            ),
+        ),
+    ],
 )

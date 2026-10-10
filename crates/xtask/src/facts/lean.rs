@@ -36,8 +36,10 @@ use deckmaste_semantics_v2::abilities::DeonticRider;
 use deckmaste_semantics_v2::abilities::StaticSpec;
 use deckmaste_semantics_v2::designations;
 use deckmaste_semantics_v2::keywords;
+use deckmaste_semantics_v2::phrase::EventSource;
 use deckmaste_semantics_v2::phrase::GameEvent;
 use deckmaste_semantics_v2::phrase::NounPhrase;
+use deckmaste_semantics_v2::phrase::ZoneExpr;
 use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::ron::macro_set;
 use deckmaste_semantics_v2::rules::Conferral;
@@ -269,6 +271,15 @@ fn static_regime(spec: &StaticSpec) -> FormRegime {
         | StaticSpec::ModeChoice { .. }
         | StaticSpec::AddsTarget { .. } => FormRegime::Determined(Some(Regime::AtCasting)),
         StaticSpec::AltCost { .. } => FormRegime::Open,
+        StaticSpec::Replacement {
+            event:
+                GameEvent::ZoneChange {
+                    subject,
+                    from: Some(from),
+                    ..
+                },
+            ..
+        } if leaves_the_stack(subject, from) => FormRegime::Open,
         StaticSpec::DeonticRule {
             compulsion, rider, ..
         } if matches!(**compulsion, Compulsion::Permit)
@@ -277,6 +288,37 @@ fn static_regime(spec: &StaticSpec) -> FormRegime {
             FormRegime::Open
         }
         _ => FormRegime::Determined(None),
+    }
+}
+
+/// Whether a zone change is the source's own move off the stack: a
+/// replacement of it functions while the spell is on the stack, and the
+/// keyword's own rule says which regime it takes (rebound [CR#702.88a]; Lean
+/// `StaticSpec.regimeFits`).
+fn leaves_the_stack(subject: &NounPhrase, from: &EventSource) -> bool {
+    let EventSource::Zones { zones } = from else {
+        return false;
+    };
+    names_this(subject)
+        && matches!(
+            zones.as_slice(),
+            [ZoneExpr::Zone {
+                zone: Zone::Stack,
+                ..
+            }]
+        )
+}
+
+/// Lean `NounPhrase.namesThis`: the source, bare or as a type or marker view.
+fn names_this(subject: &NounPhrase) -> bool {
+    match subject {
+        NounPhrase::This => true,
+        NounPhrase::WithBindings { body, .. }
+        | NounPhrase::InCaller { body, .. }
+        | NounPhrase::FirstMention { phrase: body, .. }
+        | NounPhrase::AsType { subject: body, .. }
+        | NounPhrase::AsMarker { subject: body, .. } => names_this(body),
+        _ => false,
     }
 }
 

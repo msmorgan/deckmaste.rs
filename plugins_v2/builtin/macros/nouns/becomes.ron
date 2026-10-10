@@ -1,0 +1,9 @@
+// `NounPhrase.Becomes` under Lean's own name for it: the new object `subject`
+// turns into at its next zone change, named before the change happens: "the
+// permanent this spell becomes" [CR#400.7].
+(
+    name: "becomes",
+    kinds: [NounPhrase],
+    params: {"subject": Subject},
+    body: Becomes(Param(subject)),
+)

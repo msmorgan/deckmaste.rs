@@ -4,6 +4,6 @@
 (
     name: "deonticRule",
     kinds: [StaticSpec],
-    params: {"subject": Subject, "compulsion": Compulsion, "deeds": Any, "role": Role, "patient": DeonticPatient, "rider": DeonticRider, "bound": Default(Any, None), "as_though": Default(Any, None)},
-    body: DeonticRule(subject: Param(subject), compulsion: Param(compulsion), deeds: Param(deeds), role: Param(role), bound: Param(bound), patient: Param(patient), as_though: Param(as_though), rider: Param(rider)),
+    params: {"subject": Subject, "compulsion": Compulsion, "deeds": Any, "role": Role, "patient": DeonticPatient, "rider": DeonticRider, "bound": Default(Any, None), "as_though": Default(Any, None), "except": Default(Any, None)},
+    body: DeonticRule(subject: Param(subject), compulsion: Param(compulsion), deeds: Param(deeds), role: Param(role), bound: Param(bound), patient: Param(patient), as_though: Param(as_though), rider: Param(rider), except: Param(except)),
 )

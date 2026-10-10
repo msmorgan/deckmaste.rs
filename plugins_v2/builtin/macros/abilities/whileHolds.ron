@@ -1,0 +1,9 @@
+// `StaticSpec.WhileHolds` under Lean's own name for it: an Off-Stack Static,
+// "any time [condition] holds, do". Whenever `condition` holds, `does` is
+// carried out without using the stack [CR#604.1,702.131b].
+(
+    name: "whileHolds",
+    kinds: [StaticSpec],
+    params: {"condition": Condition, "does": Instruction},
+    body: WhileHolds(condition: Param(condition), does: Param(does)),
+)

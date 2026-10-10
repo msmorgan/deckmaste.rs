@@ -756,11 +756,11 @@ semantic_macro shiftResult (amount : Amount) : Instruction := .shiftResult none 
 semantic_macro mayPlayAdditionalLands (player : NounPhrase) (quantity : Quantity) : StaticSpec :=
   .deonticRule player .permit [.action "play"] .agent (some (.additional quantity))
     (.counterpart (allOf land))
-    none .noRider
+    none .noRider none
 /-- "<player> may <deed> <what> [as though …] [rider]" -/
 semantic_macro mayPlayDeed (deed : Deed) (player what : NounPhrase) (asThough : Option AsThough)
     (rider : DeonticRider) : StaticSpec :=
-  .deonticRule player .permit [deed] .agent none (.counterpart what) asThough rider
+  .deonticRule player .permit [deed] .agent none (.counterpart what) asThough rider none
 /-- "You may play this card from <zone> <timing>": the land type's play permission [CR#305.1]. -/
 semantic_macro playableFrom (zone : ZoneExpr) (timing : Timing) : Conferral :=
   .property (mayPlayDeed (.action "play") .you .this none
@@ -773,7 +773,7 @@ semantic_macro castableFrom (zone : ZoneExpr) (timing : Timing) : Conferral :=
 /-- A deontic clause with no bound, premise, or rider. -/
 semantic_macro deontic (subject : NounPhrase) (compulsion : Compulsion) (deeds : Deeds) (role : Role)
     (patient : DeonticPatient) : StaticSpec :=
-  .deonticRule subject compulsion deeds role none patient none .noRider
+  .deonticRule subject compulsion deeds role none patient none .noRider none
 /-- "When <event>, <instruction>" as a delayed trigger. -/
 semantic_macro delay (event : GameEvent) (instruction : Instruction)
     (alternatives : List GameEvent := []) : Instruction :=
@@ -802,22 +802,22 @@ semantic_macro additionalStep (part : TurnPart) (anchor : Option TurnPart) (coun
   .addTurnPart part anchor count none
 /-- "<subject> can't attack [this turn]" -/
 semantic_macro forbidAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  .establish (.deonticRule subject .forbid [.core .attack] .agent none .noPatient none .noRider)
+  .establish (.deonticRule subject .forbid [.core .attack] .agent none .noPatient none .noRider none)
     duration
 /-- "<subject> can't block [this turn]" -/
 semantic_macro forbidBlock (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  .establish (.deonticRule subject .forbid [.core .block] .agent none .noPatient none .noRider)
+  .establish (.deonticRule subject .forbid [.core .block] .agent none .noPatient none .noRider none)
     duration
 /-- "<subject> can't be blocked [this turn]" -/
 semantic_macro forbidBeingBlocked (subject : NounPhrase) (duration : Option Duration) : Instruction :=
-  .establish (.deonticRule subject .forbid [.core .block] .patient none .noPatient none .noRider)
+  .establish (.deonticRule subject .forbid [.core .block] .patient none .noPatient none .noRider none)
     duration
 /-- "<subject> blocks it this turn if able": the object the sentence just named. -/
 semantic_macro requireBlockIt (subject : NounPhrase) (duration : Option Duration) : Instruction :=
   .establish
     (.deonticRule subject .require [.core .block] .agent none
       (.counterpart (.pro .bare .one (.outsideIntroduced ((NounPhrase.introduced [] subject).map Binding.kind)))) none
-      .noRider)
+      .noRider none)
     duration
 
 /-- "<source> deals N damage divided as you choose among <among>" -/
@@ -997,10 +997,10 @@ semantic_macro gainControl (subject : NounPhrase) (duration : Option Duration) (
   .establish (.controlGrant agent subject) duration
 /-- "<subject> can't be <deed>ed" -/
 semantic_macro objectCant (deed : Deed) (subject : NounPhrase) : StaticSpec :=
-  .deonticRule subject .forbid [deed] .patient none .noPatient none .noRider
+  .deonticRule subject .forbid [deed] .patient none .noPatient none .noRider none
 /-- "<player> can't <deed>" -/
 semantic_macro playerCant (deed : Deed) (player : NounPhrase) : StaticSpec :=
-  .deonticRule player .forbid [deed] .agent none .noPatient none .noRider
+  .deonticRule player .forbid [deed] .agent none .noPatient none .noRider none
 /-- "<spec> as long as <condition>" -/
 semantic_macro onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
   .conditional spec condition .asLongAs
@@ -1012,16 +1012,16 @@ semantic_macro onlyIfSo (spec : StaticSpec) (condition : Condition) : StaticSpec
   .conditional spec condition .ifSo
 /-- "<who> can't <deed> <what>" -/
 semantic_macro cantDoTo (deed : Deed) (who what : NounPhrase) : StaticSpec :=
-  .deonticRule who .forbid [deed] .agent none (.counterpart what) none .noRider
+  .deonticRule who .forbid [deed] .agent none (.counterpart what) none .noRider none
 /-- "<n> can <deed> as though it didn't have <p>" -/
 semantic_macro canDoAsThough (n : NounPhrase) (deed : Deed) (p : Predicate) : StaticSpec :=
-  .deonticRule n .permit [deed] .agent none .noPatient (some (.of p)) .noRider
+  .deonticRule n .permit [deed] .agent none .noPatient (some (.of p)) .noRider none
 /-- "<what> can't be the target of <by>" -/
 semantic_macro cantBeTargetedBy (what by_ : NounPhrase) : StaticSpec :=
-  .deonticRule what .forbid [.core .target] .patient none (.targetedBy by_) none .noRider
+  .deonticRule what .forbid [.core .target] .patient none (.targetedBy by_) none .noRider none
 /-- "<what> can be the target of <by> as though it didn't have <p>" -/
 semantic_macro canBeTargetedAsThough (what by_ : NounPhrase) (p : Predicate) : StaticSpec :=
-  .deonticRule what .permit [.core .target] .patient none (.targetedBy by_) (some (.of p)) .noRider
+  .deonticRule what .permit [.core .target] .patient none (.targetedBy by_) (some (.of p)) .noRider none
 /-- "<spec> <duration>": a clause holding for a stated duration. -/
 semantic_macro establishThroughout (spec : StaticSpec) (duration : Duration) : Instruction :=
   .establish spec (some duration)
@@ -1031,29 +1031,29 @@ semantic_macro doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : 
 /-- "you may choose not to untap <subject> during [<whose>] untap step" -/
 semantic_macro mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   Primitives.StaticSpec.partScope .untapStep whose
-    (.deonticRule subject .permit [.action "untap"] .patient none .noPatient none .noRider)
+    (.deonticRule subject .permit [.action "untap"] .patient none .noPatient none .noRider none)
 /-- "untap <subject> during [<whose>] untap step" -/
 semantic_macro untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   Primitives.StaticSpec.partScope .untapStep whose
-    (.deonticRule subject .require [.action "untap"] .patient none .noPatient none .noRider)
+    (.deonticRule subject .require [.action "untap"] .patient none .noPatient none .noRider none)
 /-- "<subject> can block an additional creature each combat" -/
 semantic_macro mayBlockAdditional (subject : NounPhrase) (quantity : Quantity) : StaticSpec :=
   .deonticRule subject .permit [.core .block] .agent (some (.additional quantity))
-    (.counterpart (allOf creature)) none .noRider
+    (.counterpart (allOf creature)) none .noRider none
 /-- "<who> may vote an additional time" -/
 semantic_macro mayVoteAdditional (who : NounPhrase) (quantity : Quantity) : StaticSpec :=
   .deonticRule who .permit [.action "vote"] .agent (some (.additional quantity)) .noPatient none
-    .noRider
+    .noRider none
 /-- "<who> may spend mana as though it were mana of <as> [to <purpose>]" -/
 semantic_macro maySpendAsThough (who : NounPhrase) (what : Option ColorOrColorless) (as_ : ManaMatch)
     (purpose : Option SpendPurpose) : StaticSpec :=
   .deonticRule who .permit [.core .spend] .agent none .noPatient (some (.mana what as_ purpose))
-    .noRider
+    .noRider none
 /-- "<player> can't <deed> more than N <p>" -/
 semantic_macro cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicate) :
     StaticSpec :=
   .deonticRule player .forbid [deed] .agent (some (.moreThan (.lit bound))) (.counterpart (allOf p))
-    none .noRider
+    none .noRider none
 
 /-! ## The performer and the handoff
 
@@ -1439,7 +1439,7 @@ on the battlefield, put an age counter on it. Then you may pay [cost] for each a
 it. If you don't, sacrifice it." [CR#702.24a] -/
 semantic_macro cumulativeUpkeepExpansion (cost : Cost) : Ability :=
   triggeredIf (.beginningOf .upkeep (some .you) (.each none))
-    (.matches thisPermanent (.inZone battlefield))
+    (.matches thisPermanent permanent)
     (.sequentially
       [ .putCounters (.lit 1) (.printed (.named "ageCounter")) thisPermanent,
         Primitives.Instruction.offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "ageCounter") thisPermanent))) .once)
@@ -1448,11 +1448,12 @@ semantic_macro cumulativeUpkeepExpansion (cost : Cost) : Ability :=
 semantic_macro cumulativeUpkeep (cost : Cost) : Ability :=
   .keyword (.named "cumulativeUpkeep") [.cost cost] [cumulativeUpkeepExpansion cost]
 /-- Flying's definition, a static ability: "This creature can't be blocked except by creatures
-with flying and/or reach." [CR#702.9b] -/
+with flying and/or reach." [CR#702.9b] The exempt blockers are the prohibition's Deontic
+Exception. -/
 semantic_macro flyingExpansion : Ability :=
-  .static (deontic thisCreature .forbid [.core .block] .patient
-    (.counterpart (allOf (.and [creature,
-      .not (.or [.hasKeyword (.the (.named "flying")), .hasKeyword (.the (.named "reach"))])]))))
+  .static (.deonticRule thisCreature .forbid [.core .block] .patient none .noPatient none .noRider
+    (some (.byObjects (.and [creature,
+      .or [.hasKeyword (.the (.named "flying")), .hasKeyword (.the (.named "reach"))]]))))
 /-- "Flying" with its definition. -/
 semantic_macro flying : Ability := .keyword (.named "flying") [] [flyingExpansion]
 /-- Bushido N's definition, a triggered ability: "Whenever this creature blocks or becomes

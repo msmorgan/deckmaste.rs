@@ -1,0 +1,10 @@
+// "<subject> can't be blocked except by <blockers>": the blockers the
+// prohibition exempts are its Deontic Exception, described, not a negated
+// description of the rest ("can't be blocked except by artifact creatures
+// and/or black creatures" [CR#702.36b]).
+(
+    name: "cantBeBlockedExceptBy",
+    kinds: [StaticSpec],
+    params: {"subject": NounPhrase, "blockers": Predicate},
+    body: DeonticRule(Param(subject), Forbid, [Core(Block)], Patient, None, NoPatient, None, NoRider, ByObjects(Param(blockers))),
+)

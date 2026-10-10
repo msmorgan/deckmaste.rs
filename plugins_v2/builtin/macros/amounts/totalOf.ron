@@ -1,0 +1,8 @@
+// "the total <axis> of <group>": the sum of one projection over a group the
+// text has already named ("the total power of those creatures").
+(
+    name: "totalOf",
+    kinds: [Amount],
+    params: {"axis": ProjAxis, "group": NounPhrase},
+    body: Aggregate(Sum, Param(axis), Param(group)),
+)

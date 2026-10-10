@@ -5,8 +5,12 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "devour",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
     // "Devour N" means "As this object enters, you may sacrifice any number of
-    // creatures. …" [CR#702.82a] `StaticSpec::Choice` makes an entry choice of a
-    // quality or a player only; no entry clause performs an instruction.
+    // creatures. This permanent enters with N +1/+1 counters on it for each creature
+    // sacrificed this way." [CR#702.82a] It is devour [quality] N over creatures
+    // [CR#702.82c], so the body is that definition's (`devourQualityExpansion`),
+    // as connive's is `conniveN(1)`. The general `devourQuality` declaration
+    // waits on `semantics-v2-devour-quality-keyword`. "It devoured" [CR#702.82b]
+    // is `linkedObjects(ByKeyword(devour), OfAbility(devour), …)` (Skullmulcher).
+    body: [devourQualityExpansion(creature, Param(0))],
 )

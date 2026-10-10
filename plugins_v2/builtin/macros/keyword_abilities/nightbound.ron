@@ -5,7 +5,17 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "nightbound",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
-    // Nightbound is daybound's opposite face and has the same shape
-    // [CR#702.145b,702.145d]; see `Daybound.ron`.
+    // "Nightbound" means "As it becomes day, if this permanent is back face up,
+    // transform it" and "This permanent can't transform except due to its
+    // nightbound ability." [CR#702.145e] Daybound's second and third abilities over
+    // the other face; see `daybound.ron`.
+    body: [
+        static(
+            asEvent(
+                gameBecomes(day),
+                doIf(matches(thisPermanent, currentFace(Back)), transform(thisPermanent)),
+            ),
+        ),
+        static(cantExcept(transform, thisPermanent, ByKeyword(nightbound))),
+    ],
 )

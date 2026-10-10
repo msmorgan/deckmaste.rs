@@ -3,5 +3,5 @@
     name: "mayPlayDeed",
     kinds: [StaticSpec],
     params: {"deed": Deed, "player": NounPhrase, "what": NounPhrase, "rider": DeonticRider, "asThough": Default(Any, None)},
-    body: DeonticRule(Param(player), Permit, [Param(deed)], Agent, None, Counterpart(Param(what)), Param(asThough), Param(rider)),
+    body: DeonticRule(Param(player), Permit, [Param(deed)], Agent, None, Counterpart(Param(what)), Param(asThough), Param(rider), None),
 )

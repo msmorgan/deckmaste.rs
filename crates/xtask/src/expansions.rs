@@ -234,6 +234,8 @@ pub const SAMPLES: &[&str] = &[
     // TextChange.
     "RemoveBracketed",
     "TargetToEach",
+    // Cause.
+    "ByObjects(predicate: Other)",
     // Last: the absent value, which hides the hole it fills. No param type
     // reads it; it is here for an `Any` hole at an `Option` position.
     "None",
@@ -513,6 +515,7 @@ fn renderer(kind: &str) -> Option<Renderer> {
         "TextChange" => render::<abilities::TextChange>,
         "ManaSubstitute" => render::<abilities::ManaSubstitute>,
         "ModeChange" => render::<abilities::ModeChange>,
+        "Cause" => render::<abilities::Cause>,
         "FaceDown" => render::<abilities::FaceDown>,
         "MoveRider" => render::<abilities::MoveRider>,
         "EntryRider" => render::<abilities::EntryRider>,

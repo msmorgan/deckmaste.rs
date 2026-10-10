@@ -320,6 +320,10 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Ascend",
+            // The spell form is a spell ability, followed as the spell
+            // resolves [CR#702.131a]; the permanent form functions off the
+            // stack [CR#702.131b].
+            regime: Some(Regime::AtResolution),
             on_spell_card: true,
             ..D
         },
@@ -436,6 +440,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Warp",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.185a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -675,6 +682,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Dash",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.109a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
@@ -687,6 +697,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Blitz",
+            // Its permission to cast functions while the spell is on the
+            // stack [CR#702.152a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
@@ -967,6 +980,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Devour",
+            // A Link Source: "it devoured" reads back what its sacrifice
+            // acted on [CR#702.82b].
+            paid_cost: true,
             ..D
         },
         Row {
@@ -1195,6 +1211,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Rebound",
+            // Its replacement of the spell's move to the graveyard functions
+            // while the spell is on the stack [CR#702.88a].
+            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_permanent_card: false,
@@ -1307,6 +1326,9 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Tribute",
+            // A Link Source: "tribute wasn't paid" reads back whether its
+            // choice was taken [CR#702.104b].
+            paid_cost: true,
             ..D
         },
         Row {

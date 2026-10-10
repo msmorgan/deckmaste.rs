@@ -569,6 +569,12 @@ pub enum NounPhrase {
     ResolvedPermanent {
         spell: Box<NounPhrase>,
     },
+    /// The new object `subject` turns into at its next zone change, named
+    /// before the change happens: "the permanent this spell becomes"
+    /// [CR#400.7].
+    Becomes {
+        subject: Box<NounPhrase>,
+    },
     TheGrantor {
         marker: MarkerWord,
     },

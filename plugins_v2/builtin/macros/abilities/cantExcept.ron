@@ -1,0 +1,9 @@
+// "<subject> can't <deed> except <cause>": a prohibition on the subject as
+// the deed's patient, with its one Deontic Exception ("this permanent can't
+// transform except due to its daybound ability" [CR#702.145b]).
+(
+    name: "cantExcept",
+    kinds: [StaticSpec],
+    params: {"deed": Deed, "subject": NounPhrase, "cause": Cause},
+    body: DeonticRule(Param(subject), Forbid, [Param(deed)], Patient, None, NoPatient, None, NoRider, Param(cause)),
+)

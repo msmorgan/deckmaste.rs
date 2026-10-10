@@ -5,11 +5,22 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "daybound",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
-    // Daybound's second and third abilities are "As it becomes night, if this
-    // permanent is front face up, transform it" and "This permanent can't transform
-    // except due to its daybound ability" [CR#702.145b]. The first is a static that
-    // acts on a game-designation change without using the stack [CR#702.145c], and
-    // the second excepts one named ability from a prohibition; neither has a
-    // `StaticSpec`.
+    // "Daybound" means "If it is night and this permanent is represented by a
+    // double-faced card, it enters transformed," "As it becomes night, if this
+    // permanent is front face up, transform it," and "This permanent can't transform
+    // except due to its daybound ability." [CR#702.145b] The second is an Off-Stack
+    // Static on the game becoming night, and the third a prohibition with its
+    // Deontic Exception. That the card is double-faced is the card's to be, not
+    // written; the game's turning day and night and the transformations "any time"
+    // are the engine's [CR#702.145c,702.145d,702.145g,502.2].
+    body: [
+        static(onlyIfSo(entryRider(thisPermanent, EntersTransformed), gameIs(night))),
+        static(
+            asEvent(
+                gameBecomes(night),
+                doIf(matches(thisPermanent, currentFace(Front)), transform(thisPermanent)),
+            ),
+        ),
+        static(cantExcept(transform, thisPermanent, ByKeyword(daybound))),
+    ],
 )

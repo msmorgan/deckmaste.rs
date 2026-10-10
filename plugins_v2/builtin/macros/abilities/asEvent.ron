@@ -1,0 +1,10 @@
+// `StaticSpec.AsEvent` under Lean's own name for it: an Off-Stack Static, "as
+// [event], do". As `event` happens, `does` is carried out without using the
+// stack [CR#604.1,614.1c]; a delayed trigger it creates has this static's
+// object as its source [CR#603.7a,603.7g].
+(
+    name: "asEvent",
+    kinds: [StaticSpec],
+    params: {"event": GameEvent, "does": Instruction},
+    body: AsEvent(event: Param(event), does: Param(does)),
+)

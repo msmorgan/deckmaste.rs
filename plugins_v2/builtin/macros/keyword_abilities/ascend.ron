@@ -5,12 +5,38 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "ascend",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
-    // Ascend on a permanent means "Any time you control ten or more
-    // permanents and you don't have the city's blessing, you get the city's blessing for the
-    // rest of the game." [CR#702.131b] That is a static ability acting when a state holds,
-    // and no `StaticSpec` performs an instruction then: `GameEvent.stateHolds` heads a state
-    // trigger, which uses the stack [CR#603.8], and the static does not. The spell form
-    // [CR#702.131a] writes as a spell ability under an instant-or-sorcery guard, as gift's
-    // does, but it is half the definition.
+    // Ascend on a permanent means "Any time you control ten or more permanents and
+    // you don't have the city's blessing, you get the city's blessing for the rest of
+    // the game" [CR#702.131b], an Off-Stack Static whose instruction never uses the
+    // stack; on an instant or sorcery spell it is the same sentence as a spell
+    // ability, "If you control …" [CR#702.131a]. Each half is guarded by the card's
+    // class, as gift's are (`semantics-v2.md` §7, ruling 2026-10-06). "You don't have
+    // the city's blessing" is written as the rule writes it, however inert beside
+    // a designation that is only gained (owner, 2026-10-09).
+    body: [
+        static(
+            onlyIfSo(
+                whileHolds(
+                    and([
+                        compareAmt(countOf(and([permanent, youControl])), AtLeast, 10),
+                        not(matches(you, hasDesignation(citysBlessing))),
+                    ]),
+                    gainDesignation(you, citysBlessing, restOfGame),
+                ),
+                matches(this, permanentType),
+            ),
+        ),
+        spell(
+            doIf(
+                matches(this, instantOrSorcery),
+                doIf(
+                    and([
+                        compareAmt(countOf(and([permanent, youControl])), AtLeast, 10),
+                        not(matches(you, hasDesignation(citysBlessing))),
+                    ]),
+                    gainDesignation(you, citysBlessing, restOfGame),
+                ),
+            ),
+        ),
+    ],
 )

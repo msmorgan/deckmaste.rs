@@ -281,6 +281,17 @@ pub struct DeedComplement {
     pub counterpart: NounPhrase,
 }
 
+/// A Deontic Exception: the one source a "can't" exempts. `ByKeyword` names
+/// a keyword ability of the subject ("can't transform except due to its
+/// daybound ability" [CR#702.145b]); `ByObjects` describes the objects that
+/// are exempt ("can't be blocked except by artifact creatures and/or black
+/// creatures" [CR#702.36b]).
+#[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
+pub enum Cause {
+    ByKeyword { label: KeywordLabel },
+    ByObjects { predicate: Predicate },
+}
+
 /// Whom a deontic rule's deed is done to.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Expand, Serialize)]
 pub enum DeonticPatient {
@@ -633,6 +644,9 @@ pub enum StaticSpec {
         patient: DeonticPatient,
         as_though: Option<AsThough>,
         rider: Box<DeonticRider>,
+        /// The Deontic Exception: the one source the rule exempts
+        /// [CR#702.145b,702.13b].
+        except: Option<Cause>,
     },
     ManaRetention {
         player: NounPhrase,
@@ -722,6 +736,21 @@ pub enum StaticSpec {
     SpecialAction {
         when: Option<Timing>,
         cost: Box<Cost>,
+        does: Box<Instruction>,
+    },
+    /// An Off-Stack Static, "as [event], do": as `event` happens, `does` is
+    /// carried out without using the stack [CR#604.1,614.1c]. A delayed
+    /// trigger it creates has this static's object as its source
+    /// [CR#603.7a,603.7g].
+    AsEvent {
+        event: GameEvent,
+        does: Box<Instruction>,
+    },
+    /// An Off-Stack Static, "any time [condition] holds, do": whenever
+    /// `condition` holds, `does` is carried out without using the stack
+    /// [CR#604.1,702.131b].
+    WhileHolds {
+        condition: Condition,
         does: Box<Instruction>,
     },
     /// "<subject> is a Combatant": the creature-like combat rules apply to it

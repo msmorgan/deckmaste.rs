@@ -3,5 +3,5 @@
     name: "playerCant",
     kinds: [StaticSpec],
     params: {"deed": Deed, "player": NounPhrase},
-    body: DeonticRule(Param(player), Forbid, [Param(deed)], Agent, None, NoPatient, None, NoRider),
+    body: DeonticRule(Param(player), Forbid, [Param(deed)], Agent, None, NoPatient, None, NoRider, None),
 )

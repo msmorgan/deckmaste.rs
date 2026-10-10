@@ -3,5 +3,5 @@
     name: "mayPlayAdditionalLands",
     kinds: [StaticSpec],
     params: {"player": NounPhrase, "quantity": Quantity},
-    body: DeonticRule(Param(player), Permit, [play], Agent, Additional(Param(quantity)), Counterpart(allOf(p: land)), None, NoRider),
+    body: DeonticRule(Param(player), Permit, [play], Agent, Additional(Param(quantity)), Counterpart(allOf(p: land)), None, NoRider, None),
 )

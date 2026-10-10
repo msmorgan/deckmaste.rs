@@ -6,10 +6,9 @@ KeywordAbility(
         surface: "intimidate",
     ),
     // "A creature with intimidate can't be blocked except by artifact creatures
-    // and/or creatures that share a color with it." [CR#702.13b] Written as the
-    // negated predicate fear uses until `semantics-v2-off-stack-statics` gives
-    // the deontic rule its `except` slot.
+    // and/or creatures that share a color with it." [CR#702.13b] The exempt
+    // blockers are the prohibition's Deontic Exception, as fear's are.
     body: [
-        static(cantBeBlockedBy(thisCreature, and([creature, not(or([artifact, shares(Color, Share, thisCreature)]))]))),
+        static(cantBeBlockedExceptBy(thisCreature, and([creature, or([artifact, shares(Color, Share, thisCreature)])]))),
     ],
 )

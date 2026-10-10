@@ -5,12 +5,29 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "storied",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
-    // "Storied" means "ANY TIME you control three or more permanents that are
+    // "Storied" means "Any time you control three or more permanents that are
     // artifacts, Sagas, and/or legendary and you don't have an enduring story, you
-    // have an enduring story for the rest of the game." [CR#702.195a] No `StaticSpec`
-    // performs an instruction when a state holds; `DeonticRider::StateBased` is the
-    // only state-checked clause and its `StateBasedCause` has the single value
-    // `NonpositiveLife` (the cause Ascend carries — city's blessing and enduring
-    // story are the same shape).
+    // have an enduring story for the rest of the game." [CR#702.195a] An Off-Stack
+    // Static whose instruction never uses the stack, the shape of ascend's.
+    body: [
+        static(
+            whileHolds(
+                and([
+                    compareAmt(
+                        countOf(
+                            and([
+                                permanent,
+                                youControl,
+                                or([artifact, hasSubtype(enchantmentType("Saga")), hasSupertype(Legendary)]),
+                            ]),
+                        ),
+                        AtLeast,
+                        3,
+                    ),
+                    not(matches(you, hasDesignation(enduringStory))),
+                ]),
+                gainDesignation(you, enduringStory, restOfGame),
+            ),
+        ),
+    ],
 )

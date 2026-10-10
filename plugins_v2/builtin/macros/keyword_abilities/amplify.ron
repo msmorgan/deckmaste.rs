@@ -5,9 +5,24 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "amplify",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
-    // "Amplify N" means "As this object enters, reveal any number of cards
-    // from your hand that share a creature type with it. …" [CR#702.38a] The
-    // sharing half is `shares(Subtype(Creature), Share, …)`; the "as this
-    // object enters" entry clause `asEvent(enters(this), …)` has no node yet.
+    // "Amplify N" means "As this object enters, reveal any number of cards from
+    // your hand that share a creature type with it. This permanent enters with N
+    // +1/+1 counters on it for each card revealed this way. You can't reveal this
+    // card or any other cards that are entering the battlefield at the same time
+    // as this card." [CR#702.38a] An Off-Stack Static as it enters, over the
+    // existing entry rider; the revealed cards are read back as "them", since the
+    // reveal deed stamps no patient for `theVerbed`. The last sentence is the
+    // reveal's own domain: the cards revealed are in your hand, so neither this
+    // card nor one entering with it is among them.
+    body: [
+        static(
+            asEvent(
+                enters(thisPermanent),
+                sequentially([
+                    revealCards(counted(anyNumber, and([cardIn(yourHand), shares(Subtype(Creature), Share, thisPermanent)]))),
+                    establish(entersWithCounters(thisPermanent, times(Param(0), numberOf(them)), p1p1Counter)),
+                ]),
+            ),
+        ),
+    ],
 )

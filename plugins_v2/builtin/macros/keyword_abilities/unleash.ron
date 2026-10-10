@@ -5,12 +5,21 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "unleash",
     ),
-    // STOP (waits on: `semantics-v2-off-stack-statics`).
-    // "Unleash" means "You MAY have this permanent enter with an additional +1/+1
-    // counter on it" and "This permanent can't block as long as it has a +1/+1 counter
-    // on it." [CR#702.98a] The second half writes as a conditional `DeonticRule` over
-    // `Core(Block)`, but no entry rider is optional: `StaticSpec::EntryRider` takes a
-    // `EntryRider` and only `EntryRider::AsCopyOf` carries an `optional` flag (the
-    // cause Riot and Tribute share), so the first half cannot be written and a body
-    // carrying only the second would be a wrong analysis.
+    // "Unleash" means "You may have this permanent enter with an additional +1/+1
+    // counter on it" and "This permanent can't block as long as it has a +1/+1
+    // counter on it." [CR#702.98a] The first is an Off-Stack Static as it enters.
+    body: [
+        static(
+            asEvent(
+                enters(thisPermanent),
+                may(establish(entersWithAdditionalCounters(thisPermanent, 1, p1p1Counter))),
+            ),
+        ),
+        static(
+            onlyWhile(
+                deonticRule(thisPermanent, Forbid, [Block], Agent, NoPatient, NoRider),
+                matches(thisPermanent, hasCounters(p1p1Counter)),
+            ),
+        ),
+    ],
 )
