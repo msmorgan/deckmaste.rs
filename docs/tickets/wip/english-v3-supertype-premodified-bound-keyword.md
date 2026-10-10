@@ -177,7 +177,7 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
 
 ## Landing record
 
-1. **Census delta** (`ooumkosu`; BEFORE source is claim parent `toslutpn`):
+1. **Census delta** (`ooumkosu`; BEFORE source is claim parent `toslutpn`, commit `54cab345`):
    1,881 selected faces; covered **1,622 → 1,664**, Readings
    **79,869 → 80,129**. Official `english-v3 diff --lines`: gained **42**,
    lost **none**, decreases **0**, increases **0**, digest-only **0**;
@@ -185,6 +185,13 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    controls. Selector: `(?i)[a-z]*(walk|cycling)\b|\b(?:non)?(?:basic|snow|legendary|world)\b`,
    1,600 surface faces plus 300 random covered faces (seed 20261008), 19
    overlaps. Evidence: `target/english-v3/english-v3-supertype-premodified-bound-keyword/{manifest,before,after,diff}.json`.
+   Post-refresh `pqzrnyok`: **1,622 → 1,685** covered, **79,869 → 81,695**
+   Readings; gained **63**, lost/decreases/increases/digest-only all **0**.
+   Official `diff-incoming.json` attributes **21** additional gains to trunk:
+   19 named-token faces (`tlpwnxqnnquu`), Gandalf the White's cause frame
+   (`nzmrrqkysxto`), and Vision Charm's phase frame (`roomopmrpkys`).
+   The first AFTER's 1,664 covered faces all retain their counts and digests.
+   Refreshed reports: `after-refresh.json`, `diff-refresh.json`.
 2. **Witnesses** (`ooumkosu`): Gleam of Resistance, Ash Barrens, Rime Dryad,
    Ayumi, the Last Visitor, Dryad Sophisticate, Livonya Silone and
    Trailblazer's Boots each **0 → 1** on their ticket line/sentence.
@@ -228,7 +235,12 @@ Glossary: extend **Bound Keyword Stem** with the Premodifier in the landing.
    negative-role inheritance), ignored **0**, added **6**, removed **0**;
    existing typed bound values also supply `modifier: None`.
    `cargo build -p xtask` passed; citation checks: 0 stale, 0 noncompliant,
-   diff audit 0 new sites. Exact commands/logs are under the evidence directory.
-6. **Timing** (`ooumkosu`): the required **bounded** AFTER census took
-   **3:31.06** wall time under `/usr/bin/time -v`, **6 workers**, samples 0.
+   diff audit 0 new sites. After refresh (`pqzrnyok`), `cargo build -p xtask`
+   and the same six full test/clippy commands passed again: English **913**,
+   lexical-source **84**, compiler **39**; the 13 extra English tests belong
+   to the incoming landings. Citation checks remain 0 stale/noncompliant.
+   Exact commands/logs are under the evidence directory.
+6. **Timing** (`pqzrnyok`, post-refresh): the required **bounded** AFTER
+   census took **3:27.32** wall time under `/usr/bin/time -v`, **6 workers**,
+   samples 0.
    No full census was run, per the binding verification budget.
