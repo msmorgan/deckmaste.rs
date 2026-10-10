@@ -137,6 +137,8 @@ All other *not* (66 faces), each a different mechanism:
    digest-only 9 (the absent optional negator field). No wrong-analysis gains.
    Evidence: `target/english-v3/english-v3-negated-to-infinitival/{manifest,after,diff}.json`;
    comparison by `english-v3 diff --lines`, with no source-hash changes.
+   After refresh, census `zmmrtwpwqtzq` is identical to the initial census:
+   all 415 faces unchanged, including line digests (`refresh-diff.json`).
 2. **Witnesses**: on claim parent `rouunsxt`, all four witness Sentences had
    0 Readings and their positive counterparts each had 6, uncapped. On
    `wqkrtoxrxvor`, Rust Tick, Amber Prison, the land witness (Ice Floe), and
@@ -162,10 +164,17 @@ All other *not* (66 faces), each a different mechanism:
    gain `negator: None`, preserving their assertions. Added the glossary
    terms Secondary Negation (CGEL p. 803; representation cited as NI1–NI4
    amended by NI-R1) and Secondary Negator; no remaining glossary gap.
+   Refresh brought preposed-frequency change `lvpxmkkl`; its lexical data
+   and tests required a rebuild and all bounded/full checks below to rerun.
+   The first refresh refused a concurrent focus-workspace edit; retry after
+   verifying its empty working copy succeeded without conflicts.
 5. **Tests** (`wqkrtoxrxvor`): `cargo test -p deckmaste_english_v3` passed
    (795 tests); `cargo test -p deckmaste_lexical_source` passed (82 tests).
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   After refresh (`zmmrtwpwqtzq`), `cargo build -p xtask` and the same four
+   test/clippy commands passed again in full: English 798, lexical source
+   82; the additional 3 English tests arrived with `lvpxmkkl`.
    The first English run found a mistaken intransitive frame in the new
    independent *untap* fixture; corrected it to the declared Object-taking
    frame and reran the full suite without weakening assertions.
