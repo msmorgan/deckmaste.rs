@@ -165,7 +165,11 @@ a plugin definition changes, run `cargo xtask lean check`.
    Arbalest Engineers, Feast or Famine, Incite War, Light of Hope, Professor's
    Warning, Shriveling Rot, Vannifar, Evolved Enigma and You've Been Caught
    Stealing. No lost/decreased/increased faces or issues
-   (`modal-refresh-diff.json`, `final-modal-diff.json`).
+   (`modal-refresh-diff.json`, `final-modal-diff.json`). The subsequent
+   polyhedral-die refresh changes none of the 643 faces
+   (`die-refresh-diff.json`, `final-die-diff.json`): final totals stay
+   27 gains (25 this ticket, 2 trunk), 0 losses/decreases/increases, 8
+   trunk-attributed digest changes, 593 covered and 10,980 Readings.
 2. **Witnesses** (`wxwozrtz`, complete sentence probes, limit 64): Gilded
    Ghoda, Alacrian Jaguar, District Mascot and Dracosaur Auxiliary each 0 → 1;
    each control with *while saddled* removed reads 1 before and after (W9-A).
@@ -214,6 +218,8 @@ a plugin definition changes, run `cargo xtask lean check`.
    noun formation), without conflicts. Later integration retries encountered
    ticket-only moves and concurrent banking refusals; refresh eventually
    incorporated `ztrnpkyv` (modal-header quantities), without conflicts.
+   Another integration refusal required refresh with `vlxrulqw`
+   (polyhedral die nouns), also without conflicts.
 5. **Tests** (`wxwozrtz`): `cargo test -p deckmaste_english_v3` passed all six
    binaries (899 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. `cargo test -p deckmaste_lexical_source` passed (42 unit + 44
@@ -248,5 +254,8 @@ a plugin definition changes, run `cargo xtask lean check`.
    refresh, repeated the same build, bounded census, both full suites and
    both clippy commands: all passed (English 935 tests; lexical source
    42 unit + 44 integration). Logs use the `-modal-refresh.log` suffix.
+   After the die refresh, repeated the same build, bounded census, both full
+   suites and both clippy commands: all passed (English 938 tests; lexical
+   source 42 unit + 44 integration). Logs use the `-die-refresh.log` suffix.
 6. **Timing**: complete bounded census wall time **25.06 seconds**, six workers,
    at `wxwozrtz`, measured by `/usr/bin/time -v` (`after.time`).
