@@ -136,24 +136,33 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta** (`qmznkvqq`, before implementation → after): bounded
-   549 faces, covered **351 → 447**, total Readings **5,285 → 10,150**;
-   gained **96**, lost **none**, decreases **0**, digest-only **0**, issues **0**.
+1. **Census delta** (BEFORE `qmznkvqq`, refreshed AFTER `ksyqnpnq`):
+   bounded **549** faces, covered **351 → 450**, total Readings
+   **5,285 → 10,215**; gained **99**, lost **none**, decreases **0**,
+   digest-only **0**, issues **0**. Pre-refresh `qmznkvqq` covered **447**
+   faces with **10,150** Readings and **96** gains. The official refresh-only
+   diff adds Jace, Multiverse Architect (**27**), Marina Vendrell (**8**),
+   and Tom Bombadil (**30**), enabled by vocabulary change `nqnztuzo`;
+   no previously covered face changes across refresh.
    Selector: ` and (the rest|the other|[a-z]+ of them|that card|those cards) (on|into|onto) `
    (**249** supported faces) plus **300** covered random controls from the
    inherited census, selected by `english-v3 diff --random 300 --seed 20261008`
    (**no overlap**). The bounded BEFORE re-measures the claim-parent grammar;
    no full corpus run. Manifest and official comparison:
-   `target/english-v3/english-v3-gapped-coordination-shared-adjunct/{manifest,before,after,diff}.json`.
+   `target/english-v3/english-v3-gapped-coordination-shared-adjunct/{manifest,before,after,diff}.json`;
+   refreshed evidence is `after-refresh.json`, `diff-refreshed.json`, and
+   `refresh-diff.json` in that directory.
    The three covered-face increases are Cream of the Crop **45 → 48**
    (line 0, **+3**), Fertile Thicket **218 → 254** (line 1, **+36**), and
    Planar Atlas **164 → 191** (line 1, **+27**). Complete Ability probes show
-   each added whole-line Reading has exactly one selected verb, an Object +
-   Locative goal tail and a final Object + Locative goal + Manner tail. These
+   each added whole-line Reading has one tail Coordination under a single
+   selected verb: an Object + Locative goal tail and a final Object + Locative
+   goal + Manner tail. These
    are ambient line alternatives of the one added tail analysis per
    Coordination (GC6); incumbent NP-coordination Readings survive. The mixed
    shorter sentence control rises **3 → 4**, adding exactly that tail analysis.
-2. **Witnesses** (`qmznkvqq`, complete whole-line probes before/after):
+2. **Witnesses** (`qmznkvqq`, complete whole-line probes before/after;
+   their counts and digests are unchanged at refreshed `ksyqnpnq`):
    Glimpse the Cosmos **0 → 3**; Raven Familiar **0 → 3**; Tezzeret, Master
    of Metal **0 → 3**; Evolutionary Leap **0 → 3**; Enshrined Memories
    **0 → 6**. No witness was already covered. Their *and put the rest*
@@ -161,16 +170,19 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    The four sentence controls before/after are **1 → 1**, **3 → 4**,
    **1 → 1**, **2 → 2** in the ticket's order. Evidence: `before-probe-*`,
    `before-control-count-*`, and `after-probe-*` under the same target directory.
-3. **Spot checks** (`qmznkvqq`): Glimpse the Cosmos; Raven Familiar;
+3. **Spot checks** (`qmznkvqq`, retained unchanged at `ksyqnpnq`;
+   Atla Palani additionally probed at `ksyqnpnq`): Glimpse the Cosmos; Raven Familiar;
    Tezzeret, Master of Metal; Evolutionary Leap; Enshrined Memories;
-   Anticipate; Blood Price; Diabolic Vision; Drawn from Dreams; Dig Through
-   Time. Each newly covered face selects one verb with an Object + marked-NP
-   goal as the first tail and an Object + Locative goal + selected Manner
-   Complement as the final tail. Diabolic Vision's final goal is *on top of
-   your library*; the others use *on the bottom of your library*. Complete
-   probe trees were inspected; Manner belongs inside the final tail, under
+   Atla Palani, Nest Tender; Blood Price; Diabolic Vision; Drawn from Dreams;
+   Dig Through Time. Each inspected Reading coordinates an Object + marked-NP
+   goal tail with an Object + Locative goal + selected Manner Complement tail
+   under one verb. Diabolic Vision's final goal is *on top of
+   your library*; the others use *on the bottom of your library*. Atla
+   Palani's first goal is *onto the battlefield*; the others use *into your
+   hand*. Complete probe trees were inspected; Manner belongs inside the final tail, under
    GC2, with no clause-ellipsis route or shared Adjunct. Attestation was
-   checked with `english-v3 grep`, including `manner-attestation.json`.
+   checked with `english-v3 grep`, including `manner-attestation.json`
+   and `onto-attestation.json`.
 4. **Deviations and STOPs**: added `ObjectLocativeMannerTail` for the complete
    third-slot frame, retaining the existing Coordination Construction and
    both existing tail routes. Added declared `SelectedTailLicence` on *put*
@@ -183,19 +195,27 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    explicit project-ruling attribution (GC1–GC2), not a CGEL claim about
    unequal element counts. STOPs: none. The inherited probe executable was
    incompatible with current keyword metadata; it was rebuilt before the
-   successful BEFORE probes and census. No loader code or Lean work.
-5. **Tests** (`qmznkvqq`):
+   successful BEFORE probes and census. Refresh initially paused for a
+   concurrent edit in `english-v3-clitic-have-object-relative`, then conflicted
+   at the two test-module additions in `tests/main.rs`. Harmony retained both
+   registrations in `qmznkvqq`; the retry succeeded and this feature's
+   ancestry is conflict-free. No loader code or Lean work.
+5. **Tests** (pre-refresh `qmznkvqq`, refreshed `ksyqnpnq`):
    `cargo test -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_lexical_source`
-   **passed**, all suites unfiltered: English **752**; construction compiler
-   **36**; construction macro integration **42** plus **2** doc tests;
-   lexical source **35** unit and **41** integration tests. Zero failures
-   or ignored tests.
+   **passed twice**, all suites unfiltered. Pre-refresh / refreshed counts:
+   English **752 / 753**; construction compiler **36 / 36**; construction
+   macro integration **42 / 42** plus **2 / 2** doc tests; lexical source
+   **35 / 39** unit and **41 / 41** integration tests. Zero failures or
+   ignored tests. The extra tests belong to refreshed vocabulary `nqnztuzo`.
+   `cargo test -p xtask english_v3` **passed** at `ksyqnpnq`: **56** tests.
    `cargo clippy -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_lexical_source --tests -- -D warnings`
-   **passed**. Restored **0** / re-spelled **0** / ignored **0** / added
+   **passed** at `qmznkvqq`.
+   `cargo clippy -p deckmaste_english_v3 -p deckmaste_construction_v3_core -p deckmaste_construction_v3 -p deckmaste_lexical_source -p xtask --tests -- -D warnings`
+   **passed** at `ksyqnpnq`. Restored **0** / re-spelled **0** / ignored **0** / added
    **4** / removed **0**; no removals to justify. New tests assert roles,
    retained complete Reading values, the lexical licence and independent
    construction roundtrip. Citation checks: no noncompliant or stale sites;
    diff audit selects no new citation sites.
-6. **Timing** (`qmznkvqq`): the bounded AFTER census took **7.61 s** wall
+6. **Timing** (`ksyqnpnq`): the refreshed bounded AFTER census took **7.05 s** wall
    time under `/usr/bin/time -v`, **6** workers, **0** samples per face.
    Full corpus verification belongs to the orchestrator's batch.
