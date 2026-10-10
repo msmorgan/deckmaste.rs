@@ -838,7 +838,21 @@ fn a_selected_adjective_frame_requires_its_complement_in_both_directions() {
             .admit(lexicon())
             .is_err()
     );
-    assert!(readings("equal", Category::ComparativeAdjectivePhrase).is_empty());
+    let mut complement_free_head = word(
+        "vocab:ScalarDegree/Equal",
+        WordForm::Invariant,
+        FeatureBundle::default(),
+    );
+    complement_free_head.frame = Some(1);
+    assert_eq!(
+        readings("equal", Category::AdjectivePhrase),
+        [Reading::IntransitiveAdjective {
+            form: 0,
+            head: complement_free_head,
+        }]
+        .into_iter()
+        .collect()
+    );
     assert!(readings("equal than 2", Category::ComparativeAdjectivePhrase).is_empty());
     assert!(!readings("greater than 2", Category::ComparativeAdjectivePhrase).is_empty());
 }

@@ -260,3 +260,9 @@ fn independently_constructed_attributive_property_roundtrips() {
     assert_eq!(value.realize(lexicon()).unwrap(), "greater power");
     assert_eq!(readings("greater power", Category::Nominal), [value].into());
 }
+
+#[test]
+fn complement_free_comparatives_do_not_enter_predicative_function() {
+    assert!(readings("Its power is greater.", Category::Sentence).is_empty());
+    assert!(readings("Its power is equal or lesser.", Category::Sentence).is_empty());
+}

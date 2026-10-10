@@ -871,12 +871,17 @@ Coordinations do not license a Property Value. The modifier restriction is the
 [coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values).
 
 **Attributive Adjective Restriction** (project term):
-An Adjective Phrase's retention of a use licensed only in attributive function.
-The complement-free comparative use declared under orchestrator ruling AC1
-(2026-10-10, `english-v3-attributive-scalar-comparative`) has this restriction.
-Coordination retains it if any Conjunct has it, including Correlative
-Coordination; it cannot enter predicative or postpositive function or become
-an Adjectival Keyword Quality.
+A project restriction on the complement-free comparative use, introduced in
+`english-v3-attributive-scalar-comparative` to retire 157 spurious
+predicative-coordination Readings. It is derived from Implicit Comparative Use,
+without a separate lexical declaration. Coordination retains it if any Conjunct
+has it, including Correlative Coordination; it blocks predicative and
+postpositive function and Adjectival Keyword Quality. CGEL p. 1126 supports
+attributive *lesser*; this broader gate is a project restriction, not a claim
+about the three Adjectives' grammatical uses. Predicative *whichever is greater*
+on Willowdusk, Triumphant Chomp, and Prophet of the Scarab is blocked today by
+undeclared *whichever* and is not covered. Revisit this gate when *whichever*
+lands: it must preserve the correct predicative Reading.
 
 **Implicit Comparative Use** (project term):
 An Adjective's declared permission to function as a comparative Premodifier
