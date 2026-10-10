@@ -158,7 +158,10 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    refresh imported named-token apposition (`tlpwnxqn`); rechecking the same
    manifest on `ynosvvpz` yielded all 1,372 faces and all lines unchanged,
    including counts and digests (`token-refresh-diff.json`). Final totals
-   remain 1,220 covered and 26,016 Readings, with 23 own gains.
+   remain 1,220 covered and 26,016 Readings, with 23 own gains. The subsequent
+   kind-of-counter refresh (`wkooyuko`) was measured on `kmzutkzt`:
+   `counter-refresh-diff.json` likewise reports all 1,372 faces and all lines
+   unchanged, with zero count or digest changes. The same final totals stand.
 2. **Witnesses** (`rtzolrtx`, all completely enumerated by sentence probes):
    Prowl, Stoic Strategist **0 → 1**; Release to the Wind **0 → 2**;
    Preacher **0 → 1**; Minas Morgul, Dark Fortress **0 → 6**; Flameshape
@@ -217,5 +220,9 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed again.
    The four new inherited tests belong to `tlpwnxqn`; lexical-source files
    were unchanged in that refresh, preserving its full-suite/clippy results.
-6. **Timing** (`ynosvvpz`): the final refreshed bounded after-census took
-   **68.13 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.
+   After kind-of-counter refresh (`kmzutkzt`), `cargo build -p xtask`,
+   `cargo test -p deckmaste_english_v3` (918 tests),
+   `cargo test -p deckmaste_lexical_source` (84 tests), and both exact clippy
+   commands above passed. Five inherited tests belong to `wkooyuko`.
+6. **Timing** (`kmzutkzt`): the final refreshed bounded after-census took
+   **99.81 s corpus wall** with **6 workers**, under `/usr/bin/time -v`.
