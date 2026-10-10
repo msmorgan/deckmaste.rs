@@ -2507,6 +2507,7 @@ constructions! {
 
         construction Mode: Mode {
             form ["• ", body: Paragraph];
+            form ["• ", body: Ability] require body.LabelKind = FlavorWord;
         }
 
         construction ModeContinuation: ModeContinuation {

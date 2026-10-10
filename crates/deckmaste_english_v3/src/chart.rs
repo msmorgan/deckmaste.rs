@@ -147,7 +147,11 @@ impl<G: Grammar> Chart<'_, G> {
                     )
                 }
                 LexicalReading::FlavorWord { .. } => {
-                    if occurrence.start != 0 && self.input.tokens[occurrence.start - 1] != '\n' {
+                    let start = occurrence.start;
+                    let after_bullet = start >= 2
+                        && self.input.tokens[start - 2..start] == ['•', ' ']
+                        && (start == 2 || self.input.tokens[start - 3] == '\n');
+                    if start != 0 && self.input.tokens[start - 1] != '\n' && !after_bullet {
                         return Err(ParseError::UndeclaredOccurrence(index));
                     }
                     (

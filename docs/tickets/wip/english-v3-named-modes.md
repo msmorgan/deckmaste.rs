@@ -71,6 +71,16 @@ Orchestrator rulings 2026-10-10:
   previously covered face is expected: the 458 covered ` —\n•` faces have no
   named bullet. Any increase is reported with its shape before landing.
 
+### NM-R1 — orchestrator ruling, 2026-10-10
+
+ACCEPT with disclosure. Summon: Magus Sisters reads because its chapter
+label `I, II, III` is taken as a Flavor Word. This is a pre-existing Saga
+chapter-line defect, also present on trunk for Nightmares and Daydreams,
+not a named-mode defect. Count 39 valid gains plus one face covered by a
+known wrong analysis. Record both faces in `english-v3-systemic-residuals`;
+chapter-label line forms remain outside this ticket. This is a project
+ruling, not a CGEL analysis.
+
 ## Witnesses
 
 Whole-face Documents, probed 2026-10-10 on the `uoqyuxtnowpo` binary
@@ -128,4 +138,71 @@ negatives), never an incidental count or a Debug-printed tree. Attestation by
 
 ## Landing record
 
-The six items in `docs/tickets/README.md` ("Landing record").
+1. **Census delta** (`zsqyvxns` claim parent, verified identical to
+   `mqrlzszkuszn` baseline on the selector; `sslxqtkx` after refresh,
+   containing `pxtwrtvu`): bounded manifest
+   `target/english-v3/english-v3-named-modes/manifest.json`, all 640 supported
+   ` —\n•` faces plus 300 random covered faces, seed 20261008; 938 distinct
+   faces. Covered 756 → 796; counted Readings 35,683 → 36,106. The native
+   `diff --lines` reports 40 admissions: **39 valid gains, one face covered by a known wrong
+   analysis (accepted with disclosure under NM-R1)**, Summon: Magus Sisters (three counted line Readings: two modal
+   Readings mislabel the chapter, plus one Haste Reading). Lost faces: none;
+   decreases, increases, digest-only changes and issues: zero. Evidence:
+   `target/english-v3/english-v3-named-modes/{before,after-refresh,final-diff}.json`.
+   The native `refresh-diff --lines` finds all 938 faces unchanged from the
+   pre-refresh after census, including counts, digests and lines.
+2. **Witnesses** (`zsqyvxns` before; `pxtwrtvu` after; complete whole-Document
+   probes): Megaton's Fate 0 → 2; Dawnbringer Cleric 0 → 2; Cult of Skaro
+   0 → 14; Special Move 0 → 12; Battle Menu 0 → 2. Their name-stripped
+   controls remain 2, 2, 14, 12, 2. Ordinary modal controls remain one Reading
+   each; ordinary Cure Wounds remains one Flavor Word-headed Ability; plain
+   standalone bullet remains zero. The wrong standalone named-bullet Reading
+   is retired, one → zero, under NM3: `• Cure Wounds — You gain 2 life.`
+   read alone as a Document no longer reads. Its label is never `• Cure Wounds`;
+   the named-mode route admits it only at Category Mode or inside a modal item.
+   Previously covered faces changing count because of this retirement: zero;
+   the census confirms zero increases and zero decreases.
+3. **Spot checks** (`pxtwrtvu`, ten valid gains): each selects a Clause header
+   and Mode → FlavorWordHead → OrdinaryAbility → Paragraph, with the label
+   excluding the bullet: Megaton's Fate (Disarm / Detonate); Dawnbringer Cleric
+   (Cure Wounds / Dispel Magic / Gentle Repose); Cult of Skaro (Thay / Caan /
+   Sec / Jast); Special Move (Jump Kick / Dash Attack / Foot Toss); Battle Menu
+   (Attack / Ability / Magic / Item); Astarion, the Decadent (Feed / Friends);
+   Baleful Beholder (Antimagic Cone / Fear Ray); Choose Your Weapon (Two-Weapon
+   Fighting / Archery); Daily Bugle Reporters (Puff Piece / Investigative
+   Journalism); Damage Control Crew (Repair / Impound).
+4. **Deviations and STOPs** (`pxtwrtvu`): no new Construction or Frame; Mode
+   gains its second form using existing Ability and LabelKind. The open slot
+   is implemented in `deckmaste_lexical`, so NM3 requires scanner and lexical
+   validation changes there and matching occurrence validation in the chart.
+   Corpus grep on `zsqyvxns`: 48 named-mode faces; zero mixed lists and zero
+   Ability Word mode heads. No special blocker for those unattested shapes.
+   The new test initially required every paragraph-scope alternative to keep
+   the last sentence inside the final Mode; corrected it to require the exact
+   full-body Reading while preserving the plain Mode's other scope Readings.
+   **STOP resolved by orchestrator ruling NM-R1 (2026-10-10):** accept and
+   disclose Summon: Magus Sisters as coverage through the pre-existing wrong
+   chapter-label analysis; both complete whole-Document Readings mislabel
+   `I, II, III` as a Flavor Word. The same defect on Nightmares and Daydreams
+   is recorded with it under “Faces covered by a known wrong analysis” in
+   `english-v3-systemic-residuals`. Chapter repair is deferred. No glossary gap.
+5. **Tests** (`pxtwrtvu` initially; `sslxqtkx` after refresh): the initial
+   English suite failed the new scope expectation; its corrected full rerun
+   passed 795 tests. After refresh, `cargo build -p xtask` passed, and full
+   `cargo test -p deckmaste_english_v3` (805 tests),
+   `cargo test -p deckmaste_lexical` (60 tests), and
+   `cargo test -p deckmaste_lexical_source` (82 tests) passed.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
+   `cargo clippy -p deckmaste_lexical --tests -- -D warnings`, and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Refresh brought `lvpxmkkl` (preposed frequency) and `zunolrnv` (preverbal
+   next), including lexical-source data and suite registrations; the
+   registration conflict preserved both suites. The bounded census and all
+   three full suites and clippy checks were rerun. Assurance: restored 0 /
+   re-spelled 0 / ignored 0 / added 6 / removed 0; no removals to justify.
+   Citation checks: zero noncompliant and zero stale; piped
+   `jj --no-pager diff --git | target/debug/cargo-xtask cite audit --diff`
+   selected zero changed citation sites. Logs are under the evidence directory.
+6. **Timing** (`sslxqtkx`): the bounded after-refresh census took
+   **77.65 s wall** under `/usr/bin/time -v`, six workers, samples per face
+   zero. No full-corpus census or Lean check was run.

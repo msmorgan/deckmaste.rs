@@ -747,6 +747,16 @@ obligations rather than correct coverage gains:
   Missing piece: an *as*-predicative Complement frame. Re-examine the Adjunct
   Readings when that Complement frame is ticketed.
 
+- **Summon: Magus Sisters; Nightmares and Daydreams**
+  (orchestrator ruling **NM-R1, 2026-10-10**, `english-v3-named-modes`,
+  `pxtwrtvu`): shape **chapter label read as FlavorWordHead**. Summon: Magus
+  Sisters is newly covered only because `I, II, III` is taken as a Flavor Word;
+  Nightmares and Daydreams shows the same pre-existing defect on trunk.
+  Missing piece: **a chapter-label line form for Saga chapters (`I —`,
+  `II, III —`)**. NM-R1 accepts disclosure and separate counting, not chapter
+  repair in the named-modes ticket; re-examine these Readings when chapter
+  line forms are implemented.
+
 ## Cycling cost and ability gerund retirement candidate (2026-10-10)
 
 Accepted review ruling L3 for `english-v3-keyword-mention-without-parameter`:

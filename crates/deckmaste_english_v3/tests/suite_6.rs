@@ -76,3 +76,6 @@ mod focus_only_object;
 
 #[path = "suite/do_so_and_able_to.rs"]
 mod do_so_and_able_to;
+
+#[path = "suite/named_modes.rs"]
+mod named_modes;

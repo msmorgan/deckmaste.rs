@@ -1147,3 +1147,34 @@ fn serialized_surface_scope_filters_matching_and_keeps_realization() {
         .insert("undeclared spelling".into());
     assert!(Lexicon::new([card]).is_err());
 }
+
+#[test]
+fn mode_bullets_stay_outside_open_flavor_word_labels() {
+    let lexicon = Lexicon::new([]).unwrap();
+    for label in [
+        "Cure Wounds",
+        "Dispel Magic",
+        "Gentle Repose",
+        "An Unlisted Label Ω!",
+    ] {
+        let expected = LexicalReading::FlavorWord {
+            label: label.into(),
+        };
+        for prefix in ["• ", "Choose one —\n• "] {
+            let text = format!("{prefix}{label} — You gain 2 life.");
+            let start = prefix.chars().count();
+            let end = start + label.chars().count() + 2;
+            assert_eq!(
+                at(&lexicon.analyze(&text), start, end),
+                BTreeSet::from([expected.clone()])
+            );
+            assert_eq!(lexicon.realize(&expected).unwrap(), format!("{label} —"));
+            assert!(at(&lexicon.analyze(&text), start - 2, end).is_empty());
+        }
+    }
+    let invalid = LexicalReading::FlavorWord {
+        label: "• Cure Wounds".into(),
+    };
+    assert!(lexicon.realize(&invalid).is_err());
+    assert!(lexicon.surface_features(&invalid).is_err());
+}

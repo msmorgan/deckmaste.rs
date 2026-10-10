@@ -565,7 +565,10 @@ impl Lexicon {
 }
 
 fn valid_flavor_label(label: &str) -> bool {
-    !label.is_empty() && !label.chars().any(char::is_control) && !label.contains(" —")
+    !label.is_empty()
+        && !label.starts_with('•')
+        && !label.chars().any(char::is_control)
+        && !label.contains(" —")
 }
 
 fn flavor_word_matches(tokens: &[char], matches: &mut Vec<LexicalMatch>) {
@@ -573,6 +576,12 @@ fn flavor_word_matches(tokens: &[char], matches: &mut Vec<LexicalMatch>) {
         if start != 0 && tokens[start - 1] != '\n' {
             continue;
         }
+        // NM3: the bullet belongs to Mode, outside its Flavor Word label.
+        let start = if tokens[start..].starts_with(&['•', ' ']) {
+            start + 2
+        } else {
+            start
+        };
         let line_end = tokens[start..]
             .iter()
             .position(|ch| ch.is_control())
