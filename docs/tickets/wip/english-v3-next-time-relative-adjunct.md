@@ -173,7 +173,14 @@ Deltas:
    reviewed census (`review-delta.json`): lost/gained/decreases/increases/
    digest-only **0**, covered **884**, Readings **111613**. Decreased faces:
    none. Claim-parent `review-diff.json` retains the **75** gains and the
-   **330** inherited digest-only changes above.
+   **330** inherited digest-only changes above. Post-refresh bounded check
+   (`xmzzwqxn`, empty child above `stymwqqo`) imports arithmetic
+   `lrolnmwooptk` / `wnmmonzsruku` (landing `owrvksuwqmpt`): **885** covered,
+   **111817** Readings. `landing-delta.json` has one gain, Combustion Technique
+   (**204**), and **1175** unchanged; no lost/decreased/increased/digest-only
+   faces. This gain is inherited from the arithmetic nominal operands.
+   Claim-parent `landing-diff.json`: gained **76**, lost/decreases/increases
+   **0**, digest-only **330**, unchanged **770**. Decreased faces remain none.
 2. **Witnesses** (pre-refresh `rxwmpvru`, complete probes): Dazzling Reflection **12**;
    Words of Waste **24**; New Way Forward **20**; Circle of Protection: Red
    **40**; Words of Wilding **24**. All five were **0** before implementation;
@@ -228,10 +235,15 @@ Deltas:
    needed a BTreeSet accessor correction before the suite ran. Final feature
    counts: restored **0**, re-spelled **0**, ignored **0**, added **11**
    (**9** English, **2** core), removed **0**; no removals to justify.
+   After the grammar-bearing refresh (`xmzzwqxn`), the same full suites
+   passed **696**, **64**, and **32** tests; all three exact clippy commands
+   and citation checks passed again. These full suites include the single-
+   Reading *each time* regression; the feature's assurance counts are unchanged.
 6. **Timing** (pre-refresh `rxwmpvru`): the bounded landing census took **46.21 s**,
    **6 workers**, peak RSS **8173084 kB**, measured with `/usr/bin/time -v`
    on prebuilt `target/debug/cargo-xtask`, identity manifest and
    `--samples-per-face 0`. Refresh-only bounded recheck (`rxwmpvru`):
    **1 min 54.11 s**, **6 workers**, peak RSS **8188948 kB**. Review correction
    recheck (`stymwqqo`): **43.43 s**, **6 workers**, peak RSS **7972736 kB**.
-   No full corpus run.
+   Post-refresh bounded recheck (`xmzzwqxn`): **54.62 s**, **6 workers**,
+   peak RSS **8150140 kB**. No full corpus run.
