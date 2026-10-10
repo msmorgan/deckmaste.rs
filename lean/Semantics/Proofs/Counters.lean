@@ -1,5 +1,6 @@
 import Semantics.Macros
 import Semantics.Check.Card
+import Semantics.Check.Rules
 
 /-!
 # Semantics.Proofs.Counters
@@ -543,5 +544,55 @@ theorem badBareOtherWithoutAnchor :
           (each (.and [.other, .hasPossessor .owner .you, .inZone exileZone]))))
       = [.anyTargeted .object, .otherAnchored] := by
   decide
+
+/-! ## The +1/+1 and −1/−1 annihilation rule and "the smaller of" -/
+
+/-- "N, where N is the smaller of the number of +1/+1 and −1/−1 counters on it" [CR#704.5q]. -/
+def annihilationCount : Amount :=
+  smallerOf (countersOn p1p1Counter .this) (countersOn m1m1Counter .this)
+
+/-- The state-based conferral on the −1/−1 counter's definition [CR#704.5q,122.3]: "If a
+permanent has both a +1/+1 counter and a −1/−1 counter on it, N +1/+1 and N −1/−1 counters
+are removed from it", the two removals at once, as one action of the check [CR#704.3]. It
+reads the count of its own kind, which a state-based conferral may (ruling 2026-10-10). -/
+def annihilation : Conferral :=
+  .stateBased (.matches .this (.and [.hasCounters (some p1p1Counter), .hasCounters (some m1m1Counter)]))
+    (.simultaneously
+      [ .removeCounters (some (.exactlyOf annihilationCount)) (some (.printed p1p1Counter)) .this,
+        .removeCounters (some (.exactlyOf annihilationCount)) (some (.printed m1m1Counter)) .this ])
+
+/-- "the smaller of" two counts is an amount, and so is each of them. -/
+theorem okAnnihilationCount : Amount.check [] annihilationCount = [] := by decide
+
+/-- The rule proves as a conferral. -/
+theorem okAnnihilation : Conferral.check annihilation = [] := by decide
+
+/-- The −1/−1 counter's definition: its per-counter boost and its once-per-holder rule. -/
+theorem okM1m1CounterDefinition :
+    Definition.check
+      (.counter m1m1Counter .object [boost (.down (.lit 1)) (.down (.lit 1)), annihilation])
+      = [] := by
+  decide
+
+/-- The listed amounts are checked as amounts: "that much" with no outcome in scope is refused
+inside "the smaller of" exactly as it is outside it. -/
+theorem badSmallerOfUnscopedThatMuch :
+    Amount.check [] (smallerOf (.lit 1) .thatMuch) = [.quantOutcomeInScope 0] := by decide
+
+/-- Snowblind's Y, the non-rule witness: "Y is equal to X or to enchanted creature's toughness
+minus 1, whichever is smaller", X read in its "otherwise" branch, "the number of snow lands its
+controller controls". -/
+theorem okSnowblindWhicheverIsSmaller :
+    Amount.check []
+      (smallerOf
+        (countOf (.and [.hasSupertype .snow, land,
+          .hasPossessor .controller (controllerOf (.attachHost .enchanted (.type .creature)))]))
+        (minus (toughnessOf (.attachHost .enchanted (.type .creature))) (.lit 1)))
+      = [] := by
+  decide
+
+/-- "whichever is greater" is the same aggregate under `max`. -/
+theorem okGreaterOf :
+    greaterOf (.lit 1) (.lit 2) = .aggregateOf .max [.lit 1, .lit 2] := rfl
 
 end Semantics.Proofs.Counters

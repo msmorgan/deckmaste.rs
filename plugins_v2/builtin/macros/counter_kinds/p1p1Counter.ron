@@ -4,6 +4,9 @@
 // grants a boost. The conferral is what ONE counter confers; the model applies
 // it once per counter held, so it reads no count. Inherently strip-immune: a
 // creature whose abilities are all removed still gets the bonus.
+//
+// The +1/+1 and -1/-1 annihilation rule ([CR#704.5q]) reads this kind but is
+// written once, as the state-based conferral on `m1m1Counter.ron`.
 CounterKind(
     name: "p1p1Counter",
     params: [],

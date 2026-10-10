@@ -1,15 +1,19 @@
 // The -1/-1 counter ([CR#122.1a]): each subtracts 1 from power and toughness
 // in layer 7c ([CR#613.4c]), conferred directly as the ability-free `Property`
-// flavor. The conferral is what ONE counter confers; the model applies it once
-// per counter held, so it reads no count.
+// flavor. That conferral is what ONE counter confers; the model applies it
+// once per counter held, so it reads no count.
 //
-// STOP (semantics-v2-definition-bodies). The annihilation rule ([CR#704.5q])
-// is not written here. It removes "N +1/+1 and N -1/-1 counters … where N is
-// the smaller of" the two counts, and `Amount` has no minimum of two amounts
-// (`ArithOp` is plus/minus/times/differenceBetween). It is also a `SbaRule`
-// rather than a conferral: [CR#704.5q] scopes a permanent that has BOTH kinds,
-// which is a predicate over the permanent, not a property of one counter.
-// Routed to `semantics-v2-counter-annihilation-sba`.
+// The annihilation rule ([CR#704.5q,122.3]) is the second conferral, a
+// state-based one, which applies once per holder per check and may read
+// counts (ruling 2026-10-10): if the permanent has both a +1/+1 and a -1/-1
+// counter, N of each are removed from it at once, where N is the smaller of
+// the two counts. The two removals are one simultaneous action, as every
+// state-based action of a check is one event ([CR#704.3]), not one pair per
+// sweep. It lives here rather than on `p1p1Counter`, which points at it.
+//
+// The rule names this declaration's own kind as `Named(name: "m1m1Counter")`,
+// not by the bare name: the bare name is a macro whose body is this whole
+// definition, so reading it inside that body would expand it without end.
 CounterKind(
     name: "m1m1Counter",
     params: [],
@@ -17,5 +21,22 @@ CounterKind(
     compound_onset: Consonant,
     spelling: "-1/-1",
     holder: Object,
-    confers: [boost(down(1), down(1))],
+    confers: [
+        boost(down(1), down(1)),
+        stateBased(
+            matches(This, and([hasCounters(p1p1Counter), hasCounters(Named(name: "m1m1Counter"))])),
+            simultaneously([
+                removeCounters(
+                    exactlyOf(smallerOf(countersOn(p1p1Counter, This), countersOn(Named(name: "m1m1Counter"), This))),
+                    p1p1Counter,
+                    This,
+                ),
+                removeCounters(
+                    exactlyOf(smallerOf(countersOn(p1p1Counter, This), countersOn(Named(name: "m1m1Counter"), This))),
+                    Printed(Named(name: "m1m1Counter")),
+                    This,
+                ),
+            ]),
+        ),
+    ],
 )

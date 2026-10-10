@@ -329,6 +329,21 @@ fn no_source_file_writes_out_an_elided_constructor() {
             .expect("the corpus directory is readable")
         {
             let source = std::fs::read_to_string(&path).expect("a corpus file is readable UTF-8");
+            // A declaration cannot read its own bare name inside its own
+            // body: the name is a macro whose body is that very definition,
+            // and macros don't recurse. So the one other place a name is
+            // written out is a declaration naming ITSELF (the -1/-1
+            // counter's annihilation rule reads its own kind's count,
+            // [CR#704.5q], ruling 2026-10-10); any other written-out name
+            // still fails.
+            let own_name = path
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .map(|stem| format!("Named(name: \"{stem}\")"));
+            let source = match &own_name {
+                Some(own) => source.replace(own.as_str(), ""),
+                None => source,
+            };
             for spelling in elided {
                 if spelling == "Named(name:" && path.starts_with(&writes_names) {
                     continue;

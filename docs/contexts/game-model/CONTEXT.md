@@ -781,9 +781,11 @@ no Ability behind it, which neither grants an Ability nor sets a characteristic
 
 **Registry Definition** (project term):
 What one registry declaration means — the rules content the declared name
-stands for. A Counter's kind, holder and Conferrals, the Conferrals being what
-ONE Counter of the kind confers, applied once per Counter held (a +1/+1
-counter confers +1/+1 [CR#122.1a]); a Subtype and its
+stands for. A Counter's kind, holder and Conferrals: an Ability or property
+Conferral is what ONE Counter of the kind confers, applied once per Counter
+held (a +1/+1 counter confers +1/+1 [CR#122.1a]), and a State-Based Action
+Conferral applies once per holder per check and may read counts, its own
+kind's included (the -1/-1 counter's annihilation rule [CR#704.5q]); a Subtype and its
 Conferrals; a Designation's holder and columns; a Card Type, whether it is a
 Permanent Type, and its Conferrals (a creature is a Combatant [CR#508.1a]). A registry declares a
 namespace's members, so a Registry Definition names what it defines, where a
