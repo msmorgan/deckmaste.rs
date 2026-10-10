@@ -858,7 +858,7 @@ A phrase's having a Focusing Modifier of its own. In this project's restrictive
 Noun Phrase, PP and Adverb Phrase analysis, a phrase already in Focused Use
 cannot itself be the head of another restrictive Focusing Modifier (post-landing review, 2026-10-08, extended to
 Adverb Phrases by the [once-frequency landing](../../tickets/done/english-v3-once-frequency.md#landing-record)
-and Noun Phrases by [orchestrator ruling FO5, 2026-10-10](../../tickets/wip/english-v3-focus-only-object.md#analysis)).
+and Noun Phrases by [orchestrator ruling FO5, 2026-10-10](../../tickets/done/english-v3-focus-only-object.md#analysis)).
 
 **Predicate**:
 The grammatical function in a Clause that predicates something of the Subject.

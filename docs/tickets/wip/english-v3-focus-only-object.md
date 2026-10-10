@@ -179,6 +179,19 @@ Phrases only; amend both in the landing.
    No additional position licence, lexicon route, or loader change; no
    superseded grammar/lexicon route. No STOPs. Extended **Focusing Modifier**
    and **Focused Use** in the glossary; no remaining glossary gap.
+   Accepted by orchestrator ruling **2026-10-10**:
+   (a) NP `FocusedUse` is read only by `FocusedPhrase`'s
+   `head.FocusedUse = No`; no position reads it. A focused NP is therefore
+   admitted in every NP slot, including PP Complement (*blocked by only
+   creatures with flying* reads), wider than FO2's Object/Complement wording.
+   No covered face is affected (**0 increases**); the two attested *by only
+   this creature this combat* faces stay unread for another cause.
+   (b) A coordinated NP after *only* has two Readings by focus height,
+   `[only A] and B` and `only [A and B]`: *Destroy only target creature and
+   target land.* has **2**, versus control **1**. Both are grammatical scopes;
+   this construction is unattested in the bounded set.
+   (c) *This creature can block only this turn.* has **1** Reading with
+   *this turn* as focused Object; temporal-NP Adjunct focus stays out of scope.
 5. **Tests** — before refresh, `zqnqzmnumpyr`:
    `cargo test -p deckmaste_english_v3` **passed (794 tests)** and
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` **passed**.
